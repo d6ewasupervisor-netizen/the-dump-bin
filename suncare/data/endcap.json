@@ -1,0 +1,2089 @@
+{
+  "id": "endcap",
+  "name": "4ft Endcap",
+  "subtitle": "FRED MEYER SUNCARE 6 SHELF ENDCAP SEASONAL",
+  "pogNumber": "185-SUNTAN 150",
+  "liveDate": "02-08-26",
+  "sides": 1,
+  "shelves": 6,
+  "totalProducts": 115,
+  "upcRedirects": {
+    "0007214003517": "0007214003912",
+    "0081008487202": "0081011561524",
+    "0081008487122": "0081011561523"
+  },
+  "removedProducts": [
+    {
+      "upc": "5440233079",
+      "name": "AUST GLD BRNZ SPRY 8 FO"
+    },
+    {
+      "upc": "5440233091",
+      "name": "AUST GLD CNT SPRY SPF 15 6 OZ"
+    },
+    {
+      "upc": "7214002739",
+      "name": "CPRTN WTRBABY LTN SPF50 8 FO"
+    },
+    {
+      "upc": "7214002747",
+      "name": "CPRTN SPRT SNSCRN SPF50 7 FO"
+    },
+    {
+      "upc": "7214002748",
+      "name": "CPRTN SPRT SUNSCRN SPF70 7 FO"
+    },
+    {
+      "upc": "7214002761",
+      "name": "CPRTN SPRT 4N1 LTN SPF30 7 FO"
+    },
+    {
+      "upc": "7214002765",
+      "name": "CPRTN SPRT SPRY SPF 7 5.5 OZ"
+    },
+    {
+      "upc": "7214002770",
+      "name": "CPRTN SPRT SPRAY SPF100 5.5 OZ"
+    },
+    {
+      "upc": "7214003205",
+      "name": "CPRTN CMPLT LTN SPF50 7 FO"
+    },
+    {
+      "upc": "7214003520",
+      "name": "CPRTN CMPLT SPR SPF50 5.5 OZ"
+    },
+    {
+      "upc": "7214003823",
+      "name": "CPRTN TANNING LTN SPF15 5 OZ"
+    },
+    {
+      "upc": "7214003825",
+      "name": "COPPERTONE KIDS SPRAY SPF 5.5 OZ"
+    },
+    {
+      "upc": "7214003826",
+      "name": "CPRTN SPORT FACE SUNCRN 2.5 FO"
+    },
+    {
+      "upc": "7214003912",
+      "name": "CPRTN SPORT C SPRAY SPF50 5.5 OZ"
+    },
+    {
+      "upc": "7214003925",
+      "name": "CPRTN SPRT SUNSCN SPRAY 11 OZ"
+    },
+    {
+      "upc": "7214003926",
+      "name": "CPRTN SNSCRN SPRY TWN PK 11 OZ"
+    },
+    {
+      "upc": "7214003927",
+      "name": "CPRTN SPRT 4N1 SPRY SPF30 5.5 OZ"
+    },
+    {
+      "upc": "7548608743",
+      "name": "HWTRP DARK TANNING OIL 8 FO"
+    },
+    {
+      "upc": "7548608747",
+      "name": "HWTRP SHEER LTN SPF30 8 FO"
+    },
+    {
+      "upc": "7548608754",
+      "name": "HWTRP LIME COOLDA AFTRSN 16 FO"
+    },
+    {
+      "upc": "7548608760",
+      "name": "HWTRP SHEER SUN SPF50 FL 8 FO"
+    },
+    {
+      "upc": "7548608989",
+      "name": "HWTRP SPRT CSPRAY SPF30 6 OZ"
+    },
+    {
+      "upc": "7548609114",
+      "name": "HWTRP SPT SPRAY SPF50 6 OZ"
+    },
+    {
+      "upc": "7548609192",
+      "name": "HWTRP SLKHYD WGHTLSS 6 OZ"
+    },
+    {
+      "upc": "7548613763",
+      "name": "HWTRP HYDRATION WTLS MSTR 6 FO"
+    },
+    {
+      "upc": "7965600008",
+      "name": "BBOAT ALOE AFTRSN LTN 16 FO"
+    },
+    {
+      "upc": "7965600114",
+      "name": "BBOAT PURE ALOE VERA GEL 16 FO"
+    },
+    {
+      "upc": "7965600781",
+      "name": "BB SLESS LTN DP/DK 6 FO"
+    },
+    {
+      "upc": "7965601332",
+      "name": "BB SPRT SPF50 SPRY TWN PK 2/6 OZ"
+    },
+    {
+      "upc": "7965601806",
+      "name": "BB KIDS SPRT UM SPF50 6 OZ"
+    },
+    {
+      "upc": "7965602560",
+      "name": "BB KIDS SPRT SPF50 TWN PK 2/6 OZ"
+    },
+    {
+      "upc": "7965602580",
+      "name": "BB KIDS SPORT CSPRAY SPF EA"
+    },
+    {
+      "upc": "7965603165",
+      "name": "BB SPRT SPF30 SPRY TWN PK 2/6 FO"
+    },
+    {
+      "upc": "7965603178",
+      "name": "BBOAT SPRT ULTMST SPF30 6 OZ"
+    },
+    {
+      "upc": "7965603179",
+      "name": "BBOAT ULTMST SPORT SPF50 6 OZ"
+    },
+    {
+      "upc": "7965603223",
+      "name": "BBOAT SPRT CLR SPRY SPF50 9.5 OZ"
+    },
+    {
+      "upc": "7965604647",
+      "name": "BBOAT DRY OIL SPF25 6 OZ"
+    },
+    {
+      "upc": "7965604662",
+      "name": "BB ALOE LIP BALM SPF45 1 CT"
+    },
+    {
+      "upc": "7965604663",
+      "name": "BBOAT DRY OIL DP UM SPF4 6 OZ"
+    },
+    {
+      "upc": "7965604968",
+      "name": "BBOAT SPRT SUN SPF100 4 FO"
+    },
+    {
+      "upc": "7965604971",
+      "name": "BBOAT SPRT LOTION SPF30 8 FO"
+    },
+    {
+      "upc": "7965604972",
+      "name": "BBOAT SPRT SUN SPF50 8 FO"
+    },
+    {
+      "upc": "7965605080",
+      "name": "BBOAT SPRT SPRAY SPF100 6 OZ"
+    },
+    {
+      "upc": "7965613089",
+      "name": "BBOAT SPR ULT SPF60 RN LT 2.5 OZ"
+    },
+    {
+      "upc": "7965614029",
+      "name": "BBOAT SPRT SPF AD CNT MST 5.5 FO"
+    },
+    {
+      "upc": "7965614030",
+      "name": "BBOAT KIDS SPF AD CNT MST 5.5 FO"
+    },
+    {
+      "upc": "7965614293",
+      "name": "BBOAT SPORT SPF50 SNSCRN 3 FO"
+    },
+    {
+      "upc": "7965614431",
+      "name": "BBOAT SHR SENS SPF50 SPR 6 OZ"
+    },
+    {
+      "upc": "7965614432",
+      "name": "BBOAT SHR SENS SPF50 LTN 6 FO"
+    },
+    {
+      "upc": "7965614433",
+      "name": "BBOAT SHR SENS LTN SPF50 3 FO"
+    },
+    {
+      "upc": "8680006650",
+      "name": "NEUTR CLEAR FACE SERUM 1.7 FO"
+    },
+    {
+      "upc": "8680006797",
+      "name": "NEUTR SPRT ACT DF SUNSCRN 5 OZ"
+    },
+    {
+      "upc": "8680007270",
+      "name": "NEUTR CLR FC SPF50 SNSCRN 5 OZ"
+    },
+    {
+      "upc": "8680007852",
+      "name": "NEUTR BCH DEFNS SPF70 LTN 13.4 FO"
+    },
+    {
+      "upc": "8680010038",
+      "name": "NEUTR ULT SHR BODY SPF30 5 OZ"
+    },
+    {
+      "upc": "8680010040",
+      "name": "NEUTR ULT SHR SNBLK SPF70 5 OZ"
+    },
+    {
+      "upc": "8680010274",
+      "name": "NEUTR MRL ULT SR DT FBSTK 1.5 OZ"
+    },
+    {
+      "upc": "8680011080",
+      "name": "NEUTR SHR ZNC SNSCR SPF50 3 FO"
+    },
+    {
+      "upc": "8680011082",
+      "name": "NEUTR BABY SUNCARE SPF 50 3 FO"
+    },
+    {
+      "upc": "8680011253",
+      "name": "NTG BCH DFWTRSNPRTCSNLTNB 6.7 FO"
+    },
+    {
+      "upc": "8680011254",
+      "name": "NEUTR BCH DFES SPRAY 6.5 OZ"
+    },
+    {
+      "upc": "8680011282",
+      "name": "NEUTR CLR FACE LOTION 3 OZ"
+    },
+    {
+      "upc": "8680068770",
+      "name": "NEUTR ULT SHR SNBLK SPF70 3 FO"
+    },
+    {
+      "upc": "8680068785",
+      "name": "NEUTR ULT SHR SNBLK SPF30 3 FO"
+    },
+    {
+      "upc": "8680068790",
+      "name": "NEUTR ULT SHR SNBLK SPF55 3 FO"
+    },
+    {
+      "upc": "8680086031",
+      "name": "NEUTR CLR FACE LTN SPF30 3 FO"
+    },
+    {
+      "upc": "8680087025",
+      "name": "NEUTR SPRT FACE LTN SPF70 2.5 FO"
+    },
+    {
+      "upc": "8680087272",
+      "name": "NEUTR BCH DFNS LTN SPF70 6.7 FO"
+    },
+    {
+      "upc": "8680087273",
+      "name": "NEUTR BCH DFNS SPRY SPF30 6.5 OZ"
+    },
+    {
+      "upc": "8680087274",
+      "name": "NEUTR BCH DFNS SPRY SPF70 6.5 OZ"
+    },
+    {
+      "upc": "8680087275",
+      "name": "NEUTR ULT SHR SPF50 STICK 1.5 OZ"
+    },
+    {
+      "upc": "30316201305",
+      "name": "BL SENSITIVE SPF 50 STICK 0.5 OZ"
+    },
+    {
+      "upc": "30316204630",
+      "name": "BL SENSITIVE SPF 50 LOTIO 3 FO"
+    },
+    {
+      "upc": "30316208005",
+      "name": "BLUE LIZARD SPORT S 5 OZ"
+    },
+    {
+      "upc": "30316208105",
+      "name": "BLUE LIZARD KIDS SP 5 OZ"
+    },
+    {
+      "upc": "30316208305",
+      "name": "BLU LZD SPF 50 SNSCRN 5 OZ"
+    },
+    {
+      "upc": "36519750210",
+      "name": "SLRCN AFTR SUN RLF SPRAY 4 OZ"
+    },
+    {
+      "upc": "70906900006",
+      "name": "MBABE BROWNING LOTION 8 FO"
+    },
+    {
+      "upc": "81002017595",
+      "name": "BNDSNDS SELF TAN FOAM DRK 5.07 FO"
+    },
+    {
+      "upc": "81002017596",
+      "name": "BNDSNDS SELF TAN FOAM L/M 5.07 FO"
+    },
+    {
+      "upc": "81003592138",
+      "name": "BABYG SHR SNSCRN LTN SP50 8 FO"
+    },
+    {
+      "upc": "81011561523",
+      "name": "HELLO BELLO KIDS SPF50 LO 5 OZ"
+    },
+    {
+      "upc": "81011561524",
+      "name": "HELO BELO KIDS SNSCR SPR 5 FO"
+    },
+    {
+      "upc": "84015560061",
+      "name": "SUNBUM SPF 45 FACE MIST 3.4 OZ"
+    },
+    {
+      "upc": "84015560314",
+      "name": "SUNBUM KIDS FCSTCK SNSCRN 0.53 OZ"
+    },
+    {
+      "upc": "84015560315",
+      "name": "SUNBUM KIDS VGN SUNSCREEN 6 FLOZ"
+    },
+    {
+      "upc": "84015560316",
+      "name": "SUNBUM KIDS SUNSCRN SPRAY 6 OZ"
+    },
+    {
+      "upc": "87176000044",
+      "name": "SUN BUM SPF 30 LOTION 6 O 6 FO"
+    },
+    {
+      "upc": "87176000045",
+      "name": "SUN BUM ORIGINAL SPF 50 L 6 FO"
+    },
+    {
+      "upc": "87176000046",
+      "name": "SUN BUM ORIG SPF70 SNSCRN 6 FO"
+    },
+    {
+      "upc": "87176000047",
+      "name": "SUN BUM COOL DOWN LOTION 6 FO"
+    },
+    {
+      "upc": "87176000183",
+      "name": "SUN BUM TNNG OIL SPF 15 9 OZ"
+    },
+    {
+      "upc": "87176000196",
+      "name": "SUN BUM SPF 30 SPRAY 6 OZ 6 OZ"
+    },
+    {
+      "upc": "87176000197",
+      "name": "SUN BUM SPF 50 SPRAY 6 OZ 6 OZ"
+    },
+    {
+      "upc": "87176000208",
+      "name": "SUN BUM ORIG SPRAY SPF70 6 OZ"
+    },
+    {
+      "upc": "87176000278",
+      "name": "BABY BUM SPF 50 MIN SUNSR 3 OZ"
+    },
+    {
+      "upc": "87176000279",
+      "name": "BABY BUM SPF 50 MIN SUNSR 0.45 OZ"
+    },
+    {
+      "upc": "87176000297",
+      "name": "SUN BUM ORIGINAL FACE 50 3 OZ"
+    },
+    {
+      "upc": "87176000309",
+      "name": "SUN BUM ORIGINAL SPF 30 S 0.45 OZ"
+    },
+    {
+      "upc": "87176000474",
+      "name": "SUN BUM MNRL SPF 30 6 OZ"
+    },
+    {
+      "upc": "87176000753",
+      "name": "SUN BUM SPF 30 SCALP SPRA 2 FO"
+    },
+    {
+      "upc": "506048979383",
+      "name": "TANOLOGIST DAILY GL 8.45 FO"
+    },
+    {
+      "upc": "506048979388",
+      "name": "TINTED MOUSSE MEDIUM 200ML"
+    },
+    {
+      "upc": "506048979399",
+      "name": "TANOLOGIST DAILY GL 8.45 FO"
+    },
+    {
+      "upc": "507000316190",
+      "name": "PLBR SNSCRN CCNT VNLA 4.3 FO"
+    },
+    {
+      "upc": "507000316191",
+      "name": "PLBR SNSCRN CCNT VNLA 4.7 FO"
+    },
+    {
+      "upc": "507000316192",
+      "name": "PLBR MNRL HYD BDY CRM 1.7 FO"
+    },
+    {
+      "upc": "507000316193",
+      "name": "PLBR SNSCRN CCNT VNLA 6.8 FO"
+    },
+    {
+      "upc": "507000316197",
+      "name": "PLBR I SCR FOR SUNSC SPRY 5.1 FO"
+    },
+    {
+      "upc": "507000316198",
+      "name": "PLBR I SCR FOR SUNSC SPRY 5.1 FO"
+    },
+    {
+      "upc": "934710800213",
+      "name": "BTAN IDWTOMH TAN MITT 1 CT"
+    },
+    {
+      "upc": "934710800286",
+      "name": "LOVE AT FIRST TAN 6.7 FO"
+    },
+    {
+      "upc": "934710800873",
+      "name": "BTAN TNND AF SLF TN MOUSS 6.7 FO"
+    },
+    {
+      "upc": "934710801686",
+      "name": "B.TAN GLOW YOUR OWN GEL 16 FO"
+    },
+    {
+      "upc": "934710804649",
+      "name": "BTAN GLW YR OWN WY TN GEL 16 FO"
+    }
+  ],
+  "products": [
+    {
+      "upc": "7214003825",
+      "name": "Coppertone Kids Spray SPF 50",
+      "widthIn": 2.08,
+      "heightIn": 7.3,
+      "segment": 1,
+      "shelf": 1,
+      "position": 1,
+      "facings": 2,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965602560",
+      "name": "Banana Boat Kids Sport SPF 50 Twin Pack",
+      "widthIn": 4.19,
+      "heightIn": 7.72,
+      "segment": 1,
+      "shelf": 1,
+      "position": 2,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965602580",
+      "name": "Banana Boat Kids Sport Continuous Spray SPF 50",
+      "widthIn": 2.35,
+      "heightIn": 9.06,
+      "segment": 1,
+      "shelf": 1,
+      "position": 3,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965601806",
+      "name": "Banana Boat Kids Sport Ultra Mist SPF 50",
+      "widthIn": 2.13,
+      "heightIn": 7.36,
+      "segment": 1,
+      "shelf": 1,
+      "position": 4,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965614030",
+      "name": "Banana Boat Kids SPF 50 Advanced Control Mist",
+      "widthIn": 2.35,
+      "heightIn": 7.91,
+      "segment": 1,
+      "shelf": 1,
+      "position": 5,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965604662",
+      "name": "Banana Boat Aloe Lip Balm SPF 45",
+      "widthIn": 3.2,
+      "heightIn": 3.95,
+      "segment": 1,
+      "shelf": 1,
+      "position": 6,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": "SRP"
+    },
+    {
+      "upc": "7214002739",
+      "name": "Coppertone WaterBabies Lotion SPF 50",
+      "widthIn": 2.7,
+      "heightIn": 7.04,
+      "segment": 1,
+      "shelf": 1,
+      "position": 7,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680011082",
+      "name": "Neutrogena Baby Suncare SPF 50",
+      "widthIn": 2.4,
+      "heightIn": 6,
+      "segment": 1,
+      "shelf": 1,
+      "position": 8,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "81003592138",
+      "name": "Babyganics Sheer Sunscreen Lotion SPF 50",
+      "widthIn": 2.9,
+      "heightIn": 8.05,
+      "segment": 1,
+      "shelf": 1,
+      "position": 9,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000278",
+      "name": "Baby Bum SPF 50 Mineral Sunscreen Lotion",
+      "widthIn": 2.1,
+      "heightIn": 5.7,
+      "segment": 1,
+      "shelf": 1,
+      "position": 10,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000279",
+      "name": "Baby Bum SPF 50 Mineral Sunscreen Stick",
+      "widthIn": 3.5,
+      "heightIn": 6.7,
+      "segment": 1,
+      "shelf": 1,
+      "position": 11,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": "SRP"
+    },
+    {
+      "upc": "87176000047",
+      "name": "Sun Bum Cool Down Lotion",
+      "widthIn": 2.8,
+      "heightIn": 6.5,
+      "segment": 1,
+      "shelf": 1,
+      "position": 12,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "507000316193",
+      "name": "PoolBar Sunscreen Coconut Vanilla",
+      "widthIn": 2.2,
+      "heightIn": 9,
+      "segment": 1,
+      "shelf": 1,
+      "position": 13,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "36519750210",
+      "name": "Solarcaine After Sun Relief Spray",
+      "widthIn": 2.13,
+      "heightIn": 5.69,
+      "segment": 1,
+      "shelf": 1,
+      "position": 14,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965600008",
+      "name": "Banana Boat Aloe After Sun Lotion",
+      "widthIn": 2.67,
+      "heightIn": 8.03,
+      "segment": 1,
+      "shelf": 1,
+      "position": 15,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965600114",
+      "name": "Banana Boat Pure Aloe Vera Gel",
+      "widthIn": 2.74,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 1,
+      "position": 16,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7548608754",
+      "name": "Hawaiian Tropic Lime Coolada After Sun",
+      "widthIn": 3.3,
+      "heightIn": 8.41,
+      "segment": 1,
+      "shelf": 1,
+      "position": 17,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7548608989",
+      "name": "Hawaiian Tropic Sport C-Spray SPF 30",
+      "widthIn": 2.08,
+      "heightIn": 7.75,
+      "segment": 1,
+      "shelf": 2,
+      "position": 1,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7548609114",
+      "name": "Hawaiian Tropic Sport Spray SPF 50",
+      "widthIn": 2.09,
+      "heightIn": 7.75,
+      "segment": 1,
+      "shelf": 2,
+      "position": 2,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7548609192",
+      "name": "Hawaiian Tropic Silk Hydration Weightless",
+      "widthIn": 2.09,
+      "heightIn": 7.75,
+      "segment": 1,
+      "shelf": 2,
+      "position": 3,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7548613763",
+      "name": "Hawaiian Tropic Hydration Weightless Moisturizer",
+      "widthIn": 2.09,
+      "heightIn": 7.75,
+      "segment": 1,
+      "shelf": 2,
+      "position": 4,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7548608747",
+      "name": "Hawaiian Tropic Sheer Touch Lotion SPF 30",
+      "widthIn": 2.68,
+      "heightIn": 7.06,
+      "segment": 1,
+      "shelf": 2,
+      "position": 5,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7548608760",
+      "name": "Hawaiian Tropic Sheer Touch SPF 50 Fluid",
+      "widthIn": 2.68,
+      "heightIn": 7.06,
+      "segment": 1,
+      "shelf": 2,
+      "position": 6,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965614431",
+      "name": "Banana Boat Sheer Sensitive SPF 50 Spray",
+      "widthIn": 2.09,
+      "heightIn": 7.36,
+      "segment": 1,
+      "shelf": 2,
+      "position": 7,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965614432",
+      "name": "Banana Boat Sheer Sensitive SPF 50 Lotion",
+      "widthIn": 3,
+      "heightIn": 6.6,
+      "segment": 1,
+      "shelf": 2,
+      "position": 8,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965614433",
+      "name": "Banana Boat Sheer Sensitive Lotion SPF 50",
+      "widthIn": 2.29,
+      "heightIn": 5.5,
+      "segment": 1,
+      "shelf": 2,
+      "position": 9,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "84015560316",
+      "name": "Sun Bum Kids Sunscreen Spray SPF 50",
+      "widthIn": 2.1,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 2,
+      "position": 10,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "84015560315",
+      "name": "Sun Bum Kids Vegan Sunscreen SPF 50",
+      "widthIn": 2.7,
+      "heightIn": 6.5,
+      "segment": 1,
+      "shelf": 2,
+      "position": 11,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "84015560314",
+      "name": "Sun Bum Kids Face Stick Sunscreen SPF 50",
+      "widthIn": 2,
+      "heightIn": 4.3,
+      "segment": 1,
+      "shelf": 2,
+      "position": 12,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "81011561524",
+      "name": "Hello Bello Kids Sunscreen Spray SPF 50",
+      "widthIn": 2,
+      "heightIn": 7.31,
+      "segment": 1,
+      "shelf": 2,
+      "position": 13,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "81011561523",
+      "name": "Hello Bello Kids SPF 50 Lotion",
+      "widthIn": 2,
+      "heightIn": 5.5,
+      "segment": 1,
+      "shelf": 2,
+      "position": 14,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680006797",
+      "name": "Neutrogena Sport Active Defense Sunscreen",
+      "widthIn": 1.77,
+      "heightIn": 7.44,
+      "segment": 1,
+      "shelf": 2,
+      "position": 15,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680087025",
+      "name": "Neutrogena Sport Face Lotion SPF 70+",
+      "widthIn": 2.2,
+      "heightIn": 5.14,
+      "segment": 1,
+      "shelf": 2,
+      "position": 16,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680086031",
+      "name": "Neutrogena Clear Face Lotion SPF 30",
+      "widthIn": 2.5,
+      "heightIn": 6,
+      "segment": 1,
+      "shelf": 2,
+      "position": 17,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680007270",
+      "name": "Neutrogena Clear Face SPF 50 Sunscreen",
+      "widthIn": 1.77,
+      "heightIn": 7.44,
+      "segment": 1,
+      "shelf": 2,
+      "position": 18,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680011282",
+      "name": "Neutrogena Clear Face Lotion SPF 50",
+      "widthIn": 2.5,
+      "heightIn": 6,
+      "segment": 1,
+      "shelf": 2,
+      "position": 19,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680006650",
+      "name": "Neutrogena Clear Face Serum SPF 50",
+      "widthIn": 2,
+      "heightIn": 4.63,
+      "segment": 1,
+      "shelf": 2,
+      "position": 20,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680011080",
+      "name": "Neutrogena Sheer Zinc Sunscreen SPF 50",
+      "widthIn": 2.46,
+      "heightIn": 5.89,
+      "segment": 1,
+      "shelf": 2,
+      "position": 21,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": "SRP"
+    },
+    {
+      "upc": "7214003926",
+      "name": "Coppertone Sunscreen Spray Twin Pack",
+      "widthIn": 4,
+      "heightIn": 7.39,
+      "segment": 1,
+      "shelf": 3,
+      "position": 1,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214003927",
+      "name": "Coppertone Sport 4-in-1 Spray SPF 30",
+      "widthIn": 2.08,
+      "heightIn": 7.39,
+      "segment": 1,
+      "shelf": 3,
+      "position": 2,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214002761",
+      "name": "Coppertone Sport 4-in-1 Lotion SPF 30",
+      "widthIn": 2.75,
+      "heightIn": 7.88,
+      "segment": 1,
+      "shelf": 3,
+      "position": 3,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214003925",
+      "name": "Coppertone Sport Sunscreen Spray",
+      "widthIn": 4.2,
+      "heightIn": 7.38,
+      "segment": 1,
+      "shelf": 3,
+      "position": 4,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214003912",
+      "name": "Coppertone Sport C-Spray SPF 50",
+      "widthIn": 2.08,
+      "heightIn": 7.39,
+      "segment": 1,
+      "shelf": 3,
+      "position": 5,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214002747",
+      "name": "Coppertone Sport Sunscreen SPF 50",
+      "widthIn": 2.75,
+      "heightIn": 7.88,
+      "segment": 1,
+      "shelf": 3,
+      "position": 6,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965603165",
+      "name": "Banana Boat Sport SPF 30 Spray Twin Pack",
+      "widthIn": 4.22,
+      "heightIn": 7.75,
+      "segment": 1,
+      "shelf": 3,
+      "position": 7,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965603178",
+      "name": "Banana Boat Sport Ultra Mist SPF 30",
+      "widthIn": 2.13,
+      "heightIn": 7.36,
+      "segment": 1,
+      "shelf": 3,
+      "position": 8,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965604971",
+      "name": "Banana Boat Sport Lotion SPF 30",
+      "widthIn": 2.27,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 3,
+      "position": 9,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965613089",
+      "name": "Banana Boat Sport Ultra SPF 60 Rub-On Lotion",
+      "widthIn": 2,
+      "heightIn": 4.75,
+      "segment": 1,
+      "shelf": 3,
+      "position": 10,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680087273",
+      "name": "Neutrogena Beach Defense Spray SPF 30",
+      "widthIn": 2,
+      "heightIn": 7.3,
+      "segment": 1,
+      "shelf": 3,
+      "position": 11,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680011254",
+      "name": "Neutrogena Beach Defense Spray SPF 50",
+      "widthIn": 2,
+      "heightIn": 7.3,
+      "segment": 1,
+      "shelf": 3,
+      "position": 12,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680011253",
+      "name": "Neutrogena Beach Defense Water + Sun Sunscreen Lotion Body",
+      "widthIn": 2.5,
+      "heightIn": 6.65,
+      "segment": 1,
+      "shelf": 3,
+      "position": 13,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680087275",
+      "name": "Neutrogena Ultra Sheer SPF 50 Stick",
+      "widthIn": 2.1,
+      "heightIn": 4.28,
+      "segment": 1,
+      "shelf": 3,
+      "position": 14,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680087274",
+      "name": "Neutrogena Beach Defense Spray SPF 70",
+      "widthIn": 2,
+      "heightIn": 7.3,
+      "segment": 1,
+      "shelf": 3,
+      "position": 15,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680007852",
+      "name": "Neutrogena Beach Defense SPF 70 Lotion",
+      "widthIn": 5,
+      "heightIn": 6.75,
+      "segment": 1,
+      "shelf": 3,
+      "position": 16,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680087272",
+      "name": "Neutrogena Beach Defense Lotion SPF 70",
+      "widthIn": 2.3,
+      "heightIn": 6.65,
+      "segment": 1,
+      "shelf": 3,
+      "position": 17,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214003826",
+      "name": "Coppertone Sport Face Sunscreen",
+      "widthIn": 2.37,
+      "heightIn": 6.12,
+      "segment": 1,
+      "shelf": 4,
+      "position": 1,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214002765",
+      "name": "Coppertone Sport Spray SPF 70",
+      "widthIn": 2.09,
+      "heightIn": 7.39,
+      "segment": 1,
+      "shelf": 4,
+      "position": 2,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214002748",
+      "name": "Coppertone Sport Sunscreen SPF 70",
+      "widthIn": 2.64,
+      "heightIn": 7.88,
+      "segment": 1,
+      "shelf": 4,
+      "position": 3,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214002770",
+      "name": "Coppertone Sport Spray SPF 100",
+      "widthIn": 2.08,
+      "heightIn": 7.39,
+      "segment": 1,
+      "shelf": 4,
+      "position": 4,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214003520",
+      "name": "Coppertone Complete Spray SPF 50",
+      "widthIn": 2.13,
+      "heightIn": 7.38,
+      "segment": 1,
+      "shelf": 4,
+      "position": 5,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214003205",
+      "name": "Coppertone Complete Lotion SPF 50",
+      "widthIn": 2.9,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 4,
+      "position": 6,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965603223",
+      "name": "Banana Boat Sport Clear Spray SPF 50",
+      "widthIn": 2.35,
+      "heightIn": 9.06,
+      "segment": 1,
+      "shelf": 4,
+      "position": 7,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965601332",
+      "name": "Banana Boat Sport SPF 50 Spray Twin Pack",
+      "widthIn": 4.2,
+      "heightIn": 7.75,
+      "segment": 1,
+      "shelf": 4,
+      "position": 8,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965603179",
+      "name": "Banana Boat Ultra Mist Sport SPF 50",
+      "widthIn": 2.13,
+      "heightIn": 7.36,
+      "segment": 1,
+      "shelf": 4,
+      "position": 9,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965604972",
+      "name": "Banana Boat Sport Sun SPF 50",
+      "widthIn": 2.27,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 4,
+      "position": 10,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965614029",
+      "name": "Banana Boat Sport SPF 50 Advanced Control Mist",
+      "widthIn": 2.35,
+      "heightIn": 7.91,
+      "segment": 1,
+      "shelf": 4,
+      "position": 11,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965614293",
+      "name": "Banana Boat Sport SPF 50 Sunscreen",
+      "widthIn": 2,
+      "heightIn": 5.38,
+      "segment": 1,
+      "shelf": 4,
+      "position": 12,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965605080",
+      "name": "Banana Boat Sport Spray SPF 100",
+      "widthIn": 2.13,
+      "heightIn": 7.6,
+      "segment": 1,
+      "shelf": 4,
+      "position": 13,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965604968",
+      "name": "Banana Boat Sport Sunscreen SPF 100",
+      "widthIn": 2.2,
+      "heightIn": 5.38,
+      "segment": 1,
+      "shelf": 4,
+      "position": 14,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680010038",
+      "name": "Neutrogena Ultra Sheer Body SPF 30",
+      "widthIn": 1.77,
+      "heightIn": 7.9,
+      "segment": 1,
+      "shelf": 4,
+      "position": 15,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680068785",
+      "name": "Neutrogena Ultra Sheer Sunblock SPF 30",
+      "widthIn": 2.3,
+      "heightIn": 5.96,
+      "segment": 1,
+      "shelf": 4,
+      "position": 16,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680068790",
+      "name": "Neutrogena Ultra Sheer Sunblock SPF 55",
+      "widthIn": 2.4,
+      "heightIn": 5.96,
+      "segment": 1,
+      "shelf": 4,
+      "position": 17,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680010040",
+      "name": "Neutrogena Ultra Sheer Sunblock SPF 70",
+      "widthIn": 1.77,
+      "heightIn": 7.4,
+      "segment": 1,
+      "shelf": 4,
+      "position": 18,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680068770",
+      "name": "Neutrogena Ultra Sheer Sunblock SPF 70",
+      "widthIn": 2.44,
+      "heightIn": 5.96,
+      "segment": 1,
+      "shelf": 4,
+      "position": 19,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "8680010274",
+      "name": "Neutrogena Mineral Ultra Sheer Dry-Touch Face Stick",
+      "widthIn": 2,
+      "heightIn": 4.28,
+      "segment": 1,
+      "shelf": 4,
+      "position": 20,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000196",
+      "name": "Sun Bum SPF 30 Spray 6oz",
+      "widthIn": 2.1,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 1,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000044",
+      "name": "Sun Bum SPF 30 Lotion 6oz",
+      "widthIn": 2.8,
+      "heightIn": 6.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 2,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000309",
+      "name": "Sun Bum Original SPF 30 Sunscreen Stick",
+      "widthIn": 2,
+      "heightIn": 3.4,
+      "segment": 1,
+      "shelf": 5,
+      "position": 3,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000197",
+      "name": "Sun Bum SPF 50 Spray 6oz",
+      "widthIn": 2.1,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 4,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000045",
+      "name": "Sun Bum Original SPF 50 Lotion",
+      "widthIn": 2.8,
+      "heightIn": 6.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 5,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000208",
+      "name": "Sun Bum Original Spray SPF 70",
+      "widthIn": 2.1,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 6,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000046",
+      "name": "Sun Bum Original SPF 70 Sunscreen",
+      "widthIn": 2.8,
+      "heightIn": 6.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 7,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000297",
+      "name": "Sun Bum Original Face SPF 50",
+      "widthIn": 2.25,
+      "heightIn": 5.7,
+      "segment": 1,
+      "shelf": 5,
+      "position": 8,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "84015560061",
+      "name": "Sun Bum SPF 45 Face Mist",
+      "widthIn": 2,
+      "heightIn": 6.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 9,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000753",
+      "name": "Sun Bum SPF 30 Scalp & Hair Mist Spray",
+      "widthIn": 2,
+      "heightIn": 6.3,
+      "segment": 1,
+      "shelf": 5,
+      "position": 10,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000474",
+      "name": "Sun Bum Mineral SPF 30",
+      "widthIn": 2.1,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 11,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "507000316197",
+      "name": "PoolBar I Scream For Sunscreen Spray SPF 30",
+      "widthIn": 2.1,
+      "heightIn": 7.32,
+      "segment": 1,
+      "shelf": 5,
+      "position": 12,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "507000316191",
+      "name": "PoolBar Sunscreen Coconut Vanilla SPF 30",
+      "widthIn": 2.13,
+      "heightIn": 8.25,
+      "segment": 1,
+      "shelf": 5,
+      "position": 13,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "507000316198",
+      "name": "PoolBar I Scream For Sunscreen Spray SPF 50",
+      "widthIn": 2.1,
+      "heightIn": 7.32,
+      "segment": 1,
+      "shelf": 5,
+      "position": 14,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "507000316190",
+      "name": "PoolBar Sunscreen Coconut Vanilla SPF 50",
+      "widthIn": 2.11,
+      "heightIn": 8.2,
+      "segment": 1,
+      "shelf": 5,
+      "position": 15,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "507000316192",
+      "name": "PoolBar Mineral Hydrating Body Cream",
+      "widthIn": 2.3,
+      "heightIn": 4.56,
+      "segment": 1,
+      "shelf": 5,
+      "position": 16,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "30316208105",
+      "name": "Blue Lizard Kids Sunscreen SPF 50+",
+      "widthIn": 1.8,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 17,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "30316208005",
+      "name": "Blue Lizard Sport Sunscreen SPF 50+",
+      "widthIn": 1.8,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 18,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "30316208305",
+      "name": "Blue Lizard SPF 50+ Sunscreen",
+      "widthIn": 1.8,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 19,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "30316204630",
+      "name": "Blue Lizard Sensitive SPF 50+ Lotion",
+      "widthIn": 2.5,
+      "heightIn": 5.5,
+      "segment": 1,
+      "shelf": 5,
+      "position": 20,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "30316201305",
+      "name": "Blue Lizard Sensitive SPF 50+ Stick",
+      "widthIn": 3.38,
+      "heightIn": 6.75,
+      "segment": 1,
+      "shelf": 5,
+      "position": 21,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": "SRP"
+    },
+    {
+      "upc": "934710800213",
+      "name": "b.tan I Don't Want To Hear It Tan Mitt",
+      "widthIn": 4,
+      "heightIn": 10,
+      "segment": 1,
+      "shelf": 6,
+      "position": 1,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": "SRP"
+    },
+    {
+      "upc": "934710804649",
+      "name": "b.tan Glow Your Own Way Tan Gel Dark",
+      "widthIn": 3.5,
+      "heightIn": 7.58,
+      "segment": 1,
+      "shelf": 6,
+      "position": 2,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "934710801686",
+      "name": "b.tan Glow Your Own Way Tan Gel",
+      "widthIn": 3.5,
+      "heightIn": 7.53,
+      "segment": 1,
+      "shelf": 6,
+      "position": 3,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "934710800286",
+      "name": "b.tan Love At First Tan",
+      "widthIn": 1.95,
+      "heightIn": 7.88,
+      "segment": 1,
+      "shelf": 6,
+      "position": 4,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "934710800873",
+      "name": "b.tan Tanned AF Self Tan Mousse",
+      "widthIn": 1.95,
+      "heightIn": 8,
+      "segment": 1,
+      "shelf": 6,
+      "position": 5,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "81002017596",
+      "name": "Bondi Sands Self Tan Foam Light/Medium",
+      "widthIn": 1.89,
+      "heightIn": 7.83,
+      "segment": 1,
+      "shelf": 6,
+      "position": 6,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "81002017595",
+      "name": "Bondi Sands Self Tan Foam Dark",
+      "widthIn": 1.89,
+      "heightIn": 7.83,
+      "segment": 1,
+      "shelf": 6,
+      "position": 7,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "5440233091",
+      "name": "Australian Gold Continuous Spray SPF 15",
+      "widthIn": 2,
+      "heightIn": 8,
+      "segment": 1,
+      "shelf": 6,
+      "position": 8,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "5440233079",
+      "name": "Australian Gold Bronze Spray",
+      "widthIn": 2.8,
+      "heightIn": 7.88,
+      "segment": 1,
+      "shelf": 6,
+      "position": 9,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7548608743",
+      "name": "Hawaiian Tropic Dark Tanning Oil",
+      "widthIn": 2.74,
+      "heightIn": 6.86,
+      "segment": 1,
+      "shelf": 6,
+      "position": 10,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965604663",
+      "name": "Banana Boat Dry Oil Deep Tanning Ultra Mist SPF 4",
+      "widthIn": 2.13,
+      "heightIn": 7.36,
+      "segment": 1,
+      "shelf": 6,
+      "position": 11,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965604647",
+      "name": "Banana Boat Dry Oil SPF 25",
+      "widthIn": 2.13,
+      "heightIn": 7.36,
+      "segment": 1,
+      "shelf": 6,
+      "position": 12,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7965600781",
+      "name": "Banana Boat Sunless Lotion Deep/Dark",
+      "widthIn": 3,
+      "heightIn": 6.4,
+      "segment": 1,
+      "shelf": 6,
+      "position": 13,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "7214003823",
+      "name": "Coppertone Tanning Lotion SPF 15",
+      "widthIn": 2.08,
+      "heightIn": 7.29,
+      "segment": 1,
+      "shelf": 6,
+      "position": 14,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "70906900006",
+      "name": "Maui Babe Browning Lotion",
+      "widthIn": 2,
+      "heightIn": 6.81,
+      "segment": 1,
+      "shelf": 6,
+      "position": 15,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "87176000183",
+      "name": "Sun Bum Tanning Oil SPF 15",
+      "widthIn": 2,
+      "heightIn": 7.5,
+      "segment": 1,
+      "shelf": 6,
+      "position": 16,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "506048979399",
+      "name": "Tanologist Daily Glow Drops Light",
+      "widthIn": 3.03,
+      "heightIn": 8.52,
+      "segment": 1,
+      "shelf": 6,
+      "position": 17,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "506048979383",
+      "name": "Tanologist Daily Glow Drops Dark",
+      "widthIn": 3.03,
+      "heightIn": 8.52,
+      "segment": 1,
+      "shelf": 6,
+      "position": 18,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    },
+    {
+      "upc": "506048979388",
+      "name": "Tanologist Tinted Mousse Medium",
+      "widthIn": 1.94,
+      "heightIn": 8.03,
+      "segment": 1,
+      "shelf": 6,
+      "position": 19,
+      "facings": 1,
+      "isNew": false,
+      "isMove": false,
+      "isChange": false,
+      "srp": ""
+    }
+  ]
+}

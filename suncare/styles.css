@@ -1,0 +1,633 @@
+:root {
+  --primary: #F5A623;
+  --bg: #121212;
+  --surface: #1E1E1E;
+  --surface-2: #2C2C2C;
+  --text: #E0E0E0;
+  --text-dim: #A0A0A0;
+  --new-badge: #4CAF50;
+  --srp-badge: #9C27B0;
+  --change-badge: #FF9800;
+  --move-badge: #2196F3;
+  --border-radius: 8px;
+  --spacing: 16px;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 70px; /* Space for bottom nav */
+  overscroll-behavior-y: contain; /* Prevent pull-to-refresh */
+  touch-action: pan-x pan-y;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Landing Page */
+.landing-container {
+  padding: var(--spacing);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.landing-title {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landing-subtitle {
+  color: var(--text-dim);
+  margin-bottom: 32px;
+}
+
+select {
+  width: 100%;
+  max-width: 320px;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-2);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  margin-bottom: 24px;
+}
+
+.preview-card {
+  background: var(--surface);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 320px;
+  text-align: left;
+  border: 1px solid var(--surface-2);
+  display: none; /* Hidden by default */
+}
+
+.preview-card.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+.preview-title {
+  color: var(--primary);
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+}
+
+.preview-meta {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.preview-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  font-size: 0.85rem;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #000;
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  font-size: 1rem;
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Header */
+header {
+  background: var(--surface);
+  padding: 12px var(--spacing);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 8px;
+}
+
+.app-title {
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.store-info {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.live-date {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.btn-change-store {
+  background: none;
+  border: 1px solid var(--surface-2);
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.tab-nav {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 8px 0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  flex: 1;
+}
+
+.tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.filter-chips {
+  display: flex;
+  gap: 8px;
+  padding: 12px var(--spacing);
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  color: var(--text-dim);
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.chip.active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+/* Shelf Grid & Rows */
+.browse-view {
+  padding: var(--spacing);
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Shelf Container */
+.shelf-container {
+  margin-bottom: 32px;
+  border-bottom: 4px solid #444; /* Shelf look */
+  padding-bottom: 0;
+  /* background: #1a1a1a; Removed background to look more like open shelves or keep it? */
+  background: transparent;
+}
+
+.shelf-header {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 
+   Product Shelf Row 
+   - Flex container
+   - Items align to bottom (flex-end)
+   - No wrapping (single row)
+   - Scrollable horizontally
+*/
+.product-shelf-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end; 
+  gap: 2px;
+  flex-wrap: nowrap;
+  width: var(--row-width, 100%);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 16px 2px 0;
+  min-height: 100px; /* Ensure some height */
+  touch-action: pan-x pan-y;
+}
+
+/* 
+   Product Card on Shelf
+   - Flex-grow logic handled in JS inline style
+   - Relative for badge positioning
+*/
+.product-card-shelf {
+  position: relative;
+  /* background: var(--surface); Removed background to make images stand out alone on shelf? 
+     Or keep slight background for touch target? */
+  /* background: rgba(255, 255, 255, 0.05); */
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* Push content to bottom */
+  flex: 0 0 auto;
+  width: calc(var(--width-in, 2.5) * var(--facings, 1) * var(--inch-scale, 7px));
+  height: calc(var(--height-in, 6) * var(--inch-scale, 7px));
+  padding: 2px;
+  min-width: 30px; /* Minimum clickable width */
+  border-left: 1px solid rgba(255,255,255,0.1); /* Separator */
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+
+.product-img-group {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  /* background: #fff;  Removed white background to have transparent PNGs sit on shelf? 
+     But webp images usually have backgrounds.
+     Let's keep white background for product visibility against dark theme? */
+  /* background: #fff; */ 
+  /* If images are cutouts, transparent is better. If full packs, white is safer. 
+     Prompt image suggests they are cutouts sitting on a shelf. 
+     But our images are likely rectangular packs. */
+  padding: 2px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.product-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  /* Ensure bottom anchor */
+  margin-bottom: 0;
+}
+
+.pos-badge {
+  position: absolute;
+  bottom: -16px; /* Below the shelf? Or on the shelf edge? */
+  /* Let's put it on the product at bottom */
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  font-size: 0.6rem;
+  text-align: center;
+  padding: 1px 0;
+  z-index: 20;
+}
+
+.badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 0.5rem;
+  padding: 1px 2px;
+  border-radius: 2px;
+  color: #fff;
+  font-weight: bold;
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.badge.new { background: var(--new-badge); }
+.badge.srp { background: var(--srp-badge); right: 0; left: auto; }
+
+/* Scan View */
+.scan-view {
+  display: none;
+  flex-direction: column;
+  height: calc(100vh - 140px);
+}
+
+#reader {
+  width: 100%;
+  flex: 1;
+  background: #000;
+}
+
+/* Manual UPC */
+.upc-view {
+  padding: var(--spacing);
+  display: none;
+}
+
+.upc-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.upc-input {
+  flex: 1;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-2);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+/* Bottom Nav */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--surface);
+  border-top: 1px solid var(--surface-2);
+  display: flex;
+  justify-content: space-around;
+  padding: 12px;
+  z-index: 100;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.nav-btn.active {
+  background: var(--primary);
+  color: #000;
+  font-weight: bold;
+}
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  z-index: 200;
+  display: none;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.overlay.active {
+  display: flex;
+}
+
+.overlay-content {
+  background: var(--surface);
+  width: 100%;
+  height: 85vh;
+  border-radius: 16px 16px 0 0;
+  padding: var(--spacing);
+  overflow-y: auto;
+  position: relative;
+  animation: slideUp 0.3s ease;
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.detail-img-container {
+    text-align: center;
+}
+
+.detail-img {
+  width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+  background: #000;
+  border-radius: var(--border-radius);
+  margin-bottom: 16px;
+  box-shadow: 0 0 36px rgba(255, 255, 255, 0.45);
+}
+
+.detail-title {
+  font-size: 1.25rem;
+  margin-bottom: 8px;
+}
+
+.detail-upc {
+  color: var(--text-dim);
+  font-family: monospace;
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+
+.location-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.loc-box {
+  background: var(--surface-2);
+  padding: 8px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.loc-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.loc-value {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.mini-pog {
+  border: 1px solid var(--surface-2);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.mini-shelf {
+  height: 20px;
+  background: #333;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.mini-item {
+  height: 80%;
+  width: 10px;
+  background: #555;
+  margin-right: 2px;
+}
+
+.mini-item.highlight {
+  background: var(--primary);
+}
+
+.redirect-banner {
+  background: #FFEB3B;
+  color: #000;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-link {
+  display: block;
+  text-align: center;
+  color: var(--primary);
+  text-decoration: none;
+  margin-top: 24px;
+  padding: 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--border-radius);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* PDF Viewer */
+.pdf-viewer {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  z-index: 300;
+  flex-direction: column;
+}
+
+.pdf-viewer.active {
+  display: flex;
+}
+
+.pdf-header {
+  padding: 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pdf-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+}
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 150;
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+.toast.warning {
+  background: #b00020;
+  color: #fff;
+}
+
+/* Utility */
+.hidden { display: none !important; }

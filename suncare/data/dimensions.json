@@ -1,0 +1,685 @@
+{
+  "generatedAt": "2026-02-23T04:41:59.646Z",
+  "dimensions": {
+    "7214003926": {
+      "heightIn": 7.39,
+      "widthIn": 4
+    },
+    "7214003927": {
+      "heightIn": 7.39,
+      "widthIn": 2.08
+    },
+    "7214002761": {
+      "heightIn": 7.88,
+      "widthIn": 2.75
+    },
+    "7214003826": {
+      "heightIn": 6.12,
+      "widthIn": 2.37
+    },
+    "7214002765": {
+      "heightIn": 7.39,
+      "widthIn": 2.09
+    },
+    "7214002770": {
+      "heightIn": 7.39,
+      "widthIn": 2.08
+    },
+    "7214003520": {
+      "heightIn": 7.38,
+      "widthIn": 2.13
+    },
+    "7214003205": {
+      "heightIn": 7.5,
+      "widthIn": 2.9
+    },
+    "7214003925": {
+      "heightIn": 7.38,
+      "widthIn": 4.2
+    },
+    "7214003912": {
+      "heightIn": 7.39,
+      "widthIn": 2.08
+    },
+    "7214002747": {
+      "heightIn": 7.88,
+      "widthIn": 2.75
+    },
+    "7214002748": {
+      "heightIn": 7.88,
+      "widthIn": 2.64
+    },
+    "7214003825": {
+      "heightIn": 7.3,
+      "widthIn": 2.08
+    },
+    "8680087273": {
+      "heightIn": 7.3,
+      "widthIn": 2
+    },
+    "8680011254": {
+      "heightIn": 7.3,
+      "widthIn": 2
+    },
+    "8680011253": {
+      "heightIn": 6.65,
+      "widthIn": 2.5
+    },
+    "8680087275": {
+      "heightIn": 4.28,
+      "widthIn": 2.1
+    },
+    "8680087274": {
+      "heightIn": 7.3,
+      "widthIn": 2
+    },
+    "8680007852": {
+      "heightIn": 6.75,
+      "widthIn": 5
+    },
+    "8680087272": {
+      "heightIn": 6.65,
+      "widthIn": 2.3
+    },
+    "8680086031": {
+      "heightIn": 6,
+      "widthIn": 2.5
+    },
+    "8680011282": {
+      "heightIn": 6,
+      "widthIn": 2.5
+    },
+    "8680007270": {
+      "heightIn": 7.44,
+      "widthIn": 1.77
+    },
+    "8680006650": {
+      "heightIn": 4.63,
+      "widthIn": 2
+    },
+    "8680087025": {
+      "heightIn": 5.14,
+      "widthIn": 2.2
+    },
+    "8680006797": {
+      "heightIn": 7.44,
+      "widthIn": 1.77
+    },
+    "7050111342": {
+      "heightIn": 6.06,
+      "widthIn": 2.3
+    },
+    "86000078186": {
+      "heightIn": 6,
+      "widthIn": 2
+    },
+    "86012100040": {
+      "heightIn": 5.8,
+      "widthIn": 2.3
+    },
+    "86000078182": {
+      "heightIn": 5.8,
+      "widthIn": 2.3
+    },
+    "8680068785": {
+      "heightIn": 5.96,
+      "widthIn": 2.3
+    },
+    "8680010038": {
+      "heightIn": 7.9,
+      "widthIn": 1.77
+    },
+    "8680068790": {
+      "heightIn": 5.96,
+      "widthIn": 2.4
+    },
+    "8680010355": {
+      "heightIn": 4.63,
+      "widthIn": 2
+    },
+    "7050111281": {
+      "heightIn": 6.65,
+      "widthIn": 2.85
+    },
+    "8680068770": {
+      "heightIn": 5.96,
+      "widthIn": 2.44
+    },
+    "8680010040": {
+      "heightIn": 7.4,
+      "widthIn": 1.77
+    },
+    "8680010043": {
+      "heightIn": 6.75,
+      "widthIn": 2.85
+    },
+    "8680011080": {
+      "heightIn": 5.89,
+      "widthIn": 2.46
+    },
+    "8680010274": {
+      "heightIn": 4.28,
+      "widthIn": 2
+    },
+    "7965603178": {
+      "heightIn": 7.36,
+      "widthIn": 2.13
+    },
+    "7965603165": {
+      "heightIn": 7.75,
+      "widthIn": 4.22
+    },
+    "7965604971": {
+      "heightIn": 7.5,
+      "widthIn": 2.27
+    },
+    "7965613089": {
+      "heightIn": 4.75,
+      "widthIn": 2
+    },
+    "7965605080": {
+      "heightIn": 7.6,
+      "widthIn": 2.13
+    },
+    "7965604968": {
+      "heightIn": 5.38,
+      "widthIn": 2.2
+    },
+    "7965603223": {
+      "heightIn": 9.06,
+      "widthIn": 2.35
+    },
+    "7965603179": {
+      "heightIn": 7.36,
+      "widthIn": 2.13
+    },
+    "7965601332": {
+      "heightIn": 7.75,
+      "widthIn": 4.2
+    },
+    "7965614293": {
+      "heightIn": 5.38,
+      "widthIn": 2
+    },
+    "7965614029": {
+      "heightIn": 7.91,
+      "widthIn": 2.35
+    },
+    "7965604972": {
+      "heightIn": 7.5,
+      "widthIn": 2.27
+    },
+    "7965614431": {
+      "heightIn": 7.36,
+      "widthIn": 2.09
+    },
+    "7965614432": {
+      "heightIn": 6.6,
+      "widthIn": 3
+    },
+    "7965614433": {
+      "heightIn": 5.5,
+      "widthIn": 2.29
+    },
+    "7965602580": {
+      "heightIn": 9.06,
+      "widthIn": 2.35
+    },
+    "7965602560": {
+      "heightIn": 7.72,
+      "widthIn": 4.19
+    },
+    "7965601806": {
+      "heightIn": 7.36,
+      "widthIn": 2.13
+    },
+    "7965614030": {
+      "heightIn": 7.91,
+      "widthIn": 2.35
+    },
+    "7965605082": {
+      "heightIn": 7.36,
+      "widthIn": 2.13
+    },
+    "7965604662": {
+      "heightIn": 3.95,
+      "widthIn": 3.2
+    },
+    "7548608989": {
+      "heightIn": 7.75,
+      "widthIn": 2.08
+    },
+    "7548609114": {
+      "heightIn": 7.75,
+      "widthIn": 2.09
+    },
+    "7548608747": {
+      "heightIn": 7.06,
+      "widthIn": 2.68
+    },
+    "7548608760": {
+      "heightIn": 7.06,
+      "widthIn": 2.68
+    },
+    "7548613763": {
+      "heightIn": 7.75,
+      "widthIn": 2.09
+    },
+    "7548609192": {
+      "heightIn": 7.75,
+      "widthIn": 2.09
+    },
+    "8680006407": {
+      "heightIn": 4.5,
+      "widthIn": 2.13
+    },
+    "8680011153": {
+      "heightIn": 5.81,
+      "widthIn": 2
+    },
+    "8680006649": {
+      "heightIn": 7.44,
+      "widthIn": 2
+    },
+    "8680011151": {
+      "heightIn": 6,
+      "widthIn": 2.4
+    },
+    "8680010383": {
+      "heightIn": 6,
+      "widthIn": 2.4
+    },
+    "8680010357": {
+      "heightIn": 8.5,
+      "widthIn": 2.09
+    },
+    "87176000047": {
+      "heightIn": 6.5,
+      "widthIn": 2.8
+    },
+    "7548608754": {
+      "heightIn": 8.41,
+      "widthIn": 3.3
+    },
+    "7548609166": {
+      "heightIn": 2.94,
+      "widthIn": 3.41
+    },
+    "7965600008": {
+      "heightIn": 8.03,
+      "widthIn": 2.67
+    },
+    "7965600114": {
+      "heightIn": 7.5,
+      "widthIn": 2.74
+    },
+    "507000316193": {
+      "heightIn": 9,
+      "widthIn": 2.2
+    },
+    "507000316198": {
+      "heightIn": 7.32,
+      "widthIn": 2.1
+    },
+    "507000316197": {
+      "heightIn": 7.32,
+      "widthIn": 2.1
+    },
+    "507000316192": {
+      "heightIn": 4.56,
+      "widthIn": 2.3
+    },
+    "507000316190": {
+      "heightIn": 8.2,
+      "widthIn": 2.11
+    },
+    "507000316191": {
+      "heightIn": 8.25,
+      "widthIn": 2.13
+    },
+    "30316208005": {
+      "heightIn": 7.5,
+      "widthIn": 1.8
+    },
+    "30316208105": {
+      "heightIn": 7.5,
+      "widthIn": 1.8
+    },
+    "30316208305": {
+      "heightIn": 7.5,
+      "widthIn": 1.8
+    },
+    "30316204630": {
+      "heightIn": 5.5,
+      "widthIn": 2.5
+    },
+    "30316201305": {
+      "heightIn": 6.75,
+      "widthIn": 3.38
+    },
+    "81327701980": {
+      "heightIn": 7.5,
+      "widthIn": 2.09
+    },
+    "81003592138": {
+      "heightIn": 8.05,
+      "widthIn": 2.9
+    },
+    "81011561524": {
+      "heightIn": 7.31,
+      "widthIn": 2
+    },
+    "81011561523": {
+      "heightIn": 5.5,
+      "widthIn": 2
+    },
+    "81011561522": {
+      "heightIn": 5.75,
+      "widthIn": 2.38
+    },
+    "8680011082": {
+      "heightIn": 6,
+      "widthIn": 2.4
+    },
+    "7214002739": {
+      "heightIn": 7.04,
+      "widthIn": 2.7
+    },
+    "72474201239": {
+      "heightIn": 6.6,
+      "widthIn": 2.09
+    },
+    "72474201078": {
+      "heightIn": 7.38,
+      "widthIn": 4.25
+    },
+    "72474200827": {
+      "heightIn": 5,
+      "widthIn": 2.33
+    },
+    "72474200439": {
+      "heightIn": 7.25,
+      "widthIn": 2.09
+    },
+    "72474200400": {
+      "heightIn": 6.6,
+      "widthIn": 2.33
+    },
+    "72474201052": {
+      "heightIn": 5.3,
+      "widthIn": 2.15
+    },
+    "85987100489": {
+      "heightIn": 4,
+      "widthIn": 3
+    },
+    "85987100490": {
+      "heightIn": 4,
+      "widthIn": 3
+    },
+    "89039700268": {
+      "heightIn": 6.5,
+      "widthIn": 2.16
+    },
+    "81000937175": {
+      "heightIn": 6.13,
+      "widthIn": 2
+    },
+    "36519750210": {
+      "heightIn": 5.69,
+      "widthIn": 2.13
+    },
+    "72474200382": {
+      "heightIn": 7.5,
+      "widthIn": 2.13
+    },
+    "72474201023": {
+      "heightIn": 7.25,
+      "widthIn": 2.1
+    },
+    "72474200390": {
+      "heightIn": 6.6,
+      "widthIn": 2.33
+    },
+    "72474200389": {
+      "heightIn": 6.6,
+      "widthIn": 2.33
+    },
+    "72474200404": {
+      "heightIn": 7.4,
+      "widthIn": 2.13
+    },
+    "72474200381": {
+      "heightIn": 7.5,
+      "widthIn": 2.13
+    },
+    "81000937008": {
+      "heightIn": 7.25,
+      "widthIn": 2
+    },
+    "81000937215": {
+      "heightIn": 6.13,
+      "widthIn": 2
+    },
+    "81000937804": {
+      "heightIn": 6.13,
+      "widthIn": 2
+    },
+    "81000937795": {
+      "heightIn": 6.13,
+      "widthIn": 2
+    },
+    "81000937007": {
+      "heightIn": 7.25,
+      "widthIn": 2
+    },
+    "87176000474": {
+      "heightIn": 7.5,
+      "widthIn": 2.1
+    },
+    "87176000196": {
+      "heightIn": 7.5,
+      "widthIn": 2.1
+    },
+    "87176000044": {
+      "heightIn": 6.5,
+      "widthIn": 2.8
+    },
+    "87176000309": {
+      "heightIn": 3.4,
+      "widthIn": 2
+    },
+    "87176000753": {
+      "heightIn": 6.3,
+      "widthIn": 2
+    },
+    "87176000197": {
+      "heightIn": 7.5,
+      "widthIn": 2.1
+    },
+    "87176000045": {
+      "heightIn": 6.5,
+      "widthIn": 2.8
+    },
+    "87176000208": {
+      "heightIn": 7.5,
+      "widthIn": 2.1
+    },
+    "87176000046": {
+      "heightIn": 6.5,
+      "widthIn": 2.8
+    },
+    "84015560061": {
+      "heightIn": 6.5,
+      "widthIn": 2
+    },
+    "87176000297": {
+      "heightIn": 5.7,
+      "widthIn": 2.25
+    },
+    "87176000183": {
+      "heightIn": 7.5,
+      "widthIn": 2
+    },
+    "84015560316": {
+      "heightIn": 7.5,
+      "widthIn": 2.1
+    },
+    "84015560315": {
+      "heightIn": 6.5,
+      "widthIn": 2.7
+    },
+    "84015560314": {
+      "heightIn": 4.3,
+      "widthIn": 2
+    },
+    "87176000279": {
+      "heightIn": 6.7,
+      "widthIn": 3.5
+    },
+    "87176000278": {
+      "heightIn": 5.7,
+      "widthIn": 2.1
+    },
+    "81015096142": {
+      "heightIn": 6,
+      "widthIn": 4.75
+    },
+    "81015096026": {
+      "heightIn": 4,
+      "widthIn": 3
+    },
+    "81015096176": {
+      "heightIn": 4,
+      "widthIn": 4.25
+    },
+    "81015096028": {
+      "heightIn": 5.5,
+      "widthIn": 3.5
+    },
+    "81002017596": {
+      "heightIn": 7.83,
+      "widthIn": 1.89
+    },
+    "81002017595": {
+      "heightIn": 7.83,
+      "widthIn": 1.89
+    },
+    "81002017599": {
+      "heightIn": 7.83,
+      "widthIn": 1.89
+    },
+    "70906900006": {
+      "heightIn": 6.81,
+      "widthIn": 2
+    },
+    "506048979399": {
+      "heightIn": 8.52,
+      "widthIn": 3.03
+    },
+    "506048979400": {
+      "heightIn": 8.52,
+      "widthIn": 3.03
+    },
+    "506048979383": {
+      "heightIn": 8.52,
+      "widthIn": 3.03
+    },
+    "506048979384": {
+      "heightIn": 8.52,
+      "widthIn": 3.03
+    },
+    "506048979388": {
+      "heightIn": 8.03,
+      "widthIn": 1.94
+    },
+    "81015096024": {
+      "heightIn": 5.5,
+      "widthIn": 2
+    },
+    "81015096172": {
+      "heightIn": 5.5,
+      "widthIn": 3.5
+    },
+    "7214003823": {
+      "heightIn": 7.29,
+      "widthIn": 2.08
+    },
+    "934710800308": {
+      "heightIn": 7,
+      "widthIn": 2.6
+    },
+    "7548608743": {
+      "heightIn": 6.86,
+      "widthIn": 2.74
+    },
+    "7548608872": {
+      "heightIn": 7.86,
+      "widthIn": 2.8
+    },
+    "7548608855": {
+      "heightIn": 6.86,
+      "widthIn": 2.8
+    },
+    "934710801686": {
+      "heightIn": 7.53,
+      "widthIn": 3.5
+    },
+    "934710803136": {
+      "heightIn": 7.53,
+      "widthIn": 3.5
+    },
+    "934710804649": {
+      "heightIn": 7.58,
+      "widthIn": 3.5
+    },
+    "934710805107": {
+      "heightIn": 3.27,
+      "widthIn": 3.67
+    },
+    "5440233079": {
+      "heightIn": 7.88,
+      "widthIn": 2.8
+    },
+    "5440233091": {
+      "heightIn": 8,
+      "widthIn": 2
+    },
+    "934710800286": {
+      "heightIn": 7.88,
+      "widthIn": 1.95
+    },
+    "934710800873": {
+      "heightIn": 8,
+      "widthIn": 1.95
+    },
+    "934710800100": {
+      "heightIn": 7.88,
+      "widthIn": 1.95
+    },
+    "7965604663": {
+      "heightIn": 7.36,
+      "widthIn": 2.13
+    },
+    "7965604450": {
+      "heightIn": 8,
+      "widthIn": 2
+    },
+    "7965604647": {
+      "heightIn": 7.36,
+      "widthIn": 2.13
+    },
+    "7965600780": {
+      "heightIn": 6.4,
+      "widthIn": 3
+    },
+    "7965600781": {
+      "heightIn": 6.4,
+      "widthIn": 3
+    },
+    "934710800213": {
+      "heightIn": 10,
+      "widthIn": 4
+    }
+  }
+}

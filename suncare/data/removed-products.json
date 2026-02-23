@@ -1,0 +1,562 @@
+{
+  "pallet": [
+    {
+      "upc": "7548608855",
+      "name": "HWTRP DRK TN OIL SPR SPF6 8 FO"
+    },
+    {
+      "upc": "7548608872",
+      "name": "HWTRP GLDTN DRY OIL SPF15 8 FO"
+    },
+    {
+      "upc": "7548609166",
+      "name": "HT AFTER SUN BODY BUTTER 8 OZ"
+    },
+    {
+      "upc": "7548609192",
+      "name": "HWTRP SLKHYD WGHTLSS 6 OZ"
+    },
+    {
+      "upc": "7965600114",
+      "name": "BBOAT PURE ALOE VERA GEL 16 FO"
+    },
+    {
+      "upc": "7965614431",
+      "name": "BBOAT SHR SENS SPF50 SPR 6 OZ"
+    },
+    {
+      "upc": "7965614432",
+      "name": "BBOAT SHR SENS SPF50 LTN 6 FO"
+    },
+    {
+      "upc": "7965614433",
+      "name": "BBOAT SHR SENS LTN SPF50 3 FO"
+    },
+    {
+      "upc": "8680007852",
+      "name": "NEUTR BCH DEFNS SPF70 LTN 13.4 FO"
+    },
+    {
+      "upc": "30316208005",
+      "name": "BLUE LIZARD SPORT S 5 OZ"
+    },
+    {
+      "upc": "30316208105",
+      "name": "BLUE LIZARD KIDS SP 5 OZ"
+    },
+    {
+      "upc": "81002017599",
+      "name": "BNDSNDS SELF TANNING FOAM 5.07 FO"
+    },
+    {
+      "upc": "506048979383",
+      "name": "TANOLOGIST DAILY GL 8.45 FO"
+    },
+    {
+      "upc": "506048979384",
+      "name": "TANOLOGIST DAILY GL 8.45 FO"
+    },
+    {
+      "upc": "506048979388",
+      "name": "TINTED MOUSSE MEDIUM 200ML"
+    },
+    {
+      "upc": "506048979399",
+      "name": "TANOLOGIST DAILY GL 8.45 FO"
+    },
+    {
+      "upc": "506048979400",
+      "name": "TANOLOGIST DAILY GL 8.45 FO"
+    },
+    {
+      "upc": "507000316190",
+      "name": "PLBR SNSCRN CCNT VNLA 4.3 FO"
+    },
+    {
+      "upc": "507000316191",
+      "name": "PLBR SNSCRN CCNT VNLA 4.7 FO"
+    },
+    {
+      "upc": "507000316192",
+      "name": "PLBR MNRL HYD BDY CRM 1.7 FO"
+    },
+    {
+      "upc": "507000316193",
+      "name": "PLBR SNSCRN CCNT VNLA 6.8 FO"
+    },
+    {
+      "upc": "507000316197",
+      "name": "PLBR I SCR FOR SUNSC SPRY 5.1 FO"
+    },
+    {
+      "upc": "507000316198",
+      "name": "PLBR I SCR FOR SUNSC SPRY 5.1 FO"
+    },
+    {
+      "upc": "934710805107",
+      "name": "B.TAN THERE YOU GLO 6.7 FO"
+    }
+  ],
+  "endcap": [
+    {
+      "upc": "5440233079",
+      "name": "AUST GLD BRNZ SPRY 8 FO"
+    },
+    {
+      "upc": "5440233091",
+      "name": "AUST GLD CNT SPRY SPF 15 6 OZ"
+    },
+    {
+      "upc": "7214002739",
+      "name": "CPRTN WTRBABY LTN SPF50 8 FO"
+    },
+    {
+      "upc": "7214002747",
+      "name": "CPRTN SPRT SNSCRN SPF50 7 FO"
+    },
+    {
+      "upc": "7214002748",
+      "name": "CPRTN SPRT SUNSCRN SPF70 7 FO"
+    },
+    {
+      "upc": "7214002761",
+      "name": "CPRTN SPRT 4N1 LTN SPF30 7 FO"
+    },
+    {
+      "upc": "7214002765",
+      "name": "CPRTN SPRT SPRY SPF 7 5.5 OZ"
+    },
+    {
+      "upc": "7214002770",
+      "name": "CPRTN SPRT SPRAY SPF100 5.5 OZ"
+    },
+    {
+      "upc": "7214003205",
+      "name": "CPRTN CMPLT LTN SPF50 7 FO"
+    },
+    {
+      "upc": "7214003520",
+      "name": "CPRTN CMPLT SPR SPF50 5.5 OZ"
+    },
+    {
+      "upc": "7214003823",
+      "name": "CPRTN TANNING LTN SPF15 5 OZ"
+    },
+    {
+      "upc": "7214003825",
+      "name": "COPPERTONE KIDS SPRAY SPF 5.5 OZ"
+    },
+    {
+      "upc": "7214003826",
+      "name": "CPRTN SPORT FACE SUNCRN 2.5 FO"
+    },
+    {
+      "upc": "7214003912",
+      "name": "CPRTN SPORT C SPRAY SPF50 5.5 OZ"
+    },
+    {
+      "upc": "7214003925",
+      "name": "CPRTN SPRT SUNSCN SPRAY 11 OZ"
+    },
+    {
+      "upc": "7214003926",
+      "name": "CPRTN SNSCRN SPRY TWN PK 11 OZ"
+    },
+    {
+      "upc": "7214003927",
+      "name": "CPRTN SPRT 4N1 SPRY SPF30 5.5 OZ"
+    },
+    {
+      "upc": "7548608743",
+      "name": "HWTRP DARK TANNING OIL 8 FO"
+    },
+    {
+      "upc": "7548608747",
+      "name": "HWTRP SHEER LTN SPF30 8 FO"
+    },
+    {
+      "upc": "7548608754",
+      "name": "HWTRP LIME COOLDA AFTRSN 16 FO"
+    },
+    {
+      "upc": "7548608760",
+      "name": "HWTRP SHEER SUN SPF50 FL 8 FO"
+    },
+    {
+      "upc": "7548608989",
+      "name": "HWTRP SPRT CSPRAY SPF30 6 OZ"
+    },
+    {
+      "upc": "7548609114",
+      "name": "HWTRP SPT SPRAY SPF50 6 OZ"
+    },
+    {
+      "upc": "7548609192",
+      "name": "HWTRP SLKHYD WGHTLSS 6 OZ"
+    },
+    {
+      "upc": "7548613763",
+      "name": "HWTRP HYDRATION WTLS MSTR 6 FO"
+    },
+    {
+      "upc": "7965600008",
+      "name": "BBOAT ALOE AFTRSN LTN 16 FO"
+    },
+    {
+      "upc": "7965600114",
+      "name": "BBOAT PURE ALOE VERA GEL 16 FO"
+    },
+    {
+      "upc": "7965600781",
+      "name": "BB SLESS LTN DP/DK 6 FO"
+    },
+    {
+      "upc": "7965601332",
+      "name": "BB SPRT SPF50 SPRY TWN PK 2/6 OZ"
+    },
+    {
+      "upc": "7965601806",
+      "name": "BB KIDS SPRT UM SPF50 6 OZ"
+    },
+    {
+      "upc": "7965602560",
+      "name": "BB KIDS SPRT SPF50 TWN PK 2/6 OZ"
+    },
+    {
+      "upc": "7965602580",
+      "name": "BB KIDS SPORT CSPRAY SPF EA"
+    },
+    {
+      "upc": "7965603165",
+      "name": "BB SPRT SPF30 SPRY TWN PK 2/6 FO"
+    },
+    {
+      "upc": "7965603178",
+      "name": "BBOAT SPRT ULTMST SPF30 6 OZ"
+    },
+    {
+      "upc": "7965603179",
+      "name": "BBOAT ULTMST SPORT SPF50 6 OZ"
+    },
+    {
+      "upc": "7965603223",
+      "name": "BBOAT SPRT CLR SPRY SPF50 9.5 OZ"
+    },
+    {
+      "upc": "7965604647",
+      "name": "BBOAT DRY OIL SPF25 6 OZ"
+    },
+    {
+      "upc": "7965604662",
+      "name": "BB ALOE LIP BALM SPF45 1 CT"
+    },
+    {
+      "upc": "7965604663",
+      "name": "BBOAT DRY OIL DP UM SPF4 6 OZ"
+    },
+    {
+      "upc": "7965604968",
+      "name": "BBOAT SPRT SUN SPF100 4 FO"
+    },
+    {
+      "upc": "7965604971",
+      "name": "BBOAT SPRT LOTION SPF30 8 FO"
+    },
+    {
+      "upc": "7965604972",
+      "name": "BBOAT SPRT SUN SPF50 8 FO"
+    },
+    {
+      "upc": "7965605080",
+      "name": "BBOAT SPRT SPRAY SPF100 6 OZ"
+    },
+    {
+      "upc": "7965613089",
+      "name": "BBOAT SPR ULT SPF60 RN LT 2.5 OZ"
+    },
+    {
+      "upc": "7965614029",
+      "name": "BBOAT SPRT SPF AD CNT MST 5.5 FO"
+    },
+    {
+      "upc": "7965614030",
+      "name": "BBOAT KIDS SPF AD CNT MST 5.5 FO"
+    },
+    {
+      "upc": "7965614293",
+      "name": "BBOAT SPORT SPF50 SNSCRN 3 FO"
+    },
+    {
+      "upc": "7965614431",
+      "name": "BBOAT SHR SENS SPF50 SPR 6 OZ"
+    },
+    {
+      "upc": "7965614432",
+      "name": "BBOAT SHR SENS SPF50 LTN 6 FO"
+    },
+    {
+      "upc": "7965614433",
+      "name": "BBOAT SHR SENS LTN SPF50 3 FO"
+    },
+    {
+      "upc": "8680006650",
+      "name": "NEUTR CLEAR FACE SERUM 1.7 FO"
+    },
+    {
+      "upc": "8680006797",
+      "name": "NEUTR SPRT ACT DF SUNSCRN 5 OZ"
+    },
+    {
+      "upc": "8680007270",
+      "name": "NEUTR CLR FC SPF50 SNSCRN 5 OZ"
+    },
+    {
+      "upc": "8680007852",
+      "name": "NEUTR BCH DEFNS SPF70 LTN 13.4 FO"
+    },
+    {
+      "upc": "8680010038",
+      "name": "NEUTR ULT SHR BODY SPF30 5 OZ"
+    },
+    {
+      "upc": "8680010040",
+      "name": "NEUTR ULT SHR SNBLK SPF70 5 OZ"
+    },
+    {
+      "upc": "8680010274",
+      "name": "NEUTR MRL ULT SR DT FBSTK 1.5 OZ"
+    },
+    {
+      "upc": "8680011080",
+      "name": "NEUTR SHR ZNC SNSCR SPF50 3 FO"
+    },
+    {
+      "upc": "8680011082",
+      "name": "NEUTR BABY SUNCARE SPF 50 3 FO"
+    },
+    {
+      "upc": "8680011253",
+      "name": "NTG BCH DFWTRSNPRTCSNLTNB 6.7 FO"
+    },
+    {
+      "upc": "8680011254",
+      "name": "NEUTR BCH DFES SPRAY 6.5 OZ"
+    },
+    {
+      "upc": "8680011282",
+      "name": "NEUTR CLR FACE LOTION 3 OZ"
+    },
+    {
+      "upc": "8680068770",
+      "name": "NEUTR ULT SHR SNBLK SPF70 3 FO"
+    },
+    {
+      "upc": "8680068785",
+      "name": "NEUTR ULT SHR SNBLK SPF30 3 FO"
+    },
+    {
+      "upc": "8680068790",
+      "name": "NEUTR ULT SHR SNBLK SPF55 3 FO"
+    },
+    {
+      "upc": "8680086031",
+      "name": "NEUTR CLR FACE LTN SPF30 3 FO"
+    },
+    {
+      "upc": "8680087025",
+      "name": "NEUTR SPRT FACE LTN SPF70 2.5 FO"
+    },
+    {
+      "upc": "8680087272",
+      "name": "NEUTR BCH DFNS LTN SPF70 6.7 FO"
+    },
+    {
+      "upc": "8680087273",
+      "name": "NEUTR BCH DFNS SPRY SPF30 6.5 OZ"
+    },
+    {
+      "upc": "8680087274",
+      "name": "NEUTR BCH DFNS SPRY SPF70 6.5 OZ"
+    },
+    {
+      "upc": "8680087275",
+      "name": "NEUTR ULT SHR SPF50 STICK 1.5 OZ"
+    },
+    {
+      "upc": "30316201305",
+      "name": "BL SENSITIVE SPF 50 STICK 0.5 OZ"
+    },
+    {
+      "upc": "30316204630",
+      "name": "BL SENSITIVE SPF 50 LOTIO 3 FO"
+    },
+    {
+      "upc": "30316208005",
+      "name": "BLUE LIZARD SPORT S 5 OZ"
+    },
+    {
+      "upc": "30316208105",
+      "name": "BLUE LIZARD KIDS SP 5 OZ"
+    },
+    {
+      "upc": "30316208305",
+      "name": "BLU LZD SPF 50 SNSCRN 5 OZ"
+    },
+    {
+      "upc": "36519750210",
+      "name": "SLRCN AFTR SUN RLF SPRAY 4 OZ"
+    },
+    {
+      "upc": "70906900006",
+      "name": "MBABE BROWNING LOTION 8 FO"
+    },
+    {
+      "upc": "81002017595",
+      "name": "BNDSNDS SELF TAN FOAM DRK 5.07 FO"
+    },
+    {
+      "upc": "81002017596",
+      "name": "BNDSNDS SELF TAN FOAM L/M 5.07 FO"
+    },
+    {
+      "upc": "81003592138",
+      "name": "BABYG SHR SNSCRN LTN SP50 8 FO"
+    },
+    {
+      "upc": "81011561523",
+      "name": "HELLO BELLO KIDS SPF50 LO 5 OZ"
+    },
+    {
+      "upc": "81011561524",
+      "name": "HELO BELO KIDS SNSCR SPR 5 FO"
+    },
+    {
+      "upc": "84015560061",
+      "name": "SUNBUM SPF 45 FACE MIST 3.4 OZ"
+    },
+    {
+      "upc": "84015560314",
+      "name": "SUNBUM KIDS FCSTCK SNSCRN 0.53 OZ"
+    },
+    {
+      "upc": "84015560315",
+      "name": "SUNBUM KIDS VGN SUNSCREEN 6 FLOZ"
+    },
+    {
+      "upc": "84015560316",
+      "name": "SUNBUM KIDS SUNSCRN SPRAY 6 OZ"
+    },
+    {
+      "upc": "87176000044",
+      "name": "SUN BUM SPF 30 LOTION 6 O 6 FO"
+    },
+    {
+      "upc": "87176000045",
+      "name": "SUN BUM ORIGINAL SPF 50 L 6 FO"
+    },
+    {
+      "upc": "87176000046",
+      "name": "SUN BUM ORIG SPF70 SNSCRN 6 FO"
+    },
+    {
+      "upc": "87176000047",
+      "name": "SUN BUM COOL DOWN LOTION 6 FO"
+    },
+    {
+      "upc": "87176000183",
+      "name": "SUN BUM TNNG OIL SPF 15 9 OZ"
+    },
+    {
+      "upc": "87176000196",
+      "name": "SUN BUM SPF 30 SPRAY 6 OZ 6 OZ"
+    },
+    {
+      "upc": "87176000197",
+      "name": "SUN BUM SPF 50 SPRAY 6 OZ 6 OZ"
+    },
+    {
+      "upc": "87176000208",
+      "name": "SUN BUM ORIG SPRAY SPF70 6 OZ"
+    },
+    {
+      "upc": "87176000278",
+      "name": "BABY BUM SPF 50 MIN SUNSR 3 OZ"
+    },
+    {
+      "upc": "87176000279",
+      "name": "BABY BUM SPF 50 MIN SUNSR 0.45 OZ"
+    },
+    {
+      "upc": "87176000297",
+      "name": "SUN BUM ORIGINAL FACE 50 3 OZ"
+    },
+    {
+      "upc": "87176000309",
+      "name": "SUN BUM ORIGINAL SPF 30 S 0.45 OZ"
+    },
+    {
+      "upc": "87176000474",
+      "name": "SUN BUM MNRL SPF 30 6 OZ"
+    },
+    {
+      "upc": "87176000753",
+      "name": "SUN BUM SPF 30 SCALP SPRA 2 FO"
+    },
+    {
+      "upc": "506048979383",
+      "name": "TANOLOGIST DAILY GL 8.45 FO"
+    },
+    {
+      "upc": "506048979388",
+      "name": "TINTED MOUSSE MEDIUM 200ML"
+    },
+    {
+      "upc": "506048979399",
+      "name": "TANOLOGIST DAILY GL 8.45 FO"
+    },
+    {
+      "upc": "507000316190",
+      "name": "PLBR SNSCRN CCNT VNLA 4.3 FO"
+    },
+    {
+      "upc": "507000316191",
+      "name": "PLBR SNSCRN CCNT VNLA 4.7 FO"
+    },
+    {
+      "upc": "507000316192",
+      "name": "PLBR MNRL HYD BDY CRM 1.7 FO"
+    },
+    {
+      "upc": "507000316193",
+      "name": "PLBR SNSCRN CCNT VNLA 6.8 FO"
+    },
+    {
+      "upc": "507000316197",
+      "name": "PLBR I SCR FOR SUNSC SPRY 5.1 FO"
+    },
+    {
+      "upc": "507000316198",
+      "name": "PLBR I SCR FOR SUNSC SPRY 5.1 FO"
+    },
+    {
+      "upc": "934710800213",
+      "name": "BTAN IDWTOMH TAN MITT 1 CT"
+    },
+    {
+      "upc": "934710800286",
+      "name": "LOVE AT FIRST TAN 6.7 FO"
+    },
+    {
+      "upc": "934710800873",
+      "name": "BTAN TNND AF SLF TN MOUSS 6.7 FO"
+    },
+    {
+      "upc": "934710801686",
+      "name": "B.TAN GLOW YOUR OWN GEL 16 FO"
+    },
+    {
+      "upc": "934710804649",
+      "name": "BTAN GLW YR OWN WY TN GEL 16 FO"
+    }
+  ]
+}
