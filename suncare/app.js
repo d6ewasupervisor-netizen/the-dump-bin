@@ -82,7 +82,7 @@ const browseTemplate = () => `
   
   <div class="upc-view" id="upc-view">
     <div class="upc-input-group">
-      <input type="text" class="upc-input" id="manual-upc" placeholder="Enter UPC (e.g. 8680068785)">
+      <input type="text" class="upc-input" id="manual-upc" placeholder="Enter last 4+ digits of UPC or name" autocomplete="off">
       <button class="btn-primary" id="lookup-upc">Search</button>
     </div>
     <div id="upc-result"></div>
@@ -102,7 +102,12 @@ const productOverlayTemplate = (p, redirect=null) => `
       
       ${redirect ? `
         <div class="redirect-banner">
-          ⚠️ UPC Changed — Old: ${redirect.old} → New: ${redirect.new}
+          <div class="redirect-banner-title">&#x1F504; UPC CHANGE DETECTED</div>
+          <div class="redirect-banner-detail">
+            Old UPC: <strong>${redirect.old}</strong><br>
+            New UPC: <strong>${redirect.new}</strong>
+          </div>
+          <div class="redirect-banner-note">Both UPCs are valid for this product. Do NOT discard either version.</div>
         </div>
       ` : ''}
       
@@ -147,6 +152,11 @@ const productOverlayTemplate = (p, redirect=null) => `
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-file-type-pdf"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" /><path d="M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6" /><path d="M17 18h2" /><path d="M20 15h-3v6" /><path d="M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1" /></svg>
         POG PDFs
       </button>
+
+      <div class="overlay-nav-buttons">
+        <button class="btn-overlay-nav scan-another" id="scan-another">Scan Another</button>
+        <button class="btn-overlay-nav return-browse" id="return-browse">Return to Side ${p.segment}</button>
+      </div>
     </div>
   </div>
 `;
@@ -188,7 +198,7 @@ async function init() {
 
 const DEFAULT_WIDTH_IN = 2.5;
 const DEFAULT_HEIGHT_IN = 6.0;
-const BASE_PX_PER_IN = 7;
+const BASE_PX_PER_IN = 7.2;
 
 function getProductWidthIn(p) {
   const widthIn = Number(p.widthIn);
@@ -275,49 +285,90 @@ function setupPdfAccess() {
     }
 }
 
-function setupNavigation() {
+function switchToTab(tabName) {
   const tabs = document.querySelectorAll('.tab-btn');
   const views = {
     'browse': document.getElementById('browse-view'),
     'scan': document.getElementById('scan-view'),
     'upc': document.getElementById('upc-view')
   };
-  
+
+  tabs.forEach(b => b.classList.remove('active'));
+  const activeTab = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  if (activeTab) activeTab.classList.add('active');
+
+  Object.values(views).forEach(v => v.style.display = 'none');
+  views[tabName].style.display = tabName === 'scan' ? 'flex' : 'block';
+
+  if (tabName === 'scan') {
+    startScanner();
+  } else {
+    stopScanner();
+  }
+
+  if (tabName === 'browse') {
+    renderShelves();
+  }
+}
+
+function setupNavigation() {
+  const tabs = document.querySelectorAll('.tab-btn');
+
   tabs.forEach(t => {
     t.addEventListener('click', () => {
-      // Switch active tab
-      tabs.forEach(b => b.classList.remove('active'));
-      t.classList.add('active');
-      
-      // Hide all views
-      Object.values(views).forEach(v => v.style.display = 'none');
-      
-      // Show selected
-      const tabName = t.dataset.tab;
-      views[tabName].style.display = tabName === 'scan' ? 'flex' : 'block';
-      
-      if (tabName === 'scan') {
-        startScanner();
-      } else {
-        stopScanner();
-      }
-      
-      if (tabName === 'browse') {
-        renderShelves();
-      }
+      switchToTab(t.dataset.tab);
     });
   });
-  
+
   document.getElementById('change-store').addEventListener('click', () => {
     if (confirm('Change store?')) {
       location.reload();
     }
   });
-  
+
   // Manual UPC
-  document.getElementById('lookup-upc').addEventListener('click', () => {
-    const input = document.getElementById('manual-upc').value.trim();
-    if (input) handleUpcSearch(input);
+  const upcInput = document.getElementById('manual-upc');
+  const upcBtn = document.getElementById('lookup-upc');
+  let upcDebounce = null;
+
+  upcBtn.addEventListener('click', () => {
+    const val = upcInput.value.trim();
+    if (val) handleUpcSearch(val);
+  });
+
+  upcInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const val = upcInput.value.trim();
+      if (val) handleUpcSearch(val);
+    }
+  });
+
+  upcInput.addEventListener('input', () => {
+    clearTimeout(upcDebounce);
+    const val = upcInput.value.trim();
+    const resultDiv = document.getElementById('upc-result');
+    if (val.length < 3) { resultDiv.innerHTML = ''; return; }
+    upcDebounce = setTimeout(() => {
+      const matches = findAllFuzzy(val, products);
+      if (matches.length === 0) {
+        resultDiv.innerHTML = `<div class="upc-no-results">No matches</div>`;
+      } else {
+        resultDiv.innerHTML = `
+          <div class="upc-results-header">${matches.length} product${matches.length > 1 ? 's' : ''} found</div>
+          <div class="upc-results-list">
+            ${matches.map(p => `
+              <div class="upc-result-item" onclick="openProductOverlay('${p.upc}')">
+                <img src="images/${p.upc}.webp" class="upc-result-thumb" onerror="this.style.display='none'">
+                <div class="upc-result-info">
+                  <div class="upc-result-name">${p.name}</div>
+                  <div class="upc-result-detail">UPC: ${p.upc.replace(/^0+/, '')} · Side ${p.segment} · Shelf ${p.shelf} · Pos ${p.position}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }, 250);
   });
 }
 
@@ -385,9 +436,10 @@ function renderShelves() {
 
     const label = s === maxShelf ? 'TOP' : (s === 1 ? 'BOTTOM' : '');
 
-    const shelfScale = shelfWidthIn > 0
+    const baseScale = (shelfWidthIn > 0
       ? targetRowWidthPx / shelfWidthIn
-      : BASE_PX_PER_IN;
+      : BASE_PX_PER_IN) * 1.296;
+    const shelfScale = planogram.id === 'endcap' ? baseScale * 1.2 : baseScale;
 
     shelfDiv.innerHTML = `
       <div class="shelf-header">
@@ -572,42 +624,134 @@ function findByFuzzy(upc, items) {
   });
 }
 
+function findAllFuzzy(query, items) {
+  const q = normalizeUpcInput(query).toLowerCase();
+  if (!q) return [];
+
+  const scored = [];
+  for (const p of items) {
+    const pUpc = normalizeUpcInput(p.upc);
+    const pName = (p.name || '').toLowerCase();
+    let score = 0;
+
+    if (pUpc === q) { score = 100; }
+    else if (pUpc.endsWith(q)) { score = 90; }
+    else if (pUpc.startsWith(q)) { score = 80; }
+    else if (pUpc.includes(q)) { score = 70; }
+    else if (pName.includes(q)) { score = 50; }
+    else if (q.length >= 3) {
+      const noCheck = q.length > 1 ? q.slice(0, -1) : q;
+      if (pUpc.endsWith(noCheck) || pUpc.includes(noCheck)) { score = 40; }
+    }
+
+    if (score > 0) scored.push({ product: p, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score || a.product.position - b.product.position);
+  return scored.map(s => s.product);
+}
+
 // Search & Overlay
 function handleUpcSearch(upc) {
+  const resultDiv = document.getElementById('upc-result');
+
   let found = findProduct(upc);
   let redirectInfo = null;
-  
-  if (!found) {
-    const { candidates } = getUpcCandidates(upc);
-    
-    // Check against redirect keys too (which might need normalization)
-    for (let old in upcRedirects) {
-      const cleanOld = normalizeUpcInput(old);
-      if (candidates.includes(cleanOld)) {
-        const newUpc = upcRedirects[old];
-        found = findProduct(newUpc);
-        if (found) {
-          redirectInfo = { old: upc, new: newUpc };
-          break;
-        }
+
+  if (found) {
+    const reverseRedirect = findReverseRedirect(found.upc);
+    if (reverseRedirect) {
+      redirectInfo = { old: reverseRedirect.oldUpc, new: found.upc };
+    }
+    openProductOverlay(found.upc, redirectInfo);
+    if (resultDiv) resultDiv.innerHTML = '';
+    return;
+  }
+
+  const { candidates } = getUpcCandidates(upc);
+  for (let old in upcRedirects) {
+    const cleanOld = normalizeUpcInput(old);
+    if (candidates.includes(cleanOld)) {
+      const newUpc = upcRedirects[old];
+      found = findProduct(newUpc);
+      if (found) {
+        redirectInfo = { old: upc, new: newUpc };
+        openProductOverlay(found.upc, redirectInfo);
+        if (resultDiv) resultDiv.innerHTML = '';
+        return;
       }
     }
-    
-    if (!found) {
-      found = findByFuzzy(upc, products);
+  }
+
+  const matches = findAllFuzzy(upc, products);
+  const removedMatches = findAllFuzzy(upc, removedProducts);
+
+  if (matches.length === 1) {
+    openProductOverlay(matches[0].upc);
+    if (resultDiv) resultDiv.innerHTML = '';
+    return;
+  }
+
+  if (matches.length > 1) {
+    resultDiv.innerHTML = `
+      <div class="upc-results-header">${matches.length} products found</div>
+      <div class="upc-results-list">
+        ${matches.map(p => `
+          <div class="upc-result-item" onclick="openProductOverlay('${p.upc}')">
+            <img src="images/${p.upc}.webp" class="upc-result-thumb" onerror="this.style.display='none'">
+            <div class="upc-result-info">
+              <div class="upc-result-name">${p.name}</div>
+              <div class="upc-result-detail">UPC: ${p.upc.replace(/^0+/, '')} · Side ${p.segment} · Shelf ${p.shelf} · Pos ${p.position}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    return;
+  }
+
+  if (removedMatches.length > 0) {
+    showRemovedWarning(removedMatches[0]);
+    return;
+  }
+
+  resultDiv.innerHTML = `<div class="upc-no-results">No products found for "${upc}"</div>`;
+}
+
+function findReverseRedirect(productUpc) {
+  const cleanProduct = normalizeUpcInput(productUpc);
+  for (let old in upcRedirects) {
+    const newUpc = normalizeUpcInput(upcRedirects[old]);
+    if (newUpc === cleanProduct) {
+      return { oldUpc: normalizeUpcInput(old), newUpc: cleanProduct };
     }
   }
-  
-  if (found) {
-    openProductOverlay(found.upc, redirectInfo);
-  } else {
-    const removed = findByFuzzy(upc, removedProducts);
-    if (removed) {
-      showToast(`Removed from planogram: ${removed.name}`, 2500, 'warning');
-      return;
-    }
-    alert(`Product ${upc} not found on this planogram.`);
-  }
+  return null;
+}
+
+function showRemovedWarning(product) {
+  const existing = document.getElementById('removed-warning-overlay');
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.id = 'removed-warning-overlay';
+  div.className = 'removed-warning-overlay';
+  div.innerHTML = `
+    <div class="removed-warning-card">
+      <div class="removed-warning-icon">&#x26D4;</div>
+      <div class="removed-warning-title">ITEM REMOVED FROM PLANOGRAM</div>
+      <div class="removed-warning-name">${product.name}</div>
+      <div class="removed-warning-upc">UPC: ${product.upc}</div>
+      <div class="removed-warning-note">This product is no longer on the current planogram. Do not place on shelf.</div>
+      <button class="btn-primary removed-warning-dismiss" onclick="this.closest('.removed-warning-overlay').remove()">Dismiss</button>
+    </div>
+  `;
+  document.body.appendChild(div);
+
+  setTimeout(() => {
+    const el = document.getElementById('removed-warning-overlay');
+    if (el) el.remove();
+  }, 8000);
 }
 
 function findProduct(upc) {
@@ -632,11 +776,59 @@ function openProductOverlay(upc, redirect=null) {
   // Events
   document.getElementById('close-overlay').onclick = () => {
     document.querySelector('.overlay').remove();
+    focusProductInBrowse(p);
   };
-  
+
   document.getElementById('view-pdf').onclick = () => {
     openPdfViewer();
   };
+
+  document.getElementById('scan-another').onclick = () => {
+    document.querySelector('.overlay').remove();
+    switchToTab('scan');
+  };
+
+  document.getElementById('return-browse').onclick = () => {
+    document.querySelector('.overlay').remove();
+    currentSide = p.segment;
+    switchToTab('browse');
+    renderBottomNav();
+  };
+}
+
+function focusProductInBrowse(product) {
+  const browseView = document.getElementById('browse-view');
+  if (!browseView || !product) return;
+
+  // Switch to browse tab
+  const tabs = document.querySelectorAll('.tab-btn');
+  const views = {
+    'browse': browseView,
+    'scan': document.getElementById('scan-view'),
+    'upc': document.getElementById('upc-view')
+  };
+
+  tabs.forEach(b => b.classList.remove('active'));
+  const browseTab = document.querySelector('.tab-btn[data-tab="browse"]');
+  if (browseTab) browseTab.classList.add('active');
+
+  Object.values(views).forEach(v => {
+    if (v) v.style.display = 'none';
+  });
+  browseView.style.display = 'block';
+  stopScanner();
+
+  // Navigate to product side and shelf
+  currentSide = product.segment;
+  renderShelves();
+  renderBottomNav();
+
+  setTimeout(() => {
+    const shelfRow = document.getElementById(`shelf-row-${product.shelf}`);
+    if (shelfRow) {
+      shelfRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 0);
 }
 
 function renderMiniPog(activeProduct) {
