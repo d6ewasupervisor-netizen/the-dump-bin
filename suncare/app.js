@@ -81,9 +81,15 @@ const browseTemplate = () => `
   </div>
   
   <div class="upc-view" id="upc-view">
-    <div class="upc-input-group">
-      <input type="text" class="upc-input" id="manual-upc" placeholder="Enter last 4+ digits of UPC or name" autocomplete="off">
-      <button class="btn-primary" id="lookup-upc">Search</button>
+    <div class="upc-search-container">
+      <div class="upc-input-group">
+        <div class="upc-input-wrapper">
+          <input type="text" class="upc-input" id="manual-upc" placeholder="Enter 4+ digits of UPC or product name" autocomplete="off" inputmode="search">
+          <button class="upc-clear-input" id="clear-upc-input" aria-label="Clear input">✕</button>
+        </div>
+        <button class="btn-primary upc-search-btn" id="lookup-upc">Search</button>
+      </div>
+      <div class="upc-search-hint" id="upc-search-hint">Enter at least 4 digits to search by UPC</div>
     </div>
     <div id="upc-result"></div>
   </div>
@@ -285,6 +291,29 @@ function setupPdfAccess() {
     }
 }
 
+function clearUpcSearch() {
+  const upcInput = document.getElementById('manual-upc');
+  const resultDiv = document.getElementById('upc-result');
+  const hintDiv = document.getElementById('upc-search-hint');
+  const clearBtn = document.getElementById('clear-upc-input');
+
+  if (upcInput) upcInput.value = '';
+  if (resultDiv) resultDiv.innerHTML = '';
+  if (hintDiv) {
+    hintDiv.textContent = 'Enter at least 4 digits to search by UPC';
+    hintDiv.style.display = 'block';
+  }
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (upcInput) upcInput.focus();
+}
+
+function highlightMatch(text, query) {
+  if (!query || query.length < 3) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
 function switchToTab(tabName) {
   const tabs = document.querySelectorAll('.tab-btn');
   const views = {
@@ -292,6 +321,12 @@ function switchToTab(tabName) {
     'scan': document.getElementById('scan-view'),
     'upc': document.getElementById('upc-view')
   };
+
+  // Clear UPC search when leaving the UPC tab
+  const currentlyOnUpc = document.querySelector('.tab-btn[data-tab="upc"]')?.classList.contains('active');
+  if (currentlyOnUpc && tabName !== 'upc') {
+    clearUpcSearch();
+  }
 
   tabs.forEach(b => b.classList.remove('active'));
   const activeTab = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
@@ -308,6 +343,14 @@ function switchToTab(tabName) {
 
   if (tabName === 'browse') {
     renderShelves();
+  }
+
+  // Auto-focus input when switching to UPC tab
+  if (tabName === 'upc') {
+    setTimeout(() => {
+      const upcInput = document.getElementById('manual-upc');
+      if (upcInput) upcInput.focus();
+    }, 100);
   }
 }
 
@@ -343,15 +386,46 @@ function setupNavigation() {
     }
   });
 
+  // Clear button inside input
+  const clearInputBtn = document.getElementById('clear-upc-input');
+  clearInputBtn.addEventListener('click', () => {
+    clearUpcSearch();
+  });
+
+  // Toggle clear button visibility
+  function updateClearBtnVisibility() {
+    clearInputBtn.style.display = upcInput.value.length > 0 ? 'flex' : 'none';
+  }
+  updateClearBtnVisibility();
+
   upcInput.addEventListener('input', () => {
     clearTimeout(upcDebounce);
+    updateClearBtnVisibility();
     const val = upcInput.value.trim();
     const resultDiv = document.getElementById('upc-result');
-    if (val.length < 3) { resultDiv.innerHTML = ''; return; }
+    const hintDiv = document.getElementById('upc-search-hint');
+    const isNumeric = /^\d+$/.test(val);
+
+    // Require 4+ digits for UPC searches, 3+ chars for name searches
+    if (isNumeric && val.length < 4) {
+      resultDiv.innerHTML = '';
+      if (val.length > 0 && hintDiv) {
+        hintDiv.textContent = `Type ${4 - val.length} more digit${4 - val.length > 1 ? 's' : ''} to search`;
+        hintDiv.style.display = 'block';
+      }
+      return;
+    }
+    if (!isNumeric && val.length < 3) {
+      resultDiv.innerHTML = '';
+      return;
+    }
+
+    if (hintDiv) hintDiv.style.display = 'none';
+
     upcDebounce = setTimeout(() => {
       const matches = findAllFuzzy(val, products);
       if (matches.length === 0) {
-        resultDiv.innerHTML = `<div class="upc-no-results">No matches</div>`;
+        resultDiv.innerHTML = `<div class="upc-no-results">No products found for "${val}"</div>`;
       } else {
         resultDiv.innerHTML = `
           <div class="upc-results-header">${matches.length} product${matches.length > 1 ? 's' : ''} found</div>
@@ -360,7 +434,7 @@ function setupNavigation() {
               <div class="upc-result-item" onclick="openProductOverlay('${p.upc}')">
                 <img src="images/${p.upc}.webp" class="upc-result-thumb" onerror="this.style.display='none'">
                 <div class="upc-result-info">
-                  <div class="upc-result-name">${p.name}</div>
+                  <div class="upc-result-name">${highlightMatch(p.name, val)}</div>
                   <div class="upc-result-detail">UPC: ${p.upc.replace(/^0+/, '')} · Side ${p.segment} · Shelf ${p.shelf} · Pos ${p.position}</div>
                 </div>
               </div>
@@ -368,7 +442,7 @@ function setupNavigation() {
           </div>
         `;
       }
-    }, 250);
+    }, 200);
   });
 }
 
@@ -628,6 +702,11 @@ function findAllFuzzy(query, items) {
   const q = normalizeUpcInput(query).toLowerCase();
   if (!q) return [];
 
+  const isNumeric = /^\d+$/.test(q);
+
+  // Require at least 4 digits for UPC-based matching
+  if (isNumeric && q.length < 4) return [];
+
   const scored = [];
   for (const p of items) {
     const pUpc = normalizeUpcInput(p.upc);
@@ -639,7 +718,7 @@ function findAllFuzzy(query, items) {
     else if (pUpc.startsWith(q)) { score = 80; }
     else if (pUpc.includes(q)) { score = 70; }
     else if (pName.includes(q)) { score = 50; }
-    else if (q.length >= 3) {
+    else if (q.length >= 4) {
       const noCheck = q.length > 1 ? q.slice(0, -1) : q;
       if (pUpc.endsWith(noCheck) || pUpc.includes(noCheck)) { score = 40; }
     }
