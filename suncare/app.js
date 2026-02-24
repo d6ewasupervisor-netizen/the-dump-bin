@@ -461,32 +461,19 @@ function setupFilters() {
 function renderShelves() {
   const container = document.getElementById('browse-view');
   container.innerHTML = '';
-  
-  // Filter products by side and filter type
+
   const sideProducts = products.filter(p => p.segment === currentSide);
-  
-  // Get shelves (max shelf to 1)
-  const maxShelf = planogram.shelves; // e.g. 5 or 6
-  // We want to render top (maxShelf) to bottom (1)
-  
-  // Determine widest shelf for scaling
-  // We need to know the total width (sum of facings?) or just count of items?
-  // Prompt says: "Scale items so that the shelf width is the same for every shelf"
-  // "All items on a shelf must be visible from main browse view"
-  // This implies flexbox with shrink or fixed width per facing unit.
-  
-  // Let's find the max facings on any shelf to set a relative width unit
-  // Or just flex: 1 for each facing.
-  
+  const maxShelf = planogram.shelves;
+
   const shelves = [];
   let maxShelfWidthIn = 0;
+  let widestShelfItemCount = 0;
 
   for (let s = maxShelf; s >= 1; s--) {
     const shelfProducts = sideProducts
       .filter(p => p.shelf === s)
       .sort((a, b) => a.position - b.position);
 
-    // Filter by type if needed
     let displayProducts = shelfProducts;
     if (currentFilter === 'new') displayProducts = displayProducts.filter(p => p.isNew);
     if (currentFilter === 'srp') displayProducts = displayProducts.filter(p => p.srp);
@@ -496,24 +483,39 @@ function renderShelves() {
       (acc, p) => acc + getProductWidthIn(p) * p.facings,
       0
     );
-    maxShelfWidthIn = Math.max(maxShelfWidthIn, shelfWidthIn);
+
+    if (shelfWidthIn > maxShelfWidthIn) {
+      maxShelfWidthIn = shelfWidthIn;
+      widestShelfItemCount = displayProducts.length;
+    }
 
     shelves.push({ s, displayProducts, facings, shelfWidthIn });
   }
 
-  const targetRowWidthPx = getTargetRowWidthPx(container, maxShelfWidthIn);
+  const containerWidth = container ? container.clientWidth : window.innerWidth;
+  const isEndcap = planogram.id === 'endcap';
+  const GAP_PX = 2;
+  const padRight = isEndcap ? 48 : 8;
+
+  let uniformScale;
+  if (maxShelfWidthIn > 0) {
+    const widestGaps = Math.max(0, widestShelfItemCount - 1) * GAP_PX;
+    const available = containerWidth - padRight - widestGaps;
+
+    if (isEndcap) {
+      uniformScale = (available / maxShelfWidthIn) * 2.0;
+    } else {
+      uniformScale = available / maxShelfWidthIn;
+    }
+  } else {
+    uniformScale = BASE_PX_PER_IN;
+  }
 
   shelves.forEach(({ s, displayProducts, facings, shelfWidthIn }) => {
-    // Always render shelf container, even if empty
     const shelfDiv = document.createElement('div');
     shelfDiv.className = 'shelf-container';
 
     const label = s === maxShelf ? 'TOP' : (s === 1 ? 'BOTTOM' : '');
-
-    const baseScale = (shelfWidthIn > 0
-      ? targetRowWidthPx / shelfWidthIn
-      : BASE_PX_PER_IN) * 1.296;
-    const shelfScale = planogram.id === 'endcap' ? baseScale * 1.2 : baseScale;
 
     shelfDiv.innerHTML = `
       <div class="shelf-header">
@@ -529,8 +531,12 @@ function renderShelves() {
 
     const row = document.getElementById(`shelf-row-${s}`);
     if (row) {
-      row.style.setProperty('--row-width', `${targetRowWidthPx}px`);
-      row.style.setProperty('--inch-scale', `${shelfScale}px`);
+      const gaps = Math.max(0, displayProducts.length - 1) * GAP_PX;
+      const shelfPx = shelfWidthIn * uniformScale + gaps + padRight;
+      const rowWidth = Math.max(containerWidth, shelfPx);
+      row.style.setProperty('--row-width', `${rowWidth}px`);
+      row.style.setProperty('--inch-scale', `${uniformScale}px`);
+      row.style.paddingRight = `${padRight}px`;
     }
   });
 }

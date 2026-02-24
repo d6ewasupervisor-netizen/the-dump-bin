@@ -277,18 +277,15 @@ header {
 */
 .product-card-shelf {
   position: relative;
-  /* background: var(--surface); Removed background to make images stand out alone on shelf? 
-     Or keep slight background for touch target? */
-  /* background: rgba(255, 255, 255, 0.05); */
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end; /* Push content to bottom */
+  justify-content: flex-end;
   flex: 0 0 auto;
   width: calc(var(--width-in, 2.5) * var(--facings, 1) * var(--inch-scale, 7.2px));
   height: calc(var(--height-in, 6) * var(--inch-scale, 7.2px));
-  padding: 1px;
-  min-width: 30px;
+  padding: 0;
+  min-width: 18px;
   border-left: none;
   border-right: none;
 }
@@ -298,14 +295,7 @@ header {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  /* background: #fff;  Removed white background to have transparent PNGs sit on shelf? 
-     But webp images usually have backgrounds.
-     Let's keep white background for product visibility against dark theme? */
-  /* background: #fff; */ 
-  /* If images are cutouts, transparent is better. If full packs, white is safer. 
-     Prompt image suggests they are cutouts sitting on a shelf. 
-     But our images are likely rectangular packs. */
-  padding: 2px;
+  padding: 1px;
   position: relative;
   width: 100%;
   height: 100%;
@@ -322,8 +312,6 @@ header {
 
 .pos-badge {
   position: absolute;
-  bottom: -16px; /* Below the shelf? Or on the shelf edge? */
-  /* Let's put it on the product at bottom */
   bottom: 0;
   left: 0;
   width: 100%;
