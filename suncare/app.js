@@ -161,7 +161,7 @@ const productOverlayTemplate = (p, redirect=null) => `
 
       <div class="overlay-nav-buttons">
         <button class="btn-overlay-nav scan-another" id="scan-another">Scan Another</button>
-        <button class="btn-overlay-nav return-browse" id="return-browse">Return to Side ${p.segment}</button>
+        <button class="btn-overlay-nav return-browse" id="return-browse">See Product</button>
       </div>
     </div>
   </div>
@@ -531,10 +531,7 @@ function renderShelves() {
 
     const row = document.getElementById(`shelf-row-${s}`);
     if (row) {
-      const gaps = Math.max(0, displayProducts.length - 1) * GAP_PX;
-      const shelfPx = shelfWidthIn * uniformScale + gaps + padRight;
-      const rowWidth = Math.max(containerWidth, shelfPx);
-      row.style.setProperty('--row-width', `${rowWidth}px`);
+      row.style.setProperty('--row-width', `${containerWidth}px`);
       row.style.setProperty('--inch-scale', `${uniformScale}px`);
       row.style.paddingRight = `${padRight}px`;
     }
@@ -875,9 +872,7 @@ function openProductOverlay(upc, redirect=null) {
 
   document.getElementById('return-browse').onclick = () => {
     document.querySelector('.overlay').remove();
-    currentSide = p.segment;
-    switchToTab('browse');
-    renderBottomNav();
+    focusProductInBrowse(p);
   };
 }
 
