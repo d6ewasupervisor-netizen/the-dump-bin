@@ -206,6 +206,15 @@ const DEFAULT_WIDTH_IN = 2.5;
 const DEFAULT_HEIGHT_IN = 6.0;
 const BASE_PX_PER_IN = 7.2;
 
+const STACK_OVERRIDES = {
+  "7548609166": 4,
+  "934710805107": 3
+};
+
+function getStackCount(upc) {
+  return STACK_OVERRIDES[upc] || 1;
+}
+
 function getProductWidthIn(p) {
   const widthIn = Number(p.widthIn);
   return Number.isFinite(widthIn) ? widthIn : DEFAULT_WIDTH_IN;
@@ -546,35 +555,26 @@ function renderShelves() {
 }
 
 function createProductCard(p) {
-  // Use flex-grow based on facings
-  // Also handle vertical alignment: "all images need to be bottom orientation for each cell"
-  // This is handled by CSS: align-items: flex-end in row
-  
-  // Also "allow the user to zoom in for a closer view" -> click expands overlay
-  
-  // If facing > 1, repeat image inside card? 
-  // "Multi-facing products: Images repeat side-by-side to show facing count, wrapped in a single tap target"
-  
+  const stack = getStackCount(p.upc);
+  const heightIn = getProductHeightIn(p);
+  const stackedHeightIn = heightIn * stack;
+  const totalImages = p.facings * stack;
+  const isStacked = stack > 1;
+  const imgSrc = `images/${p.upc}.webp`;
+  const fallback = `data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>`;
+
   let imagesHtml = '';
-  // Limit max height relative to shelf?
-  // We want images intelligently scaled.
-  // In a flex row, if we set height: 100%, it might stretch.
-  // If we set width, height auto.
-  
-  for(let i=0; i<p.facings; i++) {
-     imagesHtml += `<img src="images/${p.upc}.webp" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">`;
+  for (let i = 0; i < totalImages; i++) {
+    imagesHtml += `<img src="${imgSrc}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='${fallback}'">`;
   }
 
-  // Width style: flex-grow: facings
-  // Also min-width to ensure visibility
   return `
-    <div class="product-card-shelf" data-upc="${p.upc}" style="--facings: ${p.facings}; --width-in: ${getProductWidthIn(p)}; --height-in: ${getProductHeightIn(p)};" onclick="openProductOverlay('${p.upc}')">
-      <div class="product-img-group">
+    <div class="product-card-shelf" data-upc="${p.upc}" style="--facings: ${p.facings}; --stack: ${stack}; --width-in: ${getProductWidthIn(p)}; --height-in: ${stackedHeightIn};" onclick="openProductOverlay('${p.upc}')">
+      <div class="product-img-group${isStacked ? ' stacked' : ''}">
         ${imagesHtml}
         ${p.isNew ? '<span class="badge new">NEW</span>' : ''}
         ${p.srp ? '<span class="badge srp">SRP</span>' : ''}
       </div>
-      <!-- Position number overlay? -->
       <div class="pos-badge">${p.position}</div>
     </div>
   `;
