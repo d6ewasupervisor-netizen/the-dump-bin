@@ -492,15 +492,21 @@ function renderShelves() {
     shelves.push({ s, displayProducts, facings, shelfWidthIn });
   }
 
-  const containerWidth = container ? container.clientWidth : window.innerWidth;
+  const rawWidth = container ? container.clientWidth : window.innerWidth;
+  const cs = container ? getComputedStyle(container) : null;
+  const containerPad = cs
+    ? parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+    : 0;
+  const contentWidth = rawWidth - containerPad;
+
   const isEndcap = planogram.id === 'endcap';
-  const GAP_PX = 2;
-  const padRight = isEndcap ? 48 : 8;
+  const GAP_PX = 4;
+  const padRight = isEndcap ? 24 : 4;
 
   let uniformScale;
   if (maxShelfWidthIn > 0) {
     const widestGaps = Math.max(0, widestShelfItemCount - 1) * GAP_PX;
-    const available = containerWidth - padRight - widestGaps;
+    const available = contentWidth - padRight - widestGaps;
 
     if (isEndcap) {
       uniformScale = (available / maxShelfWidthIn) * 2.0;
@@ -531,7 +537,7 @@ function renderShelves() {
 
     const row = document.getElementById(`shelf-row-${s}`);
     if (row) {
-      row.style.setProperty('--row-width', `${containerWidth}px`);
+      row.style.setProperty('--row-width', `${contentWidth}px`);
       row.style.setProperty('--inch-scale', `${uniformScale}px`);
       row.style.paddingRight = `${padRight}px`;
     }
@@ -602,42 +608,57 @@ function changeSide(side) {
 
 function setupGestures() {
   if (planogram.sides <= 1) return;
-  
+
   let touchStartX = 0;
   let touchEndX = 0;
   let touchStartY = 0;
   let touchEndY = 0;
-  
+  let pendingDirection = null;
+  let pendingTimer = null;
+  const CONFIRM_WINDOW_MS = 2000;
+
   const view = document.getElementById('browse-view');
   const edgeThreshold = 32;
-  
+
   view.addEventListener('touchstart', e => {
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
   });
-  
+
   view.addEventListener('touchend', e => {
     touchEndX = e.changedTouches[0].screenX;
     touchEndY = e.changedTouches[0].screenY;
     handleSwipe();
   });
-  
+
   function handleSwipe() {
     const deltaX = touchEndX - touchStartX;
     const deltaY = touchEndY - touchStartY;
-    const minSwipe = 200;
+    const minSwipe = 120;
     const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 2;
     const isEdgeSwipe =
       touchStartX <= edgeThreshold ||
       touchStartX >= window.innerWidth - edgeThreshold;
 
-    if (isHorizontal && isEdgeSwipe && deltaX < -minSwipe) {
-      // Swipe Left -> Next Side
-      if (currentSide < planogram.sides) changeSide(currentSide + 1);
-    }
-    if (isHorizontal && isEdgeSwipe && deltaX > minSwipe) {
-      // Swipe Right -> Prev Side
-      if (currentSide > 1) changeSide(currentSide - 1);
+    if (!isHorizontal || !isEdgeSwipe) return;
+
+    let direction = null;
+    if (deltaX < -minSwipe && currentSide < planogram.sides) direction = 'next';
+    if (deltaX > minSwipe && currentSide > 1) direction = 'prev';
+    if (!direction) return;
+
+    if (pendingDirection === direction) {
+      clearTimeout(pendingTimer);
+      pendingDirection = null;
+      if (direction === 'next') changeSide(currentSide + 1);
+      else changeSide(currentSide - 1);
+    } else {
+      pendingDirection = direction;
+      const targetSide = direction === 'next' ? currentSide + 1 : currentSide - 1;
+      showToast(`Swipe again for Side ${targetSide}`, CONFIRM_WINDOW_MS, 'default');
+      if (navigator.vibrate) navigator.vibrate(15);
+      clearTimeout(pendingTimer);
+      pendingTimer = setTimeout(() => { pendingDirection = null; }, CONFIRM_WINDOW_MS);
     }
   }
 }
@@ -647,7 +668,15 @@ function startScanner() {
   if (html5QrCode) return; // already running
   
   html5QrCode = new Html5Qrcode("reader");
-  const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+  const config = {
+    fps: 10,
+    qrbox: function(viewfinderWidth, viewfinderHeight) {
+      return {
+        width: Math.min(Math.floor(viewfinderWidth * 0.85), 400),
+        height: Math.min(Math.floor(viewfinderHeight * 0.45), 200)
+      };
+    }
+  };
   
   html5QrCode.start(
     { facingMode: "environment" }, 
