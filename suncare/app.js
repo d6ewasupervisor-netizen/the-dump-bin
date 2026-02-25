@@ -569,7 +569,7 @@ function createProductCard(p) {
   // Width style: flex-grow: facings
   // Also min-width to ensure visibility
   return `
-    <div class="product-card-shelf" style="--facings: ${p.facings}; --width-in: ${getProductWidthIn(p)}; --height-in: ${getProductHeightIn(p)};" onclick="openProductOverlay('${p.upc}')">
+    <div class="product-card-shelf" data-upc="${p.upc}" style="--facings: ${p.facings}; --width-in: ${getProductWidthIn(p)}; --height-in: ${getProductHeightIn(p)};" onclick="openProductOverlay('${p.upc}')">
       <div class="product-img-group">
         ${imagesHtml}
         ${p.isNew ? '<span class="badge new">NEW</span>' : ''}
@@ -939,6 +939,14 @@ function focusProductInBrowse(product) {
     if (shelfRow) {
       shelfRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+
+    const cards = browseView.querySelectorAll(`.product-card-shelf[data-upc="${product.upc}"]`);
+    cards.forEach(card => {
+      card.classList.add('highlight-flash');
+      card.addEventListener('animationend', () => {
+        card.classList.remove('highlight-flash');
+      }, { once: true });
+    });
   }, 0);
 }
 

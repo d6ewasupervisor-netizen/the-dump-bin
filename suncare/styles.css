@@ -1127,5 +1127,29 @@ header {
   }
 }
 
+/* Product highlight flash */
+.product-card-shelf.highlight-flash {
+  animation: neonFlash 2.5s ease-out;
+  z-index: 50;
+}
+
+@keyframes neonFlash {
+  0%, 20%, 40%, 60%, 80% {
+    box-shadow: 0 0 8px 2px #39ff14, inset 0 0 4px 1px rgba(57, 255, 20, 0.3);
+    outline: 2px solid #39ff14;
+    outline-offset: 1px;
+  }
+  10%, 30%, 50%, 70% {
+    box-shadow: none;
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+  }
+  100% {
+    box-shadow: none;
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+  }
+}
+
 /* Utility */
 .hidden { display: none !important; }
