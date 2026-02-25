@@ -611,58 +611,33 @@ function changeSide(side) {
 function setupGestures() {
   if (planogram.sides <= 1) return;
 
-  let touchStartX = 0;
-  let touchEndX = 0;
-  let touchStartY = 0;
-  let touchEndY = 0;
-  let pendingDirection = null;
-  let pendingTimer = null;
-  const CONFIRM_WINDOW_MS = 2000;
+  let twoFingerStartX = 0;
+  let twoFingerActive = false;
+  const MIN_SWIPE = 60;
 
   const view = document.getElementById('browse-view');
-  const edgeThreshold = 32;
 
-  view.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
-  });
-
-  view.addEventListener('touchend', e => {
-    touchEndX = e.changedTouches[0].screenX;
-    touchEndY = e.changedTouches[0].screenY;
-    handleSwipe();
-  });
-
-  function handleSwipe() {
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = touchEndY - touchStartY;
-    const minSwipe = 120;
-    const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 2;
-    const isEdgeSwipe =
-      touchStartX <= edgeThreshold ||
-      touchStartX >= window.innerWidth - edgeThreshold;
-
-    if (!isHorizontal || !isEdgeSwipe) return;
-
-    let direction = null;
-    if (deltaX < -minSwipe && currentSide < planogram.sides) direction = 'next';
-    if (deltaX > minSwipe && currentSide > 1) direction = 'prev';
-    if (!direction) return;
-
-    if (pendingDirection === direction) {
-      clearTimeout(pendingTimer);
-      pendingDirection = null;
-      if (direction === 'next') changeSide(currentSide + 1);
-      else changeSide(currentSide - 1);
-    } else {
-      pendingDirection = direction;
-      const targetSide = direction === 'next' ? currentSide + 1 : currentSide - 1;
-      showToast(`Swipe again for Side ${targetSide}`, CONFIRM_WINDOW_MS, 'default');
-      if (navigator.vibrate) navigator.vibrate(15);
-      clearTimeout(pendingTimer);
-      pendingTimer = setTimeout(() => { pendingDirection = null; }, CONFIRM_WINDOW_MS);
+  view.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      twoFingerActive = true;
+      twoFingerStartX = (e.touches[0].screenX + e.touches[1].screenX) / 2;
     }
-  }
+  }, { passive: true });
+
+  view.addEventListener('touchend', (e) => {
+    if (!twoFingerActive) return;
+    if (e.touches.length === 0) {
+      const endX = e.changedTouches[0].screenX;
+      const deltaX = endX - twoFingerStartX;
+
+      if (deltaX < -MIN_SWIPE && currentSide < planogram.sides) {
+        changeSide(currentSide + 1);
+      } else if (deltaX > MIN_SWIPE && currentSide > 1) {
+        changeSide(currentSide - 1);
+      }
+      twoFingerActive = false;
+    }
+  }, { passive: true });
 }
 
 // Scanner
@@ -985,30 +960,26 @@ function openPdfViewer() {
 }
 
 function setupPullDownProtection() {
-  let startX = 0;
-  let startY = 0;
+  let twoFingerStartY = 0;
+  let twoFingerActive = false;
 
   document.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
+    if (e.touches.length === 2) {
+      twoFingerActive = true;
+      twoFingerStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     }
   }, { passive: true });
 
-  document.addEventListener('touchmove', (e) => {
-    if (e.touches.length !== 1) return;
-
-    const scrollable = e.target.closest('.overlay-content, .pdf-frame, .upc-results-list, .product-shelf-row');
-    if (scrollable && scrollable.scrollTop > 0) return;
-
-    const deltaX = e.touches[0].clientX - startX;
-    const deltaY = e.touches[0].clientY - startY;
-
-    const isVerticalPull = deltaY > 0 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5;
-    if (isVerticalPull && window.scrollY <= 0) {
-      e.preventDefault();
+  document.addEventListener('touchend', (e) => {
+    if (!twoFingerActive) return;
+    if (e.touches.length === 0) {
+      const endY = e.changedTouches[0].clientY;
+      if (endY - twoFingerStartY > 80) {
+        location.reload();
+      }
+      twoFingerActive = false;
     }
-  }, { passive: false });
+  }, { passive: true });
 }
 
 // Start
