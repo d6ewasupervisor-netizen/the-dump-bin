@@ -681,8 +681,16 @@ function setupGestures() {
 
 // Scanner
 function startScanner() {
-  if (html5QrCode) return; // already running
-  
+  if (html5QrCode) return;
+
+  const readerEl = document.getElementById('reader');
+  readerEl.innerHTML = `
+    <div class="scanner-loading">
+      <div class="scanner-loading-spinner"></div>
+      <div class="scanner-loading-text">Starting camera&hellip;</div>
+    </div>
+  `;
+
   html5QrCode = new Html5Qrcode("reader");
   const config = {
     fps: 10,
@@ -693,21 +701,24 @@ function startScanner() {
       };
     }
   };
-  
+
   html5QrCode.start(
-    { facingMode: "environment" }, 
-    config, 
+    { facingMode: "environment" },
+    config,
     (decodedText) => {
-      // Success
       stopScanner();
-      handleUpcSearch(decodedText);
+      handleUpcSearch(decodedText, true);
     },
     (errorMessage) => {
-      // ignore
+      // ignore per-frame decode failures
     }
   ).catch(err => {
     console.error(err);
-    document.getElementById('reader').innerHTML = "Camera error or permission denied.";
+    readerEl.innerHTML = `
+      <div class="scanner-loading">
+        <div class="scanner-loading-text">Camera error or permission denied.</div>
+      </div>
+    `;
   });
 }
 
@@ -779,7 +790,7 @@ function findAllFuzzy(query, items) {
 }
 
 // Search & Overlay
-function handleUpcSearch(upc) {
+function handleUpcSearch(upc, fromScanner = false) {
   const resultDiv = document.getElementById('upc-result');
 
   let found = findProduct(upc);
@@ -819,6 +830,8 @@ function handleUpcSearch(upc) {
     return;
   }
 
+  if (fromScanner) switchToTab('upc');
+
   if (matches.length > 1) {
     resultDiv.innerHTML = `
       <div class="upc-results-header">${matches.length} products found</div>
@@ -838,7 +851,7 @@ function handleUpcSearch(upc) {
   }
 
   if (removedMatches.length > 0) {
-    showRemovedWarning(removedMatches[0]);
+    showRemovedWarning(removedMatches[0], fromScanner);
     return;
   }
 
@@ -856,7 +869,7 @@ function findReverseRedirect(productUpc) {
   return null;
 }
 
-function showRemovedWarning(product) {
+function showRemovedWarning(product, fromScanner = false) {
   const existing = document.getElementById('removed-warning-overlay');
   if (existing) existing.remove();
 
@@ -870,10 +883,21 @@ function showRemovedWarning(product) {
       <div class="removed-warning-name">${product.name}</div>
       <div class="removed-warning-upc">UPC: ${product.upc}</div>
       <div class="removed-warning-note">This product is no longer on the current planogram. Do not place on shelf.</div>
-      <button class="btn-primary removed-warning-dismiss" onclick="this.closest('.removed-warning-overlay').remove()">Dismiss</button>
+      <div class="removed-warning-buttons">
+        <button class="btn-primary removed-warning-dismiss" id="removed-dismiss-btn">Dismiss</button>
+        <button class="btn-primary removed-warning-scan-another" id="removed-scan-btn">Scan Another</button>
+      </div>
     </div>
   `;
   document.body.appendChild(div);
+
+  document.getElementById('removed-dismiss-btn').onclick = () => {
+    div.remove();
+  };
+  document.getElementById('removed-scan-btn').onclick = () => {
+    div.remove();
+    switchToTab('scan');
+  };
 
   setTimeout(() => {
     const el = document.getElementById('removed-warning-overlay');
@@ -950,17 +974,24 @@ function focusProductInBrowse(product) {
 
   setTimeout(() => {
     const shelfRow = document.getElementById(`shelf-row-${product.shelf}`);
-    if (shelfRow) {
+    const cards = browseView.querySelectorAll(`.product-card-shelf[data-upc="${product.upc}"]`);
+    const targetCard = cards.length > 0 ? cards[0] : null;
+
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+      const scrollSettleMs = planogram.id === 'endcap' ? 600 : 100;
+      setTimeout(() => {
+        cards.forEach(card => {
+          card.classList.add('highlight-flash');
+          card.addEventListener('animationend', () => {
+            card.classList.remove('highlight-flash');
+          }, { once: true });
+        });
+      }, scrollSettleMs);
+    } else if (shelfRow) {
       shelfRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-
-    const cards = browseView.querySelectorAll(`.product-card-shelf[data-upc="${product.upc}"]`);
-    cards.forEach(card => {
-      card.classList.add('highlight-flash');
-      card.addEventListener('animationend', () => {
-        card.classList.remove('highlight-flash');
-      }, { once: true });
-    });
   }, 0);
 }
 

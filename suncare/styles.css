@@ -375,6 +375,34 @@ header {
   background: #000;
 }
 
+.scanner-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: rgba(255,255,255,0.7);
+}
+
+.scanner-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: rgba(255,255,255,0.7);
+  border-radius: 50%;
+  animation: scannerSpin 0.8s linear infinite;
+}
+
+@keyframes scannerSpin {
+  to { transform: rotate(360deg); }
+}
+
+.scanner-loading-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
 /* Manual UPC */
 .upc-view {
   padding: var(--spacing);
@@ -803,12 +831,29 @@ header {
   line-height: 1.4;
 }
 
+.removed-warning-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
 .removed-warning-dismiss {
   background: #fff;
   color: #B71C1C;
   font-weight: 700;
   border: none;
-  padding: 12px 32px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.removed-warning-scan-another {
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+  border: 2px solid rgba(255,255,255,0.7);
+  padding: 12px 24px;
   border-radius: 8px;
   font-size: 1rem;
   cursor: pointer;
