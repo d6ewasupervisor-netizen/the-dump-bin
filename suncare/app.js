@@ -501,7 +501,7 @@ function renderShelves() {
 
   const isEndcap = planogram.id === 'endcap';
   const GAP_PX = 4;
-  const padRight = isEndcap ? 24 : 4;
+  const padRight = isEndcap ? 24 : 0;
 
   let uniformScale;
   if (maxShelfWidthIn > 0) {
@@ -540,6 +540,7 @@ function renderShelves() {
       row.style.setProperty('--row-width', `${contentWidth}px`);
       row.style.setProperty('--inch-scale', `${uniformScale}px`);
       row.style.paddingRight = `${padRight}px`;
+      if (!isEndcap) row.style.justifyContent = 'center';
     }
   });
 }
