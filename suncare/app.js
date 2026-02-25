@@ -985,42 +985,30 @@ function openPdfViewer() {
 }
 
 function setupPullDownProtection() {
+  let startX = 0;
   let startY = 0;
-  let tracking = false;
-  let armed = false;
-  let armedTimer = null;
 
   document.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    const target = e.target;
-    if (target.closest('.overlay, .pdf-viewer')) return;
-    startY = e.touches[0].clientY;
-    tracking = window.scrollY === 0;
+    if (e.touches.length === 1) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
-    if (!tracking) return;
-    const target = e.target;
-    if (target.closest('.overlay, .pdf-viewer')) return;
+    if (e.touches.length !== 1) return;
 
+    const scrollable = e.target.closest('.overlay-content, .pdf-frame, .upc-results-list, .product-shelf-row');
+    if (scrollable && scrollable.scrollTop > 0) return;
+
+    const deltaX = e.touches[0].clientX - startX;
     const deltaY = e.touches[0].clientY - startY;
-    if (deltaY > 40) {
-      if (!armed) {
-        armed = true;
-        showToast('Pull down again to refresh');
-        clearTimeout(armedTimer);
-        armedTimer = setTimeout(() => { armed = false; }, 2000);
-        e.preventDefault();
-      } else {
-        armed = false;
-        clearTimeout(armedTimer);
-      }
+
+    const isVerticalPull = deltaY > 0 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5;
+    if (isVerticalPull && window.scrollY <= 0) {
+      e.preventDefault();
     }
   }, { passive: false });
-
-  document.addEventListener('touchend', () => {
-    tracking = false;
-  }, { passive: true });
 }
 
 // Start
