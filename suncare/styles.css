@@ -379,19 +379,31 @@ header {
 .upc-view {
   padding: var(--spacing);
   display: none;
+  min-height: calc(100vh - 200px);
 }
 
 .upc-search-container {
   margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20vh;
+}
+
+.upc-view:has(#upc-result:not(:empty)) .upc-search-container {
+  padding-top: 0;
 }
 
 .upc-input-group {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
 }
 
 .upc-input-wrapper {
-  flex: 1;
+  width: 100%;
   position: relative;
   display: flex;
   align-items: center;
@@ -408,6 +420,9 @@ header {
   -webkit-appearance: none;
   appearance: none;
   transition: border-color 0.2s;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: plaintext;
 }
 
 .upc-input:focus {
@@ -443,8 +458,7 @@ header {
 }
 
 .upc-search-btn {
-  flex-shrink: 0;
-  min-width: 80px;
+  width: 100%;
   padding: 14px 16px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -455,6 +469,7 @@ header {
   color: var(--text-dim);
   padding: 8px 4px 0;
   transition: opacity 0.2s;
+  text-align: center;
 }
 
 .search-highlight {
@@ -919,7 +934,6 @@ header {
   }
 
   .upc-search-btn {
-    min-width: 72px;
     padding: 16px 12px;
     font-size: 0.95rem;
   }
@@ -1029,6 +1043,11 @@ header {
   /* --- UPC view --- */
   .upc-view {
     padding: 6px var(--spacing);
+    min-height: calc(100vh - 120px);
+  }
+
+  .upc-search-container {
+    padding-top: 10vh;
   }
 
   .upc-input {
@@ -1038,7 +1057,6 @@ header {
 
   .upc-search-btn {
     padding: 10px 12px;
-    min-width: 64px;
     font-size: 0.85rem;
   }
 
@@ -1144,25 +1162,25 @@ header {
 
 /* Product highlight flash */
 .product-card-shelf.highlight-flash {
-  animation: neonFlash 2.5s ease-out;
+  animation: neonFlash 5s ease-out;
   z-index: 50;
 }
 
 @keyframes neonFlash {
-  0%, 20%, 40%, 60%, 80% {
-    box-shadow: 0 0 8px 2px #39ff14, inset 0 0 4px 1px rgba(57, 255, 20, 0.3);
-    outline: 2px solid #39ff14;
-    outline-offset: 1px;
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90% {
+    box-shadow: 0 0 18px 6px #39ff14, 0 0 40px 10px rgba(57, 255, 20, 0.5), inset 0 0 8px 2px rgba(57, 255, 20, 0.4);
+    outline: 4px solid #39ff14;
+    outline-offset: 2px;
   }
-  10%, 30%, 50%, 70% {
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85% {
     box-shadow: none;
-    outline: 2px solid transparent;
-    outline-offset: 1px;
+    outline: 4px solid transparent;
+    outline-offset: 2px;
   }
   100% {
     box-shadow: none;
-    outline: 2px solid transparent;
-    outline-offset: 1px;
+    outline: 4px solid transparent;
+    outline-offset: 2px;
   }
 }
 

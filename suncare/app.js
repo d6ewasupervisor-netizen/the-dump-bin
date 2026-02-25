@@ -84,7 +84,7 @@ const browseTemplate = () => `
     <div class="upc-search-container">
       <div class="upc-input-group">
         <div class="upc-input-wrapper">
-          <input type="text" class="upc-input" id="manual-upc" placeholder="Enter 4+ digits of UPC or product name" autocomplete="off" inputmode="search">
+          <input type="text" class="upc-input" id="manual-upc" placeholder="Enter 4+ digits of UPC or product name" autocomplete="off" inputmode="search" dir="ltr">
           <button class="upc-clear-input" id="clear-upc-input" aria-label="Clear input">✕</button>
         </div>
         <button class="btn-primary upc-search-btn" id="lookup-upc">Search</button>
