@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suncare POG Lookup — Demo Barcodes</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    @page {
+      size: letter portrait;
+      margin: 0.4in 0.45in;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1a1a2e;
+      background: #fff;
+      width: 7.6in;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      text-align: center;
+      padding: 0.05in 0 0.12in;
+    }
+
+    .page-header h1 {
+      font-size: 13pt;
+      margin-bottom: 1px;
+    }
+
+    .page-header p {
+      font-size: 8pt;
+      color: #666;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      padding: 4px 0 8px;
+      font-size: 7.5pt;
+      color: #444;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .dot-removed { background: #c0392b; }
+    .dot-change { background: #2471a3; }
+    .dot-active { background: #27ae60; }
+
+    .section {
+      margin-bottom: 0.08in;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+      border-bottom: 1.5px solid #bbb;
+      margin-bottom: 0.08in;
+    }
+
+    .section-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 3px;
+      font-weight: 700;
+      font-size: 7pt;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #fff;
+    }
+
+    .badge-removed { background: #c0392b; }
+    .badge-upc-change { background: #2471a3; }
+    .badge-active { background: #27ae60; }
+
+    .section-title {
+      font-size: 9pt;
+      font-weight: 600;
+    }
+
+    .section-hint {
+      font-size: 7pt;
+      color: #888;
+      margin-left: auto;
+      font-style: italic;
+    }
+
+    .barcode-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.14in;
+    }
+
+    .barcode-card {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 0.14in 0.1in 0.08in;
+      text-align: center;
+      break-inside: avoid;
+    }
+
+    .barcode-card.removed { border-left: 3px solid #c0392b; }
+    .barcode-card.upc-change { border-left: 3px solid #2471a3; }
+    .barcode-card.active { border-left: 3px solid #27ae60; }
+
+    .barcode-card svg {
+      display: block;
+      margin: 0 auto 0.04in;
+    }
+
+    .barcode-name {
+      font-size: 6.5pt;
+      font-weight: 600;
+      color: #222;
+      line-height: 1.25;
+      margin-bottom: 1px;
+    }
+
+    .barcode-upc {
+      font-size: 6.5pt;
+      color: #666;
+      font-family: 'Courier New', monospace;
+    }
+
+    .barcode-meta {
+      font-size: 6pt;
+      color: #2471a3;
+      font-weight: 600;
+      margin-top: 2px;
+      line-height: 1.2;
+    }
+
+    .screen-only {
+      text-align: center;
+      padding: 16px 0 8px;
+    }
+
+    .print-btn {
+      padding: 10px 28px;
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .print-btn:hover { background: #2d2d4a; }
+
+    @media print {
+      .screen-only { display: none; }
+      body { width: 100%; }
+    }
+
+    @media screen {
+      body {
+        background: #f0f2f5;
+        padding: 24px;
+      }
+      .barcode-card { background: #fff; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="screen-only">
+    <button class="print-btn" onclick="window.print()">Print This Page (8.5 x 11)</button>
+  </div>
+
+  <div class="page-header">
+    <h1>Suncare POG Lookup — Demo Scan Barcodes</h1>
+    <p>Training sheet &mdash; scan with the app to demonstrate each feature</p>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot dot-removed"></span> Shows "ITEM REMOVED" warning</span>
+    <span class="legend-item"><span class="legend-dot dot-change"></span> Shows "UPC CHANGE DETECTED" banner</span>
+    <span class="legend-item"><span class="legend-dot dot-active"></span> Shows normal product detail</span>
+  </div>
+
+  <!-- REMOVED ITEMS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-badge badge-removed">Removed</span>
+      <span class="section-title">Products Removed From Planogram</span>
+      <span class="section-hint">Red full-screen warning</span>
+    </div>
+    <div class="barcode-grid" id="removed-grid"></div>
+  </div>
+
+  <!-- UPC CHANGES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-badge badge-upc-change">UPC Change</span>
+      <span class="section-title">Old UPCs — Changed Products</span>
+      <span class="section-hint">Blue UPC change banner</span>
+    </div>
+    <div class="barcode-grid" id="upc-change-grid"></div>
+  </div>
+
+  <!-- ACTIVE ITEMS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-badge badge-active">Active</span>
+      <span class="section-title">Active Products — Normal Lookup</span>
+      <span class="section-hint">Standard product overlay</span>
+    </div>
+    <div class="barcode-grid" id="active-grid"></div>
+  </div>
+
+  <script>
+    const removedItems = [
+      { upc: "0004126002381", name: "KRO MINERAL LOTION SPF 30", size: "6 OZ" },
+      { upc: "0007965613083", name: "BBOAT KD SPRT SPF60 RN LT", size: "2.5 OZ" },
+      { upc: "0081002017599", name: "BNDSNDS SELF TANNING FOAM", size: "5.07 FO" },
+      { upc: "0081008487203", name: "HELO BELO SPF 50 KIDS STK", size: "1 OZ" },
+      { upc: "0934710803065", name: "BTAN GME THE GLW TAN MIST", size: "6.7 FO" }
+    ];
+
+    const upcChanges = [
+      { upc: "0007214003517", name: "CPRTN SPORT C SPRAY SPF50", size: "5.5 OZ", newUpc: "0007214003912" },
+      { upc: "0081008487202", name: "HELO BELO KIDS SNSCR SPR", size: "5 FO", newUpc: "0081011561524" },
+      { upc: "0081008487122", name: "HELLO BELLO KIDS SPF50 LO", size: "5 OZ", newUpc: "0081011561523" },
+      { upc: "0081008487384", name: "HELLO BELLO BABY MINERAL SUNSC", size: "", newUpc: "0081011561522" }
+    ];
+
+    const activeItems = [
+      { upc: "0008680068785", name: "Neutrogena Ultra Sheer SPF 30", size: "3 FO" },
+      { upc: "0007214003520", name: "Coppertone Complete Spray SPF 50", size: "5.5 OZ" },
+      { upc: "0007548608754", name: "Hawaiian Tropic Lime Coolada After Sun", size: "16 FO" },
+      { upc: "0087176000047", name: "Sun Bum Cool Down Lotion", size: "6 FO" },
+      { upc: "0005440233079", name: "Australian Gold Bronze Spray", size: "8 FO" },
+      { upc: "0081000937215", name: "Thinksport Clear Zinc Face SPF 30", size: "2 OZ" }
+    ];
+
+    function createBarcodeCard(item, cssClass, extraHtml) {
+      const card = document.createElement("div");
+      card.className = "barcode-card " + cssClass;
+
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      card.appendChild(svg);
+
+      const nameDiv = document.createElement("div");
+      nameDiv.className = "barcode-name";
+      nameDiv.textContent = item.name + (item.size ? " — " + item.size : "");
+      card.appendChild(nameDiv);
+
+      const upcDiv = document.createElement("div");
+      upcDiv.className = "barcode-upc";
+      upcDiv.textContent = item.upc;
+      card.appendChild(upcDiv);
+
+      if (extraHtml) {
+        const meta = document.createElement("div");
+        meta.className = "barcode-meta";
+        meta.innerHTML = extraHtml;
+        card.appendChild(meta);
+      }
+
+      try {
+        JsBarcode(svg, item.upc, {
+          format: "CODE128",
+          width: 1.3,
+          height: 36,
+          displayValue: false,
+          margin: 6
+        });
+      } catch (e) {
+        svg.remove();
+        const err = document.createElement("div");
+        err.style.cssText = "color:#c00;font-size:7pt;padding:8px";
+        err.textContent = "Barcode error";
+        card.prepend(err);
+      }
+
+      return card;
+    }
+
+    document.getElementById("removed-grid").append(
+      ...removedItems.map(item => createBarcodeCard(item, "removed", null))
+    );
+
+    document.getElementById("upc-change-grid").append(
+      ...upcChanges.map(item =>
+        createBarcodeCard(item, "upc-change", "Old: " + item.upc + " &rarr; New: " + item.newUpc)
+      )
+    );
+
+    document.getElementById("active-grid").append(
+      ...activeItems.map(item => createBarcodeCard(item, "active", null))
+    );
+  </script>
+
+</body>
+</html>
