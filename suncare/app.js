@@ -272,7 +272,6 @@ function loadApp(storeId, data) {
   renderBottomNav();
   setupGestures();
   setupPdfAccess();
-  setupPullDownProtection();
 
   if (!resizeBound) {
     window.addEventListener('resize', () => {
@@ -959,30 +958,87 @@ function openPdfViewer() {
   };
 }
 
+function findScrollParent(el) {
+  while (el && el !== document.documentElement) {
+    const style = getComputedStyle(el);
+    const overflowY = style.overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
 function setupPullDownProtection() {
-  let twoFingerStartY = 0;
-  let twoFingerActive = false;
+  let startX = 0;
+  let startY = 0;
+  let gestureDecided = false;
+  let blockThisGesture = false;
+
+  let threeFingerActive = false;
+  let threeFingerStartY = 0;
+  let threeFingerLastY = 0;
 
   document.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
-      twoFingerActive = true;
-      twoFingerStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    if (e.touches.length === 1) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      gestureDecided = false;
+      blockThisGesture = false;
+    }
+    if (e.touches.length >= 3) {
+      threeFingerActive = true;
+      threeFingerStartY = avgTouchY(e.touches);
+      threeFingerLastY = threeFingerStartY;
     }
   }, { passive: true });
 
+  document.addEventListener('touchmove', (e) => {
+    if (threeFingerActive && e.touches.length >= 3) {
+      threeFingerLastY = avgTouchY(e.touches);
+      return;
+    }
+
+    if (e.touches.length !== 1) return;
+
+    if (!gestureDecided) {
+      const deltaX = e.touches[0].clientX - startX;
+      const deltaY = e.touches[0].clientY - startY;
+
+      if (Math.abs(deltaY) < 10 && Math.abs(deltaX) < 10) return;
+
+      gestureDecided = true;
+
+      if (deltaY > 0 && Math.abs(deltaY) >= Math.abs(deltaX)) {
+        const scrollParent = findScrollParent(e.target);
+        blockThisGesture = !scrollParent || scrollParent.scrollTop <= 0;
+      }
+    }
+
+    if (blockThisGesture) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
   document.addEventListener('touchend', (e) => {
-    if (!twoFingerActive) return;
-    if (e.touches.length === 0) {
-      const endY = e.changedTouches[0].clientY;
-      if (endY - twoFingerStartY > 80) {
+    if (threeFingerActive && e.touches.length === 0) {
+      if (threeFingerLastY - threeFingerStartY > 80) {
         location.reload();
       }
-      twoFingerActive = false;
+      threeFingerActive = false;
     }
   }, { passive: true });
 }
 
+function avgTouchY(touches) {
+  let sum = 0;
+  for (let i = 0; i < touches.length; i++) sum += touches[i].clientY;
+  return sum / touches.length;
+}
+
 // Start
+setupPullDownProtection();
 init();
 
 // SW Update
