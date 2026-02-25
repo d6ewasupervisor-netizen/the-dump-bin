@@ -501,20 +501,12 @@ function renderShelves() {
 
   const isEndcap = planogram.id === 'endcap';
   const GAP_PX = 4;
-  const padRight = isEndcap ? 24 : 0;
 
-  let uniformScale;
-  if (maxShelfWidthIn > 0) {
+  let endcapScale;
+  if (isEndcap && maxShelfWidthIn > 0) {
+    const padRight = 24;
     const widestGaps = Math.max(0, widestShelfItemCount - 1) * GAP_PX;
-    const available = contentWidth - padRight - widestGaps;
-
-    if (isEndcap) {
-      uniformScale = (available / maxShelfWidthIn) * 2.0;
-    } else {
-      uniformScale = available / maxShelfWidthIn;
-    }
-  } else {
-    uniformScale = BASE_PX_PER_IN;
+    endcapScale = ((contentWidth - padRight - widestGaps) / maxShelfWidthIn) * 2.0;
   }
 
   shelves.forEach(({ s, displayProducts, facings, shelfWidthIn }) => {
@@ -522,6 +514,16 @@ function renderShelves() {
     shelfDiv.className = 'shelf-container';
 
     const label = s === maxShelf ? 'TOP' : (s === 1 ? 'BOTTOM' : '');
+
+    let shelfScale;
+    if (isEndcap) {
+      shelfScale = endcapScale || BASE_PX_PER_IN;
+    } else {
+      const gaps = Math.max(0, displayProducts.length - 1) * GAP_PX;
+      shelfScale = shelfWidthIn > 0
+        ? (contentWidth - gaps) / shelfWidthIn
+        : BASE_PX_PER_IN;
+    }
 
     shelfDiv.innerHTML = `
       <div class="shelf-header">
@@ -538,9 +540,8 @@ function renderShelves() {
     const row = document.getElementById(`shelf-row-${s}`);
     if (row) {
       row.style.setProperty('--row-width', `${contentWidth}px`);
-      row.style.setProperty('--inch-scale', `${uniformScale}px`);
-      row.style.paddingRight = `${padRight}px`;
-      if (!isEndcap) row.style.justifyContent = 'center';
+      row.style.setProperty('--inch-scale', `${shelfScale}px`);
+      if (isEndcap) row.style.paddingRight = '24px';
     }
   });
 }
