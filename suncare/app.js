@@ -255,8 +255,8 @@ const STACK_OVERRIDES = {
 };
 
 const SHELF_SCALE_OVERRIDES = {
-  "4-2": 1.6,
-  "2-1": 1.6
+  "4-2": 1.3,
+  "2-1": 1.3
 };
 
 function getStackCount(upc) {
@@ -827,27 +827,29 @@ function findByFuzzy(upc, items) {
 }
 
 function findAllFuzzy(query, items) {
-  const q = normalizeUpcInput(query).toLowerCase();
-  if (!q) return [];
+  const raw = query.trim().toLowerCase();
+  if (!raw) return [];
 
-  const isNumeric = /^\d+$/.test(q);
+  const isNumeric = /^\d+$/.test(raw);
 
-  // Require at least 4 digits for UPC-based matching
-  if (isNumeric && q.length < 4) return [];
+  if (isNumeric && raw.length < 4) return [];
+
+  const qNorm = normalizeUpcInput(raw);
 
   const scored = [];
   for (const p of items) {
     const pUpc = normalizeUpcInput(p.upc);
+    const pUpcFull = p.upc.toLowerCase();
     const pName = (p.name || '').toLowerCase();
     let score = 0;
 
-    if (pUpc === q) { score = 100; }
-    else if (pUpc.endsWith(q)) { score = 90; }
-    else if (pUpc.startsWith(q)) { score = 80; }
-    else if (pUpc.includes(q)) { score = 70; }
-    else if (pName.includes(q)) { score = 50; }
-    else if (q.length >= 4) {
-      const noCheck = q.length > 1 ? q.slice(0, -1) : q;
+    if (pUpc === qNorm) { score = 100; }
+    else if (pUpc.endsWith(qNorm)) { score = 90; }
+    else if (pUpc.startsWith(qNorm)) { score = 80; }
+    else if (pUpc.includes(raw) || pUpcFull.includes(raw)) { score = 70; }
+    else if (pName.includes(raw)) { score = 50; }
+    else if (raw.length >= 4) {
+      const noCheck = qNorm.length > 1 ? qNorm.slice(0, -1) : qNorm;
       if (pUpc.endsWith(noCheck) || pUpc.includes(noCheck)) { score = 40; }
     }
 
