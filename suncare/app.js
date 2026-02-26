@@ -84,15 +84,18 @@ const browseTemplate = () => `
   
   <div class="scan-view" id="scan-view">
     <div id="reader"></div>
-    <button class="torch-btn" id="torch-toggle" style="display:none">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4.95 11.95l.88.88A2 2 0 0 1 8.5 16h7a2 2 0 0 1 .57-1.17l.88-.88A7 7 0 0 0 12 2z"/></svg>
-    </button>
   </div>
   
   <div class="upc-view" id="upc-view">
-    <div class="upc-input-group">
-      <input type="text" class="upc-input" id="manual-upc" placeholder="Enter UPC (e.g. 8680068785)">
-      <button class="btn-primary" id="lookup-upc">Search</button>
+    <div class="upc-search-container">
+      <div class="upc-input-group">
+        <div class="upc-input-wrapper">
+          <input type="text" class="upc-input" id="manual-upc" placeholder="Enter 4+ digits of UPC or product name" autocomplete="off" inputmode="search" dir="ltr">
+          <button class="upc-clear-input" id="clear-upc-input" aria-label="Clear input">✕</button>
+        </div>
+        <button class="btn-primary upc-search-btn" id="lookup-upc">Search</button>
+      </div>
+      <div class="upc-search-hint" id="upc-search-hint">Enter at least 4 digits to search by UPC</div>
     </div>
     <div id="upc-result"></div>
   </div>
@@ -111,16 +114,28 @@ const productOverlayTemplate = (p, redirect=null) => `
       
       ${redirect ? `
         <div class="redirect-banner">
-          ⚠️ UPC Changed — Old: ${redirect.old} → New: ${redirect.new}
+          <div class="redirect-banner-title">&#x1F504; UPC CHANGE DETECTED</div>
+          <div class="redirect-banner-detail">
+            Old UPC: <strong>${redirect.old}</strong><br>
+            New UPC: <strong>${redirect.new}</strong>
+          </div>
+          <div class="redirect-banner-note">Both UPCs are valid for this product. Do NOT discard either version.</div>
         </div>
       ` : ''}
       
       <div class="detail-img-container">
-        <img src="images/${p.upc}.webp" class="detail-img" id="detail-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">
+        <img src="images/${p.upc}.webp" class="detail-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">
       </div>
       
       <h2 class="detail-title">${p.name}</h2>
       <div class="detail-upc">UPC: ${p.upc.replace(/^0+/, '')}</div>
+      
+      <div class="badges">
+        ${p.isNew ? '<span class="badge new">NEW</span>' : ''}
+        ${p.srp ? '<span class="badge srp">SRP</span>' : ''}
+        ${p.isChange ? '<span class="badge change">CHANGE</span>' : ''}
+        ${p.isMove ? '<span class="badge move">MOVE</span>' : ''}
+      </div>
       
       <div class="location-grid">
         <div class="loc-box">
@@ -141,23 +156,18 @@ const productOverlayTemplate = (p, redirect=null) => `
         </div>
       </div>
       
-      <div class="mini-pog" id="mini-pog-container"></div>
+      <div class="mini-pog" id="mini-pog-container">
+        <!-- Mini shelf layout -->
+      </div>
       
       <button class="btn-primary" id="view-pdf">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-file-type-pdf"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" /><path d="M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6" /><path d="M17 18h2" /><path d="M20 15h-3v6" /><path d="M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1" /></svg>
-        View Planogram
+        POG PDFs
       </button>
 
       <div class="overlay-nav-buttons">
-        <button class="btn-overlay-nav scan-another" id="scan-another">Scan UPC</button>
-        <button class="btn-overlay-nav return-browse" id="return-browse">See Location</button>
-      </div>
-
-      <div class="overlay-badges">
-        ${p.isNew ? '<span class="overlay-badge new">NEW</span>' : ''}
-        ${p.srp ? '<span class="overlay-badge srp">SRP</span>' : ''}
-        ${p.isChange ? '<span class="overlay-badge change">CHANGE</span>' : ''}
-        ${p.isMove ? '<span class="overlay-badge move">MOVE</span>' : ''}
+        <button class="btn-overlay-nav scan-another" id="scan-another">Scan Another</button>
+        <button class="btn-overlay-nav return-browse" id="return-browse">See Product</button>
       </div>
     </div>
   </div>
@@ -234,7 +244,16 @@ async function init() {
 
 const DEFAULT_WIDTH_IN = 2.5;
 const DEFAULT_HEIGHT_IN = 6.0;
-const BASE_PX_PER_IN = 7;
+const BASE_PX_PER_IN = 7.2;
+
+const STACK_OVERRIDES = {
+  "7548609166": 4,
+  "934710805107": 3
+};
+
+function getStackCount(upc) {
+  return STACK_OVERRIDES[upc] || 1;
+}
 
 function getProductWidthIn(p) {
   const widthIn = Number(p.widthIn);
@@ -302,7 +321,6 @@ function loadApp(storeId, data) {
   renderBottomNav();
   setupGestures();
   setupPdfAccess();
-  setupPullDownProtection();
 
   if (!resizeBound) {
     window.addEventListener('resize', () => {
@@ -321,8 +339,72 @@ function setupPdfAccess() {
     }
 }
 
+function clearUpcSearch() {
+  const upcInput = document.getElementById('manual-upc');
+  const resultDiv = document.getElementById('upc-result');
+  const hintDiv = document.getElementById('upc-search-hint');
+  const clearBtn = document.getElementById('clear-upc-input');
+
+  if (upcInput) upcInput.value = '';
+  if (resultDiv) resultDiv.innerHTML = '';
+  if (hintDiv) {
+    hintDiv.textContent = 'Enter at least 4 digits to search by UPC';
+    hintDiv.style.display = 'block';
+  }
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (upcInput) upcInput.focus();
+}
+
+function highlightMatch(text, query) {
+  if (!query || query.length < 3) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+function switchToTab(tabName) {
+  const tabs = document.querySelectorAll('.tab-btn');
+  const views = {
+    'browse': document.getElementById('browse-view'),
+    'scan': document.getElementById('scan-view'),
+    'upc': document.getElementById('upc-view')
+  };
+
+  // Clear UPC search when leaving the UPC tab
+  const currentlyOnUpc = document.querySelector('.tab-btn[data-tab="upc"]')?.classList.contains('active');
+  if (currentlyOnUpc && tabName !== 'upc') {
+    clearUpcSearch();
+  }
+
+  tabs.forEach(b => b.classList.remove('active'));
+  const activeTab = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  if (activeTab) activeTab.classList.add('active');
+
+  Object.values(views).forEach(v => v.style.display = 'none');
+  views[tabName].style.display = tabName === 'scan' ? 'flex' : 'block';
+
+  if (tabName === 'scan') {
+    startScanner();
+  } else {
+    stopScanner();
+  }
+
+  if (tabName === 'browse') {
+    renderShelves();
+  }
+
+  // Auto-focus input when switching to UPC tab
+  if (tabName === 'upc') {
+    setTimeout(() => {
+      const upcInput = document.getElementById('manual-upc');
+      if (upcInput) upcInput.focus();
+    }, 100);
+  }
+}
+
 function setupNavigation() {
   const tabs = document.querySelectorAll('.tab-btn');
+
   tabs.forEach(t => {
     t.addEventListener('click', () => {
       switchToTab(t.dataset.tab);
@@ -335,9 +417,80 @@ function setupNavigation() {
     }
   });
 
-  document.getElementById('lookup-upc').addEventListener('click', () => {
-    const input = document.getElementById('manual-upc').value.trim();
-    if (input) handleUpcSearch(input);
+  // Manual UPC
+  const upcInput = document.getElementById('manual-upc');
+  const upcBtn = document.getElementById('lookup-upc');
+  let upcDebounce = null;
+
+  upcBtn.addEventListener('click', () => {
+    const val = upcInput.value.trim();
+    if (val) handleUpcSearch(val);
+  });
+
+  upcInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const val = upcInput.value.trim();
+      if (val) handleUpcSearch(val);
+    }
+  });
+
+  // Clear button inside input
+  const clearInputBtn = document.getElementById('clear-upc-input');
+  clearInputBtn.addEventListener('click', () => {
+    clearUpcSearch();
+  });
+
+  // Toggle clear button visibility
+  function updateClearBtnVisibility() {
+    clearInputBtn.style.display = upcInput.value.length > 0 ? 'flex' : 'none';
+  }
+  updateClearBtnVisibility();
+
+  upcInput.addEventListener('input', () => {
+    clearTimeout(upcDebounce);
+    updateClearBtnVisibility();
+    const val = upcInput.value.trim();
+    const resultDiv = document.getElementById('upc-result');
+    const hintDiv = document.getElementById('upc-search-hint');
+    const isNumeric = /^\d+$/.test(val);
+
+    // Require 4+ digits for UPC searches, 3+ chars for name searches
+    if (isNumeric && val.length < 4) {
+      resultDiv.innerHTML = '';
+      if (val.length > 0 && hintDiv) {
+        hintDiv.textContent = `Type ${4 - val.length} more digit${4 - val.length > 1 ? 's' : ''} to search`;
+        hintDiv.style.display = 'block';
+      }
+      return;
+    }
+    if (!isNumeric && val.length < 3) {
+      resultDiv.innerHTML = '';
+      return;
+    }
+
+    if (hintDiv) hintDiv.style.display = 'none';
+
+    upcDebounce = setTimeout(() => {
+      const matches = findAllFuzzy(val, products);
+      if (matches.length === 0) {
+        resultDiv.innerHTML = `<div class="upc-no-results">No products found for "${val}"</div>`;
+      } else {
+        resultDiv.innerHTML = `
+          <div class="upc-results-header">${matches.length} product${matches.length > 1 ? 's' : ''} found</div>
+          <div class="upc-results-list">
+            ${matches.map(p => `
+              <div class="upc-result-item" onclick="openProductOverlay('${p.upc}')">
+                <img src="images/${p.upc}.webp" class="upc-result-thumb" onerror="this.style.display='none'">
+                <div class="upc-result-info">
+                  <div class="upc-result-name">${highlightMatch(p.name, val)}</div>
+                  <div class="upc-result-detail">UPC: ${p.upc.replace(/^0+/, '')} · Side ${p.segment} · Shelf ${p.shelf} · Pos ${p.position}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }, 200);
   });
 }
 
@@ -353,11 +506,6 @@ function setupFilters() {
   });
 }
 
-const SHELF_SCALE_OVERRIDES = {
-  "4-2": 1.5,
-  "2-1": 1.5,
-};
-
 function renderShelves() {
   const container = document.getElementById('browse-view');
   container.innerHTML = '';
@@ -367,58 +515,71 @@ function renderShelves() {
 
   const shelves = [];
   let maxShelfWidthIn = 0;
+  let widestShelfItemCount = 0;
 
   for (let s = maxShelf; s >= 1; s--) {
-    const allShelfProducts = sideProducts
+    const shelfProducts = sideProducts
       .filter(p => p.shelf === s)
       .sort((a, b) => a.position - b.position);
 
-    const totalFacings = allShelfProducts.reduce((acc, p) => acc + p.facings, 0);
-    const shelfWidthIn = allShelfProducts.reduce(
+    let displayProducts = shelfProducts;
+    if (currentFilter === 'new') displayProducts = displayProducts.filter(p => p.isNew);
+    if (currentFilter === 'srp') displayProducts = displayProducts.filter(p => p.srp);
+
+    const facings = displayProducts.reduce((acc, p) => acc + p.facings, 0);
+    const shelfWidthIn = displayProducts.reduce(
       (acc, p) => acc + getProductWidthIn(p) * p.facings,
       0
     );
-    maxShelfWidthIn = Math.max(maxShelfWidthIn, shelfWidthIn);
 
-    shelves.push({ s, allShelfProducts, totalFacings, shelfWidthIn });
+    if (shelfWidthIn > maxShelfWidthIn) {
+      maxShelfWidthIn = shelfWidthIn;
+      widestShelfItemCount = displayProducts.length;
+    }
+
+    shelves.push({ s, displayProducts, facings, shelfWidthIn });
   }
 
-  const targetRowWidthPx = getTargetRowWidthPx(container, maxShelfWidthIn);
+  const rawWidth = container ? container.clientWidth : window.innerWidth;
+  const cs = container ? getComputedStyle(container) : null;
+  const containerPad = cs
+    ? parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+    : 0;
+  const contentWidth = rawWidth - containerPad;
 
-  shelves.forEach(({ s, allShelfProducts, totalFacings, shelfWidthIn }) => {
+  const isEndcap = planogram.id === 'endcap';
+  const GAP_PX = 4;
+
+  let endcapScale;
+  if (isEndcap && maxShelfWidthIn > 0) {
+    const padRight = 24;
+    const widestGaps = Math.max(0, widestShelfItemCount - 1) * GAP_PX;
+    endcapScale = ((contentWidth - padRight - widestGaps) / maxShelfWidthIn) * 2.0;
+  }
+
+  shelves.forEach(({ s, displayProducts, facings, shelfWidthIn }) => {
     const shelfDiv = document.createElement('div');
     shelfDiv.className = 'shelf-container';
 
     const label = s === maxShelf ? 'TOP' : (s === 1 ? 'BOTTOM' : '');
 
-    let shelfScale = shelfWidthIn > 0
-      ? targetRowWidthPx / shelfWidthIn
-      : BASE_PX_PER_IN;
-
-    const overrideKey = `${currentSide}-${s}`;
-    const boost = SHELF_SCALE_OVERRIDES[overrideKey];
-
-    const visibleProducts = allShelfProducts.filter(p => {
-      if (currentFilter === 'new') return p.isNew;
-      if (currentFilter === 'srp') return p.srp;
-      return true;
-    });
-    const visibleFacings = visibleProducts.reduce((acc, p) => acc + p.facings, 0);
-
-    const cardsHtml = allShelfProducts.map(p => {
-      const isVisible = currentFilter === 'all' ||
-        (currentFilter === 'new' && p.isNew) ||
-        (currentFilter === 'srp' && p.srp);
-      return createProductCard(p, !isVisible, boost);
-    }).join('');
+    let shelfScale;
+    if (isEndcap) {
+      shelfScale = endcapScale || BASE_PX_PER_IN;
+    } else {
+      const gaps = Math.max(0, displayProducts.length - 1) * GAP_PX;
+      shelfScale = shelfWidthIn > 0
+        ? (contentWidth - gaps) / shelfWidthIn
+        : BASE_PX_PER_IN;
+    }
 
     shelfDiv.innerHTML = `
-      <div class="product-shelf-row" id="shelf-row-${s}">
-        ${cardsHtml}
-      </div>
       <div class="shelf-header">
         <span>Shelf ${s} ${label}</span>
-        <span>${visibleProducts.length} items · ${visibleFacings} facings</span>
+        <span>${displayProducts.length} items · ${facings} facings</span>
+      </div>
+      <div class="product-shelf-row" id="shelf-row-${s}">
+        ${displayProducts.map(p => createProductCard(p)).join('')}
       </div>
     `;
 
@@ -426,24 +587,30 @@ function renderShelves() {
 
     const row = document.getElementById(`shelf-row-${s}`);
     if (row) {
-      row.style.setProperty('--row-width', `${targetRowWidthPx}px`);
+      row.style.setProperty('--row-width', `${contentWidth}px`);
       row.style.setProperty('--inch-scale', `${shelfScale}px`);
+      if (isEndcap) row.style.paddingRight = '24px';
     }
   });
 }
 
-function createProductCard(p, hidden = false, boost = null) {
+function createProductCard(p) {
+  const stack = getStackCount(p.upc);
+  const heightIn = getProductHeightIn(p);
+  const stackedHeightIn = heightIn * stack;
+  const totalImages = p.facings * stack;
+  const isStacked = stack > 1;
+  const imgSrc = `images/${p.upc}.webp`;
+  const fallback = `data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>`;
+
   let imagesHtml = '';
-  for (let i = 0; i < p.facings; i++) {
-    imagesHtml += `<img src="images/${p.upc}.webp" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">`;
+  for (let i = 0; i < totalImages; i++) {
+    imagesHtml += `<img src="${imgSrc}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='${fallback}'">`;
   }
 
-  const boostStyle = boost ? `--shelf-boost: ${boost};` : '';
-  const hiddenStyle = hidden ? ' visibility: hidden;' : '';
-
   return `
-    <div class="product-card-shelf${boost ? ' boosted' : ''}" data-upc="${p.upc}" style="--facings: ${p.facings}; --width-in: ${getProductWidthIn(p)}; --height-in: ${getProductHeightIn(p)};${boostStyle}${hiddenStyle}" onclick="openProductOverlay('${p.upc}')">
-      <div class="product-img-group">
+    <div class="product-card-shelf" data-upc="${p.upc}" style="--facings: ${p.facings}; --stack: ${stack}; --width-in: ${getProductWidthIn(p)}; --height-in: ${stackedHeightIn};" onclick="openProductOverlay('${p.upc}')">
+      <div class="product-img-group${isStacked ? ' stacked' : ''}">
         ${imagesHtml}
         ${p.isNew ? '<span class="badge new">NEW</span>' : ''}
         ${p.srp ? '<span class="badge srp">SRP</span>' : ''}
@@ -462,7 +629,7 @@ function renderBottomNav() {
   
   let html = '';
   for (let i = 1; i <= planogram.sides; i++) {
-    html += `<button class="nav-btn ${i === currentSide ? 'active' : ''}" onclick="changeSide(${i})">Bay ${i}</button>`;
+    html += `<button class="nav-btn ${i === currentSide ? 'active' : ''}" onclick="changeSide(${i})">${i}</button>`;
   }
   nav.innerHTML = html;
 }
@@ -474,7 +641,7 @@ function changeSide(side) {
   renderBottomNav();
   
   // Toast
-  showToast(`Bay ${side}`);
+  showToast(`Side ${side}`);
   
   // Haptic
   if (navigator.vibrate) navigator.vibrate(30);
@@ -482,66 +649,56 @@ function changeSide(side) {
 
 function setupGestures() {
   if (planogram.sides <= 1) return;
-  
-  let touchStartX = 0;
-  let touchEndX = 0;
-  let touchStartY = 0;
-  let touchEndY = 0;
-  
-  const view = document.getElementById('browse-view');
-  const edgeThreshold = 32;
-  
-  view.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
-  });
-  
-  view.addEventListener('touchend', e => {
-    touchEndX = e.changedTouches[0].screenX;
-    touchEndY = e.changedTouches[0].screenY;
-    handleSwipe();
-  });
-  
-  function handleSwipe() {
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = touchEndY - touchStartY;
-    const minSwipe = 200;
-    const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 2;
-    const isEdgeSwipe =
-      touchStartX <= edgeThreshold ||
-      touchStartX >= window.innerWidth - edgeThreshold;
 
-    if (isHorizontal && isEdgeSwipe && deltaX < -minSwipe) {
-      // Swipe Left -> Next Side
-      if (currentSide < planogram.sides) changeSide(currentSide + 1);
+  let twoFingerStartX = 0;
+  let twoFingerActive = false;
+  const MIN_SWIPE = 60;
+
+  const view = document.getElementById('browse-view');
+
+  view.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      twoFingerActive = true;
+      twoFingerStartX = (e.touches[0].screenX + e.touches[1].screenX) / 2;
     }
-    if (isHorizontal && isEdgeSwipe && deltaX > minSwipe) {
-      // Swipe Right -> Prev Side
-      if (currentSide > 1) changeSide(currentSide - 1);
+  }, { passive: true });
+
+  view.addEventListener('touchend', (e) => {
+    if (!twoFingerActive) return;
+    if (e.touches.length === 0) {
+      const endX = e.changedTouches[0].screenX;
+      const deltaX = endX - twoFingerStartX;
+
+      if (deltaX < -MIN_SWIPE && currentSide < planogram.sides) {
+        changeSide(currentSide + 1);
+      } else if (deltaX > MIN_SWIPE && currentSide > 1) {
+        changeSide(currentSide - 1);
+      }
+      twoFingerActive = false;
     }
-  }
+  }, { passive: true });
 }
 
 // Scanner
-let torchOn = false;
-
 function startScanner() {
   if (html5QrCode) return;
 
   const readerEl = document.getElementById('reader');
-  readerEl.innerHTML = '';
+  readerEl.innerHTML = `
+    <div class="scanner-loading">
+      <div class="scanner-loading-spinner"></div>
+      <div class="scanner-loading-text">Starting camera&hellip;</div>
+    </div>
+  `;
 
   html5QrCode = new Html5Qrcode("reader");
   const config = {
     fps: 10,
     qrbox: function(viewfinderWidth, viewfinderHeight) {
       return {
-        width: Math.min(Math.floor(viewfinderWidth * 0.92), 500),
-        height: Math.min(Math.floor(viewfinderHeight * 0.25), 120)
+        width: Math.min(Math.floor(viewfinderWidth * 0.85), 400),
+        height: Math.min(Math.floor(viewfinderHeight * 0.45), 200)
       };
-    },
-    experimentalFeatures: {
-      useBarCodeDetectorIfSupported: true
     }
   };
 
@@ -550,59 +707,22 @@ function startScanner() {
     config,
     (decodedText) => {
       stopScanner();
-      const found = findProduct(decodedText) || findByFuzzy(decodedText, products);
-      if (found) {
-        openProductOverlay(found.upc);
-      } else {
-        const removed = findByFuzzy(decodedText, removedProducts);
-        if (removed) {
-          showToast(`Removed from planogram: ${removed.name}`, 2500, 'warning');
-        } else {
-          showToast(`Product ${decodedText} not found`, 2500, 'warning');
-        }
-        setTimeout(() => startScanner(), 1500);
-      }
+      handleUpcSearch(decodedText, true);
     },
-    () => {}
-  ).then(() => {
-    setupTorchButton();
-  }).catch(err => {
+    (errorMessage) => {
+      // ignore per-frame decode failures
+    }
+  ).catch(err => {
     console.error(err);
-    readerEl.innerHTML = "Camera error or permission denied.";
+    readerEl.innerHTML = `
+      <div class="scanner-loading">
+        <div class="scanner-loading-text">Camera error or permission denied.</div>
+      </div>
+    `;
   });
 }
 
-function setupTorchButton() {
-  const torchBtn = document.getElementById('torch-toggle');
-  if (!torchBtn || !html5QrCode) return;
-
-  try {
-    const videoEl = document.querySelector('#reader video');
-    if (!videoEl || !videoEl.srcObject) return;
-    const track = videoEl.srcObject.getVideoTracks()[0];
-    if (!track) return;
-    const capabilities = track.getCapabilities();
-    if (capabilities && capabilities.torch) {
-      torchBtn.style.display = 'flex';
-      torchOn = false;
-      torchBtn.onclick = () => {
-        torchOn = !torchOn;
-        track.applyConstraints({ advanced: [{ torch: torchOn }] });
-        torchBtn.classList.toggle('active', torchOn);
-      };
-    }
-  } catch (e) {
-    // Torch not supported
-  }
-}
-
 function stopScanner() {
-  torchOn = false;
-  const torchBtn = document.getElementById('torch-toggle');
-  if (torchBtn) {
-    torchBtn.style.display = 'none';
-    torchBtn.classList.remove('active');
-  }
   if (html5QrCode) {
     html5QrCode.stop().then(() => {
       html5QrCode.clear();
@@ -637,42 +757,152 @@ function findByFuzzy(upc, items) {
   });
 }
 
+function findAllFuzzy(query, items) {
+  const q = normalizeUpcInput(query).toLowerCase();
+  if (!q) return [];
+
+  const isNumeric = /^\d+$/.test(q);
+
+  // Require at least 4 digits for UPC-based matching
+  if (isNumeric && q.length < 4) return [];
+
+  const scored = [];
+  for (const p of items) {
+    const pUpc = normalizeUpcInput(p.upc);
+    const pName = (p.name || '').toLowerCase();
+    let score = 0;
+
+    if (pUpc === q) { score = 100; }
+    else if (pUpc.endsWith(q)) { score = 90; }
+    else if (pUpc.startsWith(q)) { score = 80; }
+    else if (pUpc.includes(q)) { score = 70; }
+    else if (pName.includes(q)) { score = 50; }
+    else if (q.length >= 4) {
+      const noCheck = q.length > 1 ? q.slice(0, -1) : q;
+      if (pUpc.endsWith(noCheck) || pUpc.includes(noCheck)) { score = 40; }
+    }
+
+    if (score > 0) scored.push({ product: p, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score || a.product.position - b.product.position);
+  return scored.map(s => s.product);
+}
+
 // Search & Overlay
-function handleUpcSearch(upc) {
+function handleUpcSearch(upc, fromScanner = false) {
+  const resultDiv = document.getElementById('upc-result');
+
   let found = findProduct(upc);
   let redirectInfo = null;
-  
-  if (!found) {
-    const { candidates } = getUpcCandidates(upc);
-    
-    // Check against redirect keys too (which might need normalization)
-    for (let old in upcRedirects) {
-      const cleanOld = normalizeUpcInput(old);
-      if (candidates.includes(cleanOld)) {
-        const newUpc = upcRedirects[old];
-        found = findProduct(newUpc);
-        if (found) {
-          redirectInfo = { old: upc, new: newUpc };
-          break;
-        }
+
+  if (found) {
+    const reverseRedirect = findReverseRedirect(found.upc);
+    if (reverseRedirect) {
+      redirectInfo = { old: reverseRedirect.oldUpc, new: found.upc };
+    }
+    openProductOverlay(found.upc, redirectInfo);
+    if (resultDiv) resultDiv.innerHTML = '';
+    return;
+  }
+
+  const { candidates } = getUpcCandidates(upc);
+  for (let old in upcRedirects) {
+    const cleanOld = normalizeUpcInput(old);
+    if (candidates.includes(cleanOld)) {
+      const newUpc = upcRedirects[old];
+      found = findProduct(newUpc);
+      if (found) {
+        redirectInfo = { old: upc, new: newUpc };
+        openProductOverlay(found.upc, redirectInfo);
+        if (resultDiv) resultDiv.innerHTML = '';
+        return;
       }
     }
-    
-    if (!found) {
-      found = findByFuzzy(upc, products);
+  }
+
+  const matches = findAllFuzzy(upc, products);
+  const removedMatches = findAllFuzzy(upc, removedProducts);
+
+  if (matches.length === 1) {
+    openProductOverlay(matches[0].upc);
+    if (resultDiv) resultDiv.innerHTML = '';
+    return;
+  }
+
+  if (fromScanner) switchToTab('upc');
+
+  if (matches.length > 1) {
+    resultDiv.innerHTML = `
+      <div class="upc-results-header">${matches.length} products found</div>
+      <div class="upc-results-list">
+        ${matches.map(p => `
+          <div class="upc-result-item" onclick="openProductOverlay('${p.upc}')">
+            <img src="images/${p.upc}.webp" class="upc-result-thumb" onerror="this.style.display='none'">
+            <div class="upc-result-info">
+              <div class="upc-result-name">${p.name}</div>
+              <div class="upc-result-detail">UPC: ${p.upc.replace(/^0+/, '')} · Side ${p.segment} · Shelf ${p.shelf} · Pos ${p.position}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    return;
+  }
+
+  if (removedMatches.length > 0) {
+    showRemovedWarning(removedMatches[0], fromScanner);
+    return;
+  }
+
+  resultDiv.innerHTML = `<div class="upc-no-results">No products found for "${upc}"</div>`;
+}
+
+function findReverseRedirect(productUpc) {
+  const cleanProduct = normalizeUpcInput(productUpc);
+  for (let old in upcRedirects) {
+    const newUpc = normalizeUpcInput(upcRedirects[old]);
+    if (newUpc === cleanProduct) {
+      return { oldUpc: normalizeUpcInput(old), newUpc: cleanProduct };
     }
   }
-  
-  if (found) {
-    openProductOverlay(found.upc, redirectInfo);
-  } else {
-    const removed = findByFuzzy(upc, removedProducts);
-    if (removed) {
-      showToast(`Removed from planogram: ${removed.name}`, 2500, 'warning');
-      return;
-    }
-    alert(`Product ${upc} not found on this planogram.`);
-  }
+  return null;
+}
+
+function showRemovedWarning(product, fromScanner = false) {
+  const existing = document.getElementById('removed-warning-overlay');
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.id = 'removed-warning-overlay';
+  div.className = 'removed-warning-overlay';
+  div.innerHTML = `
+    <div class="removed-warning-card">
+      <div class="removed-warning-icon">&#x26D4;</div>
+      <div class="removed-warning-title">ITEM REMOVED FROM PLANOGRAM</div>
+      <div class="removed-warning-name">${product.name}</div>
+      <div class="removed-warning-upc">UPC: ${product.upc}</div>
+      <div class="removed-warning-note">This product is no longer on the current planogram. Do not place on shelf.</div>
+      <div class="removed-warning-buttons">
+        <button class="btn-primary removed-warning-dismiss" id="removed-dismiss-btn">Dismiss</button>
+        <button class="btn-primary removed-warning-scan-another" id="removed-scan-btn">Scan Another</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(div);
+
+  document.getElementById('removed-dismiss-btn').onclick = () => {
+    div.remove();
+  };
+  document.getElementById('removed-scan-btn').onclick = () => {
+    div.remove();
+    switchToTab('scan');
+  };
+
+  setTimeout(() => {
+    const el = document.getElementById('removed-warning-overlay');
+    if (el) el.remove();
+  }, 8000);
 }
 
 function findProduct(upc) {
@@ -685,16 +915,19 @@ function findProduct(upc) {
 function openProductOverlay(upc, redirect=null) {
   const p = findProduct(upc);
   if (!p) return;
-
+  
+  // Create overlay
   const div = document.createElement('div');
   div.innerHTML = productOverlayTemplate(p, redirect);
   document.body.appendChild(div.firstElementChild);
-
+  
+  // Render mini pog
   renderMiniPog(p);
-
+  
+  // Events
   document.getElementById('close-overlay').onclick = () => {
     document.querySelector('.overlay').remove();
-    switchToTab('browse');
+    focusProductInBrowse(p);
   };
 
   document.getElementById('view-pdf').onclick = () => {
@@ -710,68 +943,56 @@ function openProductOverlay(upc, redirect=null) {
     document.querySelector('.overlay').remove();
     focusProductInBrowse(p);
   };
-
-  document.getElementById('detail-img').onclick = () => {
-    openImageLightbox(`images/${p.upc}.webp`);
-  };
 }
 
 function focusProductInBrowse(product) {
   const browseView = document.getElementById('browse-view');
   if (!browseView || !product) return;
 
-  switchToTab('browse');
+  // Switch to browse tab
+  const tabs = document.querySelectorAll('.tab-btn');
+  const views = {
+    'browse': browseView,
+    'scan': document.getElementById('scan-view'),
+    'upc': document.getElementById('upc-view')
+  };
+
+  tabs.forEach(b => b.classList.remove('active'));
+  const browseTab = document.querySelector('.tab-btn[data-tab="browse"]');
+  if (browseTab) browseTab.classList.add('active');
+
+  Object.values(views).forEach(v => {
+    if (v) v.style.display = 'none';
+  });
+  browseView.style.display = 'block';
+  stopScanner();
+
+  // Navigate to product side and shelf
   currentSide = product.segment;
   renderShelves();
   renderBottomNav();
 
   setTimeout(() => {
     const shelfRow = document.getElementById(`shelf-row-${product.shelf}`);
-    if (shelfRow) {
+    const cards = browseView.querySelectorAll(`.product-card-shelf[data-upc="${product.upc}"]`);
+    const targetCard = cards.length > 0 ? cards[0] : null;
+
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+      const scrollSettleMs = planogram.id === 'endcap' ? 600 : 100;
+      setTimeout(() => {
+        cards.forEach(card => {
+          card.classList.add('highlight-flash');
+          card.addEventListener('animationend', () => {
+            card.classList.remove('highlight-flash');
+          }, { once: true });
+        });
+      }, scrollSettleMs);
+    } else if (shelfRow) {
       shelfRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, 0);
-}
-
-function switchToTab(tabName) {
-  const tabs = document.querySelectorAll('.tab-btn');
-  const views = {
-    'browse': document.getElementById('browse-view'),
-    'scan': document.getElementById('scan-view'),
-    'upc': document.getElementById('upc-view')
-  };
-
-  tabs.forEach(b => b.classList.remove('active'));
-  const activeTab = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
-  if (activeTab) activeTab.classList.add('active');
-
-  Object.values(views).forEach(v => { if (v) v.style.display = 'none'; });
-  if (views[tabName]) views[tabName].style.display = tabName === 'scan' ? 'flex' : 'block';
-
-  if (tabName === 'scan') {
-    startScanner();
-  } else {
-    stopScanner();
-  }
-
-  if (tabName === 'browse') {
-    renderShelves();
-  }
-}
-
-function openImageLightbox(src) {
-  const lightbox = document.createElement('div');
-  lightbox.className = 'image-lightbox';
-  lightbox.innerHTML = `
-    <button class="image-lightbox-close">✕</button>
-    <img src="${src}" class="image-lightbox-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">
-  `;
-  document.body.appendChild(lightbox);
-
-  lightbox.querySelector('.image-lightbox-close').onclick = () => lightbox.remove();
-  lightbox.onclick = (e) => {
-    if (e.target === lightbox) lightbox.remove();
-  };
 }
 
 function renderMiniPog(activeProduct) {
@@ -1282,46 +1503,87 @@ function pdfTouchDistance(touches) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+function findScrollParent(el) {
+  while (el && el !== document.documentElement) {
+    const style = getComputedStyle(el);
+    const overflowY = style.overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
 function setupPullDownProtection() {
+  let startX = 0;
   let startY = 0;
-  let tracking = false;
-  let armed = false;
-  let armedTimer = null;
+  let gestureDecided = false;
+  let blockThisGesture = false;
+
+  let threeFingerActive = false;
+  let threeFingerStartY = 0;
+  let threeFingerLastY = 0;
 
   document.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    const target = e.target;
-    if (target.closest('.overlay, .pdf-viewer')) return;
-    startY = e.touches[0].clientY;
-    tracking = window.scrollY === 0;
+    if (e.touches.length === 1) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      gestureDecided = false;
+      blockThisGesture = false;
+    }
+    if (e.touches.length >= 3) {
+      threeFingerActive = true;
+      threeFingerStartY = avgTouchY(e.touches);
+      threeFingerLastY = threeFingerStartY;
+    }
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
-    if (!tracking) return;
-    const target = e.target;
-    if (target.closest('.overlay, .pdf-viewer')) return;
+    if (threeFingerActive && e.touches.length >= 3) {
+      threeFingerLastY = avgTouchY(e.touches);
+      return;
+    }
 
-    const deltaY = e.touches[0].clientY - startY;
-    if (deltaY > 40) {
-      if (!armed) {
-        armed = true;
-        showToast('Pull down again to refresh');
-        clearTimeout(armedTimer);
-        armedTimer = setTimeout(() => { armed = false; }, 2000);
-        e.preventDefault();
-      } else {
-        armed = false;
-        clearTimeout(armedTimer);
+    if (e.touches.length !== 1) return;
+
+    if (!gestureDecided) {
+      const deltaX = e.touches[0].clientX - startX;
+      const deltaY = e.touches[0].clientY - startY;
+
+      if (Math.abs(deltaY) < 10 && Math.abs(deltaX) < 10) return;
+
+      gestureDecided = true;
+
+      if (deltaY > 0 && Math.abs(deltaY) >= Math.abs(deltaX)) {
+        const scrollParent = findScrollParent(e.target);
+        blockThisGesture = !scrollParent || scrollParent.scrollTop <= 0;
       }
+    }
+
+    if (blockThisGesture) {
+      e.preventDefault();
     }
   }, { passive: false });
 
-  document.addEventListener('touchend', () => {
-    tracking = false;
+  document.addEventListener('touchend', (e) => {
+    if (threeFingerActive && e.touches.length === 0) {
+      if (threeFingerLastY - threeFingerStartY > 80) {
+        location.reload();
+      }
+      threeFingerActive = false;
+    }
   }, { passive: true });
 }
 
+function avgTouchY(touches) {
+  let sum = 0;
+  for (let i = 0; i < touches.length; i++) sum += touches[i].clientY;
+  return sum / touches.length;
+}
+
 // Start
+setupPullDownProtection();
 init();
 
 // SW Update
