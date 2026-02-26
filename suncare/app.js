@@ -51,30 +51,30 @@ const landingTemplate = () => `
 const headerTemplate = (storeId, pog) => `
   <header>
     <div class="header-top">
-      <div>
-        <div class="app-title">☀️ SUNCARE POG LOOKUP</div>
-        <div class="store-info">Store ${storeId} · ${pog.pogNumber}</div>
-        <button class="btn-change-store" id="change-store">↩ Change Store</button>
+      <div class="header-title">☀️ ${pog.id === 'pallet' ? 'PALLET' : 'ENDCAP'}</div>
+      <div class="header-right">
+        <span class="header-store">Store #${storeId}</span>
+        <button class="btn-close-store" id="close-store">✕</button>
       </div>
-      <div class="live-date">LIVE ${pog.liveDate}<br>${pog.totalProducts} SKUs · ${pog.sides} Sides</div>
     </div>
-    
+
     <div class="tab-nav">
       <button class="tab-btn active" data-tab="browse">Browse</button>
       <button class="tab-btn" data-tab="scan">Scan</button>
       <button class="tab-btn" data-tab="upc">UPC</button>
-    </div>
-    
-    <div class="filter-chips">
-      <div class="chip active" data-filter="all">All</div>
-      <div class="chip" data-filter="new">🟢 New</div>
-      <div class="chip" data-filter="srp">🟣 SRP</div>
-      <div class="chip" id="pog-pdf-chip">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-file-type-pdf"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" /><path d="M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6" /><path d="M17 18h2" /><path d="M20 15h-3v6" /><path d="M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1" /></svg>
-        POG PDF
-      </div>
+      <button class="tab-btn" data-tab="pdf">PDF</button>
     </div>
   </header>
+
+  <div class="confirm-overlay" id="confirm-overlay">
+    <div class="confirm-card">
+      <p class="confirm-msg">Would you really like to change stores?</p>
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-yes" id="confirm-yes">Yes</button>
+        <button class="confirm-btn confirm-no" id="confirm-no">No</button>
+      </div>
+    </div>
+  </div>
 `;
 
 const browseTemplate = () => `
@@ -324,11 +324,9 @@ function loadApp(storeId, data) {
   app.innerHTML = headerTemplate(storeId, planogram) + browseTemplate();
   
   setupNavigation();
-  setupFilters();
   renderShelves();
   renderBottomNav();
   setupGestures();
-  setupPdfAccess();
 
   if (!resizeBound) {
     window.addEventListener('resize', () => {
@@ -338,14 +336,6 @@ function loadApp(storeId, data) {
   }
 }
 
-function setupPdfAccess() {
-    const pdfChip = document.getElementById('pog-pdf-chip');
-    if(pdfChip) {
-        pdfChip.addEventListener('click', () => {
-             openPdfViewer();
-        });
-    }
-}
 
 function clearUpcSearch() {
   const upcInput = document.getElementById('manual-upc');
@@ -371,6 +361,12 @@ function highlightMatch(text, query) {
 }
 
 function switchToTab(tabName) {
+  // Handle PDF tab separately — open the PDF viewer and deselect active tab highlight
+  if (tabName === 'pdf') {
+    openPdfViewer();
+    return;
+  }
+
   const tabs = document.querySelectorAll('.tab-btn');
   const views = {
     'browse': document.getElementById('browse-view'),
@@ -419,10 +415,16 @@ function setupNavigation() {
     });
   });
 
-  document.getElementById('change-store').addEventListener('click', () => {
-    if (confirm('Change store?')) {
-      location.reload();
-    }
+  document.getElementById('close-store').addEventListener('click', () => {
+    document.getElementById('confirm-overlay').classList.add('active');
+  });
+
+  document.getElementById('confirm-yes').addEventListener('click', () => {
+    location.reload();
+  });
+
+  document.getElementById('confirm-no').addEventListener('click', () => {
+    document.getElementById('confirm-overlay').classList.remove('active');
   });
 
   // Manual UPC
@@ -502,17 +504,6 @@ function setupNavigation() {
   });
 }
 
-function setupFilters() {
-  const chips = document.querySelectorAll('.chip:not(#pog-pdf-chip)'); // Exclude PDF button
-  chips.forEach(c => {
-    c.addEventListener('click', () => {
-      chips.forEach(x => x.classList.remove('active'));
-      c.classList.add('active');
-      currentFilter = c.dataset.filter;
-      renderShelves();
-    });
-  });
-}
 
 function renderShelves() {
   const container = document.getElementById('browse-view');
