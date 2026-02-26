@@ -145,37 +145,40 @@ header {
 .header-top {
   display: flex;
   justify-content: space-between;
-  align-items: start;
+  align-items: center;
   margin-bottom: 8px;
 }
 
-.app-title {
+.header-title {
   color: var(--primary);
   font-size: 1.2rem;
   font-weight: 700;
 }
 
-.store-info {
-  font-size: 1rem;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-store {
+  font-size: 0.95rem;
   color: var(--text);
+  font-weight: 600;
 }
 
-.live-date {
-  font-size: 0.8rem;
-  color: var(--text-dim);
-  text-align: right;
-}
-
-.btn-change-store {
+.btn-close-store {
   background: none;
   border: 1px solid var(--surface-2);
   color: var(--text-dim);
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 4px;
+  font-size: 1.1rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  margin-top: 4px;
 }
 
 .tab-nav {
@@ -204,30 +207,61 @@ header {
   border-color: var(--primary);
 }
 
-.filter-chips {
-  display: flex;
-  gap: 8px;
-  padding: 12px var(--spacing);
-  overflow-x: auto;
-  white-space: nowrap;
-  -webkit-overflow-scrolling: touch;
+/* Confirm Overlay */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
 }
 
-.chip {
+.confirm-overlay.active {
+  display: flex;
+}
+
+.confirm-card {
   background: var(--surface);
   border: 1px solid var(--surface-2);
-  color: var(--text-dim);
-  padding: 6px 14px;
-  border-radius: 16px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  border-radius: 12px;
+  padding: 28px 24px;
+  text-align: center;
+  max-width: 300px;
+  width: 90%;
+}
+
+.confirm-msg {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 20px;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.confirm-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.chip.active {
+.confirm-yes {
+  background: var(--primary);
+  color: #000;
+}
+
+.confirm-no {
   background: var(--surface-2);
   color: var(--text);
-  border-color: var(--text-dim);
+  border: 1px solid var(--text-dim);
 }
 
 /* Shelf Grid & Rows */
@@ -1316,22 +1350,18 @@ header {
     margin-bottom: 2px;
   }
 
-  .app-title {
+  .header-title {
     font-size: 0.8rem;
   }
 
-  .store-info {
+  .header-store {
     font-size: 0.7rem;
   }
 
-  .live-date {
-    font-size: 0.65rem;
-  }
-
-  .btn-change-store {
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    margin-top: 2px;
+  .btn-close-store {
+    width: 24px;
+    height: 24px;
+    font-size: 0.8rem;
   }
 
   .tab-nav {
@@ -1341,16 +1371,6 @@ header {
 
   .tab-btn {
     padding: 4px 10px;
-    font-size: 0.75rem;
-  }
-
-  .filter-chips {
-    padding: 4px var(--spacing);
-    gap: 6px;
-  }
-
-  .chip {
-    padding: 3px 8px;
     font-size: 0.75rem;
   }
 
