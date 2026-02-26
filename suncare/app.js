@@ -84,6 +84,9 @@ const browseTemplate = () => `
   
   <div class="scan-view" id="scan-view">
     <div id="reader"></div>
+    <button class="torch-btn" id="torch-toggle" style="display:none">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4.95 11.95l.88.88A2 2 0 0 1 8.5 16h7a2 2 0 0 1 .57-1.17l.88-.88A7 7 0 0 0 12 2z"/></svg>
+    </button>
   </div>
   
   <div class="upc-view" id="upc-view">
@@ -124,18 +127,11 @@ const productOverlayTemplate = (p, redirect=null) => `
       ` : ''}
       
       <div class="detail-img-container">
-        <img src="images/${p.upc}.webp" class="detail-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">
+        <img src="images/${p.upc}.webp" class="detail-img" id="detail-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">
       </div>
       
       <h2 class="detail-title">${p.name}</h2>
       <div class="detail-upc">UPC: ${p.upc.replace(/^0+/, '')}</div>
-      
-      <div class="badges">
-        ${p.isNew ? '<span class="badge new">NEW</span>' : ''}
-        ${p.srp ? '<span class="badge srp">SRP</span>' : ''}
-        ${p.isChange ? '<span class="badge change">CHANGE</span>' : ''}
-        ${p.isMove ? '<span class="badge move">MOVE</span>' : ''}
-      </div>
       
       <div class="location-grid">
         <div class="loc-box">
@@ -162,12 +158,19 @@ const productOverlayTemplate = (p, redirect=null) => `
       
       <button class="btn-primary" id="view-pdf">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-file-type-pdf"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" /><path d="M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6" /><path d="M17 18h2" /><path d="M20 15h-3v6" /><path d="M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1" /></svg>
-        POG PDFs
+        View Planogram
       </button>
 
       <div class="overlay-nav-buttons">
-        <button class="btn-overlay-nav scan-another" id="scan-another">Scan Another</button>
-        <button class="btn-overlay-nav return-browse" id="return-browse">See Product</button>
+        <button class="btn-overlay-nav scan-another" id="scan-another">Scan UPC</button>
+        <button class="btn-overlay-nav return-browse" id="return-browse">See Location</button>
+      </div>
+
+      <div class="overlay-badges">
+        ${p.isNew ? '<span class="overlay-badge new">NEW</span>' : ''}
+        ${p.srp ? '<span class="overlay-badge srp">SRP</span>' : ''}
+        ${p.isChange ? '<span class="overlay-badge change">CHANGE</span>' : ''}
+        ${p.isMove ? '<span class="overlay-badge move">MOVE</span>' : ''}
       </div>
     </div>
   </div>
@@ -249,6 +252,11 @@ const BASE_PX_PER_IN = 7.2;
 const STACK_OVERRIDES = {
   "7548609166": 4,
   "934710805107": 3
+};
+
+const SHELF_SCALE_OVERRIDES = {
+  "4-2": 1.6,
+  "2-1": 1.6
 };
 
 function getStackCount(upc) {
@@ -518,26 +526,34 @@ function renderShelves() {
   let widestShelfItemCount = 0;
 
   for (let s = maxShelf; s >= 1; s--) {
-    const shelfProducts = sideProducts
+    const allShelfProducts = sideProducts
       .filter(p => p.shelf === s)
       .sort((a, b) => a.position - b.position);
 
-    let displayProducts = shelfProducts;
-    if (currentFilter === 'new') displayProducts = displayProducts.filter(p => p.isNew);
-    if (currentFilter === 'srp') displayProducts = displayProducts.filter(p => p.srp);
-
-    const facings = displayProducts.reduce((acc, p) => acc + p.facings, 0);
-    const shelfWidthIn = displayProducts.reduce(
+    const allFacings = allShelfProducts.reduce((acc, p) => acc + p.facings, 0);
+    const shelfWidthIn = allShelfProducts.reduce(
       (acc, p) => acc + getProductWidthIn(p) * p.facings,
       0
     );
 
     if (shelfWidthIn > maxShelfWidthIn) {
       maxShelfWidthIn = shelfWidthIn;
-      widestShelfItemCount = displayProducts.length;
+      widestShelfItemCount = allShelfProducts.length;
     }
 
-    shelves.push({ s, displayProducts, facings, shelfWidthIn });
+    const visibleSet = new Set();
+    if (currentFilter === 'new') allShelfProducts.filter(p => p.isNew).forEach(p => visibleSet.add(p.upc));
+    else if (currentFilter === 'srp') allShelfProducts.filter(p => p.srp).forEach(p => visibleSet.add(p.upc));
+
+    const displayProducts = allShelfProducts.map(p => ({
+      ...p,
+      hidden: currentFilter !== 'all' && !visibleSet.has(p.upc)
+    }));
+
+    const visibleProducts = displayProducts.filter(p => !p.hidden);
+    const visibleFacings = visibleProducts.reduce((acc, p) => acc + p.facings, 0);
+
+    shelves.push({ s, displayProducts, facings: visibleFacings, allFacings, shelfWidthIn, visibleCount: visibleProducts.length });
   }
 
   const rawWidth = container ? container.clientWidth : window.innerWidth;
@@ -557,11 +573,13 @@ function renderShelves() {
     endcapScale = ((contentWidth - padRight - widestGaps) / maxShelfWidthIn) * 2.0;
   }
 
-  shelves.forEach(({ s, displayProducts, facings, shelfWidthIn }) => {
+  shelves.forEach(({ s, displayProducts, facings, shelfWidthIn, visibleCount }) => {
     const shelfDiv = document.createElement('div');
     shelfDiv.className = 'shelf-container';
 
     const label = s === maxShelf ? 'TOP' : (s === 1 ? 'BOTTOM' : '');
+    const boostKey = `${currentSide}-${s}`;
+    const boost = SHELF_SCALE_OVERRIDES[boostKey] || 0;
 
     let shelfScale;
     if (isEndcap) {
@@ -574,12 +592,12 @@ function renderShelves() {
     }
 
     shelfDiv.innerHTML = `
+      <div class="product-shelf-row" id="shelf-row-${s}">
+        ${displayProducts.map(p => createProductCard(p, p.hidden, boost)).join('')}
+      </div>
       <div class="shelf-header">
         <span>Shelf ${s} ${label}</span>
-        <span>${displayProducts.length} items · ${facings} facings</span>
-      </div>
-      <div class="product-shelf-row" id="shelf-row-${s}">
-        ${displayProducts.map(p => createProductCard(p)).join('')}
+        <span>${visibleCount} items · ${facings} facings</span>
       </div>
     `;
 
@@ -594,7 +612,7 @@ function renderShelves() {
   });
 }
 
-function createProductCard(p) {
+function createProductCard(p, hidden = false, boost = 0) {
   const stack = getStackCount(p.upc);
   const heightIn = getProductHeightIn(p);
   const stackedHeightIn = heightIn * stack;
@@ -608,8 +626,12 @@ function createProductCard(p) {
     imagesHtml += `<img src="${imgSrc}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='${fallback}'">`;
   }
 
+  const hiddenStyle = hidden ? 'visibility: hidden;' : '';
+  const boostedClass = (boost > 0 && !isStacked) ? ' boosted' : '';
+  const boostStyle = (boost > 0 && !isStacked) ? `--shelf-boost: ${boost};` : '';
+
   return `
-    <div class="product-card-shelf" data-upc="${p.upc}" style="--facings: ${p.facings}; --stack: ${stack}; --width-in: ${getProductWidthIn(p)}; --height-in: ${stackedHeightIn};" onclick="openProductOverlay('${p.upc}')">
+    <div class="product-card-shelf${boostedClass}" data-upc="${p.upc}" style="--facings: ${p.facings}; --stack: ${stack}; --width-in: ${getProductWidthIn(p)}; --height-in: ${stackedHeightIn}; ${hiddenStyle}${boostStyle}" onclick="openProductOverlay('${p.upc}')">
       <div class="product-img-group${isStacked ? ' stacked' : ''}">
         ${imagesHtml}
         ${p.isNew ? '<span class="badge new">NEW</span>' : ''}
@@ -629,7 +651,7 @@ function renderBottomNav() {
   
   let html = '';
   for (let i = 1; i <= planogram.sides; i++) {
-    html += `<button class="nav-btn ${i === currentSide ? 'active' : ''}" onclick="changeSide(${i})">${i}</button>`;
+    html += `<button class="nav-btn ${i === currentSide ? 'active' : ''}" onclick="changeSide(${i})">Bay ${i}</button>`;
   }
   nav.innerHTML = html;
 }
@@ -641,7 +663,7 @@ function changeSide(side) {
   renderBottomNav();
   
   // Toast
-  showToast(`Side ${side}`);
+  showToast(`Bay ${side}`);
   
   // Haptic
   if (navigator.vibrate) navigator.vibrate(30);
@@ -696,10 +718,11 @@ function startScanner() {
     fps: 10,
     qrbox: function(viewfinderWidth, viewfinderHeight) {
       return {
-        width: Math.min(Math.floor(viewfinderWidth * 0.85), 400),
-        height: Math.min(Math.floor(viewfinderHeight * 0.45), 200)
+        width: Math.min(Math.floor(viewfinderWidth * 0.92), 500),
+        height: Math.min(Math.floor(viewfinderHeight * 0.25), 120)
       };
-    }
+    },
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
   };
 
   html5QrCode.start(
@@ -707,12 +730,25 @@ function startScanner() {
     config,
     (decodedText) => {
       stopScanner();
-      handleUpcSearch(decodedText, true);
+      const found = findProduct(decodedText) || findByFuzzy(decodedText, products);
+      if (found) {
+        openProductOverlay(found.upc);
+      } else {
+        const removed = findByFuzzy(decodedText, removedProducts);
+        if (removed) {
+          showToast(`Removed from planogram: ${removed.name}`, 2500, 'warning');
+        } else {
+          showToast(`Product ${decodedText} not found`, 2500, 'warning');
+        }
+        setTimeout(() => startScanner(), 1500);
+      }
     },
     (errorMessage) => {
       // ignore per-frame decode failures
     }
-  ).catch(err => {
+  ).then(() => {
+    setupTorchButton();
+  }).catch(err => {
     console.error(err);
     readerEl.innerHTML = `
       <div class="scanner-loading">
@@ -722,12 +758,45 @@ function startScanner() {
   });
 }
 
+let torchOn = false;
+
+function setupTorchButton() {
+  const btn = document.getElementById('torch-toggle');
+  if (!btn || !html5QrCode) return;
+  try {
+    const track = html5QrCode.getRunningTrackSettings && html5QrCode.getRunningTrackCameraCapabilities
+      ? null : null;
+    const videoElement = document.querySelector('#reader video');
+    if (!videoElement) return;
+    const stream = videoElement.srcObject;
+    if (!stream) return;
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+    const caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+    if (!caps.torch) return;
+    btn.style.display = 'flex';
+    btn.onclick = () => {
+      torchOn = !torchOn;
+      videoTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+      btn.classList.toggle('active', torchOn);
+    };
+  } catch (e) {
+    console.warn('Torch not available:', e);
+  }
+}
+
 function stopScanner() {
   if (html5QrCode) {
     html5QrCode.stop().then(() => {
       html5QrCode.clear();
       html5QrCode = null;
     }).catch(err => console.error(err));
+  }
+  torchOn = false;
+  const torchBtn = document.getElementById('torch-toggle');
+  if (torchBtn) {
+    torchBtn.style.display = 'none';
+    torchBtn.classList.remove('active');
   }
 }
 
@@ -927,7 +996,7 @@ function openProductOverlay(upc, redirect=null) {
   // Events
   document.getElementById('close-overlay').onclick = () => {
     document.querySelector('.overlay').remove();
-    focusProductInBrowse(p);
+    switchToTab('browse');
   };
 
   document.getElementById('view-pdf').onclick = () => {
@@ -943,6 +1012,23 @@ function openProductOverlay(upc, redirect=null) {
     document.querySelector('.overlay').remove();
     focusProductInBrowse(p);
   };
+
+  const detailImg = document.getElementById('detail-img');
+  if (detailImg) {
+    detailImg.onclick = () => openImageLightbox(detailImg.src);
+  }
+}
+
+function openImageLightbox(src) {
+  const lb = document.createElement('div');
+  lb.className = 'image-lightbox';
+  lb.innerHTML = `
+    <button class="image-lightbox-close">✕</button>
+    <img src="${src}" class="image-lightbox-img">
+  `;
+  document.body.appendChild(lb);
+  lb.querySelector('.image-lightbox-close').onclick = () => lb.remove();
+  lb.onclick = (e) => { if (e.target === lb) lb.remove(); };
 }
 
 function focusProductInBrowse(product) {

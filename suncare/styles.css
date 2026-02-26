@@ -180,26 +180,28 @@ header {
 
 .tab-nav {
   display: flex;
-  gap: 16px;
+  gap: 10px;
   margin-top: 12px;
-  border-bottom: 1px solid var(--surface-2);
+  padding-bottom: 8px;
 }
 
 .tab-btn {
-  background: none;
-  border: none;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-2);
   color: var(--text-dim);
-  padding: 8px 0;
+  padding: 8px 16px;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-radius: 20px;
   flex: 1;
+  text-align: center;
 }
 
 .tab-btn.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  background: var(--primary);
+  color: #000;
+  border-color: var(--primary);
 }
 
 .filter-chips {
@@ -250,8 +252,8 @@ header {
   font-size: 1rem;
   font-weight: 500;
   color: var(--text-dim);
-  margin-bottom: 4px;
-  padding-bottom: 4px;
+  margin-top: 4px;
+  padding-top: 4px;
   display: flex;
   justify-content: space-between;
 }
@@ -297,6 +299,11 @@ header {
   border-right: none;
 }
 
+
+.product-card-shelf.boosted {
+  width: calc(var(--width-in, 2.5) * var(--facings, 1) * var(--inch-scale, 7.2px) * var(--shelf-boost, 1));
+  height: calc(var(--height-in, 6) * var(--inch-scale, 7.2px) * var(--shelf-boost, 1));
+}
 
 .product-img-group {
   display: flex;
@@ -348,7 +355,7 @@ header {
 
 .badge {
   position: absolute;
-  top: 0;
+  top: -12px;
   left: 0;
   font-size: 0.55rem;
   font-weight: 700;
@@ -403,6 +410,33 @@ header {
   font-weight: 500;
 }
 
+/* Torch Button */
+.torch-btn {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.torch-btn.active {
+  background: var(--primary);
+  color: #000;
+}
+
+.scan-view {
+  position: relative;
+}
+
 /* Manual UPC */
 .upc-view {
   padding: var(--spacing);
@@ -415,11 +449,6 @@ header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 20vh;
-}
-
-.upc-view:has(#upc-result:not(:empty)) .upc-search-container {
-  padding-top: 0;
 }
 
 .upc-input-group {
@@ -595,19 +624,19 @@ header {
   border-top: 1px solid var(--surface-2);
   display: flex;
   justify-content: space-around;
-  padding: 12px;
+  padding: 16px;
   z-index: 100;
 }
 
 .nav-btn {
-  background: none;
-  border: none;
+  background: var(--surface-2);
+  border: 1px solid var(--text-dim);
   color: var(--text-dim);
-  font-size: 1.1rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  min-width: 56px;
+  height: 56px;
+  border-radius: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -618,6 +647,7 @@ header {
   background: var(--primary);
   color: #000;
   font-weight: bold;
+  border-color: var(--primary);
 }
 
 /* Overlay */
@@ -672,10 +702,39 @@ header {
   border-radius: var(--border-radius);
   margin-bottom: 16px;
   box-shadow: 0 0 36px rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 501;
+}
+
+.image-lightbox-img {
+  max-width: 95vw;
+  max-height: 90vh;
+  object-fit: contain;
 }
 
 .detail-title {
-  font-size: 1.35rem;
+  font-size: 1.6rem;
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -683,7 +742,7 @@ header {
 .detail-upc {
   color: var(--text-dim);
   font-family: monospace;
-  font-size: 1.05rem;
+  font-size: 1.25rem;
   margin-bottom: 16px;
 }
 
@@ -702,14 +761,14 @@ header {
 }
 
 .loc-label {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   color: var(--text-dim);
   display: block;
   margin-bottom: 4px;
 }
 
 .loc-value {
-  font-size: 1.2rem;
+  font-size: 1.45rem;
   font-weight: 700;
 }
 
@@ -870,7 +929,7 @@ header {
   padding: 14px 16px;
   border-radius: var(--border-radius);
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: 1.25rem;
   cursor: pointer;
   border: none;
 }
@@ -886,6 +945,26 @@ header {
   border: 1px solid var(--text-dim);
 }
 
+.overlay-badges {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.overlay-badge {
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 6px;
+  color: #fff;
+}
+
+.overlay-badge.new { background: var(--new-badge); }
+.overlay-badge.srp { background: var(--srp-badge); }
+.overlay-badge.change { background: var(--change-badge); }
+.overlay-badge.move { background: var(--move-badge); }
 
 /* Animations */
 @keyframes fadeIn {
@@ -1256,12 +1335,12 @@ header {
 
   .tab-nav {
     margin-top: 4px;
-    gap: 8px;
+    gap: 6px;
   }
 
   .tab-btn {
-    padding: 4px 0;
-    font-size: 0.8rem;
+    padding: 4px 10px;
+    font-size: 0.75rem;
   }
 
   .filter-chips {
@@ -1280,9 +1359,9 @@ header {
   }
 
   .nav-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 0.8rem;
+    min-width: 36px;
+    height: 36px;
+    font-size: 0.7rem;
   }
 
   /* --- Toast position --- */
@@ -1303,10 +1382,6 @@ header {
   .upc-view {
     padding: 6px var(--spacing);
     min-height: calc(100vh - 120px);
-  }
-
-  .upc-search-container {
-    padding-top: 10vh;
   }
 
   .upc-input {
