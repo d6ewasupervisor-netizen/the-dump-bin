@@ -52,6 +52,7 @@ const headerTemplate = (storeId, pog) => `
   <header>
     <div class="header-top">
       <div class="header-title">☀️ ${pog.id === 'pallet' ? 'PALLET' : 'ENDCAP'}</div>
+      <a class="header-guide-link" href="user-guide.html" target="_blank" rel="noopener noreferrer">User Guide</a>
       <div class="header-right">
         <span class="header-store">Store #${storeId}</span>
         <button class="btn-close-store" id="close-store">✕</button>
