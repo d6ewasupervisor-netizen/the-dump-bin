@@ -169,8 +169,6 @@ const productOverlayTemplate = (p, redirect=null) => `
       <div class="overlay-badges">
         ${p.isNew ? '<span class="overlay-badge new">NEW</span>' : ''}
         ${p.srp ? '<span class="overlay-badge srp">SRP</span>' : ''}
-        ${p.isChange ? '<span class="overlay-badge change">CHANGE</span>' : ''}
-        ${p.isMove ? '<span class="overlay-badge move">MOVE</span>' : ''}
       </div>
     </div>
   </div>
