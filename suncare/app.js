@@ -255,8 +255,8 @@ const STACK_OVERRIDES = {
 };
 
 const SHELF_SCALE_OVERRIDES = {
-  "4-2": 1.3,
-  "2-1": 1.3
+  "4-2": 1.2,
+  "2-1": 1.2
 };
 
 function getStackCount(upc) {
