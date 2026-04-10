@@ -21,7 +21,7 @@
   <div id="userInfoPage" class="page-wrap" style="max-width:520px; min-height:calc(100vh - var(--nav-height)); display:flex; align-items:center;">
     <div class="form-section" style="width:100%;">
       <h1>Employee Information</h1>
-      <p class="subtitle">Enter your details to continue.</p>
+      <p class="subtitle">Enter your name and email to continue.</p>
 
       <form id="userInfoForm" class="gap-stack" style="margin-top:28px;">
         <div class="form-row two-col">
@@ -38,31 +38,6 @@
         <div class="form-group">
           <label for="email">Email Address</label>
           <input type="email" id="email" name="email" required>
-        </div>
-
-        <div class="form-group">
-          <label for="streetAddress">Street Address</label>
-          <input type="text" id="streetAddress" name="streetAddress" required>
-        </div>
-
-        <div class="form-group">
-          <label for="aptSuite">Apartment, suite, etc. <span class="text-dim">(Optional)</span></label>
-          <input type="text" id="aptSuite" name="aptSuite">
-        </div>
-
-        <div class="form-row three-col">
-          <div class="form-group">
-            <label for="city">City</label>
-            <input type="text" id="city" name="city" required>
-          </div>
-          <div class="form-group">
-            <label for="state">State</label>
-            <input type="text" id="state" name="state" required>
-          </div>
-          <div class="form-group">
-            <label for="zipCode">ZIP Code</label>
-            <input type="text" id="zipCode" name="zipCode" required>
-          </div>
         </div>
 
         <button type="submit" class="btn btn-primary btn-block" style="margin-top:24px;">Continue to Order</button>
@@ -190,11 +165,6 @@
         firstName:     fd.get('firstName'),
         lastName:      fd.get('lastName'),
         email:         fd.get('email'),
-        streetAddress: fd.get('streetAddress'),
-        aptSuite:      fd.get('aptSuite'),
-        city:          fd.get('city'),
-        state:         fd.get('state'),
-        zipCode:       fd.get('zipCode'),
       };
 
       defaultNameTagDisplay.value     = userInfo.firstName;
@@ -286,15 +256,10 @@
     const modalText        = document.getElementById('modal-text');
 
     submitOrderBtn.addEventListener('click', () => {
-      let addr = userInfo.streetAddress;
-      if (userInfo.aptSuite) addr += ', ' + userInfo.aptSuite;
-      addr += '<br>' + userInfo.city + ', ' + userInfo.state + ' ' + userInfo.zipCode;
-
       let html = `
         <div>
           <div class="row"><span class="label">${userInfo.firstName} ${userInfo.lastName}</span></div>
           <div class="text-xs text-dim">${userInfo.email}</div>
-          <div class="text-xs text-dim mt-4">${addr}</div>
         </div>
         <hr>
         <div class="row"><span class="label">Order Details</span></div>`;
