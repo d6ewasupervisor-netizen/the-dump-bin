@@ -1,23 +1,23 @@
 /* ===== The Dump Bin — Brand Stylesheet ===== */
 
-/* --- Brand Palette (from logo.png) --- */
+/* --- Brand Palette (from logo.png — navy, steel-blue, gold) --- */
 :root {
-  --color-bg:            #2c2c2c;
-  --color-bg-dark:       #242424;
-  --color-surface:       #363636;
-  --color-surface-hover: #444444;
+  --color-bg:            #1e2a38;
+  --color-bg-dark:       #141c27;
+  --color-surface:       #1f2d3d;
+  --color-surface-hover: #2a3a4e;
   --color-primary:       #4a7fb5;
   --color-primary-light: #8ab4d6;
   --color-accent:        #c9a84c;
   --color-accent-light:  #e2cc7a;
-  --color-text:          #f0f0f0;
-  --color-text-dim:      #b0b0b0;
-  --color-border:        #505050;
+  --color-text:          #e8ecf1;
+  --color-text-dim:      #8fa3b8;
+  --color-border:        #2f4562;
   --color-success:       #4caf50;
   --color-error:         #e74c3c;
   --radius:              10px;
   --radius-lg:           16px;
-  --shadow:              0 4px 24px rgba(0,0,0,.35);
+  --shadow:              0 4px 24px rgba(0,0,0,.45);
   --max-width:           1100px;
   --nav-height:          60px;
   --font:                'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -46,8 +46,9 @@ a:hover { color: var(--color-accent-light); }
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--color-bg);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-dark);
+  border-bottom: 2px solid var(--color-border);
+  border-image: linear-gradient(90deg, transparent, var(--color-accent) 30%, var(--color-accent) 70%, transparent) 1;
   height: var(--nav-height);
   display: flex;
   align-items: center;
@@ -104,7 +105,9 @@ a:hover { color: var(--color-accent-light); }
 .hero__title {
   font-size: 2rem;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--color-accent);
+  letter-spacing: .04em;
+  text-transform: uppercase;
   margin-bottom: 6px;
 }
 
@@ -122,7 +125,7 @@ a:hover { color: var(--color-accent-light); }
 }
 
 .card {
-  background: var(--color-surface);
+  background: linear-gradient(135deg, var(--color-surface) 0%, #1a2535 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 28px 24px;
@@ -137,7 +140,7 @@ a:hover { color: var(--color-accent-light); }
 .card:hover {
   transform: translateY(-4px);
   border-color: var(--color-accent);
-  box-shadow: 0 0 20px rgba(201,168,76,.15);
+  box-shadow: 0 0 24px rgba(201,168,76,.2), 0 0 60px rgba(74,127,181,.08);
   color: inherit;
 }
 
@@ -150,6 +153,7 @@ a:hover { color: var(--color-accent-light); }
   font-size: 1.2rem;
   font-weight: 700;
   color: var(--color-text);
+  letter-spacing: .02em;
 }
 
 .card__desc {
@@ -170,6 +174,8 @@ a:hover { color: var(--color-accent-light); }
   font-size: 1.75rem;
   font-weight: 700;
   text-align: center;
+  color: var(--color-accent);
+  letter-spacing: .03em;
 }
 
 .form-section p.subtitle {
@@ -245,16 +251,18 @@ input[readonly] {
 .btn:active { transform: scale(.97); }
 
 .btn-primary {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #3d6d9e 100%);
   color: #fff;
 }
-.btn-primary:hover { background: #3d6d9e; }
+.btn-primary:hover { background: linear-gradient(135deg, #3d6d9e 0%, #345e87 100%); }
 
 .btn-accent {
-  background: var(--color-accent);
-  color: #1a1a1a;
+  background: linear-gradient(135deg, var(--color-accent) 0%, #b8943e 100%);
+  color: #111;
+  font-weight: 700;
+  letter-spacing: .03em;
 }
-.btn-accent:hover { background: var(--color-accent-light); }
+.btn-accent:hover { background: linear-gradient(135deg, var(--color-accent-light) 0%, var(--color-accent) 100%); }
 
 .btn-ghost {
   background: var(--color-surface-hover);
@@ -416,6 +424,8 @@ input[readonly] {
 .modal__header h2 {
   font-size: 1.35rem;
   font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: .02em;
 }
 
 .modal__close {
@@ -504,6 +514,8 @@ input[readonly] {
 .product-details h1 {
   font-size: 1.8rem;
   font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: .03em;
 }
 
 .product-details .item-number {
