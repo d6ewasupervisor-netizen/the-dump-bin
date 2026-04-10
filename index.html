@@ -1,22 +1,50 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>The Dump Bin</title>
-  <style>
-    body{font-family:system-ui,Arial,sans-serif;max-width:720px;margin:48px auto;padding:0 16px;line-height:1.4}
-    a{display:block;padding:12px 14px;border:1px solid #ddd;border-radius:10px;margin:10px 0;text-decoration:none}
-    a:hover{background:#f6f6f6}
-    h1{margin:0 0 10px}
-    p{margin:0 0 18px;color:#444}
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Dump Bin — Team Resources</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <h1>The Dump Bin</h1>
-  <p>Select an app:</p>
 
-  <a href="/suncare/">Suncare Lookup</a>
-  <a href="/furniture/">Furniture</a>
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <img src="/logo.png" alt="Retail Odyssey District 8" class="site-nav__logo">
+      <span class="site-nav__link" style="color:var(--color-accent); cursor:default;">Home</span>
+    </div>
+  </nav>
+
+  <main class="page-wrap">
+    <section class="hero">
+      <img src="/logo.png" alt="Retail Odyssey Company — District 8" class="hero__logo">
+      <h1 class="hero__title">Team Resources</h1>
+      <p class="hero__sub">Everything you need, all in one place.</p>
+    </section>
+
+    <div class="card-grid">
+
+      <a href="/shirt-order/" class="card">
+        <span class="card__icon">👕</span>
+        <span class="card__title">Shirt &amp; Name Tag Order</span>
+        <span class="card__desc">Order your Retail Odyssey polo and name tag — ships to your door.</span>
+      </a>
+
+      <a href="/suncare/" class="card">
+        <span class="card__icon">🔍</span>
+        <span class="card__title">Suncare POG Lookup</span>
+        <span class="card__desc">Scan, search, and browse the suncare planogram for your store.</span>
+      </a>
+
+      <a href="/Furniture/" class="card">
+        <span class="card__icon">🪑</span>
+        <span class="card__title">Furniture</span>
+        <span class="card__desc">Access the furniture resources and reference materials.</span>
+      </a>
+
+    </div>
+  </main>
+
 </body>
 </html>
