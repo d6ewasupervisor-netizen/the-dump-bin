@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shirt &amp; Name Tag Order — The Dump Bin</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <a href="/"><img src="/logo.png" alt="Home" class="site-nav__logo"></a>
+      <a href="/" class="site-nav__link">Home</a>
+    </div>
+  </nav>
+
+  <!-- ============ PAGE 1: User Info ============ -->
+  <div id="userInfoPage" class="page-wrap" style="max-width:520px; min-height:calc(100vh - var(--nav-height)); display:flex; align-items:center;">
+    <div class="form-section" style="width:100%;">
+      <h1>Employee Information</h1>
+      <p class="subtitle">Enter your details to continue.</p>
+
+      <form id="userInfoForm" class="gap-stack" style="margin-top:28px;">
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="firstName">First Name</label>
+            <input type="text" id="firstName" name="firstName" required>
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last Name</label>
+            <input type="text" id="lastName" name="lastName" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" name="email" required>
+        </div>
+
+        <div class="form-group">
+          <label for="streetAddress">Street Address</label>
+          <input type="text" id="streetAddress" name="streetAddress" required>
+        </div>
+
+        <div class="form-group">
+          <label for="aptSuite">Apartment, suite, etc. <span class="text-dim">(Optional)</span></label>
+          <input type="text" id="aptSuite" name="aptSuite">
+        </div>
+
+        <div class="form-row three-col">
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" required>
+          </div>
+          <div class="form-group">
+            <label for="state">State</label>
+            <input type="text" id="state" name="state" required>
+          </div>
+          <div class="form-group">
+            <label for="zipCode">ZIP Code</label>
+            <input type="text" id="zipCode" name="zipCode" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:24px;">Continue to Order</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ PAGE 2: Order Form ============ -->
+  <div id="orderPage" class="page-wrap hidden" style="opacity:0; transition:opacity .3s;">
+
+    <div class="product-layout">
+      <!-- Left: Image -->
+      <div class="product-image">
+        <img src="shirt.png" alt="Navy Blue Polo Shirt with Retail Odyssey Logo">
+      </div>
+
+      <!-- Right: Details -->
+      <div class="product-details">
+        <h1>Retail Odyssey Polo</h1>
+        <p class="item-number">Item # SAS-POLO-RO</p>
+
+        <h3>Description</h3>
+        <p>UNISEX PIQUE POLO</p>
+
+        <h3>Color</h3>
+        <span class="color-badge">Navy</span>
+
+        <!-- Sizes -->
+        <h3>Select Shirt Size &amp; Quantity <span class="text-dim text-sm">(Optional)</span></h3>
+        <p class="text-sm text-dim">Select one size, max 2 shirts</p>
+        <div id="size-selector" class="size-grid mt-4"></div>
+
+        <!-- Name Tag -->
+        <hr class="section-divider">
+        <h3>Name Tag</h3>
+
+        <div class="radio-group mt-4">
+          <label><input type="radio" id="nameTagNo" name="nameTagOption" value="no" checked> No, I don't need one</label>
+          <label><input type="radio" id="nameTagYes" name="nameTagOption" value="yes"> Yes, I need a name tag</label>
+        </div>
+
+        <div id="nameTagFields" class="hidden mt-6">
+          <div class="nametag-layout">
+            <div class="nametag-fields gap-stack-sm">
+              <div class="form-group">
+                <label for="defaultNameTagDisplay">Default Name Tag</label>
+                <input type="text" id="defaultNameTagDisplay" readonly>
+              </div>
+              <div class="form-group">
+                <label for="nameForTag">Preferred Name Tag</label>
+                <input type="text" id="nameForTag">
+                <span class="text-xs text-dim">I will use your default name unless you provide a preferred name.</span>
+              </div>
+              <div class="form-group">
+                <label for="nameTagComment">Comments <span class="text-dim">(Optional)</span></label>
+                <textarea id="nameTagComment" rows="2"></textarea>
+              </div>
+            </div>
+            <div class="nametag-preview-wrap">
+              <label class="text-center">Preview</label>
+              <div class="nametag-preview mt-4">
+                <img src="nametag.png" alt="Name tag preview">
+                <div id="nameTagPreviewText" class="nametag-text"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-auto" style="padding-top:28px;">
+          <button id="submitOrderBtn" class="btn btn-accent btn-block">Review My Order</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: Order Summary ============ -->
+  <div id="orderModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal__header">
+        <h2>Confirm Submission</h2>
+        <button id="closeModalBtn" class="modal__close">&times;</button>
+      </div>
+      <p id="modal-text" class="modal__body">Please review your selections. Pressing "Submit Order" will finalize your request.</p>
+
+      <div id="summaryContent" class="modal__summary"></div>
+
+      <div id="modal-footer" class="modal__actions">
+        <button id="confirmSubmitBtn" class="btn btn-primary">Submit Order</button>
+        <button id="closeModalBtn2" class="btn btn-ghost">Cancel</button>
+      </div>
+
+      <div id="success-footer" class="modal__actions hidden">
+        <button id="doneBtn" class="btn btn-success btn-block">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCRIPT ============ -->
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Google Apps Script endpoint
+    const flowURL = 'https://script.google.com/macros/s/AKfycbwBqYYcncn8ir7-fb7eVDSE1_1s9rmBMui87wf83ltyM_ldKyDymVnxcYi72geHoCR4Nw/exec';
+
+    const userInfoPage  = document.getElementById('userInfoPage');
+    const orderPage     = document.getElementById('orderPage');
+    const userInfoForm  = document.getElementById('userInfoForm');
+    const sizeSelector  = document.getElementById('size-selector');
+
+    const sizes = ['S','M','L','XL','2XL','3XL','4XL','5XL','6XL','7XL'];
+    const MAX_TOTAL_QUANTITY = 2;
+    let userInfo = {};
+
+    const nameTagYesRadio       = document.getElementById('nameTagYes');
+    const nameTagNoRadio        = document.getElementById('nameTagNo');
+    const nameTagFields         = document.getElementById('nameTagFields');
+    const nameForTagInput       = document.getElementById('nameForTag');
+    const nameTagPreviewText    = document.getElementById('nameTagPreviewText');
+    const defaultNameTagDisplay = document.getElementById('defaultNameTagDisplay');
+
+    // --- 1. User Info → Order page transition ---
+    userInfoForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(userInfoForm);
+      userInfo = {
+        firstName:     fd.get('firstName'),
+        lastName:      fd.get('lastName'),
+        email:         fd.get('email'),
+        streetAddress: fd.get('streetAddress'),
+        aptSuite:      fd.get('aptSuite'),
+        city:          fd.get('city'),
+        state:         fd.get('state'),
+        zipCode:       fd.get('zipCode'),
+      };
+
+      defaultNameTagDisplay.value     = userInfo.firstName;
+      nameForTagInput.value           = userInfo.firstName;
+      nameTagPreviewText.textContent  = userInfo.firstName;
+
+      userInfoPage.style.opacity = '0';
+      userInfoPage.style.pointerEvents = 'none';
+      setTimeout(() => {
+        userInfoPage.classList.add('hidden');
+        orderPage.classList.remove('hidden');
+        setTimeout(() => { orderPage.style.opacity = '1'; }, 50);
+      }, 300);
+    });
+
+    // --- 2. Populate size stepper buttons ---
+    sizes.forEach(size => {
+      const el = document.createElement('div');
+      el.className = 'size-item';
+      el.innerHTML = `
+        <label>${size}</label>
+        <div class="stepper">
+          <button type="button" data-action="decrement" data-size="${size}" disabled>&minus;</button>
+          <span data-size="${size}" class="qty">0</span>
+          <button type="button" data-action="increment" data-size="${size}">+</button>
+        </div>`;
+      sizeSelector.appendChild(el);
+    });
+
+    // --- 3. Quantity logic (single size, max 2) ---
+    function getTotalQuantity() {
+      return Array.from(sizeSelector.querySelectorAll('.qty'))
+        .reduce((t, d) => t + parseInt(d.textContent, 10), 0);
+    }
+
+    function updateAllButtonStates() {
+      const total = getTotalQuantity();
+      let selectedSize = null;
+      sizeSelector.querySelectorAll('.qty').forEach(d => {
+        if (parseInt(d.textContent) > 0) selectedSize = d.dataset.size;
+      });
+
+      sizeSelector.querySelectorAll('.stepper').forEach(stepper => {
+        const size = stepper.querySelector('.qty').dataset.size;
+        const qty  = parseInt(stepper.querySelector('.qty').textContent);
+        const inc  = stepper.querySelector('[data-action="increment"]');
+        const dec  = stepper.querySelector('[data-action="decrement"]');
+        dec.disabled = qty === 0;
+        if (selectedSize) {
+          inc.disabled = (size !== selectedSize) || (total >= MAX_TOTAL_QUANTITY);
+        } else {
+          inc.disabled = total >= MAX_TOTAL_QUANTITY;
+        }
+      });
+    }
+
+    sizeSelector.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const size   = btn.dataset.size;
+      const display = sizeSelector.querySelector(`.qty[data-size="${size}"]`);
+      let qty = parseInt(display.textContent, 10);
+
+      if (action === 'increment' && getTotalQuantity() < MAX_TOTAL_QUANTITY) qty++;
+      else if (action === 'decrement' && qty > 0) qty--;
+
+      display.textContent = qty;
+      updateAllButtonStates();
+    });
+
+    // --- 4. Name Tag toggle + live preview ---
+    [nameTagYesRadio, nameTagNoRadio].forEach(r => {
+      r.addEventListener('change', () => nameTagFields.classList.toggle('hidden', !nameTagYesRadio.checked));
+    });
+    nameForTagInput.addEventListener('input', (e) => {
+      nameTagPreviewText.textContent = e.target.value;
+    });
+
+    // --- 5. Modal + submission ---
+    const submitOrderBtn   = document.getElementById('submitOrderBtn');
+    const orderModal       = document.getElementById('orderModal');
+    const closeModalBtns   = [document.getElementById('closeModalBtn'), document.getElementById('closeModalBtn2')];
+    const summaryContent   = document.getElementById('summaryContent');
+    const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
+    const modalFooter      = document.getElementById('modal-footer');
+    const successFooter    = document.getElementById('success-footer');
+    const doneBtn          = document.getElementById('doneBtn');
+    const modalText        = document.getElementById('modal-text');
+
+    submitOrderBtn.addEventListener('click', () => {
+      let addr = userInfo.streetAddress;
+      if (userInfo.aptSuite) addr += ', ' + userInfo.aptSuite;
+      addr += '<br>' + userInfo.city + ', ' + userInfo.state + ' ' + userInfo.zipCode;
+
+      let html = `
+        <div>
+          <div class="row"><span class="label">${userInfo.firstName} ${userInfo.lastName}</span></div>
+          <div class="text-xs text-dim">${userInfo.email}</div>
+          <div class="text-xs text-dim mt-4">${addr}</div>
+        </div>
+        <hr>
+        <div class="row"><span class="label">Order Details</span></div>`;
+
+      let hasShirt = false, shirtSize = '', quantity = 0;
+      sizeSelector.querySelectorAll('.qty').forEach(d => {
+        const q = parseInt(d.textContent, 10);
+        if (q > 0) {
+          hasShirt = true;
+          shirtSize = d.dataset.size;
+          quantity = q;
+          html += `<div class="row"><span class="label">Shirt (Size ${shirtSize}):</span><span class="value">${quantity}</span></div>`;
+        }
+      });
+
+      if (nameTagYesRadio.checked) {
+        html += `<div class="row"><span class="label">Name Tag:</span><span class="value">Yes</span></div>`;
+        html += `<div class="row"><span class="label">Name on Tag:</span><span class="value">${nameForTagInput.value}</span></div>`;
+        const comment = document.getElementById('nameTagComment').value;
+        if (comment) {
+          html += `<div class="row"><span class="label">Comment:</span></div><div class="text-xs text-dim">${comment}</div>`;
+        }
+      } else {
+        html += `<div class="row"><span class="label">Name Tag:</span><span class="value">No</span></div>`;
+      }
+
+      const hasValidOrder = hasShirt || nameTagYesRadio.checked;
+
+      if (!hasValidOrder) {
+        summaryContent.innerHTML = '<p class="text-center text-dim" style="padding:16px 0;">Please select a shirt and/or name tag before submitting.</p>';
+        modalFooter.style.display = 'none';
+        modalText.textContent = 'Please select a shirt and/or name tag before submitting.';
+      } else {
+        summaryContent.innerHTML = html;
+        modalFooter.style.display = 'flex';
+        modalText.textContent = 'Please review your selections. Pressing "Submit Order" will finalize your request.';
+      }
+
+      successFooter.classList.add('hidden');
+      confirmSubmitBtn.disabled = false;
+      confirmSubmitBtn.textContent = 'Submit Order';
+      summaryContent.style.display = 'block';
+
+      orderModal.classList.add('open');
+    });
+
+    function closeModal() {
+      orderModal.classList.remove('open');
+    }
+    closeModalBtns.forEach(btn => btn.addEventListener('click', closeModal));
+    doneBtn.addEventListener('click', () => window.location.reload());
+
+    // --- 6. POST to Google Apps Script ---
+    confirmSubmitBtn.addEventListener('click', () => {
+      confirmSubmitBtn.disabled = true;
+      confirmSubmitBtn.textContent = 'Submitting...';
+
+      let selectedSize = '', selectedQuantity = 0;
+      sizeSelector.querySelectorAll('.qty').forEach(d => {
+        const q = parseInt(d.textContent, 10);
+        if (q > 0) { selectedSize = d.dataset.size; selectedQuantity = q; }
+      });
+
+      const payload = {
+        ...userInfo,
+        shirtSize:      selectedSize,
+        quantity:        selectedQuantity,
+        nameTagNeeded:   nameTagYesRadio.checked ? 'Yes' : 'No',
+        nameTagName:     nameTagYesRadio.checked ? nameForTagInput.value : '',
+        nameTagComment:  nameTagYesRadio.checked ? document.getElementById('nameTagComment').value : ''
+      };
+
+      fetch(flowURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      })
+      .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+      .then(data => {
+        if (data.result === 'success') {
+          modalText.textContent = 'Your order has been submitted successfully!';
+          summaryContent.style.display = 'none';
+          modalFooter.style.display = 'none';
+          successFooter.classList.remove('hidden');
+        } else {
+          throw new Error(data.error || 'Script returned an error.');
+        }
+      })
+      .catch(err => {
+        console.error('Error submitting order:', err);
+        modalText.textContent = 'There was an error submitting your order. Please try again.';
+        summaryContent.style.display = 'none';
+        confirmSubmitBtn.disabled = false;
+        confirmSubmitBtn.textContent = 'Try Again';
+        modalFooter.style.display = 'flex';
+        successFooter.classList.add('hidden');
+      });
+    });
+  });
+  </script>
+</body>
+</html>
