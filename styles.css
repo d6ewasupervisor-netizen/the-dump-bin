@@ -30,7 +30,10 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--font);
-  background: var(--color-bg-dark);
+  background-color: var(--color-bg-dark);
+  background-image: url('/background.png');
+  background-repeat: repeat;
+  background-attachment: fixed;
   color: var(--color-text);
   line-height: 1.5;
   min-height: 100vh;
