@@ -32,7 +32,6 @@ async function loadIdentity() {
     const data = await res.json();
     userEmail = data.email;
   } catch {}
-  document.getElementById('printRecipient').textContent = 'tyson.gauthier@retailodyssey.com';
 }
 
 // --- Weeks ---

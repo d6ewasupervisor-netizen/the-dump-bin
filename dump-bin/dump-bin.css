@@ -280,16 +280,33 @@
 
 /* --- Responsive --- */
 @media (max-width: 768px) {
+  .site-nav { height: auto; padding: 8px 12px; }
+  .site-nav__inner {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
   .db-nav-links {
-    gap: 0;
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    flex: 1 1 auto;
   }
   .db-nav-links .site-nav__link {
     padding: 6px 8px;
-    font-size: .8rem;
+    font-size: .78rem;
   }
   .db-dropdown__menu {
-    min-width: 220px;
+    position: fixed;
+    top: auto;
+    left: 8px;
+    right: 8px;
+    min-width: 0;
+    max-height: 60vh;
   }
+  .db-hero { padding: 16px 0 4px; }
+  .db-hero__title { font-size: 1.4rem; }
+  .db-hero__sub { font-size: .88rem; }
+  .db-week-nav { margin: 16px 0 12px; gap: 8px; }
   .db-week-pill {
     padding: 6px 10px;
     font-size: .78rem;
@@ -297,6 +314,33 @@
   .db-arrow {
     width: 36px;
     height: 36px;
+    flex-shrink: 0;
+  }
+  .db-week-grid {
+    flex: 1;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .db-browser { padding: 10px; border-radius: var(--radius); }
+  .db-item { padding: 12px 10px; gap: 10px; }
+  .db-item__name { font-size: .92rem; }
+  .db-item__meta { font-size: .72rem; }
+  .db-breadcrumb { font-size: .82rem; margin: 12px 0 8px; }
+  .db-store-list { max-height: 220px; }
+  .db-store-item { padding: 12px 12px; }
+  .db-toast-wrap {
+    top: auto;
+    bottom: 100px;
+    left: 8px;
+    right: 8px;
+  }
+  .db-toast {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
   }
 }
 
@@ -574,22 +618,45 @@
 @media (max-width: 600px) {
   .db-selection-bar {
     padding: 10px 12px;
-    gap: 10px;
+    gap: 8px;
     left: 8px;
     right: 8px;
-    transform: translateY(140px);
+    bottom: 8px;
+    transform: translateY(160px);
     width: auto;
+    max-width: none;
+    border-radius: var(--radius);
   }
   .db-selection-bar.visible {
     transform: translateY(0);
   }
+  .db-selection-bar__info {
+    width: 100%;
+    font-size: .88rem;
+    white-space: normal;
+  }
   .db-selection-bar__actions {
     width: 100%;
     justify-content: space-between;
+    gap: 6px;
   }
   .db-selection-bar .btn {
     flex: 1;
-    padding: 8px 6px;
-    font-size: .8rem;
+    padding: 10px 4px;
+    font-size: .78rem;
+    min-height: 40px;
   }
+  .db-popover {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 72px !important;
+    top: auto !important;
+    min-width: 0;
+  }
+  .db-popover button {
+    padding: 14px;
+    font-size: .92rem;
+  }
+  .db-selection-item { padding: 10px 6px; font-size: .85rem; }
+  .db-selection-item__path { font-size: .7rem; }
 }
