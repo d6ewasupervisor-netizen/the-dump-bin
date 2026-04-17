@@ -29,6 +29,9 @@ body {
   font-weight: 450;
   letter-spacing: 0.01em;
   background-color: var(--bg);
+  background-image: url('/background.png');
+  background-repeat: repeat;
+  background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   padding-bottom: 70px;
