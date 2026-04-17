@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dump Bin — The Dump Bin</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/dump-bin/dump-bin.css">
+</head>
+<body>
+
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <a href="/"><img src="/logo.png" alt="Retail Odyssey District 8" class="site-nav__logo"></a>
+      <div class="db-nav-links">
+        <a href="/" class="site-nav__link">← Dashboard</a>
+        <div class="db-dropdown">
+          <button class="site-nav__link db-dropdown__toggle">Useful Folder ▾</button>
+          <div class="db-dropdown__menu" data-prefix="A Useful Folder/"></div>
+        </div>
+        <div class="db-dropdown">
+          <button class="site-nav__link db-dropdown__toggle">Non-Kompass ▾</button>
+          <div class="db-dropdown__menu" data-prefix="Non-Kompass/"></div>
+        </div>
+        <div class="db-dropdown">
+          <button class="site-nav__link db-dropdown__toggle">Special Projects ▾</button>
+          <div class="db-dropdown__menu" data-prefix="Special Projects/"></div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-wrap">
+
+    <section class="db-hero">
+      <h1 class="db-hero__title">Dump Bin</h1>
+      <p class="db-hero__sub">Current and upcoming week materials.</p>
+    </section>
+
+    <!-- Week nav: arrows + grid picker -->
+    <section class="db-week-nav">
+      <button class="db-arrow" id="prevWeek" aria-label="Previous week">◄</button>
+      <div class="db-week-grid" id="weekGrid"></div>
+      <button class="db-arrow" id="nextWeek" aria-label="Next week">►</button>
+    </section>
+
+    <!-- Breadcrumb -->
+    <div class="db-breadcrumb" id="breadcrumb"></div>
+
+    <!-- Browser -->
+    <section class="db-browser" id="browser">
+      <div class="db-loading">Loading…</div>
+    </section>
+
+  </main>
+
+  <script src="/dump-bin/dump-bin.js"></script>
+</body>
+</html>
