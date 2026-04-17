@@ -571,6 +571,106 @@
   font-size: .85rem;
 }
 
+/* --- Print modal: multi-view state machine --- */
+.db-print-view { display: none; }
+.db-print-modal.state-picker  .db-print-view--picker,
+.db-print-modal.state-confirm .db-print-view--confirm,
+.db-print-modal.state-sending .db-print-view--confirm,
+.db-print-modal.state-transit .db-print-view--transit {
+  display: block;
+}
+
+/* Pre-send pipeline heads-up */
+.db-pipeline-notice {
+  background: rgba(201,168,76,.08);
+  border: 1px solid rgba(201,168,76,.35);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.db-pipeline-notice__lead {
+  font-size: .98rem;
+  font-weight: 600;
+  color: var(--color-accent-light);
+  margin: 0 0 8px;
+}
+
+.db-pipeline-steps {
+  margin: 10px 0 12px;
+  padding-left: 22px;
+  color: var(--color-text);
+  font-size: .88rem;
+  line-height: 1.5;
+}
+
+.db-pipeline-steps li { margin-bottom: 6px; }
+.db-pipeline-steps strong { color: var(--color-accent-light); }
+
+.db-pipeline-notice__footer {
+  margin: 10px 0 0;
+  font-size: .85rem;
+  color: var(--color-text-dim);
+  border-top: 1px dashed var(--color-border);
+  padding-top: 10px;
+}
+
+/* Post-send transit view */
+.db-pipeline-transit {
+  text-align: center;
+  padding: 8px 4px 4px;
+}
+
+.db-pipeline-transit__icon {
+  font-size: 2.4rem;
+  animation: db-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes db-pulse {
+  0%, 100% { transform: scale(1); opacity: .85; }
+  50%      { transform: scale(1.12); opacity: 1; }
+}
+
+.db-pipeline-transit__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 8px 0 6px;
+  letter-spacing: .02em;
+}
+
+.db-pipeline-transit__countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px auto 10px;
+  padding: 8px 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: .88rem;
+  color: var(--color-text-dim);
+}
+
+.db-pipeline-transit__countdown-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  color: var(--color-accent);
+  font-size: 1rem;
+}
+
+.db-pipeline-transit__fineprint {
+  max-width: 44ch;
+  margin: 10px auto 0;
+  line-height: 1.5;
+}
+
+/* Cooldown state on the Print at Store button */
+.btn.db-cooldown {
+  opacity: .7;
+  cursor: not-allowed;
+  font-variant-numeric: tabular-nums;
+}
+
 /* --- Toasts --- */
 .db-toast-wrap {
   position: fixed;

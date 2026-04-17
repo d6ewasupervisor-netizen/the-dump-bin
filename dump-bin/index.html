@@ -90,12 +90,14 @@
 
   <!-- Print at Store modal -->
   <div class="modal-backdrop" id="printModal">
-    <div class="modal">
+    <div class="modal db-print-modal state-picker">
       <div class="modal__header">
-        <h2>Print at Store</h2>
+        <h2 id="printModalTitle">Print at Store</h2>
         <button class="modal__close" data-close="printModal">✕</button>
       </div>
-      <div class="modal__body">
+
+      <!-- Picker view -->
+      <div class="modal__body db-print-view db-print-view--picker">
         <p class="text-dim text-sm">Selected files will be faxed to the customer service desk at your chosen store. You'll receive an acknowledgment email when your request is submitted, followed by a confirmation email once the files have printed. Total file size must be under 35&nbsp;MB. Images are not supported.</p>
         <div class="form-group mt-4">
           <label for="storeSearch">Search store #</label>
@@ -108,8 +110,44 @@
           <div class="row"><span class="label">Total size:</span><span class="value" id="printSize">0 B</span></div>
         </div>
       </div>
+
+      <!-- Confirm view: humorous heads-up before hitting the pipeline -->
+      <div class="modal__body db-print-view db-print-view--confirm">
+        <div class="db-pipeline-notice">
+          <p class="db-pipeline-notice__lead">Quick heads-up before you hit send — this isn't quite like printing at home.</p>
+          <p class="text-dim text-sm">Once you confirm, your files begin a suspiciously scenic journey through our byzantine stack:</p>
+          <ol class="db-pipeline-steps">
+            <li><strong>Payload assembly.</strong> Files get bundled into a MIME-encoded envelope and handed to the dispatch queue.</li>
+            <li><strong>SMTP relay.</strong> The envelope hops across a few pieces of corporate mail plumbing — each with its own opinion on attachment size.</li>
+            <li><strong>Fax gateway handoff.</strong> An email-to-fax bridge picks it up, looks up the store's fax number, and transcodes everything into the T.38 protocol.</li>
+            <li><strong>POTS dial-in.</strong> A decade of telephony abstractions kicks in to dial the store over a very-much-still-real phone line.</li>
+            <li><strong>Ink on paper.</strong> A long-suffering Brother MFC at the customer service desk coughs out your pages.</li>
+          </ol>
+          <p class="db-pipeline-notice__footer">Total trip time is usually <strong>30&ndash;90 seconds</strong>. It really is working, even when nothing on screen looks like it is. Please don't send twice — duplicate jobs jam the fax and waste a small forest.</p>
+        </div>
+        <div class="modal__summary">
+          <div class="row"><span class="label">Destination:</span><span class="value" id="confirmStoreLabel">—</span></div>
+          <div class="row"><span class="label">Files:</span><span class="value" id="confirmFileCount">0</span></div>
+          <div class="row"><span class="label">Total size:</span><span class="value" id="confirmSize">0 B</span></div>
+        </div>
+      </div>
+
+      <!-- Transit view: post-send cooldown -->
+      <div class="modal__body db-print-view db-print-view--transit">
+        <div class="db-pipeline-transit">
+          <div class="db-pipeline-transit__icon">📠</div>
+          <h3 class="db-pipeline-transit__title">Handed to the pipeline</h3>
+          <p class="text-dim text-sm" id="transitSubline">Your job has been injected into the relay and is being transcoded for the fax gateway. Nothing more to do on your end.</p>
+          <div class="db-pipeline-transit__countdown">
+            <span class="db-pipeline-transit__countdown-label">Send button parked for</span>
+            <span class="db-pipeline-transit__countdown-time" id="cooldownRemaining">2:00</span>
+          </div>
+          <p class="text-dim text-xs db-pipeline-transit__fineprint">You'll get an acknowledgment email shortly, and a confirmation once the pages actually land in the tray. If you think something went sideways, check with IT before hitting send again — double-sends are harder to unring than they look.</p>
+        </div>
+      </div>
+
       <div class="modal__actions">
-        <button class="btn btn-ghost" data-close="printModal">Cancel</button>
+        <button class="btn btn-ghost" id="printCancelBtn">Cancel</button>
         <button class="btn btn-accent" id="sendPrintBtn" disabled>Send</button>
       </div>
     </div>

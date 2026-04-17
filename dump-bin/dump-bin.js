@@ -3,6 +3,12 @@ import { STORES } from './stores.js';
 
 const API = '/api';
 
+// A fax job has to sidle through several relays and a T.38 gateway before it
+// reaches paper — impatient double-clicks clog that pipe and duplicate prints.
+// We park the Send button for this long after a successful submission.
+const PRINT_COOLDOWN_MS = 2 * 60 * 1000;
+const PRINT_LAST_SEND_KEY = 'dumpBinLastPrintSend';
+
 // State
 let weeks = [];
 let currentWeekIdx = 0;
@@ -14,6 +20,10 @@ const selection = new Map();
 
 // Store picker state
 let selectedStore = null;
+
+// Print modal state: 'picker' | 'confirm' | 'sending' | 'transit'
+let printModalState = 'picker';
+let cooldownTicker = null;
 
 // --- Boot ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -312,6 +322,11 @@ function wireSelectionBar() {
   document.getElementById('printAtStoreBtn').addEventListener('click', () => {
     openPrintModal();
   });
+
+  // If a recent submission is still in the cooldown window (including across
+  // page reloads), keep the button locked until the fax pipeline catches up.
+  if (getCooldownRemaining() > 0) startCooldownTicker();
+  else updatePrintAtStoreButton();
 }
 
 function updateSelectionBar() {
@@ -409,21 +424,36 @@ function wirePrintModal() {
   renderStoreList('');
 
   document.getElementById('sendPrintBtn').addEventListener('click', sendPrint);
+
+  // Cancel button is state-aware: in the confirm view it steps back to the
+  // picker so the user can adjust the job; everywhere else it closes.
+  document.getElementById('printCancelBtn').addEventListener('click', () => {
+    if (printModalState === 'confirm') setPrintModalState('picker');
+    else if (printModalState !== 'sending') closeModal('printModal');
+  });
 }
 
 function openPrintModal() {
+  // If we're still in the cooldown window, short-circuit into the transit view
+  // — the last job is still being chaperoned through the gateway.
+  if (getCooldownRemaining() > 0) {
+    setPrintModalState('transit');
+    openModal('printModal');
+    startCooldownTicker();
+    return;
+  }
   if (selection.size === 0) {
     toast('Select at least one file first', 'error');
     return;
   }
   selectedStore = null;
   document.getElementById('selectedStoreLabel').textContent = 'none';
-  document.getElementById('sendPrintBtn').disabled = true;
   document.getElementById('printFileCount').textContent = selection.size;
   const totalSize = Array.from(selection.values()).reduce((s, f) => s + f.size, 0);
   document.getElementById('printSize').textContent = formatSize(totalSize);
   document.getElementById('storeSearch').value = '';
   renderStoreList('');
+  setPrintModalState('picker');
   openModal('printModal');
 }
 
@@ -455,9 +485,22 @@ function renderStoreList(query) {
 
 async function sendPrint() {
   if (!selectedStore || selection.size === 0) return;
-  const btn = document.getElementById('sendPrintBtn');
-  btn.disabled = true;
-  btn.textContent = 'Sending…';
+
+  // First click from the picker routes through the pipeline-explainer step so
+  // users understand why the response isn't instantaneous. Only the second,
+  // deliberate click actually dispatches the job.
+  if (printModalState === 'picker') {
+    document.getElementById('confirmStoreLabel').textContent =
+      `#${selectedStore.num} — ${selectedStore.city}`;
+    document.getElementById('confirmFileCount').textContent = selection.size;
+    const totalSize = Array.from(selection.values()).reduce((s, f) => s + f.size, 0);
+    document.getElementById('confirmSize').textContent = formatSize(totalSize);
+    setPrintModalState('confirm');
+    return;
+  }
+  if (printModalState !== 'confirm') return;
+
+  setPrintModalState('sending');
   try {
     const res = await fetch(`${API}/print-at-store`, {
       method: 'POST',
@@ -471,15 +514,104 @@ async function sendPrint() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Send failed');
     toast(`Sent to #${selectedStore.num} — ${selectedStore.city}. You're CC'd.`, 'success');
-    closeModal('printModal');
+    document.getElementById('transitSubline').textContent =
+      `Your job for #${selectedStore.num} — ${selectedStore.city} has been injected into the relay and is being transcoded for the fax gateway. Nothing more to do on your end.`;
+    localStorage.setItem(PRINT_LAST_SEND_KEY, String(Date.now()));
     selection.clear();
     updateSelectionBar();
     navigate(currentPrefix);
+    setPrintModalState('transit');
+    startCooldownTicker();
   } catch (err) {
     toast(`Failed: ${err.message}`, 'error');
-  } finally {
+    setPrintModalState('confirm');
+  }
+}
+
+// --- Print modal state machine ---
+function setPrintModalState(state) {
+  printModalState = state;
+  const modal = document.querySelector('#printModal .modal');
+  if (!modal) return;
+  modal.classList.remove('state-picker', 'state-confirm', 'state-sending', 'state-transit');
+  modal.classList.add(`state-${state}`);
+
+  const sendBtn = document.getElementById('sendPrintBtn');
+  const cancelBtn = document.getElementById('printCancelBtn');
+  const title = document.getElementById('printModalTitle');
+
+  cancelBtn.disabled = false;
+
+  if (state === 'picker') {
+    title.textContent = 'Print at Store';
+    sendBtn.style.display = '';
+    sendBtn.textContent = 'Send';
+    sendBtn.disabled = !selectedStore || selection.size === 0;
+    cancelBtn.textContent = 'Cancel';
+  } else if (state === 'confirm') {
+    title.textContent = 'Before you send…';
+    sendBtn.style.display = '';
+    sendBtn.textContent = 'Yes, send it →';
+    sendBtn.disabled = false;
+    cancelBtn.textContent = '← Back';
+  } else if (state === 'sending') {
+    title.textContent = 'Transmitting…';
+    sendBtn.style.display = '';
+    sendBtn.textContent = 'Transmitting…';
+    sendBtn.disabled = true;
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.disabled = true;
+  } else if (state === 'transit') {
+    title.textContent = 'In transit';
+    sendBtn.style.display = 'none';
+    cancelBtn.textContent = 'Got it';
+  }
+}
+
+// --- Cooldown after a successful send ---
+function getCooldownRemaining() {
+  const last = parseInt(localStorage.getItem(PRINT_LAST_SEND_KEY) || '0', 10);
+  if (!last) return 0;
+  return Math.max(0, last + PRINT_COOLDOWN_MS - Date.now());
+}
+
+function formatCooldown(ms) {
+  const s = Math.ceil(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function startCooldownTicker() {
+  if (cooldownTicker) return;
+  const tick = () => {
+    const remaining = getCooldownRemaining();
+    const el = document.getElementById('cooldownRemaining');
+    if (el) el.textContent = formatCooldown(remaining);
+    updatePrintAtStoreButton();
+    if (remaining === 0) {
+      clearInterval(cooldownTicker);
+      cooldownTicker = null;
+      if (printModalState === 'transit') {
+        closeModal('printModal');
+        setPrintModalState('picker');
+      }
+    }
+  };
+  tick();
+  cooldownTicker = setInterval(tick, 1000);
+}
+
+function updatePrintAtStoreButton() {
+  const btn = document.getElementById('printAtStoreBtn');
+  if (!btn) return;
+  const remaining = getCooldownRemaining();
+  if (remaining > 0) {
+    btn.disabled = true;
+    btn.classList.add('db-cooldown');
+    btn.textContent = `🕒 In transit · ${formatCooldown(remaining)}`;
+  } else {
     btn.disabled = false;
-    btn.textContent = 'Send';
+    btn.classList.remove('db-cooldown');
+    btn.textContent = '🖨 Print at Store';
   }
 }
 
