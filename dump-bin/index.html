@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/dump-bin/dump-bin.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -38,23 +39,85 @@
       <p class="db-hero__sub">Current and upcoming week materials.</p>
     </section>
 
-    <!-- Week nav: arrows + grid picker -->
+    <!-- Week nav -->
     <section class="db-week-nav">
       <button class="db-arrow" id="prevWeek" aria-label="Previous week">◄</button>
       <div class="db-week-grid" id="weekGrid"></div>
       <button class="db-arrow" id="nextWeek" aria-label="Next week">►</button>
     </section>
 
-    <!-- Breadcrumb -->
     <div class="db-breadcrumb" id="breadcrumb"></div>
 
-    <!-- Browser -->
     <section class="db-browser" id="browser">
       <div class="db-loading">Loading…</div>
     </section>
 
   </main>
 
-  <script src="/dump-bin/dump-bin.js"></script>
+  <!-- Floating selection bar -->
+  <div class="db-selection-bar" id="selectionBar">
+    <div class="db-selection-bar__info">
+      <span id="selectionCount">0</span> selected
+      <span class="db-selection-bar__size" id="selectionSize"></span>
+    </div>
+    <div class="db-selection-bar__actions">
+      <button class="btn btn-ghost" id="viewSelectionBtn">View</button>
+      <button class="btn btn-ghost" id="clearSelectionBtn">Clear</button>
+      <button class="btn btn-primary" id="downloadBtn">Download ▾</button>
+      <button class="btn btn-accent" id="printAtStoreBtn">🖨 Print at Store</button>
+    </div>
+  </div>
+
+  <!-- Download options popover -->
+  <div class="db-popover" id="downloadPopover">
+    <button data-action="individual">Download individually</button>
+    <button data-action="zip">Download as ZIP</button>
+  </div>
+
+  <!-- Selection review modal -->
+  <div class="modal-backdrop" id="selectionModal">
+    <div class="modal">
+      <div class="modal__header">
+        <h2>Selected Files</h2>
+        <button class="modal__close" data-close="selectionModal">✕</button>
+      </div>
+      <div class="modal__body" id="selectionList"></div>
+      <div class="modal__actions">
+        <button class="btn btn-ghost" data-close="selectionModal">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print at Store modal -->
+  <div class="modal-backdrop" id="printModal">
+    <div class="modal">
+      <div class="modal__header">
+        <h2>Print at Store</h2>
+        <button class="modal__close" data-close="printModal">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="text-dim text-sm">Selected files will be emailed to <strong id="printRecipient">the print address</strong>, with you CC'd. Subject line is the store number.</p>
+        <div class="form-group mt-4">
+          <label for="storeSearch">Search store #</label>
+          <input type="text" id="storeSearch" placeholder="Type a number or city…" autocomplete="off">
+        </div>
+        <div class="db-store-list" id="storeList"></div>
+        <div class="modal__summary" id="printSummary">
+          <div class="row"><span class="label">Selected store:</span><span class="value" id="selectedStoreLabel">none</span></div>
+          <div class="row"><span class="label">Files:</span><span class="value" id="printFileCount">0</span></div>
+          <div class="row"><span class="label">Total size:</span><span class="value" id="printSize">0 B</span></div>
+        </div>
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn-ghost" data-close="printModal">Cancel</button>
+        <button class="btn btn-accent" id="sendPrintBtn" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="db-toast-wrap" id="toastWrap"></div>
+
+  <script type="module" src="/dump-bin/dump-bin.js"></script>
 </body>
 </html>
