@@ -35,7 +35,12 @@ body {
   line-height: 1.5;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
 }
+
+button, a { -webkit-tap-highlight-color: transparent; }
 
 img { max-width: 100%; display: block; }
 a { color: var(--color-primary-light); text-decoration: none; }
@@ -571,19 +576,37 @@ input[readonly] {
 
 /* --- Responsive --- */
 @media (max-width: 768px) {
-  .hero__logo { width: 260px; }
+  .site-nav { padding: 0 14px; }
+  .site-nav__logo { height: 30px; }
+  .site-nav__link { padding: 6px 10px; font-size: .85rem; }
+
+  .page-wrap { padding: 24px 16px 48px; }
+
+  .hero { padding: 32px 0 20px; }
+  .hero__logo { width: 240px; max-width: 70%; margin-bottom: 16px; }
   .hero__title { font-size: 1.5rem; }
+  .hero__sub { font-size: .95rem; }
 
   .card-grid {
     grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 24px;
   }
+  .card { padding: 22px 20px; }
+  .card__title { font-size: 1.1rem; }
+  .card__desc { font-size: .88rem; }
+
+  .form-section { padding: 24px 20px; }
+  .form-section h1 { font-size: 1.45rem; }
 
   .product-layout {
     grid-template-columns: 1fr;
   }
 
   .product-image { padding: 20px; }
+  .product-image img { max-height: 320px; }
   .product-details { padding: 24px 20px; }
+  .product-details h1 { font-size: 1.45rem; }
 
   .form-row.two-col,
   .form-row.three-col {
@@ -592,20 +615,49 @@ input[readonly] {
 
   .nametag-layout {
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
+    gap: 20px;
   }
+  .nametag-preview { max-width: 240px; }
 
-  .modal__actions { flex-direction: column; }
-  .modal__actions .btn { min-width: 0; }
+  .modal { padding: 22px 20px; border-radius: var(--radius); }
+  .modal__header h2 { font-size: 1.2rem; }
+  .modal__actions { flex-direction: column-reverse; }
+  .modal__actions .btn { min-width: 0; width: 100%; }
+  .modal-backdrop { padding: 12px; align-items: flex-end; }
+  .modal { max-height: calc(100vh - 24px); overflow-y: auto; }
 
   .size-grid {
-    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+    gap: 8px;
+  }
+
+  .radio-group { gap: 14px; }
+
+  .btn { padding: 12px 20px; min-height: 44px; }
+
+  input[type="text"],
+  input[type="email"],
+  textarea,
+  select {
+    font-size: 16px; /* prevents iOS zoom on focus */
+    padding: 12px 14px;
   }
 }
 
 @media (max-width: 400px) {
   .hero__logo { width: 200px; }
-  .page-wrap { padding: 20px 14px 40px; }
-  .form-section { padding: 24px 18px; }
+  .page-wrap { padding: 18px 12px 36px; }
+  .form-section { padding: 20px 16px; }
   .product-details { padding: 20px 16px; }
+  .site-nav__logo { height: 28px; }
+  .card { padding: 18px 16px; }
+  .card__icon { font-size: 1.6rem; }
+  .modal { padding: 18px 16px; }
+  .modal__summary { padding: 12px; font-size: .85rem; }
+  .modal__summary .row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
 }
