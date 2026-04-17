@@ -7,8 +7,6 @@
   --text-dim: #B8B8B8;
   --new-badge: #4CAF50;
   --srp-badge: #9C27B0;
-  --change-badge: #FF9800;
-  --move-badge: #2196F3;
   --border-radius: 8px;
   --spacing: 16px;
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
@@ -145,87 +143,139 @@ header {
 .header-top {
   display: flex;
   justify-content: space-between;
-  align-items: start;
+  align-items: center;
   margin-bottom: 8px;
 }
 
-.app-title {
+.header-title {
   color: var(--primary);
   font-size: 1.2rem;
   font-weight: 700;
 }
 
-.store-info {
-  font-size: 1rem;
+.header-guide-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid var(--surface-2);
+  border-radius: 14px;
+  padding: 4px 10px;
+  background: var(--surface-2);
+}
+
+.header-guide-link:hover,
+.header-guide-link:focus {
+  border-color: var(--primary);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-store {
+  font-size: 0.95rem;
   color: var(--text);
+  font-weight: 600;
 }
 
-.live-date {
-  font-size: 0.8rem;
-  color: var(--text-dim);
-  text-align: right;
-}
-
-.btn-change-store {
+.btn-close-store {
   background: none;
   border: 1px solid var(--surface-2);
   color: var(--text-dim);
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 4px;
+  font-size: 1.1rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  margin-top: 4px;
 }
 
 .tab-nav {
   display: flex;
-  gap: 16px;
+  gap: 10px;
   margin-top: 12px;
-  border-bottom: 1px solid var(--surface-2);
+  padding-bottom: 8px;
 }
 
 .tab-btn {
-  background: none;
-  border: none;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-2);
   color: var(--text-dim);
-  padding: 8px 0;
+  padding: 8px 16px;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-radius: 20px;
   flex: 1;
+  text-align: center;
 }
 
 .tab-btn.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  background: var(--primary);
+  color: #000;
+  border-color: var(--primary);
 }
 
-.filter-chips {
+/* Confirm Overlay */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-overlay.active {
   display: flex;
-  gap: 8px;
-  padding: 12px var(--spacing);
-  overflow-x: auto;
-  white-space: nowrap;
-  -webkit-overflow-scrolling: touch;
 }
 
-.chip {
+.confirm-card {
   background: var(--surface);
   border: 1px solid var(--surface-2);
-  color: var(--text-dim);
-  padding: 6px 14px;
-  border-radius: 16px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  border-radius: 12px;
+  padding: 28px 24px;
+  text-align: center;
+  max-width: 300px;
+  width: 90%;
+}
+
+.confirm-msg {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 20px;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.confirm-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.chip.active {
+.confirm-yes {
+  background: var(--primary);
+  color: #000;
+}
+
+.confirm-no {
   background: var(--surface-2);
   color: var(--text);
-  border-color: var(--text-dim);
+  border: 1px solid var(--text-dim);
 }
 
 /* Shelf Grid & Rows */
@@ -250,8 +300,8 @@ header {
   font-size: 1rem;
   font-weight: 500;
   color: var(--text-dim);
-  margin-bottom: 4px;
-  padding-bottom: 4px;
+  margin-top: 4px;
+  padding-top: 4px;
   display: flex;
   justify-content: space-between;
 }
@@ -272,7 +322,7 @@ header {
   width: var(--row-width, 100%);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 24px 2px 0;
+  padding: 14px 24px 2px 0;
   min-height: 60px;
   touch-action: pan-x pan-y;
 }
@@ -297,6 +347,11 @@ header {
   border-right: none;
 }
 
+
+.product-card-shelf.boosted {
+  width: calc(var(--width-in, 2.5) * var(--facings, 1) * var(--inch-scale, 7.2px) * var(--shelf-boost, 1));
+  height: calc(var(--height-in, 6) * var(--inch-scale, 7.2px) * var(--shelf-boost, 1));
+}
 
 .product-img-group {
   display: flex;
@@ -348,7 +403,7 @@ header {
 
 .badge {
   position: absolute;
-  top: 0;
+  top: -12px;
   left: 0;
   font-size: 0.55rem;
   font-weight: 700;
@@ -375,6 +430,61 @@ header {
   background: #000;
 }
 
+.scanner-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: rgba(255,255,255,0.7);
+}
+
+.scanner-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: rgba(255,255,255,0.7);
+  border-radius: 50%;
+  animation: scannerSpin 0.8s linear infinite;
+}
+
+@keyframes scannerSpin {
+  to { transform: rotate(360deg); }
+}
+
+.scanner-loading-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Torch Button */
+.torch-btn {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.torch-btn.active {
+  background: var(--primary);
+  color: #000;
+}
+
+.scan-view {
+  position: relative;
+}
+
 /* Manual UPC */
 .upc-view {
   padding: var(--spacing);
@@ -387,11 +497,7 @@ header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 20vh;
-}
-
-.upc-view:has(#upc-result:not(:empty)) .upc-search-container {
-  padding-top: 0;
+  padding-top: 8vh;
 }
 
 .upc-input-group {
@@ -567,19 +673,19 @@ header {
   border-top: 1px solid var(--surface-2);
   display: flex;
   justify-content: space-around;
-  padding: 12px;
+  padding: 16px;
   z-index: 100;
 }
 
 .nav-btn {
-  background: none;
-  border: none;
+  background: var(--surface-2);
+  border: 1px solid var(--text-dim);
   color: var(--text-dim);
-  font-size: 1.1rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  min-width: 56px;
+  height: 56px;
+  border-radius: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -590,6 +696,7 @@ header {
   background: var(--primary);
   color: #000;
   font-weight: bold;
+  border-color: var(--primary);
 }
 
 /* Overlay */
@@ -644,10 +751,39 @@ header {
   border-radius: var(--border-radius);
   margin-bottom: 16px;
   box-shadow: 0 0 36px rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 501;
+}
+
+.image-lightbox-img {
+  max-width: 95vw;
+  max-height: 90vh;
+  object-fit: contain;
 }
 
 .detail-title {
-  font-size: 1.35rem;
+  font-size: 1.6rem;
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -655,7 +791,7 @@ header {
 .detail-upc {
   color: var(--text-dim);
   font-family: monospace;
-  font-size: 1.05rem;
+  font-size: 1.25rem;
   margin-bottom: 16px;
 }
 
@@ -674,14 +810,14 @@ header {
 }
 
 .loc-label {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   color: var(--text-dim);
   display: block;
   margin-bottom: 4px;
 }
 
 .loc-value {
-  font-size: 1.2rem;
+  font-size: 1.45rem;
   font-weight: 700;
 }
 
@@ -803,12 +939,29 @@ header {
   line-height: 1.4;
 }
 
+.removed-warning-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
 .removed-warning-dismiss {
   background: #fff;
   color: #B71C1C;
   font-weight: 700;
   border: none;
-  padding: 12px 32px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.removed-warning-scan-another {
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+  border: 2px solid rgba(255,255,255,0.7);
+  padding: 12px 24px;
   border-radius: 8px;
   font-size: 1rem;
   cursor: pointer;
@@ -825,7 +978,7 @@ header {
   padding: 14px 16px;
   border-radius: var(--border-radius);
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: 1.25rem;
   cursor: pointer;
   border: none;
 }
@@ -841,6 +994,24 @@ header {
   border: 1px solid var(--text-dim);
 }
 
+.overlay-badges {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.overlay-badge {
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 6px;
+  color: #fff;
+}
+
+.overlay-badge.new { background: var(--new-badge); }
+.overlay-badge.srp { background: var(--srp-badge); }
 
 /* Animations */
 @keyframes fadeIn {
@@ -1191,41 +1362,32 @@ header {
     margin-bottom: 2px;
   }
 
-  .app-title {
+  .header-title {
     font-size: 0.8rem;
   }
 
-  .store-info {
+  .header-guide-link {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+  }
+
+  .header-store {
     font-size: 0.7rem;
   }
 
-  .live-date {
-    font-size: 0.65rem;
-  }
-
-  .btn-change-store {
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    margin-top: 2px;
+  .btn-close-store {
+    width: 24px;
+    height: 24px;
+    font-size: 0.8rem;
   }
 
   .tab-nav {
     margin-top: 4px;
-    gap: 8px;
-  }
-
-  .tab-btn {
-    padding: 4px 0;
-    font-size: 0.8rem;
-  }
-
-  .filter-chips {
-    padding: 4px var(--spacing);
     gap: 6px;
   }
 
-  .chip {
-    padding: 3px 8px;
+  .tab-btn {
+    padding: 4px 10px;
     font-size: 0.75rem;
   }
 
@@ -1235,9 +1397,9 @@ header {
   }
 
   .nav-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 0.8rem;
+    min-width: 36px;
+    height: 36px;
+    font-size: 0.7rem;
   }
 
   /* --- Toast position --- */
@@ -1258,10 +1420,6 @@ header {
   .upc-view {
     padding: 6px var(--spacing);
     min-height: calc(100vh - 120px);
-  }
-
-  .upc-search-container {
-    padding-top: 10vh;
   }
 
   .upc-input {

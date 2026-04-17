@@ -51,30 +51,31 @@ const landingTemplate = () => `
 const headerTemplate = (storeId, pog) => `
   <header>
     <div class="header-top">
-      <div>
-        <div class="app-title">☀️ SUNCARE POG LOOKUP</div>
-        <div class="store-info">Store ${storeId} · ${pog.pogNumber}</div>
-        <button class="btn-change-store" id="change-store">↩ Change Store</button>
+      <div class="header-title">☀️ ${pog.id === 'pallet' ? 'PALLET' : 'ENDCAP'}</div>
+      <a class="header-guide-link" href="user-guide.html" target="_blank" rel="noopener noreferrer">User Guide</a>
+      <div class="header-right">
+        <span class="header-store">Store #${storeId}</span>
+        <button class="btn-close-store" id="close-store">✕</button>
       </div>
-      <div class="live-date">LIVE ${pog.liveDate}<br>${pog.totalProducts} SKUs · ${pog.sides} Sides</div>
     </div>
-    
+
     <div class="tab-nav">
       <button class="tab-btn active" data-tab="browse">Browse</button>
       <button class="tab-btn" data-tab="scan">Scan</button>
       <button class="tab-btn" data-tab="upc">UPC</button>
-    </div>
-    
-    <div class="filter-chips">
-      <div class="chip active" data-filter="all">All</div>
-      <div class="chip" data-filter="new">🟢 New</div>
-      <div class="chip" data-filter="srp">🟣 SRP</div>
-      <div class="chip" id="pog-pdf-chip">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-file-type-pdf"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" /><path d="M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6" /><path d="M17 18h2" /><path d="M20 15h-3v6" /><path d="M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1" /></svg>
-        POG PDF
-      </div>
+      <button class="tab-btn" data-tab="pdf">PDF</button>
     </div>
   </header>
+
+  <div class="confirm-overlay" id="confirm-overlay">
+    <div class="confirm-card">
+      <p class="confirm-msg">Would you really like to change stores?</p>
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-yes" id="confirm-yes">Yes</button>
+        <button class="confirm-btn confirm-no" id="confirm-no">No</button>
+      </div>
+    </div>
+  </div>
 `;
 
 const browseTemplate = () => `
@@ -84,6 +85,9 @@ const browseTemplate = () => `
   
   <div class="scan-view" id="scan-view">
     <div id="reader"></div>
+    <button class="torch-btn" id="torch-toggle" style="display:none">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4.95 11.95l.88.88A2 2 0 0 1 8.5 16h7a2 2 0 0 1 .57-1.17l.88-.88A7 7 0 0 0 12 2z"/></svg>
+    </button>
   </div>
   
   <div class="upc-view" id="upc-view">
@@ -124,18 +128,11 @@ const productOverlayTemplate = (p, redirect=null) => `
       ` : ''}
       
       <div class="detail-img-container">
-        <img src="images/${p.upc}.webp" class="detail-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">
+        <img src="images/${p.upc}.webp" class="detail-img" id="detail-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%\\' x=\\'50%\\' dy=\\'0.35em\\' text-anchor=\\'middle\\' font-size=\\'80\\'>☀️</text></svg>'">
       </div>
       
       <h2 class="detail-title">${p.name}</h2>
       <div class="detail-upc">UPC: ${p.upc.replace(/^0+/, '')}</div>
-      
-      <div class="badges">
-        ${p.isNew ? '<span class="badge new">NEW</span>' : ''}
-        ${p.srp ? '<span class="badge srp">SRP</span>' : ''}
-        ${p.isChange ? '<span class="badge change">CHANGE</span>' : ''}
-        ${p.isMove ? '<span class="badge move">MOVE</span>' : ''}
-      </div>
       
       <div class="location-grid">
         <div class="loc-box">
@@ -162,12 +159,17 @@ const productOverlayTemplate = (p, redirect=null) => `
       
       <button class="btn-primary" id="view-pdf">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-file-type-pdf"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" /><path d="M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6" /><path d="M17 18h2" /><path d="M20 15h-3v6" /><path d="M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1" /></svg>
-        POG PDFs
+        View Planogram
       </button>
 
       <div class="overlay-nav-buttons">
-        <button class="btn-overlay-nav scan-another" id="scan-another">Scan Another</button>
-        <button class="btn-overlay-nav return-browse" id="return-browse">See Product</button>
+        <button class="btn-overlay-nav scan-another" id="scan-another">Scan UPC</button>
+        <button class="btn-overlay-nav return-browse" id="return-browse">See Location</button>
+      </div>
+
+      <div class="overlay-badges">
+        ${p.isNew ? '<span class="overlay-badge new">NEW</span>' : ''}
+        ${p.srp ? '<span class="overlay-badge srp">SRP</span>' : ''}
       </div>
     </div>
   </div>
@@ -251,6 +253,11 @@ const STACK_OVERRIDES = {
   "934710805107": 3
 };
 
+const SHELF_SCALE_OVERRIDES = {
+  "4-2": 1.2,
+  "2-1": 1.2
+};
+
 function getStackCount(upc) {
   return STACK_OVERRIDES[upc] || 1;
 }
@@ -316,11 +323,9 @@ function loadApp(storeId, data) {
   app.innerHTML = headerTemplate(storeId, planogram) + browseTemplate();
   
   setupNavigation();
-  setupFilters();
   renderShelves();
   renderBottomNav();
   setupGestures();
-  setupPdfAccess();
 
   if (!resizeBound) {
     window.addEventListener('resize', () => {
@@ -330,14 +335,6 @@ function loadApp(storeId, data) {
   }
 }
 
-function setupPdfAccess() {
-    const pdfChip = document.getElementById('pog-pdf-chip');
-    if(pdfChip) {
-        pdfChip.addEventListener('click', () => {
-             openPdfViewer();
-        });
-    }
-}
 
 function clearUpcSearch() {
   const upcInput = document.getElementById('manual-upc');
@@ -363,6 +360,12 @@ function highlightMatch(text, query) {
 }
 
 function switchToTab(tabName) {
+  // Handle PDF tab separately — open the PDF viewer and deselect active tab highlight
+  if (tabName === 'pdf') {
+    openPdfViewer();
+    return;
+  }
+
   const tabs = document.querySelectorAll('.tab-btn');
   const views = {
     'browse': document.getElementById('browse-view'),
@@ -411,10 +414,16 @@ function setupNavigation() {
     });
   });
 
-  document.getElementById('change-store').addEventListener('click', () => {
-    if (confirm('Change store?')) {
-      location.reload();
-    }
+  document.getElementById('close-store').addEventListener('click', () => {
+    document.getElementById('confirm-overlay').classList.add('active');
+  });
+
+  document.getElementById('confirm-yes').addEventListener('click', () => {
+    location.reload();
+  });
+
+  document.getElementById('confirm-no').addEventListener('click', () => {
+    document.getElementById('confirm-overlay').classList.remove('active');
   });
 
   // Manual UPC
@@ -494,17 +503,6 @@ function setupNavigation() {
   });
 }
 
-function setupFilters() {
-  const chips = document.querySelectorAll('.chip:not(#pog-pdf-chip)'); // Exclude PDF button
-  chips.forEach(c => {
-    c.addEventListener('click', () => {
-      chips.forEach(x => x.classList.remove('active'));
-      c.classList.add('active');
-      currentFilter = c.dataset.filter;
-      renderShelves();
-    });
-  });
-}
 
 function renderShelves() {
   const container = document.getElementById('browse-view');
@@ -518,26 +516,34 @@ function renderShelves() {
   let widestShelfItemCount = 0;
 
   for (let s = maxShelf; s >= 1; s--) {
-    const shelfProducts = sideProducts
+    const allShelfProducts = sideProducts
       .filter(p => p.shelf === s)
       .sort((a, b) => a.position - b.position);
 
-    let displayProducts = shelfProducts;
-    if (currentFilter === 'new') displayProducts = displayProducts.filter(p => p.isNew);
-    if (currentFilter === 'srp') displayProducts = displayProducts.filter(p => p.srp);
-
-    const facings = displayProducts.reduce((acc, p) => acc + p.facings, 0);
-    const shelfWidthIn = displayProducts.reduce(
+    const allFacings = allShelfProducts.reduce((acc, p) => acc + p.facings, 0);
+    const shelfWidthIn = allShelfProducts.reduce(
       (acc, p) => acc + getProductWidthIn(p) * p.facings,
       0
     );
 
     if (shelfWidthIn > maxShelfWidthIn) {
       maxShelfWidthIn = shelfWidthIn;
-      widestShelfItemCount = displayProducts.length;
+      widestShelfItemCount = allShelfProducts.length;
     }
 
-    shelves.push({ s, displayProducts, facings, shelfWidthIn });
+    const visibleSet = new Set();
+    if (currentFilter === 'new') allShelfProducts.filter(p => p.isNew).forEach(p => visibleSet.add(p.upc));
+    else if (currentFilter === 'srp') allShelfProducts.filter(p => p.srp).forEach(p => visibleSet.add(p.upc));
+
+    const displayProducts = allShelfProducts.map(p => ({
+      ...p,
+      hidden: currentFilter !== 'all' && !visibleSet.has(p.upc)
+    }));
+
+    const visibleProducts = displayProducts.filter(p => !p.hidden);
+    const visibleFacings = visibleProducts.reduce((acc, p) => acc + p.facings, 0);
+
+    shelves.push({ s, displayProducts, facings: visibleFacings, allFacings, shelfWidthIn, visibleCount: visibleProducts.length });
   }
 
   const rawWidth = container ? container.clientWidth : window.innerWidth;
@@ -557,11 +563,13 @@ function renderShelves() {
     endcapScale = ((contentWidth - padRight - widestGaps) / maxShelfWidthIn) * 2.0;
   }
 
-  shelves.forEach(({ s, displayProducts, facings, shelfWidthIn }) => {
+  shelves.forEach(({ s, displayProducts, facings, shelfWidthIn, visibleCount }) => {
     const shelfDiv = document.createElement('div');
     shelfDiv.className = 'shelf-container';
 
     const label = s === maxShelf ? 'TOP' : (s === 1 ? 'BOTTOM' : '');
+    const boostKey = `${currentSide}-${s}`;
+    const boost = SHELF_SCALE_OVERRIDES[boostKey] || 0;
 
     let shelfScale;
     if (isEndcap) {
@@ -574,12 +582,12 @@ function renderShelves() {
     }
 
     shelfDiv.innerHTML = `
+      <div class="product-shelf-row" id="shelf-row-${s}">
+        ${displayProducts.map(p => createProductCard(p, p.hidden, boost)).join('')}
+      </div>
       <div class="shelf-header">
         <span>Shelf ${s} ${label}</span>
-        <span>${displayProducts.length} items · ${facings} facings</span>
-      </div>
-      <div class="product-shelf-row" id="shelf-row-${s}">
-        ${displayProducts.map(p => createProductCard(p)).join('')}
+        <span>${visibleCount} items · ${facings} facings</span>
       </div>
     `;
 
@@ -594,7 +602,7 @@ function renderShelves() {
   });
 }
 
-function createProductCard(p) {
+function createProductCard(p, hidden = false, boost = 0) {
   const stack = getStackCount(p.upc);
   const heightIn = getProductHeightIn(p);
   const stackedHeightIn = heightIn * stack;
@@ -608,8 +616,12 @@ function createProductCard(p) {
     imagesHtml += `<img src="${imgSrc}" class="product-img" loading="lazy" onerror="this.onerror=null; this.src='${fallback}'">`;
   }
 
+  const hiddenStyle = hidden ? 'visibility: hidden;' : '';
+  const boostedClass = (boost > 0 && !isStacked) ? ' boosted' : '';
+  const boostStyle = (boost > 0 && !isStacked) ? `--shelf-boost: ${boost};` : '';
+
   return `
-    <div class="product-card-shelf" data-upc="${p.upc}" style="--facings: ${p.facings}; --stack: ${stack}; --width-in: ${getProductWidthIn(p)}; --height-in: ${stackedHeightIn};" onclick="openProductOverlay('${p.upc}')">
+    <div class="product-card-shelf${boostedClass}" data-upc="${p.upc}" style="--facings: ${p.facings}; --stack: ${stack}; --width-in: ${getProductWidthIn(p)}; --height-in: ${stackedHeightIn}; ${hiddenStyle}${boostStyle}" onclick="openProductOverlay('${p.upc}')">
       <div class="product-img-group${isStacked ? ' stacked' : ''}">
         ${imagesHtml}
         ${p.isNew ? '<span class="badge new">NEW</span>' : ''}
@@ -629,7 +641,7 @@ function renderBottomNav() {
   
   let html = '';
   for (let i = 1; i <= planogram.sides; i++) {
-    html += `<button class="nav-btn ${i === currentSide ? 'active' : ''}" onclick="changeSide(${i})">${i}</button>`;
+    html += `<button class="nav-btn ${i === currentSide ? 'active' : ''}" onclick="changeSide(${i})">Bay ${i}</button>`;
   }
   nav.innerHTML = html;
 }
@@ -641,7 +653,7 @@ function changeSide(side) {
   renderBottomNav();
   
   // Toast
-  showToast(`Side ${side}`);
+  showToast(`Bay ${side}`);
   
   // Haptic
   if (navigator.vibrate) navigator.vibrate(30);
@@ -681,34 +693,86 @@ function setupGestures() {
 
 // Scanner
 function startScanner() {
-  if (html5QrCode) return; // already running
-  
+  if (html5QrCode) return;
+
+  const readerEl = document.getElementById('reader');
+  readerEl.innerHTML = `
+    <div class="scanner-loading">
+      <div class="scanner-loading-spinner"></div>
+      <div class="scanner-loading-text">Starting camera&hellip;</div>
+    </div>
+  `;
+
   html5QrCode = new Html5Qrcode("reader");
   const config = {
     fps: 10,
     qrbox: function(viewfinderWidth, viewfinderHeight) {
       return {
-        width: Math.min(Math.floor(viewfinderWidth * 0.85), 400),
-        height: Math.min(Math.floor(viewfinderHeight * 0.45), 200)
+        width: Math.min(Math.floor(viewfinderWidth * 0.92), 500),
+        height: Math.min(Math.floor(viewfinderHeight * 0.25), 120)
       };
-    }
+    },
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
   };
-  
+
   html5QrCode.start(
-    { facingMode: "environment" }, 
-    config, 
+    { facingMode: "environment" },
+    config,
     (decodedText) => {
-      // Success
       stopScanner();
-      handleUpcSearch(decodedText);
+      const found = findProduct(decodedText) || findByFuzzy(decodedText, products);
+      if (found) {
+        openProductOverlay(found.upc);
+      } else {
+        const removed = findByFuzzy(decodedText, removedProducts);
+        if (removed) {
+          showToast(`Removed from planogram: ${removed.name}`, 2500, 'warning');
+        } else {
+          showToast(`Product ${decodedText} not found`, 2500, 'warning');
+        }
+        setTimeout(() => startScanner(), 1500);
+      }
     },
     (errorMessage) => {
-      // ignore
+      // ignore per-frame decode failures
     }
-  ).catch(err => {
+  ).then(() => {
+    setupTorchButton();
+  }).catch(err => {
     console.error(err);
-    document.getElementById('reader').innerHTML = "Camera error or permission denied.";
+    readerEl.innerHTML = `
+      <div class="scanner-loading">
+        <div class="scanner-loading-text">Camera error or permission denied.</div>
+      </div>
+    `;
   });
+}
+
+let torchOn = false;
+
+function setupTorchButton() {
+  const btn = document.getElementById('torch-toggle');
+  if (!btn || !html5QrCode) return;
+  try {
+    const track = html5QrCode.getRunningTrackSettings && html5QrCode.getRunningTrackCameraCapabilities
+      ? null : null;
+    const videoElement = document.querySelector('#reader video');
+    if (!videoElement) return;
+    const stream = videoElement.srcObject;
+    if (!stream) return;
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+    const caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+    if (!caps.torch) return;
+    btn.style.display = 'flex';
+    btn.onclick = () => {
+      torchOn = !torchOn;
+      videoTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+      btn.classList.toggle('active', torchOn);
+    };
+  } catch (e) {
+    console.warn('Torch not available:', e);
+  }
 }
 
 function stopScanner() {
@@ -717,6 +781,12 @@ function stopScanner() {
       html5QrCode.clear();
       html5QrCode = null;
     }).catch(err => console.error(err));
+  }
+  torchOn = false;
+  const torchBtn = document.getElementById('torch-toggle');
+  if (torchBtn) {
+    torchBtn.style.display = 'none';
+    torchBtn.classList.remove('active');
   }
 }
 
@@ -747,27 +817,29 @@ function findByFuzzy(upc, items) {
 }
 
 function findAllFuzzy(query, items) {
-  const q = normalizeUpcInput(query).toLowerCase();
-  if (!q) return [];
+  const raw = query.trim().toLowerCase();
+  if (!raw) return [];
 
-  const isNumeric = /^\d+$/.test(q);
+  const isNumeric = /^\d+$/.test(raw);
 
-  // Require at least 4 digits for UPC-based matching
-  if (isNumeric && q.length < 4) return [];
+  if (isNumeric && raw.length < 4) return [];
+
+  const qNorm = normalizeUpcInput(raw);
 
   const scored = [];
   for (const p of items) {
     const pUpc = normalizeUpcInput(p.upc);
+    const pUpcFull = p.upc.toLowerCase();
     const pName = (p.name || '').toLowerCase();
     let score = 0;
 
-    if (pUpc === q) { score = 100; }
-    else if (pUpc.endsWith(q)) { score = 90; }
-    else if (pUpc.startsWith(q)) { score = 80; }
-    else if (pUpc.includes(q)) { score = 70; }
-    else if (pName.includes(q)) { score = 50; }
-    else if (q.length >= 4) {
-      const noCheck = q.length > 1 ? q.slice(0, -1) : q;
+    if (pUpc === qNorm) { score = 100; }
+    else if (pUpc.endsWith(qNorm)) { score = 90; }
+    else if (pUpc.startsWith(qNorm)) { score = 80; }
+    else if (pUpc.includes(raw) || pUpcFull.includes(raw)) { score = 70; }
+    else if (pName.includes(raw)) { score = 50; }
+    else if (raw.length >= 4) {
+      const noCheck = qNorm.length > 1 ? qNorm.slice(0, -1) : qNorm;
       if (pUpc.endsWith(noCheck) || pUpc.includes(noCheck)) { score = 40; }
     }
 
@@ -779,7 +851,7 @@ function findAllFuzzy(query, items) {
 }
 
 // Search & Overlay
-function handleUpcSearch(upc) {
+function handleUpcSearch(upc, fromScanner = false) {
   const resultDiv = document.getElementById('upc-result');
 
   let found = findProduct(upc);
@@ -819,6 +891,8 @@ function handleUpcSearch(upc) {
     return;
   }
 
+  if (fromScanner) switchToTab('upc');
+
   if (matches.length > 1) {
     resultDiv.innerHTML = `
       <div class="upc-results-header">${matches.length} products found</div>
@@ -838,7 +912,7 @@ function handleUpcSearch(upc) {
   }
 
   if (removedMatches.length > 0) {
-    showRemovedWarning(removedMatches[0]);
+    showRemovedWarning(removedMatches[0], fromScanner);
     return;
   }
 
@@ -856,7 +930,7 @@ function findReverseRedirect(productUpc) {
   return null;
 }
 
-function showRemovedWarning(product) {
+function showRemovedWarning(product, fromScanner = false) {
   const existing = document.getElementById('removed-warning-overlay');
   if (existing) existing.remove();
 
@@ -870,10 +944,21 @@ function showRemovedWarning(product) {
       <div class="removed-warning-name">${product.name}</div>
       <div class="removed-warning-upc">UPC: ${product.upc}</div>
       <div class="removed-warning-note">This product is no longer on the current planogram. Do not place on shelf.</div>
-      <button class="btn-primary removed-warning-dismiss" onclick="this.closest('.removed-warning-overlay').remove()">Dismiss</button>
+      <div class="removed-warning-buttons">
+        <button class="btn-primary removed-warning-dismiss" id="removed-dismiss-btn">Dismiss</button>
+        <button class="btn-primary removed-warning-scan-another" id="removed-scan-btn">Scan Another</button>
+      </div>
     </div>
   `;
   document.body.appendChild(div);
+
+  document.getElementById('removed-dismiss-btn').onclick = () => {
+    div.remove();
+  };
+  document.getElementById('removed-scan-btn').onclick = () => {
+    div.remove();
+    switchToTab('scan');
+  };
 
   setTimeout(() => {
     const el = document.getElementById('removed-warning-overlay');
@@ -903,7 +988,7 @@ function openProductOverlay(upc, redirect=null) {
   // Events
   document.getElementById('close-overlay').onclick = () => {
     document.querySelector('.overlay').remove();
-    focusProductInBrowse(p);
+    switchToTab('browse');
   };
 
   document.getElementById('view-pdf').onclick = () => {
@@ -919,6 +1004,23 @@ function openProductOverlay(upc, redirect=null) {
     document.querySelector('.overlay').remove();
     focusProductInBrowse(p);
   };
+
+  const detailImg = document.getElementById('detail-img');
+  if (detailImg) {
+    detailImg.onclick = () => openImageLightbox(detailImg.src);
+  }
+}
+
+function openImageLightbox(src) {
+  const lb = document.createElement('div');
+  lb.className = 'image-lightbox';
+  lb.innerHTML = `
+    <button class="image-lightbox-close">✕</button>
+    <img src="${src}" class="image-lightbox-img">
+  `;
+  document.body.appendChild(lb);
+  lb.querySelector('.image-lightbox-close').onclick = () => lb.remove();
+  lb.onclick = (e) => { if (e.target === lb) lb.remove(); };
 }
 
 function focusProductInBrowse(product) {
@@ -950,17 +1052,24 @@ function focusProductInBrowse(product) {
 
   setTimeout(() => {
     const shelfRow = document.getElementById(`shelf-row-${product.shelf}`);
-    if (shelfRow) {
+    const cards = browseView.querySelectorAll(`.product-card-shelf[data-upc="${product.upc}"]`);
+    const targetCard = cards.length > 0 ? cards[0] : null;
+
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+      const scrollSettleMs = planogram.id === 'endcap' ? 600 : 100;
+      setTimeout(() => {
+        cards.forEach(card => {
+          card.classList.add('highlight-flash');
+          card.addEventListener('animationend', () => {
+            card.classList.remove('highlight-flash');
+          }, { once: true });
+        });
+      }, scrollSettleMs);
+    } else if (shelfRow) {
       shelfRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-
-    const cards = browseView.querySelectorAll(`.product-card-shelf[data-upc="${product.upc}"]`);
-    cards.forEach(card => {
-      card.classList.add('highlight-flash');
-      card.addEventListener('animationend', () => {
-        card.classList.remove('highlight-flash');
-      }, { once: true });
-    });
   }, 0);
 }
 

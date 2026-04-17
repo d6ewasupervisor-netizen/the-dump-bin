@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suncare POG Lookup — User Guide</title>
+<style>
+  @page {
+    size: letter;
+    margin: 0.6in 0.7in;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #2c3e50;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page { max-width: 8in; margin: 0 auto; padding: 24px 0; }
+  .page-break { page-break-before: always; }
+
+  /* Header */
+  .guide-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid #1b3a5c;
+    padding-bottom: 16px;
+    margin-bottom: 6px;
+  }
+  .guide-header img { height: 72px; }
+  .guide-header-text { text-align: right; }
+  .guide-header-text h1 {
+    font-size: 22pt;
+    font-weight: 700;
+    color: #1b3a5c;
+    letter-spacing: -0.3px;
+    line-height: 1.15;
+  }
+  .guide-header-text .subtitle {
+    font-size: 10pt;
+    color: #5b8db8;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8.5pt;
+    color: #7f8c8d;
+    padding: 8px 0 18px;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 22px;
+  }
+
+  /* Section */
+  .section { margin-bottom: 26px; }
+  .section-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: #1b3a5c;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 12pt;
+    font-weight: 700;
+    margin-right: 10px;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .section h2 {
+    font-size: 14pt;
+    font-weight: 700;
+    color: #1b3a5c;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid #d6e4f0;
+    padding-bottom: 6px;
+  }
+  .section h3 {
+    font-size: 11pt;
+    font-weight: 600;
+    color: #2a6496;
+    margin: 12px 0 6px;
+  }
+  .section p { margin-bottom: 8px; }
+
+  /* Steps */
+  .steps { margin: 8px 0 8px 12px; }
+  .step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 7px;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    background: #5b8db8;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 9pt;
+    font-weight: 700;
+    margin-right: 10px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-text { flex: 1; }
+  .step-text strong { color: #1b3a5c; }
+
+  /* Callout Boxes */
+  .callout {
+    background: #f0f6fb;
+    border-left: 4px solid #5b8db8;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 12px 0;
+    font-size: 9.5pt;
+  }
+  .callout.tip {
+    background: #eaf7ee;
+    border-left-color: #27ae60;
+  }
+  .callout.note {
+    background: #fef9e7;
+    border-left-color: #f39c12;
+  }
+  .callout-label {
+    font-weight: 700;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  .callout.tip .callout-label { color: #27ae60; }
+  .callout.note .callout-label { color: #e67e22; }
+  .callout .callout-label { color: #2a6496; }
+
+  /* Key Highlight */
+  .key {
+    display: inline-block;
+    background: #eef3f8;
+    border: 1px solid #c5d5e4;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-weight: 600;
+    font-size: 9.5pt;
+    color: #1b3a5c;
+    white-space: nowrap;
+  }
+
+  /* Feature Grid */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 10px 0;
+  }
+  .feature-card {
+    background: #f8fafc;
+    border: 1px solid #dce6f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .feature-card h4 {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #1b3a5c;
+    margin-bottom: 4px;
+  }
+  .feature-card p {
+    font-size: 9.5pt;
+    color: #4a5568;
+    margin: 0;
+  }
+
+  /* Badge */
+  .badge-sample {
+    display: inline-block;
+    font-size: 8pt;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 3px;
+    color: #fff;
+    vertical-align: middle;
+  }
+  .badge-new { background: #4CAF50; }
+  .badge-srp { background: #9C27B0; }
+
+  /* Overview Box */
+  .overview-box {
+    background: linear-gradient(135deg, #1b3a5c 0%, #2a6496 100%);
+    color: #fff;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0 24px;
+  }
+  .overview-box h3 {
+    color: #a8d4f5;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .overview-box p {
+    font-size: 10.5pt;
+    line-height: 1.6;
+    margin: 0;
+    color: #e8f0f8;
+  }
+
+  /* Footer */
+  .guide-footer {
+    border-top: 2px solid #1b3a5c;
+    padding-top: 10px;
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8pt;
+    color: #95a5a6;
+  }
+  .guide-footer img { height: 28px; opacity: 0.6; }
+
+  /* Table */
+  .info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 9.5pt;
+  }
+  .info-table th {
+    background: #1b3a5c;
+    color: #fff;
+    padding: 7px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 9pt;
+  }
+  .info-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .info-table tr:nth-child(even) td { background: #f8fafc; }
+
+  @media print {
+    body { font-size: 10pt; }
+    .page { padding: 0; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="guide-header">
+    <img src="images/retail-odyssey-logo.png" alt="The Retail Odyssey Company">
+    <div class="guide-header-text">
+      <h1>Suncare POG Lookup</h1>
+      <div class="subtitle">Field Team Quick-Reference Guide</div>
+    </div>
+  </div>
+
+  <div class="doc-meta">
+    <span>Document Version 1.0 &nbsp;|&nbsp; February 2026</span>
+    <span>INTERNAL USE ONLY &nbsp;|&nbsp; Retail Odyssey</span>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="overview-box">
+    <h3>What Is This Tool?</h3>
+    <p>
+      The <strong>Suncare POG Lookup</strong> app is a planogram reference tool built to help field teams
+      quickly identify, locate, and verify suncare products on seasonal pallet and endcap displays.
+      It consolidates the planogram PDFs, product images, UPC data, and shelf positions that our teams
+      already work with every day — and puts it all in one fast, searchable, mobile-friendly location.
+      <strong>No new data is collected or created;</strong> the app simply organizes existing resources
+      so any team member can access it.
+    </p>
+  </div>
+
+  <div class="section">
+    <div class="callout tip" style="text-align: center; padding: 14px 16px;">
+      <div style="font-size: 13pt; font-weight: 800; margin-bottom: 3px;">
+        👉 <a href="https://the-dump-bin.com/suncare" target="_blank" rel="noopener noreferrer" style="color: #1b3a5c; text-decoration: underline;">
+          ☀️ Suncare Tool
+        </a>
+      </div>
+      <div style="font-size: 8.5pt; color: #5f6f7f;">
+        the-dump-bin.com/suncare
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <h2><span class="section-number">1</span> Getting Started — Store Selection</h2>
+    <p>
+      When you open the app, the landing screen asks you to select your store. Each store is mapped to
+      the correct planogram layout (4-sided pallet or endcap) so you always see the right configuration.
+    </p>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Tap the <strong>Select Store…</strong> dropdown at the center of the screen.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">Choose your store number from the list. A preview card will appear showing the planogram name, POG number, live date, and SKU count.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">Tap <strong>Load Planogram →</strong> to enter the main view. The app loads all products, shelf positions, and images for your assigned display.</span>
+      </div>
+    </div>
+    <div class="callout tip">
+      <div class="callout-label">Tip</div>
+      If you need to switch stores later, tap <strong>X</strong> in the top-right corner of the header.
+    </div>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <h2><span class="section-number">2</span> Browsing the Display — Shelf View</h2>
+    <p>
+      The <span class="key">Browse</span> tab is the default view. It renders a visual representation of every shelf
+      on the current bay, with products scaled to approximate their real-world proportions.
+    </p>
+
+    <h3>Understanding the Layout</h3>
+    <p>
+      Shelves are displayed top-to-bottom, matching the physical display. Each product tile shows
+      the item image and its position number. Status badges indicate special designations:
+    </p>
+    <table class="info-table">
+      <tr>
+        <th>Badge</th><th>Meaning</th>
+      </tr>
+      <tr>
+        <td><span class="badge-sample badge-new">NEW</span></td>
+        <td>Newly added to the planogram — not on the previous version</td>
+      </tr>
+      <tr>
+        <td><span class="badge-sample badge-srp">SRP</span></td>
+        <td>Shelf-Ready Packaging — product ships in its display tray</td>
+      </tr>
+    </table>
+
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <h2><span class="section-number">3</span> Navigating Bays (4-Sided Pallet)</h2>
+    <p>
+      The 4-sided pallet display has four bays. There are two ways to switch between them:
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Option A — Bay Buttons</h4>
+        <p>
+          Tap any <strong>Bay 1</strong> through <strong>Bay 4</strong> button in the navigation bar
+          fixed to the bottom of the screen. The active bay is highlighted in gold.
+        </p>
+      </div>
+      <div class="feature-card">
+        <h4>Option B — Two-Finger Swipe</h4>
+        <p>
+          Place <strong>two fingers</strong> on the shelf area and swipe left or right to move to the
+          next or previous bay. A pop-up notification confirms which bay you've navigated to.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="callout-label">How It Works</div>
+      The two-finger gesture is intentional — single-finger scrolling is reserved for scrolling within
+      a shelf row, so bay switching requires two fingers to prevent accidental navigation.
+    </div>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <h2><span class="section-number">4</span> Scanning a Product Barcode</h2>
+    <p>
+      The fastest way to identify a product is to scan its UPC barcode using your device's camera.
+    </p>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Tap the <span class="key">Scan</span> tab at the top of the screen. The camera will activate automatically.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">Point the camera at the product's barcode. Align it within the scanning area on screen. The scanner supports barcodes in any orientation.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">When recognized, the app immediately displays the <strong>product detail card</strong> showing the item name, image, UPC, bay number, shelf location, position, and facings.</span>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-label">Tip</div>
+      If you're scanning in a dimly lit area, tap the <strong>flashlight button</strong> (bottom-right of the
+      camera view) to toggle your device's torch for additional lighting.
+    </div>
+
+    <div class="callout note">
+      <div class="callout-label">Item Not Found?</div>
+      If the scanned item is not on the current planogram, the app will display a notification. If the item was
+      <em>removed</em> from the planogram, a red warning card will appear indicating as much.
+    </div>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <h2><span class="section-number">5</span> UPC Search — Type to Find</h2>
+    <p>
+      If scanning isn't practical, you can search by typing part of the UPC or the product name.
+    </p>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Tap the <span class="key">UPC</span> tab to open the search screen.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">Type at least <strong>4 digits</strong> of the UPC (the last four digits work great) or begin typing the product name. Results appear automatically as you type.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">A list of matching products appears with thumbnail images, names, and locations. Tap the correct product to open its detail card.</span>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-label">Example</div>
+      Holding a Sun Bum Cool Down Lotion? Type <strong>0047</strong> (the last four digits of UPC 87176000047)
+      and the app will show it in the results. Tap to see exactly where it goes.
+    </div>
+  </div>
+
+  <!-- SECTION 6 -->
+  <div class="section">
+    <h2><span class="section-number">6</span> Product Detail Card</h2>
+    <p>
+      Tapping any product — whether from the shelf view, scan result, or search result — opens a
+      detailed overlay with everything you need to place or verify the item:
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Product Image</h4>
+        <p>A large photo of the product. <strong>Tap the image</strong> to open a full-screen viewer for closer inspection. Tap the ✕ or the background to close.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Location Info</h4>
+        <p>Bay number, shelf number, position on the shelf, and the number of facings — everything needed to place the item correctly.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Mini Planogram</h4>
+        <p>A miniature shelf map of the entire bay with the current product highlighted in gold, so you can see its position in context at a glance.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Quick Actions</h4>
+        <p><strong>View Planogram</strong> opens the official POG PDF. <strong>Scan UPC</strong> jumps back to the camera. <strong>See Location</strong> navigates to the item on the shelf view and highlights it.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 7 -->
+  <div class="section page-break">
+    <h2><span class="section-number">7</span> Built-In PDF Planogram Viewer</h2>
+    <p>
+      The app includes a full-featured PDF viewer for the official planogram documents. This is the same
+      planogram PDF our teams already use — it's just embedded directly in the app for convenience.
+      Use it to cross-reference and confirm product placements against the official source.
+    </p>
+
+    <h3>Opening the PDF</h3>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Tap the <span class="key">POG PDF</span> chip in the filter bar, or tap <strong>View Planogram</strong> from any product detail card.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">The PDF opens in a full-screen viewer with a toolbar at the top.</span>
+      </div>
+    </div>
+
+    <h3>Searching Within the PDF</h3>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Tap the <strong>🔍 Search</strong> button in the toolbar. A search bar appears.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">Type a UPC number or product keyword. The viewer highlights every match across all pages and lets you jump between them with the ‹ › arrows.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">Use this to quickly <strong>confirm any irregularities</strong> — verify a product's assigned position, check facing counts, or confirm a UPC change directly against the official planogram.</span>
+      </div>
+    </div>
+
+    <h3>Additional PDF Controls</h3>
+    <table class="info-table">
+      <tr><th>Control</th><th>Action</th></tr>
+      <tr><td>‹ / ›</td><td>Navigate between pages</td></tr>
+      <tr><td>Page Number Input</td><td>Jump directly to a specific page</td></tr>
+      <tr><td>− / +</td><td>Zoom out / Zoom in</td></tr>
+      <tr><td>⤢</td><td>Fit page to screen width</td></tr>
+      <tr><td>⊞</td><td>View all-pages thumbnail grid for quick navigation</td></tr>
+      <tr><td>Pinch Gesture</td><td>Pinch to zoom on touch devices</td></tr>
+      <tr><td>Swipe Left/Right</td><td>Navigate pages on touch devices</td></tr>
+    </table>
+
+    <div class="callout">
+      <div class="callout-label">Why This Matters</div>
+      When you open the PDF from a product detail card, the viewer automatically searches for that product's UPC
+      and highlights it on the planogram page. This makes it fast to cross-reference the app's data with the
+      official document — no manual searching required.
+    </div>
+  </div>
+
+  <!-- SECTION 8 -->
+  <div class="section">
+    <h2><span class="section-number">8</span> Quick Reference — Workflow Summary</h2>
+    <p>Here's the typical workflow when setting or verifying a suncare display:</p>
+
+    <table class="info-table">
+      <tr><th style="width: 32px;">#</th><th>Step</th><th>How</th></tr>
+      <tr>
+        <td style="text-align: center; font-weight: 700;">1</td>
+        <td>Select your store</td>
+        <td>Dropdown → Load Planogram</td>
+      </tr>
+      <tr>
+        <td style="text-align: center; font-weight: 700;">2</td>
+        <td>Navigate to the display you're working</td>
+        <td>Begin opening product</td>
+      </tr>
+      <tr>
+        <td style="text-align: center; font-weight: 700;">3</td>
+        <td>Pick up a product</td>
+        <td>Scan barcode or type last 4 digits of UPC</td>
+      </tr>
+      <tr>
+        <td style="text-align: center; font-weight: 700;">4</td>
+        <td>Review placement</td>
+        <td>Product card shows bay, shelf, position, and facings</td>
+      </tr>
+      <tr>
+        <td style="text-align: center; font-weight: 700;">5</td>
+        <td>Place the product</td>
+        <td>Tap <em>See Location</em> to view it highlighted on the shelf</td>
+      </tr>
+      <tr>
+        <td style="text-align: center; font-weight: 700;">6</td>
+        <td>Verify if unsure</td>
+        <td>Tap <em>View Planogram</em> to confirm against the official PDF</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- DATA TRANSPARENCY -->
+  <div class="section">
+    <h2><span class="section-number">9</span> Data Transparency</h2>
+    <div class="overview-box" style="margin-top: 10px;">
+      <h3>Where Does the Data Come From?</h3>
+      <p>
+        Every piece of information in this app comes directly from existing Retail Odyssey resources that
+        are already distributed to field teams. The app does not generate, collect, or transmit any new data.
+        It is a <strong>read-only reference tool</strong> — an alternate way to access what we already have.
+      </p>
+    </div>
+
+    <table class="info-table">
+      <tr><th>Data</th><th>Source</th></tr>
+      <tr><td>Product names, UPCs, positions, facings</td><td>Official planogram data</td></tr>
+      <tr><td>Product images</td><td>Manufacturer-provided product photography</td></tr>
+      <tr><td>Planogram PDFs</td><td>Same PDFs distributed via existing channels</td></tr>
+      <tr><td>Store-to-POG mapping</td><td>Standard store assignment lists</td></tr>
+      <tr><td>NEW / SRP badges</td><td>Derived from planogram</td></tr>
+    </table>
+
+    <p style="margin-top: 12px;">
+      The app works entirely offline after the initial load — no login is required, no personal data
+      is collected, and no information is sent to any external server. It is simply an organized
+      presentation of the same planogram data every team member already has access to.
+    </p>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="guide-footer">
+    <img src="images/retail-odyssey-logo.png" alt="Retail Odyssey">
+    <span>Suncare POG Lookup — User Guide v1.0 &nbsp;|&nbsp; © 2026 The Retail Odyssey Company &nbsp;|&nbsp; Internal Use Only</span>
+  </div>
+
+</div>
+
+</body>
+</html>
