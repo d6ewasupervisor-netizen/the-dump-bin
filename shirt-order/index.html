@@ -17,8 +17,28 @@
     </div>
   </nav>
 
+  <!-- ============ PAGE 0: Welcome ============ -->
+  <div id="welcomePage" class="page-wrap" style="max-width:640px; min-height:calc(100vh - var(--nav-height)); display:flex; align-items:center;">
+    <div class="form-section" style="width:100%; text-align:center;">
+      <h1>Shirt &amp; Name Tag Order</h1>
+      <p class="subtitle" style="margin-top:8px;">Retail Odyssey field staff uniform request.</p>
+
+      <div style="text-align:left; margin-top:28px;">
+        <p>Use this form to request a Retail Odyssey polo and/or a name tag. The process takes about a minute:</p>
+        <ol style="margin-top:12px; padding-left:20px; line-height:1.7;">
+          <li>Enter your name and email.</li>
+          <li>Select your shirt size and quantity, and/or request a name tag.</li>
+          <li>Review and submit your order.</li>
+        </ol>
+        <p style="margin-top:16px;" class="text-sm text-dim">You'll receive a confirmation once your order has been submitted.</p>
+      </div>
+
+      <button id="getStartedBtn" class="btn btn-primary btn-block" style="margin-top:28px;">Get Started</button>
+    </div>
+  </div>
+
   <!-- ============ PAGE 1: User Info ============ -->
-  <div id="userInfoPage" class="page-wrap" style="max-width:520px; min-height:calc(100vh - var(--nav-height)); display:flex; align-items:center;">
+  <div id="userInfoPage" class="page-wrap hidden" style="max-width:520px; min-height:calc(100vh - var(--nav-height)); display:flex; align-items:center; opacity:0; transition:opacity .3s;">
     <div class="form-section" style="width:100%;">
       <h1>Employee Information</h1>
       <p class="subtitle">Enter your name and email to continue.</p>
@@ -113,6 +133,16 @@
     </div>
   </div>
 
+  <!-- ============ PAGE 3: Submission Confirmation ============ -->
+  <div id="confirmationPage" class="page-wrap hidden" style="max-width:560px; min-height:calc(100vh - var(--nav-height)); display:flex; align-items:center; opacity:0; transition:opacity .3s;">
+    <div class="form-section" style="width:100%; text-align:center;">
+      <div style="font-size:48px; line-height:1; margin-bottom:16px;">✓</div>
+      <h1>Order Submitted</h1>
+      <p class="subtitle" style="margin-top:12px;">Your order has been submitted successfully.</p>
+      <p style="margin-top:20px;">You may now close this tab.</p>
+    </div>
+  </div>
+
   <!-- ============ MODAL: Order Summary ============ -->
   <div id="orderModal" class="modal-backdrop">
     <div class="modal">
@@ -128,10 +158,6 @@
         <button id="confirmSubmitBtn" class="btn btn-primary">Submit Order</button>
         <button id="closeModalBtn2" class="btn btn-ghost">Cancel</button>
       </div>
-
-      <div id="success-footer" class="modal__actions hidden">
-        <button id="doneBtn" class="btn btn-success btn-block">Done</button>
-      </div>
     </div>
   </div>
 
@@ -141,10 +167,13 @@
     // Google Apps Script endpoint
     const flowURL = 'https://script.google.com/macros/s/AKfycbwBqYYcncn8ir7-fb7eVDSE1_1s9rmBMui87wf83ltyM_ldKyDymVnxcYi72geHoCR4Nw/exec';
 
-    const userInfoPage  = document.getElementById('userInfoPage');
-    const orderPage     = document.getElementById('orderPage');
-    const userInfoForm  = document.getElementById('userInfoForm');
-    const sizeSelector  = document.getElementById('size-selector');
+    const welcomePage      = document.getElementById('welcomePage');
+    const getStartedBtn    = document.getElementById('getStartedBtn');
+    const userInfoPage     = document.getElementById('userInfoPage');
+    const orderPage        = document.getElementById('orderPage');
+    const confirmationPage = document.getElementById('confirmationPage');
+    const userInfoForm     = document.getElementById('userInfoForm');
+    const sizeSelector     = document.getElementById('size-selector');
 
     const sizes = ['S','M','L','XL','2XL','3XL','4XL','5XL','6XL','7XL'];
     const MAX_TOTAL_QUANTITY = 2;
@@ -156,6 +185,17 @@
     const nameForTagInput       = document.getElementById('nameForTag');
     const nameTagPreviewText    = document.getElementById('nameTagPreviewText');
     const defaultNameTagDisplay = document.getElementById('defaultNameTagDisplay');
+
+    // --- 0. Welcome → User Info transition ---
+    getStartedBtn.addEventListener('click', () => {
+      welcomePage.style.opacity = '0';
+      welcomePage.style.pointerEvents = 'none';
+      setTimeout(() => {
+        welcomePage.classList.add('hidden');
+        userInfoPage.classList.remove('hidden');
+        setTimeout(() => { userInfoPage.style.opacity = '1'; }, 50);
+      }, 300);
+    });
 
     // --- 1. User Info → Order page transition ---
     userInfoForm.addEventListener('submit', (e) => {
@@ -251,8 +291,6 @@
     const summaryContent   = document.getElementById('summaryContent');
     const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
     const modalFooter      = document.getElementById('modal-footer');
-    const successFooter    = document.getElementById('success-footer');
-    const doneBtn          = document.getElementById('doneBtn');
     const modalText        = document.getElementById('modal-text');
 
     submitOrderBtn.addEventListener('click', () => {
@@ -298,7 +336,6 @@
         modalText.textContent = 'Please review your selections. Pressing "Submit Order" will finalize your request.';
       }
 
-      successFooter.classList.add('hidden');
       confirmSubmitBtn.disabled = false;
       confirmSubmitBtn.textContent = 'Submit Order';
       summaryContent.style.display = 'block';
@@ -310,7 +347,6 @@
       orderModal.classList.remove('open');
     }
     closeModalBtns.forEach(btn => btn.addEventListener('click', closeModal));
-    doneBtn.addEventListener('click', () => window.location.reload());
 
     // --- 6. POST to Google Apps Script ---
     confirmSubmitBtn.addEventListener('click', () => {
@@ -340,10 +376,15 @@
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
       .then(data => {
         if (data.result === 'success') {
-          modalText.textContent = 'Your order has been submitted successfully!';
-          summaryContent.style.display = 'none';
-          modalFooter.style.display = 'none';
-          successFooter.classList.remove('hidden');
+          // Close modal and transition to confirmation page
+          closeModal();
+          orderPage.style.opacity = '0';
+          orderPage.style.pointerEvents = 'none';
+          setTimeout(() => {
+            orderPage.classList.add('hidden');
+            confirmationPage.classList.remove('hidden');
+            setTimeout(() => { confirmationPage.style.opacity = '1'; }, 50);
+          }, 300);
         } else {
           throw new Error(data.error || 'Script returned an error.');
         }
@@ -355,7 +396,6 @@
         confirmSubmitBtn.disabled = false;
         confirmSubmitBtn.textContent = 'Try Again';
         modalFooter.style.display = 'flex';
-        successFooter.classList.add('hidden');
       });
     });
   });
