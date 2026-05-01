@@ -8,213 +8,165 @@ const btnLabel = document.getElementById('submit-btn-label');
 const btnSpinner = document.getElementById('submit-spinner');
 const formError = document.getElementById('form-error');
 
-const witnessBlock = document.getElementById('witness-details-block');
-const projectOtherBlock = document.getElementById('project-other-block');
-
-const explainBlocks = {
-  validityQuestioned: document.getElementById('explain-validityQuestioned'),
-  employmentIssues: document.getElementById('explain-employmentIssues'),
-  preExisting: document.getElementById('explain-preExisting'),
-  otherFactors: document.getElementById('explain-otherFactors'),
-  sportsHobbies: document.getElementById('explain-sportsHobbies'),
-  heavyLiftingOutsideWork: document.getElementById('explain-heavyLiftingOutsideWork'),
-};
-
-function getRadioValue(name) {
-  const el = document.querySelector(`input[name="${name}"]:checked`);
-  return el ? el.value : '';
-}
-
-function setWitnessVisibility() {
-  const v = getRadioValue('witnessesPresent');
-  witnessBlock.classList.toggle('hidden', v !== 'Yes');
-}
-
-function setProjectOtherVisibility() {
-  const sel = document.getElementById('projectType');
-  projectOtherBlock.classList.toggle('hidden', sel.value !== 'Other');
-}
-
-function setExplainVisibility(key) {
-  const block = explainBlocks[key];
-  if (!block) return;
-  block.classList.toggle('hidden', getRadioValue(key) !== 'Yes');
-}
-
-function wireRadios(name, onChange) {
-  document.querySelectorAll(`input[name="${name}"]`).forEach((el) => {
-    el.addEventListener('change', onChange);
-  });
-}
-
-document.querySelectorAll('input[name="witnessesPresent"]').forEach((el) => {
-  el.addEventListener('change', setWitnessVisibility);
-});
-document.getElementById('projectType').addEventListener('change', setProjectOtherVisibility);
-
-[
-  'validityQuestioned',
-  'employmentIssues',
-  'preExisting',
-  'otherFactors',
-  'sportsHobbies',
-  'heavyLiftingOutsideWork',
-].forEach((key) => {
-  wireRadios(key, () => setExplainVisibility(key));
-});
-
-function collectPayload() {
-  const witnessesPresent = getRadioValue('witnessesPresent');
-  const projectType = document.getElementById('projectType').value.trim();
-  const t = (id) => document.getElementById(id).value.trim();
-
-  return {
-    reporterName: t('reporterName'),
-    reporterRole: document.getElementById('reporterRole').value,
-    reporterEmail: t('reporterEmail'),
-    reporterPhone: t('reporterPhone'),
-    associateName: t('associateName'),
-    incidentDate: document.getElementById('incidentDate').value,
-    firstLearnedAt: document.getElementById('firstLearnedAt').value,
-    howLearned: document.getElementById('howLearned').value,
-    witnessesPresent,
-    witnessDetails: witnessesPresent === 'Yes' ? t('witnessDetails') : '',
-    projectType,
-    projectOther: projectType === 'Other' ? t('projectOther') : '',
-    retailer: document.getElementById('retailer').value,
-    storeNumber: t('storeNumber'),
-    storeAddress: t('storeAddress'),
-    validityQuestioned: getRadioValue('validityQuestioned'),
-    validityExplain:
-      getRadioValue('validityQuestioned') === 'Yes' ? t('validityExplain') : '',
-    employmentIssues: getRadioValue('employmentIssues'),
-    employmentExplain:
-      getRadioValue('employmentIssues') === 'Yes' ? t('employmentExplain') : '',
-    preExisting: getRadioValue('preExisting'),
-    preExistingExplain:
-      getRadioValue('preExisting') === 'Yes' ? t('preExistingExplain') : '',
-    otherFactors: getRadioValue('otherFactors'),
-    otherFactorsExplain:
-      getRadioValue('otherFactors') === 'Yes' ? t('otherFactorsExplain') : '',
-    sportsHobbies: getRadioValue('sportsHobbies'),
-    sportsExplain: getRadioValue('sportsHobbies') === 'Yes' ? t('sportsExplain') : '',
-    heavyLiftingOutsideWork: getRadioValue('heavyLiftingOutsideWork'),
-    heavyLiftingExplain:
-      getRadioValue('heavyLiftingOutsideWork') === 'Yes' ? t('heavyLiftingExplain') : '',
-  };
-}
-
-function validate(payload) {
-  const missing = [];
-
-  const req = [
-    ['reporterName', payload.reporterName],
-    ['reporterRole', payload.reporterRole],
-    ['reporterEmail', payload.reporterEmail],
-    ['associateName', payload.associateName],
-    ['incidentDate', payload.incidentDate],
-    ['firstLearnedAt', payload.firstLearnedAt],
-    ['howLearned', payload.howLearned],
-    ['witnessesPresent', payload.witnessesPresent],
-    ['projectType', payload.projectType],
-    ['retailer', payload.retailer],
-    ['storeNumber', payload.storeNumber],
-    ['storeAddress', payload.storeAddress],
-    ['validityQuestioned', payload.validityQuestioned],
-    ['employmentIssues', payload.employmentIssues],
-    ['preExisting', payload.preExisting],
-    ['otherFactors', payload.otherFactors],
-    ['sportsHobbies', payload.sportsHobbies],
-    ['heavyLiftingOutsideWork', payload.heavyLiftingOutsideWork],
-  ];
-
-  const yn = new Set(['Yes', 'No', 'Unknown']);
-  const wit = new Set(['Yes', 'No', 'Unknown']);
-
-  for (const [k, v] of req) {
-    if (!v || (typeof v === 'string' && !v.trim())) missing.push(k);
-  }
-  if (payload.witnessesPresent && !wit.has(payload.witnessesPresent)) {
-    missing.push('witnessesPresent');
-  }
-  for (const k of [
-    'validityQuestioned',
-    'employmentIssues',
-    'preExisting',
-    'otherFactors',
-    'sportsHobbies',
-    'heavyLiftingOutsideWork',
-  ]) {
-    if (payload[k] && !yn.has(payload[k])) missing.push(k);
+if (!form || form.dataset.formKind !== 'self') {
+  console.warn('[claims/app.js] Self-claim form not found or wrong data-form-kind; script skipped.');
+} else {
+  function getRadioValue(name) {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : '';
   }
 
-  if (payload.witnessesPresent === 'Yes' && !payload.witnessDetails) {
-    missing.push('witnessDetails');
-  }
-  if (payload.projectType === 'Other' && !payload.projectOther) {
-    missing.push('projectOther');
+  function t(id) {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : '';
   }
 
-  const pairs = [
-    ['validityQuestioned', 'validityExplain'],
-    ['employmentIssues', 'employmentExplain'],
-    ['preExisting', 'preExistingExplain'],
-    ['otherFactors', 'otherFactorsExplain'],
-    ['sportsHobbies', 'sportsExplain'],
-    ['heavyLiftingOutsideWork', 'heavyLiftingExplain'],
-  ];
-  for (const [r, e] of pairs) {
-    if (payload[r] === 'Yes' && !payload[e]) missing.push(e);
+  function collectBodyParts() {
+    return [...document.querySelectorAll('input[name="bodyPart"]:checked')].map((c) => c.value);
   }
 
-  if (payload.reporterEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.reporterEmail)) {
-    missing.push('reporterEmail');
-  }
-
-  return [...new Set(missing)];
-}
-
-function setLoading(loading) {
-  submitBtn.disabled = loading;
-  btnSpinner.classList.toggle('hidden', !loading);
-  btnLabel.textContent = loading ? 'Submitting…' : 'Submit intake';
-}
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  formError.classList.add('hidden');
-  formError.textContent = '';
-
-  const payload = collectPayload();
-  const missing = validate(payload);
-  if (missing.length > 0) {
-    formError.textContent = `Please complete all required fields (${missing.join(', ')}).`;
-    formError.classList.remove('hidden');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const res = await fetch(`${API_BASE}/api/claims`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+  function collectWitnesses() {
+    const rows = document.querySelectorAll('#witness-rows .witness-row');
+    const out = [];
+    rows.forEach((row) => {
+      const name = (row.querySelector('.witness-name-input') || row.querySelector('[name="witnessName"]'))
+        .value.trim();
+      const phoneOrEmail = (
+        row.querySelector('.witness-contact-input') || row.querySelector('[name="witnessPhoneOrEmail"]')
+      ).value.trim();
+      if (!name && !phoneOrEmail) return;
+      out.push({ name, phoneOrEmail });
     });
+    return out;
+  }
 
-    const data = await res.json().catch(() => ({}));
+  function collectPayload() {
+    const reported = getRadioValue('reportedToSupervisor');
+    const preAny = getRadioValue('preExistingAny');
 
-    if (!res.ok) {
-      if (res.status === 400 && data.missing && Array.isArray(data.missing)) {
-        formError.textContent = `Missing or invalid: ${data.missing.join(', ')}.`;
-      } else {
-        formError.textContent =
-          data.error || 'Submission failed. Please try again or contact your administrator.';
+    return {
+      reportType: t('reportType') || 'self',
+      reporterName: t('reporterName'),
+      reporterEmail: t('reporterEmail'),
+      reporterPhone: t('reporterPhone'),
+      retailer: document.getElementById('retailer')?.value || '',
+      storeNumber: t('storeNumber'),
+      storeAddress: t('storeAddress'),
+      project: document.getElementById('project')?.value || '',
+      mechanism: document.getElementById('mechanism')?.value || '',
+      dateOfInjury: document.getElementById('dateOfInjury')?.value || '',
+      timeOfInjury: document.getElementById('timeOfInjury')?.value || '',
+      bodyPartsAffected: collectBodyParts(),
+      sideAffected: document.getElementById('sideAffected')?.value || '',
+      description: t('description'),
+      witnesses: collectWitnesses(),
+      reportedToSupervisor: reported,
+      supervisorName: reported === 'Yes' ? t('supervisorName') : '',
+      supervisorDateReported: reported === 'Yes' ? document.getElementById('supervisorDateReported')?.value || '' : '',
+      supervisorTimeReported: reported === 'Yes' ? document.getElementById('supervisorTimeReported')?.value || '' : '',
+      preExistingAny: preAny,
+      preExistingDetails: preAny === 'Yes' ? t('preExistingDetails') : '',
+    };
+  }
+
+  function validate(payload) {
+    const missing = [];
+
+    const req = [
+      ['reporterName', payload.reporterName],
+      ['reporterEmail', payload.reporterEmail],
+      ['reporterPhone', payload.reporterPhone],
+      ['retailer', payload.retailer],
+      ['storeNumber', payload.storeNumber],
+      ['storeAddress', payload.storeAddress],
+      ['project', payload.project],
+      ['mechanism', payload.mechanism],
+      ['dateOfInjury', payload.dateOfInjury],
+      ['timeOfInjury', payload.timeOfInjury],
+      ['sideAffected', payload.sideAffected],
+      ['description', payload.description],
+    ];
+
+    for (const [k, v] of req) {
+      if (!v || (typeof v === 'string' && !String(v).trim())) missing.push(k);
+    }
+
+    if (!payload.bodyPartsAffected || payload.bodyPartsAffected.length === 0) {
+      missing.push('bodyPartsAffected');
+    }
+
+    const yn = new Set(['Yes', 'No']);
+    if (!payload.reportedToSupervisor || !yn.has(payload.reportedToSupervisor)) {
+      missing.push('reportedToSupervisor');
+    }
+    if (payload.reportedToSupervisor === 'Yes') {
+      if (!payload.supervisorName) missing.push('supervisorName');
+      if (!payload.supervisorDateReported) missing.push('supervisorDateReported');
+      if (!payload.supervisorTimeReported) missing.push('supervisorTimeReported');
+    }
+
+    if (!payload.preExistingAny || !yn.has(payload.preExistingAny)) {
+      missing.push('preExistingAny');
+    }
+    if (payload.preExistingAny === 'Yes' && !payload.preExistingDetails) {
+      missing.push('preExistingDetails');
+    }
+
+    if (payload.reporterEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.reporterEmail)) {
+      missing.push('reporterEmail');
+    }
+
+    for (let i = 0; i < payload.witnesses.length; i++) {
+      const w = payload.witnesses[i];
+      if (!w.name && w.phoneOrEmail) {
+        missing.push(`witness_${i}_name`);
       }
+    }
+
+    return [...new Set(missing)];
+  }
+
+  function setLoading(loading) {
+    submitBtn.disabled = loading;
+    btnSpinner.classList.toggle('hidden', !loading);
+    btnLabel.textContent = loading ? 'Submitting…' : 'Submit intake';
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    formError.classList.add('hidden');
+    formError.textContent = '';
+
+    const payload = collectPayload();
+    const missing = validate(payload);
+    if (missing.length > 0) {
+      formError.textContent = `Please complete all required fields (${missing.join(', ')}).`;
       formError.classList.remove('hidden');
       return;
     }
 
-    formRoot.innerHTML = `
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/claims`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (res.status === 400 && data.missing && Array.isArray(data.missing)) {
+          formError.textContent = `Missing or invalid: ${data.missing.join(', ')}.`;
+        } else {
+          formError.textContent =
+            data.error || 'Submission failed. Please try again or contact your administrator.';
+        }
+        formError.classList.remove('hidden');
+        return;
+      }
+
+      formRoot.innerHTML = `
       <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="text-lg font-semibold text-slate-900">Submission received</h2>
         <p class="mt-3 text-slate-700">
@@ -222,15 +174,12 @@ form.addEventListener('submit', async (e) => {
         </p>
       </div>
     `;
-  } catch (err) {
-    formError.textContent =
-      'Could not reach the server. Check your connection and API configuration.';
-    formError.classList.remove('hidden');
-  } finally {
-    setLoading(false);
-  }
-});
-
-setWitnessVisibility();
-setProjectOtherVisibility();
-Object.keys(explainBlocks).forEach((k) => setExplainVisibility(k));
+    } catch (err) {
+      formError.textContent =
+        'Could not reach the server. Check your connection and API configuration.';
+      formError.classList.remove('hidden');
+    } finally {
+      setLoading(false);
+    }
+  });
+}
