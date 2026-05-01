@@ -164,6 +164,14 @@ a:hover { color: var(--color-accent-light); }
   letter-spacing: .02em;
 }
 
+.card__subtitle {
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--color-accent);
+  margin-top: -2px;
+}
+
 .card__desc {
   font-size: .9rem;
   color: var(--color-text-dim);
@@ -597,6 +605,7 @@ input[readonly] {
   }
   .card { padding: 22px 20px; }
   .card__title { font-size: 1.1rem; }
+  .card__subtitle { font-size: .78rem; }
   .card__desc { font-size: .88rem; }
 
   .form-section { padding: 24px 20px; }
