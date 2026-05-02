@@ -3,31 +3,543 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Self-claim — Injury reporting — Retail Odyssey</title>
+    <title>Self-Report Injury — Retail Odyssey</title>
     <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
-    <header class="border-b border-slate-200 bg-white">
-      <div class="mx-auto max-w-3xl px-4 py-6">
-        <h1 class="text-xl font-semibold tracking-tight text-slate-900">Self-claim (I was injured)</h1>
-        <p class="mt-1 text-sm text-slate-600">
-          Complete all required fields. Information is submitted securely to claims operations.
-        </p>
-      </div>
-    </header>
+    <style>
+      /*
+        Retail Odyssey form shell — tokens mirror main site (/styles.css) for reuse on other claim forms.
+        Do not rename --brand-* vars without coordinating steps 9.6 / 10.
+      */
+      :root {
+        --brand-bg-deep: #141c27;
+        --brand-bg: #1e2a38;
+        --brand-surface: #1f2d3d;
+        --brand-surface-hover: #2a3a4e;
+        --brand-primary: #4a7fb5;
+        --brand-primary-light: #8ab4d6;
+        --brand-accent: #c9a84c;
+        --brand-accent-light: #e2cc7a;
+        --brand-text: #e8ecf1;
+        --brand-text-muted: #8fa3b8;
+        --brand-border: #2f4562;
+        --brand-danger: #e74c3c;
+        --brand-focus-ring: rgba(74, 127, 181, 0.35);
+        --brand-radius: 10px;
+        --brand-radius-lg: 16px;
+        --brand-shadow-card: 0 4px 24px rgba(0, 0, 0, 0.45);
+        --brand-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        --brand-nav-height: 60px;
+        --brand-input-min-h: 2.625rem;
+        --brand-max-form: 48rem;
+        --brand-required: var(--brand-accent);
 
-    <main class="mx-auto max-w-3xl px-4 py-8">
-      <div id="form-root">
-        <form id="claim-form" class="space-y-10" data-form-kind="self" novalidate>
+        color-scheme: dark;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body.form-shell-body {
+        font-family: var(--brand-font);
+        background-color: var(--brand-bg-deep);
+        background-image: url("/background.png");
+        background-repeat: repeat;
+        background-attachment: fixed;
+        color: var(--brand-text);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .form-shell-body a {
+        color: var(--brand-primary-light);
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+      .form-shell-body a:hover {
+        color: var(--brand-accent-light);
+      }
+
+      /* Site nav (matches claims chooser — inlined; no /styles.css) */
+      .site-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--brand-bg-deep);
+        border-bottom: 2px solid var(--brand-border);
+        border-image: linear-gradient(
+            90deg,
+            transparent,
+            var(--brand-accent) 30%,
+            var(--brand-accent) 70%,
+            transparent
+          )
+          1;
+        height: var(--brand-nav-height);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+      }
+
+      .site-nav__inner {
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .site-nav__logo {
+        height: 36px;
+        width: auto;
+      }
+
+      .site-nav__link {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--brand-text-muted);
+        padding: 6px 14px;
+        border-radius: var(--brand-radius);
+        transition: color 0.2s ease, background 0.2s ease;
+      }
+
+      .site-nav__link:hover {
+        color: var(--brand-text);
+        background: var(--brand-surface);
+      }
+
+      @media (max-width: 768px) {
+        .site-nav {
+          padding: 0 14px;
+        }
+        .site-nav__logo {
+          height: 30px;
+        }
+        .site-nav__link {
+          padding: 6px 10px;
+          font-size: 0.85rem;
+        }
+      }
+
+      .claims-back-strip {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 12px 20px 4px;
+      }
+
+      @media (max-width: 768px) {
+        .claims-back-strip {
+          padding: 12px 14px 4px;
+        }
+      }
+
+      .claims-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--brand-primary-light);
+      }
+
+      .claims-back-link:hover {
+        color: var(--brand-accent-light);
+      }
+
+      .form-shell-main {
+        max-width: var(--brand-max-form);
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        padding-bottom: 3.5rem;
+      }
+
+      @media (min-width: 640px) {
+        .form-shell-main {
+          padding-left: 1.5rem;
+          padding-right: 1.5rem;
+        }
+      }
+
+      .form-brand-logo-wrap {
+        text-align: center;
+        padding-top: 0.5rem;
+      }
+
+      .form-brand-logo {
+        display: inline-block;
+        width: auto;
+        max-height: 60px;
+        height: auto;
+        vertical-align: middle;
+      }
+
+      @media (min-width: 768px) {
+        .form-brand-logo {
+          max-height: 96px;
+        }
+      }
+
+      .form-shell-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--brand-accent);
+        text-align: center;
+        margin-top: 1.25rem;
+      }
+
+      @media (min-width: 768px) {
+        .form-shell-title {
+          font-size: 1.75rem;
+          margin-top: 1.5rem;
+        }
+      }
+
+      .form-shell-lede {
+        text-align: center;
+        font-size: 0.975rem;
+        line-height: 1.55;
+        color: var(--brand-text-muted);
+        margin-top: 0.625rem;
+        max-width: 36rem;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .req {
+        color: var(--brand-required);
+        font-weight: 700;
+      }
+
+      .ro-card-section {
+        background: linear-gradient(135deg, var(--brand-surface) 0%, #1a2535 100%);
+        border: 1px solid var(--brand-border);
+        border-radius: var(--brand-radius-lg);
+        padding: 1.5rem 1.25rem;
+        box-shadow: var(--brand-shadow-card);
+      }
+
+      @media (min-width: 640px) {
+        .ro-card-section {
+          padding: 1.75rem 1.5rem;
+        }
+      }
+
+      .ro-section-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--brand-text);
+        letter-spacing: 0.02em;
+      }
+
+      .ro-section-sub {
+        margin-top: 0.375rem;
+        font-size: 0.8125rem;
+        line-height: 1.45;
+        color: var(--brand-text-muted);
+      }
+
+      .ro-subsection-heading {
+        font-size: 0.8125rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--brand-accent);
+        margin-top: 1.75rem;
+        margin-bottom: 0.875rem;
+        padding-bottom: 0.375rem;
+        border-bottom: 1px solid var(--brand-border);
+      }
+
+      .ro-divider-soft {
+        border: none;
+        border-top: 1px solid var(--brand-border);
+        margin: 1.75rem 0;
+        opacity: 0.85;
+      }
+
+      .ro-label {
+        display: block;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--brand-text-muted);
+        margin-bottom: 0.25rem;
+      }
+
+      .ro-input,
+      .ro-select,
+      .ro-textarea {
+        display: block;
+        width: 100%;
+        min-height: var(--brand-input-min-h);
+        padding: 0.5625rem 0.75rem;
+        font-size: 0.9375rem;
+        font-family: var(--brand-font);
+        color: var(--brand-text);
+        background: var(--brand-bg);
+        border: 1px solid var(--brand-border);
+        border-radius: var(--brand-radius);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .ro-textarea {
+        min-height: 6rem;
+        resize: vertical;
+      }
+
+      .ro-select {
+        appearance: none;
+        background-image: linear-gradient(
+            45deg,
+            transparent 50%,
+            var(--brand-text-muted) 50%
+          ),
+          linear-gradient(135deg, var(--brand-text-muted) 50%, transparent 50%);
+        background-position: calc(100% - 1rem) 50%, calc(100% - 0.6875rem) 50%;
+        background-size: 5px 5px, 5px 5px;
+        background-repeat: no-repeat;
+        padding-right: 2rem;
+      }
+
+      .ro-input:focus,
+      .ro-select:focus,
+      .ro-textarea:focus {
+        outline: none;
+        border-color: var(--brand-primary);
+        box-shadow: 0 0 0 3px var(--brand-focus-ring),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      }
+
+      #body-part-grid .body-part-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0.75rem 0.8125rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--brand-text);
+        background: rgba(30, 42, 56, 0.65);
+        border: 1px solid var(--brand-border);
+        border-radius: var(--brand-radius);
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      #body-part-grid .body-part-chip:hover {
+        border-color: var(--brand-primary);
+        background: var(--brand-surface-hover);
+      }
+
+      #body-part-grid .body-part-chip:has(input:focus-visible) {
+        outline: 2px solid var(--brand-primary);
+        outline-offset: 2px;
+      }
+
+      #body-part-grid .body-part-chip:has(input:checked) {
+        border-color: var(--brand-accent);
+        background: rgba(201, 168, 76, 0.1);
+        box-shadow: inset 0 0 0 1px rgba(201, 168, 76, 0.25);
+      }
+
+      #body-part-grid .body-part-chip input[type="checkbox"] {
+        flex-shrink: 0;
+        width: 1rem;
+        height: 1rem;
+        accent-color: var(--brand-primary);
+        border-radius: 4px;
+      }
+
+      .ro-legend {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--brand-text-muted);
+        padding: 0;
+      }
+
+      .ro-hint {
+        margin-top: 0.375rem;
+        font-size: 0.6875rem;
+        color: var(--brand-text-muted);
+      }
+
+      .ro-radio-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.625rem;
+      }
+
+      .ro-radio-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.875rem;
+        border-radius: 9999px;
+        border: 1px solid var(--brand-border);
+        background: rgba(30, 42, 56, 0.45);
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--brand-text);
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+
+      .ro-radio-pill:hover {
+        border-color: var(--brand-primary);
+        background: var(--brand-surface-hover);
+      }
+
+      .ro-radio-pill input[type="radio"] {
+        accent-color: var(--brand-primary);
+        width: 1rem;
+        height: 1rem;
+      }
+
+      .ro-btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 0.875rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        font-family: var(--brand-font);
+        color: var(--brand-text);
+        background: var(--brand-surface-hover);
+        border: 1px solid var(--brand-border);
+        border-radius: var(--brand-radius);
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .ro-btn-secondary:hover {
+        background: var(--brand-border);
+        border-color: var(--brand-primary);
+      }
+
+      .ro-btn-secondary:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--brand-focus-ring);
+      }
+
+      .ro-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        font-family: var(--brand-font);
+        color: #fff;
+        border: none;
+        border-radius: var(--brand-radius);
+        cursor: pointer;
+        background: linear-gradient(135deg, var(--brand-primary) 0%, #3d6d9e 100%);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        transition: transform 0.08s ease, filter 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .ro-btn-primary:hover:not(:disabled) {
+        filter: brightness(1.06);
+      }
+
+      .ro-btn-primary:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+
+      .ro-btn-primary:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--brand-focus-ring), 0 6px 20px rgba(0, 0, 0, 0.25);
+      }
+
+      .ro-btn-primary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .witness-row.ro-witness-panel {
+        background: rgba(30, 42, 56, 0.5);
+        border: 1px solid var(--brand-border);
+      }
+
+      .ro-remove-btn {
+        color: var(--brand-danger);
+      }
+
+      .ro-remove-btn:hover {
+        background: rgba(231, 76, 60, 0.1);
+      }
+
+      .remove-witness:focus-visible {
+        outline: 2px solid var(--brand-danger);
+        outline-offset: 2px;
+      }
+
+      .ro-card-section > h2 + .ro-subsection-heading {
+        margin-top: 1.25rem;
+      }
+
+      fieldset.border-0 {
+        border: none;
+      }
+
+      fieldset.border-0 > legend {
+        float: none;
+      }
+
+      @media (max-width: 768px) {
+        .ro-input,
+        .ro-select,
+        .ro-textarea {
+          font-size: 16px; /* iOS: avoid zoom on focus */
+          min-height: 2.75rem;
+          padding-left: 0.875rem;
+          padding-right: 0.875rem;
+        }
+      }
+    </style>
+  </head>
+  <body class="form-shell-body min-h-screen antialiased">
+    <nav class="site-nav" aria-label="Site">
+      <div class="site-nav__inner">
+        <img src="/logo-banner.png" alt="Retail Odyssey Company" class="site-nav__logo" />
+        <a href="/" class="site-nav__link">Home</a>
+      </div>
+    </nav>
+
+    <div class="claims-back-strip">
+      <a class="claims-back-link" href="/claims/">← Back to Reporting</a>
+    </div>
+
+    <main class="form-shell-main">
+      <div class="form-brand-logo-wrap">
+        <img
+          class="form-brand-logo"
+          src="/new%20logo%203.png"
+          alt="Retail Odyssey"
+          decoding="async"
+        />
+      </div>
+      <h1 class="form-shell-title">Self-Report Injury</h1>
+      <p class="form-shell-lede">
+        You are submitting a workplace injury report as the injured teammate. Answer each section fully; submissions are routed securely to claims operations.
+      </p>
+
+      <div id="form-root" class="mt-8 md:mt-10">
+        <form id="claim-form" class="space-y-8 md:space-y-10" data-form-kind="self" novalidate>
           <input type="hidden" name="reportType" id="reportType" value="self" />
 
-          <section aria-labelledby="reporter-heading" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="reporter-heading" class="text-lg font-semibold text-slate-900">Reporter</h2>
-            <p class="mt-1 text-sm text-slate-600">You are the injured worker completing this claim.</p>
+          <!-- Your Information -->
+          <section aria-labelledby="your-info-heading" class="ro-card-section">
+            <h2 id="your-info-heading" class="ro-section-title">Your Information</h2>
+            <p class="ro-section-sub">You are the injured worker completing this claim.</p>
             <div class="mt-6 grid gap-5 sm:grid-cols-2">
               <div class="sm:col-span-2">
-                <label for="reporterName" class="block text-sm font-medium text-slate-700">
-                  Reporter name <span class="text-red-600">*</span>
+                <label for="reporterName" class="ro-label">
+                  Reporter name <span class="req" aria-hidden="true">*</span>
                 </label>
                 <input
                   id="reporterName"
@@ -35,12 +547,12 @@
                   type="text"
                   autocomplete="name"
                   required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  class="ro-input mt-1"
                 />
               </div>
               <div>
-                <label for="reporterEmail" class="block text-sm font-medium text-slate-700">
-                  Reporter email <span class="text-red-600">*</span>
+                <label for="reporterEmail" class="ro-label">
+                  Reporter email <span class="req" aria-hidden="true">*</span>
                 </label>
                 <input
                   id="reporterEmail"
@@ -48,12 +560,12 @@
                   type="email"
                   autocomplete="email"
                   required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  class="ro-input mt-1"
                 />
               </div>
               <div>
-                <label for="reporterPhone" class="block text-sm font-medium text-slate-700">
-                  Reporter phone <span class="text-red-600">*</span>
+                <label for="reporterPhone" class="ro-label">
+                  Reporter phone <span class="req" aria-hidden="true">*</span>
                 </label>
                 <input
                   id="reporterPhone"
@@ -61,25 +573,23 @@
                   type="tel"
                   autocomplete="tel"
                   required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  class="ro-input mt-1"
                 />
               </div>
             </div>
           </section>
 
-          <section aria-labelledby="incident-heading" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="incident-heading" class="text-lg font-semibold text-slate-900">Where &amp; when</h2>
-            <div class="mt-6 grid gap-5 sm:grid-cols-2">
+          <!-- Incident Details -->
+          <section aria-labelledby="incident-heading" class="ro-card-section">
+            <h2 id="incident-heading" class="ro-section-title">Incident Details</h2>
+
+            <h3 id="site-timing-heading" class="ro-subsection-heading">Site &amp; timing</h3>
+            <div class="grid gap-5 sm:grid-cols-2">
               <div class="sm:col-span-2">
-                <label for="retailer" class="block text-sm font-medium text-slate-700">
-                  Retailer <span class="text-red-600">*</span>
+                <label for="retailer" class="ro-label">
+                  Retailer <span class="req" aria-hidden="true">*</span>
                 </label>
-                <select
-                  id="retailer"
-                  name="retailer"
-                  required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                >
+                <select id="retailer" name="retailer" required class="ro-select mt-1">
                   <option value="">Select…</option>
                   <option value="Kroger">Kroger</option>
                   <option value="Fred Meyer">Fred Meyer</option>
@@ -88,20 +598,14 @@
                 </select>
               </div>
               <div>
-                <label for="storeNumber" class="block text-sm font-medium text-slate-700">
-                  Store / warehouse number <span class="text-red-600">*</span>
+                <label for="storeNumber" class="ro-label">
+                  Store / warehouse number <span class="req" aria-hidden="true">*</span>
                 </label>
-                <input
-                  id="storeNumber"
-                  name="storeNumber"
-                  type="text"
-                  required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                />
+                <input id="storeNumber" name="storeNumber" type="text" required class="ro-input mt-1" />
               </div>
               <div class="sm:col-span-2">
-                <label for="storeAddress" class="block text-sm font-medium text-slate-700">
-                  Store address <span class="text-red-600">*</span>
+                <label for="storeAddress" class="ro-label">
+                  Store address <span class="req" aria-hidden="true">*</span>
                 </label>
                 <input
                   id="storeAddress"
@@ -109,19 +613,14 @@
                   type="text"
                   required
                   autocomplete="street-address"
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  class="ro-input mt-1"
                 />
               </div>
               <div class="sm:col-span-2">
-                <label for="project" class="block text-sm font-medium text-slate-700">
-                  Project <span class="text-red-600">*</span>
+                <label for="project" class="ro-label">
+                  Project <span class="req" aria-hidden="true">*</span>
                 </label>
-                <select
-                  id="project"
-                  name="project"
-                  required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                >
+                <select id="project" name="project" required class="ro-select mt-1">
                   <option value="">Select…</option>
                   <option value="Kompass ISE">Kompass ISE</option>
                   <option value="Assembly">Assembly</option>
@@ -131,15 +630,10 @@
                 </select>
               </div>
               <div class="sm:col-span-2">
-                <label for="mechanism" class="block text-sm font-medium text-slate-700">
-                  Mechanism <span class="text-red-600">*</span>
+                <label for="mechanism" class="ro-label">
+                  Mechanism <span class="req" aria-hidden="true">*</span>
                 </label>
-                <select
-                  id="mechanism"
-                  name="mechanism"
-                  required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                >
+                <select id="mechanism" name="mechanism" required class="ro-select mt-1">
                   <option value="">Select…</option>
                   <option value="Specific incident (single event)">Specific incident (single event)</option>
                   <option value="Gradual onset (developed over time / repetitive)">
@@ -149,139 +643,109 @@
                 </select>
               </div>
               <div>
-                <label for="dateOfInjury" class="block text-sm font-medium text-slate-700">
-                  Date of injury <span class="text-red-600">*</span>
+                <label for="dateOfInjury" class="ro-label">
+                  Date of injury <span class="req" aria-hidden="true">*</span>
                 </label>
-                <input
-                  id="dateOfInjury"
-                  name="dateOfInjury"
-                  type="date"
-                  required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                />
+                <input id="dateOfInjury" name="dateOfInjury" type="date" required class="ro-input mt-1" />
               </div>
               <div>
-                <label for="timeOfInjury" class="block text-sm font-medium text-slate-700">
-                  Time of injury <span class="text-red-600">*</span>
+                <label for="timeOfInjury" class="ro-label">
+                  Time of injury <span class="req" aria-hidden="true">*</span>
                 </label>
-                <input
-                  id="timeOfInjury"
-                  name="timeOfInjury"
-                  type="time"
-                  required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                />
+                <input id="timeOfInjury" name="timeOfInjury" type="time" required class="ro-input mt-1" />
               </div>
             </div>
-          </section>
 
-          <section aria-labelledby="injury-heading" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="injury-heading" class="text-lg font-semibold text-slate-900">Injury details</h2>
-            <div class="mt-6 space-y-6">
+            <hr class="ro-divider-soft" />
+
+            <h3 id="injury-spec-heading" class="ro-subsection-heading">How you were injured</h3>
+            <div class="space-y-6">
               <fieldset class="min-w-0 border-0 p-0" aria-describedby="body-part-hint">
-                <legend id="body-part-legend" class="text-sm font-medium text-slate-700">
-                  Body part(s) affected <span class="text-red-600">*</span>
+                <legend id="body-part-legend" class="ro-legend float-none">
+                  Body part(s) affected <span class="req" aria-hidden="true">*</span>
                 </legend>
-                <p id="body-part-hint" class="mt-1 text-xs text-slate-500">Select all that apply.</p>
+                <p id="body-part-hint" class="ro-hint">
+                  Tap each card to select everything that applies.
+                </p>
                 <div
                   id="body-part-grid"
-                  class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2"
+                  class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4"
                   role="group"
                   aria-labelledby="body-part-legend"
                 >
                   <!-- options from FIELD-MAP.md shared list -->
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Head" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Head
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Head" /> Head
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Eye" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Eye
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Eye" /> Eye
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Neck" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Neck
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Neck" /> Neck
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Shoulder" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Shoulder
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Shoulder" /> Shoulder
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Upper back" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Upper back
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Upper back" /> Upper back
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Lower back" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Lower back
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Lower back" /> Lower back
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Chest" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Chest
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Chest" /> Chest
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Abdomen" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Abdomen
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Abdomen" /> Abdomen
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Arm" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Arm
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Arm" /> Arm
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Elbow" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Elbow
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Elbow" /> Elbow
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Wrist" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Wrist
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Wrist" /> Wrist
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Hand" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Hand
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Hand" /> Hand
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Finger" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Finger
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Finger" /> Finger
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Hip" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Hip
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Hip" /> Hip
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Leg" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Leg
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Leg" /> Leg
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Knee" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Knee
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Knee" /> Knee
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Ankle" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Ankle
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Ankle" /> Ankle
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Foot" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Foot
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Foot" /> Foot
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Toe" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Toe
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Toe" /> Toe
                   </label>
-                  <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
-                    <input type="checkbox" name="bodyPart" value="Other" class="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
-                    Other
+                  <label class="body-part-chip">
+                    <input type="checkbox" name="bodyPart" value="Other" /> Other
                   </label>
                 </div>
               </fieldset>
 
               <div>
-                <label for="sideAffected" class="block text-sm font-medium text-slate-700">
-                  Side affected <span class="text-red-600">*</span>
+                <label for="sideAffected" class="ro-label">
+                  Side affected <span class="req" aria-hidden="true">*</span>
                 </label>
                 <select
                   id="sideAffected"
                   name="sideAffected"
                   required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 sm:max-w-xs"
+                  class="ro-select mt-1 sm:max-w-xs"
                 >
                   <option value="">Select…</option>
                   <option value="Left">Left</option>
@@ -292,135 +756,133 @@
               </div>
 
               <div>
-                <label for="description" class="block text-sm font-medium text-slate-700">
-                  Description of what happened <span class="text-red-600">*</span>
+                <label for="description" class="ro-label">
+                  Description of what happened <span class="req" aria-hidden="true">*</span>
                 </label>
                 <textarea
                   id="description"
                   name="description"
                   rows="5"
                   required
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  class="ro-textarea mt-1"
                 ></textarea>
               </div>
             </div>
           </section>
 
-          <section aria-labelledby="witnesses-heading" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="witnesses-heading" class="text-lg font-semibold text-slate-900">Witnesses</h2>
-            <p class="mt-1 text-sm text-slate-600">Optional. Add anyone who saw what happened or may have contact information.</p>
+          <!-- Witnesses -->
+          <section aria-labelledby="witnesses-heading" class="ro-card-section">
+            <h2 id="witnesses-heading" class="ro-section-title">Witnesses</h2>
+            <p class="ro-section-sub">Optional — add anyone who saw what happened or may have contact information.</p>
             <div id="witness-rows" class="mt-6 space-y-4"></div>
-            <button
-              type="button"
-              id="add-witness"
-              class="mt-4 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-            >
-              Add witness
-            </button>
+            <button type="button" id="add-witness" class="ro-btn-secondary mt-4">Add witness</button>
           </section>
 
-          <section aria-labelledby="supervisor-heading" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="supervisor-heading" class="text-lg font-semibold text-slate-900">Supervisor reporting</h2>
-            <fieldset class="mt-6 min-w-0">
-              <legend id="supervisor-report-legend" class="text-sm font-medium text-slate-700">
-                Did you report it to a supervisor? <span class="text-red-600">*</span>
+          <!-- Reporting & history -->
+          <section aria-labelledby="reporting-history-heading" class="ro-card-section">
+            <h2 id="reporting-history-heading" class="ro-section-title">Reporting &amp; History</h2>
+
+            <h3 id="supervisor-sub-heading" class="ro-subsection-heading">Supervisor reporting</h3>
+            <fieldset class="mt-2 min-w-0 border-0 p-0">
+              <legend id="supervisor-report-legend" class="ro-legend float-none pb-3">
+                Did you report it to a supervisor? <span class="req" aria-hidden="true">*</span>
               </legend>
-              <div class="mt-2 flex flex-wrap gap-4" role="radiogroup" aria-labelledby="supervisor-report-legend">
-                <label class="inline-flex items-center gap-2 text-sm">
-                  <input type="radio" name="reportedToSupervisor" value="Yes" required class="text-slate-900" />
-                  Yes
+              <div class="ro-radio-pill-row" role="radiogroup" aria-labelledby="supervisor-report-legend">
+                <label class="ro-radio-pill">
+                  <input type="radio" name="reportedToSupervisor" value="Yes" required /> Yes
                 </label>
-                <label class="inline-flex items-center gap-2 text-sm">
-                  <input type="radio" name="reportedToSupervisor" value="No" class="text-slate-900" />
-                  No
+                <label class="ro-radio-pill">
+                  <input type="radio" name="reportedToSupervisor" value="No" /> No
                 </label>
               </div>
             </fieldset>
 
-            <div id="supervisor-block" class="mt-6 hidden space-y-5 border-t border-slate-100 pt-6">
+            <div
+              id="supervisor-block"
+              class="mt-6 hidden space-y-5 border-t pt-6"
+              style="border-color: var(--brand-border)"
+            >
               <div>
-                <label for="supervisorName" class="block text-sm font-medium text-slate-700">
-                  Supervisor name <span class="text-red-600">*</span>
+                <label for="supervisorName" class="ro-label">
+                  Supervisor name <span class="req" aria-hidden="true">*</span>
                 </label>
                 <input
                   id="supervisorName"
                   name="supervisorName"
                   type="text"
-                  class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  class="ro-input mt-1"
                 />
               </div>
               <div class="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label for="supervisorDateReported" class="block text-sm font-medium text-slate-700">
-                    Date reported <span class="text-red-600">*</span>
+                  <label for="supervisorDateReported" class="ro-label">
+                    Date reported <span class="req" aria-hidden="true">*</span>
                   </label>
                   <input
                     id="supervisorDateReported"
                     name="supervisorDateReported"
                     type="date"
-                    class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    class="ro-input mt-1"
                   />
                 </div>
                 <div>
-                  <label for="supervisorTimeReported" class="block text-sm font-medium text-slate-700">
-                    Time reported <span class="text-red-600">*</span>
+                  <label for="supervisorTimeReported" class="ro-label">
+                    Time reported <span class="req" aria-hidden="true">*</span>
                   </label>
                   <input
                     id="supervisorTimeReported"
                     name="supervisorTimeReported"
                     type="time"
-                    class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    class="ro-input mt-1"
                   />
                 </div>
               </div>
             </div>
-          </section>
 
-          <section aria-labelledby="preexisting-heading" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 id="preexisting-heading" class="text-lg font-semibold text-slate-900">
-              Pre-existing conditions or prior injuries
-            </h2>
-            <p class="mt-1 text-sm text-slate-600">To the affected body part(s) listed above.</p>
+            <hr class="ro-divider-soft" />
+
+            <h3 id="preexisting-sub-heading" class="ro-subsection-heading">Medical history note</h3>
+            <p class="ro-section-sub mb-6">Regarding the affected body part(s) you selected above.</p>
             <fieldset class="mt-6 min-w-0 border-0 p-0">
-              <legend id="preexisting-radio-legend" class="text-sm font-medium text-slate-700">
-                Any pre-existing conditions or prior injuries to the affected area? <span class="text-red-600">*</span>
+              <legend id="preexisting-radio-legend" class="ro-legend float-none pb-3">
+                Any pre-existing conditions or prior injuries to the affected area?
+                <span class="req" aria-hidden="true">*</span>
               </legend>
-              <div class="mt-2 flex flex-wrap gap-4" role="radiogroup" aria-labelledby="preexisting-radio-legend">
-                <label class="inline-flex items-center gap-2 text-sm">
-                  <input type="radio" name="preExistingAny" value="Yes" required class="text-slate-900" />
-                  Yes
+              <div class="ro-radio-pill-row" role="radiogroup" aria-labelledby="preexisting-radio-legend">
+                <label class="ro-radio-pill">
+                  <input type="radio" name="preExistingAny" value="Yes" required /> Yes
                 </label>
-                <label class="inline-flex items-center gap-2 text-sm">
-                  <input type="radio" name="preExistingAny" value="No" class="text-slate-900" />
-                  No
+                <label class="ro-radio-pill">
+                  <input type="radio" name="preExistingAny" value="No" /> No
                 </label>
               </div>
             </fieldset>
             <div id="pre-existing-detail-block" class="mt-6 hidden">
-              <label for="preExistingDetails" class="block text-sm font-medium text-slate-700">
-                Please describe <span class="text-red-600">*</span>
+              <label for="preExistingDetails" class="ro-label">
+                Please describe <span class="req" aria-hidden="true">*</span>
               </label>
               <textarea
                 id="preExistingDetails"
                 name="preExistingDetails"
                 rows="4"
-                class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                class="ro-textarea mt-1"
               ></textarea>
             </div>
           </section>
 
           <div
             id="form-error"
-            class="hidden rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            class="hidden rounded-md border px-4 py-3 text-sm"
+            style="
+              border-color: rgba(231, 76, 60, 0.45);
+              background: rgba(231, 76, 60, 0.12);
+              color: var(--brand-text);
+            "
             role="alert"
           ></div>
 
           <div class="flex items-center justify-end gap-3">
-            <button
-              type="submit"
-              id="submit-btn"
-              class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <button type="submit" id="submit-btn" class="ro-btn-primary disabled:opacity-60">
               <svg
                 id="submit-spinner"
                 class="hidden h-4 w-4 animate-spin text-white"
@@ -444,31 +906,28 @@
     </main>
 
     <template id="witness-row-template">
-      <div class="witness-row rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid sm:grid-cols-2 sm:gap-4">
+      <div class="witness-row ro-witness-panel rounded-xl border p-4 sm:grid sm:grid-cols-2 sm:gap-4">
         <div class="sm:col-span-1">
-          <label class="witness-name-label block text-sm font-medium text-slate-700">Witness name</label>
+          <label class="witness-name-label ro-label">Witness name</label>
           <input
             type="text"
             name="witnessName"
-            class="witness-name-input mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            class="witness-name-input ro-input mt-1"
           />
         </div>
         <div class="mt-4 sm:mt-0 sm:col-span-1">
-          <label class="witness-contact-label block text-sm font-medium text-slate-700"
-            >Phone or email <span class="text-slate-500">(if known)</span></label
-          >
+          <label class="witness-contact-label ro-label">
+            Phone or email <span class="opacity-75">(if known)</span>
+          </label>
           <input
             type="text"
             name="witnessPhoneOrEmail"
             autocomplete="off"
-            class="witness-contact-input mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            class="witness-contact-input ro-input mt-1"
           />
         </div>
         <div class="mt-4 flex justify-end sm:col-span-2">
-          <button
-            type="button"
-            class="remove-witness rounded-md px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
-          >
+          <button type="button" class="remove-witness rounded-md px-3 py-1.5 text-sm font-medium ro-remove-btn">
             Remove
           </button>
         </div>
