@@ -44,18 +44,40 @@ function getCheckboxValues(name, root = form) {
   return qsa(`input[name="${name}"]:checked`, root).map((checkbox) => checkbox.value);
 }
 
+function readWitnessRow(row) {
+  const name = (
+    row.querySelector('.witness-name-input') || row.querySelector('[name="witnessName"]')
+  )?.value.trim() || '';
+  const phoneOrEmail = (
+    row.querySelector('.witness-contact-input') || row.querySelector('[name="witnessPhoneOrEmail"]')
+  )?.value.trim() || '';
+  return { name, phoneOrEmail };
+}
+
 function getWitnessRows(root = form) {
   return qsa('#witness-rows .witness-row', root)
-    .map((row) => {
-      const name = (
-        row.querySelector('.witness-name-input') || row.querySelector('[name="witnessName"]')
-      )?.value.trim() || '';
-      const phoneOrEmail = (
-        row.querySelector('.witness-contact-input') || row.querySelector('[name="witnessPhoneOrEmail"]')
-      )?.value.trim() || '';
-      return { name, phoneOrEmail };
-    })
+    .map(readWitnessRow)
     .filter((witness) => witness.name || witness.phoneOrEmail);
+}
+
+// Cross-field check the browser cannot express: a row with contact info but
+// no name is invalid. Fully-blank rows are treated as abandoned and ignored.
+// Returns an error message string, or null if witness rows are valid / N/A.
+function validateWitnessRowsIfApplicable() {
+  const formKind = form.dataset.formKind;
+  if (formKind === 'witness') return null;
+  if (formKind === 'investigation' && getRadioValue('witnessesPresent', form) !== 'Yes') {
+    return null;
+  }
+  const rows = qsa('#witness-rows .witness-row', form);
+  for (const row of rows) {
+    const { name, phoneOrEmail } = readWitnessRow(row);
+    if (!name && !phoneOrEmail) continue;
+    if (phoneOrEmail && !name) {
+      return 'Witness name is required when contact info is provided';
+    }
+  }
+  return null;
 }
 
 function collectPayload() {
@@ -188,6 +210,12 @@ async function handleSubmit(event) {
 
   if (!form.checkValidity()) {
     form.reportValidity();
+    return;
+  }
+
+  const witnessError = validateWitnessRowsIfApplicable();
+  if (witnessError) {
+    showError(witnessError);
     return;
   }
 
