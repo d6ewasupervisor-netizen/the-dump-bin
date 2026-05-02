@@ -1,5 +1,5 @@
-/** API origin (no trailing slash). Set to your Railway URL for production. See README. */
-const API_BASE = 'https://injury-claim-form-api-production.up.railway.app';
+/** API origin (no trailing slash). Routes through Cloudflare Access so the auth identity header reaches Railway. */
+const API_BASE = 'https://api.the-dump-bin.com';
 
 const form = document.getElementById('claim-form');
 const formRoot = document.getElementById('form-root');
@@ -226,6 +226,7 @@ async function handleSubmit(event) {
     const res = await fetch(`${API_BASE}/api/claims`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
 
