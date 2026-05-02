@@ -541,6 +541,73 @@
           padding-right: 0.875rem;
         }
       }
+
+      /* ===== Shared time picker (used by claims/time-picker.js) ===== */
+      .ro-time-picker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 0.25rem;
+      }
+      .ro-time-field {
+        width: 3.25rem;
+        text-align: center;
+        font-size: 16px;
+        font-variant-numeric: tabular-nums;
+        padding: 0.625rem 0.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--ro-border, rgba(255,255,255,0.18));
+        background: var(--ro-input-bg, rgba(255,255,255,0.04));
+        color: var(--ro-text, #e6edf6);
+        outline: none;
+        transition: border-color 120ms ease, box-shadow 120ms ease;
+        min-height: 44px;
+      }
+      .ro-time-field:focus {
+        border-color: var(--ro-accent, #6aa9ff);
+        box-shadow: 0 0 0 3px rgba(106, 169, 255, 0.25);
+      }
+      .ro-time-colon {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--ro-text-muted, rgba(230,237,246,0.7));
+        user-select: none;
+      }
+      .ro-time-period {
+        display: inline-flex;
+        margin-left: 4px;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        border: 1px solid var(--ro-border, rgba(255,255,255,0.18));
+      }
+      .ro-time-period-btn {
+        padding: 0.5rem 0.85rem;
+        min-height: 44px;
+        min-width: 48px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        background: var(--ro-input-bg, rgba(255,255,255,0.04));
+        color: var(--ro-text-muted, rgba(230,237,246,0.7));
+        border: 0;
+        cursor: pointer;
+        transition: background-color 120ms ease, color 120ms ease;
+      }
+      .ro-time-period-btn + .ro-time-period-btn {
+        border-left: 1px solid var(--ro-border, rgba(255,255,255,0.18));
+      }
+      .ro-time-period-btn.is-selected {
+        background: var(--ro-accent, #6aa9ff);
+        color: #0b1220;
+      }
+      .ro-time-period-btn:focus-visible {
+        outline: 2px solid var(--ro-accent, #6aa9ff);
+        outline-offset: -2px;
+      }
+      .ro-time-invalid .ro-time-field,
+      .ro-time-invalid .ro-time-period {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+      }
     </style>
   </head>
   <body class="form-shell-body min-h-screen antialiased">
@@ -1152,6 +1219,7 @@
       }
 
     </script>
+    <script src="/claims/time-picker.js" defer></script>
     <script src="/claims/app.js" defer></script>
   </body>
 </html>
