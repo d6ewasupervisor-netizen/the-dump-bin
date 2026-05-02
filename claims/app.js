@@ -8,178 +8,223 @@ const btnLabel = document.getElementById('submit-btn-label');
 const btnSpinner = document.getElementById('submit-spinner');
 const formError = document.getElementById('form-error');
 
-if (!form || form.dataset.formKind !== 'self') {
-  console.warn('[claims/app.js] Self-claim form not found or wrong data-form-kind; script skipped.');
+const payloadBuilders = {
+  self: collectSelfPayload,
+  witness: collectWitnessPayload,
+  investigation: collectInvestigationPayload,
+};
+
+if (!form || !payloadBuilders[form.dataset.formKind]) {
+  console.warn('[claims/app.js] Claim form not found or unsupported data-form-kind; script skipped.');
 } else {
-  function getRadioValue(name) {
-    const el = document.querySelector(`input[name="${name}"]:checked`);
-    return el ? el.value : '';
-  }
+  form.addEventListener('submit', handleSubmit);
+}
 
-  function t(id) {
-    const el = document.getElementById(id);
-    return el ? el.value.trim() : '';
-  }
+function qsa(selector, root = document) {
+  return Array.from(root.querySelectorAll(selector));
+}
 
-  function collectBodyParts() {
-    return [...document.querySelectorAll('input[name="bodyPart"]:checked')].map((c) => c.value);
-  }
+function fieldValue(nameOrId, root = form) {
+  const byId = document.getElementById(nameOrId);
+  const el = byId && root.contains(byId) ? byId : root.querySelector(`[name="${nameOrId}"]`);
+  return el && 'value' in el ? el.value.trim() : '';
+}
 
-  function collectWitnesses() {
-    const rows = document.querySelectorAll('#witness-rows .witness-row');
-    const out = [];
-    rows.forEach((row) => {
-      const name = (row.querySelector('.witness-name-input') || row.querySelector('[name="witnessName"]'))
-        .value.trim();
+function selectValue(id, root = form) {
+  const el = document.getElementById(id);
+  return el && root.contains(el) ? el.value : '';
+}
+
+function getRadioValue(name, root = form) {
+  const el = root.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
+}
+
+function getCheckboxValues(name, root = form) {
+  return qsa(`input[name="${name}"]:checked`, root).map((checkbox) => checkbox.value);
+}
+
+function getWitnessRows(root = form) {
+  return qsa('#witness-rows .witness-row', root)
+    .map((row) => {
+      const name = (
+        row.querySelector('.witness-name-input') || row.querySelector('[name="witnessName"]')
+      )?.value.trim() || '';
       const phoneOrEmail = (
         row.querySelector('.witness-contact-input') || row.querySelector('[name="witnessPhoneOrEmail"]')
-      ).value.trim();
-      if (!name && !phoneOrEmail) return;
-      out.push({ name, phoneOrEmail });
+      )?.value.trim() || '';
+      return { name, phoneOrEmail };
+    })
+    .filter((witness) => witness.name || witness.phoneOrEmail);
+}
+
+function collectPayload() {
+  const formKind = form.dataset.formKind;
+  return payloadBuilders[formKind](form);
+}
+
+function collectSelfPayload(root) {
+  const reported = getRadioValue('reportedToSupervisor', root);
+  const preAny = getRadioValue('preExistingAny', root);
+
+  return {
+    reportType: fieldValue('reportType', root) || 'self',
+    reporterName: fieldValue('reporterName', root),
+    reporterEmail: fieldValue('reporterEmail', root),
+    reporterPhone: fieldValue('reporterPhone', root),
+    retailer: selectValue('retailer', root),
+    storeNumber: fieldValue('storeNumber', root),
+    storeAddress: fieldValue('storeAddress', root),
+    project: selectValue('project', root),
+    mechanism: selectValue('mechanism', root),
+    dateOfInjury: fieldValue('dateOfInjury', root),
+    timeOfInjury: fieldValue('timeOfInjury', root),
+    bodyPartsAffected: getCheckboxValues('bodyPart', root),
+    sideAffected: selectValue('sideAffected', root),
+    description: fieldValue('description', root),
+    witnesses: getWitnessRows(root),
+    reportedToSupervisor: reported,
+    supervisorName: reported === 'Yes' ? fieldValue('supervisorName', root) : '',
+    supervisorDateReported: reported === 'Yes' ? fieldValue('supervisorDateReported', root) : '',
+    supervisorTimeReported: reported === 'Yes' ? fieldValue('supervisorTimeReported', root) : '',
+    preExistingAny: preAny,
+    preExistingDetails: preAny === 'Yes' ? fieldValue('preExistingDetails', root) : '',
+  };
+}
+
+function collectWitnessPayload(root) {
+  const relationship = selectValue('relationshipToInjured', root);
+  const mentionedReporting = getRadioValue('mentionedReporting', root);
+  const preExistingAware = getRadioValue('preExistingAware', root);
+
+  return {
+    reportType: fieldValue('reportType', root) || 'witness',
+    reporterName: fieldValue('reporterName', root),
+    reporterEmail: fieldValue('reporterEmail', root),
+    reporterPhone: fieldValue('reporterPhone', root),
+    relationshipToInjured: relationship,
+    injuredAssociateName: fieldValue('injuredAssociateName', root),
+    retailer: selectValue('retailer', root),
+    storeNumber: fieldValue('storeNumber', root),
+    storeAddress: fieldValue('storeAddress', root),
+    project: selectValue('project', root),
+    mechanism: selectValue('mechanism', root),
+    dateOfInjury: fieldValue('dateOfInjury', root),
+    timeOfInjury: fieldValue('timeOfInjury', root),
+    bodyPartsAffected: getCheckboxValues('bodyPart', root),
+    sideAffected: selectValue('sideAffected', root),
+    description: fieldValue('description', root),
+    statementAdditionalInfo: fieldValue('statementAdditionalInfo', root),
+    mentionedReporting,
+    mentionedReportName: mentionedReporting === 'Yes' ? fieldValue('mentionedReportName', root) : '',
+    mentionedReportDate: mentionedReporting === 'Yes' ? fieldValue('mentionedReportDate', root) : '',
+    mentionedReportTime: mentionedReporting === 'Yes' ? fieldValue('mentionedReportTime', root) : '',
+    preExistingAware,
+    preExistingDetails: preExistingAware === 'Yes' ? fieldValue('preExistingDetails', root) : '',
+  };
+}
+
+function collectInvestigationPayload(root) {
+  const witnessesPresent = getRadioValue('witnessesPresent', root);
+
+  return {
+    reportType: fieldValue('reportType', root) || 'investigation',
+    reporterName: fieldValue('reporterName', root),
+    reporterEmail: fieldValue('reporterEmail', root),
+    reporterPhone: fieldValue('reporterPhone', root),
+    injuredAssociateName: fieldValue('injuredAssociateName', root),
+    retailer: selectValue('retailer', root),
+    storeNumber: fieldValue('storeNumber', root),
+    storeAddress: fieldValue('storeAddress', root),
+    project: selectValue('project', root),
+    mechanism: selectValue('mechanism', root),
+    dateOfInjury: fieldValue('dateOfInjury', root),
+    firstLearnedDate: fieldValue('firstLearnedDate', root),
+    firstLearnedTime: fieldValue('firstLearnedTime', root),
+    witnessesPresent,
+    witnesses: witnessesPresent === 'Yes' ? getWitnessRows(root) : [],
+    projectAtInjury: selectValue('projectAtInjury', root),
+    confirmRetailer: selectValue('confirmRetailer', root),
+    confirmStoreNumber: fieldValue('confirmStoreNumber', root),
+    confirmStoreAddress: fieldValue('confirmStoreAddress', root),
+    inconsistenciesAny: getRadioValue('inconsistenciesAny', root),
+    inconsistenciesDescribe: fieldValue('inconsistenciesDescribe', root),
+    employmentDisciplinaryAny: getRadioValue('employmentDisciplinaryAny', root),
+    employmentDisciplinaryDescribe: fieldValue('employmentDisciplinaryDescribe', root),
+    preExistingRelevantAny: getRadioValue('preExistingRelevantAny', root),
+    preExistingRelevantDescribe: fieldValue('preExistingRelevantDescribe', root),
+    contributingFactorsAny: getRadioValue('contributingFactorsAny', root),
+    contributingFactorsDescribe: fieldValue('contributingFactorsDescribe', root),
+    sportsActivitiesAny: getRadioValue('sportsActivitiesAny', root),
+    sportsActivitiesDescribe: fieldValue('sportsActivitiesDescribe', root),
+    heavyLiftingAny: getRadioValue('heavyLiftingAny', root),
+    heavyLiftingDescribe: fieldValue('heavyLiftingDescribe', root),
+    oshaIndicators: getCheckboxValues('oshaIndicators', root),
+    additionalFollowUps: fieldValue('additionalFollowUps', root),
+  };
+}
+
+function setLoading(loading) {
+  if (submitBtn) submitBtn.disabled = loading;
+  if (btnSpinner) btnSpinner.classList.toggle('hidden', !loading);
+  if (btnLabel) btnLabel.textContent = loading ? 'Submitting…' : 'Submit Report';
+}
+
+function showError(message) {
+  if (!formError) return;
+  formError.textContent = message;
+  formError.classList.remove('hidden');
+}
+
+function clearError() {
+  if (!formError) return;
+  formError.classList.add('hidden');
+  formError.textContent = '';
+}
+
+async function handleSubmit(event) {
+  event.preventDefault();
+  clearError();
+
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+
+  const payload = collectPayload();
+  setLoading(true);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/claims`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
-    return out;
-  }
 
-  function collectPayload() {
-    const reported = getRadioValue('reportedToSupervisor');
-    const preAny = getRadioValue('preExistingAny');
+    const data = await res.json().catch(() => ({}));
 
-    return {
-      reportType: t('reportType') || 'self',
-      reporterName: t('reporterName'),
-      reporterEmail: t('reporterEmail'),
-      reporterPhone: t('reporterPhone'),
-      retailer: document.getElementById('retailer')?.value || '',
-      storeNumber: t('storeNumber'),
-      storeAddress: t('storeAddress'),
-      project: document.getElementById('project')?.value || '',
-      mechanism: document.getElementById('mechanism')?.value || '',
-      dateOfInjury: document.getElementById('dateOfInjury')?.value || '',
-      timeOfInjury: document.getElementById('timeOfInjury')?.value || '',
-      bodyPartsAffected: collectBodyParts(),
-      sideAffected: document.getElementById('sideAffected')?.value || '',
-      description: t('description'),
-      witnesses: collectWitnesses(),
-      reportedToSupervisor: reported,
-      supervisorName: reported === 'Yes' ? t('supervisorName') : '',
-      supervisorDateReported: reported === 'Yes' ? document.getElementById('supervisorDateReported')?.value || '' : '',
-      supervisorTimeReported: reported === 'Yes' ? document.getElementById('supervisorTimeReported')?.value || '' : '',
-      preExistingAny: preAny,
-      preExistingDetails: preAny === 'Yes' ? t('preExistingDetails') : '',
-    };
-  }
-
-  function validate(payload) {
-    const missing = [];
-
-    const req = [
-      ['reporterName', payload.reporterName],
-      ['reporterEmail', payload.reporterEmail],
-      ['reporterPhone', payload.reporterPhone],
-      ['retailer', payload.retailer],
-      ['storeNumber', payload.storeNumber],
-      ['storeAddress', payload.storeAddress],
-      ['project', payload.project],
-      ['mechanism', payload.mechanism],
-      ['dateOfInjury', payload.dateOfInjury],
-      ['timeOfInjury', payload.timeOfInjury],
-      ['sideAffected', payload.sideAffected],
-      ['description', payload.description],
-    ];
-
-    for (const [k, v] of req) {
-      if (!v || (typeof v === 'string' && !String(v).trim())) missing.push(k);
-    }
-
-    if (!payload.bodyPartsAffected || payload.bodyPartsAffected.length === 0) {
-      missing.push('bodyPartsAffected');
-    }
-
-    const yn = new Set(['Yes', 'No']);
-    if (!payload.reportedToSupervisor || !yn.has(payload.reportedToSupervisor)) {
-      missing.push('reportedToSupervisor');
-    }
-    if (payload.reportedToSupervisor === 'Yes') {
-      if (!payload.supervisorName) missing.push('supervisorName');
-      if (!payload.supervisorDateReported) missing.push('supervisorDateReported');
-      if (!payload.supervisorTimeReported) missing.push('supervisorTimeReported');
-    }
-
-    if (!payload.preExistingAny || !yn.has(payload.preExistingAny)) {
-      missing.push('preExistingAny');
-    }
-    if (payload.preExistingAny === 'Yes' && !payload.preExistingDetails) {
-      missing.push('preExistingDetails');
-    }
-
-    if (payload.reporterEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.reporterEmail)) {
-      missing.push('reporterEmail');
-    }
-
-    for (let i = 0; i < payload.witnesses.length; i++) {
-      const w = payload.witnesses[i];
-      if (!w.name && w.phoneOrEmail) {
-        missing.push(`witness_${i}_name`);
+    if (!res.ok) {
+      if (res.status === 400 && data.missing && Array.isArray(data.missing)) {
+        showError(`Missing or invalid: ${data.missing.join(', ')}.`);
+      } else {
+        showError(data.error || 'Submission failed. Please try again or contact your administrator.');
       }
-    }
-
-    return [...new Set(missing)];
-  }
-
-  function setLoading(loading) {
-    submitBtn.disabled = loading;
-    btnSpinner.classList.toggle('hidden', !loading);
-    btnLabel.textContent = loading ? 'Submitting…' : 'Submit intake';
-  }
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    formError.classList.add('hidden');
-    formError.textContent = '';
-
-    const payload = collectPayload();
-    const missing = validate(payload);
-    if (missing.length > 0) {
-      formError.textContent = `Please complete all required fields (${missing.join(', ')}).`;
-      formError.classList.remove('hidden');
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/claims`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        if (res.status === 400 && data.missing && Array.isArray(data.missing)) {
-          formError.textContent = `Missing or invalid: ${data.missing.join(', ')}.`;
-        } else {
-          formError.textContent =
-            data.error || 'Submission failed. Please try again or contact your administrator.';
-        }
-        formError.classList.remove('hidden');
-        return;
-      }
-
+    if (formRoot) {
       formRoot.innerHTML = `
-      <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="text-lg font-semibold text-slate-900">Submission received</h2>
-        <p class="mt-3 text-slate-700">
-          Your injury claim intake has been emailed to operations. You may close this page.
-        </p>
-      </div>
-    `;
-    } catch (err) {
-      formError.textContent =
-        'Could not reach the server. Check your connection and API configuration.';
-      formError.classList.remove('hidden');
-    } finally {
-      setLoading(false);
+        <div class="ro-card-section px-8 py-10 text-center">
+          <h2 class="ro-section-title">Submission received</h2>
+          <p class="mx-auto mt-3 max-w-lg text-[0.975rem] leading-relaxed" style="color: var(--brand-text-muted)">
+            Your injury claim intake has been emailed to operations. You may close this page.
+          </p>
+        </div>
+      `;
     }
-  });
+  } catch (err) {
+    showError('Could not reach the server. Check your connection and API configuration.');
+  } finally {
+    setLoading(false);
+  }
 }

@@ -355,6 +355,46 @@
         border-radius: 4px;
       }
 
+      #osha-grid .osha-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0.75rem 0.8125rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--brand-text);
+        background: rgba(30, 42, 56, 0.65);
+        border: 1px solid var(--brand-border);
+        border-radius: var(--brand-radius);
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      #osha-grid .osha-chip:hover {
+        border-color: var(--brand-primary);
+        background: var(--brand-surface-hover);
+      }
+
+      #osha-grid .osha-chip:has(input:focus-visible) {
+        outline: 2px solid var(--brand-primary);
+        outline-offset: 2px;
+      }
+
+      #osha-grid .osha-chip:has(input:checked) {
+        border-color: var(--brand-accent);
+        background: rgba(201, 168, 76, 0.1);
+        box-shadow: inset 0 0 0 1px rgba(201, 168, 76, 0.25);
+      }
+
+      #osha-grid .osha-chip input[type="checkbox"] {
+        flex-shrink: 0;
+        width: 1rem;
+        height: 1rem;
+        accent-color: var(--brand-primary);
+        border-radius: 4px;
+      }
+
       .ro-legend {
         font-size: 0.8125rem;
         font-weight: 600;
@@ -526,27 +566,592 @@
       </div>
       <h1 class="form-shell-title">Manager Investigation</h1>
 
-      <div class="ro-card-section mt-8 px-8 py-10 text-center md:mt-10">
-        <p
-          id="investigation-status"
-          class="mx-auto max-w-lg text-[0.975rem] leading-relaxed"
-          style="color: var(--brand-text-muted)"
-        >
-          Loading...
-        </p>
+      <div id="manager-gated-content" class="mt-8 md:mt-10">
+        <div id="investigation-loading" class="ro-card-section px-8 py-10 text-center">
+          <p
+            id="investigation-status"
+            class="mx-auto max-w-lg text-[0.975rem] leading-relaxed"
+            style="color: var(--brand-text-muted)"
+          >
+            Loading...
+          </p>
+        </div>
+
+        <div id="form-root" class="hidden">
+      <div
+        class="mb-6 rounded-xl border px-5 py-4 text-sm leading-relaxed"
+        style="
+          border-color: rgba(201, 168, 76, 0.38);
+          background: rgba(201, 168, 76, 0.1);
+          color: var(--brand-text);
+        "
+      >
+        Information submitted may be shared with the injured worker, their representative, claims administrators, and the Washington State Department of Labor &amp; Industries. Please be accurate and factual.
+      </div>
+
+      <form id="claim-form" class="space-y-8 md:space-y-10" data-form-kind="investigation" novalidate>
+        <input type="hidden" name="reportType" id="reportType" value="investigation" />
+
+        <!-- Manager Information -->
+        <section aria-labelledby="manager-info-heading" class="ro-card-section">
+          <h2 id="manager-info-heading" class="ro-section-title">Manager Information</h2>
+          <p class="ro-section-sub">You are the manager completing the investigation intake.</p>
+          <div class="mt-6 grid gap-5 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+              <label for="reporterName" class="ro-label">
+                Reporter name (manager) <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="reporterName" name="reporterName" type="text" autocomplete="name" required class="ro-input mt-1" />
+            </div>
+            <div>
+              <label for="reporterEmail" class="ro-label">
+                Reporter email <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="reporterEmail" name="reporterEmail" type="email" autocomplete="email" required class="ro-input mt-1" />
+            </div>
+            <div>
+              <label for="reporterPhone" class="ro-label">
+                Reporter phone <span class="opacity-75">(optional)</span>
+              </label>
+              <input id="reporterPhone" name="reporterPhone" type="tel" autocomplete="tel" class="ro-input mt-1" />
+            </div>
+          </div>
+        </section>
+
+        <!-- About the Injured Associate -->
+        <section aria-labelledby="injured-associate-heading" class="ro-card-section">
+          <h2 id="injured-associate-heading" class="ro-section-title">About the Injured Associate</h2>
+          <p class="ro-section-sub">Type 3 captures injury detail through the investigation questions, not body-part or side fields.</p>
+          <div class="mt-6">
+            <label for="injuredAssociateName" class="ro-label">
+              Injured associate's name <span class="req" aria-hidden="true">*</span>
+            </label>
+            <input id="injuredAssociateName" name="injuredAssociateName" type="text" required class="ro-input mt-1" />
+          </div>
+        </section>
+
+        <!-- Incident Anchor -->
+        <section aria-labelledby="incident-anchor-heading" class="ro-card-section">
+          <h2 id="incident-anchor-heading" class="ro-section-title">Incident Anchor</h2>
+          <p class="ro-section-sub">Use the known claim context as the anchor for the investigation.</p>
+          <div class="mt-6 grid gap-5 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+              <label for="retailer" class="ro-label">
+                Retailer <span class="req" aria-hidden="true">*</span>
+              </label>
+              <select id="retailer" name="retailer" required class="ro-select mt-1">
+                <option value="">Select…</option>
+                <option value="Kroger">Kroger</option>
+                <option value="Fred Meyer">Fred Meyer</option>
+                <option value="Walmart">Walmart</option>
+                <option value="QFC">QFC</option>
+              </select>
+            </div>
+            <div>
+              <label for="storeNumber" class="ro-label">
+                Store / warehouse number <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="storeNumber" name="storeNumber" type="text" required class="ro-input mt-1" />
+            </div>
+            <div class="sm:col-span-2">
+              <label for="storeAddress" class="ro-label">
+                Store address <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="storeAddress" name="storeAddress" type="text" autocomplete="street-address" required class="ro-input mt-1" />
+            </div>
+            <div class="sm:col-span-2">
+              <label for="project" class="ro-label">
+                Project <span class="req" aria-hidden="true">*</span>
+              </label>
+              <select id="project" name="project" required class="ro-select mt-1">
+                <option value="">Select…</option>
+                <option value="Kompass ISE">Kompass ISE</option>
+                <option value="Assembly">Assembly</option>
+                <option value="Remodel">Remodel</option>
+                <option value="Display Compliance">Display Compliance</option>
+                <option value="Central Pet">Central Pet</option>
+              </select>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="mechanism" class="ro-label">
+                Mechanism <span class="req" aria-hidden="true">*</span>
+              </label>
+              <select id="mechanism" name="mechanism" required class="ro-select mt-1">
+                <option value="">Select…</option>
+                <option value="Specific incident (single event)">Specific incident (single event)</option>
+                <option value="Gradual onset (developed over time / repetitive)">
+                  Gradual onset (developed over time / repetitive)
+                </option>
+                <option value="Unsure">Unsure</option>
+              </select>
+            </div>
+            <div>
+              <label for="dateOfInjury" class="ro-label">
+                Date of injury <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="dateOfInjury" name="dateOfInjury" type="date" required class="ro-input mt-1" />
+            </div>
+          </div>
+        </section>
+
+        <!-- Investigation Questions -->
+        <section aria-labelledby="investigation-questions-heading" class="ro-card-section">
+          <h2 id="investigation-questions-heading" class="ro-section-title">Investigation Questions</h2>
+
+          <h3 id="learned-heading" class="ro-subsection-heading">Q1. When did you first learn about the incident?</h3>
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label for="firstLearnedDate" class="ro-label">
+                Date <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="firstLearnedDate" name="firstLearnedDate" type="date" required class="ro-input mt-1" />
+            </div>
+            <div>
+              <label for="firstLearnedTime" class="ro-label">
+                Time <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="firstLearnedTime" name="firstLearnedTime" type="time" required class="ro-input mt-1" />
+            </div>
+          </div>
+
+          <hr class="ro-divider-soft" />
+
+          <h3 id="witness-question-heading" class="ro-subsection-heading">Q2. Were there any witnesses?</h3>
+          <fieldset class="mt-2 min-w-0 border-0 p-0">
+            <legend id="witnesses-present-legend" class="ro-legend float-none pb-3">
+              Were there any witnesses? <span class="req" aria-hidden="true">*</span>
+            </legend>
+            <div class="ro-radio-pill-row" role="radiogroup" aria-labelledby="witnesses-present-legend">
+              <label class="ro-radio-pill">
+                <input type="radio" name="witnessesPresent" value="Yes" required /> Yes
+              </label>
+              <label class="ro-radio-pill">
+                <input type="radio" name="witnessesPresent" value="No" /> No
+              </label>
+            </div>
+          </fieldset>
+          <div id="witnesses-block" class="mt-6 hidden border-t pt-6" style="border-color: var(--brand-border)">
+            <div id="witness-rows" class="space-y-4"></div>
+            <button type="button" id="add-witness" class="ro-btn-secondary mt-4">Add witness</button>
+          </div>
+
+          <hr class="ro-divider-soft" />
+
+          <h3 id="project-at-injury-heading" class="ro-subsection-heading">Q3. What project was the associate working on when injured?</h3>
+          <label for="projectAtInjury" class="ro-label">
+            Project at time of injury <span class="req" aria-hidden="true">*</span>
+          </label>
+          <select id="projectAtInjury" name="projectAtInjury" required class="ro-select mt-1">
+            <option value="">Select…</option>
+            <option value="Kompass ISE">Kompass ISE</option>
+            <option value="Assembly">Assembly</option>
+            <option value="Remodel">Remodel</option>
+            <option value="Display Compliance">Display Compliance</option>
+            <option value="Central Pet">Central Pet</option>
+          </select>
+
+          <hr class="ro-divider-soft" />
+
+          <h3 id="confirm-location-heading" class="ro-subsection-heading">Q4. Confirm retailer, store/warehouse number, and address</h3>
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+              <label for="confirmRetailer" class="ro-label">
+                Confirm retailer <span class="req" aria-hidden="true">*</span>
+              </label>
+              <select id="confirmRetailer" name="confirmRetailer" required class="ro-select mt-1">
+                <option value="">Select…</option>
+                <option value="Kroger">Kroger</option>
+                <option value="Fred Meyer">Fred Meyer</option>
+                <option value="Walmart">Walmart</option>
+                <option value="QFC">QFC</option>
+              </select>
+            </div>
+            <div>
+              <label for="confirmStoreNumber" class="ro-label">
+                Confirm store / warehouse number <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="confirmStoreNumber" name="confirmStoreNumber" type="text" required class="ro-input mt-1" />
+            </div>
+            <div class="sm:col-span-2">
+              <label for="confirmStoreAddress" class="ro-label">
+                Confirm store address <span class="req" aria-hidden="true">*</span>
+              </label>
+              <input id="confirmStoreAddress" name="confirmStoreAddress" type="text" required class="ro-input mt-1" />
+            </div>
+          </div>
+
+          <div class="mt-8 space-y-8">
+            <div class="yes-describe-block" data-radio-name="inconsistenciesAny" data-detail-id="inconsistenciesDescribe">
+              <h3 class="ro-subsection-heading">Q5. Are there any inconsistencies between the worker's account and what you observed or were told?</h3>
+              <fieldset class="mt-2 min-w-0 border-0 p-0">
+                <legend class="ro-legend float-none pb-3">Select one <span class="req" aria-hidden="true">*</span></legend>
+                <div class="ro-radio-pill-row" role="radiogroup">
+                  <label class="ro-radio-pill"><input type="radio" name="inconsistenciesAny" value="Yes" required /> Yes</label>
+                  <label class="ro-radio-pill"><input type="radio" name="inconsistenciesAny" value="No" /> No</label>
+                </div>
+              </fieldset>
+              <div class="describe-block mt-5 hidden">
+                <label for="inconsistenciesDescribe" class="ro-label">Describe <span class="req" aria-hidden="true">*</span></label>
+                <textarea id="inconsistenciesDescribe" name="inconsistenciesDescribe" rows="4" class="ro-textarea mt-1"></textarea>
+              </div>
+            </div>
+
+            <div class="yes-describe-block" data-radio-name="employmentDisciplinaryAny" data-detail-id="employmentDisciplinaryDescribe">
+              <h3 class="ro-subsection-heading">Q6. Are there current employment or disciplinary issues with the associate?</h3>
+              <fieldset class="mt-2 min-w-0 border-0 p-0">
+                <legend class="ro-legend float-none pb-3">Select one <span class="req" aria-hidden="true">*</span></legend>
+                <div class="ro-radio-pill-row" role="radiogroup">
+                  <label class="ro-radio-pill"><input type="radio" name="employmentDisciplinaryAny" value="Yes" required /> Yes</label>
+                  <label class="ro-radio-pill"><input type="radio" name="employmentDisciplinaryAny" value="No" /> No</label>
+                </div>
+              </fieldset>
+              <div class="describe-block mt-5 hidden">
+                <label for="employmentDisciplinaryDescribe" class="ro-label">Describe <span class="req" aria-hidden="true">*</span></label>
+                <textarea id="employmentDisciplinaryDescribe" name="employmentDisciplinaryDescribe" rows="4" class="ro-textarea mt-1"></textarea>
+              </div>
+            </div>
+
+            <div class="yes-describe-block" data-radio-name="preExistingRelevantAny" data-detail-id="preExistingRelevantDescribe">
+              <h3 class="ro-subsection-heading">Q7. Pre-existing injuries or conditions that might be relevant?</h3>
+              <fieldset class="mt-2 min-w-0 border-0 p-0">
+                <legend class="ro-legend float-none pb-3">Select one <span class="req" aria-hidden="true">*</span></legend>
+                <div class="ro-radio-pill-row" role="radiogroup">
+                  <label class="ro-radio-pill"><input type="radio" name="preExistingRelevantAny" value="Yes" required /> Yes</label>
+                  <label class="ro-radio-pill"><input type="radio" name="preExistingRelevantAny" value="No" /> No</label>
+                </div>
+              </fieldset>
+              <div class="describe-block mt-5 hidden">
+                <label for="preExistingRelevantDescribe" class="ro-label">Describe <span class="req" aria-hidden="true">*</span></label>
+                <textarea id="preExistingRelevantDescribe" name="preExistingRelevantDescribe" rows="4" class="ro-textarea mt-1"></textarea>
+              </div>
+            </div>
+
+            <div class="yes-describe-block" data-radio-name="contributingFactorsAny" data-detail-id="contributingFactorsDescribe">
+              <h3 class="ro-subsection-heading">Q8. Other contributing factors — accidents, falls, illnesses, etc.?</h3>
+              <fieldset class="mt-2 min-w-0 border-0 p-0">
+                <legend class="ro-legend float-none pb-3">Select one <span class="req" aria-hidden="true">*</span></legend>
+                <div class="ro-radio-pill-row" role="radiogroup">
+                  <label class="ro-radio-pill"><input type="radio" name="contributingFactorsAny" value="Yes" required /> Yes</label>
+                  <label class="ro-radio-pill"><input type="radio" name="contributingFactorsAny" value="No" /> No</label>
+                </div>
+              </fieldset>
+              <div class="describe-block mt-5 hidden">
+                <label for="contributingFactorsDescribe" class="ro-label">Describe <span class="req" aria-hidden="true">*</span></label>
+                <textarea id="contributingFactorsDescribe" name="contributingFactorsDescribe" rows="4" class="ro-textarea mt-1"></textarea>
+              </div>
+            </div>
+
+            <div class="yes-describe-block" data-radio-name="sportsActivitiesAny" data-detail-id="sportsActivitiesDescribe">
+              <h3 class="ro-subsection-heading">Q9. Sports, activities, or hobbies that could be relevant?</h3>
+              <fieldset class="mt-2 min-w-0 border-0 p-0">
+                <legend class="ro-legend float-none pb-3">Select one <span class="req" aria-hidden="true">*</span></legend>
+                <div class="ro-radio-pill-row" role="radiogroup">
+                  <label class="ro-radio-pill"><input type="radio" name="sportsActivitiesAny" value="Yes" required /> Yes</label>
+                  <label class="ro-radio-pill"><input type="radio" name="sportsActivitiesAny" value="No" /> No</label>
+                </div>
+              </fieldset>
+              <div class="describe-block mt-5 hidden">
+                <label for="sportsActivitiesDescribe" class="ro-label">Describe <span class="req" aria-hidden="true">*</span></label>
+                <textarea id="sportsActivitiesDescribe" name="sportsActivitiesDescribe" rows="4" class="ro-textarea mt-1"></textarea>
+              </div>
+            </div>
+
+            <div class="yes-describe-block" data-radio-name="heavyLiftingAny" data-detail-id="heavyLiftingDescribe">
+              <h3 class="ro-subsection-heading">Q10. Heavy lifting or moving activities outside of work?</h3>
+              <fieldset class="mt-2 min-w-0 border-0 p-0">
+                <legend class="ro-legend float-none pb-3">Select one <span class="req" aria-hidden="true">*</span></legend>
+                <div class="ro-radio-pill-row" role="radiogroup">
+                  <label class="ro-radio-pill"><input type="radio" name="heavyLiftingAny" value="Yes" required /> Yes</label>
+                  <label class="ro-radio-pill"><input type="radio" name="heavyLiftingAny" value="No" /> No</label>
+                </div>
+              </fieldset>
+              <div class="describe-block mt-5 hidden">
+                <label for="heavyLiftingDescribe" class="ro-label">Describe <span class="req" aria-hidden="true">*</span></label>
+                <textarea id="heavyLiftingDescribe" name="heavyLiftingDescribe" rows="4" class="ro-textarea mt-1"></textarea>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- OSHA Recordability -->
+        <section aria-labelledby="osha-heading" class="ro-card-section">
+          <h2 id="osha-heading" class="ro-section-title">OSHA Recordability</h2>
+          <fieldset class="mt-6 min-w-0 border-0 p-0" aria-describedby="osha-hint">
+            <legend id="osha-legend" class="ro-legend float-none">
+              OSHA recordability indicators <span class="req" aria-hidden="true">*</span>
+            </legend>
+            <p id="osha-hint" class="ro-hint">
+              Select at least one. "None of the above" and "Unknown" each clear all other options.
+            </p>
+            <div id="osha-grid" class="mt-4 grid gap-3 md:grid-cols-2" role="group" aria-labelledby="osha-legend">
+              <label class="osha-chip">
+                <input type="checkbox" name="oshaIndicators" value="Required medical treatment beyond first aid" />
+                Required medical treatment beyond first aid
+              </label>
+              <label class="osha-chip">
+                <input type="checkbox" name="oshaIndicators" value="Resulted in lost time" />
+                Resulted in lost time
+              </label>
+              <label class="osha-chip">
+                <input type="checkbox" name="oshaIndicators" value="Resulted in restricted duty or job transfer" />
+                Resulted in restricted duty or job transfer
+              </label>
+              <label class="osha-chip">
+                <input type="checkbox" name="oshaIndicators" value="None of the above" data-exclusive="true" />
+                None of the above
+              </label>
+              <label class="osha-chip">
+                <input type="checkbox" name="oshaIndicators" value="Unknown" data-exclusive="true" />
+                Unknown
+              </label>
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- Additional Follow-ups -->
+        <section aria-labelledby="follow-ups-heading" class="ro-card-section">
+          <h2 id="follow-ups-heading" class="ro-section-title">Additional Follow-ups</h2>
+          <div class="mt-6">
+            <label for="additionalFollowUps" class="ro-label">Additional follow-ups assigned</label>
+            <textarea id="additionalFollowUps" name="additionalFollowUps" rows="5" class="ro-textarea mt-1"></textarea>
+            <p class="ro-hint">
+              Use this space to log delegated follow-ups (e.g., 'Asked Evan for written statement on 3-18 reset').
+            </p>
+          </div>
+        </section>
+
+        <div
+          id="form-error"
+          class="hidden rounded-md border px-4 py-3 text-sm"
+          style="
+            border-color: rgba(231, 76, 60, 0.45);
+            background: rgba(231, 76, 60, 0.12);
+            color: var(--brand-text);
+          "
+          role="alert"
+        ></div>
+
+        <div class="flex items-center justify-end gap-3">
+          <button type="submit" id="submit-btn" class="ro-btn-primary disabled:opacity-60">
+            <svg
+              id="submit-spinner"
+              class="hidden h-4 w-4 animate-spin text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <span id="submit-btn-label">Submit Report</span>
+          </button>
+        </div>
+      </form>
+        </div>
       </div>
     </main>
+
+    <template id="witness-row-template">
+      <div class="witness-row ro-witness-panel rounded-xl border p-4 sm:grid sm:grid-cols-2 sm:gap-4">
+        <div class="sm:col-span-1">
+          <label class="witness-name-label ro-label">
+            Witness name <span class="req witness-required-marker" aria-hidden="true">*</span>
+          </label>
+          <input type="text" name="witnessName" class="witness-name-input ro-input mt-1" />
+        </div>
+        <div class="mt-4 sm:mt-0 sm:col-span-1">
+          <label class="witness-contact-label ro-label">
+            Phone or email <span class="opacity-75">(if known)</span>
+          </label>
+          <input type="text" name="witnessPhoneOrEmail" autocomplete="off" class="witness-contact-input ro-input mt-1" />
+        </div>
+        <div class="mt-4 flex justify-end sm:col-span-2">
+          <button type="button" class="remove-witness rounded-md px-3 py-1.5 text-sm font-medium ro-remove-btn">
+            Remove
+          </button>
+        </div>
+      </div>
+    </template>
+
     <script type="module">
       import { getAccessIdentity, isManager } from '/claims/managers.js';
 
-      const status = document.getElementById('investigation-status');
+      const gatedContent = document.getElementById('manager-gated-content');
+      const loadingCard = document.getElementById('investigation-loading');
+      const formRoot = document.getElementById('form-root');
       const identity = await getAccessIdentity();
 
-      if (status) {
-        status.textContent = isManager(identity?.email)
-          ? 'This form is being built. Check back soon.'
-          : 'This form is restricted to authorized managers. If you believe you should have access, contact Tyson Gauthier.';
+      if (isManager(identity?.email)) {
+        if (loadingCard) loadingCard.classList.add('hidden');
+        if (formRoot) formRoot.classList.remove('hidden');
+        initInvestigationForm();
+      } else if (gatedContent) {
+        gatedContent.innerHTML = `
+          <div class="ro-card-section px-8 py-10 text-center">
+            <p class="mx-auto max-w-lg text-[0.975rem] leading-relaxed" style="color: var(--brand-text-muted)">
+              This form is restricted to authorized managers. If you believe you should have access, contact Tyson Gauthier.
+            </p>
+          </div>
+        `;
       }
+
+      function initInvestigationForm() {
+        initPrefills();
+        initWitnessRepeater();
+        initYesDescribeBlocks();
+        initOshaIndicators();
+      }
+
+      function qsa(selector, root = document) {
+        return Array.from(root.querySelectorAll(selector));
+      }
+
+      function getRadioValue(name) {
+        const checked = document.querySelector(`input[name="${name}"]:checked`);
+        return checked ? checked.value : '';
+      }
+
+      function bindPrefill(sourceId, targetId) {
+        const source = document.getElementById(sourceId);
+        const target = document.getElementById(targetId);
+        if (!source || !target) return;
+
+        let managerEdited = false;
+        const copyIfClean = () => {
+          if (!managerEdited) target.value = source.value;
+        };
+
+        target.addEventListener('input', () => {
+          managerEdited = true;
+        });
+        target.addEventListener('change', () => {
+          managerEdited = true;
+        });
+        source.addEventListener('input', copyIfClean);
+        source.addEventListener('change', copyIfClean);
+        copyIfClean();
+      }
+
+      function initPrefills() {
+        bindPrefill('retailer', 'confirmRetailer');
+        bindPrefill('storeNumber', 'confirmStoreNumber');
+        bindPrefill('storeAddress', 'confirmStoreAddress');
+      }
+
+      function initWitnessRepeater() {
+        const block = document.getElementById('witnesses-block');
+        const rows = document.getElementById('witness-rows');
+        const template = document.getElementById('witness-row-template');
+        const addButton = document.getElementById('add-witness');
+        let witnessUid = 0;
+
+        function setWitnessRequired() {
+          const show = getRadioValue('witnessesPresent') === 'Yes';
+          if (block) block.classList.toggle('hidden', !show);
+          if (show && rows && rows.children.length === 0) addWitnessRow();
+          qsa('.witness-row input', rows).forEach((input) => {
+            input.disabled = !show;
+            if (!show) input.setCustomValidity('');
+          });
+          qsa('.witness-name-input', rows).forEach((input) => {
+            input.required = show;
+            if (!show) input.setCustomValidity('');
+          });
+        }
+
+        function bindRemove(row) {
+          const button = row.querySelector('.remove-witness');
+          if (!button) return;
+          button.addEventListener('click', () => {
+            row.remove();
+            setWitnessRequired();
+          });
+        }
+
+        function addWitnessRow() {
+          if (!rows || !template) return;
+          const idBase = witnessUid++;
+          const frag = template.content.cloneNode(true);
+          const row = frag.querySelector('.witness-row');
+          const nameInput = row.querySelector('.witness-name-input');
+          const contactInput = row.querySelector('.witness-contact-input');
+          const nameLabel = row.querySelector('.witness-name-label');
+          const contactLabel = row.querySelector('.witness-contact-label');
+          const nameId = `witness-name-${idBase}`;
+          const contactId = `witness-contact-${idBase}`;
+          nameInput.id = nameId;
+          contactInput.id = contactId;
+          nameLabel.setAttribute('for', nameId);
+          contactLabel.setAttribute('for', contactId);
+          rows.appendChild(frag);
+          bindRemove(row);
+          setWitnessRequired();
+        }
+
+        qsa('input[name="witnessesPresent"]').forEach((radio) => {
+          radio.addEventListener('change', setWitnessRequired);
+        });
+        if (addButton) addButton.addEventListener('click', addWitnessRow);
+        setWitnessRequired();
+      }
+
+      function initYesDescribeBlocks() {
+        qsa('.yes-describe-block').forEach((block) => {
+          const radioName = block.dataset.radioName;
+          const detail = document.getElementById(block.dataset.detailId);
+          const detailBlock = block.querySelector('.describe-block');
+
+          function update() {
+            const show = getRadioValue(radioName) === 'Yes';
+            if (detailBlock) detailBlock.classList.toggle('hidden', !show);
+            if (detail) {
+              detail.required = show;
+              detail.disabled = !show;
+              if (!show) detail.setCustomValidity('');
+            }
+          }
+
+          qsa(`input[name="${radioName}"]`, block).forEach((radio) => {
+            radio.addEventListener('change', update);
+          });
+          update();
+        });
+      }
+
+      function initOshaIndicators() {
+        const checkboxes = qsa('input[name="oshaIndicators"]');
+        if (!checkboxes.length) return;
+        const exclusiveValues = new Set(['None of the above', 'Unknown']);
+
+        function validate() {
+          const hasSelection = checkboxes.some((checkbox) => checkbox.checked);
+          checkboxes[0].setCustomValidity(hasSelection ? '' : 'Select at least one OSHA recordability indicator.');
+        }
+
+        checkboxes.forEach((checkbox) => {
+          checkbox.addEventListener('change', () => {
+            if (checkbox.checked && exclusiveValues.has(checkbox.value)) {
+              checkboxes.forEach((other) => {
+                if (other !== checkbox) other.checked = false;
+              });
+            } else if (checkbox.checked) {
+              checkboxes.forEach((other) => {
+                if (exclusiveValues.has(other.value)) other.checked = false;
+              });
+            }
+            validate();
+          });
+        });
+
+        validate();
+      }
+
     </script>
+    <script src="/claims/app.js" defer></script>
   </body>
 </html>
