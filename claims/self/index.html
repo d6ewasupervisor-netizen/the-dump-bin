@@ -567,6 +567,20 @@
         border-color: #ef4444;
         box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
       }
+
+      @media (max-width: 480px) {
+        .ro-time-picker {
+          flex-wrap: wrap;
+          row-gap: 10px;
+        }
+        .ro-time-period {
+          margin-left: 0;
+          width: 100%;
+        }
+        .ro-time-period-btn {
+          flex: 1;
+        }
+      }
     </style>
   </head>
   <body class="form-shell-body min-h-screen antialiased">
