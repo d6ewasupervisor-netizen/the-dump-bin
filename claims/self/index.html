@@ -640,6 +640,8 @@
                   name="reporterEmail"
                   type="email"
                   autocomplete="email"
+                  inputmode="email"
+                  autocapitalize="off"
                   required
                   class="ro-input mt-1"
                 />
@@ -653,6 +655,7 @@
                   name="reporterPhone"
                   type="tel"
                   autocomplete="tel"
+                  inputmode="tel"
                   required
                   class="ro-input mt-1"
                 />
@@ -682,7 +685,7 @@
                 <label for="storeNumber" class="ro-label">
                   Store / warehouse number <span class="req" aria-hidden="true">*</span>
                 </label>
-                <input id="storeNumber" name="storeNumber" type="text" required class="ro-input mt-1" />
+                <input id="storeNumber" name="storeNumber" type="text" inputmode="numeric" required class="ro-input mt-1" />
               </div>
               <div class="sm:col-span-2">
                 <label for="storeAddress" class="ro-label">
@@ -891,6 +894,7 @@
                   id="supervisorName"
                   name="supervisorName"
                   type="text"
+                  autocomplete="off"
                   class="ro-input mt-1"
                 />
               </div>
