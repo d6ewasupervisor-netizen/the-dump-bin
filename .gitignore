@@ -1,0 +1,14 @@
+# Editor / IDE workspace files
+*.code-workspace
+.vscode/
+.cursor/
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
