@@ -2,18 +2,20 @@
 
 This project uses two Cloudflare MCP servers in Cursor for managing DNS, Zero Trust Access, and consulting current Cloudflare documentation. The MCP config itself lives at `.cursor/mcp.json` and is gitignored — use this doc to recreate it on a new machine.
 
-## Cursor + streamable HTTP (why we use `/sse`)
+## Use `/mcp` only — `/sse` is not served on Cloudflare’s hosts
 
-Cloudflare exposes two transport URLs:
+Cloudflare’s docs still mention a deprecated **`/sse`** transport for some setups. On the **hosted** URLs below, **`/sse` returns HTTP 404** (verified with live requests). Cursor will log streamable HTTP errors and then SSE fallback errors if the config points at `/sse`.
 
-- **`/mcp`** — streamable HTTP (modern MCP transport)
-- **`/sse`** — Server-Sent Events (legacy; still served for older clients)
+Always use:
 
-OAuth against `/mcp` can succeed, but **Cursor currently mishandles streamable HTTP for remote MCP**: after connecting it may still open an SSE stream against the same base URL. Cloudflare’s streamable endpoint returns **404 for SSE**, Cursor retries, then “tombstones” the transport. This is a Cursor-side issue, not a misconfiguration on your machine. Discussion: [Cursor fails to fall back from streamable HTTP to SSE for remote MCP servers](https://forum.cursor.com/t/cursor-fails-to-fall-back-from-streamable-http-to-sse-transport-for-remote-mcp-servers/154390).
+- `https://mcp.cloudflare.com/mcp`
+- `https://docs.mcp.cloudflare.com/mcp`
 
-**Workaround:** point both servers at **`/sse`** until Cursor’s transport handling is fixed; then switch back to `/mcp` if you prefer the non-deprecated transport.
+Official overview (URLs and OAuth): [Cloudflare’s own MCP servers](https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/).
 
-**Note:** SSE is deprecated in MCP and by Cloudflare for the long term; it works today for compatibility. If either side removes `/sse`, revisit this doc.
+## Cursor and streamable HTTP
+
+Cursor may log something like: streamable HTTP POST fails, then fallback to SSE fails. That behavior is discussed in [this Cursor forum thread](https://forum.cursor.com/t/cursor-fails-to-fall-back-from-streamable-http-to-sse-transport-for-remote-mcp-servers/154390). With the correct **`/mcp`** URL, OAuth and tool calls should align with what Cloudflare actually exposes; keep Cursor updated. If a client still cannot speak streamable HTTP reliably, Cloudflare documents using a local **[mcp-remote](https://www.npmjs.com/package/mcp-remote)** proxy for clients that expect a different transport — see [Test a Remote MCP Server](https://developers.cloudflare.com/agents/guides/test-remote-mcp-server/).
 
 ## Setup steps
 
@@ -24,21 +26,21 @@ OAuth against `/mcp` can succeed, but **Cursor currently mishandles streamable H
    {
      "mcpServers": {
        "cloudflare-api": {
-         "url": "https://mcp.cloudflare.com/sse"
+         "url": "https://mcp.cloudflare.com/mcp"
        },
        "cloudflare-docs": {
-         "url": "https://docs.mcp.cloudflare.com/sse"
+         "url": "https://docs.mcp.cloudflare.com/mcp"
        }
      }
    }
 ```
 
-3. Fully exit Cursor (**File → Exit**), reopen this workspace, then test in a fresh chat (e.g. list DNS for your zone).
-4. The first time the agent calls a Cloudflare tool, an OAuth flow will prompt for permissions. Grant scoped access — this project only needs DNS and Zero Trust write; everything else can be read-only. **Changing the server URL counts as a different endpoint — you may need to authorize again.**
+3. Fully exit Cursor (**File → Exit**), reopen this workspace, then test in a fresh chat.
+4. The first time the agent calls a Cloudflare tool, an OAuth flow will prompt for permissions. Grant scoped access — this project only needs DNS and Zero Trust write; everything else can be read-only.
 
 ## What the servers do
 
-- **cloudflare-api** — Account-level operations against the Cloudflare API (DNS, WAF, Zero Trust, R2, Workers, etc.). Used to manage DNS records and Access applications without leaving the editor.
+- **cloudflare-api** — Account-level operations against the Cloudflare API (DNS, WAF, Zero Trust, R2, Workers, etc.). Used to manage DNS records and Access applications without leaving the editor. The server exposes Codemode-style tools (`search`, `execute`) over the API — ask the agent to list DNS for a zone / domain in natural language after OAuth succeeds.
 - **cloudflare-docs** — Fetches current Cloudflare documentation at runtime so the agent doesn't rely on stale knowledge.
 
 ## Servers intentionally omitted
