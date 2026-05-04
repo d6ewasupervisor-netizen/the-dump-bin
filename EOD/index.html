@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- build: 2026-05-04T10:18Z instawork-ux+cf-access -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,6 +11,7 @@
     <title>KOMPASS EOD COVER SHEET</title>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -584,6 +586,118 @@
                 font-size: 1.1em;
             }
         }
+
+        /* ─── InstaWork save overlay (saving / success) ────────────────── */
+        .iw-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2, 6, 23, 0.92);
+            z-index: 10001;
+            padding: 24px;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+        .iw-overlay.show { display: flex; }
+        .iw-overlay-card {
+            background: #0b1220;
+            border: 2px solid #0d4f8b;
+            border-radius: 14px;
+            padding: 32px 28px;
+            max-width: 460px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+        }
+        .iw-spinner {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            border: 6px solid rgba(96, 165, 250, 0.25);
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: iw-spin 1s linear infinite;
+        }
+        @keyframes iw-spin { to { transform: rotate(360deg); } }
+        .iw-check {
+            display: none;
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: #065f46;
+            color: #d1fae5;
+            font-size: 56px;
+            line-height: 96px;
+            font-weight: 700;
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.25);
+            animation: iw-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        @keyframes iw-pop {
+            0%   { transform: scale(0.4); opacity: 0; }
+            100% { transform: scale(1);   opacity: 1; }
+        }
+        .iw-overlay-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #e5e7eb;
+            margin-bottom: 8px;
+        }
+        .iw-overlay-subtitle {
+            font-size: 0.95em;
+            color: #94a3b8;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+        .iw-overlay[data-state="success"] .iw-spinner { display: none; }
+        .iw-overlay[data-state="success"] .iw-check { display: block; }
+        .iw-overlay[data-state="success"] .iw-overlay-card {
+            border-color: #10b981;
+            box-shadow: 0 18px 50px rgba(16, 185, 129, 0.25);
+        }
+        .iw-overlay[data-state="success"] .iw-overlay-title { color: #a7f3d0; }
+        @media (max-width: 480px) {
+            .iw-overlay-card { padding: 24px 18px; }
+            .iw-overlay-title { font-size: 1.25em; }
+            .iw-check { width: 80px; height: 80px; line-height: 80px; font-size: 48px; }
+        }
+
+        /* When the InstaWork section has already been saved-and-confirmed,
+           collapse the heavy capture UI down to a compact green summary
+           row so the lead isn't re-prompted every time they scroll. */
+        #instaworkYesPanel.iw-collapsed > div:not(.iw-collapsed-row),
+        #instaworkYesPanel.iw-collapsed .photo-section,
+        #instaworkYesPanel.iw-collapsed #instaworkSaveBtn,
+        #instaworkYesPanel.iw-collapsed #instaworkSaveStatus {
+            display: none !important;
+        }
+        .iw-collapsed-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            background: #064e3b;
+            border-left: 4px solid #34d399;
+            border-radius: 6px;
+            color: #a7f3d0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .iw-collapsed-row .iw-retake-btn {
+            background: transparent;
+            color: #a7f3d0;
+            border: 1px solid #34d399;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .iw-collapsed-row .iw-retake-btn:hover { background: rgba(52, 211, 153, 0.15); }
 
         input[type="file"] {
             display: none;
@@ -2162,6 +2276,50 @@
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
 
+        .password-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .password-wrapper input {
+            width: 100%;
+            padding-right: 44px;
+            box-sizing: border-box;
+        }
+        .password-peek-btn {
+            position: absolute;
+            top: 50%;
+            right: 6px;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            min-height: 36px;
+            border-radius: 6px;
+            touch-action: manipulation;
+        }
+        .password-peek-btn:hover { color: #e0f2fe; }
+        .password-peek-btn:active { background: rgba(13, 79, 139, 0.25); }
+        .forgot-password-row {
+            margin-top: 8px;
+            text-align: right;
+        }
+        .forgot-password-link {
+            font-size: 0.85em;
+            color: #60a5fa;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .forgot-password-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+
         .login-logo-wrap {
             display: flex;
             justify-content: center;
@@ -2188,13 +2346,7 @@
     </style>
 </head>
 <body>
-<!--
-  Auth gate. The page itself sits behind Cloudflare Access (the-dump-bin.com is
-  protected at the zone level), so by the time this HTML loads the user has
-  already authenticated with their IdP. We just confirm identity via the
-  Cloudflare-injected /cdn-cgi/access/get-identity endpoint and pull roles
-  from the API. No app-level password.
--->
+<!-- Login Overlay -->
 <div id="loginOverlay" style="position:fixed;inset:0;background:#111827;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#020617;border:2px solid #0d4f8b;border-radius:12px;padding:30px;max-width:400px;width:100%;text-align:center;">
         <div class="login-logo-wrap">
@@ -2203,10 +2355,33 @@
                class="login-logo"
                onerror="this.outerHTML='<div class=&quot;login-logo-fallback&quot;>Retail Odyssey</div>'">
         </div>
-        <p id="loginStatus" style="color:#9ca3af;margin-bottom:8px;">Signing you in&hellip;</p>
-        <p id="loginEmailDisplay" style="color:#88c4ed;font-size:14px;margin-bottom:16px;min-height:20px;"></p>
-        <div id="loginError" style="color:#f87171;font-size:14px;min-height:20px;margin-bottom:12px;"></div>
-        <button id="loginRetryBtn" onclick="window.location.reload()" style="display:none;padding:12px 20px;background:#0d4f8b;color:white;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;">Retry</button>
+        <p style="color:#9ca3af;margin-bottom:24px;">Sign in to continue</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <input type="email" id="loginEmail" placeholder="Email" style="padding:12px;border:1px solid #4b5563;border-radius:8px;background:#374151;color:#f9fafb;font-size:16px;">
+            <div class="password-wrapper">
+              <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" style="padding:12px;border:1px solid #4b5563;border-radius:8px;background:#374151;color:#f9fafb;font-size:16px;">
+              <button type="button" class="password-peek-btn" id="passwordPeekBtn"
+                      onclick="togglePasswordPeek('loginPassword', 'passwordPeekBtn')"
+                      aria-label="Show password">
+                <svg class="peek-icon-eye" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg class="peek-icon-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                     style="display:none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+            <div class="forgot-password-row">
+              <a href="#" class="forgot-password-link" onclick="handleForgotPassword(event)">Forgot password?</a>
+            </div>
+            <button id="loginBtn" onclick="handleLogin()" style="padding:14px;background:#0d4f8b;color:white;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;min-height:44px;">Sign In</button>
+            <div id="loginError" style="color:#f87171;font-size:14px;min-height:20px;"></div>
+        </div>
     </div>
 </div>
     <div class="container">
@@ -2236,6 +2411,83 @@
                 <span class="auth-dot"></span>
                 <span id="headerAuthLabel">SAS Auth: Checking...</span>
                 <button class="auth-bar-btn" id="headerAuthBtn" data-requires-role="supervisor admin" onclick="event.stopPropagation(); requestAuth();" style="display:none;">Request Auth</button>
+            </div>
+        </div>
+
+        <!--
+            InstaWork Support — placed at the TOP of the form so the lead is
+            reminded BEFORE the day starts (sign-in) AND before EOD submission
+            (sign-out + capture). When "Yes" is selected the lead is required
+            to capture the InstaWork sign-out sheet photo and explicitly
+            confirm-and-save it; the saver routes the JPG into the correct
+            P#W# folder under the InstaWork sign-out root.
+        -->
+        <div class="section" id="instaworkSection" style="border-color:#fbbf24;">
+            <div class="section-title" style="color:#fde68a;">InstaWork Support</div>
+
+            <div class="field">
+                <label>Do you have InstaWork support today?</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="instaworkYes" name="instawork" value="Yes" onchange="toggleInstawork(this)">
+                        <label for="instaworkYes">Yes</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="instaworkNo" name="instawork" value="No" onchange="toggleInstawork(this)">
+                        <label for="instaworkNo">No</label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="instaworkYesPanel" style="display:none; margin-top:14px;">
+                <div style="padding:12px 14px; background:#1f2937; border-left:4px solid #fbbf24; color:#fde68a; border-radius:6px;">
+                    <p style="margin:0 0 6px 0; font-weight:700;">Make sure your InstaWork crew signs in &amp; out</p>
+                    <ul style="margin:0; padding-left:18px; line-height:1.55;">
+                        <li>Have every InstaWork employee fill out the sign-off sheet <strong>first thing in the morning</strong>.</li>
+                        <li>Have them fill it out <strong>again when they leave</strong> for the day.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-top:12px; padding:12px 14px; background:#450a0a; border-left:4px solid #ef4444; color:#fecaca; border-radius:6px;">
+                    <p style="margin:0 0 6px 0; font-weight:700; font-size:14px;">As soon as the LAST InstaWork employee signs:</p>
+                    <p style="margin:0; line-height:1.5;">
+                        Immediately take a clear photo of the sign-out sheet. Make sure it is in good order — correct orientation, no glare, all signatures visible. You can rotate, crop, and adjust the image before saving.
+                    </p>
+                </div>
+
+                <div class="photo-section" id="instaworkPhotoSection">
+                    <label class="field label" style="margin-top:14px;">InstaWork Sign-Out Sheet Photo:</label>
+                    <div class="photo-button-group">
+                        <button class="photo-button" type="button" onclick="openInstaworkCamera()">
+                            Take Photo
+                        </button>
+                        <button class="photo-button" type="button" onclick="document.getElementById('photoInstawork').click()">
+                            Upload Image
+                        </button>
+                    </div>
+                    <input type="file" id="photoInstawork" accept="image/*,.heic,.heif" onchange="handlePhoto(this, 'instawork')">
+                    <div id="previewInstawork" class="photo-preview"></div>
+                </div>
+
+                <div id="instaworkSaveStatus" style="display:none; margin-top:10px; padding:10px 12px; background:#064e3b; border-left:4px solid #34d399; color:#a7f3d0; border-radius:6px; font-size:13px;"></div>
+
+                <button class="btn btn-primary" id="instaworkSaveBtn" type="button" onclick="confirmAndSaveInstaworkPhoto()" style="margin-top:12px; width:100%;" disabled>
+                    Confirm &amp; Save InstaWork Sign-Out Sheet
+                </button>
+
+                <!--
+                    Compact "saved" summary that takes the panel's place
+                    after a successful upload. The "Re-take photo" button
+                    re-expands the panel so the lead can re-capture if
+                    something was wrong with the first picture.
+                -->
+                <div id="instaworkCollapsedRow" class="iw-collapsed-row" style="display:none;">
+                    <div>
+                        <div style="font-weight:700;">&#10003; InstaWork sign-out sheet saved</div>
+                        <div id="instaworkCollapsedDest" style="font-size:12px; color:#6ee7b7; margin-top:2px; word-break:break-word;"></div>
+                    </div>
+                    <button type="button" class="iw-retake-btn" onclick="reopenInstaworkPanel()">Re-take photo</button>
+                </div>
             </div>
         </div>
 
@@ -2621,23 +2873,6 @@
             </div>
 
             <div class="field" style="margin-top: 15px;">
-                <label>Did you have InstaWork support today?</label>
-                <div class="checkbox-group">
-                    <div class="checkbox-option">
-                        <input type="checkbox" id="instaworkYes" name="instawork" value="Yes" onchange="toggleInstawork(this)">
-                        <label for="instaworkYes">Yes</label>
-                    </div>
-                    <div class="checkbox-option">
-                        <input type="checkbox" id="instaworkNo" name="instawork" value="No" onchange="toggleInstawork(this)">
-                        <label for="instaworkNo">No</label>
-                    </div>
-                </div>
-                <div id="instaworkNote" style="display: none; margin-top: 8px; padding: 8px 10px; background: #1f2937; border-left: 3px solid #fbbf24; color: #fde68a; font-size: 13px; border-radius: 4px;">
-                    Sign-off sheet photos are required. On submit, an InstaWork timesheet PDF is saved automatically to the correct P#W# folder under "InstaWork Sign Out Sheets".
-                </div>
-            </div>
-
-            <div class="field" style="margin-top: 15px;">
                 <label>Did you call the KOMPASS Hotline?</label>
                 <div class="checkbox-group">
                     <div class="checkbox-option">
@@ -2775,6 +3010,24 @@
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay">
         <span>Processing...</span>
+    </div>
+
+    <!--
+        InstaWork dedicated overlay. Two visual states swapped via the
+        `data-state` attribute on the wrapper:
+          - "saving": animated blue spinner + "Saving InstaWork sign-out sheet..."
+          - "success": large green checkmark + "Saved!" + saver's destination path
+        Held visible for a minimum of ~4 s total so the lead has clear,
+        unambiguous confirmation that the upload completed and the file
+        landed where they expect.
+    -->
+    <div id="instaworkBufferOverlay" class="iw-overlay" data-state="saving">
+        <div class="iw-overlay-card">
+            <div class="iw-spinner" aria-hidden="true"></div>
+            <div class="iw-check" aria-hidden="true">&#10003;</div>
+            <div id="iwOverlayTitle" class="iw-overlay-title">Saving InstaWork sign-out sheet&hellip;</div>
+            <div id="iwOverlaySubtitle" class="iw-overlay-subtitle">Uploading the photo and routing it to the right period folder.</div>
+        </div>
     </div>
 
     <!-- Lightbox Overlay for full-size photo viewing -->
@@ -2928,142 +3181,220 @@
     </div>
 
     <script>
-        // ─── EOD API BASE ────────────────────────────────────────────────────────
-        // The Railway service is fronted by eod-api.the-dump-bin.com, which sits
-        // behind Cloudflare Access on the same team as the-dump-bin.com — so the
-        // CF_Authorization cookie is shared and fetches authenticate transparently.
-        const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
+        // Initialize
+        // ─── SUPABASE AUTH ────────────────────────────────────────────────────────
+        const SUPABASE_URL = 'https://jcmlxrwnjxzhdijshqpe.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_X-8iPVaFi2O-CLE-OoLyOw_7o5frEO9';
+        const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let sbSession = null;
 
-        // ─── CLOUDFLARE ACCESS AUTH ──────────────────────────────────────────────
-        // The whole the-dump-bin.com zone is gated by Cloudflare Access, so by
-        // the time this script runs the browser already holds a CF_Authorization
-        // cookie. We just read identity + roles and let every fetch ride the
-        // cookie via { credentials: 'include' }.
-        let currentUser = { email: null, roles: [] };
-
-        function applyUserRoles(roles) {
-            const list = Array.isArray(roles) ? roles : [];
-            currentUser.roles = list;
-
+        function applyUserRoles(session) {
             document.body.className = document.body.className
                 .split(' ')
                 .filter(c => !c.startsWith('role-'))
                 .join(' ');
 
-            list.forEach(role => {
+            const roles = session?.user?.user_metadata?.roles || [];
+            roles.forEach(role => {
                 document.body.classList.add(`role-${role}`);
             });
 
             document.querySelectorAll('[data-requires-role]').forEach(el => {
                 const requiredRoles = (el.dataset.requiresRole || '').split(/\s+/).filter(Boolean);
-                const hasMatchingRole = requiredRoles.some(r => list.includes(r));
+                const hasMatchingRole = requiredRoles.some(r => roles.includes(r));
                 el.classList.toggle('role-visible', hasMatchingRole);
             });
         }
 
-        function showLoginError(msg) {
-            const status = document.getElementById('loginStatus');
-            const err = document.getElementById('loginError');
-            const retry = document.getElementById('loginRetryBtn');
-            if (status) status.textContent = 'Sign-in problem';
-            if (err) err.textContent = msg;
-            if (retry) retry.style.display = 'inline-block';
-            document.getElementById('loginOverlay').style.display = 'flex';
+        // ─── PASSWORD RESET CALLBACK HANDLER ──────────────────────────────────────
+        (async () => {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            if (code) {
+                try {
+                    const { error } = await sbClient.auth.exchangeCodeForSession(code);
+                    if (error) console.error('Code exchange failed:', error.message);
+                } catch (err) {
+                    console.error('Code exchange error:', err);
+                }
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+        })();
+
+        function togglePasswordPeek(inputId, btnId) {
+            const input = document.getElementById(inputId);
+            const btn = document.getElementById(btnId);
+            if (!input || !btn) return;
+            const eyeIcon = btn.querySelector('.peek-icon-eye');
+            const eyeOffIcon = btn.querySelector('.peek-icon-eye-off');
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            if (eyeIcon && eyeOffIcon) {
+                eyeIcon.style.display = isHidden ? 'none' : 'block';
+                eyeOffIcon.style.display = isHidden ? 'block' : 'none';
+            }
+            btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
         }
 
-        async function fetchAccessIdentity() {
-            try {
-                const r = await fetch('/cdn-cgi/access/get-identity', { credentials: 'include' });
-                if (!r.ok) return null;
-                const j = await r.json();
-                return j && j.email ? { email: j.email, name: j.name || null } : null;
-            } catch (err) {
-                console.error('[auth] get-identity failed:', err);
-                return null;
+        async function handleForgotPassword(event) {
+            if (event) event.preventDefault();
+            const emailField = document.getElementById('loginEmail');
+            let email = emailField ? emailField.value.trim() : '';
+            if (!email) {
+                email = (window.prompt('Enter your email to receive a reset link:') || '').trim();
             }
+            if (!email) return;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showAlert('Invalid Email', 'Please enter a valid email address.');
+                return;
+            }
+            try {
+                const redirectTo = window.location.origin + window.location.pathname;
+                const { error } = await sbClient.auth.resetPasswordForEmail(email, { redirectTo });
+                if (error) {
+                    console.error('Password reset error:', error);
+                    showAlert('Reset Link', 'If an account exists for ' + email + ', a reset link has been sent.');
+                    return;
+                }
+                showAlert('Reset Link Sent', 'If an account exists for ' + email + ', a reset link has been sent. Check your inbox (and spam folder).');
+            } catch (err) {
+                console.error('Password reset exception:', err);
+                showAlert('Reset Link', 'If an account exists for ' + email + ', a reset link has been sent.');
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('loginBtn');
+
+            if (!email || !password) {
+                errorDiv.textContent = 'Please enter email and password.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+            errorDiv.textContent = '';
+
+            const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                errorDiv.textContent = error.message;
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+                return;
+            }
+
+            sbSession = data.session;
+            applyUserRoles(data.session);
+            document.getElementById('loginOverlay').style.display = 'none';
+            // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
+        }
+
+        async function getAuthToken() {
+            const { data: { session } } = await sbClient.auth.getSession();
+            if (session) {
+                sbSession = session;
+                return session.access_token;
+            }
+            return null;
         }
 
         async function authFetch(url, options = {}) {
-            const opts = { ...options, credentials: 'include' };
-            // Strip any legacy Authorization header that older code may set.
-            if (opts.headers) {
-                const h = { ...opts.headers };
-                delete h.Authorization;
-                delete h.authorization;
-                opts.headers = h;
+            const token = await getAuthToken();
+            if (!token) {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                throw new Error('Not authenticated');
             }
+            const headers = options.headers || {};
+            headers['Authorization'] = `Bearer ${token}`;
+            // Cloudflare Access fronts the EOD API on eod-api.the-dump-bin.com.
+            // The CF_Authorization cookie that proves we're authenticated is set
+            // on the parent zone (.the-dump-bin.com), so we MUST send credentials
+            // on every API request — otherwise Cloudflare Access strips the
+            // request before it reaches Railway and the API responds with 401
+            // "Missing Cloudflare Access JWT".
+            const resp = await fetch(url, { ...options, headers, credentials: 'include' });
 
-            let resp;
-            try {
-                resp = await fetch(url, opts);
-            } catch (err) {
-                console.error('[auth] fetch failed:', err);
-                throw err;
-            }
-
-            if (resp.status === 401 || resp.status === 403) {
-                // Cookie expired or user lost access — bounce through Cloudflare
-                // Access to refresh, then come back here.
+            if (resp.status === 401) {
                 try {
                     const cloned = resp.clone();
                     const errData = await cloned.json();
-                    if (errData && errData.error && errData.error.toLowerCase().includes('sas session')) {
-                        if (typeof setAuthStatus === 'function') setAuthStatus('red');
-                        return resp; // app-level SAS error, not Access — let caller handle
+                    if (errData.error && errData.error.toLowerCase().includes('sas session')) {
+                        setAuthStatus('red');
                     }
-                } catch (_) { /* ignore */ }
-
-                const back = encodeURIComponent(window.location.href);
-                window.location.href = `/cdn-cgi/access/login?redirect_url=${back}`;
-                throw new Error('Not authenticated');
+                } catch (e) {
+                    // ignore parse errors
+                }
             }
 
             return resp;
         }
 
-        // Back-compat shim: a couple of old call sites still reference getAuthToken().
-        // With Cloudflare Access there is no app-level token to return.
-        async function getAuthToken() { return null; }
+        // Check for existing session on load
+        sbClient.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                sbSession = session;
+                applyUserRoles(session);
+                document.getElementById('loginOverlay').style.display = 'none';
+                // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
+            }
+        });
 
-        // ─── SIGN-IN BOOTSTRAP ───────────────────────────────────────────────────
-        (async function bootstrapAuth() {
-            const overlay = document.getElementById('loginOverlay');
-            const emailDisplay = document.getElementById('loginEmailDisplay');
-
-            const identity = await fetchAccessIdentity();
-            if (!identity) {
-                // Cloudflare Access should have redirected us already; if we got
-                // here it means the cookie is gone — kick to the login flow.
-                const back = encodeURIComponent(window.location.href);
-                window.location.href = `/cdn-cgi/access/login?redirect_url=${back}`;
+        // Listen for token refresh / sign out / password recovery
+        sbClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                sbSession = session;
+                document.getElementById('loginOverlay').style.display = 'none';
+                const newPass = prompt('Enter your new password:');
+                if (newPass && newPass.length >= 6) {
+                    sbClient.auth.updateUser({ password: newPass }).then(({ error }) => {
+                        if (error) {
+                            alert('Password update failed: ' + error.message);
+                        } else {
+                            alert('Password updated. You are now logged in.');
+                        }
+                    });
+                }
                 return;
             }
-
-            currentUser.email = identity.email;
-            if (emailDisplay) emailDisplay.textContent = identity.email;
-
-            // Pull roles from the API. The API verifies the same Access JWT and
-            // returns the role list it has on file for this email.
-            try {
-                const r = await authFetch(`${EOD_API_BASE}/api/me`);
-                if (r.ok) {
-                    const me = await r.json();
-                    applyUserRoles(me.roles || []);
-                } else {
-                    applyUserRoles([]);
-                }
-            } catch (err) {
-                console.error('[auth] /api/me failed:', err);
-                applyUserRoles([]);
+            if (event === 'SIGNED_OUT' || !session) {
+                sbSession = null;
+                applyUserRoles(null);
+                document.getElementById('loginOverlay').style.display = 'flex';
+                // TODO: admin-section restore — re-enable resetWeeklyTasksSession() / initWeeklyTasks() when admin gate is built
+            } else {
+                sbSession = session;
+                applyUserRoles(session);
+                // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
             }
-
-            if (overlay) overlay.style.display = 'none';
-        })();
+        });
         const photos = {
             before: [],
             signoff: [],
-            after: []
+            after: [],
+            // Single-photo capture for the InstaWork sign-out sheet. Kept in
+            // the same shape as the other photo types so renderPhotos /
+            // handlePhoto / openImageEditor / IndexedDB persistence all work
+            // unchanged. We only ever keep the most-recent photo (length <= 1).
+            instawork: []
         };
+
+        // Tracks the saver response after a successful InstaWork JPG save.
+        // When non-null, the lead has already confirmed-and-saved the
+        // sign-out sheet for this session. Cleared whenever the photo
+        // changes or InstaWork is set back to "No".
+        let instaworkSavedInfo = null;
+        // Re-entry guard for the Confirm & Save button. Prevents
+        // double-clicks from firing two saves (which would write
+        // "...version 2.jpg" alongside the first one).
+        let instaworkSaving = false;
+        // Minimum hold time, in milliseconds, that the buffering+success
+        // overlay stays visible. Exceeds the typical save round-trip so
+        // the lead always sees a clear "✓ Saved!" confirmation.
+        const INSTAWORK_OVERLAY_MIN_MS = 4000;
 
         // PROD-sourced photos pulled per type
         const prodPhotos = {
@@ -3131,6 +3462,7 @@
                         before: photosObj.before || [],
                         signoff: photosObj.signoff || [],
                         after: photosObj.after || [],
+                        instawork: photosObj.instawork || [],
                         timestamp: Date.now()
                     };
 
@@ -3163,10 +3495,11 @@
                                 resolve({
                                     before: data.before || [],
                                     signoff: data.signoff || [],
-                                    after: data.after || []
+                                    after: data.after || [],
+                                    instawork: data.instawork || []
                                 });
                             } else {
-                                resolve({ before: [], signoff: [], after: [] });
+                                resolve({ before: [], signoff: [], after: [], instawork: [] });
                             }
                         };
                         request.onerror = () => {
@@ -3176,7 +3509,7 @@
                     });
                 } catch (e) {
                     console.error('IndexedDB loadPhotos error:', e);
-                    return { before: [], signoff: [], after: [] };
+                    return { before: [], signoff: [], after: [], instawork: [] };
                 }
             },
 
@@ -3374,10 +3707,10 @@
                 if (data.hotlineNo) document.getElementById('hotlineNo').checked = true;
                 const instaworkYesEl = document.getElementById('instaworkYes');
                 const instaworkNoEl = document.getElementById('instaworkNo');
-                const instaworkNoteEl = document.getElementById('instaworkNote');
+                const instaworkPanelEl = document.getElementById('instaworkYesPanel');
                 if (instaworkYesEl && data.instaworkYes) {
                     instaworkYesEl.checked = true;
-                    if (instaworkNoteEl) instaworkNoteEl.style.display = 'block';
+                    if (instaworkPanelEl) instaworkPanelEl.style.display = 'block';
                 }
                 if (instaworkNoEl && data.instaworkNo) instaworkNoEl.checked = true;
                 if (data.resolvedYes) document.getElementById('resolvedYes').checked = true;
@@ -3458,19 +3791,25 @@
                 };
 
                 const savedPhotos = await PhotoDB.loadPhotos();
-                if (savedPhotos.before.length || savedPhotos.signoff.length || savedPhotos.after.length) {
+                const savedInstawork = savedPhotos.instawork || [];
+                if (savedPhotos.before.length || savedPhotos.signoff.length || savedPhotos.after.length || savedInstawork.length) {
                     photos.before = deduplicatePhotos(savedPhotos.before);
                     photos.signoff = deduplicatePhotos(savedPhotos.signoff);
                     photos.after = deduplicatePhotos(savedPhotos.after);
+                    // Cap InstaWork to a single photo even if older sessions stored more.
+                    photos.instawork = deduplicatePhotos(savedInstawork).slice(-1);
 
                     renderPhotos('before');
                     renderPhotos('signoff');
                     renderPhotos('after');
+                    renderPhotos('instawork');
+                    updateInstaworkSaveButton();
 
                     // Save back any cleaned up duplicates
                     if (photos.before.length !== savedPhotos.before.length ||
                         photos.signoff.length !== savedPhotos.signoff.length ||
-                        photos.after.length !== savedPhotos.after.length) {
+                        photos.after.length !== savedPhotos.after.length ||
+                        photos.instawork.length !== savedInstawork.length) {
                         console.log('Cleaned up duplicate photos');
                         await PhotoDB.savePhotos(photos);
                     }
@@ -3542,16 +3881,29 @@
         function toggleInstawork(checkbox) {
             const yes = document.getElementById('instaworkYes');
             const no = document.getElementById('instaworkNo');
-            const note = document.getElementById('instaworkNote');
+            const panel = document.getElementById('instaworkYesPanel');
+
+            const showPanel = () => { if (panel) panel.style.display = 'block'; };
+            const hidePanel = () => { if (panel) panel.style.display = 'none'; };
 
             if (checkbox.id === 'instaworkYes' && checkbox.checked) {
                 no.checked = false;
-                if (note) note.style.display = 'block';
+                showPanel();
             } else if (checkbox.id === 'instaworkNo' && checkbox.checked) {
                 yes.checked = false;
-                if (note) note.style.display = 'none';
+                hidePanel();
+                // Selecting "No" abandons any in-progress InstaWork capture
+                // so the form doesn't quietly hold a stale photo.
+                photos.instawork = [];
+                instaworkSavedInfo = null;
+                renderPhotos('instawork');
+                const statusEl = document.getElementById('instaworkSaveStatus');
+                if (statusEl) statusEl.style.display = 'none';
+                // Clear any "saved" collapsed state so the next time
+                // they tap "Yes" they get the full reminder + capture UI.
+                reopenInstaworkPanel();
             } else if (!yes.checked && !no.checked) {
-                if (note) note.style.display = 'none';
+                hidePanel();
             }
             autoSave();
         }
@@ -3661,7 +4013,18 @@
                     const correctedDataUrl = await processImageWithOrientation(processedFile);
                     // Only add if not a duplicate
                     if (!isPhotoAlreadyAdded(photos[type], correctedDataUrl)) {
-                        photos[type].push(correctedDataUrl);
+                        if (type === 'instawork') {
+                            // InstaWork is single-photo: each new capture
+                            // replaces the previous one and clears any
+                            // prior "saved" confirmation.
+                            photos.instawork = [correctedDataUrl];
+                            instaworkSavedInfo = null;
+                            const statusEl = document.getElementById('instaworkSaveStatus');
+                            if (statusEl) statusEl.style.display = 'none';
+                            reopenInstaworkPanel();
+                        } else {
+                            photos[type].push(correctedDataUrl);
+                        }
                         renderPhotos(type);
                         updatePhotoCheckbox(type);
                         autoSave();
@@ -3675,7 +4038,15 @@
                     reader.onload = (e) => {
                         // Only add if not a duplicate
                         if (!isPhotoAlreadyAdded(photos[type], e.target.result)) {
-                            photos[type].push(e.target.result);
+                            if (type === 'instawork') {
+                                photos.instawork = [e.target.result];
+                                instaworkSavedInfo = null;
+                                const statusEl = document.getElementById('instaworkSaveStatus');
+                                if (statusEl) statusEl.style.display = 'none';
+                                reopenInstaworkPanel();
+                            } else {
+                                photos[type].push(e.target.result);
+                            }
                             renderPhotos(type);
                             updatePhotoCheckbox(type);
                             autoSave();
@@ -3824,18 +4195,22 @@
 
         function renderPhotos(type) {
             const container = document.getElementById(`preview${type.charAt(0).toUpperCase() + type.slice(1)}`);
+            if (!container) return;
             container.innerHTML = '';
+
+            // Both sign-off and InstaWork photos need the in-place rotate /
+            // crop / brightness / contrast editor — the user explicitly
+            // asked for the "same tools" on the InstaWork capture.
+            const isEditable = (type === 'signoff' || type === 'instawork');
 
             photos[type].forEach((photo, index) => {
                 const item = document.createElement('div');
                 item.className = 'photo-item';
-                // Add edit button and clickable image only for signoff photos
-                const isSignoff = type === 'signoff';
-                const editBtn = isSignoff
-                    ? `<button class="photo-edit" onclick="openImageEditor(${index})" title="Edit">&#9998;</button>`
+                const editBtn = isEditable
+                    ? `<button class="photo-edit" onclick="openImageEditor(${index}, '${type}')" title="Edit">&#9998;</button>`
                     : '';
-                const imgClick = isSignoff
-                    ? `onclick="openImageEditor(${index})" style="cursor: pointer;" title="Tap to edit"`
+                const imgClick = isEditable
+                    ? `onclick="openImageEditor(${index}, '${type}')" style="cursor: pointer;" title="Tap to edit"`
                     : `onclick="openLightbox(this.src, 'Local ${type} photo')" style="cursor:pointer;"`;
                 item.innerHTML = `
                     <img src="${photo}" alt="${type} photo" ${imgClick}>
@@ -3845,12 +4220,27 @@
                 container.appendChild(item);
             });
 
-            // Also rebuild EOD selections whenever local photos change
-            rebuildEodSelections(type);
+            // EOD selection bookkeeping is only meaningful for the EOD email
+            // photo types — InstaWork photos are saved separately.
+            if (type === 'before' || type === 'signoff' || type === 'after') {
+                rebuildEodSelections(type);
+            }
+
+            if (type === 'instawork') {
+                updateInstaworkSaveButton();
+            }
         }
 
         function removePhoto(type, index) {
             photos[type].splice(index, 1);
+            if (type === 'instawork') {
+                // Removing the photo means we no longer have a saved
+                // confirmation tied to it.
+                instaworkSavedInfo = null;
+                const statusEl = document.getElementById('instaworkSaveStatus');
+                if (statusEl) statusEl.style.display = 'none';
+                reopenInstaworkPanel();
+            }
             renderPhotos(type);
             updatePhotoCheckbox(type);
             autoSave();
@@ -4065,6 +4455,15 @@
             await openCameraOverlay(true);
         }
 
+        // InstaWork sign-out sheet capture — single high-resolution photo,
+        // same camera pipeline as the sign-off sheets so we get the 4K
+        // request + flash control + EXIF-correct PNG output. Closes the
+        // overlay after a single capture (like before/after).
+        async function openInstaworkCamera() {
+            currentCameraType = 'instawork';
+            await openCameraOverlay(false);
+        }
+
         async function openCameraOverlay(multiplePhotos) {
             try {
                 cameraOverlay.classList.add('show');
@@ -4137,7 +4536,18 @@
 
             // Convert to PNG for lossless quality preservation (no JPEG compression artifacts)
             const photoData = captureCanvas.toDataURL('image/png');
-            photos[currentCameraType].push(photoData);
+
+            if (currentCameraType === 'instawork') {
+                // Single-photo capture; replace any prior shot and clear
+                // any prior "saved" status so the user must re-confirm.
+                photos.instawork = [photoData];
+                instaworkSavedInfo = null;
+                const statusEl = document.getElementById('instaworkSaveStatus');
+                if (statusEl) statusEl.style.display = 'none';
+                reopenInstaworkPanel();
+            } else {
+                photos[currentCameraType].push(photoData);
+            }
             tempPhotoCount++;
 
             renderPhotos(currentCameraType);
@@ -4150,8 +4560,8 @@
                 captureCanvas.style.display = 'none';
             }, 100);
 
-            // For single photo types (before/after), close camera after capture
-            if (currentCameraType === 'before' || currentCameraType === 'after') {
+            // For single-photo types (before/after/instawork), close camera after capture
+            if (currentCameraType === 'before' || currentCameraType === 'after' || currentCameraType === 'instawork') {
                 setTimeout(() => {
                     closeCameraOverlay();
                     captureInProgress = false;
@@ -4195,6 +4605,10 @@
 
         let editorOriginalImage = null;
         let editorCurrentPhotoIndex = -1;
+        // Which photos array the editor is currently bound to. Defaults to
+        // 'signoff' for back-compat with all existing call sites; the
+        // InstaWork capture passes 'instawork' explicitly.
+        let editorCurrentType = 'signoff';
         let editorRotation = 0;
         let editorBrightness = 0;
         let editorContrast = 0;
@@ -4213,9 +4627,10 @@
         const cropPolygonOutline = document.getElementById('cropPolygonOutline');
         const cropHandlesContainer = document.getElementById('cropHandlesContainer');
 
-        function openImageEditor(photoIndex) {
+        function openImageEditor(photoIndex, type) {
             editorCurrentPhotoIndex = photoIndex;
-            const photoData = photos.signoff[photoIndex];
+            editorCurrentType = (type === 'instawork') ? 'instawork' : 'signoff';
+            const photoData = photos[editorCurrentType][photoIndex];
 
             // Reset all editor state
             editorRotation = 0;
@@ -4870,7 +5285,7 @@
 
         document.getElementById('editorReset').addEventListener('click', () => {
             // Reload original image
-            const photoData = photos.signoff[editorCurrentPhotoIndex];
+            const photoData = photos[editorCurrentType][editorCurrentPhotoIndex];
             editorRotation = 0;
             editorBrightness = 0;
             editorContrast = 0;
@@ -4906,11 +5321,22 @@
             // Get the final image data URL using PNG for lossless quality preservation
             const finalDataUrl = fullResCanvas.toDataURL('image/png');
 
-            // Update the photo in the array
-            photos.signoff[editorCurrentPhotoIndex] = finalDataUrl;
+            // Update the photo in the array (signoff OR instawork)
+            const targetType = editorCurrentType;
+            photos[targetType][editorCurrentPhotoIndex] = finalDataUrl;
+
+            // Editing the InstaWork capture invalidates any prior "saved"
+            // confirmation — the user must re-confirm to save the new
+            // version.
+            if (targetType === 'instawork') {
+                instaworkSavedInfo = null;
+                const statusEl = document.getElementById('instaworkSaveStatus');
+                if (statusEl) statusEl.style.display = 'none';
+                reopenInstaworkPanel();
+            }
 
             // Re-render and save
-            renderPhotos('signoff');
+            renderPhotos(targetType);
             autoSave();
 
             // Close editor
@@ -5124,35 +5550,30 @@
                     console.error('Error generating PDF:', pdfError);
                 }
 
-                // ─── If InstaWork = Yes, save the timesheet locally first ───
-                let instaworkSave = null;
+                // ─── If InstaWork = Yes, the lead must have already taken the
+                // sign-out sheet photo AND clicked "Confirm & Save" so the
+                // JPG was routed to the correct P#W# folder. We do NOT
+                // silently save it here — the explicit confirm step is the
+                // whole point of the new UX.
                 if (instaworkYes) {
-                    try {
-                        const signoffSource = eodSelections.signoff.length > 0
-                            ? eodSelections.signoff
-                            : data.photos.signoff.map(p => ({ dataUrl: p }));
-                        const timesheetPdfBase64 = await buildInstaworkTimesheetPDF(
-                            signoffSource,
-                            data.StoreNumberPadded,
-                            data.DateMMDDYYYY
-                        );
-                        instaworkSave = await saveInstaworkTimesheetLocally({
-                            storeNumber: data.StoreNumber,
-                            workDate: data.WorkDateISO,
-                            pdfBase64: timesheetPdfBase64
-                        });
-                    } catch (e) {
-                        console.error('InstaWork timesheet save failed:', e);
+                    if (photos.instawork.length === 0) {
                         loading.classList.remove('show');
                         showAlert(
-                            'InstaWork Timesheet Save Failed',
-                            (e.message || String(e)) +
-                            '<br><br>Submit was halted. Start the local saver and try again, ' +
-                            'or set InstaWork support to "No" if it does not apply.'
+                            'InstaWork Photo Required',
+                            'Please take a photo of the InstaWork sign-out sheet at the top of the page before submitting the EOD.'
+                        );
+                        return;
+                    }
+                    if (!instaworkSavedInfo) {
+                        loading.classList.remove('show');
+                        showAlert(
+                            'Confirm InstaWork Sign-Out Sheet',
+                            'Please tap "Confirm &amp; Save InstaWork Sign-Out Sheet" at the top of the page before submitting the EOD.'
                         );
                         return;
                     }
                 }
+                const instaworkSave = instaworkSavedInfo;
 
                 const notesOnly = document.getElementById('notesOnlyToggle').checked;
                 const beforeDone  = data.photos.before.length  > 0 || eodSelections.before.length > 0 || data.BeforeComplete;
@@ -5166,7 +5587,7 @@ Date: ${data.DateMMDDYYYY || ''}
 Store Number: ${data.StoreNumber || ''}
 Before picture of KOMPASS cart taken: ${beforeDone ? 'Yes' : 'No'}
 Manager checked in with: ${data.CheckInManager || ''}
-InstaWork support: ${instaworkYes ? 'Yes' : 'No'}${instaworkSave ? ` (timesheet saved → ${instaworkSave.folder}\\${instaworkSave.filePath?.split(/[\\/]/).pop() || ''})` : ''}
+InstaWork support: ${instaworkYes ? 'Yes' : 'No'}${instaworkSave ? ` (sign-out sheet photo saved → ${instaworkSave.folder}\\${(instaworkSave.filePath || '').split(/[\\/]/).pop()})` : ''}
 Called KOMPASS Hotline: ${pickYN(data.CalledHotline)}
 Commodities: ${data.IssueCommodities || 'N/A'}
 Issue: ${data.WhatIsIssue || 'N/A'}
@@ -5231,7 +5652,7 @@ ${data.Notes || ''}`;
         function showSendConfirmation(payload, data) {
             const instaworkSave = data._instaworkSave;
             const instaworkSavedRow = instaworkSave
-                ? `<p style="color:#34d399;"><strong>InstaWork timesheet saved:</strong> ${instaworkSave.folder}\\${(instaworkSave.filePath || '').split(/[\\/]/).pop()}</p>`
+                ? `<p style="color:#34d399;"><strong>InstaWork sign-out sheet saved:</strong> ${instaworkSave.folder}\\${(instaworkSave.filePath || '').split(/[\\/]/).pop()}</p>`
                 : '';
             const previewHtml = `
                 <div style="text-align:left; font-size:13px; max-height:60vh; overflow-y:auto;">
@@ -5280,7 +5701,7 @@ ${data.Notes || ''}`;
             const loading = document.getElementById('loadingOverlay');
             loading.classList.add('show');
             try {
-                const response = await authFetch(`${EOD_API_BASE}/send-eod`, {
+                const response = await authFetch('https://eod-api.the-dump-bin.com/send-eod', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -5300,90 +5721,42 @@ ${data.Notes || ''}`;
             }
         }
 
-        // ─── InstaWork timesheet (local saver integration) ──────────────────────
-        // The flow-automation runtime exposes this on its EOD emailer port
-        // (default 3001). flow-automation is started at logon and refreshed
-        // alongside SAS-MorningAuth via Windows Task Scheduler — see
-        // flow-automation/scripts/setup-flow-automation-task.ps1.
-        const INSTAWORK_SAVER_URL = 'http://127.0.0.1:3001/instawork/save-timesheet';
+        // ─── InstaWork sign-out sheet (local saver integration) ──────────────
+        // The flow-automation runtime exposes the InstaWork JPG saver on its
+        // EOD emailer port (default 3001). It auto-starts at logon — see
+        // flow-automation/scripts/setup-flow-automation-task.ps1. The
+        // endpoint resolves the work date to the right P#W# folder under
+        // the shared "InstaWork Sign Out Sheets" root and writes the JPG
+        // as `FM### MM_DD_YYYY.jpg`, lock-safe (versioned write).
+        const INSTAWORK_IMAGE_SAVER_URL = 'http://127.0.0.1:3001/instawork/save-image';
 
-        // Build a portrait PDF that contains the sign-off photos as the
-        // InstaWork Timesheet. Returns base64 (without data: prefix).
-        async function buildInstaworkTimesheetPDF(signoffPhotos, storeNumberPadded, dateMMDDYYYY) {
-            if (!Array.isArray(signoffPhotos) || signoffPhotos.length === 0) {
-                throw new Error('No sign-off photos available for InstaWork timesheet.');
+        // Render the user's captured InstaWork photo to a high-quality JPEG
+        // data URL with portrait orientation. We keep the long edge at up
+        // to 3200px so signatures stay legible even after JPEG compression.
+        async function buildInstaworkSignOutJpegBase64(photoDataUrl) {
+            if (!photoDataUrl) {
+                throw new Error('No InstaWork sign-out sheet photo to save.');
             }
-            if (typeof PDFLib === 'undefined') {
-                throw new Error('PDF library not loaded. Please refresh the page.');
-            }
-
-            const pdfDoc = await PDFLib.PDFDocument.create();
-            const pageWidth = 612;   // 8.5"
-            const pageHeight = 792;  // 11"
-            const sideMargin = 18;
-            const topMargin = 56;
-            const bottomMargin = 18;
-            const availableWidth = pageWidth - (sideMargin * 2);
-            const availableHeight = pageHeight - topMargin - bottomMargin;
-
-            for (let i = 0; i < signoffPhotos.length; i++) {
-                let photoData = signoffPhotos[i]?.dataUrl || signoffPhotos[i];
-                if (typeof photoData === 'string' && photoData.startsWith('http')) {
-                    const resp = await fetch(photoData);
-                    const blob = await resp.blob();
-                    photoData = await new Promise(resolve => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(blob);
-                    });
-                }
-
-                const portraitData = await ensurePortraitOrientation(photoData);
-                const compressed = await compressImageForPDF(portraitData, 2000, 2600, 0.85);
-                const imgBytes = await fetch(compressed).then(r => r.arrayBuffer());
-                const img = await pdfDoc.embedJpg(imgBytes);
-
-                const page = pdfDoc.addPage([pageWidth, pageHeight]);
-                page.drawText(`InstaWork Timesheet  —  FM${storeNumberPadded}  —  ${dateMMDDYYYY}`, {
-                    x: sideMargin,
-                    y: pageHeight - 28,
-                    size: 12,
-                    color: PDFLib.rgb(0, 0, 0)
-                });
-                page.drawText(`Page ${i + 1} of ${signoffPhotos.length}`, {
-                    x: sideMargin,
-                    y: pageHeight - 44,
-                    size: 9,
-                    color: PDFLib.rgb(0.4, 0.4, 0.4)
-                });
-
-                const scale = Math.min(availableWidth / img.width, availableHeight / img.height);
-                const finalW = img.width * scale;
-                const finalH = img.height * scale;
-                const x = sideMargin + (availableWidth - finalW) / 2;
-                const y = bottomMargin + (availableHeight - finalH) / 2;
-                page.drawImage(img, { x, y, width: finalW, height: finalH });
-            }
-
-            const bytes = await pdfDoc.save({ useObjectStreams: true, addDefaultPage: false });
-            const u8 = new Uint8Array(bytes);
-            let binary = '';
-            const chunkSize = 8192;
-            for (let i = 0; i < u8.length; i += chunkSize) {
-                binary += String.fromCharCode(...u8.subarray(i, i + chunkSize));
-            }
-            return btoa(binary);
+            const portraitData = await ensurePortraitOrientation(photoDataUrl);
+            // High quality (q=0.95), large max edge — readable signatures
+            // matter more than tiny payload size for this artifact.
+            const compressed = await compressImageForPDF(portraitData, 2400, 3200, 0.95);
+            const prefix = 'data:image/jpeg;base64,';
+            return compressed.startsWith(prefix)
+                ? compressed.slice(prefix.length)
+                : compressed.replace(/^data:[^;]+;base64,/, '');
         }
 
-        // POST the timesheet PDF to the local saver service. Returns the saver
-        // response (`{ success, filePath, folder, periodWeek, ... }`) or throws.
-        async function saveInstaworkTimesheetLocally({ storeNumber, workDate, pdfBase64 }) {
+        // POST the InstaWork JPG to the local saver service. Returns the
+        // saver response (`{ success, filePath, folder, periodWeek, ... }`)
+        // or throws on transport / saver errors.
+        async function saveInstaworkImageLocally({ storeNumber, workDate, imageBase64 }) {
             let response;
             try {
-                response = await fetch(INSTAWORK_SAVER_URL, {
+                response = await fetch(INSTAWORK_IMAGE_SAVER_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ storeNumber, workDate, pdfBase64 })
+                    body: JSON.stringify({ storeNumber, workDate, imageBase64 })
                 });
             } catch (e) {
                 throw new Error(
@@ -5396,6 +5769,181 @@ ${data.Notes || ''}`;
                 throw new Error(result.error || `Saver returned ${response.status}`);
             }
             return result;
+        }
+
+        // Enable / disable the "Confirm & Save" button based on whether
+        // there is an InstaWork photo ready, and surface the latest saved
+        // status if any.
+        function updateInstaworkSaveButton() {
+            const btn = document.getElementById('instaworkSaveBtn');
+            if (!btn) return;
+            const hasPhoto = photos.instawork.length > 0;
+            // Saving lock takes priority — keep the button disabled and
+            // labeled until the in-flight save resolves (success or fail).
+            if (instaworkSaving) {
+                btn.disabled = true;
+                btn.textContent = 'Saving\u2026';
+                return;
+            }
+            btn.disabled = !hasPhoto;
+            btn.textContent = instaworkSavedInfo
+                ? 'Re-save InstaWork Sign-Out Sheet'
+                : 'Confirm \u0026 Save InstaWork Sign-Out Sheet';
+        }
+
+        // Show / hide / re-state the InstaWork buffering overlay.
+        // state: 'saving' (spinner) | 'success' (checkmark) | 'hide' (close)
+        function setInstaworkOverlay(state, opts) {
+            const overlay = document.getElementById('instaworkBufferOverlay');
+            const title = document.getElementById('iwOverlayTitle');
+            const sub = document.getElementById('iwOverlaySubtitle');
+            if (!overlay) return;
+            if (state === 'hide') {
+                overlay.classList.remove('show');
+                return;
+            }
+            overlay.dataset.state = state;
+            if (state === 'saving') {
+                title.textContent = (opts && opts.title) || 'Saving InstaWork sign-out sheet\u2026';
+                sub.textContent = (opts && opts.subtitle)
+                    || 'Uploading the photo and routing it to the right period folder.';
+            } else if (state === 'success') {
+                title.textContent = (opts && opts.title) || 'Saved!';
+                sub.textContent = (opts && opts.subtitle) || '';
+            }
+            overlay.classList.add('show');
+        }
+
+        // Collapse the InstaWork yes-panel down to a compact "Saved" summary
+        // row. Called after a successful save+confirmation. The lead can
+        // re-expand it via the "Re-take photo" button.
+        function collapseInstaworkPanel() {
+            const panel = document.getElementById('instaworkYesPanel');
+            const collapsedRow = document.getElementById('instaworkCollapsedRow');
+            const collapsedDest = document.getElementById('instaworkCollapsedDest');
+            if (!panel || !collapsedRow) return;
+            panel.classList.add('iw-collapsed');
+            collapsedRow.style.display = 'flex';
+            if (collapsedDest && instaworkSavedInfo) {
+                const fileName = (instaworkSavedInfo.filePath || '').split(/[\\/]/).pop() || '';
+                const folder = instaworkSavedInfo.folder || '';
+                const pw = instaworkSavedInfo.periodWeek ? ` (${instaworkSavedInfo.periodWeek})` : '';
+                collapsedDest.textContent = `${folder}\\${fileName}${pw}`;
+            }
+        }
+
+        // Re-open the InstaWork yes-panel from its collapsed state so the
+        // lead can re-take or re-edit the sign-out sheet photo.
+        function reopenInstaworkPanel() {
+            const panel = document.getElementById('instaworkYesPanel');
+            const collapsedRow = document.getElementById('instaworkCollapsedRow');
+            if (panel) panel.classList.remove('iw-collapsed');
+            if (collapsedRow) collapsedRow.style.display = 'none';
+        }
+
+        // User clicked "Confirm & Save InstaWork Sign-Out Sheet". Validates
+        // the store + date, builds a high-quality portrait JPEG, POSTs it
+        // to the local saver, and shows a 4-second saving/success overlay
+        // for unambiguous confirmation. On success it locks in
+        // `instaworkSavedInfo` so EOD submit can pass through, and
+        // collapses the panel into a compact summary row.
+        async function confirmAndSaveInstaworkPhoto() {
+            // Re-entry guard: if a save is already in flight, bail.
+            // Buttons are also disabled, but this protects against keyboard
+            // double-Enter, programmatic invocation, etc.
+            if (instaworkSaving) return;
+
+            if (photos.instawork.length === 0) {
+                showAlert('No Photo Yet', 'Please take or upload a photo of the InstaWork sign-out sheet first.');
+                return;
+            }
+
+            const rawStoreNum = document.getElementById('storeNumber').value.trim();
+            const workDate = document.getElementById('workDate').value;
+            if (!rawStoreNum) {
+                showAlert('Store # Required', 'Please enter your store number above before saving the InstaWork sign-out sheet.');
+                return;
+            }
+            if (!workDate) {
+                showAlert('Date Required', 'Please pick a work date above before saving the InstaWork sign-out sheet.');
+                return;
+            }
+
+            instaworkSaving = true;
+            updateInstaworkSaveButton();
+
+            const statusEl = document.getElementById('instaworkSaveStatus');
+            // Reset status pill so a previous error doesn't bleed through.
+            if (statusEl) {
+                statusEl.style.display = 'none';
+                statusEl.style.background = '#064e3b';
+                statusEl.style.borderLeftColor = '#34d399';
+                statusEl.style.color = '#a7f3d0';
+                statusEl.innerHTML = '';
+            }
+
+            // Show buffering overlay immediately and start the minimum-hold timer.
+            setInstaworkOverlay('saving');
+            const overlayStartedAt = Date.now();
+            const minHoldUntil = overlayStartedAt + INSTAWORK_OVERLAY_MIN_MS;
+
+            try {
+                const imageBase64 = await buildInstaworkSignOutJpegBase64(photos.instawork[0]);
+                const result = await saveInstaworkImageLocally({
+                    storeNumber: rawStoreNum,
+                    workDate,
+                    imageBase64
+                });
+                instaworkSavedInfo = result;
+
+                const fileName = (result.filePath || '').split(/[\\/]/).pop() || '(unknown)';
+                const destLine = `${result.folder}\\${fileName}` +
+                    (result.periodWeek ? `  \u2022  ${result.periodWeek}` : '');
+
+                if (statusEl) {
+                    statusEl.style.display = 'block';
+                    statusEl.innerHTML = `<strong>Saved.</strong> ${destLine}`;
+                }
+
+                // Flip the overlay to its success state, then keep it on
+                // screen until the minimum hold has elapsed. We always show
+                // the success state for at least ~1.2 s so it actually
+                // registers, regardless of how fast the network was.
+                setInstaworkOverlay('success', {
+                    title: 'Sign-out sheet saved!',
+                    subtitle: destLine
+                });
+                const elapsed = Date.now() - overlayStartedAt;
+                const successHold = Math.max(1200, minHoldUntil - Date.now());
+                if (elapsed < INSTAWORK_OVERLAY_MIN_MS) {
+                    await new Promise(r => setTimeout(r, successHold));
+                } else {
+                    await new Promise(r => setTimeout(r, 1200));
+                }
+
+                setInstaworkOverlay('hide');
+                collapseInstaworkPanel();
+            } catch (e) {
+                console.error('InstaWork sign-out save failed:', e);
+                // Hide the overlay before surfacing the error modal so the
+                // two don't fight for the screen.
+                setInstaworkOverlay('hide');
+                if (statusEl) {
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = '#450a0a';
+                    statusEl.style.borderLeftColor = '#ef4444';
+                    statusEl.style.color = '#fecaca';
+                    statusEl.innerHTML = '<strong>Save failed.</strong> ' + (e.message || String(e));
+                }
+                showAlert(
+                    'InstaWork Sign-Out Sheet Save Failed',
+                    (e.message || String(e)) +
+                    '<br><br>Make sure the local automation service is running, then try again.'
+                );
+            } finally {
+                instaworkSaving = false;
+                updateInstaworkSaveButton();
+            }
         }
 
         // PDF generation function - returns base64 string
@@ -5733,6 +6281,11 @@ ${data.Notes || ''}`;
                     photos.before = [];
                     photos.signoff = [];
                     photos.after = [];
+                    photos.instawork = [];
+                    instaworkSavedInfo = null;
+                    instaworkSaving = false;
+                    setInstaworkOverlay('hide');
+                    reopenInstaworkPanel();
                     emailRecipients = [];
                     selectedShift = null;
                     smClearAll();
@@ -5757,12 +6310,16 @@ ${data.Notes || ''}`;
                     renderPhotos('before');
                     renderPhotos('signoff');
                     renderPhotos('after');
+                    renderPhotos('instawork');
                     renderRecipientList();
                     updateSignaturePreview();
                     document.getElementById('hotlineDetails').style.display = 'none';
                     document.getElementById('tempSolutionField').style.display = 'none';
-                    const instaworkNoteReset = document.getElementById('instaworkNote');
-                    if (instaworkNoteReset) instaworkNoteReset.style.display = 'none';
+                    const instaworkPanelReset = document.getElementById('instaworkYesPanel');
+                    if (instaworkPanelReset) instaworkPanelReset.style.display = 'none';
+                    const instaworkStatusReset = document.getElementById('instaworkSaveStatus');
+                    if (instaworkStatusReset) instaworkStatusReset.style.display = 'none';
+                    updateInstaworkSaveButton();
                     // Reset Kompass labels back to default
                     document.getElementById('beforePhotoSection').querySelector('label.field').textContent = 'Kompass Cart - Before:';
                     document.getElementById('afterPhotoSection').querySelector('label.field').textContent = 'Kompass Cart - After:';
@@ -5939,7 +6496,11 @@ ${data.Notes || ''}`;
         });
 
         // ─── SHIFT MANAGEMENT ────────────────────────────────────────────────────────
-        const SM_API_BASE = EOD_API_BASE;
+        // Cloudflare Access fronts the API on this hostname. Hitting the raw
+        // Railway URL (eod-api-production.up.railway.app) bypasses Access, which
+        // makes the API reject every request with 401 "Missing Cloudflare Access
+        // JWT" — see eod-api/docs/cloudflare-access-setup.md.
+        const SM_API_BASE = 'https://eod-api.the-dump-bin.com';
         let smShifts = [];
         let smSelectedShift = null;
         let smMembers = [];
@@ -6877,7 +7438,7 @@ ${data.Notes || ''}`;
                     const data = await resp.json();
 
                     if (resp.ok && (data.success || data.added)) {
-                        const roles = currentUser.roles || [];
+                        const roles = sbSession?.user?.user_metadata?.roles || [];
                         const isLeadOnly = roles.includes('lead') && !roles.includes('supervisor') && !roles.includes('admin');
 
                         if (isLeadOnly) {
@@ -7465,7 +8026,7 @@ ${data.Notes || ''}`;
         }
 
         // ─── SAS SYNC FUNCTIONS ─────────────────────────────────────────────────────
-        const SAS_UPLOAD_URL = `${EOD_API_BASE}/sas-upload`;
+        const SAS_UPLOAD_URL = 'https://eod-api.the-dump-bin.com/sas-upload';
 
         // Map EOD photo types to SAS slots
         const SYNC_SLOT_MAP = {
