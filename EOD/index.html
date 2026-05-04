@@ -5657,14 +5657,12 @@ ${data.Notes || ''}`;
             }
         }
 
-        // ─── InstaWork sign-out sheet (local saver integration) ──────────────
-        // The flow-automation runtime exposes the InstaWork JPG saver on its
-        // EOD emailer port (default 3001). It auto-starts at logon — see
-        // flow-automation/scripts/setup-flow-automation-task.ps1. The
-        // endpoint resolves the work date to the right P#W# folder under
-        // the shared "InstaWork Sign Out Sheets" root and writes the JPG
-        // as `FM### MM_DD_YYYY.jpg`, lock-safe (versioned write).
-        const INSTAWORK_IMAGE_SAVER_URL = 'http://127.0.0.1:3001/instawork/save-image';
+        // ─── InstaWork sign-out sheet (EOD API — mobile + desktop) ───────────
+        // MUST use the hosted EOD API — never localhost. Phone browsers cannot
+        // reach 127.0.0.1 on a store PC; Cloudflare Access + authFetch() carry
+        // the session JWT. Server-side delivery is SharePoint (Graph), optional
+        // local disk, or email — see eod-api/src/instawork-router.js.
+        const INSTAWORK_IMAGE_SAVER_URL = 'https://eod-api.the-dump-bin.com/instawork/save-image';
 
         // Render the user's captured InstaWork photo to a high-quality JPEG
         // data URL with portrait orientation. We keep the long edge at up
@@ -5683,26 +5681,30 @@ ${data.Notes || ''}`;
                 : compressed.replace(/^data:[^;]+;base64,/, '');
         }
 
-        // POST the InstaWork JPG to the local saver service. Returns the
-        // saver response (`{ success, filePath, folder, periodWeek, ... }`)
-        // or throws on transport / saver errors.
+        // POST the InstaWork JPG to eod-api (same JSON contract as the legacy
+        // flow-automation localhost saver). Returns the saver response or throws.
         async function saveInstaworkImageLocally({ storeNumber, workDate, imageBase64 }) {
             let response;
             try {
-                response = await fetch(INSTAWORK_IMAGE_SAVER_URL, {
+                response = await authFetch(INSTAWORK_IMAGE_SAVER_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ storeNumber, workDate, imageBase64 })
                 });
             } catch (e) {
+                const msg = (e && e.message) ? String(e.message) : String(e);
+                if (msg === 'Not authenticated' || msg.includes('Not authenticated')) {
+                    throw new Error(
+                        'Sign in is required to save the InstaWork sign-out sheet.'
+                    );
+                }
                 throw new Error(
-                    'Could not reach the local automation service (flow-automation) on http://127.0.0.1:3001. ' +
-                    'It should auto-start at logon; if it is not running, start it manually with `npm start` from c:\\Users\\tgaut\\flow-automation.'
+                    'Could not reach the EOD API (eod-api.the-dump-bin.com). Check your connection and try again.'
                 );
             }
             const result = await response.json().catch(() => ({}));
             if (!response.ok || !result.success) {
-                throw new Error(result.error || `Saver returned ${response.status}`);
+                throw new Error(result.error || `InstaWork save failed (${response.status})`);
             }
             return result;
         }
