@@ -2346,11 +2346,9 @@
 </head>
 <body>
 <!--
-  Auth gate. The page itself sits behind Cloudflare Access (the-dump-bin.com is
-  protected at the zone level), so by the time this HTML loads the user has
-  already authenticated with their IdP. We just confirm identity via the
-  Cloudflare-injected /cdn-cgi/access/get-identity endpoint and pull roles
-  from the API. No app-level password.
+  Auth gate. Cloudflare Access (zone-level) proves the user to the IdP; we read
+  identity from /cdn-cgi/access/get-identity, then allow only emails in
+  EOD_EMAIL_ALLOWLIST before showing the app. Roles still come from the API.
 -->
 <div id="loginOverlay" style="position:fixed;inset:0;background:#111827;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#020617;border:2px solid #0d4f8b;border-radius:12px;padding:30px;max-width:400px;width:100%;text-align:center;">
@@ -3174,6 +3172,15 @@
         // CF_Authorization cookie is shared and fetches authenticate transparently.
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
 
+        /** EOD cover sheet app — allowed sign-ins (Cloudflare Access email, case-insensitive). */
+        const EOD_EMAIL_ALLOWLIST = new Set([
+            'aiyana.natarisalazar@retailodyssey.com',
+            'alex.wright2@retailodyssey.com',
+            'james.duchene@retailodyssey.com',
+            'jes.zumwalt@sasretailservices.com',
+            'ruth.northcutt@sasretailservices.com'
+        ].map(function (e) { return e.toLowerCase(); }));
+
         // ─── CLOUDFLARE ACCESS AUTH ───────────────────────────────────────────────
         // The whole the-dump-bin.com zone is gated by Cloudflare Access, so by
         // the time this script runs the browser already holds a CF_Authorization
@@ -3271,6 +3278,13 @@
             if (!identity) {
                 const back = encodeURIComponent(window.location.href);
                 window.location.href = `/cdn-cgi/access/login?redirect_url=${back}`;
+                return;
+            }
+
+            const emailCanon = (identity.email || '').trim().toLowerCase();
+            if (!EOD_EMAIL_ALLOWLIST.has(emailCanon)) {
+                if (emailDisplay) emailDisplay.textContent = identity.email;
+                showLoginError('You are signed in, but this EOD tool is limited to authorized accounts. If you need access, ask your administrator.');
                 return;
             }
 
