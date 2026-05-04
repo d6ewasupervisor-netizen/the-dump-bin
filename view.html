@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Dump Bin — Viewer</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; flex-direction: column; }
+    .viewer-frame {
+      flex: 1 1 auto;
+      width: 100%;
+      border: 0;
+      display: block;
+      background: #fff;
+    }
+    .viewer-fallback {
+      display: none;
+      flex: 1 1 auto;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      font-family: system-ui, sans-serif;
+    }
+    .viewer-fallback a {
+      color: var(--color-accent);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <a href="/"><img src="/logo-banner.png" alt="Retail Odyssey Company" class="site-nav__logo"></a>
+      <a href="/" class="site-nav__link">Home</a>
+    </div>
+  </nav>
+
+  <iframe id="viewerFrame" class="viewer-frame" src="about:blank" referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+  <div id="viewerFallback" class="viewer-fallback">
+    <div>
+      <p>This resource can't be displayed inside The Dump Bin.</p>
+      <p>It has opened in a new tab. <a id="fallbackLink" href="#" target="_blank" rel="noopener">Click here</a> if it didn't.</p>
+      <p><a href="/">← Back to Home</a></p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var target = params.get('url');
+      var frame = document.getElementById('viewerFrame');
+      var fallback = document.getElementById('viewerFallback');
+      var fallbackLink = document.getElementById('fallbackLink');
+
+      if (!target) {
+        window.location.replace('/');
+        return;
+      }
+
+      // Allow-list of hosts we know block framing — open in new tab immediately.
+      var noFrameHosts = [
+        'retailodyssey-app.github.io',
+        'vitamins.retail-odyssey.com'
+      ];
+
+      var targetHost = '';
+      try { targetHost = new URL(target, window.location.origin).host; } catch (e) {}
+
+      if (noFrameHosts.indexOf(targetHost) !== -1) {
+        showFallback(target);
+        window.open(target, '_blank', 'noopener');
+        return;
+      }
+
+      // Try framing; if onload never fires within timeout, assume blocked.
+      var loaded = false;
+      frame.addEventListener('load', function () { loaded = true; });
+      frame.src = target;
+
+      setTimeout(function () {
+        if (!loaded) {
+          showFallback(target);
+          window.open(target, '_blank', 'noopener');
+        }
+      }, 4000);
+
+      function showFallback(href) {
+        frame.style.display = 'none';
+        fallback.style.display = 'flex';
+        fallbackLink.href = href;
+      }
+
+      // Update document title when iframe loads (same-origin only).
+      frame.addEventListener('load', function () {
+        try {
+          var t = frame.contentDocument && frame.contentDocument.title;
+          if (t) document.title = t + ' — The Dump Bin';
+        } catch (e) { /* cross-origin, ignore */ }
+      });
+    })();
+  </script>
+
+</body>
+</html>
