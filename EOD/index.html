@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-05-04T14:55Z remove-supabase-login-overlay -->
+<!-- build: 2026-05-04T15:30Z sas-auto-refresh -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2388,11 +2388,16 @@
                     <span class="dot"></span><span class="lbl">Rebotics</span>
                 </span>
             </div>
-            <!-- Legacy auth bar — preserved for future admin section (hidden) -->
+            <!--
+              Legacy auth bar — kept hidden by default. SAS auth now refreshes
+              automatically server-side (cron + lazy on staleness), so users
+              never need to click anything. We leave the markup in place as
+              an admin-only emergency escape hatch.
+            -->
             <div class="header-auth-bar auth-bar-red" id="headerAuthBar" style="display:none;">
                 <span class="auth-dot"></span>
                 <span id="headerAuthLabel">SAS Auth: Checking...</span>
-                <button class="auth-bar-btn" id="headerAuthBtn" data-requires-role="supervisor admin" onclick="event.stopPropagation(); requestAuth();" style="display:none;">Request Auth</button>
+                <button class="auth-bar-btn" id="headerAuthBtn" onclick="event.stopPropagation(); requestAuth();" style="display:none;">Request Auth</button>
             </div>
         </div>
 
