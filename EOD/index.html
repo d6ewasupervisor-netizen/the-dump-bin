@@ -5876,7 +5876,8 @@ ${data.Notes || ''}`;
                 showAlert(
                     'InstaWork Sign-Out Sheet Save Failed',
                     (e.message || String(e)) +
-                    '<br><br>Make sure the local automation service is running, then try again.'
+                    '<br><br>Confirm you are signed in to EOD and try again with a stable connection. ' +
+                    'Saves go to eod-api on the server, not your PC.'
                 );
             } finally {
                 instaworkSaving = false;
