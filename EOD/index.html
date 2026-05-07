@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-05-04T15:30Z sas-auto-refresh -->
+<!-- build: 2026-05-04T16:05Z eod-completion-checks+sets-not-in -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -11,6 +11,7 @@
     <title>KOMPASS EOD COVER SHEET</title>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -112,6 +113,20 @@
 
         .refresh-connections-btn:active {
             transform: scale(0.95);
+        }
+
+        .refresh-connections-btn:disabled,
+        .refresh-connections-btn.cooldown {
+            background: #1f2937;
+            border-color: #374151;
+            color: #6b7280;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .refresh-connections-btn:disabled:hover,
+        .refresh-connections-btn.cooldown:hover {
+            background: #1f2937;
         }
 
         .refresh-connections-btn.spinning svg {
@@ -301,6 +316,104 @@
             background: #dc2626;
             transform: scale(0.95);
         }
+
+        /* Fred Meyer email pool picker */
+        .fm-info-box {
+            background: #1e3a5f;
+            border-left: 4px solid #3b82f6;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #bfdbfe;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        .fm-pool-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .fm-pool-header label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e5e7eb;
+            margin: 0;
+        }
+        .fm-select-all-btn {
+            font-size: 12px;
+            color: #60a5fa;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 6px;
+            text-decoration: underline;
+        }
+        .fm-email-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: #1f2937;
+            margin-bottom: 6px;
+        }
+        .fm-email-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            accent-color: #3b82f6;
+        }
+        .fm-email-row .fm-email-label {
+            flex: 1;
+            font-size: 13px;
+            color: #d1d5db;
+            word-break: break-all;
+        }
+        .fm-remove-btn {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border: none;
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .fm-remove-btn:active { background: #991b1b; }
+
+        /* Manager name suggestion chips */
+        .manager-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .manager-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #374151;
+            border: 1px solid #4b5563;
+            color: #d1d5db;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .manager-chip:hover { background: #4b5563; }
+        .manager-chip .chip-select { flex: 1; }
+        .manager-chip .chip-remove {
+            color: #9ca3af;
+            font-size: 14px;
+            line-height: 1;
+            padding: 0 2px;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .manager-chip .chip-remove:hover { color: #ef4444; }
 
         .photo-section {
             margin-top: 15px;
@@ -2143,6 +2256,119 @@
         .sm-status.error { color: #fca5a5; }
         .sm-status.pending { color: #fbbf24; }
 
+        /* ─── Sets-not-in pickers (Not in Store / Not in SI) ─── */
+        .sets-picker {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+        .sets-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-height: 0;
+        }
+        .sets-tags:empty { display: none; }
+        .set-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #4b5563;
+            color: #f9fafb;
+            padding: 6px 10px;
+            border-radius: 16px;
+            font-size: 0.85em;
+        }
+        .set-tag.set-tag-other { background: #5b3a1f; }
+        .set-tag .set-tag-x {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 22px; height: 22px; min-width: 22px;
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 13px; line-height: 1; padding: 0;
+            touch-action: manipulation;
+        }
+        .set-tag .set-tag-x:active { background: #dc2626; transform: scale(0.95); }
+        .sets-picker select,
+        .sets-picker input[type="text"] {
+            width: 100%;
+            padding: var(--spacing-md);
+            border: 1px solid #4b5563;
+            border-radius: var(--border-radius);
+            background: #374151;
+            color: #f9fafb;
+            font-size: var(--font-size-base);
+            font-family: inherit;
+            min-height: var(--min-touch-target);
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .sets-picker select:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        .sets-help { font-style: italic; }
+
+        /* ─── Pre-submit validation field highlight ─── */
+        .field-invalid input[type="text"],
+        .field-invalid input[type="email"],
+        .field-invalid textarea,
+        .field-invalid select {
+            border-color: #ef4444 !important;
+            background: rgba(239, 68, 68, 0.08) !important;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+        }
+        .field-invalid > label,
+        .field-invalid label.field {
+            color: #fca5a5 !important;
+        }
+        .section-invalid {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
+        }
+        .photo-section-invalid {
+            border-left: 4px solid #ef4444;
+            padding-left: 10px;
+            background: rgba(239, 68, 68, 0.05);
+            border-radius: 6px;
+        }
+
+        /* Sign-off photo "Needs review" badge — forces the lead to open
+           the editor so they actually look at the orientation/crop before
+           submitting. We're tired of seeing sideways forms. */
+        .photo-item.needs-review {
+            box-shadow: 0 0 0 3px #f59e0b;
+            border-radius: 8px;
+        }
+        .photo-needs-review-badge {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background: #f59e0b;
+            color: #1f2937;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 7px;
+            border-radius: 10px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .photo-reviewed-badge {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background: #10b981;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 7px;
+            border-radius: 10px;
+            pointer-events: none;
+            z-index: 2;
+        }
+
         /* ─── Lead Info Bar ─── */
         .lead-info-bar {
             display: flex;
@@ -2345,11 +2571,7 @@
     </style>
 </head>
 <body>
-<!--
-  Auth gate. Cloudflare Access (zone-level) proves the user to the IdP; we read
-  identity from /cdn-cgi/access/get-identity, then allow only emails in
-  EOD_EMAIL_ALLOWLIST before showing the app. Roles still come from the API.
--->
+<!-- Login Overlay -->
 <div id="loginOverlay" style="position:fixed;inset:0;background:#111827;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#020617;border:2px solid #0d4f8b;border-radius:12px;padding:30px;max-width:400px;width:100%;text-align:center;">
         <div class="login-logo-wrap">
@@ -2358,15 +2580,38 @@
                class="login-logo"
                onerror="this.outerHTML='<div class=&quot;login-logo-fallback&quot;>Retail Odyssey</div>'">
         </div>
-        <p id="loginStatus" style="color:#9ca3af;margin-bottom:8px;">Signing you in&hellip;</p>
-        <p id="loginEmailDisplay" style="color:#88c4ed;font-size:14px;margin-bottom:16px;min-height:20px;"></p>
-        <div id="loginError" style="color:#f87171;font-size:14px;min-height:20px;margin-bottom:12px;"></div>
-        <button id="loginRetryBtn" onclick="window.location.reload()" style="display:none;padding:12px 20px;background:#0d4f8b;color:white;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;">Retry</button>
+        <p style="color:#9ca3af;margin-bottom:24px;">Sign in to continue</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <input type="email" id="loginEmail" placeholder="Email" style="padding:12px;border:1px solid #4b5563;border-radius:8px;background:#374151;color:#f9fafb;font-size:16px;">
+            <div class="password-wrapper">
+              <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" style="padding:12px;border:1px solid #4b5563;border-radius:8px;background:#374151;color:#f9fafb;font-size:16px;">
+              <button type="button" class="password-peek-btn" id="passwordPeekBtn"
+                      onclick="togglePasswordPeek('loginPassword', 'passwordPeekBtn')"
+                      aria-label="Show password">
+                <svg class="peek-icon-eye" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg class="peek-icon-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                     style="display:none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+            <div class="forgot-password-row">
+              <a href="#" class="forgot-password-link" onclick="handleForgotPassword(event)">Forgot password?</a>
+            </div>
+            <button id="loginBtn" onclick="handleLogin()" style="padding:14px;background:#0d4f8b;color:white;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;min-height:44px;">Sign In</button>
+            <div id="loginError" style="color:#f87171;font-size:14px;min-height:20px;"></div>
+        </div>
     </div>
 </div>
     <div class="container">
         <div class="header" onclick="openQuickView()">
-            <button class="refresh-connections-btn" id="refreshConnectionsBtn" onclick="event.stopPropagation(); refreshConnections();" title="Refresh connections">
+            <button class="refresh-connections-btn" id="refreshConnectionsBtn" onclick="event.stopPropagation(); refreshConnections();" title="Refresh SAS / Rebotics auth">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 2v6h-6"/>
                     <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
@@ -2386,16 +2631,11 @@
                     <span class="dot"></span><span class="lbl">Rebotics</span>
                 </span>
             </div>
-            <!--
-              Legacy auth bar — kept hidden by default. SAS auth now refreshes
-              automatically server-side (cron + lazy on staleness), so users
-              never need to click anything. We leave the markup in place as
-              an admin-only emergency escape hatch.
-            -->
+            <!-- Legacy auth bar — preserved for future admin section (hidden) -->
             <div class="header-auth-bar auth-bar-red" id="headerAuthBar" style="display:none;">
                 <span class="auth-dot"></span>
                 <span id="headerAuthLabel">SAS Auth: Checking...</span>
-                <button class="auth-bar-btn" id="headerAuthBtn" onclick="event.stopPropagation(); requestAuth();" style="display:none;">Request Auth</button>
+                <button class="auth-bar-btn" id="headerAuthBtn" data-requires-role="supervisor admin" onclick="event.stopPropagation(); requestAuth();" style="display:none;">Request Auth</button>
             </div>
         </div>
 
@@ -2821,7 +3061,7 @@
                 <div id="previewAfter" class="photo-preview"></div>
             </div>
 
-            <div class="photo-section">
+            <div class="photo-section" id="signoffPhotoSection">
                 <label class="field label">Sign-Off Sheets:</label>
                 <div class="checkbox-group" style="margin-top: 4px;">
                     <div class="checkbox-option">
@@ -2832,6 +3072,11 @@
                         <span id="syncSignoffIcon">&#8593;</span> Sync
                     </button>
                     <span class="sync-status" id="syncSignoffStatus"></span>
+                </div>
+                <div id="signoffOrientationHint" style="display:none; margin-top:6px; font-size:13px; color:#fde68a; background:#422006; border-left:3px solid #f59e0b; padding:8px 10px; border-radius:6px; line-height:1.4;">
+                    Tap each sign-off photo to confirm orientation and crop.
+                    Landscape captures are auto-rotated to portrait, but please
+                    crop and verify each one before submitting.
                 </div>
                 <div id="prodPreviewSignoff" class="photo-preview"></div>
                 <div class="photo-button-group">
@@ -2854,7 +3099,9 @@
 
             <div class="field">
                 <label>Manager checked in with:</label>
-                <input type="text" id="checkInManager" placeholder="Manager name">
+                <input type="text" id="checkInManager" placeholder="Manager name" list="checkInManagerList" autocomplete="off">
+                <datalist id="checkInManagerList"></datalist>
+                <div id="checkInManagerSuggestions" class="manager-suggestions" style="display:none;"></div>
             </div>
 
             <div class="field" style="margin-top: 15px;">
@@ -2907,7 +3154,9 @@
 
             <div class="field" style="margin-top: 15px;">
                 <label>Manager checked out with:</label>
-                <input type="text" id="checkOutManager" placeholder="Manager name">
+                <input type="text" id="checkOutManager" placeholder="Manager name" list="checkOutManagerList" autocomplete="off">
+                <datalist id="checkOutManagerList"></datalist>
+                <div id="checkOutManagerSuggestions" class="manager-suggestions" style="display:none;"></div>
             </div>
 
             <div class="field" style="margin-top: 15px;">
@@ -2938,6 +3187,37 @@
                 </div>
             </div>
 
+            <!--
+                Sets the lead couldn't find / sign out — sourced from the
+                shift's category-resets so they pick from the actual sets on
+                their visit. The free-text "Other" field handles anything
+                that isn't on the list (e.g. cross-merch carts, cut-ins
+                that didn't map to a category, etc).
+            -->
+            <div class="field" id="setsNotInStoreField" style="margin-top: 15px;">
+                <label>Not in store:</label>
+                <div class="sets-picker">
+                    <div class="sets-tags" id="notInStoreTags"></div>
+                    <select id="notInStoreSelect" onchange="addSetNotIn('store')">
+                        <option value="">-- Select a set from your shift --</option>
+                    </select>
+                    <input type="text" id="notInStoreOther" placeholder="Other (set not in the list above)" oninput="autoSave()">
+                </div>
+                <div class="sets-help" id="notInStoreHelp">Pick a shift first to load the available sets.</div>
+            </div>
+
+            <div class="field" id="setsNotInSiField" style="margin-top: 15px;">
+                <label>Not in SI:</label>
+                <div class="sets-picker">
+                    <div class="sets-tags" id="notInSiTags"></div>
+                    <select id="notInSiSelect" onchange="addSetNotIn('si')">
+                        <option value="">-- Select a set from your shift --</option>
+                    </select>
+                    <input type="text" id="notInSiOther" placeholder="Other (set not in the list above)" oninput="autoSave()">
+                </div>
+                <div class="sets-help" id="notInSiHelp">Pick a shift first to load the available sets.</div>
+            </div>
+
             <div class="field" style="margin-top: 15px;">
                 <label>Notes:</label>
                 <textarea id="notes" placeholder="Any additional notes or observations"></textarea>
@@ -2966,6 +3246,20 @@
                 <label>Recipients:</label>
                 <div id="recipientList" class="recipient-list"></div>
             </div>
+
+            <!-- Fred Meyer email pool picker -->
+            <div class="field" id="fmEmailPickerSection" style="margin-top: 14px; display: none;">
+                <div class="fm-info-box">
+                    <strong>Fred Meyer addresses for this store</strong><br>
+                    Any <em>@fredmeyer.com</em> address you add is automatically saved and appears here next time you send from this store. Check the ones you want included in this EOD, or use <em>Select All</em>. Tap <strong>Remove</strong> to permanently delete an address that is no longer valid.
+                </div>
+                <div class="fm-pool-header">
+                    <label>Saved @fredmeyer.com addresses:</label>
+                    <button type="button" class="fm-select-all-btn" onclick="fmSelectAll()">Select All</button>
+                </div>
+                <div id="fmEmailList"></div>
+            </div>
+
             <div class="field" style="margin-top: 10px;">
                 <div class="checkbox-group">
                     <div class="checkbox-option">
@@ -3166,147 +3460,196 @@
     </div>
 
     <script>
-        // ─── EOD API BASE ─────────────────────────────────────────────────────────
-        // The Railway service is fronted by eod-api.the-dump-bin.com, which sits
-        // behind Cloudflare Access on the same team as the-dump-bin.com — so the
-        // CF_Authorization cookie is shared and fetches authenticate transparently.
-        const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
+        // Initialize
+        // ─── SUPABASE AUTH ────────────────────────────────────────────────────────
+        const SUPABASE_URL = 'https://jcmlxrwnjxzhdijshqpe.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_X-8iPVaFi2O-CLE-OoLyOw_7o5frEO9';
+        const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let sbSession = null;
 
-        /** EOD cover sheet app — allowed sign-ins (Cloudflare Access email, case-insensitive). */
-        const EOD_EMAIL_ALLOWLIST = new Set([
-            'aiyana.natarisalazar@retailodyssey.com',
-            'alex.wright2@retailodyssey.com',
-            'james.duchene@retailodyssey.com',
-            'jes.zumwalt@sasretailservices.com',
-            'ruth.northcutt@sasretailservices.com',
-            'd6ewa.supervisor@gmail.com'
-        ].map(function (e) { return e.toLowerCase(); }));
-
-        // ─── CLOUDFLARE ACCESS AUTH ───────────────────────────────────────────────
-        // The whole the-dump-bin.com zone is gated by Cloudflare Access, so by
-        // the time this script runs the browser already holds a CF_Authorization
-        // cookie. We just read identity + roles and let every fetch ride the
-        // cookie via { credentials: 'include' }.
-        let currentUser = { email: null, roles: [] };
-
-        function applyUserRoles(roles) {
-            const list = Array.isArray(roles) ? roles : [];
-            currentUser.roles = list;
-
+        function applyUserRoles(session) {
             document.body.className = document.body.className
                 .split(' ')
                 .filter(c => !c.startsWith('role-'))
                 .join(' ');
 
-            list.forEach(role => {
+            const roles = session?.user?.user_metadata?.roles || [];
+            roles.forEach(role => {
                 document.body.classList.add(`role-${role}`);
             });
 
             document.querySelectorAll('[data-requires-role]').forEach(el => {
                 const requiredRoles = (el.dataset.requiresRole || '').split(/\s+/).filter(Boolean);
-                const hasMatchingRole = requiredRoles.some(r => list.includes(r));
+                const hasMatchingRole = requiredRoles.some(r => roles.includes(r));
                 el.classList.toggle('role-visible', hasMatchingRole);
             });
         }
 
-        function showLoginError(msg) {
-            const status = document.getElementById('loginStatus');
-            const err = document.getElementById('loginError');
-            const retry = document.getElementById('loginRetryBtn');
-            if (status) status.textContent = 'Sign-in problem';
-            if (err) err.textContent = msg;
-            if (retry) retry.style.display = 'inline-block';
-            document.getElementById('loginOverlay').style.display = 'flex';
+        // ─── PASSWORD RESET CALLBACK HANDLER ──────────────────────────────────────
+        (async () => {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            if (code) {
+                try {
+                    const { error } = await sbClient.auth.exchangeCodeForSession(code);
+                    if (error) console.error('Code exchange failed:', error.message);
+                } catch (err) {
+                    console.error('Code exchange error:', err);
+                }
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+        })();
+
+        function togglePasswordPeek(inputId, btnId) {
+            const input = document.getElementById(inputId);
+            const btn = document.getElementById(btnId);
+            if (!input || !btn) return;
+            const eyeIcon = btn.querySelector('.peek-icon-eye');
+            const eyeOffIcon = btn.querySelector('.peek-icon-eye-off');
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            if (eyeIcon && eyeOffIcon) {
+                eyeIcon.style.display = isHidden ? 'none' : 'block';
+                eyeOffIcon.style.display = isHidden ? 'block' : 'none';
+            }
+            btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
         }
 
-        async function fetchAccessIdentity() {
-            try {
-                const r = await fetch('/cdn-cgi/access/get-identity', { credentials: 'include' });
-                if (!r.ok) return null;
-                const j = await r.json();
-                return j && j.email ? { email: j.email, name: j.name || null } : null;
-            } catch (err) {
-                console.error('[auth] get-identity failed:', err);
-                return null;
+        async function handleForgotPassword(event) {
+            if (event) event.preventDefault();
+            const emailField = document.getElementById('loginEmail');
+            let email = emailField ? emailField.value.trim() : '';
+            if (!email) {
+                email = (window.prompt('Enter your email to receive a reset link:') || '').trim();
             }
+            if (!email) return;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showAlert('Invalid Email', 'Please enter a valid email address.');
+                return;
+            }
+            try {
+                const redirectTo = window.location.origin + window.location.pathname;
+                const { error } = await sbClient.auth.resetPasswordForEmail(email, { redirectTo });
+                if (error) {
+                    console.error('Password reset error:', error);
+                    showAlert('Reset Link', 'If an account exists for ' + email + ', a reset link has been sent.');
+                    return;
+                }
+                showAlert('Reset Link Sent', 'If an account exists for ' + email + ', a reset link has been sent. Check your inbox (and spam folder).');
+            } catch (err) {
+                console.error('Password reset exception:', err);
+                showAlert('Reset Link', 'If an account exists for ' + email + ', a reset link has been sent.');
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('loginBtn');
+
+            if (!email || !password) {
+                errorDiv.textContent = 'Please enter email and password.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+            errorDiv.textContent = '';
+
+            const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                errorDiv.textContent = error.message;
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+                return;
+            }
+
+            sbSession = data.session;
+            applyUserRoles(data.session);
+            document.getElementById('loginOverlay').style.display = 'none';
+            // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
+        }
+
+        async function getAuthToken() {
+            const { data: { session } } = await sbClient.auth.getSession();
+            if (session) {
+                sbSession = session;
+                return session.access_token;
+            }
+            return null;
         }
 
         async function authFetch(url, options = {}) {
-            const opts = { ...options, credentials: 'include' };
-            if (opts.headers) {
-                const h = { ...opts.headers };
-                delete h.Authorization;
-                delete h.authorization;
-                opts.headers = h;
+            const token = await getAuthToken();
+            if (!token) {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                throw new Error('Not authenticated');
             }
+            const headers = options.headers || {};
+            headers['Authorization'] = `Bearer ${token}`;
+            // Cloudflare Access fronts the EOD API on eod-api.the-dump-bin.com.
+            // The CF_Authorization cookie that proves we're authenticated is set
+            // on the parent zone (.the-dump-bin.com), so we MUST send credentials
+            // on every API request — otherwise Cloudflare Access strips the
+            // request before it reaches Railway and the API responds with 401
+            // "Missing Cloudflare Access JWT".
+            const resp = await fetch(url, { ...options, headers, credentials: 'include' });
 
-            let resp;
-            try {
-                resp = await fetch(url, opts);
-            } catch (err) {
-                console.error('[auth] fetch failed:', err);
-                throw err;
-            }
-
-            if (resp.status === 401 || resp.status === 403) {
+            if (resp.status === 401) {
                 try {
                     const cloned = resp.clone();
                     const errData = await cloned.json();
-                    if (errData && errData.error && errData.error.toLowerCase().includes('sas session')) {
-                        if (typeof setAuthStatus === 'function') setAuthStatus('red');
-                        return resp;
+                    if (errData.error && errData.error.toLowerCase().includes('sas session')) {
+                        setAuthStatus('red');
                     }
-                } catch (_) { /* ignore */ }
-
-                const back = encodeURIComponent(window.location.href);
-                window.location.href = `/cdn-cgi/access/login?redirect_url=${back}`;
-                throw new Error('Not authenticated');
+                } catch (e) {
+                    // ignore parse errors
+                }
             }
 
             return resp;
         }
 
-        // Back-compat shim: a couple of old call sites still reference getAuthToken().
-        // With Cloudflare Access there is no app-level token to return.
-        async function getAuthToken() { return null; }
-
-        // ─── SIGN-IN BOOTSTRAP ────────────────────────────────────────────────────
-        (async function bootstrapAuth() {
-            const overlay = document.getElementById('loginOverlay');
-            const emailDisplay = document.getElementById('loginEmailDisplay');
-
-            const identity = await fetchAccessIdentity();
-            if (!identity) {
-                const back = encodeURIComponent(window.location.href);
-                window.location.href = `/cdn-cgi/access/login?redirect_url=${back}`;
-                return;
+        // Check for existing session on load
+        sbClient.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                sbSession = session;
+                applyUserRoles(session);
+                document.getElementById('loginOverlay').style.display = 'none';
+                // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
             }
+        });
 
-            const emailCanon = (identity.email || '').trim().toLowerCase();
-            if (!EOD_EMAIL_ALLOWLIST.has(emailCanon)) {
-                if (emailDisplay) emailDisplay.textContent = identity.email;
-                showLoginError('You are signed in, but this EOD tool is limited to authorized accounts. If you need access, ask your administrator.');
-                return;
-            }
-
-            currentUser.email = identity.email;
-            if (emailDisplay) emailDisplay.textContent = identity.email;
-
-            try {
-                const r = await authFetch(`${EOD_API_BASE}/api/me`);
-                if (r.ok) {
-                    const me = await r.json();
-                    applyUserRoles(me.roles || []);
-                } else {
-                    applyUserRoles([]);
+        // Listen for token refresh / sign out / password recovery
+        sbClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                sbSession = session;
+                document.getElementById('loginOverlay').style.display = 'none';
+                const newPass = prompt('Enter your new password:');
+                if (newPass && newPass.length >= 6) {
+                    sbClient.auth.updateUser({ password: newPass }).then(({ error }) => {
+                        if (error) {
+                            alert('Password update failed: ' + error.message);
+                        } else {
+                            alert('Password updated. You are now logged in.');
+                        }
+                    });
                 }
-            } catch (err) {
-                console.error('[auth] /api/me failed:', err);
-                applyUserRoles([]);
+                return;
             }
-
-            if (overlay) overlay.style.display = 'none';
-        })();
+            if (event === 'SIGNED_OUT' || !session) {
+                sbSession = null;
+                applyUserRoles(null);
+                document.getElementById('loginOverlay').style.display = 'flex';
+                // TODO: admin-section restore — re-enable resetWeeklyTasksSession() / initWeeklyTasks() when admin gate is built
+            } else {
+                sbSession = session;
+                applyUserRoles(session);
+                // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
+            }
+        });
         const photos = {
             before: [],
             signoff: [],
@@ -3478,6 +3821,153 @@
         let emailRecipients = [];
         let selectedShift = null;
 
+        // Per-store pools loaded from the API (global across all users for a store)
+        let fredmeyerEmailPool = [];   // @fredmeyer.com addresses saved for this store
+        let managerNamePool = [];      // Manager names saved for this store
+        let currentLoadedStoreNumber = null;
+
+        // ─── Store data (global per-store pools) ───────────────────────────────
+        async function loadStoreData(storeNumber) {
+            if (!storeNumber || storeNumber === currentLoadedStoreNumber) return;
+            currentLoadedStoreNumber = storeNumber;
+            try {
+                const resp = await authFetch(
+                    `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(storeNumber)}`
+                );
+                if (!resp.ok) return;
+                const data = await resp.json();
+                if (data.success) {
+                    fredmeyerEmailPool = Array.isArray(data.fredmeyerEmails) ? data.fredmeyerEmails : [];
+                    managerNamePool = Array.isArray(data.managerNames) ? data.managerNames : [];
+                    renderFredmeyerDropdown();
+                    renderManagerSuggestions();
+                }
+            } catch (e) {
+                console.warn('loadStoreData failed:', e.message);
+            }
+        }
+
+        // Render the Fred Meyer email pool picker
+        function renderFredmeyerDropdown() {
+            const section = document.getElementById('fmEmailPickerSection');
+            const list = document.getElementById('fmEmailList');
+            if (!section || !list) return;
+            if (fredmeyerEmailPool.length === 0) {
+                section.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+            section.style.display = 'block';
+            list.innerHTML = fredmeyerEmailPool.map((email, i) => `
+                <div class="fm-email-row">
+                    <input type="checkbox" class="fm-checkbox" data-idx="${i}"
+                           onchange="fmCheckboxChanged()"
+                           aria-label="${email}">
+                    <span class="fm-email-label">${email}</span>
+                    <button type="button" class="fm-remove-btn"
+                            onclick="removeFredmeyerEmail(${JSON.stringify(email)})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        // Apply checked FM emails into the recipients list
+        function fmCheckboxChanged() {
+            const checkboxes = document.querySelectorAll('#fmEmailList .fm-checkbox');
+            const toAdd = [];
+            checkboxes.forEach((cb) => {
+                const idx = parseInt(cb.dataset.idx, 10);
+                if (cb.checked && fredmeyerEmailPool[idx]) toAdd.push(fredmeyerEmailPool[idx]);
+            });
+            // Remove any previously-FM-added emails that are now unchecked
+            emailRecipients = emailRecipients.filter((e) => !fredmeyerEmailPool.includes(e));
+            emailRecipients = [...new Set([...emailRecipients, ...toAdd])];
+            renderRecipientList();
+            autoSave();
+        }
+
+        function fmSelectAll() {
+            document.querySelectorAll('#fmEmailList .fm-checkbox').forEach((cb) => { cb.checked = true; });
+            fmCheckboxChanged();
+        }
+
+        async function removeFredmeyerEmail(email) {
+            const storeNumber = document.getElementById('storeNumber').value.trim();
+            if (!storeNumber) return;
+            fredmeyerEmailPool = fredmeyerEmailPool.filter((e) => e !== email);
+            emailRecipients = emailRecipients.filter((e) => e !== email);
+            renderFredmeyerDropdown();
+            renderRecipientList();
+            autoSave();
+            try {
+                await authFetch(
+                    `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(storeNumber)}/fredmeyer-email`,
+                    { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }
+                );
+            } catch (e) { console.warn('removeFredmeyerEmail API call failed:', e.message); }
+        }
+
+        async function addFredmeyerEmailToPool(email) {
+            if (fredmeyerEmailPool.includes(email)) return;
+            fredmeyerEmailPool.push(email);
+            renderFredmeyerDropdown();
+            // Auto-check the newly added email (it's now the last checkbox)
+            const checkboxes = document.querySelectorAll('#fmEmailList .fm-checkbox');
+            const lastCb = checkboxes[checkboxes.length - 1];
+            if (lastCb) { lastCb.checked = true; fmCheckboxChanged(); }
+            const storeNumber = document.getElementById('storeNumber').value.trim();
+            if (!storeNumber) return;
+            try {
+                await authFetch(
+                    `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(storeNumber)}`,
+                    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fredmeyerEmails: [email] }) }
+                );
+            } catch (e) { console.warn('addFredmeyerEmailToPool API call failed:', e.message); }
+        }
+
+        // Render manager name suggestion chips below each manager input
+        function renderManagerSuggestions() {
+            ['checkIn', 'checkOut'].forEach((which) => {
+                const suggestionsEl = document.getElementById(`${which}ManagerSuggestions`);
+                const datalist = document.getElementById(`${which}ManagerList`);
+                if (!suggestionsEl) return;
+                if (managerNamePool.length === 0) {
+                    suggestionsEl.style.display = 'none';
+                    suggestionsEl.innerHTML = '';
+                    if (datalist) datalist.innerHTML = '';
+                    return;
+                }
+                if (datalist) {
+                    datalist.innerHTML = managerNamePool
+                        .map((n) => `<option value="${n.replace(/"/g, '&quot;')}">`)
+                        .join('');
+                }
+                suggestionsEl.style.display = 'flex';
+                suggestionsEl.innerHTML = managerNamePool.map((name) => `
+                    <span class="manager-chip" title="Tap to fill">
+                        <span class="chip-select"
+                              onclick="document.getElementById('${which}Manager').value=${JSON.stringify(name)};autoSave();"
+                        >${name}</span>
+                        <button type="button" class="chip-remove"
+                                onclick="removeManagerName(${JSON.stringify(name)});event.stopPropagation();"
+                                title="Remove from saved list">&times;</button>
+                    </span>
+                `).join('');
+            });
+        }
+
+        async function removeManagerName(name) {
+            const storeNumber = document.getElementById('storeNumber').value.trim();
+            if (!storeNumber) return;
+            managerNamePool = managerNamePool.filter((n) => n !== name);
+            renderManagerSuggestions();
+            try {
+                await authFetch(
+                    `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(storeNumber)}/manager-name`,
+                    { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }
+                );
+            } catch (e) { console.warn('removeManagerName API call failed:', e.message); }
+        }
+
         // Add email recipient
         function addEmailRecipient() {
             const input = document.getElementById('emailInput');
@@ -3500,10 +3990,16 @@
                 return;
             }
 
-            emailRecipients.push(email.toLowerCase());
+            const normalised = email.toLowerCase();
+            emailRecipients.push(normalised);
             input.value = '';
             renderRecipientList();
             autoSave();
+
+            // Auto-save @fredmeyer.com addresses to this store's pool
+            if (normalised.endsWith('@fredmeyer.com')) {
+                addFredmeyerEmailToPool(normalised);
+            }
         }
 
         // Remove email recipient
@@ -3549,6 +4045,24 @@
                     }
                 });
             }
+
+            // Load per-store data (FM emails + manager names) when store number is confirmed
+            const storeNumberInput = document.getElementById('storeNumber');
+            if (storeNumberInput) {
+                let storeLoadTimer = null;
+                const triggerStoreLoad = () => {
+                    clearTimeout(storeLoadTimer);
+                    const val = storeNumberInput.value.trim();
+                    if (val) {
+                        storeLoadTimer = setTimeout(() => loadStoreData(val), 400);
+                    }
+                };
+                storeNumberInput.addEventListener('blur', () => {
+                    const val = storeNumberInput.value.trim();
+                    if (val) loadStoreData(val);
+                });
+                storeNumberInput.addEventListener('change', triggerStoreLoad);
+            }
         });
 
         // Set today's date
@@ -3593,7 +4107,15 @@
                 afterComplete: document.getElementById('afterComplete')?.checked || false,
                 noKompassCart: document.getElementById('noKompassCart')?.checked || false,
                 addRetailOdysseyTeam: document.getElementById('addRetailOdysseyTeam')?.checked || false,
-                selectedShift: selectedShift
+                selectedShift: selectedShift,
+                // Sets-not-in selections + Other free-text fallbacks
+                shiftSets: shiftSets,
+                notInStoreSelected: notInStoreSelected,
+                notInSiSelected: notInSiSelected,
+                notInStoreOther: document.getElementById('notInStoreOther')?.value || '',
+                notInSiOther: document.getElementById('notInSiOther')?.value || '',
+                // Sign-off photo review state (parallel to photos.signoff)
+                signoffNeedsReview: signoffNeedsReview
                 // Note: photos are now stored in IndexedDB, not localStorage
             };
             try {
@@ -3620,6 +4142,8 @@
                 document.getElementById('storeNumber').value = data.storeNumber || '';
                 document.getElementById('workDate').value = data.date || '';
                 document.getElementById('leadName').value = data.leadName || '';
+                // Load per-store FM emails and manager name pool from API
+                if (data.storeNumber) loadStoreData(data.storeNumber);
                 document.getElementById('checkInManager').value = data.checkInManager || '';
                 document.getElementById('checkOutManager').value = data.checkOutManager || '';
                 document.getElementById('commodities').value = data.commodities || '';
@@ -3685,6 +4209,29 @@
                 // Restore selected shift
                 if (data.selectedShift && data.selectedShift.visitId) {
                     selectedShift = data.selectedShift;
+                }
+
+                // Restore sets-not-in pickers. We restore both the saved
+                // shiftSets list and the user's selections so the chips
+                // come back even before the next /sets API call lands.
+                if (Array.isArray(data.shiftSets)) shiftSets = data.shiftSets;
+                if (Array.isArray(data.notInStoreSelected)) notInStoreSelected = data.notInStoreSelected.slice();
+                if (Array.isArray(data.notInSiSelected)) notInSiSelected = data.notInSiSelected.slice();
+                if (typeof data.notInStoreOther === 'string') {
+                    const el = document.getElementById('notInStoreOther');
+                    if (el) el.value = data.notInStoreOther;
+                }
+                if (typeof data.notInSiOther === 'string') {
+                    const el = document.getElementById('notInSiOther');
+                    if (el) el.value = data.notInSiOther;
+                }
+                renderSetsPickers();
+
+                // Restore signoff per-photo review flags. We never trust
+                // the saved length blindly — alignSignoffReviewState() will
+                // truncate or zero-fill to match the actual photos count.
+                if (Array.isArray(data.signoffNeedsReview)) {
+                    signoffNeedsReview = data.signoffNeedsReview.slice();
                 }
 
                 // Migration: if photos exist in localStorage, migrate them to IndexedDB
@@ -3946,7 +4493,21 @@
                     }
 
                     // Process image with orientation correction
-                    const correctedDataUrl = await processImageWithOrientation(processedFile);
+                    let correctedDataUrl = await processImageWithOrientation(processedFile);
+
+                    // Sign-off sheets are forms — they are always supposed
+                    // to read in portrait. Auto-rotate landscape captures
+                    // so we stop seeing sideways forms in the email PDF.
+                    // The lead is still required to open the editor and
+                    // confirm crop/orientation (see signoffNeedsReview).
+                    if (type === 'signoff') {
+                        try {
+                            correctedDataUrl = await ensurePortraitOrientation(correctedDataUrl);
+                        } catch (e) {
+                            console.warn('Sign-off auto-rotate failed:', e);
+                        }
+                    }
+
                     // Only add if not a duplicate
                     if (!isPhotoAlreadyAdded(photos[type], correctedDataUrl)) {
                         if (type === 'instawork') {
@@ -3960,6 +4521,12 @@
                             reopenInstaworkPanel();
                         } else {
                             photos[type].push(correctedDataUrl);
+                            if (type === 'signoff') {
+                                // Newly added sign-off photos always start
+                                // out as "needs review" so the lead is
+                                // forced into the editor at least once.
+                                signoffNeedsReview.push(true);
+                            }
                         }
                         renderPhotos(type);
                         updatePhotoCheckbox(type);
@@ -3982,6 +4549,9 @@
                                 reopenInstaworkPanel();
                             } else {
                                 photos[type].push(e.target.result);
+                                if (type === 'signoff') {
+                                    signoffNeedsReview.push(true);
+                                }
                             }
                             renderPhotos(type);
                             updatePhotoCheckbox(type);
@@ -4139,9 +4709,27 @@
             // asked for the "same tools" on the InstaWork capture.
             const isEditable = (type === 'signoff' || type === 'instawork');
 
+            // Keep the review-flag array aligned with the photos list
+            // before we render. This protects against legacy saved data
+            // and any out-of-band mutations to photos.signoff.
+            if (type === 'signoff') alignSignoffReviewState();
+
             photos[type].forEach((photo, index) => {
                 const item = document.createElement('div');
                 item.className = 'photo-item';
+
+                // Sign-off review badge — orange "Needs review" until the
+                // lead opens the editor and saves; green "Reviewed" after.
+                let badge = '';
+                if (type === 'signoff') {
+                    if (signoffNeedsReview[index]) {
+                        item.classList.add('needs-review');
+                        badge = '<span class="photo-needs-review-badge">Tap to review</span>';
+                    } else {
+                        badge = '<span class="photo-reviewed-badge">Reviewed</span>';
+                    }
+                }
+
                 const editBtn = isEditable
                     ? `<button class="photo-edit" onclick="openImageEditor(${index}, '${type}')" title="Edit">&#9998;</button>`
                     : '';
@@ -4149,6 +4737,7 @@
                     ? `onclick="openImageEditor(${index}, '${type}')" style="cursor: pointer;" title="Tap to edit"`
                     : `onclick="openLightbox(this.src, 'Local ${type} photo')" style="cursor:pointer;"`;
                 item.innerHTML = `
+                    ${badge}
                     <img src="${photo}" alt="${type} photo" ${imgClick}>
                     ${editBtn}
                     <button class="photo-remove" onclick="removePhoto('${type}', ${index})">x</button>
@@ -4165,10 +4754,37 @@
             if (type === 'instawork') {
                 updateInstaworkSaveButton();
             }
+
+            // Reveal the "tap to review" hint as soon as the lead has
+            // any sign-off photos still flagged for review. Tucked away
+            // when everything's clean so it doesn't add visual noise.
+            if (type === 'signoff') {
+                const hint = document.getElementById('signoffOrientationHint');
+                if (hint) {
+                    const anyNeedsReview = signoffNeedsReview.some(Boolean);
+                    hint.style.display = anyNeedsReview ? 'block' : 'none';
+                }
+            }
+        }
+
+        // Truncate / zero-fill the per-photo review-flag array so it
+        // always has the same length as photos.signoff. New entries
+        // default to "needs review" (true).
+        function alignSignoffReviewState() {
+            const n = photos.signoff.length;
+            if (signoffNeedsReview.length > n) {
+                signoffNeedsReview.length = n;
+            } else {
+                while (signoffNeedsReview.length < n) signoffNeedsReview.push(true);
+            }
         }
 
         function removePhoto(type, index) {
             photos[type].splice(index, 1);
+            if (type === 'signoff') {
+                // Keep review flags aligned with the photos array.
+                signoffNeedsReview.splice(index, 1);
+            }
             if (type === 'instawork') {
                 // Removing the photo means we no longer have a saved
                 // confirmation tied to it.
@@ -5261,6 +5877,13 @@
             const targetType = editorCurrentType;
             photos[targetType][editorCurrentPhotoIndex] = finalDataUrl;
 
+            // Saving the editor for a sign-off photo counts as the lead
+            // having reviewed the orientation/crop. Clears the badge.
+            if (targetType === 'signoff') {
+                alignSignoffReviewState();
+                signoffNeedsReview[editorCurrentPhotoIndex] = false;
+            }
+
             // Editing the InstaWork capture invalidates any prior "saved"
             // confirmation — the user must re-confirm to save the new
             // version.
@@ -5436,9 +6059,147 @@
                 AfterComplete: document.getElementById('afterComplete')?.checked || false,
                 NoKompassCart: document.getElementById('noKompassCart')?.checked || false,
                 InstaworkSupport: instaworkYes ? true : (instaworkNo ? false : null),
+                NotInStoreSelected: notInStoreSelected.slice(),
+                NotInStoreOther: (document.getElementById('notInStoreOther')?.value || '').trim(),
+                NotInSiSelected: notInSiSelected.slice(),
+                NotInSiOther: (document.getElementById('notInSiOther')?.value || '').trim(),
                 signatureDataURL: await getSignatureDataURL(),
                 photos: photos
             };
+        }
+
+        // Combine multi-select chips + free-text Other into a single
+        // human-readable string for the email body / PDF notes overlay.
+        function formatNotInList(selected, other) {
+            const items = [];
+            (selected || []).forEach(s => { if (s && !items.includes(s)) items.push(s); });
+            const trimmedOther = (other || '').trim();
+            if (trimmedOther) items.push(trimmedOther);
+            return items.length ? items.join(', ') : 'None';
+        }
+
+        // ─── Pre-submit validation ───────────────────────────────────────
+        // Walks the entire form and returns every problem in a single
+        // pass so the user gets one consolidated checklist, not a series
+        // of "fix this, no fix that next" modal dismissals. Every issue
+        // includes a CSS hook that gets toggled on the offending element
+        // (`.field-invalid`, `.photo-section-invalid`, etc.) so the UI
+        // can highlight it inline alongside the modal.
+        function validateBeforeSubmit(data) {
+            const issues = [];
+            const fieldsToFlag = [];      // .field elements
+            const photoSections = [];     // .photo-section elements
+            const sectionsToFlag = [];    // .section elements
+
+            const flagField = (selector) => {
+                const el = document.querySelector(selector);
+                if (el) {
+                    const fieldEl = el.closest('.field') || el.parentElement;
+                    if (fieldEl) fieldsToFlag.push(fieldEl);
+                }
+            };
+            const flagPhotoSection = (id) => {
+                const el = document.getElementById(id);
+                if (el) photoSections.push(el);
+            };
+            const flagSection = (id) => {
+                const el = document.getElementById(id);
+                if (el) sectionsToFlag.push(el);
+            };
+
+            // 1. Manager check-in / check-out names.
+            if (!(data.CheckInManager || '').trim()) {
+                issues.push('Enter the manager you checked in with.');
+                flagField('#checkInManager');
+            }
+            if (!(data.CheckOutManager || '').trim()) {
+                issues.push('Enter the manager you checked out with.');
+                flagField('#checkOutManager');
+            }
+
+            // 2. Kompass cart before / after photos. Even when there's no
+            //    Kompass cart on site, the lead still has to photograph
+            //    the Kompass area, the price-change area, or the Vestcom
+            //    pickup spot — see toggleNoKompassCart() for label swap.
+            const noKompass = !!data.NoKompassCart;
+            const beforeHas = data.photos.before.length > 0 || (eodSelections.before && eodSelections.before.length > 0);
+            const afterHas  = data.photos.after.length  > 0 || (eodSelections.after  && eodSelections.after.length  > 0);
+            if (!beforeHas) {
+                issues.push(noKompass
+                    ? 'Take a "before" photo of the Kompass area / price-change area / Vestcom pickup spot.'
+                    : 'Take a "before" photo of the Kompass cart.');
+                flagPhotoSection('beforePhotoSection');
+            }
+            if (!afterHas) {
+                issues.push(noKompass
+                    ? 'Take an "after" photo of the Kompass area / price-change area / Vestcom pickup spot.'
+                    : 'Take an "after" photo of the Kompass cart.');
+                flagPhotoSection('afterPhotoSection');
+            }
+
+            // 3. Sign-off sheet photos — at least one required.
+            const signoffHas = data.photos.signoff.length > 0 || (eodSelections.signoff && eodSelections.signoff.length > 0);
+            if (!signoffHas) {
+                issues.push('Photograph at least one sign-off sheet.');
+                flagPhotoSection('signoffPhotoSection');
+            }
+
+            // 4. Each local sign-off photo must have been opened in the
+            //    editor at least once so the lead has actually checked
+            //    orientation + crop. Auto-rotated landscape photos still
+            //    require a confirming pass through the editor.
+            alignSignoffReviewState();
+            const unreviewedCount = signoffNeedsReview.filter(Boolean).length;
+            if (unreviewedCount > 0) {
+                issues.push(`Tap each sign-off photo to review orientation and crop (${unreviewedCount} still need${unreviewedCount === 1 ? 's' : ''} review).`);
+                flagPhotoSection('signoffPhotoSection');
+            }
+
+            // 5. InstaWork — Yes or No required, plus a saved photo if Yes.
+            const instaworkYes = !!document.getElementById('instaworkYes')?.checked;
+            const instaworkNo = !!document.getElementById('instaworkNo')?.checked;
+            if (!instaworkYes && !instaworkNo) {
+                issues.push('Answer "Did you have InstaWork support today?".');
+                flagSection('instaworkSection');
+            }
+            if (instaworkYes) {
+                if (photos.instawork.length === 0) {
+                    issues.push('Take a photo of the InstaWork sign-out timesheet.');
+                    flagSection('instaworkSection');
+                } else if (!instaworkSavedInfo) {
+                    issues.push('Tap "Confirm & Save InstaWork Sign-Out Sheet" so it gets routed to the right period folder.');
+                    flagSection('instaworkSection');
+                }
+            }
+
+            // 6. PROD / SI sign-out questions must be answered.
+            const prodYes = !!document.getElementById('prodYes')?.checked;
+            const prodNo  = !!document.getElementById('prodNo')?.checked;
+            const siYes   = !!document.getElementById('siYes')?.checked;
+            const siNo    = !!document.getElementById('siNo')?.checked;
+            if (!prodYes && !prodNo) {
+                issues.push('Answer "All sets signed out in PROD?".');
+                flagField('#prodYes');
+            }
+            if (!siYes && !siNo) {
+                issues.push('Answer "All sets signed out in SI?".');
+                flagField('#siYes');
+            }
+
+            return { issues, fieldsToFlag, photoSections, sectionsToFlag };
+        }
+
+        function clearValidationHighlights() {
+            document.querySelectorAll('.field-invalid').forEach(el => el.classList.remove('field-invalid'));
+            document.querySelectorAll('.photo-section-invalid').forEach(el => el.classList.remove('photo-section-invalid'));
+            document.querySelectorAll('.section-invalid').forEach(el => el.classList.remove('section-invalid'));
+        }
+
+        function applyValidationHighlights({ fieldsToFlag, photoSections, sectionsToFlag }) {
+            clearValidationHighlights();
+            (fieldsToFlag || []).forEach(el => el.classList.add('field-invalid'));
+            (photoSections || []).forEach(el => el.classList.add('photo-section-invalid'));
+            (sectionsToFlag || []).forEach(el => el.classList.add('section-invalid'));
         }
 
         // Generate Email - builds payload and shows confirmation preview
@@ -5449,32 +6210,36 @@
                 const data = await collectData();
 
                 // ─── Pre-submit validation ─────────────────────────────────
-                // Sign-off sheet photos are required before submitting.
-                const localSignoffCount = data.photos.signoff.length;
-                const selectedSignoffCount = eodSelections.signoff.length;
-                const totalSignoffCount = localSignoffCount + selectedSignoffCount;
-                if (totalSignoffCount === 0) {
+                // One pass collects EVERY missing piece (manager names,
+                // Kompass before/after photos, sign-off review state,
+                // InstaWork timesheet, PROD/SI sign-out answers) and
+                // shows the lead one consolidated checklist they can
+                // work down. Inline highlights mirror the list.
+                const validation = validateBeforeSubmit(data);
+                if (validation.issues.length > 0) {
                     loading.classList.remove('show');
+                    applyValidationHighlights(validation);
+                    const list = validation.issues
+                        .map(msg => `<li style="margin-bottom:6px;">${msg}</li>`)
+                        .join('');
+                    const firstFlagged = document.querySelector('.field-invalid, .photo-section-invalid, .section-invalid');
+                    if (firstFlagged) {
+                        firstFlagged.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                     showAlert(
-                        'Sign-Off Sheet Required',
-                        'You must upload at least one photo of the sign-off sheet before submitting the EOD.'
+                        'Finish your EOD before submitting',
+                        `<p style="margin:0 0 8px;">A few things still need your attention:</p>` +
+                        `<ul style="margin:0 0 8px 20px; padding:0; line-height:1.4;">${list}</ul>` +
+                        `<p style="margin:0; color:#94a3b8; font-size:13px;">Highlighted in red on the form. Once everything's done, tap <strong>Send Email</strong> again.</p>`
                     );
                     return;
                 }
 
-                // InstaWork support requires a Yes/No answer.
-                const instaworkYesEl = document.getElementById('instaworkYes');
-                const instaworkNoEl = document.getElementById('instaworkNo');
-                const instaworkYes = !!instaworkYesEl?.checked;
-                const instaworkNo = !!instaworkNoEl?.checked;
-                if (!instaworkYes && !instaworkNo) {
-                    loading.classList.remove('show');
-                    showAlert(
-                        'InstaWork Question Required',
-                        'Please answer "Did you have InstaWork support today?" before submitting.'
-                    );
-                    return;
-                }
+                // All checks passed — drop any leftover red highlights
+                // from a prior failed submit attempt.
+                clearValidationHighlights();
+
+                const instaworkYes = !!document.getElementById('instaworkYes')?.checked;
 
                 const pdfFilename = `FM${data.StoreNumberPadded} KOMPASS EOD ${data.DateForPDFFilename}.PDF`;
 
@@ -5486,35 +6251,15 @@
                     console.error('Error generating PDF:', pdfError);
                 }
 
-                // ─── If InstaWork = Yes, the lead must have already taken the
-                // sign-out sheet photo AND clicked "Confirm & Save" so the
-                // JPG was routed to the correct P#W# folder. We do NOT
-                // silently save it here — the explicit confirm step is the
-                // whole point of the new UX.
-                if (instaworkYes) {
-                    if (photos.instawork.length === 0) {
-                        loading.classList.remove('show');
-                        showAlert(
-                            'InstaWork Photo Required',
-                            'Please take a photo of the InstaWork sign-out sheet at the top of the page before submitting the EOD.'
-                        );
-                        return;
-                    }
-                    if (!instaworkSavedInfo) {
-                        loading.classList.remove('show');
-                        showAlert(
-                            'Confirm InstaWork Sign-Out Sheet',
-                            'Please tap "Confirm &amp; Save InstaWork Sign-Out Sheet" at the top of the page before submitting the EOD.'
-                        );
-                        return;
-                    }
-                }
                 const instaworkSave = instaworkSavedInfo;
 
                 const notesOnly = document.getElementById('notesOnlyToggle').checked;
                 const beforeDone  = data.photos.before.length  > 0 || eodSelections.before.length > 0 || data.BeforeComplete;
                 const signoffDone = data.photos.signoff.length > 0 || eodSelections.signoff.length > 0 || data.SignoffComplete;
                 const afterDone   = data.photos.after.length   > 0 || eodSelections.after.length > 0 || data.AfterComplete;
+
+                const notInStoreText = formatNotInList(data.NotInStoreSelected, data.NotInStoreOther);
+                const notInSiText    = formatNotInList(data.NotInSiSelected,    data.NotInSiOther);
 
                 const body = notesOnly
                     ? `Notes:\n${data.Notes || ''}`
@@ -5532,6 +6277,8 @@ Temporary solution: ${data.TempSolution || 'N/A'}
 Manager checked out with: ${data.CheckOutManager || ''}
 Signed out in PROD: ${pickYN(data.SignedOutPROD)}
 Signed out in SI: ${pickYN(data.SignedOutSI)}
+Not in store: ${notInStoreText}
+Not in SI: ${notInSiText}
 After picture of KOMPASS cart taken: ${afterDone ? 'Yes' : 'No'}
 Sign-off sheets photographed: ${signoffDone ? 'Yes' : 'No'}
 Number of sign-off photos: ${data.photos.signoff.length}
@@ -5544,7 +6291,9 @@ ${data.Notes || ''}`;
                         ...recipients,
                         'MAshabranner@retailodyssey.com',
                         'seth.newman@retailodyssey.com',
-                        'tyson.gauthier@retailodyssey.com'
+                        'tyson.gauthier@retailodyssey.com',
+                        'aiyana.natarisalazar@retailodyssey.com',
+                        'Amanda.Mathew@retailodyssey.com'
                     ])];
                 }
 
@@ -5565,6 +6314,8 @@ ${data.Notes || ''}`;
                     pdfFilename,
                     userName,
                     userEmail,
+                    checkInManager: document.getElementById('checkInManager').value.trim(),
+                    checkOutManager: document.getElementById('checkOutManager').value.trim(),
                     signoffPhotos: data.photos.signoff,
                     ...(pdfBase64 && { pdfBase64 })
                 };
@@ -5940,6 +6691,28 @@ ${data.Notes || ''}`;
                 form.getTextField('WhatIsIssue').setText(data.WhatIsIssue || '');
                 form.getTextField('TempSolution').setText(data.TempSolution || '');
                 form.getTextField('CheckOutManager').setText(data.CheckOutManager || '');
+
+                // The legacy PDF template has no dedicated "Not in store" /
+                // "Not in SI" fields, so we prefix them onto the Notes
+                // field if either has any content. Notes itself follows
+                // a blank line so it stays readable. If the template ever
+                // grows real fields we can switch to setText on them.
+                const _notInStore = formatNotInList(data.NotInStoreSelected, data.NotInStoreOther);
+                const _notInSi    = formatNotInList(data.NotInSiSelected,    data.NotInSiOther);
+                let notesPdf = '';
+                if (_notInStore !== 'None' || _notInSi !== 'None') {
+                    notesPdf += `Not in store: ${_notInStore}\nNot in SI: ${_notInSi}`;
+                    if ((data.Notes || '').trim()) notesPdf += '\n\n';
+                }
+                notesPdf += (data.Notes || '');
+                try {
+                    form.getTextField('Notes').setText(notesPdf);
+                } catch (notesFieldErr) {
+                    // Some template revisions don't expose a Notes field —
+                    // failing here is non-fatal, the email body still has
+                    // the same data.
+                    console.warn('Notes field not available on PDF template:', notesFieldErr.message);
+                }
                 console.log('Text fields filled successfully');
             } catch (e) {
                 console.error('Error filling text fields:', e);
@@ -6221,12 +6994,17 @@ ${data.Notes || ''}`;
                     photos.signoff = [];
                     photos.after = [];
                     photos.instawork = [];
+                    signoffNeedsReview = [];
                     instaworkSavedInfo = null;
                     instaworkSaving = false;
                     setInstaworkOverlay('hide');
                     reopenInstaworkPanel();
                     emailRecipients = [];
                     selectedShift = null;
+                    shiftSets = [];
+                    notInStoreSelected = [];
+                    notInSiSelected = [];
+                    clearValidationHighlights();
                     smClearAll();
                     document.querySelectorAll('input, textarea').forEach(el => {
                         if (el.type === 'checkbox') el.checked = false;
@@ -6250,6 +7028,7 @@ ${data.Notes || ''}`;
                     renderPhotos('signoff');
                     renderPhotos('after');
                     renderPhotos('instawork');
+                    renderSetsPickers();
                     renderRecipientList();
                     updateSignaturePreview();
                     document.getElementById('hotlineDetails').style.display = 'none';
@@ -6424,9 +7203,43 @@ ${data.Notes || ''}`;
             }
             updateSignaturePreview();
 
+            // Initial render of the sets-not-in pickers (empty state until
+            // a shift is selected and category-resets are loaded).
+            renderSetsPickers();
+
+            // Delegated click handler for the set-tag remove (X) buttons.
+            // Set names can contain quotes / special chars, so we read
+            // them from data attributes rather than inline onclick args.
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('.set-tag-x[data-remove-kind]');
+                if (!btn) return;
+                const kind = btn.getAttribute('data-remove-kind');
+                const name = btn.getAttribute('data-remove-name');
+                if (kind && name != null) removeSetNotIn(kind, name);
+            });
+
+            // Strip any existing field-invalid highlight as soon as the
+            // user starts editing the field — we re-validate on submit.
+            // Listening to both `input` (for text/number/textarea) and
+            // `change` (for checkboxes/selects/file inputs) covers every
+            // control type the form uses.
+            const clearValidationOnInteract = (e) => {
+                const field = e.target.closest('.field.field-invalid, .photo-section.photo-section-invalid, .section.section-invalid');
+                if (field) {
+                    field.classList.remove('field-invalid');
+                    field.classList.remove('photo-section-invalid');
+                    field.classList.remove('section-invalid');
+                }
+            };
+            document.addEventListener('input', clearValidationOnInteract);
+            document.addEventListener('change', clearValidationOnInteract);
+
             // Poll both connection indicators on page load, then every 30 seconds
             pollConnections();
             connPollInterval = setInterval(pollConnections, 30000);
+
+            // Restore the auth-refresh button's cooldown state across reloads
+            ensureRefreshCooldownTicker();
 
             // Log startup info
             console.log('Kompass EOD Advanced loaded');
@@ -6445,6 +7258,22 @@ ${data.Notes || ''}`;
         let smMembers = [];
         let smEmployeesCache = null;
         let smPendingRemovals = new Set();
+
+        // Sets the lead can pick from in the "Not in store" / "Not in SI"
+        // pickers, sourced from the selected shift's category-resets.
+        // Each entry: { id, name, number, planogramId, resetType }.
+        // Selections are stored as raw set-name strings so we don't have to
+        // re-resolve when the form loads from localStorage on a different
+        // device.
+        let shiftSets = [];
+        let notInStoreSelected = []; // string[]
+        let notInSiSelected = [];    // string[]
+
+        // Per-photo "needs review" flags for sign-off sheets. We force the
+        // lead to open the editor at least once per photo so they actually
+        // confirm the orientation/crop before submitting — too many
+        // sideways forms were getting through.
+        let signoffNeedsReview = []; // boolean[] aligned with photos.signoff
 
         // ─── WEEKLY TASKS (Rebotics bulk backlog) ───────────────────────────────────
         let reboticsMe = { isReboticsAdmin: false, reboticsDistrictStoreIds: null };
@@ -7010,6 +7839,12 @@ ${data.Notes || ''}`;
             smSelectedShift = null;
             smMembers = [];
             smPendingRemovals.clear();
+            // Clear the dropdown source for the not-in-store / not-in-SI
+            // pickers but keep the user's existing chip selections — those
+            // may still be valid even after re-finding shifts. Stale chips
+            // can always be removed via the X button.
+            shiftSets = [];
+            renderSetsPickers();
             document.getElementById('smShiftResults').style.display = 'none';
             document.getElementById('smShiftList').innerHTML = '';
             document.getElementById('smMembersSection').style.display = 'none';
@@ -7132,12 +7967,106 @@ ${data.Notes || ''}`;
             // Auto-populate lead info from shift's visitLead
             await smPopulateLeadInfo(shift);
 
-            // Load members and employees in parallel
+            // Load members + employees + sets in parallel. Sets loading
+            // failure is non-fatal — pickers fall back to free-text Other.
             await Promise.all([
                 smLoadMembers(),
-                smLoadEmployees()
+                smLoadEmployees(),
+                loadShiftSets(shift).catch(err => console.warn('Shift sets load failed:', err))
             ]);
 
+            autoSave();
+        }
+
+        // ─── Shift sets (Not in store / Not in SI dropdown sources) ───────
+        // Pulls the shift's category-resets from the API and exposes them
+        // as the dropdown options for the two pickers. We also re-render
+        // the pickers any time the selection list changes.
+        async function loadShiftSets(shift) {
+            const visitId = shift && shift.visitId;
+            if (!visitId) {
+                shiftSets = [];
+                renderSetsPickers();
+                return;
+            }
+            try {
+                const resp = await authFetch(`${SM_API_BASE}/api/shifts/${encodeURIComponent(visitId)}/sets`);
+                if (!resp.ok) throw new Error(`Server error (${resp.status})`);
+                const data = await resp.json();
+                shiftSets = Array.isArray(data?.sets) ? data.sets : [];
+            } catch (err) {
+                console.warn('Failed to load shift sets:', err);
+                shiftSets = [];
+            }
+            renderSetsPickers();
+        }
+
+        function renderSetsPickers() {
+            renderSetsPicker('store');
+            renderSetsPicker('si');
+        }
+
+        function renderSetsPicker(kind) {
+            const isStore = kind === 'store';
+            const select = document.getElementById(isStore ? 'notInStoreSelect' : 'notInSiSelect');
+            const tagsEl = document.getElementById(isStore ? 'notInStoreTags' : 'notInSiTags');
+            const helpEl = document.getElementById(isStore ? 'notInStoreHelp' : 'notInSiHelp');
+            const selected = isStore ? notInStoreSelected : notInSiSelected;
+            if (!select || !tagsEl) return;
+
+            // Build dropdown options from the shift's sets, omitting any
+            // already-selected ones so the user can't double-pick.
+            const remaining = shiftSets
+                .map(s => s.name)
+                .filter(name => name && !selected.includes(name));
+
+            const placeholder = shiftSets.length === 0
+                ? '-- Pick a shift to load sets --'
+                : (remaining.length === 0
+                    ? '-- All sets already selected --'
+                    : '-- Select a set from your shift --');
+
+            select.innerHTML = `<option value="">${placeholder}</option>` +
+                remaining.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+            select.disabled = shiftSets.length === 0;
+
+            // Render selection chips with X buttons. We use data
+            // attributes + a delegated click handler so set names with
+            // quotes/special characters can't break inline event syntax.
+            tagsEl.innerHTML = selected.map((name) => {
+                const safe = escapeHtml(name);
+                return `<span class="set-tag"><span>${safe}</span>` +
+                    `<button type="button" class="set-tag-x" data-remove-kind="${kind}" data-remove-name="${safe}" title="Remove">&times;</button></span>`;
+            }).join('');
+
+            // Help text below the picker.
+            if (helpEl) {
+                if (shiftSets.length === 0) {
+                    helpEl.textContent = 'Pick a shift first to load the available sets.';
+                } else {
+                    helpEl.textContent = `${shiftSets.length} set${shiftSets.length === 1 ? '' : 's'} on this shift.`;
+                }
+            }
+        }
+
+        function addSetNotIn(kind) {
+            const isStore = kind === 'store';
+            const select = document.getElementById(isStore ? 'notInStoreSelect' : 'notInSiSelect');
+            const value = select.value;
+            if (!value) return;
+            const list = isStore ? notInStoreSelected : notInSiSelected;
+            if (!list.includes(value)) list.push(value);
+            select.value = '';
+            renderSetsPicker(kind);
+            autoSave();
+        }
+
+        function removeSetNotIn(kind, name) {
+            const isStore = kind === 'store';
+            const list = isStore ? notInStoreSelected : notInSiSelected;
+            const idx = list.indexOf(name);
+            if (idx >= 0) list.splice(idx, 1);
+            renderSetsPicker(kind);
             autoSave();
         }
 
@@ -7377,7 +8306,7 @@ ${data.Notes || ''}`;
                     const data = await resp.json();
 
                     if (resp.ok && (data.success || data.added)) {
-                        const roles = (currentUser && currentUser.roles) || [];
+                        const roles = sbSession?.user?.user_metadata?.roles || [];
                         const isLeadOnly = roles.includes('lead') && !roles.includes('supervisor') && !roles.includes('admin');
 
                         if (isLeadOnly) {
@@ -7532,18 +8461,126 @@ ${data.Notes || ''}`;
             smLoadMembers();
         }
 
+        // ─── AUTH REFRESH BUTTON ─────────────────────────────────────────────
+        //
+        // The header refresh icon is a dedicated SAS + Rebotics auth refresh
+        // trigger.  Server-side cron already re-mints the SAS session every
+        // 4h (the credentials are good for 24h), so this button is for the
+        // "I switched devices and need fresh tokens NOW" case.  We gate it
+        // with a 10-minute click cooldown so a frantic user (or bumped
+        // touchscreen) can't burn TOTP codes back-to-back, and persist the
+        // cooldown to localStorage so the gate survives reloads.
+        const REFRESH_COOLDOWN_MS = 10 * 60 * 1000;
+        const REFRESH_COOLDOWN_KEY = 'kompassAuthRefreshLastClickAt';
+
+        function getRefreshCooldownRemainingMs() {
+            const last = parseInt(localStorage.getItem(REFRESH_COOLDOWN_KEY) || '0', 10);
+            if (!last || Number.isNaN(last)) return 0;
+            const elapsed = Date.now() - last;
+            return Math.max(0, REFRESH_COOLDOWN_MS - elapsed);
+        }
+
+        function formatCooldownLabel(ms) {
+            if (ms <= 0) return '';
+            const totalSec = Math.ceil(ms / 1000);
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            if (m > 0 && s > 0) return `${m}m ${s}s`;
+            if (m > 0) return `${m}m`;
+            return `${s}s`;
+        }
+
+        function updateRefreshButtonState() {
+            const btn = document.getElementById('refreshConnectionsBtn');
+            if (!btn) return;
+            const remaining = getRefreshCooldownRemainingMs();
+            if (remaining > 0) {
+                btn.disabled = true;
+                btn.classList.add('cooldown');
+                btn.title = `Auth refresh available in ${formatCooldownLabel(remaining)}`;
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('cooldown');
+                btn.title = 'Refresh SAS / Rebotics auth';
+            }
+        }
+
+        let refreshCooldownTimer = null;
+        function ensureRefreshCooldownTicker() {
+            updateRefreshButtonState();
+            if (refreshCooldownTimer) clearInterval(refreshCooldownTimer);
+            if (getRefreshCooldownRemainingMs() <= 0) return;
+            refreshCooldownTimer = setInterval(() => {
+                updateRefreshButtonState();
+                if (getRefreshCooldownRemainingMs() <= 0) {
+                    clearInterval(refreshCooldownTimer);
+                    refreshCooldownTimer = null;
+                }
+            }, 1000);
+        }
+
         async function refreshConnections() {
             const btn = document.getElementById('refreshConnectionsBtn');
+            if (!btn) return;
+
+            const remaining = getRefreshCooldownRemainingMs();
+            if (remaining > 0) {
+                showAuthToast(`Auth refresh available in ${formatCooldownLabel(remaining)}`);
+                return;
+            }
+
+            // Lock immediately so a double-tap can't slip past the cooldown
+            // before the first request returns.
+            localStorage.setItem(REFRESH_COOLDOWN_KEY, String(Date.now()));
+            ensureRefreshCooldownTicker();
+
             btn.classList.add('spinning');
+
+            let sasResult = null;
+            let reboticsResult = null;
+
+            try {
+                const sasResp = await authFetch(`${SM_API_BASE}/api/trigger-auth?force=1`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                sasResult = await sasResp.json().catch(() => ({}));
+            } catch (e) {
+                console.error('[refresh] SAS trigger failed:', e);
+                sasResult = { success: false, error: e.message };
+            }
+
+            try {
+                const reboticsResp = await authFetch(`${SM_API_BASE}/rebotics-trigger-auth`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                reboticsResult = await reboticsResp.json().catch(() => ({}));
+            } catch (e) {
+                console.error('[refresh] Rebotics trigger failed:', e);
+                reboticsResult = { success: false, error: e.message };
+            }
+
+            const parts = [];
+            if (sasResult?.success) {
+                parts.push(sasResult.skipped ? 'SAS still fresh' : 'SAS refreshed');
+            } else {
+                parts.push('SAS refresh failed');
+            }
+            if (reboticsResult?.success) {
+                parts.push('Rebotics email sent');
+            } else {
+                parts.push('Rebotics trigger failed');
+            }
+            showAuthToast(parts.join(' · '));
+
             try {
                 await pollConnections();
-
-                // If a shift is selected, refresh its members too
                 if (smSelectedShift) {
                     await smLoadMembers();
                 }
             } catch (e) {
-                console.error('Refresh connections error:', e);
+                console.error('[refresh] Post-trigger poll failed:', e);
             } finally {
                 btn.classList.remove('spinning');
             }
