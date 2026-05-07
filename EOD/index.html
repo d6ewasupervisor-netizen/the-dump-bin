@@ -211,10 +211,36 @@
         .field input[type="text"]:focus,
         .field input[type="date"]:focus,
         .field input[type="email"]:focus,
-        .field textarea:focus {
+        .field textarea:focus,
+        .field select:focus {
             outline: none;
             border-color: #0d4f8b;
             box-shadow: 0 0 0 2px rgba(13, 79, 139, 0.3);
+        }
+
+        /* <select> in .field (e.g. Sets from shift) — match text inputs; chevron for appearance:none */
+        .field select {
+            width: 100%;
+            padding: var(--spacing-md);
+            padding-right: calc(var(--spacing-md) + 1.35rem);
+            border: 1px solid #4b5563;
+            border-radius: var(--border-radius);
+            background-color: #374151;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right var(--spacing-md) center;
+            background-size: 1rem;
+            color: #f9fafb;
+            font-size: var(--font-size-base);
+            font-family: inherit;
+            min-height: var(--min-touch-target);
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+        .field select:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
         }
 
         .field textarea {
@@ -228,7 +254,8 @@
             .field input[type="text"],
             .field input[type="date"],
             .field input[type="email"],
-            .field textarea {
+            .field textarea,
+            .field select {
                 font-size: 16px;
             }
         }
@@ -2303,7 +2330,25 @@
             touch-action: manipulation;
         }
         .set-tag .set-tag-x:active { background: #dc2626; transform: scale(0.95); }
-        .sets-picker select,
+        .sets-picker select {
+            width: 100%;
+            padding: var(--spacing-md);
+            padding-right: calc(var(--spacing-md) + 1.35rem);
+            border: 1px solid #4b5563;
+            border-radius: var(--border-radius);
+            background-color: #374151;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right var(--spacing-md) center;
+            background-size: 1rem;
+            color: #f9fafb;
+            font-size: var(--font-size-base);
+            font-family: inherit;
+            min-height: var(--min-touch-target);
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
         .sets-picker input[type="text"] {
             width: 100%;
             padding: var(--spacing-md);
