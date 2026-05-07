@@ -3128,12 +3128,23 @@
             </div>
 
             <!--
-                Sets the lead couldn't find / sign out — sourced from the
-                shift's category-resets so they pick from the actual sets on
-                their visit. The free-text "Other" field handles anything
-                that isn't on the list (e.g. cross-merch carts, cut-ins
-                that didn't map to a category, etc).
+                Sets the lead couldn't find / sign out — sourced from all
+                ISE shifts' category-resets. Sets load automatically for
+                every shift returned by "Find Shifts". When multiple shifts
+                are present a shift selector appears so the lead can browse
+                sets per-shift and mark items from either.
+                The free-text "Other" field handles anything not on the list.
             -->
+
+            <!-- Shift picker — hidden when only one shift is present -->
+            <div class="field" id="notInShiftPickerField" style="display:none; margin-top: 15px;">
+                <label>Sets from shift:</label>
+                <select id="notInShiftSelect" onchange="onNotInShiftChange()">
+                    <option value="">-- Select a shift --</option>
+                </select>
+                <div class="sets-help" id="notInShiftHelp"></div>
+            </div>
+
             <div class="field" id="setsNotInStoreField" style="margin-top: 15px;">
                 <label>Not in store:</label>
                 <div class="sets-picker">
@@ -3143,7 +3154,7 @@
                     </select>
                     <input type="text" id="notInStoreOther" placeholder="Other (set not in the list above)" oninput="autoSave()">
                 </div>
-                <div class="sets-help" id="notInStoreHelp">Pick a shift first to load the available sets.</div>
+                <div class="sets-help" id="notInStoreHelp">Find shifts to load the available sets.</div>
             </div>
 
             <div class="field" id="setsNotInSiField" style="margin-top: 15px;">
@@ -3155,7 +3166,7 @@
                     </select>
                     <input type="text" id="notInSiOther" placeholder="Other (set not in the list above)" oninput="autoSave()">
                 </div>
-                <div class="sets-help" id="notInSiHelp">Pick a shift first to load the available sets.</div>
+                <div class="sets-help" id="notInSiHelp">Find shifts to load the available sets.</div>
             </div>
 
             <div class="field" style="margin-top: 15px;">
@@ -7067,14 +7078,20 @@ ${data.Notes || ''}`;
         let smPendingRemovals = new Set();
 
         // Sets the lead can pick from in the "Not in store" / "Not in SI"
-        // pickers, sourced from the selected shift's category-resets.
+        // pickers, sourced from all found shifts' category-resets.
         // Each entry: { id, name, number, planogramId, resetType }.
-        // Selections are stored as raw set-name strings so we don't have to
-        // re-resolve when the form loads from localStorage on a different
-        // device.
-        let shiftSets = [];
+        // Selections are stored as "{dbkey}_{name}" strings so the category
+        // number is preserved even when the form is reloaded.
+        let shiftSets = [];         // legacy: sets for the currently selected shift card
         let notInStoreSelected = []; // string[]
         let notInSiSelected = [];    // string[]
+        // Map of visitId → { label, sets[] } for ALL shifts found on the date.
+        // Populated automatically after smFindShifts succeeds so the user
+        // doesn't have to select each shift card to access its set list.
+        let allShiftsSetsMap = {};
+        // Which shift the "Sets from shift" picker is set to (visitId as number).
+        // null means "nothing selected yet" (multi-shift) or N/A (single auto-selected).
+        let notInPickerShiftId = null;
 
         // Per-photo "needs review" flags for sign-off sheets. We force the
         // lead to open the editor at least once per photo so they actually
@@ -7646,11 +7663,15 @@ ${data.Notes || ''}`;
             smSelectedShift = null;
             smMembers = [];
             smPendingRemovals.clear();
-            // Clear the dropdown source for the not-in-store / not-in-SI
+            // Clear the dropdown sources for the not-in-store / not-in-SI
             // pickers but keep the user's existing chip selections — those
             // may still be valid even after re-finding shifts. Stale chips
             // can always be removed via the X button.
             shiftSets = [];
+            allShiftsSetsMap = {};
+            notInPickerShiftId = null;
+            const spf = document.getElementById('notInShiftPickerField');
+            if (spf) spf.style.display = 'none';
             renderSetsPickers();
             document.getElementById('smShiftResults').style.display = 'none';
             document.getElementById('smShiftList').innerHTML = '';
@@ -7703,6 +7724,10 @@ ${data.Notes || ''}`;
                 }
 
                 smShifts = shifts;
+                // Kick off background load of sets for ALL found shifts so the
+                // "Not in store / Not in SI" pickers work without the user
+                // having to select each shift card individually.
+                loadAllShiftsSets(shifts).catch(err => console.warn('loadAllShiftsSets failed:', err));
                 listDiv.innerHTML = shifts.map((shift, i) => {
                     const isCompleted = shift.status === 'completed' || shift.currentStatus === 'completed';
                     const displayStatus = shift.currentStatus || shift.status || 'unknown';
@@ -7786,13 +7811,133 @@ ${data.Notes || ''}`;
         }
 
         // ─── Shift sets (Not in store / Not in SI dropdown sources) ───────
-        // Pulls the shift's category-resets from the API and exposes them
-        // as the dropdown options for the two pickers. We also re-render
-        // the pickers any time the selection list changes.
+
+        // Extract the numeric dbkey (planogram ID) from a planogramId value.
+        // The SAS planogram_id can be a bare number ("8509659") or the full
+        // POG-ID string ("P04W2_8509659_D701_L00000_..."). In both cases we
+        // want the 7-8 digit identifier that sits at position [1] in the
+        // underscore-delimited POG string.
+        function extractDbkey(planogramId) {
+            if (!planogramId) return null;
+            const s = String(planogramId).trim();
+            const m = s.match(/^P\d+W\d+_(\d+)/);
+            if (m) return m[1];
+            if (/^\d+$/.test(s)) return s;
+            return null;
+        }
+
+        // Build the display label for a set: "{dbkey}_{categoryName}".
+        // Falls back to just the name when no dbkey is available.
+        function setLabel(s) {
+            const k = extractDbkey(s.planogramId);
+            return k ? `${k}_${s.name}` : s.name;
+        }
+
+        // Load sets for EVERY shift in parallel and populate allShiftsSetsMap.
+        // Called automatically after smFindShifts succeeds — the user never
+        // has to click each shift card just to get set lists.
+        async function loadAllShiftsSets(shifts) {
+            if (!shifts || shifts.length === 0) return;
+            allShiftsSetsMap = {};
+            notInPickerShiftId = null;
+            renderShiftPickerDropdown();
+            renderSetsPickers();
+
+            await Promise.allSettled(
+                shifts.map(async (shift) => {
+                    const visitId = shift && shift.visitId;
+                    if (!visitId) return;
+                    try {
+                        const resp = await authFetch(`${SM_API_BASE}/api/shifts/${encodeURIComponent(visitId)}/sets`);
+                        if (!resp.ok) throw new Error(`Server error (${resp.status})`);
+                        const data = await resp.json();
+                        const label = shift.kompassType || shift.projectName || String(visitId);
+                        allShiftsSetsMap[visitId] = {
+                            label,
+                            sets: Array.isArray(data?.sets) ? data.sets : [],
+                        };
+                    } catch (err) {
+                        console.warn(`Failed to load sets for shift ${visitId}:`, err);
+                    }
+                })
+            );
+
+            // If only one shift has sets, auto-select it so the pickers work
+            // immediately without any extra click.
+            const visitIds = Object.keys(allShiftsSetsMap);
+            if (visitIds.length === 1) {
+                notInPickerShiftId = parseInt(visitIds[0], 10);
+                // Also keep shiftSets in sync for legacy callers.
+                shiftSets = allShiftsSetsMap[visitIds[0]].sets;
+            }
+
+            renderShiftPickerDropdown();
+            renderSetsPickers();
+        }
+
+        // Render (or hide) the "Sets from shift:" selector that appears above
+        // the Not in store / Not in SI pickers when multiple shifts are present.
+        function renderShiftPickerDropdown() {
+            const field = document.getElementById('notInShiftPickerField');
+            const sel   = document.getElementById('notInShiftSelect');
+            const help  = document.getElementById('notInShiftHelp');
+            if (!field || !sel) return;
+
+            const visitIds = Object.keys(allShiftsSetsMap);
+            if (visitIds.length <= 1) {
+                field.style.display = 'none';
+                return;
+            }
+
+            field.style.display = '';
+            sel.innerHTML = '<option value="">-- Select a shift --</option>' +
+                visitIds.map((vid) => {
+                    const info = allShiftsSetsMap[vid];
+                    const isSelected = String(notInPickerShiftId) === String(vid);
+                    return `<option value="${vid}"${isSelected ? ' selected' : ''}>${escapeHtml(info.label)}</option>`;
+                }).join('');
+
+            if (help) {
+                const count = notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId]
+                    ? allShiftsSetsMap[notInPickerShiftId].sets.length
+                    : null;
+                help.textContent = count != null
+                    ? `${count} set${count === 1 ? '' : 's'} on this shift.`
+                    : 'Pick a shift to see its sets.';
+            }
+        }
+
+        // Called when the user changes the shift selector in the not-in section.
+        function onNotInShiftChange() {
+            const sel = document.getElementById('notInShiftSelect');
+            notInPickerShiftId = sel && sel.value ? parseInt(sel.value, 10) : null;
+            // Keep shiftSets in sync for legacy callers.
+            if (notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId]) {
+                shiftSets = allShiftsSetsMap[notInPickerShiftId].sets;
+            }
+            renderShiftPickerDropdown();
+            renderSetsPickers();
+        }
+
+        // Pulls the shift's category-resets from the API and keeps shiftSets
+        // in sync for legacy callers. When allShiftsSetsMap already has data
+        // for this shift (loaded by loadAllShiftsSets in the background) we
+        // reuse it rather than re-fetching.
         async function loadShiftSets(shift) {
             const visitId = shift && shift.visitId;
             if (!visitId) {
                 shiftSets = [];
+                renderSetsPickers();
+                return;
+            }
+            // Reuse cached data from loadAllShiftsSets if available.
+            if (allShiftsSetsMap[visitId]) {
+                shiftSets = allShiftsSetsMap[visitId].sets;
+                // If only one shift, auto-select it in the picker.
+                if (Object.keys(allShiftsSetsMap).length === 1) {
+                    notInPickerShiftId = visitId;
+                }
+                renderShiftPickerDropdown();
                 renderSetsPickers();
                 return;
             }
@@ -7801,10 +7946,14 @@ ${data.Notes || ''}`;
                 if (!resp.ok) throw new Error(`Server error (${resp.status})`);
                 const data = await resp.json();
                 shiftSets = Array.isArray(data?.sets) ? data.sets : [];
+                // Populate allShiftsSetsMap so the picker can use it too.
+                const label = shift.kompassType || shift.projectName || String(visitId);
+                allShiftsSetsMap[visitId] = { label, sets: shiftSets };
             } catch (err) {
                 console.warn('Failed to load shift sets:', err);
                 shiftSets = [];
             }
+            renderShiftPickerDropdown();
             renderSetsPickers();
         }
 
@@ -7821,21 +7970,37 @@ ${data.Notes || ''}`;
             const selected = isStore ? notInStoreSelected : notInSiSelected;
             if (!select || !tagsEl) return;
 
-            // Build dropdown options from the shift's sets, omitting any
-            // already-selected ones so the user can't double-pick.
-            const remaining = shiftSets
-                .map(s => s.name)
-                .filter(name => name && !selected.includes(name));
+            // Determine which shift's sets to display. Prefer allShiftsSetsMap
+            // (populated for ALL found shifts) over the legacy shiftSets array
+            // (populated only for the clicked shift card).
+            const hasAnyShifts = Object.keys(allShiftsSetsMap).length > 0 || shiftSets.length > 0;
+            const needsShiftPick = Object.keys(allShiftsSetsMap).length > 1 && !notInPickerShiftId;
+            const activeSets = (notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId])
+                ? allShiftsSetsMap[notInPickerShiftId].sets
+                : (Object.keys(allShiftsSetsMap).length === 1
+                    ? allShiftsSetsMap[Object.keys(allShiftsSetsMap)[0]].sets
+                    : shiftSets);
 
-            const placeholder = shiftSets.length === 0
-                ? '-- Pick a shift to load sets --'
-                : (remaining.length === 0
-                    ? '-- All sets already selected --'
-                    : '-- Select a set from your shift --');
+            // Build dropdown options using "{dbkey}_{name}" labels so the
+            // lead can identify the exact planogram at a glance.
+            const remaining = activeSets
+                .map(s => setLabel(s))
+                .filter(label => label && !selected.includes(label));
+
+            let placeholder;
+            if (!hasAnyShifts) {
+                placeholder = '-- Find shifts to load sets --';
+            } else if (needsShiftPick) {
+                placeholder = '-- Select a shift above --';
+            } else if (remaining.length === 0 && activeSets.length > 0) {
+                placeholder = '-- All sets already selected --';
+            } else {
+                placeholder = '-- Select a set from your shift --';
+            }
 
             select.innerHTML = `<option value="">${placeholder}</option>` +
-                remaining.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
-            select.disabled = shiftSets.length === 0;
+                remaining.map(label => `<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`).join('');
+            select.disabled = !hasAnyShifts || needsShiftPick || activeSets.length === 0;
 
             // Render selection chips with X buttons. We use data
             // attributes + a delegated click handler so set names with
@@ -7848,10 +8013,13 @@ ${data.Notes || ''}`;
 
             // Help text below the picker.
             if (helpEl) {
-                if (shiftSets.length === 0) {
-                    helpEl.textContent = 'Pick a shift first to load the available sets.';
+                if (!hasAnyShifts) {
+                    helpEl.textContent = 'Find shifts to load the available sets.';
+                } else if (needsShiftPick) {
+                    helpEl.textContent = 'Select a shift above to see its sets.';
                 } else {
-                    helpEl.textContent = `${shiftSets.length} set${shiftSets.length === 1 ? '' : 's'} on this shift.`;
+                    const count = activeSets.length;
+                    helpEl.textContent = `${count} set${count === 1 ? '' : 's'} on this shift.`;
                 }
             }
         }
