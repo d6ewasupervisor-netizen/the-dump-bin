@@ -3202,10 +3202,10 @@
             <div class="field" id="fmEmailPickerSection" style="margin-top: 14px; display: none;">
                 <div class="fm-info-box">
                     <strong>Fred Meyer addresses for this store</strong><br>
-                    Any <em>@fredmeyer.com</em> address you add is automatically saved and appears here next time you send from this store. Check the ones you want included in this EOD, or use <em>Select All</em>. Tap <strong>Remove</strong> to permanently delete an address that is no longer valid.
+                    Any <em>@stores.fredmeyer.com</em> address you add is automatically saved and appears here next time you send from this store. Check the ones you want included in this EOD, or use <em>Select All</em>. Tap <strong>Remove</strong> to permanently delete an address that is no longer valid.
                 </div>
                 <div class="fm-pool-header">
-                    <label>Saved @fredmeyer.com addresses:</label>
+                    <label>Saved @stores.fredmeyer.com addresses:</label>
                     <button type="button" class="fm-select-all-btn" onclick="fmSelectAll()">Select All</button>
                 </div>
                 <div id="fmEmailList"></div>
@@ -3809,13 +3809,29 @@
             }
 
             const normalised = email.toLowerCase();
+
+            // Catch likely typos before adding:
+            //   @fredmeyer.com and @store.fredmeyer.com look right but are wrong —
+            //   Fred Meyer store addresses use @stores.fredmeyer.com.
+            if (/(?:^@|@)fredmeyer\.com$/i.test(normalised) ||
+                /(?:^@|@)store\.fredmeyer\.com$/i.test(normalised)) {
+                showAlert(
+                    'Double-check this address',
+                    `"${normalised}" looks like a Fred Meyer address but uses the wrong domain.\n\n` +
+                    'Fred Meyer store managers use @stores.fredmeyer.com\n' +
+                    '(e.g. firstname.lastname@stores.fredmeyer.com)\n\n' +
+                    'Please verify the address and re-enter it with the correct domain.'
+                );
+                return;
+            }
+
             emailRecipients.push(normalised);
             input.value = '';
             renderRecipientList();
             autoSave();
 
-            // Auto-save @fredmeyer.com addresses to this store's pool
-            if (normalised.endsWith('@fredmeyer.com')) {
+            // Auto-save @stores.fredmeyer.com addresses to this store's pool.
+            if (normalised.endsWith('@stores.fredmeyer.com')) {
                 addFredmeyerEmailToPool(normalised);
             }
         }
@@ -7862,13 +7878,15 @@ ${data.Notes || ''}`;
                 })
             );
 
-            // If only one shift has sets, auto-select it so the pickers work
-            // immediately without any extra click.
+            // Auto-select so the pickers work immediately without any extra click:
+            // one shift → select it; multiple shifts → select "all" so every set
+            // from every shift is visible right away.
             const visitIds = Object.keys(allShiftsSetsMap);
             if (visitIds.length === 1) {
                 notInPickerShiftId = parseInt(visitIds[0], 10);
-                // Also keep shiftSets in sync for legacy callers.
                 shiftSets = allShiftsSetsMap[visitIds[0]].sets;
+            } else if (visitIds.length > 1) {
+                notInPickerShiftId = 'all';
             }
 
             renderShiftPickerDropdown();
@@ -7890,7 +7908,10 @@ ${data.Notes || ''}`;
             }
 
             field.style.display = '';
+            const totalCount = visitIds.reduce((sum, vid) => sum + allShiftsSetsMap[vid].sets.length, 0);
+            const allSelected = notInPickerShiftId === 'all';
             sel.innerHTML = '<option value="">-- Select a shift --</option>' +
+                `<option value="all"${allSelected ? ' selected' : ''}>All shifts (${totalCount} sets)</option>` +
                 visitIds.map((vid) => {
                     const info = allShiftsSetsMap[vid];
                     const isSelected = String(notInPickerShiftId) === String(vid);
@@ -7898,22 +7919,40 @@ ${data.Notes || ''}`;
                 }).join('');
 
             if (help) {
-                const count = notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId]
-                    ? allShiftsSetsMap[notInPickerShiftId].sets.length
-                    : null;
-                help.textContent = count != null
-                    ? `${count} set${count === 1 ? '' : 's'} on this shift.`
-                    : 'Pick a shift to see its sets.';
+                if (notInPickerShiftId === 'all') {
+                    help.textContent = `Showing all ${totalCount} set${totalCount === 1 ? '' : 's'} across all shifts.`;
+                } else {
+                    const count = notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId]
+                        ? allShiftsSetsMap[notInPickerShiftId].sets.length
+                        : null;
+                    help.textContent = count != null
+                        ? `${count} set${count === 1 ? '' : 's'} on this shift.`
+                        : 'Pick a shift to see its sets.';
+                }
             }
         }
 
         // Called when the user changes the shift selector in the not-in section.
         function onNotInShiftChange() {
             const sel = document.getElementById('notInShiftSelect');
-            notInPickerShiftId = sel && sel.value ? parseInt(sel.value, 10) : null;
-            // Keep shiftSets in sync for legacy callers.
-            if (notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId]) {
-                shiftSets = allShiftsSetsMap[notInPickerShiftId].sets;
+            const raw = sel && sel.value;
+            if (raw === 'all') {
+                notInPickerShiftId = 'all';
+                // Build a merged, deduped set list for legacy callers.
+                const seen = new Set();
+                const merged = [];
+                Object.values(allShiftsSetsMap).forEach(({ sets }) => {
+                    sets.forEach(s => {
+                        const lbl = setLabel(s);
+                        if (!seen.has(lbl)) { seen.add(lbl); merged.push(s); }
+                    });
+                });
+                shiftSets = merged;
+            } else {
+                notInPickerShiftId = raw ? parseInt(raw, 10) : null;
+                if (notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId]) {
+                    shiftSets = allShiftsSetsMap[notInPickerShiftId].sets;
+                }
             }
             renderShiftPickerDropdown();
             renderSetsPickers();
@@ -7975,11 +8014,24 @@ ${data.Notes || ''}`;
             // (populated only for the clicked shift card).
             const hasAnyShifts = Object.keys(allShiftsSetsMap).length > 0 || shiftSets.length > 0;
             const needsShiftPick = Object.keys(allShiftsSetsMap).length > 1 && !notInPickerShiftId;
-            const activeSets = (notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId])
-                ? allShiftsSetsMap[notInPickerShiftId].sets
-                : (Object.keys(allShiftsSetsMap).length === 1
-                    ? allShiftsSetsMap[Object.keys(allShiftsSetsMap)[0]].sets
-                    : shiftSets);
+            let activeSets;
+            if (notInPickerShiftId === 'all') {
+                // Merge all shifts' sets, deduped by label.
+                const seen = new Set();
+                activeSets = [];
+                Object.values(allShiftsSetsMap).forEach(({ sets }) => {
+                    sets.forEach(s => {
+                        const lbl = setLabel(s);
+                        if (!seen.has(lbl)) { seen.add(lbl); activeSets.push(s); }
+                    });
+                });
+            } else {
+                activeSets = (notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId])
+                    ? allShiftsSetsMap[notInPickerShiftId].sets
+                    : (Object.keys(allShiftsSetsMap).length === 1
+                        ? allShiftsSetsMap[Object.keys(allShiftsSetsMap)[0]].sets
+                        : shiftSets);
+            }
 
             // Build dropdown options using "{dbkey}_{name}" labels so the
             // lead can identify the exact planogram at a glance.
@@ -8019,7 +8071,8 @@ ${data.Notes || ''}`;
                     helpEl.textContent = 'Select a shift above to see its sets.';
                 } else {
                     const count = activeSets.length;
-                    helpEl.textContent = `${count} set${count === 1 ? '' : 's'} on this shift.`;
+                    const scope = notInPickerShiftId === 'all' ? 'across all shifts' : 'on this shift';
+                    helpEl.textContent = `${count} set${count === 1 ? '' : 's'} ${scope}.`;
                 }
             }
         }
