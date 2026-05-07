@@ -2015,17 +2015,15 @@
             gap: 6px;
         }
 
-        .coversheet-action-wrap .coversheet-hint {
-            margin: 0;
-            font-size: 12px;
-            color: #94a3b8;
-            line-height: 1.35;
-            max-width: 280px;
-        }
-
         .btn-coversheet {
             background: linear-gradient(135deg, #0d4f8b 0%, #1e66ab 100%);
             color: white;
+            line-height: 1.22;
+            text-align: center;
+        }
+
+        .btn-coversheet .btn-coversheet-label {
+            display: block;
         }
         .btn-coversheet:hover {
             box-shadow: 0 5px 15px rgba(13, 79, 139, 0.4);
@@ -3241,10 +3239,8 @@
             <button type="button" class="btn btn-secondary" onclick="previewEodEmail()">Preview Email</button>
             <button class="btn btn-success" onclick="generateEmail()">Send Email</button>
             <div class="coversheet-action-wrap" data-requires-role="lead supervisor admin">
-                <button type="button" class="btn btn-coversheet" title="Automatically add the complete coversheet to your Kompass ISE shift." onclick="prepareCoversheetPreview()">Add Coversheet</button>
-                <span class="coversheet-hint">Automatically add the complete coversheet to your Kompass ISE shift.</span>
+                <button type="button" class="btn btn-coversheet" title="Automatically add the complete EOD coversheet to your Kompass shift." onclick="prepareCoversheetPreview()"><span class="btn-coversheet-label">Add EOD Coversheet<br>to your Kompass shift</span></button>
             </div>
-            <button class="btn btn-secondary" onclick="testSetup()">Test Setup</button>
             <button class="btn btn-secondary" onclick="resetForm()">Reset</button>
         </div>
     </div>
@@ -3292,6 +3288,32 @@
     </div>
 
     <!-- Email Options Modal (legacy, replaced by confirmation flow) -->
+
+    <!-- Daily Store Confirmation Gate -->
+    <div id="dayConfirmModal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-dialog">
+            <h2 id="dayConfirmTitle">Confirm Today's Store</h2>
+            <div id="dayConfirmBody">
+                <p style="line-height: 1.5;">Before you continue, confirm which store you're working at and the work date for today's shift.</p>
+                <div class="field" style="margin-top: 12px;">
+                    <label>Store #:</label>
+                    <input type="text" id="dayConfirmStore" list="storeList" placeholder="Select or enter store #" autocomplete="off">
+                </div>
+                <div class="field" style="margin-top: 12px;">
+                    <label>Work Date:</label>
+                    <input type="date" id="dayConfirmDate">
+                </div>
+                <div id="dayConfirmReasonRow" style="display:none; margin-top: 12px;">
+                    <label>Reason for override:</label>
+                    <textarea id="dayConfirmReason" rows="3" style="width:100%; box-sizing:border-box; padding:8px; border-radius:6px; background:#1f2937; color:#f9fafb; border:1px solid #4b5563;" placeholder="(e.g. covering for Sarah, FM moved me)"></textarea>
+                </div>
+                <div id="dayConfirmStatus" style="margin-top: 12px; min-height: 20px; font-size: 14px;"></div>
+            </div>
+            <div class="button-group" id="dayConfirmButtons" style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+                <button class="btn btn-primary" type="button" id="dayConfirmSubmit">Confirm</button>
+            </div>
+        </div>
+    </div>
 
     <!-- No Kompass Cart Overlay -->
     <div id="noKompassOverlay" class="modal-overlay">
@@ -3478,8 +3500,275 @@
                 }
             } catch (e) {
                 console.warn('[auth] Could not fetch /api/me:', e.message);
+            } finally {
+                // Run the daily store-confirmation gate AFTER auth resolves so
+                // verify-store has a valid CF identity to check against. If
+                // /api/me failed, the gate still fires — the user just sees a
+                // clearer error message than a silent submit-time failure.
+                try { enforceDayConfirmGate(); } catch (e) { console.warn('[day-confirm] gate failed:', e); }
             }
         })();
+
+        // ─── DAY-CONFIRM GATE ─────────────────────────────────────────────
+        // Forces a server-verified store check at the start of every shift.
+        // The signed token returned by /api/verify-store is bound to
+        // (email, store, workDate) and is sent on Send-EOD / Save-InstaWork
+        // via the X-Day-Confirm header. See eod-api/src/store-confirmation.js.
+        const DAY_CONFIRM_KEY = 'kompassDayConfirm';
+        const VERIFY_STORE_URL = 'https://eod-api.the-dump-bin.com/api/verify-store';
+        const STORE_CONFIRM_REQ_URL = 'https://eod-api.the-dump-bin.com/api/store-confirm-request';
+        let dayConfirmPolling = null;
+
+        function normStoreNumber(s) {
+            return String(s || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+        }
+
+        function normIsoDate(s) {
+            return String(s || '').slice(0, 10);
+        }
+
+        function todayLocalIsoDate() {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dd}`;
+        }
+
+        function getActiveDayConfirm() {
+            let stored;
+            try { stored = JSON.parse(localStorage.getItem(DAY_CONFIRM_KEY) || 'null'); } catch (e) {}
+            if (!stored || !stored.token || !stored.expiresAt) return null;
+            if (Date.now() >= stored.expiresAt) return null;
+            return stored;
+        }
+
+        function getActiveDayConfirmFor(store, date) {
+            const stored = getActiveDayConfirm();
+            if (!stored) return null;
+            if (stored.store !== normStoreNumber(store)) return null;
+            if (stored.date !== normIsoDate(date)) return null;
+            return stored;
+        }
+
+        function persistDayConfirm({ token, store, date, expiresInMs }) {
+            const expiresAt = Date.now() + (Number(expiresInMs) || 36 * 60 * 60 * 1000);
+            localStorage.setItem(DAY_CONFIRM_KEY, JSON.stringify({
+                token,
+                store: normStoreNumber(store),
+                date: normIsoDate(date),
+                expiresAt,
+            }));
+        }
+
+        function clearDayConfirm() {
+            try { localStorage.removeItem(DAY_CONFIRM_KEY); } catch (e) {}
+        }
+
+        function enforceDayConfirmGate() {
+            const store = (document.getElementById('storeNumber')?.value || '').trim();
+            const date = (document.getElementById('workDate')?.value || '').trim();
+            if (!store || !date || !getActiveDayConfirmFor(store, date)) {
+                showDayConfirmModal();
+            }
+        }
+
+        function showDayConfirmModal(opts) {
+            const o = opts || {};
+            const modal = document.getElementById('dayConfirmModal');
+            if (!modal) return;
+            if (dayConfirmPolling) { clearInterval(dayConfirmPolling); dayConfirmPolling = null; }
+
+            const storeInput = document.getElementById('dayConfirmStore');
+            const dateInput = document.getElementById('dayConfirmDate');
+            const reasonRow = document.getElementById('dayConfirmReasonRow');
+            const reasonField = document.getElementById('dayConfirmReason');
+            const statusDiv = document.getElementById('dayConfirmStatus');
+            const buttonsDiv = document.getElementById('dayConfirmButtons');
+
+            const currentStore = (document.getElementById('storeNumber')?.value || '').trim();
+            const currentDate = (document.getElementById('workDate')?.value || '').trim();
+            storeInput.value = o.store || currentStore || '';
+            dateInput.value = o.date || currentDate || todayLocalIsoDate();
+            reasonRow.style.display = 'none';
+            if (reasonField) reasonField.value = '';
+            statusDiv.innerHTML = o.message || '';
+
+            buttonsDiv.innerHTML = '<button class="btn btn-primary" type="button" id="dayConfirmSubmit">Confirm</button>';
+            document.getElementById('dayConfirmSubmit').onclick = handleDayConfirmSubmit;
+
+            modal.classList.add('show');
+        }
+
+        function hideDayConfirmModal() {
+            const modal = document.getElementById('dayConfirmModal');
+            if (modal) modal.classList.remove('show');
+            if (dayConfirmPolling) { clearInterval(dayConfirmPolling); dayConfirmPolling = null; }
+        }
+
+        async function handleDayConfirmSubmit() {
+            const store = (document.getElementById('dayConfirmStore').value || '').trim();
+            const date = (document.getElementById('dayConfirmDate').value || '').trim();
+            const statusDiv = document.getElementById('dayConfirmStatus');
+            const submitBtn = document.getElementById('dayConfirmSubmit');
+
+            if (!store || !date) {
+                statusDiv.innerHTML = '<span style="color:#ef4444;">Please pick a store # and date.</span>';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Verifying...';
+            statusDiv.innerHTML = '<span style="color:#94a3b8;">Checking SAS roster...</span>';
+
+            try {
+                const resp = await authFetch(VERIFY_STORE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ storeNumber: store, date: date })
+                });
+                const result = await resp.json().catch(() => ({}));
+
+                if (resp.ok && result.ok && result.token) {
+                    persistDayConfirm({
+                        token: result.token,
+                        store,
+                        date,
+                        expiresInMs: result.expiresInMs,
+                    });
+                    document.getElementById('storeNumber').value = store;
+                    document.getElementById('workDate').value = date;
+                    try { autoSave(); } catch (e) {}
+                    try { loadStoreData(store); } catch (e) {}
+                    hideDayConfirmModal();
+                    return;
+                }
+
+                if (resp.status === 403 && result.reason === 'not_on_roster') {
+                    statusDiv.innerHTML =
+                        '<div style="color:#fbbf24;">You don\u2019t appear on today\u2019s SAS roster for store ' + escapeHtml(store) + ' on ' + escapeHtml(date) + '.</div>' +
+                        '<p style="font-size:13px; color:#94a3b8; margin-top:6px;">Tell your supervisor why you\u2019re at this store today, then click Request Override.</p>';
+                    document.getElementById('dayConfirmReasonRow').style.display = 'block';
+                    const buttonsDiv = document.getElementById('dayConfirmButtons');
+                    buttonsDiv.innerHTML =
+                        '<button class="btn btn-secondary" type="button" id="dayConfirmRetryStore">Different store</button>' +
+                        '<button class="btn btn-primary" type="button" id="dayConfirmOverrideBtn">Request Override</button>';
+                    document.getElementById('dayConfirmRetryStore').onclick = () => showDayConfirmModal();
+                    document.getElementById('dayConfirmOverrideBtn').onclick = () => handleDayConfirmOverride(store, date);
+                    return;
+                }
+
+                const errMsg = result.detail || result.reason || ('Could not verify the store (HTTP ' + resp.status + ').');
+                statusDiv.innerHTML = '<span style="color:#ef4444;">' + escapeHtml(errMsg) + '</span>';
+            } catch (err) {
+                statusDiv.innerHTML = '<span style="color:#ef4444;">Network error: ' + escapeHtml(err.message || String(err)) + '</span>';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Confirm';
+            }
+        }
+
+        async function handleDayConfirmOverride(store, date) {
+            const reason = (document.getElementById('dayConfirmReason').value || '').trim();
+            const statusDiv = document.getElementById('dayConfirmStatus');
+            const buttonsDiv = document.getElementById('dayConfirmButtons');
+            buttonsDiv.innerHTML = '<button class="btn btn-secondary" type="button" disabled>Sending...</button>';
+            statusDiv.innerHTML = '<span style="color:#94a3b8;">Sending override request to your supervisor...</span>';
+
+            try {
+                const resp = await authFetch(STORE_CONFIRM_REQ_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ storeNumber: store, date: date, reason })
+                });
+                const result = await resp.json().catch(() => ({}));
+                if (!resp.ok || !result.requestId) {
+                    throw new Error(result.error || ('Request failed (' + resp.status + ')'));
+                }
+                const approver = result.approverEmail || 'your supervisor';
+                const emailWarn = result.emailDelivered === false
+                    ? '<div style="color:#fbbf24; font-size:13px; margin-top:6px;">Note: email delivery failed (' + escapeHtml(result.emailError || 'unknown error') + '). Ping ' + escapeHtml(approver) + ' directly.</div>'
+                    : '';
+                statusDiv.innerHTML =
+                    '<div style="color:#88c4ed;">Override requested. Waiting for ' + escapeHtml(approver) + ' to approve\u2026</div>' +
+                    emailWarn +
+                    '<div style="margin-top:10px; color:#94a3b8; font-size:13px;">This window unlocks automatically when they approve. You can leave the app open.</div>';
+                buttonsDiv.innerHTML = '<button class="btn btn-secondary" type="button" id="dayConfirmCancel">Cancel</button>';
+                document.getElementById('dayConfirmCancel').onclick = () => showDayConfirmModal();
+                startDayConfirmPolling(result.requestId, store, date);
+            } catch (err) {
+                statusDiv.innerHTML = '<span style="color:#ef4444;">' + escapeHtml(err.message || String(err)) + '</span>';
+                buttonsDiv.innerHTML = '<button class="btn btn-primary" type="button" id="dayConfirmRetry">Try again</button>';
+                document.getElementById('dayConfirmRetry').onclick = () => handleDayConfirmOverride(store, date);
+            }
+        }
+
+        function startDayConfirmPolling(requestId, store, date) {
+            if (dayConfirmPolling) clearInterval(dayConfirmPolling);
+            const url = STORE_CONFIRM_REQ_URL + '/' + encodeURIComponent(requestId) + '/status';
+            const tick = async () => {
+                try {
+                    const resp = await authFetch(url);
+                    const result = await resp.json().catch(() => ({}));
+                    if (result.status === 'approved' && result.token) {
+                        clearInterval(dayConfirmPolling); dayConfirmPolling = null;
+                        persistDayConfirm({
+                            token: result.token,
+                            store,
+                            date,
+                            expiresInMs: result.expiresInMs,
+                        });
+                        document.getElementById('storeNumber').value = store;
+                        document.getElementById('workDate').value = date;
+                        try { autoSave(); } catch (e) {}
+                        try { loadStoreData(store); } catch (e) {}
+                        hideDayConfirmModal();
+                        showAlert(
+                            'Override Approved',
+                            'Your supervisor approved this override. You can submit EOD for store #' + escapeHtml(store) + ' on ' + escapeHtml(date) + '.'
+                        );
+                    } else if (result.status === 'denied') {
+                        clearInterval(dayConfirmPolling); dayConfirmPolling = null;
+                        document.getElementById('dayConfirmStatus').innerHTML =
+                            '<span style="color:#ef4444;">Override denied by supervisor. Please reach out to them directly.</span>';
+                        document.getElementById('dayConfirmButtons').innerHTML =
+                            '<button class="btn btn-secondary" type="button" id="dayConfirmRestart">Try a different store</button>';
+                        document.getElementById('dayConfirmRestart').onclick = () => showDayConfirmModal();
+                    } else if (result.status === 'expired') {
+                        clearInterval(dayConfirmPolling); dayConfirmPolling = null;
+                        document.getElementById('dayConfirmStatus').innerHTML =
+                            '<span style="color:#ef4444;">Override request expired (24h). Please request again.</span>';
+                        document.getElementById('dayConfirmButtons').innerHTML =
+                            '<button class="btn btn-primary" type="button" id="dayConfirmRestart">Start over</button>';
+                        document.getElementById('dayConfirmRestart').onclick = () => showDayConfirmModal();
+                    }
+                } catch (e) {
+                    // Transient errors during polling are non-fatal — keep ticking.
+                }
+            };
+            dayConfirmPolling = setInterval(tick, 5000);
+            tick();
+        }
+
+        // Drop the cached token whenever the lead changes the store or date —
+        // the next submit will trip the 412 path and re-open the modal cleanly.
+        document.addEventListener('DOMContentLoaded', () => {
+            const storeEl = document.getElementById('storeNumber');
+            const dateEl = document.getElementById('workDate');
+            const onChange = () => {
+                const stored = getActiveDayConfirm();
+                if (!stored) return;
+                const store = (storeEl?.value || '').trim();
+                const date = (dateEl?.value || '').trim();
+                if (stored.store !== normStoreNumber(store) || stored.date !== normIsoDate(date)) {
+                    clearDayConfirm();
+                }
+            };
+            storeEl?.addEventListener('change', onChange);
+            storeEl?.addEventListener('blur', onChange);
+            dateEl?.addEventListener('change', onChange);
+        });
+        // ─── /DAY-CONFIRM GATE ────────────────────────────────────────────
         const photos = {
             before: [],
             signoff: [],
@@ -3985,8 +4274,33 @@
             const saved = localStorage.getItem('kompassEOD');
             if (saved) {
                 const data = JSON.parse(saved);
+
+                // Daily reset: if the saved work date is not today's local
+                // date, drop store/date/shift state so a sticky overnight
+                // session can't auto-load yesterday's store. The day-confirm
+                // gate will then prompt the lead to re-confirm. Photos,
+                // profile, signature, and email recipients are preserved.
+                const todayIso = todayLocalIsoDate();
+                const savedDateIso = normIsoDate(data.date || '');
+                if (savedDateIso && savedDateIso !== todayIso) {
+                    delete data.storeNumber;
+                    delete data.date;
+                    delete data.selectedShift;
+                    delete data.shiftSets;
+                    delete data.notInStoreSelected;
+                    delete data.notInSiSelected;
+                    delete data.notInStoreOther;
+                    delete data.notInSiOther;
+                    // Persist the trimmed state immediately so a refresh
+                    // mid-rehydrate doesn't bring the stale values back.
+                    try { localStorage.setItem('kompassEOD', JSON.stringify(data)); } catch (e) {}
+                    // A new day also means yesterday's day-confirm token
+                    // can't be valid for today.
+                    clearDayConfirm();
+                }
+
                 document.getElementById('storeNumber').value = data.storeNumber || '';
-                document.getElementById('workDate').value = data.date || '';
+                document.getElementById('workDate').value = data.date || todayIso;
                 document.getElementById('leadName').value = data.leadName || '';
                 // Load per-store FM emails and manager name pool from API
                 if (data.storeNumber) loadStoreData(data.storeNumber);
@@ -6339,11 +6653,29 @@ ${data.Notes || ''}`;
             const loading = document.getElementById('loadingOverlay');
             loading.classList.add('show');
             try {
+                const sendStore = payload.storeNumber || document.getElementById('storeNumber').value;
+                const sendDate = payload.workDate || payload.date || document.getElementById('workDate').value;
+                const dayConfirm = getActiveDayConfirmFor(sendStore, sendDate);
+                const headers = { 'Content-Type': 'application/json' };
+                if (dayConfirm?.token) headers['X-Day-Confirm'] = dayConfirm.token;
+
                 const response = await authFetch('https://eod-api.the-dump-bin.com/send-eod', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify(payload)
                 });
+
+                if (response.status === 412) {
+                    loading.classList.remove('show');
+                    clearDayConfirm();
+                    showDayConfirmModal({
+                        store: sendStore,
+                        date: sendDate,
+                        message: '<span style="color:#fbbf24;">Please re-confirm your store for today before sending EOD.</span>',
+                    });
+                    return;
+                }
+
                 const result = await response.json();
                 loading.classList.remove('show');
                 if (result.success) {
@@ -6388,9 +6720,12 @@ ${data.Notes || ''}`;
         async function saveInstaworkImageLocally({ storeNumber, workDate, imageBase64 }) {
             let response;
             try {
+                const dayConfirm = getActiveDayConfirmFor(storeNumber, workDate);
+                const headers = { 'Content-Type': 'application/json' };
+                if (dayConfirm?.token) headers['X-Day-Confirm'] = dayConfirm.token;
                 response = await authFetch(INSTAWORK_IMAGE_SAVER_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify({ storeNumber, workDate, imageBase64 })
                 });
             } catch (e) {
@@ -6403,6 +6738,15 @@ ${data.Notes || ''}`;
                 throw new Error(
                     'Could not reach the EOD API (eod-api.the-dump-bin.com). Check your connection and try again.'
                 );
+            }
+            if (response.status === 412) {
+                clearDayConfirm();
+                showDayConfirmModal({
+                    store: storeNumber,
+                    date: workDate,
+                    message: '<span style="color:#fbbf24;">Please re-confirm your store for today before saving the InstaWork sign-out sheet.</span>',
+                });
+                throw new Error('Daily store confirmation required. Please confirm your store and try again.');
             }
             const result = await response.json().catch(() => ({}));
             if (!response.ok || !result.success) {
@@ -9375,7 +9719,7 @@ ${data.Notes || ''}`;
                 if (validation.issues.length > 0) {
                     loading.classList.remove('show');
                     loading.querySelector('span').textContent = 'Processing...';
-                    showValidationBlocked(validation, 'Add Coversheet');
+                    showValidationBlocked(validation, 'Add EOD Coversheet');
                     return;
                 }
 
