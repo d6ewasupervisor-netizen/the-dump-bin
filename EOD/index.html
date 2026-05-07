@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-05-04T16:05Z eod-completion-checks+sets-not-in -->
+<!-- build: 2026-05-07T22:50Z send-eod-workdate-fix -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -8,6 +8,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#111827">
+    <!--
+        Force fresh HTML on every load so server-side bug fixes (like the
+        send-eod workDate / day-confirm 412 issue) reach phones without
+        leads having to hard-refresh. The bundled scripts are CDN-versioned
+        already; this only stops the index.html shell from sticking.
+    -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>KOMPASS EOD COVER SHEET</title>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
