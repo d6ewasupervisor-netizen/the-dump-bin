@@ -3223,13 +3223,7 @@
 
         <!-- Action Buttons -->
         <div class="button-group">
-            <div class="toggle-switch">
-                <label class="toggle-switch-wrapper">
-                    <input type="checkbox" id="notesOnlyToggle">
-                    <span class="toggle-slider"></span>
-                </label>
-                <label class="toggle-switch-label" for="notesOnlyToggle">Notes Only</label>
-            </div>
+            <button type="button" class="btn btn-secondary" onclick="previewEodEmail()">Preview Email</button>
             <button class="btn btn-success" onclick="generateEmail()">Send Email</button>
             <button class="btn btn-coversheet" data-requires-role="lead supervisor admin" onclick="createAndSyncCoversheet()">Create Coversheet</button>
             <button class="btn btn-secondary" onclick="testSetup()">Test Setup</button>
@@ -6036,68 +6030,142 @@
             (sectionsToFlag || []).forEach(el => el.classList.add('section-invalid'));
         }
 
-        // Generate Email - builds payload and shows confirmation preview
-        async function generateEmail() {
-            const loading = document.getElementById('loadingOverlay');
-            loading.classList.add('show');
-            try {
-                const data = await collectData();
+        // Filename for each inline sign-off image (matches eod-api /send-eod)
+        function signoffPhotoAttachmentFilename(photo, i) {
+            const match = photo.match(/^data:(image\/\w+);base64,/);
+            const contentType = match ? match[1] : 'image/jpeg';
+            const ext = contentType.split('/')[1] || 'jpg';
+            return `signoff_${i}.${ext}`;
+        }
 
-                // ─── Pre-submit validation ─────────────────────────────────
-                // One pass collects EVERY missing piece (manager names,
-                // Kompass before/after photos, sign-off review state,
-                // InstaWork timesheet, PROD/SI sign-out answers) and
-                // shows the lead one consolidated checklist they can
-                // work down. Inline highlights mirror the list.
-                const validation = validateBeforeSubmit(data);
-                if (validation.issues.length > 0) {
-                    loading.classList.remove('show');
-                    applyValidationHighlights(validation);
-                    const list = validation.issues
-                        .map(msg => `<li style="margin-bottom:6px;">${msg}</li>`)
-                        .join('');
-                    const firstFlagged = document.querySelector('.field-invalid, .photo-section-invalid, .section-invalid');
-                    if (firstFlagged) {
-                        firstFlagged.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                    showAlert(
-                        'Finish your EOD before submitting',
-                        `<p style="margin:0 0 8px;">A few things still need your attention:</p>` +
-                        `<ul style="margin:0 0 8px 20px; padding:0; line-height:1.4;">${list}</ul>` +
-                        `<p style="margin:0; color:#94a3b8; font-size:13px;">Highlighted in red on the form. Once everything's done, tap <strong>Send Email</strong> again.</p>`
-                    );
-                    return;
-                }
+        // Full recipients, subject, body, attachment list + inline thumbnails (same order as the sent HTML)
+        function buildRichEmailPreviewHtml(payload, data, draftWarnings) {
+            const warnBlock = Array.isArray(draftWarnings) && draftWarnings.length
+                ? `<div style="background:#422006;border:1px solid #d97706;border-radius:8px;padding:10px 12px;margin:0 0 14px;">
+                    <p style="margin:0 0 6px;font-weight:600;color:#fde68a;">Draft preview — not ready to send</p>
+                    <p style="margin:0 0 6px;font-size:12px;color:#fcd34d;">Resolve the items below before using <strong>Send Email</strong>:</p>
+                    <ul style="margin:0;padding-left:18px;line-height:1.45;font-size:12px;color:#fef3c7;">
+                        ${draftWarnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+                    </ul>
+                </div>`
+                : '';
 
-                // All checks passed — drop any leftover red highlights
-                // from a prior failed submit attempt.
+            const instaworkSave = data._instaworkSave;
+            const iwPathTail = instaworkSave ? (instaworkSave.filePath || '').split(/[\\/]/).pop() : '';
+            const instaworkSavedRow = instaworkSave
+                ? `<p style="color:#34d399;"><strong>InstaWork sign-out sheet saved:</strong> ${escapeHtml(instaworkSave.folder + '\\' + iwPathTail)}</p>`
+                : '';
+
+            const fromAddr = `EOD_FM${data.StoreNumberPadded}@retail-odyssey.com`;
+            const recips = payload.recipients || [];
+            const toList = recips.length
+                ? `<ul style="margin:6px 0 8px 18px;padding:0;line-height:1.5;">${recips.map(r => `<li>${escapeHtml(String(r))}</li>`).join('')}</ul>`
+                : '<p style="color:#fbbf24;">(no recipients)</p>';
+
+            const pdfLi = payload.pdfBase64
+                ? `<li><strong>PDF:</strong> ${escapeHtml(payload.pdfFilename || '')}</li>`
+                : `<li style="color:#fbbf24;"><strong>PDF:</strong> not attached (generation failed)</li>`;
+
+            const signoff = Array.isArray(payload.signoffPhotos) ? payload.signoffPhotos : [];
+            const inlineLi = signoff.map((photo, i) =>
+                `<li><strong>Inline:</strong> ${escapeHtml(signoffPhotoAttachmentFilename(photo, i))}</li>`
+            ).join('');
+
+            const thumbs = signoff.length
+                ? `<div style="margin:12px 0 0;">
+                    <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Images below appear at the top of the email body, followed by the text block and signature.</p>
+                    <h4 style="margin:0 0 10px;font-size:14px;color:#e5e7eb;">Sign-Off Sheets</h4>
+                    ${signoff.map((src, i) => `
+                        <div style="margin-bottom:14px;">
+                            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">${escapeHtml(signoffPhotoAttachmentFilename(src, i))}</div>
+                            <img src="${src}" alt="Sign-off sheet ${i + 1}" style="max-width:100%;max-height:min(50vh,360px);border-radius:6px;border:1px solid #4b5563;display:block;background:#0f172a;">
+                        </div>
+                    `).join('')}
+                </div>`
+                : '<p style="margin:10px 0 0;color:#9ca3af;font-size:12px;">No sign-off photos — the email will not include inline sheet images.</p>';
+
+            const replyRow = payload.userEmail
+                ? `<p style="margin:6px 0 0;"><strong>Reply-To:</strong> ${escapeHtml(payload.userEmail)}</p>`
+                : '';
+
+            const sigBlock = payload.userName || payload.userEmail
+                ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #4b5563;font-size:12px;color:#9ca3af;">
+                    ${payload.userName ? escapeHtml(payload.userName) + '<br>' : ''}Retail Odyssey
+                    ${payload.userEmail ? '<br>' + escapeHtml(payload.userEmail) : ''}
+                </div>`
+                : '';
+
+            return `
+                <div style="text-align:left;font-size:13px;max-height:65vh;overflow-y:auto;padding-right:4px;">
+                    ${warnBlock}
+                    <p style="margin:0 0 4px;"><strong>From:</strong> ${escapeHtml(fromAddr)}</p>
+                    ${replyRow}
+                    <p style="margin:10px 0 4px;"><strong>To</strong> (${recips.length})</p>
+                    ${toList}
+                    <p style="margin:8px 0 4px;"><strong>Subject:</strong> ${escapeHtml(payload.subject)}</p>
+                    <p style="margin:10px 0 4px;"><strong>Attachments</strong></p>
+                    <ul style="margin:0 0 8px 18px;padding:0;line-height:1.45;">${pdfLi}${inlineLi}</ul>
+                    ${instaworkSavedRow}
+                    <hr style="border-color:#4b5563;margin:12px 0;">
+                    ${thumbs}
+                    <h4 style="margin:16px 0 8px;font-size:14px;color:#e5e7eb;">Message body</h4>
+                    <pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:#d1d5db;background:#1f2937;padding:10px;border-radius:6px;margin:0;">${escapeHtml(payload.body)}</pre>
+                    ${sigBlock}
+                </div>
+            `;
+        }
+
+        function showValidationBlocked(validation, sendOrPreviewLabel) {
+            applyValidationHighlights(validation);
+            const list = validation.issues.map(msg => `<li style="margin-bottom:6px;">${escapeHtml(msg)}</li>`).join('');
+            const firstFlagged = document.querySelector('.field-invalid, .photo-section-invalid, .section-invalid');
+            if (firstFlagged) {
+                firstFlagged.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showAlert(
+                'Finish your EOD first',
+                `<p style="margin:0 0 8px;">A few things still need your attention:</p>` +
+                `<ul style="margin:0 0 8px 20px; padding:0; line-height:1.4;">${list}</ul>` +
+                `<p style="margin:0; color:#94a3b8; font-size:13px;">Highlighted in red on the form. When everything looks good, tap <strong>${escapeHtml(sendOrPreviewLabel)}</strong> again.</p>`
+            );
+        }
+
+        // Shared collector for Preview Email and Send Email (always full body; legacy "notes only" removed).
+        // draft: when true, build anyway and return draftWarnings for the preview modal (Send Email still strict).
+        async function tryBuildEodEmailPayload(options = {}) {
+            const draft = !!options.draft;
+            const data = await collectData();
+            const validation = validateBeforeSubmit(data);
+
+            if (!draft && validation.issues.length > 0) {
+                return { ok: false, validation };
+            }
+
+            if (draft && validation.issues.length > 0) {
+                applyValidationHighlights(validation);
+            } else {
                 clearValidationHighlights();
+            }
 
-                const instaworkYes = !!document.getElementById('instaworkYes')?.checked;
+            const instaworkYes = !!document.getElementById('instaworkYes')?.checked;
+            const pdfFilename = `FM${data.StoreNumberPadded} KOMPASS EOD ${data.DateForPDFFilename}.PDF`;
 
-                const pdfFilename = `FM${data.StoreNumberPadded} KOMPASS EOD ${data.DateForPDFFilename}.PDF`;
+            let pdfBase64 = null;
+            try {
+                pdfBase64 = await generatePDFBase64(data);
+            } catch (pdfError) {
+                console.error('Error generating PDF:', pdfError);
+            }
 
-                // Generate PDF as base64
-                let pdfBase64 = null;
-                try {
-                    pdfBase64 = await generatePDFBase64(data);
-                } catch (pdfError) {
-                    console.error('Error generating PDF:', pdfError);
-                }
+            const instaworkSave = instaworkSavedInfo;
+            const beforeDone  = data.photos.before.length  > 0 || eodSelections.before.length > 0 || data.BeforeComplete;
+            const signoffDone = data.photos.signoff.length > 0 || eodSelections.signoff.length > 0 || data.SignoffComplete;
+            const afterDone   = data.photos.after.length   > 0 || eodSelections.after.length > 0 || data.AfterComplete;
 
-                const instaworkSave = instaworkSavedInfo;
+            const notInStoreText = formatNotInList(data.NotInStoreSelected, data.NotInStoreOther);
+            const notInSiText    = formatNotInList(data.NotInSiSelected,    data.NotInSiOther);
 
-                const notesOnly = document.getElementById('notesOnlyToggle').checked;
-                const beforeDone  = data.photos.before.length  > 0 || eodSelections.before.length > 0 || data.BeforeComplete;
-                const signoffDone = data.photos.signoff.length > 0 || eodSelections.signoff.length > 0 || data.SignoffComplete;
-                const afterDone   = data.photos.after.length   > 0 || eodSelections.after.length > 0 || data.AfterComplete;
-
-                const notInStoreText = formatNotInList(data.NotInStoreSelected, data.NotInStoreOther);
-                const notInSiText    = formatNotInList(data.NotInSiSelected,    data.NotInSiOther);
-
-                const body = notesOnly
-                    ? `Notes:\n${data.Notes || ''}`
-                    : `Lead Name: ${data.LeadName || ''}
+            const body = `Lead Name: ${data.LeadName || ''}
 Date: ${data.DateMMDDYYYY || ''}
 Store Number: ${data.StoreNumber || ''}
 Before picture of KOMPASS cart taken: ${beforeDone ? 'Yes' : 'No'}
@@ -6119,49 +6187,71 @@ Number of sign-off photos: ${data.photos.signoff.length}
 Notes:
 ${data.Notes || ''}`;
 
-                let recipients = [...emailRecipients];
-                if (document.getElementById('addRetailOdysseyTeam').checked) {
-                    recipients = [...new Set([
-                        ...recipients,
-                        'MAshabranner@retailodyssey.com',
-                        'seth.newman@retailodyssey.com',
-                        'tyson.gauthier@retailodyssey.com',
-                        'aiyana.natarisalazar@retailodyssey.com',
-                        'Amanda.Mathew@retailodyssey.com'
-                    ])];
-                }
+            let recipients = [...emailRecipients];
+            if (document.getElementById('addRetailOdysseyTeam').checked) {
+                recipients = [...new Set([
+                    ...recipients,
+                    'MAshabranner@retailodyssey.com',
+                    'seth.newman@retailodyssey.com',
+                    'tyson.gauthier@retailodyssey.com',
+                    'aiyana.natarisalazar@retailodyssey.com',
+                    'Amanda.Mathew@retailodyssey.com'
+                ])];
+            }
 
-                // Add user's own email to recipients (deduplicated)
-                const userEmail = document.getElementById('profileEmail').value.trim();
-                if (userEmail) {
-                    recipients = [...new Set([...recipients, userEmail.toLowerCase()])];
-                }
+            const userEmail = document.getElementById('profileEmail').value.trim();
+            if (userEmail) {
+                recipients = [...new Set([...recipients, userEmail.toLowerCase()])];
+            }
 
-                const userName = document.getElementById('profileName').value.trim();
-                const subject = `KOMPASS EOD FM${data.StoreNumberPadded} ${data.DateMMDDYYYY}`;
+            const userName = document.getElementById('profileName').value.trim();
+            const subject = `KOMPASS EOD FM${data.StoreNumberPadded} ${data.DateMMDDYYYY}`;
 
-                const payload = {
-                    storeNumber: data.StoreNumber,
-                    subject,
-                    body,
-                    recipients,
-                    pdfFilename,
-                    userName,
-                    userEmail,
-                    checkInManager: document.getElementById('checkInManager').value.trim(),
-                    checkOutManager: document.getElementById('checkOutManager').value.trim(),
-                    signoffPhotos: data.photos.signoff,
-                    ...(pdfBase64 && { pdfBase64 })
-                };
+            const payload = {
+                storeNumber: data.StoreNumber,
+                subject,
+                body,
+                recipients,
+                pdfFilename,
+                userName,
+                userEmail,
+                checkInManager: document.getElementById('checkInManager').value.trim(),
+                checkOutManager: document.getElementById('checkOutManager').value.trim(),
+                signoffPhotos: data.photos.signoff,
+                ...(pdfBase64 && { pdfBase64 })
+            };
 
-                // Attach InstaWork save metadata so the confirmation preview
-                // can show the user where the timesheet landed.
-                data._instaworkSave = instaworkSave;
+            data._instaworkSave = instaworkSave;
+            const draftWarnings = draft && validation.issues.length > 0 ? validation.issues.slice() : null;
+            return { ok: true, payload, data, draftWarnings };
+        }
 
+        async function previewEodEmail() {
+            const loading = document.getElementById('loadingOverlay');
+            loading.classList.add('show');
+            try {
+                const result = await tryBuildEodEmailPayload({ draft: true });
                 loading.classList.remove('show');
+                showEmailPreviewOnly(result.payload, result.data, result.draftWarnings);
+            } catch (error) {
+                console.error('Error building email preview:', error);
+                loading.classList.remove('show');
+                showAlert('Error', 'Failed to build preview: ' + error.message);
+            }
+        }
 
-                // Show confirmation preview before sending
-                showSendConfirmation(payload, data);
+        // Generate Email - builds payload and shows confirmation preview
+        async function generateEmail() {
+            const loading = document.getElementById('loadingOverlay');
+            loading.classList.add('show');
+            try {
+                const result = await tryBuildEodEmailPayload();
+                loading.classList.remove('show');
+                if (!result.ok) {
+                    showValidationBlocked(result.validation, 'Send Email');
+                    return;
+                }
+                showSendConfirmation(result.payload, result.data);
             } catch (error) {
                 console.error('Error generating email:', error);
                 loading.classList.remove('show');
@@ -6169,32 +6259,41 @@ ${data.Notes || ''}`;
             }
         }
 
+        function showEmailPreviewOnly(payload, data, draftWarnings) {
+            const previewHtml = buildRichEmailPreviewHtml(payload, data, draftWarnings);
+            const modal = document.getElementById('modal');
+            document.getElementById('modalTitle').textContent =
+                draftWarnings && draftWarnings.length ? 'Email Preview (draft)' : 'Email Preview';
+            document.getElementById('modalMessage').innerHTML = previewHtml;
+
+            const oldConfirm = document.getElementById('modalConfirm');
+            const newConfirm = oldConfirm.cloneNode(true);
+            oldConfirm.parentNode.replaceChild(newConfirm, oldConfirm);
+            newConfirm.textContent = 'Close';
+
+            const oldCancel = document.getElementById('modalCancel');
+            const newCancel = oldCancel.cloneNode(true);
+            oldCancel.parentNode.replaceChild(newCancel, oldCancel);
+            newCancel.style.display = 'none';
+
+            modal.classList.add('show');
+
+            newConfirm.addEventListener('click', () => {
+                modal.classList.remove('show');
+                newConfirm.textContent = 'OK';
+                newCancel.style.display = 'inline-block';
+            });
+        }
+
         // Show send confirmation modal with email preview
         function showSendConfirmation(payload, data) {
-            const instaworkSave = data._instaworkSave;
-            const instaworkSavedRow = instaworkSave
-                ? `<p style="color:#34d399;"><strong>InstaWork sign-out sheet saved:</strong> ${instaworkSave.folder}\\${(instaworkSave.filePath || '').split(/[\\/]/).pop()}</p>`
-                : '';
-            const previewHtml = `
-                <div style="text-align:left; font-size:13px; max-height:60vh; overflow-y:auto;">
-                    <p><strong>From:</strong> EOD_FM${data.StoreNumberPadded}@retail-odyssey.com</p>
-                    <p><strong>To:</strong> ${payload.recipients.join(', ') || '(none)'}</p>
-                    <p><strong>Subject:</strong> ${payload.subject}</p>
-                    ${payload.pdfBase64 ? '<p><strong>Attachment:</strong> ' + payload.pdfFilename + '</p>' : '<p style="color:#fbbf24;"><strong>Attachment:</strong> PDF generation failed</p>'}
-                    ${payload.signoffPhotos.length > 0 ? '<p><strong>Sign-off photos:</strong> ' + payload.signoffPhotos.length + ' (inline)</p>' : ''}
-                    ${instaworkSavedRow}
-                    <hr style="border-color:#4b5563; margin:10px 0;">
-                    <pre style="white-space:pre-wrap; font-size:12px; color:#d1d5db; background:#1f2937; padding:10px; border-radius:6px; max-height:200px; overflow-y:auto;">${payload.body}</pre>
-                    ${payload.userName ? '<p style="margin-top:8px; color:#9ca3af; font-size:12px;">' + payload.userName + '<br>Retail Odyssey' + (payload.userEmail ? '<br>' + payload.userEmail : '') + '</p>' : ''}
-                </div>
-            `;
+            const previewHtml = buildRichEmailPreviewHtml(payload, data, null);
 
             const modal = document.getElementById('modal');
             document.getElementById('modalTitle').textContent = 'Confirm Send';
             document.getElementById('modalMessage').innerHTML = previewHtml;
             document.getElementById('modalCancel').style.display = 'inline-block';
 
-            // Clone both buttons to clear stale listeners
             const oldConfirm = document.getElementById('modalConfirm');
             const newConfirm = oldConfirm.cloneNode(true);
             oldConfirm.parentNode.replaceChild(newConfirm, oldConfirm);
