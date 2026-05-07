@@ -11,7 +11,6 @@
     <title>KOMPASS EOD COVER SHEET</title>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -2545,70 +2544,11 @@
             text-decoration: underline;
         }
 
-        .login-logo-wrap {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        .login-logo {
-            max-width: 200px;
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .login-logo-fallback {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: #f9fafb;
-            text-align: center;
-            letter-spacing: 0.05em;
-        }
-        @media screen and (max-width: 480px) {
-            .login-logo { max-width: 160px; }
-        }
+
 
     </style>
 </head>
 <body>
-<!-- Login Overlay -->
-<div id="loginOverlay" style="position:fixed;inset:0;background:#111827;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;">
-    <div style="background:#020617;border:2px solid #0d4f8b;border-radius:12px;padding:30px;max-width:400px;width:100%;text-align:center;">
-        <div class="login-logo-wrap">
-          <img src="rologo.png"
-               alt="Retail Odyssey"
-               class="login-logo"
-               onerror="this.outerHTML='<div class=&quot;login-logo-fallback&quot;>Retail Odyssey</div>'">
-        </div>
-        <p style="color:#9ca3af;margin-bottom:24px;">Sign in to continue</p>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <input type="email" id="loginEmail" placeholder="Email" style="padding:12px;border:1px solid #4b5563;border-radius:8px;background:#374151;color:#f9fafb;font-size:16px;">
-            <div class="password-wrapper">
-              <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" style="padding:12px;border:1px solid #4b5563;border-radius:8px;background:#374151;color:#f9fafb;font-size:16px;">
-              <button type="button" class="password-peek-btn" id="passwordPeekBtn"
-                      onclick="togglePasswordPeek('loginPassword', 'passwordPeekBtn')"
-                      aria-label="Show password">
-                <svg class="peek-icon-eye" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <svg class="peek-icon-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                     style="display:none;">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              </button>
-            </div>
-            <div class="forgot-password-row">
-              <a href="#" class="forgot-password-link" onclick="handleForgotPassword(event)">Forgot password?</a>
-            </div>
-            <button id="loginBtn" onclick="handleLogin()" style="padding:14px;background:#0d4f8b;color:white;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;min-height:44px;">Sign In</button>
-            <div id="loginError" style="color:#f87171;font-size:14px;min-height:20px;"></div>
-        </div>
-    </div>
-</div>
     <div class="container">
         <div class="header" onclick="openQuickView()">
             <button class="refresh-connections-btn" id="refreshConnectionsBtn" onclick="event.stopPropagation(); refreshConnections();" title="Refresh SAS / Rebotics auth">
@@ -3461,195 +3401,62 @@
 
     <script>
         // Initialize
-        // ─── SUPABASE AUTH ────────────────────────────────────────────────────────
-        const SUPABASE_URL = 'https://jcmlxrwnjxzhdijshqpe.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_X-8iPVaFi2O-CLE-OoLyOw_7o5frEO9';
-        const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let sbSession = null;
+        // ─── AUTH — Cloudflare Access ─────────────────────────────────────────────
+        // Cloudflare Access gates the entire site before the page loads.
+        // No second login is needed. Roles come from /api/me (which reads the
+        // CF JWT forwarded by Cloudflare to Railway via Cf-Access-Jwt-Assertion).
 
-        function applyUserRoles(session) {
+        function applyUserRoles(roles) {
             document.body.className = document.body.className
                 .split(' ')
                 .filter(c => !c.startsWith('role-'))
                 .join(' ');
 
-            const roles = session?.user?.user_metadata?.roles || [];
-            roles.forEach(role => {
+            (roles || []).forEach(role => {
                 document.body.classList.add(`role-${role}`);
             });
 
             document.querySelectorAll('[data-requires-role]').forEach(el => {
                 const requiredRoles = (el.dataset.requiresRole || '').split(/\s+/).filter(Boolean);
-                const hasMatchingRole = requiredRoles.some(r => roles.includes(r));
-                el.classList.toggle('role-visible', hasMatchingRole);
+                el.classList.toggle('role-visible', requiredRoles.some(r => (roles || []).includes(r)));
             });
         }
 
-        // ─── PASSWORD RESET CALLBACK HANDLER ──────────────────────────────────────
-        (async () => {
-            const params = new URLSearchParams(window.location.search);
-            const code = params.get('code');
-            if (code) {
-                try {
-                    const { error } = await sbClient.auth.exchangeCodeForSession(code);
-                    if (error) console.error('Code exchange failed:', error.message);
-                } catch (err) {
-                    console.error('Code exchange error:', err);
-                }
-                window.history.replaceState({}, '', window.location.pathname);
-            }
-        })();
-
-        function togglePasswordPeek(inputId, btnId) {
-            const input = document.getElementById(inputId);
-            const btn = document.getElementById(btnId);
-            if (!input || !btn) return;
-            const eyeIcon = btn.querySelector('.peek-icon-eye');
-            const eyeOffIcon = btn.querySelector('.peek-icon-eye-off');
-            const isHidden = input.type === 'password';
-            input.type = isHidden ? 'text' : 'password';
-            if (eyeIcon && eyeOffIcon) {
-                eyeIcon.style.display = isHidden ? 'none' : 'block';
-                eyeOffIcon.style.display = isHidden ? 'block' : 'none';
-            }
-            btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
-        }
-
-        async function handleForgotPassword(event) {
-            if (event) event.preventDefault();
-            const emailField = document.getElementById('loginEmail');
-            let email = emailField ? emailField.value.trim() : '';
-            if (!email) {
-                email = (window.prompt('Enter your email to receive a reset link:') || '').trim();
-            }
-            if (!email) return;
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                showAlert('Invalid Email', 'Please enter a valid email address.');
-                return;
-            }
-            try {
-                const redirectTo = window.location.origin + window.location.pathname;
-                const { error } = await sbClient.auth.resetPasswordForEmail(email, { redirectTo });
-                if (error) {
-                    console.error('Password reset error:', error);
-                    showAlert('Reset Link', 'If an account exists for ' + email + ', a reset link has been sent.');
-                    return;
-                }
-                showAlert('Reset Link Sent', 'If an account exists for ' + email + ', a reset link has been sent. Check your inbox (and spam folder).');
-            } catch (err) {
-                console.error('Password reset exception:', err);
-                showAlert('Reset Link', 'If an account exists for ' + email + ', a reset link has been sent.');
-            }
-        }
-
-        async function handleLogin() {
-            const email = document.getElementById('loginEmail').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            const errorDiv = document.getElementById('loginError');
-            const btn = document.getElementById('loginBtn');
-
-            if (!email || !password) {
-                errorDiv.textContent = 'Please enter email and password.';
-                return;
-            }
-
-            btn.disabled = true;
-            btn.textContent = 'Signing in...';
-            errorDiv.textContent = '';
-
-            const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                errorDiv.textContent = error.message;
-                btn.disabled = false;
-                btn.textContent = 'Sign In';
-                return;
-            }
-
-            sbSession = data.session;
-            applyUserRoles(data.session);
-            document.getElementById('loginOverlay').style.display = 'none';
-            // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
-        }
-
-        async function getAuthToken() {
-            const { data: { session } } = await sbClient.auth.getSession();
-            if (session) {
-                sbSession = session;
-                return session.access_token;
-            }
-            return null;
-        }
-
         async function authFetch(url, options = {}) {
-            const token = await getAuthToken();
-            if (!token) {
-                document.getElementById('loginOverlay').style.display = 'flex';
-                throw new Error('Not authenticated');
-            }
-            const headers = options.headers || {};
-            headers['Authorization'] = `Bearer ${token}`;
-            // Cloudflare Access fronts the EOD API on eod-api.the-dump-bin.com.
-            // The CF_Authorization cookie that proves we're authenticated is set
-            // on the parent zone (.the-dump-bin.com), so we MUST send credentials
-            // on every API request — otherwise Cloudflare Access strips the
-            // request before it reaches Railway and the API responds with 401
-            // "Missing Cloudflare Access JWT".
-            const resp = await fetch(url, { ...options, headers, credentials: 'include' });
+            // CF_Authorization cookie is scoped to .the-dump-bin.com and sent
+            // automatically via credentials:'include'. No Bearer token required.
+            const resp = await fetch(url, { ...options, credentials: 'include' });
 
             if (resp.status === 401) {
                 try {
-                    const cloned = resp.clone();
-                    const errData = await cloned.json();
+                    const errData = await resp.clone().json();
                     if (errData.error && errData.error.toLowerCase().includes('sas session')) {
                         setAuthStatus('red');
                     }
-                } catch (e) {
-                    // ignore parse errors
-                }
+                } catch (e) { /* ignore */ }
             }
 
             return resp;
         }
 
-        // Check for existing session on load
-        sbClient.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                sbSession = session;
-                applyUserRoles(session);
-                document.getElementById('loginOverlay').style.display = 'none';
-                // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
-            }
-        });
-
-        // Listen for token refresh / sign out / password recovery
-        sbClient.auth.onAuthStateChange((event, session) => {
-            if (event === 'PASSWORD_RECOVERY') {
-                sbSession = session;
-                document.getElementById('loginOverlay').style.display = 'none';
-                const newPass = prompt('Enter your new password:');
-                if (newPass && newPass.length >= 6) {
-                    sbClient.auth.updateUser({ password: newPass }).then(({ error }) => {
-                        if (error) {
-                            alert('Password update failed: ' + error.message);
-                        } else {
-                            alert('Password updated. You are now logged in.');
-                        }
-                    });
+        // Fetch identity and roles from the API on load
+        (async () => {
+            try {
+                const resp = await authFetch('https://eod-api.the-dump-bin.com/api/me');
+                if (resp.ok) {
+                    const me = await resp.json();
+                    applyUserRoles(me.roles || []);
+                    // Pre-populate profile email from CF identity if not already saved
+                    const profileEl = document.getElementById('profileEmail');
+                    if (profileEl && !profileEl.value.trim() && me.email) {
+                        profileEl.value = me.email;
+                        saveProfile();
+                    }
                 }
-                return;
+            } catch (e) {
+                console.warn('[auth] Could not fetch /api/me:', e.message);
             }
-            if (event === 'SIGNED_OUT' || !session) {
-                sbSession = null;
-                applyUserRoles(null);
-                document.getElementById('loginOverlay').style.display = 'flex';
-                // TODO: admin-section restore — re-enable resetWeeklyTasksSession() / initWeeklyTasks() when admin gate is built
-            } else {
-                sbSession = session;
-                applyUserRoles(session);
-                // TODO: admin-section restore — re-enable initWeeklyTasks() here when admin gate is built
-            }
-        });
+        })();
         const photos = {
             before: [],
             signoff: [],
@@ -8306,7 +8113,7 @@ ${data.Notes || ''}`;
                     const data = await resp.json();
 
                     if (resp.ok && (data.success || data.added)) {
-                        const roles = sbSession?.user?.user_metadata?.roles || [];
+                        const roles = (document.body.className.match(/role-(\w+)/g) || []).map(r => r.replace('role-', ''));
                         const isLeadOnly = roles.includes('lead') && !roles.includes('supervisor') && !roles.includes('admin');
 
                         if (isLeadOnly) {
