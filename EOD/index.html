@@ -2007,7 +2007,22 @@
             to { opacity: 1; transform: translateX(0); }
         }
 
-        /* Create Coversheet button */
+        /* Add Coversheet (Kompass ISE after photo) */
+        .coversheet-action-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+        }
+
+        .coversheet-action-wrap .coversheet-hint {
+            margin: 0;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.35;
+            max-width: 280px;
+        }
+
         .btn-coversheet {
             background: linear-gradient(135deg, #0d4f8b 0%, #1e66ab 100%);
             color: white;
@@ -3225,7 +3240,10 @@
         <div class="button-group">
             <button type="button" class="btn btn-secondary" onclick="previewEodEmail()">Preview Email</button>
             <button class="btn btn-success" onclick="generateEmail()">Send Email</button>
-            <button class="btn btn-coversheet" data-requires-role="lead supervisor admin" onclick="createAndSyncCoversheet()">Create Coversheet</button>
+            <div class="coversheet-action-wrap" data-requires-role="lead supervisor admin">
+                <button type="button" class="btn btn-coversheet" title="Automatically add the complete coversheet to your Kompass ISE shift." onclick="prepareCoversheetPreview()">Add Coversheet</button>
+                <span class="coversheet-hint">Automatically add the complete coversheet to your Kompass ISE shift.</span>
+            </div>
             <button class="btn btn-secondary" onclick="testSetup()">Test Setup</button>
             <button class="btn btn-secondary" onclick="resetForm()">Reset</button>
         </div>
@@ -9249,53 +9267,25 @@ ${data.Notes || ''}`;
             }
         }
 
-        // ─── CREATE COVERSHEET (PDF → image → SAS after) ───────────────────────────
-        async function createAndSyncCoversheet() {
-            const storeNumber = document.getElementById('storeNumber').value;
-            const date = document.getElementById('workDate').value;
-            const leadName = document.getElementById('leadName').value;
-            const hasVisitId = selectedShift && selectedShift.visitId;
-
-            if (!storeNumber || !date || (!leadName && !hasVisitId)) {
-                showAlert('Missing Info', hasVisitId ? 'Please fill in Store # and Date before creating the coversheet.' : 'Please fill in Store #, Date, and Lead Name before creating the coversheet.');
-                return;
-            }
-
+        // ─── ADD COVERSHEET — same completeness checks as Send Email; review then upload ─
+        async function uploadCoversheetToKompassIseShift(payload) {
             const loading = document.getElementById('loadingOverlay');
-            loading.querySelector('span').textContent = 'Generating coversheet...';
+            loading.querySelector('span').textContent = 'Uploading coversheet to Kompass ISE...';
             loading.classList.add('show');
 
             try {
-                // Step 1: Collect data and generate PDF
-                const data = await collectData();
-                const pdfBase64 = await generatePDFBase64(data);
-
-                if (!pdfBase64) {
-                    throw new Error('PDF generation failed');
-                }
-
-                // Step 2: Convert PDF first page to image using canvas
-                loading.querySelector('span').textContent = 'Converting to image...';
-                const coversheetImage = await pdfToImage(pdfBase64);
-
-                // Step 3: Upload to SAS as MAINTENANCE after photo
-                loading.querySelector('span').textContent = 'Uploading coversheet to SAS...';
-                const storeNumPadded = String(storeNumber).padStart(3, '0');
-                const dateCompact = date.replace(/-/g, '');
-                const filename = `fm${storeNumPadded}_eod_coversheet_${dateCompact}.jpg`;
-
                 const resp = await authFetch(SAS_UPLOAD_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        storeNumber,
-                        date,
-                        leadName,
-                        ...(selectedShift && selectedShift.visitId ? { visitId: selectedShift.visitId } : {}),
-                        photoBase64: coversheetImage,
+                        storeNumber: payload.storeNumber,
+                        date: payload.date,
+                        leadName: payload.leadName,
+                        ...(payload.visitId ? { visitId: payload.visitId } : {}),
+                        photoBase64: payload.coversheetImage,
                         slot: 'after',
                         targetReset: 'MAINTENANCE',
-                        filename,
+                        filename: payload.filename,
                     }),
                 });
 
@@ -9305,15 +9295,135 @@ ${data.Notes || ''}`;
                 loading.querySelector('span').textContent = 'Processing...';
 
                 if (result.success) {
-                    showAlert('Coversheet Created', `EOD coversheet generated and queued for upload to SAS.<br><br>Job #${result.jobId}`);
+                    showAlert(
+                        'Coversheet Added',
+                        `Your EOD coversheet was uploaded as an <strong>after</strong> photo for this store's Kompass ISE shift.<br><br>Job #${result.jobId}`
+                    );
                 } else {
-                    showAlert('Upload Issue', `Coversheet was generated but upload had an issue: ${result.error || 'Unknown error'}.<br><br>The job may still be queued for retry.`);
+                    showAlert(
+                        'Upload Issue',
+                        `Coversheet was ready but upload had an issue: ${result.error || 'Unknown error'}.<br><br>The job may still be queued for retry.`
+                    );
                 }
             } catch (err) {
                 loading.classList.remove('show');
                 loading.querySelector('span').textContent = 'Processing...';
+                console.error('[coversheet] Upload error:', err);
+                showAlert('Error', 'Failed to upload coversheet: ' + err.message);
+            }
+        }
+
+        function showCoversheetReviewModal(imageDataUrl, pending) {
+            const previewHtml =
+                `<div style="text-align:left; font-size:14px;">
+                    <p style="margin:0 0 10px;">This is how your coversheet will appear as an <strong>after</strong> photo on your Kompass ISE shift.</p>
+                    <p style="margin:0 0 14px;color:#94a3b8;font-size:13px;">Tap <strong>Add to Kompass ISE shift</strong> only when everything looks correct.</p>
+                    <div style="max-height:56vh; overflow-y:auto;">
+                        <img src="${imageDataUrl}" alt="Coversheet preview" style="max-width:100%; border-radius:8px;border:1px solid #4b5563;display:block;background:#0f172a;">
+                    </div>
+                </div>`;
+
+            const modal = document.getElementById('modal');
+            document.getElementById('modalTitle').textContent = 'Review coversheet';
+            document.getElementById('modalMessage').innerHTML = previewHtml;
+            document.getElementById('modalCancel').style.display = 'inline-block';
+
+            const oldConfirm = document.getElementById('modalConfirm');
+            const newConfirm = oldConfirm.cloneNode(true);
+            oldConfirm.parentNode.replaceChild(newConfirm, oldConfirm);
+            newConfirm.textContent = 'Add to Kompass ISE shift';
+
+            const oldCancel = document.getElementById('modalCancel');
+            const newCancel = oldCancel.cloneNode(true);
+            oldCancel.parentNode.replaceChild(newCancel, oldCancel);
+            newCancel.textContent = 'Cancel';
+
+            modal.classList.add('show');
+
+            const fullPayload = {
+                ...pending,
+                coversheetImage: imageDataUrl,
+            };
+
+            newConfirm.addEventListener('click', async () => {
+                modal.classList.remove('show');
+                document.getElementById('modalConfirm').textContent = 'OK';
+                document.getElementById('modalCancel').style.display = 'inline-block';
+                await uploadCoversheetToKompassIseShift(fullPayload);
+            });
+            newCancel.addEventListener('click', () => {
+                modal.classList.remove('show');
+                document.getElementById('modalConfirm').textContent = 'OK';
+                document.getElementById('modalCancel').style.display = 'inline-block';
+            });
+        }
+
+        async function prepareCoversheetPreview() {
+            const storeNumber = document.getElementById('storeNumber').value.trim();
+            const date = document.getElementById('workDate').value.trim();
+            const leadName = document.getElementById('leadName').value.trim();
+            const hasVisitId = selectedShift && selectedShift.visitId;
+
+            const loading = document.getElementById('loadingOverlay');
+            loading.querySelector('span').textContent = 'Checking form...';
+            loading.classList.add('show');
+
+            try {
+                const data = await collectData();
+                const validation = validateBeforeSubmit(data);
+
+                if (validation.issues.length > 0) {
+                    loading.classList.remove('show');
+                    loading.querySelector('span').textContent = 'Processing...';
+                    showValidationBlocked(validation, 'Add Coversheet');
+                    return;
+                }
+
+                clearValidationHighlights();
+
+                if (!storeNumber || !date || (!leadName && !hasVisitId)) {
+                    loading.classList.remove('show');
+                    loading.querySelector('span').textContent = 'Processing...';
+                    showAlert(
+                        'Missing Info',
+                        hasVisitId
+                            ? 'Please fill in Store # and Date before adding the coversheet.'
+                            : 'Please fill in Store #, Date, and Lead Name before adding the coversheet.'
+                    );
+                    return;
+                }
+
+                loading.querySelector('span').textContent = 'Generating coversheet...';
+                const pdfBase64 = await generatePDFBase64(data);
+
+                if (!pdfBase64) {
+                    throw new Error('PDF generation failed');
+                }
+
+                loading.querySelector('span').textContent = 'Converting to image...';
+                const coversheetImage = await pdfToImage(pdfBase64);
+
+                const storeNumPadded = String(storeNumber).padStart(3, '0');
+                const dateCompact = date.replace(/-/g, '');
+                const filename = `fm${storeNumPadded}_eod_coversheet_${dateCompact}.jpg`;
+
+                const visitId = selectedShift && selectedShift.visitId ? selectedShift.visitId : undefined;
+
+                loading.classList.remove('show');
+                loading.querySelector('span').textContent = 'Processing...';
+
+                showCoversheetReviewModal(coversheetImage, {
+                    storeNumber,
+                    date,
+                    leadName: document.getElementById('leadName').value,
+                    filename,
+                    ...(visitId !== undefined ? { visitId } : {}),
+                });
+            } catch (err) {
+                loading.classList.remove('show');
+                loading.querySelector('span').textContent = 'Processing...';
                 console.error('[coversheet] Error:', err);
-                showAlert('Error', 'Failed to create coversheet: ' + err.message);
+                showAlert('Error', 'Failed to prepare coversheet: ' + err.message);
             }
         }
 
