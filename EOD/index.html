@@ -18,11 +18,6 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>KOMPASS EOD COVER SHEET</title>
-    <!-- Site-wide auth gate (the-dump-bin.com). Must load before everything
-         else so the magic-link ?token= handoff happens before any app code
-         runs and so we redirect to /signin.html before sensitive markup
-         paints if the user has no session. -->
-    <script src="/auth-gate.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <style>
@@ -3578,32 +3573,34 @@
 
     <script>
         // Initialize
-        // ─── AUTH — Site-wide session JWT (the-dump-bin.com) ────────────────────
-        // The boot guard, magic-link ?token= exchange, and localStorage
-        // bookkeeping all live in /auth-gate.js now. By the time this script
-        // runs we are guaranteed to either:
-        //   (a) have a valid session JWT in localStorage.dumpBinSession, or
-        //   (b) be mid-redirect to /signin.html (in which case nothing below
-        //       matters because the page will navigate away).
-        //
-        // The thin wrappers below just keep the call sites readable. They
-        // could be inlined as window.dumpBinAuth.* calls -- the local names
-        // exist for the SAS-401 red-dot logic inside authFetch() which is
-        // EOD-specific and stays here.
+        // ─── AUTH — Email magic-link + session JWT ───────────────────────────────
+        // Replaces the old Cloudflare Access cookie. Flow:
+        //   1. signin.html collects the email and calls /api/request-link.
+        //   2. The user clicks the link in their email, which lands here as
+        //      /EOD/index.html?token=<single-use-jwt>.
+        //   3. exchangeLinkToken() below trades it for a long-lived (45-day)
+        //      session JWT via GET /api/verify-token and stores it in
+        //      localStorage.eodSession.
+        //   4. authFetch() sends `Authorization: Bearer <jwt>` on every API
+        //      call. A 401 wipes the stored token and bounces the user to
+        //      signin.html. Roles still come from /api/me on the API side.
 
-        const EOD_API_BASE = window.dumpBinAuth ? window.dumpBinAuth.API_BASE : 'https://eod-api.the-dump-bin.com';
+        const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
+        const EOD_SESSION_KEY = 'eodSession';
 
         function getEodSession() {
-            return window.dumpBinAuth ? window.dumpBinAuth.getSession() : '';
+            try { return localStorage.getItem(EOD_SESSION_KEY) || ''; } catch (_) { return ''; }
+        }
+        function setEodSession(t) {
+            try { localStorage.setItem(EOD_SESSION_KEY, t); } catch (_) {}
         }
         function clearEodSession() {
-            if (window.dumpBinAuth) window.dumpBinAuth.clearSession();
+            try { localStorage.removeItem(EOD_SESSION_KEY); } catch (_) {}
         }
         function bounceToSignIn(reason) {
-            if (window.dumpBinAuth) { window.dumpBinAuth.bounceToSignIn(reason); return; }
-            console.warn('[auth] bouncing to signin (no gate present)', reason || '');
-            try { localStorage.removeItem('dumpBinSession'); } catch (_) {}
-            window.location.replace('/signin.html');
+            console.warn('[auth] bouncing to signin.html', reason || '');
+            clearEodSession();
+            window.location.replace('signin.html');
         }
 
         function applyUserRoles(roles) {
@@ -3623,16 +3620,18 @@
         }
 
         async function authFetch(url, options = {}) {
-            // Defer the actual fetch + Bearer header to the shared gate so
-            // there's a single code path. We disable the gate's auto-bounce
-            // because EOD wants to *classify* 401s: a SAS-session 401 just
-            // toggles the red dot in the header, while an EOD-session 401
-            // forces a full re-sign-in.
-            const resp = window.dumpBinAuthFetch
-                ? await window.dumpBinAuthFetch(url, Object.assign({}, options, { noBounceOn401: true }))
-                : await fetch(url, options);
+            const tok = getEodSession();
+            const headers = Object.assign({}, options.headers || {});
+            if (tok) headers.Authorization = 'Bearer ' + tok;
+            // credentials:'include' is intentionally omitted -- the new auth
+            // is header-based, and a stale CF_Authorization cookie would only
+            // cause CORS friction.
+            const resp = await fetch(url, Object.assign({}, options, { headers }));
 
             if (resp.status === 401) {
+                // Distinguish "EOD session expired" (force re-sign-in) from
+                // "SAS session expired" (a separate downstream auth flag the
+                // UI surfaces with the red dot).
                 let errPayload = null;
                 try { errPayload = await resp.clone().json(); } catch (_) {}
                 const errText = (errPayload && (errPayload.error || '')).toString().toLowerCase();
@@ -3646,12 +3645,45 @@
             return resp;
         }
 
-        // /auth-gate.js has already ensured we have a session (or redirected
-        // away). All we need to do here is fetch /api/me and apply roles.
+        // Step 1: exchange the magic-link ?token=… for a session JWT. Runs
+        // BEFORE the /api/me call below. Resolves to true iff a session is
+        // now in place (either pre-existing or freshly minted).
+        async function exchangeLinkToken() {
+            const urlParams = new URLSearchParams(location.search);
+            const linkTok = urlParams.get('token');
+            if (!linkTok) return !!getEodSession();
+
+            try {
+                const resp = await fetch(`${EOD_API_BASE}/api/verify-token?token=${encodeURIComponent(linkTok)}`, {
+                    method: 'GET',
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data.ok || !data.token) {
+                    console.warn('[auth] /api/verify-token rejected the link:', data && data.error);
+                    // Strip the bad token from the URL so a reload doesn't replay it.
+                    urlParams.delete('token');
+                    const qs = urlParams.toString();
+                    history.replaceState({}, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+                    // Surface a one-shot error message after sign-in.
+                    try { sessionStorage.setItem('eodSignInError', data.error || 'This sign-in link is invalid or has been used.'); } catch (_) {}
+                    return !!getEodSession();
+                }
+                setEodSession(data.token);
+                urlParams.delete('token');
+                const qs = urlParams.toString();
+                history.replaceState({}, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+                return true;
+            } catch (err) {
+                console.warn('[auth] /api/verify-token threw:', err && err.message);
+                return !!getEodSession();
+            }
+        }
+
+        // Boot guard + identity fetch.
         (async () => {
-            if (!getEodSession()) {
-                // Defensive — should be unreachable if auth-gate.js loaded.
-                bounceToSignIn('no session at EOD boot');
+            const haveSession = await exchangeLinkToken();
+            if (!haveSession) {
+                bounceToSignIn('no session and no ?token=');
                 return;
             }
 
