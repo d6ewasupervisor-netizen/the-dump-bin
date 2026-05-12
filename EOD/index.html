@@ -3580,27 +3580,43 @@
         //      /EOD/index.html?token=<single-use-jwt>.
         //   3. exchangeLinkToken() below trades it for a long-lived (45-day)
         //      session JWT via GET /api/verify-token and stores it in
-        //      localStorage.eodSession.
+        //      localStorage.dumpBinSession (same key as /auth-gate.js).
         //   4. authFetch() sends `Authorization: Bearer <jwt>` on every API
         //      call. A 401 wipes the stored token and bounces the user to
-        //      signin.html. Roles still come from /api/me on the API side.
+        //      /signin.html. Roles still come from /api/me on the API side.
 
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-        const EOD_SESSION_KEY = 'eodSession';
+        const SESSION_KEY = 'dumpBinSession';
+        const LEGACY_SESSION_KEY = 'eodSession'; // pre-rename; auto-migrated on first read (matches auth-gate.js)
 
         function getEodSession() {
-            try { return localStorage.getItem(EOD_SESSION_KEY) || ''; } catch (_) { return ''; }
+            try {
+                var v = localStorage.getItem(SESSION_KEY);
+                if (v) return v;
+                var legacy = localStorage.getItem(LEGACY_SESSION_KEY);
+                if (legacy) {
+                    try {
+                        localStorage.setItem(SESSION_KEY, legacy);
+                        localStorage.removeItem(LEGACY_SESSION_KEY);
+                    } catch (_) {}
+                    return legacy;
+                }
+            } catch (_) {}
+            return '';
         }
         function setEodSession(t) {
-            try { localStorage.setItem(EOD_SESSION_KEY, t); } catch (_) {}
+            try { localStorage.setItem(SESSION_KEY, t); } catch (_) {}
         }
         function clearEodSession() {
-            try { localStorage.removeItem(EOD_SESSION_KEY); } catch (_) {}
+            try {
+                localStorage.removeItem(SESSION_KEY);
+                localStorage.removeItem(LEGACY_SESSION_KEY);
+            } catch (_) {}
         }
         function bounceToSignIn(reason) {
             console.warn('[auth] bouncing to signin.html', reason || '');
             clearEodSession();
-            window.location.replace('signin.html');
+            window.location.replace('/signin.html');
         }
 
         function applyUserRoles(roles) {
