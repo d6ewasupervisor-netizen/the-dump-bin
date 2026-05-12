@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>The Dump Bin — Sign in</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --card-bg: #ffffff;
+      --card-border: #e5e7eb;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --primary: #1a3a6e;
+      --primary-hover: #14305d;
+      --success: #15803d;
+      --success-bg: #ecfdf5;
+      --success-border: #bbf7d0;
+      --error: #b91c1c;
+      --error-bg: #fef2f2;
+      --error-border: #fecaca;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      margin: 0;
+      padding: 32px 16px;
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .container { max-width: 520px; margin: 0 auto; }
+    .brand { text-align: center; margin-bottom: 24px; }
+    .brand img { height: 60px; max-width: 100%; }
+    h1 { font-size: 26px; color: var(--primary); margin: 0 0 8px; text-align: center; }
+    .lead { color: var(--text-muted); text-align: center; margin: 0 0 24px; font-size: 15px; line-height: 1.5; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.06);
+      padding: 28px;
+    }
+    .card h2 { margin: 0 0 6px; font-size: 18px; color: var(--primary); }
+    label { display: block; font-weight: 600; font-size: 13px; margin: 14px 0 6px; color: var(--text); }
+    input[type="text"], input[type="email"] {
+      width: 100%;
+      padding: 12px 14px;
+      font: inherit;
+      font-size: 16px;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      background: #fff;
+    }
+    input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+    .help-text { font-size: 13px; color: var(--text-muted); margin: 6px 0 0; }
+    button.primary, button.secondary {
+      width: 100%;
+      padding: 14px 18px;
+      font: inherit;
+      font-weight: 700;
+      border-radius: 8px;
+      border: 0;
+      cursor: pointer;
+      margin-top: 16px;
+      font-size: 15px;
+    }
+    button.primary { background: var(--primary); color: #fff; }
+    button.primary:hover { background: var(--primary-hover); }
+    button.primary:disabled { background: #9ca3af; cursor: not-allowed; }
+    button.secondary { background: #f3f4f6; color: var(--text); }
+    .notice {
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      border: 1px solid transparent;
+    }
+    .notice-ok { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+    .notice-error { background: var(--error-bg); color: var(--error); border-color: var(--error-border); }
+    .hidden { display: none !important; }
+    footer { text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 24px; }
+    footer a { color: var(--text-muted); }
+
+    /* Access-request overlay */
+    .access-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .access-overlay-backdrop {
+      position: absolute; inset: 0; background: rgba(15, 23, 42, .55); backdrop-filter: blur(2px);
+    }
+    .access-overlay-panel {
+      position: relative; background: var(--card-bg); border-radius: 14px; max-width: 460px; width: 100%;
+      padding: 28px; box-shadow: 0 20px 40px rgba(0,0,0,.18);
+    }
+    .access-overlay-icon-wrap { display: flex; justify-content: center; margin-bottom: 12px; }
+    .access-overlay-icon-bg {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #eef2ff; color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .access-overlay-icon-bg svg { width: 28px; height: 28px; }
+    .access-overlay-panel h2 { margin: 0 0 8px; color: var(--primary); text-align: center; }
+    .access-overlay-lead { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin: 0 0 16px; text-align: center; }
+    .access-overlay-cancel { background: transparent; color: var(--text-muted); padding: 10px; font-size: 13px; }
+    .access-overlay-cancel:hover { color: var(--primary); }
+    .access-overlay-success { text-align: center; }
+    .access-overlay-success-icon {
+      width: 64px; height: 64px; border-radius: 50%; background: var(--success-bg); color: var(--success);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;
+    }
+    body.overlay-open { overflow: hidden; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <div class="brand"><img src="/logo-banner.png" alt="Retail Odyssey Company" /></div>
+    <h1>Sign in to The Dump Bin</h1>
+    <p class="lead">Enter your email to receive your sign-in link. One link signs you in to every tool on this site for 45 days on this device.</p>
+
+    <section class="card" aria-labelledby="form-heading">
+      <h2 id="form-heading">Request your link</h2>
+      <div id="status" class="notice hidden" role="status" aria-live="polite"></div>
+      <label for="email">Email</label>
+      <input
+        id="email"
+        type="email"
+        autocomplete="email"
+        inputmode="email"
+        placeholder="your.email@example.com"
+        autocapitalize="none"
+        spellcheck="false"
+      />
+      <p class="help-text">Use the email your supervisor has on file. The link is single-use and will only work in the browser you opened the email in.</p>
+      <button id="send-btn" class="primary" type="button">Send my sign-in link</button>
+    </section>
+
+    <footer>
+      Retail Odyssey &middot; The Dump Bin &middot;
+      <a href="/admin.html">Admin</a>
+    </footer>
+  </main>
+
+  <!-- Access-request overlay: shown when the API says the email isn't on the access list. -->
+  <div id="access-overlay" class="access-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="overlay-heading">
+    <div id="overlay-backdrop" class="access-overlay-backdrop"></div>
+    <div class="access-overlay-panel" role="document">
+      <div class="access-overlay-icon-wrap">
+        <div class="access-overlay-icon-bg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+      </div>
+
+      <h2 id="overlay-heading">You're not on the access list yet</h2>
+      <p class="access-overlay-lead">Fill in your details and a supervisor will review your request. Once approved, you'll receive a sign-in link at the email you provide.</p>
+
+      <div id="overlay-status" class="notice hidden" role="status" aria-live="polite"></div>
+
+      <div id="overlay-form">
+        <label for="overlay-name">Your full name</label>
+        <input id="overlay-name" type="text" autocomplete="name" placeholder="Jane Smith" />
+
+        <label for="overlay-email">Email address</label>
+        <input id="overlay-email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="your.email@example.com" />
+
+        <label for="overlay-reason">Supervisor / reason <span style="font-weight:400; color:var(--text-muted);">(optional)</span></label>
+        <input id="overlay-reason" type="text" placeholder="e.g. EOD coverage for store 1234, sent by April" />
+
+        <button id="overlay-submit" class="primary" type="button">Request access</button>
+        <button id="overlay-cancel" class="access-overlay-cancel" type="button">Cancel — try a different email</button>
+      </div>
+
+      <div id="overlay-success" class="access-overlay-success hidden">
+        <div class="access-overlay-success-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <h2 style="color: var(--success);">Request sent</h2>
+        <p>A supervisor will review your request. You'll get a sign-in link by email once it's approved.</p>
+        <button id="overlay-close-success" class="secondary" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // API base resolution. Override with #api=http://localhost:3001 for dev.
+      const API_BASE = (function () {
+        const hashApi = (location.hash.match(/api=([^&]+)/) || [])[1];
+        if (hashApi) return decodeURIComponent(hashApi).replace(/\/+$/, '');
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+          return 'http://localhost:3001';
+        }
+        return 'https://eod-api.the-dump-bin.com';
+      })();
+
+      const SESSION_KEY = 'dumpBinSession';
+      const LEGACY_KEY  = 'eodSession';
+
+      // If the user is already signed in, bounce them to the hub home (or
+      // wherever ?next= asked them to go originally). We don't validate the
+      // JWT here -- if it's stale, the destination's gate will catch it.
+      try {
+        const haveSession = localStorage.getItem(SESSION_KEY) || localStorage.getItem(LEGACY_KEY);
+        if (haveSession) {
+          const next = (new URLSearchParams(location.search)).get('next');
+          window.location.replace(next && next.indexOf('/') === 0 ? next : '/');
+          return;
+        }
+      } catch (_) { /* localStorage disabled; carry on */ }
+
+      const emailEl   = document.getElementById('email');
+      const sendBtn   = document.getElementById('send-btn');
+      const statusEl  = document.getElementById('status');
+
+      const overlay          = document.getElementById('access-overlay');
+      const overlayBackdrop  = document.getElementById('overlay-backdrop');
+      const overlayForm      = document.getElementById('overlay-form');
+      const overlaySuccess   = document.getElementById('overlay-success');
+      const overlayStatus    = document.getElementById('overlay-status');
+      const overlayName      = document.getElementById('overlay-name');
+      const overlayEmail     = document.getElementById('overlay-email');
+      const overlayReason    = document.getElementById('overlay-reason');
+      const overlaySubmit    = document.getElementById('overlay-submit');
+      const overlayCancel    = document.getElementById('overlay-cancel');
+      const overlayCloseOk   = document.getElementById('overlay-close-success');
+
+      const ACCESS_LIST_ERROR = 'not on the access list';
+
+      // Show any one-shot sign-in error stashed by auth-gate.js (e.g. expired
+      // magic link).
+      try {
+        const stashed = sessionStorage.getItem('dumpBinSignInError');
+        if (stashed) {
+          sessionStorage.removeItem('dumpBinSignInError');
+          showStatus('error', stashed);
+        }
+      } catch (_) {}
+
+      function isValidEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s); }
+      function showStatus(kind, msg) {
+        statusEl.className = 'notice ' + (kind === 'error' ? 'notice-error' : 'notice-ok');
+        statusEl.textContent = msg;
+        statusEl.classList.remove('hidden');
+      }
+      function hideStatus() { statusEl.classList.add('hidden'); }
+      function showOverlayStatus(kind, msg) {
+        overlayStatus.className = 'notice ' + (kind === 'error' ? 'notice-error' : 'notice-ok');
+        overlayStatus.textContent = msg;
+        overlayStatus.classList.remove('hidden');
+      }
+      function hideOverlayStatus() { overlayStatus.classList.add('hidden'); }
+
+      function openOverlay(prefillEmail) {
+        overlayEmail.value = prefillEmail || '';
+        overlayName.value  = '';
+        overlayReason.value = '';
+        overlaySubmit.disabled    = false;
+        overlaySubmit.textContent = 'Request access';
+        hideOverlayStatus();
+        overlayForm.classList.remove('hidden');
+        overlaySuccess.classList.add('hidden');
+        overlay.classList.remove('hidden');
+        document.body.classList.add('overlay-open');
+        setTimeout(function () { overlayName.focus(); }, 80);
+      }
+      function closeOverlay() {
+        overlay.classList.add('hidden');
+        document.body.classList.remove('overlay-open');
+        emailEl.focus();
+      }
+      overlayBackdrop.addEventListener('click', closeOverlay);
+      overlayCancel.addEventListener('click', closeOverlay);
+      overlayCloseOk.addEventListener('click', closeOverlay);
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeOverlay();
+      });
+      overlay.querySelector('.access-overlay-panel').addEventListener('click', function (e) { e.stopPropagation(); });
+
+      async function send() {
+        hideStatus();
+        const email = (emailEl.value || '').trim().toLowerCase();
+        if (!isValidEmail(email)) {
+          showStatus('error', 'Please enter a valid email address.');
+          return;
+        }
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending\u2026';
+        try {
+          const res = await fetch(API_BASE + '/api/request-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json().catch(function () { return {}; });
+          if (!res.ok || !data.ok) {
+            const msg = data.error || 'Could not send link. Please try again.';
+            showStatus('error', msg);
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send my sign-in link';
+            if (msg.toLowerCase().includes(ACCESS_LIST_ERROR)) {
+              openOverlay(email);
+            }
+            return;
+          }
+          showStatus('ok', 'Check your email \u2014 your sign-in link is on its way.');
+          emailEl.value = '';
+          sendBtn.textContent = 'Sent';
+          setTimeout(function () {
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send my sign-in link';
+          }, 4000);
+        } catch (err) {
+          showStatus('error', 'Network error. Please try again.');
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send my sign-in link';
+        }
+      }
+      sendBtn.addEventListener('click', send);
+      emailEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+
+      async function submitAccessRequest() {
+        hideOverlayStatus();
+        const name   = (overlayName.value   || '').trim();
+        const email  = (overlayEmail.value  || '').trim().toLowerCase();
+        const reason = (overlayReason.value || '').trim();
+
+        if (!name) { showOverlayStatus('error', 'Please enter your full name.'); overlayName.focus(); return; }
+        if (!isValidEmail(email)) { showOverlayStatus('error', 'Please enter a valid email address.'); overlayEmail.focus(); return; }
+
+        overlaySubmit.disabled = true;
+        overlaySubmit.textContent = 'Submitting\u2026';
+        try {
+          const res = await fetch(API_BASE + '/api/access-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, reason }),
+          });
+          const data = await res.json().catch(function () { return {}; });
+          if (!res.ok || !data.ok) {
+            showOverlayStatus('error', data.error || 'Could not submit your request. Please try again.');
+            overlaySubmit.disabled = false;
+            overlaySubmit.textContent = 'Request access';
+            return;
+          }
+          overlayForm.classList.add('hidden');
+          overlaySuccess.classList.remove('hidden');
+          overlayCloseOk.focus();
+        } catch (err) {
+          showOverlayStatus('error', 'Network error. Please try again.');
+          overlaySubmit.disabled = false;
+          overlaySubmit.textContent = 'Request access';
+        }
+      }
+      overlaySubmit.addEventListener('click', submitAccessRequest);
+      overlayEmail.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAccessRequest(); });
+      overlayReason.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAccessRequest(); });
+    })();
+  </script>
+</body>
+</html>

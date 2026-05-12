@@ -18,6 +18,11 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>KOMPASS EOD COVER SHEET</title>
+    <!-- Site-wide auth gate (the-dump-bin.com). Must load before everything
+         else so the magic-link ?token= handoff happens before any app code
+         runs and so we redirect to /signin.html before sensitive markup
+         paints if the user has no session. -->
+    <script src="/auth-gate.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <style>
@@ -3573,10 +3578,33 @@
 
     <script>
         // Initialize
-        // ─── AUTH — Cloudflare Access ─────────────────────────────────────────────
-        // Cloudflare Access gates the entire site before the page loads.
-        // No second login is needed. Roles come from /api/me (which reads the
-        // CF JWT forwarded by Cloudflare to Railway via Cf-Access-Jwt-Assertion).
+        // ─── AUTH — Site-wide session JWT (the-dump-bin.com) ────────────────────
+        // The boot guard, magic-link ?token= exchange, and localStorage
+        // bookkeeping all live in /auth-gate.js now. By the time this script
+        // runs we are guaranteed to either:
+        //   (a) have a valid session JWT in localStorage.dumpBinSession, or
+        //   (b) be mid-redirect to /signin.html (in which case nothing below
+        //       matters because the page will navigate away).
+        //
+        // The thin wrappers below just keep the call sites readable. They
+        // could be inlined as window.dumpBinAuth.* calls -- the local names
+        // exist for the SAS-401 red-dot logic inside authFetch() which is
+        // EOD-specific and stays here.
+
+        const EOD_API_BASE = window.dumpBinAuth ? window.dumpBinAuth.API_BASE : 'https://eod-api.the-dump-bin.com';
+
+        function getEodSession() {
+            return window.dumpBinAuth ? window.dumpBinAuth.getSession() : '';
+        }
+        function clearEodSession() {
+            if (window.dumpBinAuth) window.dumpBinAuth.clearSession();
+        }
+        function bounceToSignIn(reason) {
+            if (window.dumpBinAuth) { window.dumpBinAuth.bounceToSignIn(reason); return; }
+            console.warn('[auth] bouncing to signin (no gate present)', reason || '');
+            try { localStorage.removeItem('dumpBinSession'); } catch (_) {}
+            window.location.replace('/signin.html');
+        }
 
         function applyUserRoles(roles) {
             document.body.className = document.body.className
@@ -3595,43 +3623,60 @@
         }
 
         async function authFetch(url, options = {}) {
-            // CF_Authorization cookie is scoped to .the-dump-bin.com and sent
-            // automatically via credentials:'include'. No Bearer token required.
-            const resp = await fetch(url, { ...options, credentials: 'include' });
+            // Defer the actual fetch + Bearer header to the shared gate so
+            // there's a single code path. We disable the gate's auto-bounce
+            // because EOD wants to *classify* 401s: a SAS-session 401 just
+            // toggles the red dot in the header, while an EOD-session 401
+            // forces a full re-sign-in.
+            const resp = window.dumpBinAuthFetch
+                ? await window.dumpBinAuthFetch(url, Object.assign({}, options, { noBounceOn401: true }))
+                : await fetch(url, options);
 
             if (resp.status === 401) {
-                try {
-                    const errData = await resp.clone().json();
-                    if (errData.error && errData.error.toLowerCase().includes('sas session')) {
-                        setAuthStatus('red');
-                    }
-                } catch (e) { /* ignore */ }
+                let errPayload = null;
+                try { errPayload = await resp.clone().json(); } catch (_) {}
+                const errText = (errPayload && (errPayload.error || '')).toString().toLowerCase();
+                if (errText.includes('sas session')) {
+                    setAuthStatus('red');
+                } else {
+                    bounceToSignIn(errText || 'API returned 401');
+                }
             }
 
             return resp;
         }
 
-        // Fetch identity and roles from the API on load
+        // /auth-gate.js has already ensured we have a session (or redirected
+        // away). All we need to do here is fetch /api/me and apply roles.
         (async () => {
+            if (!getEodSession()) {
+                // Defensive — should be unreachable if auth-gate.js loaded.
+                bounceToSignIn('no session at EOD boot');
+                return;
+            }
+
             try {
-                const resp = await authFetch('https://eod-api.the-dump-bin.com/api/me');
+                const resp = await authFetch(`${EOD_API_BASE}/api/me`);
                 if (resp.ok) {
                     const me = await resp.json();
                     applyUserRoles(me.roles || []);
-                    // Pre-populate profile email from CF identity if not already saved
+                    // Pre-populate profile email from server identity if not already saved.
                     const profileEl = document.getElementById('profileEmail');
                     if (profileEl && !profileEl.value.trim() && me.email) {
                         profileEl.value = me.email;
                         saveProfile();
                     }
+                } else if (resp.status === 401) {
+                    return; // authFetch already bounced.
                 }
             } catch (e) {
                 console.warn('[auth] Could not fetch /api/me:', e.message);
             } finally {
                 // Run the daily store-confirmation gate AFTER auth resolves so
-                // verify-store has a valid CF identity to check against. If
-                // /api/me failed, the gate still fires — the user just sees a
-                // clearer error message than a silent submit-time failure.
+                // verify-store has a valid identity to check against. If /api/me
+                // failed at the network layer (offline, etc.) the gate still
+                // fires -- the user just sees a clearer error message than a
+                // silent submit-time failure.
                 try { enforceDayConfirmGate(); } catch (e) { console.warn('[day-confirm] gate failed:', e); }
             }
         })();
@@ -7080,9 +7125,9 @@ ${data.Notes || ''}`;
 
         // ─── InstaWork sign-out sheet (EOD API — mobile + desktop) ───────────
         // MUST use the hosted EOD API — never localhost. Phone browsers cannot
-        // reach 127.0.0.1 on a store PC; Cloudflare Access + authFetch() carry
-        // the session JWT. Server-side delivery is SharePoint (Graph), optional
-        // local disk, or email — see eod-api/src/instawork-router.js.
+        // reach 127.0.0.1 on a store PC; authFetch() carries the session JWT.
+        // Server-side delivery is SharePoint (Graph), optional local disk, or
+        // email — see eod-api/src/instawork-router.js.
         const INSTAWORK_IMAGE_SAVER_URL = 'https://eod-api.the-dump-bin.com/instawork/save-image';
 
         // Render the user's captured InstaWork photo to a high-quality JPEG
@@ -7931,10 +7976,9 @@ ${data.Notes || ''}`;
         });
 
         // ─── SHIFT MANAGEMENT ────────────────────────────────────────────────────────
-        // Cloudflare Access fronts the API on this hostname. Hitting the raw
-        // Railway URL (eod-api-production.up.railway.app) bypasses Access, which
-        // makes the API reject every request with 401 "Missing Cloudflare Access
-        // JWT" — see eod-api/docs/cloudflare-access-setup.md.
+        // Always use the public hostname (eod-api.the-dump-bin.com) so the
+        // browser sends the same Origin and cookies as the rest of the app.
+        // Auth is the Bearer session JWT carried by authFetch().
         const SM_API_BASE = 'https://eod-api.the-dump-bin.com';
         let smShifts = [];
         let smSelectedShift = null;

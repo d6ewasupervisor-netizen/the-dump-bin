@@ -1,4 +1,9 @@
-const CACHE_NAME = 'suncare-pog-v2';
+// v3 bumps the cache name because suncare/index.html now loads /auth-gate.js
+// and we don't want previously-installed PWAs serving the pre-gate HTML.
+// skipWaiting + clients.claim make the new gate active on the very next
+// page load instead of "the load after the next" — important for staff
+// machines that don't get manually refreshed.
+const CACHE_NAME = 'suncare-pog-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +17,7 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(ASSETS))
@@ -69,12 +75,13 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keyList) => {
-      return Promise.all(keyList.map((key) => {
+    Promise.all([
+      caches.keys().then((keyList) => Promise.all(keyList.map((key) => {
         if (key !== CACHE_NAME) {
           return caches.delete(key);
         }
-      }));
-    })
+      }))),
+      self.clients.claim(),
+    ])
   );
 });

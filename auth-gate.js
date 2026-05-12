@@ -1,0 +1,234 @@
+/*
+ * the-dump-bin.com — site-wide auth gate
+ * --------------------------------------
+ * Replaces the old Cloudflare Access cookie that used to protect every page.
+ * Every gated HTML page in this repo loads this script as the very first
+ * thing in <head>. The flow is:
+ *
+ *   1. signin.html collects the user's email and asks eod-api to mail them
+ *      a one-shot magic link (POST /api/request-link).
+ *   2. The email links to https://the-dump-bin.com/?token=<single-use-jwt>
+ *      (or any other gated page with ?token=).
+ *   3. This script swaps the link token for a long-lived session JWT via
+ *      GET /api/verify-token and stores it in localStorage.dumpBinSession.
+ *   4. window.dumpBinAuthFetch() sends `Authorization: Bearer <jwt>` on
+ *      every API call. A 401 wipes the stored token and bounces the user
+ *      back to signin.html (unless the caller opts out, e.g. EOD's red-dot
+ *      logic for downstream SAS-session 401s).
+ *
+ * Public (un-gated) pages: signin.html, admin.html. Everything else under
+ * the-dump-bin.com requires a session.
+ */
+(function () {
+  'use strict';
+
+  var SESSION_KEY = 'dumpBinSession';
+  var LEGACY_KEY  = 'eodSession'; // pre-rename; auto-migrated on first read
+  var SIGNIN_PATH = '/signin.html';
+  var ADMIN_PATH  = '/admin.html';
+
+  // Public paths that MUST stay reachable without a session. Anything else
+  // is gated. The /admin.html flow has its own login UI (admin password,
+  // not the user magic-link), so we leave it un-gated here.
+  var PUBLIC_PATHS = [SIGNIN_PATH, ADMIN_PATH];
+
+  // Resolve the API base the same way signin.html / admin.html do.
+  // Override locally with #api=http://localhost:3001 for dev.
+  var API_BASE = (function () {
+    var hashApi = (location.hash.match(/api=([^&]+)/) || [])[1];
+    if (hashApi) return decodeURIComponent(hashApi).replace(/\/+$/, '');
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+    return 'https://eod-api.the-dump-bin.com';
+  })();
+
+  function getSession() {
+    try {
+      var v = localStorage.getItem(SESSION_KEY);
+      if (v) return v;
+      // Migrate the older EOD-only key once.
+      var legacy = localStorage.getItem(LEGACY_KEY);
+      if (legacy) {
+        try {
+          localStorage.setItem(SESSION_KEY, legacy);
+          localStorage.removeItem(LEGACY_KEY);
+        } catch (_) {}
+        return legacy;
+      }
+    } catch (_) {}
+    return '';
+  }
+  function setSession(v) { try { localStorage.setItem(SESSION_KEY, v); } catch (_) {} }
+  function clearSession() {
+    try {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(LEGACY_KEY);
+    } catch (_) {}
+  }
+
+  function currentPathname() {
+    var p = (location.pathname || '/').toLowerCase();
+    // Treat "/foo/" the same as "/foo/index.html" for matching.
+    return p;
+  }
+  function isPublicPath() {
+    var p = currentPathname();
+    for (var i = 0; i < PUBLIC_PATHS.length; i++) {
+      if (p === PUBLIC_PATHS[i].toLowerCase()) return true;
+    }
+    return false;
+  }
+
+  function bounceToSignIn(reason) {
+    clearSession();
+    if (isPublicPath()) return;
+    try { console.warn('[auth-gate] redirect to signin:', reason || ''); } catch (_) {}
+    var next = encodeURIComponent(location.pathname + location.search + location.hash);
+    location.replace(SIGNIN_PATH + '?next=' + next);
+  }
+
+  // Hide the page body while we're settling auth. Without this, a magic-link
+  // arrival (?token=) flashes the un-gated page content for a beat while the
+  // exchange roundtrips. Removed once the exchange completes or the redirect
+  // fires.
+  var _hideStyle = null;
+  function hidePage() {
+    if (_hideStyle) return;
+    _hideStyle = document.createElement('style');
+    _hideStyle.id = '__dumpbin_auth_gate_hide';
+    _hideStyle.textContent = 'html, body { visibility: hidden !important; }';
+    (document.head || document.documentElement).appendChild(_hideStyle);
+  }
+  function revealPage() {
+    if (_hideStyle && _hideStyle.parentNode) {
+      _hideStyle.parentNode.removeChild(_hideStyle);
+    }
+    _hideStyle = null;
+  }
+
+  async function exchangeLinkToken() {
+    var qp = new URLSearchParams(location.search);
+    var linkToken = qp.get('token');
+    if (!linkToken) return !!getSession();
+
+    hidePage();
+    try {
+      var res = await fetch(API_BASE + '/api/verify-token?token=' + encodeURIComponent(linkToken));
+      var data = await res.json().catch(function () { return {}; });
+      // Always strip the token from the URL so a refresh can't replay it.
+      qp.delete('token');
+      var newUrl = location.pathname + (qp.toString() ? ('?' + qp.toString()) : '') + location.hash;
+      try { history.replaceState({}, '', newUrl); } catch (_) {}
+
+      if (!res.ok || !data.ok || !data.token) {
+        try { sessionStorage.setItem('dumpBinSignInError', (data && data.error) || 'This sign-in link is invalid or has been used.'); } catch (_) {}
+        return !!getSession();
+      }
+      setSession(data.token);
+      return true;
+    } catch (err) {
+      try { console.warn('[auth-gate] verify-token failed:', err && err.message); } catch (_) {}
+      return !!getSession();
+    }
+  }
+
+  // dumpBinAuthFetch: Bearer-fortified fetch.
+  //
+  // Options accepted on top of the standard fetch RequestInit:
+  //   noBounceOn401 — don't redirect on a 401. The caller will handle it
+  //                   (used by EOD/index.html for SAS-session 401s).
+  //
+  // String URLs that start with "/api/" are resolved against API_BASE so
+  // callers can write `dumpBinAuthFetch('/api/me')` without thinking about
+  // the cross-origin Railway hostname.
+  async function authFetch(url, opts) {
+    opts = opts || {};
+    var headers = Object.assign({}, opts.headers || {});
+    var tok = getSession();
+    if (tok) headers.Authorization = 'Bearer ' + tok;
+
+    var fullUrl = url;
+    if (typeof url === 'string' && url.indexOf('/api/') === 0) {
+      fullUrl = API_BASE + url;
+    }
+
+    var passThru = Object.assign({}, opts);
+    delete passThru.noBounceOn401;
+    passThru.headers = headers;
+
+    var res;
+    try {
+      res = await fetch(fullUrl, passThru);
+    } catch (err) {
+      throw err;
+    }
+
+    if (res.status === 401 && !opts.noBounceOn401) {
+      var body = '';
+      try { body = await res.clone().text(); } catch (_) {}
+      // Leave downstream-auth 401s (SAS / Rebotics tokens etc.) to the
+      // caller. Our own session 401s wipe state and force re-sign-in.
+      if (!/sas session|rebotics session/i.test(body)) {
+        bounceToSignIn('401 from ' + url);
+      }
+    }
+    return res;
+  }
+
+  function signOut() {
+    clearSession();
+    location.assign(SIGNIN_PATH);
+  }
+
+  // Public surface. Defined synchronously so callers don't have to wait
+  // for the boot IIFE.
+  window.dumpBinAuth = {
+    API_BASE: API_BASE,
+    getSession: getSession,
+    setSession: setSession,
+    clearSession: clearSession,
+    signOut: signOut,
+    fetch: authFetch,
+    bounceToSignIn: bounceToSignIn,
+  };
+  window.dumpBinAuthFetch = authFetch;
+  window.dumpBinSignOut   = signOut;
+
+  // ── Boot guard ────────────────────────────────────────────────────────
+  //
+  // 1. Public pages (signin/admin) don't run the gate — they have their
+  //    own UI for collecting credentials.
+  // 2. If a ?token= is present, swap it for a session JWT. Hide the page
+  //    until the exchange finishes so the user doesn't see a flash.
+  // 3. Otherwise: if we have a session, do nothing and let the page
+  //    render. If we don't, redirect to signin.html before anything
+  //    sensitive can render.
+  (async function boot() {
+    if (isPublicPath()) {
+      revealPage();
+      return;
+    }
+
+    var qp = new URLSearchParams(location.search);
+    var hasToken = !!qp.get('token');
+    var hadSession = !!getSession();
+
+    if (!hadSession && !hasToken) {
+      // Fast path: no token, no session — bounce before any render.
+      hidePage();
+      bounceToSignIn('no session and no ?token=');
+      return;
+    }
+
+    if (hasToken) {
+      hidePage();
+      var ok = await exchangeLinkToken();
+      if (!ok) {
+        bounceToSignIn('verify-token did not produce a session');
+        return;
+      }
+    }
+    revealPage();
+  })();
+})();
