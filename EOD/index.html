@@ -1705,6 +1705,69 @@
             margin-left: 8px;
         }
 
+        /* Photo storage indicator + optimize button. Lives just below the
+           Sign-Off Sheets photo section so leads can see what their photos
+           are taking up in IndexedDB and one-tap re-compress any backlog
+           that pre-dates the per-type compression pipeline. */
+        .storage-panel {
+            margin-top: 14px;
+            padding: 10px 12px;
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-left: 3px solid #10b981;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #d1d5db;
+        }
+        .storage-panel .storage-info {
+            flex: 1;
+            min-width: 180px;
+            line-height: 1.4;
+        }
+        .storage-panel .storage-size {
+            font-weight: 700;
+            color: #a7f3d0;
+        }
+        .storage-panel .storage-hint {
+            display: block;
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+        .storage-panel .storage-hint.warn {
+            color: #fde68a;
+        }
+        .storage-optimize-btn {
+            padding: 8px 16px;
+            background: #065f46;
+            color: #a7f3d0;
+            border: 1px solid #10b981;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            min-height: 36px;
+            touch-action: manipulation;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .storage-optimize-btn:hover { background: #047857; }
+        .storage-optimize-btn:active { transform: scale(0.96); }
+        .storage-optimize-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .storage-optimize-btn.running {
+            background: #1e40af;
+            border-color: #3b82f6;
+            color: #bfdbfe;
+        }
+
         /* Weekly Tasks / Rebotics */
         .rebotics-auth-badge {
             display: inline-flex;
@@ -3098,6 +3161,16 @@
                 <div id="previewSignoff" class="photo-preview"></div>
             </div>
 
+            <div class="storage-panel" id="storagePanel">
+                <div class="storage-info">
+                    <span>Photo storage: <span class="storage-size" id="storageSize">--</span> across <span id="storageCount">0</span> photo<span id="storageCountPlural">s</span>.</span>
+                    <span class="storage-hint" id="storageHint">Newer captures are compressed automatically.</span>
+                </div>
+                <button type="button" class="storage-optimize-btn" id="optimizeStorageBtn" onclick="optimizeAllStoredPhotos()" title="Re-compress any older full-size photos still in storage. Sign-off sheets stay legible; Kompass cart photos drop to minimal quality.">
+                    Compress old photos
+                </button>
+            </div>
+
         </div>
 
         <!-- EOD Fields -->
@@ -4321,6 +4394,11 @@
             PhotoDB.savePhotos(photos).catch(e => {
                 console.warn('Could not save photos to IndexedDB:', e);
             });
+
+            // Keep the storage indicator + Compress-old-photos button in
+            // sync with whatever just changed. Cheap — just sums string
+            // lengths over a few arrays.
+            try { refreshStorageIndicator(); } catch (e) {}
         }
 
         // Load saved data
@@ -4514,6 +4592,10 @@
             } catch (e) {
                 console.warn('Could not load photos from IndexedDB:', e);
             }
+            // Storage indicator reflects whatever just came back from
+            // IndexedDB so the "Compress old photos" button surfaces
+            // pre-existing backlog the moment the app opens.
+            try { refreshStorageIndicator(); } catch (e) {}
         }
 
         // Profile load/save (separate localStorage key, never cleared by resetForm)
@@ -4722,6 +4804,10 @@
                         }
                     }
 
+                    // Compress to per-type JPEG before storage so we never
+                    // persist a multi-MB PNG. See PHOTO_STORAGE_COMPRESSION.
+                    correctedDataUrl = await optimizePhotoForStorage(correctedDataUrl, type);
+
                     // Only add if not a duplicate
                     if (!isPhotoAlreadyAdded(photos[type], correctedDataUrl)) {
                         if (type === 'instawork') {
@@ -4752,17 +4838,26 @@
                     console.error('Error processing image:', error);
                     // Fallback to basic loading if orientation correction fails
                     const reader = new FileReader();
-                    reader.onload = (e) => {
+                    reader.onload = async (e) => {
+                        // Still try to compress in the fallback path so a
+                        // failed orientation step doesn't leak a raw multi-MB
+                        // photo into IndexedDB.
+                        let fallbackData = e.target.result;
+                        try {
+                            fallbackData = await optimizePhotoForStorage(fallbackData, type);
+                        } catch (compressErr) {
+                            console.warn('Fallback compression failed:', compressErr);
+                        }
                         // Only add if not a duplicate
-                        if (!isPhotoAlreadyAdded(photos[type], e.target.result)) {
+                        if (!isPhotoAlreadyAdded(photos[type], fallbackData)) {
                             if (type === 'instawork') {
-                                photos.instawork = [e.target.result];
+                                photos.instawork = [fallbackData];
                                 instaworkSavedInfo = null;
                                 const statusEl = document.getElementById('instaworkSaveStatus');
                                 if (statusEl) statusEl.style.display = 'none';
                                 reopenInstaworkPanel();
                             } else {
-                                photos[type].push(e.target.result);
+                                photos[type].push(fallbackData);
                                 if (type === 'signoff') {
                                     signoffNeedsReview.push(true);
                                 }
@@ -4873,6 +4968,228 @@
                 img.onerror = reject;
                 img.src = dataUrl;
             });
+        }
+
+        // Per-type compression policy applied at capture/save time so we
+        // never persist multi-MB PNGs to IndexedDB. Sign-off and InstaWork
+        // sheets stay large/high-quality because the form text and
+        // signatures must remain legible after the downstream PDF stage
+        // downscales them again. Kompass cart photos only need to show
+        // shelf state, so they drop to minimal quality for ~20-40x storage
+        // savings vs the previous PNG pipeline.
+        const PHOTO_STORAGE_COMPRESSION = {
+            signoff:   { maxWidth: 2400, maxHeight: 3200, quality: 0.90, label: 'sign-off' },
+            instawork: { maxWidth: 2400, maxHeight: 3200, quality: 0.90, label: 'InstaWork' },
+            before:    { maxWidth: 1280, maxHeight: 1280, quality: 0.65, label: 'cart-before' },
+            after:     { maxWidth: 1280, maxHeight: 1280, quality: 0.65, label: 'cart-after' }
+        };
+
+        // Resize + JPEG-encode a captured photo before it's stored in
+        // IndexedDB or sent over the wire. All capture paths (file picker,
+        // custom camera overlay, image editor save) should run their final
+        // dataURL through this helper. Falls back to the input on error so
+        // a failed compression never loses the lead's photo.
+        async function optimizePhotoForStorage(dataUrl, type) {
+            const cfg = PHOTO_STORAGE_COMPRESSION[type];
+            if (!cfg || !dataUrl || typeof dataUrl !== 'string') return dataUrl;
+            // Remote URLs (PROD-synced previews) aren't ours to recompress
+            if (dataUrl.startsWith('http')) return dataUrl;
+            try {
+                const optimized = await compressImageForPDF(
+                    dataUrl,
+                    cfg.maxWidth,
+                    cfg.maxHeight,
+                    cfg.quality
+                );
+                const beforeKB = Math.round(dataUrl.length / 1024);
+                const afterKB = Math.round(optimized.length / 1024);
+                console.log(`[photo:${cfg.label}] stored ${afterKB}KB (was ${beforeKB}KB, ${beforeKB > 0 ? Math.round((1 - afterKB / beforeKB) * 100) : 0}% smaller)`);
+                return optimized;
+            } catch (e) {
+                console.warn(`Photo optimization failed for ${type}, keeping original:`, e);
+                return dataUrl;
+            }
+        }
+
+        // Soft per-type storage budgets (in bytes) — anything noticeably
+        // bigger than this is treated as "needs re-compression" by the
+        // optimize-existing flow. These are intentionally generous so we
+        // only re-encode photos that actually pre-date the new pipeline.
+        const PHOTO_STORAGE_BUDGET_BYTES = {
+            signoff:   2_400_000, // ~2.4 MB
+            instawork: 2_400_000,
+            before:      600_000, // ~600 KB
+            after:       600_000
+        };
+
+        // Decide whether an already-stored photo should be re-compressed
+        // by the one-shot optimize button. We skip remote previews and
+        // anything that's already a small JPEG.
+        function photoNeedsRecompression(dataUrl, type) {
+            if (!dataUrl || typeof dataUrl !== 'string') return false;
+            if (dataUrl.startsWith('http')) return false;
+            // Pre-pipeline captures were PNG — always recompress.
+            if (dataUrl.startsWith('data:image/png')) return true;
+            const budget = PHOTO_STORAGE_BUDGET_BYTES[type];
+            // Treat each base64 char as ~0.75 bytes of decoded data; fine for a budget check.
+            const approxBytes = Math.floor(dataUrl.length * 0.75);
+            return budget ? approxBytes > budget : false;
+        }
+
+        // Sum the total in-memory size of all stored photos plus a
+        // per-type breakdown, used to drive the storage indicator panel
+        // under the Sign-Off Sheets section.
+        function getPhotoStorageStats() {
+            const types = ['before', 'after', 'signoff', 'instawork'];
+            const stats = { totalBytes: 0, totalCount: 0, needsRecompressCount: 0, byType: {} };
+            for (const t of types) {
+                const arr = (photos && photos[t]) || [];
+                let bytes = 0;
+                let needs = 0;
+                for (const p of arr) {
+                    if (typeof p !== 'string') continue;
+                    bytes += Math.floor(p.length * 0.75);
+                    if (photoNeedsRecompression(p, t)) needs++;
+                }
+                stats.byType[t] = { count: arr.length, bytes, needs };
+                stats.totalBytes += bytes;
+                stats.totalCount += arr.length;
+                stats.needsRecompressCount += needs;
+            }
+            return stats;
+        }
+
+        function formatBytesShort(n) {
+            if (!Number.isFinite(n) || n <= 0) return '0 KB';
+            if (n < 1024) return `${n} B`;
+            if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+            return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+        }
+
+        // Refresh the storage indicator + button state. Safe to call
+        // anywhere; no-ops if the panel isn't in the DOM yet.
+        function refreshStorageIndicator() {
+            const panel = document.getElementById('storagePanel');
+            if (!panel) return;
+            const sizeEl = document.getElementById('storageSize');
+            const countEl = document.getElementById('storageCount');
+            const pluralEl = document.getElementById('storageCountPlural');
+            const hintEl = document.getElementById('storageHint');
+            const btn = document.getElementById('optimizeStorageBtn');
+            if (!sizeEl || !countEl || !btn) return;
+            // Don't stomp on transient running text — the optimize flow
+            // updates the hint and button label directly while it runs.
+            if (btn.classList.contains('running')) return;
+
+            const stats = getPhotoStorageStats();
+            sizeEl.textContent = formatBytesShort(stats.totalBytes);
+            countEl.textContent = String(stats.totalCount);
+            if (pluralEl) pluralEl.textContent = stats.totalCount === 1 ? '' : 's';
+
+            if (stats.totalCount === 0) {
+                if (hintEl) {
+                    hintEl.textContent = 'No photos captured yet.';
+                    hintEl.classList.remove('warn');
+                }
+                btn.disabled = true;
+                btn.textContent = 'Nothing to compress';
+            } else if (stats.needsRecompressCount > 0) {
+                if (hintEl) {
+                    hintEl.textContent = `${stats.needsRecompressCount} photo${stats.needsRecompressCount === 1 ? '' : 's'} can still be compressed.`;
+                    hintEl.classList.add('warn');
+                }
+                btn.disabled = false;
+                btn.textContent = `Compress ${stats.needsRecompressCount} old photo${stats.needsRecompressCount === 1 ? '' : 's'}`;
+            } else {
+                if (hintEl) {
+                    hintEl.textContent = 'All photos already compressed.';
+                    hintEl.classList.remove('warn');
+                }
+                btn.disabled = true;
+                btn.textContent = 'All optimized';
+            }
+        }
+
+        // One-shot: re-run optimizePhotoForStorage on every existing
+        // stored photo across all types, replacing in place. Skips
+        // photos that already meet the per-type budget. Persists to
+        // IndexedDB at the end via autoSave().
+        async function optimizeAllStoredPhotos() {
+            const btn = document.getElementById('optimizeStorageBtn');
+            const hintEl = document.getElementById('storageHint');
+            if (!btn || btn.disabled) return;
+
+            const types = ['before', 'after', 'signoff', 'instawork'];
+            const work = [];
+            for (const t of types) {
+                const arr = (photos && photos[t]) || [];
+                for (let i = 0; i < arr.length; i++) {
+                    if (photoNeedsRecompression(arr[i], t)) {
+                        work.push({ type: t, index: i });
+                    }
+                }
+            }
+            if (work.length === 0) {
+                refreshStorageIndicator();
+                return;
+            }
+
+            const startedBytes = getPhotoStorageStats().totalBytes;
+            btn.classList.add('running');
+            btn.disabled = true;
+            btn.textContent = `Compressing 0/${work.length}...`;
+            if (hintEl) {
+                hintEl.textContent = 'Working — keep this tab open. Photos stay in IndexedDB until done.';
+                hintEl.classList.add('warn');
+            }
+
+            let done = 0;
+            let savedBytes = 0;
+            for (const item of work) {
+                const arr = photos[item.type];
+                const before = arr[item.index];
+                if (typeof before !== 'string') {
+                    done++;
+                    continue;
+                }
+                try {
+                    const after = await optimizePhotoForStorage(before, item.type);
+                    if (typeof after === 'string' && after.length < before.length) {
+                        savedBytes += Math.floor((before.length - after.length) * 0.75);
+                        arr[item.index] = after;
+                    }
+                } catch (e) {
+                    console.warn(`Recompress failed for ${item.type}[${item.index}]:`, e);
+                }
+                done++;
+                btn.textContent = `Compressing ${done}/${work.length}...`;
+                // Yield to the event loop so the UI can repaint on phones.
+                await new Promise(r => setTimeout(r, 0));
+            }
+
+            // Re-render previews so any updated thumbnails refresh, and
+            // persist the smaller photos to IndexedDB.
+            try { renderPhotos('before'); } catch (e) {}
+            try { renderPhotos('after'); } catch (e) {}
+            try { renderPhotos('signoff'); } catch (e) {}
+            try {
+                if (typeof autoSave === 'function') autoSave();
+                else if (typeof PhotoDB !== 'undefined') PhotoDB.savePhotos(photos);
+            } catch (e) {
+                console.warn('Could not persist optimized photos:', e);
+            }
+
+            const endedBytes = getPhotoStorageStats().totalBytes;
+            const totalSaved = Math.max(0, startedBytes - endedBytes);
+            btn.classList.remove('running');
+            // Let the standard indicator refresh repaint the size/count;
+            // it will also re-enable / re-disable the button based on
+            // whether anything still needs compressing.
+            refreshStorageIndicator();
+            if (hintEl) {
+                hintEl.textContent = `Saved ${formatBytesShort(totalSaved)} across ${done} photo${done === 1 ? '' : 's'}.`;
+                hintEl.classList.remove('warn');
+            }
         }
 
         // Ensure an image is in portrait orientation (taller than wide)
@@ -5288,7 +5605,7 @@
             }
         });
 
-        captureButton.addEventListener('click', () => {
+        captureButton.addEventListener('click', async () => {
             if (!cameraStream || captureInProgress) return;
             captureInProgress = true;
 
@@ -5300,8 +5617,25 @@
             const captureCtx = captureCanvas.getContext('2d');
             captureCtx.drawImage(cameraVideo, 0, 0);
 
-            // Convert to PNG for lossless quality preservation (no JPEG compression artifacts)
-            const photoData = captureCanvas.toDataURL('image/png');
+            // Shutter flash kicks in immediately so the lead gets feedback
+            // even while the per-type JPEG compression runs.
+            captureCanvas.style.display = 'block';
+            setTimeout(() => {
+                captureCanvas.style.display = 'none';
+            }, 100);
+
+            // Encode + compress at per-type quality (see PHOTO_STORAGE_COMPRESSION).
+            // We start from a PNG dataURL because that's the lossless form
+            // the browser hands us; optimizePhotoForStorage immediately
+            // downsizes + JPEG-encodes it to its storage size.
+            const photoRaw = captureCanvas.toDataURL('image/png');
+            let photoData;
+            try {
+                photoData = await optimizePhotoForStorage(photoRaw, currentCameraType);
+            } catch (e) {
+                console.warn('Capture compression failed, storing raw frame:', e);
+                photoData = photoRaw;
+            }
 
             if (currentCameraType === 'instawork') {
                 // Single-photo capture; replace any prior shot and clear
@@ -5319,12 +5653,6 @@
             renderPhotos(currentCameraType);
             updatePhotoCount();
             autoSave();
-
-            // Visual feedback
-            captureCanvas.style.display = 'block';
-            setTimeout(() => {
-                captureCanvas.style.display = 'none';
-            }, 100);
 
             // For single-photo types (before/after/instawork), close camera after capture
             if (currentCameraType === 'before' || currentCameraType === 'after' || currentCameraType === 'instawork') {
@@ -6077,18 +6405,22 @@
             editorCurrentPhotoIndex = -1;
         });
 
-        document.getElementById('editorSave').addEventListener('click', () => {
+        document.getElementById('editorSave').addEventListener('click', async () => {
             if (editorCurrentPhotoIndex < 0) return;
 
             // Create full-resolution canvas with all transformations applied
             const fullResCanvas = createFullResolutionCanvas();
             if (!fullResCanvas) return;
 
-            // Get the final image data URL using PNG for lossless quality preservation
-            const finalDataUrl = fullResCanvas.toDataURL('image/png');
+            // Pull the edited full-res frame as PNG (lossless intermediate)
+            // and immediately downsize + JPEG-encode it for storage. Without
+            // this step, an edited sign-off photo would land in IndexedDB
+            // as a 10-20MB PNG.
+            const rawDataUrl = fullResCanvas.toDataURL('image/png');
+            const targetType = editorCurrentType;
+            const finalDataUrl = await optimizePhotoForStorage(rawDataUrl, targetType);
 
             // Update the photo in the array (signoff OR instawork)
-            const targetType = editorCurrentType;
             photos[targetType][editorCurrentPhotoIndex] = finalDataUrl;
 
             // Saving the editor for a sign-off photo counts as the lead
@@ -7388,6 +7720,7 @@ ${data.Notes || ''}`;
                     const instaworkStatusReset = document.getElementById('instaworkSaveStatus');
                     if (instaworkStatusReset) instaworkStatusReset.style.display = 'none';
                     updateInstaworkSaveButton();
+                    try { refreshStorageIndicator(); } catch (e) {}
                     // Reset Kompass labels back to default
                     document.getElementById('beforePhotoSection').querySelector('label.field').textContent = 'Kompass Cart - Before:';
                     document.getElementById('afterPhotoSection').querySelector('label.field').textContent = 'Kompass Cart - After:';
