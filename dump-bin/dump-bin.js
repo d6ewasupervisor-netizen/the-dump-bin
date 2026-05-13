@@ -3,6 +3,14 @@ import { STORES } from './stores.js';
 
 const API = '/api';
 
+/** Same-origin `/api/*` for `<a href>`; JS calls use `dumpBinAuthFetch` so the session JWT is sent. */
+function authApiFetch(url, init) {
+  if (typeof window !== 'undefined' && typeof window.dumpBinAuthFetch === 'function') {
+    return window.dumpBinAuthFetch(url, init);
+  }
+  return fetch(url, init);
+}
+
 // A fax job has to sidle through several relays and a T.38 gateway before it
 // reaches paper — impatient double-clicks clog that pipe and duplicate prints.
 // We park the Send button for this long after a successful submission.
@@ -38,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadIdentity() {
   try {
-    const res = await fetch(`${API}/whoami`);
+    const res = await authApiFetch(`${API}/whoami`);
     const data = await res.json();
     userEmail = data.email;
   } catch {}
@@ -47,7 +55,7 @@ async function loadIdentity() {
 // --- Weeks ---
 async function loadWeeks() {
   try {
-    const res = await fetch(`${API}/weeks`);
+    const res = await authApiFetch(`${API}/weeks`);
     const data = await res.json();
     weeks = data.weeks || [];
     if (weeks.length === 0) {
@@ -122,7 +130,7 @@ async function navigate(prefix) {
   const browser = document.getElementById('browser');
   browser.innerHTML = '<div class="db-loading">Loading…</div>';
   try {
-    const res = await fetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
+    const res = await authApiFetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
     const data = await res.json();
     renderBreadcrumb(prefix);
     renderBrowser(data);
@@ -247,7 +255,7 @@ function wireDropdowns() {
       if (dd.classList.contains('open') && !loaded) {
         menu.innerHTML = '<div class="db-section-header">Loading…</div>';
         try {
-          const res = await fetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
+          const res = await authApiFetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
           const data = await res.json();
           renderDropdownMenu(menu, data);
           loaded = true;
@@ -397,7 +405,7 @@ async function downloadAsZip() {
   try {
     const zip = new JSZip();
     for (const f of selection.values()) {
-      const res = await fetch(`${API}/download?key=${encodeURIComponent(f.key)}`);
+      const res = await authApiFetch(`${API}/download?key=${encodeURIComponent(f.key)}`);
       if (!res.ok) throw new Error(`Failed to fetch ${f.name}`);
       const blob = await res.blob();
       zip.file(f.name, blob);
@@ -502,7 +510,7 @@ async function sendPrint() {
 
   setPrintModalState('sending');
   try {
-    const res = await fetch(`${API}/print-at-store`, {
+    const res = await authApiFetch(`${API}/print-at-store`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
