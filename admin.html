@@ -189,6 +189,20 @@
         <input id="reset-new-password-confirm" type="password" autocomplete="new-password" spellcheck="false" />
         <button id="reset-submit" class="primary" type="button">Save password</button>
       </section>
+
+      <section id="invite-section" class="card hidden" aria-labelledby="invite-heading">
+        <h2 id="invite-heading">Choose a new password</h2>
+        <p class="help-text" style="margin-top: 0;">
+          You opened your administrator invitation. Pick a strong password to finish accepting.
+        </p>
+        <div id="invite-status" class="notice hidden" role="alert"></div>
+        <input type="hidden" id="invite-token-field" />
+        <label for="invite-new-password">New password</label>
+        <input id="invite-new-password" type="password" autocomplete="new-password" spellcheck="false" />
+        <label for="invite-new-password-confirm">Confirm password</label>
+        <input id="invite-new-password-confirm" type="password" autocomplete="new-password" spellcheck="false" />
+        <button id="invite-submit" class="primary" type="button">Save password</button>
+      </section>
     </div>
 
     <div id="gate-signed-in" class="hidden">
@@ -216,6 +230,32 @@
           <input id="add-email" type="email" autocomplete="off" placeholder="person@example.com" />
           <input id="add-note" type="text" placeholder="Note (optional)" />
           <button id="add-btn" class="primary" type="button" style="margin: 0; padding: 12px 16px;">Add</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Site admins</h2>
+        <p class="help-text" style="margin-top: 0;">
+          Administrators can manage this allowlist and invite other admins. Invited admins must open their email link to set a password once.
+        </p>
+        <div id="admins-status" class="notice hidden" role="alert"></div>
+        <div id="admins-loading" class="help-text">Loading&hellip;</div>
+        <table id="admins-table" class="allowlist hidden" aria-label="Site admins">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Setup status</th>
+              <th style="width: 100px;"></th>
+            </tr>
+          </thead>
+          <tbody id="admins-body"></tbody>
+        </table>
+
+        <h3 style="font-size: 14px; color: var(--text-muted); margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .04em;">Invite admin</h3>
+        <div class="add-row">
+          <input id="invite-email" type="email" autocomplete="off" placeholder="new.admin@example.com" />
+          <input id="invite-note" type="text" placeholder="Note (included in invitation email)" />
+          <button id="invite-send-btn" class="primary" type="button" style="margin: 0; padding: 12px 16px;">Send invite</button>
         </div>
       </section>
 
@@ -286,7 +326,7 @@
         });
       }
       function showAuthCard(id) {
-        ['blocked-section', 'setup-section', 'login-section', 'forgot-section', 'reset-section'].forEach(function (s) {
+        ['blocked-section', 'setup-section', 'login-section', 'forgot-section', 'reset-section', 'invite-section'].forEach(function (s) {
           $(s).classList.toggle('hidden', s !== id);
         });
         showSection('gate-auth');
@@ -308,20 +348,47 @@
         if (tok && !opts.unauth) headers.Authorization = 'Bearer ' + tok;
         const res = await fetch(API_BASE + path, {
           method, headers,
-          body: body ? JSON.stringify(body) : undefined,
+          body:
+            body !== undefined && body !== null ? JSON.stringify(body) : undefined,
         });
         const data = await res.json().catch(function () { return {}; });
         return { res, data };
       }
 
+      function formatDt(iso) {
+        if (!iso) return '';
+        try {
+          return new Date(iso).toLocaleString(undefined, {
+            dateStyle: 'medium', timeStyle: 'short',
+          });
+        } catch (_) {
+          return String(iso);
+        }
+      }
+
+      function adminSetupLabel(row) {
+        if (!row.password_set_at) return 'Setup pending';
+        return 'Active — ' + formatDt(row.password_set_at);
+      }
+
       (async function boot() {
+        const qp = new URL(location.href).searchParams;
         // Reset URL: /admin.html?reset=<opaque>
-        const resetTok = (new URL(location.href)).searchParams.get('reset');
+        const resetTok = qp.get('reset');
         if (resetTok && resetTok.length >= 24) {
           $('reset-token-field').value = resetTok;
           showAuthCard('reset-section');
           history.replaceState({}, '', location.pathname);
           $('reset-new-password').focus();
+          return;
+        }
+
+        const inviteTrim = (qp.get('invite') || '').trim();
+        if (inviteTrim.length >= 20) {
+          $('invite-token-field').value = inviteTrim;
+          showAuthCard('invite-section');
+          history.replaceState({}, '', location.pathname);
+          $('invite-new-password').focus();
           return;
         }
 
@@ -435,6 +502,25 @@
         await enterSignedInMode();
       });
 
+      $('invite-submit').addEventListener('click', async function () {
+        hideStatus('invite-status');
+        const token = $('invite-token-field').value || '';
+        const password = $('invite-new-password').value || '';
+        const passwordConfirm = $('invite-new-password-confirm').value || '';
+        if (!password || password.length < 10) { showStatus('invite-status', 'error', 'Use at least 10 characters.'); return; }
+        if (password !== passwordConfirm) { showStatus('invite-status', 'error', 'Passwords do not match.'); return; }
+        $('invite-submit').disabled = true;
+        const { res, data } = await api('POST', '/api/admin/session/complete-invite',
+          { token, password, passwordConfirm }, { unauth: true });
+        $('invite-submit').disabled = false;
+        if (!res.ok || !data.ok || !data.token) {
+          showStatus('invite-status', 'error', (data && data.error) || 'Could not save password.');
+          return;
+        }
+        setToken(data.token);
+        await enterSignedInMode();
+      });
+
       async function enterSignedInMode() {
         const { res, data } = await api('GET', '/api/admin/session/me');
         if (!res.ok || !data.ok) {
@@ -444,7 +530,7 @@
         }
         $('signed-in-email').textContent = data.email || '';
         showSection('gate-signed-in');
-        await loadList();
+        await Promise.all([loadList(), loadAdmins()]);
       }
 
       async function loadList() {
@@ -473,6 +559,49 @@
         });
         $('list-loading').classList.add('hidden');
         $('list-table').classList.remove('hidden');
+      }
+
+      async function loadAdmins() {
+        hideStatus('admins-status');
+        $('admins-loading').classList.remove('hidden');
+        $('admins-table').classList.add('hidden');
+        const me = (($('signed-in-email').textContent || '').trim().toLowerCase());
+        const { res, data } = await api('GET', '/api/admin/admins');
+        if (!res.ok || !data.ok) {
+          if (res.status === 401) { clearToken(); showAuthCard('login-section'); return; }
+          showStatus('admins-status', 'error', (data && data.error) || 'Could not load administrators.');
+          return;
+        }
+        const admins = data.admins || [];
+        const tbody = $('admins-body');
+        tbody.innerHTML = '';
+        const onlyOneAdmin = admins.length <= 1;
+        admins.forEach(function (row) {
+          const tr = document.createElement('tr');
+          const tdE = document.createElement('td');
+          tdE.className = 'email-cell'; tdE.textContent = row.email;
+          const tdS = document.createElement('td');
+          tdS.className = 'note-cell';
+          const mainLine = document.createElement('div');
+          mainLine.textContent = adminSetupLabel(row);
+          tdS.appendChild(mainLine);
+          if (row.invited_at && !row.password_set_at) {
+            const sub = document.createElement('div');
+            sub.style.fontSize = '12px'; sub.style.marginTop = '4px'; sub.style.color = 'var(--text-muted)';
+            sub.textContent = 'Invited ' + formatDt(row.invited_at);
+            tdS.appendChild(sub);
+          }
+          const tdB = document.createElement('td');
+          const btn = document.createElement('button');
+          btn.className = 'danger'; btn.type = 'button'; btn.textContent = 'Remove';
+          btn.disabled = onlyOneAdmin || (row.email === me);
+          btn.addEventListener('click', function () { removeAdmin(row.email); });
+          tdB.appendChild(btn);
+          tr.appendChild(tdE); tr.appendChild(tdS); tr.appendChild(tdB);
+          tbody.appendChild(tr);
+        });
+        $('admins-loading').classList.add('hidden');
+        $('admins-table').classList.remove('hidden');
       }
 
       $('add-btn').addEventListener('click', async function () {
@@ -505,6 +634,39 @@
         }
         showStatus('list-status', 'ok', 'Removed ' + email + '.');
         await loadList();
+      }
+
+      $('invite-send-btn').addEventListener('click', async function () {
+        hideStatus('admins-status');
+        const email = ($('invite-email').value || '').trim().toLowerCase();
+        const note  = ($('invite-note').value || '').trim();
+        if (!isValidEmail(email)) { showStatus('admins-status', 'error', 'Enter a valid email.'); return; }
+        $('invite-send-btn').disabled = true;
+        const { res, data } = await api('POST', '/api/admin/admins/invite',
+          note ? { email, note } : { email });
+        $('invite-send-btn').disabled = false;
+        if (!res.ok || !data.ok) {
+          if (res.status === 401) { clearToken(); showAuthCard('login-section'); return; }
+          showStatus('admins-status', 'error', (data && data.error) || 'Could not send invitation.');
+          return;
+        }
+        $('invite-email').value = '';
+        $('invite-note').value = '';
+        showStatus('admins-status', 'ok', 'Invitation emailed to ' + email + '.');
+        await loadAdmins();
+      });
+
+      async function removeAdmin(email) {
+        if (!confirm('Remove administrator ' + email + '?')) return;
+        hideStatus('admins-status');
+        const { res, data } = await api('DELETE', '/api/admin/admins', { email });
+        if (!res.ok || !data.ok) {
+          if (res.status === 401) { clearToken(); showAuthCard('login-section'); return; }
+          showStatus('admins-status', 'error', (data && data.error) || 'Could not remove administrator.');
+          return;
+        }
+        showStatus('admins-status', 'ok', 'Removed ' + email + ' as administrator.');
+        await loadAdmins();
       }
 
       $('signout-btn').addEventListener('click', function () {
