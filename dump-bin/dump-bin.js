@@ -3,12 +3,34 @@ import { STORES } from './stores.js';
 
 const API = '/api';
 
-/** Same-origin `/api/*` for `<a href>`; JS calls use `dumpBinAuthFetch` so the session JWT is sent. */
-function authApiFetch(url, init) {
-  if (typeof window !== 'undefined' && typeof window.dumpBinAuthFetch === 'function') {
-    return window.dumpBinAuthFetch(url, init);
+/**
+ * `print-at-store` uses the session JWT explicitly via bearer headers below.
+ *
+ * `/api/whoami` and `/api/weeks` use `dumpBinAuth.fetch` (same JWT) — they stay
+ * behind eod-api `requireAuth` so the fiscal layout and identity are not public.
+ *
+ * `/api/list` and `/api/download` still call plain `fetch` with no Bearer
+ * (historical avoidance of Worker 401 bounce). Those should migrate to bearer
+ * auth when their routes are hardened.
+ */
+async function fetchPrintAtStoreApi(url, init) {
+  init = init ? { ...init } : {};
+  const headers = new Headers(init.headers || {});
+  try {
+    const tok = window.dumpBinAuth?.getSession?.();
+    if (tok) headers.set('Authorization', `Bearer ${tok}`);
+  } catch (_) { /* ignore */ }
+  const res = await fetch(url, { ...init, headers });
+  if (res.status === 401 && window.dumpBinAuth?.bounceToSignIn) {
+    let body = '';
+    try {
+      body = await res.clone().text();
+    } catch (_) { /* ignore */ }
+    if (!/sas session|rebotics session/i.test(body)) {
+      window.dumpBinAuth.bounceToSignIn(`401 from ${url}`);
+    }
   }
-  return fetch(url, init);
+  return res;
 }
 
 // A fax job has to sidle through several relays and a T.38 gateway before it
@@ -46,16 +68,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadIdentity() {
   try {
-    const res = await authApiFetch(`${API}/whoami`);
+    const res = await window.dumpBinAuth.fetch('/api/whoami');
+    if (!res.ok) {
+      userEmail = null;
+      return;
+    }
     const data = await res.json();
-    userEmail = data.email;
-  } catch {}
+    userEmail = data.email ?? null;
+  } catch {
+    userEmail = null;
+  }
 }
 
 // --- Weeks ---
 async function loadWeeks() {
   try {
-    const res = await authApiFetch(`${API}/weeks`);
+    const res = await window.dumpBinAuth.fetch('/api/weeks');
     const data = await res.json();
     weeks = data.weeks || [];
     if (weeks.length === 0) {
@@ -130,7 +158,7 @@ async function navigate(prefix) {
   const browser = document.getElementById('browser');
   browser.innerHTML = '<div class="db-loading">Loading…</div>';
   try {
-    const res = await authApiFetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
+    const res = await fetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
     const data = await res.json();
     renderBreadcrumb(prefix);
     renderBrowser(data);
@@ -255,7 +283,7 @@ function wireDropdowns() {
       if (dd.classList.contains('open') && !loaded) {
         menu.innerHTML = '<div class="db-section-header">Loading…</div>';
         try {
-          const res = await authApiFetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
+          const res = await fetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
           const data = await res.json();
           renderDropdownMenu(menu, data);
           loaded = true;
@@ -405,7 +433,7 @@ async function downloadAsZip() {
   try {
     const zip = new JSZip();
     for (const f of selection.values()) {
-      const res = await authApiFetch(`${API}/download?key=${encodeURIComponent(f.key)}`);
+      const res = await fetch(`${API}/download?key=${encodeURIComponent(f.key)}`);
       if (!res.ok) throw new Error(`Failed to fetch ${f.name}`);
       const blob = await res.blob();
       zip.file(f.name, blob);
@@ -510,7 +538,7 @@ async function sendPrint() {
 
   setPrintModalState('sending');
   try {
-    const res = await authApiFetch(`${API}/print-at-store`, {
+    const res = await fetchPrintAtStoreApi(`${API}/print-at-store`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
