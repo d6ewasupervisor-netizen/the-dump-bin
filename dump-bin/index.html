@@ -40,11 +40,15 @@
       <p class="db-hero__sub">Current and upcoming week materials.</p>
     </section>
 
-    <!-- Week nav -->
+    <!-- Week dial -->
     <section class="db-week-nav">
-      <button class="db-arrow" id="prevWeek" aria-label="Previous week">◄</button>
-      <div class="db-week-grid" id="weekGrid"></div>
-      <button class="db-arrow" id="nextWeek" aria-label="Next week">►</button>
+      <div class="db-week-dial-row">
+        <button type="button" class="db-week-dial-nav" id="prevWeek" aria-label="Previous week">‹</button>
+        <div class="db-week-dial-window" id="weekDialWindow">
+          <div class="db-week-dial-track" id="weekDialTrack"></div>
+        </div>
+        <button type="button" class="db-week-dial-nav" id="nextWeek" aria-label="Next week">›</button>
+      </div>
     </section>
 
     <div class="db-breadcrumb" id="breadcrumb"></div>

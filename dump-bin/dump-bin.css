@@ -103,80 +103,164 @@
   margin-top: 4px;
 }
 
-/* --- Week navigator --- */
+/* --- Week dial --- */
 .db-week-nav {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   margin: 24px 0 20px;
+  display: flex;
   justify-content: center;
 }
 
-.db-arrow {
-  background: var(--color-surface);
-  color: var(--color-accent);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  width: 40px;
-  height: 40px;
-  font-size: 1.1rem;
-  font-weight: 700;
+.db-week-dial-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 580px;
+}
+
+.db-week-dial-nav {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1a2030;
+  border: 1px solid #2a3245;
+  color: #c9a961;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: background .2s, border-color .2s;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+  font-family: var(--font);
+  transition: background .15s, transform .1s;
 }
 
-.db-arrow:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-  border-color: var(--color-accent);
+.db-week-dial-nav:hover:not(:disabled) {
+  background: #232a3d;
 }
 
-.db-arrow:disabled {
+.db-week-dial-nav:active:not(:disabled) {
+  transform: scale(.92);
+}
+
+.db-week-dial-nav:disabled {
   opacity: .3;
   cursor: not-allowed;
 }
 
-.db-week-grid {
+.db-week-dial-window {
+  flex: 1;
+  height: 76px;
+  position: relative;
+  background: linear-gradient(180deg, #050810 0%, #1a2335 45%, #1a2335 55%, #050810 100%);
+  border-radius: 40px;
+  border: 1px solid #2a3245;
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, .7),
+    inset 0 -2px 4px rgba(255, 255, 255, .04);
+  overflow: hidden;
+  perspective: 700px;
+  touch-action: pan-y;
+}
+
+.db-week-dial-window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, #050810 0%, transparent 22%, transparent 78%, #050810 100%);
+  z-index: 2;
+}
+
+.db-week-dial-window::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  margin-left: -1px;
+  background: linear-gradient(180deg, transparent 0%, #c9a961 50%, transparent 100%);
+  opacity: .35;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.db-week-dial-track {
+  --db-dial-pill-w: 66px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+  transition: transform .55s cubic-bezier(.22, .95, .3, 1.05);
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 8px;
+  will-change: transform;
+}
+
+.db-week-dial-pill {
+  width: var(--db-dial-pill-w);
+  min-height: 34px;
+  height: auto;
+  padding: 4px 6px;
+  box-sizing: border-box;
+  border-radius: 17px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-}
-
-.db-week-pill {
-  background: var(--color-surface);
-  color: var(--color-text-dim);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 8px 14px;
-  font-size: .85rem;
-  font-weight: 600;
-  font-family: var(--font);
-  cursor: pointer;
-  transition: all .2s;
-  white-space: nowrap;
-}
-
-.db-week-pill:hover {
-  border-color: var(--color-primary);
-  color: var(--color-text);
-}
-
-.db-week-pill.active {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #3d6d9e 100%);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  flex-shrink: 0;
   color: #fff;
-  border-color: var(--color-primary);
+  cursor: pointer;
+  user-select: none;
+  backface-visibility: hidden;
+  transition:
+    transform .55s cubic-bezier(.22, .95, .3, 1.05),
+    opacity .55s cubic-bezier(.22, .95, .3, 1.05),
+    background .25s;
+  background: transparent;
+  border: none;
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
 }
 
-.db-week-pill.current {
-  border-color: var(--color-accent);
+.db-week-dial-pill__main {
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-.db-week-pill small {
-  display: block;
-  font-size: .7rem;
+.db-week-dial-pill__sub {
+  font-size: 8px;
   font-weight: 400;
-  opacity: .75;
-  margin-top: 2px;
+  letter-spacing: 0;
+  opacity: .85;
+  line-height: 1.1;
+  margin-top: 1px;
+}
+
+.db-week-dial-pill--red {
+  background: #a8323a;
+}
+
+.db-week-dial-pill--dark {
+  background: #1a1f2c;
+  border: 1px solid #353c50;
+  color: #b5bdd0;
+}
+
+.db-week-dial-pill--current {
+  background: #c9a961;
+  color: #0a0e18;
+  box-shadow: 0 0 14px rgba(201, 169, 97, .55);
 }
 
 /* --- Breadcrumb --- */
@@ -306,23 +390,20 @@
   .db-hero { padding: 16px 0 4px; }
   .db-hero__title { font-size: 1.4rem; }
   .db-hero__sub { font-size: .88rem; }
-  .db-week-nav { margin: 16px 0 12px; gap: 8px; }
-  .db-week-pill {
-    padding: 6px 10px;
-    font-size: .78rem;
+  .db-week-nav { margin: 16px 0 12px; }
+  .db-week-dial-row {
+    gap: 10px;
+    padding: 0 4px;
+    max-width: none;
   }
-  .db-arrow {
-    width: 36px;
-    height: 36px;
-    flex-shrink: 0;
+  .db-week-dial-window {
+    height: 72px;
+    border-radius: 36px;
   }
-  .db-week-grid {
-    flex: 1;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    padding-bottom: 4px;
-    scrollbar-width: thin;
+  .db-week-dial-nav {
+    width: 34px;
+    height: 34px;
+    font-size: 1.15rem;
   }
   .db-browser { padding: 10px; border-radius: var(--radius); }
   .db-item { padding: 12px 10px; gap: 10px; }

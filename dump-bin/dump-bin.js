@@ -58,6 +58,7 @@ let cooldownTicker = null;
 // --- Boot ---
 document.addEventListener('DOMContentLoaded', async () => {
   wireDropdowns();
+  wireWeekDial();
   wireWeekArrows();
   wireSelectionBar();
   wireModals();
@@ -100,7 +101,7 @@ async function loadWeeks() {
       if (idx === -1) idx = weeks.length - 1;
     }
     currentWeekIdx = idx;
-    renderWeekGrid();
+    renderWeekDial();
     await openWeek(weeks[currentWeekIdx]);
   } catch (err) {
     document.getElementById('browser').innerHTML =
@@ -108,43 +109,164 @@ async function loadWeeks() {
   }
 }
 
-function renderWeekGrid() {
-  const grid = document.getElementById('weekGrid');
-  const today = new Date();
-  grid.innerHTML = weeks.map((w, i) => {
-    const isCurrent = new Date(w.start) <= today && today <= new Date(w.end);
-    const isActive = i === currentWeekIdx;
+function getDialPillMetrics() {
+  const pillW = weeks.length > 100 ? 60 : 66;
+  const gap = 8;
+  return { pillW, gap, pillStep: pillW + gap };
+}
+
+function layoutWeekDial() {
+  const track = document.getElementById('weekDialTrack');
+  if (!track || weeks.length === 0) return;
+  const { pillStep } = getDialPillMetrics();
+  const current = currentWeekIdx;
+  const offset = -(current * pillStep + pillStep / 2 - 4);
+  track.style.transform = `translate(${offset}px, -50%)`;
+  track.querySelectorAll('.db-week-dial-pill').forEach(p => {
+    const idx = parseInt(p.dataset.idx, 10);
+    const dist = idx - current;
+    const absD = Math.abs(dist);
+    const scale = Math.max(0.55, 1 - absD * 0.07);
+    const opacity = Math.max(0, 1 - absD * 0.16);
+    const rotY = Math.max(-72, Math.min(72, dist * 16));
+    p.style.transform = `rotateY(${rotY}deg) scale(${scale})`;
+    p.style.opacity = String(opacity);
+    p.classList.toggle('db-week-dial-pill--current', idx === current);
+    if (idx !== current) {
+      p.classList.toggle('db-week-dial-pill--red', idx % 2 === 0);
+      p.classList.toggle('db-week-dial-pill--dark', idx % 2 !== 0);
+    } else {
+      p.classList.remove('db-week-dial-pill--red', 'db-week-dial-pill--dark');
+    }
+    const jumpable = absD <= 4;
+    p.style.pointerEvents = jumpable ? '' : 'none';
+    p.style.cursor = jumpable ? 'pointer' : 'default';
+  });
+  const prevBtn = document.getElementById('prevWeek');
+  const nextBtn = document.getElementById('nextWeek');
+  if (prevBtn) prevBtn.disabled = currentWeekIdx === 0;
+  if (nextBtn) nextBtn.disabled = currentWeekIdx === weeks.length - 1;
+}
+
+function renderWeekDial() {
+  const track = document.getElementById('weekDialTrack');
+  const prevBtn = document.getElementById('prevWeek');
+  const nextBtn = document.getElementById('nextWeek');
+  if (!track || !prevBtn || !nextBtn || weeks.length === 0) return;
+
+  const { pillW } = getDialPillMetrics();
+  track.style.setProperty('--db-dial-pill-w', `${pillW}px`);
+
+  track.innerHTML = weeks.map((w, i) => {
     const startFmt = new Date(w.start).toLocaleDateString('en-US', {
       month: 'numeric', day: 'numeric',
     });
+    const label = `${w.short} ${startFmt}`;
     return `
-      <button class="db-week-pill${isActive ? ' active' : ''}${isCurrent ? ' current' : ''}" data-idx="${i}">
-        ${w.short}<small>${startFmt}</small>
+      <button type="button" class="db-week-dial-pill" data-idx="${i}" aria-label="${escapeAttr(label)}">
+        <span class="db-week-dial-pill__main">${escapeHtml(w.short)}</span>
+        <span class="db-week-dial-pill__sub">${escapeHtml(startFmt)}</span>
       </button>`;
   }).join('');
-  grid.querySelectorAll('.db-week-pill').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      currentWeekIdx = Number(btn.dataset.idx);
-      renderWeekGrid();
-      await openWeek(weeks[currentWeekIdx]);
-    });
+
+  layoutWeekDial();
+}
+
+function wireWeekDial() {
+  const win = document.getElementById('weekDialWindow');
+  const track = document.getElementById('weekDialTrack');
+  if (!win || !track) return;
+
+  track.addEventListener('click', async e => {
+    const pill = e.target.closest('.db-week-dial-pill');
+    if (!pill) return;
+    const idx = Number(pill.dataset.idx);
+    if (Number.isNaN(idx) || Math.abs(idx - currentWeekIdx) > 4) return;
+    if (idx === currentWeekIdx) return;
+    currentWeekIdx = idx;
+    layoutWeekDial();
+    await openWeek(weeks[currentWeekIdx]);
   });
-  document.getElementById('prevWeek').disabled = currentWeekIdx === 0;
-  document.getElementById('nextWeek').disabled = currentWeekIdx === weeks.length - 1;
+
+  let swipeStartX = null;
+  let swipePointerId = null;
+  const SWIPE_MIN_PX = 40;
+
+  win.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    swipeStartX = e.clientX;
+    swipePointerId = e.pointerId;
+    try {
+      win.setPointerCapture(e.pointerId);
+    } catch (_) { /* ignore */ }
+  });
+
+  win.addEventListener('pointerup', async e => {
+    if (swipePointerId !== e.pointerId || swipeStartX == null) return;
+    const dx = e.clientX - swipeStartX;
+    swipeStartX = null;
+    swipePointerId = null;
+    try {
+      win.releasePointerCapture(e.pointerId);
+    } catch (_) { /* ignore */ }
+
+    if (dx > SWIPE_MIN_PX && currentWeekIdx > 0) {
+      currentWeekIdx--;
+      layoutWeekDial();
+      await openWeek(weeks[currentWeekIdx]);
+    } else if (dx < -SWIPE_MIN_PX && currentWeekIdx < weeks.length - 1) {
+      currentWeekIdx++;
+      layoutWeekDial();
+      await openWeek(weeks[currentWeekIdx]);
+    }
+  });
+
+  win.addEventListener('pointercancel', e => {
+    if (swipePointerId === e.pointerId) {
+      swipeStartX = null;
+      swipePointerId = null;
+      try {
+        win.releasePointerCapture(e.pointerId);
+      } catch (_) { /* ignore */ }
+    }
+  });
+
+  document.addEventListener('keydown', async e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const t = document.activeElement;
+    if (
+      t &&
+      (t.tagName === 'INPUT' ||
+        t.tagName === 'TEXTAREA' ||
+        (t.isContentEditable === true))
+    ) {
+      return;
+    }
+    e.preventDefault();
+    if (e.key === 'ArrowLeft' && currentWeekIdx > 0) {
+      currentWeekIdx--;
+      layoutWeekDial();
+      await openWeek(weeks[currentWeekIdx]);
+    } else if (e.key === 'ArrowRight' && currentWeekIdx < weeks.length - 1) {
+      currentWeekIdx++;
+      layoutWeekDial();
+      await openWeek(weeks[currentWeekIdx]);
+    }
+  });
 }
 
 function wireWeekArrows() {
   document.getElementById('prevWeek').addEventListener('click', async () => {
     if (currentWeekIdx > 0) {
       currentWeekIdx--;
-      renderWeekGrid();
+      layoutWeekDial();
       await openWeek(weeks[currentWeekIdx]);
     }
   });
   document.getElementById('nextWeek').addEventListener('click', async () => {
     if (currentWeekIdx < weeks.length - 1) {
       currentWeekIdx++;
-      renderWeekGrid();
+      layoutWeekDial();
       await openWeek(weeks[currentWeekIdx]);
     }
   });
