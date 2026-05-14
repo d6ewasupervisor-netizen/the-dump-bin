@@ -1,7 +1,7 @@
 // ===== Dump Bin browser =====
 import { STORES } from './stores.js';
 
-const API = '/api';
+const API = 'https://eod-api.the-dump-bin.com/api';
 
 /**
  * `print-at-store` uses the session JWT explicitly via bearer headers below.
