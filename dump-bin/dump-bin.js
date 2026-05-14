@@ -4,14 +4,12 @@ import { STORES } from './stores.js';
 const API = 'https://eod-api.the-dump-bin.com/api';
 
 /**
- * `print-at-store` uses the session JWT explicitly via bearer headers below.
+ * Listings use `window.dumpBinAuth.fetch('/api/list')` (Bearer session).
  *
- * `/api/whoami` and `/api/weeks` use `dumpBinAuth.fetch` (same JWT) — they stay
- * behind eod-api `requireAuth` so the fiscal layout and identity are not public.
- *
- * `/api/list` and `/api/download` still call plain `fetch` with no Bearer
- * (historical avoidance of Worker 401 bounce). Those should migrate to bearer
- * auth when their routes are hardened.
+ * File downloads: programmatic fetch uses Bearer; anchor `href` and multi-tab
+ * downloads use a short-lived `t` query param (HMAC JWT from list or
+ * `/api/download-token`) because browsers cannot send custom headers on link
+ * navigation.
  */
 async function fetchPrintAtStoreApi(url, init) {
   init = init ? { ...init } : {};
@@ -33,6 +31,32 @@ async function fetchPrintAtStoreApi(url, init) {
   return res;
 }
 
+/** Absolute download URL; `t` is minted by `/api/list` or `/api/download-token`. */
+function downloadUrlForFile(f) {
+  let q = `key=${encodeURIComponent(f.key)}`;
+  if (f.t) q += `&t=${encodeURIComponent(f.t)}`;
+  return `${API}/download?${q}`;
+}
+
+/** When `t` is missing (stale selection), mint one via authenticated API. */
+async function resolveDownloadUrl(f) {
+  if (f.t) return downloadUrlForFile(f);
+  const res = await window.dumpBinAuth.fetch(
+    `/api/download-token?key=${encodeURIComponent(f.key)}`
+  );
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = await res.json();
+      if (j.error) msg = j.error;
+    } catch (_) { /* ignore */ }
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  if (!data.t) throw new Error('No download token in response');
+  return `${API}/download?key=${encodeURIComponent(f.key)}&t=${encodeURIComponent(data.t)}`;
+}
+
 // A fax job has to sidle through several relays and a T.38 gateway before it
 // reaches paper — impatient double-clicks clog that pipe and duplicate prints.
 // We park the Send button for this long after a successful submission.
@@ -45,7 +69,7 @@ let currentWeekIdx = 0;
 let currentPrefix = '';
 let userEmail = null;
 
-// Selection: Map<key, { name, size, key }>
+// Selection: Map<key, { name, size, key, t? }> — `t` is download JWT when known
 const selection = new Map();
 
 // Store picker state
@@ -280,7 +304,17 @@ async function navigate(prefix) {
   const browser = document.getElementById('browser');
   browser.innerHTML = '<div class="db-loading">Loading…</div>';
   try {
-    const res = await fetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
+    const res = await window.dumpBinAuth.fetch(
+      `/api/list?prefix=${encodeURIComponent(prefix)}`
+    );
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try {
+        const j = await res.json();
+        if (j.error) msg = j.error;
+      } catch (_) { /* ignore */ }
+      throw new Error(msg);
+    }
     const data = await res.json();
     renderBreadcrumb(prefix);
     renderBrowser(data);
@@ -339,7 +373,7 @@ function renderBrowser(data) {
         <div class="db-item${isSel ? ' db-item--selected' : ''}" data-key="${escapeAttr(f.key)}">
           <input type="checkbox" class="db-item__checkbox" ${isSel ? 'checked' : ''} data-key="${escapeAttr(f.key)}">
           <span class="db-item__icon">${fileIcon(f.name)}</span>
-          <a class="db-item__name" href="${API}/download?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>
+          <a class="db-item__name" href="${escapeAttr(downloadUrlForFile(f))}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>
           <span class="db-item__meta">${formatSize(f.size)}</span>
         </div>`;
     }).join('');
@@ -358,7 +392,12 @@ function renderBrowser(data) {
       const key = cb.dataset.key;
       const fileObj = files.find(f => f.key === key);
       if (cb.checked && fileObj) {
-        selection.set(key, { key, name: fileObj.name, size: fileObj.size });
+        selection.set(key, {
+          key,
+          name: fileObj.name,
+          size: fileObj.size,
+          t: fileObj.t,
+        });
       } else {
         selection.delete(key);
       }
@@ -373,7 +412,12 @@ function renderBrowser(data) {
     selectAll.addEventListener('change', () => {
       files.forEach(f => {
         if (selectAll.checked) {
-          selection.set(f.key, { key: f.key, name: f.name, size: f.size });
+          selection.set(f.key, {
+            key: f.key,
+            name: f.name,
+            size: f.size,
+            t: f.t,
+          });
         } else {
           selection.delete(f.key);
         }
@@ -405,7 +449,10 @@ function wireDropdowns() {
       if (dd.classList.contains('open') && !loaded) {
         menu.innerHTML = '<div class="db-section-header">Loading…</div>';
         try {
-          const res = await fetch(`${API}/list?prefix=${encodeURIComponent(prefix)}`);
+          const res = await window.dumpBinAuth.fetch(
+            `/api/list?prefix=${encodeURIComponent(prefix)}`
+          );
+          if (!res.ok) throw new Error(String(res.status));
           const data = await res.json();
           renderDropdownMenu(menu, data);
           loaded = true;
@@ -430,7 +477,7 @@ function renderDropdownMenu(menu, data) {
   }
   if (files.length) {
     html += files.map(f =>
-      `<a class="db-file" href="${API}/download?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>`
+      `<a class="db-file" href="${escapeAttr(downloadUrlForFile(f))}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>`
     ).join('');
   }
   if (!html) html = '<div class="db-section-header">Empty</div>';
@@ -472,7 +519,7 @@ function wireSelectionBar() {
       e.stopPropagation();
       popover.classList.remove('open');
       const action = btn.dataset.action;
-      if (action === 'individual') downloadIndividual();
+      if (action === 'individual') void downloadIndividual();
       else if (action === 'zip') downloadAsZip();
     });
   });
@@ -526,23 +573,29 @@ function renderSelectionList() {
 }
 
 // --- Downloads ---
-function downloadIndividual() {
+async function downloadIndividual() {
   if (selection.size === 0) return;
   let i = 0;
-  for (const f of selection.values()) {
-    // Stagger slightly to avoid browser blocking multiple downloads
-    setTimeout(() => {
-      const a = document.createElement('a');
-      a.href = `${API}/download?key=${encodeURIComponent(f.key)}`;
-      a.download = f.name;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }, i * 250);
-    i++;
+  try {
+    for (const f of selection.values()) {
+      const href = await resolveDownloadUrl(f);
+      const delay = i * 250;
+      const name = f.name;
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = href;
+        a.download = name;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }, delay);
+      i++;
+    }
+    toast(`Started ${selection.size} download(s)`, 'success');
+  } catch (err) {
+    toast(err.message || 'Download failed', 'error');
   }
-  toast(`Started ${selection.size} download(s)`, 'success');
 }
 
 async function downloadAsZip() {
@@ -555,7 +608,9 @@ async function downloadAsZip() {
   try {
     const zip = new JSZip();
     for (const f of selection.values()) {
-      const res = await fetch(`${API}/download?key=${encodeURIComponent(f.key)}`);
+      const res = await window.dumpBinAuth.fetch(
+        `/api/download?key=${encodeURIComponent(f.key)}`
+      );
       if (!res.ok) throw new Error(`Failed to fetch ${f.name}`);
       const blob = await res.blob();
       zip.file(f.name, blob);
