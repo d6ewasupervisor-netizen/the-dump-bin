@@ -18,7 +18,6 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>KOMPASS EOD COVER SHEET</title>
-    <script src="/auth-gate.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <style>
@@ -3574,10 +3573,35 @@
 
     <script>
         // Initialize
-        // ─── AUTH — shared /auth-gate.js + EOD glue ────────────────────────────────
-        // Gate (loaded in <head>): ?token= exchange, dumpBinSession, bounce to /signin.html,
-        // dumpBinAuth.bootPromise. This block applies role classes and wraps fetch so SAS /
-        // Rebotics downstream 401s flip the header indicator (setAuthStatus) consistently.
+        // ─── AUTH — Email magic-link + session JWT ───────────────────────────────
+        // Replaces the old Cloudflare Access cookie. Flow:
+        //   1. signin.html collects the email and calls /api/request-link.
+        //   2. The user clicks the link in their email, which lands here as
+        //      /EOD/index.html?token=<single-use-jwt>.
+        //   3. exchangeLinkToken() below trades it for a long-lived (45-day)
+        //      session JWT via GET /api/verify-token and stores it in
+        //      localStorage.eodSession.
+        //   4. authFetch() sends `Authorization: Bearer <jwt>` on every API
+        //      call. A 401 wipes the stored token and bounces the user to
+        //      signin.html. Roles still come from /api/me on the API side.
+
+        const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
+        const EOD_SESSION_KEY = 'eodSession';
+
+        function getEodSession() {
+            try { return localStorage.getItem(EOD_SESSION_KEY) || ''; } catch (_) { return ''; }
+        }
+        function setEodSession(t) {
+            try { localStorage.setItem(EOD_SESSION_KEY, t); } catch (_) {}
+        }
+        function clearEodSession() {
+            try { localStorage.removeItem(EOD_SESSION_KEY); } catch (_) {}
+        }
+        function bounceToSignIn(reason) {
+            console.warn('[auth] bouncing to signin.html', reason || '');
+            clearEodSession();
+            window.location.replace('signin.html');
+        }
 
         function applyUserRoles(roles) {
             document.body.className = document.body.className
@@ -3596,39 +3620,98 @@
         }
 
         async function authFetch(url, options = {}) {
-            const resp = await window.dumpBinAuth.fetch(url, options);
+            const tok = getEodSession();
+            const headers = Object.assign({}, options.headers || {});
+            if (tok) headers.Authorization = 'Bearer ' + tok;
+            // credentials:'include' is intentionally omitted -- the new auth
+            // is header-based, and a stale CF_Authorization cookie would only
+            // cause CORS friction.
+            const resp = await fetch(url, Object.assign({}, options, { headers }));
+
             if (resp.status === 401) {
-                let body = '';
-                try { body = await resp.clone().text(); } catch (_) {}
-                // Align with auth-gate.js body check; flip SAS header bar on downstream auth expiry.
-                if (/sas session|rebotics session/i.test(body)) {
-                    try { setAuthStatus('red'); } catch (_) {}
+                // Distinguish "EOD session expired" (force re-sign-in) from
+                // "SAS session expired" (a separate downstream auth flag the
+                // UI surfaces with the red dot).
+                let errPayload = null;
+                try { errPayload = await resp.clone().json(); } catch (_) {}
+                const errText = (errPayload && (errPayload.error || '')).toString().toLowerCase();
+                if (errText.includes('sas session')) {
+                    setAuthStatus('red');
+                } else {
+                    bounceToSignIn(errText || 'API returned 401');
                 }
             }
+
             return resp;
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            await window.dumpBinAuth.bootPromise;
+        // Step 1: exchange the magic-link ?token=… for a session JWT. Runs
+        // BEFORE the /api/me call below. Resolves to true iff a session is
+        // now in place (either pre-existing or freshly minted).
+        async function exchangeLinkToken() {
+            const urlParams = new URLSearchParams(location.search);
+            const linkTok = urlParams.get('token');
+            if (!linkTok) return !!getEodSession();
+
             try {
-                const resp = await window.dumpBinAuth.fetch('/api/me');
+                const resp = await fetch(`${EOD_API_BASE}/api/verify-token?token=${encodeURIComponent(linkTok)}`, {
+                    method: 'GET',
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data.ok || !data.token) {
+                    console.warn('[auth] /api/verify-token rejected the link:', data && data.error);
+                    // Strip the bad token from the URL so a reload doesn't replay it.
+                    urlParams.delete('token');
+                    const qs = urlParams.toString();
+                    history.replaceState({}, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+                    // Surface a one-shot error message after sign-in.
+                    try { sessionStorage.setItem('eodSignInError', data.error || 'This sign-in link is invalid or has been used.'); } catch (_) {}
+                    return !!getEodSession();
+                }
+                setEodSession(data.token);
+                urlParams.delete('token');
+                const qs = urlParams.toString();
+                history.replaceState({}, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+                return true;
+            } catch (err) {
+                console.warn('[auth] /api/verify-token threw:', err && err.message);
+                return !!getEodSession();
+            }
+        }
+
+        // Boot guard + identity fetch.
+        (async () => {
+            const haveSession = await exchangeLinkToken();
+            if (!haveSession) {
+                bounceToSignIn('no session and no ?token=');
+                return;
+            }
+
+            try {
+                const resp = await authFetch(`${EOD_API_BASE}/api/me`);
                 if (resp.ok) {
                     const me = await resp.json();
                     applyUserRoles(me.roles || []);
+                    // Pre-populate profile email from server identity if not already saved.
                     const profileEl = document.getElementById('profileEmail');
                     if (profileEl && !profileEl.value.trim() && me.email) {
                         profileEl.value = me.email;
                         saveProfile();
                     }
                 } else if (resp.status === 401) {
-                    return;
+                    return; // authFetch already bounced.
                 }
             } catch (e) {
                 console.warn('[auth] Could not fetch /api/me:', e.message);
             } finally {
+                // Run the daily store-confirmation gate AFTER auth resolves so
+                // verify-store has a valid identity to check against. If /api/me
+                // failed at the network layer (offline, etc.) the gate still
+                // fires -- the user just sees a clearer error message than a
+                // silent submit-time failure.
                 try { enforceDayConfirmGate(); } catch (e) { console.warn('[day-confirm] gate failed:', e); }
             }
-        });
+        })();
 
         // ─── DAY-CONFIRM GATE ─────────────────────────────────────────────
         // Forces a server-verified store check at the start of every shift.
@@ -7074,7 +7157,7 @@ ${data.Notes || ''}`;
 
         // ─── InstaWork sign-out sheet (EOD API — mobile + desktop) ───────────
         // MUST use the hosted EOD API — never localhost. Phone browsers cannot
-        // reach 127.0.0.1 on a store PC; authFetch() wraps dumpBinAuth.fetch (Bearer JWT).
+        // reach 127.0.0.1 on a store PC; authFetch() carries the session JWT.
         // Server-side delivery is SharePoint (Graph), optional local disk, or
         // email — see eod-api/src/instawork-router.js.
         const INSTAWORK_IMAGE_SAVER_URL = 'https://eod-api.the-dump-bin.com/instawork/save-image';
@@ -7927,7 +8010,7 @@ ${data.Notes || ''}`;
         // ─── SHIFT MANAGEMENT ────────────────────────────────────────────────────────
         // Always use the public hostname (eod-api.the-dump-bin.com) so the
         // browser sends the same Origin and cookies as the rest of the app.
-        // Auth is the Bearer session JWT via authFetch() → dumpBinAuth.fetch.
+        // Auth is the Bearer session JWT carried by authFetch().
         const SM_API_BASE = 'https://eod-api.the-dump-bin.com';
         let smShifts = [];
         let smSelectedShift = null;
