@@ -181,20 +181,6 @@
     location.assign(SIGNIN_PATH);
   }
 
-  // Public surface. Defined synchronously so callers don't have to wait
-  // for the boot IIFE.
-  window.dumpBinAuth = {
-    API_BASE: API_BASE,
-    getSession: getSession,
-    setSession: setSession,
-    clearSession: clearSession,
-    signOut: signOut,
-    fetch: authFetch,
-    bounceToSignIn: bounceToSignIn,
-  };
-  window.dumpBinAuthFetch = authFetch;
-  window.dumpBinSignOut   = signOut;
-
   // ── Boot guard ────────────────────────────────────────────────────────
   //
   // 1. Public pages (signin/admin) don't run the gate — they have their
@@ -204,7 +190,10 @@
   // 3. Otherwise: if we have a session, do nothing and let the page
   //    render. If we don't, redirect to signin.html before anything
   //    sensitive can render.
-  (async function boot() {
+  //
+  // bootPromise settles when this gate finishes (success path or bounce).
+  // Nested apps await dumpBinAuth.bootPromise before their own boot logic.
+  var bootPromise = (async function boot() {
     if (isPublicPath()) {
       revealPage();
       return;
@@ -231,4 +220,18 @@
     }
     revealPage();
   })();
+
+  window.dumpBinAuth = {
+    API_BASE: API_BASE,
+    getSession: getSession,
+    setSession: setSession,
+    clearSession: clearSession,
+    signOut: signOut,
+    fetch: authFetch,
+    bounceToSignIn: bounceToSignIn,
+    bootPromise: bootPromise,
+  };
+  window.dumpBinAuthFetch = authFetch;
+  window.dumpBinSignOut   = signOut;
+  window.dumpBinAuthReady = bootPromise;
 })();
