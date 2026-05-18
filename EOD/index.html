@@ -3583,7 +3583,8 @@
         //      localStorage.eodSession.
         //   4. authFetch() sends `Authorization: Bearer <jwt>` on every API
         //      call. A 401 wipes the stored token and bounces the user to
-        //      signin.html. Roles still come from /api/me on the API side.
+        //      /signin.html?next=… (hub root — not /EOD/signin.html). Roles
+        //      still come from /api/me on the API side.
 
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         const EOD_SESSION_KEY = 'eodSession';
@@ -3598,9 +3599,13 @@
             try { localStorage.removeItem(EOD_SESSION_KEY); } catch (_) {}
         }
         function bounceToSignIn(reason) {
-            console.warn('[auth] bouncing to signin.html', reason || '');
+            console.warn('[auth] bouncing to /signin.html', reason || '');
             clearEodSession();
-            window.location.replace('signin.html');
+            // Root-relative: this app lives under /EOD/ but signin.html is only
+            // at /signin.html (same as auth-gate.js). A relative "signin.html"
+            // wrongly resolves to /EOD/signin.html → GitHub Pages 404.
+            var next = encodeURIComponent(location.pathname + location.search + location.hash);
+            window.location.replace('/signin.html?next=' + next);
         }
 
         function applyUserRoles(roles) {
