@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review request — The Dump Bin</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <style>
+    :root {
+      --bg: #111827;
+      --surface: #1a2332;
+      --text: #e8ecf1;
+      --muted: #9ca3af;
+      --accent: #88c4ed;
+      --accent-dark: #0d4f8b;
+      --ok: #22c55e;
+      --bad: #ef4444;
+      --radius: 12px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding: 20px 16px 48px;
+    }
+    .wrap {
+      max-width: 440px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .sub {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 22px;
+    }
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      border: 1px solid rgba(136, 196, 237, 0.15);
+    }
+    dl {
+      display: grid;
+      gap: 10px;
+    }
+    dt {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    dd {
+      font-size: 1rem;
+      word-break: break-word;
+    }
+    .loading, .err {
+      text-align: center;
+      padding: 28px 12px;
+      color: var(--muted);
+    }
+    .err { color: #fca5a5; }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    @media (min-width: 400px) {
+      .actions { flex-direction: row; }
+      .actions button { flex: 1; }
+    }
+    button {
+      font: inherit;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 18px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-approve {
+      background: var(--ok);
+      color: #fff;
+    }
+    .btn-deny {
+      background: var(--bad);
+      color: #fff;
+    }
+    .outcome {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: var(--radius);
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .outcome.visible { display: flex; }
+    .outcome.denied {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+    .outcome svg { flex-shrink: 0; margin-top: 2px; }
+    .outcome p { font-size: 1rem; }
+    .logo {
+      display: block;
+      width: 120px;
+      margin: 0 auto 20px;
+      opacity: 0.95;
+    }
+    blockquote.reason {
+      margin: 8px 0 0;
+      padding: 10px 12px;
+      border-left: 3px solid var(--accent);
+      background: rgba(17, 24, 39, 0.6);
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <img class="logo" src="/logo.png" alt="">
+    <h1>Review request</h1>
+    <p class="sub" id="sub">Loading…</p>
+
+    <div id="loading" class="loading">Loading request…</div>
+    <div id="error" class="err" style="display:none;"></div>
+
+    <div id="main" style="display:none;">
+      <div class="card" id="detail-card">
+        <dl id="detail"></dl>
+        <div class="actions" id="actions">
+          <button type="button" class="btn-approve" id="btn-approve">Approve</button>
+          <button type="button" class="btn-deny" id="btn-deny">Deny</button>
+        </div>
+        <div class="outcome" id="outcome">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" class="oc-ico"/>
+            <path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p id="outcome-text"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  const API_BASE = 'https://eod-api.the-dump-bin.com';
+
+  const params = new URLSearchParams(window.location.search);
+  const type = params.get('type');
+  const id = params.get('id');
+  const token = params.get('token');
+
+  const $ = (id) => document.getElementById(id);
+
+  const loadingEl = $('loading');
+  const errorEl = $('error');
+  const mainEl = $('main');
+  const subEl = $('sub');
+  const detailEl = $('detail');
+  const actionsEl = $('actions');
+  const btnApprove = $('btn-approve');
+  const btnDeny = $('btn-deny');
+  const outcomeEl = $('outcome');
+  const outcomeText = $('outcome-text');
+
+  function showError(msg) {
+    loadingEl.style.display = 'none';
+    mainEl.style.display = 'none';
+    errorEl.style.display = 'block';
+    errorEl.textContent = msg;
+    subEl.textContent = 'Something went wrong';
+  }
+
+  function labelType(t) {
+    if (t === 'store') return 'Store confirmation override';
+    if (t === 'shift') return 'Shift removal';
+    return t || 'Request';
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+
+  function row(term, htmlInner) {
+    return '<dt>' + esc(term) + '</dt><dd>' + htmlInner + '</dd>';
+  }
+
+  if (!type || !id || !token || (type !== 'store' && type !== 'shift')) {
+    showError('This link is missing required parameters (type, id, token). Open the link from your email.');
+    return;
+  }
+
+  subEl.textContent = labelType(type);
+
+  async function load() {
+    const url = API_BASE + '/api/decide/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '?token=' + encodeURIComponent(token);
+    const r = await fetch(url, { credentials: 'omit' });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const err = data.error || ('HTTP ' + r.status);
+      showError(err === 'expired_token' ? 'This review link has expired. Ask the requester to send a new request.' : 'Could not load request (' + err + ').');
+      return;
+    }
+    loadingEl.style.display = 'none';
+    mainEl.style.display = 'block';
+
+    const st = data.status;
+    const parts = [
+      row('Status', '<strong>' + esc(st) + '</strong>'),
+      row('Requested by', esc(data.requestedBy)),
+      row('Store', '#' + esc(data.storeNumber)),
+      row('Date', esc(data.date)),
+    ];
+    if (type === 'store' && data.reason) {
+      parts.push(row('Reason', '<blockquote class="reason">' + esc(data.reason) + '</blockquote>'));
+    }
+    if (type === 'shift' && data.memberName) {
+      parts.push(row('Remove', esc(data.memberName)));
+    }
+    if (data.requestedAt) {
+      try {
+        const dt = new Date(data.requestedAt);
+        parts.push(row('Requested at', esc(dt.toLocaleString())));
+      } catch (e) { /* ignore */ }
+    }
+    if (data.expiresAt) {
+      try {
+        const dt = new Date(data.expiresAt);
+        parts.push(row('Review link expires', esc(dt.toLocaleString())));
+      } catch (e) { /* ignore */ }
+    }
+
+    detailEl.innerHTML = parts.join('');
+
+    const closed = st === 'approved' || st === 'denied' || st === 'expired';
+    const icon = document.querySelector('.oc-ico');
+    if (closed) {
+      actionsEl.style.display = 'none';
+      outcomeEl.classList.add('visible');
+      if (st === 'expired') {
+        outcomeEl.classList.add('denied');
+        if (icon) icon.setAttribute('stroke', '#ef4444');
+        outcomeText.textContent =
+          'This request has expired (or the review window closed).';
+      } else if (st === 'approved') {
+        outcomeEl.classList.remove('denied');
+        if (icon) icon.setAttribute('stroke', '#22c55e');
+        outcomeText.textContent = 'This request was approved.';
+      } else {
+        outcomeEl.classList.add('denied');
+        if (icon) icon.setAttribute('stroke', '#ef4444');
+        outcomeText.textContent = 'This request was denied.';
+      }
+    } else {
+      actionsEl.style.display = 'flex';
+      outcomeEl.classList.remove('visible');
+    }
+  }
+
+  async function postDecision(decision) {
+    btnApprove.disabled = true;
+    btnDeny.disabled = true;
+    const url = API_BASE + '/api/decide/' + encodeURIComponent(type) + '/' + encodeURIComponent(id);
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'omit',
+      body: JSON.stringify({ decision, token }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      btnApprove.disabled = false;
+      btnDeny.disabled = false;
+      const err = data.error || ('HTTP ' + r.status);
+      alert(err === 'sas_inactive' ? 'The scheduling backend is offline. Try again after the office SAS session is refreshed.' : 'Could not submit: ' + err);
+      return;
+    }
+    await load();
+  }
+
+  btnApprove.addEventListener('click', () => postDecision('approved'));
+  btnDeny.addEventListener('click', () => postDecision('denied'));
+
+  load().catch((e) => showError(e.message || 'Network error'));
+})();
+  </script>
+</body>
+</html>
