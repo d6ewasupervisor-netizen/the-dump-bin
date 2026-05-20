@@ -3200,14 +3200,117 @@
             </div>
 
             <div id="hotlineDetails" style="display: none; margin-top: 15px;">
-                <div class="field">
-                    <label>Commodities involved:</label>
-                    <input type="text" id="commodities" placeholder="Enter commodities">
+
+                <!-- ═══ KOMPASS HELP DESK TICKET WIZARD ═══════════════════════ -->
+                <div id="helpdeskWizard" style="border:1px solid #ccc;border-radius:8px;padding:14px;background:#f9f9f9;margin-bottom:14px;">
+                    <p style="font-weight:600;margin:0 0 10px;">Help Desk Ticket</p>
+                    <p style="font-size:13px;color:#555;margin:0 0 12px;">Build and send a structured ticket to the KOMPASS team. One ticket covers one category number. Complete all steps before sending.</p>
+
+                    <!-- ── Step A: Category / set ── -->
+                    <div class="field">
+                        <label>Step 1 — Category / set to report</label>
+                        <p class="sets-help" id="hdSetHelp" style="margin:4px 0 8px;"></p>
+
+                        <!-- Shift picker (hidden when only one shift) -->
+                        <div id="hdShiftPickerField" style="display:none;margin-bottom:8px;">
+                            <select id="hdShiftSelect" onchange="onHdShiftChange()" style="width:100%;">
+                                <option value="">-- Select a shift --</option>
+                            </select>
+                        </div>
+
+                        <!-- Toggle: from shift vs manual entry -->
+                        <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+                            <label style="font-weight:normal;font-size:13px;">
+                                <input type="radio" name="hdSource" value="shift" id="hdSourceShift" checked onchange="onHdSourceChange()"> From shift
+                            </label>
+                            <label style="font-weight:normal;font-size:13px;">
+                                <input type="radio" name="hdSource" value="manual" id="hdSourceManual" onchange="onHdSourceChange()"> Enter manually
+                            </label>
+                        </div>
+
+                        <!-- Shift-sourced set picker -->
+                        <div id="hdShiftSetSection">
+                            <select id="hdSetSelect" onchange="onHdSetSelect()" style="width:100%;">
+                                <option value="">-- Select a set from your shift --</option>
+                            </select>
+                        </div>
+
+                        <!-- Manual entry fields -->
+                        <div id="hdManualSection" style="display:none;margin-top:8px;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                                <input type="text" id="hdManualName" placeholder="Category name" oninput="onHdManualInput()" style="width:100%;box-sizing:border-box;">
+                                <input type="text" id="hdManualNumber" placeholder="Category number (required)" oninput="onHdManualInput()" style="width:100%;box-sizing:border-box;">
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                <input type="text" id="hdManualDbkey" placeholder="DB Key (e.g. 8509659)" oninput="onHdManualInput()" style="width:100%;box-sizing:border-box;">
+                                <input type="text" id="hdManualVersion" placeholder="Version (e.g. D701)" oninput="onHdManualInput()" style="width:100%;box-sizing:border-box;">
+                            </div>
+                            <p style="font-size:12px;color:#888;margin:4px 0 0;">At least one of DB Key or Version is required for manual entries.</p>
+                        </div>
+
+                        <!-- Selected category summary -->
+                        <div id="hdCategoryChip" style="display:none;margin-top:8px;padding:7px 10px;background:#e8f4fd;border-radius:6px;font-size:13px;"></div>
+                    </div>
+
+                    <!-- ── Step B: Issue type ── -->
+                    <div class="field" style="margin-top:14px;" id="hdIssueSection" style="display:none;">
+                        <label>Step 2 — What is the issue?</label>
+                        <select id="hdIssueSelect" onchange="onHdIssueSelect()" style="width:100%;margin-top:6px;">
+                            <option value="">-- Select an issue --</option>
+                            <option value="missing_fixture">Missing fixture (shelf, peg, or other merchandising implement)</option>
+                            <option value="missing_set">Entire set missing — does not exist in the store</option>
+                            <option value="mapping_wrong">Mapping / location inaccurate (wrong aisle, bay, or section)</option>
+                            <option value="bay_count_wrong">Number of bays differs from plan</option>
+                            <option value="bay_width_wrong">Bay width mismatch (e.g. store has 4 ft, materials show 3 ft)</option>
+                            <option value="materials_wrong">Wrong materials received (footage, version, or mirrored flow)</option>
+                            <option value="obstruction">Obstruction blocking the set (pole, case, permanent fixture)</option>
+                            <option value="signage_missing">Missing or incorrect signage / header card</option>
+                            <option value="fixture_damage">Fixture or set is damaged</option>
+                            <option value="insufficient_materials">Insufficient quantity of materials received</option>
+                            <option value="pog_revision">POG revision mismatch (store on older version than materials shipped)</option>
+                            <option value="dept_aisle_wrong">Wrong department or aisle assignment</option>
+                            <option value="product_assortment">Incorrect product assortment in materials</option>
+                            <option value="custom">Other — describe manually</option>
+                        </select>
+
+                        <!-- Contextual detail fields rendered dynamically -->
+                        <div id="hdIssueDetails" style="margin-top:10px;"></div>
+                    </div>
+
+                    <!-- ── Step C: Photos & coaching checklist ── -->
+                    <div class="field" style="margin-top:14px;" id="hdPhotoSection">
+                        <label>Step 3 — Visual evidence</label>
+                        <div id="hdChecklist" style="margin:8px 0;font-size:13px;color:#444;"></div>
+                        <p id="hdPhotoSizeIndicator" style="font-size:12px;color:#888;margin:2px 0 6px;"></p>
+
+                        <div id="previewHelpdesk" class="photo-preview" style="margin-bottom:8px;"></div>
+
+                        <!-- Captions for each photo -->
+                        <div id="hdCaptionsContainer" style="margin-bottom:8px;"></div>
+
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-secondary" onclick="openHelpdeskCamera()">Take photo</button>
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('helpdeskPhotoInput').click()">Upload photo</button>
+                        </div>
+                        <input type="file" id="helpdeskPhotoInput" accept="image/*,.heic,.heif" multiple style="display:none;" onchange="handleHelpdeskPhotos(this)">
+                    </div>
+
+                    <!-- ── Step D: Additional notes + send ── -->
+                    <div class="field" style="margin-top:14px;">
+                        <label>Additional notes (optional)</label>
+                        <textarea id="hdAdditionalNotes" placeholder="Any other context for the KOMPASS team…" rows="2" style="width:100%;box-sizing:border-box;" oninput="hdAutoSave()"></textarea>
+                    </div>
+
+                    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                        <button type="button" class="btn btn-secondary" onclick="previewHelpdeskTicket()">Preview ticket</button>
+                        <button type="button" class="btn btn-primary" id="hdSendBtn" onclick="sendHelpdeskTicket()" disabled>Send Help Desk Ticket</button>
+                        <span id="hdSentBadge" style="display:none;color:#2a7;font-size:13px;font-weight:600;">&#10003; Ticket sent</span>
+                    </div>
+                    <p id="hdValidationMsg" style="color:#c00;font-size:13px;margin:6px 0 0;display:none;"></p>
                 </div>
-                <div class="field" style="margin-top: 15px;">
-                    <label>What is the issue?</label>
-                    <textarea id="issue" placeholder="Describe the issue"></textarea>
-                </div>
+                <!-- ═══ /HELP DESK TICKET WIZARD ══════════════════════════════ -->
+
+                <!-- Issue resolved + temp solution remain for the EOD summary -->
                 <div class="field" style="margin-top: 15px;">
                     <label>Issue resolved?</label>
                     <div class="checkbox-group">
@@ -3231,6 +3334,10 @@
                         <textarea id="tempSolution" placeholder="Describe temporary solution"></textarea>
                     </div>
                 </div>
+
+                <!-- Hidden fields that collectData() reads — auto-filled from the ticket draft -->
+                <input type="hidden" id="commodities" value="">
+                <input type="hidden" id="issue" value="">
             </div>
 
             <div class="field" style="margin-top: 15px;">
@@ -3523,6 +3630,19 @@
         <canvas id="captureCanvas"></canvas>
     </div>
 
+    <!-- Help Desk Ticket Preview Modal -->
+    <div id="helpdeskPreviewModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.7);overflow-y:auto;">
+        <div style="background:#fff;max-width:680px;margin:30px auto;border-radius:10px;padding:24px;position:relative;">
+            <button onclick="document.getElementById('helpdeskPreviewModal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;">&#10005;</button>
+            <h3 style="margin:0 0 14px;">Ticket Preview</h3>
+            <div id="helpdeskPreviewContent" style="font-size:13px;line-height:1.6;"></div>
+            <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="document.getElementById('helpdeskPreviewModal').style.display='none'">Close</button>
+                <button class="btn btn-primary" onclick="document.getElementById('helpdeskPreviewModal').style.display='none';sendHelpdeskTicket()">Send now</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Image Editor Overlay for Sign-off Sheets -->
     <div id="imageEditorOverlay" class="image-editor-overlay">
         <div class="editor-toolbar">
@@ -3568,6 +3688,19 @@
                 <button class="editor-btn editor-btn-icon" id="rotateRight" title="Rotate Right">&#8635;</button>
                 <button class="editor-btn" id="toggleCrop">Crop</button>
                 <button class="editor-btn" id="applyCrop" style="display: none;">Apply Crop</button>
+                <button class="editor-btn" id="toggleDraw" title="Draw annotations">&#9998; Draw</button>
+            </div>
+            <!-- Draw mode controls (hidden until Draw is active) -->
+            <div class="editor-control-row" id="drawControlsRow" style="display:none;">
+                <span class="editor-control-label">Color:</span>
+                <button class="editor-btn draw-color-btn active" id="drawColorRed" onclick="setDrawColor('#ff3333')" title="Red" style="background:#ff3333;color:#fff;min-width:28px;"></button>
+                <button class="editor-btn draw-color-btn" id="drawColorYellow" onclick="setDrawColor('#ffcc00')" title="Yellow" style="background:#ffcc00;color:#000;min-width:28px;"></button>
+                <button class="editor-btn draw-color-btn" id="drawColorWhite" onclick="setDrawColor('#ffffff')" title="White" style="background:#fff;color:#000;border:1px solid #ccc;min-width:28px;"></button>
+                <button class="editor-btn draw-color-btn" id="drawColorBlack" onclick="setDrawColor('#000000')" title="Black" style="background:#000;color:#fff;min-width:28px;"></button>
+                <span class="editor-control-label" style="margin-left:6px;">Size:</span>
+                <input type="range" id="drawSizeSlider" min="2" max="24" value="6" style="width:70px;" oninput="drawSize=parseInt(this.value)">
+                <button class="editor-btn" id="undoDrawBtn" onclick="undoLastStroke()" title="Undo last stroke">&#8630; Undo</button>
+                <button class="editor-btn" id="clearDrawBtn" onclick="clearAllStrokes()" title="Clear all annotations">Clear</button>
             </div>
         </div>
     </div>
@@ -3900,7 +4033,10 @@
             // the same shape as the other photo types so renderPhotos /
             // handlePhoto / openImageEditor / IndexedDB persistence all work
             // unchanged. We only ever keep the most-recent photo (length <= 1).
-            instawork: []
+            instawork: [],
+            // Photos submitted with a KOMPASS Help Desk ticket (one bucket per
+            // ticket draft; cleared after a successful send).
+            helpdesk: []
         };
 
         // Tracks the saver response after a successful InstaWork JPG save.
@@ -3984,6 +4120,7 @@
                         signoff: photosObj.signoff || [],
                         after: photosObj.after || [],
                         instawork: photosObj.instawork || [],
+                        helpdesk: photosObj.helpdesk || [],
                         timestamp: Date.now()
                     };
 
@@ -4017,10 +4154,11 @@
                                     before: data.before || [],
                                     signoff: data.signoff || [],
                                     after: data.after || [],
-                                    instawork: data.instawork || []
+                                    instawork: data.instawork || [],
+                                    helpdesk: data.helpdesk || []
                                 });
                             } else {
-                                resolve({ before: [], signoff: [], after: [], instawork: [] });
+                                resolve({ before: [], signoff: [], after: [], instawork: [], helpdesk: [] });
                             }
                         };
                         request.onerror = () => {
@@ -4030,7 +4168,7 @@
                     });
                 } catch (e) {
                     console.error('IndexedDB loadPhotos error:', e);
-                    return { before: [], signoff: [], after: [], instawork: [] };
+                    return { before: [], signoff: [], after: [], instawork: [], helpdesk: [] };
                 }
             },
 
@@ -4373,7 +4511,9 @@
                 notInStoreOther: document.getElementById('notInStoreOther')?.value || '',
                 notInSiOther: document.getElementById('notInSiOther')?.value || '',
                 // Sign-off photo review state (parallel to photos.signoff)
-                signoffNeedsReview: signoffNeedsReview
+                signoffNeedsReview: signoffNeedsReview,
+                // Help desk ticket wizard draft state
+                helpdeskTicketDraft: hdDraft
                 // Note: photos are now stored in IndexedDB, not localStorage
             };
             try {
@@ -4451,6 +4591,7 @@
                 if (data.hotlineYes) {
                     document.getElementById('hotlineYes').checked = true;
                     document.getElementById('hotlineDetails').style.display = 'block';
+                    // Re-initialise wizard after draft is restored below
                 }
                 if (data.hotlineNo) document.getElementById('hotlineNo').checked = true;
                 const instaworkYesEl = document.getElementById('instaworkYes');
@@ -4522,12 +4663,47 @@
                     signoffNeedsReview = data.signoffNeedsReview.slice();
                 }
 
+                // Restore help desk ticket draft
+                if (data.helpdeskTicketDraft && typeof data.helpdeskTicketDraft === 'object') {
+                    Object.assign(hdDraft, data.helpdeskTicketDraft);
+                    // Restore hidden EOD summary fields from ticket if a ticket was sent
+                    if (hdDraft.sentId) hdFillEodSummary();
+                    // Re-render wizard UI from restored state
+                    if (data.hotlineYes) {
+                        initHelpdeskWizard();
+                        // Restore source radio
+                        const srcRadio = document.getElementById(hdDraft.source === 'manual' ? 'hdSourceManual' : 'hdSourceShift');
+                        if (srcRadio) { srcRadio.checked = true; onHdSourceChange(); }
+                        // Restore issue select
+                        const issueSel = document.getElementById('hdIssueSelect');
+                        if (issueSel && hdDraft.issueTypeId) { issueSel.value = hdDraft.issueTypeId; renderHdIssueDetails(hdDraft.issueTypeId); renderHelpdeskChecklist(); }
+                        // Restore notes
+                        const notesEl = document.getElementById('hdAdditionalNotes');
+                        if (notesEl) notesEl.value = hdDraft.additionalNotes || '';
+                        // Restore manual fields
+                        if (hdDraft.source === 'manual') {
+                            const f = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+                            f('hdManualName', hdDraft.categoryName);
+                            f('hdManualNumber', hdDraft.categoryNumber);
+                            f('hdManualDbkey', hdDraft.dbkey);
+                            f('hdManualVersion', hdDraft.version);
+                        }
+                        renderHdCategoryChip();
+                        updateHdSendButton();
+                        if (hdDraft.sentId) {
+                            const badge = document.getElementById('hdSentBadge');
+                            if (badge) badge.style.display = 'inline';
+                        }
+                    }
+                }
+
                 // Migration: if photos exist in localStorage, migrate them to IndexedDB
                 if (data.photos && (data.photos.before?.length || data.photos.signoff?.length || data.photos.after?.length)) {
                     console.log('Migrating photos from localStorage to IndexedDB...');
                     photos.before = data.photos.before || [];
                     photos.signoff = data.photos.signoff || [];
                     photos.after = data.photos.after || [];
+                    photos.helpdesk = data.photos.helpdesk || [];
 
                     // Save to IndexedDB
                     await PhotoDB.savePhotos(photos);
@@ -4563,24 +4739,28 @@
 
                 const savedPhotos = await PhotoDB.loadPhotos();
                 const savedInstawork = savedPhotos.instawork || [];
-                if (savedPhotos.before.length || savedPhotos.signoff.length || savedPhotos.after.length || savedInstawork.length) {
+                const savedHelpdesk = savedPhotos.helpdesk || [];
+                if (savedPhotos.before.length || savedPhotos.signoff.length || savedPhotos.after.length || savedInstawork.length || savedHelpdesk.length) {
                     photos.before = deduplicatePhotos(savedPhotos.before);
                     photos.signoff = deduplicatePhotos(savedPhotos.signoff);
                     photos.after = deduplicatePhotos(savedPhotos.after);
                     // Cap InstaWork to a single photo even if older sessions stored more.
                     photos.instawork = deduplicatePhotos(savedInstawork).slice(-1);
+                    photos.helpdesk = deduplicatePhotos(savedHelpdesk);
 
                     renderPhotos('before');
                     renderPhotos('signoff');
                     renderPhotos('after');
                     renderPhotos('instawork');
+                    renderHelpdeskPhotos();
                     updateInstaworkSaveButton();
 
                     // Save back any cleaned up duplicates
                     if (photos.before.length !== savedPhotos.before.length ||
                         photos.signoff.length !== savedPhotos.signoff.length ||
                         photos.after.length !== savedPhotos.after.length ||
-                        photos.instawork.length !== savedInstawork.length) {
+                        photos.instawork.length !== savedInstawork.length ||
+                        photos.helpdesk.length !== savedHelpdesk.length) {
                         console.log('Cleaned up duplicate photos');
                         await PhotoDB.savePhotos(photos);
                     }
@@ -4646,11 +4826,934 @@
             if (checkbox.id === 'hotlineYes' && checkbox.checked) {
                 no.checked = false;
                 details.style.display = 'block';
+                initHelpdeskWizard();
             } else if (checkbox.id === 'hotlineNo' && checkbox.checked) {
                 yes.checked = false;
                 details.style.display = 'none';
             }
             autoSave();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // KOMPASS HELP DESK TICKET WIZARD
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Client-side planogram ID parser (mirrors server-side extractPlanogramMeta)
+        function extractPlanogramMetaClient(planogramId) {
+            if (!planogramId) return { dbkey: null, version: null };
+            const s = String(planogramId).trim();
+            const full = s.match(/^P\d+W\d+_(\d+)_([A-Z]\d+)/);
+            if (full) return { dbkey: full[1], version: full[2] };
+            if (/^\d+$/.test(s)) return { dbkey: s, version: null };
+            return { dbkey: null, version: null };
+        }
+
+        // Mutable draft state for the current help desk ticket
+        let hdDraft = {
+            source: 'shift',
+            categoryName: '', categoryNumber: '', dbkey: '', version: '', planogramId: '',
+            issueTypeId: '', issueTypeLabel: '', issueDetails: '', measurements: '',
+            additionalNotes: '',
+            photoCaptions: [],
+            sentId: null,
+            hdShiftId: null,
+        };
+
+        // Issue-type catalog: label, template sentence, contextual fields, photo checklist
+        const HD_ISSUE_CATALOG = {
+            missing_fixture: {
+                label: 'Missing fixture (shelf, peg, or other merchandising implement)',
+                template: 'One or more fixtures required to set this planogram are missing from the store.',
+                fields: [
+                    { id: 'hdFixtureType', label: 'Fixture type', placeholder: 'e.g. shelf, peg hook, end cap bracket…', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Describe specifically what is missing…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Wide shot of the empty bay where the fixture should be',
+                    'Close-up of mounting holes or bracket locations',
+                    'Photo of adjacent sets for aisle context',
+                ],
+                minPhotos: 2,
+            },
+            missing_set: {
+                label: 'Entire set missing — does not exist in the store',
+                template: 'The planogram set for this category does not appear to exist at this store location.',
+                fields: [
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Describe where the set should be, what signage exists, etc.', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of the area where the set should be per the KOMPASS map',
+                    'Wide shot of surrounding aisle section for context',
+                ],
+                minPhotos: 1,
+            },
+            mapping_wrong: {
+                label: 'Mapping / location inaccurate (wrong aisle, bay, or section)',
+                template: 'The location shown in KOMPASS does not match where the set actually exists in the store.',
+                fields: [
+                    { id: 'hdExpectedLocation', label: 'Location per KOMPASS map', placeholder: 'e.g. Aisle 14, Bay 3', type: 'text' },
+                    { id: 'hdActualLocation', label: 'Actual location in store', placeholder: 'e.g. Aisle 16, Bay 1', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Additional details', placeholder: 'Any other context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of the aisle/bay where KOMPASS says the set should be',
+                    'Photo of where the set actually is',
+                    'Photo of the store aisle sign or bay label showing the correct location',
+                ],
+                minPhotos: 2,
+            },
+            bay_count_wrong: {
+                label: 'Number of bays differs from plan',
+                template: 'The number of bays available in the store does not match the bay count shown in the planogram materials.',
+                fields: [
+                    { id: 'hdBaysInStore', label: 'Bays in store', placeholder: 'e.g. 3', type: 'text' },
+                    { id: 'hdBaysInMaterials', label: 'Bays shown in materials', placeholder: 'e.g. 5', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Any additional context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Full-width shot of the entire section showing all available bays',
+                    'Close-up of the planogram header or shelf tag showing expected bay count',
+                ],
+                minPhotos: 2,
+            },
+            bay_width_wrong: {
+                label: 'Bay width mismatch (e.g. store has 4 ft, materials show 3 ft)',
+                template: 'The bay width in the store does not match the width indicated in the planogram materials.',
+                fields: [
+                    { id: 'hdWidthInStore', label: 'Width in store', placeholder: 'e.g. 4 ft', type: 'text' },
+                    { id: 'hdWidthInMaterials', label: 'Width in materials', placeholder: 'e.g. 3 ft', type: 'text' },
+                    { id: 'hdMeasurements', label: 'Measurements', placeholder: 'Measured width(s) of affected bays', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Any additional context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of the full bay showing its physical width',
+                    'Tape measure or ruler visible against the bay showing measured width',
+                    'Photo of the planogram materials showing the expected bay width',
+                ],
+                minPhotos: 2,
+            },
+            materials_wrong: {
+                label: 'Wrong materials received (footage, version, or mirrored flow)',
+                template: 'The materials received for this set do not match what is expected for this store.',
+                fields: [
+                    { id: 'hdMaterialsAspect', label: 'What is wrong', placeholder: 'e.g. wrong footage, wrong version, mirrored flow, wrong SKU assortment', type: 'text' },
+                    { id: 'hdVersionReceived', label: 'Version / footage received', placeholder: 'From the materials in hand', type: 'text' },
+                    { id: 'hdVersionExpected', label: 'Version / footage expected', placeholder: 'Per KOMPASS or previous knowledge', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Any additional context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of the materials label or header strip showing version/footage',
+                    'Photo of the store layout showing why these materials do not fit',
+                    'If mirrored: photo looking down the aisle showing the actual flow direction',
+                ],
+                minPhotos: 2,
+            },
+            obstruction: {
+                label: 'Obstruction blocking the set (pole, case, permanent fixture)',
+                template: 'A permanent or semi-permanent obstruction prevents the set from being placed as planned.',
+                fields: [
+                    { id: 'hdObstructionType', label: 'Type of obstruction', placeholder: 'e.g. support pole, refrigerated case, end-cap structure', type: 'text' },
+                    { id: 'hdMeasurements', label: 'Measurements / clearance', placeholder: 'Distance obstruction intrudes into the set footprint', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Any additional context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Wide shot showing the obstruction in relation to the set location',
+                    'Close-up of the obstruction with a tape measure showing the intrusion',
+                    'Photo from the aisle side showing how it affects the customer shopping path',
+                ],
+                minPhotos: 2,
+            },
+            signage_missing: {
+                label: 'Missing or incorrect signage / header card',
+                template: 'The required signage or header card for this set is missing or does not match what was installed.',
+                fields: [
+                    { id: 'hdSignType', label: 'Sign / header type', placeholder: 'e.g. category header, department sign, price sign rail', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'What was missing or incorrect?', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of the location where the sign should be (empty header strip, blank holder, etc.)',
+                    'Wide shot of the set showing the missing signage context',
+                ],
+                minPhotos: 1,
+            },
+            fixture_damage: {
+                label: 'Fixture or set is damaged',
+                template: 'An existing fixture or component of this set has been damaged.',
+                fields: [
+                    { id: 'hdDamageDescription', label: 'Damage description', placeholder: 'What is damaged and to what extent?', type: 'textarea' },
+                    { id: 'hdIssueDetails', label: 'Additional details', placeholder: 'Any additional context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Close-up of the damaged component',
+                    'Wide shot showing where the damaged piece fits in the overall set',
+                    'Photo of any safety concern created by the damage',
+                ],
+                minPhotos: 1,
+            },
+            insufficient_materials: {
+                label: 'Insufficient quantity of materials received',
+                template: 'The quantity of materials received is not sufficient to complete the set.',
+                fields: [
+                    { id: 'hdQtyReceived', label: 'Quantity received', placeholder: 'e.g. 2 strips, 1 shelf', type: 'text' },
+                    { id: 'hdQtyNeeded', label: 'Quantity needed', placeholder: 'Per the planogram', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Any additional context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of all materials received spread out',
+                    'Photo of the planogram showing what quantity was expected',
+                    'Photo of the partially set bay showing the shortage',
+                ],
+                minPhotos: 2,
+            },
+            pog_revision: {
+                label: 'POG revision mismatch (store on older version than materials shipped)',
+                template: 'The planogram revision on record in KOMPASS differs from the version shown on the materials shipped.',
+                fields: [
+                    { id: 'hdRevisionInKompass', label: 'Version in KOMPASS', placeholder: 'e.g. D701', type: 'text' },
+                    { id: 'hdRevisionOnMaterials', label: 'Version on materials', placeholder: 'e.g. D702', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Any additional context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of the materials label or header showing the version number',
+                    'Screenshot or photo of the KOMPASS set detail showing the expected version',
+                ],
+                minPhotos: 1,
+            },
+            dept_aisle_wrong: {
+                label: 'Wrong department or aisle assignment',
+                template: 'This set has been assigned to the wrong department or aisle in KOMPASS.',
+                fields: [
+                    { id: 'hdAssignedDept', label: 'Department/aisle per KOMPASS', placeholder: 'e.g. Dept 40, Aisle 12', type: 'text' },
+                    { id: 'hdActualDept', label: 'Actual department/aisle in store', placeholder: 'e.g. Dept 42, Aisle 14', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Any additional context…', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of the aisle sign where KOMPASS says the set should be',
+                    'Photo of where the set actually lives with its aisle sign visible',
+                ],
+                minPhotos: 2,
+            },
+            product_assortment: {
+                label: 'Incorrect product assortment in materials',
+                template: 'The product assortment shown in the materials does not match the products in this store.',
+                fields: [
+                    { id: 'hdIssueDetails', label: 'Details', placeholder: 'Which SKUs are wrong or missing? What is carried in the store instead?', type: 'textarea' },
+                ],
+                checklist: [
+                    'Photo of the materials showing the listed assortment',
+                    'Photo of the store shelf or bin showing what is actually carried',
+                ],
+                minPhotos: 1,
+            },
+            custom: {
+                label: 'Other — describe manually',
+                template: '',
+                fields: [
+                    { id: 'hdCustomLabel', label: 'Issue summary (required)', placeholder: 'Brief one-line description of the issue', type: 'text' },
+                    { id: 'hdIssueDetails', label: 'Full description (required)', placeholder: 'Describe the issue in detail…', type: 'textarea' },
+                    { id: 'hdMeasurements', label: 'Measurements (if applicable)', placeholder: 'Any relevant dimensions', type: 'text' },
+                ],
+                checklist: [
+                    'Photo clearly showing the issue',
+                    'Wide-context shot showing surrounding area',
+                ],
+                minPhotos: 1,
+            },
+        };
+
+        // Current shift picker selection for the helpdesk wizard (separate from notIn picker)
+        let hdPickerShiftId = null;
+
+        function initHelpdeskWizard() {
+            renderHdShiftPicker();
+            renderHdSetDropdown();
+            renderHelpdeskChecklist();
+            renderHelpdeskPhotos();
+            updateHdSendButton();
+        }
+
+        function renderHdShiftPicker() {
+            const field = document.getElementById('hdShiftPickerField');
+            const sel = document.getElementById('hdShiftSelect');
+            const helpEl = document.getElementById('hdSetHelp');
+            if (!field || !sel) return;
+
+            const visitIds = Object.keys(allShiftsSetsMap);
+            if (visitIds.length <= 1) {
+                field.style.display = 'none';
+                if (visitIds.length === 1) hdPickerShiftId = parseInt(visitIds[0], 10);
+                if (helpEl) helpEl.textContent = '';
+                return;
+            }
+
+            field.style.display = 'block';
+            if (!hdPickerShiftId) hdPickerShiftId = 'all';
+
+            const totalCount = visitIds.reduce((sum, vid) => sum + allShiftsSetsMap[vid].sets.length, 0);
+            sel.innerHTML = '<option value="">-- Select a shift --</option>' +
+                `<option value="all"${hdPickerShiftId === 'all' ? ' selected' : ''}>All shifts (${totalCount} sets)</option>` +
+                visitIds.map(vid => {
+                    const info = allShiftsSetsMap[vid];
+                    const isSel = String(hdPickerShiftId) === String(vid);
+                    return `<option value="${vid}"${isSel ? ' selected' : ''}>${escapeHtml(info.label)}</option>`;
+                }).join('');
+        }
+
+        function onHdShiftChange() {
+            const sel = document.getElementById('hdShiftSelect');
+            const raw = sel && sel.value;
+            hdPickerShiftId = raw === 'all' ? 'all' : (raw ? parseInt(raw, 10) : null);
+            renderHdSetDropdown();
+        }
+
+        function getHdSets() {
+            const visitIds = Object.keys(allShiftsSetsMap);
+            if (!hdPickerShiftId || hdPickerShiftId === 'all') {
+                const seen = new Set();
+                const merged = [];
+                visitIds.forEach(vid => {
+                    (allShiftsSetsMap[vid].sets || []).forEach(s => {
+                        const lbl = setLabel(s);
+                        if (!seen.has(lbl)) { seen.add(lbl); merged.push(s); }
+                    });
+                });
+                return merged;
+            }
+            return (allShiftsSetsMap[hdPickerShiftId] || {}).sets || [];
+        }
+
+        function renderHdSetDropdown() {
+            const sel = document.getElementById('hdSetSelect');
+            const helpEl = document.getElementById('hdSetHelp');
+            if (!sel) return;
+
+            const sets = getHdSets();
+            if (sets.length === 0) {
+                sel.innerHTML = '<option value="">-- No sets loaded — find shifts first --</option>';
+                if (helpEl) helpEl.textContent = 'Find Shifts to load available sets, or use manual entry below.';
+                return;
+            }
+            if (helpEl) helpEl.textContent = `${sets.length} set${sets.length === 1 ? '' : 's'} available from your shift${Object.keys(allShiftsSetsMap).length > 1 ? 's' : ''}.`;
+
+            sel.innerHTML = '<option value="">-- Select a set --</option>' +
+                sets.map(s => {
+                    const { dbkey: dk, version: ver } = extractPlanogramMetaClient(s.planogramId);
+                    // Prefer server-sent parsed meta; fall back to client parse
+                    const resolvedDbkey = s.dbkey || dk;
+                    const resolvedVersion = s.version || ver;
+                    const meta = [resolvedDbkey, resolvedVersion].filter(Boolean).join(' ');
+                    const display = `C${s.number || '?'} — ${s.name}${meta ? ' (' + meta + ')' : ''}`;
+                    const payload = JSON.stringify({
+                        name: s.name, number: s.number, dbkey: resolvedDbkey || '',
+                        version: resolvedVersion || '', planogramId: s.planogramId || ''
+                    });
+                    return `<option value='${payload.replace(/'/g, '&#39;')}'>${escapeHtml(display)}</option>`;
+                }).join('');
+        }
+
+        function onHdSetSelect() {
+            const sel = document.getElementById('hdSetSelect');
+            if (!sel || !sel.value) return;
+            try {
+                const parsed = JSON.parse(sel.value);
+                hdDraft.categoryName = parsed.name || '';
+                hdDraft.categoryNumber = String(parsed.number || '');
+                hdDraft.dbkey = parsed.dbkey || '';
+                hdDraft.version = parsed.version || '';
+                hdDraft.planogramId = parsed.planogramId || '';
+                hdDraft.source = 'shift';
+            } catch (e) {
+                console.warn('hdSetSelect parse error', e);
+                return;
+            }
+            renderHdCategoryChip();
+            hdAutoSave();
+            updateHdSendButton();
+        }
+
+        function onHdSourceChange() {
+            const isManual = document.getElementById('hdSourceManual').checked;
+            document.getElementById('hdShiftSetSection').style.display = isManual ? 'none' : 'block';
+            document.getElementById('hdManualSection').style.display = isManual ? 'block' : 'none';
+            if (isManual) {
+                hdDraft.source = 'manual';
+                hdDraft.categoryName = '';
+                hdDraft.categoryNumber = '';
+                hdDraft.dbkey = '';
+                hdDraft.version = '';
+            } else {
+                hdDraft.source = 'shift';
+            }
+            renderHdCategoryChip();
+            hdAutoSave();
+            updateHdSendButton();
+        }
+
+        function onHdManualInput() {
+            hdDraft.source = 'manual';
+            hdDraft.categoryName = document.getElementById('hdManualName')?.value.trim() || '';
+            hdDraft.categoryNumber = document.getElementById('hdManualNumber')?.value.trim() || '';
+            hdDraft.dbkey = document.getElementById('hdManualDbkey')?.value.trim() || '';
+            hdDraft.version = document.getElementById('hdManualVersion')?.value.trim() || '';
+            renderHdCategoryChip();
+            hdAutoSave();
+            updateHdSendButton();
+        }
+
+        function renderHdCategoryChip() {
+            const chip = document.getElementById('hdCategoryChip');
+            if (!chip) return;
+            if (!hdDraft.categoryNumber) { chip.style.display = 'none'; return; }
+            const meta = [hdDraft.dbkey, hdDraft.version].filter(Boolean).join(' · ');
+            chip.innerHTML = `<strong>${escapeHtml(hdDraft.categoryName || 'Category')}</strong> — C${escapeHtml(hdDraft.categoryNumber)}${meta ? ' <span style="color:#888;">(' + escapeHtml(meta) + ')</span>' : ''}`;
+            chip.style.display = 'block';
+        }
+
+        function onHdIssueSelect() {
+            const sel = document.getElementById('hdIssueSelect');
+            const id = sel ? sel.value : '';
+            hdDraft.issueTypeId = id;
+            const catalog = HD_ISSUE_CATALOG[id];
+            hdDraft.issueTypeLabel = catalog ? catalog.label : id;
+            renderHdIssueDetails(id);
+            renderHelpdeskChecklist();
+            hdAutoSave();
+            updateHdSendButton();
+        }
+
+        function renderHdIssueDetails(issueTypeId) {
+            const container = document.getElementById('hdIssueDetails');
+            if (!container) return;
+            const catalog = HD_ISSUE_CATALOG[issueTypeId];
+            if (!catalog || !catalog.fields || catalog.fields.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = catalog.fields.map(f => {
+                const inp = f.type === 'textarea'
+                    ? `<textarea id="${f.id}" placeholder="${f.placeholder}" rows="2" style="width:100%;box-sizing:border-box;" oninput="onHdDetailInput()">${escapeHtml(hdDraft.issueDetails || '')}</textarea>`
+                    : `<input type="text" id="${f.id}" placeholder="${f.placeholder}" style="width:100%;box-sizing:border-box;" oninput="onHdDetailInput()" value="${escapeHtml(f.id === 'hdIssueDetails' ? hdDraft.issueDetails : (f.id === 'hdMeasurements' ? hdDraft.measurements : ''))}">`;
+                return `<div style="margin-bottom:8px;"><label style="font-size:13px;display:block;margin-bottom:4px;">${f.label}</label>${inp}</div>`;
+            }).join('');
+        }
+
+        function onHdDetailInput() {
+            // Aggregate contextual fields into draft
+            const fields = HD_ISSUE_CATALOG[hdDraft.issueTypeId]?.fields || [];
+            const parts = [];
+            fields.forEach(f => {
+                const el = document.getElementById(f.id);
+                if (!el) return;
+                const val = el.value.trim();
+                if (!val) return;
+                if (f.id === 'hdIssueDetails') {
+                    hdDraft.issueDetails = val;
+                } else if (f.id === 'hdMeasurements' || f.id === 'hdWidthInStore' || f.id === 'hdWidthInMaterials' || f.id === 'hdMeasurements') {
+                    hdDraft.measurements = val;
+                } else {
+                    parts.push(`${f.label}: ${val}`);
+                }
+            });
+            // Build a composite issueDetails from labeled fields
+            const detailEl = document.getElementById('hdIssueDetails');
+            const mainDetail = detailEl ? detailEl.value.trim() : '';
+            hdDraft.issueDetails = parts.concat(mainDetail ? [mainDetail] : []).join('\n');
+
+            // Collect measurements separately
+            const measEl = document.getElementById('hdMeasurements');
+            if (measEl) hdDraft.measurements = measEl.value.trim();
+
+            hdAutoSave();
+            updateHdSendButton();
+        }
+
+        function renderHelpdeskChecklist() {
+            const container = document.getElementById('hdChecklist');
+            if (!container) return;
+            const catalog = HD_ISSUE_CATALOG[hdDraft.issueTypeId];
+            if (!catalog || !catalog.checklist || catalog.checklist.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = '<p style="font-weight:600;margin:0 0 6px;">Photo checklist — check each box once the photo is captured:</p>' +
+                catalog.checklist.map((item, i) => `
+                    <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;">
+                        <input type="checkbox" id="hdCheck_${i}" onchange="updateHdSendButton()" style="margin-top:2px;flex-shrink:0;">
+                        <span>${escapeHtml(item)}</span>
+                    </label>`).join('');
+        }
+
+        function renderHelpdeskPhotos() {
+            const container = document.getElementById('previewHelpdesk');
+            if (!container) return;
+            container.innerHTML = '';
+            photos.helpdesk.forEach((photo, index) => {
+                const item = document.createElement('div');
+                item.className = 'photo-item';
+                item.innerHTML = `
+                    <img src="${photo}" alt="helpdesk photo" onclick="openImageEditor(${index}, 'helpdesk')" style="cursor:pointer;" title="Tap to edit">
+                    <button class="photo-edit" onclick="openImageEditor(${index}, 'helpdesk')" title="Edit">&#9998;</button>
+                    <button class="photo-remove" onclick="removeHelpdeskPhoto(${index})">x</button>`;
+                container.appendChild(item);
+            });
+            renderHelpdeskCaptions();
+            updateHdPhotoSizeIndicator();
+            updateHdSendButton();
+        }
+
+        function removeHelpdeskPhoto(index) {
+            photos.helpdesk.splice(index, 1);
+            if (Array.isArray(hdDraft.photoCaptions)) hdDraft.photoCaptions.splice(index, 1);
+            renderHelpdeskPhotos();
+            autoSave();
+        }
+
+        function renderHelpdeskCaptions() {
+            const container = document.getElementById('hdCaptionsContainer');
+            if (!container) return;
+            if (photos.helpdesk.length === 0) { container.innerHTML = ''; return; }
+            container.innerHTML = photos.helpdesk.map((_, i) => {
+                const cap = (hdDraft.photoCaptions || [])[i] || '';
+                return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                    <span style="font-size:12px;color:#888;min-width:56px;">Photo ${i + 1}:</span>
+                    <input type="text" placeholder="Caption (optional)" value="${escapeHtml(cap)}"
+                        style="flex:1;font-size:12px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;"
+                        oninput="updateHdCaption(${i}, this.value)">
+                </div>`;
+            }).join('');
+        }
+
+        function updateHdCaption(index, value) {
+            if (!Array.isArray(hdDraft.photoCaptions)) hdDraft.photoCaptions = [];
+            hdDraft.photoCaptions[index] = value;
+            hdAutoSave();
+        }
+
+        function updateHdPhotoSizeIndicator() {
+            const el = document.getElementById('hdPhotoSizeIndicator');
+            if (!el) return;
+            const totalB = photos.helpdesk.reduce((sum, p) => sum + Math.floor(String(p).length * 0.75), 0);
+            const MB = 23;
+            const pct = Math.min(100, Math.round((totalB / (MB * 1024 * 1024)) * 100));
+            const mb = (totalB / (1024 * 1024)).toFixed(1);
+            el.textContent = `Estimated email size: ${mb} MB / 25 MB (${pct}%)`;
+            el.style.color = pct > 90 ? '#c00' : pct > 70 ? '#b86' : '#888';
+        }
+
+        function hdChecklistAllChecked() {
+            const catalog = HD_ISSUE_CATALOG[hdDraft.issueTypeId];
+            if (!catalog || !catalog.checklist || catalog.checklist.length === 0) return true;
+            return catalog.checklist.every((_, i) => {
+                const cb = document.getElementById(`hdCheck_${i}`);
+                return cb && cb.checked;
+            });
+        }
+
+        function hdValidate() {
+            if (!hdDraft.categoryNumber) return 'Please select or enter a category number.';
+            if (hdDraft.source === 'manual' && !hdDraft.dbkey && !hdDraft.version) return 'For manual entries, provide at least a DB Key or Version.';
+            if (!hdDraft.issueTypeId) return 'Please select an issue type.';
+            if (hdDraft.issueTypeId === 'custom') {
+                const labelEl = document.getElementById('hdCustomLabel');
+                if (!labelEl || !labelEl.value.trim()) return 'Please provide an issue summary for "Other" issues.';
+            }
+            const minPhotos = (HD_ISSUE_CATALOG[hdDraft.issueTypeId] || {}).minPhotos || 1;
+            if (photos.helpdesk.length < minPhotos) return `At least ${minPhotos} photo${minPhotos > 1 ? 's are' : ' is'} required for this issue type.`;
+            if (!hdChecklistAllChecked()) return 'Please confirm each photo in the checklist above.';
+            return null;
+        }
+
+        function updateHdSendButton() {
+            const btn = document.getElementById('hdSendBtn');
+            const msg = document.getElementById('hdValidationMsg');
+            if (!btn) return;
+            const err = hdValidate();
+            btn.disabled = !!err || !!hdDraft.sentId;
+            if (msg) {
+                msg.textContent = err || '';
+                msg.style.display = err ? 'block' : 'none';
+            }
+        }
+
+        async function handleHelpdeskPhotos(input) {
+            const files = Array.from(input.files || []);
+            if (files.length === 0) return;
+            for (const file of files) {
+                if (photos.helpdesk.length >= 12) { showAlert('Maximum 12 photos per ticket.'); break; }
+                try {
+                    let processedFile = file;
+                    if (isHeicFile(file)) {
+                        processedFile = await convertHeicToJpeg(file);
+                    }
+                    const dataUrl = await new Promise((res, rej) => {
+                        const reader = new FileReader();
+                        reader.onload = e => res(e.target.result);
+                        reader.onerror = rej;
+                        reader.readAsDataURL(processedFile);
+                    });
+                    const optimized = await optimizePhotoForStorage(dataUrl, 'helpdesk');
+                    photos.helpdesk.push(optimized);
+                } catch (e) {
+                    console.error('handleHelpdeskPhotos error', e);
+                    showAlert('Could not load photo: ' + (e.message || 'unknown error'));
+                }
+            }
+            input.value = '';
+            renderHelpdeskPhotos();
+            autoSave();
+        }
+
+        function openHelpdeskCamera() {
+            // Reuse the same camera overlay, tagged so the capture goes to helpdesk bucket
+            openPhotoCamera('helpdesk');
+        }
+
+        // ── Helpdesk ticket preview ──────────────────────────────────────────
+
+        function buildHdSubjectPreview() {
+            const store = String(document.getElementById('storeNumber')?.value || '').padStart(3, '0');
+            const parts = [`KOMPASS Help Desk FM${store} C${hdDraft.categoryNumber}`];
+            if (hdDraft.dbkey) parts.push(hdDraft.dbkey);
+            if (hdDraft.version) parts.push(hdDraft.version);
+            const label = hdDraft.issueTypeId === 'custom'
+                ? (document.getElementById('hdCustomLabel')?.value.trim() || hdDraft.issueTypeLabel)
+                : hdDraft.issueTypeLabel;
+            parts.push('\u2014 ' + (label || '?'));
+            return parts.join(' ');
+        }
+
+        function previewHelpdeskTicket() {
+            const err = hdValidate();
+            const modal = document.getElementById('helpdeskPreviewModal');
+            const content = document.getElementById('helpdeskPreviewContent');
+            if (!modal || !content) return;
+
+            const store = String(document.getElementById('storeNumber')?.value || '').padStart(3, '0');
+            const from = `FM${store}_C${hdDraft.categoryNumber}@retail-odyssey.com`;
+            const userEmail = document.getElementById('profileEmail')?.value.trim() || '';
+            const userName = document.getElementById('profileName')?.value.trim() || '';
+            const subject = buildHdSubjectPreview();
+            const workDate = document.getElementById('workDate')?.value || '';
+
+            const photosHtml = photos.helpdesk.length > 0
+                ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;">${photos.helpdesk.map((p, i) => {
+                    const cap = (hdDraft.photoCaptions || [])[i];
+                    return `<div style="text-align:center;"><img src="${p}" style="max-width:120px;max-height:100px;border:1px solid #ddd;border-radius:4px;"><br><span style="font-size:11px;color:#666;">${cap ? escapeHtml(cap) : 'Photo ' + (i + 1)}</span></div>`;
+                }).join('')}</div>`
+                : '<p style="color:#888;font-style:italic;">No photos added yet.</p>';
+
+            content.innerHTML = `
+                <table style="font-size:13px;border-collapse:collapse;margin-bottom:12px;width:100%;">
+                    <tr><td style="padding:3px 8px 3px 0;color:#888;white-space:nowrap;">From:</td><td><strong>${escapeHtml(from)}</strong></td></tr>
+                    <tr><td style="padding:3px 8px 3px 0;color:#888;">To:</td><td>kompass@retail-odyssey.com</td></tr>
+                    <tr><td style="padding:3px 8px 3px 0;color:#888;">Reply-To:</td><td>${escapeHtml(userEmail || '(your profile email)')}</td></tr>
+                    <tr><td style="padding:3px 8px 3px 0;color:#888;">Subject:</td><td><strong>${escapeHtml(subject)}</strong></td></tr>
+                </table>
+                <hr>
+                <p>Hello KOMPASS Team,</p>
+                <p>Please see the following issue report for your attention.</p>
+                <p><strong>Store:</strong> FM${store}<br>
+                   <strong>Date:</strong> ${escapeHtml(workDate)}<br>
+                   <strong>Reported by:</strong> ${escapeHtml(userName)}${userEmail ? ' (' + escapeHtml(userEmail) + ')' : ''}</p>
+                <p><strong>Category:</strong> ${escapeHtml(hdDraft.categoryName || '')} (C${escapeHtml(hdDraft.categoryNumber)})${hdDraft.dbkey ? '<br>DB Key: ' + escapeHtml(hdDraft.dbkey) : ''}${hdDraft.version ? '<br>Version: ' + escapeHtml(hdDraft.version) : ''}</p>
+                <p><strong>Issue:</strong> ${escapeHtml(hdDraft.issueTypeLabel)}</p>
+                ${hdDraft.issueDetails ? '<p><strong>Details:</strong> ' + escapeHtml(hdDraft.issueDetails) + '</p>' : ''}
+                ${hdDraft.measurements ? '<p><strong>Measurements:</strong> ' + escapeHtml(hdDraft.measurements) + '</p>' : ''}
+                <p><strong>Photos (${photos.helpdesk.length}):</strong></p>
+                ${photosHtml}
+                ${hdDraft.additionalNotes ? '<p><strong>Additional notes:</strong> ' + escapeHtml(hdDraft.additionalNotes || document.getElementById('hdAdditionalNotes')?.value || '') + '</p>' : ''}
+                ${err ? '<p style="color:#c00;background:#fff0f0;padding:8px;border-radius:4px;margin-top:8px;"><strong>Not ready to send:</strong> ' + escapeHtml(err) + '</p>' : ''}`;
+
+            modal.style.display = 'block';
+        }
+
+        // ── Helpdesk ticket send ─────────────────────────────────────────────
+
+        async function recompressHelpdeskPhotosIfNeeded() {
+            const MAX_BYTES = 23 * 1024 * 1024;
+            const qualitySteps = [0.88, 0.75, 0.65];
+            const widthSteps = [2400, 1800];
+            let total = photos.helpdesk.reduce((s, p) => s + Math.floor(p.length * 0.75), 0);
+            if (total <= MAX_BYTES) return;
+
+            for (const quality of qualitySteps) {
+                for (const maxWidth of widthSteps) {
+                    if (total <= MAX_BYTES) return;
+                    for (let i = 0; i < photos.helpdesk.length; i++) {
+                        photos.helpdesk[i] = await compressImageForPDF(photos.helpdesk[i], maxWidth, 3200, quality);
+                    }
+                    total = photos.helpdesk.reduce((s, p) => s + Math.floor(p.length * 0.75), 0);
+                }
+            }
+            if (total > MAX_BYTES) {
+                throw new Error(`Photos are still too large after compression (${(total / 1048576).toFixed(1)} MB). Please remove some photos and try again.`);
+            }
+        }
+
+        async function sendHelpdeskTicket() {
+            const err = hdValidate();
+            if (err) { showAlert(err); return; }
+
+            const btn = document.getElementById('hdSendBtn');
+            const sentBadge = document.getElementById('hdSentBadge');
+            if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+
+            // Collect final values from detail fields
+            onHdDetailInput();
+            hdDraft.additionalNotes = document.getElementById('hdAdditionalNotes')?.value.trim() || '';
+            if (hdDraft.issueTypeId === 'custom') {
+                const customLabel = document.getElementById('hdCustomLabel')?.value.trim() || '';
+                if (customLabel) hdDraft.issueTypeLabel = customLabel;
+            }
+
+            try {
+                await recompressHelpdeskPhotosIfNeeded();
+                updateHdPhotoSizeIndicator();
+            } catch (sizeErr) {
+                showAlert(sizeErr.message);
+                if (btn) { btn.disabled = false; btn.textContent = 'Send Help Desk Ticket'; }
+                return;
+            }
+
+            const storeNumber = document.getElementById('storeNumber')?.value.trim() || '';
+            const workDate = document.getElementById('workDate')?.value || '';
+            const userEmail = document.getElementById('profileEmail')?.value.trim() || '';
+            const userName = document.getElementById('profileName')?.value.trim() || '';
+
+            const payload = {
+                storeNumber,
+                workDate,
+                categoryNumber: hdDraft.categoryNumber,
+                categoryName: hdDraft.categoryName,
+                dbkey: hdDraft.dbkey,
+                version: hdDraft.version,
+                source: hdDraft.source,
+                issueTypeId: hdDraft.issueTypeId,
+                issueTypeLabel: hdDraft.issueTypeLabel,
+                issueTemplateSentence: HD_ISSUE_CATALOG[hdDraft.issueTypeId]?.template || '',
+                issueDetails: hdDraft.issueDetails,
+                measurements: hdDraft.measurements,
+                additionalNotes: hdDraft.additionalNotes,
+                photos: photos.helpdesk,
+                photoCaptions: hdDraft.photoCaptions || [],
+                userName,
+                userEmail,
+            };
+
+            const dayConfirm = getActiveDayConfirmFor(storeNumber, workDate);
+            const hdHeaders = { 'Content-Type': 'application/json' };
+            if (dayConfirm?.token) hdHeaders['X-Day-Confirm'] = dayConfirm.token;
+
+            try {
+                const resp = await authFetch(`${SM_API_BASE}/send-helpdesk-ticket`, {
+                    method: 'POST',
+                    headers: hdHeaders,
+                    body: JSON.stringify(payload),
+                });
+
+                if (resp.status === 412) {
+                    clearDayConfirm();
+                    showDayConfirmModal({
+                        store: storeNumber,
+                        date: workDate,
+                        message: '<span style="color:#fbbf24;">Please re-confirm your store for today before sending the help desk ticket.</span>',
+                    });
+                    if (btn) { btn.disabled = false; btn.textContent = 'Send Help Desk Ticket'; }
+                    return;
+                }
+                const result = await resp.json();
+                if (!resp.ok || !result.success) {
+                    throw new Error(result.error || `Server error (${resp.status})`);
+                }
+
+                hdDraft.sentId = result.id;
+                if (btn) { btn.disabled = true; btn.textContent = 'Send Help Desk Ticket'; }
+                if (sentBadge) sentBadge.style.display = 'inline';
+
+                // Auto-fill EOD summary fields from the ticket just sent
+                hdFillEodSummary();
+                hdAutoSave();
+
+                showAlert(`Help desk ticket sent successfully (ID: ${result.id}).`);
+            } catch (e) {
+                console.error('sendHelpdeskTicket error', e);
+                showAlert('Failed to send ticket: ' + e.message);
+                if (btn) { btn.disabled = false; btn.textContent = 'Send Help Desk Ticket'; }
+            }
+        }
+
+        // Auto-fill the hidden EOD summary fields from ticket data
+        function hdFillEodSummary() {
+            const commoditiesEl = document.getElementById('commodities');
+            const issueEl = document.getElementById('issue');
+            if (commoditiesEl) {
+                commoditiesEl.value = hdDraft.categoryName
+                    ? `${hdDraft.categoryName} (C${hdDraft.categoryNumber})`
+                    : `C${hdDraft.categoryNumber}`;
+            }
+            const issueParts = [hdDraft.issueTypeLabel];
+            if (hdDraft.issueDetails) issueParts.push(hdDraft.issueDetails);
+            if (hdDraft.measurements) issueParts.push('Measurements: ' + hdDraft.measurements);
+            if (issueEl) issueEl.value = issueParts.join('. ');
+            autoSave();
+        }
+
+        function hdAutoSave() {
+            hdDraft.additionalNotes = document.getElementById('hdAdditionalNotes')?.value.trim() || '';
+            autoSave();
+        }
+
+        // ── Image editor draw mode ───────────────────────────────────────────
+
+        let drawMode = false;
+        let drawColor = '#ff3333';
+        let drawSize = 6;
+        let strokes = [];         // [ { color, size, points: [{x, y}] } ]
+        let currentStroke = null;
+        let isAnnotating = false;
+        // Overlay canvas for live annotation preview (sits on top of editorCanvas)
+        let annotationCanvas = null;
+        let annotationCtx = null;
+
+        function ensureAnnotationCanvas() {
+            if (annotationCanvas) return;
+            annotationCanvas = document.createElement('canvas');
+            annotationCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+            editorCanvasContainer.style.position = 'relative';
+            editorCanvasContainer.appendChild(annotationCanvas);
+            annotationCtx = annotationCanvas.getContext('2d');
+        }
+
+        function syncAnnotationCanvasSize() {
+            if (!annotationCanvas) return;
+            annotationCanvas.width = editorCanvas.width;
+            annotationCanvas.height = editorCanvas.height;
+            annotationCanvas.style.left = editorCanvas.offsetLeft + 'px';
+            annotationCanvas.style.top = editorCanvas.offsetTop + 'px';
+            replayStrokes();
+        }
+
+        function replayStrokes() {
+            if (!annotationCtx || !annotationCanvas) return;
+            annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            strokes.forEach(stroke => paintStroke(stroke, annotationCtx, 1));
+        }
+
+        function paintStroke(stroke, ctx, scale) {
+            if (!stroke.points || stroke.points.length === 0) return;
+            ctx.save();
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth = stroke.size * scale;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            stroke.points.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function setDrawColor(color) {
+            drawColor = color;
+            document.querySelectorAll('.draw-color-btn').forEach(b => b.classList.remove('active'));
+            const map = { '#ff3333': 'drawColorRed', '#ffcc00': 'drawColorYellow', '#ffffff': 'drawColorWhite', '#000000': 'drawColorBlack' };
+            const btnId = map[color];
+            if (btnId) document.getElementById(btnId)?.classList.add('active');
+        }
+
+        function undoLastStroke() {
+            strokes.pop();
+            replayStrokes();
+        }
+
+        function clearAllStrokes() {
+            strokes = [];
+            replayStrokes();
+        }
+
+        function getCanvasPoint(e) {
+            const rect = annotationCanvas.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+        }
+
+        document.getElementById('toggleDraw').addEventListener('click', () => {
+            drawMode = !drawMode;
+            document.getElementById('toggleDraw').classList.toggle('active', drawMode);
+            document.getElementById('drawControlsRow').style.display = drawMode ? 'flex' : 'none';
+            if (drawMode) {
+                ensureAnnotationCanvas();
+                syncAnnotationCanvasSize();
+                annotationCanvas.style.pointerEvents = 'auto';
+                annotationCanvas.style.cursor = 'crosshair';
+                // Disable crop mode when entering draw mode
+                if (cropMode) {
+                    cropMode = false;
+                    document.getElementById('toggleCrop').classList.remove('active');
+                    document.getElementById('applyCrop').style.display = 'none';
+                    cropOverlay.classList.remove('active');
+                }
+            } else if (annotationCanvas) {
+                annotationCanvas.style.pointerEvents = 'none';
+                annotationCanvas.style.cursor = '';
+            }
+        });
+
+        function setupAnnotationEvents() {
+            // Called once; uses event delegation on a flag rather than re-binding
+        }
+
+        // Draw event listeners on the annotation canvas (after it is created lazily)
+        function bindAnnotationEvents() {
+            if (!annotationCanvas || annotationCanvas._bound) return;
+            annotationCanvas._bound = true;
+
+            const startDraw = (e) => {
+                if (!drawMode) return;
+                e.preventDefault();
+                isAnnotating = true;
+                const pt = getCanvasPoint(e);
+                currentStroke = { color: drawColor, size: drawSize, points: [pt] };
+                annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+                replayStrokes();
+            };
+            const moveDraw = (e) => {
+                if (!drawMode || !isAnnotating) return;
+                e.preventDefault();
+                const pt = getCanvasPoint(e);
+                currentStroke.points.push(pt);
+                annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+                replayStrokes();
+                paintStroke(currentStroke, annotationCtx, 1);
+            };
+            const stopDraw = () => {
+                if (!isAnnotating) return;
+                isAnnotating = false;
+                if (currentStroke && currentStroke.points.length > 0) {
+                    strokes.push(currentStroke);
+                }
+                currentStroke = null;
+                replayStrokes();
+            };
+
+            annotationCanvas.addEventListener('mousedown', startDraw);
+            annotationCanvas.addEventListener('mousemove', moveDraw);
+            annotationCanvas.addEventListener('mouseup', stopDraw);
+            annotationCanvas.addEventListener('mouseleave', stopDraw);
+            annotationCanvas.addEventListener('touchstart', startDraw, { passive: false });
+            annotationCanvas.addEventListener('touchmove', moveDraw, { passive: false });
+            annotationCanvas.addEventListener('touchend', stopDraw);
+        }
+
+        // ensureAnnotationCanvas — full implementation (not a patch)
+        function ensureAnnotationCanvas() {
+            if (annotationCanvas) return;
+            annotationCanvas = document.createElement('canvas');
+            annotationCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+            editorCanvasContainer.style.position = 'relative';
+            editorCanvasContainer.appendChild(annotationCanvas);
+            annotationCtx = annotationCanvas.getContext('2d');
+            bindAnnotationEvents();
         }
 
         function toggleInstawork(checkbox) {
@@ -4977,7 +6080,10 @@
             signoff:   { maxWidth: 2400, maxHeight: 3200, quality: 0.90, label: 'sign-off' },
             instawork: { maxWidth: 2400, maxHeight: 3200, quality: 0.90, label: 'InstaWork' },
             before:    { maxWidth: 1280, maxHeight: 1280, quality: 0.65, label: 'cart-before' },
-            after:     { maxWidth: 1280, maxHeight: 1280, quality: 0.65, label: 'cart-after' }
+            after:     { maxWidth: 1280, maxHeight: 1280, quality: 0.65, label: 'cart-after' },
+            // Help desk photos stay high-quality because fine detail (fixture labels,
+            // measurements, missing bracket holes) must be legible in the email.
+            helpdesk:  { maxWidth: 2400, maxHeight: 3200, quality: 0.88, label: 'help-desk' }
         };
 
         // Resize + JPEG-encode a captured photo before it's stored in
@@ -5015,7 +6121,8 @@
             signoff:   2_400_000, // ~2.4 MB
             instawork: 2_400_000,
             before:      600_000, // ~600 KB
-            after:       600_000
+            after:       600_000,
+            helpdesk:  2_400_000
         };
 
         // Decide whether an already-stored photo should be re-compressed
@@ -5036,7 +6143,7 @@
         // per-type breakdown, used to drive the storage indicator panel
         // under the Sign-Off Sheets section.
         function getPhotoStorageStats() {
-            const types = ['before', 'after', 'signoff', 'instawork'];
+            const types = ['before', 'after', 'signoff', 'instawork', 'helpdesk'];
             const stats = { totalBytes: 0, totalCount: 0, needsRecompressCount: 0, byType: {} };
             for (const t of types) {
                 const arr = (photos && photos[t]) || [];
@@ -5115,7 +6222,7 @@
             const hintEl = document.getElementById('storageHint');
             if (!btn || btn.disabled) return;
 
-            const types = ['before', 'after', 'signoff', 'instawork'];
+            const types = ['before', 'after', 'signoff', 'instawork', 'helpdesk'];
             const work = [];
             for (const t of types) {
                 const arr = (photos && photos[t]) || [];
@@ -5231,10 +6338,9 @@
             if (!container) return;
             container.innerHTML = '';
 
-            // Both sign-off and InstaWork photos need the in-place rotate /
-            // crop / brightness / contrast editor — the user explicitly
-            // asked for the "same tools" on the InstaWork capture.
-            const isEditable = (type === 'signoff' || type === 'instawork');
+            // sign-off, InstaWork, and helpdesk photos all use the full editor
+            // (rotate, crop, brightness/contrast, draw annotations).
+            const isEditable = (type === 'signoff' || type === 'instawork' || type === 'helpdesk');
 
             // Keep the review-flag array aligned with the photos list
             // before we render. This protects against legacy saved data
@@ -5603,6 +6709,11 @@
 
         captureButton.addEventListener('click', async () => {
             if (!cameraStream || captureInProgress) return;
+            // Enforce 12-photo cap for help desk captures
+            if (currentCameraType === 'helpdesk' && photos.helpdesk.length >= 12) {
+                showAlert('Maximum 12 photos per ticket. Remove a photo to add another.');
+                return;
+            }
             captureInProgress = true;
 
             // Set canvas size to match video
@@ -5647,17 +6758,19 @@
             tempPhotoCount++;
 
             renderPhotos(currentCameraType);
+            if (currentCameraType === 'helpdesk') renderHelpdeskPhotos();
             updatePhotoCount();
             autoSave();
 
             // For single-photo types (before/after/instawork), close camera after capture
+            // helpdesk behaves like signoff — multiple captures per session
             if (currentCameraType === 'before' || currentCameraType === 'after' || currentCameraType === 'instawork') {
                 setTimeout(() => {
                     closeCameraOverlay();
                     captureInProgress = false;
                 }, 300);
             } else {
-                // Re-enable capture for multi-photo mode after brief delay
+                // Re-enable capture for multi-photo mode (signoff, helpdesk) after brief delay
                 setTimeout(() => {
                     captureInProgress = false;
                 }, 500);
@@ -5719,7 +6832,9 @@
 
         function openImageEditor(photoIndex, type) {
             editorCurrentPhotoIndex = photoIndex;
-            editorCurrentType = (type === 'instawork') ? 'instawork' : 'signoff';
+            editorCurrentType = (type === 'instawork') ? 'instawork'
+                              : (type === 'helpdesk')  ? 'helpdesk'
+                              : 'signoff';
             const photoData = photos[editorCurrentType][photoIndex];
 
             // Reset all editor state
@@ -5734,6 +6849,16 @@
             document.getElementById('toggleCrop').classList.remove('active');
             document.getElementById('applyCrop').style.display = 'none';
             cropOverlay.classList.remove('active');
+
+            // Reset draw mode and strokes when opening a new photo
+            strokes = [];
+            drawMode = false;
+            document.getElementById('toggleDraw')?.classList.remove('active');
+            document.getElementById('drawControlsRow').style.display = 'none';
+            if (annotationCanvas) {
+                annotationCanvas.style.pointerEvents = 'none';
+                annotationCtx?.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            }
 
             // Load the image
             editorOriginalImage = new Image();
@@ -5774,6 +6899,28 @@
             const drawWidth = isRotated90 ? fullHeight : fullWidth;
             const drawHeight = isRotated90 ? fullWidth : fullHeight;
             fullCtx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+
+            // Bake annotation strokes onto the full-resolution output
+            if (strokes.length > 0) {
+                fullCtx.filter = 'none';
+                fullCtx.setTransform(1, 0, 0, 1, 0, 0);
+                const scaleX = editorCanvas.width > 0 ? fullWidth / editorCanvas.width : 1;
+                const scaleY = editorCanvas.height > 0 ? fullHeight / editorCanvas.height : 1;
+                const strokeScale = Math.min(scaleX, scaleY);
+                strokes.forEach(stroke => {
+                    if (!stroke.points || stroke.points.length === 0) return;
+                    fullCtx.save();
+                    fullCtx.strokeStyle = stroke.color;
+                    fullCtx.lineWidth = stroke.size * strokeScale;
+                    fullCtx.lineCap = 'round';
+                    fullCtx.lineJoin = 'round';
+                    fullCtx.beginPath();
+                    fullCtx.moveTo(stroke.points[0].x * scaleX, stroke.points[0].y * scaleY);
+                    stroke.points.forEach(p => fullCtx.lineTo(p.x * scaleX, p.y * scaleY));
+                    fullCtx.stroke();
+                    fullCtx.restore();
+                });
+            }
 
             return fullCanvas;
         }
@@ -5839,6 +6986,9 @@
             if (cropMode) {
                 updateCropOverlay();
             }
+
+            // Keep annotation canvas in sync with editorCanvas dimensions/position
+            if (annotationCanvas) syncAnnotationCanvasSize();
         }
 
         function initCrop() {
@@ -6387,6 +7537,9 @@
             document.getElementById('toggleCrop').classList.remove('active');
             document.getElementById('applyCrop').style.display = 'none';
             cropOverlay.classList.remove('active');
+            // Also clear all annotation strokes on reset
+            strokes = [];
+            if (annotationCanvas) annotationCtx?.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
 
             editorOriginalImage = new Image();
             editorOriginalImage.onload = () => {
@@ -6434,6 +7587,11 @@
                 const statusEl = document.getElementById('instaworkSaveStatus');
                 if (statusEl) statusEl.style.display = 'none';
                 reopenInstaworkPanel();
+            }
+
+            // Editing a helpdesk photo also updates captions display.
+            if (targetType === 'helpdesk') {
+                renderHelpdeskPhotos();
             }
 
             // Re-render and save
@@ -6588,8 +7746,8 @@
                 CheckInManager: document.getElementById('checkInManager').value,
                 CheckOutManager: document.getElementById('checkOutManager').value,
                 CalledHotline: hotlineYes,
-                IssueCommodities: hotlineYes ? document.getElementById('commodities').value : 'N/A',
-                WhatIsIssue: hotlineYes ? document.getElementById('issue').value : 'N/A',
+                IssueCommodities: hotlineYes ? (document.getElementById('commodities').value || (hdDraft.categoryNumber ? (hdDraft.categoryName ? hdDraft.categoryName + ' (C' + hdDraft.categoryNumber + ')' : 'C' + hdDraft.categoryNumber) : '')) : 'N/A',
+                WhatIsIssue: hotlineYes ? (document.getElementById('issue').value || ([hdDraft.issueTypeLabel, hdDraft.issueDetails, hdDraft.measurements ? 'Measurements: ' + hdDraft.measurements : ''].filter(Boolean).join('. '))) : 'N/A',
                 IssueResolved: hotlineYes ? resolvedValue : 'NA',
                 TempSolution: (hotlineYes && resolvedValue === 'No') ? document.getElementById('tempSolution').value : 'N/A',
                 SignedOutPROD: document.getElementById('prodYes').checked,
