@@ -209,6 +209,16 @@
       const SESSION_KEY = 'dumpBinSession';
       const LEGACY_KEY  = 'eodSession';
 
+      function resolveNext(next) {
+        if (!next) return '/';
+        if (next.indexOf('/') === 0) return next;
+        try {
+          var u = new URL(next);
+          if (u.protocol === 'https:' && u.host === 'checklanes.the-dump-bin.com') return next;
+        } catch (_) {}
+        return '/';
+      }
+
       // If the user is already signed in, bounce them to the hub home (or
       // wherever ?next= asked them to go originally). We don't validate the
       // JWT here -- if it's stale, the destination's gate will catch it.
@@ -216,7 +226,7 @@
         const haveSession = localStorage.getItem(SESSION_KEY) || localStorage.getItem(LEGACY_KEY);
         if (haveSession) {
           const next = (new URLSearchParams(location.search)).get('next');
-          window.location.replace(next && next.indexOf('/') === 0 ? next : '/');
+          window.location.replace(resolveNext(next));
           return;
         }
       } catch (_) { /* localStorage disabled; carry on */ }
@@ -299,10 +309,20 @@
         sendBtn.disabled = true;
         sendBtn.textContent = 'Sending\u2026';
         try {
+          const next = (new URLSearchParams(location.search)).get('next');
+          const payload = { email: email };
+          try {
+            if (next) {
+              var nu = new URL(next);
+              if (nu.protocol === 'https:' && nu.host === 'checklanes.the-dump-bin.com') {
+                payload.returnTo = next;
+              }
+            }
+          } catch (_) {}
           const res = await fetch(API_BASE + '/api/request-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify(payload),
           });
           const data = await res.json().catch(function () { return {}; });
           if (!res.ok || !data.ok) {
