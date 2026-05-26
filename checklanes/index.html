@@ -1265,6 +1265,7 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+    --pog-wv-card-opacity: 0;
   }
 
   .pog-wv-bay {
@@ -1320,6 +1321,16 @@
     padding: 4px;
     cursor: pointer;
     transition: box-shadow 0.15s, border-color 0.15s;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .pog-wv-tile:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
   }
 
   .pog-wv-tile.pog-wv-tile--highlight {
@@ -1382,6 +1393,245 @@
 
   .pog-wv-peg-cell {
     min-height: 48px;
+  }
+
+  .pog-wv-tile-visual {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .pog-wv-tile-visual .pog-wv-tile-img {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: unset;
+  }
+
+  .pog-wv-tile-card {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    padding: 2px;
+    border-radius: inherit;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    text-align: center;
+    pointer-events: none;
+    z-index: 2;
+    opacity: var(--pog-wv-card-opacity, 0);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 800;
+    font-size: clamp(0.55rem, 2.2vw, 0.72rem);
+    line-height: 1.05;
+  }
+
+  .pog-wv-tile-card > span {
+    display: block;
+    white-space: nowrap;
+  }
+
+  .pog-wv-mask-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .pog-wv-mask-row label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text2);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .pog-wv-mask-slider {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    accent-color: #3b82f6;
+  }
+
+  .pog-wv-mask-value {
+    font-size: 0.72rem;
+    color: var(--text2);
+    min-width: 2.5rem;
+    text-align: right;
+  }
+
+  .pog-wv-scan-btn {
+    flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 1.1rem;
+  }
+
+  .pog-wv-scanner-box {
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    padding: 10px 12px;
+  }
+
+  .pog-wv-scanner-box.scan-success {
+    border-color: #22c55e;
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.35);
+  }
+
+  #pog-wv-scanner-region {
+    width: 100%;
+    min-height: 120px;
+    position: relative;
+  }
+
+  #pog-wv-scanner-region video {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block;
+    border-radius: 0;
+  }
+
+  .pog-wv-scanner-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .pog-wv-scanner-hint {
+    font-size: 0.75rem;
+    color: var(--text2);
+    margin: 0 0 8px;
+  }
+
+  .pog-wv-scanner-error {
+    font-size: 0.78rem;
+    color: #fca5a5;
+    margin-bottom: 8px;
+  }
+
+  .pog-product-modal-img-fallback {
+    display: none;
+    width: 100%;
+    min-height: 120px;
+    padding: 24px 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text2);
+  }
+
+  .pog-product-modal-img-fallback.visible {
+    display: block;
+  }
+
+  .pog-product-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .pog-product-modal.open {
+    display: flex;
+  }
+
+  .pog-product-modal-card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 420px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: auto;
+    padding: 16px;
+  }
+
+  .pog-product-modal-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 1.4rem;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  .pog-product-modal-card img {
+    width: 100%;
+    max-height: 50vh;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
+  .pog-product-modal-name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .pog-product-modal-brand,
+  .pog-product-modal-size {
+    font-size: 0.85rem;
+    color: var(--text2);
+    margin-bottom: 2px;
+  }
+
+  .pog-product-modal-upc {
+    font-size: 0.78rem;
+    font-family: monospace;
+    color: var(--text2);
+    margin: 8px 0;
+  }
+
+  .pog-product-modal-position {
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #93c5fd;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    white-space: pre-line;
+  }
+
+  .pog-product-modal-meta {
+    font-size: 0.78rem;
+    color: var(--text2);
+    margin-top: 6px;
+  }
+
+  .pog-product-modal-new {
+    display: inline-block;
+    margin-top: 8px;
   }
 </style>
 </head>
@@ -1457,6 +1707,23 @@
   </div>
 </div>
 
+<div class="pog-product-modal" id="pog-product-modal" aria-hidden="true">
+  <div class="pog-product-modal-card">
+    <button type="button" class="pog-product-modal-close" id="pog-product-modal-close" aria-label="Close">&times;</button>
+    <img id="pog-product-modal-img" alt="">
+    <div class="pog-product-modal-img-fallback" id="pog-product-modal-img-fallback"></div>
+    <div class="pog-product-modal-name" id="pog-product-modal-name"></div>
+    <div class="pog-product-modal-brand" id="pog-product-modal-brand"></div>
+    <div class="pog-product-modal-size" id="pog-product-modal-size"></div>
+    <div class="pog-product-modal-upc" id="pog-product-modal-upc"></div>
+    <div class="pog-product-modal-position" id="pog-product-modal-position"></div>
+    <div class="pog-product-modal-meta" id="pog-product-modal-meta"></div>
+    <span class="pog-wv-badge-new pog-product-modal-new" id="pog-product-modal-new" hidden>NEW</span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="scanner.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
    FIXTURE DATA — inline seed for Store 00163 (Step 2).
@@ -2165,6 +2432,25 @@ function bindEvents() {
       const dk = openBtn.getAttribute('data-open-pog-dbkey');
       const fix = FIXTURES.find(f => f.dbkey === dk);
       if (fix) openPogWorkingView(fix);
+      return;
+    }
+    const tile = e.target.closest('.pog-wv-tile');
+    if (tile && tile.dataset.upc) {
+      const hit = findPogProduct(tile.dataset.upc, tile.dataset.bay, tile.dataset.fixture);
+      if (hit) openPogProductModal(hit.prod, hit.bay, hit.fixture);
+    }
+  });
+
+  document.getElementById('pog-product-modal-close')?.addEventListener('click', closePogProductModal);
+  document.getElementById('pog-product-modal')?.addEventListener('click', e => {
+    if (e.target.id === 'pog-product-modal') closePogProductModal();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && typeof Scanner !== 'undefined' && Scanner.isRunning) {
+      acquirePogScannerWakeLock();
+    } else if (document.visibilityState === 'hidden') {
+      releasePogScannerWakeLock();
     }
   });
 }
@@ -2178,6 +2464,8 @@ let pogCatalogLoadPromise = null;
 const pogLayoutCache = {};
 let pogWorkingFixture = null;
 let pogWorkingLayout = null;
+let pogMaskCardOpacity = 0;
+let pogScannerWakeLock = null;
 
 function pogUrl(path) {
   return POG_SERVICE_BASE + path;
@@ -2271,13 +2559,30 @@ function normalizeUpcDigits(value) {
   return String(value == null ? '' : value).replace(/\D/g, '');
 }
 
+function normalizeUpcInput(value) {
+  return normalizeUpcDigits(value).replace(/^0+/, '');
+}
+
+function getUpcCandidates(raw) {
+  const cleanScan = normalizeUpcInput(raw);
+  const scanNoCheck = cleanScan.length > 1 ? cleanScan.slice(0, -1) : cleanScan;
+  return { cleanScan, scanNoCheck, candidates: [cleanScan, scanNoCheck] };
+}
+
 function upcMatchesQuery(query, upc) {
   const q = normalizeUpcDigits(query);
   const u = normalizeUpcDigits(upc);
   if (!q || !u) return false;
   if (u === q) return true;
   if (q.length >= 4 && u.endsWith(q)) return true;
-  if (q.length >= 4 && q.length <= 6 && u.endsWith(q)) return true;
+
+  const { cleanScan, scanNoCheck, candidates } = getUpcCandidates(query);
+  const pUpc = normalizeUpcInput(upc);
+  if (candidates.includes(pUpc)) return true;
+  if (pUpc === scanNoCheck) return true;
+  if (pUpc.length > 8 && (pUpc.startsWith(cleanScan) || cleanScan.startsWith(pUpc))) {
+    if (Math.abs(pUpc.length - cleanScan.length) === 1) return true;
+  }
   return false;
 }
 
@@ -2397,6 +2702,186 @@ function runPogSearch(query) {
   return { hits: [], notFound: true };
 }
 
+function formatPogPosition(bay, fixture, prod) {
+  if (fixture.type === 'pegboard') {
+    const lines = [String(prod.pos)];
+    const peg = parsePegPosition(prod.position_code);
+    if (peg) {
+      lines.push('R' + String(peg.row).padStart(2, '0'));
+      lines.push('C' + String(peg.col).padStart(2, '0'));
+    }
+    return lines.join('\n');
+  }
+  return 'Bay ' + bay.bay_num + ' · ' + (fixture.label || 'Shelf') + ' · Position ' + prod.pos;
+}
+
+function renderPogPositionCardHtml(fixture, prod) {
+  if (fixture.type === 'pegboard') {
+    const peg = parsePegPosition(prod.position_code);
+    let html = '<span>' + escapeHtml(String(prod.pos)) + '</span>';
+    if (peg) {
+      html += '<span>R' + escapeHtml(String(peg.row).padStart(2, '0')) + '</span>';
+      html += '<span>C' + escapeHtml(String(peg.col).padStart(2, '0')) + '</span>';
+    }
+    return html;
+  }
+  return '<span>' + escapeHtml(String(prod.pos)) + '</span>';
+}
+
+function findPogProduct(upc, bayNum, fixtureNum) {
+  if (!pogWorkingLayout) return null;
+  let found = null;
+  walkLayoutProducts(pogWorkingLayout, (prod, bay, fixture) => {
+    if (String(prod.upc) === String(upc) &&
+        String(bay.bay_num) === String(bayNum) &&
+        String(fixture.fixture_num) === String(fixtureNum)) {
+      found = { prod, bay, fixture };
+    }
+  });
+  return found;
+}
+
+function openPogProductModal(prod, bay, fixture) {
+  const modal = document.getElementById('pog-product-modal');
+  if (!modal) return;
+
+  const upc = String(prod.upc);
+  const info = productInfo(upc);
+  const img = document.getElementById('pog-product-modal-img');
+  const fallback = document.getElementById('pog-product-modal-img-fallback');
+  const displayName = productDisplayName(upc, prod);
+
+  if (img) {
+    img.style.display = '';
+    img.src = pogUrl('/products-png/' + encodeURIComponent(upc) + '.png');
+    img.alt = displayName;
+    img.onerror = () => {
+      img.style.display = 'none';
+      if (fallback) {
+        fallback.textContent = displayName;
+        fallback.classList.add('visible');
+      }
+    };
+    img.onload = () => {
+      if (fallback) fallback.classList.remove('visible');
+    };
+  }
+
+  const nameEl = document.getElementById('pog-product-modal-name');
+  if (nameEl) nameEl.textContent = displayName;
+  const brandEl = document.getElementById('pog-product-modal-brand');
+  if (brandEl) brandEl.textContent = (info && info.brand) || '';
+  const sizeEl = document.getElementById('pog-product-modal-size');
+  if (sizeEl) sizeEl.textContent = productDisplaySize(upc, prod);
+  const upcEl = document.getElementById('pog-product-modal-upc');
+  if (upcEl) upcEl.textContent = 'UPC: ' + upc;
+  const posEl = document.getElementById('pog-product-modal-position');
+  if (posEl) posEl.textContent = formatPogPosition(bay, fixture, prod);
+  const metaEl = document.getElementById('pog-product-modal-meta');
+  if (metaEl) metaEl.textContent = 'Facings: ' + Math.max(1, prod.facings || 1);
+  const newEl = document.getElementById('pog-product-modal-new');
+  if (newEl) newEl.hidden = !prod.is_new;
+
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closePogProductModal() {
+  const modal = document.getElementById('pog-product-modal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function applyPogMaskOpacity(pct) {
+  pogMaskCardOpacity = pct;
+  const bays = document.querySelector('.pog-wv-bays');
+  if (bays) bays.style.setProperty('--pog-wv-card-opacity', String(pct / 100));
+  const valEl = document.getElementById('pog-wv-mask-value');
+  if (valEl) valEl.textContent = pct + '%';
+}
+
+async function acquirePogScannerWakeLock() {
+  try {
+    if ('wakeLock' in navigator && !pogScannerWakeLock) {
+      pogScannerWakeLock = await navigator.wakeLock.request('screen');
+      pogScannerWakeLock.addEventListener('release', () => { pogScannerWakeLock = null; });
+    }
+  } catch { /* unsupported or denied */ }
+}
+
+async function releasePogScannerWakeLock() {
+  try {
+    if (pogScannerWakeLock) {
+      await pogScannerWakeLock.release();
+      pogScannerWakeLock = null;
+    }
+  } catch { /* ok */ }
+}
+
+async function stopPogScanner() {
+  if (typeof Scanner !== 'undefined') await Scanner.stop();
+  await releasePogScannerWakeLock();
+  const box = document.getElementById('pog-wv-scanner-box');
+  if (box) box.hidden = true;
+  const err = document.getElementById('pog-wv-scanner-error');
+  if (err) {
+    err.hidden = true;
+    err.textContent = '';
+  }
+}
+
+async function handlePogScan(code) {
+  await stopPogScanner();
+  const input = document.getElementById('pog-wv-search-input');
+  const normalized = normalizeUpcInput(code);
+  if (input) input.value = normalized;
+  const result = runPogSearch(normalized);
+  renderPogSearchResults(result);
+  if (result.hits.length === 1 && result.hits[0].scope === 'this') {
+    highlightPogTile(result.hits[0].upc);
+  }
+}
+
+async function startPogScanner() {
+  const box = document.getElementById('pog-wv-scanner-box');
+  const errEl = document.getElementById('pog-wv-scanner-error');
+  if (!box) return;
+
+  box.hidden = false;
+  if (errEl) {
+    errEl.hidden = true;
+    errEl.textContent = '';
+  }
+
+  if (typeof Scanner === 'undefined') {
+    if (errEl) {
+      errEl.textContent = 'Scanner unavailable in this browser. Use text search.';
+      errEl.hidden = false;
+    }
+    return;
+  }
+
+  await acquirePogScannerWakeLock();
+  await Scanner.start('pog-wv-scanner-region', handlePogScan);
+
+  if (!Scanner.isRunning) {
+    await releasePogScannerWakeLock();
+    if (errEl) {
+      errEl.textContent = 'Camera unavailable or permission denied. Use text search.';
+      errEl.hidden = false;
+    }
+    box.hidden = true;
+    return;
+  }
+
+  const torchBtn = document.getElementById('pog-wv-scanner-torch');
+  if (torchBtn) {
+    torchBtn.hidden = !Scanner.torchAvailable;
+    torchBtn.textContent = 'Torch';
+  }
+}
+
 function renderPogTile(prod, bay, fixture, dbkey) {
   const upc = String(prod.upc);
   const name = productDisplayName(upc, prod);
@@ -2407,17 +2892,20 @@ function renderPogTile(prod, bay, fixture, dbkey) {
   const newBadge = prod.is_new ? '<span class="pog-wv-badge-new">NEW</span>' : '';
 
   return (
-    '<div class="pog-wv-tile" id="' + escapeHtml(tileId) + '" ' +
+    '<button type="button" class="pog-wv-tile" id="' + escapeHtml(tileId) + '" ' +
       'data-upc="' + escapeHtml(upc) + '" ' +
       'data-bay="' + escapeHtml(String(bay.bay_num)) + '" ' +
       'data-fixture="' + escapeHtml(String(fixture.fixture_num)) + '">' +
       newBadge +
-      '<img class="pog-wv-tile-img" loading="lazy" decoding="async" src="' + escapeHtml(imgUrl) + '" alt="" ' +
-        'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-      '<div class="pog-wv-tile-textonly" style="display:none">' + escapeHtml(name.slice(0, 40)) + '</div>' +
+      '<div class="pog-wv-tile-visual">' +
+        '<img class="pog-wv-tile-img" loading="lazy" decoding="async" src="' + escapeHtml(imgUrl) + '" alt="" ' +
+          'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+        '<div class="pog-wv-tile-textonly" style="display:none">' + escapeHtml(name.slice(0, 40)) + '</div>' +
+        '<div class="pog-wv-tile-card" aria-hidden="true">' + renderPogPositionCardHtml(fixture, prod) + '</div>' +
+      '</div>' +
       '<div class="pog-wv-tile-name">' + escapeHtml(name) + '</div>' +
       '<div class="pog-wv-tile-meta">' + escapeHtml(size) + escapeHtml(facings) + '</div>' +
-    '</div>'
+    '</button>'
   );
 }
 
@@ -2569,6 +3057,30 @@ function bindPogSearchUi() {
       highlightPogTile(showBtn.getAttribute('data-scroll-to-upc'));
     }
   });
+
+  const maskSlider = document.getElementById('pog-wv-mask-slider');
+  maskSlider?.addEventListener('input', () => {
+    applyPogMaskOpacity(parseInt(maskSlider.value, 10) || 0);
+  });
+  applyPogMaskOpacity(pogMaskCardOpacity);
+
+  document.getElementById('pog-wv-scan-btn')?.addEventListener('click', () => {
+    const box = document.getElementById('pog-wv-scanner-box');
+    if (box && !box.hidden && typeof Scanner !== 'undefined' && Scanner.isRunning) {
+      stopPogScanner();
+    } else {
+      startPogScanner();
+    }
+  });
+
+  document.getElementById('pog-wv-scanner-stop')?.addEventListener('click', () => stopPogScanner());
+
+  document.getElementById('pog-wv-scanner-torch')?.addEventListener('click', async () => {
+    if (typeof Scanner === 'undefined') return;
+    const on = await Scanner.toggleTorch();
+    const torchBtn = document.getElementById('pog-wv-scanner-torch');
+    if (torchBtn) torchBtn.textContent = on ? 'Torch off' : 'Torch';
+  });
 }
 
 function renderPogWorkingContent(fixture, layout, loadError) {
@@ -2613,14 +3125,29 @@ function renderPogWorkingContent(fixture, layout, loadError) {
       '</div>' +
     '</div>' +
     '<div class="pog-wv-meta">' + meta + '</div>' +
+    '<div class="pog-wv-mask-row">' +
+      '<label for="pog-wv-mask-slider">Position mask</label>' +
+      '<input type="range" class="pog-wv-mask-slider" id="pog-wv-mask-slider" min="0" max="100" value="' + pogMaskCardOpacity + '">' +
+      '<span class="pog-wv-mask-value" id="pog-wv-mask-value">' + pogMaskCardOpacity + '%</span>' +
+    '</div>' +
     '<div class="pog-wv-search">' +
       '<div class="pog-wv-search-row">' +
         '<input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="UPC or product name">' +
+        '<button type="button" class="btn pog-wv-scan-btn" id="pog-wv-scan-btn" title="Scan barcode" aria-label="Scan barcode">📷</button>' +
         '<button type="button" class="btn pog-wv-search-btn" id="pog-wv-search-btn">Search</button>' +
+      '</div>' +
+      '<div class="pog-wv-scanner-box" id="pog-wv-scanner-box" hidden>' +
+        '<div class="pog-wv-scanner-controls">' +
+          '<button type="button" class="btn" id="pog-wv-scanner-stop">Stop</button>' +
+          '<button type="button" class="btn" id="pog-wv-scanner-torch" hidden>Torch</button>' +
+        '</div>' +
+        '<p class="pog-wv-scanner-hint">Point at barcode — scans full frame</p>' +
+        '<div id="pog-wv-scanner-region"></div>' +
+        '<p class="pog-wv-scanner-error" id="pog-wv-scanner-error" hidden></p>' +
       '</div>' +
       '<div class="pog-wv-search-results" id="pog-wv-search-results"></div>' +
     '</div>' +
-    '<div class="pog-wv-bays">' + renderPogBays(layout) + '</div>';
+    '<div class="pog-wv-bays" style="--pog-wv-card-opacity:' + (pogMaskCardOpacity / 100) + '">' + renderPogBays(layout) + '</div>';
 
   const previewImg = document.getElementById('pog-wv-preview-img');
   if (previewImg) {
@@ -2639,6 +3166,9 @@ function renderPogWorkingContent(fixture, layout, loadError) {
 
 async function openPogWorkingView(fixture) {
   if (!fixture || !fixture.dbkey) return;
+
+  await stopPogScanner();
+  closePogProductModal();
 
   pogWorkingFixture = fixture;
   pogWorkingLayout = null;
@@ -2669,6 +3199,8 @@ async function openPogWorkingView(fixture) {
 }
 
 function closePogWorkingView() {
+  closePogProductModal();
+  stopPogScanner();
   const overlay = document.getElementById('pog-working-view');
   overlay?.classList.remove('open');
   overlay?.setAttribute('aria-hidden', 'true');
