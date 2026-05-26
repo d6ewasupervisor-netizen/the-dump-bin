@@ -1037,6 +1037,352 @@
     .pod-facing-row { flex-wrap: wrap; }
     .pod-stand-cell { min-width: 88px; }
   }
+
+  /* ── POG working view (Phase 2) ── */
+  body.pog-view-open { overflow: hidden; }
+
+  .btn-pog-open {
+    width: 100%;
+    margin-top: 8px;
+    background: #1e3a5f;
+    border-color: #3b82f6;
+    color: #dbeafe;
+    font-weight: 700;
+  }
+
+  .pog-working-view {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+    visibility: hidden;
+  }
+
+  .pog-working-view.open {
+    transform: translateY(0);
+    visibility: visible;
+  }
+
+  .pog-wv-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .pog-wv-back {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 40px;
+  }
+
+  .pog-wv-title-wrap {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pog-wv-title-wrap h2 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pog-wv-title-wrap .sub {
+    font-size: 0.72rem;
+    color: var(--text2);
+  }
+
+  .pog-wv-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 12px 24px;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
+  .pog-wv-preview {
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .pog-wv-preview-toggle {
+    width: 100%;
+    appearance: none;
+    border: none;
+    background: var(--surface2);
+    color: var(--text2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+
+  .pog-wv-preview-body {
+    padding: 8px;
+    display: none;
+  }
+
+  .pog-wv-preview.open .pog-wv-preview-body { display: block; }
+
+  .pog-wv-preview-body img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    background: #fff;
+  }
+
+  .pog-wv-preview-links {
+    margin-top: 8px;
+    font-size: 0.78rem;
+  }
+
+  .pog-wv-preview-links a {
+    color: #93c5fd;
+    text-decoration: none;
+  }
+
+  .pog-wv-meta {
+    font-size: 0.78rem;
+    color: var(--text2);
+    margin-bottom: 12px;
+    line-height: 1.45;
+  }
+
+  .pog-wv-search {
+    margin-bottom: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg);
+    padding-bottom: 8px;
+  }
+
+  .pog-wv-search-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .pog-wv-search-input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+
+  .pog-wv-search-btn {
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0 16px;
+  }
+
+  .pog-wv-search-results {
+    margin-top: 8px;
+    font-size: 0.82rem;
+  }
+
+  .pog-wv-search-group {
+    margin-bottom: 10px;
+  }
+
+  .pog-wv-search-group-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text3);
+    margin-bottom: 4px;
+  }
+
+  .pog-wv-search-hit {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    margin-bottom: 4px;
+  }
+
+  .pog-wv-search-hit-info { min-width: 0; flex: 1; }
+  .pog-wv-search-hit-name { font-weight: 600; font-size: 0.82rem; }
+  .pog-wv-search-hit-loc { font-size: 0.72rem; color: var(--text2); }
+
+  .pog-wv-search-open {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #3b82f6;
+    background: #1e3a5f;
+    color: #dbeafe;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .pog-wv-empty {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text2);
+    font-size: 0.9rem;
+  }
+
+  .pog-wv-loading {
+    text-align: center;
+    padding: 24px;
+    color: var(--text2);
+    font-size: 0.85rem;
+  }
+
+  .pog-wv-bays {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .pog-wv-bay {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .pog-wv-bay-head {
+    padding: 8px 12px;
+    background: var(--surface2);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pog-wv-fixtures {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pog-wv-fixture-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+
+  .pog-wv-shelf-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .pog-wv-peg-grid {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .pog-wv-tile {
+    position: relative;
+    min-width: 72px;
+    max-width: 120px;
+    flex: 1 1 72px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface2);
+    padding: 4px;
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+
+  .pog-wv-tile.pog-wv-tile--highlight {
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.45);
+  }
+
+  .pog-wv-tile-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 4px;
+  }
+
+  .pog-wv-tile-textonly {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    border-radius: 4px;
+    font-size: 0.62rem;
+    color: var(--text3);
+    text-align: center;
+    padding: 4px;
+    line-height: 1.2;
+  }
+
+  .pog-wv-tile-name {
+    font-size: 0.62rem;
+    font-weight: 600;
+    margin-top: 4px;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .pog-wv-tile-meta {
+    font-size: 0.58rem;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+
+  .pog-wv-badge-new {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: #22c55e;
+    color: #052e16;
+    font-size: 0.55rem;
+    font-weight: 800;
+    padding: 2px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.03em;
+  }
+
+  .pog-wv-peg-cell {
+    min-height: 48px;
+  }
 </style>
 </head>
 <body>
@@ -1097,6 +1443,19 @@
     <button type="button" class="btn-send-tag-batch" id="btn-send-tag-batch" disabled>Send tag batch</button>
   </div>
 </aside>
+
+<div class="pog-working-view" id="pog-working-view" aria-hidden="true">
+  <div class="pog-wv-header">
+    <button type="button" class="pog-wv-back" id="pog-wv-back">← Map</button>
+    <div class="pog-wv-title-wrap">
+      <h2 id="pog-wv-heading">Working view</h2>
+      <div class="sub" id="pog-wv-subheading"></div>
+    </div>
+  </div>
+  <div class="pog-wv-scroll" id="pog-wv-scroll">
+    <div id="pog-wv-content"></div>
+  </div>
+</div>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1241,6 +1600,9 @@ const STATE_CSS = {
   done_pending_signoff: '--state-done_pending_signoff',
   signed_off: '--state-signed_off'
 };
+
+const POG_SERVICE_BASE = 'https://checklanes.the-dump-bin.com';
+const HUB_STORE_NUM = '163';
 
 let fixtureStates = {};
 let selectedDbkey = null;
@@ -1627,6 +1989,10 @@ function refreshDetailPanel(fixture) {
     '<div class="detail-row"><div class="label">On manifest</div><div class="value">' + (fixture.on_manifest ? 'Yes' : 'No') + '</div></div>' +
     '<div class="detail-row"><div class="label">Current state</div><div class="value">' + statePillHtml(fixture) + '</div></div>';
 
+  if (fixture.dbkey) {
+    html += '<div class="detail-row"><button type="button" class="btn btn-pog-open" id="btn-open-pog">Open POG / Work this set</button></div>';
+  }
+
   if (!isLive) {
     const stateBtns = WORK_STATES.map(s =>
       '<button type="button" class="state-btn" data-state="' + s + '">' +
@@ -1657,6 +2023,10 @@ function refreshDetailPanel(fixture) {
   }
 
   document.getElementById('detail-body').innerHTML = html;
+
+  document.getElementById('btn-open-pog')?.addEventListener('click', () => {
+    openPogWorkingView(fixture);
+  });
 
   if (!isLive) {
     document.getElementById('state-buttons').addEventListener('click', e => {
@@ -1787,6 +2157,524 @@ function bindEvents() {
   });
   document.getElementById('tag-batch-close').addEventListener('click', () => toggleTagBatchPanel(false));
   document.getElementById('btn-send-tag-batch').addEventListener('click', () => sendTagBatchEmail());
+
+  document.getElementById('pog-wv-back').addEventListener('click', closePogWorkingView);
+  document.getElementById('pog-wv-scroll').addEventListener('click', e => {
+    const openBtn = e.target.closest('[data-open-pog-dbkey]');
+    if (openBtn) {
+      const dk = openBtn.getAttribute('data-open-pog-dbkey');
+      const fix = FIXTURES.find(f => f.dbkey === dk);
+      if (fix) openPogWorkingView(fix);
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POG WORKING VIEW — read-only virtual planogram + scoped search (Phase 2)
+   ═══════════════════════════════════════════════════════════════════════════ */
+let pogProductsCache = null;
+let pogCatalogCache = null;
+let pogCatalogLoadPromise = null;
+const pogLayoutCache = {};
+let pogWorkingFixture = null;
+let pogWorkingLayout = null;
+
+function pogUrl(path) {
+  return POG_SERVICE_BASE + path;
+}
+
+async function ensurePogCatalogLoaded() {
+  if (pogProductsCache && pogCatalogCache) return;
+  if (!pogCatalogLoadPromise) {
+    pogCatalogLoadPromise = Promise.all([
+      fetch(pogUrl('/products.json')).then(r => {
+        if (!r.ok) throw new Error('products.json ' + r.status);
+        return r.json();
+      }),
+      fetch(pogUrl('/pog_products.json')).then(r => {
+        if (!r.ok) throw new Error('pog_products.json ' + r.status);
+        return r.json();
+      }),
+    ]).then(([products, pogProducts]) => {
+      pogCatalogCache = products;
+      pogProductsCache = pogProducts;
+    });
+  }
+  try {
+    await pogCatalogLoadPromise;
+  } catch (err) {
+    pogCatalogLoadPromise = null;
+    throw err;
+  }
+}
+
+async function fetchPogLayout(dbkey) {
+  const dk = String(dbkey);
+  if (pogLayoutCache[dk]) return pogLayoutCache[dk];
+  const resp = await fetch(pogUrl('/pog_layouts/' + encodeURIComponent(dk) + '.json'));
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error('Layout fetch failed (' + resp.status + ')');
+  const layout = await resp.json();
+  pogLayoutCache[dk] = layout;
+  return layout;
+}
+
+function pdfFilenameFromFixture(fixture) {
+  if (!fixture) return null;
+  const id = fixture.manifest_pog_id;
+  if (id) return id + '.pdf';
+  return null;
+}
+
+function productInfo(upc) {
+  return (pogCatalogCache && pogCatalogCache[String(upc)]) || null;
+}
+
+function upcsForDbkeyStore(dbkey, storeNum) {
+  if (!pogProductsCache || !dbkey) return [];
+  const byStore = pogProductsCache[String(dbkey)];
+  if (!byStore) return [];
+  const sn = String(storeNum || HUB_STORE_NUM);
+  return byStore[sn] || byStore[sn.replace(/^0+/, '')] || [];
+}
+
+function uniqueManifestDbkeys() {
+  const seen = new Set();
+  const out = [];
+  for (const f of FIXTURES) {
+    if (f.dbkey && f.on_manifest && !seen.has(f.dbkey)) {
+      seen.add(f.dbkey);
+      out.push(f.dbkey);
+    }
+  }
+  return out;
+}
+
+function dbkeysInLane(lane) {
+  const seen = new Set();
+  const out = [];
+  for (const f of FIXTURES) {
+    if (f.lane === lane && f.dbkey && f.on_manifest && !seen.has(f.dbkey)) {
+      seen.add(f.dbkey);
+      out.push(f.dbkey);
+    }
+  }
+  return out;
+}
+
+function fixtureForDbkey(dbkey) {
+  return FIXTURES.find(f => f.dbkey === String(dbkey) && f.on_manifest) ||
+    FIXTURES.find(f => f.dbkey === String(dbkey));
+}
+
+function normalizeUpcDigits(value) {
+  return String(value == null ? '' : value).replace(/\D/g, '');
+}
+
+function upcMatchesQuery(query, upc) {
+  const q = normalizeUpcDigits(query);
+  const u = normalizeUpcDigits(upc);
+  if (!q || !u) return false;
+  if (u === q) return true;
+  if (q.length >= 4 && u.endsWith(q)) return true;
+  if (q.length >= 4 && q.length <= 6 && u.endsWith(q)) return true;
+  return false;
+}
+
+function textMatchesQuery(query, text) {
+  const q = String(query || '').trim().toLowerCase();
+  if (q.length < 2) return false;
+  return String(text || '').toLowerCase().includes(q);
+}
+
+function productDisplayName(upc, layoutProduct) {
+  const info = productInfo(upc);
+  if (info && info.name) return info.name;
+  if (layoutProduct && layoutProduct.desc_fallback) return layoutProduct.desc_fallback;
+  if (info && info.fallback_desc) return info.fallback_desc;
+  return 'UPC ' + upc;
+}
+
+function productDisplaySize(upc, layoutProduct) {
+  const info = productInfo(upc);
+  if (info && info.size) return info.size;
+  if (layoutProduct && layoutProduct.size_fallback) return layoutProduct.size_fallback;
+  if (info && info.fallback_size) return info.fallback_size;
+  return '';
+}
+
+function parsePegPosition(code) {
+  if (!code) return null;
+  const m = String(code).match(/^R(\d+)C(\d+)$/i);
+  if (!m) return null;
+  return { row: parseInt(m[1], 10), col: parseInt(m[2], 10) };
+}
+
+function walkLayoutProducts(layout, visitor) {
+  if (!layout || !Array.isArray(layout.bays)) return;
+  for (const bay of layout.bays) {
+    const fixtures = (bay.fixtures || []).slice();
+    for (const fixture of fixtures) {
+      for (const prod of fixture.products || []) {
+        visitor(prod, bay, fixture);
+      }
+    }
+  }
+}
+
+function fixtureLocationLabel(bay, fixture) {
+  const type = fixture.type === 'pegboard' ? 'pegboard' : (fixture.label || fixture.type || 'fixture');
+  return 'bay ' + bay.bay_num + ', ' + type + ' ' + (fixture.fixture_num || '');
+}
+
+function searchInLayout(layout, query) {
+  const hits = [];
+  if (!layout) return hits;
+  walkLayoutProducts(layout, (prod, bay, fixture) => {
+    const name = productDisplayName(prod.upc, prod);
+    const desc = prod.desc_fallback || name;
+    if (upcMatchesQuery(query, prod.upc) || textMatchesQuery(query, desc) || textMatchesQuery(query, name)) {
+      hits.push({
+        scope: 'this',
+        upc: prod.upc,
+        name,
+        location: fixtureLocationLabel(bay, fixture),
+        bayNum: bay.bay_num,
+        fixtureNum: fixture.fixture_num,
+        dbkey: layout.dbkey,
+      });
+    }
+  });
+  return hits;
+}
+
+function searchInDbkeyList(dbkeys, query, excludeDbkey) {
+  const hits = [];
+  const qDigits = normalizeUpcDigits(query);
+  const isUpcQuery = qDigits.length >= 4;
+
+  for (const dk of dbkeys) {
+    if (dk === excludeDbkey) continue;
+    const upcs = upcsForDbkeyStore(dk, HUB_STORE_NUM);
+    for (const upc of upcs) {
+      const info = productInfo(upc);
+      const name = productDisplayName(upc, null);
+      const desc = (info && info.fallback_desc) || name;
+      const match = isUpcQuery
+        ? upcMatchesQuery(query, upc)
+        : (textMatchesQuery(query, name) || textMatchesQuery(query, desc));
+      if (!match) continue;
+      const fix = fixtureForDbkey(dk);
+      hits.push({
+        scope: 'other',
+        upc,
+        name,
+        dbkey: dk,
+        title: fix ? shortName(fix.name) : ('DBKey ' + dk),
+        lane: fix ? fix.lane : '—',
+      });
+    }
+  }
+  return hits;
+}
+
+function runPogSearch(query) {
+  const q = String(query || '').trim();
+  if (!q) return { hits: [], notFound: false };
+
+  let hits = searchInLayout(pogWorkingLayout, q);
+  if (hits.length) return { hits, notFound: false };
+
+  const lane = pogWorkingFixture ? pogWorkingFixture.lane : null;
+  if (lane) {
+    hits = searchInDbkeyList(dbkeysInLane(lane), q, pogWorkingFixture.dbkey);
+    if (hits.length) return { hits, notFound: false };
+  }
+
+  hits = searchInDbkeyList(uniqueManifestDbkeys(), q, pogWorkingFixture ? pogWorkingFixture.dbkey : null);
+  if (hits.length) return { hits, notFound: false };
+
+  return { hits: [], notFound: true };
+}
+
+function renderPogTile(prod, bay, fixture, dbkey) {
+  const upc = String(prod.upc);
+  const name = productDisplayName(upc, prod);
+  const size = productDisplaySize(upc, prod);
+  const tileId = 'pog-tile-' + dbkey + '-' + bay.bay_num + '-' + fixture.fixture_num + '-' + upc;
+  const imgUrl = pogUrl('/products-png/' + encodeURIComponent(upc) + '.png');
+  const facings = prod.facings > 1 ? (' · ×' + prod.facings) : '';
+  const newBadge = prod.is_new ? '<span class="pog-wv-badge-new">NEW</span>' : '';
+
+  return (
+    '<div class="pog-wv-tile" id="' + escapeHtml(tileId) + '" ' +
+      'data-upc="' + escapeHtml(upc) + '" ' +
+      'data-bay="' + escapeHtml(String(bay.bay_num)) + '" ' +
+      'data-fixture="' + escapeHtml(String(fixture.fixture_num)) + '">' +
+      newBadge +
+      '<img class="pog-wv-tile-img" loading="lazy" decoding="async" src="' + escapeHtml(imgUrl) + '" alt="" ' +
+        'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+      '<div class="pog-wv-tile-textonly" style="display:none">' + escapeHtml(name.slice(0, 40)) + '</div>' +
+      '<div class="pog-wv-tile-name">' + escapeHtml(name) + '</div>' +
+      '<div class="pog-wv-tile-meta">' + escapeHtml(size) + escapeHtml(facings) + '</div>' +
+    '</div>'
+  );
+}
+
+function renderPogFixture(fixture, bay, dbkey) {
+  let inner = '';
+  const label = escapeHtml(fixture.label || fixture.type || 'Fixture');
+
+  if (fixture.type === 'pegboard') {
+    const rows = Math.max(1, fixture.rows || 1);
+    const cols = Math.max(1, fixture.cols || 1);
+    const cells = Array.from({ length: rows * cols }, () => '');
+    const products = (fixture.products || []).slice();
+
+    products.sort((a, b) => (a.pos || 0) - (b.pos || 0));
+    let fallbackIdx = 0;
+    for (const prod of products) {
+      const peg = parsePegPosition(prod.position_code);
+      let idx;
+      if (peg && peg.row >= 1 && peg.col >= 1 && peg.row <= rows && peg.col <= cols) {
+        idx = (peg.row - 1) * cols + (peg.col - 1);
+      } else {
+        idx = fallbackIdx;
+        fallbackIdx += 1;
+      }
+      if (idx >= 0 && idx < cells.length && !cells[idx]) {
+        cells[idx] = renderPogTile(prod, bay, fixture, dbkey);
+      }
+    }
+
+    inner = '<div class="pog-wv-peg-grid" style="grid-template-columns:repeat(' + cols + ', minmax(0,1fr))">' +
+      cells.map(cell => '<div class="pog-wv-peg-cell">' + (cell || '') + '</div>').join('') +
+      '</div>';
+  } else {
+    const products = (fixture.products || []).slice().sort((a, b) => (a.pos || 0) - (b.pos || 0));
+    inner = '<div class="pog-wv-shelf-row">' +
+      products.map(p => renderPogTile(p, bay, fixture, dbkey)).join('') +
+      '</div>';
+  }
+
+  return (
+    '<div class="pog-wv-fixture">' +
+      '<div class="pog-wv-fixture-label">' + label + '</div>' +
+      inner +
+    '</div>'
+  );
+}
+
+function renderPogBays(layout) {
+  const dbkey = layout.dbkey;
+  const bays = (layout.bays || []).slice().sort((a, b) => (a.bay_num || 0) - (b.bay_num || 0));
+  return bays.map(bay => {
+    const fixtures = (bay.fixtures || []).slice()
+      .sort((a, b) => (b.offset_from_base_in || 0) - (a.offset_from_base_in || 0));
+    const fixtureHtml = fixtures.map(f => renderPogFixture(f, bay, dbkey)).join('');
+    return (
+      '<div class="pog-wv-bay" data-bay="' + escapeHtml(String(bay.bay_num)) + '">' +
+        '<div class="pog-wv-bay-head">Bay ' + escapeHtml(String(bay.bay_num)) +
+          ' · ' + escapeHtml(String(bay.width_ft || '?')) + ' ft · PDF page ' + escapeHtml(String(bay.pdf_page || '—')) +
+        '</div>' +
+        '<div class="pog-wv-fixtures">' + fixtureHtml + '</div>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+function renderPogSearchResults(result) {
+  const box = document.getElementById('pog-wv-search-results');
+  if (!box) return;
+
+  if (!result.hits.length && !result.notFound) {
+    box.innerHTML = '';
+    return;
+  }
+
+  if (result.notFound) {
+    box.innerHTML = '<div class="pog-wv-search-group"><div class="pog-wv-search-hit-info">Not found in any set.</div></div>';
+    return;
+  }
+
+  const thisHits = result.hits.filter(h => h.scope === 'this');
+  const otherHits = result.hits.filter(h => h.scope === 'other');
+  let html = '';
+
+  if (thisHits.length) {
+    html += '<div class="pog-wv-search-group"><div class="pog-wv-search-group-title">In this set</div>';
+    for (const h of thisHits) {
+      html += '<div class="pog-wv-search-hit">' +
+        '<div class="pog-wv-search-hit-info">' +
+          '<div class="pog-wv-search-hit-name">' + escapeHtml(h.name) + '</div>' +
+          '<div class="pog-wv-search-hit-loc">' + escapeHtml(h.location) + '</div>' +
+        '</div>' +
+        '<button type="button" class="pog-wv-search-open" data-scroll-to-upc="' + escapeHtml(h.upc) + '">Show</button>' +
+      '</div>';
+    }
+    html += '</div>';
+  }
+
+  if (otherHits.length) {
+    html += '<div class="pog-wv-search-group"><div class="pog-wv-search-group-title">In another set</div>';
+    const seen = new Set();
+    for (const h of otherHits) {
+      const key = h.dbkey + ':' + h.upc;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      html += '<div class="pog-wv-search-hit">' +
+        '<div class="pog-wv-search-hit-info">' +
+          '<div class="pog-wv-search-hit-name">' + escapeHtml(h.name) + '</div>' +
+          '<div class="pog-wv-search-hit-loc">' + escapeHtml(h.title) + ' · lane ' + escapeHtml(h.lane) + '</div>' +
+        '</div>' +
+        '<button type="button" class="pog-wv-search-open" data-open-pog-dbkey="' + escapeHtml(h.dbkey) + '">Open</button>' +
+      '</div>';
+    }
+    html += '</div>';
+  }
+
+  box.innerHTML = html;
+}
+
+function highlightPogTile(upc) {
+  document.querySelectorAll('.pog-wv-tile--highlight').forEach(el => {
+    el.classList.remove('pog-wv-tile--highlight');
+  });
+  const tiles = document.querySelectorAll('.pog-wv-tile[data-upc="' + upc + '"]');
+  if (!tiles.length) return;
+  tiles.forEach(t => t.classList.add('pog-wv-tile--highlight'));
+  tiles[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function bindPogSearchUi() {
+  const input = document.getElementById('pog-wv-search-input');
+  const btn = document.getElementById('pog-wv-search-btn');
+  const results = document.getElementById('pog-wv-search-results');
+
+  const run = () => {
+    const result = runPogSearch(input ? input.value : '');
+    renderPogSearchResults(result);
+    if (result.hits.length === 1 && result.hits[0].scope === 'this') {
+      highlightPogTile(result.hits[0].upc);
+    }
+  };
+
+  btn?.addEventListener('click', run);
+  input?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); run(); }
+  });
+  results?.addEventListener('click', e => {
+    const showBtn = e.target.closest('[data-scroll-to-upc]');
+    if (showBtn) {
+      highlightPogTile(showBtn.getAttribute('data-scroll-to-upc'));
+    }
+  });
+}
+
+function renderPogWorkingContent(fixture, layout, loadError) {
+  const content = document.getElementById('pog-wv-content');
+  if (!content) return;
+
+  if (!fixture.dbkey) {
+    content.innerHTML = '<div class="pog-wv-empty">No DBKey for this fixture.</div>';
+    return;
+  }
+
+  if (loadError) {
+    content.innerHTML = '<div class="pog-wv-empty">Could not load planogram data.<br><span style="font-size:0.78rem;color:var(--text3)">' +
+      escapeHtml(loadError.message || String(loadError)) + '</span></div>';
+    return;
+  }
+
+  if (!layout) {
+    content.innerHTML = '<div class="pog-wv-empty">No digital POG for this fixture.</div>';
+    return;
+  }
+
+  const pdfName = pdfFilenameFromFixture(fixture);
+  const previewUrl = pogUrl('/previews/' + encodeURIComponent(fixture.dbkey) + '.png');
+  const pdfUrl = pdfName ? pogUrl('/pdfs/' + encodeURIComponent(pdfName)) : null;
+
+  const meta =
+    escapeHtml(layout.period_week || '') +
+    (layout.effective_date ? (' · eff. ' + escapeHtml(layout.effective_date)) : '') +
+    ' · ' + escapeHtml(String(layout.total_width_ft || '?')) + ' ft W × ' +
+    escapeHtml(String(layout.total_height_in || '?')) + ' in H × ' +
+    escapeHtml(String(layout.depth_in || '?')) + ' in D';
+
+  content.innerHTML =
+    '<div class="pog-wv-preview open" id="pog-wv-preview">' +
+      '<button type="button" class="pog-wv-preview-toggle" id="pog-wv-preview-toggle">Page 1 preview ▾</button>' +
+      '<div class="pog-wv-preview-body">' +
+        '<img id="pog-wv-preview-img" src="' + escapeHtml(previewUrl) + '" alt="Planogram page 1 preview" loading="lazy">' +
+        (pdfUrl
+          ? '<div class="pog-wv-preview-links"><a href="' + escapeHtml(pdfUrl) + '" target="_blank" rel="noopener">View full PDF</a></div>'
+          : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="pog-wv-meta">' + meta + '</div>' +
+    '<div class="pog-wv-search">' +
+      '<div class="pog-wv-search-row">' +
+        '<input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="UPC or product name">' +
+        '<button type="button" class="btn pog-wv-search-btn" id="pog-wv-search-btn">Search</button>' +
+      '</div>' +
+      '<div class="pog-wv-search-results" id="pog-wv-search-results"></div>' +
+    '</div>' +
+    '<div class="pog-wv-bays">' + renderPogBays(layout) + '</div>';
+
+  const previewImg = document.getElementById('pog-wv-preview-img');
+  if (previewImg) {
+    previewImg.onerror = () => {
+      const wrap = document.getElementById('pog-wv-preview');
+      if (wrap) wrap.style.display = 'none';
+    };
+  }
+
+  document.getElementById('pog-wv-preview-toggle')?.addEventListener('click', () => {
+    document.getElementById('pog-wv-preview')?.classList.toggle('open');
+  });
+
+  bindPogSearchUi();
+}
+
+async function openPogWorkingView(fixture) {
+  if (!fixture || !fixture.dbkey) return;
+
+  pogWorkingFixture = fixture;
+  pogWorkingLayout = null;
+
+  const overlay = document.getElementById('pog-working-view');
+  const heading = document.getElementById('pog-wv-heading');
+  const sub = document.getElementById('pog-wv-subheading');
+  const content = document.getElementById('pog-wv-content');
+
+  if (heading) heading.textContent = shortName(fixture.name);
+  if (sub) sub.textContent = 'Lane ' + fixture.lane + ' · DBKey ' + fixture.dbkey;
+  if (content) content.innerHTML = '<div class="pog-wv-loading">Loading planogram…</div>';
+
+  overlay?.classList.add('open');
+  overlay?.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('pog-view-open');
+  closeDetail();
+
+  try {
+    await ensurePogCatalogLoaded();
+    pogWorkingLayout = await fetchPogLayout(fixture.dbkey);
+    renderPogWorkingContent(fixture, pogWorkingLayout, null);
+  } catch (err) {
+    renderPogWorkingContent(fixture, null, err);
+  }
+
+  document.getElementById('pog-wv-scroll')?.scrollTo(0, 0);
+}
+
+function closePogWorkingView() {
+  const overlay = document.getElementById('pog-working-view');
+  overlay?.classList.remove('open');
+  overlay?.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('pog-view-open');
+  pogWorkingFixture = null;
+  pogWorkingLayout = null;
 }
 
 function hubUrl(path) {
