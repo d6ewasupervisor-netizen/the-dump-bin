@@ -805,6 +805,108 @@
     cursor: not-allowed;
   }
 
+  .tag-batch-aisle-group {
+    margin-bottom: 12px;
+  }
+
+  .tag-batch-aisle-head {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #5eead4;
+    padding: 4px 2px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .tag-batch-planogram-head {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text2);
+    padding: 8px 2px 4px;
+  }
+
+  .tag-batch-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px 0;
+    flex-shrink: 0;
+  }
+
+  .btn-tag-batch-secondary {
+    flex: 1;
+    min-height: 40px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+
+  .tag-draft-cart {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    margin-top: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .tag-draft-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tag-draft-item:last-child { border-bottom: none; }
+
+  .tag-draft-item-body { flex: 1; min-width: 0; }
+
+  .tag-draft-item-upc {
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+
+  .tag-draft-item-meta {
+    font-size: 0.72rem;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+
+  .tag-draft-remove {
+    appearance: none;
+    border: 1px solid #ef4444;
+    background: transparent;
+    color: #fca5a5;
+    border-radius: var(--radius);
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .tag-draft-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .tag-draft-actions .btn {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .tag-draft-empty {
+    padding: 12px;
+    font-size: 0.82rem;
+    color: var(--text3);
+  }
+
   .flag-actions {
     margin-top: 20px;
     padding-top: 16px;
@@ -1940,6 +2042,10 @@
     <h2>Tag batch — verified missing tags</h2>
     <button type="button" class="detail-close" id="tag-batch-close" aria-label="Close">&times;</button>
   </div>
+  <div class="tag-batch-toolbar">
+    <button type="button" class="btn-tag-batch-secondary" id="btn-verify-all-tags">Verify all pending</button>
+    <button type="button" class="btn-tag-batch-secondary" id="btn-refresh-tag-gather">Refresh</button>
+  </div>
   <div class="tag-batch-list" id="tag-batch-list"></div>
   <div class="tag-batch-footer">
     <div class="flag-status" id="tag-batch-status"></div>
@@ -1974,7 +2080,14 @@
       <label for="pog-wv-flag-loc">Location (optional)</label>
       <input type="text" id="pog-wv-flag-loc" autocomplete="off" placeholder="Shelf / position">
       <div class="form-actions">
-        <button type="button" class="btn btn-submit" id="pog-wv-flag-tag-submit">Submit missing tag</button>
+        <button type="button" class="btn btn-submit" id="pog-wv-flag-tag-add">Add to list</button>
+      </div>
+      <div class="tag-draft-cart" id="pog-wv-tag-draft-cart">
+        <div class="tag-draft-empty" id="pog-wv-tag-draft-empty">No missing tags in this list yet.</div>
+      </div>
+      <div class="tag-draft-actions">
+        <button type="button" class="btn" id="pog-wv-flag-tag-clear" disabled>Clear list</button>
+        <button type="button" class="btn btn-submit" id="pog-wv-flag-tag-submit" disabled>Submit all for this planogram</button>
       </div>
     </div>
     <div class="pog-wv-assign-row" id="pog-wv-assign-row" hidden>
@@ -2005,7 +2118,7 @@
     <div class="pog-product-modal-meta" id="pog-product-modal-meta"></div>
     <span class="pog-wv-badge-new pog-product-modal-new" id="pog-product-modal-new" hidden>NEW</span>
     <div class="pog-product-modal-actions" id="pog-product-modal-actions" hidden>
-      <button type="button" class="flag-btn flag-tag" id="pog-product-modal-flag-tag">Flag missing tag</button>
+      <button type="button" class="flag-btn flag-tag" id="pog-product-modal-flag-tag">Add missing tag to list</button>
     </div>
   </div>
 </div>
@@ -2166,10 +2279,12 @@ let liveVisitId = null;
 let hubCurrentView = 'map';
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
-let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0 };
+let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0 };
 let hubRoster = [];
 let hubRosterLoadPromise = null;
 let tagBatchPreview = null;
+let sectionTagDrafts = [];
+let sectionTagDraftsDbkey = null;
 let selectedPendingId = null;
 let pendingDetailCache = {};
 let streamAbort = null;
@@ -2307,6 +2422,7 @@ function applySnapshot(snapshot) {
   });
   hubContext.pendingActions = snapshot.pendingActions || [];
   hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
+  hubContext.draftTags = snapshot.stats?.draftTags ?? 0;
   updatePendingBadge();
   updateTagBatchBadge();
   renderPendingList();
@@ -2601,7 +2717,7 @@ function refreshDetailPanel(fixture) {
           '<label for="flag-loc">Location (optional)</label>' +
           '<input type="text" id="flag-loc" autocomplete="off" placeholder="Shelf / position">' +
           '<div class="form-actions">' +
-            '<button type="button" class="btn btn-submit" id="flag-tag-submit">Submit missing tag</button>' +
+            '<button type="button" class="btn btn-submit" id="flag-tag-submit">Add to planogram list</button>' +
           '</div>' +
         '</div>' +
         '<button type="button" class="flag-btn flag-nis" id="flag-nis">Not in store</button>' +
@@ -2685,14 +2801,14 @@ function refreshDetailPanel(fixture) {
       return;
     }
     disableFlags(true);
-    setFlagStatus('Raising missing-tag flag…');
+    setFlagStatus('Adding to planogram list…');
     try {
       await hubPost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/missing-tag', {
         upc,
         description: (document.getElementById('flag-desc')?.value || '').trim() || undefined,
         location: (document.getElementById('flag-loc')?.value || '').trim() || undefined,
       });
-      setFlagStatus('Flag raised — waiting for live update…', 'ok');
+      setFlagStatus('Added — open POG to review and submit all tags for this set', 'ok');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
       disableFlags(false);
@@ -2916,6 +3032,8 @@ function bindEvents() {
   });
   document.getElementById('tag-batch-close').addEventListener('click', () => toggleTagBatchPanel(false));
   document.getElementById('btn-send-tag-batch').addEventListener('click', () => sendTagBatchEmail());
+  document.getElementById('btn-verify-all-tags')?.addEventListener('click', () => verifyAllPendingMissingTags());
+  document.getElementById('btn-refresh-tag-gather')?.addEventListener('click', () => loadTagBatchPreview());
 
   document.getElementById('pog-wv-back').addEventListener('click', () => closePogWorkingView());
   document.getElementById('pog-wv-scroll').addEventListener('click', e => {
@@ -3320,6 +3438,24 @@ function formatPogPosition(bay, fixture, prod) {
   return 'Bay ' + bay.bay_num + ' · ' + (fixture.label || 'Shelf') + ' · Position ' + prod.pos;
 }
 
+function aisleFromFixtureLane(lane) {
+  const digits = String(lane || '').replace(/\D/g, '');
+  if (!digits) return '0';
+  const n = Number(digits);
+  return Number.isFinite(n) ? String(n) : digits;
+}
+
+function compactTagLocation(bay, fixture, prod, lane) {
+  const aisle = aisleFromFixtureLane(lane);
+  if (fixture.type === 'pegboard') {
+    const peg = parsePegPosition(prod.position_code);
+    if (peg) {
+      return aisle + 'R' + String(peg.row).padStart(2, '0') + 'C' + String(peg.col).padStart(2, '0');
+    }
+  }
+  return aisle + 'B' + String(bay.bay_num).padStart(2, '0') + 'F' + String(fixture.fixture_num || 0).padStart(2, '0') + 'P' + String(prod.pos).padStart(2, '0');
+}
+
 function renderPogPositionCardHtml(fixture, prod) {
   if (fixture.type === 'pegboard') {
     const peg = parsePegPosition(prod.position_code);
@@ -3391,6 +3527,9 @@ function openPogProductModal(prod, bay, fixture) {
     upc,
     name: displayName,
     location: formatPogPosition(bay, fixture, prod),
+    bay,
+    fixture,
+    prod,
   };
 
   const modalActions = document.getElementById('pog-product-modal-actions');
@@ -4094,7 +4233,7 @@ function setPogWvActionStatus(msg, kind) {
 
 function setPogWvActionsDisabled(disabled) {
   document.querySelectorAll(
-    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-submit, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff, #pog-wv-assign-btn'
+    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff, #pog-wv-assign-btn'
   ).forEach(btn => { btn.disabled = disabled; });
   const sel = document.getElementById('pog-wv-assign-select');
   if (sel) sel.disabled = disabled;
@@ -4223,9 +4362,10 @@ function bindPogWorkingActions() {
       description: pogSelectedProduct?.name || '',
       location: pogSelectedProduct?.location || defaultPogFlagLocation(),
     });
+    loadSectionTagDrafts(pogWorkingDbkey());
   });
 
-  document.getElementById('pog-wv-flag-tag-submit')?.addEventListener('click', async () => {
+  document.getElementById('pog-wv-flag-tag-add')?.addEventListener('click', async () => {
     const upc = (document.getElementById('pog-wv-flag-upc')?.value || '').trim();
     if (!upc) {
       setPogWvActionStatus('UPC is required', 'error');
@@ -4233,20 +4373,36 @@ function bindPogWorkingActions() {
       return;
     }
     setPogWvActionsDisabled(true);
-    setPogWvActionStatus('Raising missing-tag flag…');
+    setPogWvActionStatus('Adding to list…');
     try {
-      await submitPogSectionFlag('missing-tag', {
+      const lane = pogWorkingFixture?.lane;
+      let location = (document.getElementById('pog-wv-flag-loc')?.value || '').trim();
+      if (!location && pogSelectedProduct?.bay && pogSelectedProduct?.fixture && pogSelectedProduct?.prod) {
+        location = compactTagLocation(
+          pogSelectedProduct.bay,
+          pogSelectedProduct.fixture,
+          pogSelectedProduct.prod,
+          lane,
+        );
+      }
+      await addSectionTagDraftEntry({
         upc,
         description: (document.getElementById('pog-wv-flag-desc')?.value || '').trim() || undefined,
-        location: (document.getElementById('pog-wv-flag-loc')?.value || '').trim() || undefined,
+        location: location || undefined,
       });
-      setPogWvActionStatus('Flagged — pending lead review', 'ok');
-      document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
+      setPogWvActionStatus('Added to list', 'ok');
+      document.getElementById('pog-wv-flag-upc').value = '';
+      document.getElementById('pog-wv-flag-desc').value = '';
+      document.getElementById('pog-wv-flag-upc')?.focus();
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
+    } finally {
       setPogWvActionsDisabled(false);
     }
   });
+
+  document.getElementById('pog-wv-flag-tag-submit')?.addEventListener('click', () => submitSectionTagDraftsForPlanogram());
+  document.getElementById('pog-wv-flag-tag-clear')?.addEventListener('click', () => clearSectionTagDrafts());
 
   document.getElementById('pog-wv-mark-done')?.addEventListener('click', async () => {
     const dbkey = pogWorkingDbkey();
@@ -4309,12 +4465,31 @@ function bindPogWorkingActions() {
     }
   });
 
-  document.getElementById('pog-product-modal-flag-tag')?.addEventListener('click', () => {
-    openPogMissingTagForm({
-      upc: pogSelectedProduct?.upc || '',
-      description: pogSelectedProduct?.name || '',
-      location: pogSelectedProduct?.location || defaultPogFlagLocation(),
-    });
+  document.getElementById('pog-product-modal-flag-tag')?.addEventListener('click', async () => {
+    if (!pogSelectedProduct?.upc) return;
+    const lane = pogWorkingFixture?.lane;
+    let location = pogSelectedProduct.location;
+    if (pogSelectedProduct.bay && pogSelectedProduct.fixture && pogSelectedProduct.prod) {
+      location = compactTagLocation(
+        pogSelectedProduct.bay,
+        pogSelectedProduct.fixture,
+        pogSelectedProduct.prod,
+        lane,
+      );
+    }
+    setPogWvActionStatus('Adding to list…');
+    try {
+      await addSectionTagDraftEntry({
+        upc: pogSelectedProduct.upc,
+        description: pogSelectedProduct.name,
+        location,
+      });
+      closePogProductModal();
+      document.getElementById('pog-wv-missing-tag-form')?.classList.add('open');
+      setPogWvActionStatus('Added to missing-tag list', 'ok');
+    } catch (err) {
+      setPogWvActionStatus(err.message || 'Failed', 'error');
+    }
   });
 }
 
@@ -4345,6 +4520,7 @@ async function openPogWorkingView(fixture, opts) {
   hideDetailForPog();
   bindPogWorkingActions();
   refreshPogWorkingChrome();
+  loadSectionTagDrafts(fixture.dbkey);
 
   if (!opts?.skipHistory) {
     syncHubUrl({ pog: fixture.dbkey, fixture: fixture.dbkey, view: hubCurrentView });
@@ -4444,6 +4620,17 @@ async function hubGet(path) {
   return data;
 }
 
+async function hubDelete(path) {
+  if (!liveVisitId) throw new Error('No live visit');
+  const authFetch = window.dumpBinAuthFetch || fetch;
+  const resp = await authFetch(hubUrl(path), { method: 'DELETE', noBounceOn401: true });
+  if (resp.status === 401) throw new Error('Not signed in');
+  if (resp.status === 403) throw new Error('Lead or supervisor required');
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || ('Request failed (' + resp.status + ')'));
+  return data;
+}
+
 function updatePendingBadge() {
   const badge = document.getElementById('pending-badge');
   const countEl = document.getElementById('pending-count');
@@ -4507,23 +4694,158 @@ function renderTagBatchList() {
     return;
   }
 
-  listEl.innerHTML = tagBatchPreview.tags.map(tag => {
-    const invalid = !tag.valid;
-    const upcLine = invalid
-      ? ('INVALID UPC — verify: ' + escapeHtml(tag.upc || '—'))
-      : escapeHtml(tag.displayDigits || tag.upc || '—');
-    const loc = escapeHtml(tag.location || fixtureNameForDbkey(tag.dbkey) || tag.dbkey || '—');
+  const groups = tagBatchPreview.byAisle || [{ aisleLabel: 'All tags', tags: tagBatchPreview.tags }];
+  listEl.innerHTML = groups.map(group => {
+    const head = '<div class="tag-batch-aisle-head">' + escapeHtml(group.aisleLabel) + ' · ' + group.tags.length + '</div>';
+    const items = group.tags.map(tag => renderTagBatchItemHtml(tag)).join('');
+    return '<div class="tag-batch-aisle-group">' + head + items + '</div>';
+  }).join('');
+
+  sendBtn.disabled = false;
+}
+
+function renderTagBatchItemHtml(tag) {
+  const invalid = !tag.valid;
+  const upcLine = invalid
+    ? ('INVALID UPC — verify: ' + escapeHtml(tag.upc || '—'))
+    : escapeHtml(tag.displayDigits || tag.upc || '—');
+  const loc = escapeHtml(tag.location || fixtureNameForDbkey(tag.dbkey) || tag.dbkey || '—');
+  const plano = tag.dbkey
+    ? ('<div class="tag-batch-planogram-head">' + escapeHtml(shortName(fixtureNameForDbkey(tag.dbkey))) + '</div>')
+    : '';
+  return plano +
+    '<div class="tag-batch-item' + (invalid ? ' invalid' : '') + '">' +
+      '<div class="tag-batch-item-upc">' + upcLine + '</div>' +
+      (invalid && tag.reason ? '<div class="tag-batch-item-desc">' + escapeHtml(tag.reason) + '</div>' : '') +
+      '<div class="tag-batch-item-desc">' + escapeHtml(tag.description || '—') + '</div>' +
+      '<div class="tag-batch-item-loc">Location: ' + loc + '</div>' +
+    '</div>';
+}
+
+async function loadSectionTagDrafts(dbkey) {
+  if (!liveVisitId || !dbkey) {
+    sectionTagDrafts = [];
+    sectionTagDraftsDbkey = null;
+    renderSectionTagDraftCart();
+    return;
+  }
+  try {
+    const data = await hubGet('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts');
+    sectionTagDrafts = data.tags || [];
+    sectionTagDraftsDbkey = dbkey;
+  } catch (err) {
+    console.warn('[Checklane Hub] tag drafts load failed:', err);
+    sectionTagDrafts = [];
+  }
+  renderSectionTagDraftCart();
+}
+
+function renderSectionTagDraftCart() {
+  const cart = document.getElementById('pog-wv-tag-draft-cart');
+  const empty = document.getElementById('pog-wv-tag-draft-empty');
+  const submitBtn = document.getElementById('pog-wv-flag-tag-submit');
+  const clearBtn = document.getElementById('pog-wv-flag-tag-clear');
+  if (!cart) return;
+
+  const tags = sectionTagDrafts || [];
+  if (!tags.length) {
+    cart.innerHTML = '<div class="tag-draft-empty" id="pog-wv-tag-draft-empty">No missing tags in this list yet.</div>';
+    if (submitBtn) submitBtn.disabled = true;
+    if (clearBtn) clearBtn.disabled = true;
+    return;
+  }
+
+  cart.innerHTML = tags.map(tag => {
+    const upc = escapeHtml(tag.displayDigits || tag.upc || '—');
+    const meta = escapeHtml(tag.description || '') +
+      (tag.location ? (' · ' + escapeHtml(tag.location)) : '');
     return (
-      '<div class="tag-batch-item' + (invalid ? ' invalid' : '') + '">' +
-        '<div class="tag-batch-item-upc">' + upcLine + '</div>' +
-        (invalid && tag.reason ? '<div class="tag-batch-item-desc">' + escapeHtml(tag.reason) + '</div>' : '') +
-        '<div class="tag-batch-item-desc">' + escapeHtml(tag.description || '—') + '</div>' +
-        '<div class="tag-batch-item-loc">Location: ' + loc + '</div>' +
+      '<div class="tag-draft-item" data-tag-draft-id="' + tag.id + '">' +
+        '<div class="tag-draft-item-body">' +
+          '<div class="tag-draft-item-upc">' + upc + '</div>' +
+          (meta ? '<div class="tag-draft-item-meta">' + meta + '</div>' : '') +
+        '</div>' +
+        '<button type="button" class="tag-draft-remove" data-remove-tag-draft="' + tag.id + '">Remove</button>' +
       '</div>'
     );
   }).join('');
 
-  sendBtn.disabled = false;
+  cart.querySelectorAll('[data-remove-tag-draft]').forEach(btn => {
+    btn.addEventListener('click', () => removeSectionTagDraft(Number(btn.getAttribute('data-remove-tag-draft'))));
+  });
+
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit all for this planogram (' + tags.length + ')';
+  }
+  if (clearBtn) clearBtn.disabled = false;
+}
+
+async function addSectionTagDraftEntry({ upc, description, location }) {
+  const dbkey = pogWorkingDbkey();
+  if (!dbkey) throw new Error('No active planogram');
+  await hubPost('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts', {
+    upc,
+    description,
+    location,
+  });
+  await loadSectionTagDrafts(dbkey);
+}
+
+async function removeSectionTagDraft(tagId) {
+  const dbkey = sectionTagDraftsDbkey || pogWorkingDbkey();
+  if (!dbkey) return;
+  setPogWvActionStatus('Removing…');
+  try {
+    await hubDelete('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts/' + tagId);
+    await loadSectionTagDrafts(dbkey);
+    setPogWvActionStatus('Removed from list', 'ok');
+  } catch (err) {
+    setPogWvActionStatus(err.message || 'Remove failed', 'error');
+  }
+}
+
+async function clearSectionTagDrafts() {
+  const dbkey = sectionTagDraftsDbkey || pogWorkingDbkey();
+  if (!dbkey || !sectionTagDrafts.length) return;
+  setPogWvActionStatus('Clearing list…');
+  try {
+    for (const tag of sectionTagDrafts.slice()) {
+      await hubDelete('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts/' + tag.id);
+    }
+    await loadSectionTagDrafts(dbkey);
+    setPogWvActionStatus('List cleared', 'ok');
+  } catch (err) {
+    setPogWvActionStatus(err.message || 'Clear failed', 'error');
+  }
+}
+
+async function submitSectionTagDraftsForPlanogram() {
+  const dbkey = sectionTagDraftsDbkey || pogWorkingDbkey();
+  if (!dbkey || !sectionTagDrafts.length) return;
+  setPogWvActionsDisabled(true);
+  setPogWvActionStatus('Submitting ' + sectionTagDrafts.length + ' tag(s)…');
+  try {
+    const result = await hubPost('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts/submit', {});
+    await loadSectionTagDrafts(dbkey);
+    setPogWvActionStatus('Submitted ' + (result.count || 0) + ' tag(s) for lead review', 'ok');
+    document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
+  } catch (err) {
+    setPogWvActionStatus(err.message || 'Submit failed', 'error');
+    setPogWvActionsDisabled(false);
+  }
+}
+
+async function verifyAllPendingMissingTags() {
+  if (!liveVisitId || hubContext.myRank < 2) return;
+  setTagBatchStatus('Verifying all pending missing tags…');
+  try {
+    const result = await hubPost('/missing-tags/verify-bulk', {});
+    setTagBatchStatus('Verified ' + (result.count || 0) + ' tag(s)', 'ok');
+    await loadTagBatchPreview();
+  } catch (err) {
+    setTagBatchStatus(err.message || 'Bulk verify failed', 'error');
+  }
 }
 
 async function loadTagBatchPreview() {
