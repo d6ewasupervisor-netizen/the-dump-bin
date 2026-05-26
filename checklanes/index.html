@@ -1483,12 +1483,19 @@
   .pog-wv-header {
     flex-shrink: 0;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    padding-top: max(10px, env(safe-area-inset-top));
+    flex-direction: column;
+    gap: 0;
+    padding: 8px 10px;
+    padding-top: max(8px, env(safe-area-inset-top));
     border-bottom: 1px solid var(--border);
     background: var(--surface);
+  }
+
+  .pog-wv-header-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
   }
 
   .pog-wv-back {
@@ -1552,6 +1559,98 @@
     font-size: 0.72rem;
     color: var(--text2);
     margin-left: 4px;
+  }
+
+  .pog-wv-tag-tally {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    border: 1px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.12);
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  .pog-wv-tag-tally--flash {
+    animation: pog-tag-tally-flash 0.55s ease;
+  }
+
+  @keyframes pog-tag-tally-flash {
+    0%, 100% { box-shadow: none; }
+    40% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35); }
+  }
+
+  .pog-wv-tag-tally-count {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #bfdbfe;
+    min-width: 1ch;
+    text-align: center;
+  }
+
+  .pog-wv-tag-tally-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #93c5fd;
+  }
+
+  .pog-wv-tag-tally-btn {
+    appearance: none;
+    border: 1px solid #2563eb;
+    background: rgba(37, 99, 235, 0.25);
+    color: #dbeafe;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .pog-wv-tag-tally-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .pog-wv-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    padding-top: 6px;
+    margin-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+
+  .pog-wv-toolbar-search {
+    display: flex;
+    flex: 1 1 160px;
+    gap: 4px;
+    min-width: 0;
+    align-items: center;
+  }
+
+  .pog-wv-toolbar-mask {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 1 132px;
+    min-width: 96px;
+  }
+
+  .pog-wv-toolbar-mask label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text2);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .pog-wv-actions {
@@ -1790,12 +1889,7 @@
   }
 
   .pog-wv-search {
-    margin-bottom: 14px;
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--bg);
-    padding-bottom: 8px;
+    margin-bottom: 0;
   }
 
   .pog-wv-search-row {
@@ -1806,26 +1900,44 @@
   .pog-wv-search-input {
     flex: 1;
     min-width: 0;
-    padding: 10px 12px;
+    padding: 6px 8px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    background: var(--surface);
+    background: var(--surface2);
     color: var(--text);
-    font-size: 0.9rem;
-    min-height: 44px;
+    font-size: 0.78rem;
+    min-height: 32px;
   }
 
   .pog-wv-search-btn {
     flex-shrink: 0;
-    min-height: 44px;
-    padding: 0 16px;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 0.72rem;
   }
 
   .pog-wv-search-clear {
     flex-shrink: 0;
-    min-height: 44px;
-    padding: 0 12px;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 0.72rem;
+  }
+
+  .pog-wv-header .pog-wv-search-results {
+    margin-top: 6px;
+    max-height: min(36vh, 280px);
+    overflow-y: auto;
     font-size: 0.78rem;
+  }
+
+  .pog-wv-header .pog-wv-scanner-box {
+    margin-top: 6px;
+    margin-bottom: 0;
+    padding: 8px 10px;
+  }
+
+  .pog-wv-header #pog-wv-scanner-region {
+    min-height: 96px;
   }
 
   .pog-wv-search-results-head {
@@ -2131,23 +2243,25 @@
   .pog-wv-mask-slider {
     flex: 1;
     min-width: 0;
-    min-height: 44px;
+    min-height: 28px;
+    height: 28px;
     accent-color: #3b82f6;
   }
 
   .pog-wv-mask-value {
-    font-size: 0.72rem;
+    font-size: 0.62rem;
     color: var(--text2);
-    min-width: 2.5rem;
+    min-width: 2rem;
     text-align: right;
+    flex-shrink: 0;
   }
 
   .pog-wv-scan-btn {
     flex-shrink: 0;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0 12px;
-    font-size: 1.1rem;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 0.95rem;
   }
 
   .pog-wv-scanner-box {
@@ -2380,13 +2494,42 @@
 
 <div class="pog-working-view" id="pog-working-view" aria-hidden="true">
   <div class="pog-wv-header">
-    <button type="button" class="pog-wv-back" id="pog-wv-back">← Back</button>
-    <div class="pog-wv-title-wrap">
-      <h2 id="pog-wv-heading">Working view</h2>
-      <div class="sub" id="pog-wv-subheading"></div>
-      <div class="pog-wv-crumb" id="pog-wv-crumb"></div>
-      <div class="pog-wv-state-wrap" id="pog-wv-state-wrap"></div>
+    <div class="pog-wv-header-top">
+      <button type="button" class="pog-wv-back" id="pog-wv-back">← Back</button>
+      <div class="pog-wv-title-wrap">
+        <h2 id="pog-wv-heading">Working view</h2>
+        <div class="sub" id="pog-wv-subheading"></div>
+        <div class="pog-wv-crumb" id="pog-wv-crumb"></div>
+        <div class="pog-wv-state-wrap" id="pog-wv-state-wrap"></div>
+      </div>
+      <div class="pog-wv-tag-tally" id="pog-wv-tag-tally" hidden aria-live="polite">
+        <span class="pog-wv-tag-tally-count" id="pog-wv-tag-tally-count">0</span>
+        <span class="pog-wv-tag-tally-label">missing</span>
+        <button type="button" class="pog-wv-tag-tally-btn" id="pog-wv-tag-tally-submit" disabled>Submit</button>
+      </div>
     </div>
+    <div class="pog-wv-toolbar">
+      <div class="pog-wv-toolbar-search">
+        <input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="UPC or name">
+        <button type="button" class="btn pog-wv-scan-btn" id="pog-wv-scan-btn" title="Scan barcode" aria-label="Scan barcode">📷</button>
+        <button type="button" class="btn pog-wv-search-btn" id="pog-wv-search-btn">Go</button>
+      </div>
+      <div class="pog-wv-toolbar-mask">
+        <label for="pog-wv-mask-slider">Mask</label>
+        <input type="range" class="pog-wv-mask-slider" id="pog-wv-mask-slider" min="0" max="100" value="0">
+        <span class="pog-wv-mask-value" id="pog-wv-mask-value">0%</span>
+      </div>
+    </div>
+    <div class="pog-wv-scanner-box" id="pog-wv-scanner-box" hidden>
+      <div class="pog-wv-scanner-controls">
+        <button type="button" class="btn" id="pog-wv-scanner-stop">Stop</button>
+        <button type="button" class="btn" id="pog-wv-scanner-torch" hidden>Torch</button>
+      </div>
+      <p class="pog-wv-scanner-hint">Point at barcode — scans full frame</p>
+      <div id="pog-wv-scanner-region"></div>
+      <p class="pog-wv-scanner-error" id="pog-wv-scanner-error" hidden></p>
+    </div>
+    <div class="pog-wv-search-results" id="pog-wv-search-results"></div>
   </div>
   <div class="pog-wv-scroll" id="pog-wv-scroll">
     <div id="pog-wv-content"></div>
@@ -3519,6 +3662,7 @@ let pogMaskCardOpacity = 0;
 let pogSelectedProduct = null;
 let pogLastNotFoundUpc = null;
 let pogWvActionsBound = false;
+let pogSearchUiBound = false;
 let pogScannerWakeLock = null;
 
 function pogUrl(path) {
@@ -3964,6 +4108,11 @@ function openPogProductModal(prod, bay, fixture) {
   if (modalActions) {
     modalActions.hidden = !(liveVisitId && hubContext.myRank >= 1);
   }
+  const tagBtn = document.getElementById('pog-product-modal-flag-tag');
+  if (tagBtn) {
+    tagBtn.disabled = false;
+    tagBtn.textContent = 'Add missing tag to list';
+  }
 
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
@@ -3983,6 +4132,8 @@ function applyPogMaskOpacity(pct) {
   if (bays) bays.style.setProperty('--pog-wv-card-opacity', String(pct / 100));
   const valEl = document.getElementById('pog-wv-mask-value');
   if (valEl) valEl.textContent = pct + '%';
+  const maskSlider = document.getElementById('pog-wv-mask-slider');
+  if (maskSlider) maskSlider.value = String(pct);
   if (typeof window.virtualPlanogramSetPegOpacity === 'function') {
     window.virtualPlanogramSetPegOpacity(pct / 100);
   }
@@ -4294,6 +4445,9 @@ function highlightPogTile(upc) {
 }
 
 function bindPogSearchUi() {
+  if (pogSearchUiBound) return;
+  pogSearchUiBound = true;
+
   const input = document.getElementById('pog-wv-search-input');
   const btn = document.getElementById('pog-wv-search-btn');
   const results = document.getElementById('pog-wv-search-results');
@@ -4410,28 +4564,6 @@ function renderPogWorkingContent(fixture, layout, loadError) {
       '</div>' +
     '</div>' +
     '<div class="pog-wv-meta">' + meta + '</div>' +
-    '<div class="pog-wv-mask-row">' +
-      '<label for="pog-wv-mask-slider">Position mask</label>' +
-      '<input type="range" class="pog-wv-mask-slider" id="pog-wv-mask-slider" min="0" max="100" value="' + pogMaskCardOpacity + '">' +
-      '<span class="pog-wv-mask-value" id="pog-wv-mask-value">' + pogMaskCardOpacity + '%</span>' +
-    '</div>' +
-    '<div class="pog-wv-search">' +
-      '<div class="pog-wv-search-row">' +
-        '<input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="Last 4 of UPC, full UPC, or name">' +
-        '<button type="button" class="btn pog-wv-scan-btn" id="pog-wv-scan-btn" title="Scan barcode" aria-label="Scan barcode">📷</button>' +
-        '<button type="button" class="btn pog-wv-search-btn" id="pog-wv-search-btn">Search</button>' +
-      '</div>' +
-      '<div class="pog-wv-scanner-box" id="pog-wv-scanner-box" hidden>' +
-        '<div class="pog-wv-scanner-controls">' +
-          '<button type="button" class="btn" id="pog-wv-scanner-stop">Stop</button>' +
-          '<button type="button" class="btn" id="pog-wv-scanner-torch" hidden>Torch</button>' +
-        '</div>' +
-        '<p class="pog-wv-scanner-hint">Point at barcode — scans full frame</p>' +
-        '<div id="pog-wv-scanner-region"></div>' +
-        '<p class="pog-wv-scanner-error" id="pog-wv-scanner-error" hidden></p>' +
-      '</div>' +
-      '<div class="pog-wv-search-results" id="pog-wv-search-results"></div>' +
-    '</div>' +
     '<div class="pog-wv-bays" id="pog-wv-planogram-host" style="--pog-wv-card-opacity:' + (pogMaskCardOpacity / 100) + '"></div>';
 
   mountHubPlanogram(layout);
@@ -4449,7 +4581,6 @@ function renderPogWorkingContent(fixture, layout, loadError) {
   });
 
   bindPogSearchUi();
-  bindPogWorkingActions();
   refreshPogWorkingChrome();
 }
 
@@ -5027,6 +5158,12 @@ function bindPogWorkingActions() {
   if (pogWvActionsBound) return;
   pogWvActionsBound = true;
 
+  bindPogSearchUi();
+
+  document.getElementById('pog-wv-tag-tally-submit')?.addEventListener('click', () => {
+    submitSectionTagDraftsForPlanogram();
+  });
+
   document.getElementById('pog-wv-flag-help')?.addEventListener('click', async () => {
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Raising help flag…');
@@ -5162,6 +5299,7 @@ function bindPogWorkingActions() {
 
   document.getElementById('pog-product-modal-flag-tag')?.addEventListener('click', async () => {
     if (!pogSelectedProduct?.upc) return;
+    const tagBtn = document.getElementById('pog-product-modal-flag-tag');
     const lane = pogWorkingFixture?.lane;
     let location = pogSelectedProduct.location;
     if (pogSelectedProduct.bay && pogSelectedProduct.fixture && pogSelectedProduct.prod) {
@@ -5172,17 +5310,26 @@ function bindPogWorkingActions() {
         lane,
       );
     }
-    setPogWvActionStatus('Adding to list…');
+    if (tagBtn) {
+      tagBtn.disabled = true;
+      tagBtn.textContent = 'Adding…';
+    }
     try {
       await addSectionTagDraftEntry({
         upc: pogSelectedProduct.upc,
         description: pogSelectedProduct.name,
         location,
       });
-      closePogProductModal();
-      document.getElementById('pog-wv-missing-tag-form')?.classList.add('open');
-      setPogWvActionStatus('Added to missing-tag list', 'ok');
+      const count = sectionTagDrafts.length;
+      if (tagBtn) tagBtn.textContent = 'Added · ' + count + ' in list';
+      updatePogTagTally({ flash: true });
+      setPogWvActionStatus(count + ' missing tag' + (count !== 1 ? 's' : '') + ' in list', 'ok');
+      window.setTimeout(() => closePogProductModal(), 500);
     } catch (err) {
+      if (tagBtn) {
+        tagBtn.disabled = false;
+        tagBtn.textContent = 'Add missing tag to list';
+      }
       setPogWvActionStatus(err.message || 'Failed', 'error');
     }
   });
@@ -5224,6 +5371,7 @@ async function openPogWorkingView(fixture, opts) {
   bindPogWorkingActions();
   refreshPogWorkingChrome();
   loadSectionTagDrafts(fixture.dbkey);
+  applyPogMaskOpacity(pogMaskCardOpacity);
 
   if (!opts?.skipHistory) {
     syncHubUrl({ pog: fixture.dbkey, fixture: fixture.dbkey, view: hubCurrentView });
@@ -5445,6 +5593,29 @@ async function loadSectionTagDrafts(dbkey) {
   renderSectionTagDraftCart();
 }
 
+function updatePogTagTally(opts) {
+  const tally = document.getElementById('pog-wv-tag-tally');
+  const countEl = document.getElementById('pog-wv-tag-tally-count');
+  const submitBtn = document.getElementById('pog-wv-tag-tally-submit');
+  const formSubmitBtn = document.getElementById('pog-wv-flag-tag-submit');
+  const count = (sectionTagDrafts || []).length;
+
+  if (tally) tally.hidden = count === 0;
+  if (countEl) countEl.textContent = String(count);
+  if (submitBtn) {
+    submitBtn.disabled = count === 0;
+    submitBtn.textContent = count ? ('Submit ' + count) : 'Submit';
+  }
+  if (formSubmitBtn && count) {
+    formSubmitBtn.textContent = 'Submit all for this planogram (' + count + ')';
+  }
+  if (opts?.flash && tally && count > 0) {
+    tally.classList.remove('pog-wv-tag-tally--flash');
+    void tally.offsetWidth;
+    tally.classList.add('pog-wv-tag-tally--flash');
+  }
+}
+
 function renderSectionTagDraftCart() {
   const cart = document.getElementById('pog-wv-tag-draft-cart');
   const empty = document.getElementById('pog-wv-tag-draft-empty');
@@ -5457,6 +5628,7 @@ function renderSectionTagDraftCart() {
     cart.innerHTML = '<div class="tag-draft-empty" id="pog-wv-tag-draft-empty">No missing tags in this list yet.</div>';
     if (submitBtn) submitBtn.disabled = true;
     if (clearBtn) clearBtn.disabled = true;
+    updatePogTagTally();
     return;
   }
 
@@ -5484,6 +5656,7 @@ function renderSectionTagDraftCart() {
     submitBtn.textContent = 'Submit all for this planogram (' + tags.length + ')';
   }
   if (clearBtn) clearBtn.disabled = false;
+  updatePogTagTally();
 }
 
 async function addSectionTagDraftEntry({ upc, description, location }) {
@@ -5835,6 +6008,7 @@ async function init() {
   renderLegend();
   renderMap();
   renderList();
+  bindPogWorkingActions();
   bindEvents();
   syncHubUrl(readHubUrlState(), true);
 
