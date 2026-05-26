@@ -212,10 +212,6 @@
       function resolveNext(next) {
         if (!next) return '/';
         if (next.indexOf('/') === 0) return next;
-        try {
-          var u = new URL(next);
-          if (u.protocol === 'https:' && u.host === 'checklanes.the-dump-bin.com') return next;
-        } catch (_) {}
         return '/';
       }
 
@@ -309,16 +305,7 @@
         sendBtn.disabled = true;
         sendBtn.textContent = 'Sending\u2026';
         try {
-          const next = (new URLSearchParams(location.search)).get('next');
           const payload = { email: email };
-          try {
-            if (next) {
-              var nu = new URL(next);
-              if (nu.protocol === 'https:' && nu.host === 'checklanes.the-dump-bin.com') {
-                payload.returnTo = next;
-              }
-            }
-          } catch (_) {}
           const res = await fetch(API_BASE + '/api/request-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
