@@ -58,7 +58,85 @@
   .app-header h1 {
     font-size: 1rem;
     font-weight: 700;
+  }
+
+  .header-brand {
     flex: 1 1 180px;
+    min-width: 0;
+  }
+
+  .signed-in-chip {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    border: 1px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.14);
+    max-width: 100%;
+  }
+
+  .signed-in-chip--unknown {
+    border-color: var(--border);
+    background: var(--surface2);
+  }
+
+  .signed-in-chip-prefix {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #93c5fd;
+    font-weight: 700;
+  }
+
+  .signed-in-chip--unknown .signed-in-chip-prefix {
+    color: var(--text2);
+  }
+
+  .signed-in-chip-name {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #e0f2fe;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: min(100%, 320px);
+  }
+
+  .signed-in-chip--unknown .signed-in-chip-name {
+    color: var(--text2);
+    font-weight: 600;
+  }
+
+  .signed-in-rank-pill {
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .signed-in-rank-pill--rep {
+    color: #bfdbfe;
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.35);
+  }
+
+  .signed-in-rank-pill--lead {
+    color: #fde68a;
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
+  .signed-in-rank-pill--supervisor {
+    color: #bbf7d0;
+    background: rgba(34, 197, 94, 0.16);
+    border-color: rgba(34, 197, 94, 0.35);
   }
 
   .app-header .store-tag {
@@ -454,6 +532,39 @@
     color: var(--text3);
     padding: 0 5px 3px;
     letter-spacing: 0.04em;
+  }
+
+  .fx-dbkey {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2px 4px;
+    border-radius: 0 0 4px 4px;
+    background: rgba(15, 23, 42, 0.92);
+    border-top: 1px solid rgba(96, 165, 250, 0.35);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.54rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #bfdbfe;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .fixture.interactive {
+    padding-bottom: 15px;
+  }
+
+  .fixture.muted .fx-dbkey {
+    background: rgba(15, 23, 42, 0.75);
+    border-top-color: rgba(148, 163, 184, 0.25);
+    color: var(--text2);
   }
 
   /* Stand types */
@@ -2198,8 +2309,13 @@
 <body>
 
 <header class="app-header">
-  <div>
+  <div class="header-brand">
     <h1>Checklane Reset Hub</h1>
+    <div class="signed-in-chip" id="signed-in-chip" aria-label="Signed-in user">
+      <span class="signed-in-chip-prefix">Signed in as</span>
+      <strong class="signed-in-chip-name" id="signed-in-display">Loading…</strong>
+      <span class="signed-in-rank-pill" id="signed-in-rank-pill" hidden></span>
+    </div>
     <div class="store-tag" id="store-tag">Store 00163 · 83 fixtures · 26 lanes</div>
   </div>
   <div class="header-actions">
@@ -2489,6 +2605,7 @@ let hubCurrentView = 'map';
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
 let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0 };
+let hubSignedInUser = { email: null };
 let hubRoster = [];
 let hubRosterLoadPromise = null;
 let tagBatchPreview = null;
@@ -2642,6 +2759,7 @@ function applySnapshot(snapshot) {
     closePendingDetail();
   }
   refreshPogWorkingChrome();
+  updateSignedInDisplay();
 }
 
 function getFixtureState(dbkey) {
@@ -2662,8 +2780,19 @@ function renderStandInner(type) {
   );
 }
 
+function formatFixtureDbkeyText(dbkey) {
+  if (dbkey == null || dbkey === '') return '—';
+  return String(dbkey);
+}
+
+function renderFxDbkeyHtml(f) {
+  const text = formatFixtureDbkeyText(f.dbkey);
+  return '<div class="fx-dbkey" title="DBKey ' + escapeHtml(text) + '">' + escapeHtml(text) + '</div>';
+}
+
 function renderFixtureEl(f) {
   const dbkeyAttr = f.dbkey || '';
+  const dbkeyTitle = formatFixtureDbkeyText(f.dbkey);
   const muted = !f.on_manifest;
   const classes = ['fixture'];
   if (!muted) classes.push('interactive');
@@ -2701,8 +2830,9 @@ function renderFixtureEl(f) {
       'data-dbkey="' + escapeHtml(dbkeyAttr) + '" ' +
       'data-action="' + escapeHtml(f.action) + '" ' +
       'data-lane="' + escapeHtml(f.lane) + '" ' +
-      'title="' + escapeHtml(f.name) + '">' +
+      'title="' + escapeHtml(f.name + ' · DBKey ' + dbkeyTitle) + '">' +
       inner +
+      renderFxDbkeyHtml(f) +
     '</div>'
   );
 }
@@ -4358,6 +4488,7 @@ function populateRosterSelect(selectEl) {
 async function loadHubRoster() {
   if (!liveVisitId) {
     hubRoster = [];
+    updateSignedInDisplay();
     return hubRoster;
   }
   if (hubRosterLoadPromise) return hubRosterLoadPromise;
@@ -4371,9 +4502,86 @@ async function loadHubRoster() {
     } finally {
       hubRosterLoadPromise = null;
     }
+    updateSignedInDisplay();
     return hubRoster;
   })();
   return hubRosterLoadPromise;
+}
+
+function formatEmailAsDisplayName(email) {
+  if (!email) return null;
+  const local = String(email).split('@')[0] || email;
+  return local
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b\w/g, ch => ch.toUpperCase())
+    .trim();
+}
+
+function resolveSignedInDisplayName() {
+  if (hubContext.myUserId != null && hubRoster.length) {
+    const match = hubRoster.find(p => Number(p.id) === Number(hubContext.myUserId));
+    if (match?.name) return match.name;
+  }
+  return formatEmailAsDisplayName(hubSignedInUser.email);
+}
+
+function hubRankLabel(rank) {
+  const r = Number(rank) || 1;
+  if (r >= 3) return 'Supervisor';
+  if (r >= 2) return 'Lead';
+  return 'Rep';
+}
+
+function updateSignedInDisplay() {
+  const chip = document.getElementById('signed-in-chip');
+  const nameEl = document.getElementById('signed-in-display');
+  const rankEl = document.getElementById('signed-in-rank-pill');
+  if (!chip || !nameEl) return;
+
+  const email = hubSignedInUser.email;
+  const displayName = resolveSignedInDisplayName();
+
+  if (!email && !displayName) {
+    chip.classList.add('signed-in-chip--unknown');
+    nameEl.textContent = 'Unknown user';
+    nameEl.removeAttribute('title');
+    if (rankEl) rankEl.hidden = true;
+    return;
+  }
+
+  chip.classList.remove('signed-in-chip--unknown');
+  nameEl.textContent = displayName || email;
+  nameEl.title = email && displayName && displayName !== email ? email : '';
+
+  if (rankEl) {
+    if (liveVisitId) {
+      const rank = Number(hubContext.myRank) || 1;
+      rankEl.hidden = false;
+      rankEl.textContent = hubRankLabel(rank);
+      rankEl.className = 'signed-in-rank-pill signed-in-rank-pill--' +
+        (rank >= 3 ? 'supervisor' : rank >= 2 ? 'lead' : 'rep');
+    } else {
+      rankEl.hidden = true;
+    }
+  }
+}
+
+async function loadHubIdentity() {
+  try {
+    const authFetch = window.dumpBinAuthFetch || fetch;
+    const resp = await authFetch('/api/whoami', { noBounceOn401: true });
+    if (!resp.ok) {
+      hubSignedInUser = { email: null };
+      updateSignedInDisplay();
+      return;
+    }
+    const data = await resp.json();
+    hubSignedInUser = { email: data.email || null };
+    updateSignedInDisplay();
+  } catch (err) {
+    console.warn('[Checklane Hub] whoami failed:', err);
+    updateSignedInDisplay();
+  }
 }
 
 function buildSectionWorkflowHtml(dbkey, mode) {
@@ -5622,6 +5830,7 @@ async function init() {
   if (window.dumpBinAuthReady) {
     await window.dumpBinAuthReady;
   }
+  await loadHubIdentity();
   ensureFixtureTypes(FIXTURES);
   renderLegend();
   renderMap();
