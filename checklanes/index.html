@@ -534,6 +534,35 @@
     letter-spacing: 0.04em;
   }
 
+  .fx-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 0 3px 3px;
+    min-width: 0;
+  }
+
+  .fx-meta-row .fx-type-tag {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 0 0 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fx-meta-row .fx-type-tag--empty {
+    visibility: hidden;
+    padding: 0;
+    min-height: 0;
+  }
+
+  .fx-meta-row--badge-only {
+    justify-content: flex-end;
+    min-height: 14px;
+  }
+
   .fx-dbkey {
     position: absolute;
     bottom: 0;
@@ -947,10 +976,9 @@
 
   .fx-assignee,
   .assignee-chip {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    max-width: calc(100% - 4px);
+    position: static;
+    flex: 0 1 auto;
+    max-width: 58%;
     padding: 1px 5px;
     border-radius: 4px;
     background: var(--assignee-chip-bg, rgba(59, 130, 246, 0.92));
@@ -3053,6 +3081,16 @@ function getFixtureState(lane, dbkey) {
 }
 
 /* ── Fixture shape renderers (neutral — no state colors at render time) ── */
+function renderFxMetaRow(typeLabel, opts) {
+  const badgeOnly = opts?.badgeOnly;
+  const label = typeLabel != null && typeLabel !== '' ? String(typeLabel) : '';
+  const rowClass = 'fx-meta-row' + (badgeOnly ? ' fx-meta-row--badge-only' : '');
+  const tag = label
+    ? '<div class="fx-type-tag">' + escapeHtml(label) + '</div>'
+    : '<div class="fx-type-tag fx-type-tag--empty" aria-hidden="true"></div>';
+  return '<div class="' + rowClass + '">' + tag + '</div>';
+}
+
 function renderStandInner(type) {
   const label = type === 'belted_sco' ? 'SCO' : type === 'checkstand' ? 'CS' : 'USCAN';
   return (
@@ -3060,8 +3098,8 @@ function renderStandInner(type) {
       '<div class="stand-block screen">SCREEN</div>' +
       '<div class="stand-block scanner">SCANNER</div>' +
       '<div class="stand-block bag">BAG</div>' +
-      '<div class="fx-type-tag">' + label + '</div>' +
-    '</div>'
+    '</div>' +
+    renderFxMetaRow(label)
   );
 }
 
@@ -3092,13 +3130,14 @@ function renderFixtureEl(f) {
     inner =
       '<div class="side-shelf-prim side-' + f.side + '">' +
         escapeHtml(shortName(f.name)) +
-      '</div>';
+      '</div>' +
+      renderFxMetaRow('', { badgeOnly: true });
   } else if (t === 'queue' || t === 'cigarette' || t === 'bag_rack' || t === 'misc_display' || t === 'unclassified') {
     inner =
       '<div class="h-bar">' +
         '<div class="fx-label">' + escapeHtml(shortName(f.name)) + '</div>' +
       '</div>' +
-      '<div class="fx-type-tag">' + escapeHtml(t === 'unclassified' ? '?' : t.replace('_', ' ')) + '</div>';
+      renderFxMetaRow(t === 'unclassified' ? '?' : t.replace('_', ' '));
   } else {
     let size = 'size-md';
     if (t === 'liberty_tail' || t === 'cao_long') size = 'size-lg';
@@ -3106,8 +3145,8 @@ function renderFixtureEl(f) {
     inner =
       '<div class="block-prim ' + size + '">' +
         '<div class="fx-label">' + escapeHtml(shortName(f.name)) + '</div>' +
-        '<div class="fx-type-tag">' + escapeHtml(t.replace('_', ' ')) + '</div>' +
-      '</div>';
+      '</div>' +
+      renderFxMetaRow(t.replace('_', ' '));
   }
 
   return (
@@ -5258,7 +5297,16 @@ function updateMapAssigneeBadges() {
     const dk = el.getAttribute('data-dbkey');
     const lane = el.getAttribute('data-lane');
     const label = assigneeShortLabel(lane, dk);
-    let badge = el.querySelector('.fx-assignee');
+    let metaRow = el.querySelector('.fx-meta-row');
+    if (!metaRow) {
+      metaRow = document.createElement('div');
+      metaRow.className = 'fx-meta-row fx-meta-row--badge-only';
+      metaRow.innerHTML = '<div class="fx-type-tag fx-type-tag--empty" aria-hidden="true"></div>';
+      const dbkeyEl = el.querySelector('.fx-dbkey');
+      if (dbkeyEl) el.insertBefore(metaRow, dbkeyEl);
+      else el.appendChild(metaRow);
+    }
+    let badge = metaRow.querySelector('.fx-assignee');
     const baseTitle = el.getAttribute('data-base-title') || el.getAttribute('title') || '';
     if (!el.getAttribute('data-base-title')) {
       el.setAttribute('data-base-title', baseTitle);
@@ -5275,7 +5323,7 @@ function updateMapAssigneeBadges() {
     if (!badge) {
       badge = document.createElement('div');
       badge.className = 'fx-assignee assignee-chip';
-      el.appendChild(badge);
+      metaRow.appendChild(badge);
     }
     badge.textContent = label;
     badge.title = assignee;
