@@ -1193,6 +1193,13 @@
     font-weight: 600;
     cursor: pointer;
     min-height: 40px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .pog-wv-back.armed {
+    border-color: #14b8a6;
+    background: rgba(20, 184, 166, 0.12);
+    color: #5eead4;
   }
 
   .pog-wv-title-wrap {
@@ -2905,18 +2912,55 @@ function confirmLeaveDetail() {
   return window.confirm('Close this fixture detail?');
 }
 
+const LEAVE_POG_DOUBLE_MS = 500;
+let leavePogArmedAt = 0;
+let leavePogConfirmTimer = null;
+
+function resetLeavePogBackState() {
+  if (leavePogConfirmTimer) {
+    clearTimeout(leavePogConfirmTimer);
+    leavePogConfirmTimer = null;
+  }
+  leavePogArmedAt = 0;
+  document.getElementById('pog-wv-back')?.classList.remove('armed');
+}
+
+/** First back tap waits; second within 500ms leaves immediately; otherwise confirm. */
+function requestLeavePog(onLeave) {
+  const now = Date.now();
+  const backBtn = document.getElementById('pog-wv-back');
+
+  if (leavePogConfirmTimer) {
+    clearTimeout(leavePogConfirmTimer);
+    leavePogConfirmTimer = null;
+  }
+
+  if (leavePogArmedAt && (now - leavePogArmedAt) < LEAVE_POG_DOUBLE_MS) {
+    resetLeavePogBackState();
+    onLeave();
+    return;
+  }
+
+  leavePogArmedAt = now;
+  backBtn?.classList.add('armed');
+  leavePogConfirmTimer = setTimeout(() => {
+    leavePogConfirmTimer = null;
+    leavePogArmedAt = 0;
+    backBtn?.classList.remove('armed');
+    if (confirmLeavePog()) onLeave();
+  }, LEAVE_POG_DOUBLE_MS);
+}
+
 function handleHubPopState() {
   if (hubNavLock) return;
   const url = readHubUrlState();
 
   if (isPogViewOpen() && !url.pog) {
-    if (!confirmLeavePog()) {
-      hubNavLock = true;
-      syncHubUrl({ pog: pogWorkingFixture?.dbkey || null, fixture: selectedDbkey || url.fixture || null });
-      hubNavLock = false;
-      return;
-    }
-    closePogWorkingView({ skipHistory: true });
+    hubNavLock = true;
+    syncHubUrl({ pog: pogWorkingFixture?.dbkey || null, fixture: selectedDbkey || url.fixture || null });
+    hubNavLock = false;
+    requestLeavePog(() => closePogWorkingView({ skipHistory: true, skipConfirm: true }));
+    return;
   }
 
   if (url.view && url.view !== hubCurrentView) {
@@ -2973,7 +3017,7 @@ async function restoreHubNavigation() {
 function bindEvents() {
   document.getElementById('btn-map').addEventListener('click', () => {
     if (isPogViewOpen()) {
-      closePogWorkingView();
+      requestLeavePog(() => closePogWorkingView({ skipConfirm: true }));
       return;
     }
     if (isDetailOpen() && !confirmLeaveDetail()) return;
@@ -2982,7 +3026,7 @@ function bindEvents() {
   });
   document.getElementById('btn-list').addEventListener('click', () => {
     if (isPogViewOpen()) {
-      closePogWorkingView();
+      requestLeavePog(() => closePogWorkingView({ skipConfirm: true }));
       return;
     }
     if (isDetailOpen() && !confirmLeaveDetail()) return;
@@ -3035,7 +3079,9 @@ function bindEvents() {
   document.getElementById('btn-verify-all-tags')?.addEventListener('click', () => verifyAllPendingMissingTags());
   document.getElementById('btn-refresh-tag-gather')?.addEventListener('click', () => loadTagBatchPreview());
 
-  document.getElementById('pog-wv-back').addEventListener('click', () => closePogWorkingView());
+  document.getElementById('pog-wv-back').addEventListener('click', () => {
+    requestLeavePog(() => closePogWorkingView({ skipConfirm: true }));
+  });
   document.getElementById('pog-wv-scroll').addEventListener('click', e => {
     const openBtn = e.target.closest('[data-open-pog-dbkey]');
     if (openBtn) {
@@ -4516,6 +4562,7 @@ async function openPogWorkingView(fixture, opts) {
   overlay?.classList.add('open');
   overlay?.setAttribute('aria-hidden', 'false');
   document.body.classList.add('pog-view-open');
+  resetLeavePogBackState();
   selectedDbkey = fixture.dbkey;
   hideDetailForPog();
   bindPogWorkingActions();
@@ -4553,12 +4600,14 @@ async function openPogWorkingView(fixture, opts) {
 }
 
 function closePogWorkingView(opts) {
-  if (!opts?.skipHistory && isPogViewOpen() && !confirmLeavePog()) {
+  if (!opts?.skipHistory && !opts?.skipConfirm && isPogViewOpen() && !confirmLeavePog()) {
     hubNavLock = true;
     syncHubUrl({ pog: pogWorkingFixture?.dbkey || null, fixture: selectedDbkey || pogWorkingFixture?.dbkey || null });
     hubNavLock = false;
     return;
   }
+
+  resetLeavePogBackState();
 
   closePogProductModal();
   stopPogScanner();
