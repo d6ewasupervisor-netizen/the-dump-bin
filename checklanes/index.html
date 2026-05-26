@@ -696,6 +696,113 @@
     padding: 0 6px;
   }
 
+  .tag-batch-badge {
+    appearance: none;
+    border: 1px solid #14b8a6;
+    background: rgba(20, 184, 166, 0.15);
+    color: #5eead4;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 40px;
+    display: none;
+  }
+
+  .tag-batch-badge.visible { display: inline-flex; align-items: center; gap: 6px; }
+  .tag-batch-badge .count {
+    background: #14b8a6;
+    color: #1a1d27;
+    border-radius: 999px;
+    min-width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    padding: 0 6px;
+  }
+
+  .tag-batch-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 62vh;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 215;
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.45);
+  }
+
+  .tag-batch-panel.open { transform: translateY(0); }
+
+  .tag-batch-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px 12px 12px;
+  }
+
+  .tag-batch-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  .tag-batch-item.invalid {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+  }
+
+  .tag-batch-item-upc {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+  }
+
+  .tag-batch-item.invalid .tag-batch-item-upc { color: #fca5a5; }
+
+  .tag-batch-item-desc {
+    font-size: 0.82rem;
+    color: var(--text2);
+    margin-bottom: 4px;
+  }
+
+  .tag-batch-item-loc {
+    font-size: 0.72rem;
+    color: var(--text3);
+  }
+
+  .tag-batch-footer {
+    padding: 12px 16px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .btn-send-tag-batch {
+    width: 100%;
+    min-height: 48px;
+    background: #14b8a6;
+    border: 1px solid #0d9488;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+
+  .btn-send-tag-batch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .flag-actions {
     margin-top: 20px;
     padding-top: 16px;
@@ -943,6 +1050,9 @@
     <button type="button" class="pending-badge" id="pending-badge" aria-label="Pending queue">
       Pending <span class="count" id="pending-count">0</span>
     </button>
+    <button type="button" class="tag-batch-badge" id="tag-batch-badge" aria-label="Tag batch">
+      Tag Batch <span class="count" id="tag-batch-count">0</span>
+    </button>
     <button type="button" class="btn active" id="btn-map" data-view="map">Map view</button>
     <button type="button" class="btn" id="btn-list" data-view="list">List view</button>
   </div>
@@ -974,6 +1084,18 @@
   </div>
   <div class="pending-list" id="pending-list"></div>
   <div class="pending-detail" id="pending-detail"></div>
+</aside>
+
+<aside class="tag-batch-panel" id="tag-batch-panel" aria-label="Tag batch">
+  <div class="pending-panel-header">
+    <h2>Tag batch — verified missing tags</h2>
+    <button type="button" class="detail-close" id="tag-batch-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="tag-batch-list" id="tag-batch-list"></div>
+  <div class="tag-batch-footer">
+    <div class="flag-status" id="tag-batch-status"></div>
+    <button type="button" class="btn-send-tag-batch" id="btn-send-tag-batch" disabled>Send tag batch</button>
+  </div>
 </aside>
 
 <script>
@@ -1124,7 +1246,8 @@ let fixtureStates = {};
 let selectedDbkey = null;
 let listSort = { col: 'lane', asc: true };
 let liveVisitId = null;
-let hubContext = { myRank: 1, pendingActions: [] };
+let hubContext = { myRank: 1, pendingActions: [], verifiedUnsentTags: 0 };
+let tagBatchPreview = null;
 let selectedPendingId = null;
 let pendingDetailCache = {};
 let streamAbort = null;
@@ -1256,7 +1379,9 @@ function applySnapshot(snapshot) {
   applyState(stateMap);
   hubContext.myRank = snapshot.myRank ?? 1;
   hubContext.pendingActions = snapshot.pendingActions || [];
+  hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
   updatePendingBadge();
+  updateTagBatchBadge();
   renderPendingList();
   if (selectedPendingId && !hubContext.pendingActions.some(p => p.id === selectedPendingId)) {
     selectedPendingId = null;
@@ -1647,9 +1772,21 @@ function bindEvents() {
   document.getElementById('overlay').addEventListener('click', closeDetail);
 
   document.getElementById('pending-badge').addEventListener('click', () => {
-    if (hubContext.myRank >= 2) togglePendingPanel(true);
+    if (hubContext.myRank >= 2) {
+      toggleTagBatchPanel(false);
+      togglePendingPanel(true);
+    }
   });
   document.getElementById('pending-close').addEventListener('click', () => togglePendingPanel(false));
+
+  document.getElementById('tag-batch-badge').addEventListener('click', () => {
+    if (hubContext.myRank >= 2) {
+      togglePendingPanel(false);
+      toggleTagBatchPanel(true);
+    }
+  });
+  document.getElementById('tag-batch-close').addEventListener('click', () => toggleTagBatchPanel(false));
+  document.getElementById('btn-send-tag-batch').addEventListener('click', () => sendTagBatchEmail());
 }
 
 function hubUrl(path) {
@@ -1709,6 +1846,108 @@ function togglePendingPanel(open) {
     panel.classList.remove('open');
     selectedPendingId = null;
     closePendingDetail();
+  }
+}
+
+function updateTagBatchBadge() {
+  const badge = document.getElementById('tag-batch-badge');
+  const countEl = document.getElementById('tag-batch-count');
+  if (!badge || !countEl) return;
+
+  const count = hubContext.verifiedUnsentTags || 0;
+  countEl.textContent = String(count);
+
+  if (liveVisitId && hubContext.myRank >= 2) {
+    badge.classList.add('visible');
+  } else {
+    badge.classList.remove('visible');
+    toggleTagBatchPanel(false);
+  }
+}
+
+function setTagBatchStatus(msg, kind) {
+  const el = document.getElementById('tag-batch-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'flag-status' + (kind ? ' ' + kind : '');
+}
+
+function renderTagBatchList() {
+  const listEl = document.getElementById('tag-batch-list');
+  const sendBtn = document.getElementById('btn-send-tag-batch');
+  if (!listEl || !sendBtn) return;
+
+  if (!tagBatchPreview || !tagBatchPreview.tags?.length) {
+    listEl.innerHTML = '<p style="color:var(--text2);font-size:0.85rem;padding:8px;">No verified tags ready to send.</p>';
+    sendBtn.disabled = true;
+    return;
+  }
+
+  listEl.innerHTML = tagBatchPreview.tags.map(tag => {
+    const invalid = !tag.valid;
+    const upcLine = invalid
+      ? ('INVALID UPC — verify: ' + escapeHtml(tag.upc || '—'))
+      : escapeHtml(tag.displayDigits || tag.upc || '—');
+    const loc = escapeHtml(tag.location || fixtureNameForDbkey(tag.dbkey) || tag.dbkey || '—');
+    return (
+      '<div class="tag-batch-item' + (invalid ? ' invalid' : '') + '">' +
+        '<div class="tag-batch-item-upc">' + upcLine + '</div>' +
+        (invalid && tag.reason ? '<div class="tag-batch-item-desc">' + escapeHtml(tag.reason) + '</div>' : '') +
+        '<div class="tag-batch-item-desc">' + escapeHtml(tag.description || '—') + '</div>' +
+        '<div class="tag-batch-item-loc">Location: ' + loc + '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  sendBtn.disabled = false;
+}
+
+async function loadTagBatchPreview() {
+  if (!liveVisitId || hubContext.myRank < 2) return;
+  setTagBatchStatus('Loading batch…');
+  try {
+    tagBatchPreview = await hubGet('/tag-batch/preview');
+    hubContext.verifiedUnsentTags = tagBatchPreview.count ?? 0;
+    updateTagBatchBadge();
+    renderTagBatchList();
+    const invalidCount = (tagBatchPreview.tags || []).filter(t => !t.valid).length;
+    if (invalidCount) {
+      setTagBatchStatus(invalidCount + ' invalid UPC(s) — review before sending.', 'error');
+    } else {
+      setTagBatchStatus('');
+    }
+  } catch (err) {
+    setTagBatchStatus(err.message || 'Failed to load tag batch', 'error');
+  }
+}
+
+function toggleTagBatchPanel(open) {
+  const panel = document.getElementById('tag-batch-panel');
+  if (!panel) return;
+  if (open && hubContext.myRank >= 2) {
+    panel.classList.add('open');
+    loadTagBatchPreview();
+  } else {
+    panel.classList.remove('open');
+    setTagBatchStatus('');
+  }
+}
+
+async function sendTagBatchEmail() {
+  if (!liveVisitId || hubContext.myRank < 2) return;
+  const sendBtn = document.getElementById('btn-send-tag-batch');
+  if (sendBtn) sendBtn.disabled = true;
+  setTagBatchStatus('Sending tag batch…');
+  try {
+    const result = await hubPost('/send-tag-batch', {});
+    setTagBatchStatus('Sent ' + (result.count || 0) + ' tag(s) — check your email.', 'ok');
+    tagBatchPreview = { tags: [], count: 0 };
+    hubContext.verifiedUnsentTags = 0;
+    updateTagBatchBadge();
+    renderTagBatchList();
+  } catch (err) {
+    setTagBatchStatus(err.message || 'Send failed', 'error');
+    if (sendBtn) sendBtn.disabled = false;
   }
 }
 
