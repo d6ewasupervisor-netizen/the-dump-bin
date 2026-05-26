@@ -1109,6 +1109,128 @@
     color: var(--text2);
   }
 
+  .pog-wv-crumb {
+    font-size: 0.68rem;
+    color: var(--text3);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pog-wv-state-wrap {
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .pog-wv-state-pill {
+    font-size: 0.72rem;
+    padding: 4px 10px;
+  }
+
+  .pog-wv-actions {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  .pog-wv-actions-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .pog-wv-act-btn {
+    appearance: none;
+    min-height: 44px;
+    padding: 8px 6px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .pog-wv-act-btn.flag-help { border-color: #ef4444; color: #fca5a5; }
+  .pog-wv-act-btn.flag-tag { border-color: #3b82f6; color: #93c5fd; }
+  .pog-wv-act-btn.flag-nis { border-color: #f59e0b; color: #fcd34d; }
+  .pog-wv-act-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .pog-wv-missing-tag-form {
+    margin-bottom: 8px;
+  }
+
+  .pog-wv-complete-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .pog-wv-complete-btn {
+    flex: 1;
+    appearance: none;
+    min-height: 48px;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    border: 1px solid #14b8a6;
+    background: #134e4a;
+    color: #99f6e4;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .pog-wv-complete-btn.signoff {
+    border-color: #22c55e;
+    background: #14532d;
+    color: #bbf7d0;
+  }
+
+  .pog-wv-complete-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .pog-wv-notfound-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .pog-wv-notfound-btn {
+    appearance: none;
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .pog-wv-notfound-btn.flag-tag { border-color: #3b82f6; color: #93c5fd; }
+  .pog-wv-notfound-btn.flag-nis { border-color: #f59e0b; color: #fcd34d; }
+
+  .pog-product-modal-actions {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .pog-product-modal-actions .flag-btn {
+    width: 100%;
+  }
+
   .pog-wv-scroll {
     flex: 1;
     overflow-y: auto;
@@ -1200,6 +1322,34 @@
     flex-shrink: 0;
     min-height: 44px;
     padding: 0 16px;
+  }
+
+  .pog-wv-search-clear {
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 0.78rem;
+  }
+
+  .pog-wv-search-results-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .pog-wv-search-results-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text2);
+  }
+
+  .pog-wv-search-hit-upc {
+    font-size: 0.68rem;
+    font-family: monospace;
+    color: var(--text3);
+    margin-top: 2px;
   }
 
   .pog-wv-search-results {
@@ -1376,6 +1526,14 @@
     font-size: 0.58rem;
     color: var(--text3);
     margin-top: 2px;
+  }
+
+  .pog-wv-tile-upc {
+    font-size: 0.56rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: var(--text2);
+    margin-top: 2px;
+    letter-spacing: 0.02em;
   }
 
   .pog-wv-badge-new {
@@ -1696,14 +1854,39 @@
 
 <div class="pog-working-view" id="pog-working-view" aria-hidden="true">
   <div class="pog-wv-header">
-    <button type="button" class="pog-wv-back" id="pog-wv-back">← Map</button>
+    <button type="button" class="pog-wv-back" id="pog-wv-back">← Back</button>
     <div class="pog-wv-title-wrap">
       <h2 id="pog-wv-heading">Working view</h2>
       <div class="sub" id="pog-wv-subheading"></div>
+      <div class="pog-wv-crumb" id="pog-wv-crumb"></div>
+      <div class="pog-wv-state-wrap" id="pog-wv-state-wrap"></div>
     </div>
   </div>
   <div class="pog-wv-scroll" id="pog-wv-scroll">
     <div id="pog-wv-content"></div>
+  </div>
+  <div class="pog-wv-actions" id="pog-wv-actions" hidden>
+    <div class="pog-wv-actions-row">
+      <button type="button" class="pog-wv-act-btn flag-help" id="pog-wv-flag-help">Needs help</button>
+      <button type="button" class="pog-wv-act-btn flag-tag" id="pog-wv-flag-tag-toggle">Missing tag</button>
+      <button type="button" class="pog-wv-act-btn flag-nis" id="pog-wv-flag-nis">Not in store</button>
+    </div>
+    <div class="missing-tag-form pog-wv-missing-tag-form" id="pog-wv-missing-tag-form">
+      <label for="pog-wv-flag-upc">UPC</label>
+      <input type="text" id="pog-wv-flag-upc" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Scan or enter UPC">
+      <label for="pog-wv-flag-desc">Description (optional)</label>
+      <input type="text" id="pog-wv-flag-desc" autocomplete="off" placeholder="Product name">
+      <label for="pog-wv-flag-loc">Location (optional)</label>
+      <input type="text" id="pog-wv-flag-loc" autocomplete="off" placeholder="Shelf / position">
+      <div class="form-actions">
+        <button type="button" class="btn btn-submit" id="pog-wv-flag-tag-submit">Submit missing tag</button>
+      </div>
+    </div>
+    <div class="pog-wv-complete-row" id="pog-wv-complete-row" hidden>
+      <button type="button" class="pog-wv-complete-btn" id="pog-wv-mark-done" hidden>Mark done</button>
+      <button type="button" class="pog-wv-complete-btn signoff" id="pog-wv-signoff" hidden>Sign off</button>
+    </div>
+    <div class="flag-status" id="pog-wv-action-status"></div>
   </div>
 </div>
 
@@ -1719,6 +1902,9 @@
     <div class="pog-product-modal-position" id="pog-product-modal-position"></div>
     <div class="pog-product-modal-meta" id="pog-product-modal-meta"></div>
     <span class="pog-wv-badge-new pog-product-modal-new" id="pog-product-modal-new" hidden>NEW</span>
+    <div class="pog-product-modal-actions" id="pog-product-modal-actions" hidden>
+      <button type="button" class="flag-btn flag-tag" id="pog-product-modal-flag-tag">Flag missing tag</button>
+    </div>
   </div>
 </div>
 
@@ -1875,7 +2061,10 @@ let fixtureStates = {};
 let selectedDbkey = null;
 let listSort = { col: 'lane', asc: true };
 let liveVisitId = null;
-let hubContext = { myRank: 1, pendingActions: [], verifiedUnsentTags: 0 };
+let hubCurrentView = 'map';
+let hubNavLock = false;
+const HUB_SESSION_KEY = 'checklanes-hub-session';
+let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0 };
 let tagBatchPreview = null;
 let selectedPendingId = null;
 let pendingDetailCache = {};
@@ -2007,6 +2196,11 @@ function applySnapshot(snapshot) {
   const stateMap = snapshotSectionsToStateMap(snapshot.sections);
   applyState(stateMap);
   hubContext.myRank = snapshot.myRank ?? 1;
+  hubContext.myUserId = snapshot.myUserId ?? null;
+  hubContext.sections = {};
+  (snapshot.sections || []).forEach(row => {
+    if (row && row.dbkey) hubContext.sections[String(row.dbkey)] = row;
+  });
   hubContext.pendingActions = snapshot.pendingActions || [];
   hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
   updatePendingBadge();
@@ -2016,6 +2210,7 @@ function applySnapshot(snapshot) {
     selectedPendingId = null;
     closePendingDetail();
   }
+  refreshPogWorkingChrome();
 }
 
 function getFixtureState(dbkey) {
@@ -2213,6 +2408,7 @@ function applyState(states) {
 
   updateListStateCells();
   if (selectedDbkey) refreshDetailPanel();
+  if (isPogViewOpen()) refreshPogWorkingChrome();
 }
 
 function setFixtureState(dbkey, newState) {
@@ -2221,7 +2417,7 @@ function setFixtureState(dbkey, newState) {
   applyState(fixtureStates);
 }
 
-function openDetail(dbkey, action) {
+function openDetail(dbkey, action, opts) {
   const fixture = FIXTURES.find(f => f.dbkey === dbkey && f.action === action) ||
     FIXTURES.find(f => f.dbkey === dbkey);
   if (!fixture || !fixture.on_manifest) return;
@@ -2231,13 +2427,29 @@ function openDetail(dbkey, action) {
   document.getElementById('detail-panel').classList.add('open');
   document.getElementById('overlay').classList.add('visible');
   document.getElementById('main-layout').classList.add('panel-open');
+  if (!opts?.skipHistory) syncHubUrl({ fixture: dbkey, pog: null });
+  saveHubSession({ fixture: dbkey, pog: null });
 }
 
-function closeDetail() {
+function hideDetailForPog() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('visible');
+  document.getElementById('main-layout').classList.remove('panel-open');
+}
+
+function closeDetail(opts) {
+  if (!opts?.skipHistory && isDetailOpen() && !confirmLeaveDetail()) {
+    hubNavLock = true;
+    syncHubUrl({ fixture: selectedDbkey, pog: null });
+    hubNavLock = false;
+    return;
+  }
   selectedDbkey = null;
   document.getElementById('detail-panel').classList.remove('open');
   document.getElementById('overlay').classList.remove('visible');
   document.getElementById('main-layout').classList.remove('panel-open');
+  if (!opts?.skipHistory) syncHubUrl({ fixture: null, pog: null });
+  saveHubSession({ fixture: null });
 }
 
 function refreshDetailPanel(fixture) {
@@ -2370,17 +2582,179 @@ function refreshDetailPanel(fixture) {
   });
 }
 
-function setView(view) {
+function setView(view, opts) {
   const isMap = view === 'map';
+  hubCurrentView = view;
   document.getElementById('map-view').classList.toggle('view-hidden', !isMap);
   document.getElementById('list-view').classList.toggle('view-hidden', isMap);
   document.getElementById('btn-map').classList.toggle('active', isMap);
   document.getElementById('btn-list').classList.toggle('active', !isMap);
+  if (!opts?.skipHistory) syncHubUrl({ view });
+  saveHubSession({ view });
+}
+
+function hubSessionRead() {
+  try {
+    return JSON.parse(sessionStorage.getItem(HUB_SESSION_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveHubSession(partial) {
+  try {
+    const cur = hubSessionRead();
+    sessionStorage.setItem(HUB_SESSION_KEY, JSON.stringify({
+      ...cur,
+      ...partial,
+      ts: Date.now(),
+    }));
+  } catch { /* private mode */ }
+}
+
+function getHubUrlParams() {
+  return new URLSearchParams(window.location.search);
+}
+
+function readHubUrlState() {
+  const p = getHubUrlParams();
+  return {
+    visit: p.get('visit'),
+    view: p.get('view') || 'map',
+    fixture: p.get('fixture'),
+    pog: p.get('pog'),
+  };
+}
+
+function buildHubUrl(patch) {
+  const p = getHubUrlParams();
+  Object.entries(patch).forEach(([key, value]) => {
+    if (value == null || value === '') p.delete(key);
+    else p.set(key, value);
+  });
+  const q = p.toString();
+  return window.location.pathname + (q ? '?' + q : '');
+}
+
+function syncHubUrl(patch, replace) {
+  if (hubNavLock) return;
+  const url = buildHubUrl(patch);
+  const state = { hub: { ...readHubUrlState(), ...patch } };
+  if (replace) history.replaceState(state, '', url);
+  else history.pushState(state, '', url);
+}
+
+function isPogViewOpen() {
+  return document.getElementById('pog-working-view')?.classList.contains('open');
+}
+
+function isDetailOpen() {
+  return document.getElementById('detail-panel')?.classList.contains('open');
+}
+
+function isActiveWorkSession() {
+  return isPogViewOpen() || (isDetailOpen() && !!selectedDbkey);
+}
+
+function confirmLeavePog() {
+  if (typeof Scanner !== 'undefined' && Scanner.isRunning) {
+    return window.confirm('Scanner is active. Leave this set?');
+  }
+  const input = document.getElementById('pog-wv-search-input');
+  if (input && input.value.trim()) {
+    return window.confirm('Leave this set? Your search will be saved for this session.');
+  }
+  return window.confirm('Leave this set and go back?');
+}
+
+function confirmLeaveDetail() {
+  return window.confirm('Close this fixture detail?');
+}
+
+function handleHubPopState() {
+  if (hubNavLock) return;
+  const url = readHubUrlState();
+
+  if (isPogViewOpen() && !url.pog) {
+    if (!confirmLeavePog()) {
+      hubNavLock = true;
+      syncHubUrl({ pog: pogWorkingFixture?.dbkey || null, fixture: selectedDbkey || url.fixture || null });
+      hubNavLock = false;
+      return;
+    }
+    closePogWorkingView({ skipHistory: true });
+  }
+
+  if (url.view && url.view !== hubCurrentView) {
+    setView(url.view, { skipHistory: true });
+  }
+
+  if (url.pog) {
+    const fix = fixtureForDbkey(url.pog);
+    if (fix && fix.dbkey !== pogWorkingFixture?.dbkey) {
+      openPogWorkingView(fix, { skipHistory: true });
+    }
+    return;
+  }
+
+  if (url.fixture) {
+    const fix = FIXTURES.find(f => f.dbkey === url.fixture && f.on_manifest) ||
+      FIXTURES.find(f => f.dbkey === url.fixture);
+    if (fix && (!isDetailOpen() || selectedDbkey !== url.fixture)) {
+      openDetail(url.fixture, fix.action, { skipHistory: true });
+    }
+    return;
+  }
+
+  if (isDetailOpen()) closeDetail({ skipHistory: true });
+}
+
+async function restoreHubNavigation() {
+  const url = readHubUrlState();
+  hubNavLock = true;
+  if (url.view === 'list') setView('list', { skipHistory: true });
+  else setView('map', { skipHistory: true });
+
+  if (url.fixture) {
+    const fix = FIXTURES.find(f => f.dbkey === url.fixture && f.on_manifest) ||
+      FIXTURES.find(f => f.dbkey === url.fixture);
+    if (fix) openDetail(url.fixture, fix.action, { skipHistory: true });
+  }
+
+  if (url.pog) {
+    const fix = fixtureForDbkey(url.pog);
+    if (fix) {
+      const sess = hubSessionRead();
+      await openPogWorkingView(fix, { skipHistory: true, restoreSession: true, session: sess });
+    }
+  }
+  hubNavLock = false;
+  syncHubUrl({
+    view: url.view || hubCurrentView,
+    fixture: url.pog ? (fixtureForDbkey(url.pog)?.dbkey || url.fixture) : url.fixture,
+    pog: url.pog,
+  }, true);
 }
 
 function bindEvents() {
-  document.getElementById('btn-map').addEventListener('click', () => setView('map'));
-  document.getElementById('btn-list').addEventListener('click', () => setView('list'));
+  document.getElementById('btn-map').addEventListener('click', () => {
+    if (isPogViewOpen()) {
+      closePogWorkingView();
+      return;
+    }
+    if (isDetailOpen() && !confirmLeaveDetail()) return;
+    if (isDetailOpen()) closeDetail({ skipHistory: true });
+    setView('map');
+  });
+  document.getElementById('btn-list').addEventListener('click', () => {
+    if (isPogViewOpen()) {
+      closePogWorkingView();
+      return;
+    }
+    if (isDetailOpen() && !confirmLeaveDetail()) return;
+    if (isDetailOpen()) closeDetail({ skipHistory: true });
+    setView('list');
+  });
 
   document.getElementById('map-view').addEventListener('click', e => {
     const el = e.target.closest('.fixture.interactive[data-dbkey]');
@@ -2425,7 +2799,7 @@ function bindEvents() {
   document.getElementById('tag-batch-close').addEventListener('click', () => toggleTagBatchPanel(false));
   document.getElementById('btn-send-tag-batch').addEventListener('click', () => sendTagBatchEmail());
 
-  document.getElementById('pog-wv-back').addEventListener('click', closePogWorkingView);
+  document.getElementById('pog-wv-back').addEventListener('click', () => closePogWorkingView());
   document.getElementById('pog-wv-scroll').addEventListener('click', e => {
     const openBtn = e.target.closest('[data-open-pog-dbkey]');
     if (openBtn) {
@@ -2453,6 +2827,19 @@ function bindEvents() {
       releasePogScannerWakeLock();
     }
   });
+
+  window.addEventListener('popstate', handleHubPopState);
+
+  window.addEventListener('beforeunload', (e) => {
+    if (isActiveWorkSession()) {
+      saveHubSession({
+        pogSearch: document.getElementById('pog-wv-search-input')?.value || '',
+        pogMask: pogMaskCardOpacity,
+      });
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2465,6 +2852,9 @@ const pogLayoutCache = {};
 let pogWorkingFixture = null;
 let pogWorkingLayout = null;
 let pogMaskCardOpacity = 0;
+let pogSelectedProduct = null;
+let pogLastNotFoundUpc = null;
+let pogWvActionsBound = false;
 let pogScannerWakeLock = null;
 
 function pogUrl(path) {
@@ -2569,15 +2959,98 @@ function getUpcCandidates(raw) {
   return { cleanScan, scanNoCheck, candidates: [cleanScan, scanNoCheck] };
 }
 
+function expandScanCandidates(rawCode) {
+  const digits = normalizeUpcDigits(rawCode);
+  const out = new Set();
+  const add = (value) => {
+    const v = normalizeUpcInput(value);
+    if (v) out.add(v);
+  };
+
+  add(digits);
+  const { cleanScan, scanNoCheck, candidates } = getUpcCandidates(rawCode);
+  candidates.forEach(add);
+  add(scanNoCheck);
+
+  if (digits.length >= 12) add(digits.slice(0, -1));
+  if (digits.length === 13) {
+    add(digits.slice(1, -1));
+    add(digits.slice(1));
+  }
+  if (digits.length === 14) add(digits.slice(2, -1));
+  if (digits.length >= 10) add(digits.slice(-10));
+  if (digits.length >= 11) add(digits.slice(-11));
+
+  return [...out];
+}
+
+function collectUpcsFromDbkeys(dbkeys) {
+  const out = new Set();
+  for (const dk of dbkeys || []) {
+    for (const upc of upcsForDbkeyStore(dk, HUB_STORE_NUM)) out.add(String(upc));
+  }
+  return [...out];
+}
+
+function collectLayoutUpcs(layout) {
+  const out = new Set();
+  walkLayoutProducts(layout, (prod) => out.add(String(prod.upc)));
+  return [...out];
+}
+
+function resolveScanToCatalogUpc(rawCode) {
+  const rawDigits = normalizeUpcDigits(rawCode);
+  const scanCandidates = expandScanCandidates(rawCode);
+  const pools = [];
+
+  if (pogWorkingLayout) {
+    pools.push({ scope: 'this', upcs: collectLayoutUpcs(pogWorkingLayout) });
+  }
+  if (pogWorkingFixture?.lane) {
+    pools.push({ scope: 'lane', upcs: collectUpcsFromDbkeys(dbkeysInLane(pogWorkingFixture.lane)) });
+  }
+  pools.push({ scope: 'store', upcs: collectUpcsFromDbkeys(uniqueManifestDbkeys()) });
+
+  for (const pool of pools) {
+    for (const cand of scanCandidates) {
+      for (const upc of pool.upcs) {
+        if (normalizeUpcInput(upc) === cand || upcMatchesQuery(cand, upc)) {
+          return { upc, display: normalizeUpcInput(upc), raw: rawCode, method: pool.scope };
+        }
+      }
+    }
+    if (rawDigits.length >= 4) {
+      const suffix = rawDigits.slice(-4);
+      const suffixMatches = pool.upcs.filter(u => normalizeUpcInput(u).endsWith(suffix));
+      if (suffixMatches.length === 1) {
+        return {
+          upc: suffixMatches[0],
+          display: normalizeUpcInput(suffixMatches[0]),
+          raw: rawCode,
+          method: pool.scope + '-suffix4',
+        };
+      }
+    }
+  }
+
+  const fallback = normalizeUpcInput(rawCode);
+  return { upc: fallback, display: fallback, raw: rawCode, method: 'none' };
+}
+
 function upcMatchesQuery(query, upc) {
   const q = normalizeUpcDigits(query);
   const u = normalizeUpcDigits(upc);
   if (!q || !u) return false;
   if (u === q) return true;
+
+  const qNorm = normalizeUpcInput(query);
+  const pUpc = normalizeUpcInput(upc);
+  if (qNorm && pUpc === qNorm) return true;
+
+  if (/^\d{4}$/.test(q) && u.endsWith(q)) return true;
   if (q.length >= 4 && u.endsWith(q)) return true;
 
   const { cleanScan, scanNoCheck, candidates } = getUpcCandidates(query);
-  const pUpc = normalizeUpcInput(upc);
   if (candidates.includes(pUpc)) return true;
   if (pUpc === scanNoCheck) return true;
   if (pUpc.length > 8 && (pUpc.startsWith(cleanScan) || cleanScan.startsWith(pUpc))) {
@@ -2635,20 +3108,28 @@ function fixtureLocationLabel(bay, fixture) {
 function searchInLayout(layout, query) {
   const hits = [];
   if (!layout) return hits;
+  const qDigits = normalizeUpcDigits(query);
+  const isShortUpcQuery = /^\d{4}$/.test(qDigits);
+
   walkLayoutProducts(layout, (prod, bay, fixture) => {
     const name = productDisplayName(prod.upc, prod);
     const desc = prod.desc_fallback || name;
-    if (upcMatchesQuery(query, prod.upc) || textMatchesQuery(query, desc) || textMatchesQuery(query, name)) {
-      hits.push({
-        scope: 'this',
-        upc: prod.upc,
-        name,
-        location: fixtureLocationLabel(bay, fixture),
-        bayNum: bay.bay_num,
-        fixtureNum: fixture.fixture_num,
-        dbkey: layout.dbkey,
-      });
+    let match = false;
+    if (isShortUpcQuery) {
+      match = normalizeUpcInput(prod.upc).endsWith(qDigits);
+    } else {
+      match = upcMatchesQuery(query, prod.upc) || textMatchesQuery(query, desc) || textMatchesQuery(query, name);
     }
+    if (!match) return;
+    hits.push({
+      scope: 'this',
+      upc: prod.upc,
+      name,
+      location: fixtureLocationLabel(bay, fixture),
+      bayNum: bay.bay_num,
+      fixtureNum: fixture.fixture_num,
+      dbkey: layout.dbkey,
+    });
   });
   return hits;
 }
@@ -2656,6 +3137,7 @@ function searchInLayout(layout, query) {
 function searchInDbkeyList(dbkeys, query, excludeDbkey) {
   const hits = [];
   const qDigits = normalizeUpcDigits(query);
+  const isShortUpcQuery = /^\d{4}$/.test(qDigits);
   const isUpcQuery = qDigits.length >= 4;
 
   for (const dk of dbkeys) {
@@ -2665,9 +3147,14 @@ function searchInDbkeyList(dbkeys, query, excludeDbkey) {
       const info = productInfo(upc);
       const name = productDisplayName(upc, null);
       const desc = (info && info.fallback_desc) || name;
-      const match = isUpcQuery
-        ? upcMatchesQuery(query, upc)
-        : (textMatchesQuery(query, name) || textMatchesQuery(query, desc));
+      let match = false;
+      if (isShortUpcQuery) {
+        match = normalizeUpcInput(upc).endsWith(qDigits);
+      } else if (isUpcQuery) {
+        match = upcMatchesQuery(query, upc);
+      } else {
+        match = textMatchesQuery(query, name) || textMatchesQuery(query, desc);
+      }
       if (!match) continue;
       const fix = fixtureForDbkey(dk);
       hits.push({
@@ -2782,6 +3269,17 @@ function openPogProductModal(prod, bay, fixture) {
   const newEl = document.getElementById('pog-product-modal-new');
   if (newEl) newEl.hidden = !prod.is_new;
 
+  pogSelectedProduct = {
+    upc,
+    name: displayName,
+    location: formatPogPosition(bay, fixture, prod),
+  };
+
+  const modalActions = document.getElementById('pog-product-modal-actions');
+  if (modalActions) {
+    modalActions.hidden = !(liveVisitId && hubContext.myRank >= 1);
+  }
+
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
 }
@@ -2791,6 +3289,7 @@ function closePogProductModal() {
   if (!modal) return;
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
+  pogSelectedProduct = null;
 }
 
 function applyPogMaskOpacity(pct) {
@@ -2833,14 +3332,19 @@ async function stopPogScanner() {
 
 async function handlePogScan(code) {
   await stopPogScanner();
+  const resolved = resolveScanToCatalogUpc(code);
   const input = document.getElementById('pog-wv-search-input');
-  const normalized = normalizeUpcInput(code);
-  if (input) input.value = normalized;
-  const result = runPogSearch(normalized);
-  renderPogSearchResults(result);
+  const searchValue = resolved.display || normalizeUpcInput(code);
+  if (input) input.value = searchValue;
+  const result = runPogSearch(resolved.upc || searchValue);
+  renderPogSearchResults(result, {
+    scannedRaw: code,
+    resolvedUpc: resolved.method !== 'none' ? resolved.upc : null,
+  });
   if (result.hits.length === 1 && result.hits[0].scope === 'this') {
     highlightPogTile(result.hits[0].upc);
   }
+  saveHubSession({ pogSearch: searchValue });
 }
 
 async function startPogScanner() {
@@ -2904,6 +3408,7 @@ function renderPogTile(prod, bay, fixture, dbkey) {
         '<div class="pog-wv-tile-card" aria-hidden="true">' + renderPogPositionCardHtml(fixture, prod) + '</div>' +
       '</div>' +
       '<div class="pog-wv-tile-name">' + escapeHtml(name) + '</div>' +
+      '<div class="pog-wv-tile-upc">' + escapeHtml(upc) + '</div>' +
       '<div class="pog-wv-tile-meta">' + escapeHtml(size) + escapeHtml(facings) + '</div>' +
     '</button>'
   );
@@ -2971,7 +3476,7 @@ function renderPogBays(layout) {
   }).join('');
 }
 
-function renderPogSearchResults(result) {
+function renderPogSearchResults(result, meta) {
   const box = document.getElementById('pog-wv-search-results');
   if (!box) return;
 
@@ -2980,14 +3485,45 @@ function renderPogSearchResults(result) {
     return;
   }
 
+  const clearHead =
+    '<div class="pog-wv-search-results-head">' +
+      '<span class="pog-wv-search-results-title">Search results</span>' +
+      '<button type="button" class="btn pog-wv-search-clear" id="pog-wv-search-clear">Clear</button>' +
+    '</div>';
+
   if (result.notFound) {
-    box.innerHTML = '<div class="pog-wv-search-group"><div class="pog-wv-search-hit-info">Not found in any set.</div></div>';
+    let msg = 'Not found in any set.';
+    let notFoundUpc = '';
+    if (meta && meta.scannedRaw) {
+      notFoundUpc = String(meta.resolvedUpc || meta.scannedRaw || '').trim();
+      msg = 'Scanned ' + escapeHtml(String(meta.scannedRaw)) + ' — not found in any set.';
+      if (meta.resolvedUpc && meta.resolvedUpc !== meta.scannedRaw) {
+        msg += ' Resolved to ' + escapeHtml(String(meta.resolvedUpc)) + '.';
+      }
+      msg += ' Try the last 4 digits of the UPC.';
+    } else {
+      notFoundUpc = String(document.getElementById('pog-wv-search-input')?.value || '').trim();
+    }
+    pogLastNotFoundUpc = notFoundUpc;
+
+    let notFoundActions = '';
+    if (liveVisitId && hubContext.myRank >= 1) {
+      notFoundActions =
+        '<div class="pog-wv-notfound-actions">' +
+          '<button type="button" class="pog-wv-notfound-btn flag-tag" data-notfound-flag="missing-tag">Flag missing tag</button>' +
+          '<button type="button" class="pog-wv-notfound-btn flag-nis" data-notfound-flag="nis">Flag not in store</button>' +
+        '</div>';
+    }
+
+    box.innerHTML = clearHead +
+      '<div class="pog-wv-search-group"><div class="pog-wv-search-hit-info">' + msg + notFoundActions + '</div></div>';
+    document.getElementById('pog-wv-search-clear')?.addEventListener('click', clearPogSearch);
     return;
   }
 
   const thisHits = result.hits.filter(h => h.scope === 'this');
   const otherHits = result.hits.filter(h => h.scope === 'other');
-  let html = '';
+  let html = clearHead;
 
   if (thisHits.length) {
     html += '<div class="pog-wv-search-group"><div class="pog-wv-search-group-title">In this set</div>';
@@ -2995,6 +3531,7 @@ function renderPogSearchResults(result) {
       html += '<div class="pog-wv-search-hit">' +
         '<div class="pog-wv-search-hit-info">' +
           '<div class="pog-wv-search-hit-name">' + escapeHtml(h.name) + '</div>' +
+          '<div class="pog-wv-search-hit-upc">UPC ' + escapeHtml(String(h.upc)) + '</div>' +
           '<div class="pog-wv-search-hit-loc">' + escapeHtml(h.location) + '</div>' +
         '</div>' +
         '<button type="button" class="pog-wv-search-open" data-scroll-to-upc="' + escapeHtml(h.upc) + '">Show</button>' +
@@ -3013,6 +3550,7 @@ function renderPogSearchResults(result) {
       html += '<div class="pog-wv-search-hit">' +
         '<div class="pog-wv-search-hit-info">' +
           '<div class="pog-wv-search-hit-name">' + escapeHtml(h.name) + '</div>' +
+          '<div class="pog-wv-search-hit-upc">UPC ' + escapeHtml(String(h.upc)) + '</div>' +
           '<div class="pog-wv-search-hit-loc">' + escapeHtml(h.title) + ' · lane ' + escapeHtml(h.lane) + '</div>' +
         '</div>' +
         '<button type="button" class="pog-wv-search-open" data-open-pog-dbkey="' + escapeHtml(h.dbkey) + '">Open</button>' +
@@ -3022,6 +3560,17 @@ function renderPogSearchResults(result) {
   }
 
   box.innerHTML = html;
+  document.getElementById('pog-wv-search-clear')?.addEventListener('click', clearPogSearch);
+}
+
+function clearPogSearch() {
+  const input = document.getElementById('pog-wv-search-input');
+  if (input) input.value = '';
+  renderPogSearchResults({ hits: [], notFound: false });
+  document.querySelectorAll('.pog-wv-tile--highlight').forEach(el => {
+    el.classList.remove('pog-wv-tile--highlight');
+  });
+  saveHubSession({ pogSearch: '' });
 }
 
 function highlightPogTile(upc) {
@@ -3040,27 +3589,53 @@ function bindPogSearchUi() {
   const results = document.getElementById('pog-wv-search-results');
 
   const run = () => {
-    const result = runPogSearch(input ? input.value : '');
+    const query = input ? input.value : '';
+    const result = runPogSearch(query);
     renderPogSearchResults(result);
     if (result.hits.length === 1 && result.hits[0].scope === 'this') {
       highlightPogTile(result.hits[0].upc);
     }
+    saveHubSession({ pogSearch: query });
   };
 
   btn?.addEventListener('click', run);
   input?.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); run(); }
   });
+  input?.addEventListener('input', () => {
+    const v = (input.value || '').trim();
+    saveHubSession({ pogSearch: v });
+    if (/^\d{4}$/.test(v)) run();
+  });
   results?.addEventListener('click', e => {
     const showBtn = e.target.closest('[data-scroll-to-upc]');
     if (showBtn) {
       highlightPogTile(showBtn.getAttribute('data-scroll-to-upc'));
+      return;
+    }
+    const notFoundBtn = e.target.closest('[data-notfound-flag]');
+    if (notFoundBtn) {
+      const kind = notFoundBtn.getAttribute('data-notfound-flag');
+      if (kind === 'missing-tag') {
+        openPogMissingTagForm({ upc: pogLastNotFoundUpc || '' });
+      } else if (kind === 'nis') {
+        setPogWvActionsDisabled(true);
+        setPogWvActionStatus('Raising not-in-store flag…');
+        submitPogSectionFlag('nis', {}).then(() => {
+          setPogWvActionStatus('Flagged — pending lead review', 'ok');
+        }).catch(err => {
+          setPogWvActionStatus(err.message || 'Failed', 'error');
+          setPogWvActionsDisabled(false);
+        });
+      }
     }
   });
 
   const maskSlider = document.getElementById('pog-wv-mask-slider');
   maskSlider?.addEventListener('input', () => {
-    applyPogMaskOpacity(parseInt(maskSlider.value, 10) || 0);
+    const pct = parseInt(maskSlider.value, 10) || 0;
+    applyPogMaskOpacity(pct);
+    saveHubSession({ pogMask: pct });
   });
   applyPogMaskOpacity(pogMaskCardOpacity);
 
@@ -3132,7 +3707,7 @@ function renderPogWorkingContent(fixture, layout, loadError) {
     '</div>' +
     '<div class="pog-wv-search">' +
       '<div class="pog-wv-search-row">' +
-        '<input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="UPC or product name">' +
+        '<input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="Last 4 of UPC, full UPC, or name">' +
         '<button type="button" class="btn pog-wv-scan-btn" id="pog-wv-scan-btn" title="Scan barcode" aria-label="Scan barcode">📷</button>' +
         '<button type="button" class="btn pog-wv-search-btn" id="pog-wv-search-btn">Search</button>' +
       '</div>' +
@@ -3162,9 +3737,220 @@ function renderPogWorkingContent(fixture, layout, loadError) {
   });
 
   bindPogSearchUi();
+  bindPogWorkingActions();
+  refreshPogWorkingChrome();
 }
 
-async function openPogWorkingView(fixture) {
+function getSectionMeta(dbkey) {
+  if (!dbkey) return null;
+  return hubContext.sections[String(dbkey)] || null;
+}
+
+function isAssignedRepForDbkey(dbkey) {
+  const meta = getSectionMeta(dbkey);
+  if (!meta || meta.assignee_id == null || hubContext.myUserId == null) return false;
+  return Number(meta.assignee_id) === Number(hubContext.myUserId);
+}
+
+function canShowPogMarkDone(dbkey) {
+  if (!liveVisitId || hubContext.myRank < 1) return false;
+  if (getFixtureState(dbkey) !== 'in_progress') return false;
+  return hubContext.myRank >= 2 || isAssignedRepForDbkey(dbkey);
+}
+
+function canShowPogSignoff(dbkey) {
+  if (!liveVisitId || hubContext.myRank < 2) return false;
+  return getFixtureState(dbkey) === 'done_pending_signoff';
+}
+
+function pogWorkingDbkey() {
+  return pogWorkingFixture?.dbkey || null;
+}
+
+function defaultPogFlagLocation() {
+  if (!pogWorkingFixture) return undefined;
+  return 'Lane ' + pogWorkingFixture.lane + ' · ' + shortName(pogWorkingFixture.name);
+}
+
+function setPogWvActionStatus(msg, kind) {
+  const el = document.getElementById('pog-wv-action-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'flag-status' + (kind ? ' ' + kind : '');
+}
+
+function setPogWvActionsDisabled(disabled) {
+  document.querySelectorAll(
+    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-submit, #pog-wv-mark-done, #pog-wv-signoff'
+  ).forEach(btn => { btn.disabled = disabled; });
+}
+
+async function submitPogSectionFlag(kind, payload) {
+  const dbkey = pogWorkingDbkey();
+  if (!dbkey) throw new Error('No active set');
+  const paths = {
+    help: '/flag/help',
+    nis: '/flag/nis',
+    'missing-tag': '/flag/missing-tag',
+  };
+  await hubPost('/sections/' + encodeURIComponent(dbkey) + paths[kind], payload || {});
+}
+
+function openPogMissingTagForm(prefill) {
+  const form = document.getElementById('pog-wv-missing-tag-form');
+  const upcEl = document.getElementById('pog-wv-flag-upc');
+  const descEl = document.getElementById('pog-wv-flag-desc');
+  const locEl = document.getElementById('pog-wv-flag-loc');
+  if (upcEl) upcEl.value = (prefill?.upc || '').trim();
+  if (descEl) descEl.value = (prefill?.description || '').trim();
+  if (locEl) {
+    locEl.value = (prefill?.location || defaultPogFlagLocation() || '').trim();
+  }
+  form?.classList.add('open');
+  document.getElementById('pog-wv-actions')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => upcEl?.focus(), 50);
+}
+
+function refreshPogWorkingChrome() {
+  if (!isPogViewOpen()) return;
+
+  const dbkey = pogWorkingDbkey();
+  const actions = document.getElementById('pog-wv-actions');
+  const stateWrap = document.getElementById('pog-wv-state-wrap');
+  const completeRow = document.getElementById('pog-wv-complete-row');
+  const markDoneBtn = document.getElementById('pog-wv-mark-done');
+  const signoffBtn = document.getElementById('pog-wv-signoff');
+  const modalActions = document.getElementById('pog-product-modal-actions');
+  const showLiveActions = !!(liveVisitId && hubContext.myRank >= 1 && dbkey);
+
+  if (stateWrap && dbkey) {
+    const st = getFixtureState(dbkey);
+    stateWrap.innerHTML =
+      '<span class="state-pill pog-wv-state-pill" style="--pill-color:var(' + STATE_CSS[st] + ')">' +
+      escapeHtml(STATE_LABELS[st] || st) +
+      '</span>';
+  } else if (stateWrap) {
+    stateWrap.innerHTML = '';
+  }
+
+  if (actions) {
+    actions.hidden = !showLiveActions;
+    actions.setAttribute('aria-hidden', showLiveActions ? 'false' : 'true');
+  }
+
+  if (showLiveActions) {
+    setPogWvActionsDisabled(false);
+  }
+
+  if (modalActions) {
+    modalActions.hidden = !showLiveActions;
+  }
+
+  const showMarkDone = dbkey && canShowPogMarkDone(dbkey);
+  const showSignoff = dbkey && canShowPogSignoff(dbkey);
+
+  if (completeRow) completeRow.hidden = !(showMarkDone || showSignoff);
+  if (markDoneBtn) markDoneBtn.hidden = !showMarkDone;
+  if (signoffBtn) signoffBtn.hidden = !showSignoff;
+}
+
+function bindPogWorkingActions() {
+  if (pogWvActionsBound) return;
+  pogWvActionsBound = true;
+
+  document.getElementById('pog-wv-flag-help')?.addEventListener('click', async () => {
+    setPogWvActionsDisabled(true);
+    setPogWvActionStatus('Raising help flag…');
+    try {
+      await submitPogSectionFlag('help', {});
+      setPogWvActionStatus('Flagged — pending lead review', 'ok');
+    } catch (err) {
+      setPogWvActionStatus(err.message || 'Failed', 'error');
+      setPogWvActionsDisabled(false);
+    }
+  });
+
+  document.getElementById('pog-wv-flag-nis')?.addEventListener('click', async () => {
+    setPogWvActionsDisabled(true);
+    setPogWvActionStatus('Raising not-in-store flag…');
+    try {
+      await submitPogSectionFlag('nis', {});
+      setPogWvActionStatus('Flagged — pending lead review', 'ok');
+    } catch (err) {
+      setPogWvActionStatus(err.message || 'Failed', 'error');
+      setPogWvActionsDisabled(false);
+    }
+  });
+
+  document.getElementById('pog-wv-flag-tag-toggle')?.addEventListener('click', () => {
+    openPogMissingTagForm({
+      upc: pogSelectedProduct?.upc || '',
+      description: pogSelectedProduct?.name || '',
+      location: pogSelectedProduct?.location || defaultPogFlagLocation(),
+    });
+  });
+
+  document.getElementById('pog-wv-flag-tag-submit')?.addEventListener('click', async () => {
+    const upc = (document.getElementById('pog-wv-flag-upc')?.value || '').trim();
+    if (!upc) {
+      setPogWvActionStatus('UPC is required', 'error');
+      document.getElementById('pog-wv-flag-upc')?.focus();
+      return;
+    }
+    setPogWvActionsDisabled(true);
+    setPogWvActionStatus('Raising missing-tag flag…');
+    try {
+      await submitPogSectionFlag('missing-tag', {
+        upc,
+        description: (document.getElementById('pog-wv-flag-desc')?.value || '').trim() || undefined,
+        location: (document.getElementById('pog-wv-flag-loc')?.value || '').trim() || undefined,
+      });
+      setPogWvActionStatus('Flagged — pending lead review', 'ok');
+      document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
+    } catch (err) {
+      setPogWvActionStatus(err.message || 'Failed', 'error');
+      setPogWvActionsDisabled(false);
+    }
+  });
+
+  document.getElementById('pog-wv-mark-done')?.addEventListener('click', async () => {
+    const dbkey = pogWorkingDbkey();
+    if (!dbkey) return;
+    setPogWvActionsDisabled(true);
+    setPogWvActionStatus('Marking done…');
+    try {
+      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/mark-done', {});
+      setPogWvActionStatus('Marked done — waiting for live update…', 'ok');
+    } catch (err) {
+      setPogWvActionStatus(err.message || 'Failed', 'error');
+      setPogWvActionsDisabled(false);
+    }
+  });
+
+  document.getElementById('pog-wv-signoff')?.addEventListener('click', async () => {
+    const dbkey = pogWorkingDbkey();
+    if (!dbkey) return;
+    setPogWvActionsDisabled(true);
+    setPogWvActionStatus('Signing off…');
+    try {
+      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/signoff', {});
+      setPogWvActionStatus('Signed off — waiting for live update…', 'ok');
+    } catch (err) {
+      setPogWvActionStatus(err.message || 'Failed', 'error');
+      setPogWvActionsDisabled(false);
+    }
+  });
+
+  document.getElementById('pog-product-modal-flag-tag')?.addEventListener('click', () => {
+    openPogMissingTagForm({
+      upc: pogSelectedProduct?.upc || '',
+      description: pogSelectedProduct?.name || '',
+      location: pogSelectedProduct?.location || defaultPogFlagLocation(),
+    });
+  });
+}
+
+async function openPogWorkingView(fixture, opts) {
   if (!fixture || !fixture.dbkey) return;
 
   await stopPogScanner();
@@ -3176,21 +3962,45 @@ async function openPogWorkingView(fixture) {
   const overlay = document.getElementById('pog-working-view');
   const heading = document.getElementById('pog-wv-heading');
   const sub = document.getElementById('pog-wv-subheading');
+  const crumb = document.getElementById('pog-wv-crumb');
   const content = document.getElementById('pog-wv-content');
 
   if (heading) heading.textContent = shortName(fixture.name);
   if (sub) sub.textContent = 'Lane ' + fixture.lane + ' · DBKey ' + fixture.dbkey;
+  if (crumb) crumb.textContent = (hubCurrentView === 'list' ? 'List' : 'Map') + ' › ' + shortName(fixture.name);
   if (content) content.innerHTML = '<div class="pog-wv-loading">Loading planogram…</div>';
 
   overlay?.classList.add('open');
   overlay?.setAttribute('aria-hidden', 'false');
   document.body.classList.add('pog-view-open');
-  closeDetail();
+  selectedDbkey = fixture.dbkey;
+  hideDetailForPog();
+  bindPogWorkingActions();
+  refreshPogWorkingChrome();
+
+  if (!opts?.skipHistory) {
+    syncHubUrl({ pog: fixture.dbkey, fixture: fixture.dbkey, view: hubCurrentView });
+  }
+  saveHubSession({ pog: fixture.dbkey, fixture: fixture.dbkey });
 
   try {
     await ensurePogCatalogLoaded();
     pogWorkingLayout = await fetchPogLayout(fixture.dbkey);
     renderPogWorkingContent(fixture, pogWorkingLayout, null);
+
+    if (opts?.restoreSession && opts.session) {
+      const sess = opts.session;
+      if (typeof sess.pogMask === 'number') applyPogMaskOpacity(sess.pogMask);
+      const input = document.getElementById('pog-wv-search-input');
+      if (input && sess.pogSearch) {
+        input.value = sess.pogSearch;
+        const result = runPogSearch(sess.pogSearch);
+        renderPogSearchResults(result);
+        if (result.hits.length === 1 && result.hits[0].scope === 'this') {
+          highlightPogTile(result.hits[0].upc);
+        }
+      }
+    }
   } catch (err) {
     renderPogWorkingContent(fixture, null, err);
   }
@@ -3198,15 +4008,41 @@ async function openPogWorkingView(fixture) {
   document.getElementById('pog-wv-scroll')?.scrollTo(0, 0);
 }
 
-function closePogWorkingView() {
+function closePogWorkingView(opts) {
+  if (!opts?.skipHistory && isPogViewOpen() && !confirmLeavePog()) {
+    hubNavLock = true;
+    syncHubUrl({ pog: pogWorkingFixture?.dbkey || null, fixture: selectedDbkey || pogWorkingFixture?.dbkey || null });
+    hubNavLock = false;
+    return;
+  }
+
   closePogProductModal();
   stopPogScanner();
   const overlay = document.getElementById('pog-working-view');
   overlay?.classList.remove('open');
   overlay?.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('pog-view-open');
+
+  const prevFixture = pogWorkingFixture;
   pogWorkingFixture = null;
   pogWorkingLayout = null;
+  pogSelectedProduct = null;
+  pogLastNotFoundUpc = null;
+  setPogWvActionStatus('');
+  document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
+  document.getElementById('pog-wv-actions')?.setAttribute('hidden', '');
+
+  if (!opts?.skipHistory) {
+    const fixtureDbkey = selectedDbkey || prevFixture?.dbkey || null;
+    syncHubUrl({ pog: null, fixture: fixtureDbkey, view: hubCurrentView });
+    if (fixtureDbkey) {
+      const fix = fixtureForDbkey(fixtureDbkey);
+      if (fix) openDetail(fixtureDbkey, fix.action, { skipHistory: true });
+    }
+  } else if (selectedDbkey || prevFixture?.dbkey) {
+    selectedDbkey = selectedDbkey || prevFixture?.dbkey;
+  }
+  saveHubSession({ pog: null });
 }
 
 function hubUrl(path) {
@@ -3604,6 +4440,7 @@ async function init() {
   renderMap();
   renderList();
   bindEvents();
+  syncHubUrl(readHubUrlState(), true);
 
   const params = new URLSearchParams(window.location.search);
   const visitId = params.get('visit');
@@ -3631,6 +4468,8 @@ async function init() {
     applyState(SEED_STATES);
     setDataSourceLabel('Store 00163 · 83 fixtures · 26 lanes · SEED_STATES demo');
   }
+
+  await restoreHubNavigation();
 }
 
 init();
