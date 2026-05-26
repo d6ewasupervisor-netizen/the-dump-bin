@@ -689,18 +689,30 @@
   }
 
   .assignments-btn {
-    display: none;
+    /* legacy hook — styling via .header-badge-btn--assignments */
   }
 
-  .assignments-btn.visible {
-    display: inline-flex;
+  .header-badge-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 40px;
+    display: none;
     align-items: center;
     gap: 6px;
+    font-family: inherit;
+    line-height: 1.2;
   }
 
-  .assignments-btn .count {
-    background: #3b82f6;
-    color: #fff;
+  .header-badge-btn.visible {
+    display: inline-flex;
+  }
+
+  .header-badge-btn .count {
     border-radius: 999px;
     min-width: 22px;
     height: 22px;
@@ -708,7 +720,41 @@
     align-items: center;
     justify-content: center;
     font-size: 0.75rem;
+    font-weight: 800;
     padding: 0 6px;
+  }
+
+  .header-badge-btn--pending {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+  }
+
+  .header-badge-btn--pending .count {
+    background: #f59e0b;
+    color: #1a1d27;
+  }
+
+  .header-badge-btn--tag-batch {
+    border-color: #14b8a6;
+    background: rgba(20, 184, 166, 0.15);
+    color: #5eead4;
+  }
+
+  .header-badge-btn--tag-batch .count {
+    background: #14b8a6;
+    color: #1a1d27;
+  }
+
+  .header-badge-btn--assignments {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+  }
+
+  .header-badge-btn--assignments .count {
+    background: #3b82f6;
+    color: #fff;
   }
 
   .assignments-view {
@@ -783,7 +829,7 @@
 
   .assign-set-row {
     display: grid;
-    grid-template-columns: 52px 88px 1fr auto;
+    grid-template-columns: 52px 88px minmax(0, 1fr) auto;
     gap: 8px;
     align-items: center;
     padding: 10px 14px;
@@ -791,6 +837,47 @@
     cursor: pointer;
     min-height: 44px;
   }
+
+  .assign-set-row.has-assign {
+    grid-template-columns: 52px 88px minmax(0, 1fr) auto minmax(148px, 220px);
+  }
+
+  .assign-set-actions {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+    cursor: default;
+  }
+
+  .assign-set-actions .hub-roster-select {
+    flex: 1;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 8px;
+    font-size: 0.78rem;
+  }
+
+  .assign-set-actions .btn-assign {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 0.78rem;
+  }
+
+  .assign-set-actions .btn-assign:disabled,
+  .assign-set-actions .hub-roster-select:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
+
+  .assign-set-status {
+    grid-column: 1 / -1;
+    font-size: 0.72rem;
+    color: var(--text2);
+    padding-top: 2px;
+  }
+
+  .assign-set-status.error { color: #fca5a5; }
+  .assign-set-status.ok { color: #86efac; }
 
   .assign-set-row:last-child { border-bottom: none; }
 
@@ -838,26 +925,36 @@
 
   @media (max-width: 520px) {
     .assign-set-row {
-      grid-template-columns: 44px 1fr auto;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
       grid-template-rows: auto auto;
       row-gap: 2px;
+    }
+
+    .assign-set-row.has-assign {
+      grid-template-columns: 44px minmax(0, 1fr);
+      grid-template-rows: auto auto auto;
     }
 
     .assign-set-dbkey {
       grid-column: 2 / -1;
       font-size: 0.72rem;
     }
+
+    .assign-set-actions {
+      grid-column: 1 / -1;
+    }
   }
 
-  .fx-assignee {
+  .fx-assignee,
+  .assignee-chip {
     position: absolute;
     top: 2px;
     right: 2px;
     max-width: calc(100% - 4px);
     padding: 1px 5px;
     border-radius: 4px;
-    background: rgba(59, 130, 246, 0.92);
-    color: #fff;
+    background: var(--assignee-chip-bg, rgba(59, 130, 246, 0.92));
+    color: var(--assignee-chip-text, #fff);
     font-size: 0.48rem;
     font-weight: 800;
     line-height: 1.2;
@@ -866,6 +963,7 @@
     text-overflow: ellipsis;
     pointer-events: none;
     z-index: 2;
+    border: 1px solid var(--assignee-chip-border, rgba(147, 197, 253, 0.35));
   }
 
   .state-pill {
@@ -878,6 +976,39 @@
     letter-spacing: 0.03em;
     color: #fff;
     background: var(--pill-color, var(--state-not_started));
+  }
+
+  .state-pill--not_started { --pill-color: var(--state-not_started); }
+  .state-pill--assigned { --pill-color: var(--state-assigned); }
+  .state-pill--in_progress { --pill-color: var(--state-in_progress); }
+  .state-pill--needs_attention { --pill-color: var(--state-needs_attention); }
+  .state-pill--done_pending_signoff { --pill-color: var(--state-done_pending_signoff); }
+  .state-pill--signed_off { --pill-color: var(--state-signed_off); }
+
+  .legend-swatch--not_started { background: var(--state-not_started); }
+  .legend-swatch--assigned { background: var(--state-assigned); }
+  .legend-swatch--in_progress { background: var(--state-in_progress); }
+  .legend-swatch--needs_attention { background: var(--state-needs_attention); }
+  .legend-swatch--done_pending_signoff { background: var(--state-done_pending_signoff); }
+  .legend-swatch--signed_off { background: var(--state-signed_off); }
+
+  .hub-panel-empty {
+    color: var(--text2);
+    font-size: 0.85rem;
+    padding: 8px;
+  }
+
+  .pog-wv-empty-note {
+    font-size: 0.78rem;
+    color: var(--text3);
+  }
+
+  .is-hidden { display: none !important; }
+
+  .pog-wv-tile-img.is-hidden { display: none !important; }
+
+  .pog-product-modal-img.is-hidden {
+    display: none !important;
   }
 
   .state-pill.muted-pill {
@@ -980,59 +1111,11 @@
   }
 
   .pending-badge {
-    appearance: none;
-    border: 1px solid #f59e0b;
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    padding: 8px 12px;
-    border-radius: var(--radius);
-    font-size: 0.8rem;
-    font-weight: 700;
-    cursor: pointer;
-    min-height: 40px;
-    display: none;
-  }
-
-  .pending-badge.visible { display: inline-flex; align-items: center; gap: 6px; }
-  .pending-badge .count {
-    background: #f59e0b;
-    color: #1a1d27;
-    border-radius: 999px;
-    min-width: 22px;
-    height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    padding: 0 6px;
+    /* legacy hook — styling via .header-badge-btn--pending */
   }
 
   .tag-batch-badge {
-    appearance: none;
-    border: 1px solid #14b8a6;
-    background: rgba(20, 184, 166, 0.15);
-    color: #5eead4;
-    padding: 8px 12px;
-    border-radius: var(--radius);
-    font-size: 0.8rem;
-    font-weight: 700;
-    cursor: pointer;
-    min-height: 40px;
-    display: none;
-  }
-
-  .tag-batch-badge.visible { display: inline-flex; align-items: center; gap: 6px; }
-  .tag-batch-badge .count {
-    background: #14b8a6;
-    color: #1a1d27;
-    border-radius: 999px;
-    min-width: 22px;
-    height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    padding: 0 6px;
+    /* legacy hook — styling via .header-badge-btn--tag-batch */
   }
 
   .tag-batch-panel {
@@ -1619,9 +1702,10 @@
 
   .pog-wv-toolbar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 6px 10px;
+    gap: 8px;
+    width: 100%;
     padding-top: 6px;
     margin-top: 6px;
     border-top: 1px solid var(--border);
@@ -1629,7 +1713,7 @@
 
   .pog-wv-toolbar-search {
     display: flex;
-    flex: 1 1 160px;
+    flex: 1 1 0;
     gap: 4px;
     min-width: 0;
     align-items: center;
@@ -1638,19 +1722,35 @@
   .pog-wv-toolbar-mask {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex: 0 1 132px;
-    min-width: 96px;
+    gap: 8px;
+    flex: 2 1 0;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    background: rgba(59, 130, 246, 0.08);
   }
 
   .pog-wv-toolbar-mask label {
-    font-size: 0.62rem;
-    font-weight: 700;
+    font-size: 0.68rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text2);
+    letter-spacing: 0.05em;
+    color: #93c5fd;
     white-space: nowrap;
     flex-shrink: 0;
+  }
+
+  .pog-wv-toolbar-mask .pog-wv-mask-slider {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pog-wv-toolbar-mask .pog-wv-mask-value {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #bfdbfe;
+    min-width: 2.25rem;
   }
 
   .pog-wv-actions {
@@ -1844,6 +1944,10 @@
     overflow: hidden;
   }
 
+  .pog-wv-preview.is-hidden {
+    display: none;
+  }
+
   .pog-wv-preview-toggle {
     width: 100%;
     appearance: none;
@@ -1900,20 +2004,20 @@
   .pog-wv-search-input {
     flex: 1;
     min-width: 0;
-    padding: 6px 8px;
+    padding: 6px 6px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--surface2);
     color: var(--text);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     min-height: 32px;
   }
 
   .pog-wv-search-btn {
     flex-shrink: 0;
     min-height: 32px;
-    padding: 0 10px;
-    font-size: 0.72rem;
+    padding: 0 8px;
+    font-size: 0.68rem;
   }
 
   .pog-wv-search-clear {
@@ -2083,6 +2187,7 @@
     display: grid;
     gap: 4px;
     width: 100%;
+    grid-template-columns: repeat(var(--peg-cols, 1), minmax(0, 1fr));
   }
 
   .pog-wv-tile {
@@ -2122,9 +2227,9 @@
   }
 
   .pog-wv-tile-textonly {
+    display: none;
     width: 100%;
     aspect-ratio: 1;
-    display: flex;
     align-items: center;
     justify-content: center;
     background: var(--bg);
@@ -2134,6 +2239,10 @@
     text-align: center;
     padding: 4px;
     line-height: 1.2;
+  }
+
+  .pog-wv-tile-textonly.is-visible {
+    display: flex;
   }
 
   .pog-wv-tile-name {
@@ -2243,8 +2352,8 @@
   .pog-wv-mask-slider {
     flex: 1;
     min-width: 0;
-    min-height: 28px;
-    height: 28px;
+    min-height: 32px;
+    height: 32px;
     accent-color: #3b82f6;
   }
 
@@ -2433,13 +2542,13 @@
     <div class="store-tag" id="store-tag">Store 00163 · 83 fixtures · 26 lanes</div>
   </div>
   <div class="header-actions">
-    <button type="button" class="pending-badge" id="pending-badge" aria-label="Pending queue">
+    <button type="button" class="header-badge-btn header-badge-btn--pending pending-badge" id="pending-badge" aria-label="Pending queue">
       Pending <span class="count" id="pending-count">0</span>
     </button>
-    <button type="button" class="tag-batch-badge" id="tag-batch-badge" aria-label="Tag batch">
+    <button type="button" class="header-badge-btn header-badge-btn--tag-batch tag-batch-badge" id="tag-batch-badge" aria-label="Tag batch">
       Tag Batch <span class="count" id="tag-batch-count">0</span>
     </button>
-    <button type="button" class="assignments-btn" id="btn-assignments" data-view="assignments" aria-label="Assignments by person">
+    <button type="button" class="header-badge-btn header-badge-btn--assignments assignments-btn" id="btn-assignments" data-view="assignments" aria-label="Assignments by person">
       Assignments <span class="count" id="assignments-count">0</span>
     </button>
     <button type="button" class="btn active" id="btn-map" data-view="map">Map view</button>
@@ -2509,15 +2618,15 @@
       </div>
     </div>
     <div class="pog-wv-toolbar">
-      <div class="pog-wv-toolbar-search">
-        <input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="UPC or name">
-        <button type="button" class="btn pog-wv-scan-btn" id="pog-wv-scan-btn" title="Scan barcode" aria-label="Scan barcode">📷</button>
-        <button type="button" class="btn pog-wv-search-btn" id="pog-wv-search-btn">Go</button>
-      </div>
       <div class="pog-wv-toolbar-mask">
         <label for="pog-wv-mask-slider">Mask</label>
         <input type="range" class="pog-wv-mask-slider" id="pog-wv-mask-slider" min="0" max="100" value="0">
         <span class="pog-wv-mask-value" id="pog-wv-mask-value">0%</span>
+      </div>
+      <div class="pog-wv-toolbar-search">
+        <input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="UPC or name">
+        <button type="button" class="btn pog-wv-scan-btn" id="pog-wv-scan-btn" title="Scan barcode" aria-label="Scan barcode">📷</button>
+        <button type="button" class="btn pog-wv-search-btn" id="pog-wv-search-btn">Go</button>
       </div>
     </div>
     <div class="pog-wv-scanner-box" id="pog-wv-scanner-box" hidden>
@@ -2742,6 +2851,7 @@ const HUB_STORE_NUM = '163';
 
 let fixtureStates = {};
 let selectedDbkey = null;
+let selectedLane = null;
 let listSort = { col: 'lane', asc: true };
 let liveVisitId = null;
 let hubCurrentView = 'map';
@@ -2866,6 +2976,26 @@ function fixtureKey(f) {
   return f.dbkey || f.action + '@' + f.lane;
 }
 
+function sectionKey(lane, dbkey) {
+  return String(lane || '') + ':' + String(dbkey);
+}
+
+function findFixture(dbkey, action, lane) {
+  if (lane && action) {
+    const match = FIXTURES.find(f => f.dbkey === dbkey && f.action === action && f.lane === lane);
+    if (match) return match;
+  }
+  if (lane) {
+    const match = FIXTURES.find(f => f.dbkey === dbkey && f.lane === lane);
+    if (match) return match;
+  }
+  if (action) {
+    const match = FIXTURES.find(f => f.dbkey === dbkey && f.action === action);
+    if (match) return match;
+  }
+  return FIXTURES.find(f => f.dbkey === dbkey);
+}
+
 function fixtureNameForDbkey(dbkey) {
   const f = FIXTURES.find(x => x.dbkey === String(dbkey));
   return f ? f.name : String(dbkey || '—');
@@ -2885,7 +3015,9 @@ function applySnapshot(snapshot) {
   hubContext.myUserId = snapshot.myUserId ?? null;
   hubContext.sections = {};
   (snapshot.sections || []).forEach(row => {
-    if (row && row.dbkey) hubContext.sections[String(row.dbkey)] = row;
+    if (row && row.dbkey) {
+      hubContext.sections[sectionKey(row.lane || '', row.dbkey)] = row;
+    }
   });
   hubContext.pendingActions = snapshot.pendingActions || [];
   hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
@@ -2905,9 +3037,19 @@ function applySnapshot(snapshot) {
   updateSignedInDisplay();
 }
 
-function getFixtureState(dbkey) {
+function getFixtureState(lane, dbkey) {
+  if (dbkey == null && lane == null) return 'not_started';
+  if (typeof lane !== 'string' && typeof lane !== 'number' && dbkey != null && lane != null && typeof lane === 'object') {
+    const f = lane;
+    lane = f.lane;
+    dbkey = f.dbkey;
+  }
   if (!dbkey) return 'not_started';
-  return fixtureStates[dbkey] || 'not_started';
+  const key = sectionKey(lane, dbkey);
+  if (fixtureStates[key]) return fixtureStates[key];
+  if (fixtureStates[String(dbkey)]) return fixtureStates[String(dbkey)];
+  const legacyKey = sectionKey('', dbkey);
+  return fixtureStates[legacyKey] || 'not_started';
 }
 
 /* ── Fixture shape renderers (neutral — no state colors at render time) ── */
@@ -3014,7 +3156,7 @@ function renderMap() {
 function renderLegend() {
   const items = WORK_STATES.map(s =>
     '<span class="legend-item">' +
-      '<span class="legend-swatch" style="background:var(' + STATE_CSS[s] + ')"></span>' +
+      '<span class="legend-swatch legend-swatch--' + s + '"></span>' +
       escapeHtml(STATE_LABELS[s]) +
     '</span>'
   ).join('');
@@ -3025,12 +3167,17 @@ function renderLegend() {
     '</span>';
 }
 
+function statePillClass(st) {
+  const key = WORK_STATES.includes(st) ? st : 'not_started';
+  return 'state-pill state-pill--' + key;
+}
+
 function statePillHtml(f) {
   if (!f.on_manifest) {
     return '<span class="state-pill muted-pill">Not scheduled</span>';
   }
-  const st = getFixtureState(f.dbkey);
-  return '<span class="state-pill" style="--pill-color:var(' + STATE_CSS[st] + ')">' +
+  const st = getFixtureState(f.lane, f.dbkey);
+  return '<span class="' + statePillClass(st) + '">' +
     escapeHtml(STATE_LABELS[st]) + '</span>';
 }
 
@@ -3042,12 +3189,12 @@ function renderList() {
       case 'name': va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break;
       case 'type': va = a.type; vb = b.type; break;
       case 'state':
-        va = a.on_manifest ? getFixtureState(a.dbkey) : 'zzz';
-        vb = b.on_manifest ? getFixtureState(b.dbkey) : 'zzz';
+        va = a.on_manifest ? getFixtureState(a.lane, a.dbkey) : 'zzz';
+        vb = b.on_manifest ? getFixtureState(b.lane, b.dbkey) : 'zzz';
         break;
       case 'assignee':
-        va = a.on_manifest ? sectionAssigneeText(a.dbkey).toLowerCase() : 'zzz';
-        vb = b.on_manifest ? sectionAssigneeText(b.dbkey).toLowerCase() : 'zzz';
+        va = a.on_manifest ? sectionAssigneeText(a.lane, a.dbkey).toLowerCase() : 'zzz';
+        vb = b.on_manifest ? sectionAssigneeText(b.lane, b.dbkey).toLowerCase() : 'zzz';
         break;
       case 'dbkey':
         va = a.dbkey || '';
@@ -3064,7 +3211,7 @@ function renderList() {
 
   const body = rows.map(f => {
     const clickable = f.on_manifest && f.dbkey;
-    const assignee = f.on_manifest && f.dbkey ? sectionAssigneeText(f.dbkey) : '—';
+    const assignee = f.on_manifest && f.dbkey ? sectionAssigneeText(f.lane, f.dbkey) : '—';
     const assigneeClass = assignee === 'Unassigned' || assignee === '—'
       ? 'assignee-cell assignee-cell--none'
       : 'assignee-cell';
@@ -3072,7 +3219,7 @@ function renderList() {
       '<tr class="' + (f.on_manifest ? '' : 'row-muted') +
         (clickable ? ' row-clickable' : '') + '" ' +
         'data-list-key="' + escapeHtml(fixtureKey(f)) + '" ' +
-        (clickable ? 'data-dbkey="' + escapeHtml(f.dbkey) + '" data-action="' + escapeHtml(f.action) + '"' : '') +
+        (clickable ? 'data-dbkey="' + escapeHtml(f.dbkey) + '" data-action="' + escapeHtml(f.action) + '" data-lane="' + escapeHtml(f.lane) + '"' : '') +
       '>' +
         '<td>' + escapeHtml(f.lane) + '</td>' +
         '<td class="dbkey-cell">' + escapeHtml(f.dbkey || '—') + '</td>' +
@@ -3106,7 +3253,7 @@ function updateListStateCells() {
     if (!f) return;
     if (row.cells[5]) row.cells[5].innerHTML = statePillHtml(f);
     if (row.cells[3] && f.on_manifest && f.dbkey) {
-      const assignee = sectionAssigneeText(f.dbkey);
+      const assignee = sectionAssigneeText(f.lane, f.dbkey);
       row.cells[3].textContent = assignee;
       row.cells[3].className = assignee === 'Unassigned'
         ? 'assignee-cell assignee-cell--none'
@@ -3130,7 +3277,8 @@ function applyState(states) {
     if (el.classList.contains('muted')) return;
 
     const dbkey = el.getAttribute('data-dbkey');
-    const state = (dbkey && fixtureStates[dbkey]) ? fixtureStates[dbkey] : 'not_started';
+    const lane = el.getAttribute('data-lane');
+    const state = getFixtureState(lane, dbkey);
     el.classList.add('state-' + state);
   });
 
@@ -3142,24 +3290,30 @@ function applyState(states) {
   if (isPogViewOpen()) refreshPogWorkingChrome();
 }
 
-function setFixtureState(dbkey, newState) {
+function setFixtureState(lane, dbkey, newState) {
+  if (arguments.length === 2) {
+    newState = dbkey;
+    dbkey = lane;
+    lane = '';
+  }
   if (!dbkey || !WORK_STATES.includes(newState)) return;
-  fixtureStates[dbkey] = newState;
+  fixtureStates[sectionKey(lane, dbkey)] = newState;
   applyState(fixtureStates);
 }
 
 function openDetail(dbkey, action, opts) {
-  const fixture = FIXTURES.find(f => f.dbkey === dbkey && f.action === action) ||
-    FIXTURES.find(f => f.dbkey === dbkey);
+  const lane = opts?.lane;
+  const fixture = findFixture(dbkey, action, lane);
   if (!fixture || !fixture.on_manifest) return;
 
   selectedDbkey = dbkey;
+  selectedLane = fixture.lane;
   refreshDetailPanel(fixture);
   document.getElementById('detail-panel').classList.add('open');
   document.getElementById('overlay').classList.add('visible');
   document.getElementById('main-layout').classList.add('panel-open');
-  if (!opts?.skipHistory) syncHubUrl({ fixture: dbkey, pog: null });
-  saveHubSession({ fixture: dbkey, pog: null });
+  if (!opts?.skipHistory) syncHubUrl({ fixture: dbkey, lane: fixture.lane, pog: null });
+  saveHubSession({ fixture: dbkey, lane: fixture.lane, pog: null });
 }
 
 function hideDetailForPog() {
@@ -3171,21 +3325,22 @@ function hideDetailForPog() {
 function closeDetail(opts) {
   if (!opts?.skipHistory && isDetailOpen() && !confirmLeaveDetail()) {
     hubNavLock = true;
-    syncHubUrl({ fixture: selectedDbkey, pog: null });
+    syncHubUrl({ fixture: selectedDbkey, lane: selectedLane, pog: null });
     hubNavLock = false;
     return;
   }
   selectedDbkey = null;
+  selectedLane = null;
   document.getElementById('detail-panel').classList.remove('open');
   document.getElementById('overlay').classList.remove('visible');
   document.getElementById('main-layout').classList.remove('panel-open');
-  if (!opts?.skipHistory) syncHubUrl({ fixture: null, pog: null });
+  if (!opts?.skipHistory) syncHubUrl({ fixture: null, lane: null, pog: null });
   saveHubSession({ fixture: null });
 }
 
 function refreshDetailPanel(fixture) {
   if (!fixture && selectedDbkey) {
-    fixture = FIXTURES.find(f => f.dbkey === selectedDbkey);
+    fixture = findFixture(selectedDbkey, null, selectedLane);
   }
   if (!fixture) return;
 
@@ -3200,7 +3355,7 @@ function refreshDetailPanel(fixture) {
     '<div class="detail-row"><div class="label">Current state</div><div class="value">' + statePillHtml(fixture) + '</div></div>';
 
   if (isLive && fixture.dbkey) {
-    html += buildSectionWorkflowHtml(fixture.dbkey, 'detail');
+    html += buildSectionWorkflowHtml(fixture.lane, fixture.dbkey, 'detail');
   }
 
   if (fixture.dbkey) {
@@ -3246,12 +3401,12 @@ function refreshDetailPanel(fixture) {
     document.getElementById('state-buttons').addEventListener('click', e => {
       const btn = e.target.closest('[data-state]');
       if (!btn || !fixture.dbkey) return;
-      setFixtureState(fixture.dbkey, btn.getAttribute('data-state'));
+      setFixtureState(fixture.lane, fixture.dbkey, btn.getAttribute('data-state'));
     });
     return;
   }
 
-  bindSectionWorkflow(fixture.dbkey, {
+  bindSectionWorkflow(fixture.lane, fixture.dbkey, {
     assignSelectId: 'section-assign-select',
     assignBtnId: 'section-assign-btn',
     assignRowId: 'section-assign-row',
@@ -3278,7 +3433,7 @@ function refreshDetailPanel(fixture) {
     disableFlags(true);
     setFlagStatus('Raising help flag…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/help', {});
+      await hubPost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/help', { lane: fixture.lane });
       setFlagStatus('Flag raised — waiting for live update…', 'ok');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
@@ -3290,7 +3445,7 @@ function refreshDetailPanel(fixture) {
     disableFlags(true);
     setFlagStatus('Raising not-in-store flag…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/nis', {});
+      await hubPost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/nis', { lane: fixture.lane });
       setFlagStatus('Flag raised — waiting for live update…', 'ok');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
@@ -3315,6 +3470,7 @@ function refreshDetailPanel(fixture) {
     setFlagStatus('Adding to planogram list…');
     try {
       await hubPost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/missing-tag', {
+        lane: fixture.lane,
         upc,
         description: (document.getElementById('flag-desc')?.value || '').trim() || undefined,
         location: (document.getElementById('flag-loc')?.value || '').trim() || undefined,
@@ -3338,7 +3494,9 @@ function setView(view, opts) {
   document.getElementById('btn-map').classList.toggle('active', isMap);
   document.getElementById('btn-list').classList.toggle('active', isList);
   document.getElementById('btn-assignments').classList.toggle('active', isAssignments);
-  if (isAssignments) renderAssignmentsView();
+  if (isAssignments) {
+    loadHubRoster().then(() => renderAssignmentsView());
+  }
   if (!opts?.skipHistory) syncHubUrl({ view });
   saveHubSession({ view });
 }
@@ -3372,6 +3530,7 @@ function readHubUrlState() {
     visit: p.get('visit'),
     view: p.get('view') || 'map',
     fixture: p.get('fixture'),
+    lane: p.get('lane'),
     pog: p.get('pog'),
   };
 }
@@ -3485,10 +3644,9 @@ function handleHubPopState() {
   }
 
   if (url.fixture) {
-    const fix = FIXTURES.find(f => f.dbkey === url.fixture && f.on_manifest) ||
-      FIXTURES.find(f => f.dbkey === url.fixture);
-    if (fix && (!isDetailOpen() || selectedDbkey !== url.fixture)) {
-      openDetail(url.fixture, fix.action, { skipHistory: true });
+    const fix = findFixture(url.fixture, null, url.lane);
+    if (fix && (!isDetailOpen() || selectedDbkey !== url.fixture || selectedLane !== fix.lane)) {
+      openDetail(url.fixture, fix.action, { lane: fix.lane, skipHistory: true });
     }
     return;
   }
@@ -3504,9 +3662,8 @@ async function restoreHubNavigation() {
   else setView('map', { skipHistory: true });
 
   if (url.fixture) {
-    const fix = FIXTURES.find(f => f.dbkey === url.fixture && f.on_manifest) ||
-      FIXTURES.find(f => f.dbkey === url.fixture);
-    if (fix) openDetail(url.fixture, fix.action, { skipHistory: true });
+    const fix = findFixture(url.fixture, null, url.lane);
+    if (fix) openDetail(url.fixture, fix.action, { lane: fix.lane, skipHistory: true });
   }
 
   if (url.pog) {
@@ -3553,10 +3710,23 @@ function bindEvents() {
     setView('assignments');
   });
 
-  document.getElementById('assignments-view').addEventListener('click', e => {
+  document.getElementById('assignments-view').addEventListener('click', async e => {
+    if (e.target.closest('.assign-set-actions')) {
+      const btn = e.target.closest('.assign-set-btn');
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const row = btn.closest('.assign-set-row[data-dbkey]');
+        if (row) await handleInlineAssignment(row);
+      }
+      return;
+    }
+
     const row = e.target.closest('.assign-set-row[data-dbkey]');
     if (!row) return;
-    openDetail(row.getAttribute('data-dbkey'), row.getAttribute('data-action'));
+    openDetail(row.getAttribute('data-dbkey'), row.getAttribute('data-action'), {
+      lane: row.getAttribute('data-lane'),
+    });
   });
 
   document.getElementById('map-view').addEventListener('click', e => {
@@ -3564,7 +3734,8 @@ function bindEvents() {
     if (!el) return;
     const dbkey = el.getAttribute('data-dbkey');
     const action = el.getAttribute('data-action');
-    if (dbkey) openDetail(dbkey, action);
+    const lane = el.getAttribute('data-lane');
+    if (dbkey) openDetail(dbkey, action, { lane });
   });
 
   document.getElementById('list-view').addEventListener('click', e => {
@@ -3579,7 +3750,9 @@ function bindEvents() {
     }
     const row = e.target.closest('tr.row-clickable[data-dbkey]');
     if (!row) return;
-    openDetail(row.getAttribute('data-dbkey'), row.getAttribute('data-action'));
+    openDetail(row.getAttribute('data-dbkey'), row.getAttribute('data-action'), {
+      lane: row.getAttribute('data-lane'),
+    });
   });
 
   document.getElementById('detail-close').addEventListener('click', closeDetail);
@@ -4065,11 +4238,11 @@ function openPogProductModal(prod, bay, fixture) {
   const displayName = productDisplayName(upc, prod);
 
   if (img) {
-    img.style.display = '';
+    img.classList.remove('is-hidden');
     img.src = pogUrl('/products-png/' + encodeURIComponent(upc) + '.png');
     img.alt = displayName;
     img.onerror = () => {
-      img.style.display = 'none';
+      img.classList.add('is-hidden');
       if (fallback) {
         fallback.textContent = displayName;
         fallback.classList.add('visible');
@@ -4264,8 +4437,8 @@ function renderPogTile(prod, bay, fixture, dbkey) {
       newBadge +
       '<div class="pog-wv-tile-visual">' +
         '<img class="pog-wv-tile-img" loading="lazy" decoding="async" src="' + escapeHtml(imgUrl) + '" alt="" ' +
-          'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-        '<div class="pog-wv-tile-textonly" style="display:none">' + escapeHtml(name.slice(0, 40)) + '</div>' +
+          'onerror="this.classList.add(\'is-hidden\');this.nextElementSibling.classList.add(\'is-visible\')">' +
+        '<div class="pog-wv-tile-textonly">' + escapeHtml(name.slice(0, 40)) + '</div>' +
         '<div class="pog-wv-tile-card" aria-hidden="true">' + renderPogPositionCardHtml(fixture, prod) + '</div>' +
       '</div>' +
       '<div class="pog-wv-tile-name">' + escapeHtml(name) + '</div>' +
@@ -4301,7 +4474,7 @@ function renderPogFixture(fixture, bay, dbkey) {
       }
     }
 
-    inner = '<div class="pog-wv-peg-grid" style="grid-template-columns:repeat(' + cols + ', minmax(0,1fr))">' +
+    inner = '<div class="pog-wv-peg-grid" style="--peg-cols:' + cols + '">' +
       cells.map(cell => '<div class="pog-wv-peg-cell">' + (cell || '') + '</div>').join('') +
       '</div>';
   } else {
@@ -4532,7 +4705,7 @@ function renderPogWorkingContent(fixture, layout, loadError) {
   }
 
   if (loadError) {
-    content.innerHTML = '<div class="pog-wv-empty">Could not load planogram data.<br><span style="font-size:0.78rem;color:var(--text3)">' +
+    content.innerHTML = '<div class="pog-wv-empty">Could not load planogram data.<br><span class="pog-wv-empty-note">' +
       escapeHtml(loadError.message || String(loadError)) + '</span></div>';
     return;
   }
@@ -4572,7 +4745,7 @@ function renderPogWorkingContent(fixture, layout, loadError) {
   if (previewImg) {
     previewImg.onerror = () => {
       const wrap = document.getElementById('pog-wv-preview');
-      if (wrap) wrap.style.display = 'none';
+      if (wrap) wrap.classList.add('is-hidden');
     };
   }
 
@@ -4584,29 +4757,55 @@ function renderPogWorkingContent(fixture, layout, loadError) {
   refreshPogWorkingChrome();
 }
 
-function sectionAssigneeText(dbkey) {
-  const meta = getSectionMeta(dbkey);
+function getSectionMeta(lane, dbkey) {
+  if (dbkey == null && lane != null && typeof lane === 'string' && !String(lane).includes(':')) {
+    dbkey = lane;
+    lane = '';
+  }
+  if (!dbkey) return null;
+  const key = sectionKey(lane, dbkey);
+  if (hubContext.sections[key]) return hubContext.sections[key];
+  const legacyKey = sectionKey('', dbkey);
+  return hubContext.sections[legacyKey] || null;
+}
+
+function sectionAssigneeText(lane, dbkey) {
+  const meta = getSectionMeta(lane, dbkey);
   if (meta?.assignee_name) return meta.assignee_name;
   if (meta?.assignee_id != null) return 'User #' + meta.assignee_id;
   return 'Unassigned';
 }
 
-function canShowSectionAssign(dbkey) {
+function canShowSectionAssign(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 2 || !dbkey) return false;
-  const st = getFixtureState(dbkey);
+  const st = getFixtureState(lane, dbkey);
   return st === 'not_started' || st === 'assigned';
 }
 
-function canShowSectionStart(dbkey) {
+function canShowSectionStart(lane, dbkey) {
   if (!liveVisitId || !dbkey) return false;
-  if (getFixtureState(dbkey) !== 'assigned') return false;
-  return hubContext.myRank >= 2 || isAssignedRepForDbkey(dbkey);
+  if (getFixtureState(lane, dbkey) !== 'assigned') return false;
+  return hubContext.myRank >= 2 || isAssignedRepForFixture(lane, dbkey);
 }
 
-function rosterSelectOptionsHtml() {
-  return hubRoster.map(p =>
-    '<option value="' + escapeHtml(String(p.id)) + '">' + escapeHtml(p.name) + '</option>'
-  ).join('');
+function isAssignedRepForFixture(lane, dbkey) {
+  const meta = getSectionMeta(lane, dbkey);
+  if (!meta || meta.assignee_id == null || hubContext.myUserId == null) return false;
+  return Number(meta.assignee_id) === Number(hubContext.myUserId);
+}
+
+function hubSectionPost(dbkey, lane, suffix, body) {
+  return hubPost('/sections/' + encodeURIComponent(dbkey) + '/' + suffix, {
+    ...(body || {}),
+    lane: lane || '',
+  });
+}
+
+function rosterSelectOptionsHtml(selectedId) {
+  return hubRoster.map(p => {
+    const selected = selectedId != null && Number(p.id) === Number(selectedId) ? ' selected' : '';
+    return '<option value="' + escapeHtml(String(p.id)) + '"' + selected + '>' + escapeHtml(p.name) + '</option>';
+  }).join('');
 }
 
 function populateRosterSelect(selectEl) {
@@ -4715,14 +4914,12 @@ async function loadHubIdentity() {
   }
 }
 
-function buildSectionWorkflowHtml(dbkey, mode) {
-  const prefix = mode === 'detail' ? 'section' : 'pog-wv';
-  const assignee = sectionAssigneeText(dbkey);
-  const showAssign = canShowSectionAssign(dbkey);
-  const showStart = canShowSectionStart(dbkey);
-  const showMarkDone = canShowPogMarkDone(dbkey);
-  const showSignoff = canShowPogSignoff(dbkey);
-  const showWorkflow = showAssign || showStart || showMarkDone || showSignoff;
+function buildSectionWorkflowHtml(lane, dbkey, mode) {
+  const assignee = sectionAssigneeText(lane, dbkey);
+  const showAssign = canShowSectionAssign(lane, dbkey);
+  const showStart = canShowSectionStart(lane, dbkey);
+  const showMarkDone = canShowPogMarkDone(lane, dbkey);
+  const showSignoff = canShowPogSignoff(lane, dbkey);
 
   if (mode === 'detail') {
     return (
@@ -4753,7 +4950,7 @@ function buildSectionWorkflowHtml(dbkey, mode) {
   return '';
 }
 
-function bindSectionWorkflow(dbkey, ids) {
+function bindSectionWorkflow(lane, dbkey, ids) {
   const setStatus = (msg, kind) => {
     const el = document.getElementById(ids.statusId);
     if (!el) return;
@@ -4785,7 +4982,7 @@ function bindSectionWorkflow(dbkey, ids) {
     setBusy(true);
     setStatus('Assigning…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/assign', { assigneeId });
+      await hubSectionPost(dbkey, lane, 'assign', { assigneeId });
       setStatus('Assigned — waiting for live update…', 'ok');
     } catch (err) {
       setStatus(err.message || 'Assign failed', 'error');
@@ -4797,7 +4994,7 @@ function bindSectionWorkflow(dbkey, ids) {
     setBusy(true);
     setStatus('Starting…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/start', {});
+      await hubSectionPost(dbkey, lane, 'start', {});
       setStatus('Started — waiting for live update…', 'ok');
     } catch (err) {
       setStatus(err.message || 'Start failed', 'error');
@@ -4809,7 +5006,7 @@ function bindSectionWorkflow(dbkey, ids) {
     setBusy(true);
     setStatus('Marking done…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/mark-done', {});
+      await hubSectionPost(dbkey, lane, 'mark-done', {});
       setStatus('Marked done — waiting for live update…', 'ok');
     } catch (err) {
       setStatus(err.message || 'Mark done failed', 'error');
@@ -4821,7 +5018,7 @@ function bindSectionWorkflow(dbkey, ids) {
     setBusy(true);
     setStatus('Signing off…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/signoff', {});
+      await hubSectionPost(dbkey, lane, 'signoff', {});
       setStatus('Signed off — waiting for live update…', 'ok');
     } catch (err) {
       setStatus(err.message || 'Sign off failed', 'error');
@@ -4830,23 +5027,18 @@ function bindSectionWorkflow(dbkey, ids) {
   });
 }
 
-function getSectionMeta(dbkey) {
-  if (!dbkey) return null;
-  return hubContext.sections[String(dbkey)] || null;
-}
-
 function collectAssignmentRows() {
   const rows = [];
   for (const f of FIXTURES) {
     if (!f.on_manifest || !f.dbkey) continue;
-    const meta = getSectionMeta(f.dbkey);
+    const meta = getSectionMeta(f.lane, f.dbkey);
     rows.push({
       dbkey: f.dbkey,
       action: f.action,
       lane: f.lane,
       name: f.name,
       shortName: shortName(f.name),
-      state: getFixtureState(f.dbkey),
+      state: getFixtureState(f.lane, f.dbkey),
       assigneeId: meta?.assignee_id ?? null,
       assigneeName: meta?.assignee_name || null,
     });
@@ -4907,15 +5099,80 @@ function assignmentStats() {
   };
 }
 
-function renderAssignmentSetRowHtml(row) {
+function assignmentAssignControlsHtml(row) {
+  if (!liveVisitId || hubContext.myRank < 2) return '';
+  if (!canShowSectionAssign(row.lane, row.dbkey)) return '';
   return (
-    '<li class="assign-set-row" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '">' +
+    '<div class="assign-set-actions">' +
+      '<select class="hub-roster-select assign-set-select" aria-label="Assign rep for lane ' + escapeHtml(row.lane) + '">' +
+        '<option value="">Rep…</option>' +
+        rosterSelectOptionsHtml(row.assigneeId) +
+      '</select>' +
+      '<button type="button" class="btn-assign assign-set-btn">Assign</button>' +
+    '</div>'
+  );
+}
+
+function renderAssignmentSetRowHtml(row) {
+  const assignHtml = assignmentAssignControlsHtml(row);
+  const rowClass = 'assign-set-row' + (assignHtml ? ' has-assign' : '');
+  return (
+    '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
       '<span class="assign-set-lane">' + escapeHtml(row.lane) + '</span>' +
       '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
       '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
-      statePillHtml({ on_manifest: true, dbkey: row.dbkey }) +
+      statePillHtml({ on_manifest: true, lane: row.lane, dbkey: row.dbkey }) +
+      assignHtml +
     '</li>'
   );
+}
+
+async function handleInlineAssignment(rowEl) {
+  const dbkey = rowEl.getAttribute('data-dbkey');
+  const lane = rowEl.getAttribute('data-lane');
+  const select = rowEl.querySelector('.assign-set-select');
+  const btn = rowEl.querySelector('.assign-set-btn');
+  const assigneeId = Number(select?.value);
+
+  let statusEl = rowEl.querySelector('.assign-set-status');
+  const setStatus = (msg, kind) => {
+    if (!msg) {
+      statusEl?.remove();
+      return;
+    }
+    if (!statusEl) {
+      statusEl = document.createElement('div');
+      statusEl.className = 'assign-set-status';
+      rowEl.appendChild(statusEl);
+    }
+    statusEl.textContent = msg;
+    statusEl.className = 'assign-set-status' + (kind ? ' ' + kind : '');
+  };
+
+  if (!Number.isFinite(assigneeId)) {
+    setStatus('Choose a rep', 'error');
+    select?.focus();
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '…';
+  }
+  if (select) select.disabled = true;
+  setStatus('Assigning…');
+
+  try {
+    await hubSectionPost(dbkey, lane, 'assign', { assigneeId });
+    setStatus('Assigned — updating…', 'ok');
+  } catch (err) {
+    setStatus(err.message || 'Assign failed', 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Assign';
+    }
+    if (select) select.disabled = false;
+  }
 }
 
 function renderAssignmentsView() {
@@ -4989,8 +5246,8 @@ function updateAssignmentsBadge() {
   }
 }
 
-function assigneeShortLabel(dbkey) {
-  const name = sectionAssigneeText(dbkey);
+function assigneeShortLabel(lane, dbkey) {
+  const name = sectionAssigneeText(lane, dbkey);
   if (name === 'Unassigned') return '';
   const parts = name.trim().split(/\s+/);
   return parts[0] || name;
@@ -4999,13 +5256,14 @@ function assigneeShortLabel(dbkey) {
 function updateMapAssigneeBadges() {
   document.querySelectorAll('.fixture.interactive[data-dbkey]').forEach(el => {
     const dk = el.getAttribute('data-dbkey');
-    const label = assigneeShortLabel(dk);
+    const lane = el.getAttribute('data-lane');
+    const label = assigneeShortLabel(lane, dk);
     let badge = el.querySelector('.fx-assignee');
     const baseTitle = el.getAttribute('data-base-title') || el.getAttribute('title') || '';
     if (!el.getAttribute('data-base-title')) {
       el.setAttribute('data-base-title', baseTitle);
     }
-    const assignee = sectionAssigneeText(dk);
+    const assignee = sectionAssigneeText(lane, dk);
     el.setAttribute(
       'title',
       assignee === 'Unassigned' ? baseTitle : (baseTitle + ' · ' + assignee)
@@ -5016,7 +5274,7 @@ function updateMapAssigneeBadges() {
     }
     if (!badge) {
       badge = document.createElement('div');
-      badge.className = 'fx-assignee';
+      badge.className = 'fx-assignee assignee-chip';
       el.appendChild(badge);
     }
     badge.textContent = label;
@@ -5024,21 +5282,15 @@ function updateMapAssigneeBadges() {
   });
 }
 
-function isAssignedRepForDbkey(dbkey) {
-  const meta = getSectionMeta(dbkey);
-  if (!meta || meta.assignee_id == null || hubContext.myUserId == null) return false;
-  return Number(meta.assignee_id) === Number(hubContext.myUserId);
-}
-
-function canShowPogMarkDone(dbkey) {
+function canShowPogMarkDone(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 1) return false;
-  if (getFixtureState(dbkey) !== 'in_progress') return false;
-  return hubContext.myRank >= 2 || isAssignedRepForDbkey(dbkey);
+  if (getFixtureState(lane, dbkey) !== 'in_progress') return false;
+  return hubContext.myRank >= 2 || isAssignedRepForFixture(lane, dbkey);
 }
 
-function canShowPogSignoff(dbkey) {
+function canShowPogSignoff(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 2) return false;
-  return getFixtureState(dbkey) === 'done_pending_signoff';
+  return getFixtureState(lane, dbkey) === 'done_pending_signoff';
 }
 
 function pogWorkingDbkey() {
@@ -5067,13 +5319,17 @@ function setPogWvActionsDisabled(disabled) {
 
 async function submitPogSectionFlag(kind, payload) {
   const dbkey = pogWorkingDbkey();
+  const lane = pogWorkingFixture?.lane || '';
   if (!dbkey) throw new Error('No active set');
   const paths = {
     help: '/flag/help',
     nis: '/flag/nis',
     'missing-tag': '/flag/missing-tag',
   };
-  await hubPost('/sections/' + encodeURIComponent(dbkey) + paths[kind], payload || {});
+  await hubPost('/sections/' + encodeURIComponent(dbkey) + paths[kind], {
+    ...(payload || {}),
+    lane,
+  });
 }
 
 function openPogMissingTagForm(prefill) {
@@ -5095,6 +5351,7 @@ function refreshPogWorkingChrome() {
   if (!isPogViewOpen()) return;
 
   const dbkey = pogWorkingDbkey();
+  const lane = pogWorkingFixture?.lane || '';
   const actions = document.getElementById('pog-wv-actions');
   const stateWrap = document.getElementById('pog-wv-state-wrap');
   const completeRow = document.getElementById('pog-wv-complete-row');
@@ -5108,12 +5365,12 @@ function refreshPogWorkingChrome() {
   const showLiveActions = !!(liveVisitId && hubContext.myRank >= 1 && dbkey);
 
   if (stateWrap && dbkey) {
-    const st = getFixtureState(dbkey);
+    const st = getFixtureState(lane, dbkey);
     let stateHtml =
-      '<span class="state-pill pog-wv-state-pill" style="--pill-color:var(' + STATE_CSS[st] + ')">' +
+      '<span class="' + statePillClass(st) + ' pog-wv-state-pill">' +
       escapeHtml(STATE_LABELS[st] || st) +
       '</span>';
-    const assignee = sectionAssigneeText(dbkey);
+    const assignee = sectionAssigneeText(lane, dbkey);
     if (assignee !== 'Unassigned') {
       stateHtml += '<span class="pog-wv-assignee-label"> · ' + escapeHtml(assignee) + '</span>';
     }
@@ -5124,7 +5381,7 @@ function refreshPogWorkingChrome() {
 
   if (sub && pogWorkingFixture && dbkey) {
     sub.textContent = 'Lane ' + pogWorkingFixture.lane + ' · DBKey ' + dbkey +
-      ' · ' + sectionAssigneeText(dbkey);
+      ' · ' + sectionAssigneeText(lane, dbkey);
   }
 
   populateRosterSelect(assignSelect);
@@ -5142,10 +5399,10 @@ function refreshPogWorkingChrome() {
     modalActions.hidden = !showLiveActions;
   }
 
-  const showAssign = dbkey && canShowSectionAssign(dbkey);
-  const showStart = dbkey && canShowSectionStart(dbkey);
-  const showMarkDone = dbkey && canShowPogMarkDone(dbkey);
-  const showSignoff = dbkey && canShowPogSignoff(dbkey);
+  const showAssign = dbkey && canShowSectionAssign(lane, dbkey);
+  const showStart = dbkey && canShowSectionStart(lane, dbkey);
+  const showMarkDone = dbkey && canShowPogMarkDone(lane, dbkey);
+  const showSignoff = dbkey && canShowPogSignoff(lane, dbkey);
 
   if (assignRow) assignRow.hidden = !showAssign;
   if (completeRow) completeRow.hidden = !(showStart || showMarkDone || showSignoff);
@@ -5238,11 +5495,12 @@ function bindPogWorkingActions() {
 
   document.getElementById('pog-wv-mark-done')?.addEventListener('click', async () => {
     const dbkey = pogWorkingDbkey();
+    const lane = pogWorkingFixture?.lane || '';
     if (!dbkey) return;
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Marking done…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/mark-done', {});
+      await hubSectionPost(dbkey, lane, 'mark-done', {});
       setPogWvActionStatus('Marked done — waiting for live update…', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
@@ -5252,11 +5510,12 @@ function bindPogWorkingActions() {
 
   document.getElementById('pog-wv-start')?.addEventListener('click', async () => {
     const dbkey = pogWorkingDbkey();
+    const lane = pogWorkingFixture?.lane || '';
     if (!dbkey) return;
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Starting…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/start', {});
+      await hubSectionPost(dbkey, lane, 'start', {});
       setPogWvActionStatus('Started — waiting for live update…', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
@@ -5266,6 +5525,7 @@ function bindPogWorkingActions() {
 
   document.getElementById('pog-wv-assign-btn')?.addEventListener('click', async () => {
     const dbkey = pogWorkingDbkey();
+    const lane = pogWorkingFixture?.lane || '';
     if (!dbkey) return;
     const assigneeId = Number(document.getElementById('pog-wv-assign-select')?.value);
     if (!Number.isFinite(assigneeId)) {
@@ -5275,7 +5535,7 @@ function bindPogWorkingActions() {
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Assigning…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/assign', { assigneeId });
+      await hubSectionPost(dbkey, lane, 'assign', { assigneeId });
       setPogWvActionStatus('Assigned — waiting for live update…', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
@@ -5285,11 +5545,12 @@ function bindPogWorkingActions() {
 
   document.getElementById('pog-wv-signoff')?.addEventListener('click', async () => {
     const dbkey = pogWorkingDbkey();
+    const lane = pogWorkingFixture?.lane || '';
     if (!dbkey) return;
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Signing off…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(dbkey) + '/signoff', {});
+      await hubSectionPost(dbkey, lane, 'signoff', {});
       setPogWvActionStatus('Signed off — waiting for live update…', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
@@ -5367,6 +5628,7 @@ async function openPogWorkingView(fixture, opts) {
   document.body.classList.add('pog-view-open');
   resetLeavePogBackState();
   selectedDbkey = fixture.dbkey;
+  selectedLane = fixture.lane;
   hideDetailForPog();
   bindPogWorkingActions();
   refreshPogWorkingChrome();
@@ -5374,9 +5636,9 @@ async function openPogWorkingView(fixture, opts) {
   applyPogMaskOpacity(pogMaskCardOpacity);
 
   if (!opts?.skipHistory) {
-    syncHubUrl({ pog: fixture.dbkey, fixture: fixture.dbkey, view: hubCurrentView });
+    syncHubUrl({ pog: fixture.dbkey, fixture: fixture.dbkey, lane: fixture.lane, view: hubCurrentView });
   }
-  saveHubSession({ pog: fixture.dbkey, fixture: fixture.dbkey });
+  saveHubSession({ pog: fixture.dbkey, fixture: fixture.dbkey, lane: fixture.lane });
 
   try {
     await ensurePogCatalogLoaded();
@@ -5406,7 +5668,11 @@ async function openPogWorkingView(fixture, opts) {
 function closePogWorkingView(opts) {
   if (!opts?.skipHistory && !opts?.skipConfirm && isPogViewOpen() && !confirmLeavePog()) {
     hubNavLock = true;
-    syncHubUrl({ pog: pogWorkingFixture?.dbkey || null, fixture: selectedDbkey || pogWorkingFixture?.dbkey || null });
+    syncHubUrl({
+      pog: pogWorkingFixture?.dbkey || null,
+      fixture: selectedDbkey || pogWorkingFixture?.dbkey || null,
+      lane: selectedLane || pogWorkingFixture?.lane || null,
+    });
     hubNavLock = false;
     return;
   }
@@ -5431,13 +5697,15 @@ function closePogWorkingView(opts) {
 
   if (!opts?.skipHistory) {
     const fixtureDbkey = selectedDbkey || prevFixture?.dbkey || null;
-    syncHubUrl({ pog: null, fixture: fixtureDbkey, view: hubCurrentView });
+    const fixtureLane = selectedLane || prevFixture?.lane || null;
+    syncHubUrl({ pog: null, fixture: fixtureDbkey, lane: fixtureLane, view: hubCurrentView });
     if (fixtureDbkey) {
-      const fix = fixtureForDbkey(fixtureDbkey);
-      if (fix) openDetail(fixtureDbkey, fix.action, { skipHistory: true });
+      const fix = findFixture(fixtureDbkey, null, fixtureLane);
+      if (fix) openDetail(fixtureDbkey, fix.action, { lane: fix.lane, skipHistory: true });
     }
   } else if (selectedDbkey || prevFixture?.dbkey) {
     selectedDbkey = selectedDbkey || prevFixture?.dbkey;
+    selectedLane = selectedLane || prevFixture?.lane || null;
   }
   saveHubSession({ pog: null });
 }
@@ -5542,7 +5810,7 @@ function renderTagBatchList() {
   if (!listEl || !sendBtn) return;
 
   if (!tagBatchPreview || !tagBatchPreview.tags?.length) {
-    listEl.innerHTML = '<p style="color:var(--text2);font-size:0.85rem;padding:8px;">No verified tags ready to send.</p>';
+    listEl.innerHTML = '<p class="hub-panel-empty">No verified tags ready to send.</p>';
     sendBtn.disabled = true;
     return;
   }
@@ -5785,7 +6053,7 @@ function renderPendingList() {
   }
 
   if (!hubContext.pendingActions.length) {
-    listEl.innerHTML = '<p style="color:var(--text2);font-size:0.85rem;padding:8px;">No pending items</p>';
+    listEl.innerHTML = '<p class="hub-panel-empty">No pending items</p>';
     closePendingDetail();
     return;
   }
@@ -5827,7 +6095,7 @@ async function openPendingDetail(pendingId) {
   if (!detailEl || !summary) return;
 
   detailEl.classList.add('open');
-  detailEl.innerHTML = '<p style="color:var(--text2);font-size:0.85rem;">Loading details…</p>';
+  detailEl.innerHTML = '<p class="hub-panel-empty">Loading details…</p>';
 
   try {
     let full = pendingDetailCache[pendingId];
@@ -5899,7 +6167,9 @@ async function openPendingDetail(pendingId) {
 function snapshotSectionsToStateMap(sections) {
   const map = {};
   (sections || []).forEach(row => {
-    if (row && row.dbkey) map[String(row.dbkey)] = row.state || 'not_started';
+    if (row && row.dbkey) {
+      map[sectionKey(row.lane || '', row.dbkey)] = row.state || 'not_started';
+    }
   });
   return map;
 }
