@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Checklane Reset Hub — Store 00163</title>
 <script src="/auth-gate.js"></script>
+<link rel="stylesheet" href="planogram.css">
+<script src="planogram.js" defer></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -1495,6 +1497,22 @@
     --pog-wv-card-opacity: 0;
   }
 
+  .pog-wv-bays.planogram-hub-bays .planogram-wrap,
+  .pog-wv-bays.planogram-hub-bays {
+    --planogram-card-opacity: var(--pog-wv-card-opacity, 0);
+  }
+
+  .planogram-hub-fixtures {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .planogram-tile.planogram-tile--highlight {
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.55);
+    outline: 1px solid #fbbf24;
+    z-index: 3;
+  }
+
   .pog-wv-bay {
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -2908,7 +2926,7 @@ function bindEvents() {
       if (fix) openPogWorkingView(fix);
       return;
     }
-    const tile = e.target.closest('.pog-wv-tile');
+    const tile = e.target.closest('.pog-wv-tile, .planogram-tile');
     if (tile && tile.dataset.upc) {
       const hit = findPogProduct(tile.dataset.upc, tile.dataset.bay, tile.dataset.fixture);
       if (hit) openPogProductModal(hit.prod, hit.bay, hit.fixture);
@@ -3183,7 +3201,7 @@ function productDisplaySize(upc, layoutProduct) {
 
 function parsePegPosition(code) {
   if (!code) return null;
-  const m = String(code).match(/^R(\d+)C(\d+)$/i);
+  const m = String(code).match(/^R\s*(\d+)\s*C\s*(\d+)$/i);
   if (!m) return null;
   return { row: parseInt(m[1], 10), col: parseInt(m[2], 10) };
 }
@@ -3398,6 +3416,9 @@ function applyPogMaskOpacity(pct) {
   if (bays) bays.style.setProperty('--pog-wv-card-opacity', String(pct / 100));
   const valEl = document.getElementById('pog-wv-mask-value');
   if (valEl) valEl.textContent = pct + '%';
+  if (typeof window.virtualPlanogramSetPegOpacity === 'function') {
+    window.virtualPlanogramSetPegOpacity(pct / 100);
+  }
 }
 
 async function acquirePogScannerWakeLock() {
@@ -3484,6 +3505,28 @@ async function startPogScanner() {
     torchBtn.hidden = !Scanner.torchAvailable;
     torchBtn.textContent = 'Torch';
   }
+}
+
+function mountHubPlanogram(layout) {
+  const host = document.getElementById('pog-wv-planogram-host');
+  if (!host || !layout) return;
+
+  window.PLANOGRAM_IMG_RESOLVER = (upc) =>
+    pogUrl('/products-png/' + encodeURIComponent(String(upc)) + '.png');
+
+  window.PLANOGRAM_TILE_CLICK = ({ item, bayNum, fixture }) => {
+    const bay = (layout.bays || []).find(b => String(b.bay_num) === String(bayNum)) ||
+      { bay_num: bayNum };
+    openPogProductModal(item, bay, fixture);
+  };
+
+  if (typeof window.renderHubPlanogramBays === 'function') {
+    window.renderHubPlanogramBays(host, layout, pogCatalogCache || {});
+    applyPogMaskOpacity(pogMaskCardOpacity);
+    return;
+  }
+
+  host.innerHTML = renderPogBays(layout);
 }
 
 function renderPogTile(prod, bay, fixture, dbkey) {
@@ -3667,20 +3710,20 @@ function clearPogSearch() {
   const input = document.getElementById('pog-wv-search-input');
   if (input) input.value = '';
   renderPogSearchResults({ hits: [], notFound: false });
-  document.querySelectorAll('.pog-wv-tile--highlight').forEach(el => {
-    el.classList.remove('pog-wv-tile--highlight');
+  document.querySelectorAll('.pog-wv-tile--highlight, .planogram-tile--highlight').forEach(el => {
+    el.classList.remove('pog-wv-tile--highlight', 'planogram-tile--highlight');
   });
   saveHubSession({ pogSearch: '' });
 }
 
 function highlightPogTile(upc) {
-  document.querySelectorAll('.pog-wv-tile--highlight').forEach(el => {
-    el.classList.remove('pog-wv-tile--highlight');
+  document.querySelectorAll('.pog-wv-tile--highlight, .planogram-tile--highlight').forEach(el => {
+    el.classList.remove('pog-wv-tile--highlight', 'planogram-tile--highlight');
   });
-  const tiles = document.querySelectorAll('.pog-wv-tile[data-upc="' + upc + '"]');
+  const tiles = document.querySelectorAll('.pog-wv-tile[data-upc="' + upc + '"], .planogram-tile[data-upc="' + upc + '"]');
   if (!tiles.length) return;
-  tiles.forEach(t => t.classList.add('pog-wv-tile--highlight'));
-  tiles[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  tiles.forEach(t => t.classList.add('planogram-tile--highlight'));
+  tiles[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
 }
 
 function bindPogSearchUi() {
@@ -3822,7 +3865,9 @@ function renderPogWorkingContent(fixture, layout, loadError) {
       '</div>' +
       '<div class="pog-wv-search-results" id="pog-wv-search-results"></div>' +
     '</div>' +
-    '<div class="pog-wv-bays" style="--pog-wv-card-opacity:' + (pogMaskCardOpacity / 100) + '">' + renderPogBays(layout) + '</div>';
+    '<div class="pog-wv-bays" id="pog-wv-planogram-host" style="--pog-wv-card-opacity:' + (pogMaskCardOpacity / 100) + '"></div>';
+
+  mountHubPlanogram(layout);
 
   const previewImg = document.getElementById('pog-wv-preview-img');
   if (previewImg) {
