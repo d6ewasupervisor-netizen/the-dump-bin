@@ -559,6 +559,204 @@
   .list-table tr.row-clickable { cursor: pointer; }
   .list-table tr.row-clickable:hover { background: var(--surface); }
 
+  .list-table .assignee-cell {
+    font-weight: 600;
+    color: #93c5fd;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .list-table .assignee-cell--none { color: var(--text3); font-weight: 500; }
+
+  .list-table .dbkey-cell {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .assignments-btn {
+    display: none;
+  }
+
+  .assignments-btn.visible {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .assignments-btn .count {
+    background: #3b82f6;
+    color: #fff;
+    border-radius: 999px;
+    min-width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    padding: 0 6px;
+  }
+
+  .assignments-view {
+    padding: 12px 16px 88px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .assignments-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .assignments-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+
+  .assignments-stat-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--text);
+  }
+
+  .assignments-stat-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+
+  .assign-person-block {
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .assign-person-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.14) 0%, var(--surface2) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .assign-person-name {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #bfdbfe;
+  }
+
+  .assign-person-count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+
+  .assign-set-list {
+    list-style: none;
+  }
+
+  .assign-set-row {
+    display: grid;
+    grid-template-columns: 52px 88px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .assign-set-row:last-child { border-bottom: none; }
+
+  .assign-set-row:active { background: var(--surface2); }
+
+  .assign-set-lane {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: var(--lane-label);
+  }
+
+  .assign-set-dbkey {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .assign-set-name {
+    font-size: 0.78rem;
+    color: var(--text2);
+    line-height: 1.25;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .assign-unassigned-block .assign-person-head {
+    background: linear-gradient(180deg, rgba(107, 114, 128, 0.12) 0%, var(--surface2) 100%);
+  }
+
+  .assign-unassigned-block .assign-person-name {
+    color: var(--text2);
+  }
+
+  .assignments-empty {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text2);
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  @media (max-width: 520px) {
+    .assign-set-row {
+      grid-template-columns: 44px 1fr auto;
+      grid-template-rows: auto auto;
+      row-gap: 2px;
+    }
+
+    .assign-set-dbkey {
+      grid-column: 2 / -1;
+      font-size: 0.72rem;
+    }
+  }
+
+  .fx-assignee {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    max-width: calc(100% - 4px);
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(59, 130, 246, 0.92);
+    color: #fff;
+    font-size: 0.48rem;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    z-index: 2;
+  }
+
   .state-pill {
     display: inline-block;
     padding: 2px 8px;
@@ -2011,6 +2209,9 @@
     <button type="button" class="tag-batch-badge" id="tag-batch-badge" aria-label="Tag batch">
       Tag Batch <span class="count" id="tag-batch-count">0</span>
     </button>
+    <button type="button" class="assignments-btn" id="btn-assignments" data-view="assignments" aria-label="Assignments by person">
+      Assignments <span class="count" id="assignments-count">0</span>
+    </button>
     <button type="button" class="btn active" id="btn-map" data-view="map">Map view</button>
     <button type="button" class="btn" id="btn-list" data-view="list">List view</button>
   </div>
@@ -2022,6 +2223,7 @@
   <div class="view-container">
     <div class="map-view view-container-inner" id="map-view"></div>
     <div class="list-view view-hidden view-container-inner" id="list-view"></div>
+    <div class="assignments-view view-hidden view-container-inner" id="assignments-view" aria-label="Assignments by person"></div>
     <div class="you-are-here">You are here (customer)</div>
   </div>
 </div>
@@ -2419,8 +2621,6 @@ function formatRaisedAt(iso) {
 }
 
 function applySnapshot(snapshot) {
-  const stateMap = snapshotSectionsToStateMap(snapshot.sections);
-  applyState(stateMap);
   hubContext.myRank = snapshot.myRank ?? 1;
   hubContext.myUserId = snapshot.myUserId ?? null;
   hubContext.sections = {};
@@ -2430,6 +2630,10 @@ function applySnapshot(snapshot) {
   hubContext.pendingActions = snapshot.pendingActions || [];
   hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
   hubContext.draftTags = snapshot.stats?.draftTags ?? 0;
+
+  const stateMap = snapshotSectionsToStateMap(snapshot.sections);
+  applyState(stateMap);
+
   updatePendingBadge();
   updateTagBatchBadge();
   renderPendingList();
@@ -2568,6 +2772,14 @@ function renderList() {
         va = a.on_manifest ? getFixtureState(a.dbkey) : 'zzz';
         vb = b.on_manifest ? getFixtureState(b.dbkey) : 'zzz';
         break;
+      case 'assignee':
+        va = a.on_manifest ? sectionAssigneeText(a.dbkey).toLowerCase() : 'zzz';
+        vb = b.on_manifest ? sectionAssigneeText(b.dbkey).toLowerCase() : 'zzz';
+        break;
+      case 'dbkey':
+        va = a.dbkey || '';
+        vb = b.dbkey || '';
+        break;
       default: va = a.lane; vb = b.lane;
     }
     if (va < vb) return listSort.asc ? -1 : 1;
@@ -2579,6 +2791,10 @@ function renderList() {
 
   const body = rows.map(f => {
     const clickable = f.on_manifest && f.dbkey;
+    const assignee = f.on_manifest && f.dbkey ? sectionAssigneeText(f.dbkey) : '—';
+    const assigneeClass = assignee === 'Unassigned' || assignee === '—'
+      ? 'assignee-cell assignee-cell--none'
+      : 'assignee-cell';
     return (
       '<tr class="' + (f.on_manifest ? '' : 'row-muted') +
         (clickable ? ' row-clickable' : '') + '" ' +
@@ -2586,7 +2802,9 @@ function renderList() {
         (clickable ? 'data-dbkey="' + escapeHtml(f.dbkey) + '" data-action="' + escapeHtml(f.action) + '"' : '') +
       '>' +
         '<td>' + escapeHtml(f.lane) + '</td>' +
+        '<td class="dbkey-cell">' + escapeHtml(f.dbkey || '—') + '</td>' +
         '<td>' + escapeHtml(f.name) + '</td>' +
+        '<td class="' + assigneeClass + '">' + escapeHtml(assignee) + '</td>' +
         '<td>' + escapeHtml(f.type) + '</td>' +
         '<td>' + statePillHtml(f) + '</td>' +
       '</tr>'
@@ -2597,7 +2815,9 @@ function renderList() {
     '<table class="list-table">' +
       '<thead><tr>' +
         '<th data-sort="lane">Lane' + arrow('lane') + '</th>' +
+        '<th data-sort="dbkey">DBKey' + arrow('dbkey') + '</th>' +
         '<th data-sort="name">Name' + arrow('name') + '</th>' +
+        '<th data-sort="assignee">Assignee' + arrow('assignee') + '</th>' +
         '<th data-sort="type">Type' + arrow('type') + '</th>' +
         '<th data-sort="state">State' + arrow('state') + '</th>' +
       '</tr></thead>' +
@@ -2610,7 +2830,15 @@ function updateListStateCells() {
   FIXTURES.forEach(f => { keyMap[fixtureKey(f)] = f; });
   document.querySelectorAll('#list-view tbody tr[data-list-key]').forEach(row => {
     const f = keyMap[row.getAttribute('data-list-key')];
-    if (f && row.cells[3]) row.cells[3].innerHTML = statePillHtml(f);
+    if (!f) return;
+    if (row.cells[5]) row.cells[5].innerHTML = statePillHtml(f);
+    if (row.cells[3] && f.on_manifest && f.dbkey) {
+      const assignee = sectionAssigneeText(f.dbkey);
+      row.cells[3].textContent = assignee;
+      row.cells[3].className = assignee === 'Unassigned'
+        ? 'assignee-cell assignee-cell--none'
+        : 'assignee-cell';
+    }
   });
 }
 
@@ -2634,6 +2862,9 @@ function applyState(states) {
   });
 
   updateListStateCells();
+  updateMapAssigneeBadges();
+  updateAssignmentsBadge();
+  if (hubCurrentView === 'assignments') renderAssignmentsView();
   if (selectedDbkey) refreshDetailPanel();
   if (isPogViewOpen()) refreshPogWorkingChrome();
 }
@@ -2825,11 +3056,16 @@ function refreshDetailPanel(fixture) {
 
 function setView(view, opts) {
   const isMap = view === 'map';
+  const isList = view === 'list';
+  const isAssignments = view === 'assignments';
   hubCurrentView = view;
   document.getElementById('map-view').classList.toggle('view-hidden', !isMap);
-  document.getElementById('list-view').classList.toggle('view-hidden', isMap);
+  document.getElementById('list-view').classList.toggle('view-hidden', !isList);
+  document.getElementById('assignments-view').classList.toggle('view-hidden', !isAssignments);
   document.getElementById('btn-map').classList.toggle('active', isMap);
-  document.getElementById('btn-list').classList.toggle('active', !isMap);
+  document.getElementById('btn-list').classList.toggle('active', isList);
+  document.getElementById('btn-assignments').classList.toggle('active', isAssignments);
+  if (isAssignments) renderAssignmentsView();
   if (!opts?.skipHistory) syncHubUrl({ view });
   saveHubSession({ view });
 }
@@ -2991,6 +3227,7 @@ async function restoreHubNavigation() {
   const url = readHubUrlState();
   hubNavLock = true;
   if (url.view === 'list') setView('list', { skipHistory: true });
+  else if (url.view === 'assignments') setView('assignments', { skipHistory: true });
   else setView('map', { skipHistory: true });
 
   if (url.fixture) {
@@ -3032,6 +3269,21 @@ function bindEvents() {
     if (isDetailOpen() && !confirmLeaveDetail()) return;
     if (isDetailOpen()) closeDetail({ skipHistory: true });
     setView('list');
+  });
+  document.getElementById('btn-assignments').addEventListener('click', () => {
+    if (isPogViewOpen()) {
+      requestLeavePog(() => closePogWorkingView({ skipConfirm: true }));
+      return;
+    }
+    if (isDetailOpen() && !confirmLeaveDetail()) return;
+    if (isDetailOpen()) closeDetail({ skipHistory: true });
+    setView('assignments');
+  });
+
+  document.getElementById('assignments-view').addEventListener('click', e => {
+    const row = e.target.closest('.assign-set-row[data-dbkey]');
+    if (!row) return;
+    openDetail(row.getAttribute('data-dbkey'), row.getAttribute('data-action'));
   });
 
   document.getElementById('map-view').addEventListener('click', e => {
@@ -4244,6 +4496,195 @@ function getSectionMeta(dbkey) {
   return hubContext.sections[String(dbkey)] || null;
 }
 
+function collectAssignmentRows() {
+  const rows = [];
+  for (const f of FIXTURES) {
+    if (!f.on_manifest || !f.dbkey) continue;
+    const meta = getSectionMeta(f.dbkey);
+    rows.push({
+      dbkey: f.dbkey,
+      action: f.action,
+      lane: f.lane,
+      name: f.name,
+      shortName: shortName(f.name),
+      state: getFixtureState(f.dbkey),
+      assigneeId: meta?.assignee_id ?? null,
+      assigneeName: meta?.assignee_name || null,
+    });
+  }
+  return rows;
+}
+
+function buildAssignmentGroups() {
+  const rows = collectAssignmentRows();
+  const byPerson = new Map();
+  const unassigned = [];
+
+  for (const row of rows) {
+    if (row.assigneeId != null) {
+      const key = String(row.assigneeId);
+      if (!byPerson.has(key)) {
+        byPerson.set(key, {
+          assigneeId: row.assigneeId,
+          name: row.assigneeName || ('User #' + row.assigneeId),
+          sets: [],
+        });
+      }
+      byPerson.get(key).sets.push(row);
+    } else {
+      unassigned.push(row);
+    }
+  }
+
+  const people = Array.from(byPerson.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
+
+  for (const person of people) {
+    person.sets.sort((a, b) => {
+      const laneDiff = Number(a.lane) - Number(b.lane);
+      if (laneDiff !== 0) return laneDiff;
+      return a.shortName.localeCompare(b.shortName);
+    });
+  }
+
+  unassigned.sort((a, b) => {
+    const laneDiff = Number(a.lane) - Number(b.lane);
+    if (laneDiff !== 0) return laneDiff;
+    return a.shortName.localeCompare(b.shortName);
+  });
+
+  return { people, unassigned, totalManifest: rows.length };
+}
+
+function assignmentStats() {
+  const { people, unassigned, totalManifest } = buildAssignmentGroups();
+  const assignedCount = totalManifest - unassigned.length;
+  return {
+    peopleCount: people.length,
+    assignedCount,
+    unassignedCount: unassigned.length,
+    totalManifest,
+  };
+}
+
+function renderAssignmentSetRowHtml(row) {
+  return (
+    '<li class="assign-set-row" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '">' +
+      '<span class="assign-set-lane">' + escapeHtml(row.lane) + '</span>' +
+      '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
+      '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
+      statePillHtml({ on_manifest: true, dbkey: row.dbkey }) +
+    '</li>'
+  );
+}
+
+function renderAssignmentsView() {
+  const root = document.getElementById('assignments-view');
+  if (!root) return;
+
+  if (!liveVisitId) {
+    root.innerHTML =
+      '<div class="assignments-empty">Open the hub with <code>?visit=…</code> on a live reset to see who is assigned to each set.</div>';
+    return;
+  }
+
+  const { people, unassigned } = buildAssignmentGroups();
+  const stats = assignmentStats();
+
+  let html =
+    '<div class="assignments-summary">' +
+      '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.peopleCount + '</div><div class="assignments-stat-label">People assigned</div></div>' +
+      '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.assignedCount + '</div><div class="assignments-stat-label">Sets assigned</div></div>' +
+      '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.unassignedCount + '</div><div class="assignments-stat-label">Unassigned</div></div>' +
+      '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.totalManifest + '</div><div class="assignments-stat-label">On manifest</div></div>' +
+    '</div>';
+
+  if (!people.length && !unassigned.length) {
+    html += '<div class="assignments-empty">No manifest sets found.</div>';
+    root.innerHTML = html;
+    return;
+  }
+
+  for (const person of people) {
+    html +=
+      '<section class="assign-person-block">' +
+        '<div class="assign-person-head">' +
+          '<div class="assign-person-name">' + escapeHtml(person.name) + '</div>' +
+          '<div class="assign-person-count">' + person.sets.length + ' set' + (person.sets.length !== 1 ? 's' : '') + '</div>' +
+        '</div>' +
+        '<ul class="assign-set-list">' +
+          person.sets.map(renderAssignmentSetRowHtml).join('') +
+        '</ul>' +
+      '</section>';
+  }
+
+  if (unassigned.length) {
+    html +=
+      '<section class="assign-person-block assign-unassigned-block">' +
+        '<div class="assign-person-head">' +
+          '<div class="assign-person-name">Unassigned</div>' +
+          '<div class="assign-person-count">' + unassigned.length + ' set' + (unassigned.length !== 1 ? 's' : '') + '</div>' +
+        '</div>' +
+        '<ul class="assign-set-list">' +
+          unassigned.map(renderAssignmentSetRowHtml).join('') +
+        '</ul>' +
+      '</section>';
+  }
+
+  root.innerHTML = html;
+}
+
+function updateAssignmentsBadge() {
+  const badge = document.getElementById('btn-assignments');
+  const countEl = document.getElementById('assignments-count');
+  if (!badge || !countEl) return;
+
+  if (liveVisitId) {
+    badge.classList.add('visible');
+    const stats = assignmentStats();
+    countEl.textContent = String(stats.assignedCount);
+  } else {
+    badge.classList.remove('visible');
+    countEl.textContent = '0';
+  }
+}
+
+function assigneeShortLabel(dbkey) {
+  const name = sectionAssigneeText(dbkey);
+  if (name === 'Unassigned') return '';
+  const parts = name.trim().split(/\s+/);
+  return parts[0] || name;
+}
+
+function updateMapAssigneeBadges() {
+  document.querySelectorAll('.fixture.interactive[data-dbkey]').forEach(el => {
+    const dk = el.getAttribute('data-dbkey');
+    const label = assigneeShortLabel(dk);
+    let badge = el.querySelector('.fx-assignee');
+    const baseTitle = el.getAttribute('data-base-title') || el.getAttribute('title') || '';
+    if (!el.getAttribute('data-base-title')) {
+      el.setAttribute('data-base-title', baseTitle);
+    }
+    const assignee = sectionAssigneeText(dk);
+    el.setAttribute(
+      'title',
+      assignee === 'Unassigned' ? baseTitle : (baseTitle + ' · ' + assignee)
+    );
+    if (!label) {
+      if (badge) badge.remove();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'fx-assignee';
+      el.appendChild(badge);
+    }
+    badge.textContent = label;
+    badge.title = assignee;
+  });
+}
+
 function isAssignedRepForDbkey(dbkey) {
   const meta = getSectionMeta(dbkey);
   if (!meta || meta.assignee_id == null || hubContext.myUserId == null) return false;
@@ -4556,7 +4997,14 @@ async function openPogWorkingView(fixture, opts) {
 
   if (heading) heading.textContent = shortName(fixture.name);
   if (sub) sub.textContent = 'Lane ' + fixture.lane + ' · DBKey ' + fixture.dbkey;
-  if (crumb) crumb.textContent = (hubCurrentView === 'list' ? 'List' : 'Map') + ' › ' + shortName(fixture.name);
+  if (crumb) {
+    const viewLabel = hubCurrentView === 'list'
+      ? 'List'
+      : hubCurrentView === 'assignments'
+        ? 'Assignments'
+        : 'Map';
+    crumb.textContent = viewLabel + ' › ' + shortName(fixture.name);
+  }
   if (content) content.innerHTML = '<div class="pog-wv-loading">Loading planogram…</div>';
 
   overlay?.classList.add('open');
