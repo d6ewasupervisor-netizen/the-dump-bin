@@ -3823,6 +3823,13 @@ function confirmLeavePog() {
   if (typeof Scanner !== 'undefined' && Scanner.isRunning) {
     return window.confirm('Scanner is active. Leave this set?');
   }
+  const draftCount = pendingTagDraftCountForLeave();
+  if (draftCount > 0) {
+    return window.confirm(
+      'Leave this set? ' + draftCount + ' missing tag' + (draftCount !== 1 ? 's' : '') +
+      ' in your list will be submitted for lead review.'
+    );
+  }
   const input = document.getElementById('pog-wv-search-input');
   if (input && input.value.trim()) {
     return window.confirm('Leave this set? Your search will be saved for this session.');
@@ -3929,9 +3936,16 @@ function requestLeavePog(onLeave) {
     leavePogConfirmTimer = null;
   }
 
+  const runLeave = () => {
+    const result = onLeave();
+    if (result && typeof result.then === 'function') {
+      result.catch(err => console.warn('[Checklane Hub] leave pog failed:', err));
+    }
+  };
+
   if (leavePogArmedAt && (now - leavePogArmedAt) < LEAVE_POG_DOUBLE_MS) {
     resetLeavePogBackState();
-    onLeave();
+    runLeave();
     return;
   }
 
@@ -3941,7 +3955,7 @@ function requestLeavePog(onLeave) {
     leavePogConfirmTimer = null;
     leavePogArmedAt = 0;
     backBtn?.classList.remove('armed');
-    if (confirmLeavePog()) onLeave();
+    if (confirmLeavePog()) runLeave();
   }, LEAVE_POG_DOUBLE_MS);
 }
 
@@ -6091,6 +6105,12 @@ function bindPogWorkingActions() {
 async function openPogWorkingView(fixture, opts) {
   if (!fixture || !fixture.dbkey) return;
 
+  if (isPogViewOpen() && pogWorkingFixture?.dbkey &&
+      String(pogWorkingFixture.dbkey) !== String(fixture.dbkey) &&
+      !opts?.skipDraftFlush) {
+    await flushSectionTagDraftsOnLeave(pogWorkingFixture.dbkey);
+  }
+
   await stopPogScanner();
   closePogProductModal();
 
@@ -6178,41 +6198,50 @@ function closePogWorkingView(opts) {
       lane: selectedLane || pogWorkingFixture?.lane || null,
     });
     hubNavLock = false;
-    return;
+    return Promise.resolve();
   }
 
-  resetLeavePogBackState();
-  clearPogSearchReturnState();
+  const prevDbkey = pogWorkingFixture?.dbkey || sectionTagDraftsDbkey;
+  const finishClose = () => {
+    resetLeavePogBackState();
+    clearPogSearchReturnState();
 
-  closePogProductModal();
-  stopPogScanner();
-  const overlay = document.getElementById('pog-working-view');
-  overlay?.classList.remove('open');
-  overlay?.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('pog-view-open');
+    closePogProductModal();
+    stopPogScanner();
+    const overlay = document.getElementById('pog-working-view');
+    overlay?.classList.remove('open');
+    overlay?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('pog-view-open');
 
-  const prevFixture = pogWorkingFixture;
-  pogWorkingFixture = null;
-  pogWorkingLayout = null;
-  pogSelectedProduct = null;
-  pogLastNotFoundUpc = null;
-  setPogWvActionStatus('');
-  document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
-  document.getElementById('pog-wv-actions')?.setAttribute('hidden', '');
+    const prevFixture = pogWorkingFixture;
+    pogWorkingFixture = null;
+    pogWorkingLayout = null;
+    pogSelectedProduct = null;
+    pogLastNotFoundUpc = null;
+    setPogWvActionStatus('');
+    document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
+    document.getElementById('pog-wv-actions')?.setAttribute('hidden', '');
 
-  if (!opts?.skipHistory) {
-    const fixtureDbkey = selectedDbkey || prevFixture?.dbkey || null;
-    const fixtureLane = selectedLane || prevFixture?.lane || null;
-    syncHubUrl({ pog: null, fixture: fixtureDbkey, lane: fixtureLane, view: hubCurrentView });
-    if (fixtureDbkey) {
-      const fix = findFixture(fixtureDbkey, null, fixtureLane);
-      if (fix) openDetail(fixtureDbkey, fix.action, { lane: fix.lane, skipHistory: true });
+    if (!opts?.skipHistory) {
+      const fixtureDbkey = selectedDbkey || prevFixture?.dbkey || null;
+      const fixtureLane = selectedLane || prevFixture?.lane || null;
+      syncHubUrl({ pog: null, fixture: fixtureDbkey, lane: fixtureLane, view: hubCurrentView });
+      if (fixtureDbkey) {
+        const fix = findFixture(fixtureDbkey, null, fixtureLane);
+        if (fix) openDetail(fixtureDbkey, fix.action, { lane: fix.lane, skipHistory: true });
+      }
+    } else if (selectedDbkey || prevFixture?.dbkey) {
+      selectedDbkey = selectedDbkey || prevFixture?.dbkey;
+      selectedLane = selectedLane || prevFixture?.lane || null;
     }
-  } else if (selectedDbkey || prevFixture?.dbkey) {
-    selectedDbkey = selectedDbkey || prevFixture?.dbkey;
-    selectedLane = selectedLane || prevFixture?.lane || null;
+    saveHubSession({ pog: null });
+  };
+
+  if (prevDbkey && !opts?.skipDraftFlush) {
+    return flushSectionTagDraftsOnLeave(prevDbkey).then(finishClose);
   }
-  saveHubSession({ pog: null });
+  finishClose();
+  return Promise.resolve();
 }
 
 function hubUrl(path) {
@@ -6526,6 +6555,54 @@ async function clearSectionTagDrafts() {
   } catch (err) {
     setPogWvActionStatus(err.message || 'Clear failed', 'error');
   }
+}
+
+let tagDraftFlushInFlight = null;
+
+function pendingTagDraftCountForLeave() {
+  const dbkey = pogWorkingDbkey() || sectionTagDraftsDbkey;
+  if (!dbkey || String(sectionTagDraftsDbkey) !== String(dbkey)) return 0;
+  return (sectionTagDrafts || []).length;
+}
+
+async function flushSectionTagDraftsOnLeave(dbkey, { silent = true } = {}) {
+  const targetDbkey = dbkey || sectionTagDraftsDbkey || pogWorkingDbkey();
+  if (!targetDbkey || !liveVisitId) return { submitted: 0 };
+
+  let count = 0;
+  if (String(sectionTagDraftsDbkey) === String(targetDbkey)) {
+    count = (sectionTagDrafts || []).length;
+  } else {
+    try {
+      const data = await hubGet('/sections/' + encodeURIComponent(targetDbkey) + '/tag-drafts');
+      count = (data.tags || []).length;
+    } catch (err) {
+      console.warn('[Checklane Hub] tag draft flush check failed:', err);
+      return { submitted: 0 };
+    }
+  }
+  if (!count) return { submitted: 0 };
+
+  if (tagDraftFlushInFlight) await tagDraftFlushInFlight;
+
+  tagDraftFlushInFlight = (async () => {
+    try {
+      const result = await hubMutatePost('/sections/' + encodeURIComponent(targetDbkey) + '/tag-drafts/submit', {});
+      if (String(sectionTagDraftsDbkey) === String(targetDbkey)) {
+        sectionTagDrafts = [];
+        renderSectionTagDraftCart();
+      }
+      return { submitted: result.count || count };
+    } catch (err) {
+      if (!silent) throw err;
+      console.warn('[Checklane Hub] auto-submit tag drafts on leave failed:', err);
+      return { submitted: 0, error: err };
+    } finally {
+      tagDraftFlushInFlight = null;
+    }
+  })();
+
+  return tagDraftFlushInFlight;
 }
 
 async function submitSectionTagDraftsForPlanogram() {
