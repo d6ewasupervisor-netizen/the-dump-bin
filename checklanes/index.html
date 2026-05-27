@@ -27,6 +27,7 @@
     --state-needs_attention: #ef4444;
     --state-done_pending_signoff: #14b8a6;
     --state-signed_off: #22c55e;
+    --state-not_in_store: #f59e0b;
     --radius: 8px;
     --panel-width: min(360px, 92vw);
   }
@@ -507,6 +508,7 @@
   }
   .fixture.state-done_pending_signoff { --fixture-color: var(--state-done_pending_signoff); }
   .fixture.state-signed_off { --fixture-color: var(--state-signed_off); }
+  .fixture.state-not_in_store { --fixture-color: var(--state-not_in_store); }
 
   @keyframes pulse-attention {
     0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
@@ -1019,6 +1021,7 @@
   .state-pill--needs_attention { --pill-color: var(--state-needs_attention); }
   .state-pill--done_pending_signoff { --pill-color: var(--state-done_pending_signoff); }
   .state-pill--signed_off { --pill-color: var(--state-signed_off); }
+  .state-pill--not_in_store { --pill-color: var(--state-not_in_store); }
 
   .legend-swatch--not_started { background: var(--state-not_started); }
   .legend-swatch--assigned { background: var(--state-assigned); }
@@ -1026,6 +1029,7 @@
   .legend-swatch--needs_attention { background: var(--state-needs_attention); }
   .legend-swatch--done_pending_signoff { background: var(--state-done_pending_signoff); }
   .legend-swatch--signed_off { background: var(--state-signed_off); }
+  .legend-swatch--not_in_store { background: var(--state-not_in_store); }
 
   .hub-panel-empty {
     color: var(--text2);
@@ -2892,7 +2896,7 @@ const FIXTURE_ORDER = ['endcap', 'cooler', 'liberty_tail'];
    Keys are dbkey strings. Fixtures not listed default to not_started.
    ═══════════════════════════════════════════════════════════════════════════ */
 const SEED_STATES = {
-  '9086453': 'signed_off',
+  '9086453': 'not_in_store',
   '8920139': 'done_pending_signoff',
   '8790016': 'in_progress',
   '8790015': 'assigned',
@@ -2916,7 +2920,8 @@ const WORK_STATES = [
   'in_progress',
   'needs_attention',
   'done_pending_signoff',
-  'signed_off'
+  'signed_off',
+  'not_in_store'
 ];
 
 const STATE_LABELS = {
@@ -2925,7 +2930,8 @@ const STATE_LABELS = {
   in_progress: 'In progress',
   needs_attention: 'Needs attention',
   done_pending_signoff: 'Done — pending sign-off',
-  signed_off: 'Signed off'
+  signed_off: 'Signed off',
+  not_in_store: 'Not in store'
 };
 
 const STATE_CSS = {
@@ -2934,7 +2940,8 @@ const STATE_CSS = {
   in_progress: '--state-in_progress',
   needs_attention: '--state-needs_attention',
   done_pending_signoff: '--state-done_pending_signoff',
-  signed_off: '--state-signed_off'
+  signed_off: '--state-signed_off',
+  not_in_store: '--state-not_in_store'
 };
 
 const POG_SERVICE_BASE = 'https://checklanes.the-dump-bin.com';
@@ -3474,8 +3481,14 @@ function refreshDetailPanel(fixture) {
   }
 
   if (fixture.dbkey) {
-    const signedOff = isLive && isSectionSignedOff(fixture.lane, fixture.dbkey);
-    const pogBtnLabel = signedOff ? 'View POG (signed off)' : 'Open POG / Work this set';
+    let pogBtnLabel = 'Open POG / Work this set';
+    if (isLive) {
+      if (isSectionNotInStore(fixture.lane, fixture.dbkey)) {
+        pogBtnLabel = 'View POG (not in store)';
+      } else if (isSectionSignedOff(fixture.lane, fixture.dbkey)) {
+        pogBtnLabel = 'View POG (signed off)';
+      }
+    }
     html += '<div class="detail-row"><button type="button" class="btn btn-pog-open" id="btn-open-pog">' +
       escapeHtml(pogBtnLabel) + '</button></div>';
   }
@@ -3506,6 +3519,12 @@ function refreshDetailPanel(fixture) {
         '</div>' +
         '<button type="button" class="flag-btn flag-nis" id="flag-nis">Not in store</button>' +
         '<div class="flag-status" id="flag-status"></div>' +
+      '</div>';
+  } else if (isLive && isSectionNotInStore(fixture.lane, fixture.dbkey)) {
+    html +=
+      '<div class="detail-row signed-off-note">' +
+        '<div class="label">Rep flags</div>' +
+        '<div class="value">Lead confirmed this set is not in store. Reopen it if the set is found.</div>' +
       '</div>';
   } else if (isLive && isSectionSignedOff(fixture.lane, fixture.dbkey)) {
     html +=
@@ -5024,17 +5043,26 @@ function canShowSectionUnassign(lane, dbkey) {
 
 function canShowSectionReopen(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 2 || !dbkey) return false;
-  return getFixtureState(lane, dbkey) === 'signed_off';
+  const st = getFixtureState(lane, dbkey);
+  return st === 'signed_off' || st === 'not_in_store';
 }
 
 function canRaiseSectionFlags(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 1 || !dbkey) return false;
-  const st = getFixtureState(lane, dbkey);
-  return st !== 'signed_off';
+  return !isSectionTerminal(lane, dbkey);
 }
 
 function isSectionSignedOff(lane, dbkey) {
   return getFixtureState(lane, dbkey) === 'signed_off';
+}
+
+function isSectionNotInStore(lane, dbkey) {
+  return getFixtureState(lane, dbkey) === 'not_in_store';
+}
+
+function isSectionTerminal(lane, dbkey) {
+  const st = getFixtureState(lane, dbkey);
+  return st === 'signed_off' || st === 'not_in_store';
 }
 
 function canShowSectionStart(lane, dbkey) {
@@ -5179,12 +5207,16 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
   const showMarkDone = canShowPogMarkDone(lane, dbkey);
   const showSignoff = canShowPogSignoff(lane, dbkey);
   const showActiveWorkflow = showAssign || showUnassign || showStart || showMarkDone || showSignoff;
+  const sectionState = getFixtureState(lane, dbkey);
 
   const reopenHtml = showReopen
     ? (
       '<div class="reopen-row" id="section-reopen-row">' +
-        '<div class="label">Reopen completed set</div>' +
-        '<p class="reopen-hint">Explain why this set is going back to in progress. An email notification is required before the change.</p>' +
+        '<div class="label">' + (sectionState === 'not_in_store' ? 'Reopen not-in-store set' : 'Reopen completed set') + '</div>' +
+        '<p class="reopen-hint">' + (sectionState === 'not_in_store'
+          ? 'Explain why this set should go back to in progress. An email notification is required before the change.'
+          : 'Explain why this set is going back to in progress. An email notification is required before the change.') +
+        '</p>' +
         '<textarea class="reopen-reason" id="section-reopen-reason" rows="3" placeholder="Required explanation (at least ' + MIN_REOPEN_REASON_LENGTH + ' characters)…"></textarea>' +
         '<button type="button" class="btn-reopen" id="section-reopen-btn">Reopen set</button>' +
       '</div>'
@@ -5192,9 +5224,12 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
     : '';
 
   if (mode === 'detail') {
+    const workflowLabel = sectionState === 'not_in_store'
+      ? 'Not in store'
+      : (showReopen && !showActiveWorkflow ? 'Completed set' : 'Reset workflow');
     return (
       '<div class="section-workflow" id="section-workflow">' +
-        '<div class="label">' + (showReopen && !showActiveWorkflow ? 'Completed set' : 'Reset workflow') + '</div>' +
+        '<div class="label">' + workflowLabel + '</div>' +
         (showActiveWorkflow
           ? (
             '<div class="detail-row"><div class="label">Assignee</div><div class="value" id="section-assignee-display">' +
@@ -5736,8 +5771,8 @@ function refreshPogWorkingChrome() {
   const modalActions = document.getElementById('pog-product-modal-actions');
   const sub = document.getElementById('pog-wv-subheading');
   const isSearchPeek = !!pogSearchReturnState;
-  const signedOff = dbkey && isSectionSignedOff(lane, dbkey);
-  const showLiveActions = !!(liveVisitId && hubContext.myRank >= 1 && dbkey && !isSearchPeek && !signedOff);
+  const terminal = dbkey && isSectionTerminal(lane, dbkey);
+  const showLiveActions = !!(liveVisitId && hubContext.myRank >= 1 && dbkey && !isSearchPeek && !terminal);
 
   if (stateWrap && dbkey) {
     const st = getFixtureState(lane, dbkey);
@@ -6288,9 +6323,9 @@ function updatePogTagTally(opts) {
   const count = (sectionTagDrafts || []).length;
   const lane = pogWorkingFixture?.lane || '';
   const dbkey = pogWorkingDbkey();
-  const hideForSignedOff = dbkey && isSectionSignedOff(lane, dbkey);
+  const hideForTerminal = dbkey && isSectionTerminal(lane, dbkey);
 
-  if (tally) tally.hidden = hideForSignedOff || count === 0;
+  if (tally) tally.hidden = hideForTerminal || count === 0;
   if (countEl) countEl.textContent = String(count);
   if (submitBtn) {
     submitBtn.disabled = count === 0;
