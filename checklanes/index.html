@@ -3553,7 +3553,10 @@ function refreshDetailPanel(fixture) {
     disableFlags(true);
     setFlagStatus('Raising not-in-store flag…');
     try {
-      await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/nis', { lane: fixture.lane });
+      await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/nis', {
+        lane: fixture.lane,
+        ...nisFixtureMeta(fixture),
+      });
       setFlagStatus('Not-in-store flag sent — pending lead review', 'ok');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
@@ -5562,6 +5565,15 @@ function setPogWvActionsDisabled(disabled) {
   ).forEach(btn => { btn.disabled = disabled; });
 }
 
+function nisFixtureMeta(fixture) {
+  if (!fixture) return {};
+  return {
+    set_name: fixture.name || undefined,
+    manifest_pog_id: fixture.manifest_pog_id || undefined,
+    action: fixture.action || undefined,
+  };
+}
+
 async function submitPogSectionFlag(kind, payload) {
   const dbkey = pogWorkingDbkey();
   const lane = pogWorkingFixture?.lane || '';
@@ -5571,10 +5583,11 @@ async function submitPogSectionFlag(kind, payload) {
     nis: '/flag/nis',
     'missing-tag': '/flag/missing-tag',
   };
-  await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + paths[kind], {
-    ...(payload || {}),
-    lane,
-  });
+  const body = { ...(payload || {}), lane };
+  if (kind === 'nis') {
+    Object.assign(body, nisFixtureMeta(pogWorkingFixture));
+  }
+  await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + paths[kind], body);
 }
 
 function openPogMissingTagForm(prefill) {
