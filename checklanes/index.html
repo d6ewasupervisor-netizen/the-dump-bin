@@ -3474,7 +3474,10 @@ function refreshDetailPanel(fixture) {
   }
 
   if (fixture.dbkey) {
-    html += '<div class="detail-row"><button type="button" class="btn btn-pog-open" id="btn-open-pog">Open POG / Work this set</button></div>';
+    const signedOff = isLive && isSectionSignedOff(fixture.lane, fixture.dbkey);
+    const pogBtnLabel = signedOff ? 'View POG (signed off)' : 'Open POG / Work this set';
+    html += '<div class="detail-row"><button type="button" class="btn btn-pog-open" id="btn-open-pog">' +
+      escapeHtml(pogBtnLabel) + '</button></div>';
   }
 
   if (!isLive) {
@@ -3484,7 +3487,7 @@ function refreshDetailPanel(fixture) {
       '</button>'
     ).join('');
     html += '<div class="detail-row"><div class="label">Change state</div><div class="state-buttons" id="state-buttons">' + stateBtns + '</div></div>';
-  } else if (hubContext.myRank >= 1) {
+  } else if (hubContext.myRank >= 1 && canRaiseSectionFlags(fixture.lane, fixture.dbkey)) {
     html +=
       '<div class="flag-actions" id="flag-actions">' +
         '<div class="label">Raise flag (rep)</div>' +
@@ -3503,6 +3506,12 @@ function refreshDetailPanel(fixture) {
         '</div>' +
         '<button type="button" class="flag-btn flag-nis" id="flag-nis">Not in store</button>' +
         '<div class="flag-status" id="flag-status"></div>' +
+      '</div>';
+  } else if (isLive && isSectionSignedOff(fixture.lane, fixture.dbkey)) {
+    html +=
+      '<div class="detail-row signed-off-note">' +
+        '<div class="label">Rep flags</div>' +
+        '<div class="value">This set is signed off. Leads can reopen it if more work is needed.</div>' +
       '</div>';
   }
 
@@ -4749,7 +4758,8 @@ function renderPogSearchResults(result, meta) {
     pogLastNotFoundUpc = notFoundUpc;
 
     let notFoundActions = '';
-    if (liveVisitId && hubContext.myRank >= 1) {
+    if (liveVisitId && hubContext.myRank >= 1 && pogWorkingFixture &&
+        canRaiseSectionFlags(pogWorkingFixture.lane, pogWorkingFixture.dbkey)) {
       notFoundActions =
         '<div class="pog-wv-notfound-actions">' +
           '<button type="button" class="pog-wv-notfound-btn flag-tag" data-notfound-flag="missing-tag">Flag missing tag</button>' +
@@ -5014,6 +5024,16 @@ function canShowSectionUnassign(lane, dbkey) {
 
 function canShowSectionReopen(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 2 || !dbkey) return false;
+  return getFixtureState(lane, dbkey) === 'signed_off';
+}
+
+function canRaiseSectionFlags(lane, dbkey) {
+  if (!liveVisitId || hubContext.myRank < 1 || !dbkey) return false;
+  const st = getFixtureState(lane, dbkey);
+  return st !== 'signed_off';
+}
+
+function isSectionSignedOff(lane, dbkey) {
   return getFixtureState(lane, dbkey) === 'signed_off';
 }
 
@@ -5716,7 +5736,8 @@ function refreshPogWorkingChrome() {
   const modalActions = document.getElementById('pog-product-modal-actions');
   const sub = document.getElementById('pog-wv-subheading');
   const isSearchPeek = !!pogSearchReturnState;
-  const showLiveActions = !!(liveVisitId && hubContext.myRank >= 1 && dbkey && !isSearchPeek);
+  const signedOff = dbkey && isSectionSignedOff(lane, dbkey);
+  const showLiveActions = !!(liveVisitId && hubContext.myRank >= 1 && dbkey && !isSearchPeek && !signedOff);
 
   if (stateWrap && dbkey) {
     const st = getFixtureState(lane, dbkey);
@@ -5759,6 +5780,7 @@ function refreshPogWorkingChrome() {
   if (startBtn) startBtn.hidden = !showStart;
   if (markDoneBtn) markDoneBtn.hidden = !showMarkDone;
   if (signoffBtn) signoffBtn.hidden = !showSignoff;
+  updatePogTagTally();
 }
 
 function bindPogWorkingActions() {
@@ -6264,8 +6286,11 @@ function updatePogTagTally(opts) {
   const submitBtn = document.getElementById('pog-wv-tag-tally-submit');
   const formSubmitBtn = document.getElementById('pog-wv-flag-tag-submit');
   const count = (sectionTagDrafts || []).length;
+  const lane = pogWorkingFixture?.lane || '';
+  const dbkey = pogWorkingDbkey();
+  const hideForSignedOff = dbkey && isSectionSignedOff(lane, dbkey);
 
-  if (tally) tally.hidden = count === 0;
+  if (tally) tally.hidden = hideForSignedOff || count === 0;
   if (countEl) countEl.textContent = String(count);
   if (submitBtn) {
     submitBtn.disabled = count === 0;
@@ -6510,6 +6535,13 @@ async function openPendingDetail(pendingId) {
         '<div class="detail-row"><div class="label">UPC</div><div class="value">' + escapeHtml(payload.upc || '—') + '</div></div>' +
         (payload.description ? '<div class="detail-row"><div class="label">Description</div><div class="value">' + escapeHtml(payload.description) + '</div></div>' : '') +
         (payload.location ? '<div class="detail-row"><div class="label">Location</div><div class="value">' + escapeHtml(payload.location) + '</div></div>' : '');
+    } else if (full.action_type === 'nis') {
+      payloadHtml =
+        (payload.set_name ? '<div class="detail-row"><div class="label">Set</div><div class="value">' + escapeHtml(payload.set_name) + '</div></div>' : '') +
+        (payload.lane ? '<div class="detail-row"><div class="label">Lane</div><div class="value">' + escapeHtml(payload.lane) + '</div></div>' : '') +
+        (payload.manifest_pog_id ? '<div class="detail-row"><div class="label">Manifest POG</div><div class="value"><code>' + escapeHtml(payload.manifest_pog_id) + '</code></div></div>' : '') +
+        (payload.action ? '<div class="detail-row"><div class="label">Action</div><div class="value"><code>' + escapeHtml(payload.action) + '</code></div></div>' : '') +
+        (payload.note ? '<div class="detail-row"><div class="label">Note</div><div class="value">' + escapeHtml(payload.note) + '</div></div>' : '');
     } else if (payload.note) {
       payloadHtml = '<div class="detail-row"><div class="label">Note</div><div class="value">' + escapeHtml(payload.note) + '</div></div>';
     }
