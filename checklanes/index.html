@@ -1958,6 +1958,10 @@
     line-height: 1.35;
   }
 
+  .reopen-row[hidden] {
+    display: none !important;
+  }
+
   .workflow-buttons {
     display: flex;
     flex-wrap: wrap;
@@ -4875,6 +4879,24 @@ function renderPogWorkingContent(fixture, layout, loadError) {
   refreshPogWorkingChrome();
 }
 
+function getLaneSectionMeta(lane, dbkey) {
+  if (!dbkey) return null;
+  return hubContext.sections[sectionKey(lane, dbkey)] || null;
+}
+
+function getLaneSectionState(lane, dbkey) {
+  if (!dbkey) return 'not_started';
+  const key = sectionKey(lane, dbkey);
+  if (fixtureStates[key] !== undefined) return fixtureStates[key];
+  const meta = getLaneSectionMeta(lane, dbkey);
+  return meta?.state || 'not_started';
+}
+
+function isSectionMarkedComplete(lane, dbkey) {
+  const st = getLaneSectionState(lane, dbkey);
+  return st === 'done_pending_signoff' || st === 'signed_off';
+}
+
 function getSectionMeta(lane, dbkey) {
   if (dbkey == null && lane != null && typeof lane === 'string' && !String(lane).includes(':')) {
     dbkey = lane;
@@ -4912,8 +4934,7 @@ function canShowSectionUnassign(lane, dbkey) {
 
 function canShowSectionReopen(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 2 || !dbkey) return false;
-  const st = getFixtureState(lane, dbkey);
-  return st === 'done_pending_signoff' || st === 'signed_off';
+  return isSectionMarkedComplete(lane, dbkey);
 }
 
 function canShowSectionStart(lane, dbkey) {
@@ -5058,6 +5079,17 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
   const showMarkDone = canShowPogMarkDone(lane, dbkey);
   const showSignoff = canShowPogSignoff(lane, dbkey);
 
+  const reopenHtml = showReopen
+    ? (
+      '<div class="reopen-row" id="section-reopen-row">' +
+        '<div class="label">Reopen completed set</div>' +
+        '<p class="reopen-hint">Explain why this set is going back to in progress. An email notification is required before the change.</p>' +
+        '<textarea class="reopen-reason" id="section-reopen-reason" rows="3" placeholder="Required explanation (at least ' + MIN_REOPEN_REASON_LENGTH + ' characters)…"></textarea>' +
+        '<button type="button" class="btn-reopen" id="section-reopen-btn">Reopen set</button>' +
+      '</div>'
+    )
+    : '';
+
   if (mode === 'detail') {
     return (
       '<div class="section-workflow" id="section-workflow">' +
@@ -5080,12 +5112,7 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
           '<button type="button" class="pog-wv-complete-btn signoff" id="section-signoff"' +
             (showSignoff ? '' : ' hidden') + '>Sign off</button>' +
         '</div>' +
-        '<div class="reopen-row" id="section-reopen-row"' + (showReopen ? '' : ' hidden') + '>' +
-          '<div class="label">Reopen completed set</div>' +
-          '<p class="reopen-hint">Explain why this set is going back to in progress. An email notification is required before the change.</p>' +
-          '<textarea class="reopen-reason" id="section-reopen-reason" rows="3" placeholder="Required explanation (at least ' + MIN_REOPEN_REASON_LENGTH + ' characters)…"></textarea>' +
-          '<button type="button" class="btn-reopen" id="section-reopen-btn">Reopen set</button>' +
-        '</div>' +
+        reopenHtml +
         '<div class="flag-status" id="workflow-status"></div>' +
       '</div>'
     );
@@ -5651,7 +5678,13 @@ function refreshPogWorkingChrome() {
 
   if (assignRow) assignRow.hidden = !showAssign;
   if (unassignBtn) unassignBtn.hidden = !showUnassign;
-  if (reopenRow) reopenRow.hidden = !showReopen;
+  if (reopenRow) {
+    reopenRow.hidden = !showReopen;
+    if (!showReopen) {
+      const reasonEl = document.getElementById('pog-wv-reopen-reason');
+      if (reasonEl) reasonEl.value = '';
+    }
+  }
   if (completeRow) completeRow.hidden = !(showStart || showMarkDone || showSignoff);
   if (startBtn) startBtn.hidden = !showStart;
   if (markDoneBtn) markDoneBtn.hidden = !showMarkDone;
