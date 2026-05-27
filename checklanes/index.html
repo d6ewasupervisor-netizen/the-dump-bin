@@ -1636,6 +1636,16 @@
     color: #5eead4;
   }
 
+  .pog-wv-back.return-set {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.12);
+    color: #93c5fd;
+    max-width: 9.5rem;
+    white-space: normal;
+    line-height: 1.2;
+    text-align: left;
+  }
+
   .pog-wv-title-wrap {
     flex: 1;
     min-width: 0;
@@ -3704,6 +3714,78 @@ function resetLeavePogBackState() {
   document.getElementById('pog-wv-back')?.classList.remove('armed');
 }
 
+function updatePogWvBackButton() {
+  const backBtn = document.getElementById('pog-wv-back');
+  if (!backBtn) return;
+  if (pogSearchReturnState && pogSearchReturnState.fixture) {
+    const origin = pogSearchReturnState.fixture;
+    backBtn.textContent = '← Back to your set';
+    backBtn.title = 'Return to ' + shortName(origin.name) + ' (lane ' + origin.lane + ')';
+    backBtn.classList.add('return-set');
+  } else {
+    backBtn.textContent = '← Back';
+    backBtn.title = '';
+    backBtn.classList.remove('return-set');
+  }
+}
+
+function clearPogSearchReturnState() {
+  pogSearchReturnState = null;
+  updatePogWvBackButton();
+}
+
+async function openPogFromSearchHit(dbkey, upc) {
+  const fix = fixtureForDbkey(dbkey);
+  if (!fix || !pogWorkingFixture) return;
+  if (String(fix.dbkey) === String(pogWorkingFixture.dbkey)) {
+    if (upc) highlightPogTile(upc);
+    return;
+  }
+
+  if (!pogSearchReturnState) {
+    pogSearchReturnState = {
+      fixture: pogWorkingFixture,
+      searchQuery: document.getElementById('pog-wv-search-input')?.value || '',
+      pogMask: pogMaskCardOpacity,
+      scrollTop: document.getElementById('pog-wv-scroll')?.scrollTop || 0,
+    };
+  }
+
+  updatePogWvBackButton();
+  await openPogWorkingView(fix, {
+    skipHistory: true,
+    peekMode: true,
+    searchHighlightUpc: upc || null,
+  });
+}
+
+async function returnFromPogSearchPeek() {
+  const state = pogSearchReturnState;
+  if (!state?.fixture) return;
+
+  pogSearchReturnState = null;
+  updatePogWvBackButton();
+
+  await openPogWorkingView(state.fixture, {
+    skipHistory: true,
+    restoreSession: true,
+    session: {
+      pogSearch: state.searchQuery,
+      pogMask: state.pogMask,
+    },
+  });
+
+  const scrollEl = document.getElementById('pog-wv-scroll');
+  if (scrollEl) scrollEl.scrollTop = state.scrollTop || 0;
+
+  syncHubUrl({
+    pog: state.fixture.dbkey,
+    fixture: state.fixture.dbkey,
+    lane: state.fixture.lane,
+    view: hubCurrentView,
+  }, true);
+}
+
 /** First back tap waits; second within 500ms leaves immediately; otherwise confirm. */
 function requestLeavePog(onLeave) {
   const now = Date.now();
@@ -3897,14 +3979,20 @@ function bindEvents() {
   document.getElementById('btn-refresh-tag-gather')?.addEventListener('click', () => loadTagBatchPreview());
 
   document.getElementById('pog-wv-back').addEventListener('click', () => {
+    if (pogSearchReturnState) {
+      resetLeavePogBackState();
+      returnFromPogSearchPeek();
+      return;
+    }
     requestLeavePog(() => closePogWorkingView({ skipConfirm: true }));
   });
   document.getElementById('pog-wv-scroll').addEventListener('click', e => {
     const openBtn = e.target.closest('[data-open-pog-dbkey]');
     if (openBtn) {
-      const dk = openBtn.getAttribute('data-open-pog-dbkey');
-      const fix = FIXTURES.find(f => f.dbkey === dk);
-      if (fix) openPogWorkingView(fix);
+      openPogFromSearchHit(
+        openBtn.getAttribute('data-open-pog-dbkey'),
+        openBtn.getAttribute('data-open-pog-upc'),
+      );
       return;
     }
     const tile = e.target.closest('.pog-wv-tile, .planogram-tile');
@@ -3953,6 +4041,7 @@ let pogWorkingLayout = null;
 let pogMaskCardOpacity = 0;
 let pogSelectedProduct = null;
 let pogLastNotFoundUpc = null;
+let pogSearchReturnState = null;
 let pogWvActionsBound = false;
 let pogSearchUiBound = false;
 let pogScannerWakeLock = null;
@@ -4706,7 +4795,7 @@ function renderPogSearchResults(result, meta) {
           '<div class="pog-wv-search-hit-upc">UPC ' + escapeHtml(String(h.upc)) + '</div>' +
           '<div class="pog-wv-search-hit-loc">' + escapeHtml(h.title) + ' · lane ' + escapeHtml(h.lane) + '</div>' +
         '</div>' +
-        '<button type="button" class="pog-wv-search-open" data-open-pog-dbkey="' + escapeHtml(h.dbkey) + '">Open</button>' +
+        '<button type="button" class="pog-wv-search-open" data-open-pog-dbkey="' + escapeHtml(h.dbkey) + '" data-open-pog-upc="' + escapeHtml(String(h.upc)) + '">Open</button>' +
       '</div>';
     }
     html += '</div>';
@@ -4767,6 +4856,14 @@ function bindPogSearchUi() {
     const showBtn = e.target.closest('[data-scroll-to-upc]');
     if (showBtn) {
       highlightPogTile(showBtn.getAttribute('data-scroll-to-upc'));
+      return;
+    }
+    const openBtn = e.target.closest('[data-open-pog-dbkey]');
+    if (openBtn) {
+      openPogFromSearchHit(
+        openBtn.getAttribute('data-open-pog-dbkey'),
+        openBtn.getAttribute('data-open-pog-upc'),
+      );
       return;
     }
     const notFoundBtn = e.target.closest('[data-notfound-flag]');
@@ -5618,7 +5715,8 @@ function refreshPogWorkingChrome() {
   const signoffBtn = document.getElementById('pog-wv-signoff');
   const modalActions = document.getElementById('pog-product-modal-actions');
   const sub = document.getElementById('pog-wv-subheading');
-  const showLiveActions = !!(liveVisitId && hubContext.myRank >= 1 && dbkey);
+  const isSearchPeek = !!pogSearchReturnState;
+  const showLiveActions = !!(liveVisitId && hubContext.myRank >= 1 && dbkey && !isSearchPeek);
 
   if (stateWrap && dbkey) {
     const st = getFixtureState(lane, dbkey);
@@ -5889,12 +5987,24 @@ async function openPogWorkingView(fixture, opts) {
           highlightPogTile(result.hits[0].upc);
         }
       }
+    } else if (opts?.searchHighlightUpc) {
+      const input = document.getElementById('pog-wv-search-input');
+      const upcDigits = normalizeUpcInput(opts.searchHighlightUpc);
+      const query = upcDigits.length >= 4 ? upcDigits.slice(-4) : upcDigits;
+      if (input && query) {
+        input.value = query;
+        const result = runPogSearch(query);
+        renderPogSearchResults(result);
+      }
+      highlightPogTile(opts.searchHighlightUpc);
     }
   } catch (err) {
     renderPogWorkingContent(fixture, null, err);
   }
 
-  document.getElementById('pog-wv-scroll')?.scrollTo(0, 0);
+  if (!opts?.restoreSession && !opts?.searchHighlightUpc) {
+    document.getElementById('pog-wv-scroll')?.scrollTo(0, 0);
+  }
 }
 
 function closePogWorkingView(opts) {
@@ -5910,6 +6020,7 @@ function closePogWorkingView(opts) {
   }
 
   resetLeavePogBackState();
+  clearPogSearchReturnState();
 
   closePogProductModal();
   stopPogScanner();
