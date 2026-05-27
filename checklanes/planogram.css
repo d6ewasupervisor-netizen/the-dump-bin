@@ -15,6 +15,16 @@
   flex-shrink: 0;
 }
 
+.planogram-hub-bay-viewport {
+  min-height: min(58dvh, 560px);
+  width: 100%;
+  touch-action: pan-y;
+}
+
+.planogram-hub-bay-viewport .planogram-zoom-stage {
+  touch-action: pan-y;
+}
+
 #planogram-container {
   flex: 1;
   min-height: 0;

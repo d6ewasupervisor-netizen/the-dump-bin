@@ -1874,7 +1874,10 @@
   }
 
   /* ── POG working view (Phase 2) ── */
-  body.pog-view-open { overflow: hidden; }
+  body.pog-view-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
 
   .btn-pog-open {
     width: 100%;
@@ -2139,8 +2142,20 @@
   .pog-wv-act-btn.flag-nis { border-color: #f59e0b; color: #fcd34d; }
   .pog-wv-act-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .pog-wv-missing-tag-form {
+  .pog-wv-missing-tag-form,
+  .pog-wv-help-form {
     margin-bottom: 8px;
+  }
+
+  .help-request-form select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    min-height: 44px;
   }
 
   .pog-wv-complete-row {
@@ -2332,6 +2347,8 @@
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
     padding: 12px 12px 24px;
     padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
@@ -2538,8 +2555,12 @@
   }
 
   .planogram-hub-fixtures {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
+    padding: 4px;
+  }
+
+  .planogram-hub-bay-wrap .planogram-wrap {
+    margin: 0 auto;
   }
 
   .planogram-tile.planogram-tile--highlight {
@@ -3056,8 +3077,25 @@
   <div class="pog-wv-actions" id="pog-wv-actions" hidden>
     <div class="pog-wv-actions-row">
       <button type="button" class="pog-wv-act-btn flag-help" id="pog-wv-flag-help">Needs help</button>
-      <button type="button" class="pog-wv-act-btn flag-tag" id="pog-wv-flag-tag-toggle">Missing tag</button>
+      <button type="button" class="pog-wv-act-btn flag-tag" id="pog-wv-flag-tag-toggle">Report tag missing</button>
       <button type="button" class="pog-wv-act-btn flag-nis" id="pog-wv-flag-nis">Not in store</button>
+    </div>
+    <div class="missing-tag-form help-request-form pog-wv-help-form" id="pog-wv-help-form">
+      <label for="pog-wv-help-issue">Issue type</label>
+      <select id="pog-wv-help-issue" aria-label="Help issue type">
+        <option value="">Select an issue…</option>
+      </select>
+      <div id="pog-wv-help-custom-wrap" hidden>
+        <label for="pog-wv-help-custom-label">Issue summary</label>
+        <input type="text" id="pog-wv-help-custom-label" autocomplete="off" placeholder="Brief one-line description">
+      </div>
+      <label for="pog-wv-help-details">Details</label>
+      <textarea id="pog-wv-help-details" rows="3" placeholder="Describe the issue…"></textarea>
+      <label for="pog-wv-help-note">Additional notes (optional)</label>
+      <textarea id="pog-wv-help-note" rows="2" placeholder="Anything else the lead should know"></textarea>
+      <div class="form-actions">
+        <button type="button" class="btn btn-submit" id="pog-wv-help-submit">Submit help request</button>
+      </div>
     </div>
     <div class="missing-tag-form pog-wv-missing-tag-form" id="pog-wv-missing-tag-form">
       <label for="pog-wv-flag-upc">UPC</label>
@@ -3099,7 +3137,7 @@
     <div class="pog-product-modal-meta" id="pog-product-modal-meta"></div>
     <span class="pog-wv-badge-new pog-product-modal-new" id="pog-product-modal-new" hidden>NEW</span>
     <div class="pog-product-modal-actions" id="pog-product-modal-actions" hidden>
-      <button type="button" class="flag-btn flag-tag" id="pog-product-modal-flag-tag">Add missing tag to list</button>
+      <button type="button" class="flag-btn flag-tag" id="pog-product-modal-flag-tag">Report tag missing</button>
     </div>
   </div>
 </div>
@@ -3254,6 +3292,102 @@ const STATE_CSS = {
   signed_off: '--state-signed_off',
   not_in_store: '--state-not_in_store'
 };
+
+/** KOMPASS Help Desk issue types (aligned with EOD helpdesk wizard). */
+const HUB_HELP_ISSUE_OPTIONS = [
+  { id: 'missing_fixture', label: 'Missing fixture (shelf, peg, or other merchandising implement)', placeholder: 'Describe specifically what is missing…' },
+  { id: 'missing_set', label: 'Entire set missing — does not exist in the store', placeholder: 'Describe where the set should be, what signage exists, etc.' },
+  { id: 'mapping_wrong', label: 'Mapping / location inaccurate (wrong aisle, bay, or section)', placeholder: 'Expected vs actual location, signage, etc.' },
+  { id: 'bay_count_wrong', label: 'Number of bays differs from plan', placeholder: 'Bays in store vs bays in materials…' },
+  { id: 'bay_width_wrong', label: 'Bay width mismatch (e.g. store has 4 ft, materials show 3 ft)', placeholder: 'Measured widths and affected bays…' },
+  { id: 'materials_wrong', label: 'Wrong materials received (footage, version, or mirrored flow)', placeholder: 'What was received vs what was expected…' },
+  { id: 'obstruction', label: 'Obstruction blocking the set (pole, case, permanent fixture)', placeholder: 'Type of obstruction and how it affects the set…' },
+  { id: 'signage_missing', label: 'Missing or incorrect signage / header card', placeholder: 'What signage is missing or incorrect…' },
+  { id: 'fixture_damage', label: 'Fixture or set is damaged', placeholder: 'Describe the damage and any safety concerns…' },
+  { id: 'insufficient_materials', label: 'Insufficient quantity of materials received', placeholder: 'Quantity received vs quantity needed…' },
+  { id: 'pog_revision', label: 'POG revision mismatch (store on older version than materials shipped)', placeholder: 'Version in KOMPASS vs version on materials…' },
+  { id: 'dept_aisle_wrong', label: 'Wrong department or aisle assignment', placeholder: 'Assigned vs actual department/aisle…' },
+  { id: 'product_assortment', label: 'Incorrect product assortment in materials', placeholder: 'Which SKUs are wrong or missing…' },
+  { id: 'custom', label: 'Other — describe manually', placeholder: 'Describe the issue in detail…' },
+];
+
+function hubHelpIssueOptionsHtml(selectedId) {
+  return HUB_HELP_ISSUE_OPTIONS.map(opt =>
+    '<option value="' + escapeHtml(opt.id) + '"' + (selectedId === opt.id ? ' selected' : '') + '>' +
+    escapeHtml(opt.label) + '</option>'
+  ).join('');
+}
+
+function populateHubHelpIssueSelect(selectEl, selectedId) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '<option value="">Select an issue…</option>' + hubHelpIssueOptionsHtml(selectedId || '');
+}
+
+function syncHubHelpIssueForm(prefix) {
+  const issueSel = document.getElementById(prefix + '-help-issue');
+  const customWrap = document.getElementById(prefix + '-help-custom-wrap');
+  const detailsEl = document.getElementById(prefix + '-help-details');
+  const id = issueSel?.value || '';
+  const opt = HUB_HELP_ISSUE_OPTIONS.find(o => o.id === id);
+  if (customWrap) customWrap.hidden = id !== 'custom';
+  if (detailsEl) {
+    detailsEl.placeholder = opt?.placeholder || 'Describe the issue…';
+  }
+}
+
+function collectHubHelpPayload(prefix) {
+  const issueSel = document.getElementById(prefix + '-help-issue');
+  const issueTypeId = issueSel?.value || '';
+  const opt = HUB_HELP_ISSUE_OPTIONS.find(o => o.id === issueTypeId);
+  const issueTypeLabel = opt?.label || '';
+  const customLabel = (document.getElementById(prefix + '-help-custom-label')?.value || '').trim();
+  const issueDetails = (document.getElementById(prefix + '-help-details')?.value || '').trim();
+  const note = (document.getElementById(prefix + '-help-note')?.value || '').trim();
+  return { issueTypeId, issueTypeLabel, customLabel, issueDetails, note };
+}
+
+function validateHubHelpPayload(payload) {
+  if (!payload.issueTypeId) return 'Select an issue type';
+  if (payload.issueTypeId === 'custom') {
+    if (!payload.customLabel) return 'Issue summary is required';
+    if (!payload.issueDetails) return 'Full description is required';
+  } else if (!payload.issueDetails) {
+    return 'Please describe the issue';
+  }
+  return null;
+}
+
+function buildHubHelpRequestBody(payload) {
+  return {
+    issue_type_id: payload.issueTypeId,
+    issue_type_label: payload.issueTypeLabel,
+    issue_details: payload.issueDetails,
+    custom_label: payload.customLabel || undefined,
+    note: payload.note || undefined,
+  };
+}
+
+function installPogPullRefreshGuard() {
+  let touchStartY = 0;
+  let touchStartScrollTop = 0;
+
+  document.addEventListener('touchstart', (e) => {
+    if (!document.body.classList.contains('pog-view-open')) return;
+    touchStartY = e.touches[0].clientY;
+    const scrollEl = document.getElementById('pog-wv-scroll');
+    touchStartScrollTop = scrollEl ? scrollEl.scrollTop : 0;
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!document.body.classList.contains('pog-view-open')) return;
+    const scrollEl = document.getElementById('pog-wv-scroll');
+    if (!scrollEl) return;
+    const dy = e.touches[0].clientY - touchStartY;
+    if (scrollEl.scrollTop <= 0 && touchStartScrollTop <= 0 && dy > 0) {
+      e.preventDefault();
+    }
+  }, { passive: false, capture: true });
+}
 
 const POG_SERVICE_BASE = 'https://checklanes.the-dump-bin.com';
 let HUB_STORE_NUM = '163';
@@ -3835,7 +3969,25 @@ function refreshDetailPanel(fixture) {
       '<div class="flag-actions" id="flag-actions">' +
         '<div class="label">Raise flag (rep)</div>' +
         '<button type="button" class="flag-btn flag-help" id="flag-help">Needs help</button>' +
-        '<button type="button" class="flag-btn flag-tag" id="flag-tag-toggle">Missing tag</button>' +
+        '<div class="missing-tag-form help-request-form" id="flag-help-form">' +
+          '<label for="flag-help-issue">Issue type</label>' +
+          '<select id="flag-help-issue" aria-label="Help issue type">' +
+            '<option value="">Select an issue…</option>' +
+            hubHelpIssueOptionsHtml() +
+          '</select>' +
+          '<div id="flag-help-custom-wrap" hidden>' +
+            '<label for="flag-help-custom-label">Issue summary</label>' +
+            '<input type="text" id="flag-help-custom-label" autocomplete="off" placeholder="Brief one-line description">' +
+          '</div>' +
+          '<label for="flag-help-details">Details</label>' +
+          '<textarea id="flag-help-details" rows="3" placeholder="Describe the issue…"></textarea>' +
+          '<label for="flag-help-note">Additional notes (optional)</label>' +
+          '<textarea id="flag-help-note" rows="2" placeholder="Anything else the lead should know"></textarea>' +
+          '<div class="form-actions">' +
+            '<button type="button" class="btn btn-submit" id="flag-help-submit">Submit help request</button>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="flag-btn flag-tag" id="flag-tag-toggle">Report tag missing</button>' +
         '<div class="missing-tag-form" id="missing-tag-form">' +
           '<label for="flag-upc">UPC</label>' +
           '<input type="text" id="flag-upc" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Scan or enter UPC">' +
@@ -3900,17 +4052,43 @@ function refreshDetailPanel(fixture) {
   };
 
   const disableFlags = (disabled) => {
-    document.querySelectorAll('#flag-actions .flag-btn, #flag-tag-submit').forEach(btn => {
+    document.querySelectorAll('#flag-actions .flag-btn, #flag-tag-submit, #flag-help-submit').forEach(btn => {
       btn.disabled = disabled;
     });
   };
 
-  document.getElementById('flag-help')?.addEventListener('click', async () => {
+  document.getElementById('flag-help')?.addEventListener('click', () => {
+    const form = document.getElementById('flag-help-form');
+    const show = !form?.classList.contains('open');
+    document.getElementById('missing-tag-form')?.classList.remove('open');
+    if (show) {
+      form?.classList.add('open');
+      syncHubHelpIssueForm('flag');
+      setTimeout(() => document.getElementById('flag-help-issue')?.focus(), 50);
+    } else {
+      form?.classList.remove('open');
+    }
+  });
+
+  document.getElementById('flag-help-issue')?.addEventListener('change', () => syncHubHelpIssueForm('flag'));
+
+  document.getElementById('flag-help-submit')?.addEventListener('click', async () => {
+    const payload = collectHubHelpPayload('flag');
+    const errMsg = validateHubHelpPayload(payload);
+    if (errMsg) {
+      setFlagStatus(errMsg, 'error');
+      return;
+    }
     disableFlags(true);
     setFlagStatus('Raising help flag…');
     try {
-      await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/help', { lane: fixture.lane });
+      await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/help', {
+        lane: fixture.lane,
+        ...buildHubHelpRequestBody(payload),
+        ...nisFixtureMeta(fixture),
+      });
       setFlagStatus('Help request sent — pending lead review', 'ok');
+      document.getElementById('flag-help-form')?.classList.remove('open');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
       disableFlags(false);
@@ -3933,6 +4111,7 @@ function refreshDetailPanel(fixture) {
   });
 
   document.getElementById('flag-tag-toggle')?.addEventListener('click', () => {
+    document.getElementById('flag-help-form')?.classList.remove('open');
     document.getElementById('missing-tag-form')?.classList.toggle('open');
     const upc = document.getElementById('flag-upc');
     if (upc) setTimeout(() => upc.focus(), 50);
@@ -4255,6 +4434,9 @@ async function restoreHubNavigation() {
 }
 
 function bindEvents() {
+  installPogPullRefreshGuard();
+  populateHubHelpIssueSelect(document.getElementById('pog-wv-help-issue'));
+  document.getElementById('pog-wv-help-issue')?.addEventListener('change', () => syncHubHelpIssueForm('pog-wv'));
   /* Map/list tabs hidden for field rollout — handlers kept for restore.
   document.getElementById('btn-map').addEventListener('click', () => {
     if (isPogViewOpen()) {
@@ -4875,7 +5057,7 @@ function openPogProductModal(prod, bay, fixture) {
   const tagBtn = document.getElementById('pog-product-modal-flag-tag');
   if (tagBtn) {
     tagBtn.disabled = false;
-    tagBtn.textContent = 'Add missing tag to list';
+    tagBtn.textContent = 'Report tag missing';
   }
 
   modal.classList.add('open');
@@ -5136,7 +5318,7 @@ function renderPogSearchResults(result, meta) {
         canRaiseSectionFlags(pogWorkingFixture.lane, pogWorkingFixture.dbkey)) {
       notFoundActions =
         '<div class="pog-wv-notfound-actions">' +
-          '<button type="button" class="pog-wv-notfound-btn flag-tag" data-notfound-flag="missing-tag">Flag missing tag</button>' +
+          '<button type="button" class="pog-wv-notfound-btn flag-tag" data-notfound-flag="missing-tag">Report tag missing</button>' +
           '<button type="button" class="pog-wv-notfound-btn flag-nis" data-notfound-flag="nis">Flag not in store</button>' +
         '</div>';
     }
@@ -6273,7 +6455,7 @@ function setPogWvActionStatus(msg, kind) {
 
 function setPogWvActionsDisabled(disabled) {
   document.querySelectorAll(
-    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff'
+    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-help-submit, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff'
   ).forEach(btn => { btn.disabled = disabled; });
 }
 
@@ -6296,13 +6478,30 @@ async function submitPogSectionFlag(kind, payload) {
     'missing-tag': '/flag/missing-tag',
   };
   const body = { ...(payload || {}), lane };
-  if (kind === 'nis') {
+  if (kind === 'nis' || kind === 'help') {
     Object.assign(body, nisFixtureMeta(pogWorkingFixture));
   }
   await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + paths[kind], body);
 }
 
+function togglePogHelpForm(open) {
+  const form = document.getElementById('pog-wv-help-form');
+  if (!form) return;
+  const show = open != null ? open : !form.classList.contains('open');
+  if (show) {
+    document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
+    populateHubHelpIssueSelect(document.getElementById('pog-wv-help-issue'));
+    form.classList.add('open');
+    syncHubHelpIssueForm('pog-wv');
+    document.getElementById('pog-wv-actions')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => document.getElementById('pog-wv-help-issue')?.focus(), 50);
+  } else {
+    form.classList.remove('open');
+  }
+}
+
 function openPogMissingTagForm(prefill) {
+  document.getElementById('pog-wv-help-form')?.classList.remove('open');
   const form = document.getElementById('pog-wv-missing-tag-form');
   const upcEl = document.getElementById('pog-wv-flag-upc');
   const descEl = document.getElementById('pog-wv-flag-desc');
@@ -6388,12 +6587,23 @@ function bindPogWorkingActions() {
     submitSectionTagDraftsForPlanogram();
   });
 
-  document.getElementById('pog-wv-flag-help')?.addEventListener('click', async () => {
+  document.getElementById('pog-wv-flag-help')?.addEventListener('click', () => {
+    togglePogHelpForm();
+  });
+
+  document.getElementById('pog-wv-help-submit')?.addEventListener('click', async () => {
+    const payload = collectHubHelpPayload('pog-wv');
+    const errMsg = validateHubHelpPayload(payload);
+    if (errMsg) {
+      setPogWvActionStatus(errMsg, 'error');
+      return;
+    }
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Raising help flag…');
     try {
-      await submitPogSectionFlag('help', {});
+      await submitPogSectionFlag('help', buildHubHelpRequestBody(payload));
       setPogWvActionStatus('Flagged — pending lead review', 'ok');
+      togglePogHelpForm(false);
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
       setPogWvActionsDisabled(false);
@@ -6536,7 +6746,7 @@ function bindPogWorkingActions() {
     } catch (err) {
       if (tagBtn) {
         tagBtn.disabled = false;
-        tagBtn.textContent = 'Add missing tag to list';
+        tagBtn.textContent = 'Report tag missing';
       }
       setPogWvActionStatus(err.message || 'Failed', 'error');
     }
@@ -6661,6 +6871,7 @@ function closePogWorkingView(opts) {
     pogLastNotFoundUpc = null;
     setPogWvActionStatus('');
     document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
+    document.getElementById('pog-wv-help-form')?.classList.remove('open');
     document.getElementById('pog-wv-actions')?.setAttribute('hidden', '');
 
     if (!opts?.skipHistory) {
@@ -7212,6 +7423,14 @@ async function openPendingDetail(pendingId) {
         (payload.lane ? '<div class="detail-row"><div class="label">Lane</div><div class="value">' + escapeHtml(payload.lane) + '</div></div>' : '') +
         (payload.manifest_pog_id ? '<div class="detail-row"><div class="label">Manifest POG</div><div class="value"><code>' + escapeHtml(payload.manifest_pog_id) + '</code></div></div>' : '') +
         (payload.action ? '<div class="detail-row"><div class="label">Action</div><div class="value"><code>' + escapeHtml(payload.action) + '</code></div></div>' : '') +
+        (payload.note ? '<div class="detail-row"><div class="label">Note</div><div class="value">' + escapeHtml(payload.note) + '</div></div>' : '');
+    } else if (full.action_type === 'help_request') {
+      const issueLabel = payload.custom_label || payload.issue_type_label || payload.summary || 'Needs assistance';
+      payloadHtml =
+        '<div class="detail-row"><div class="label">Issue</div><div class="value">' + escapeHtml(issueLabel) + '</div></div>' +
+        (payload.issue_details ? '<div class="detail-row"><div class="label">Details</div><div class="value">' + escapeHtml(payload.issue_details) + '</div></div>' : '') +
+        (payload.set_name ? '<div class="detail-row"><div class="label">Set</div><div class="value">' + escapeHtml(payload.set_name) + '</div></div>' : '') +
+        (payload.lane ? '<div class="detail-row"><div class="label">Lane</div><div class="value">' + escapeHtml(payload.lane) + '</div></div>' : '') +
         (payload.note ? '<div class="detail-row"><div class="label">Note</div><div class="value">' + escapeHtml(payload.note) + '</div></div>' : '');
     } else if (payload.note) {
       payloadHtml = '<div class="detail-row"><div class="label">Note</div><div class="value">' + escapeHtml(payload.note) + '</div></div>';

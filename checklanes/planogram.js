@@ -1082,7 +1082,10 @@
       var sx = vw / natW;
       var sy = vh / natH;
       var ms = sx < sy ? sx : sy;
-      if (ms > 1) ms = 1;
+      var fillViewport =
+        viewport.classList.contains('planogram-hub-bay-viewport') ||
+        viewport.getAttribute('data-fill-viewport') === '1';
+      if (!fillViewport && ms > 1) ms = 1;
       if (!(ms > 0 && isFinite(ms))) ms = 1;
       minScale = ms;
     }
@@ -1853,6 +1856,36 @@
    * Hub working view: render every bay in a scroll list using the same inch-accurate
    * pegboard/shelf layout as the standalone Checklanes virtual POG.
    */
+  function fitHubBayToViewport(viewport, stage, wrap) {
+    function applyFit() {
+      var natW = Math.max(1, wrap.offsetWidth || 1);
+      var natH = Math.max(1, wrap.offsetHeight || 1);
+      var vw = viewport.clientWidth || 1;
+      var vh = viewport.clientHeight || 1;
+      var scale = Math.min(vw / natW, vh / natH);
+      if (!isFinite(scale) || scale <= 0) scale = 1;
+      var tx = (vw - natW * scale) / 2;
+      var ty = (vh - natH * scale) / 2;
+      stage.style.transform =
+        'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+      if (typeof window.planogramSyncTileCardFonts === 'function') {
+        window.planogramSyncTileCardFonts(wrap);
+      }
+    }
+
+    applyFit();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(applyFit);
+    });
+
+    if (typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(applyFit);
+      ro.observe(viewport);
+      ro.observe(wrap);
+    }
+    window.addEventListener('resize', applyFit);
+  }
+
   function renderHubPlanogramBays(containerEl, layoutData, products) {
     if (!containerEl || !layoutData) return;
 
@@ -1893,9 +1926,25 @@
 
       var fixturesWrap = document.createElement('div');
       fixturesWrap.className = 'pog-wv-fixtures planogram-hub-fixtures';
-      fixturesWrap.appendChild(renderBay(bay, allBaysMaxHeight, products));
+
+      var viewport = document.createElement('div');
+      viewport.className = 'planogram-zoom-viewport planogram-hub-bay-viewport';
+      viewport.setAttribute('data-fill-viewport', '1');
+
+      var stage = document.createElement('div');
+      stage.className = 'planogram-zoom-stage';
+
+      var wrap = document.createElement('div');
+      wrap.className = 'planogram-wrap';
+      wrap.appendChild(renderBay(bay, allBaysMaxHeight, products));
+
+      stage.appendChild(wrap);
+      viewport.appendChild(stage);
+      fixturesWrap.appendChild(viewport);
       bayWrap.appendChild(fixturesWrap);
       containerEl.appendChild(bayWrap);
+
+      fitHubBayToViewport(viewport, stage, wrap);
     }
 
     activePlanogramWrapEl = containerEl;
