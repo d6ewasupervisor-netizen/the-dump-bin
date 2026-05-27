@@ -1837,8 +1837,8 @@
   }
 
   .pog-wv-toolbar {
-    display: flex;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: minmax(0, 50%) minmax(0, 1fr);
     align-items: center;
     gap: 8px;
     width: 100%;
@@ -1849,7 +1849,6 @@
 
   .pog-wv-toolbar-search {
     display: flex;
-    flex: 1 1 0;
     gap: 4px;
     min-width: 0;
     align-items: center;
@@ -1858,9 +1857,9 @@
   .pog-wv-toolbar-mask {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex: 2 1 0;
+    gap: 6px;
     min-width: 0;
+    max-width: 100%;
     padding: 4px 8px;
     border-radius: var(--radius);
     border: 1px solid rgba(59, 130, 246, 0.35);
@@ -1878,15 +1877,17 @@
   }
 
   .pog-wv-toolbar-mask .pog-wv-mask-slider {
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
+    max-width: 100%;
   }
 
   .pog-wv-toolbar-mask .pog-wv-mask-value {
     font-size: 0.72rem;
     font-weight: 700;
     color: #bfdbfe;
-    min-width: 2.25rem;
+    min-width: 2rem;
+    flex-shrink: 0;
   }
 
   .pog-wv-actions {
@@ -2188,9 +2189,10 @@
   }
 
   .pog-wv-search-input {
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
-    padding: 6px 6px;
+    width: 100%;
+    padding: 6px 8px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--surface2);
