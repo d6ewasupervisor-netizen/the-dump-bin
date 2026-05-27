@@ -1028,6 +1028,134 @@
     line-height: 1.45;
   }
 
+  .assignments-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .assignments-sort,
+  .assignments-bulk-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .assignments-sort-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+  }
+
+  .assignments-sort-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    min-height: 36px;
+    cursor: pointer;
+  }
+
+  .assignments-sort-btn.active {
+    background: #334155;
+    border-color: #475569;
+    color: #e0f2fe;
+  }
+
+  .assignments-bulk-select,
+  .assignments-aisle-select {
+    flex: 1 1 120px;
+    min-height: 36px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    padding: 6px 8px;
+    font-size: 0.82rem;
+  }
+
+  .assignments-bulk-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    min-height: 36px;
+    cursor: pointer;
+  }
+
+  .assignments-bulk-btn--primary {
+    background: #2563eb;
+    border-color: #1d4ed8;
+    color: #fff;
+  }
+
+  .assignments-bulk-btn.active {
+    border-color: #3b82f6;
+    color: #93c5fd;
+  }
+
+  .assignments-flat-list {
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .assignments-flat-list .assign-set-row {
+    grid-template-columns: auto 52px 88px minmax(0, 1fr) auto;
+  }
+
+  .assignments-flat-list .assign-set-row.has-assign {
+    grid-template-columns: auto 52px 88px minmax(0, 1fr) auto minmax(160px, 240px);
+  }
+
+  .assignments-flat-list .assign-set-row.has-bulk {
+    grid-template-columns: auto 52px 88px minmax(0, 1fr) auto;
+  }
+
+  .assignments-flat-list .assign-set-row.has-assign.has-bulk {
+    grid-template-columns: auto 52px 88px minmax(0, 1fr) auto minmax(160px, 240px);
+  }
+
+  .assign-set-check {
+    width: 18px;
+    height: 18px;
+    accent-color: #3b82f6;
+  }
+
+  .assign-set-assignee {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #93c5fd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .assign-rep-heading {
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0 0 12px;
+    color: #bfdbfe;
+  }
+
   @media (max-width: 520px) {
     .assign-set-row {
       grid-template-columns: 44px minmax(0, 1fr) auto;
@@ -1519,7 +1647,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    max-height: 55vh;
+    max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
     background: var(--surface);
     border-top: 1px solid var(--border);
     z-index: 210;
@@ -1528,9 +1656,22 @@
     display: flex;
     flex-direction: column;
     box-shadow: 0 -8px 24px rgba(0,0,0,0.45);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .pending-panel.open { transform: translateY(0); }
+
+  .pending-panel-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pending-panel.has-detail .pending-list {
+    display: none;
+  }
 
   .pending-panel-header {
     display: flex;
@@ -1549,7 +1690,9 @@
   .pending-list {
     overflow-y: auto;
     flex: 1;
+    min-height: 0;
     padding: 8px 12px 16px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .pending-item {
@@ -1582,17 +1725,49 @@
   }
 
   .pending-detail {
-    padding: 12px 16px 20px;
-    border-top: 1px solid var(--border);
     display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
-  .pending-detail.open { display: block; }
+  .pending-detail.open {
+    display: flex;
+  }
+
+  .pending-detail-back {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: #93c5fd;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 10px 16px 0;
+    text-align: left;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .pending-detail-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 16px 12px;
+  }
+
+  .pending-detail-footer {
+    flex-shrink: 0;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
 
   .verify-actions {
     display: flex;
     gap: 10px;
-    margin-top: 14px;
+    margin-top: 0;
   }
 
   .verify-actions button {
@@ -1658,6 +1833,44 @@
     .lane-num { font-size: 0.95rem; }
     .pod-facing-row { flex-wrap: wrap; }
     .pod-stand-cell { min-width: 88px; }
+
+    .assign-set-row,
+    .assignments-flat-list .assign-set-row,
+    .assignments-flat-list .assign-set-row.has-assign,
+    .assignments-flat-list .assign-set-row.has-bulk,
+    .assignments-flat-list .assign-set-row.has-assign.has-bulk {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      gap: 6px;
+      padding: 12px;
+    }
+
+    .assign-set-actions {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .assign-set-actions .hub-roster-select,
+    .assign-set-actions .btn-assign,
+    .assign-set-actions .btn-unassign {
+      width: 100%;
+      min-height: 44px;
+    }
+
+    .assignments-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .app-header {
+      padding: 10px 12px;
+    }
+
+    .header-actions {
+      width: 100%;
+      justify-content: flex-start;
+    }
   }
 
   /* ── POG working view (Phase 2) ── */
@@ -2737,11 +2950,13 @@
     <button type="button" class="header-badge-btn header-badge-btn--tag-batch tag-batch-badge" id="tag-batch-badge" aria-label="Tag batch">
       Tag Batch <span class="count" id="tag-batch-count">0</span>
     </button>
-    <button type="button" class="header-badge-btn header-badge-btn--assignments assignments-btn" id="btn-assignments" data-view="assignments" aria-label="Assignments by person">
+    <button type="button" class="header-badge-btn header-badge-btn--assignments assignments-btn active" id="btn-assignments" data-view="assignments" aria-label="Assignments by person">
       Assignments <span class="count" id="assignments-count">0</span>
     </button>
-    <button type="button" class="btn active" id="btn-map" data-view="map">Map view</button>
+    <!-- Map/list views retained in code but hidden for field rollout.
+    <button type="button" class="btn" id="btn-map" data-view="map">Map view</button>
     <button type="button" class="btn" id="btn-list" data-view="list">List view</button>
+    -->
   </div>
 </header>
 
@@ -2749,9 +2964,9 @@
 
 <div class="main-layout" id="main-layout">
   <div class="view-container">
-    <div class="map-view view-container-inner" id="map-view"></div>
+    <div class="map-view view-hidden view-container-inner" id="map-view"></div>
     <div class="list-view view-hidden view-container-inner" id="list-view"></div>
-    <div class="assignments-view view-hidden view-container-inner" id="assignments-view" aria-label="Assignments by person"></div>
+    <div class="assignments-view view-container-inner" id="assignments-view" aria-label="Assignments by person"></div>
     <div class="you-are-here">You are here (customer)</div>
   </div>
 </div>
@@ -2770,8 +2985,14 @@
     <h2>Pending — lead review</h2>
     <button type="button" class="detail-close" id="pending-close" aria-label="Close">&times;</button>
   </div>
-  <div class="pending-list" id="pending-list"></div>
-  <div class="pending-detail" id="pending-detail"></div>
+  <div class="pending-panel-body">
+    <div class="pending-list" id="pending-list"></div>
+    <div class="pending-detail" id="pending-detail">
+      <button type="button" class="pending-detail-back" id="pending-detail-back" hidden>← Back to list</button>
+      <div class="pending-detail-scroll" id="pending-detail-scroll"></div>
+      <div class="pending-detail-footer" id="pending-detail-footer"></div>
+    </div>
+  </div>
 </aside>
 
 <aside class="tag-batch-panel" id="tag-batch-panel" aria-label="Tag batch">
@@ -3056,7 +3277,10 @@ let selectedDbkey = null;
 let selectedLane = null;
 let listSort = { col: 'lane', asc: true };
 let liveVisitId = null;
-let hubCurrentView = 'map';
+let hubCurrentView = 'assignments';
+let assignmentsSort = { col: 'lane', asc: true };
+let assignmentsBulkMode = false;
+let assignmentsSelectedKeys = new Set();
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
 let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0 };
@@ -3234,6 +3458,8 @@ function applySnapshot(snapshot) {
 
   updatePendingBadge();
   updateTagBatchBadge();
+  updateAssignmentsBadge();
+  if (hubCurrentView === 'assignments') renderAssignmentsView();
   renderPendingList();
   if (selectedPendingId && !hubContext.pendingActions.some(p => p.id === selectedPendingId)) {
     selectedPendingId = null;
@@ -3736,17 +3962,24 @@ function refreshDetailPanel(fixture) {
   });
 }
 
+function normalizeHubView(view) {
+  if (view === 'map' || view === 'list') return 'assignments';
+  return view || 'assignments';
+}
+
 function setView(view, opts) {
+  view = normalizeHubView(view);
   const isMap = view === 'map';
   const isList = view === 'list';
   const isAssignments = view === 'assignments';
   hubCurrentView = view;
-  document.getElementById('map-view').classList.toggle('view-hidden', !isMap);
-  document.getElementById('list-view').classList.toggle('view-hidden', !isList);
-  document.getElementById('assignments-view').classList.toggle('view-hidden', !isAssignments);
-  document.getElementById('btn-map').classList.toggle('active', isMap);
-  document.getElementById('btn-list').classList.toggle('active', isList);
-  document.getElementById('btn-assignments').classList.toggle('active', isAssignments);
+  document.getElementById('map-view')?.classList.toggle('view-hidden', !isMap);
+  document.getElementById('list-view')?.classList.toggle('view-hidden', !isList);
+  document.getElementById('assignments-view')?.classList.toggle('view-hidden', !isAssignments);
+  document.getElementById('btn-map')?.classList.toggle('active', isMap);
+  document.getElementById('btn-list')?.classList.toggle('active', isList);
+  document.getElementById('btn-assignments')?.classList.toggle('active', isAssignments);
+  document.getElementById('legend')?.classList.toggle('view-hidden', isAssignments);
   if (isAssignments) {
     loadHubRoster().then(() => renderAssignmentsView());
   }
@@ -3782,7 +4015,7 @@ function readHubUrlState() {
   return {
     store: p.get('store'),
     visit: p.get('visit'),
-    view: p.get('view') || 'map',
+    view: normalizeHubView(p.get('view')),
     fixture: p.get('fixture'),
     lane: p.get('lane'),
     pog: p.get('pog'),
@@ -3998,8 +4231,8 @@ async function restoreHubNavigation() {
   const url = readHubUrlState();
   hubNavLock = true;
   if (url.view === 'list') setView('list', { skipHistory: true });
-  else if (url.view === 'assignments') setView('assignments', { skipHistory: true });
-  else setView('map', { skipHistory: true });
+  else if (url.view === 'map') setView('map', { skipHistory: true });
+  else setView('assignments', { skipHistory: true });
 
   if (url.fixture) {
     const fix = findFixture(url.fixture, null, url.lane);
@@ -4022,6 +4255,7 @@ async function restoreHubNavigation() {
 }
 
 function bindEvents() {
+  /* Map/list tabs hidden for field rollout — handlers kept for restore.
   document.getElementById('btn-map').addEventListener('click', () => {
     if (isPogViewOpen()) {
       requestLeavePog(() => closePogWorkingView({ skipConfirm: true }));
@@ -4040,6 +4274,7 @@ function bindEvents() {
     if (isDetailOpen()) closeDetail({ skipHistory: true });
     setView('list');
   });
+  */
   document.getElementById('btn-assignments').addEventListener('click', () => {
     if (isPogViewOpen()) {
       requestLeavePog(() => closePogWorkingView({ skipConfirm: true }));
@@ -4113,6 +4348,7 @@ function bindEvents() {
     }
   });
   document.getElementById('pending-close').addEventListener('click', () => togglePendingPanel(false));
+  document.getElementById('pending-detail-back')?.addEventListener('click', () => closePendingDetail());
 
   document.getElementById('tag-batch-badge').addEventListener('click', () => {
     if (hubContext.myRank >= 2) {
@@ -5493,6 +5729,18 @@ function bindSectionWorkflow(lane, dbkey, ids) {
   });
 }
 
+function isRepHubView() {
+  return !!liveVisitId && Number(hubContext.myRank) < 2;
+}
+
+function canManageHubAssignments() {
+  return !!liveVisitId && hubContext.myRank >= 2;
+}
+
+function assignmentRowKey(row) {
+  return String(row.lane) + '|' + String(row.dbkey);
+}
+
 function collectAssignmentRows() {
   const rows = [];
   for (const f of FIXTURES) {
@@ -5509,7 +5757,46 @@ function collectAssignmentRows() {
       assigneeName: meta?.assignee_name || null,
     });
   }
+  if (isRepHubView()) {
+    return rows.filter(row =>
+      row.assigneeId != null &&
+      Number(row.assigneeId) === Number(hubContext.myUserId)
+    );
+  }
   return rows;
+}
+
+function sortAssignmentRows(rows) {
+  const col = assignmentsSort.col;
+  const dir = assignmentsSort.asc ? 1 : -1;
+  return rows.slice().sort((a, b) => {
+    if (col === 'lane') {
+      const laneDiff = (Number(a.lane) - Number(b.lane)) * dir;
+      if (laneDiff !== 0) return laneDiff;
+      return a.dbkey.localeCompare(b.dbkey) * dir;
+    }
+    if (col === 'dbkey') {
+      const dbDiff = a.dbkey.localeCompare(b.dbkey) * dir;
+      if (dbDiff !== 0) return dbDiff;
+      return (Number(a.lane) - Number(b.lane)) * dir;
+    }
+    if (col === 'status') {
+      const stDiff = a.state.localeCompare(b.state) * dir;
+      if (stDiff !== 0) return stDiff;
+      return (Number(a.lane) - Number(b.lane)) * dir;
+    }
+    if (col === 'assignee') {
+      const an = (a.assigneeName || 'Unassigned').localeCompare(b.assigneeName || 'Unassigned') * dir;
+      if (an !== 0) return an;
+      return (Number(a.lane) - Number(b.lane)) * dir;
+    }
+    return 0;
+  });
+}
+
+function uniqueAssignmentAisles(rows) {
+  const set = new Set(rows.map(r => String(r.lane)));
+  return Array.from(set).sort((a, b) => Number(a) - Number(b));
 }
 
 function buildAssignmentGroups() {
@@ -5583,16 +5870,223 @@ function assignmentAssignControlsHtml(row) {
 
 function renderAssignmentSetRowHtml(row) {
   const assignHtml = assignmentAssignControlsHtml(row);
-  const rowClass = 'assign-set-row' + (assignHtml ? ' has-assign' : '');
+  const bulkHtml = assignmentsBulkMode && canManageHubAssignments()
+    ? '<input type="checkbox" class="assign-set-check" data-assign-check="' + escapeHtml(assignmentRowKey(row)) + '"' +
+      (assignmentsSelectedKeys.has(assignmentRowKey(row)) ? ' checked' : '') + ' aria-label="Select set">'
+    : '';
+  const assigneeHtml = !isRepHubView()
+    ? '<span class="assign-set-assignee">' + escapeHtml(row.assigneeName || 'Unassigned') + '</span>'
+    : '';
+  const rowClass = 'assign-set-row' +
+    (assignHtml ? ' has-assign' : '') +
+    (bulkHtml ? ' has-bulk' : '');
   return (
     '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
+      bulkHtml +
       '<span class="assign-set-lane">' + escapeHtml(row.lane) + '</span>' +
       '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
       '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
+      assigneeHtml +
       statePillHtml({ on_manifest: true, lane: row.lane, dbkey: row.dbkey }) +
       assignHtml +
     '</li>'
   );
+}
+
+function assignmentsToolbarHtml(rows) {
+  const sortBtns = ['lane', 'dbkey', 'status', 'assignee'].map(col => {
+    const label = col === 'lane' ? 'Aisle' : col === 'dbkey' ? 'DBKey' : col === 'status' ? 'Status' : 'Assignee';
+    const active = assignmentsSort.col === col ? ' active' : '';
+    const arrow = assignmentsSort.col === col ? (assignmentsSort.asc ? ' ↑' : ' ↓') : '';
+    return '<button type="button" class="assignments-sort-btn' + active + '" data-assign-sort="' + col + '">' + label + arrow + '</button>';
+  }).join('');
+
+  let bulkHtml = '';
+  if (canManageHubAssignments()) {
+    const aisles = uniqueAssignmentAisles(rows);
+    bulkHtml =
+      '<div class="assignments-bulk-row">' +
+        '<button type="button" class="assignments-bulk-btn' + (assignmentsBulkMode ? ' active' : '') + '" id="assign-bulk-toggle">' +
+          (assignmentsBulkMode ? 'Cancel selection' : 'Select multiple') +
+        '</button>' +
+        '<select class="assignments-bulk-select" id="assign-bulk-rep" aria-label="Rep for bulk assign">' +
+          '<option value="">Rep for bulk…</option>' +
+          rosterSelectOptionsHtml() +
+        '</select>' +
+        '<button type="button" class="assignments-bulk-btn assignments-bulk-btn--primary" id="assign-bulk-selected" disabled>Assign selected</button>' +
+      '</div>' +
+      '<div class="assignments-bulk-row">' +
+        '<select class="assignments-aisle-select" id="assign-aisle-select" aria-label="Aisle">' +
+          '<option value="">Aisle…</option>' +
+          aisles.map(lane => '<option value="' + escapeHtml(lane) + '">' + escapeHtml(lane) + '</option>').join('') +
+        '</select>' +
+        '<select class="assignments-bulk-select" id="assign-aisle-rep" aria-label="Rep for aisle assign">' +
+          '<option value="">Rep…</option>' +
+          rosterSelectOptionsHtml() +
+        '</select>' +
+        '<button type="button" class="assignments-bulk-btn assignments-bulk-btn--primary" id="assign-aisle-btn">Assign all in aisle</button>' +
+      '</div>';
+  }
+
+  return (
+    '<div class="assignments-toolbar">' +
+      '<div class="assignments-sort">' +
+        '<span class="assignments-sort-label">Sort</span>' +
+        sortBtns +
+      '</div>' +
+      bulkHtml +
+    '</div>'
+  );
+}
+
+function bindAssignmentsToolbar(root, rows) {
+  root.querySelectorAll('[data-assign-sort]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const col = btn.getAttribute('data-assign-sort');
+      if (assignmentsSort.col === col) assignmentsSort.asc = !assignmentsSort.asc;
+      else {
+        assignmentsSort.col = col;
+        assignmentsSort.asc = true;
+      }
+      renderAssignmentsView();
+    });
+  });
+
+  root.querySelector('#assign-bulk-toggle')?.addEventListener('click', () => {
+    assignmentsBulkMode = !assignmentsBulkMode;
+    if (!assignmentsBulkMode) assignmentsSelectedKeys.clear();
+    renderAssignmentsView();
+  });
+
+  root.querySelectorAll('[data-assign-check]').forEach(input => {
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('change', () => {
+      const key = input.getAttribute('data-assign-check');
+      if (input.checked) assignmentsSelectedKeys.add(key);
+      else assignmentsSelectedKeys.delete(key);
+      const btn = root.querySelector('#assign-bulk-selected');
+      if (btn) {
+        btn.disabled = assignmentsSelectedKeys.size === 0;
+        btn.textContent = 'Assign selected (' + assignmentsSelectedKeys.size + ')';
+      }
+    });
+  });
+
+  const bulkBtn = root.querySelector('#assign-bulk-selected');
+  bulkBtn?.addEventListener('click', async () => {
+    const assigneeId = Number(root.querySelector('#assign-bulk-rep')?.value);
+    if (!Number.isFinite(assigneeId)) {
+      alert('Choose a rep for bulk assignment.');
+      return;
+    }
+    const sections = rows.filter(r => assignmentsSelectedKeys.has(assignmentRowKey(r)))
+      .map(r => ({ dbkey: r.dbkey, lane: r.lane }));
+    if (!sections.length) return;
+    bulkBtn.disabled = true;
+    bulkBtn.textContent = 'Assigning…';
+    try {
+      await hubBulkAssign(sections, assigneeId);
+      assignmentsSelectedKeys.clear();
+      assignmentsBulkMode = false;
+    } catch (err) {
+      alert(err.message || 'Bulk assign failed');
+    } finally {
+      renderAssignmentsView();
+    }
+  });
+
+  root.querySelector('#assign-aisle-btn')?.addEventListener('click', async () => {
+    const lane = root.querySelector('#assign-aisle-select')?.value;
+    const assigneeId = Number(root.querySelector('#assign-aisle-rep')?.value);
+    if (!lane) {
+      alert('Choose an aisle.');
+      return;
+    }
+    if (!Number.isFinite(assigneeId)) {
+      alert('Choose a rep.');
+      return;
+    }
+    const sections = rows.filter(r => String(r.lane) === String(lane) && canShowSectionAssign(r.lane, r.dbkey))
+      .map(r => ({ dbkey: r.dbkey, lane: r.lane }));
+    if (!sections.length) {
+      alert('No assignable sets in aisle ' + lane + '.');
+      return;
+    }
+    const btn = root.querySelector('#assign-aisle-btn');
+    btn.disabled = true;
+    btn.textContent = 'Assigning…';
+    try {
+      await hubBulkAssign(sections, assigneeId);
+    } catch (err) {
+      alert(err.message || 'Aisle assign failed');
+    } finally {
+      renderAssignmentsView();
+    }
+  });
+}
+
+async function hubBulkAssign(sections, assigneeId) {
+  const result = await hubMutatePost('/sections/bulk-assign', { assigneeId, sections });
+  const msg = 'Assigned ' + (result.assigned || 0) + ' set' + ((result.assigned || 0) !== 1 ? 's' : '');
+  if (result.skipped) {
+    console.warn('[Checklane Hub] bulk assign skipped', result.skipped, result.errors);
+  }
+  return result;
+}
+
+function renderAssignmentsView() {
+  const root = document.getElementById('assignments-view');
+  if (!root) return;
+
+  if (!liveVisitId) {
+    root.innerHTML =
+      '<div class="assignments-empty">Open the hub with <code>?visit=…</code> on a live reset to see who is assigned to each set.</div>';
+    return;
+  }
+
+  const rows = sortAssignmentRows(collectAssignmentRows());
+  const stats = assignmentStats();
+
+  let html = '';
+  if (isRepHubView()) {
+    html += '<h2 class="assign-rep-heading">Your assignments (' + rows.length + ')</h2>';
+    if (!rows.length) {
+      html += '<div class="assignments-empty">No sets are assigned to you yet. Ask your lead for assignments.</div>';
+      root.innerHTML = html + assignmentsToolbarHtml(rows);
+      bindAssignmentsToolbar(root, rows);
+      return;
+    }
+  } else {
+    html +=
+      '<div class="assignments-summary">' +
+        '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.peopleCount + '</div><div class="assignments-stat-label">People assigned</div></div>' +
+        '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.assignedCount + '</div><div class="assignments-stat-label">Sets assigned</div></div>' +
+        '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.unassignedCount + '</div><div class="assignments-stat-label">Unassigned</div></div>' +
+        '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.totalManifest + '</div><div class="assignments-stat-label">On manifest</div></div>' +
+      '</div>';
+  }
+
+  html += assignmentsToolbarHtml(rows);
+
+  if (!rows.length) {
+    html += '<div class="assignments-empty">No manifest sets found.</div>';
+    root.innerHTML = html;
+    bindAssignmentsToolbar(root, rows);
+    return;
+  }
+
+  html +=
+    '<ul class="assign-set-list assignments-flat-list">' +
+      rows.map(renderAssignmentSetRowHtml).join('') +
+    '</ul>';
+
+  root.innerHTML = html;
+  bindAssignmentsToolbar(root, rows);
+  const bulkBtn = root.querySelector('#assign-bulk-selected');
+  if (bulkBtn && assignmentsSelectedKeys.size) {
+    bulkBtn.disabled = false;
+    bulkBtn.textContent = 'Assign selected (' + assignmentsSelectedKeys.size + ')';
+  }
 }
 
 async function handleInlineUnassign(rowEl) {
@@ -5687,62 +6181,6 @@ async function handleInlineAssignment(rowEl) {
   }
 }
 
-function renderAssignmentsView() {
-  const root = document.getElementById('assignments-view');
-  if (!root) return;
-
-  if (!liveVisitId) {
-    root.innerHTML =
-      '<div class="assignments-empty">Open the hub with <code>?visit=…</code> on a live reset to see who is assigned to each set.</div>';
-    return;
-  }
-
-  const { people, unassigned } = buildAssignmentGroups();
-  const stats = assignmentStats();
-
-  let html =
-    '<div class="assignments-summary">' +
-      '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.peopleCount + '</div><div class="assignments-stat-label">People assigned</div></div>' +
-      '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.assignedCount + '</div><div class="assignments-stat-label">Sets assigned</div></div>' +
-      '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.unassignedCount + '</div><div class="assignments-stat-label">Unassigned</div></div>' +
-      '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.totalManifest + '</div><div class="assignments-stat-label">On manifest</div></div>' +
-    '</div>';
-
-  if (!people.length && !unassigned.length) {
-    html += '<div class="assignments-empty">No manifest sets found.</div>';
-    root.innerHTML = html;
-    return;
-  }
-
-  for (const person of people) {
-    html +=
-      '<section class="assign-person-block">' +
-        '<div class="assign-person-head">' +
-          '<div class="assign-person-name">' + escapeHtml(person.name) + '</div>' +
-          '<div class="assign-person-count">' + person.sets.length + ' set' + (person.sets.length !== 1 ? 's' : '') + '</div>' +
-        '</div>' +
-        '<ul class="assign-set-list">' +
-          person.sets.map(renderAssignmentSetRowHtml).join('') +
-        '</ul>' +
-      '</section>';
-  }
-
-  if (unassigned.length) {
-    html +=
-      '<section class="assign-person-block assign-unassigned-block">' +
-        '<div class="assign-person-head">' +
-          '<div class="assign-person-name">Unassigned</div>' +
-          '<div class="assign-person-count">' + unassigned.length + ' set' + (unassigned.length !== 1 ? 's' : '') + '</div>' +
-        '</div>' +
-        '<ul class="assign-set-list">' +
-          unassigned.map(renderAssignmentSetRowHtml).join('') +
-        '</ul>' +
-      '</section>';
-  }
-
-  root.innerHTML = html;
-}
-
 function updateAssignmentsBadge() {
   const badge = document.getElementById('btn-assignments');
   const countEl = document.getElementById('assignments-count');
@@ -5750,8 +6188,11 @@ function updateAssignmentsBadge() {
 
   if (liveVisitId) {
     badge.classList.add('visible');
-    const stats = assignmentStats();
-    countEl.textContent = String(stats.assignedCount);
+    if (isRepHubView()) {
+      countEl.textContent = String(collectAssignmentRows().length);
+    } else {
+      countEl.textContent = String(assignmentStats().assignedCount);
+    }
   } else {
     badge.classList.remove('visible');
     countEl.textContent = '0';
@@ -6718,10 +7159,16 @@ function renderPendingList() {
 
 function closePendingDetail() {
   const detail = document.getElementById('pending-detail');
-  if (detail) {
-    detail.classList.remove('open');
-    detail.innerHTML = '';
-  }
+  const scroll = document.getElementById('pending-detail-scroll');
+  const footer = document.getElementById('pending-detail-footer');
+  const backBtn = document.getElementById('pending-detail-back');
+  const panel = document.getElementById('pending-panel');
+  if (detail) detail.classList.remove('open');
+  if (scroll) scroll.innerHTML = '';
+  if (footer) footer.innerHTML = '';
+  if (backBtn) backBtn.hidden = true;
+  panel?.classList.remove('has-detail');
+  selectedPendingId = null;
 }
 
 async function openPendingDetail(pendingId) {
@@ -6731,10 +7178,17 @@ async function openPendingDetail(pendingId) {
 
   const summary = hubContext.pendingActions.find(p => p.id === pendingId);
   const detailEl = document.getElementById('pending-detail');
-  if (!detailEl || !summary) return;
+  const scrollEl = document.getElementById('pending-detail-scroll');
+  const footerEl = document.getElementById('pending-detail-footer');
+  const backBtn = document.getElementById('pending-detail-back');
+  const panel = document.getElementById('pending-panel');
+  if (!detailEl || !scrollEl || !footerEl || !summary) return;
 
   detailEl.classList.add('open');
-  detailEl.innerHTML = '<p class="hub-panel-empty">Loading details…</p>';
+  panel?.classList.add('has-detail');
+  if (backBtn) backBtn.hidden = false;
+  scrollEl.innerHTML = '<p class="hub-panel-empty">Loading details…</p>';
+  footerEl.innerHTML = '';
 
   try {
     let full = pendingDetailCache[pendingId];
@@ -6763,12 +7217,14 @@ async function openPendingDetail(pendingId) {
       payloadHtml = '<div class="detail-row"><div class="label">Note</div><div class="value">' + escapeHtml(payload.note) + '</div></div>';
     }
 
-    detailEl.innerHTML =
+    scrollEl.innerHTML =
       '<div class="detail-row"><div class="label">Type</div><div class="value">' + escapeHtml(full.action_type) + '</div></div>' +
       '<div class="detail-row"><div class="label">Section</div><div class="value">' + escapeHtml(fixtureNameForDbkey(full.dbkey)) + '</div></div>' +
       '<div class="detail-row"><div class="label">Raised by</div><div class="value">' + escapeHtml(full.raised_by_name || '') + '</div></div>' +
       payloadHtml +
-      '<textarea class="reject-reason" id="reject-reason" placeholder="Optional reason if rejecting"></textarea>' +
+      '<textarea class="reject-reason" id="reject-reason" placeholder="Optional reason if rejecting"></textarea>';
+
+    footerEl.innerHTML =
       '<div class="verify-actions">' +
         '<button type="button" class="btn-verify" id="btn-verify">Verify</button>' +
         '<button type="button" class="btn-reject" id="btn-reject">Reject</button>' +
@@ -6789,6 +7245,7 @@ async function openPendingDetail(pendingId) {
         await hubMutatePost('/pending/' + pendingId + '/verify', {});
         delete pendingDetailCache[pendingId];
         setStatus('Verified', 'ok');
+        closePendingDetail();
       } catch (err) {
         setStatus(err.message || 'Verify failed', 'error');
       }
@@ -6801,12 +7258,14 @@ async function openPendingDetail(pendingId) {
         await hubMutatePost('/pending/' + pendingId + '/reject', { reason: reason || undefined });
         delete pendingDetailCache[pendingId];
         setStatus('Rejected', 'ok');
+        closePendingDetail();
       } catch (err) {
         setStatus(err.message || 'Reject failed', 'error');
       }
     });
   } catch (err) {
-    detailEl.innerHTML = '<p class="flag-status error">' + escapeHtml(err.message || 'Failed to load') + '</p>';
+    scrollEl.innerHTML = '<p class="flag-status error">' + escapeHtml(err.message || 'Failed to load') + '</p>';
+    footerEl.innerHTML = '';
   }
 }
 
