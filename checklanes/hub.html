@@ -2179,19 +2179,131 @@
   }
 
   .pog-wv-actions {
+    position: relative;
     flex-shrink: 0;
     border-top: 1px solid var(--border);
     background: var(--surface);
-    padding: 10px 12px;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    padding: 8px 12px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.35);
   }
 
-  .pog-wv-actions-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    margin-bottom: 8px;
+  .pog-wv-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .pog-wv-actions-trigger {
+    appearance: none;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .pog-wv-actions-trigger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .pog-wv-actions-trigger-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pog-wv-actions-trigger-chevron {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--text2);
+    transition: transform 0.2s ease;
+  }
+
+  .pog-wv-actions.open .pog-wv-actions-trigger-chevron {
+    transform: rotate(180deg);
+  }
+
+  .pog-wv-actions-menu {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: calc(100% - 4px);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: min(50dvh, 320px);
+    overflow-y: auto;
+    padding: 6px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  .pog-wv-actions-menu[hidden] {
+    display: none !important;
+  }
+
+  .pog-wv-menu-item {
+    appearance: none;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: calc(var(--radius) - 2px);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.25;
+  }
+
+  .pog-wv-menu-item.flag-help { border-color: #ef4444; color: #fca5a5; }
+  .pog-wv-menu-item.flag-tag { border-color: #3b82f6; color: #93c5fd; }
+  .pog-wv-menu-item.flag-nis { border-color: #f59e0b; color: #fcd34d; }
+
+  .pog-wv-menu-item.pog-wv-menu-item--complete {
+    border-color: #14b8a6;
+    background: #134e4a;
+    color: #99f6e4;
+  }
+
+  .pog-wv-menu-item.pog-wv-menu-item--complete.signoff {
+    border-color: #22c55e;
+    background: #14532d;
+    color: #bbf7d0;
+  }
+
+  .pog-wv-menu-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .pog-wv-actions-status {
+    flex: 0 1 42%;
+    min-width: 0;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .pog-wv-act-btn {
@@ -2216,7 +2328,8 @@
 
   .pog-wv-missing-tag-form,
   .pog-wv-help-form {
-    margin-bottom: 8px;
+    margin-top: 8px;
+    margin-bottom: 0;
   }
 
   .help-request-form select {
@@ -3194,10 +3307,20 @@
     <div class="pog-pdf-page-indicator" id="pog-pdf-page-indicator"></div>
   </div>
   <div class="pog-wv-actions" id="pog-wv-actions" hidden>
-    <div class="pog-wv-actions-row">
-      <button type="button" class="pog-wv-act-btn flag-help" id="pog-wv-flag-help">Needs help</button>
-      <button type="button" class="pog-wv-act-btn flag-tag" id="pog-wv-flag-tag-toggle">Report tag missing</button>
-      <button type="button" class="pog-wv-act-btn flag-nis" id="pog-wv-flag-nis">Not in store</button>
+    <div class="pog-wv-actions-menu" id="pog-wv-actions-menu" hidden role="menu" aria-label="Planogram actions">
+      <button type="button" class="pog-wv-menu-item flag-help" id="pog-wv-flag-help" role="menuitem">Needs help</button>
+      <button type="button" class="pog-wv-menu-item flag-tag" id="pog-wv-flag-tag-toggle" role="menuitem">Report tag missing</button>
+      <button type="button" class="pog-wv-menu-item flag-nis" id="pog-wv-flag-nis" role="menuitem">Not in store</button>
+      <button type="button" class="pog-wv-menu-item pog-wv-menu-item--complete pog-wv-start-btn" id="pog-wv-start" role="menuitem" hidden>Start</button>
+      <button type="button" class="pog-wv-menu-item pog-wv-menu-item--complete" id="pog-wv-mark-done" role="menuitem" hidden>Mark done</button>
+      <button type="button" class="pog-wv-menu-item pog-wv-menu-item--complete signoff" id="pog-wv-signoff" role="menuitem" hidden>Sign off</button>
+    </div>
+    <div class="pog-wv-actions-bar">
+      <button type="button" class="pog-wv-actions-trigger" id="pog-wv-actions-trigger" aria-expanded="false" aria-controls="pog-wv-actions-menu" aria-haspopup="menu">
+        <span class="pog-wv-actions-trigger-label" id="pog-wv-actions-trigger-label">Actions</span>
+        <span class="pog-wv-actions-trigger-chevron" aria-hidden="true">▲</span>
+      </button>
+      <div class="flag-status pog-wv-actions-status" id="pog-wv-action-status"></div>
     </div>
     <div class="missing-tag-form help-request-form pog-wv-help-form" id="pog-wv-help-form">
       <label for="pog-wv-help-issue">Issue type</label>
@@ -3234,12 +3357,6 @@
         <button type="button" class="btn btn-submit" id="pog-wv-flag-tag-submit" disabled>Submit all for this planogram</button>
       </div>
     </div>
-    <div class="pog-wv-complete-row" id="pog-wv-complete-row" hidden>
-      <button type="button" class="pog-wv-complete-btn pog-wv-start-btn" id="pog-wv-start" hidden>Start</button>
-      <button type="button" class="pog-wv-complete-btn" id="pog-wv-mark-done" hidden>Mark done</button>
-      <button type="button" class="pog-wv-complete-btn signoff" id="pog-wv-signoff" hidden>Sign off</button>
-    </div>
-    <div class="flag-status" id="pog-wv-action-status"></div>
   </div>
 </div>
 
@@ -6663,12 +6780,50 @@ function setPogWvActionStatus(msg, kind) {
   const el = document.getElementById('pog-wv-action-status');
   if (!el) return;
   el.textContent = msg || '';
-  el.className = 'flag-status' + (kind ? ' ' + kind : '');
+  el.className = 'flag-status pog-wv-actions-status' + (kind ? ' ' + kind : '');
+  updatePogActionsTriggerLabel();
+}
+
+function closePogWvActionsMenu() {
+  const actions = document.getElementById('pog-wv-actions');
+  const menu = document.getElementById('pog-wv-actions-menu');
+  const trigger = document.getElementById('pog-wv-actions-trigger');
+  actions?.classList.remove('open');
+  if (menu) menu.hidden = true;
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+function togglePogWvActionsMenu(force) {
+  const actions = document.getElementById('pog-wv-actions');
+  const menu = document.getElementById('pog-wv-actions-menu');
+  const trigger = document.getElementById('pog-wv-actions-trigger');
+  if (!actions || actions.hidden || !menu || !trigger || trigger.disabled) return;
+  const open = force != null ? force : !actions.classList.contains('open');
+  actions.classList.toggle('open', open);
+  menu.hidden = !open;
+  trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function updatePogActionsTriggerLabel() {
+  const labelEl = document.getElementById('pog-wv-actions-trigger-label');
+  if (!labelEl) return;
+  const count = (sectionTagDrafts || []).length;
+  const statusEl = document.getElementById('pog-wv-action-status');
+  const status = (statusEl?.textContent || '').trim();
+  let label = 'Actions';
+  if (count > 0) {
+    label += ' · ' + count + ' tag' + (count !== 1 ? 's' : '');
+  }
+  if (status) {
+    label = 'Actions';
+  }
+  labelEl.textContent = label;
+  labelEl.title = status || label;
 }
 
 function setPogWvActionsDisabled(disabled) {
   document.querySelectorAll(
-    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-help-submit, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff'
+    '#pog-wv-actions .pog-wv-menu-item, #pog-wv-actions-trigger, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-help-submit'
   ).forEach(btn => { btn.disabled = disabled; });
 }
 
@@ -6702,6 +6857,7 @@ function togglePogHelpForm(open) {
   if (!form) return;
   const show = open != null ? open : !form.classList.contains('open');
   if (show) {
+    closePogWvActionsMenu();
     document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
     populateHubHelpIssueSelect(document.getElementById('pog-wv-help-issue'));
     form.classList.add('open');
@@ -6714,6 +6870,7 @@ function togglePogHelpForm(open) {
 }
 
 function openPogMissingTagForm(prefill) {
+  closePogWvActionsMenu();
   document.getElementById('pog-wv-help-form')?.classList.remove('open');
   const form = document.getElementById('pog-wv-missing-tag-form');
   const upcEl = document.getElementById('pog-wv-flag-upc');
@@ -6736,7 +6893,6 @@ function refreshPogWorkingChrome() {
   const lane = pogWorkingFixture?.lane || '';
   const actions = document.getElementById('pog-wv-actions');
   const stateWrap = document.getElementById('pog-wv-state-wrap');
-  const completeRow = document.getElementById('pog-wv-complete-row');
   const startBtn = document.getElementById('pog-wv-start');
   const markDoneBtn = document.getElementById('pog-wv-mark-done');
   const signoffBtn = document.getElementById('pog-wv-signoff');
@@ -6769,6 +6925,7 @@ function refreshPogWorkingChrome() {
   if (actions) {
     actions.hidden = !showLiveActions;
     actions.setAttribute('aria-hidden', showLiveActions ? 'false' : 'true');
+    if (!showLiveActions) closePogWvActionsMenu();
   }
 
   if (showLiveActions) {
@@ -6783,10 +6940,10 @@ function refreshPogWorkingChrome() {
   const showMarkDone = dbkey && canShowPogMarkDone(lane, dbkey);
   const showSignoff = dbkey && canShowPogSignoff(lane, dbkey);
 
-  if (completeRow) completeRow.hidden = !(showStart || showMarkDone || showSignoff);
   if (startBtn) startBtn.hidden = !showStart;
   if (markDoneBtn) markDoneBtn.hidden = !showMarkDone;
   if (signoffBtn) signoffBtn.hidden = !showSignoff;
+  updatePogActionsTriggerLabel();
   updatePogTagTally();
 }
 
@@ -6796,12 +6953,23 @@ function bindPogWorkingActions() {
 
   bindPogSearchUi();
 
+  document.getElementById('pog-wv-actions-trigger')?.addEventListener('click', () => {
+    togglePogWvActionsMenu();
+  });
+
+  document.addEventListener('click', (e) => {
+    const actions = document.getElementById('pog-wv-actions');
+    if (!actions?.classList.contains('open')) return;
+    if (e.target.closest('#pog-wv-actions')) return;
+    closePogWvActionsMenu();
+  });
+
   document.getElementById('pog-wv-tag-tally-submit')?.addEventListener('click', () => {
     submitSectionTagDraftsForPlanogram();
   });
 
   document.getElementById('pog-wv-flag-help')?.addEventListener('click', () => {
-    togglePogHelpForm();
+    togglePogHelpForm(true);
   });
 
   document.getElementById('pog-wv-help-submit')?.addEventListener('click', async () => {
@@ -6824,6 +6992,7 @@ function bindPogWorkingActions() {
   });
 
   document.getElementById('pog-wv-flag-nis')?.addEventListener('click', async () => {
+    closePogWvActionsMenu();
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Raising not-in-store flag…');
     try {
@@ -6884,6 +7053,7 @@ function bindPogWorkingActions() {
   document.getElementById('pog-wv-flag-tag-clear')?.addEventListener('click', () => clearSectionTagDrafts());
 
   document.getElementById('pog-wv-mark-done')?.addEventListener('click', async () => {
+    closePogWvActionsMenu();
     const dbkey = pogWorkingDbkey();
     const lane = pogWorkingFixture?.lane || '';
     if (!dbkey) return;
@@ -6899,6 +7069,7 @@ function bindPogWorkingActions() {
   });
 
   document.getElementById('pog-wv-start')?.addEventListener('click', async () => {
+    closePogWvActionsMenu();
     const dbkey = pogWorkingDbkey();
     const lane = pogWorkingFixture?.lane || '';
     if (!dbkey) return;
@@ -6914,6 +7085,7 @@ function bindPogWorkingActions() {
   });
 
   document.getElementById('pog-wv-signoff')?.addEventListener('click', async () => {
+    closePogWvActionsMenu();
     const dbkey = pogWorkingDbkey();
     const lane = pogWorkingFixture?.lane || '';
     if (!dbkey) return;
@@ -7084,6 +7256,7 @@ function closePogWorkingView(opts) {
     pogLastNotFoundUpc = null;
     pogWorkingPdfUrl = null;
     setPogWvActionStatus('');
+    closePogWvActionsMenu();
     closeHubPdfFromWorkingView();
     document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
     document.getElementById('pog-wv-help-form')?.classList.remove('open');
@@ -7336,6 +7509,7 @@ function updatePogTagTally(opts) {
   if (formSubmitBtn && count) {
     formSubmitBtn.textContent = 'Submit all for this planogram (' + count + ')';
   }
+  updatePogActionsTriggerLabel();
   if (opts?.flash && tally && count > 0) {
     tally.classList.remove('pog-wv-tag-tally--flash');
     void tally.offsetWidth;
