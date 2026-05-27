@@ -39,6 +39,22 @@
 
   function syncPlanogramTileCardFonts(rootEl) {
     if (!rootEl) return;
+    var cardOp = 0;
+    var opacityNode = rootEl;
+    while (opacityNode) {
+      try {
+        var opVal = parseFloat(
+          getComputedStyle(opacityNode).getPropertyValue('--planogram-card-opacity')
+        );
+        if (isFinite(opVal) && opVal > 0) { cardOp = opVal; break; }
+        opVal = parseFloat(
+          getComputedStyle(opacityNode).getPropertyValue('--pog-wv-card-opacity')
+        );
+        if (isFinite(opVal) && opVal > 0) { cardOp = opVal; break; }
+      } catch (e) { /* ignore */ }
+      opacityNode = opacityNode.parentElement;
+    }
+    var maskHeavy = cardOp >= 0.99;
     var tiles = rootEl.querySelectorAll('.planogram-tile');
     var ti;
     for (ti = 0; ti < tiles.length; ti++) {
@@ -49,15 +65,24 @@
       var th = tile.offsetHeight;
       if (!(tw > 0) || !(th > 0)) continue;
       var mult;
-      if (card.classList.contains('planogram-tile-card--pegboard')) {
+      if (maskHeavy) {
+        mult = 0.46;
+        card.style.padding = '1px';
+      } else if (cardOp >= 0.5) {
+        mult = 0.36;
+        card.style.padding = '1px';
+      } else if (card.classList.contains('planogram-tile-card--pegboard')) {
         mult = 0.14;
+        card.style.padding = '2px';
       } else if (tile.classList.contains('planogram-tile--pegboard')) {
         mult = 0.18;
+        card.style.padding = '2px';
       } else {
         mult = 0.24;
+        card.style.padding = '2px';
       }
       card.style.fontSize = Math.max(5, Math.min(tw, th) * mult) + 'px';
-      card.style.lineHeight = '1.05';
+      card.style.lineHeight = '1.02';
       card.style.fontWeight = '800';
       card.style.overflow = 'hidden';
     }
@@ -1918,10 +1943,19 @@
 
       var head = document.createElement('div');
       head.className = 'pog-wv-bay-head';
-      head.textContent =
+      var headText =
         'Bay ' + (bay.bay_num != null ? bay.bay_num : '?') +
         ' · ' + (bay.width_ft != null ? bay.width_ft : '?') + ' ft · PDF page ' +
         (bay.pdf_page != null ? bay.pdf_page : '—');
+      head.textContent = headText;
+      if (bay.pdf_page != null) {
+        var pdfBtn = document.createElement('button');
+        pdfBtn.type = 'button';
+        pdfBtn.className = 'pog-wv-bay-pdf-btn';
+        pdfBtn.setAttribute('data-bay-pdf-page', String(bay.pdf_page));
+        pdfBtn.textContent = 'View PDF';
+        head.appendChild(pdfBtn);
+      }
       bayWrap.appendChild(head);
 
       var fixturesWrap = document.createElement('div');

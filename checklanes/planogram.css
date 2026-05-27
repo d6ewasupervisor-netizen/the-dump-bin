@@ -23,6 +23,17 @@
 
 .planogram-hub-bay-viewport .planogram-zoom-stage {
   touch-action: pan-y;
+  pointer-events: none;
+}
+
+.planogram-hub-bay-viewport .planogram-wrap {
+  pointer-events: none;
+  touch-action: pan-y;
+}
+
+.planogram-hub-bay-viewport .planogram-tile {
+  pointer-events: auto;
+  touch-action: pan-y;
 }
 
 #planogram-container {

@@ -6,7 +6,10 @@
 <title>Checklane Reset Hub</title>
 <script src="/auth-gate.js"></script>
 <link rel="stylesheet" href="planogram.css">
+<link rel="stylesheet" href="pog-pdf-viewer.css">
 <script src="planogram.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+<script src="pog-pdf-viewer.js" defer></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -2649,6 +2652,28 @@
     margin: 0 auto;
   }
 
+  .planogram-hub-bays,
+  .planogram-hub-bay-wrap,
+  .planogram-hub-bay-viewport,
+  .planogram-hub-bay-viewport .planogram-zoom-stage,
+  .planogram-hub-bay-viewport .planogram-wrap,
+  .planogram-hub-bay-viewport .planogram-bay,
+  .planogram-hub-bay-viewport .planogram-shelf-row,
+  .planogram-hub-bay-viewport .planogram-tile {
+    touch-action: pan-y;
+  }
+
+  .pog-wv-bays.pog-mask-full .planogram-tile-img,
+  .pog-wv-bays.pog-mask-full .pog-wv-tile-img {
+    opacity: 0 !important;
+  }
+
+  .pog-wv-bays.pog-mask-full .planogram-tile-card,
+  .pog-wv-bays.pog-mask-full .pog-wv-tile-card {
+    opacity: 1 !important;
+    background: #000;
+  }
+
   .planogram-tile.planogram-tile--highlight {
     box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.55);
     outline: 1px solid #fbbf24;
@@ -2669,6 +2694,10 @@
     font-weight: 700;
     color: var(--text2);
     border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .pog-wv-fixtures {
@@ -3165,6 +3194,23 @@
   <div class="pog-wv-scroll" id="pog-wv-scroll">
     <div id="pog-wv-content"></div>
   </div>
+  <div class="pog-pdf-panel" id="pog-pdf-panel" aria-hidden="true">
+    <div class="pog-pdf-toolbar">
+      <button type="button" class="pog-pdf-back" id="pog-pdf-back">← Planogram</button>
+      <span class="pog-pdf-title" id="pog-pdf-title"></span>
+      <div class="pog-pdf-toolbar-pages">
+        <button type="button" class="pog-pdf-ctrl-btn" id="pog-pdf-prev" title="Previous page" aria-label="Previous page">&lsaquo;</button>
+        <button type="button" class="pog-pdf-ctrl-btn" id="pog-pdf-next" title="Next page" aria-label="Next page">&rsaquo;</button>
+      </div>
+      <div class="pog-pdf-toolbar-zoom">
+        <button type="button" class="pog-pdf-ctrl-btn" id="pog-pdf-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+        <button type="button" class="pog-pdf-ctrl-btn" id="pog-pdf-zoom-fit" title="Fit width" aria-label="Fit width" style="font-size:11px;">FIT</button>
+        <button type="button" class="pog-pdf-ctrl-btn" id="pog-pdf-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+    <div class="pog-pdf-body" id="pog-pdf-body"></div>
+    <div class="pog-pdf-page-indicator" id="pog-pdf-page-indicator"></div>
+  </div>
   <div class="pog-wv-actions" id="pog-wv-actions" hidden>
     <div class="pog-wv-actions-row">
       <button type="button" class="pog-wv-act-btn flag-help" id="pog-wv-flag-help">Needs help</button>
@@ -3471,6 +3517,7 @@ function installPogPullRefreshGuard() {
 
   document.addEventListener('touchmove', (e) => {
     if (!document.body.classList.contains('pog-view-open')) return;
+    if (document.getElementById('pog-working-view')?.classList.contains('pog-pdf-open')) return;
     const scrollEl = document.getElementById('pog-wv-scroll');
     if (!scrollEl) return;
     const dy = e.touches[0].clientY - touchStartY;
@@ -4689,6 +4736,7 @@ const pogLayoutCache = {};
 let pogWorkingFixture = null;
 let pogWorkingLayout = null;
 let pogMaskCardOpacity = 0;
+let pogWorkingPdfUrl = null;
 let pogSelectedProduct = null;
 let pogLastNotFoundUpc = null;
 let pogSearchReturnState = null;
@@ -5160,7 +5208,10 @@ function closePogProductModal() {
 function applyPogMaskOpacity(pct) {
   pogMaskCardOpacity = pct;
   const bays = document.querySelector('.pog-wv-bays');
-  if (bays) bays.style.setProperty('--pog-wv-card-opacity', String(pct / 100));
+  if (bays) {
+    bays.style.setProperty('--pog-wv-card-opacity', String(pct / 100));
+    bays.classList.toggle('pog-mask-full', pct >= 100);
+  }
   const valEl = document.getElementById('pog-wv-mask-value');
   if (valEl) valEl.textContent = pct + '%';
   const maskSlider = document.getElementById('pog-wv-mask-slider');
@@ -5168,6 +5219,41 @@ function applyPogMaskOpacity(pct) {
   if (typeof window.virtualPlanogramSetPegOpacity === 'function') {
     window.virtualPlanogramSetPegOpacity(pct / 100);
   }
+  if (typeof window.planogramSyncTileCardFonts === 'function') {
+    requestAnimationFrame(function () {
+      window.planogramSyncTileCardFonts(bays || document.getElementById('pog-wv-planogram-host'));
+    });
+  }
+}
+
+function openHubPdfFromWorkingView(page) {
+  if (!pogWorkingPdfUrl) return;
+  const fixture = pogWorkingFixture;
+  const title = fixture ? shortName(fixture.name) : 'Planogram PDF';
+  document.getElementById('pog-working-view')?.classList.add('pog-pdf-open');
+  if (typeof window.openHubPdfViewer === 'function') {
+    window.openHubPdfViewer({ url: pogWorkingPdfUrl, page: page || 1, title: title });
+  }
+}
+
+function closeHubPdfFromWorkingView() {
+  document.getElementById('pog-working-view')?.classList.remove('pog-pdf-open');
+  if (typeof window.closeHubPdfViewer === 'function') {
+    window.closeHubPdfViewer();
+  }
+}
+
+function bindBayPdfButtons() {
+  document.querySelectorAll('[data-bay-pdf-page]').forEach(function (btn) {
+    if (btn.dataset.boundPdf) return;
+    btn.dataset.boundPdf = '1';
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const page = Number(btn.getAttribute('data-bay-pdf-page'));
+      openHubPdfFromWorkingView(Number.isFinite(page) ? page : 1);
+    });
+  });
 }
 
 async function acquirePogScannerWakeLock() {
@@ -5272,10 +5358,12 @@ function mountHubPlanogram(layout) {
   if (typeof window.renderHubPlanogramBays === 'function') {
     window.renderHubPlanogramBays(host, layout, pogCatalogCache || {});
     applyPogMaskOpacity(pogMaskCardOpacity);
+    bindBayPdfButtons();
     return;
   }
 
   host.innerHTML = renderPogBays(layout);
+  bindBayPdfButtons();
 }
 
 function renderPogTile(prod, bay, fixture, dbkey) {
@@ -5560,6 +5648,23 @@ function bindPogSearchUi() {
     const torchBtn = document.getElementById('pog-wv-scanner-torch');
     if (torchBtn) torchBtn.textContent = on ? 'Torch off' : 'Torch';
   });
+
+  document.getElementById('pog-pdf-back')?.addEventListener('click', () => closeHubPdfFromWorkingView());
+  document.getElementById('pog-pdf-prev')?.addEventListener('click', () => {
+    if (typeof window.viewerPdfPageDelta === 'function') window.viewerPdfPageDelta(-1);
+  });
+  document.getElementById('pog-pdf-next')?.addEventListener('click', () => {
+    if (typeof window.viewerPdfPageDelta === 'function') window.viewerPdfPageDelta(1);
+  });
+  document.getElementById('pog-pdf-zoom-out')?.addEventListener('click', () => {
+    if (typeof window.viewerZoom === 'function') window.viewerZoom(-1);
+  });
+  document.getElementById('pog-pdf-zoom-fit')?.addEventListener('click', () => {
+    if (typeof window.viewerZoom === 'function') window.viewerZoom(0);
+  });
+  document.getElementById('pog-pdf-zoom-in')?.addEventListener('click', () => {
+    if (typeof window.viewerZoom === 'function') window.viewerZoom(1);
+  });
 }
 
 function renderPogWorkingContent(fixture, layout, loadError) {
@@ -5585,6 +5690,8 @@ function renderPogWorkingContent(fixture, layout, loadError) {
   const pdfName = pdfFilenameFromFixture(fixture);
   const previewUrl = pogUrl('/previews/' + encodeURIComponent(fixture.dbkey) + '.png');
   const pdfUrl = pdfName ? pogUrl('/pdfs/' + encodeURIComponent(pdfName)) : null;
+  pogWorkingPdfUrl = pdfUrl;
+  closeHubPdfFromWorkingView();
 
   const meta =
     escapeHtml(layout.period_week || '') +
@@ -5599,7 +5706,7 @@ function renderPogWorkingContent(fixture, layout, loadError) {
       '<div class="pog-wv-preview-body">' +
         '<img id="pog-wv-preview-img" src="' + escapeHtml(previewUrl) + '" alt="Planogram page 1 preview" loading="lazy">' +
         (pdfUrl
-          ? '<div class="pog-wv-preview-links"><a href="' + escapeHtml(pdfUrl) + '" target="_blank" rel="noopener">View full PDF</a></div>'
+          ? '<button type="button" class="pog-wv-preview-pdf-btn" id="pog-wv-open-pdf">View full PDF</button>'
           : '') +
       '</div>' +
     '</div>' +
@@ -5618,6 +5725,10 @@ function renderPogWorkingContent(fixture, layout, loadError) {
 
   document.getElementById('pog-wv-preview-toggle')?.addEventListener('click', () => {
     document.getElementById('pog-wv-preview')?.classList.toggle('open');
+  });
+
+  document.getElementById('pog-wv-open-pdf')?.addEventListener('click', () => {
+    openHubPdfFromWorkingView(1);
   });
 
   bindPogSearchUi();
@@ -6985,7 +7096,9 @@ function closePogWorkingView(opts) {
     pogWorkingLayout = null;
     pogSelectedProduct = null;
     pogLastNotFoundUpc = null;
+    pogWorkingPdfUrl = null;
     setPogWvActionStatus('');
+    closeHubPdfFromWorkingView();
     document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
     document.getElementById('pog-wv-help-form')?.classList.remove('open');
     document.getElementById('pog-wv-actions')?.setAttribute('hidden', '');
