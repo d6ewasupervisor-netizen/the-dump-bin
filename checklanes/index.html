@@ -868,7 +868,7 @@
   }
 
   .assign-set-row.has-assign {
-    grid-template-columns: 52px 88px minmax(0, 1fr) auto minmax(148px, 220px);
+    grid-template-columns: 52px 88px minmax(0, 1fr) auto minmax(180px, 280px);
   }
 
   .assign-set-actions {
@@ -892,7 +892,14 @@
     font-size: 0.78rem;
   }
 
+  .assign-set-actions .btn-unassign {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 0.78rem;
+  }
+
   .assign-set-actions .btn-assign:disabled,
+  .assign-set-actions .btn-unassign:disabled,
   .assign-set-actions .hub-roster-select:disabled {
     opacity: 0.55;
     cursor: wait;
@@ -1899,6 +1906,58 @@
     cursor: pointer;
   }
 
+  .btn-unassign {
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: var(--radius);
+    border: 1px solid #64748b;
+    background: #1e293b;
+    color: #cbd5e1;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .reopen-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .reopen-reason {
+    width: 100%;
+    min-height: 72px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-family: inherit;
+    resize: vertical;
+  }
+
+  .btn-reopen {
+    align-self: flex-start;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: var(--radius);
+    border: 1px solid #b45309;
+    background: #451a03;
+    color: #fed7aa;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .reopen-hint {
+    font-size: 0.72rem;
+    color: var(--text3);
+    line-height: 1.35;
+  }
+
   .workflow-buttons {
     display: flex;
     flex-wrap: wrap;
@@ -2700,11 +2759,18 @@
         <option value="">Choose rep…</option>
       </select>
       <button type="button" class="btn-assign" id="pog-wv-assign-btn">Assign</button>
+      <button type="button" class="btn-unassign" id="pog-wv-unassign-btn" hidden>Unassign</button>
     </div>
     <div class="pog-wv-complete-row" id="pog-wv-complete-row" hidden>
       <button type="button" class="pog-wv-complete-btn pog-wv-start-btn" id="pog-wv-start" hidden>Start</button>
       <button type="button" class="pog-wv-complete-btn" id="pog-wv-mark-done" hidden>Mark done</button>
       <button type="button" class="pog-wv-complete-btn signoff" id="pog-wv-signoff" hidden>Sign off</button>
+    </div>
+    <div class="reopen-row" id="pog-wv-reopen-row" hidden>
+      <div class="label">Reopen completed set</div>
+      <p class="reopen-hint">Mistakes happen — explain why this set needs to go back to in progress. An email is sent before the change takes effect.</p>
+      <textarea class="reopen-reason" id="pog-wv-reopen-reason" rows="3" placeholder="Required explanation (at least 10 characters)…"></textarea>
+      <button type="button" class="btn-reopen" id="pog-wv-reopen-btn">Reopen set</button>
     </div>
     <div class="flag-status" id="pog-wv-action-status"></div>
   </div>
@@ -2846,6 +2912,8 @@ const SEED_STATES = {
   '9044474': 'in_progress',
   '9009221': 'signed_off'
 };
+
+const MIN_REOPEN_REASON_LENGTH = 10;
 
 const WORK_STATES = [
   'not_started',
@@ -3448,6 +3516,9 @@ function refreshDetailPanel(fixture) {
   bindSectionWorkflow(fixture.lane, fixture.dbkey, {
     assignSelectId: 'section-assign-select',
     assignBtnId: 'section-assign-btn',
+    unassignBtnId: 'section-unassign-btn',
+    reopenReasonId: 'section-reopen-reason',
+    reopenBtnId: 'section-reopen-btn',
     assignRowId: 'section-assign-row',
     startId: 'section-start',
     markDoneId: 'section-mark-done',
@@ -3751,6 +3822,14 @@ function bindEvents() {
 
   document.getElementById('assignments-view').addEventListener('click', async e => {
     if (e.target.closest('.assign-set-actions')) {
+      const unassignBtn = e.target.closest('.assign-set-unassign-btn');
+      if (unassignBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const row = unassignBtn.closest('.assign-set-row[data-dbkey]');
+        if (row) await handleInlineUnassign(row);
+        return;
+      }
       const btn = e.target.closest('.assign-set-btn');
       if (btn) {
         e.preventDefault();
@@ -4815,10 +4894,26 @@ function sectionAssigneeText(lane, dbkey) {
   return 'Unassigned';
 }
 
-function canShowSectionAssign(lane, dbkey) {
+function canManageSectionAssignment(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 2 || !dbkey) return false;
   const st = getFixtureState(lane, dbkey);
-  return st === 'not_started' || st === 'assigned';
+  return ['not_started', 'assigned', 'in_progress', 'needs_attention'].includes(st);
+}
+
+function canShowSectionAssign(lane, dbkey) {
+  return canManageSectionAssignment(lane, dbkey);
+}
+
+function canShowSectionUnassign(lane, dbkey) {
+  if (!canManageSectionAssignment(lane, dbkey)) return false;
+  const meta = getSectionMeta(lane, dbkey);
+  return meta?.assignee_id != null;
+}
+
+function canShowSectionReopen(lane, dbkey) {
+  if (!liveVisitId || hubContext.myRank < 2 || !dbkey) return false;
+  const st = getFixtureState(lane, dbkey);
+  return st === 'done_pending_signoff' || st === 'signed_off';
 }
 
 function canShowSectionStart(lane, dbkey) {
@@ -4954,8 +5049,11 @@ async function loadHubIdentity() {
 }
 
 function buildSectionWorkflowHtml(lane, dbkey, mode) {
+  const meta = getSectionMeta(lane, dbkey);
   const assignee = sectionAssigneeText(lane, dbkey);
   const showAssign = canShowSectionAssign(lane, dbkey);
+  const showUnassign = canShowSectionUnassign(lane, dbkey);
+  const showReopen = canShowSectionReopen(lane, dbkey);
   const showStart = canShowSectionStart(lane, dbkey);
   const showMarkDone = canShowPogMarkDone(lane, dbkey);
   const showSignoff = canShowPogSignoff(lane, dbkey);
@@ -4969,9 +5067,10 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
         '</div></div>' +
         '<div class="assign-row" id="section-assign-row"' + (showAssign ? '' : ' hidden') + '>' +
           '<select class="hub-roster-select" id="section-assign-select" aria-label="Assign rep">' +
-            '<option value="">Choose rep…</option>' + rosterSelectOptionsHtml() +
+            '<option value="">Choose rep…</option>' + rosterSelectOptionsHtml(meta?.assignee_id) +
           '</select>' +
           '<button type="button" class="btn-assign" id="section-assign-btn">Assign</button>' +
+          '<button type="button" class="btn-unassign" id="section-unassign-btn"' + (showUnassign ? '' : ' hidden') + '>Unassign</button>' +
         '</div>' +
         '<div class="workflow-buttons">' +
           '<button type="button" class="pog-wv-complete-btn pog-wv-start-btn" id="section-start"' +
@@ -4980,6 +5079,12 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
             (showMarkDone ? '' : ' hidden') + '>Mark done</button>' +
           '<button type="button" class="pog-wv-complete-btn signoff" id="section-signoff"' +
             (showSignoff ? '' : ' hidden') + '>Sign off</button>' +
+        '</div>' +
+        '<div class="reopen-row" id="section-reopen-row"' + (showReopen ? '' : ' hidden') + '>' +
+          '<div class="label">Reopen completed set</div>' +
+          '<p class="reopen-hint">Explain why this set is going back to in progress. An email notification is required before the change.</p>' +
+          '<textarea class="reopen-reason" id="section-reopen-reason" rows="3" placeholder="Required explanation (at least ' + MIN_REOPEN_REASON_LENGTH + ' characters)…"></textarea>' +
+          '<button type="button" class="btn-reopen" id="section-reopen-btn">Reopen set</button>' +
         '</div>' +
         '<div class="flag-status" id="workflow-status"></div>' +
       '</div>'
@@ -5000,6 +5105,8 @@ function bindSectionWorkflow(lane, dbkey, ids) {
   const setBusy = (disabled) => {
     [
       ids.assignBtnId,
+      ids.unassignBtnId,
+      ids.reopenBtnId,
       ids.startId,
       ids.markDoneId,
       ids.signoffId,
@@ -5009,6 +5116,8 @@ function bindSectionWorkflow(lane, dbkey, ids) {
     });
     const sel = document.getElementById(ids.assignSelectId);
     if (sel) sel.disabled = disabled;
+    const reasonEl = document.getElementById(ids.reopenReasonId);
+    if (reasonEl) reasonEl.disabled = disabled;
   };
 
   document.getElementById(ids.assignBtnId)?.addEventListener('click', async () => {
@@ -5025,6 +5134,38 @@ function bindSectionWorkflow(lane, dbkey, ids) {
       setStatus('Assigned — waiting for live update…', 'ok');
     } catch (err) {
       setStatus(err.message || 'Assign failed', 'error');
+      setBusy(false);
+    }
+  });
+
+  document.getElementById(ids.unassignBtnId)?.addEventListener('click', async () => {
+    setBusy(true);
+    setStatus('Unassigning…');
+    try {
+      await hubSectionPost(dbkey, lane, 'unassign', {});
+      setStatus('Unassigned — waiting for live update…', 'ok');
+    } catch (err) {
+      setStatus(err.message || 'Unassign failed', 'error');
+      setBusy(false);
+    }
+  });
+
+  document.getElementById(ids.reopenBtnId)?.addEventListener('click', async () => {
+    const reason = (document.getElementById(ids.reopenReasonId)?.value || '').trim();
+    if (reason.length < MIN_REOPEN_REASON_LENGTH) {
+      setStatus('Enter an explanation of at least ' + MIN_REOPEN_REASON_LENGTH + ' characters', 'error');
+      document.getElementById(ids.reopenReasonId)?.focus();
+      return;
+    }
+    setBusy(true);
+    setStatus('Sending notification and reopening…');
+    try {
+      await hubSectionPost(dbkey, lane, 'reopen', { reason });
+      setStatus('Reopened — waiting for live update…', 'ok');
+      const reasonEl = document.getElementById(ids.reopenReasonId);
+      if (reasonEl) reasonEl.value = '';
+    } catch (err) {
+      setStatus(err.message || 'Reopen failed', 'error');
       setBusy(false);
     }
   });
@@ -5141,6 +5282,7 @@ function assignmentStats() {
 function assignmentAssignControlsHtml(row) {
   if (!liveVisitId || hubContext.myRank < 2) return '';
   if (!canShowSectionAssign(row.lane, row.dbkey)) return '';
+  const showUnassign = canShowSectionUnassign(row.lane, row.dbkey);
   return (
     '<div class="assign-set-actions">' +
       '<select class="hub-roster-select assign-set-select" aria-label="Assign rep for lane ' + escapeHtml(row.lane) + '">' +
@@ -5148,6 +5290,7 @@ function assignmentAssignControlsHtml(row) {
         rosterSelectOptionsHtml(row.assigneeId) +
       '</select>' +
       '<button type="button" class="btn-assign assign-set-btn">Assign</button>' +
+      (showUnassign ? '<button type="button" class="btn-unassign assign-set-unassign-btn">Unassign</button>' : '') +
     '</div>'
   );
 }
@@ -5164,6 +5307,50 @@ function renderAssignmentSetRowHtml(row) {
       assignHtml +
     '</li>'
   );
+}
+
+async function handleInlineUnassign(rowEl) {
+  const dbkey = rowEl.getAttribute('data-dbkey');
+  const lane = rowEl.getAttribute('data-lane');
+  const btn = rowEl.querySelector('.assign-set-unassign-btn');
+  const assignBtn = rowEl.querySelector('.assign-set-btn');
+  const select = rowEl.querySelector('.assign-set-select');
+
+  let statusEl = rowEl.querySelector('.assign-set-status');
+  const setStatus = (msg, kind) => {
+    if (!msg) {
+      statusEl?.remove();
+      return;
+    }
+    if (!statusEl) {
+      statusEl = document.createElement('div');
+      statusEl.className = 'assign-set-status';
+      rowEl.appendChild(statusEl);
+    }
+    statusEl.textContent = msg;
+    statusEl.className = 'assign-set-status' + (kind ? ' ' + kind : '');
+  };
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '…';
+  }
+  if (assignBtn) assignBtn.disabled = true;
+  if (select) select.disabled = true;
+  setStatus('Unassigning…');
+
+  try {
+    await hubSectionPost(dbkey, lane, 'unassign', {});
+    setStatus('Unassigned — updating…', 'ok');
+  } catch (err) {
+    setStatus(err.message || 'Unassign failed', 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Unassign';
+    }
+    if (assignBtn) assignBtn.disabled = false;
+    if (select) select.disabled = false;
+  }
 }
 
 async function handleInlineAssignment(rowEl) {
@@ -5359,10 +5546,12 @@ function setPogWvActionStatus(msg, kind) {
 
 function setPogWvActionsDisabled(disabled) {
   document.querySelectorAll(
-    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff, #pog-wv-assign-btn'
+    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff, #pog-wv-assign-btn, #pog-wv-unassign-btn, #pog-wv-reopen-btn'
   ).forEach(btn => { btn.disabled = disabled; });
   const sel = document.getElementById('pog-wv-assign-select');
   if (sel) sel.disabled = disabled;
+  const reopenReason = document.getElementById('pog-wv-reopen-reason');
+  if (reopenReason) reopenReason.disabled = disabled;
 }
 
 async function submitPogSectionFlag(kind, payload) {
@@ -5403,8 +5592,10 @@ function refreshPogWorkingChrome() {
   const actions = document.getElementById('pog-wv-actions');
   const stateWrap = document.getElementById('pog-wv-state-wrap');
   const completeRow = document.getElementById('pog-wv-complete-row');
+  const reopenRow = document.getElementById('pog-wv-reopen-row');
   const assignRow = document.getElementById('pog-wv-assign-row');
   const assignSelect = document.getElementById('pog-wv-assign-select');
+  const unassignBtn = document.getElementById('pog-wv-unassign-btn');
   const startBtn = document.getElementById('pog-wv-start');
   const markDoneBtn = document.getElementById('pog-wv-mark-done');
   const signoffBtn = document.getElementById('pog-wv-signoff');
@@ -5433,6 +5624,10 @@ function refreshPogWorkingChrome() {
   }
 
   populateRosterSelect(assignSelect);
+  const meta = dbkey ? getSectionMeta(lane, dbkey) : null;
+  if (assignSelect && meta?.assignee_id != null) {
+    assignSelect.value = String(meta.assignee_id);
+  }
 
   if (actions) {
     actions.hidden = !showLiveActions;
@@ -5448,11 +5643,15 @@ function refreshPogWorkingChrome() {
   }
 
   const showAssign = dbkey && canShowSectionAssign(lane, dbkey);
+  const showUnassign = dbkey && canShowSectionUnassign(lane, dbkey);
+  const showReopen = dbkey && canShowSectionReopen(lane, dbkey);
   const showStart = dbkey && canShowSectionStart(lane, dbkey);
   const showMarkDone = dbkey && canShowPogMarkDone(lane, dbkey);
   const showSignoff = dbkey && canShowPogSignoff(lane, dbkey);
 
   if (assignRow) assignRow.hidden = !showAssign;
+  if (unassignBtn) unassignBtn.hidden = !showUnassign;
+  if (reopenRow) reopenRow.hidden = !showReopen;
   if (completeRow) completeRow.hidden = !(showStart || showMarkDone || showSignoff);
   if (startBtn) startBtn.hidden = !showStart;
   if (markDoneBtn) markDoneBtn.hidden = !showMarkDone;
@@ -5585,6 +5784,44 @@ function bindPogWorkingActions() {
     try {
       await hubSectionPost(dbkey, lane, 'assign', { assigneeId });
       setPogWvActionStatus('Assigned — waiting for live update…', 'ok');
+    } catch (err) {
+      setPogWvActionStatus(err.message || 'Failed', 'error');
+      setPogWvActionsDisabled(false);
+    }
+  });
+
+  document.getElementById('pog-wv-unassign-btn')?.addEventListener('click', async () => {
+    const dbkey = pogWorkingDbkey();
+    const lane = pogWorkingFixture?.lane || '';
+    if (!dbkey) return;
+    setPogWvActionsDisabled(true);
+    setPogWvActionStatus('Unassigning…');
+    try {
+      await hubSectionPost(dbkey, lane, 'unassign', {});
+      setPogWvActionStatus('Unassigned — waiting for live update…', 'ok');
+    } catch (err) {
+      setPogWvActionStatus(err.message || 'Failed', 'error');
+      setPogWvActionsDisabled(false);
+    }
+  });
+
+  document.getElementById('pog-wv-reopen-btn')?.addEventListener('click', async () => {
+    const dbkey = pogWorkingDbkey();
+    const lane = pogWorkingFixture?.lane || '';
+    if (!dbkey) return;
+    const reason = (document.getElementById('pog-wv-reopen-reason')?.value || '').trim();
+    if (reason.length < MIN_REOPEN_REASON_LENGTH) {
+      setPogWvActionStatus('Enter an explanation of at least ' + MIN_REOPEN_REASON_LENGTH + ' characters', 'error');
+      document.getElementById('pog-wv-reopen-reason')?.focus();
+      return;
+    }
+    setPogWvActionsDisabled(true);
+    setPogWvActionStatus('Sending notification and reopening…');
+    try {
+      await hubSectionPost(dbkey, lane, 'reopen', { reason });
+      setPogWvActionStatus('Reopened — waiting for live update…', 'ok');
+      const reasonEl = document.getElementById('pog-wv-reopen-reason');
+      if (reasonEl) reasonEl.value = '';
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
       setPogWvActionsDisabled(false);
