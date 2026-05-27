@@ -313,15 +313,15 @@
   justify-content: center;
   align-items: center;
   gap: 0;
-  padding: 2px;
+  padding: 1px 2px;
   border-radius: inherit;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, calc(var(--planogram-card-opacity, 1) * 0.96));
   color: #fff;
   /* font-size set inline from JS (tile dimensions) */
   text-align: center;
   pointer-events: none;
   z-index: 2;
-  opacity: var(--planogram-card-opacity, 1);
+  opacity: 1;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -330,10 +330,21 @@
   flex-shrink: 0;
   white-space: nowrap;
   line-height: inherit;
+  opacity: clamp(0, calc((var(--planogram-card-opacity, 1) - 0.06) / 0.22), 1);
+}
+
+.planogram-tile-card-pos {
+  font-weight: 700;
+}
+
+.planogram-tile-card-rc {
+  font-weight: 800;
 }
 
 .planogram-tile-card.planogram-tile-card--pegboard > span {
   max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Peg view: 1-inch grid behind tiles + per-product peg marker.

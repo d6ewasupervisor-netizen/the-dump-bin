@@ -2944,23 +2944,32 @@
     justify-content: center;
     align-items: center;
     gap: 0;
-    padding: 2px;
+    padding: 1px 2px;
     border-radius: inherit;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, calc(var(--pog-wv-card-opacity, 0) * 0.96));
     color: #fff;
     text-align: center;
     pointer-events: none;
     z-index: 2;
-    opacity: var(--pog-wv-card-opacity, 0);
+    opacity: 1;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-weight: 800;
-    font-size: clamp(0.55rem, 2.2vw, 0.72rem);
     line-height: 1.05;
   }
 
   .pog-wv-tile-card > span {
     display: block;
+    flex-shrink: 0;
     white-space: nowrap;
+    opacity: clamp(0, calc((var(--pog-wv-card-opacity, 0) - 0.06) / 0.22), 1);
+  }
+
+  .pog-wv-tile-card .planogram-tile-card-pos {
+    font-weight: 700;
+  }
+
+  .pog-wv-tile-card .planogram-tile-card-rc {
+    font-weight: 800;
   }
 
   .pog-wv-mask-row {
@@ -5209,14 +5218,27 @@ function compactTagLocation(bay, fixture, prod, lane) {
 function renderPogPositionCardHtml(fixture, prod) {
   if (fixture.type === 'pegboard') {
     const peg = parsePegPosition(prod.position_code);
-    let html = '<span>' + escapeHtml(String(prod.pos)) + '</span>';
+    let html =
+      '<span class="planogram-tile-card-pos">#' +
+      escapeHtml(String(prod.pos)) +
+      '</span>';
     if (peg) {
-      html += '<span>R' + escapeHtml(String(peg.row).padStart(2, '0')) + '</span>';
-      html += '<span>C' + escapeHtml(String(peg.col).padStart(2, '0')) + '</span>';
+      html +=
+        '<span class="planogram-tile-card-rc">R' +
+        escapeHtml(String(peg.row)) +
+        '</span>';
+      html +=
+        '<span class="planogram-tile-card-rc">C' +
+        escapeHtml(String(peg.col)) +
+        '</span>';
     }
     return html;
   }
-  return '<span>' + escapeHtml(String(prod.pos)) + '</span>';
+  return (
+    '<span class="planogram-tile-card-pos">#' +
+    escapeHtml(String(prod.pos)) +
+    '</span>'
+  );
 }
 
 function findPogProduct(upc, bayNum, fixtureNum) {
@@ -5306,9 +5328,13 @@ function closePogProductModal() {
 
 function applyPogMaskOpacity(pct) {
   pogMaskCardOpacity = pct;
+  const eased =
+    typeof window.planogramSliderPercentToCardOpacity === 'function'
+      ? window.planogramSliderPercentToCardOpacity(pct)
+      : pct / 100;
   const bays = document.querySelector('.pog-wv-bays');
   if (bays) {
-    bays.style.setProperty('--pog-wv-card-opacity', String(pct / 100));
+    bays.style.setProperty('--pog-wv-card-opacity', String(eased));
     bays.classList.toggle('pog-mask-full', pct >= 100);
   }
   const valEl = document.getElementById('pog-wv-mask-value');
@@ -5316,7 +5342,7 @@ function applyPogMaskOpacity(pct) {
   const maskSlider = document.getElementById('pog-wv-mask-slider');
   if (maskSlider) maskSlider.value = String(pct);
   if (typeof window.virtualPlanogramSetPegOpacity === 'function') {
-    window.virtualPlanogramSetPegOpacity(pct / 100);
+    window.virtualPlanogramSetPegOpacity(eased);
   }
   if (typeof window.planogramSyncTileCardFonts === 'function') {
     requestAnimationFrame(function () {
@@ -5484,7 +5510,13 @@ function renderPogTile(prod, bay, fixture, dbkey) {
         '<img class="pog-wv-tile-img" loading="lazy" decoding="async" src="' + escapeHtml(imgUrl) + '" alt="" ' +
           'onerror="this.classList.add(\'is-hidden\');this.nextElementSibling.classList.add(\'is-visible\')">' +
         '<div class="pog-wv-tile-textonly">' + escapeHtml(name.slice(0, 40)) + '</div>' +
-        '<div class="pog-wv-tile-card" aria-hidden="true">' + renderPogPositionCardHtml(fixture, prod) + '</div>' +
+        '<div class="pog-wv-tile-card' +
+          (fixture.type === 'pegboard' && parsePegPosition(prod.position_code)
+            ? ' planogram-tile-card--pegboard'
+            : '') +
+          '" aria-hidden="true">' +
+          renderPogPositionCardHtml(fixture, prod) +
+        '</div>' +
       '</div>' +
       '<div class="pog-wv-tile-name">' + escapeHtml(name) + '</div>' +
       '<div class="pog-wv-tile-upc">' + escapeHtml(upc) + '</div>' +

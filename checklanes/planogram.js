@@ -28,6 +28,25 @@
   /** Current `.planogram-wrap` for tile-card opacity slider updates. */
   var activePlanogramWrapEl = null;
 
+  /** Ease-in so the mask darkens gradually from the start of the slider range. */
+  var CARD_OPACITY_GAMMA = 0.42;
+  var TILE_CARD_POS_SCALE = 0.52;
+
+  function sliderPercentToCardOpacity(pct) {
+    var t = Math.max(0, Math.min(100, pct)) / 100;
+    if (t <= 0) return 0;
+    return Math.pow(t, CARD_OPACITY_GAMMA);
+  }
+
+  function cardOpacityToSliderPercent(op) {
+    if (!isFinite(op) || op <= 0) return 0;
+    op = Math.max(0, Math.min(1, op));
+    return Math.round(Math.pow(op, 1 / CARD_OPACITY_GAMMA) * 100);
+  }
+
+  window.planogramSliderPercentToCardOpacity = sliderPercentToCardOpacity;
+  window.planogramCardOpacityToSliderPercent = cardOpacityToSliderPercent;
+
   function syncPlanogramWrapTileCardOpacity(wrapEl) {
     if (!wrapEl) return;
     var op = pegViewState.tileCardOpacity;
@@ -39,52 +58,52 @@
 
   function syncPlanogramTileCardFonts(rootEl) {
     if (!rootEl) return;
-    var cardOp = 0;
-    var opacityNode = rootEl;
-    while (opacityNode) {
-      try {
-        var opVal = parseFloat(
-          getComputedStyle(opacityNode).getPropertyValue('--planogram-card-opacity')
-        );
-        if (isFinite(opVal) && opVal > 0) { cardOp = opVal; break; }
-        opVal = parseFloat(
-          getComputedStyle(opacityNode).getPropertyValue('--pog-wv-card-opacity')
-        );
-        if (isFinite(opVal) && opVal > 0) { cardOp = opVal; break; }
-      } catch (e) { /* ignore */ }
-      opacityNode = opacityNode.parentElement;
-    }
-    var maskHeavy = cardOp >= 0.99;
-    var tiles = rootEl.querySelectorAll('.planogram-tile');
+    var lh = 1.05;
+    var padY = 4;
+    var tiles = rootEl.querySelectorAll('.planogram-tile, .pog-wv-tile');
     var ti;
     for (ti = 0; ti < tiles.length; ti++) {
       var tile = tiles[ti];
-      var card = tile.querySelector('.planogram-tile-card');
+      var card = tile.querySelector('.planogram-tile-card, .pog-wv-tile-card');
       if (!card) continue;
-      var tw = tile.offsetWidth;
-      var th = tile.offsetHeight;
+      var tw = tile.clientWidth;
+      var th = tile.clientHeight;
       if (!(tw > 0) || !(th > 0)) continue;
-      var mult;
-      if (maskHeavy) {
-        mult = 0.46;
-        card.style.padding = '1px';
-      } else if (cardOp >= 0.5) {
-        mult = 0.36;
-        card.style.padding = '1px';
-      } else if (card.classList.contains('planogram-tile-card--pegboard')) {
-        mult = 0.14;
-        card.style.padding = '2px';
-      } else if (tile.classList.contains('planogram-tile--pegboard')) {
-        mult = 0.18;
-        card.style.padding = '2px';
-      } else {
-        mult = 0.24;
-        card.style.padding = '2px';
+
+      var isPeg = card.classList.contains('planogram-tile-card--pegboard');
+      var unitCount = isPeg ? TILE_CARD_POS_SCALE + 2 : 1;
+      var byHeight = (th - padY) / (unitCount * lh);
+
+      var maxChars = 3;
+      var rcSpans = card.querySelectorAll('.planogram-tile-card-rc');
+      var ri;
+      for (ri = 0; ri < rcSpans.length; ri++) {
+        maxChars = Math.max(maxChars, String(rcSpans[ri].textContent || '').length);
       }
-      card.style.fontSize = Math.max(5, Math.min(tw, th) * mult) + 'px';
-      card.style.lineHeight = '1.02';
+      if (!isPeg) {
+        var posOnly = card.querySelector('.planogram-tile-card-pos');
+        if (posOnly) {
+          maxChars = Math.max(maxChars, String(posOnly.textContent || '').length);
+        }
+      }
+      var byWidth = (tw - 4) / (maxChars * 0.62);
+
+      var coordSize = Math.max(5, Math.min(byHeight, byWidth, tw * 0.28));
+      card.style.fontSize = coordSize + 'px';
+      card.style.lineHeight = String(lh);
       card.style.fontWeight = '800';
       card.style.overflow = 'hidden';
+      card.style.padding = '1px 2px';
+
+      var posSpan = card.querySelector('.planogram-tile-card-pos');
+      if (posSpan) {
+        posSpan.style.fontSize = (isPeg ? TILE_CARD_POS_SCALE : 1) * coordSize + 'px';
+        posSpan.style.lineHeight = String(lh);
+      }
+      for (ri = 0; ri < rcSpans.length; ri++) {
+        rcSpans[ri].style.fontSize = coordSize + 'px';
+        rcSpans[ri].style.lineHeight = String(lh);
+      }
     }
   }
   window.planogramSyncTileCardFonts = syncPlanogramTileCardFonts;
@@ -497,20 +516,24 @@
     card.style.overflow = 'hidden';
     if (fixture.type === 'pegboard') {
       var posSpan = document.createElement('span');
+      posSpan.className = 'planogram-tile-card-pos';
       posSpan.textContent = '#' + String(item.pos);
       card.appendChild(posSpan);
       var rc = parsePegboardRC(item.position_code);
       if (rc) {
         card.classList.add('planogram-tile-card--pegboard');
         var rSpan = document.createElement('span');
+        rSpan.className = 'planogram-tile-card-rc';
         rSpan.textContent = 'R' + String(rc.r);
         var cSpan = document.createElement('span');
+        cSpan.className = 'planogram-tile-card-rc';
         cSpan.textContent = 'C' + String(rc.c);
         card.appendChild(rSpan);
         card.appendChild(cSpan);
       }
     } else {
       var shelfSpan = document.createElement('span');
+      shelfSpan.className = 'planogram-tile-card-pos';
       shelfSpan.textContent = '#' + String(item.pos);
       card.appendChild(shelfSpan);
     }
@@ -1804,12 +1827,13 @@
           : 'Peg View';
       }
       if (pegSlider) {
-        var pct = Math.round(pegViewState.tileCardOpacity * 100);
+        var pct = cardOpacityToSliderPercent(pegViewState.tileCardOpacity);
         if (String(pegSlider.value) !== String(pct)) pegSlider.value = String(pct);
         pegSlider.disabled = false;
       }
       if (pegValueEl) {
-        pegValueEl.textContent = Math.round(pegViewState.tileCardOpacity * 100) + '%';
+        pegValueEl.textContent =
+          cardOpacityToSliderPercent(pegViewState.tileCardOpacity) + '%';
       }
     };
 
@@ -1855,8 +1879,8 @@
   window.virtualPlanogramSetPegOpacity = function (value) {
     var n = Number(value);
     if (!isFinite(n)) return;
-    if (n > 1) n = n / 100;
-    n = Math.max(0, Math.min(1, n));
+    if (n > 1) n = sliderPercentToCardOpacity(n);
+    else n = Math.max(0, Math.min(1, n));
     pegViewState.tileCardOpacity = n;
     syncPlanogramWrapTileCardOpacity(
       activePlanogramWrapEl ||
@@ -1999,7 +2023,7 @@
     var raw = parseInt(pegSliderEl.value, 10);
     if (!isFinite(raw)) raw = 100;
     raw = Math.max(0, Math.min(100, raw));
-    pegViewState.tileCardOpacity = raw / 100;
+    pegViewState.tileCardOpacity = sliderPercentToCardOpacity(raw);
     syncPlanogramWrapTileCardOpacity(
       activePlanogramWrapEl ||
         (pegViewContainerEl &&
