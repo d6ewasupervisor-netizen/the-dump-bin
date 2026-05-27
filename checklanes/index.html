@@ -2967,6 +2967,10 @@ let sectionTagDraftsDbkey = null;
 let selectedPendingId = null;
 let pendingDetailCache = {};
 let streamAbort = null;
+let streamConnected = false;
+let streamReconnectTimer = null;
+let streamReconnectDelayMs = 1000;
+const HUB_STREAM_RECONNECT_MAX_MS = 30000;
 
 function escapeHtml(str) {
   return String(str)
@@ -3547,8 +3551,8 @@ function refreshDetailPanel(fixture) {
     disableFlags(true);
     setFlagStatus('Raising help flag…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/help', { lane: fixture.lane });
-      setFlagStatus('Flag raised — waiting for live update…', 'ok');
+      await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/help', { lane: fixture.lane });
+      setFlagStatus('Help request sent — pending lead review', 'ok');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
       disableFlags(false);
@@ -3559,8 +3563,8 @@ function refreshDetailPanel(fixture) {
     disableFlags(true);
     setFlagStatus('Raising not-in-store flag…');
     try {
-      await hubPost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/nis', { lane: fixture.lane });
-      setFlagStatus('Flag raised — waiting for live update…', 'ok');
+      await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/nis', { lane: fixture.lane });
+      setFlagStatus('Not-in-store flag sent — pending lead review', 'ok');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
       disableFlags(false);
@@ -5157,8 +5161,8 @@ function bindSectionWorkflow(lane, dbkey, ids) {
     setBusy(true);
     setStatus('Assigning…');
     try {
-      await hubSectionPost(dbkey, lane, 'assign', { assigneeId });
-      setStatus('Assigned — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'assign', { assigneeId });
+      setStatus('Assigned', 'ok');
     } catch (err) {
       setStatus(err.message || 'Assign failed', 'error');
       setBusy(false);
@@ -5169,8 +5173,8 @@ function bindSectionWorkflow(lane, dbkey, ids) {
     setBusy(true);
     setStatus('Unassigning…');
     try {
-      await hubSectionPost(dbkey, lane, 'unassign', {});
-      setStatus('Unassigned — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'unassign', {});
+      setStatus('Unassigned', 'ok');
     } catch (err) {
       setStatus(err.message || 'Unassign failed', 'error');
       setBusy(false);
@@ -5187,8 +5191,8 @@ function bindSectionWorkflow(lane, dbkey, ids) {
     setBusy(true);
     setStatus('Sending notification and reopening…');
     try {
-      await hubSectionPost(dbkey, lane, 'reopen', { reason });
-      setStatus('Reopened — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'reopen', { reason });
+      setStatus('Set reopened', 'ok');
       const reasonEl = document.getElementById(ids.reopenReasonId);
       if (reasonEl) reasonEl.value = '';
     } catch (err) {
@@ -5201,8 +5205,8 @@ function bindSectionWorkflow(lane, dbkey, ids) {
     setBusy(true);
     setStatus('Starting…');
     try {
-      await hubSectionPost(dbkey, lane, 'start', {});
-      setStatus('Started — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'start', {});
+      setStatus('Started', 'ok');
     } catch (err) {
       setStatus(err.message || 'Start failed', 'error');
       setBusy(false);
@@ -5213,8 +5217,8 @@ function bindSectionWorkflow(lane, dbkey, ids) {
     setBusy(true);
     setStatus('Marking done…');
     try {
-      await hubSectionPost(dbkey, lane, 'mark-done', {});
-      setStatus('Marked done — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'mark-done', {});
+      setStatus('Marked done — pending sign-off', 'ok');
     } catch (err) {
       setStatus(err.message || 'Mark done failed', 'error');
       setBusy(false);
@@ -5225,8 +5229,8 @@ function bindSectionWorkflow(lane, dbkey, ids) {
     setBusy(true);
     setStatus('Signing off…');
     try {
-      await hubSectionPost(dbkey, lane, 'signoff', {});
-      setStatus('Signed off — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'signoff', {});
+      setStatus('Signed off', 'ok');
     } catch (err) {
       setStatus(err.message || 'Sign off failed', 'error');
       setBusy(false);
@@ -5367,8 +5371,8 @@ async function handleInlineUnassign(rowEl) {
   setStatus('Unassigning…');
 
   try {
-    await hubSectionPost(dbkey, lane, 'unassign', {});
-    setStatus('Unassigned — updating…', 'ok');
+    await hubSectionMutate(dbkey, lane, 'unassign', {});
+    setStatus('Unassigned', 'ok');
   } catch (err) {
     setStatus(err.message || 'Unassign failed', 'error');
     if (btn) {
@@ -5416,8 +5420,8 @@ async function handleInlineAssignment(rowEl) {
   setStatus('Assigning…');
 
   try {
-    await hubSectionPost(dbkey, lane, 'assign', { assigneeId });
-    setStatus('Assigned — updating…', 'ok');
+    await hubSectionMutate(dbkey, lane, 'assign', { assigneeId });
+    setStatus('Assigned', 'ok');
   } catch (err) {
     setStatus(err.message || 'Assign failed', 'error');
     if (btn) {
@@ -5590,7 +5594,7 @@ async function submitPogSectionFlag(kind, payload) {
     nis: '/flag/nis',
     'missing-tag': '/flag/missing-tag',
   };
-  await hubPost('/sections/' + encodeURIComponent(dbkey) + paths[kind], {
+  await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + paths[kind], {
     ...(payload || {}),
     lane,
   });
@@ -5780,8 +5784,8 @@ function bindPogWorkingActions() {
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Marking done…');
     try {
-      await hubSectionPost(dbkey, lane, 'mark-done', {});
-      setPogWvActionStatus('Marked done — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'mark-done', {});
+      setPogWvActionStatus('Marked done — pending sign-off', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
       setPogWvActionsDisabled(false);
@@ -5795,8 +5799,8 @@ function bindPogWorkingActions() {
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Starting…');
     try {
-      await hubSectionPost(dbkey, lane, 'start', {});
-      setPogWvActionStatus('Started — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'start', {});
+      setPogWvActionStatus('Started', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
       setPogWvActionsDisabled(false);
@@ -5815,8 +5819,8 @@ function bindPogWorkingActions() {
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Assigning…');
     try {
-      await hubSectionPost(dbkey, lane, 'assign', { assigneeId });
-      setPogWvActionStatus('Assigned — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'assign', { assigneeId });
+      setPogWvActionStatus('Assigned', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
       setPogWvActionsDisabled(false);
@@ -5830,8 +5834,8 @@ function bindPogWorkingActions() {
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Unassigning…');
     try {
-      await hubSectionPost(dbkey, lane, 'unassign', {});
-      setPogWvActionStatus('Unassigned — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'unassign', {});
+      setPogWvActionStatus('Unassigned', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
       setPogWvActionsDisabled(false);
@@ -5851,8 +5855,8 @@ function bindPogWorkingActions() {
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Sending notification and reopening…');
     try {
-      await hubSectionPost(dbkey, lane, 'reopen', { reason });
-      setPogWvActionStatus('Reopened — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'reopen', { reason });
+      setPogWvActionStatus('Set reopened', 'ok');
       const reasonEl = document.getElementById('pog-wv-reopen-reason');
       if (reasonEl) reasonEl.value = '';
     } catch (err) {
@@ -5868,8 +5872,8 @@ function bindPogWorkingActions() {
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Signing off…');
     try {
-      await hubSectionPost(dbkey, lane, 'signoff', {});
-      setPogWvActionStatus('Signed off — waiting for live update…', 'ok');
+      await hubSectionMutate(dbkey, lane, 'signoff', {});
+      setPogWvActionStatus('Signed off', 'ok');
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
       setPogWvActionsDisabled(false);
@@ -6070,6 +6074,60 @@ async function hubDelete(path) {
   return data;
 }
 
+async function refreshHubSnapshot() {
+  if (!liveVisitId) return null;
+  return loadLiveState(liveVisitId);
+}
+
+async function hubMutateAfterPost(postPromise) {
+  const result = await postPromise;
+  try {
+    await refreshHubSnapshot();
+  } catch (err) {
+    console.error('[Checklane Hub] snapshot refresh after mutation failed:', err);
+    throw new Error('Saved, but the screen could not refresh — reload if it looks wrong.');
+  }
+  ensureHubStream();
+  return result;
+}
+
+async function hubMutatePost(path, body) {
+  return hubMutateAfterPost(hubPost(path, body));
+}
+
+async function hubSectionMutate(dbkey, lane, suffix, body) {
+  return hubMutateAfterPost(hubSectionPost(dbkey, lane, suffix, body));
+}
+
+function clearStreamReconnectTimer() {
+  if (!streamReconnectTimer) return;
+  clearTimeout(streamReconnectTimer);
+  streamReconnectTimer = null;
+}
+
+function scheduleHubStreamReconnect(visitId) {
+  if (!visitId || String(visitId) !== String(liveVisitId)) return;
+  if (streamReconnectTimer) return;
+  streamReconnectTimer = setTimeout(() => {
+    streamReconnectTimer = null;
+    connectHubStream(visitId).catch(err => {
+      console.warn('[Checklane Hub] SSE reconnect failed:', err);
+      streamReconnectDelayMs = Math.min(streamReconnectDelayMs * 2, HUB_STREAM_RECONNECT_MAX_MS);
+      scheduleHubStreamReconnect(visitId);
+    });
+  }, streamReconnectDelayMs);
+}
+
+function ensureHubStream() {
+  if (!liveVisitId) return;
+  if (streamConnected && streamAbort && !streamAbort.aborted) return;
+  streamReconnectDelayMs = 1000;
+  connectHubStream(liveVisitId).catch(err => {
+    console.warn('[Checklane Hub] SSE ensure connect failed:', err);
+    scheduleHubStreamReconnect(liveVisitId);
+  });
+}
+
 function updatePendingBadge() {
   const badge = document.getElementById('pending-badge');
   const countEl = document.getElementById('pending-count');
@@ -6248,7 +6306,7 @@ function renderSectionTagDraftCart() {
 async function addSectionTagDraftEntry({ upc, description, location }) {
   const dbkey = pogWorkingDbkey();
   if (!dbkey) throw new Error('No active planogram');
-  await hubPost('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts', {
+  await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts', {
     upc,
     description,
     location,
@@ -6290,7 +6348,7 @@ async function submitSectionTagDraftsForPlanogram() {
   setPogWvActionsDisabled(true);
   setPogWvActionStatus('Submitting ' + sectionTagDrafts.length + ' tag(s)…');
   try {
-    const result = await hubPost('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts/submit', {});
+    const result = await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts/submit', {});
     await loadSectionTagDrafts(dbkey);
     setPogWvActionStatus('Submitted ' + (result.count || 0) + ' tag(s) for lead review', 'ok');
     document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
@@ -6304,7 +6362,7 @@ async function verifyAllPendingMissingTags() {
   if (!liveVisitId || hubContext.myRank < 2) return;
   setTagBatchStatus('Verifying all pending missing tags…');
   try {
-    const result = await hubPost('/missing-tags/verify-bulk', {});
+    const result = await hubMutatePost('/missing-tags/verify-bulk', {});
     setTagBatchStatus('Verified ' + (result.count || 0) + ' tag(s)', 'ok');
     await loadTagBatchPreview();
   } catch (err) {
@@ -6349,7 +6407,7 @@ async function sendTagBatchEmail() {
   if (sendBtn) sendBtn.disabled = true;
   setTagBatchStatus('Sending tag batch…');
   try {
-    const result = await hubPost('/send-tag-batch', {});
+    const result = await hubMutatePost('/send-tag-batch', {});
     setTagBatchStatus('Sent ' + (result.count || 0) + ' tag(s) — check your email.', 'ok');
     tagBatchPreview = { tags: [], count: 0 };
     hubContext.verifiedUnsentTags = 0;
@@ -6458,9 +6516,9 @@ async function openPendingDetail(pendingId) {
     document.getElementById('btn-verify').addEventListener('click', async () => {
       setStatus('Verifying…');
       try {
-        await hubPost('/pending/' + pendingId + '/verify', {});
+        await hubMutatePost('/pending/' + pendingId + '/verify', {});
         delete pendingDetailCache[pendingId];
-        setStatus('Verified — waiting for live update…', 'ok');
+        setStatus('Verified', 'ok');
       } catch (err) {
         setStatus(err.message || 'Verify failed', 'error');
       }
@@ -6470,9 +6528,9 @@ async function openPendingDetail(pendingId) {
       const reason = (document.getElementById('reject-reason')?.value || '').trim();
       setStatus('Rejecting…');
       try {
-        await hubPost('/pending/' + pendingId + '/reject', { reason: reason || undefined });
+        await hubMutatePost('/pending/' + pendingId + '/reject', { reason: reason || undefined });
         delete pendingDetailCache[pendingId];
-        setStatus('Rejected — waiting for live update…', 'ok');
+        setStatus('Rejected', 'ok');
       } catch (err) {
         setStatus(err.message || 'Reject failed', 'error');
       }
@@ -6532,10 +6590,12 @@ async function connectHubStream(visitId) {
     streamAbort.aborted = true;
     streamAbort = null;
   }
+  clearStreamReconnectTimer();
 
   const authFetch = window.dumpBinAuthFetch || fetch;
   const controller = { aborted: false };
   streamAbort = controller;
+  streamConnected = false;
 
   const resp = await authFetch(
     '/api/hub/' + encodeURIComponent(visitId) + '/stream',
@@ -6547,8 +6607,13 @@ async function connectHubStream(visitId) {
 
   if (!resp.ok || !resp.body) {
     console.warn('[Checklane Hub] SSE stream unavailable:', resp.status);
+    streamAbort = null;
+    scheduleHubStreamReconnect(visitId);
     return;
   }
+
+  streamConnected = true;
+  streamReconnectDelayMs = 1000;
 
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
@@ -6577,6 +6642,12 @@ async function connectHubStream(visitId) {
     } catch (err) {
       if (!controller.aborted) {
         console.warn('[Checklane Hub] SSE stream ended:', err.message || err);
+      }
+    } finally {
+      streamConnected = false;
+      if (streamAbort === controller) streamAbort = null;
+      if (!controller.aborted) {
+        scheduleHubStreamReconnect(visitId);
       }
     }
   })();
