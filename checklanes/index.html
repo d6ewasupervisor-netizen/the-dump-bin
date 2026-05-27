@@ -1974,12 +1974,6 @@
     min-height: 44px;
   }
 
-  .pog-wv-assign-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
   .pog-wv-start-btn {
     border-color: #3b82f6;
     background: #1e3a5f;
@@ -2758,23 +2752,10 @@
         <button type="button" class="btn btn-submit" id="pog-wv-flag-tag-submit" disabled>Submit all for this planogram</button>
       </div>
     </div>
-    <div class="pog-wv-assign-row" id="pog-wv-assign-row" hidden>
-      <select class="hub-roster-select" id="pog-wv-assign-select" aria-label="Assign rep">
-        <option value="">Choose rep…</option>
-      </select>
-      <button type="button" class="btn-assign" id="pog-wv-assign-btn">Assign</button>
-      <button type="button" class="btn-unassign" id="pog-wv-unassign-btn" hidden>Unassign</button>
-    </div>
     <div class="pog-wv-complete-row" id="pog-wv-complete-row" hidden>
       <button type="button" class="pog-wv-complete-btn pog-wv-start-btn" id="pog-wv-start" hidden>Start</button>
       <button type="button" class="pog-wv-complete-btn" id="pog-wv-mark-done" hidden>Mark done</button>
       <button type="button" class="pog-wv-complete-btn signoff" id="pog-wv-signoff" hidden>Sign off</button>
-    </div>
-    <div class="reopen-row" id="pog-wv-reopen-row" hidden>
-      <div class="label">Reopen completed set</div>
-      <p class="reopen-hint">Mistakes happen — explain why this set needs to go back to in progress. An email is sent before the change takes effect.</p>
-      <textarea class="reopen-reason" id="pog-wv-reopen-reason" rows="3" placeholder="Required explanation (at least 10 characters)…"></textarea>
-      <button type="button" class="btn-reopen" id="pog-wv-reopen-btn">Reopen set</button>
     </div>
     <div class="flag-status" id="pog-wv-action-status"></div>
   </div>
@@ -5577,12 +5558,8 @@ function setPogWvActionStatus(msg, kind) {
 
 function setPogWvActionsDisabled(disabled) {
   document.querySelectorAll(
-    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff, #pog-wv-assign-btn, #pog-wv-unassign-btn, #pog-wv-reopen-btn'
+    '#pog-wv-actions .pog-wv-act-btn, #pog-wv-flag-tag-add, #pog-wv-flag-tag-submit, #pog-wv-flag-tag-clear, #pog-wv-start, #pog-wv-mark-done, #pog-wv-signoff'
   ).forEach(btn => { btn.disabled = disabled; });
-  const sel = document.getElementById('pog-wv-assign-select');
-  if (sel) sel.disabled = disabled;
-  const reopenReason = document.getElementById('pog-wv-reopen-reason');
-  if (reopenReason) reopenReason.disabled = disabled;
 }
 
 async function submitPogSectionFlag(kind, payload) {
@@ -5623,10 +5600,6 @@ function refreshPogWorkingChrome() {
   const actions = document.getElementById('pog-wv-actions');
   const stateWrap = document.getElementById('pog-wv-state-wrap');
   const completeRow = document.getElementById('pog-wv-complete-row');
-  const reopenRow = document.getElementById('pog-wv-reopen-row');
-  const assignRow = document.getElementById('pog-wv-assign-row');
-  const assignSelect = document.getElementById('pog-wv-assign-select');
-  const unassignBtn = document.getElementById('pog-wv-unassign-btn');
   const startBtn = document.getElementById('pog-wv-start');
   const markDoneBtn = document.getElementById('pog-wv-mark-done');
   const signoffBtn = document.getElementById('pog-wv-signoff');
@@ -5654,12 +5627,6 @@ function refreshPogWorkingChrome() {
       ' · ' + sectionAssigneeText(lane, dbkey);
   }
 
-  populateRosterSelect(assignSelect);
-  const meta = dbkey ? getSectionMeta(lane, dbkey) : null;
-  if (assignSelect && meta?.assignee_id != null) {
-    assignSelect.value = String(meta.assignee_id);
-  }
-
   if (actions) {
     actions.hidden = !showLiveActions;
     actions.setAttribute('aria-hidden', showLiveActions ? 'false' : 'true');
@@ -5673,22 +5640,10 @@ function refreshPogWorkingChrome() {
     modalActions.hidden = !showLiveActions;
   }
 
-  const showAssign = dbkey && canShowSectionAssign(lane, dbkey);
-  const showUnassign = dbkey && canShowSectionUnassign(lane, dbkey);
-  const showReopen = dbkey && canShowSectionReopen(lane, dbkey);
   const showStart = dbkey && canShowSectionStart(lane, dbkey);
   const showMarkDone = dbkey && canShowPogMarkDone(lane, dbkey);
   const showSignoff = dbkey && canShowPogSignoff(lane, dbkey);
 
-  if (assignRow) assignRow.hidden = !showAssign;
-  if (unassignBtn) unassignBtn.hidden = !showUnassign;
-  if (reopenRow) {
-    reopenRow.hidden = !showReopen;
-    if (!showReopen) {
-      const reasonEl = document.getElementById('pog-wv-reopen-reason');
-      if (reasonEl) reasonEl.value = '';
-    }
-  }
   if (completeRow) completeRow.hidden = !(showStart || showMarkDone || showSignoff);
   if (startBtn) startBtn.hidden = !showStart;
   if (markDoneBtn) markDoneBtn.hidden = !showMarkDone;
@@ -5801,64 +5756,6 @@ function bindPogWorkingActions() {
     try {
       await hubSectionMutate(dbkey, lane, 'start', {});
       setPogWvActionStatus('Started', 'ok');
-    } catch (err) {
-      setPogWvActionStatus(err.message || 'Failed', 'error');
-      setPogWvActionsDisabled(false);
-    }
-  });
-
-  document.getElementById('pog-wv-assign-btn')?.addEventListener('click', async () => {
-    const dbkey = pogWorkingDbkey();
-    const lane = pogWorkingFixture?.lane || '';
-    if (!dbkey) return;
-    const assigneeId = Number(document.getElementById('pog-wv-assign-select')?.value);
-    if (!Number.isFinite(assigneeId)) {
-      setPogWvActionStatus('Choose a rep to assign', 'error');
-      return;
-    }
-    setPogWvActionsDisabled(true);
-    setPogWvActionStatus('Assigning…');
-    try {
-      await hubSectionMutate(dbkey, lane, 'assign', { assigneeId });
-      setPogWvActionStatus('Assigned', 'ok');
-    } catch (err) {
-      setPogWvActionStatus(err.message || 'Failed', 'error');
-      setPogWvActionsDisabled(false);
-    }
-  });
-
-  document.getElementById('pog-wv-unassign-btn')?.addEventListener('click', async () => {
-    const dbkey = pogWorkingDbkey();
-    const lane = pogWorkingFixture?.lane || '';
-    if (!dbkey) return;
-    setPogWvActionsDisabled(true);
-    setPogWvActionStatus('Unassigning…');
-    try {
-      await hubSectionMutate(dbkey, lane, 'unassign', {});
-      setPogWvActionStatus('Unassigned', 'ok');
-    } catch (err) {
-      setPogWvActionStatus(err.message || 'Failed', 'error');
-      setPogWvActionsDisabled(false);
-    }
-  });
-
-  document.getElementById('pog-wv-reopen-btn')?.addEventListener('click', async () => {
-    const dbkey = pogWorkingDbkey();
-    const lane = pogWorkingFixture?.lane || '';
-    if (!dbkey) return;
-    const reason = (document.getElementById('pog-wv-reopen-reason')?.value || '').trim();
-    if (reason.length < MIN_REOPEN_REASON_LENGTH) {
-      setPogWvActionStatus('Enter an explanation of at least ' + MIN_REOPEN_REASON_LENGTH + ' characters', 'error');
-      document.getElementById('pog-wv-reopen-reason')?.focus();
-      return;
-    }
-    setPogWvActionsDisabled(true);
-    setPogWvActionStatus('Sending notification and reopening…');
-    try {
-      await hubSectionMutate(dbkey, lane, 'reopen', { reason });
-      setPogWvActionStatus('Set reopened', 'ok');
-      const reasonEl = document.getElementById('pog-wv-reopen-reason');
-      if (reasonEl) reasonEl.value = '';
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
       setPogWvActionsDisabled(false);
