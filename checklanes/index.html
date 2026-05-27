@@ -3149,11 +3149,20 @@ function getFixtureState(lane, dbkey) {
     dbkey = f.dbkey;
   }
   if (!dbkey) return 'not_started';
-  const key = sectionKey(lane, dbkey);
-  if (fixtureStates[key]) return fixtureStates[key];
-  if (fixtureStates[String(dbkey)]) return fixtureStates[String(dbkey)];
+
+  const laneKey = sectionKey(lane, dbkey);
+  if (fixtureStates[laneKey] !== undefined) return fixtureStates[laneKey];
+
   const legacyKey = sectionKey('', dbkey);
-  return fixtureStates[legacyKey] || 'not_started';
+  if (fixtureStates[legacyKey] !== undefined) return fixtureStates[legacyKey];
+
+  const dbkeyOnly = String(dbkey);
+  if (fixtureStates[dbkeyOnly] !== undefined) return fixtureStates[dbkeyOnly];
+
+  const meta = getSectionMeta(lane, dbkey);
+  if (meta?.state) return meta.state;
+
+  return 'not_started';
 }
 
 /* ── Fixture shape renderers (neutral — no state colors at render time) ── */
@@ -4883,22 +4892,8 @@ function renderPogWorkingContent(fixture, layout, loadError) {
   refreshPogWorkingChrome();
 }
 
-function getLaneSectionMeta(lane, dbkey) {
-  if (!dbkey) return null;
-  return hubContext.sections[sectionKey(lane, dbkey)] || null;
-}
-
 function getLaneSectionState(lane, dbkey) {
-  if (!dbkey) return 'not_started';
-  const key = sectionKey(lane, dbkey);
-  if (fixtureStates[key] !== undefined) return fixtureStates[key];
-  const meta = getLaneSectionMeta(lane, dbkey);
-  return meta?.state || 'not_started';
-}
-
-function isSectionMarkedComplete(lane, dbkey) {
-  const st = getLaneSectionState(lane, dbkey);
-  return st === 'done_pending_signoff' || st === 'signed_off';
+  return getFixtureState(lane, dbkey);
 }
 
 function getSectionMeta(lane, dbkey) {
@@ -4938,7 +4933,7 @@ function canShowSectionUnassign(lane, dbkey) {
 
 function canShowSectionReopen(lane, dbkey) {
   if (!liveVisitId || hubContext.myRank < 2 || !dbkey) return false;
-  return isSectionMarkedComplete(lane, dbkey);
+  return getFixtureState(lane, dbkey) === 'signed_off';
 }
 
 function canShowSectionStart(lane, dbkey) {
@@ -5082,6 +5077,7 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
   const showStart = canShowSectionStart(lane, dbkey);
   const showMarkDone = canShowPogMarkDone(lane, dbkey);
   const showSignoff = canShowPogSignoff(lane, dbkey);
+  const showActiveWorkflow = showAssign || showUnassign || showStart || showMarkDone || showSignoff;
 
   const reopenHtml = showReopen
     ? (
@@ -5097,25 +5093,29 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
   if (mode === 'detail') {
     return (
       '<div class="section-workflow" id="section-workflow">' +
-        '<div class="label">Reset workflow</div>' +
-        '<div class="detail-row"><div class="label">Assignee</div><div class="value" id="section-assignee-display">' +
-          escapeHtml(assignee) +
-        '</div></div>' +
-        '<div class="assign-row" id="section-assign-row"' + (showAssign ? '' : ' hidden') + '>' +
-          '<select class="hub-roster-select" id="section-assign-select" aria-label="Assign rep">' +
-            '<option value="">Choose rep…</option>' + rosterSelectOptionsHtml(meta?.assignee_id) +
-          '</select>' +
-          '<button type="button" class="btn-assign" id="section-assign-btn">Assign</button>' +
-          '<button type="button" class="btn-unassign" id="section-unassign-btn"' + (showUnassign ? '' : ' hidden') + '>Unassign</button>' +
-        '</div>' +
-        '<div class="workflow-buttons">' +
-          '<button type="button" class="pog-wv-complete-btn pog-wv-start-btn" id="section-start"' +
-            (showStart ? '' : ' hidden') + '>Start</button>' +
-          '<button type="button" class="pog-wv-complete-btn" id="section-mark-done"' +
-            (showMarkDone ? '' : ' hidden') + '>Mark done</button>' +
-          '<button type="button" class="pog-wv-complete-btn signoff" id="section-signoff"' +
-            (showSignoff ? '' : ' hidden') + '>Sign off</button>' +
-        '</div>' +
+        '<div class="label">' + (showReopen && !showActiveWorkflow ? 'Completed set' : 'Reset workflow') + '</div>' +
+        (showActiveWorkflow
+          ? (
+            '<div class="detail-row"><div class="label">Assignee</div><div class="value" id="section-assignee-display">' +
+              escapeHtml(assignee) +
+            '</div></div>' +
+            '<div class="assign-row" id="section-assign-row"' + (showAssign ? '' : ' hidden') + '>' +
+              '<select class="hub-roster-select" id="section-assign-select" aria-label="Assign rep">' +
+                '<option value="">Choose rep…</option>' + rosterSelectOptionsHtml(meta?.assignee_id) +
+              '</select>' +
+              '<button type="button" class="btn-assign" id="section-assign-btn">Assign</button>' +
+              '<button type="button" class="btn-unassign" id="section-unassign-btn"' + (showUnassign ? '' : ' hidden') + '>Unassign</button>' +
+            '</div>' +
+            '<div class="workflow-buttons">' +
+              '<button type="button" class="pog-wv-complete-btn pog-wv-start-btn" id="section-start"' +
+                (showStart ? '' : ' hidden') + '>Start</button>' +
+              '<button type="button" class="pog-wv-complete-btn" id="section-mark-done"' +
+                (showMarkDone ? '' : ' hidden') + '>Mark done</button>' +
+              '<button type="button" class="pog-wv-complete-btn signoff" id="section-signoff"' +
+                (showSignoff ? '' : ' hidden') + '>Sign off</button>' +
+            '</div>'
+          )
+          : '') +
         reopenHtml +
         '<div class="flag-status" id="workflow-status"></div>' +
       '</div>'
