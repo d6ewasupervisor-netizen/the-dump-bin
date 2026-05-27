@@ -4177,7 +4177,7 @@ function refreshDetailPanel(fixture) {
     markDoneId: 'section-mark-done',
     signoffId: 'section-signoff',
     statusId: 'workflow-status',
-  });
+  }, fixture);
 
   const statusEl = document.getElementById('flag-status');
   const setFlagStatus = (msg, kind) => {
@@ -5997,7 +5997,7 @@ function buildSectionWorkflowHtml(lane, dbkey, mode) {
   return '';
 }
 
-function bindSectionWorkflow(lane, dbkey, ids) {
+function bindSectionWorkflow(lane, dbkey, ids, fixture) {
   const setStatus = (msg, kind) => {
     const el = document.getElementById(ids.statusId);
     if (!el) return;
@@ -6079,6 +6079,10 @@ function bindSectionWorkflow(lane, dbkey, ids) {
     try {
       await hubSectionMutate(dbkey, lane, 'start', {});
       setStatus('Started', 'ok');
+      const pogFixture = fixture || findFixture(dbkey, null, lane);
+      if (pogFixture?.dbkey && !isPogViewOpen()) {
+        await openPogWorkingView(pogFixture);
+      }
     } catch (err) {
       setStatus(err.message || 'Start failed', 'error');
       setBusy(false);
@@ -7299,9 +7303,10 @@ function renderTagBatchItemHtml(tag) {
   const upcLine = invalid
     ? ('INVALID UPC — verify: ' + escapeHtml(tag.upc || '—'))
     : escapeHtml(tag.displayDigits || tag.upc || '—');
-  const loc = escapeHtml(tag.location || fixtureNameForDbkey(tag.dbkey) || tag.dbkey || '—');
-  const plano = tag.dbkey
-    ? ('<div class="tag-batch-planogram-head">' + escapeHtml(shortName(fixtureNameForDbkey(tag.dbkey))) + '</div>')
+  const planoName = tag.planogramName || fixtureNameForDbkey(tag.dbkey);
+  const loc = escapeHtml(tag.locationLabel || tag.location || '—');
+  const plano = planoName
+    ? ('<div class="tag-batch-planogram-head">' + escapeHtml(shortName(planoName)) + '</div>')
     : '';
   return plano +
     '<div class="tag-batch-item' + (invalid ? ' invalid' : '') + '">' +
