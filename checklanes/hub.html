@@ -2343,138 +2343,6 @@
     min-height: 44px;
   }
 
-  .hub-issue-picker-wrap {
-    position: relative;
-    width: 100%;
-  }
-
-  .hub-issue-picker-trigger {
-    appearance: none;
-    width: 100%;
-    min-height: 44px;
-    padding: 10px 36px 10px 12px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 0.9rem;
-    text-align: left;
-    line-height: 1.35;
-    cursor: pointer;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b90a5' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-  }
-
-  .hub-issue-picker-trigger.is-placeholder {
-    color: var(--text2);
-  }
-
-  .hub-issue-picker-native {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-    pointer-events: none;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-
-  .hub-issue-picker-sheet {
-    position: fixed;
-    inset: 0;
-    z-index: 650;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-  }
-
-  .hub-issue-picker-sheet[hidden] {
-    display: none !important;
-  }
-
-  .hub-issue-picker-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-  }
-
-  .hub-issue-picker-panel {
-    position: relative;
-    max-height: min(78dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px));
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    border-radius: 14px 14px 0 0;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  .hub-issue-picker-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .hub-issue-picker-head h3 {
-    font-size: 0.92rem;
-    font-weight: 700;
-  }
-
-  .hub-issue-picker-close {
-    appearance: none;
-    border: none;
-    background: var(--surface2);
-    color: var(--text);
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    font-size: 1.35rem;
-    line-height: 1;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-
-  .hub-issue-picker-list {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    padding: 8px 12px 12px;
-  }
-
-  .hub-issue-picker-option {
-    appearance: none;
-    width: 100%;
-    min-height: 48px;
-    padding: 12px 14px;
-    margin-bottom: 6px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--surface2);
-    color: var(--text);
-    font-size: 0.88rem;
-    font-weight: 600;
-    text-align: left;
-    line-height: 1.35;
-    cursor: pointer;
-  }
-
-  .hub-issue-picker-option.is-selected {
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.14);
-    color: #bfdbfe;
-  }
-
-  body.hub-picker-open {
-    overflow: hidden;
-  }
-
   .pog-wv-complete-row {
     display: flex;
     gap: 8px;
@@ -2661,7 +2529,6 @@
 
   .pog-wv-scroll {
     flex: 1;
-    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -2669,24 +2536,6 @@
     touch-action: pan-y;
     padding: 12px 12px 24px;
     padding-bottom: max(24px, env(safe-area-inset-bottom));
-  }
-
-  .pog-working-view.actions-form-open .pog-wv-scroll {
-    flex: 0 1 auto;
-    max-height: min(34dvh, 280px);
-    min-height: 96px;
-  }
-
-  .pog-working-view.actions-form-open .pog-wv-header .pog-wv-search-results[hidden] {
-    display: none !important;
-  }
-
-  .pog-wv-actions.has-form-open {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
   }
 
   .pog-wv-preview {
@@ -3316,51 +3165,6 @@
     margin-top: 6px;
   }
 
-  @media (max-width: 640px) {
-    .pog-wv-toolbar {
-      grid-template-columns: 1fr;
-      gap: 6px;
-    }
-
-    .pog-wv-search-input,
-    .pog-wv-search-btn,
-    .pog-wv-scan-btn {
-      min-height: 44px;
-      font-size: 0.85rem;
-    }
-
-    .pog-wv-header .pog-wv-search-results {
-      max-height: min(22dvh, 168px);
-    }
-
-    .detail-panel {
-      width: 100%;
-      max-width: 100%;
-    }
-
-    .detail-body {
-      padding-bottom: max(16px, env(safe-area-inset-bottom));
-    }
-
-    .help-request-form select:not(.hub-issue-picker-native) {
-      font-size: 1rem;
-    }
-  }
-
-  @media (min-width: 641px) {
-    .hub-issue-picker-trigger {
-      display: none;
-    }
-
-    .hub-issue-picker-native {
-      position: static;
-      width: 100%;
-      height: auto;
-      opacity: 1;
-      pointer-events: auto;
-    }
-  }
-
   .pog-product-modal-new {
     display: inline-block;
     margin-top: 8px;
@@ -3405,18 +3209,6 @@
 </div>
 
 <div class="overlay" id="overlay"></div>
-
-<div class="hub-issue-picker-sheet" id="hub-issue-picker-sheet" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="hub-issue-picker-title">
-  <div class="hub-issue-picker-backdrop" id="hub-issue-picker-backdrop"></div>
-  <div class="hub-issue-picker-panel">
-    <div class="hub-issue-picker-head">
-      <h3 id="hub-issue-picker-title">Issue type</h3>
-      <button type="button" class="hub-issue-picker-close" id="hub-issue-picker-close" aria-label="Close">&times;</button>
-    </div>
-    <div class="hub-issue-picker-list" id="hub-issue-picker-list" role="listbox"></div>
-  </div>
-</div>
-
 <aside class="detail-panel" id="detail-panel">
   <div class="detail-header">
     <h2>Fixture detail</h2>
@@ -3774,8 +3566,6 @@ function hubHelpIssueOptionsHtml(selectedId) {
 function populateHubHelpIssueSelect(selectEl, selectedId) {
   if (!selectEl) return;
   selectEl.innerHTML = '<option value="">Select an issue…</option>' + hubHelpIssueOptionsHtml(selectedId || '');
-  enhanceHubIssueSelect(selectEl);
-  syncHubIssuePickerTrigger(selectEl);
 }
 
 function syncHubHelpIssueForm(prefix) {
@@ -3820,156 +3610,6 @@ function buildHubHelpRequestBody(payload) {
     custom_label: payload.customLabel || undefined,
     note: payload.note || undefined,
   };
-}
-
-let hubIssuePickerSelect = null;
-
-function isHubMobileLayout() {
-  return window.matchMedia('(max-width: 640px)').matches;
-}
-
-function syncHubIssuePickerTrigger(selectEl) {
-  const trigger = selectEl?.closest('.hub-issue-picker-wrap')?.querySelector('.hub-issue-picker-trigger');
-  if (!trigger || !selectEl) return;
-  const opt = selectEl.options[selectEl.selectedIndex];
-  trigger.textContent = (opt && opt.value) ? opt.text : 'Select an issue…';
-  trigger.classList.toggle('is-placeholder', !selectEl.value);
-}
-
-function enhanceHubIssueSelect(selectEl) {
-  if (!selectEl || selectEl.dataset.hubPicker === '1') return;
-  selectEl.dataset.hubPicker = '1';
-
-  const wrap = document.createElement('div');
-  wrap.className = 'hub-issue-picker-wrap';
-  selectEl.parentNode.insertBefore(wrap, selectEl);
-  wrap.appendChild(selectEl);
-
-  const trigger = document.createElement('button');
-  trigger.type = 'button';
-  trigger.className = 'hub-issue-picker-trigger';
-  trigger.setAttribute('aria-haspopup', 'listbox');
-  const labelEl = document.querySelector('label[for="' + selectEl.id + '"]');
-  if (labelEl) {
-    if (!labelEl.id) labelEl.id = selectEl.id + '-label';
-    trigger.setAttribute('aria-labelledby', labelEl.id);
-  }
-  if (isHubMobileLayout()) selectEl.setAttribute('aria-hidden', 'true');
-  trigger.addEventListener('click', () => openHubIssuePicker(selectEl));
-  wrap.appendChild(trigger);
-
-  selectEl.classList.add('hub-issue-picker-native');
-  selectEl.addEventListener('change', () => syncHubIssuePickerTrigger(selectEl));
-  syncHubIssuePickerTrigger(selectEl);
-}
-
-function enhanceAllHubIssueSelects() {
-  document.querySelectorAll('.help-request-form select[id$="-help-issue"]').forEach(enhanceHubIssueSelect);
-}
-
-function closeHubIssuePicker() {
-  const sheet = document.getElementById('hub-issue-picker-sheet');
-  if (!sheet) return;
-  hubIssuePickerSelect?.closest('.hub-issue-picker-wrap')?.querySelector('.hub-issue-picker-trigger')?.setAttribute('aria-expanded', 'false');
-  sheet.hidden = true;
-  sheet.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('hub-picker-open');
-  hubIssuePickerSelect = null;
-}
-
-function openHubIssuePicker(selectEl) {
-  const sheet = document.getElementById('hub-issue-picker-sheet');
-  const list = document.getElementById('hub-issue-picker-list');
-  const title = document.getElementById('hub-issue-picker-title');
-  if (!sheet || !list || !selectEl) return;
-
-  hubIssuePickerSelect = selectEl;
-  if (title) title.textContent = 'Issue type';
-  list.innerHTML = '';
-
-  Array.from(selectEl.options).forEach(opt => {
-    if (!opt.value) return;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'hub-issue-picker-option' + (selectEl.value === opt.value ? ' is-selected' : '');
-    btn.setAttribute('role', 'option');
-    btn.setAttribute('aria-selected', selectEl.value === opt.value ? 'true' : 'false');
-    btn.textContent = opt.text;
-    btn.addEventListener('click', () => {
-      selectEl.value = opt.value;
-      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-      syncHubIssuePickerTrigger(selectEl);
-      closeHubIssuePicker();
-    });
-    list.appendChild(btn);
-  });
-
-  sheet.hidden = false;
-  sheet.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('hub-picker-open');
-  selectEl.closest('.hub-issue-picker-wrap')?.querySelector('.hub-issue-picker-trigger')?.setAttribute('aria-expanded', 'true');
-  list.scrollTop = 0;
-}
-
-function installHubIssuePickerSheet() {
-  document.getElementById('hub-issue-picker-backdrop')?.addEventListener('click', closeHubIssuePicker);
-  document.getElementById('hub-issue-picker-close')?.addEventListener('click', closeHubIssuePicker);
-}
-
-function focusHubHelpIssueField(prefix) {
-  const sel = document.getElementById(prefix + '-help-issue');
-  if (!sel) return;
-  if (isHubMobileLayout()) {
-    sel.closest('.hub-issue-picker-wrap')?.querySelector('.hub-issue-picker-trigger')?.focus();
-  } else {
-    sel.focus();
-  }
-}
-
-function syncPogActionsFormLayout() {
-  const actions = document.getElementById('pog-wv-actions');
-  const view = document.getElementById('pog-working-view');
-  const helpOpen = document.getElementById('pog-wv-help-form')?.classList.contains('open');
-  const tagOpen = document.getElementById('pog-wv-missing-tag-form')?.classList.contains('open');
-  const formOpen = !!(helpOpen || tagOpen);
-  actions?.classList.toggle('has-form-open', formOpen);
-  view?.classList.toggle('actions-form-open', formOpen);
-
-  const results = document.getElementById('pog-wv-search-results');
-  if (results) {
-    if (formOpen && results.childElementCount > 0) {
-      results.dataset.mobileSuppressed = '1';
-      results.hidden = true;
-    } else if (results.dataset.mobileSuppressed) {
-      delete results.dataset.mobileSuppressed;
-      results.hidden = false;
-    }
-  }
-}
-
-function installMobileFormScrollAssist() {
-  document.addEventListener('focusin', (e) => {
-    if (!isHubMobileLayout()) return;
-    const t = e.target;
-    if (!(t instanceof HTMLElement)) return;
-    if (!t.matches('input, textarea, .hub-issue-picker-trigger')) return;
-    if (!t.closest('.pog-wv-actions, .detail-body, .missing-tag-form')) return;
-    const scrollIntoField = () => t.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    setTimeout(scrollIntoField, 280);
-    if (window.visualViewport) {
-      const onResize = () => {
-        scrollIntoField();
-        window.visualViewport.removeEventListener('resize', onResize);
-      };
-      window.visualViewport.addEventListener('resize', onResize);
-    }
-  });
-}
-
-function installHubMobileEnhancements() {
-  installHubIssuePickerSheet();
-  enhanceAllHubIssueSelects();
-  installMobileFormScrollAssist();
 }
 
 function installPogPullRefreshGuard() {
@@ -4620,7 +4260,6 @@ function refreshDetailPanel(fixture) {
   }
 
   document.getElementById('detail-body').innerHTML = html;
-  enhanceAllHubIssueSelects();
 
   document.getElementById('btn-open-pog')?.addEventListener('click', () => {
     openPogWorkingView(fixture);
@@ -4668,7 +4307,7 @@ function refreshDetailPanel(fixture) {
     if (show) {
       form?.classList.add('open');
       syncHubHelpIssueForm('flag');
-      setTimeout(() => focusHubHelpIssueField('flag'), 50);
+      setTimeout(() => document.getElementById('flag-help-issue')?.focus(), 50);
     } else {
       form?.classList.remove('open');
     }
@@ -5038,7 +4677,6 @@ async function restoreHubNavigation() {
 
 function bindEvents() {
   installPogPullRefreshGuard();
-  installHubMobileEnhancements();
   populateHubHelpIssueSelect(document.getElementById('pog-wv-help-issue'));
   document.getElementById('pog-wv-help-issue')?.addEventListener('change', () => syncHubHelpIssueForm('pog-wv'));
   /* Map/list tabs hidden for field rollout — handlers kept for restore.
@@ -5628,7 +5266,7 @@ function openPogProductModal(prod, bay, fixture) {
 
   if (img) {
     img.classList.remove('is-hidden');
-    img.src = pogUrl('/products-webp/' + encodeURIComponent(upc) + '.webp');
+    img.src = pogUrl('/products-png/' + encodeURIComponent(upc) + '.png');
     img.alt = displayName;
     img.onerror = () => {
       img.classList.add('is-hidden');
@@ -5834,7 +5472,7 @@ function mountHubPlanogram(layout) {
   if (!host || !layout) return;
 
   window.PLANOGRAM_IMG_RESOLVER = (upc) =>
-    pogUrl('/products-webp/' + encodeURIComponent(String(upc)) + '.webp');
+    pogUrl('/products-png/' + encodeURIComponent(String(upc)) + '.png');
 
   window.PLANOGRAM_TILE_CLICK = ({ item, bayNum, fixture }) => {
     const bay = (layout.bays || []).find(b => String(b.bay_num) === String(bayNum)) ||
@@ -5858,7 +5496,7 @@ function renderPogTile(prod, bay, fixture, dbkey) {
   const name = productDisplayName(upc, prod);
   const size = productDisplaySize(upc, prod);
   const tileId = 'pog-tile-' + dbkey + '-' + bay.bay_num + '-' + fixture.fixture_num + '-' + upc;
-  const imgUrl = pogUrl('/products-webp/' + encodeURIComponent(upc) + '.webp');
+  const imgUrl = pogUrl('/products-png/' + encodeURIComponent(upc) + '.png');
   const facings = prod.facings > 1 ? (' · ×' + prod.facings) : '';
   const newBadge = prod.is_new ? '<span class="pog-wv-badge-new">NEW</span>' : '';
 
@@ -7256,12 +6894,10 @@ function togglePogHelpForm(open) {
     populateHubHelpIssueSelect(document.getElementById('pog-wv-help-issue'));
     form.classList.add('open');
     syncHubHelpIssueForm('pog-wv');
-    syncPogActionsFormLayout();
-    document.getElementById('pog-wv-actions')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    setTimeout(() => focusHubHelpIssueField('pog-wv'), 50);
+    document.getElementById('pog-wv-actions')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => document.getElementById('pog-wv-help-issue')?.focus(), 50);
   } else {
     form.classList.remove('open');
-    syncPogActionsFormLayout();
   }
 }
 
@@ -7278,8 +6914,7 @@ function openPogMissingTagForm(prefill) {
     locEl.value = (prefill?.location || defaultPogFlagLocation() || '').trim();
   }
   form?.classList.add('open');
-  syncPogActionsFormLayout();
-  document.getElementById('pog-wv-actions')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  document.getElementById('pog-wv-actions')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   setTimeout(() => upcEl?.focus(), 50);
 }
 
@@ -7657,7 +7292,6 @@ function closePogWorkingView(opts) {
     closeHubPdfFromWorkingView();
     document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
     document.getElementById('pog-wv-help-form')?.classList.remove('open');
-    syncPogActionsFormLayout();
     document.getElementById('pog-wv-actions')?.setAttribute('hidden', '');
 
     if (!opts?.skipHistory) {
