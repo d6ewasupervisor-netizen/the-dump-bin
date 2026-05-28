@@ -1446,6 +1446,257 @@
     display: none;
   }
 
+  .hub-set-preview {
+    display: block;
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    object-position: center;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .hub-set-preview.is-hidden {
+    display: none;
+  }
+
+  .detail-preview-block {
+    margin-bottom: 12px;
+  }
+
+  .detail-preview-block .hub-set-preview {
+    max-height: 160px;
+  }
+
+  .pending-item-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
+  }
+
+  .pending-item-thumb.is-hidden {
+    display: none;
+  }
+
+  .pending-item-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .pending-item-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pending-signoff-preview {
+    margin: 12px 0;
+  }
+
+  .bay-photo-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .bay-photo-gallery-item {
+    margin: 0;
+  }
+
+  .bay-photo-gallery-item img {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+
+  .bay-photo-gallery-item figcaption {
+    font-size: 0.72rem;
+    color: var(--text2);
+    margin-top: 4px;
+    text-align: center;
+  }
+
+  .bay-photo-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 800;
+    background: rgba(0, 0, 0, 0.72);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  }
+
+  .bay-photo-modal.open {
+    display: flex;
+  }
+
+  .bay-photo-modal-card {
+    width: min(480px, 100%);
+    max-height: min(94dvh, 100%);
+    background: var(--surface);
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .bay-photo-modal-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .bay-photo-modal-header h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding-right: 28px;
+  }
+
+  .bay-photo-modal-sub {
+    font-size: 0.78rem;
+    color: var(--text2);
+    margin-top: 4px;
+    line-height: 1.35;
+  }
+
+  .bay-photo-modal-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: var(--text2);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .bay-photo-modal-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bay-photo-modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .bay-photo-ref-block {
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .bay-photo-ref-preview {
+    max-height: 120px;
+    margin: 0 auto;
+  }
+
+  .bay-photo-ref-caption {
+    font-size: 0.72rem;
+    color: var(--text3);
+    margin-top: 4px;
+  }
+
+  .bay-photo-guidance {
+    font-size: 0.82rem;
+    color: var(--text2);
+    line-height: 1.4;
+    margin-bottom: 12px;
+  }
+
+  .bay-photo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bay-photo-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .bay-photo-list-item.is-done {
+    border-color: #14b8a6;
+  }
+
+  .bay-photo-list-label {
+    font-weight: 700;
+  }
+
+  .bay-photo-list-status {
+    font-size: 0.78rem;
+    color: var(--text2);
+  }
+
+  .bay-photo-list-item.is-done .bay-photo-list-status {
+    color: #5eead4;
+  }
+
+  .bay-photo-editor-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .bay-photo-canvas-wrap {
+    position: relative;
+    width: 100%;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .bay-photo-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .bay-photo-crop-overlay {
+    position: absolute;
+    border: 2px dashed #fbbf24;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+  }
+
+  .bay-photo-editor-hint {
+    font-size: 0.78rem;
+    color: var(--text2);
+    margin: 8px 0;
+  }
+
+  .bay-photo-submit-btn {
+    flex: 1;
+    min-height: 44px;
+  }
+
   .assign-set-check {
     width: 18px;
     height: 18px;
@@ -3667,6 +3918,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="scanner.js"></script>
+<script src="hub-bay-photos.js" defer></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
    FIXTURE DATA — inline seed for Store 00163 (Step 2).
@@ -4559,6 +4811,9 @@ function refreshDetailPanel(fixture) {
 
   const isLive = !!liveVisitId;
   let html =
+    (fixture.dbkey && window.HubBayPhotos
+      ? '<div class="detail-preview-block">' + HubBayPhotos.renderHubPreviewHtml(fixture.dbkey) + '</div>'
+      : '') +
     '<div class="detail-row"><div class="label">Name</div><div class="value">' + escapeHtml(fixture.name) + '</div></div>' +
     '<div class="detail-row"><div class="label">Lane</div><div class="value">' + escapeHtml(fixture.lane) + '</div></div>' +
     '<div class="detail-row"><div class="label">Type</div><div class="value">' + escapeHtml(fixture.type) + '</div></div>' +
@@ -6643,6 +6898,14 @@ function bindSectionWorkflow(lane, dbkey, ids, fixture) {
   });
 
   document.getElementById(ids.markDoneId)?.addEventListener('click', async () => {
+    if (window.HubBayPhotos) {
+      HubBayPhotos.openBayPhotoWizard({
+        dbkey: dbkey,
+        lane: lane,
+        onComplete: () => setStatus('Marked done — pending sign-off', 'ok'),
+      });
+      return;
+    }
     setBusy(true);
     setStatus('Marking done…');
     try {
@@ -7620,6 +7883,14 @@ function bindPogWorkingActions() {
     const dbkey = pogWorkingDbkey();
     const lane = pogWorkingFixture?.lane || '';
     if (!dbkey) return;
+    if (window.HubBayPhotos) {
+      HubBayPhotos.openBayPhotoWizard({
+        dbkey: dbkey,
+        lane: lane,
+        onComplete: () => setPogWvActionStatus('Marked done — pending sign-off', 'ok'),
+      });
+      return;
+    }
     setPogWvActionsDisabled(true);
     setPogWvActionStatus('Marking done…');
     try {
@@ -8344,12 +8615,20 @@ function renderPendingList() {
       ? escapeHtml('Rep: ' + (item.raised_by_name || '—'))
       : escapeHtml(item.raised_by_name || '');
     const pendingIdAttr = String(item.id).replace(/"/g, '');
+    const thumbHtml = item.dbkey && window.HubBayPhotos
+      ? HubBayPhotos.renderHubPreviewHtml(item.dbkey, 'pending-item-thumb')
+      : '';
     return (
       '<button type="button" class="pending-item' + signoffClass + selected + '" data-pending-id="' + pendingIdAttr + '">' +
-        '<div class="pending-item-summary">' + escapeHtml(item.summary || item.action_type) + '</div>' +
-        '<div class="pending-item-meta">' +
-          escapeHtml(section) + ' · ' + who +
-          (item.raised_at ? ' · ' + escapeHtml(formatRaisedAt(item.raised_at)) : '') +
+        '<div class="pending-item-row">' +
+          thumbHtml +
+          '<div class="pending-item-text">' +
+            '<div class="pending-item-summary">' + escapeHtml(item.summary || item.action_type) + '</div>' +
+            '<div class="pending-item-meta">' +
+              escapeHtml(section) + ' · ' + who +
+              (item.raised_at ? ' · ' + escapeHtml(formatRaisedAt(item.raised_at)) : '') +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</button>'
     );
@@ -8395,13 +8674,26 @@ async function openPendingDetail(pendingId) {
 
   if (queueItem.kind === 'signoff') {
     const fixture = findFixture(queueItem.dbkey, null, queueItem.lane);
+    const previewBlock = queueItem.dbkey && window.HubBayPhotos
+      ? '<div class="pending-signoff-preview">' + HubBayPhotos.renderHubPreviewHtml(queueItem.dbkey) + '</div>'
+      : '';
     scrollEl.innerHTML =
+      previewBlock +
       '<div class="detail-row"><div class="label">Set</div><div class="value">' + escapeHtml(fixtureNameForDbkey(queueItem.dbkey)) + '</div></div>' +
       '<div class="detail-row"><div class="label">DBKey</div><div class="value"><code>' + escapeHtml(String(queueItem.dbkey)) + '</code></div></div>' +
       (queueItem.lane ? '<div class="detail-row"><div class="label">Lane</div><div class="value">' + escapeHtml(queueItem.lane) + '</div></div>' : '') +
       '<div class="detail-row"><div class="label">Completed by</div><div class="value">' + escapeHtml(queueItem.raised_by_name || '—') + '</div></div>' +
       (queueItem.raised_at ? '<div class="detail-row"><div class="label">Marked done</div><div class="value">' + escapeHtml(formatRaisedAt(queueItem.raised_at)) + '</div></div>' : '') +
-      '<p class="hub-panel-empty" style="margin-top:12px;">Review the set, then sign off when the reset looks correct.</p>';
+      '<div class="detail-row"><div class="label">Bay photos</div></div>' +
+      '<div id="pending-signoff-bay-photos"><p class="hub-panel-empty">Loading bay photos…</p></div>' +
+      '<p class="hub-panel-empty" style="margin-top:12px;">Review the reference and bay photos, then sign off when the reset looks correct.</p>';
+
+    if (window.HubBayPhotos) {
+      HubBayPhotos.renderBayPhotosGalleryHtml(queueItem.dbkey, queueItem.lane).then(function (html) {
+        const el = document.getElementById('pending-signoff-bay-photos');
+        if (el) el.innerHTML = html;
+      });
+    }
 
     footerEl.innerHTML =
       '<div class="verify-actions">' +
@@ -8481,6 +8773,9 @@ async function openPendingDetail(pendingId) {
     }
 
     scrollEl.innerHTML =
+      (full.dbkey && window.HubBayPhotos
+        ? '<div class="pending-signoff-preview">' + HubBayPhotos.renderHubPreviewHtml(full.dbkey) + '</div>'
+        : '') +
       '<div class="detail-row"><div class="label">Type</div><div class="value">' + escapeHtml(full.action_type) + '</div></div>' +
       '<div class="detail-row"><div class="label">Section</div><div class="value">' + escapeHtml(fixtureNameForDbkey(full.dbkey)) + '</div></div>' +
       '<div class="detail-row"><div class="label">Raised by</div><div class="value">' + escapeHtml(full.raised_by_name || '') + '</div></div>' +
