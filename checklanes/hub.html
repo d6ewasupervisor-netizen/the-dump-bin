@@ -5087,6 +5087,11 @@ function pogUrl(path) {
   return POG_SERVICE_BASE + path;
 }
 
+/** Hub assignment list thumbnails — cropped planogram diagram only (not full page 1). */
+function hubAssignPreviewUrl(dbkey) {
+  return pogUrl('/previews-cropped-webp/' + encodeURIComponent(dbkey) + '.webp');
+}
+
 async function ensurePogCatalogLoaded() {
   if (pogProductsCache && pogCatalogCache) return;
   if (!pogCatalogLoadPromise) {
@@ -6620,7 +6625,7 @@ function assignmentAssignControlsHtml(row) {
 function renderAssignmentSetRowHtml(row) {
   const assignHtml = assignmentAssignControlsHtml(row);
   const rowClass = 'assign-set-row' + (assignHtml ? ' has-assign' : '');
-  const previewUrl = pogUrl('/previews/' + encodeURIComponent(row.dbkey) + '.png');
+  const previewUrl = hubAssignPreviewUrl(row.dbkey);
   return (
     '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
       '<span class="assign-set-lane">' + escapeHtml(row.lane) + '</span>' +
