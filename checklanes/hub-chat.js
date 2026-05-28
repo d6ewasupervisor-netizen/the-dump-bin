@@ -1,5 +1,9 @@
 /**
  * Checklane Hub — floating team chat (rep ↔ lead/supervisor).
+ *
+ * Leads/supervisors open to an inbox of conversations grouped by sender,
+ * with unread ones surfaced first. Reps land directly in their own thread.
+ * Live updates arrive over the hub SSE stream (chat + snapshot events).
  */
 (function (global) {
   'use strict';
@@ -15,7 +19,10 @@
   let panelOpen = false;
   let loadingMessages = false;
   let statusMessage = '';
-  let domReady = false;
+  // 'inbox' | 'conversation' — reps always use 'conversation'.
+  let chatView = 'conversation';
+  // When true the recipient is locked (manager opened an existing rep thread).
+  let fixedRecipient = false;
 
   function canManage() {
     return typeof canManageHubAssignments === 'function' && canManageHubAssignments();
@@ -37,7 +44,17 @@
     return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
 
+  function relativeTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const today = new Date();
+    if (d.toDateString() === today.toDateString()) return formatTime(iso);
+    return formatDay(iso);
+  }
+
   function messageLabel(msg) {
+    if (!msg) return '';
     if (msg.messageType === 'request_next_set') return 'Ready for next set';
     return msg.body;
   }
@@ -79,10 +96,7 @@
   }
 
   function ensureDom() {
-    if (document.getElementById('hub-chat-root')) {
-      domReady = true;
-      return;
-    }
+    if (document.getElementById('hub-chat-root')) return;
 
     const root = document.createElement('div');
     root.id = 'hub-chat-root';
@@ -99,27 +113,34 @@
       '</div>' +
       '<div class="hub-chat-panel" id="hub-chat-panel" role="dialog" aria-label="Team chat" aria-modal="false">' +
         '<div class="hub-chat-panel-header">' +
+          '<button type="button" class="hub-chat-back" id="hub-chat-back" aria-label="Back to inbox" title="Back" hidden>←</button>' +
           '<div class="hub-chat-panel-title" id="hub-chat-panel-title">Team chat</div>' +
           '<button type="button" class="hub-chat-minimize" id="hub-chat-minimize" aria-label="Minimize chat" title="Minimize">&minus;</button>' +
         '</div>' +
         '<div class="hub-chat-notice" id="hub-chat-notice">' +
           'All messages are monitored. Leads and supervisors can view every conversation.' +
         '</div>' +
-        '<div class="hub-chat-recipient-row">' +
-          '<label class="hub-chat-recipient-label" for="hub-chat-recipient">To</label>' +
-          '<select class="hub-chat-recipient-select" id="hub-chat-recipient" aria-label="Message recipient">' +
-            '<option value="">Choose recipient…</option>' +
-          '</select>' +
+        '<div class="hub-chat-inbox" id="hub-chat-inbox" hidden>' +
+          '<button type="button" class="hub-chat-new-btn" id="hub-chat-new-btn">+ New message</button>' +
+          '<div class="hub-chat-inbox-list" id="hub-chat-inbox-list"></div>' +
         '</div>' +
-        '<div class="hub-chat-status" id="hub-chat-status" hidden role="status"></div>' +
-        '<div class="hub-chat-messages-wrap" id="hub-chat-messages-wrap">' +
-          '<div class="hub-chat-messages" id="hub-chat-messages"></div>' +
+        '<div class="hub-chat-conversation" id="hub-chat-conversation">' +
+          '<div class="hub-chat-recipient-row" id="hub-chat-recipient-row">' +
+            '<label class="hub-chat-recipient-label" for="hub-chat-recipient">To</label>' +
+            '<select class="hub-chat-recipient-select" id="hub-chat-recipient" aria-label="Message recipient">' +
+              '<option value="">Choose recipient…</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="hub-chat-status" id="hub-chat-status" hidden role="status"></div>' +
+          '<div class="hub-chat-messages-wrap" id="hub-chat-messages-wrap">' +
+            '<div class="hub-chat-messages" id="hub-chat-messages"></div>' +
+          '</div>' +
+          '<div class="hub-chat-quick-actions" id="hub-chat-quick-actions"></div>' +
+          '<form class="hub-chat-compose" id="hub-chat-compose">' +
+            '<textarea class="hub-chat-input" id="hub-chat-input" rows="2" maxlength="2000" placeholder="Type a message…" aria-label="Message"></textarea>' +
+            '<button type="submit" class="hub-chat-send" id="hub-chat-send">Send</button>' +
+          '</form>' +
         '</div>' +
-        '<div class="hub-chat-quick-actions" id="hub-chat-quick-actions"></div>' +
-        '<form class="hub-chat-compose" id="hub-chat-compose">' +
-          '<textarea class="hub-chat-input" id="hub-chat-input" rows="2" maxlength="2000" placeholder="Type a message…" aria-label="Message"></textarea>' +
-          '<button type="submit" class="hub-chat-send" id="hub-chat-send">Send</button>' +
-        '</form>' +
       '</div>';
     document.body.appendChild(root);
 
@@ -144,9 +165,21 @@
       togglePanel(false);
     });
 
+    document.getElementById('hub-chat-back').addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openInbox();
+    });
+
+    document.getElementById('hub-chat-new-btn').addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openNewMessage();
+    });
+
     document.getElementById('hub-chat-recipient').addEventListener('change', function () {
       selectedRecipientId = this.value ? Number(this.value) : null;
-      loadConversationForRecipient();
+      loadConversation();
     });
 
     document.getElementById('hub-chat-compose').addEventListener('submit', function (e) {
@@ -154,8 +187,13 @@
       sendCurrentMessage();
     });
 
+    document.getElementById('hub-chat-inbox-list').addEventListener('click', function (e) {
+      const item = e.target.closest('[data-rep-id]');
+      if (!item) return;
+      openConversationWithRep(Number(item.getAttribute('data-rep-id')));
+    });
+
     setupDrag(document.getElementById('hub-chat-drag-handle'), root);
-    domReady = true;
   }
 
   function setupDrag(handle, container) {
@@ -221,11 +259,7 @@
     const bubble = document.getElementById('hub-chat-bubble');
     if (!panel || !bubble) return;
 
-    if (open) {
-      panel.classList.add('is-open');
-    } else {
-      panel.classList.remove('is-open');
-    }
+    panel.classList.toggle('is-open', open);
     bubble.setAttribute('aria-expanded', open ? 'true' : 'false');
 
     if (open) {
@@ -240,21 +274,21 @@
     try {
       await Promise.all([loadRecipients(), loadThreads()]);
       renderRecipientSelect();
-      if (!selectedRecipientId && recipients.length === 1) {
-        selectedRecipientId = recipients[0].id;
-        const sel = document.getElementById('hub-chat-recipient');
-        if (sel) sel.value = String(selectedRecipientId);
-      }
-      if (selectedRecipientId) {
-        await loadConversationForRecipient();
+      setStatus('');
+
+      if (canManage()) {
+        openInbox();
       } else {
-        messages = [];
-        activeThreadId = null;
-        setStatus('');
-        render();
+        // Reps: default to their single thread; pick a default lead to address.
+        if (!selectedRecipientId && recipients.length) {
+          selectedRecipientId = recipients[0].id;
+        }
+        openConversation();
       }
     } catch (err) {
       setStatus(err.message || 'Could not load chat');
+      chatView = 'conversation';
+      applyViewVisibility();
       render();
     }
   }
@@ -291,27 +325,96 @@
     sel.innerHTML = '<option value="">Choose recipient…</option>' + options;
   }
 
-  function threadForRecipient(recipientId) {
-    if (!recipientId) return null;
+  // The thread whose messages are currently displayed.
+  function targetThread() {
     if (canManage()) {
-      return threads.find(function (t) { return Number(t.repId) === Number(recipientId); }) || null;
+      if (!selectedRecipientId) return null;
+      return threads.find(function (t) { return Number(t.repId) === Number(selectedRecipientId); }) || null;
     }
     return threads.find(function (t) { return Number(t.repId) === Number(hubContext.myUserId); }) || threads[0] || null;
   }
 
-  async function loadConversationForRecipient() {
-    if (!selectedRecipientId) {
-      messages = [];
-      activeThreadId = null;
-      setStatus('');
-      render();
-      return;
-    }
+  // ── View navigation ──
 
-    const thread = threadForRecipient(selectedRecipientId);
+  function applyViewVisibility() {
+    const inbox = document.getElementById('hub-chat-inbox');
+    const convo = document.getElementById('hub-chat-conversation');
+    const back = document.getElementById('hub-chat-back');
+    const recipientRow = document.getElementById('hub-chat-recipient-row');
+    if (!inbox || !convo) return;
+
+    const inboxMode = canManage() && chatView === 'inbox';
+    inbox.hidden = !inboxMode;
+    convo.hidden = inboxMode;
+    if (back) back.hidden = !(canManage() && chatView === 'conversation');
+
+    // Managers picking an existing rep don't need the dropdown; new-message + reps do.
+    if (recipientRow) {
+      const showRecipient = !canManage() || (chatView === 'conversation' && !fixedRecipient);
+      recipientRow.hidden = !showRecipient;
+    }
+  }
+
+  function setHeaderTitle(text) {
+    const title = document.getElementById('hub-chat-panel-title');
+    if (title) title.textContent = text;
+  }
+
+  function openInbox() {
+    chatView = 'inbox';
+    fixedRecipient = false;
+    selectedRecipientId = null;
+    activeThreadId = null;
+    messages = [];
+    setHeaderTitle('Team chat');
+    setStatus('');
+    applyViewVisibility();
+    renderInbox();
+  }
+
+  function openNewMessage() {
+    chatView = 'conversation';
+    fixedRecipient = false;
+    selectedRecipientId = null;
+    activeThreadId = null;
+    messages = [];
+    setHeaderTitle('New message');
+    setStatus('');
+    renderRecipientSelect();
+    applyViewVisibility();
+    render();
+    const sel = document.getElementById('hub-chat-recipient');
+    if (sel) { sel.value = ''; sel.focus(); }
+  }
+
+  function openConversationWithRep(repId) {
+    selectedRecipientId = repId;
+    fixedRecipient = true;
+    chatView = 'conversation';
+    const rep = threads.find(function (t) { return Number(t.repId) === Number(repId); });
+    setHeaderTitle(rep ? rep.repName : 'Conversation');
+    applyViewVisibility();
+    loadConversation();
+  }
+
+  function openConversation() {
+    chatView = 'conversation';
+    if (!canManage()) {
+      fixedRecipient = false;
+      setHeaderTitle('Message your lead');
+      renderRecipientSelect();
+    }
+    applyViewVisibility();
+    loadConversation();
+  }
+
+  async function loadConversation() {
+    const thread = targetThread();
+
     if (!thread || !thread.id) {
-      messages = [];
+      // No conversation yet (manager picking a fresh recipient, or rep with no thread).
       activeThreadId = null;
+      messages = [];
       setStatus('');
       render();
       return;
@@ -329,21 +432,26 @@
       setStatus('');
       render();
       scrollMessagesToBottom();
-
-      if (messages.length) {
-        const last = messages[messages.length - 1];
-        await hubPost('/chat/threads/' + encodeURIComponent(thread.id) + '/read', {
-          lastMessageId: last.id,
-        });
-        thread.unreadCount = 0;
-        unreadTotal = threads.reduce(function (sum, x) { return sum + (x.unreadCount || 0); }, 0);
-        updateBadge();
-      }
+      await markThreadRead(thread);
     } catch (err) {
       loadingMessages = false;
       setStatus(err.message || 'Could not load messages');
       render();
     }
+  }
+
+  async function markThreadRead(thread) {
+    if (!thread || !thread.id || !messages.length) return;
+    const last = messages[messages.length - 1];
+    try {
+      await hubPost('/chat/threads/' + encodeURIComponent(thread.id) + '/read', {
+        lastMessageId: last.id,
+      });
+      thread.unreadCount = 0;
+      unreadTotal = threads.reduce(function (sum, x) { return sum + (x.unreadCount || 0); }, 0);
+      updateBadge();
+      if (chatView === 'inbox') renderInbox();
+    } catch (_) { /* ignore */ }
   }
 
   function scrollMessagesToBottom() {
@@ -375,28 +483,27 @@
     try {
       const result = await hubPost('/chat/messages', payload);
       if (input && bodyOverride == null) input.value = '';
+
       if (result.thread) {
         activeThreadId = result.thread.id;
-        const existing = threads.find(function (t) { return t.id === result.thread.id; });
-        if (!existing) {
-          threads.push({
-            id: result.thread.id,
-            repId: result.thread.repId,
-            repName: result.thread.repName,
-            unreadCount: 0,
-            lastMessage: result.message,
-          });
+        if (canManage() && result.thread.repId != null) {
+          selectedRecipientId = result.thread.repId;
+          fixedRecipient = true;
+          setHeaderTitle(result.thread.repName || 'Conversation');
         }
       }
       if (result.message) {
         messages.push(result.message);
         render();
         scrollMessagesToBottom();
-        await hubPost('/chat/threads/' + encodeURIComponent(result.thread.id) + '/read', {
-          lastMessageId: result.message.id,
-        });
+        if (result.thread) {
+          await hubPost('/chat/threads/' + encodeURIComponent(result.thread.id) + '/read', {
+            lastMessageId: result.message.id,
+          });
+        }
       }
       await loadThreads();
+      applyViewVisibility();
       setStatus('');
     } catch (err) {
       setStatus(err.message || 'Could not send message');
@@ -405,12 +512,62 @@
     }
   }
 
+  // ── Rendering ──
+
+  function inboxThreadsSorted() {
+    return threads.slice().sort(function (a, b) {
+      const ua = a.unreadCount || 0;
+      const ub = b.unreadCount || 0;
+      if (ua !== ub) return ub - ua;
+      const ta = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const tb = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      if (ta !== tb) return tb - ta;
+      return (a.repName || '').localeCompare(b.repName || '');
+    });
+  }
+
+  function renderInbox() {
+    const list = document.getElementById('hub-chat-inbox-list');
+    if (!list) return;
+
+    const sorted = inboxThreadsSorted();
+    const withActivity = sorted.filter(function (t) { return t.lastMessage || t.unreadCount; });
+    const display = withActivity.length ? withActivity : sorted;
+
+    if (!display.length) {
+      list.innerHTML = '<p class="hub-chat-empty">No conversations yet. Use “New message” to reach a rep.</p>';
+      return;
+    }
+
+    list.innerHTML = display.map(function (t) {
+      const unread = t.unreadCount || 0;
+      const preview = t.lastMessage ? messageLabel(t.lastMessage) : 'No messages yet';
+      const sender = t.lastMessage && t.lastMessage.senderName ? t.lastMessage.senderName + ': ' : '';
+      const time = t.lastMessage ? relativeTime(t.lastMessage.createdAt) : '';
+      const badge = unread
+        ? '<span class="hub-chat-inbox-unread">' + (unread > 99 ? '99+' : unread) + '</span>'
+        : '';
+      return (
+        '<button type="button" class="hub-chat-inbox-item' + (unread ? ' is-unread' : '') + '" data-rep-id="' + escapeHtml(String(t.repId)) + '">' +
+          '<div class="hub-chat-inbox-row">' +
+            '<span class="hub-chat-inbox-name">' + escapeHtml(t.repName || 'Rep') + '</span>' +
+            (time ? '<span class="hub-chat-inbox-time">' + escapeHtml(time) + '</span>' : '') +
+          '</div>' +
+          '<div class="hub-chat-inbox-row">' +
+            '<span class="hub-chat-inbox-preview">' + escapeHtml(sender + preview) + '</span>' +
+            badge +
+          '</div>' +
+        '</button>'
+      );
+    }).join('');
+  }
+
   function renderMessages() {
     const el = document.getElementById('hub-chat-messages');
     if (!el) return;
 
-    if (!selectedRecipientId) {
-      el.innerHTML = '<p class="hub-chat-empty">Choose a recipient to view or start a conversation.</p>';
+    if (canManage() && chatView === 'conversation' && !selectedRecipientId) {
+      el.innerHTML = '<p class="hub-chat-empty">Choose a recipient above to start a conversation.</p>';
       return;
     }
 
@@ -420,7 +577,7 @@
     }
 
     if (!activeThreadId) {
-      el.innerHTML = '<p class="hub-chat-empty">No messages yet with this person. Send the first message below.</p>';
+      el.innerHTML = '<p class="hub-chat-empty">No messages yet. Send the first message below.</p>';
       return;
     }
 
@@ -457,7 +614,7 @@
   function renderQuickActions() {
     const el = document.getElementById('hub-chat-quick-actions');
     if (!el) return;
-    if (!panelOpen || !selectedRecipientId) {
+    if (!panelOpen || chatView !== 'conversation' || !selectedRecipientId) {
       el.innerHTML = '';
       el.hidden = true;
       return;
@@ -481,8 +638,12 @@
   }
 
   function render() {
-    renderMessages();
-    renderQuickActions();
+    if (canManage() && chatView === 'inbox') {
+      renderInbox();
+    } else {
+      renderMessages();
+      renderQuickActions();
+    }
     updateBadge();
   }
 
@@ -499,23 +660,33 @@
       unreadTotal = evt.chatSummary.unreadTotal || 0;
       updateBadge();
     }
-    if (panelOpen) {
-      loadThreads().then(function () {
-        if (activeThreadId && evt.type === 'message' && evt.threadId === activeThreadId && evt.message) {
-          const exists = messages.some(function (m) { return m.id === evt.message.id; });
-          if (!exists) {
-            messages.push(evt.message);
-            render();
-            scrollMessagesToBottom();
-            if (evt.message.senderId !== hubContext.myUserId) {
-              hubPost('/chat/threads/' + encodeURIComponent(activeThreadId) + '/read', {
-                lastMessageId: evt.message.id,
-              }).catch(function () { /* ignore */ });
-            }
+    if (!panelOpen) return;
+
+    loadThreads().then(function () {
+      if (chatView === 'inbox') {
+        renderInbox();
+        return;
+      }
+      // In a conversation: append live message if it belongs to the open thread.
+      if (activeThreadId && evt.type === 'message' && evt.threadId === activeThreadId && evt.message) {
+        const exists = messages.some(function (m) { return m.id === evt.message.id; });
+        if (!exists) {
+          messages.push(evt.message);
+          render();
+          scrollMessagesToBottom();
+          if (evt.message.senderId !== hubContext.myUserId) {
+            hubPost('/chat/threads/' + encodeURIComponent(activeThreadId) + '/read', {
+              lastMessageId: evt.message.id,
+            }).then(function () {
+              const t = threads.find(function (x) { return x.id === activeThreadId; });
+              if (t) t.unreadCount = 0;
+              unreadTotal = threads.reduce(function (sum, x) { return sum + (x.unreadCount || 0); }, 0);
+              updateBadge();
+            }).catch(function () { /* ignore */ });
           }
         }
-      });
-    }
+      }
+    }).catch(function () { /* ignore */ });
   }
 
   function init() {
