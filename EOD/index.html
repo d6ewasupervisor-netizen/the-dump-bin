@@ -451,6 +451,59 @@
         }
         .manager-chip .chip-remove:hover { color: #ef4444; }
 
+        /* ── KOMPASS Help Desk wizard — themed to match the dark EOD UI ──────
+           The wizard markup ships with light-theme inline styles (white card,
+           gray text) and some styling is injected by JS at runtime. These
+           rules re-skin it to the app's dark palette. !important is required
+           because the originals are inline, which otherwise win over plain
+           selectors. */
+        #helpdeskWizard {
+            background: #0b1220 !important;
+            border: 1px solid #0d4f8b !important;
+            color: #d1d5db;
+        }
+        #helpdeskWizard p { color: #d1d5db !important; }
+        #helpdeskWizard > p:first-of-type {
+            color: #88c4ed !important;
+            font-size: 1.05em;
+        }
+        #helpdeskWizard label { color: #88c4ed; }
+        /* Radio + checklist captions read as body text, not field headers. */
+        #helpdeskWizard .field > div label {
+            color: #d1d5db !important;
+            font-weight: normal;
+        }
+        #helpdeskWizard #hdChecklist,
+        #helpdeskWizard #hdChecklist label,
+        #helpdeskWizard #hdChecklist span {
+            color: #d1d5db !important;
+            font-weight: normal;
+        }
+        #helpdeskWizard #hdChecklist p {
+            color: #88c4ed !important;
+            font-weight: 600;
+        }
+        /* Inputs / selects / textareas not already covered by .field rules. */
+        #helpdeskWizard input[type="text"],
+        #helpdeskWizard input[type="number"],
+        #helpdeskWizard textarea,
+        #helpdeskWizard select {
+            background: #374151 !important;
+            border: 1px solid #4b5563 !important;
+            color: #f9fafb !important;
+            border-radius: var(--border-radius);
+        }
+        #helpdeskWizard input::placeholder,
+        #helpdeskWizard textarea::placeholder { color: #9ca3af; }
+        /* Selected-category summary chip. */
+        #helpdeskWizard #hdCategoryChip {
+            background: #1e3a5f !important;
+            color: #e5e7eb !important;
+        }
+        #helpdeskWizard #hdCategoryChip span { color: #93c5fd !important; }
+        /* Per-photo caption labels. */
+        #helpdeskWizard #hdCaptionsContainer span { color: #9ca3af !important; }
+
         .photo-section {
             margin-top: 15px;
         }
@@ -3186,7 +3239,7 @@
             </div>
 
             <div class="field" style="margin-top: 15px;">
-                <label>Did you call the KOMPASS Hotline?</label>
+                <label>Contact the helpdesk.</label>
                 <div class="checkbox-group">
                     <div class="checkbox-option">
                         <input type="checkbox" id="hotlineYes" name="hotline" value="Yes" onchange="toggleHotline(this)">
@@ -3472,7 +3525,7 @@
         <!-- Action Buttons -->
         <div class="button-group">
             <button type="button" class="btn btn-secondary" onclick="previewEodEmail()">Preview Email</button>
-            <button class="btn btn-success" onclick="generateEmail()">Send Email</button>
+            <button class="btn btn-success" id="sendEmailBtn" onclick="generateEmail()">Send Email</button>
             <div class="coversheet-action-wrap" data-requires-role="lead supervisor admin">
                 <button type="button" class="btn btn-coversheet" title="Automatically add the complete EOD coversheet to your Kompass shift." onclick="prepareCoversheetPreview()"><span class="btn-coversheet-label">Add EOD Coversheet<br>to your Kompass shift</span></button>
             </div>
@@ -8115,6 +8168,8 @@ ${data.Notes || ''}`;
 
         // Generate Email - builds payload and shows confirmation preview
         async function generateEmail() {
+            // Block re-entry while a send is already mid-flight.
+            if (eodSendInProgress) return;
             const loading = document.getElementById('loadingOverlay');
             loading.classList.add('show');
             try {
@@ -8124,7 +8179,12 @@ ${data.Notes || ''}`;
                     showValidationBlocked(result.validation, 'Send Email');
                     return;
                 }
-                showSendConfirmation(result.payload, result.data);
+                // Extra guardrail: make the lead re-confirm every Store
+                // Intelligence "Not in SI" set was recorded before we move on
+                // to the final send confirmation.
+                showSiSetsConfirmation(result.payload, result.data, () => {
+                    showSendConfirmation(result.payload, result.data);
+                });
             } catch (error) {
                 console.error('Error generating email:', error);
                 loading.classList.remove('show');
@@ -8189,8 +8249,151 @@ ${data.Notes || ''}`;
             });
         }
 
+        // Collect every set pulled across all of today's shifts (deduped by
+        // label) so the lead can eyeball the full list one last time before
+        // submitting and confirm nothing missing from SI slipped through.
+        function collectAllShiftSetsForReview() {
+            const seen = new Set();
+            const out = [];
+            const pushSet = (s) => {
+                if (!s) return;
+                const label = setLabel(s);
+                if (!label || seen.has(label)) return;
+                seen.add(label);
+                const { dbkey: dk, version: ver } = extractPlanogramMetaClient(s.planogramId);
+                out.push({
+                    label,
+                    name: s.name || '',
+                    number: s.number || '',
+                    dbkey: s.dbkey || dk || '',
+                    version: s.version || ver || ''
+                });
+            };
+            const visitIds = Object.keys(allShiftsSetsMap);
+            if (visitIds.length) {
+                visitIds.forEach(vid => (allShiftsSetsMap[vid].sets || []).forEach(pushSet));
+            } else {
+                (shiftSets || []).forEach(pushSet);
+            }
+            return out;
+        }
+
+        // Final guard before the send confirmation: surface the full list of
+        // sets pulled from the lead's shift(s) — with anything already flagged
+        // "Not in SI" checked off — and make them confirm every missing set
+        // was recorded. onConfirm proceeds to the normal send confirmation.
+        function showSiSetsConfirmation(payload, data, onConfirm) {
+            const allSets = collectAllShiftSetsForReview();
+            const notInSi = new Set((data.NotInSiSelected || []).map(String));
+            const notInSiText = formatNotInList(data.NotInSiSelected, data.NotInSiOther);
+            const multiShift = Object.keys(allShiftsSetsMap).length > 1;
+
+            let setsHtml;
+            if (allSets.length === 0) {
+                setsHtml = '<p style="color:#94a3b8;font-style:italic;margin:8px 0;">No shift sets were loaded for this store/date. If you worked sets today, use &ldquo;Find Shifts&rdquo; first so they appear here.</p>';
+            } else {
+                setsHtml = '<ul style="list-style:none;margin:8px 0 0;padding:0;max-height:240px;overflow-y:auto;">' +
+                    allSets.map(s => {
+                        const flagged = notInSi.has(s.label);
+                        const meta = [s.dbkey, s.version].filter(Boolean).join(' \u00b7 ');
+                        const mark = flagged
+                            ? '<span style="color:#86efac;font-weight:700;">&#10003; Not in SI</span>'
+                            : '<span style="color:#94a3b8;">found / signed out</span>';
+                        return '<li style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:6px 8px;border-radius:6px;margin-bottom:5px;background:' +
+                            (flagged ? 'rgba(34,197,94,0.12)' : '#1f2937') + ';">' +
+                            '<span style="color:#e5e7eb;">C' + escapeHtml(String(s.number || '?')) + ' &mdash; ' + escapeHtml(s.name) +
+                            (meta ? ' <span style="color:#94a3b8;">(' + escapeHtml(meta) + ')</span>' : '') + '</span>' +
+                            '<span style="white-space:nowrap;font-size:12px;">' + mark + '</span></li>';
+                    }).join('') + '</ul>';
+            }
+
+            const message =
+                '<p style="margin:0 0 10px;">Before this EOD goes out, double-check that <strong>every set missing from Store Intelligence</strong> has been recorded.</p>' +
+                '<div style="background:#0b1220;border:1px solid #0d4f8b;border-radius:8px;padding:10px 12px;margin-bottom:12px;">' +
+                    '<div style="color:#88c4ed;font-weight:600;font-size:13px;">Sets pulled from your shift' + (multiShift ? 's' : '') + ':</div>' +
+                    setsHtml +
+                '</div>' +
+                '<p style="margin:0 0 4px;color:#88c4ed;font-weight:600;font-size:13px;">Currently marked &ldquo;Not in SI&rdquo;:</p>' +
+                '<p style="margin:0 0 12px;color:#e5e7eb;">' + escapeHtml(notInSiText) + '</p>' +
+                '<p style="margin:0;color:#fbbf24;font-size:13px;">If anything is missing, tap &ldquo;Go back &amp; review&rdquo;. Otherwise confirm you recorded them all.</p>';
+
+            const modal = document.getElementById('modal');
+            document.getElementById('modalTitle').textContent = 'Confirm Store Intelligence sets';
+            document.getElementById('modalMessage').innerHTML = message;
+            document.getElementById('modalCancel').style.display = 'inline-block';
+
+            const oldConfirm = document.getElementById('modalConfirm');
+            const newConfirm = oldConfirm.cloneNode(true);
+            oldConfirm.parentNode.replaceChild(newConfirm, oldConfirm);
+            newConfirm.textContent = 'Yes \u2014 all recorded';
+
+            const oldCancel = document.getElementById('modalCancel');
+            const newCancel = oldCancel.cloneNode(true);
+            oldCancel.parentNode.replaceChild(newCancel, oldCancel);
+            newCancel.textContent = 'Go back & review';
+
+            modal.classList.add('show');
+
+            newConfirm.addEventListener('click', () => {
+                modal.classList.remove('show');
+                newConfirm.textContent = 'OK';
+                newCancel.textContent = 'Cancel';
+                onConfirm();
+            });
+            newCancel.addEventListener('click', () => {
+                modal.classList.remove('show');
+                newConfirm.textContent = 'OK';
+                newCancel.textContent = 'Cancel';
+                const field = document.getElementById('setsNotInSiField');
+                if (field) field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+
+        // ─── Duplicate-send protection ───────────────────────────────────
+        // A single in-flight guard plus a visible cooldown lock on the Send
+        // button so a slow network never tempts a lead into double-sending.
+        let eodSendInProgress = false;
+        const EOD_SEND_LOCK_MS = 60000;
+
+        function restoreSendButton() {
+            const btn = document.getElementById('sendEmailBtn');
+            if (!btn) return;
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.style.cursor = '';
+            btn.textContent = 'Send Email';
+        }
+
+        function lockSendButtonAfterSend() {
+            const btn = document.getElementById('sendEmailBtn');
+            if (!btn) return;
+            let remaining = Math.ceil(EOD_SEND_LOCK_MS / 1000);
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'not-allowed';
+            btn.textContent = 'Sent \u2713 (' + remaining + 's)';
+            const timer = setInterval(() => {
+                remaining -= 1;
+                if (remaining <= 0) {
+                    clearInterval(timer);
+                    restoreSendButton();
+                } else {
+                    btn.textContent = 'Sent \u2713 (' + remaining + 's)';
+                }
+            }, 1000);
+        }
+
         // Actually send the email via fetch
         async function sendEmail(payload) {
+            if (eodSendInProgress) return;
+            eodSendInProgress = true;
+            const sendBtn = document.getElementById('sendEmailBtn');
+            if (sendBtn) {
+                sendBtn.disabled = true;
+                sendBtn.style.opacity = '0.6';
+                sendBtn.style.cursor = 'not-allowed';
+                sendBtn.textContent = 'Sending\u2026';
+            }
             const loading = document.getElementById('loadingOverlay');
             loading.classList.add('show');
             try {
@@ -8208,6 +8411,7 @@ ${data.Notes || ''}`;
 
                 if (response.status === 412) {
                     loading.classList.remove('show');
+                    restoreSendButton();
                     clearDayConfirm();
                     showDayConfirmModal({
                         store: sendStore,
@@ -8221,14 +8425,29 @@ ${data.Notes || ''}`;
                 loading.classList.remove('show');
                 if (result.success) {
                     const storeNumberPadded = String(payload.storeNumber || '').padStart(3, '0');
-                    showAlert('Email Sent', `EOD report sent successfully.<br><br><strong>From:</strong> EOD_FM${storeNumberPadded}@retail-odyssey.com<br><strong>To:</strong> ${payload.recipients.join(', ') || '(none)'}`);
+                    // Lock the button so a slow page never tempts a second tap,
+                    // and spell out clearly that the EOD is on its way.
+                    lockSendButtonAfterSend();
+                    showAlert(
+                        'Email Sent \u2713',
+                        '<div style="background:rgba(34,197,94,0.12);border:1px solid #16a34a;border-radius:8px;padding:10px 12px;margin-bottom:10px;">' +
+                            '<strong style="color:#86efac;">Your EOD has been sent successfully.</strong><br>' +
+                            '<span style="color:#d1d5db;font-size:13px;">You do <strong>not</strong> need to tap Send again. The Send button is locked for 60 seconds.</span>' +
+                        '</div>' +
+                        `<strong>From:</strong> EOD_FM${storeNumberPadded}@retail-odyssey.com<br>` +
+                        `<strong>To:</strong> ${escapeHtml(payload.recipients.join(', ') || '(none)')}`
+                    );
                 } else {
+                    restoreSendButton();
                     showAlert('Send Failed', 'Error: ' + (result.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error sending email:', error);
                 loading.classList.remove('show');
+                restoreSendButton();
                 showAlert('Error', 'Failed to send: ' + error.message);
+            } finally {
+                eodSendInProgress = false;
             }
         }
 
