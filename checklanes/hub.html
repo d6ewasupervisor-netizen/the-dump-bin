@@ -3683,23 +3683,52 @@
     right: 20px;
     bottom: 20px;
     z-index: 12000;
-    touch-action: none;
   }
+
+  .hub-chat-launcher {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.35));
+  }
+
+  .hub-chat-drag-handle {
+    appearance: none;
+    border: none;
+    border-radius: 10px 0 0 10px;
+    background: var(--surface2);
+    color: var(--text2);
+    width: 22px;
+    height: 56px;
+    cursor: grab;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    letter-spacing: -2px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-right: none;
+  }
+
+  .hub-chat-drag-handle:active { cursor: grabbing; }
 
   .hub-chat-bubble {
     position: relative;
     width: 56px;
     height: 56px;
-    border-radius: 50%;
-    border: none;
+    border-radius: 0 50% 50% 0;
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    border-left: none;
     background: linear-gradient(145deg, #3b82f6, #2563eb);
     color: #fff;
-    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.45);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     touch-action: manipulation;
+    padding: 0;
   }
 
   .hub-chat-bubble:active { transform: scale(0.96); }
@@ -3707,6 +3736,7 @@
   .hub-chat-bubble-icon {
     width: 26px;
     height: 26px;
+    pointer-events: none;
   }
 
   .hub-chat-badge {
@@ -3724,9 +3754,11 @@
     line-height: 20px;
     text-align: center;
     border: 2px solid var(--bg);
+    pointer-events: none;
   }
 
   .hub-chat-panel {
+    display: none;
     position: absolute;
     right: 0;
     bottom: 68px;
@@ -3736,9 +3768,12 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-    display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  .hub-chat-panel.is-open {
+    display: flex;
   }
 
   .hub-chat-panel-header {
@@ -3747,92 +3782,84 @@
     gap: 8px;
     padding: 10px 12px;
     border-bottom: 1px solid var(--border);
-    cursor: grab;
     flex-shrink: 0;
     user-select: none;
   }
-
-  .hub-chat-panel-header:active { cursor: grabbing; }
 
   .hub-chat-panel-title {
     flex: 1;
     font-size: 0.9rem;
     font-weight: 700;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
-  .hub-chat-back,
-  .hub-chat-close {
+  .hub-chat-minimize {
     appearance: none;
     border: none;
-    background: transparent;
-    color: var(--text2);
-    font-size: 1.2rem;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 1.25rem;
     line-height: 1;
-    padding: 4px 6px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
     cursor: pointer;
     border-radius: 6px;
+    flex-shrink: 0;
   }
 
-  .hub-chat-back:hover,
-  .hub-chat-close:hover { color: var(--text); background: var(--surface2); }
+  .hub-chat-minimize:hover { background: var(--border); }
 
-  .hub-chat-thread-list {
-    overflow-y: auto;
-    max-height: 200px;
-    padding: 8px;
+  .hub-chat-notice {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+    border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+  }
+
+  .hub-chat-recipient-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
 
-  .hub-chat-thread-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    appearance: none;
+  .hub-chat-recipient-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text2);
+    flex-shrink: 0;
+  }
+
+  .hub-chat-recipient-select {
+    flex: 1;
+    min-width: 0;
     border: 1px solid var(--border);
     background: var(--surface2);
     color: var(--text);
     border-radius: var(--radius);
-    padding: 10px 12px;
-    margin-bottom: 6px;
-    cursor: pointer;
-  }
-
-  .hub-chat-thread-item:active { opacity: 0.9; }
-
-  .hub-chat-thread-name {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-weight: 600;
+    padding: 8px 10px;
+    font: inherit;
     font-size: 0.85rem;
-    margin-bottom: 4px;
   }
 
-  .hub-chat-thread-preview {
-    display: block;
-    font-size: 0.78rem;
-    color: var(--text2);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .hub-chat-status {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.08);
+    border-bottom: 1px solid rgba(239, 68, 68, 0.2);
   }
 
-  .hub-chat-thread-unread {
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 9px;
-    background: #ef4444;
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    line-height: 18px;
-    text-align: center;
+  .hub-chat-status:empty,
+  .hub-chat-status[hidden] {
+    display: none;
   }
 
   .hub-chat-messages-wrap {
@@ -3886,6 +3913,12 @@
   }
 
   .hub-chat-msg-sender { font-weight: 600; }
+
+  .hub-chat-msg-to {
+    font-size: 0.68rem;
+    color: var(--text3);
+    margin-bottom: 4px;
+  }
 
   .hub-chat-msg-body {
     font-size: 0.85rem;
@@ -7492,102 +7525,6 @@ function toggleBulkAssignPanel(open) {
   }
 }
 
-function setLaneNamesStatus(msg, kind) {
-  const el = document.getElementById('lane-names-status');
-  if (!el) return;
-  el.textContent = msg || '';
-  el.className = 'flag-status' + (kind ? ' ' + kind : '');
-}
-
-function renderLaneNamesPanelBody() {
-  const body = document.getElementById('lane-names-panel-body');
-  if (!body) return;
-
-  const lanes = hubManifestLanes();
-  const rows = lanes.map(lane => {
-    const hint = laneHintForLane(lane);
-    const value = getPhysicalLaneName(lane);
-    return (
-      '<label class="lane-name-row" data-lane-name-row="' + escapeHtml(lane) + '">' +
-        '<span class="lane-name-row-label">' +
-          '<span class="lane-name-row-num">' + escapeHtml(lane) + '</span>' +
-          (hint ? ('<span class="lane-name-row-hint">' + escapeHtml(hint) + '</span>') : '') +
-        '</span>' +
-        '<input type="text" data-lane-name-input="' + escapeHtml(lane) + '" ' +
-          'value="' + escapeHtml(value) + '" ' +
-          'placeholder="e.g. SCO Bank 1, Checkstand 3" autocomplete="off">' +
-      '</label>'
-    );
-  }).join('');
-
-  body.innerHTML =
-    '<p class="lane-names-intro">Map each register lane (601–624) to how your store calls it on the floor. ' +
-    'Register numbers stay in the system — this adds the name reps and tag printouts use in the field.</p>' +
-    (rows
-      ? ('<div class="lane-names-list">' + rows + '</div>')
-      : '<p class="hub-panel-empty">No manifest lanes found.</p>');
-}
-
-function openLaneNamesPanel() {
-  if (!canManageHubAssignments()) return;
-  toggleBulkAssignPanel(false);
-  toggleTagBatchPanel(false);
-  togglePendingPanel(false);
-  toggleLaneNamesPanel(true);
-}
-
-function toggleLaneNamesPanel(open) {
-  const panel = document.getElementById('lane-names-panel');
-  if (!panel) return;
-  if (open && canManageHubAssignments()) {
-    panel.hidden = false;
-    panel.classList.add('open');
-    renderLaneNamesPanelBody();
-    setLaneNamesStatus('');
-  } else {
-    panel.classList.remove('open');
-    panel.hidden = true;
-    setLaneNamesStatus('');
-  }
-}
-
-async function saveLaneNamesFromPanel() {
-  if (!canManageHubAssignments()) return;
-  const btn = document.getElementById('lane-names-save-btn');
-  const inputs = document.querySelectorAll('[data-lane-name-input]');
-  /** @type {Record<string, string>} */
-  const names = {};
-  inputs.forEach(input => {
-    const lane = input.getAttribute('data-lane-name-input');
-    if (!lane) return;
-    names[lane] = (input.value || '').trim();
-  });
-
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-  }
-  setLaneNamesStatus('Saving…');
-
-  try {
-    const result = await hubMutatePost('/lane-names', { names });
-    hubContext.laneNames = result.laneNames || names;
-    setLaneNamesStatus('Lane names saved', 'ok');
-    renderAssignmentsView();
-    renderList();
-    renderMap();
-    refreshPogWorkingChrome();
-    if (tagBatchPreview) await loadTagBatchPreview();
-  } catch (err) {
-    setLaneNamesStatus(err.message || 'Save failed', 'error');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Save lane names';
-    }
-  }
-}
-
 async function handleBulkAssignPanelClick(e) {
   const pickInput = e.target.closest('[data-bulk-pick]');
   if (pickInput) {
@@ -9262,11 +9199,11 @@ async function init() {
   renderList();
   bindPogWorkingActions();
   bindEvents();
-  if (window.HubChat) HubChat.init();
   syncHubUrl(readHubUrlState(), true);
 
   if (visitId) {
     liveVisitId = visitId;
+    if (window.HubChat) HubChat.init();
     setDataSourceLabel('Store ' + padStoreNumber(HUB_STORE_NUM) + ' · live visit ' + visitId + ' · loading…');
     try {
       const snapshot = await loadLiveState(visitId);

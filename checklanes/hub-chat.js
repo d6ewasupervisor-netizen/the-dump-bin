@@ -1,21 +1,21 @@
 /**
  * Checklane Hub — floating team chat (rep ↔ lead/supervisor).
- * Depends on hub globals: liveVisitId, hubGet, hubPost, hubContext, escapeHtml,
- * canManageHubAssignments, openBulkAssignPanel.
  */
 (function (global) {
   'use strict';
 
   const POS_KEY = 'checklane-hub-chat-pos';
-  const OPEN_KEY = 'checklane-hub-chat-open';
 
   let unreadTotal = 0;
+  let recipients = [];
   let threads = [];
+  let selectedRecipientId = null;
   let activeThreadId = null;
-  let activeRepId = null;
   let messages = [];
   let panelOpen = false;
   let loadingMessages = false;
+  let statusMessage = '';
+  let domReady = false;
 
   function canManage() {
     return typeof canManageHubAssignments === 'function' && canManageHubAssignments();
@@ -56,121 +56,152 @@
     return null;
   }
 
+  function clampPosition(x, y, el) {
+    const w = el ? el.offsetWidth : 64;
+    const h = el ? el.offsetHeight : 64;
+    return {
+      x: Math.max(8, Math.min(window.innerWidth - w - 8, x)),
+      y: Math.max(8, Math.min(window.innerHeight - h - 8, y)),
+    };
+  }
+
+  function setStatus(msg) {
+    statusMessage = msg || '';
+    const el = document.getElementById('hub-chat-status');
+    if (!el) return;
+    if (statusMessage) {
+      el.textContent = statusMessage;
+      el.hidden = false;
+    } else {
+      el.textContent = '';
+      el.hidden = true;
+    }
+  }
+
   function ensureDom() {
-    if (document.getElementById('hub-chat-root')) return;
+    if (document.getElementById('hub-chat-root')) {
+      domReady = true;
+      return;
+    }
 
     const root = document.createElement('div');
     root.id = 'hub-chat-root';
     root.className = 'hub-chat-root';
     root.innerHTML =
-      '<button type="button" class="hub-chat-bubble" id="hub-chat-bubble" aria-label="Team chat" aria-expanded="false">' +
-        '<svg class="hub-chat-bubble-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/></svg>' +
-        '<span class="hub-chat-badge" id="hub-chat-badge" hidden></span>' +
-      '</button>' +
-      '<div class="hub-chat-panel" id="hub-chat-panel" hidden role="dialog" aria-label="Team chat">' +
-        '<div class="hub-chat-panel-header" id="hub-chat-panel-header">' +
-          '<button type="button" class="hub-chat-back" id="hub-chat-back" hidden aria-label="Back to threads">←</button>' +
+      '<div class="hub-chat-launcher" id="hub-chat-launcher">' +
+        '<button type="button" class="hub-chat-drag-handle" id="hub-chat-drag-handle" aria-label="Move chat" title="Drag to move">' +
+          '<span aria-hidden="true">⋮⋮</span>' +
+        '</button>' +
+        '<button type="button" class="hub-chat-bubble" id="hub-chat-bubble" aria-label="Team chat" aria-expanded="false" title="Open chat">' +
+          '<svg class="hub-chat-bubble-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/></svg>' +
+          '<span class="hub-chat-badge" id="hub-chat-badge" hidden></span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="hub-chat-panel" id="hub-chat-panel" role="dialog" aria-label="Team chat" aria-modal="false">' +
+        '<div class="hub-chat-panel-header">' +
           '<div class="hub-chat-panel-title" id="hub-chat-panel-title">Team chat</div>' +
-          '<button type="button" class="hub-chat-close" id="hub-chat-close" aria-label="Close chat">&times;</button>' +
+          '<button type="button" class="hub-chat-minimize" id="hub-chat-minimize" aria-label="Minimize chat" title="Minimize">&minus;</button>' +
         '</div>' +
-        '<div class="hub-chat-thread-list" id="hub-chat-thread-list" hidden></div>' +
+        '<div class="hub-chat-notice" id="hub-chat-notice">' +
+          'All messages are monitored. Leads and supervisors can view every conversation.' +
+        '</div>' +
+        '<div class="hub-chat-recipient-row">' +
+          '<label class="hub-chat-recipient-label" for="hub-chat-recipient">To</label>' +
+          '<select class="hub-chat-recipient-select" id="hub-chat-recipient" aria-label="Message recipient">' +
+            '<option value="">Choose recipient…</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="hub-chat-status" id="hub-chat-status" hidden role="status"></div>' +
         '<div class="hub-chat-messages-wrap" id="hub-chat-messages-wrap">' +
           '<div class="hub-chat-messages" id="hub-chat-messages"></div>' +
         '</div>' +
         '<div class="hub-chat-quick-actions" id="hub-chat-quick-actions"></div>' +
         '<form class="hub-chat-compose" id="hub-chat-compose">' +
-          '<textarea class="hub-chat-input" id="hub-chat-input" rows="2" maxlength="2000" placeholder="Message…" aria-label="Message"></textarea>' +
+          '<textarea class="hub-chat-input" id="hub-chat-input" rows="2" maxlength="2000" placeholder="Type a message…" aria-label="Message"></textarea>' +
           '<button type="submit" class="hub-chat-send" id="hub-chat-send">Send</button>' +
         '</form>' +
       '</div>';
     document.body.appendChild(root);
 
-    const bubble = document.getElementById('hub-chat-bubble');
-    const panel = document.getElementById('hub-chat-panel');
     const saved = loadPosition();
     if (saved) {
-      root.style.left = saved.x + 'px';
-      root.style.top = saved.y + 'px';
+      const clamped = clampPosition(saved.x, saved.y, root);
+      root.style.left = clamped.x + 'px';
+      root.style.top = clamped.y + 'px';
       root.style.right = 'auto';
       root.style.bottom = 'auto';
     }
 
-    bubble.addEventListener('click', function (e) {
-      if (bubble.dataset.dragged === '1') {
-        bubble.dataset.dragged = '0';
-        return;
-      }
+    document.getElementById('hub-chat-bubble').addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
       togglePanel(!panelOpen);
     });
 
-    document.getElementById('hub-chat-close').addEventListener('click', function () {
+    document.getElementById('hub-chat-minimize').addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
       togglePanel(false);
     });
-    document.getElementById('hub-chat-back').addEventListener('click', function () {
-      activeThreadId = null;
-      activeRepId = null;
-      messages = [];
-      render();
+
+    document.getElementById('hub-chat-recipient').addEventListener('change', function () {
+      selectedRecipientId = this.value ? Number(this.value) : null;
+      loadConversationForRecipient();
     });
+
     document.getElementById('hub-chat-compose').addEventListener('submit', function (e) {
       e.preventDefault();
       sendCurrentMessage();
     });
 
-    setupDrag(bubble, root);
-    setupDrag(document.getElementById('hub-chat-panel-header'), root, true);
-
-    if (localStorage.getItem(OPEN_KEY) === '1') {
-      togglePanel(true, true);
-    }
+    setupDrag(document.getElementById('hub-chat-drag-handle'), root);
+    domReady = true;
   }
 
-  function setupDrag(handle, container, panelMode) {
+  function setupDrag(handle, container) {
     let startX = 0;
     let startY = 0;
     let originX = 0;
     let originY = 0;
     let dragging = false;
 
-    function onPointerDown(e) {
-      if (panelMode && e.target.closest('button')) return;
-      dragging = true;
+    handle.addEventListener('pointerdown', function (e) {
+      dragging = false;
       const rect = container.getBoundingClientRect();
       originX = rect.left;
       originY = rect.top;
       startX = e.clientX;
       startY = e.clientY;
-      container.style.right = 'auto';
-      container.style.bottom = 'auto';
-      container.setPointerCapture(e.pointerId);
+      handle.setPointerCapture(e.pointerId);
       e.preventDefault();
-    }
+      e.stopPropagation();
+    });
 
-    function onPointerMove(e) {
-      if (!dragging) return;
+    handle.addEventListener('pointermove', function (e) {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-      const x = Math.max(8, Math.min(window.innerWidth - 56, originX + dx));
-      const y = Math.max(8, Math.min(window.innerHeight - 56, originY + dy));
-      container.style.left = x + 'px';
-      container.style.top = y + 'px';
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-        handle.dataset.dragged = '1';
-      }
-    }
-
-    function onPointerUp(e) {
+      if (!dragging && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) dragging = true;
       if (!dragging) return;
+      container.style.right = 'auto';
+      container.style.bottom = 'auto';
+      const clamped = clampPosition(originX + dx, originY + dy, container);
+      container.style.left = clamped.x + 'px';
+      container.style.top = clamped.y + 'px';
+      e.preventDefault();
+    });
+
+    function endDrag(e) {
+      if (!handle.hasPointerCapture(e.pointerId)) return;
+      try { handle.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      if (dragging) {
+        const rect = container.getBoundingClientRect();
+        savePosition(rect.left, rect.top);
+      }
       dragging = false;
-      try { container.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
-      const rect = container.getBoundingClientRect();
-      savePosition(rect.left, rect.top);
     }
 
-    handle.addEventListener('pointerdown', onPointerDown);
-    handle.addEventListener('pointermove', onPointerMove);
-    handle.addEventListener('pointerup', onPointerUp);
-    handle.addEventListener('pointercancel', onPointerUp);
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
   }
 
   function updateBadge() {
@@ -184,70 +215,134 @@
     }
   }
 
-  function togglePanel(open, skipLoad) {
+  function togglePanel(open) {
     panelOpen = open;
     const panel = document.getElementById('hub-chat-panel');
     const bubble = document.getElementById('hub-chat-bubble');
     if (!panel || !bubble) return;
-    panel.hidden = !open;
-    bubble.setAttribute('aria-expanded', open ? 'true' : 'false');
-    try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch (_) { /* ignore */ }
-    if (open && !skipLoad) {
-      loadThreads().then(function () {
-        if (!canManage() && threads.length === 1) {
-          openThread(threads[0].id);
-        } else {
-          render();
-        }
-      });
+
+    if (open) {
+      panel.classList.add('is-open');
     } else {
+      panel.classList.remove('is-open');
+    }
+    bubble.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    if (open) {
+      bootstrapPanel();
+    } else {
+      setStatus('');
+    }
+  }
+
+  async function bootstrapPanel() {
+    setStatus('Loading…');
+    try {
+      await Promise.all([loadRecipients(), loadThreads()]);
+      renderRecipientSelect();
+      if (!selectedRecipientId && recipients.length === 1) {
+        selectedRecipientId = recipients[0].id;
+        const sel = document.getElementById('hub-chat-recipient');
+        if (sel) sel.value = String(selectedRecipientId);
+      }
+      if (selectedRecipientId) {
+        await loadConversationForRecipient();
+      } else {
+        messages = [];
+        activeThreadId = null;
+        setStatus('');
+        render();
+      }
+    } catch (err) {
+      setStatus(err.message || 'Could not load chat');
       render();
+    }
+  }
+
+  async function loadRecipients() {
+    if (!liveVisitId) throw new Error('No active visit');
+    const data = await hubGet('/chat/recipients');
+    recipients = data.recipients || [];
+    if (!recipients.length) {
+      throw new Error('No message recipients available for this store');
     }
   }
 
   async function loadThreads() {
     if (!liveVisitId) return;
-    try {
-      const data = await hubGet('/chat/threads');
-      threads = data.threads || [];
-      unreadTotal = data.unreadTotal || 0;
-      updateBadge();
-    } catch (err) {
-      console.warn('[Hub chat] load threads failed:', err);
-    }
+    const data = await hubGet('/chat/threads');
+    threads = data.threads || [];
+    unreadTotal = data.unreadTotal || 0;
+    updateBadge();
   }
 
-  async function openThread(threadId, repId) {
-    activeThreadId = threadId || null;
-    activeRepId = repId || null;
-    if (!activeThreadId) {
+  function renderRecipientSelect() {
+    const sel = document.getElementById('hub-chat-recipient');
+    if (!sel) return;
+    const options = recipients.map(function (r) {
+      const selected = selectedRecipientId != null && Number(r.id) === Number(selectedRecipientId)
+        ? ' selected' : '';
+      return (
+        '<option value="' + escapeHtml(String(r.id)) + '"' + selected + '>' +
+          escapeHtml(r.name) + ' (' + escapeHtml(r.roleLabel) + ')' +
+        '</option>'
+      );
+    }).join('');
+    sel.innerHTML = '<option value="">Choose recipient…</option>' + options;
+  }
+
+  function threadForRecipient(recipientId) {
+    if (!recipientId) return null;
+    if (canManage()) {
+      return threads.find(function (t) { return Number(t.repId) === Number(recipientId); }) || null;
+    }
+    return threads.find(function (t) { return Number(t.repId) === Number(hubContext.myUserId); }) || threads[0] || null;
+  }
+
+  async function loadConversationForRecipient() {
+    if (!selectedRecipientId) {
       messages = [];
-      loadingMessages = false;
+      activeThreadId = null;
+      setStatus('');
       render();
       return;
     }
+
+    const thread = threadForRecipient(selectedRecipientId);
+    if (!thread || !thread.id) {
+      messages = [];
+      activeThreadId = null;
+      setStatus('');
+      render();
+      return;
+    }
+
+    activeThreadId = thread.id;
     loadingMessages = true;
+    setStatus('');
     render();
+
     try {
-      const data = await hubGet('/chat/threads/' + encodeURIComponent(threadId) + '/messages');
+      const data = await hubGet('/chat/threads/' + encodeURIComponent(thread.id) + '/messages');
       messages = data.messages || [];
       loadingMessages = false;
+      setStatus('');
       render();
       scrollMessagesToBottom();
+
       if (messages.length) {
         const last = messages[messages.length - 1];
-        await hubPost('/chat/threads/' + encodeURIComponent(threadId) + '/read', {
+        await hubPost('/chat/threads/' + encodeURIComponent(thread.id) + '/read', {
           lastMessageId: last.id,
         });
-        const t = threads.find(function (x) { return x.id === threadId; });
-        if (t) t.unreadCount = 0;
+        thread.unreadCount = 0;
         unreadTotal = threads.reduce(function (sum, x) { return sum + (x.unreadCount || 0); }, 0);
         updateBadge();
       }
     } catch (err) {
       loadingMessages = false;
+      setStatus(err.message || 'Could not load messages');
       render();
-      console.warn('[Hub chat] load messages failed:', err);
     }
   }
 
@@ -257,21 +352,41 @@
   }
 
   async function sendCurrentMessage(messageType, bodyOverride) {
+    if (!selectedRecipientId) {
+      setStatus('Choose who to send this message to.');
+      return;
+    }
+
     const input = document.getElementById('hub-chat-input');
     const body = bodyOverride != null ? bodyOverride : (input && input.value.trim());
     if (!body) return;
 
-    const payload = { body: body, messageType: messageType || 'chat' };
+    const payload = {
+      body: body,
+      messageType: messageType || 'chat',
+      recipientId: selectedRecipientId,
+    };
     if (activeThreadId) payload.threadId = activeThreadId;
-    else if (activeRepId) payload.repId = activeRepId;
-    else if (canManage() && threads.length === 1 && threads[0].id) payload.threadId = threads[0].id;
+
+    const sendBtn = document.getElementById('hub-chat-send');
+    if (sendBtn) sendBtn.disabled = true;
+    setStatus('Sending…');
 
     try {
       const result = await hubPost('/chat/messages', payload);
       if (input && bodyOverride == null) input.value = '';
-      if (!activeThreadId && result.thread) {
+      if (result.thread) {
         activeThreadId = result.thread.id;
-        activeRepId = result.thread.repId;
+        const existing = threads.find(function (t) { return t.id === result.thread.id; });
+        if (!existing) {
+          threads.push({
+            id: result.thread.id,
+            repId: result.thread.repId,
+            repName: result.thread.repName,
+            unreadCount: 0,
+            lastMessage: result.message,
+          });
+        }
       }
       if (result.message) {
         messages.push(result.message);
@@ -282,87 +397,35 @@
         });
       }
       await loadThreads();
+      setStatus('');
     } catch (err) {
-      console.warn('[Hub chat] send failed:', err);
-      alert(err.message || 'Could not send message');
+      setStatus(err.message || 'Could not send message');
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
     }
-  }
-
-  function renderThreadList() {
-    const list = document.getElementById('hub-chat-thread-list');
-    if (!list) return;
-    if (!canManage()) {
-      list.hidden = true;
-      return;
-    }
-    list.hidden = !!(activeThreadId || activeRepId);
-    if (activeThreadId || activeRepId) return;
-
-    if (!threads.length) {
-      list.innerHTML = '<p class="hub-chat-empty">No conversations yet. Reps will appear here when they message the team.</p>';
-      return;
-    }
-
-    list.innerHTML = threads.map(function (t) {
-      const preview = t.lastMessage ? messageLabel(t.lastMessage) : 'No messages yet';
-      const badge = t.unreadCount
-        ? '<span class="hub-chat-thread-unread">' + (t.unreadCount > 99 ? '99+' : t.unreadCount) + '</span>'
-        : '';
-      const dataAttrs = t.id
-        ? ' data-thread-id="' + t.id + '"'
-        : ' data-rep-id="' + t.repId + '"';
-      return (
-        '<button type="button" class="hub-chat-thread-item"' + dataAttrs + '>' +
-          '<span class="hub-chat-thread-name">' + escapeHtml(t.repName) + badge + '</span>' +
-          '<span class="hub-chat-thread-preview">' + escapeHtml(preview) + '</span>' +
-        '</button>'
-      );
-    }).join('');
-
-    list.querySelectorAll('[data-thread-id]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        openThread(Number(btn.getAttribute('data-thread-id')), null);
-      });
-    });
-    list.querySelectorAll('[data-rep-id]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        openThread(null, Number(btn.getAttribute('data-rep-id')));
-      });
-    });
   }
 
   function renderMessages() {
     const el = document.getElementById('hub-chat-messages');
-    const wrap = document.getElementById('hub-chat-messages-wrap');
-    const backBtn = document.getElementById('hub-chat-back');
-    const title = document.getElementById('hub-chat-panel-title');
-    if (!el || !wrap) return;
+    if (!el) return;
 
-    const showMessages = !canManage() || activeThreadId || activeRepId;
-    wrap.hidden = !showMessages;
-    if (backBtn) backBtn.hidden = !canManage() || (!activeThreadId && !activeRepId);
-
-    if (canManage() && (activeThreadId || activeRepId)) {
-      const t = threads.find(function (x) {
-        return activeThreadId ? x.id === activeThreadId : x.repId === activeRepId;
-      });
-      if (title) title.textContent = t ? t.repName : 'Conversation';
-    } else if (title) {
-      title.textContent = canManage() ? 'Team chat' : 'Message your lead';
-    }
-
-    if (!showMessages) {
-      el.innerHTML = '';
+    if (!selectedRecipientId) {
+      el.innerHTML = '<p class="hub-chat-empty">Choose a recipient to view or start a conversation.</p>';
       return;
     }
 
     if (loadingMessages) {
-      el.innerHTML = '<p class="hub-chat-empty">Loading…</p>';
+      el.innerHTML = '<p class="hub-chat-empty">Loading messages…</p>';
+      return;
+    }
+
+    if (!activeThreadId) {
+      el.innerHTML = '<p class="hub-chat-empty">No messages yet with this person. Send the first message below.</p>';
       return;
     }
 
     if (!messages.length) {
-      el.innerHTML = '<p class="hub-chat-empty">No messages yet. Say hello or request your next set.</p>';
+      el.innerHTML = '<p class="hub-chat-empty">No messages yet. Say hello or use a quick action below.</p>';
       return;
     }
 
@@ -376,12 +439,16 @@
       }
       const mine = hubContext.myUserId && msg.senderId === hubContext.myUserId;
       const typeClass = msg.messageType === 'request_next_set' ? ' hub-chat-msg--request' : '';
+      const toLine = msg.recipientName
+        ? '<div class="hub-chat-msg-to">To ' + escapeHtml(msg.recipientName) + '</div>'
+        : '';
       return dayHtml +
         '<div class="hub-chat-msg' + (mine ? ' hub-chat-msg--mine' : '') + typeClass + '">' +
           '<div class="hub-chat-msg-meta">' +
             '<span class="hub-chat-msg-sender">' + escapeHtml(msg.senderName) + '</span>' +
             '<span class="hub-chat-msg-time">' + escapeHtml(formatTime(msg.createdAt)) + '</span>' +
           '</div>' +
+          toLine +
           '<div class="hub-chat-msg-body">' + escapeHtml(messageLabel(msg)) + '</div>' +
         '</div>';
     }).join('');
@@ -390,8 +457,7 @@
   function renderQuickActions() {
     const el = document.getElementById('hub-chat-quick-actions');
     if (!el) return;
-    const show = panelOpen && (!canManage() || activeThreadId || activeRepId);
-    if (!show) {
+    if (!panelOpen || !selectedRecipientId) {
       el.innerHTML = '';
       el.hidden = true;
       return;
@@ -408,14 +474,13 @@
     }
 
     el.innerHTML =
-      '<button type="button" class="hub-chat-quick-btn hub-chat-quick-btn--primary" id="hub-chat-assign-sets">Assign sets</button>';
+      '<button type="button" class="hub-chat-quick-btn hub-chat-quick-btn--primary" id="hub-chat-assign-sets">Assign sets to this rep</button>';
     document.getElementById('hub-chat-assign-sets').addEventListener('click', function () {
       if (typeof openBulkAssignPanel === 'function') openBulkAssignPanel();
     });
   }
 
   function render() {
-    renderThreadList();
     renderMessages();
     renderQuickActions();
     updateBadge();
@@ -448,8 +513,6 @@
               }).catch(function () { /* ignore */ });
             }
           }
-        } else {
-          render();
         }
       });
     }
@@ -458,6 +521,11 @@
   function init() {
     ensureDom();
     updateBadge();
+    if (liveVisitId) {
+      loadThreads().catch(function (err) {
+        console.warn('[Hub chat] initial thread load failed:', err);
+      });
+    }
   }
 
   global.HubChat = {
