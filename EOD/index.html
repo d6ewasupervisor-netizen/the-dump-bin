@@ -4557,8 +4557,14 @@
                 noKompassCart: document.getElementById('noKompassCart')?.checked || false,
                 addRetailOdysseyTeam: document.getElementById('addRetailOdysseyTeam')?.checked || false,
                 selectedShift: selectedShift,
-                // Sets-not-in selections + Other free-text fallbacks
+                // Sets-not-in selections + Other free-text fallbacks.
+                // allShiftsSetsMap holds the full per-shift set lists; we
+                // persist it (plus the active shift filter) so the sets the
+                // lead pulled survive a reload and stay available to the
+                // pickers, the help desk wizard, and the pre-submit review.
                 shiftSets: shiftSets,
+                allShiftsSetsMap: allShiftsSetsMap,
+                notInPickerShiftId: notInPickerShiftId,
                 notInStoreSelected: notInStoreSelected,
                 notInSiSelected: notInSiSelected,
                 notInStoreOther: document.getElementById('notInStoreOther')?.value || '',
@@ -4697,6 +4703,18 @@
                 // shiftSets list and the user's selections so the chips
                 // come back even before the next /sets API call lands.
                 if (Array.isArray(data.shiftSets)) shiftSets = data.shiftSets;
+                // Restore the full per-shift set map so every shift's sets
+                // are available again after a reload (the API call to reload
+                // them is not guaranteed to re-run before the lead submits).
+                if (data.allShiftsSetsMap && typeof data.allShiftsSetsMap === 'object') {
+                    allShiftsSetsMap = data.allShiftsSetsMap;
+                }
+                if (data.notInPickerShiftId !== undefined) {
+                    notInPickerShiftId = data.notInPickerShiftId;
+                }
+                if (Object.keys(allShiftsSetsMap).length > 0) {
+                    renderShiftPickerDropdown();
+                }
                 if (Array.isArray(data.notInStoreSelected)) notInStoreSelected = data.notInStoreSelected.slice();
                 if (Array.isArray(data.notInSiSelected)) notInSiSelected = data.notInSiSelected.slice();
                 if (typeof data.notInStoreOther === 'string') {
