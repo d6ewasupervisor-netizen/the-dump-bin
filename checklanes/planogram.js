@@ -150,32 +150,96 @@
     return { r: parseInt(m[1], 10), c: parseInt(m[2], 10) };
   }
 
-  var PEG_COORD_CLUSTER_IN = 2;
-
-  function clusterInchCoordinates(values, thresholdInches) {
-    if (!values.length) return [];
-    var sorted = Array.from(new Set(values)).sort(function (a, b) { return a - b; });
-    var clusters = [[sorted[0]]];
-    var i;
-    for (i = 1; i < sorted.length; i++) {
-      var v = sorted[i];
-      var lastCluster = clusters[clusters.length - 1];
-      var lastVal = lastCluster[lastCluster.length - 1];
-      if (v - lastVal <= thresholdInches) {
-        lastCluster.push(v);
-      } else {
-        clusters.push([v]);
-      }
+  /** Peg row count from fixture metadata or the largest R value on products. */
+  function pegboardMaxRow(fx) {
+    var rows = fx.rows;
+    if (rows != null && isFinite(Number(rows)) && Number(rows) > 0) {
+      return Math.floor(Number(rows));
     }
-    return clusters;
+    var maxR = 1;
+    var pitems = fx.products || [];
+    var pi;
+    for (pi = 0; pi < pitems.length; pi++) {
+      var rc = parsePegboardRC(pitems[pi].position_code);
+      if (rc) maxR = Math.max(maxR, rc.r);
+    }
+    return maxR;
   }
 
-  function findCoordinateClusterIndex(value, clusters) {
-    var ci;
-    for (ci = 0; ci < clusters.length; ci++) {
-      if (clusters[ci].indexOf(value) !== -1) return ci;
+  /** Peg column count from fixture metadata or the largest C value on products. */
+  function pegboardMaxCol(fx) {
+    var cols = fx.cols;
+    if (cols != null && isFinite(Number(cols)) && Number(cols) > 0) {
+      return Math.floor(Number(cols));
     }
-    return -1;
+    var maxC = 1;
+    var pitems = fx.products || [];
+    var pi;
+    for (pi = 0; pi < pitems.length; pi++) {
+      var rc = parsePegboardRC(pitems[pi].position_code);
+      if (rc) maxC = Math.max(maxC, rc.c);
+    }
+    return maxC;
+  }
+
+  function pegboardEffectiveWidthIn(pit) {
+    var slideScale =
+      typeof pit.slide_peg_scale === 'number' &&
+      isFinite(pit.slide_peg_scale) &&
+      pit.slide_peg_scale > 0
+        ? pit.slide_peg_scale
+        : 1;
+    var wIn =
+      typeof pit.width_in === 'number' ? pit.width_in : parseFloat(pit.width_in);
+    if (!isFinite(wIn) || wIn <= 0) wIn = 1;
+    return wIn * slideScale;
+  }
+
+  /** True inch height for peg products (no shelf-style minimum tile height). */
+  function pegboardProductHeightPx(heightInches) {
+    return inchesToPx(heightInches || 1);
+  }
+
+  /** Board height in inches: fixture rows plus any product hanging below the grid. */
+  function pegboardRenderHeightIn(fx) {
+    var gridRows = pegboardMaxRow(fx);
+    var maxBottom = gridRows;
+    var pitems = fx.products || [];
+    var pi;
+    for (pi = 0; pi < pitems.length; pi++) {
+      var pit = pitems[pi];
+      var rc = parsePegboardRC(pit.position_code);
+      if (!rc) continue;
+      var hIn =
+        typeof pit.height_in === 'number' ? pit.height_in : parseFloat(pit.height_in);
+      if (!isFinite(hIn) || hIn <= 0) hIn = 1;
+      maxBottom = Math.max(maxBottom, rc.r - 1 + hIn);
+    }
+    return maxBottom;
+  }
+
+  /** Board width in inches: fixture cols plus any product wider than its peg column. */
+  function pegboardRenderWidthIn(fx) {
+    var gridCols = pegboardMaxCol(fx);
+    var maxRight = gridCols;
+    var pitems = fx.products || [];
+    var pi;
+    for (pi = 0; pi < pitems.length; pi++) {
+      var pit = pitems[pi];
+      var rc = parsePegboardRC(pit.position_code);
+      if (!rc) continue;
+      maxRight = Math.max(maxRight, rc.c - 1 + pegboardEffectiveWidthIn(pit));
+    }
+    return maxRight;
+  }
+
+  function pegboardGridMetrics(fx) {
+    return {
+      rowCount: pegboardMaxRow(fx),
+      colCount: pegboardMaxCol(fx),
+      renderHeightIn: pegboardRenderHeightIn(fx),
+      renderWidthIn: pegboardRenderWidthIn(fx)
+    };
   }
 
   function inchesToPx(inches) {
@@ -268,9 +332,8 @@
       if (f.type === 'shelf') {
         inner = Math.max(inner, shelfOverflowWidthPx(f, fixtureInnerWidthPx(f, bay), bay));
       } else if (f.type === 'pegboard') {
-        var dims = computePegboardColRowSizes(f);
-        if (!dims.useInchClusters) dims._products = f.products || [];
-        inner = Math.max(inner, pegboardGridWidth(dims));
+        var dims = pegboardGridMetrics(f);
+        inner = Math.max(inner, pegboardGridWidth(dims, fixtureInnerWidthPx(f, bay)));
       }
     }
     return inner;
@@ -291,101 +354,16 @@
     return fxs;
   }
 
-  function computePegboardColRowSizes(fx) {
-    var pitems = fx.products || [];
-    var rVals = [];
-    var cVals = [];
-    var pj;
-    for (pj = 0; pj < pitems.length; pj++) {
-      var pc = parsePegboardRC(pitems[pj].position_code);
-      if (pc) {
-        rVals.push(pc.r);
-        cVals.push(pc.c);
-      }
+  function pegboardGridWidth(dims, fixtureWidthPx) {
+    var w = inchesToPx(dims.renderWidthIn || dims.colCount || 1);
+    if (fixtureWidthPx != null && isFinite(fixtureWidthPx) && fixtureWidthPx > w) {
+      return Math.round(fixtureWidthPx);
     }
-    var rClusters = clusterInchCoordinates(rVals, PEG_COORD_CLUSTER_IN);
-    var cClusters = clusterInchCoordinates(cVals, PEG_COORD_CLUSTER_IN);
-    var useInchClusters = rClusters.length > 0 && cClusters.length > 0;
-    if (!useInchClusters) {
-      return {
-        useInchClusters: false,
-        rClusters: rClusters,
-        cClusters: cClusters,
-        rows: fx.rows || 1,
-        cols: fx.cols || 1,
-        colWidthsPx: null,
-        rowHeightsPx: null
-      };
-    }
-    var colWidthsPx = cClusters.map(function (cluster) {
-      var maxW = 0;
-      var i;
-      for (i = 0; i < pitems.length; i++) {
-        var prc = parsePegboardRC(pitems[i].position_code);
-        if (prc && cluster.indexOf(prc.c) !== -1) {
-          maxW = Math.max(maxW, pitems[i].width_in || 1);
-        }
-      }
-      return inchesToPx(maxW);
-    });
-    var rowHeightsPx = rClusters.map(function (cluster) {
-      var maxH = 0;
-      var i;
-      for (i = 0; i < pitems.length; i++) {
-        var prc2 = parsePegboardRC(pitems[i].position_code);
-        if (prc2 && cluster.indexOf(prc2.r) !== -1) {
-          maxH = Math.max(maxH, pitems[i].height_in || 1);
-        }
-      }
-      return tileDisplayHeightPx(maxH || 1);
-    });
-    return {
-      useInchClusters: true,
-      rClusters: rClusters,
-      cClusters: cClusters,
-      colWidthsPx: colWidthsPx,
-      rowHeightsPx: rowHeightsPx
-    };
-  }
-
-  function pegboardGridWidth(dims) {
-    if (dims.useInchClusters && dims.colWidthsPx && dims.colWidthsPx.length) {
-      var sum = 0;
-      var i;
-      for (i = 0; i < dims.colWidthsPx.length; i++) {
-        sum += dims.colWidthsPx[i];
-        if (i < dims.colWidthsPx.length - 1) sum += TILE_GAP_PX;
-      }
-      return sum;
-    }
-    var cols = dims.cols || 1;
-    var pitems = dims._products || [];
-    var maxW = 1;
-    var j;
-    for (j = 0; j < pitems.length; j++) {
-      maxW = Math.max(maxW, pitems[j].width_in || 1);
-    }
-    return cols * inchesToPx(maxW) + (cols > 0 ? (cols - 1) * TILE_GAP_PX : 0);
+    return w;
   }
 
   function pegboardGridHeight(dims) {
-    if (dims.useInchClusters && dims.rowHeightsPx && dims.rowHeightsPx.length) {
-      var sum = 0;
-      var i;
-      for (i = 0; i < dims.rowHeightsPx.length; i++) {
-        sum += dims.rowHeightsPx[i];
-        if (i < dims.rowHeightsPx.length - 1) sum += TILE_GAP_PX;
-      }
-      return sum;
-    }
-    var rows = dims.rows || 1;
-    var pitems = dims._products || [];
-    var maxH = 1;
-    var j;
-    for (j = 0; j < pitems.length; j++) {
-      maxH = Math.max(maxH, pitems[j].height_in || 1);
-    }
-    return rows * tileDisplayHeightPx(maxH || 1) + (rows > 0 ? (rows - 1) * TILE_GAP_PX : 0);
+    return inchesToPx(dims.renderHeightIn || dims.rowCount || 1);
   }
 
   function computeShelfFixtureHeight(fx) {
@@ -408,9 +386,7 @@
       if (f.type === 'shelf') {
         fh += computeShelfFixtureHeight(f);
       } else if (f.type === 'pegboard') {
-        var dims = computePegboardColRowSizes(f);
-        if (!dims.useInchClusters) dims._products = f.products || [];
-        fh += pegboardGridHeight(dims);
+        fh += pegboardGridHeight(pegboardGridMetrics(f));
       }
       if (fi < fixtures.length - 1) fh += TILE_GAP_PX;
     }
@@ -761,77 +737,16 @@
     return outer;
   }
 
-  function pegboardCellIndices(pit, dims) {
-    var rm = parsePegboardRC(pit.position_code);
-    if (dims.useInchClusters && rm) {
-      var rIdx = findCoordinateClusterIndex(rm.r, dims.rClusters);
-      var cIdx = findCoordinateClusterIndex(rm.c, dims.cClusters);
-      if (rIdx >= 0 && cIdx >= 0) return { rIdx: rIdx, cIdx: cIdx };
-    }
-    if (pit.position_code) {
-      var rm2 = String(pit.position_code).match(/^R\s*(\d+)\s*C\s*(\d+)$/i);
-      if (rm2) {
-        return {
-          rIdx: parseInt(rm2[1], 10) - 1,
-          cIdx: parseInt(rm2[2], 10) - 1
-        };
-      }
-    }
-    return { rIdx: 0, cIdx: 0 };
-  }
-
-  function pegboardRowBottomFromBottom(dims, rIdx, totalH, rhUniform) {
-    var topToRowBottom = 0;
-    var i;
-    if (dims.useInchClusters && dims.rowHeightsPx && dims.rowHeightsPx.length) {
-      if (rIdx < 0) rIdx = 0;
-      if (rIdx >= dims.rowHeightsPx.length) rIdx = dims.rowHeightsPx.length - 1;
-      for (i = 0; i <= rIdx; i++) {
-        if (i > 0) topToRowBottom += TILE_GAP_PX;
-        topToRowBottom += dims.rowHeightsPx[i];
-      }
-    } else {
-      var rh = rhUniform;
-      topToRowBottom = (rIdx + 1) * rh + rIdx * TILE_GAP_PX;
-    }
-    return totalH - topToRowBottom;
+  function pegboardProductBottomPx(r, totalH, heightPx) {
+    var pegTopPx = (r - 1) * PIXELS_PER_INCH;
+    return totalH - pegTopPx - heightPx;
   }
 
   function renderPegboard(pegFx, products, bayNum, fixtureInnerPx) {
     var pitems = pegFx.products || [];
-    var dims = computePegboardColRowSizes(pegFx);
-    if (!dims.useInchClusters) dims._products = pitems;
-
-    var cols = dims.cols || 1;
-    var rowCount =
-      dims.useInchClusters && dims.rowHeightsPx && dims.rowHeightsPx.length
-        ? dims.rowHeightsPx.length
-        : dims.rows || 1;
-    var maxW = 1;
-    var maxH = 1;
-    var i;
-    for (i = 0; i < pitems.length; i++) {
-      maxW = Math.max(maxW, pitems[i].width_in || 1);
-      maxH = Math.max(maxH, pitems[i].height_in || 1);
-    }
-    var cw = inchesToPx(maxW);
-    var rhUniform = tileDisplayHeightPx(maxH || 1);
-
-    var colCount =
-      dims.useInchClusters && dims.colWidthsPx && dims.colWidthsPx.length
-        ? dims.colWidthsPx.length
-        : cols;
-    var colLefts = [];
-    var acc = 0;
-    var cj;
-    for (cj = 0; cj < colCount; cj++) {
-      colLefts[cj] = acc;
-      acc += dims.useInchClusters && dims.colWidthsPx ? dims.colWidthsPx[cj] : cw;
-      if (cj < colCount - 1) acc += TILE_GAP_PX;
-    }
-
+    var dims = pegboardGridMetrics(pegFx);
     var totalH = pegboardGridHeight(dims);
-    var gridW = pegboardGridWidth(dims);
+    var gridW = pegboardGridWidth(dims, fixtureInnerPx);
     var target = fixtureInnerPx;
 
     var tileBoxes = [];
@@ -844,36 +759,28 @@
       var pi;
       for (pi = 0; pi < pitems.length; pi++) {
         var pit = pitems[pi];
-        var idx = pegboardCellIndices(pit, dims);
-        var rIdx = idx.rIdx;
-        var cIdx = idx.cIdx;
-        if (rIdx < 0) rIdx = 0;
-        if (rIdx >= rowCount) rIdx = rowCount - 1;
-        if (cIdx < 0 || cIdx >= colLefts.length) cIdx = 0;
-        var cellLeft = colLefts[cIdx];
-        var bottom = pegboardRowBottomFromBottom(dims, rIdx, totalH, rhUniform);
+        var rc = parsePegboardRC(pit.position_code);
+        var r = rc ? rc.r : 1;
+        var c = rc ? rc.c : 1;
+        if (r < 1) r = 1;
+        if (c < 1) c = 1;
+
+        var leftPx = (c - 1) * PIXELS_PER_INCH;
+        var wPx = inchesToPx(pegboardEffectiveWidthIn(pit));
+        var hPx = pegboardProductHeightPx(pit.height_in);
+        var bottom = pegboardProductBottomPx(r, totalH, hPx);
         var facings = productFacings(pit);
-        var slideScale =
-          typeof pit.slide_peg_scale === 'number' &&
-          isFinite(pit.slide_peg_scale) &&
-          pit.slide_peg_scale > 0
-            ? pit.slide_peg_scale
-            : 1;
-        var effWIn = (pit.width_in || 1) * slideScale;
-        var wPx = inchesToPx(effWIn);
-        var hPx = tileDisplayHeightPx(pit.height_in);
+        var x = leftPx;
+        var prodLeftPx = leftPx;
         var fi;
-        var x = cellLeft;
-        var prodLeftPx = cellLeft;
         for (fi = 0; fi < facings; fi++) {
-          var leftPx = x;
-          var rightEdge = leftPx + wPx;
+          var rightEdge = x + wPx;
           if (rightEdge > naturalMaxRight) naturalMaxRight = rightEdge;
           tileBoxes.push({
             pit: pit,
             facingIndex: fi,
             totalFacings: facings,
-            leftPx: leftPx,
+            leftPx: x,
             widthPx: wPx,
             bottomPx: bottom,
             heightPx: hPx
@@ -920,6 +827,7 @@
     el.style.height = totalH + 'px';
     el.style.flexShrink = '0';
     el.style.boxSizing = 'border-box';
+    el.style.overflow = 'visible';
 
     /* Peg-view grid cell sizing: 1 inch wide × 1 inch tall in render space.
        Horizontal axis is scaled by pegScale to match scaled tile positions;
@@ -974,9 +882,7 @@
   function fixtureBlockHeightPx(f) {
     if (f.type === 'shelf') return computeShelfFixtureHeight(f);
     if (f.type === 'pegboard') {
-      var dims = computePegboardColRowSizes(f);
-      if (!dims.useInchClusters) dims._products = f.products || [];
-      return pegboardGridHeight(dims);
+      return pegboardGridHeight(pegboardGridMetrics(f));
     }
     return 0;
   }
