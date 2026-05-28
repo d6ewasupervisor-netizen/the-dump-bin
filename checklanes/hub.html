@@ -3538,6 +3538,45 @@
     font-size: 0.82rem;
   }
 
+  /* ── Scan-result banner: stay / true-delete / relocated / UPC-change ── */
+  .pog-wv-scan-banner {
+    margin-top: 10px;
+    border-radius: 12px;
+    padding: 12px 14px;
+    border: 1.5px solid transparent;
+    border-left-width: 6px;
+    font-size: 0.85rem;
+  }
+  .pog-wv-scan-banner[hidden] { display: none; }
+  .pog-wv-scan-banner.scan-red { background: rgba(239, 68, 68, 0.16); border-color: #ef4444; }
+  .pog-wv-scan-banner.scan-orange { background: rgba(249, 115, 22, 0.16); border-color: #f97316; }
+  .pog-wv-scan-banner.scan-purple { background: rgba(168, 85, 247, 0.18); border-color: #a855f7; }
+  .pog-wv-scan-banner .scan-banner-row { display: flex; gap: 12px; align-items: flex-start; }
+  .pog-wv-scan-banner .scan-banner-main { flex: 1; min-width: 0; }
+  .pog-wv-scan-banner .scan-banner-thumb {
+    width: 60px; height: 60px; flex: 0 0 auto; object-fit: contain;
+    background: #fff; border-radius: 10px; padding: 4px;
+  }
+  .pog-wv-scan-banner .scan-banner-head {
+    display: flex; align-items: center; gap: 8px; font-weight: 800;
+    font-size: 0.95rem; letter-spacing: 0.02em;
+  }
+  .pog-wv-scan-banner .scan-banner-icon { font-size: 1.05rem; line-height: 1; }
+  .pog-wv-scan-banner.scan-red .scan-banner-title { color: #fca5a5; }
+  .pog-wv-scan-banner.scan-orange .scan-banner-title { color: #fdba74; }
+  .pog-wv-scan-banner.scan-purple .scan-banner-title { color: #d8b4fe; }
+  .pog-wv-scan-banner .scan-banner-product { margin-top: 5px; font-weight: 700; }
+  .pog-wv-scan-banner .scan-banner-detail { margin-top: 5px; opacity: 0.9; line-height: 1.4; }
+  .pog-wv-scan-banner .scan-banner-detail code {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.78rem;
+    background: rgba(255, 255, 255, 0.1); padding: 1px 5px; border-radius: 5px;
+  }
+  .pog-wv-scan-banner .scan-banner-far { margin-top: 5px; font-size: 0.78rem; font-weight: 700; opacity: 0.9; }
+  .pog-wv-scan-banner .scan-where { list-style: none; margin: 7px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .pog-wv-scan-banner .scan-where li { display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 6px 9px; }
+  .pog-wv-scan-banner .scan-where-lane { font-weight: 700; }
+  .pog-wv-scan-banner .scan-where-pog { font-size: 0.78rem; opacity: 0.8; margin-top: 1px; }
+
   .pog-wv-search-group {
     margin-bottom: 10px;
   }
@@ -4652,6 +4691,7 @@
       <div id="pog-wv-scanner-region"></div>
       <p class="pog-wv-scanner-error" id="pog-wv-scanner-error" hidden></p>
     </div>
+    <div class="pog-wv-scan-banner" id="pog-wv-scan-banner" role="alert" aria-live="assertive" hidden></div>
     <div class="pog-wv-search-results" id="pog-wv-search-results"></div>
   </div>
   <div class="pog-wv-scroll" id="pog-wv-scroll">
@@ -7139,6 +7179,7 @@ async function handlePogScan(code) {
     scannedRaw: code,
     resolvedUpc: resolved.method !== 'none' ? resolved.upc : null,
   });
+  void updateHubScanBanner(code);
   if (result.hits.length === 1 && result.hits[0].scope === 'this') {
     highlightPogTile(result.hits[0].upc);
   }
@@ -7392,9 +7433,184 @@ function renderPogSearchResults(result, meta) {
   document.getElementById('pog-wv-search-clear')?.addEventListener('click', clearPogSearch);
 }
 
+/* ── Scan intelligence: stay / true-delete / relocated / UPC-change ──
+   Per-store index served from the POG service (same source as products.json).
+   Resolves a scanned UPC against the rep's current set so the banner says
+   whether it stays, goes (and where/how far), or is a UPC change. */
+const _hubScanIndexCache = {};
+
+async function loadHubScanIndex(storeNum) {
+  const sn = String(storeNum == null ? '' : storeNum).replace(/\D/g, '').replace(/^0+/, '') || '0';
+  if (Object.prototype.hasOwnProperty.call(_hubScanIndexCache, sn)) return _hubScanIndexCache[sn];
+  try {
+    const res = await fetch(pogUrl('/scan_index/' + encodeURIComponent(sn) + '.json'));
+    _hubScanIndexCache[sn] = res.ok ? await res.json() : null;
+  } catch { _hubScanIndexCache[sn] = null; }
+  return _hubScanIndexCache[sn];
+}
+
+function hubLaneLabels(idx, dbkeys) {
+  const out = [];
+  const seen = new Set();
+  for (const db of dbkeys || []) {
+    const lanes = (idx.lanes && idx.lanes[db]) || [];
+    const pog = (idx.pogDesc && idx.pogDesc[db]) || '';
+    for (const ln of lanes) {
+      const key = ln.d + '|' + pog;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ lane: ln.d, short: ln.s, pog, db });
+    }
+  }
+  return out;
+}
+
+function hubLaneDistance(idx, fromDb, targetDbs) {
+  const numFrom = ((idx.lanes && idx.lanes[fromDb]) || [])
+    .map(l => parseInt(l.s, 10)).filter(Number.isFinite);
+  const numTo = [];
+  for (const db of targetDbs || []) {
+    for (const l of (idx.lanes && idx.lanes[db]) || []) {
+      const n = parseInt(l.s, 10);
+      if (Number.isFinite(n)) numTo.push(n);
+    }
+  }
+  if (!numFrom.length || !numTo.length) return null;
+  let best = Infinity;
+  for (const a of numFrom) for (const b of numTo) best = Math.min(best, Math.abs(a - b));
+  return Number.isFinite(best) ? best : null;
+}
+
+async function classifyHubScan(rawUpc, dbkey, storeNum) {
+  const idx = await loadHubScanIndex(storeNum);
+  if (!idx || !idx.items) return null;
+
+  let U = null;
+  let it = null;
+  for (const cand of expandScanCandidates(rawUpc)) {
+    if (idx.items[cand]) { U = cand; it = idx.items[cand]; break; }
+  }
+  if (!it) {
+    const k = normalizeUpcInput(rawUpc);
+    if (k && idx.items[k]) { U = k; it = idx.items[k]; }
+  }
+  if (!it) return null;
+
+  const D = String(dbkey == null ? '' : dbkey);
+  const nameOf = (k) => { const info = productInfo(k); return (info && (info.name || info.fallback_desc)) || ''; };
+  const imgOf = (k) => { const info = productInfo(k); return info && info.image ? pogUrl('/' + info.image) : ''; };
+
+  const onCf = it.cf && Array.isArray(it.cf.on) && it.cf.on.includes(D);
+  const onCt = it.ct && Array.isArray(it.ct.on) && it.ct.on.includes(D);
+  const delHere = Array.isArray(it.del) && it.del.includes(D);
+
+  if (onCf) {
+    return { level: 'purple', kind: 'upc_change_old', product: it.desc || nameOf(U),
+      oldUpc: U, newUpc: it.cf.to, newDesc: nameOf(it.cf.to) || it.cf.toDesc || '',
+      stays: hubLaneLabels(idx, it.cf.on), img: imgOf(it.cf.to) };
+  }
+  if (onCt) {
+    return { level: 'purple', kind: 'upc_change_new', product: it.desc || nameOf(U),
+      newUpc: U, oldUpc: it.ct.from, oldDesc: nameOf(it.ct.from) || it.ct.fromDesc || '',
+      stays: hubLaneLabels(idx, it.ct.on), img: imgOf(U) };
+  }
+  if (delHere) {
+    if (Array.isArray(it.act) && it.act.length) {
+      return { level: 'orange', kind: 'relocated', product: it.desc || nameOf(U), upc: U,
+        stays: hubLaneLabels(idx, it.act), howFar: hubLaneDistance(idx, D, it.act), img: imgOf(U) };
+    }
+    return { level: 'red', kind: 'true_delete', product: it.desc || nameOf(U), upc: U, img: imgOf(U) };
+  }
+  return null;
+}
+
+function clearHubScanBanner() {
+  const el = document.getElementById('pog-wv-scan-banner');
+  if (!el) return;
+  el.hidden = true;
+  el.className = 'pog-wv-scan-banner';
+  el.innerHTML = '';
+}
+
+function hubTidyPogTitle(t) {
+  return String(t || '').replace(/^CKLN\s+/i, '').replace(/\s+CUSTOMER.*$/i, '').trim();
+}
+
+function hubScanWhereHtml(stays) {
+  if (!stays || !stays.length) return '';
+  const seen = new Set();
+  const rows = [];
+  for (const s of stays) {
+    const label = s.lane || ('DBKey ' + s.db);
+    const key = label + '|' + (s.pog || '');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const pog = hubTidyPogTitle(s.pog);
+    rows.push('<li><span class="scan-where-lane">' + escapeHtml(label) + '</span>' +
+      (pog ? '<span class="scan-where-pog">' + escapeHtml(pog) + '</span>' : '') + '</li>');
+  }
+  return '<ul class="scan-where">' + rows.join('') + '</ul>';
+}
+
+function renderHubScanBanner(d) {
+  const el = document.getElementById('pog-wv-scan-banner');
+  if (!el) return;
+  if (!d) { clearHubScanBanner(); return; }
+
+  let icon = '', title = '', body = '';
+  const product = d.product ? '<div class="scan-banner-product">' + escapeHtml(d.product) + '</div>' : '';
+
+  if (d.level === 'red') {
+    icon = '⛔';
+    title = 'TRUE DELETE — pull from store';
+    body = '<div class="scan-banner-detail">Not set on any other checklane planogram at this store. Pull it.</div>';
+  } else if (d.level === 'orange') {
+    icon = '↪';
+    title = 'MOVES — off this set, stays in store';
+    const far = (typeof d.howFar === 'number')
+      ? '<div class="scan-banner-far">' + (d.howFar === 0 ? 'Same lane, different fixture' : ('About ' + d.howFar + ' lane' + (d.howFar !== 1 ? 's' : '') + ' away')) + '</div>'
+      : '';
+    body = '<div class="scan-banner-detail">Remove from this planogram — it stays in the store here:</div>' +
+      hubScanWhereHtml(d.stays) + far;
+  } else if (d.level === 'purple') {
+    icon = '🔁';
+    title = 'UPC CHANGE';
+    if (d.kind === 'upc_change_old') {
+      body = '<div class="scan-banner-detail">Old UPC <code>' + escapeHtml(d.oldUpc) + '</code> → new UPC <code>' + escapeHtml(d.newUpc) + '</code>' +
+        (d.newDesc ? ' · ' + escapeHtml(d.newDesc) : '') + '.</div>' +
+        '<div class="scan-banner-detail">Set the new item here:</div>' + hubScanWhereHtml(d.stays);
+    } else {
+      body = '<div class="scan-banner-detail">New UPC <code>' + escapeHtml(d.newUpc) + '</code> replaces old UPC <code>' + escapeHtml(d.oldUpc) + '</code>' +
+        (d.oldDesc ? ' · ' + escapeHtml(d.oldDesc) : '') + '.</div>' +
+        '<div class="scan-banner-detail">Set it here:</div>' + hubScanWhereHtml(d.stays);
+    }
+  } else {
+    clearHubScanBanner();
+    return;
+  }
+
+  const thumb = d.img ? '<img class="scan-banner-thumb" src="' + escapeHtml(d.img) + '" alt="" onerror="this.remove()">' : '';
+  el.className = 'pog-wv-scan-banner scan-' + d.level;
+  el.innerHTML =
+    '<div class="scan-banner-row">' + thumb + '<div class="scan-banner-main">' +
+    '<div class="scan-banner-head"><span class="scan-banner-icon" aria-hidden="true">' + icon + '</span>' +
+    '<span class="scan-banner-title">' + escapeHtml(title) + '</span></div>' +
+    product + body + '</div></div>';
+  el.hidden = false;
+}
+
+async function updateHubScanBanner(rawUpc) {
+  if (!rawUpc) { clearHubScanBanner(); return; }
+  try {
+    const d = await classifyHubScan(rawUpc, pogWorkingFixture ? pogWorkingFixture.dbkey : '', HUB_STORE_NUM);
+    renderHubScanBanner(d);
+  } catch { clearHubScanBanner(); }
+}
+
 function clearPogSearch() {
   const input = document.getElementById('pog-wv-search-input');
   if (input) input.value = '';
+  clearHubScanBanner();
   renderPogSearchResults({ hits: [], notFound: false });
   document.querySelectorAll('.pog-wv-tile--highlight, .planogram-tile--highlight').forEach(el => {
     el.classList.remove('pog-wv-tile--highlight', 'planogram-tile--highlight');
@@ -7424,6 +7640,7 @@ function bindPogSearchUi() {
     const query = input ? input.value : '';
     const result = runPogSearch(query);
     renderPogSearchResults(result);
+    void updateHubScanBanner(query);
     if (result.hits.length === 1 && result.hits[0].scope === 'this') {
       highlightPogTile(result.hits[0].upc);
     }
