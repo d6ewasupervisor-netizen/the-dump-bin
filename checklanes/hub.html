@@ -961,9 +961,7 @@
   .aisle-picker-trigger.is-empty { border-color: var(--border); background: var(--surface2); color: var(--text2); font-weight: 600; }
   .aisle-picker-trigger:disabled { opacity: 0.85; cursor: default; }
   .aisle-picker-caret { flex: 0 0 auto; opacity: 0.7; font-size: 0.72rem; }
-  .aisle-picker-menu { position: absolute; left: 0; right: 0; z-index: 40; max-height: min(52vh,320px); overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: #111827; box-shadow: 0 16px 40px rgba(0,0,0,0.45); -webkit-overflow-scrolling: touch; }
-  .aisle-picker-menu.open-down { top: calc(100% + 6px); }
-  .aisle-picker-menu.open-up { bottom: calc(100% + 6px); }
+  .aisle-picker-menu { position: fixed; z-index: 600; max-height: min(52vh,320px); overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: #111827; box-shadow: 0 16px 40px rgba(0,0,0,0.45); -webkit-overflow-scrolling: touch; }
   .aisle-picker-menu[hidden] { display: none !important; }
   .aisle-picker-group-label { position: sticky; top: 0; z-index: 1; padding: 8px 12px 6px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); background: #111827; border-bottom: 1px solid var(--border); }
   .aisle-picker-option { display: block; width: 100%; padding: 10px 12px; border: none; border-bottom: 1px solid rgba(255,255,255,0.04); background: transparent; color: var(--text); font: inherit; font-size: 0.84rem; font-weight: 600; text-align: left; cursor: pointer; }
@@ -4938,11 +4936,28 @@ function closeAllAislePickers() {
 function positionAislePickerMenu(menu, trigger) {
   menu.classList.remove('open-up', 'open-down');
   menu.hidden = false;
-  const menuHeight = Math.min(menu.scrollHeight || 280, window.innerHeight * 0.52);
   const rect = trigger.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - rect.bottom;
+  const viewportH = window.innerHeight;
+  const viewportW = window.innerWidth;
+  const menuHeight = Math.min(menu.scrollHeight || 280, viewportH * 0.52);
+  const spaceBelow = viewportH - rect.bottom;
   const spaceAbove = rect.top;
-  menu.classList.add(spaceBelow < menuHeight + 12 && spaceAbove > spaceBelow ? 'open-up' : 'open-down');
+  const openUp = spaceBelow < menuHeight + 12 && spaceAbove > spaceBelow;
+  const width = Math.max(rect.width, 220);
+  let left = rect.left;
+  if (left + width > viewportW - 8) left = Math.max(8, viewportW - 8 - width);
+  menu.style.width = width + 'px';
+  menu.style.left = left + 'px';
+  menu.style.right = 'auto';
+  if (openUp) {
+    menu.classList.add('open-up');
+    menu.style.top = 'auto';
+    menu.style.bottom = (viewportH - rect.top + 6) + 'px';
+  } else {
+    menu.classList.add('open-down');
+    menu.style.bottom = 'auto';
+    menu.style.top = (rect.bottom + 6) + 'px';
+  }
 }
 
 function aislePickerMenuHtml(row) {
@@ -6244,6 +6259,12 @@ function bindEvents() {
   document.getElementById('btn-refresh-tag-gather')?.addEventListener('click', () => loadTagBatchPreview());
 
   document.addEventListener('click', () => closeAllAislePickers());
+  window.addEventListener('scroll', (e) => {
+    if (!openAislePickerMenu) return;
+    if (e.target && e.target.nodeType === 1 && openAislePickerMenu.contains(e.target)) return;
+    closeAllAislePickers();
+  }, true);
+  window.addEventListener('resize', () => { if (openAislePickerMenu) closeAllAislePickers(); });
 
   document.getElementById('pog-wv-back').addEventListener('click', () => {
     if (pogSearchReturnState) {
