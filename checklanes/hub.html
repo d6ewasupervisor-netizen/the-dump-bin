@@ -17,8 +17,8 @@
     --surface2: #242836;
     --border: #2e3345;
     --text: #e8eaf0;
-    --text2: #8b90a5;
-    --text3: #5a5f73;
+    --text2: #aab0c6;
+    --text3: #868cA6;
     --aisle: #141820;
     --lane-label: #c4c9dc;
     --entrance: #fbbf24;
@@ -973,7 +973,7 @@
   .aisle-picker-custom-row { display: flex; gap: 8px; }
   .aisle-picker-custom input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 0.84rem; }
   .aisle-picker-custom button { appearance: none; border: none; border-radius: 8px; background: #2563eb; color: #fff; font: inherit; font-size: 0.78rem; font-weight: 700; padding: 8px 12px; cursor: pointer; }
-  .pog-wv-store-aisle { display: inline-flex; margin-top: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(37,99,235,0.2); border: 1px solid rgba(147,197,253,0.35); color: #bfdbfe; font-size: 0.92rem; font-weight: 800; }
+  .pog-wv-store-aisle { display: inline-flex; align-self: flex-start; margin-top: 2px; padding: 2px 9px; border-radius: 999px; background: rgba(37,99,235,0.2); border: 1px solid rgba(147,197,253,0.45); color: #dbeafe; font-size: 0.72rem; font-weight: 800; }
 
   .assignments-stat {
     background: var(--surface);
@@ -2659,16 +2659,16 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    padding: 8px 10px;
-    padding-top: max(8px, env(safe-area-inset-top));
+    padding: 4px 8px;
+    padding-top: max(4px, env(safe-area-inset-top));
     border-bottom: 1px solid var(--border);
     background: var(--surface);
   }
 
   .pog-wv-header-top {
     display: flex;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
   }
 
@@ -2678,11 +2678,12 @@
     background: var(--surface2);
     color: var(--text);
     border-radius: var(--radius);
-    padding: 8px 12px;
-    font-size: 0.85rem;
+    padding: 6px 10px;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    min-height: 40px;
+    min-height: 36px;
+    flex-shrink: 0;
     transition: border-color 0.15s ease, background 0.15s ease;
   }
 
@@ -2705,44 +2706,65 @@
   .pog-wv-title-wrap {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
   .pog-wv-title-wrap h2 {
     font-size: 0.9rem;
     font-weight: 700;
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .pog-wv-title-wrap .sub {
-    font-size: 0.72rem;
-    color: var(--text2);
-  }
-
-  .pog-wv-crumb {
     font-size: 0.68rem;
-    color: var(--text3);
-    margin-top: 2px;
+    color: var(--text2);
+    line-height: 1.25;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
+  .pog-wv-crumb {
+    font-size: 0.66rem;
+    color: var(--text3);
+    margin-top: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pog-wv-crumb:empty { display: none; }
+
+  /* State pill sits inline at the end of the top bar to save a row */
   .pog-wv-state-wrap {
     flex-shrink: 0;
-    margin-top: 4px;
+    margin-top: 0;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 42%;
+    overflow: hidden;
   }
 
   .pog-wv-state-pill {
-    font-size: 0.72rem;
-    padding: 4px 10px;
+    font-size: 0.68rem;
+    padding: 3px 9px;
+    white-space: nowrap;
   }
 
   .pog-wv-assignee-label {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: var(--text2);
-    margin-left: 4px;
+    margin-left: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .pog-wv-tag-tally {
@@ -2803,12 +2825,12 @@
 
   .pog-wv-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 50%) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 44%) minmax(0, 1fr);
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    padding-top: 6px;
-    margin-top: 6px;
+    padding-top: 4px;
+    margin-top: 4px;
     border-top: 1px solid var(--border);
   }
 
@@ -3211,12 +3233,12 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     touch-action: pan-y;
-    padding: 12px 12px 24px;
-    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    padding: 6px 6px 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
 
   .pog-wv-preview {
-    margin-bottom: 12px;
+    margin-bottom: 6px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface);
@@ -3233,10 +3255,10 @@
     border: none;
     background: var(--surface2);
     color: var(--text2);
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 600;
     text-align: left;
-    padding: 10px 12px;
+    padding: 7px 10px;
     cursor: pointer;
   }
 
@@ -3265,10 +3287,13 @@
   }
 
   .pog-wv-meta {
-    font-size: 0.78rem;
+    font-size: 0.68rem;
     color: var(--text2);
-    margin-bottom: 12px;
-    line-height: 1.45;
+    margin: 0 2px 6px;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .pog-wv-search {
@@ -3407,7 +3432,7 @@
   .pog-wv-bays {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
     --pog-wv-card-opacity: 0;
   }
 
@@ -3461,9 +3486,9 @@
   }
 
   .pog-wv-bay-head {
-    padding: 8px 12px;
+    padding: 5px 10px;
     background: var(--surface2);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: var(--text2);
     border-bottom: 1px solid var(--border);
@@ -3471,6 +3496,15 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
+  }
+
+  .pog-wv-bay-hint {
+    margin-left: auto;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: var(--text3);
+    white-space: nowrap;
+    letter-spacing: 0.02em;
   }
 
   .pog-wv-fixtures {
@@ -4262,8 +4296,8 @@
         <div class="sub" id="pog-wv-subheading"></div>
         <div class="pog-wv-store-aisle" id="pog-wv-store-aisle" hidden></div>
         <div class="pog-wv-crumb" id="pog-wv-crumb"></div>
-        <div class="pog-wv-state-wrap" id="pog-wv-state-wrap"></div>
       </div>
+      <div class="pog-wv-state-wrap" id="pog-wv-state-wrap"></div>
       <div class="pog-wv-tag-tally" id="pog-wv-tag-tally" hidden aria-live="polite">
         <span class="pog-wv-tag-tally-count" id="pog-wv-tag-tally-count">0</span>
         <span class="pog-wv-tag-tally-label">missing</span>
@@ -7145,8 +7179,8 @@ function renderPogWorkingContent(fixture, layout, loadError) {
     escapeHtml(String(layout.depth_in || '?')) + ' in D';
 
   content.innerHTML =
-    '<div class="pog-wv-preview open" id="pog-wv-preview">' +
-      '<button type="button" class="pog-wv-preview-toggle" id="pog-wv-preview-toggle">Page 1 preview ▾</button>' +
+    '<div class="pog-wv-preview" id="pog-wv-preview">' +
+      '<button type="button" class="pog-wv-preview-toggle" id="pog-wv-preview-toggle" aria-expanded="false">Page 1 preview ▸</button>' +
       '<div class="pog-wv-preview-body">' +
         '<img id="pog-wv-preview-img" src="' + escapeHtml(previewUrl) + '" alt="Planogram page 1 preview" loading="lazy">' +
         (pdfUrl
@@ -7167,8 +7201,13 @@ function renderPogWorkingContent(fixture, layout, loadError) {
     };
   }
 
-  document.getElementById('pog-wv-preview-toggle')?.addEventListener('click', () => {
-    document.getElementById('pog-wv-preview')?.classList.toggle('open');
+  document.getElementById('pog-wv-preview-toggle')?.addEventListener('click', (e) => {
+    const wrap = document.getElementById('pog-wv-preview');
+    if (!wrap) return;
+    const open = wrap.classList.toggle('open');
+    const btn = e.currentTarget;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.textContent = 'Page 1 preview ' + (open ? '▾' : '▸');
   });
 
   document.getElementById('pog-wv-open-pdf')?.addEventListener('click', () => {

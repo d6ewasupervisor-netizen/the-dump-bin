@@ -16,7 +16,7 @@
 }
 
 .planogram-hub-bay-viewport {
-  min-height: min(58dvh, 560px);
+  min-height: min(72dvh, 680px);
   width: 100%;
   touch-action: pan-y;
 }

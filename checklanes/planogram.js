@@ -1878,6 +1878,10 @@
         ' · ' + (bay.width_ft != null ? bay.width_ft : '?') + ' ft · PDF page ' +
         (bay.pdf_page != null ? bay.pdf_page : '—');
       head.textContent = headText;
+      var panHint = document.createElement('span');
+      panHint.className = 'pog-wv-bay-hint';
+      panHint.textContent = '✥ drag · pinch to zoom';
+      head.appendChild(panHint);
       if (bay.pdf_page != null) {
         var pdfBtn = document.createElement('button');
         pdfBtn.type = 'button';
