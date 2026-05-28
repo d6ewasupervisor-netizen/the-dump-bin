@@ -2178,42 +2178,6 @@
     flex-shrink: 0;
   }
 
-  .pog-wv-toolbar-overlay {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    max-width: 100%;
-    padding: 4px 8px;
-    border-radius: var(--radius);
-    border: 1px solid rgba(34, 197, 94, 0.35);
-    background: rgba(34, 197, 94, 0.08);
-  }
-
-  .pog-wv-toolbar-overlay label {
-    font-size: 0.68rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #86efac;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .pog-wv-toolbar-overlay .pog-wv-overlay-slider {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .pog-wv-toolbar-overlay .pog-wv-overlay-value {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #bbf7d0;
-    min-width: 2rem;
-    flex-shrink: 0;
-  }
-
   .pog-wv-actions {
     position: relative;
     flex-shrink: 0;
@@ -3517,12 +3481,6 @@
       </div>
     </div>
     <div class="pog-wv-toolbar">
-      <div class="pog-wv-toolbar-overlay" id="pog-wv-overlay-row" hidden>
-        <button type="button" class="pog-wv-overlay-toggle" id="pog-wv-overlay-toggle" aria-pressed="true" title="Toggle reference image (PDF graphic behind product tiles)">Ref: On</button>
-        <label for="pog-wv-overlay-slider">Tiles</label>
-        <input type="range" class="pog-wv-overlay-slider" id="pog-wv-overlay-slider" min="0" max="100" step="5" value="50" aria-label="Product tile opacity when reference image is shown">
-        <span class="pog-wv-overlay-value" id="pog-wv-overlay-value" aria-live="polite">50%</span>
-      </div>
       <div class="pog-wv-toolbar-mask">
         <label for="pog-wv-mask-slider">Mask</label>
         <input type="range" class="pog-wv-mask-slider" id="pog-wv-mask-slider" min="0" max="100" value="0">
@@ -5245,8 +5203,6 @@ let pogProductsCache = null;
 let pogCatalogCache = null;
 let pogCatalogLoadPromise = null;
 const pogLayoutCache = {};
-let pogBayRefsManifest = null;
-let pogBayRefsLoadPromise = null;
 let pogWorkingFixture = null;
 let pogWorkingLayout = null;
 let pogMaskCardOpacity = 0;
@@ -5260,22 +5216,6 @@ let pogScannerWakeLock = null;
 
 function pogUrl(path) {
   return POG_SERVICE_BASE + path;
-}
-
-async function ensurePogBayRefsManifest() {
-  if (pogBayRefsManifest) return pogBayRefsManifest;
-  if (!pogBayRefsLoadPromise) {
-    pogBayRefsLoadPromise = fetch(pogUrl('/bay_refs.json'))
-      .then(r => (r.ok ? r.json() : {}))
-      .catch(() => ({}));
-  }
-  pogBayRefsManifest = await pogBayRefsLoadPromise;
-  return pogBayRefsManifest;
-}
-
-function bayRefsForDbkey(dbkey) {
-  if (!pogBayRefsManifest || !dbkey) return null;
-  return pogBayRefsManifest[String(dbkey)] || null;
 }
 
 async function ensurePogCatalogLoaded() {
@@ -5889,14 +5829,12 @@ async function startPogScanner() {
   }
 }
 
-async function mountHubPlanogram(layout) {
+function mountHubPlanogram(layout) {
   const host = document.getElementById('pog-wv-planogram-host');
   if (!host || !layout) return;
 
   window.PLANOGRAM_IMG_RESOLVER = (upc) =>
     pogUrl('/products-webp/' + encodeURIComponent(String(upc)) + '.webp');
-  window.PLANOGRAM_REF_RESOLVER = (path) =>
-    pogUrl('/' + String(path).replace(/^\//, ''));
 
   window.PLANOGRAM_TILE_CLICK = ({ item, bayNum, fixture }) => {
     const bay = (layout.bays || []).find(b => String(b.bay_num) === String(bayNum)) ||
@@ -5904,19 +5842,9 @@ async function mountHubPlanogram(layout) {
     openPogProductModal(item, bay, fixture);
   };
 
-  if (typeof window.planogramResetVirtualOverlayDefaults === 'function') {
-    window.planogramResetVirtualOverlayDefaults();
-  }
-
-  await ensurePogBayRefsManifest();
-  const bayRefs = bayRefsForDbkey(layout.dbkey);
-
   if (typeof window.renderHubPlanogramBays === 'function') {
-    window.renderHubPlanogramBays(host, layout, pogCatalogCache || {}, bayRefs);
+    window.renderHubPlanogramBays(host, layout, pogCatalogCache || {});
     applyPogMaskOpacity(pogMaskCardOpacity);
-    if (typeof window.wireHubPlanogramOverlayToolbar === 'function') {
-      window.wireHubPlanogramOverlayToolbar(host, layout, pogCatalogCache || {}, bayRefs);
-    }
     bindBayPdfButtons();
     return;
   }
@@ -6278,14 +6206,7 @@ function renderPogWorkingContent(fixture, layout, loadError) {
     '<div class="pog-wv-meta">' + meta + '</div>' +
     '<div class="pog-wv-bays" id="pog-wv-planogram-host" style="--pog-wv-card-opacity:' + (pogMaskCardOpacity / 100) + '"></div>';
 
-  void mountHubPlanogram(layout).catch(err => {
-    console.error(err);
-    const host = document.getElementById('pog-wv-planogram-host');
-    if (host) {
-      host.innerHTML = '<div class="pog-wv-empty">Could not load planogram view.<br><span class="pog-wv-empty-note">' +
-        escapeHtml(err.message || String(err)) + '</span></div>';
-    }
-  });
+  mountHubPlanogram(layout);
 
   const previewImg = document.getElementById('pog-wv-preview-img');
   if (previewImg) {

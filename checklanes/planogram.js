@@ -25,18 +25,6 @@
   };
   var pegViewContainerEl = null;
   var pegViewSyncToolbar = function () {};
-
-  /** Reference-overlay state — controls tile transparency when ref image is shown. */
-  var overlayState = {
-    /** 0–1 opacity for tile layer when reference image is visible. */
-    tileOpacity: 0.5,
-    /** Whether the reference image is currently shown. */
-    refVisible: true,
-  };
-  /** Sync overlay state display (set after renderPlanogram wires up UI). */
-  var overlaySyncToolbar = function () {};
-  /** Bay ref images map: bay_num (string) → URL string. */
-  var currentBayRefImgs = null;
   /** Current `.planogram-wrap` for tile-card opacity slider updates. */
   var activePlanogramWrapEl = null;
 
@@ -56,6 +44,9 @@
     return Math.round(Math.pow(op, 1 / CARD_OPACITY_GAMMA) * 100);
   }
 
+  window.planogramSliderPercentToCardOpacity = sliderPercentToCardOpacity;
+  window.planogramCardOpacityToSliderPercent = cardOpacityToSliderPercent;
+
   function syncPlanogramWrapTileCardOpacity(wrapEl) {
     if (!wrapEl) return;
     var op = pegViewState.tileCardOpacity;
@@ -67,13 +58,13 @@
 
   function syncPlanogramTileCardFonts(rootEl) {
     if (!rootEl) return;
-    var tiles = rootEl.querySelectorAll('.planogram-tile');
     var lh = 1.05;
     var padY = 4;
+    var tiles = rootEl.querySelectorAll('.planogram-tile, .pog-wv-tile');
     var ti;
     for (ti = 0; ti < tiles.length; ti++) {
       var tile = tiles[ti];
-      var card = tile.querySelector('.planogram-tile-card');
+      var card = tile.querySelector('.planogram-tile-card, .pog-wv-tile-card');
       if (!card) continue;
       var tw = tile.clientWidth;
       var th = tile.clientHeight;
@@ -102,6 +93,7 @@
       card.style.lineHeight = String(lh);
       card.style.fontWeight = '800';
       card.style.overflow = 'hidden';
+      card.style.padding = '1px 2px';
 
       var posSpan = card.querySelector('.planogram-tile-card-pos');
       if (posSpan) {
@@ -151,7 +143,7 @@
     return 'products-webp/' + encodeURIComponent(String(upc)) + '.webp';
   }
 
-  /** R/C from position codes; optional space between R and C. Row 1 is the top row. */
+  /** R/C digits are Kroger inch coordinates; allow optional space between R and C. */
   function parsePegboardRC(positionCode) {
     var m = String(positionCode || '').match(/^R\s*(\d+)\s*C\s*(\d+)$/i);
     if (!m) return null;
@@ -184,31 +176,6 @@
       if (clusters[ci].indexOf(value) !== -1) return ci;
     }
     return -1;
-  }
-
-  /** Peg row count from fixture metadata or the largest R value on products. */
-  function pegboardMaxRow(fx) {
-    var rows = fx.rows;
-    if (rows != null && isFinite(Number(rows)) && Number(rows) > 0) {
-      return Math.floor(Number(rows));
-    }
-    var maxR = 1;
-    var pitems = fx.products || [];
-    var pi;
-    for (pi = 0; pi < pitems.length; pi++) {
-      var rc = parsePegboardRC(pitems[pi].position_code);
-      if (rc) maxR = Math.max(maxR, rc.r);
-    }
-    return maxR;
-  }
-
-  function pegboardMaxProductHeightIn(pitems) {
-    var maxH = 1;
-    var j;
-    for (j = 0; j < (pitems || []).length; j++) {
-      maxH = Math.max(maxH, pitems[j].height_in || 1);
-    }
-    return maxH;
   }
 
   function inchesToPx(inches) {
@@ -298,7 +265,7 @@
     var fi;
     for (fi = 0; fi < fixtures.length; fi++) {
       var f = fixtures[fi];
-      if (f.type === 'shelf' || f.type === 'bin') {
+      if (f.type === 'shelf') {
         inner = Math.max(inner, shelfOverflowWidthPx(f, fixtureInnerWidthPx(f, bay), bay));
       } else if (f.type === 'pegboard') {
         var dims = computePegboardColRowSizes(f);
@@ -401,14 +368,24 @@
     return cols * inchesToPx(maxW) + (cols > 0 ? (cols - 1) * TILE_GAP_PX : 0);
   }
 
-  function pegboardGridHeight(dims, fx) {
-    var pitems = (fx && fx.products) || dims._products || [];
-    var totalRows = fx ? pegboardMaxRow(fx) : (dims.rows || 1);
-    if (totalRows > 0) {
-      var rh = tileDisplayHeightPx(pegboardMaxProductHeightIn(pitems));
-      return totalRows * rh + (totalRows > 1 ? (totalRows - 1) * TILE_GAP_PX : 0);
+  function pegboardGridHeight(dims) {
+    if (dims.useInchClusters && dims.rowHeightsPx && dims.rowHeightsPx.length) {
+      var sum = 0;
+      var i;
+      for (i = 0; i < dims.rowHeightsPx.length; i++) {
+        sum += dims.rowHeightsPx[i];
+        if (i < dims.rowHeightsPx.length - 1) sum += TILE_GAP_PX;
+      }
+      return sum;
     }
-    return tileDisplayHeightPx(1);
+    var rows = dims.rows || 1;
+    var pitems = dims._products || [];
+    var maxH = 1;
+    var j;
+    for (j = 0; j < pitems.length; j++) {
+      maxH = Math.max(maxH, pitems[j].height_in || 1);
+    }
+    return rows * tileDisplayHeightPx(maxH || 1) + (rows > 0 ? (rows - 1) * TILE_GAP_PX : 0);
   }
 
   function computeShelfFixtureHeight(fx) {
@@ -428,12 +405,12 @@
     var fi;
     for (fi = 0; fi < fixtures.length; fi++) {
       var f = fixtures[fi];
-      if (f.type === 'shelf' || f.type === 'bin') {
+      if (f.type === 'shelf') {
         fh += computeShelfFixtureHeight(f);
       } else if (f.type === 'pegboard') {
         var dims = computePegboardColRowSizes(f);
         if (!dims.useInchClusters) dims._products = f.products || [];
-        fh += pegboardGridHeight(dims, f);
+        fh += pegboardGridHeight(dims);
       }
       if (fi < fixtures.length - 1) fh += TILE_GAP_PX;
     }
@@ -786,14 +763,10 @@
 
   function pegboardCellIndices(pit, dims) {
     var rm = parsePegboardRC(pit.position_code);
-    if (rm) {
-      var rIdx = rm.r - 1;
-      var cIdx = -1;
-      if (dims.useInchClusters && dims.cClusters && dims.cClusters.length) {
-        cIdx = findCoordinateClusterIndex(rm.c, dims.cClusters);
-      }
-      if (cIdx < 0) cIdx = rm.c - 1;
-      return { rIdx: rIdx, cIdx: cIdx };
+    if (dims.useInchClusters && rm) {
+      var rIdx = findCoordinateClusterIndex(rm.r, dims.rClusters);
+      var cIdx = findCoordinateClusterIndex(rm.c, dims.cClusters);
+      if (rIdx >= 0 && cIdx >= 0) return { rIdx: rIdx, cIdx: cIdx };
     }
     if (pit.position_code) {
       var rm2 = String(pit.position_code).match(/^R\s*(\d+)\s*C\s*(\d+)$/i);
@@ -807,10 +780,20 @@
     return { rIdx: 0, cIdx: 0 };
   }
 
-  /** rIdx is 0-based from the top of the pegboard (row 1 → rIdx 0). */
-  function pegboardRowBottomFromBottom(rIdx, totalH, rhUniform) {
-    if (rIdx < 0) rIdx = 0;
-    var topToRowBottom = (rIdx + 1) * rhUniform + rIdx * TILE_GAP_PX;
+  function pegboardRowBottomFromBottom(dims, rIdx, totalH, rhUniform) {
+    var topToRowBottom = 0;
+    var i;
+    if (dims.useInchClusters && dims.rowHeightsPx && dims.rowHeightsPx.length) {
+      if (rIdx < 0) rIdx = 0;
+      if (rIdx >= dims.rowHeightsPx.length) rIdx = dims.rowHeightsPx.length - 1;
+      for (i = 0; i <= rIdx; i++) {
+        if (i > 0) topToRowBottom += TILE_GAP_PX;
+        topToRowBottom += dims.rowHeightsPx[i];
+      }
+    } else {
+      var rh = rhUniform;
+      topToRowBottom = (rIdx + 1) * rh + rIdx * TILE_GAP_PX;
+    }
     return totalH - topToRowBottom;
   }
 
@@ -820,14 +803,19 @@
     if (!dims.useInchClusters) dims._products = pitems;
 
     var cols = dims.cols || 1;
-    var rowCount = pegboardMaxRow(pegFx);
+    var rowCount =
+      dims.useInchClusters && dims.rowHeightsPx && dims.rowHeightsPx.length
+        ? dims.rowHeightsPx.length
+        : dims.rows || 1;
     var maxW = 1;
+    var maxH = 1;
     var i;
     for (i = 0; i < pitems.length; i++) {
       maxW = Math.max(maxW, pitems[i].width_in || 1);
+      maxH = Math.max(maxH, pitems[i].height_in || 1);
     }
     var cw = inchesToPx(maxW);
-    var rhUniform = tileDisplayHeightPx(pegboardMaxProductHeightIn(pitems));
+    var rhUniform = tileDisplayHeightPx(maxH || 1);
 
     var colCount =
       dims.useInchClusters && dims.colWidthsPx && dims.colWidthsPx.length
@@ -842,7 +830,7 @@
       if (cj < colCount - 1) acc += TILE_GAP_PX;
     }
 
-    var totalH = pegboardGridHeight(dims, pegFx);
+    var totalH = pegboardGridHeight(dims);
     var gridW = pegboardGridWidth(dims);
     var target = fixtureInnerPx;
 
@@ -863,7 +851,7 @@
         if (rIdx >= rowCount) rIdx = rowCount - 1;
         if (cIdx < 0 || cIdx >= colLefts.length) cIdx = 0;
         var cellLeft = colLefts[cIdx];
-        var bottom = pegboardRowBottomFromBottom(rIdx, totalH, rhUniform);
+        var bottom = pegboardRowBottomFromBottom(dims, rIdx, totalH, rhUniform);
         var facings = productFacings(pit);
         var slideScale =
           typeof pit.slide_peg_scale === 'number' &&
@@ -916,12 +904,12 @@
     outer.style.maxWidth = '100%';
     outer.style.display = 'flex';
     outer.style.justifyContent = 'center';
-    outer.style.alignItems = 'flex-start';
+    outer.style.alignItems = 'flex-end';
     outer.style.flexShrink = '0';
-    outer.style.marginTop = '0';
+    outer.style.marginTop = 'auto';
     outer.style.marginLeft = 'auto';
     outer.style.marginRight = 'auto';
-    outer.style.alignSelf = 'flex-start';
+    outer.style.alignSelf = 'flex-end';
     outer.style.boxSizing = 'border-box';
 
     var el = document.createElement('div');
@@ -984,11 +972,11 @@
   }
 
   function fixtureBlockHeightPx(f) {
-    if (f.type === 'shelf' || f.type === 'bin') return computeShelfFixtureHeight(f);
+    if (f.type === 'shelf') return computeShelfFixtureHeight(f);
     if (f.type === 'pegboard') {
       var dims = computePegboardColRowSizes(f);
       if (!dims.useInchClusters) dims._products = f.products || [];
-      return pegboardGridHeight(dims, f);
+      return pegboardGridHeight(dims);
     }
     return 0;
   }
@@ -1002,7 +990,7 @@
     var i = 0;
     while (i < sortedFixtures.length) {
       var f = sortedFixtures[i];
-      if (f.type !== 'shelf' && f.type !== 'pegboard' && f.type !== 'bin') {
+      if (f.type !== 'shelf' && f.type !== 'pegboard') {
         i++;
         continue;
       }
@@ -1011,7 +999,7 @@
       var j = i + 1;
       while (j < sortedFixtures.length) {
         var fj = sortedFixtures[j];
-        if (fj.type !== 'shelf' && fj.type !== 'pegboard' && fj.type !== 'bin') break;
+        if (fj.type !== 'shelf' && fj.type !== 'pegboard') break;
         var k2 = fj.type === 'pegboard' ? 'peg' : 'shelf';
         if (k2 !== kind) break;
         h += TILE_GAP_PX + fixtureBlockHeightPx(fj);
@@ -1052,32 +1040,12 @@
     return rail;
   }
 
-  /** Render a bin fixture as a horizontal shelf row (bins hold trayed/unit products). */
-  function renderBin(binFx, products, bayNum, fixtureInnerPx, bay) {
-    return renderShelf(binFx, products, bayNum, fixtureInnerPx, bay);
-  }
-
-  /**
-   * Apply overlay tile opacity to a bay element using a CSS variable.
-   * The `.planogram-bay-fixtures` uses `opacity: var(--overlay-tile-opacity, 1)` in CSS.
-   */
-  function applyOverlayOpacityToBay(bayEl, hasRef) {
-    if (!bayEl) return;
-    if (hasRef && overlayState.refVisible) {
-      var op = overlayState.tileOpacity;
-      if (!isFinite(op)) op = 0.5;
-      bayEl.style.setProperty('--overlay-tile-opacity', String(op));
-    } else {
-      bayEl.style.removeProperty('--overlay-tile-opacity');
-    }
-  }
-
-  function renderBay(bay, bayColumnHeightPx, products, refImgUrl) {
+  function renderBay(bay, allBaysMaxHeight, products) {
     if (!bay.fixtures || !bay.fixtures.length) {
       var empty = document.createElement('div');
       empty.className = 'planogram-bay is-empty';
       empty.style.width = EMPTY_BAY_PX + 'px';
-      empty.style.height = bayColumnHeightPx + 'px';
+      empty.style.height = allBaysMaxHeight + 'px';
       empty.style.boxSizing = 'border-box';
       empty.innerHTML = '<div class="planogram-empty-bay">End cap</div>';
       return empty;
@@ -1093,20 +1061,19 @@
         BAY_RAIL_WIDTH_PX +
         BAY_RAIL_GAP_PX +
         BAY_PADDING_PX * 2) + 'px';
-    el.style.height = bayColumnHeightPx + 'px';
+    el.style.height = allBaysMaxHeight + 'px';
 
     var sorted = sortFixtures(bay.fixtures);
     var main = document.createElement('div');
     main.className = 'planogram-bay-main';
-
     var fixturesCol = document.createElement('div');
     fixturesCol.className = 'planogram-bay-fixtures';
     var fi;
     for (fi = 0; fi < sorted.length; fi++) {
       var f = sorted[fi];
-      if (f.type === 'shelf' || f.type === 'bin') {
+      if (f.type === 'shelf') {
         fixturesCol.appendChild(
-          renderBin(f, products, bay.bay_num, fixtureInnerWidthPx(f, bay), bay)
+          renderShelf(f, products, bay.bay_num, fixtureInnerWidthPx(f, bay), bay)
         );
       } else if (f.type === 'pegboard') {
         fixturesCol.appendChild(
@@ -1114,32 +1081,9 @@
         );
       }
     }
-
-    /* Reference overlay: if a ref image URL is provided, wrap fixtures in a
-       position:relative container with the ref image behind the tiles.        */
-    var hasRef = !!(refImgUrl && overlayState.refVisible);
-    if (hasRef) {
-      var refWrap = document.createElement('div');
-      refWrap.className = 'planogram-bay-ref-wrap';
-
-      var refImg = document.createElement('img');
-      refImg.className = 'planogram-bay-ref';
-      refImg.src = refImgUrl;
-      refImg.alt = 'Reference planogram graphic';
-      refImg.setAttribute('aria-hidden', 'true');
-      refImg.draggable = false;
-
-      refWrap.appendChild(refImg);
-      refWrap.appendChild(fixturesCol);
-      applyOverlayOpacityToBay(el, true);
-      main.appendChild(buildPlanogramBayRail(mergeFixtureRailGroups(sorted)));
-      main.appendChild(refWrap);
-    } else {
-      applyOverlayOpacityToBay(el, false);
-      main.appendChild(buildPlanogramBayRail(mergeFixtureRailGroups(sorted)));
-      main.appendChild(fixturesCol);
-    }
-
+    var rail = buildPlanogramBayRail(mergeFixtureRailGroups(sorted));
+    main.appendChild(rail);
+    main.appendChild(fixturesCol);
     el.appendChild(main);
     return el;
   }
@@ -1186,16 +1130,16 @@
       var sx = vw / natW;
       var sy = vh / natH;
       var ms = sx < sy ? sx : sy;
-      if (ms > 1) ms = 1;
+      var fillViewport =
+        viewport.classList.contains('planogram-hub-bay-viewport') ||
+        viewport.getAttribute('data-fill-viewport') === '1';
+      if (!fillViewport && ms > 1) ms = 1;
       if (!(ms > 0 && isFinite(ms))) ms = 1;
       minScale = ms;
     }
 
     function zoomToggleInTarget() {
-      var isCoarse =
-        typeof window.matchMedia === 'function' &&
-        window.matchMedia('(pointer: coarse)').matches;
-      return Math.max(isCoarse ? 2.5 : 3, minScale * (isCoarse ? 2 : 2.5));
+      return Math.max(3, minScale);
     }
 
     function clampScale(s) {
@@ -1250,24 +1194,6 @@
       if (!overFit) {
         viewport.classList.remove('planogram-zoom-grabbing');
       }
-      updateZoomUi();
-    }
-
-    function updateZoomUi() {
-      var valueEl = document.getElementById('pog-virtual-zoom-value');
-      if (valueEl) {
-        var pct =
-          minScale > 1e-9 ? Math.round((scale / minScale) * 100) : 100;
-        valueEl.textContent = pct + '%';
-      }
-      if (scaledBeyondFit()) {
-        hideZoomHint();
-      }
-    }
-
-    function hideZoomHint() {
-      var hint = document.getElementById('pog-virtual-zoom-hint');
-      if (hint) hint.hidden = true;
     }
 
     function viewportPoint(clientX, clientY) {
@@ -1371,20 +1297,7 @@
       if (panActive && panPtrId === e.pointerId) {
         var dx = e.clientX - panStartX;
         var dy = e.clientY - panStartY;
-        var dist2 = dx * dx + dy * dy;
-        if (scaledBeyondFit()) {
-          if (dist2 > 0) {
-            draggingPan = true;
-            suppressClick = true;
-            viewport.classList.add('planogram-zoom-grabbing');
-          }
-          tx = panTx0 + dx;
-          ty = panTy0 + dy;
-          scheduleApply();
-          e.preventDefault();
-          return;
-        }
-        if (!draggingPan && dist2 > TAP_MOVE_PX * TAP_MOVE_PX) {
+        if (!draggingPan && (dx * dx + dy * dy) > TAP_MOVE_PX * TAP_MOVE_PX) {
           draggingPan = true;
           suppressClick = true;
           viewport.classList.add('planogram-zoom-grabbing');
@@ -1518,14 +1431,6 @@
       e.preventDefault();
     }
 
-    function onWheel(e) {
-      e.preventDefault();
-      var p = viewportPoint(e.clientX, e.clientY);
-      var factor = e.deltaY > 0 ? 0.9 : 1.1;
-      zoomAroundViewportPoint(p.x, p.y, scale * factor);
-      scheduleApply();
-    }
-
     viewport.addEventListener('pointerdown', onPointerDown, {
       capture: true,
       passive: false
@@ -1538,7 +1443,6 @@
     viewport.addEventListener('pointercancel', onPointerCancel, { capture: true });
     viewport.addEventListener('click', onClickCapture, true);
     viewport.addEventListener('dblclick', onDblClick, { capture: true });
-    viewport.addEventListener('wheel', onWheel, { capture: true, passive: false });
 
     function refreshFitAfterResize() {
       recomputeFitMin();
@@ -1687,7 +1591,6 @@
       });
       viewport.removeEventListener('click', onClickCapture, true);
       viewport.removeEventListener('dblclick', onDblClick, { capture: true });
-      viewport.removeEventListener('wheel', onWheel, { capture: true });
       window.removeEventListener('resize', refreshFitAfterResize);
       if (ro) ro.disconnect();
       if (rafId) cancelAnimationFrame(rafId);
@@ -1699,7 +1602,6 @@
   var planogramZoomTeardownExternal = null;
   var virtualPagerTeardown = null;
   var pegViewToolbarTeardown = null;
-  var overlayToolbarTeardown = null;
 
   function clearVirtualPagerListeners() {
     if (typeof virtualPagerTeardown === 'function') {
@@ -1709,10 +1611,6 @@
     if (typeof pegViewToolbarTeardown === 'function') {
       pegViewToolbarTeardown();
       pegViewToolbarTeardown = null;
-    }
-    if (typeof overlayToolbarTeardown === 'function') {
-      overlayToolbarTeardown();
-      overlayToolbarTeardown = null;
     }
   }
 
@@ -1733,9 +1631,8 @@
     containerEl.classList.toggle('pegview-active', !!pegViewState.enabled);
   }
 
-  function renderPlanogram(containerEl, layoutData, products, bayRefImgs) {
+  function renderPlanogram(containerEl, layoutData, products) {
     if (!containerEl || !layoutData) return;
-    currentBayRefImgs = bayRefImgs || null;
 
     if (planogramZoomTeardownExternal) {
       planogramZoomTeardownExternal();
@@ -1773,9 +1670,6 @@
     if (pdfJumpRow) pdfJumpRow.hidden = false;
     if (zoomRow) zoomRow.hidden = false;
 
-    var zoomHint = document.getElementById('pog-virtual-zoom-hint');
-    if (zoomHint) zoomHint.hidden = false;
-
     containerEl.innerHTML = '';
     var viewport = document.createElement('div');
     viewport.className = 'planogram-zoom-viewport';
@@ -1798,14 +1692,6 @@
 
     var virtualPogBayIndex = 0;
 
-    function activeBayColumnHeightPx() {
-      var activeBay = bays[virtualPogBayIndex];
-      if (!activeBay || !activeBay.fixtures || !activeBay.fixtures.length) {
-        return allBaysMaxHeight;
-      }
-      return computeBayOuterHeight(activeBay);
-    }
-
     function syncBayChrome() {
       var m = bays.length;
       var n = virtualPogBayIndex + 1;
@@ -1818,15 +1704,10 @@
       if (prevBtn) prevBtn.disabled = virtualPogBayIndex <= 0;
       if (nextBtn) nextBtn.disabled = virtualPogBayIndex >= m - 1;
       var pegRowEl = document.getElementById('pog-virtual-pegview-row');
-      if (pegRowEl) pegRowEl.hidden = false;
+      if (pegRowEl) {
+        pegRowEl.hidden = !bayHasPegboard(bays[virtualPogBayIndex]);
+      }
       pegViewSyncToolbar();
-    }
-
-    function activeBayRefUrl() {
-      var activeBay = bays[virtualPogBayIndex];
-      if (!activeBay || !currentBayRefImgs) return null;
-      var entry = currentBayRefImgs[String(activeBay.bay_num)];
-      return (entry && entry.path) ? entry.path : null;
     }
 
     function mountActiveBay() {
@@ -1835,18 +1716,11 @@
         planogramZoomTeardownExternal = null;
       }
       wrap.innerHTML = '';
-      var bayEl = renderBay(
-        bays[virtualPogBayIndex],
-        activeBayColumnHeightPx(),
-        products,
-        activeBayRefUrl()
-      );
-      wrap.appendChild(bayEl);
+      wrap.appendChild(renderBay(bays[virtualPogBayIndex], allBaysMaxHeight, products));
       applyPegViewToContainer(containerEl);
       planogramZoomTeardownExternal = attachPlanogramZoom(viewport, stage, wrap);
       syncBayChrome();
       syncPlanogramWrapTileCardOpacity(wrap);
-      overlaySyncToolbar();
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
           syncPlanogramTileCardFonts(wrap);
@@ -1977,66 +1851,6 @@
     };
 
     pegViewSyncToolbar();
-
-    /* Overlay controls */
-    var overlayToggleBtn = document.getElementById('pog-virtual-overlay-toggle');
-    var overlaySlider = document.getElementById('pog-virtual-overlay-slider');
-    var overlayValueEl = document.getElementById('pog-virtual-overlay-value');
-    var overlayRow = document.getElementById('pog-virtual-overlay-row');
-
-    function hasBayRefForCurrentBay() {
-      var url = activeBayRefUrl();
-      return !!(url);
-    }
-
-    overlaySyncToolbar = function () {
-      var hasBayRef = hasBayRefForCurrentBay();
-      if (overlayRow) overlayRow.hidden = !hasBayRef;
-      if (overlayToggleBtn) {
-        overlayToggleBtn.setAttribute(
-          'aria-pressed',
-          overlayState.refVisible ? 'true' : 'false'
-        );
-        overlayToggleBtn.textContent = overlayState.refVisible
-          ? 'Ref: On'
-          : 'Ref: Off';
-      }
-      if (overlaySlider) {
-        var pct = Math.round(overlayState.tileOpacity * 100);
-        if (String(overlaySlider.value) !== String(pct)) overlaySlider.value = String(pct);
-        overlaySlider.disabled = !overlayState.refVisible;
-      }
-      if (overlayValueEl) {
-        overlayValueEl.textContent = Math.round(overlayState.tileOpacity * 100) + '%';
-      }
-    };
-
-    function onOverlayToggle() {
-      overlayState.refVisible = !overlayState.refVisible;
-      mountActiveBay();
-    }
-
-    function onOverlaySliderInput() {
-      var raw = parseInt(overlaySlider.value, 10);
-      if (!isFinite(raw)) raw = 50;
-      raw = Math.max(0, Math.min(100, raw));
-      overlayState.tileOpacity = raw / 100;
-      /* Update opacity on the current bay without remounting. */
-      var bayEl = wrap.querySelector('.planogram-bay');
-      applyOverlayOpacityToBay(bayEl, hasBayRefForCurrentBay());
-      if (overlayValueEl) overlayValueEl.textContent = raw + '%';
-    }
-
-    if (overlayToggleBtn) overlayToggleBtn.addEventListener('click', onOverlayToggle);
-    if (overlaySlider) overlaySlider.addEventListener('input', onOverlaySliderInput);
-
-    overlayToolbarTeardown = function () {
-      if (overlayToggleBtn) overlayToggleBtn.removeEventListener('click', onOverlayToggle);
-      if (overlaySlider) overlaySlider.removeEventListener('input', onOverlaySliderInput);
-      overlaySyncToolbar = function () {};
-    };
-
-    overlaySyncToolbar();
   }
 
   window.teardownPlanogramZoom = function () {
@@ -2085,45 +1899,12 @@
           pegViewContainerEl.querySelector('.planogram-wrap'))
     );
     pegViewSyncToolbar();
-    overlayState.refVisible = true;
-    overlayState.tileOpacity = 0.5;
-    overlaySyncToolbar();
   };
 
-  window.virtualPlanogramSetOverlayOpacity = function (value) {
-    var n = Number(value);
-    if (!isFinite(n)) return;
-    if (n > 1) n = n / 100;
-    overlayState.tileOpacity = Math.max(0, Math.min(1, n));
-    var root =
-      activePlanogramWrapEl ||
-      document.getElementById('pog-wv-planogram-host');
-    if (root) {
-      var bays = root.querySelectorAll('.planogram-bay');
-      var bi;
-      for (bi = 0; bi < bays.length; bi++) {
-        applyOverlayOpacityToBay(
-          bays[bi],
-          !!(currentBayRefImgs && overlayState.refVisible)
-        );
-      }
-    }
-    overlaySyncToolbar();
-  };
-
-  var hubPlanogramRemount = null;
-  var hubOverlayToolbarBound = false;
-
-  function resolveBayRefUrl(bayRefImgs, bayNum) {
-    if (!bayRefImgs) return null;
-    var entry = bayRefImgs[String(bayNum)];
-    if (!entry || !entry.path) return null;
-    if (typeof window.PLANOGRAM_REF_RESOLVER === 'function') {
-      return window.PLANOGRAM_REF_RESOLVER(entry.path);
-    }
-    return entry.path;
-  }
-
+  /**
+   * Hub working view: render every bay in a scroll list using the same inch-accurate
+   * pegboard/shelf layout as the standalone Checklanes virtual POG.
+   */
   function fitHubBayToViewport(viewport, stage, wrap) {
     function applyFit() {
       var natW = Math.max(1, wrap.offsetWidth || 1);
@@ -2154,10 +1935,9 @@
     window.addEventListener('resize', applyFit);
   }
 
-  function renderHubPlanogramBays(containerEl, layoutData, products, bayRefImgs) {
+  function renderHubPlanogramBays(containerEl, layoutData, products) {
     if (!containerEl || !layoutData) return;
 
-    currentBayRefImgs = bayRefImgs || null;
     containerEl.innerHTML = '';
     containerEl.classList.add('planogram-hub-bays');
 
@@ -2214,14 +1994,7 @@
 
       var wrap = document.createElement('div');
       wrap.className = 'planogram-wrap';
-      wrap.appendChild(
-        renderBay(
-          bay,
-          allBaysMaxHeight,
-          products,
-          resolveBayRefUrl(bayRefImgs, bay.bay_num)
-        )
-      );
+      wrap.appendChild(renderBay(bay, allBaysMaxHeight, products));
 
       stage.appendChild(wrap);
       viewport.appendChild(stage);
@@ -2239,92 +2012,10 @@
         syncPlanogramTileCardFonts(containerEl);
       });
     });
-    overlaySyncToolbar();
   }
 
-  window.renderHubPlanogramBays = renderHubPlanogramBays;
-
-  window.wireHubPlanogramOverlayToolbar = function (
-    containerEl,
-    layoutData,
-    products,
-    bayRefImgs
-  ) {
-    hubPlanogramRemount = function () {
-      renderHubPlanogramBays(containerEl, layoutData, products, bayRefImgs);
-    };
-
-    function hasAnyBayRef() {
-      if (!bayRefImgs) return false;
-      return Object.keys(bayRefImgs).some(function (k) {
-        return bayRefImgs[k] && bayRefImgs[k].path;
-      });
-    }
-
-    overlaySyncToolbar = function () {
-      var hasRef = hasAnyBayRef();
-      var overlayRow = document.getElementById('pog-wv-overlay-row');
-      var overlayToggleBtn = document.getElementById('pog-wv-overlay-toggle');
-      var overlaySlider = document.getElementById('pog-wv-overlay-slider');
-      var overlayValueEl = document.getElementById('pog-wv-overlay-value');
-      if (overlayRow) overlayRow.hidden = !hasRef;
-      if (overlayToggleBtn) {
-        overlayToggleBtn.setAttribute(
-          'aria-pressed',
-          overlayState.refVisible ? 'true' : 'false'
-        );
-        overlayToggleBtn.textContent = overlayState.refVisible
-          ? 'Ref: On'
-          : 'Ref: Off';
-      }
-      if (overlaySlider) {
-        var pct = Math.round(overlayState.tileOpacity * 100);
-        if (String(overlaySlider.value) !== String(pct)) {
-          overlaySlider.value = String(pct);
-        }
-        overlaySlider.disabled = !overlayState.refVisible;
-      }
-      if (overlayValueEl) {
-        overlayValueEl.textContent = Math.round(overlayState.tileOpacity * 100) + '%';
-      }
-    };
-
-    if (hubOverlayToolbarBound) {
-      overlaySyncToolbar();
-      return;
-    }
-    hubOverlayToolbarBound = true;
-
-    var overlayToggleBtn = document.getElementById('pog-wv-overlay-toggle');
-    var overlaySlider = document.getElementById('pog-wv-overlay-slider');
-    var overlayValueEl = document.getElementById('pog-wv-overlay-value');
-
-    function onOverlayToggle() {
-      overlayState.refVisible = !overlayState.refVisible;
-      if (typeof hubPlanogramRemount === 'function') hubPlanogramRemount();
-      overlaySyncToolbar();
-    }
-
-    function onOverlaySliderInput() {
-      var raw = parseInt(overlaySlider.value, 10);
-      if (!isFinite(raw)) raw = 50;
-      raw = Math.max(0, Math.min(100, raw));
-      overlayState.tileOpacity = raw / 100;
-      window.virtualPlanogramSetOverlayOpacity(raw);
-      if (overlayValueEl) overlayValueEl.textContent = raw + '%';
-    }
-
-    if (overlayToggleBtn) {
-      overlayToggleBtn.addEventListener('click', onOverlayToggle);
-    }
-    if (overlaySlider) {
-      overlaySlider.addEventListener('input', onOverlaySliderInput);
-    }
-
-    overlaySyncToolbar();
-  };
-
   window.renderPlanogram = renderPlanogram;
+  window.renderHubPlanogramBays = renderHubPlanogramBays;
 
   function applyPegSliderValueFromDom() {
     var pegSliderEl = document.getElementById('pog-virtual-pegview-slider');
