@@ -952,6 +952,95 @@
     font-size: 0.75rem;
   }
 
+  .lane-names-panel-body {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding: 12px 16px 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lane-names-intro {
+    font-size: 0.82rem;
+    color: var(--text2);
+    line-height: 1.45;
+    margin: 0 0 14px;
+  }
+
+  .lane-names-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .lane-name-row {
+    display: grid;
+    grid-template-columns: minmax(3.5rem, auto) minmax(0, 1fr);
+    gap: 8px 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface2);
+  }
+
+  .lane-name-row-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .lane-name-row-num {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--lane-label);
+  }
+
+  .lane-name-row-hint {
+    font-size: 0.62rem;
+    color: var(--text3);
+    line-height: 1.25;
+  }
+
+  .lane-name-row input {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.88rem;
+  }
+
+  .lane-names-footer {
+    padding: 12px 16px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-lane-names-save {
+    appearance: none;
+    border: none;
+    border-radius: var(--radius);
+    background: #2563eb;
+    color: #fff;
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    padding: 12px 14px;
+    cursor: pointer;
+  }
+
+  .btn-lane-names-save:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
   .assignments-stat {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1076,6 +1165,17 @@
     font-weight: 800;
     font-size: 0.95rem;
     color: var(--lane-label);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.15;
+  }
+
+  .assign-set-lane-physical {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #93c5fd;
+    letter-spacing: 0.01em;
   }
 
   .assign-set-dbkey {
@@ -3412,6 +3512,18 @@
   <div class="bulk-assign-panel-body" id="bulk-assign-panel-body"></div>
 </aside>
 
+<aside class="lane-names-panel pending-panel" id="lane-names-panel" aria-label="Store lane names" hidden>
+  <div class="pending-panel-header">
+    <h2>Store lane names</h2>
+    <button type="button" class="detail-close" id="lane-names-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="lane-names-panel-body" id="lane-names-panel-body"></div>
+  <div class="lane-names-footer">
+    <div class="flag-status" id="lane-names-status"></div>
+    <button type="button" class="btn-lane-names-save" id="lane-names-save-btn">Save lane names</button>
+  </div>
+</aside>
+
 <div class="pog-working-view" id="pog-working-view" aria-hidden="true">
   <div class="pog-wv-header">
     <div class="pog-wv-header-top">
@@ -3830,7 +3942,7 @@ let assignmentsSort = { col: 'lane', asc: true };
 let bulkAssignPanelSelectedKeys = new Set();
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
-let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0 };
+let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, laneNames: {} };
 let hubSignedInUser = { email: null };
 let hubRoster = [];
 let hubRosterLoadPromise = null;
@@ -3856,6 +3968,65 @@ function escapeHtml(str) {
 
 function shortName(name) {
   return name.replace(/^CKLN\s+/i, '').slice(0, 42);
+}
+
+function getPhysicalLaneName(lane) {
+  if (lane == null || lane === '') return '';
+  return (hubContext.laneNames || {})[String(lane)] || '';
+}
+
+function formatLaneDisplay(lane) {
+  const laneStr = String(lane || '').trim();
+  const physical = getPhysicalLaneName(laneStr);
+  return { lane: laneStr, physical, combined: physical ? (laneStr + ' · ' + physical) : laneStr };
+}
+
+function laneDisplayHtml(lane) {
+  const d = formatLaneDisplay(lane);
+  if (!d.physical) return escapeHtml(d.lane);
+  return (
+    '<span class="assign-set-lane-num">' + escapeHtml(d.lane) + '</span>' +
+    '<span class="assign-set-lane-physical">' + escapeHtml(d.physical) + '</span>'
+  );
+}
+
+function parseLaneFromLocation(location) {
+  const s = String(location || '').trim();
+  if (!s) return '';
+  const laneMatch = s.match(/(?:^|\b)(?:lane|aisle)\s*(\d+)/i);
+  if (laneMatch) return laneMatch[1];
+  const compact = s.match(/^(\d+)[BRFP]/i);
+  if (compact) return compact[1];
+  return '';
+}
+
+function formatLocationDisplay(location, lane) {
+  const laneKey = lane || parseLaneFromLocation(location);
+  const physical = getPhysicalLaneName(laneKey);
+  const loc = String(location || '').trim();
+  if (!physical || !loc) return loc;
+  if (loc.includes(physical)) return loc;
+  if (/^Lane\s+\d+/i.test(loc)) {
+    return loc.replace(/^Lane\s+\d+/i, physical);
+  }
+  return physical + ' · ' + loc;
+}
+
+function hubManifestLanes() {
+  const set = new Set();
+  for (const f of FIXTURES) {
+    if (f.lane != null && f.lane !== '') set.add(String(f.lane));
+  }
+  return Array.from(set).sort((a, b) => Number(a) - Number(b));
+}
+
+function laneHintForLane(lane) {
+  const types = new Set();
+  for (const f of FIXTURES) {
+    if (String(f.lane) === String(lane) && f.type) types.add(f.type);
+  }
+  if (!types.size) return '';
+  return Array.from(types).slice(0, 4).join(', ');
 }
 
 function classifyFixture(fixture) {
@@ -4035,6 +4206,7 @@ function applySnapshot(snapshot) {
   hubContext.pendingActions = snapshot.pendingActions || [];
   hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
   hubContext.draftTags = snapshot.stats?.draftTags ?? 0;
+  hubContext.laneNames = snapshot.laneNames || {};
 
   const stateMap = snapshotSectionsToStateMap(snapshot.sections);
   applyState(stateMap);
@@ -4051,6 +4223,9 @@ function applySnapshot(snapshot) {
   refreshPogWorkingChrome();
   updateSignedInDisplay();
   if (hubContext.myRank >= 2 && liveVisitId) ensureHubStream();
+  if (document.getElementById('lane-names-panel')?.classList.contains('open')) {
+    renderLaneNamesPanelBody();
+  }
 }
 
 function getFixtureState(lane, dbkey) {
@@ -4173,6 +4348,9 @@ function renderHorizontalLaneRow(laneRow) {
     '<div class="lane-row" data-lane="' + escapeHtml(lane) + '">' +
       '<div class="lane-row-label">' +
         '<span class="lane-num">' + escapeHtml(lane) + '</span>' +
+        (getPhysicalLaneName(lane)
+          ? ('<span class="lane-commodity">' + escapeHtml(getPhysicalLaneName(lane)) + '</span>')
+          : '') +
       '</div>' +
       '<div class="lane-row-fixtures">' + fixtureHtml + '</div>' +
       flowArrowHtml() +
@@ -4257,7 +4435,7 @@ function renderList() {
         'data-list-key="' + escapeHtml(fixtureKey(f)) + '" ' +
         (clickable ? 'data-dbkey="' + escapeHtml(f.dbkey) + '" data-action="' + escapeHtml(f.action) + '" data-lane="' + escapeHtml(f.lane) + '"' : '') +
       '>' +
-        '<td>' + escapeHtml(f.lane) + '</td>' +
+        '<td>' + escapeHtml(formatLaneDisplay(f.lane).combined) + '</td>' +
         '<td class="dbkey-cell">' + escapeHtml(f.dbkey || '—') + '</td>' +
         '<td>' + escapeHtml(f.name) + '</td>' +
         '<td class="' + assigneeClass + '">' + escapeHtml(assignee) + '</td>' +
@@ -4925,6 +5103,12 @@ function bindEvents() {
       openBulkAssignPanel();
       return;
     }
+    const laneNamesBtn = e.target.closest('#assign-lane-names-btn');
+    if (laneNamesBtn) {
+      e.preventDefault();
+      openLaneNamesPanel();
+      return;
+    }
     if (e.target.closest('.assign-set-actions')) {
       const unassignBtn = e.target.closest('.assign-set-unassign-btn');
       if (unassignBtn) {
@@ -5010,6 +5194,8 @@ function bindEvents() {
   document.getElementById('tag-batch-close').addEventListener('click', () => toggleTagBatchPanel(false));
   document.getElementById('bulk-assign-close')?.addEventListener('click', () => toggleBulkAssignPanel(false));
   document.getElementById('bulk-assign-panel')?.addEventListener('click', handleBulkAssignPanelClick);
+  document.getElementById('lane-names-close')?.addEventListener('click', () => toggleLaneNamesPanel(false));
+  document.getElementById('lane-names-save-btn')?.addEventListener('click', () => saveLaneNamesFromPanel());
   document.getElementById('btn-send-tag-batch').addEventListener('click', () => sendTagBatchEmail());
   document.getElementById('btn-verify-all-tags')?.addEventListener('click', () => verifyAllPendingMissingTags());
   document.getElementById('btn-refresh-tag-gather')?.addEventListener('click', () => loadTagBatchPreview());
@@ -6628,7 +6814,7 @@ function renderAssignmentSetRowHtml(row) {
   const previewUrl = hubAssignPreviewUrl(row.dbkey);
   return (
     '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
-      '<span class="assign-set-lane">' + escapeHtml(row.lane) + '</span>' +
+      '<span class="assign-set-lane">' + laneDisplayHtml(row.lane) + '</span>' +
       '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
       '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
       statePillHtml({ on_manifest: true, lane: row.lane, dbkey: row.dbkey }) +
@@ -6687,7 +6873,7 @@ function renderBulkAssignPanelBody() {
       '<label class="bulk-assign-pick-item">' +
         '<input type="checkbox" data-bulk-pick="' + escapeHtml(key) + '"' + checked + '>' +
         '<div class="bulk-assign-pick-meta">' +
-          '<strong>Aisle ' + escapeHtml(row.lane) + ' · ' + escapeHtml(row.dbkey) + '</strong>' +
+          '<strong>' + escapeHtml(formatLaneDisplay(row.lane).combined) + ' · ' + escapeHtml(row.dbkey) + '</strong>' +
           '<span>' + escapeHtml(row.shortName) + '</span>' +
         '</div>' +
       '</label>'
@@ -6702,7 +6888,10 @@ function renderBulkAssignPanelBody() {
       '<div class="bulk-assign-row">' +
         '<select class="assignments-aisle-select" id="bulk-panel-aisle" aria-label="Aisle">' +
           '<option value="">Aisle…</option>' +
-          aisles.map(lane => '<option value="' + escapeHtml(lane) + '">' + escapeHtml(lane) + '</option>').join('') +
+          aisles.map(lane => {
+            const label = formatLaneDisplay(lane).combined;
+            return '<option value="' + escapeHtml(lane) + '">' + escapeHtml(label) + '</option>';
+          }).join('') +
         '</select>' +
         '<select class="assignments-bulk-select" id="bulk-panel-aisle-rep" aria-label="Rep for aisle">' +
           '<option value="">Rep…</option>' +
@@ -6748,6 +6937,102 @@ function toggleBulkAssignPanel(open) {
     panel.classList.remove('open');
     panel.hidden = true;
     bulkAssignPanelSelectedKeys.clear();
+  }
+}
+
+function setLaneNamesStatus(msg, kind) {
+  const el = document.getElementById('lane-names-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'flag-status' + (kind ? ' ' + kind : '');
+}
+
+function renderLaneNamesPanelBody() {
+  const body = document.getElementById('lane-names-panel-body');
+  if (!body) return;
+
+  const lanes = hubManifestLanes();
+  const rows = lanes.map(lane => {
+    const hint = laneHintForLane(lane);
+    const value = getPhysicalLaneName(lane);
+    return (
+      '<label class="lane-name-row" data-lane-name-row="' + escapeHtml(lane) + '">' +
+        '<span class="lane-name-row-label">' +
+          '<span class="lane-name-row-num">' + escapeHtml(lane) + '</span>' +
+          (hint ? ('<span class="lane-name-row-hint">' + escapeHtml(hint) + '</span>') : '') +
+        '</span>' +
+        '<input type="text" data-lane-name-input="' + escapeHtml(lane) + '" ' +
+          'value="' + escapeHtml(value) + '" ' +
+          'placeholder="e.g. SCO Bank 1, Checkstand 3" autocomplete="off">' +
+      '</label>'
+    );
+  }).join('');
+
+  body.innerHTML =
+    '<p class="lane-names-intro">Map each register lane (601–624) to how your store calls it on the floor. ' +
+    'Register numbers stay in the system — this adds the name reps and tag printouts use in the field.</p>' +
+    (rows
+      ? ('<div class="lane-names-list">' + rows + '</div>')
+      : '<p class="hub-panel-empty">No manifest lanes found.</p>');
+}
+
+function openLaneNamesPanel() {
+  if (!canManageHubAssignments()) return;
+  toggleBulkAssignPanel(false);
+  toggleTagBatchPanel(false);
+  togglePendingPanel(false);
+  toggleLaneNamesPanel(true);
+}
+
+function toggleLaneNamesPanel(open) {
+  const panel = document.getElementById('lane-names-panel');
+  if (!panel) return;
+  if (open && canManageHubAssignments()) {
+    panel.hidden = false;
+    panel.classList.add('open');
+    renderLaneNamesPanelBody();
+    setLaneNamesStatus('');
+  } else {
+    panel.classList.remove('open');
+    panel.hidden = true;
+    setLaneNamesStatus('');
+  }
+}
+
+async function saveLaneNamesFromPanel() {
+  if (!canManageHubAssignments()) return;
+  const btn = document.getElementById('lane-names-save-btn');
+  const inputs = document.querySelectorAll('[data-lane-name-input]');
+  /** @type {Record<string, string>} */
+  const names = {};
+  inputs.forEach(input => {
+    const lane = input.getAttribute('data-lane-name-input');
+    if (!lane) return;
+    names[lane] = (input.value || '').trim();
+  });
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+  }
+  setLaneNamesStatus('Saving…');
+
+  try {
+    const result = await hubMutatePost('/lane-names', { names });
+    hubContext.laneNames = result.laneNames || names;
+    setLaneNamesStatus('Lane names saved', 'ok');
+    renderAssignmentsView();
+    renderList();
+    renderMap();
+    refreshPogWorkingChrome();
+    if (tagBatchPreview) await loadTagBatchPreview();
+  } catch (err) {
+    setLaneNamesStatus(err.message || 'Save failed', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Save lane names';
+    }
   }
 }
 
@@ -6863,7 +7148,8 @@ function renderAssignmentsView() {
         '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.totalManifest + '</div><div class="assignments-stat-label">On manifest</div></div>' +
       '</div>' +
       (canManageHubAssignments()
-        ? '<button type="button" class="assignments-bulk-tools-link" id="assign-bulk-tools-btn">Bulk assign (aisle or multiple sets)…</button>'
+        ? '<button type="button" class="assignments-bulk-tools-link" id="assign-bulk-tools-btn">Bulk assign (aisle or multiple sets)…</button>' +
+          '<button type="button" class="assignments-bulk-tools-link" id="assign-lane-names-btn">Set store lane names…</button>'
         : '');
   }
 
@@ -7039,7 +7325,10 @@ function pogWorkingDbkey() {
 
 function defaultPogFlagLocation() {
   if (!pogWorkingFixture) return undefined;
-  return 'Lane ' + pogWorkingFixture.lane + ' · ' + shortName(pogWorkingFixture.name);
+  const physical = getPhysicalLaneName(pogWorkingFixture.lane);
+  const setLabel = shortName(pogWorkingFixture.name);
+  if (physical) return physical + ' · ' + setLabel;
+  return 'Lane ' + pogWorkingFixture.lane + ' · ' + setLabel;
 }
 
 function setPogWvActionStatus(msg, kind) {
@@ -7184,7 +7473,7 @@ function refreshPogWorkingChrome() {
   }
 
   if (sub && pogWorkingFixture && dbkey) {
-    sub.textContent = 'Lane ' + pogWorkingFixture.lane + ' · DBKey ' + dbkey +
+    sub.textContent = formatLaneDisplay(pogWorkingFixture.lane).combined + ' · DBKey ' + dbkey +
       ' · ' + sectionAssigneeText(lane, dbkey);
   }
 
@@ -7434,14 +7723,15 @@ async function openPogWorkingView(fixture, opts) {
   const content = document.getElementById('pog-wv-content');
 
   if (heading) heading.textContent = shortName(fixture.name);
-  if (sub) sub.textContent = 'Lane ' + fixture.lane + ' · DBKey ' + fixture.dbkey;
+  if (sub) sub.textContent = formatLaneDisplay(fixture.lane).combined + ' · DBKey ' + fixture.dbkey;
   if (crumb) {
     const viewLabel = hubCurrentView === 'list'
       ? 'List'
       : hubCurrentView === 'assignments'
         ? 'Sets'
         : 'Map';
-    crumb.textContent = viewLabel + ' › ' + shortName(fixture.name);
+    const lanePart = getPhysicalLaneName(fixture.lane) || ('Lane ' + fixture.lane);
+    crumb.textContent = viewLabel + ' › ' + lanePart + ' · ' + shortName(fixture.name);
   }
   if (content) content.innerHTML = '<div class="pog-wv-loading">Loading planogram…</div>';
 
@@ -7842,7 +8132,7 @@ function renderSectionTagDraftCart() {
   cart.innerHTML = tags.map(tag => {
     const upc = escapeHtml(tag.displayDigits || tag.upc || '—');
     const meta = escapeHtml(tag.description || '') +
-      (tag.location ? (' · ' + escapeHtml(tag.location)) : '');
+      (tag.location ? (' · ' + escapeHtml(formatLocationDisplay(tag.location, pogWorkingFixture?.lane))) : '');
     return (
       '<div class="tag-draft-item" data-tag-draft-id="' + tag.id + '">' +
         '<div class="tag-draft-item-body">' +
