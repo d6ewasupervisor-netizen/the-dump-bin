@@ -6159,8 +6159,13 @@ function pogUrl(path) {
   return POG_SERVICE_BASE + path;
 }
 
-/** Hub assignment list thumbnails — cropped planogram diagram only (not full page 1). */
+/** Hub assignment list thumbnails — minimized cropped planogram diagram (whitespace trimmed). */
 function hubAssignPreviewUrl(dbkey) {
+  return pogUrl('/previews-cropped-webp/minimized/' + encodeURIComponent(dbkey) + '.webp');
+}
+
+/** Fallback to the un-minimized cropped webp if a minimized preview is missing. */
+function hubAssignPreviewFallbackUrl(dbkey) {
   return pogUrl('/previews-cropped-webp/' + encodeURIComponent(dbkey) + '.webp');
 }
 
@@ -7716,6 +7721,7 @@ function renderAssignmentSetRowHtml(row) {
   const editableAisle = !!liveVisitId && hubContext.myRank >= 2;
   const rowClass = 'assign-set-row' + (assignHtml ? ' has-assign' : '');
   const previewUrl = hubAssignPreviewUrl(row.dbkey);
+  const previewFallbackUrl = hubAssignPreviewFallbackUrl(row.dbkey);
   return (
     '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
       '<div class="assign-set-head">' +
@@ -7729,7 +7735,7 @@ function renderAssignmentSetRowHtml(row) {
       '</div>' +
       '<div class="assign-set-body">' +
         '<div class="assign-set-preview-wrap">' +
-          '<img class="assign-set-preview" src="' + escapeHtml(previewUrl) + '" alt="POG preview ' + escapeHtml(row.dbkey) + '" loading="lazy" decoding="async" onerror="this.classList.add(\'is-hidden\')">' +
+          '<img class="assign-set-preview" src="' + escapeHtml(previewUrl) + '" data-fallback-src="' + escapeHtml(previewFallbackUrl) + '" alt="POG preview ' + escapeHtml(row.dbkey) + '" loading="lazy" decoding="async" onerror="if(this.dataset.fallbackSrc){var f=this.dataset.fallbackSrc;this.removeAttribute(\'data-fallback-src\');this.src=f;}else{this.classList.add(\'is-hidden\');}">' +
         '</div>' +
         assignHtml +
       '</div>' +
