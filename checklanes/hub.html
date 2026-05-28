@@ -2230,6 +2230,171 @@
     cursor: pointer;
   }
 
+  .tag-batch-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .tag-batch-view[hidden] { display: none; }
+
+  .tag-batch-intro {
+    padding: 6px 14px 0;
+    margin: 0;
+    font-size: 0.74rem;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+
+  .tag-batch-aisle-card {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .tag-batch-aisle-card-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .tag-batch-aisle-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #5eead4;
+  }
+  .tag-batch-aisle-count {
+    font-size: 0.78rem;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+  .tag-batch-aisle-invalid {
+    color: #fca5a5;
+    font-size: 0.72rem;
+    margin-top: 2px;
+  }
+  .tag-batch-aisle-assignee {
+    font-size: 0.74rem;
+    color: var(--text3);
+    margin-top: 6px;
+  }
+  .tag-batch-aisle-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .tag-batch-aisle-actions .btn-tag-batch-secondary { flex: 1 1 40%; }
+  .tag-batch-assign-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: center;
+  }
+  .tag-batch-assign-select {
+    flex: 1;
+    min-height: 38px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    font-size: 0.82rem;
+    padding: 0 8px;
+  }
+
+  .tag-batch-sweep-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px 0;
+    flex-shrink: 0;
+  }
+  .tag-batch-sweep-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #5eead4;
+  }
+  .tag-batch-sweep-add {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tag-batch-sweep-row {
+    display: flex;
+    gap: 8px;
+  }
+  .tag-batch-sweep-add input[type="text"] {
+    width: 100%;
+    min-height: 42px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    padding: 0 10px;
+    margin-bottom: 8px;
+  }
+  .tag-batch-sweep-row input[type="text"] { flex: 1; margin-bottom: 8px; }
+  .tag-batch-scan-btn {
+    flex-shrink: 0;
+    min-height: 42px;
+    margin-bottom: 8px;
+  }
+  .tag-batch-scanner-box {
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    background: #000;
+  }
+  .tag-batch-scanner-box.scan-success { border-color: #14b8a6; }
+  #tag-batch-scanner-region { width: 100%; }
+
+  .tag-batch-tag-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  .tag-batch-tag-item.invalid {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+  }
+  .tag-batch-tag-main { min-width: 0; }
+  .tag-batch-tag-upc { font-weight: 700; font-size: 0.92rem; }
+  .tag-batch-tag-item.invalid .tag-batch-tag-upc { color: #fca5a5; }
+  .tag-batch-tag-meta { font-size: 0.76rem; color: var(--text2); margin-top: 2px; }
+  .tag-batch-tag-loc { font-size: 0.72rem; color: var(--text3); margin-top: 2px; }
+  .tag-batch-tag-source {
+    display: inline-block;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 1px 6px;
+    margin-top: 4px;
+  }
+  .tag-batch-tag-remove {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: var(--radius);
+    font-size: 0.74rem;
+    min-height: 34px;
+    padding: 0 10px;
+    cursor: pointer;
+  }
+
   .tag-draft-cart {
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -4388,17 +4553,48 @@
 
 <aside class="tag-batch-panel" id="tag-batch-panel" aria-label="Tag batch">
   <div class="pending-panel-header">
-    <h2>Tag batch — verified missing tags</h2>
+    <h2 id="tag-batch-title">Tag batch — aisle sweep</h2>
     <button type="button" class="detail-close" id="tag-batch-close" aria-label="Close">&times;</button>
   </div>
-  <div class="tag-batch-toolbar">
-    <button type="button" class="btn-tag-batch-secondary" id="btn-verify-all-tags">Verify all pending</button>
-    <button type="button" class="btn-tag-batch-secondary" id="btn-refresh-tag-gather">Refresh</button>
+
+  <div class="tag-batch-view" id="tag-batch-aisles-view">
+    <div class="tag-batch-toolbar">
+      <button type="button" class="btn-tag-batch-secondary" id="btn-refresh-tag-gather">Refresh</button>
+    </div>
+    <p class="tag-batch-intro">Walk each aisle, scan the shelf barcodes that need tags, then send the batch to print — one aisle at a time.</p>
+    <div class="tag-batch-list" id="tag-batch-aisle-list"></div>
+    <div class="tag-batch-footer">
+      <div class="flag-status" id="tag-batch-status"></div>
+    </div>
   </div>
-  <div class="tag-batch-list" id="tag-batch-list"></div>
-  <div class="tag-batch-footer">
-    <div class="flag-status" id="tag-batch-status"></div>
-    <button type="button" class="btn-send-tag-batch" id="btn-send-tag-batch" disabled>Send tag batch</button>
+
+  <div class="tag-batch-view" id="tag-batch-sweep-view" hidden>
+    <div class="tag-batch-sweep-head">
+      <button type="button" class="pending-detail-back" id="tag-batch-sweep-back">← All aisles</button>
+      <div class="tag-batch-sweep-title" id="tag-batch-sweep-title"></div>
+    </div>
+    <div class="tag-batch-sweep-add">
+      <div class="tag-batch-sweep-row">
+        <input type="text" id="tag-batch-sweep-upc" inputmode="numeric" autocomplete="off" placeholder="Scan or type UPC (last 4+ digits)">
+        <button type="button" class="btn tag-batch-scan-btn" id="tag-batch-scan-btn" title="Scan barcode" aria-label="Scan barcode">📷</button>
+      </div>
+      <input type="text" id="tag-batch-sweep-loc" autocomplete="off" placeholder="Location note (optional — e.g. top peg, left of register)">
+      <button type="button" class="btn-tag-batch-secondary" id="tag-batch-sweep-add">Add to this aisle</button>
+      <div class="tag-batch-scanner-box" id="tag-batch-scanner-box" hidden>
+        <div class="pog-wv-scanner-controls">
+          <button type="button" class="btn" id="tag-batch-scanner-stop">Stop</button>
+          <button type="button" class="btn" id="tag-batch-scanner-torch" hidden>Torch</button>
+        </div>
+        <p class="pog-wv-scanner-hint">Point at the shelf barcode — scans full frame</p>
+        <div id="tag-batch-scanner-region"></div>
+        <p class="pog-wv-scanner-error" id="tag-batch-scanner-error" hidden></p>
+      </div>
+    </div>
+    <div class="tag-batch-list" id="tag-batch-sweep-list"></div>
+    <div class="tag-batch-footer">
+      <div class="flag-status" id="tag-batch-sweep-status"></div>
+      <button type="button" class="btn-send-tag-batch" id="btn-send-aisle-batch" disabled>Send &amp; print this aisle</button>
+    </div>
   </div>
 </aside>
 
@@ -4831,11 +5027,12 @@ let assignmentsSort = { col: 'store-aisle', asc: true };
 let bulkAssignPanelSelectedKeys = new Set();
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
-let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, aislePresets: [] };
+let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, aislePresets: [], myTagSweepAisleKeys: [] };
 let hubSignedInUser = { email: null };
 let hubRoster = [];
 let hubRosterLoadPromise = null;
 let tagBatchPreview = null;
+let tagBatchSweepAisle = null;
 let sectionTagDrafts = [];
 let sectionTagDraftsDbkey = null;
 let selectedPendingId = null;
@@ -5227,6 +5424,8 @@ function formatRaisedAt(iso) {
 function collectPendingQueueItems() {
   const items = [];
   for (const pa of hubContext.pendingActions || []) {
+    // Missing tags now live in the Tag Batch aisle sweep, not the flags queue.
+    if (pa.action_type === 'missing_tag') continue;
     items.push({
       id: String(pa.id),
       kind: 'action',
@@ -5271,12 +5470,16 @@ function applySnapshot(snapshot) {
   hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
   hubContext.draftTags = snapshot.stats?.draftTags ?? 0;
   hubContext.aislePresets = snapshot.aislePresets || CLIENT_AISLE_PRESET_CATALOG;
+  hubContext.myTagSweepAisleKeys = snapshot.myTagSweepAisleKeys || [];
 
   const stateMap = snapshotSectionsToStateMap(snapshot.sections);
   applyState(stateMap);
 
   updatePendingBadge();
   updateTagBatchBadge();
+  if (document.getElementById('tag-batch-panel')?.classList.contains('open') && canUseTagBatch()) {
+    loadTagBatchPreview();
+  }
   if (window.HubChat) HubChat.onSnapshot(snapshot);
   if (hubCurrentView === 'assignments') renderAssignmentsView();
   renderPendingList();
@@ -6237,7 +6440,7 @@ function bindEvents() {
     }
   });
   document.getElementById('pog-wv-tag-batch-badge')?.addEventListener('click', () => {
-    if (hubContext.myRank >= 2) {
+    if (canUseTagBatch()) {
       togglePendingPanel(false);
       toggleTagBatchPanel(true);
     }
@@ -6246,7 +6449,7 @@ function bindEvents() {
   document.getElementById('pending-detail-back')?.addEventListener('click', () => closePendingDetail());
 
   document.getElementById('tag-batch-badge').addEventListener('click', () => {
-    if (hubContext.myRank >= 2) {
+    if (canUseTagBatch()) {
       togglePendingPanel(false);
       toggleTagBatchPanel(true);
     }
@@ -6254,9 +6457,30 @@ function bindEvents() {
   document.getElementById('tag-batch-close').addEventListener('click', () => toggleTagBatchPanel(false));
   document.getElementById('bulk-assign-close')?.addEventListener('click', () => toggleBulkAssignPanel(false));
   document.getElementById('bulk-assign-panel')?.addEventListener('click', handleBulkAssignPanelClick);
-  document.getElementById('btn-send-tag-batch').addEventListener('click', () => sendTagBatchEmail());
-  document.getElementById('btn-verify-all-tags')?.addEventListener('click', () => verifyAllPendingMissingTags());
   document.getElementById('btn-refresh-tag-gather')?.addEventListener('click', () => loadTagBatchPreview());
+  document.getElementById('tag-batch-sweep-back')?.addEventListener('click', () => showTagBatchAislesView());
+  document.getElementById('tag-batch-sweep-add')?.addEventListener('click', () => addTagBatchSweepTag());
+  document.getElementById('tag-batch-sweep-upc')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addTagBatchSweepTag(); }
+  });
+  document.getElementById('btn-send-aisle-batch')?.addEventListener('click', () => {
+    if (tagBatchSweepAisle) sendTagBatchAisle(tagBatchSweepAisle.aisleKey);
+  });
+  document.getElementById('tag-batch-scan-btn')?.addEventListener('click', () => {
+    const box = document.getElementById('tag-batch-scanner-box');
+    if (box && !box.hidden && typeof Scanner !== 'undefined' && Scanner.isRunning) {
+      stopTagBatchScanner();
+    } else {
+      startTagBatchScanner();
+    }
+  });
+  document.getElementById('tag-batch-scanner-stop')?.addEventListener('click', () => stopTagBatchScanner());
+  document.getElementById('tag-batch-scanner-torch')?.addEventListener('click', async () => {
+    if (typeof Scanner === 'undefined') return;
+    const on = await Scanner.toggleTorch();
+    const torchBtn = document.getElementById('tag-batch-scanner-torch');
+    if (torchBtn) torchBtn.textContent = on ? 'Torch off' : 'Torch';
+  });
 
   document.addEventListener('click', () => closeAllAislePickers());
   window.addEventListener('scroll', (e) => {
@@ -9020,6 +9244,10 @@ function togglePendingPanel(open) {
   }
 }
 
+function canUseTagBatch() {
+  return !!(liveVisitId && (hubContext.myRank >= 2 || (hubContext.myTagSweepAisleKeys || []).length > 0));
+}
+
 function updateTagBatchBadge() {
   const badge = document.getElementById('tag-batch-badge');
   const countEl = document.getElementById('tag-batch-count');
@@ -9032,7 +9260,7 @@ function updateTagBatchBadge() {
   countEl.textContent = countText;
   if (pogCountEl) pogCountEl.textContent = countText;
 
-  if (liveVisitId && hubContext.myRank >= 2) {
+  if (canUseTagBatch()) {
     badge.classList.add('visible');
     pogBadge?.classList.remove('hidden');
   } else {
@@ -9048,44 +9276,128 @@ function setTagBatchStatus(msg, kind) {
   el.className = 'flag-status' + (kind ? ' ' + kind : '');
 }
 
-function renderTagBatchList() {
-  const listEl = document.getElementById('tag-batch-list');
-  const sendBtn = document.getElementById('btn-send-tag-batch');
+function setTagBatchSweepStatus(msg, kind) {
+  const el = document.getElementById('tag-batch-sweep-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'flag-status' + (kind ? ' ' + kind : '');
+}
+
+function tagBatchGroups() {
+  return (tagBatchPreview && Array.isArray(tagBatchPreview.byAisle)) ? tagBatchPreview.byAisle : [];
+}
+
+function findTagBatchGroup(aisleKey) {
+  return tagBatchGroups().find(g => g.aisleKey === aisleKey) || null;
+}
+
+/** Aisle list view — one card per aisle with counts, assignee, and actions. */
+function renderTagBatchAisleList() {
+  const listEl = document.getElementById('tag-batch-aisle-list');
+  if (!listEl) return;
+
+  const groups = tagBatchGroups();
+  if (!groups.length) {
+    listEl.innerHTML = '<p class="hub-panel-empty">No missing tags pending. Reps\u2019 flagged tags and anything you scan during a sweep will show up here, grouped by aisle.</p>';
+    return;
+  }
+
+  const isLead = hubContext.myRank >= 2;
+  listEl.innerHTML = groups.map(group => {
+    const keyAttr = escapeHtml(group.aisleKey);
+    const labelAttr = escapeHtml(group.aisleLabel);
+    const invalid = group.invalidCount
+      ? '<div class="tag-batch-aisle-invalid">' + group.invalidCount + ' invalid UPC' + (group.invalidCount === 1 ? '' : 's') + ' — fix before printing</div>'
+      : '';
+
+    let assigneeBlock;
+    if (isLead) {
+      assigneeBlock =
+        '<div class="tag-batch-assign-row">' +
+          '<select class="tag-batch-assign-select" data-aisle-key="' + keyAttr + '" data-aisle-label="' + labelAttr + '">' +
+            '<option value="">Unassigned</option>' + rosterSelectOptionsHtml(group.assigneeId) +
+          '</select>' +
+        '</div>';
+    } else {
+      assigneeBlock = '<div class="tag-batch-aisle-assignee">Assigned to you</div>';
+    }
+
+    return (
+      '<div class="tag-batch-aisle-card">' +
+        '<div class="tag-batch-aisle-card-top">' +
+          '<div class="tag-batch-aisle-name">' + labelAttr + '</div>' +
+          '<div class="tag-batch-aisle-count">' + group.tags.length + ' tag' + (group.tags.length === 1 ? '' : 's') + '</div>' +
+        '</div>' +
+        invalid +
+        assigneeBlock +
+        '<div class="tag-batch-aisle-actions">' +
+          '<button type="button" class="btn-tag-batch-secondary" data-sweep-aisle="' + keyAttr + '">Sweep / add</button>' +
+          '<button type="button" class="btn-send-tag-batch" data-send-aisle="' + keyAttr + '" style="flex:1 1 40%;min-height:40px;">Send &amp; print</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  listEl.querySelectorAll('[data-sweep-aisle]').forEach(btn => {
+    btn.addEventListener('click', () => openTagBatchAisleSweep(btn.getAttribute('data-sweep-aisle')));
+  });
+  listEl.querySelectorAll('[data-send-aisle]').forEach(btn => {
+    btn.addEventListener('click', () => sendTagBatchAisle(btn.getAttribute('data-send-aisle')));
+  });
+  listEl.querySelectorAll('.tag-batch-assign-select').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const aisleKey = sel.getAttribute('data-aisle-key');
+      const aisleLabel = sel.getAttribute('data-aisle-label');
+      const val = sel.value;
+      if (val) assignTagBatchAisle(aisleKey, aisleLabel, Number(val));
+      else unassignTagBatchAisle(aisleKey);
+    });
+  });
+}
+
+function renderTagBatchTagItemHtml(tag) {
+  const invalid = !tag.valid;
+  const upcLine = invalid
+    ? ('INVALID UPC — ' + escapeHtml(tag.upc || '—'))
+    : escapeHtml(tag.displayDigits || tag.upc || '—');
+  const planoName = tag.planogramName || (tag.dbkey ? fixtureNameForDbkey(tag.dbkey) : '');
+  const loc = tag.locationLabel || tag.location || '';
+  const sourceBadge = tag.source === 'sweep' ? '<span class="tag-batch-tag-source">sweep</span>' : '';
+  return (
+    '<div class="tag-batch-tag-item' + (invalid ? ' invalid' : '') + '">' +
+      '<div class="tag-batch-tag-main">' +
+        '<div class="tag-batch-tag-upc">' + upcLine + '</div>' +
+        (invalid && tag.reason ? '<div class="tag-batch-tag-meta">' + escapeHtml(tag.reason) + '</div>' : '') +
+        (tag.description ? '<div class="tag-batch-tag-meta">' + escapeHtml(tag.description) + '</div>' : '') +
+        (planoName ? '<div class="tag-batch-tag-meta">' + escapeHtml(shortName(planoName)) + '</div>' : '') +
+        (loc ? '<div class="tag-batch-tag-loc">' + escapeHtml(loc) + '</div>' : '') +
+        sourceBadge +
+      '</div>' +
+      '<button type="button" class="tag-batch-tag-remove" data-remove-pending-tag="' + tag.id + '">Remove</button>' +
+    '</div>'
+  );
+}
+
+/** Sweep view — list of tags in the active aisle. */
+function renderTagBatchSweepList() {
+  const listEl = document.getElementById('tag-batch-sweep-list');
+  const sendBtn = document.getElementById('btn-send-aisle-batch');
   if (!listEl || !sendBtn) return;
 
-  if (!tagBatchPreview || !tagBatchPreview.tags?.length) {
-    listEl.innerHTML = '<p class="hub-panel-empty">No verified tags ready to send.</p>';
+  const group = tagBatchSweepAisle ? findTagBatchGroup(tagBatchSweepAisle.aisleKey) : null;
+  const tags = group ? group.tags : [];
+
+  if (!tags.length) {
+    listEl.innerHTML = '<p class="hub-panel-empty">No tags yet. Scan or type the UPCs that need a printed tag for this aisle.</p>';
     sendBtn.disabled = true;
     return;
   }
 
-  const groups = tagBatchPreview.byAisle || [{ aisleLabel: 'All tags', tags: tagBatchPreview.tags }];
-  listEl.innerHTML = groups.map(group => {
-    const head = '<div class="tag-batch-aisle-head">' + escapeHtml(group.aisleLabel) + ' · ' + group.tags.length + '</div>';
-    const items = group.tags.map(tag => renderTagBatchItemHtml(tag)).join('');
-    return '<div class="tag-batch-aisle-group">' + head + items + '</div>';
-  }).join('');
-
+  listEl.innerHTML = tags.map(renderTagBatchTagItemHtml).join('');
+  listEl.querySelectorAll('[data-remove-pending-tag]').forEach(btn => {
+    btn.addEventListener('click', () => removeTagBatchPendingTag(Number(btn.getAttribute('data-remove-pending-tag'))));
+  });
   sendBtn.disabled = false;
-}
-
-function renderTagBatchItemHtml(tag) {
-  const invalid = !tag.valid;
-  const upcLine = invalid
-    ? ('INVALID UPC — verify: ' + escapeHtml(tag.upc || '—'))
-    : escapeHtml(tag.displayDigits || tag.upc || '—');
-  const planoName = tag.planogramName || fixtureNameForDbkey(tag.dbkey);
-  const loc = escapeHtml(tag.locationLabel || tag.location || '—');
-  const plano = planoName
-    ? ('<div class="tag-batch-planogram-head">' + escapeHtml(shortName(planoName)) + '</div>')
-    : '';
-  return plano +
-    '<div class="tag-batch-item' + (invalid ? ' invalid' : '') + '">' +
-      '<div class="tag-batch-item-upc">' + upcLine + '</div>' +
-      (invalid && tag.reason ? '<div class="tag-batch-item-desc">' + escapeHtml(tag.reason) + '</div>' : '') +
-      '<div class="tag-batch-item-desc">' + escapeHtml(tag.description || '—') + '</div>' +
-      '<div class="tag-batch-item-loc">Location: ' + loc + '</div>' +
-    '</div>';
 }
 
 async function loadSectionTagDrafts(dbkey) {
@@ -9279,29 +9591,19 @@ async function submitSectionTagDraftsForPlanogram() {
   }
 }
 
-async function verifyAllPendingMissingTags() {
-  if (!liveVisitId || hubContext.myRank < 2) return;
-  setTagBatchStatus('Verifying all pending missing tags…');
-  try {
-    const result = await hubMutatePost('/missing-tags/verify-bulk', {});
-    setTagBatchStatus('Verified ' + (result.count || 0) + ' tag(s)', 'ok');
-    await loadTagBatchPreview();
-  } catch (err) {
-    setTagBatchStatus(err.message || 'Bulk verify failed', 'error');
-  }
-}
-
 async function loadTagBatchPreview() {
-  if (!liveVisitId || hubContext.myRank < 2) return;
-  setTagBatchStatus('Loading batch…');
+  if (!canUseTagBatch()) return;
+  setTagBatchStatus('Loading aisles…');
   try {
+    await loadHubRoster();
     tagBatchPreview = await hubGet('/tag-batch/preview');
     hubContext.verifiedUnsentTags = tagBatchPreview.count ?? 0;
     updateTagBatchBadge();
-    renderTagBatchList();
+    renderTagBatchAisleList();
+    if (tagBatchSweepAisle) renderTagBatchSweepList();
     const invalidCount = (tagBatchPreview.tags || []).filter(t => !t.valid).length;
     if (invalidCount) {
-      setTagBatchStatus(invalidCount + ' invalid UPC(s) — review before sending.', 'error');
+      setTagBatchStatus(invalidCount + ' invalid UPC(s) — fix before printing.', 'error');
     } else {
       setTagBatchStatus('');
     }
@@ -9310,34 +9612,174 @@ async function loadTagBatchPreview() {
   }
 }
 
+function showTagBatchAislesView() {
+  tagBatchSweepAisle = null;
+  stopTagBatchScanner();
+  document.getElementById('tag-batch-sweep-view').hidden = true;
+  document.getElementById('tag-batch-aisles-view').hidden = false;
+  const titleEl = document.getElementById('tag-batch-title');
+  if (titleEl) titleEl.textContent = 'Tag batch — aisle sweep';
+  renderTagBatchAisleList();
+}
+
+function openTagBatchAisleSweep(aisleKey) {
+  const group = findTagBatchGroup(aisleKey);
+  if (!group) return;
+  tagBatchSweepAisle = { aisleKey: group.aisleKey, aisleLabel: group.aisleLabel };
+  document.getElementById('tag-batch-aisles-view').hidden = true;
+  document.getElementById('tag-batch-sweep-view').hidden = false;
+  const titleEl = document.getElementById('tag-batch-title');
+  if (titleEl) titleEl.textContent = 'Sweep — ' + group.aisleLabel;
+  const sweepTitle = document.getElementById('tag-batch-sweep-title');
+  if (sweepTitle) sweepTitle.textContent = group.aisleLabel;
+  setTagBatchSweepStatus('');
+  const upcInput = document.getElementById('tag-batch-sweep-upc');
+  const locInput = document.getElementById('tag-batch-sweep-loc');
+  if (upcInput) upcInput.value = '';
+  if (locInput) locInput.value = '';
+  renderTagBatchSweepList();
+  setTimeout(() => upcInput?.focus(), 50);
+}
+
+async function addTagBatchSweepTag() {
+  if (!tagBatchSweepAisle) return;
+  const upcInput = document.getElementById('tag-batch-sweep-upc');
+  const locInput = document.getElementById('tag-batch-sweep-loc');
+  const raw = (upcInput?.value || '').trim();
+  if (!raw) {
+    setTagBatchSweepStatus('Scan or type a UPC first', 'error');
+    upcInput?.focus();
+    return;
+  }
+  const resolved = resolveScanToCatalogUpc(raw);
+  const upc = resolved.method !== 'none' ? resolved.upc : normalizeUpcInput(raw);
+  const location = (locInput?.value || '').trim() || null;
+
+  setTagBatchSweepStatus('Adding…');
+  try {
+    const result = await hubMutatePost('/tag-batch/sweep-tag', {
+      upc,
+      location,
+      aisleKey: tagBatchSweepAisle.aisleKey,
+      aisleLabel: tagBatchSweepAisle.aisleLabel,
+    });
+    await loadTagBatchPreview();
+    renderTagBatchSweepList();
+    if (upcInput) upcInput.value = '';
+    if (locInput) locInput.value = '';
+    upcInput?.focus();
+    setTagBatchSweepStatus(result.valid === false ? 'Added — UPC looks invalid, double-check it' : 'Added', result.valid === false ? 'error' : 'ok');
+  } catch (err) {
+    setTagBatchSweepStatus(err.message || 'Add failed', 'error');
+  }
+}
+
+async function removeTagBatchPendingTag(tagId) {
+  setTagBatchSweepStatus('Removing…');
+  try {
+    await hubMutateAfterPost(hubDelete('/tag-batch/tag/' + tagId));
+    await loadTagBatchPreview();
+    renderTagBatchSweepList();
+    setTagBatchSweepStatus('Removed', 'ok');
+  } catch (err) {
+    setTagBatchSweepStatus(err.message || 'Remove failed', 'error');
+  }
+}
+
+async function assignTagBatchAisle(aisleKey, aisleLabel, assigneeId) {
+  setTagBatchStatus('Assigning…');
+  try {
+    await hubMutatePost('/tag-batch/assign', { aisleKey, aisleLabel, assigneeId });
+    await loadTagBatchPreview();
+    setTagBatchStatus('Aisle assigned', 'ok');
+  } catch (err) {
+    setTagBatchStatus(err.message || 'Assign failed', 'error');
+    await loadTagBatchPreview();
+  }
+}
+
+async function unassignTagBatchAisle(aisleKey) {
+  setTagBatchStatus('Removing assignment…');
+  try {
+    await hubMutatePost('/tag-batch/unassign', { aisleKey });
+    await loadTagBatchPreview();
+    setTagBatchStatus('Assignment cleared', 'ok');
+  } catch (err) {
+    setTagBatchStatus(err.message || 'Unassign failed', 'error');
+    await loadTagBatchPreview();
+  }
+}
+
+async function sendTagBatchAisle(aisleKey) {
+  const group = findTagBatchGroup(aisleKey);
+  if (!group) return;
+  if (group.invalidCount) {
+    const proceed = confirm(group.invalidCount + ' tag(s) in ' + group.aisleLabel + ' have invalid UPCs and will print as a note. Send anyway?');
+    if (!proceed) return;
+  }
+  const onSweep = tagBatchSweepAisle && tagBatchSweepAisle.aisleKey === aisleKey;
+  const setStatus = onSweep ? setTagBatchSweepStatus : setTagBatchStatus;
+  setStatus('Sending ' + group.aisleLabel + '…');
+  try {
+    const result = await hubMutatePost('/send-tag-batch', { aisleKey });
+    await loadTagBatchPreview();
+    showTagBatchAislesView();
+    setTagBatchStatus('Sent ' + (result.count || 0) + ' tag(s) for ' + (result.aisleLabel || group.aisleLabel) + ' — check your email to print.', 'ok');
+  } catch (err) {
+    setStatus(err.message || 'Send failed', 'error');
+  }
+}
+
 function toggleTagBatchPanel(open) {
   const panel = document.getElementById('tag-batch-panel');
   if (!panel) return;
-  if (open && hubContext.myRank >= 2) {
+  if (open && canUseTagBatch()) {
     panel.classList.add('open');
+    showTagBatchAislesView();
     loadTagBatchPreview();
   } else {
     panel.classList.remove('open');
+    stopTagBatchScanner();
     setTagBatchStatus('');
   }
 }
 
-async function sendTagBatchEmail() {
-  if (!liveVisitId || hubContext.myRank < 2) return;
-  const sendBtn = document.getElementById('btn-send-tag-batch');
-  if (sendBtn) sendBtn.disabled = true;
-  setTagBatchStatus('Sending tag batch…');
-  try {
-    const result = await hubMutatePost('/send-tag-batch', {});
-    setTagBatchStatus('Sent ' + (result.count || 0) + ' tag(s) — check your email.', 'ok');
-    tagBatchPreview = { tags: [], count: 0 };
-    hubContext.verifiedUnsentTags = 0;
-    updateTagBatchBadge();
-    renderTagBatchList();
-  } catch (err) {
-    setTagBatchStatus(err.message || 'Send failed', 'error');
-    if (sendBtn) sendBtn.disabled = false;
+async function startTagBatchScanner() {
+  const box = document.getElementById('tag-batch-scanner-box');
+  const errEl = document.getElementById('tag-batch-scanner-error');
+  if (!box) return;
+  box.hidden = false;
+  if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+  if (typeof Scanner === 'undefined') {
+    if (errEl) { errEl.textContent = 'Scanner unavailable in this browser. Type the UPC instead.'; errEl.hidden = false; }
+    return;
   }
+  await Scanner.start('tag-batch-scanner-region', handleTagBatchScan);
+  if (!Scanner.isRunning) {
+    if (errEl) { errEl.textContent = 'Camera unavailable or permission denied. Type the UPC instead.'; errEl.hidden = false; }
+    box.hidden = true;
+    return;
+  }
+  const torchBtn = document.getElementById('tag-batch-scanner-torch');
+  if (torchBtn) { torchBtn.hidden = !Scanner.torchAvailable; torchBtn.textContent = 'Torch'; }
+}
+
+async function stopTagBatchScanner() {
+  if (typeof Scanner !== 'undefined' && Scanner.isRunning) await Scanner.stop();
+  const box = document.getElementById('tag-batch-scanner-box');
+  if (box) box.hidden = true;
+}
+
+async function handleTagBatchScan(code) {
+  const resolved = resolveScanToCatalogUpc(code);
+  const input = document.getElementById('tag-batch-sweep-upc');
+  if (input) input.value = resolved.display || normalizeUpcInput(code);
+  const box = document.getElementById('tag-batch-scanner-box');
+  if (box) {
+    box.classList.add('scan-success');
+    setTimeout(() => box.classList.remove('scan-success'), 350);
+  }
+  await addTagBatchSweepTag();
 }
 
 function renderPendingList() {
@@ -9736,9 +10178,7 @@ async function init() {
         ' · ' + (snapshot.stats?.total ?? 0) + ' sections · rank ' + (snapshot.myRank ?? 1)
       );
       console.log('[Checklane Hub] Live snapshot loaded', snapshot);
-      connectHubStream(visitId).catch(err => {
-        console.warn('[Checklane Hub] SSE connect failed:', err);
-      });
+      ensureHubStream();
     } catch (err) {
       console.error('[Checklane Hub] Live state failed, falling back to SEED_STATES:', err);
       applyState(SEED_STATES);

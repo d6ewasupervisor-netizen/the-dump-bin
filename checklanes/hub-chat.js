@@ -24,6 +24,14 @@
   // When true the recipient is locked (manager opened an existing rep thread).
   let fixedRecipient = false;
 
+  // Polling fallback. SSE can be buffered/closed by the CDN (Cloudflare), so we
+  // poll as a reliable backstop: fast while the panel is open, slow for the
+  // unread badge while it's closed. Paused when the tab is hidden.
+  let pollTimer = null;
+  let pollInFlight = false;
+  const POLL_OPEN_MS = 4000;
+  const POLL_BADGE_MS = 20000;
+
   function canManage() {
     return typeof canManageHubAssignments === 'function' && canManageHubAssignments();
   }
@@ -267,6 +275,7 @@
     } else {
       setStatus('');
     }
+    scheduleNextPoll();
   }
 
   async function bootstrapPanel() {
@@ -308,6 +317,72 @@
     threads = data.threads || [];
     unreadTotal = data.unreadTotal || 0;
     updateBadge();
+  }
+
+  // ── Polling backstop ──
+
+  function scheduleNextPoll() {
+    if (pollTimer) clearTimeout(pollTimer);
+    const delay = panelOpen ? POLL_OPEN_MS : POLL_BADGE_MS;
+    pollTimer = setTimeout(pollTick, delay);
+  }
+
+  function startPolling() {
+    if (pollTimer) clearTimeout(pollTimer);
+    scheduleNextPoll();
+  }
+
+  async function pollTick() {
+    pollTimer = null;
+    if (!liveVisitId || (typeof document !== 'undefined' && document.hidden) || pollInFlight) {
+      scheduleNextPoll();
+      return;
+    }
+    pollInFlight = true;
+    try {
+      await loadThreads();
+      if (panelOpen) {
+        if (canManage() && chatView === 'inbox') {
+          renderInbox();
+        } else if (activeThreadId) {
+          await refreshActiveConversation();
+        }
+      }
+    } catch (_) {
+      /* transient; try again next tick */
+    } finally {
+      pollInFlight = false;
+      scheduleNextPoll();
+    }
+  }
+
+  async function refreshActiveConversation() {
+    if (!activeThreadId) return;
+    const data = await hubGet('/chat/threads/' + encodeURIComponent(activeThreadId) + '/messages');
+    const incoming = data.messages || [];
+    const lastKnown = messages.length ? messages[messages.length - 1].id : 0;
+    const hasNew = incoming.some(function (m) { return m.id > lastKnown; });
+    if (!hasNew && incoming.length === messages.length) return;
+
+    const nearBottom = isScrolledNearBottom();
+    messages = incoming;
+    render();
+    if (nearBottom) scrollMessagesToBottom();
+
+    if (messages.length) {
+      const last = messages[messages.length - 1];
+      if (last.id > lastKnown && last.senderId !== hubContext.myUserId) {
+        try {
+          await hubPost('/chat/threads/' + encodeURIComponent(activeThreadId) + '/read', {
+            lastMessageId: last.id,
+          });
+          const t = threads.find(function (x) { return x.id === activeThreadId; });
+          if (t) t.unreadCount = 0;
+          unreadTotal = threads.reduce(function (sum, x) { return sum + (x.unreadCount || 0); }, 0);
+          updateBadge();
+        } catch (_) { /* ignore */ }
+      }
+    }
   }
 
   function renderRecipientSelect() {
@@ -457,6 +532,12 @@
   function scrollMessagesToBottom() {
     const wrap = document.getElementById('hub-chat-messages-wrap');
     if (wrap) wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function isScrolledNearBottom() {
+    const wrap = document.getElementById('hub-chat-messages-wrap');
+    if (!wrap) return true;
+    return wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 80;
   }
 
   async function sendCurrentMessage(messageType, bodyOverride) {
@@ -652,6 +733,15 @@
       unreadTotal = snapshot.chatSummary.unreadTotal || 0;
       updateBadge();
     }
+    // Snapshots arrive on every (re)connect — when the panel is open, use them
+    // as an extra cue to pull fresh threads/messages even if chat events were
+    // missed while the SSE socket was briefly down.
+    if (panelOpen && liveVisitId) {
+      loadThreads().then(function () {
+        if (canManage() && chatView === 'inbox') renderInbox();
+        else if (activeThreadId) return refreshActiveConversation();
+      }).catch(function () { /* ignore */ });
+    }
   }
 
   function onChatEvent(evt) {
@@ -692,11 +782,21 @@
   function init() {
     ensureDom();
     updateBadge();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+          // Resume promptly when the tab/app returns to the foreground.
+          if (pollTimer) clearTimeout(pollTimer);
+          pollTick();
+        }
+      });
+    }
     if (liveVisitId) {
       loadThreads().catch(function (err) {
         console.warn('[Hub chat] initial thread load failed:', err);
       });
     }
+    startPolling();
   }
 
   global.HubChat = {
