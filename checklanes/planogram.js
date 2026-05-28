@@ -904,12 +904,12 @@
     outer.style.maxWidth = '100%';
     outer.style.display = 'flex';
     outer.style.justifyContent = 'center';
-    outer.style.alignItems = 'flex-end';
+    outer.style.alignItems = 'flex-start';
     outer.style.flexShrink = '0';
-    outer.style.marginTop = 'auto';
+    outer.style.marginTop = '0';
     outer.style.marginLeft = 'auto';
     outer.style.marginRight = 'auto';
-    outer.style.alignSelf = 'flex-end';
+    outer.style.alignSelf = 'flex-start';
     outer.style.boxSizing = 'border-box';
 
     var el = document.createElement('div');
