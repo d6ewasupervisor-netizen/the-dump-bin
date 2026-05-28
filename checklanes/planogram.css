@@ -297,7 +297,7 @@
   height: 100%;
   object-fit: contain;
   image-rendering: auto;
-  background: transparent;
+  background: white;
   display: block;
   pointer-events: none;
   position: relative;
@@ -861,7 +861,7 @@
   max-height: 60vh;
   object-fit: contain;
   image-rendering: auto;
-  background: transparent;
+  background: white;
   border-radius: 8px;
   margin-bottom: 16px;
 }
