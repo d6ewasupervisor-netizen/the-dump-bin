@@ -952,94 +952,28 @@
     font-size: 0.75rem;
   }
 
-  .lane-names-panel-body {
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
-    padding: 12px 16px 16px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .lane-names-intro {
-    font-size: 0.82rem;
-    color: var(--text2);
-    line-height: 1.45;
-    margin: 0 0 14px;
-  }
-
-  .lane-names-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .lane-name-row {
-    display: grid;
-    grid-template-columns: minmax(3.5rem, auto) minmax(0, 1fr);
-    gap: 8px 10px;
-    align-items: center;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface2);
-  }
-
-  .lane-name-row-label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .lane-name-row-num {
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--lane-label);
-  }
-
-  .lane-name-row-hint {
-    font-size: 0.62rem;
-    color: var(--text3);
-    line-height: 1.25;
-  }
-
-  .lane-name-row input {
-    width: 100%;
-    min-width: 0;
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: 0.88rem;
-  }
-
-  .lane-names-footer {
-    padding: 12px 16px 16px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .btn-lane-names-save {
-    appearance: none;
-    border: none;
-    border-radius: var(--radius);
-    background: #2563eb;
-    color: #fff;
-    font: inherit;
-    font-size: 0.92rem;
-    font-weight: 700;
-    padding: 12px 14px;
-    cursor: pointer;
-  }
-
-  .btn-lane-names-save:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
+  .assign-set-store-aisle { grid-area: store-aisle; min-width: 0; }
+  .assign-set-register { grid-area: register; font-size: 0.68rem; font-weight: 700; color: var(--text3); letter-spacing: 0.03em; text-transform: uppercase; }
+  .store-aisle-badge { display: inline-flex; align-items: center; max-width: 100%; padding: 6px 10px; border-radius: 999px; background: rgba(37,99,235,0.18); border: 1px solid rgba(147,197,253,0.35); color: #bfdbfe; font-size: 0.88rem; font-weight: 800; line-height: 1.2; }
+  .store-aisle-badge.is-empty { background: rgba(107,114,128,0.12); border-color: var(--border); color: var(--text3); font-weight: 600; font-size: 0.78rem; }
+  .aisle-picker { position: relative; width: 100%; min-width: 0; }
+  .aisle-picker-trigger { appearance: none; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(147,197,253,0.35); background: rgba(37,99,235,0.12); color: #dbeafe; font: inherit; font-size: 0.86rem; font-weight: 700; text-align: left; cursor: pointer; }
+  .aisle-picker-trigger.is-empty { border-color: var(--border); background: var(--surface2); color: var(--text2); font-weight: 600; }
+  .aisle-picker-trigger:disabled { opacity: 0.85; cursor: default; }
+  .aisle-picker-caret { flex: 0 0 auto; opacity: 0.7; font-size: 0.72rem; }
+  .aisle-picker-menu { position: absolute; left: 0; right: 0; z-index: 40; max-height: min(52vh,320px); overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: #111827; box-shadow: 0 16px 40px rgba(0,0,0,0.45); -webkit-overflow-scrolling: touch; }
+  .aisle-picker-menu.open-down { top: calc(100% + 6px); }
+  .aisle-picker-menu.open-up { bottom: calc(100% + 6px); }
+  .aisle-picker-menu[hidden] { display: none !important; }
+  .aisle-picker-group-label { position: sticky; top: 0; z-index: 1; padding: 8px 12px 6px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); background: #111827; border-bottom: 1px solid var(--border); }
+  .aisle-picker-option { display: block; width: 100%; padding: 10px 12px; border: none; border-bottom: 1px solid rgba(255,255,255,0.04); background: transparent; color: var(--text); font: inherit; font-size: 0.84rem; font-weight: 600; text-align: left; cursor: pointer; }
+  .aisle-picker-option.is-selected { background: rgba(37,99,235,0.22); color: #dbeafe; }
+  .aisle-picker-custom { padding: 10px 12px 12px; border-top: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .aisle-picker-custom label { display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); margin-bottom: 6px; }
+  .aisle-picker-custom-row { display: flex; gap: 8px; }
+  .aisle-picker-custom input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 0.84rem; }
+  .aisle-picker-custom button { appearance: none; border: none; border-radius: 8px; background: #2563eb; color: #fff; font: inherit; font-size: 0.78rem; font-weight: 700; padding: 8px 12px; cursor: pointer; }
+  .pog-wv-store-aisle { display: inline-flex; margin-top: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(37,99,235,0.2); border: 1px solid rgba(147,197,253,0.35); color: #bfdbfe; font-size: 0.92rem; font-weight: 800; }
 
   .assignments-stat {
     background: var(--surface);
@@ -1374,12 +1308,13 @@
   .assignments-flat-list .assign-set-row.has-assign.has-bulk {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(140px, 45%);
-    grid-template-rows: auto auto auto 1fr;
+    grid-template-rows: auto auto auto auto 1fr;
     grid-template-areas:
-      "lane    dbkey"
-      "name    preview"
-      "pill    preview"
-      "actions preview";
+      "store-aisle dbkey"
+      "register    preview"
+      "name        preview"
+      "pill        preview"
+      "actions     preview";
     column-gap: 12px;
     row-gap: 6px;
     padding: 12px 14px;
@@ -1387,9 +1322,14 @@
     min-height: 0;
   }
 
-  .assignments-flat-list .assign-set-lane {
-    grid-area: lane;
+  .assignments-flat-list .assign-set-store-aisle {
+    grid-area: store-aisle;
     align-self: center;
+  }
+
+  .assignments-flat-list .assign-set-register {
+    grid-area: register;
+    align-self: start;
   }
 
   .assignments-flat-list .assign-set-dbkey {
@@ -4083,18 +4023,6 @@
   <div class="bulk-assign-panel-body" id="bulk-assign-panel-body"></div>
 </aside>
 
-<aside class="lane-names-panel pending-panel" id="lane-names-panel" aria-label="Store lane names" hidden>
-  <div class="pending-panel-header">
-    <h2>Store lane names</h2>
-    <button type="button" class="detail-close" id="lane-names-close" aria-label="Close">&times;</button>
-  </div>
-  <div class="lane-names-panel-body" id="lane-names-panel-body"></div>
-  <div class="lane-names-footer">
-    <div class="flag-status" id="lane-names-status"></div>
-    <button type="button" class="btn-lane-names-save" id="lane-names-save-btn">Save lane names</button>
-  </div>
-</aside>
-
 <div class="pog-working-view" id="pog-working-view" aria-hidden="true">
   <div class="pog-wv-header">
     <div class="pog-wv-header-top">
@@ -4102,6 +4030,7 @@
       <div class="pog-wv-title-wrap">
         <h2 id="pog-wv-heading">Working view</h2>
         <div class="sub" id="pog-wv-subheading"></div>
+        <div class="pog-wv-store-aisle" id="pog-wv-store-aisle" hidden></div>
         <div class="pog-wv-crumb" id="pog-wv-crumb"></div>
         <div class="pog-wv-state-wrap" id="pog-wv-state-wrap"></div>
       </div>
@@ -4511,11 +4440,11 @@ let selectedLane = null;
 let listSort = { col: 'lane', asc: true };
 let liveVisitId = null;
 let hubCurrentView = 'assignments';
-let assignmentsSort = { col: 'lane', asc: true };
+let assignmentsSort = { col: 'store-aisle', asc: true };
 let bulkAssignPanelSelectedKeys = new Set();
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
-let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, laneNames: {} };
+let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, aislePresets: [] };
 let hubSignedInUser = { email: null };
 let hubRoster = [];
 let hubRosterLoadPromise = null;
@@ -4543,63 +4472,221 @@ function shortName(name) {
   return name.replace(/^CKLN\s+/i, '').slice(0, 42);
 }
 
-function getPhysicalLaneName(lane) {
-  if (lane == null || lane === '') return '';
-  return (hubContext.laneNames || {})[String(lane)] || '';
+const AISLE_PRESET_GROUPS = [
+  { key: 'aisle', label: 'Aisles', count: 25, itemLabel: (n) => 'Aisle ' + n },
+  { key: 'belted_sco', label: 'Belted SCO', count: 6, itemLabel: (n) => 'Belted SCO ' + n },
+  { key: 'uscan_bank', label: 'UScan bank', count: 6, itemLabel: (n) => 'UScan bank ' + n },
+  { key: 'sco_bank', label: 'SCO bank', count: 6, itemLabel: (n) => 'SCO bank ' + n },
+  { key: 'queuing_wall', label: 'Queuing Wall', count: 6, itemLabel: (n) => 'Queuing Wall ' + n },
+  { key: 'queuing_fixture', label: 'Queuing Fixture', count: 6, itemLabel: (n) => 'Queuing Fixture ' + n },
+];
+const AISLE_OTHER_PRESET = 'other';
+
+function buildClientAislePresetCatalog() {
+  const options = [];
+  for (const group of AISLE_PRESET_GROUPS) {
+    for (let n = 1; n <= group.count; n += 1) {
+      options.push({
+        id: group.key + '_' + n,
+        group: group.key,
+        groupLabel: group.label,
+        label: group.itemLabel(n),
+      });
+    }
+  }
+  options.push({ id: AISLE_OTHER_PRESET, group: AISLE_OTHER_PRESET, groupLabel: 'Other', label: 'Other (custom name)' });
+  return options;
 }
 
-function formatLaneDisplay(lane) {
+const CLIENT_AISLE_PRESET_CATALOG = buildClientAislePresetCatalog();
+const CLIENT_AISLE_PRESET_BY_ID = Object.fromEntries(CLIENT_AISLE_PRESET_CATALOG.map((opt) => [opt.id, opt]));
+
+function aislePresetCatalog() {
+  return (hubContext.aislePresets && hubContext.aislePresets.length)
+    ? hubContext.aislePresets
+    : CLIENT_AISLE_PRESET_CATALOG;
+}
+
+function resolveAisleLabelClient(preset, custom) {
+  const presetKey = String(preset || '').trim();
+  if (!presetKey) return null;
+  if (presetKey === AISLE_OTHER_PRESET) {
+    const customLabel = String(custom || '').trim();
+    return customLabel || null;
+  }
+  const match = aislePresetCatalog().find((opt) => opt.id === presetKey) || CLIENT_AISLE_PRESET_BY_ID[presetKey];
+  return match ? match.label : null;
+}
+
+function getSectionStoreAisle(lane, dbkey) {
+  const meta = getSectionMeta(lane, dbkey);
+  if (!meta) return null;
+  if (meta.aisle_label) return meta.aisle_label;
+  return resolveAisleLabelClient(meta.aisle_preset, meta.aisle_custom);
+}
+
+function formatRegisterLabel(lane) {
   const laneStr = String(lane || '').trim();
-  const physical = getPhysicalLaneName(laneStr);
-  return { lane: laneStr, physical, combined: physical ? (laneStr + ' · ' + physical) : laneStr };
+  return laneStr ? ('Reg ' + laneStr) : '';
 }
 
-function laneDisplayHtml(lane) {
-  const d = formatLaneDisplay(lane);
-  if (!d.physical) return escapeHtml(d.lane);
-  return (
-    '<span class="assign-set-lane-num">' + escapeHtml(d.lane) + '</span>' +
-    '<span class="assign-set-lane-physical">' + escapeHtml(d.physical) + '</span>'
-  );
-}
-
-function parseLaneFromLocation(location) {
-  const s = String(location || '').trim();
-  if (!s) return '';
-  const laneMatch = s.match(/(?:^|\b)(?:lane|aisle)\s*(\d+)/i);
-  if (laneMatch) return laneMatch[1];
-  const compact = s.match(/^(\d+)[BRFP]/i);
-  if (compact) return compact[1];
-  return '';
-}
-
-function formatLocationDisplay(location, lane) {
-  const laneKey = lane || parseLaneFromLocation(location);
-  const physical = getPhysicalLaneName(laneKey);
+function formatLocationDisplay(location, lane, dbkey) {
+  const storeAisle = getSectionStoreAisle(lane, dbkey);
   const loc = String(location || '').trim();
-  if (!physical || !loc) return loc;
-  if (loc.includes(physical)) return loc;
-  if (/^Lane\s+\d+/i.test(loc)) {
-    return loc.replace(/^Lane\s+\d+/i, physical);
-  }
-  return physical + ' · ' + loc;
+  if (!storeAisle || !loc) return loc;
+  if (loc.includes(storeAisle)) return loc;
+  return storeAisle + ' · ' + loc;
 }
 
-function hubManifestLanes() {
-  const set = new Set();
-  for (const f of FIXTURES) {
-    if (f.lane != null && f.lane !== '') set.add(String(f.lane));
-  }
-  return Array.from(set).sort((a, b) => Number(a) - Number(b));
+let openAislePickerMenu = null;
+
+function closeAllAislePickers() {
+  document.querySelectorAll('.aisle-picker-menu').forEach((menu) => { menu.hidden = true; });
+  document.querySelectorAll('.aisle-picker.open').forEach((picker) => { picker.classList.remove('open'); });
+  openAislePickerMenu = null;
 }
 
-function laneHintForLane(lane) {
-  const types = new Set();
-  for (const f of FIXTURES) {
-    if (String(f.lane) === String(lane) && f.type) types.add(f.type);
+function positionAislePickerMenu(menu, trigger) {
+  menu.classList.remove('open-up', 'open-down');
+  menu.hidden = false;
+  const menuHeight = Math.min(menu.scrollHeight || 280, window.innerHeight * 0.52);
+  const rect = trigger.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+  menu.classList.add(spaceBelow < menuHeight + 12 && spaceAbove > spaceBelow ? 'open-up' : 'open-down');
+}
+
+function aislePickerMenuHtml(row) {
+  const catalog = aislePresetCatalog();
+  const groupOrder = AISLE_PRESET_GROUPS.map((g) => g.label).concat(['Other']);
+  const byGroup = new Map();
+  for (const opt of catalog) {
+    const label = opt.groupLabel || 'Other';
+    if (!byGroup.has(label)) byGroup.set(label, []);
+    byGroup.get(label).push(opt);
   }
-  if (!types.size) return '';
-  return Array.from(types).slice(0, 4).join(', ');
+  const groups = [];
+  for (const groupLabel of groupOrder) {
+    const opts = byGroup.get(groupLabel);
+    if (!opts || !opts.length) continue;
+    groups.push(
+      '<div class="aisle-picker-group-label">' + escapeHtml(groupLabel) + '</div>' +
+      opts.map((opt) => {
+        const selected = row.aislePreset === opt.id ? ' is-selected' : '';
+        return '<button type="button" class="aisle-picker-option' + selected + '" data-aisle-preset="' + escapeHtml(opt.id) + '">' + escapeHtml(opt.label) + '</button>';
+      }).join('')
+    );
+  }
+  const customValue = row.aislePreset === AISLE_OTHER_PRESET ? (row.aisleCustom || '') : '';
+  return groups.join('') +
+    '<div class="aisle-picker-custom"><label>Custom name</label><div class="aisle-picker-custom-row">' +
+    '<input type="text" data-aisle-custom-input value="' + escapeHtml(customValue) + '" placeholder="Type store aisle name" maxlength="80" autocomplete="off">' +
+    '<button type="button" data-aisle-custom-save>Save</button></div></div>';
+}
+
+function renderAislePickerHtml(row, editable) {
+  const label = row.aisleLabel || getSectionStoreAisle(row.lane, row.dbkey);
+  const triggerLabel = label || (editable ? 'Choose store aisle…' : 'No store aisle set');
+  if (!editable) {
+    if (!label) return '<div class="assign-set-store-aisle"><span class="store-aisle-badge is-empty">No store aisle</span></div>';
+    return '<div class="assign-set-store-aisle"><span class="store-aisle-badge">' + escapeHtml(label) + '</span></div>';
+  }
+  return '<div class="assign-set-store-aisle"><div class="aisle-picker" data-aisle-picker data-lane="' + escapeHtml(row.lane) + '" data-dbkey="' + escapeHtml(row.dbkey) + '">' +
+    '<button type="button" class="aisle-picker-trigger' + (label ? '' : ' is-empty') + '" data-aisle-picker-trigger aria-haspopup="listbox">' +
+    '<span class="aisle-picker-label">' + escapeHtml(triggerLabel) + '</span><span class="aisle-picker-caret" aria-hidden="true">▾</span></button>' +
+    '<div class="aisle-picker-menu" data-aisle-picker-menu hidden role="listbox">' + aislePickerMenuHtml(row) + '</div></div></div>';
+}
+
+async function saveSectionAisleDesignation(lane, dbkey, preset, custom) {
+  await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + '/aisle-designation', {
+    lane: lane || '',
+    preset: preset || '',
+    custom: custom || '',
+  });
+}
+
+async function handleAislePresetSelection(picker, preset) {
+  const lane = picker.getAttribute('data-lane') || '';
+  const dbkey = picker.getAttribute('data-dbkey');
+  if (!dbkey) return;
+  if (preset === AISLE_OTHER_PRESET) {
+    picker.querySelector('[data-aisle-custom-input]')?.focus();
+    return;
+  }
+  const trigger = picker.querySelector('[data-aisle-picker-trigger]');
+  if (trigger) {
+    trigger.disabled = true;
+    trigger.querySelector('.aisle-picker-label').textContent = 'Saving…';
+  }
+  try {
+    await saveSectionAisleDesignation(lane, dbkey, preset, null);
+    closeAllAislePickers();
+  } catch (err) {
+    alert(err.message || 'Failed to save store aisle');
+    if (trigger) trigger.disabled = false;
+  }
+}
+
+function bindAislePickers(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-aisle-picker-trigger]').forEach((trigger) => {
+    if (trigger.dataset.aisleBound) return;
+    trigger.dataset.aisleBound = '1';
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const picker = trigger.closest('[data-aisle-picker]');
+      const menu = picker?.querySelector('[data-aisle-picker-menu]');
+      if (!picker || !menu) return;
+      const isOpen = !menu.hidden;
+      closeAllAislePickers();
+      if (isOpen) return;
+      const meta = getSectionMeta(picker.getAttribute('data-lane'), picker.getAttribute('data-dbkey'));
+      picker.classList.add('open');
+      menu.innerHTML = aislePickerMenuHtml({
+        lane: picker.getAttribute('data-lane'),
+        dbkey: picker.getAttribute('data-dbkey'),
+        aislePreset: meta?.aisle_preset,
+        aisleCustom: meta?.aisle_custom,
+        aisleLabel: getSectionStoreAisle(picker.getAttribute('data-lane'), picker.getAttribute('data-dbkey')),
+      });
+      positionAislePickerMenu(menu, trigger);
+      openAislePickerMenu = menu;
+      menu.querySelectorAll('[data-aisle-preset]').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          handleAislePresetSelection(picker, btn.getAttribute('data-aisle-preset'));
+        });
+      });
+      const customSave = menu.querySelector('[data-aisle-custom-save]');
+      const customInput = menu.querySelector('[data-aisle-custom-input]');
+      if (customSave && customInput) {
+        const saveCustom = async () => {
+          const custom = (customInput.value || '').trim();
+          if (!custom) { alert('Enter a custom store aisle name.'); customInput.focus(); return; }
+          customSave.disabled = true;
+          try {
+            await saveSectionAisleDesignation(picker.getAttribute('data-lane'), picker.getAttribute('data-dbkey'), AISLE_OTHER_PRESET, custom);
+            closeAllAislePickers();
+          } catch (err) {
+            alert(err.message || 'Failed to save custom aisle');
+          } finally {
+            customSave.disabled = false;
+          }
+        };
+        customSave.addEventListener('click', (ev) => { ev.stopPropagation(); saveCustom(); });
+        customInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); saveCustom(); } });
+      }
+    });
+  });
+}
+
+function updatePogStoreAisleBadge(lane, dbkey) {
+  const el = document.getElementById('pog-wv-store-aisle');
+  if (!el) return;
+  const label = getSectionStoreAisle(lane, dbkey);
+  if (!label) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.textContent = label;
 }
 
 function classifyFixture(fixture) {
@@ -4779,7 +4866,7 @@ function applySnapshot(snapshot) {
   hubContext.pendingActions = snapshot.pendingActions || [];
   hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
   hubContext.draftTags = snapshot.stats?.draftTags ?? 0;
-  hubContext.laneNames = snapshot.laneNames || {};
+  hubContext.aislePresets = snapshot.aislePresets || CLIENT_AISLE_PRESET_CATALOG;
 
   const stateMap = snapshotSectionsToStateMap(snapshot.sections);
   applyState(stateMap);
@@ -4797,9 +4884,6 @@ function applySnapshot(snapshot) {
   refreshPogWorkingChrome();
   updateSignedInDisplay();
   if (hubContext.myRank >= 2 && liveVisitId) ensureHubStream();
-  if (document.getElementById('lane-names-panel')?.classList.contains('open')) {
-    renderLaneNamesPanelBody();
-  }
 }
 
 function getFixtureState(lane, dbkey) {
@@ -4922,9 +5006,6 @@ function renderHorizontalLaneRow(laneRow) {
     '<div class="lane-row" data-lane="' + escapeHtml(lane) + '">' +
       '<div class="lane-row-label">' +
         '<span class="lane-num">' + escapeHtml(lane) + '</span>' +
-        (getPhysicalLaneName(lane)
-          ? ('<span class="lane-commodity">' + escapeHtml(getPhysicalLaneName(lane)) + '</span>')
-          : '') +
       '</div>' +
       '<div class="lane-row-fixtures">' + fixtureHtml + '</div>' +
       flowArrowHtml() +
@@ -5009,7 +5090,7 @@ function renderList() {
         'data-list-key="' + escapeHtml(fixtureKey(f)) + '" ' +
         (clickable ? 'data-dbkey="' + escapeHtml(f.dbkey) + '" data-action="' + escapeHtml(f.action) + '" data-lane="' + escapeHtml(f.lane) + '"' : '') +
       '>' +
-        '<td>' + escapeHtml(formatLaneDisplay(f.lane).combined) + '</td>' +
+        '<td>' + escapeHtml(getSectionStoreAisle(f.lane, f.dbkey) || formatRegisterLabel(f.lane)) + '</td>' +
         '<td class="dbkey-cell">' + escapeHtml(f.dbkey || '—') + '</td>' +
         '<td>' + escapeHtml(f.name) + '</td>' +
         '<td class="' + assigneeClass + '">' + escapeHtml(assignee) + '</td>' +
@@ -5022,7 +5103,7 @@ function renderList() {
   document.getElementById('list-view').innerHTML =
     '<table class="list-table">' +
       '<thead><tr>' +
-        '<th data-sort="lane">Lane' + arrow('lane') + '</th>' +
+        '<th data-sort="lane">Store aisle' + arrow('lane') + '</th>' +
         '<th data-sort="dbkey">DBKey' + arrow('dbkey') + '</th>' +
         '<th data-sort="name">Name' + arrow('name') + '</th>' +
         '<th data-sort="assignee">Assignee' + arrow('assignee') + '</th>' +
@@ -5680,10 +5761,8 @@ function bindEvents() {
       openBulkAssignPanel();
       return;
     }
-    const laneNamesBtn = e.target.closest('#assign-lane-names-btn');
-    if (laneNamesBtn) {
-      e.preventDefault();
-      openLaneNamesPanel();
+    if (e.target.closest('.aisle-picker, .aisle-picker-menu')) {
+      e.stopPropagation();
       return;
     }
     if (e.target.closest('.assign-set-actions')) {
@@ -5771,11 +5850,11 @@ function bindEvents() {
   document.getElementById('tag-batch-close').addEventListener('click', () => toggleTagBatchPanel(false));
   document.getElementById('bulk-assign-close')?.addEventListener('click', () => toggleBulkAssignPanel(false));
   document.getElementById('bulk-assign-panel')?.addEventListener('click', handleBulkAssignPanelClick);
-  document.getElementById('lane-names-close')?.addEventListener('click', () => toggleLaneNamesPanel(false));
-  document.getElementById('lane-names-save-btn')?.addEventListener('click', () => saveLaneNamesFromPanel());
   document.getElementById('btn-send-tag-batch').addEventListener('click', () => sendTagBatchEmail());
   document.getElementById('btn-verify-all-tags')?.addEventListener('click', () => verifyAllPendingMissingTags());
   document.getElementById('btn-refresh-tag-gather')?.addEventListener('click', () => loadTagBatchPreview());
+
+  document.addEventListener('click', () => closeAllAislePickers());
 
   document.getElementById('pog-wv-back').addEventListener('click', () => {
     if (pogSearchReturnState) {
@@ -7280,6 +7359,9 @@ function collectAssignmentRows() {
       state: getFixtureState(f.lane, f.dbkey),
       assigneeId: meta?.assignee_id ?? null,
       assigneeName: meta?.assignee_name || null,
+      aislePreset: meta?.aisle_preset || null,
+      aisleCustom: meta?.aisle_custom || null,
+      aisleLabel: meta?.aisle_label || resolveAisleLabelClient(meta?.aisle_preset, meta?.aisle_custom),
     });
   }
   if (isRepHubView()) {
@@ -7295,6 +7377,12 @@ function sortAssignmentRows(rows) {
   const col = assignmentsSort.col;
   const dir = assignmentsSort.asc ? 1 : -1;
   return rows.slice().sort((a, b) => {
+    if (col === 'store-aisle') {
+      const aisleA = (a.aisleLabel || '').toLowerCase();
+      const aisleB = (b.aisleLabel || '').toLowerCase();
+      if (aisleA !== aisleB) return aisleA.localeCompare(aisleB, undefined, { numeric: true }) * dir;
+      return (Number(a.lane) - Number(b.lane)) * dir;
+    }
     if (col === 'lane') {
       const laneDiff = (Number(a.lane) - Number(b.lane)) * dir;
       if (laneDiff !== 0) return laneDiff;
@@ -7395,11 +7483,13 @@ function assignmentAssignControlsHtml(row) {
 
 function renderAssignmentSetRowHtml(row) {
   const assignHtml = assignmentAssignControlsHtml(row);
+  const editableAisle = !!liveVisitId && hubContext.myRank >= 2;
   const rowClass = 'assign-set-row' + (assignHtml ? ' has-assign' : '');
   const previewUrl = hubAssignPreviewUrl(row.dbkey);
   return (
     '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
-      '<span class="assign-set-lane">' + laneDisplayHtml(row.lane) + '</span>' +
+      renderAislePickerHtml(row, editableAisle) +
+      '<span class="assign-set-register">' + escapeHtml(formatRegisterLabel(row.lane)) + '</span>' +
       '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
       '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
       statePillHtml({ on_manifest: true, lane: row.lane, dbkey: row.dbkey }) +
@@ -7410,8 +7500,8 @@ function renderAssignmentSetRowHtml(row) {
 }
 
 function assignmentsToolbarHtml() {
-  const sortBtns = ['lane', 'dbkey', 'status', 'assignee'].map(col => {
-    const label = col === 'lane' ? 'Aisle' : col === 'dbkey' ? 'DBKey' : col === 'status' ? 'Status' : 'Assignee';
+  const sortBtns = ['store-aisle', 'lane', 'dbkey', 'status', 'assignee'].map(col => {
+    const label = col === 'store-aisle' ? 'Store aisle' : col === 'lane' ? 'Register' : col === 'dbkey' ? 'DBKey' : col === 'status' ? 'Status' : 'Assignee';
     const active = assignmentsSort.col === col ? ' active' : '';
     const arrow = assignmentsSort.col === col ? (assignmentsSort.asc ? ' ↑' : ' ↓') : '';
     return '<button type="button" class="assignments-sort-btn' + active + '" data-assign-sort="' + col + '">' + label + arrow + '</button>';
@@ -7458,7 +7548,7 @@ function renderBulkAssignPanelBody() {
       '<label class="bulk-assign-pick-item">' +
         '<input type="checkbox" data-bulk-pick="' + escapeHtml(key) + '"' + checked + '>' +
         '<div class="bulk-assign-pick-meta">' +
-          '<strong>' + escapeHtml(formatLaneDisplay(row.lane).combined) + ' · ' + escapeHtml(row.dbkey) + '</strong>' +
+          '<strong>' + escapeHtml((row.aisleLabel || formatRegisterLabel(row.lane)) + ' · ' + row.dbkey) + '</strong>' +
           '<span>' + escapeHtml(row.shortName) + '</span>' +
         '</div>' +
       '</label>'
@@ -7474,7 +7564,8 @@ function renderBulkAssignPanelBody() {
         '<select class="assignments-aisle-select" id="bulk-panel-aisle" aria-label="Aisle">' +
           '<option value="">Aisle…</option>' +
           aisles.map(lane => {
-            const label = formatLaneDisplay(lane).combined;
+            const sample = rows.find(r => String(r.lane) === String(lane));
+            const label = (sample?.aisleLabel ? sample.aisleLabel + ' · ' : '') + formatRegisterLabel(lane);
             return '<option value="' + escapeHtml(lane) + '">' + escapeHtml(label) + '</option>';
           }).join('') +
         '</select>' +
@@ -7627,6 +7718,7 @@ function renderAssignmentsView() {
       html += '<div class="assignments-empty">No sets are assigned to you yet. Ask your lead for assignments.</div>';
       root.innerHTML = html + assignmentsToolbarHtml();
       bindAssignmentsToolbar(root);
+      bindAislePickers(root);
       return;
     }
   } else {
@@ -7637,8 +7729,7 @@ function renderAssignmentsView() {
         '<div class="assignments-stat"><div class="assignments-stat-value">' + stats.totalManifest + '</div><div class="assignments-stat-label">On manifest</div></div>' +
       '</div>' +
       (canManageHubAssignments()
-        ? '<button type="button" class="assignments-bulk-tools-link" id="assign-bulk-tools-btn">Bulk assign (aisle or multiple sets)…</button>' +
-          '<button type="button" class="assignments-bulk-tools-link" id="assign-lane-names-btn">Set store lane names…</button>'
+        ? '<button type="button" class="assignments-bulk-tools-link" id="assign-bulk-tools-btn">Bulk assign (aisle or multiple sets)…</button>'
         : '');
   }
 
@@ -7658,6 +7749,7 @@ function renderAssignmentsView() {
 
   root.innerHTML = html;
   bindAssignmentsToolbar(root);
+  bindAislePickers(root);
 }
 
 async function handleInlineUnassign(rowEl) {
@@ -7814,10 +7906,10 @@ function pogWorkingDbkey() {
 
 function defaultPogFlagLocation() {
   if (!pogWorkingFixture) return undefined;
-  const physical = getPhysicalLaneName(pogWorkingFixture.lane);
+  const storeAisle = getSectionStoreAisle(pogWorkingFixture.lane, pogWorkingFixture.dbkey);
   const setLabel = shortName(pogWorkingFixture.name);
-  if (physical) return physical + ' · ' + setLabel;
-  return 'Lane ' + pogWorkingFixture.lane + ' · ' + setLabel;
+  if (storeAisle) return storeAisle + ' · ' + setLabel;
+  return formatRegisterLabel(pogWorkingFixture.lane) + ' · ' + setLabel;
 }
 
 function setPogWvActionStatus(msg, kind) {
@@ -7962,9 +8054,10 @@ function refreshPogWorkingChrome() {
   }
 
   if (sub && pogWorkingFixture && dbkey) {
-    sub.textContent = formatLaneDisplay(pogWorkingFixture.lane).combined + ' · DBKey ' + dbkey +
+    sub.textContent = formatRegisterLabel(pogWorkingFixture.lane) + ' · DBKey ' + dbkey +
       ' · ' + sectionAssigneeText(lane, dbkey);
   }
+  updatePogStoreAisleBadge(lane, dbkey);
 
   if (actions) {
     actions.hidden = !showLiveActions;
@@ -8220,15 +8313,16 @@ async function openPogWorkingView(fixture, opts) {
   const content = document.getElementById('pog-wv-content');
 
   if (heading) heading.textContent = shortName(fixture.name);
-  if (sub) sub.textContent = formatLaneDisplay(fixture.lane).combined + ' · DBKey ' + fixture.dbkey;
+  if (sub) sub.textContent = formatRegisterLabel(fixture.lane) + ' · DBKey ' + fixture.dbkey;
+  updatePogStoreAisleBadge(fixture.lane, fixture.dbkey);
   if (crumb) {
     const viewLabel = hubCurrentView === 'list'
       ? 'List'
       : hubCurrentView === 'assignments'
         ? 'Sets'
         : 'Map';
-    const lanePart = getPhysicalLaneName(fixture.lane) || ('Lane ' + fixture.lane);
-    crumb.textContent = viewLabel + ' › ' + lanePart + ' · ' + shortName(fixture.name);
+    const aislePart = getSectionStoreAisle(fixture.lane, fixture.dbkey) || formatRegisterLabel(fixture.lane);
+    crumb.textContent = viewLabel + ' › ' + aislePart + ' · ' + shortName(fixture.name);
   }
   if (content) content.innerHTML = '<div class="pog-wv-loading">Loading planogram…</div>';
 
@@ -8629,7 +8723,7 @@ function renderSectionTagDraftCart() {
   cart.innerHTML = tags.map(tag => {
     const upc = escapeHtml(tag.displayDigits || tag.upc || '—');
     const meta = escapeHtml(tag.description || '') +
-      (tag.location ? (' · ' + escapeHtml(formatLocationDisplay(tag.location, pogWorkingFixture?.lane))) : '');
+      (tag.location ? (' · ' + escapeHtml(formatLocationDisplay(tag.location, pogWorkingFixture?.lane, pogWorkingFixture?.dbkey))) : '');
     return (
       '<div class="tag-draft-item" data-tag-draft-id="' + tag.id + '">' +
         '<div class="tag-draft-item-body">' +
