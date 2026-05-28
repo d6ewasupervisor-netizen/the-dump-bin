@@ -3396,8 +3396,10 @@
   <div class="pog-wv-actions" id="pog-wv-actions" hidden>
     <div class="pog-wv-actions-menu" id="pog-wv-actions-menu" hidden role="menu" aria-label="Planogram actions">
       <button type="button" class="pog-wv-menu-item flag-help" id="pog-wv-flag-help" role="menuitem">Needs help</button>
+      <!-- Retired standalone actions — tag missing via product card; NIS via Needs help → Not in store
       <button type="button" class="pog-wv-menu-item flag-tag" id="pog-wv-flag-tag-toggle" role="menuitem">Report tag missing</button>
       <button type="button" class="pog-wv-menu-item flag-nis" id="pog-wv-flag-nis" role="menuitem">Not in store</button>
+      -->
       <button type="button" class="pog-wv-menu-item pog-wv-menu-item--complete pog-wv-start-btn" id="pog-wv-start" role="menuitem" hidden>Start</button>
       <button type="button" class="pog-wv-menu-item pog-wv-menu-item--complete" id="pog-wv-mark-done" role="menuitem" hidden>Mark done</button>
       <button type="button" class="pog-wv-menu-item pog-wv-menu-item--complete signoff" id="pog-wv-signoff" role="menuitem" hidden>Sign off</button>
@@ -3618,6 +3620,7 @@ const STATE_CSS = {
 
 /** KOMPASS Help Desk issue types (aligned with EOD helpdesk wizard). */
 const HUB_HELP_ISSUE_OPTIONS = [
+  { id: 'not_in_store', label: 'Not in store', placeholder: 'Optional — where you looked, signage, etc.' },
   { id: 'missing_fixture', label: 'Missing fixture (shelf, peg, or other merchandising implement)', placeholder: 'Describe specifically what is missing…' },
   { id: 'missing_set', label: 'Entire set missing — does not exist in the store', placeholder: 'Describe where the set should be, what signage exists, etc.' },
   { id: 'mapping_wrong', label: 'Mapping / location inaccurate (wrong aisle, bay, or section)', placeholder: 'Expected vs actual location, signage, etc.' },
@@ -3671,6 +3674,7 @@ function collectHubHelpPayload(prefix) {
 
 function validateHubHelpPayload(payload) {
   if (!payload.issueTypeId) return 'Select an issue type';
+  if (payload.issueTypeId === 'not_in_store') return null;
   if (payload.issueTypeId === 'custom') {
     if (!payload.customLabel) return 'Issue summary is required';
     if (!payload.issueDetails) return 'Full description is required';
@@ -4308,6 +4312,7 @@ function refreshDetailPanel(fixture) {
             '<button type="button" class="btn btn-submit" id="flag-help-submit">Submit help request</button>' +
           '</div>' +
         '</div>' +
+        /* Retired standalone actions — tag missing via POG product card; NIS via Needs help → Not in store
         '<button type="button" class="flag-btn flag-tag" id="flag-tag-toggle">Report tag missing</button>' +
         '<div class="missing-tag-form" id="missing-tag-form">' +
           '<label for="flag-upc">UPC</label>' +
@@ -4321,6 +4326,7 @@ function refreshDetailPanel(fixture) {
           '</div>' +
         '</div>' +
         '<button type="button" class="flag-btn flag-nis" id="flag-nis">Not in store</button>' +
+        */
         '<div class="flag-status" id="flag-status"></div>' +
       '</div>';
   } else if (isLive && isSectionNotInStore(fixture.lane, fixture.dbkey)) {
@@ -4400,15 +4406,24 @@ function refreshDetailPanel(fixture) {
       setFlagStatus(errMsg, 'error');
       return;
     }
+    const isNis = payload.issueTypeId === 'not_in_store';
     disableFlags(true);
-    setFlagStatus('Raising help flag…');
+    setFlagStatus(isNis ? 'Raising not-in-store flag…' : 'Raising help flag…');
     try {
-      await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/help', {
-        lane: fixture.lane,
-        ...buildHubHelpRequestBody(payload),
-        ...nisFixtureMeta(fixture),
-      });
-      setFlagStatus('Help request sent — pending lead review', 'ok');
+      if (isNis) {
+        await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/nis', {
+          lane: fixture.lane,
+          ...nisFixtureMeta(fixture),
+        });
+        setFlagStatus('Not-in-store flag sent — pending lead review', 'ok');
+      } else {
+        await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/help', {
+          lane: fixture.lane,
+          ...buildHubHelpRequestBody(payload),
+          ...nisFixtureMeta(fixture),
+        });
+        setFlagStatus('Help request sent — pending lead review', 'ok');
+      }
       document.getElementById('flag-help-form')?.classList.remove('open');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
@@ -4416,6 +4431,7 @@ function refreshDetailPanel(fixture) {
     }
   });
 
+  /* Retired standalone flag-nis / flag-tag-toggle / flag-tag-submit — see Needs help → Not in store and POG product card
   document.getElementById('flag-nis')?.addEventListener('click', async () => {
     disableFlags(true);
     setFlagStatus('Raising not-in-store flag…');
@@ -4460,6 +4476,7 @@ function refreshDetailPanel(fixture) {
       disableFlags(false);
     }
   });
+  */
 }
 
 function normalizeHubView(view) {
@@ -7087,11 +7104,17 @@ function bindPogWorkingActions() {
       setPogWvActionStatus(errMsg, 'error');
       return;
     }
+    const isNis = payload.issueTypeId === 'not_in_store';
     setPogWvActionsDisabled(true);
-    setPogWvActionStatus('Raising help flag…');
+    setPogWvActionStatus(isNis ? 'Raising not-in-store flag…' : 'Raising help flag…');
     try {
-      await submitPogSectionFlag('help', buildHubHelpRequestBody(payload));
-      setPogWvActionStatus('Flagged — pending lead review', 'ok');
+      if (isNis) {
+        await submitPogSectionFlag('nis', {});
+        setPogWvActionStatus('Not-in-store flag sent — pending lead review', 'ok');
+      } else {
+        await submitPogSectionFlag('help', buildHubHelpRequestBody(payload));
+        setPogWvActionStatus('Flagged — pending lead review', 'ok');
+      }
       togglePogHelpForm(false);
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
@@ -7099,6 +7122,7 @@ function bindPogWorkingActions() {
     }
   });
 
+  /* Retired standalone pog-wv-flag-nis / pog-wv-flag-tag-toggle — see Needs help → Not in store and product card
   document.getElementById('pog-wv-flag-nis')?.addEventListener('click', async () => {
     closePogWvActionsMenu();
     setPogWvActionsDisabled(true);
@@ -7120,6 +7144,7 @@ function bindPogWorkingActions() {
     });
     loadSectionTagDrafts(pogWorkingDbkey());
   });
+  */
 
   document.getElementById('pog-wv-flag-tag-add')?.addEventListener('click', async () => {
     const upc = (document.getElementById('pog-wv-flag-upc')?.value || '').trim();
