@@ -152,12 +152,123 @@
     return canvas;
   }
 
-  function cropCanvas(canvas, rect) {
-    const out = document.createElement('canvas');
-    out.width = Math.max(1, Math.round(rect.w));
-    out.height = Math.max(1, Math.round(rect.h));
-    out.getContext('2d').drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h);
+  function defaultCropQuad(w, h) {
+    const m = Math.min(w, h) * 0.05;
+    return {
+      tl: { x: m, y: m },
+      tr: { x: w - m, y: m },
+      br: { x: w - m, y: h - m },
+      bl: { x: m, y: h - m },
+    };
+  }
+
+  function cloneCropQuad(quad) {
+    return {
+      tl: { x: quad.tl.x, y: quad.tl.y },
+      tr: { x: quad.tr.x, y: quad.tr.y },
+      br: { x: quad.br.x, y: quad.br.y },
+      bl: { x: quad.bl.x, y: quad.bl.y },
+    };
+  }
+
+  function clampPoint(p, w, h) {
+    return {
+      x: Math.max(0, Math.min(w, p.x)),
+      y: Math.max(0, Math.min(h, p.y)),
+    };
+  }
+
+  function quadPoint(quad, s, t) {
+    const tl = quad.tl;
+    const tr = quad.tr;
+    const br = quad.br;
+    const bl = quad.bl;
+    return {
+      x: (1 - s) * (1 - t) * tl.x + s * (1 - t) * tr.x + s * t * br.x + (1 - s) * t * bl.x,
+      y: (1 - s) * (1 - t) * tl.y + s * (1 - t) * tr.y + s * t * br.y + (1 - s) * t * bl.y,
+    };
+  }
+
+  function quadOutputSize(quad) {
+    function dist(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+    return {
+      outW: Math.max(1, Math.round(Math.max(dist(quad.tl, quad.tr), dist(quad.bl, quad.br)))),
+      outH: Math.max(1, Math.round(Math.max(dist(quad.tl, quad.bl), dist(quad.tr, quad.br)))),
+    };
+  }
+
+  function sampleBilinear(imageData, x, y, w, h) {
+    x = Math.max(0, Math.min(w - 1.001, x));
+    y = Math.max(0, Math.min(h - 1.001, y));
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const x1 = Math.min(x0 + 1, w - 1);
+    const y1 = Math.min(y0 + 1, h - 1);
+    const fx = x - x0;
+    const fy = y - y0;
+    const d = imageData.data;
+    const idx = (yy, xx) => (yy * w + xx) * 4;
+    const out = [0, 0, 0, 255];
+    for (let c = 0; c < 3; c++) {
+      out[c] = Math.round(
+        (1 - fx) * (1 - fy) * d[idx(y0, x0) + c] +
+        fx * (1 - fy) * d[idx(y0, x1) + c] +
+        fx * fy * d[idx(y1, x1) + c] +
+        (1 - fx) * fy * d[idx(y1, x0) + c]
+      );
+    }
     return out;
+  }
+
+  function perspectiveCropCanvas(srcCanvas, quad) {
+    const srcW = srcCanvas.width;
+    const srcH = srcCanvas.height;
+    const srcData = srcCanvas.getContext('2d').getImageData(0, 0, srcW, srcH);
+    const { outW, outH } = quadOutputSize(quad);
+    const out = document.createElement('canvas');
+    out.width = outW;
+    out.height = outH;
+    const outCtx = out.getContext('2d');
+    const outData = outCtx.createImageData(outW, outH);
+
+    for (let dy = 0; dy < outH; dy++) {
+      for (let dx = 0; dx < outW; dx++) {
+        const s = outW <= 1 ? 0 : dx / (outW - 1);
+        const t = outH <= 1 ? 0 : dy / (outH - 1);
+        const sp = quadPoint(quad, s, t);
+        const rgb = sampleBilinear(srcData, sp.x, sp.y, srcW, srcH);
+        const oi = (dy * outW + dx) * 4;
+        outData.data[oi] = rgb[0];
+        outData.data[oi + 1] = rgb[1];
+        outData.data[oi + 2] = rgb[2];
+        outData.data[oi + 3] = 255;
+      }
+    }
+    outCtx.putImageData(outData, 0, 0);
+    return out;
+  }
+
+  function cropLayerHtml() {
+    return (
+      '<div class="bay-photo-crop-layer" id="bay-photo-crop-layer" hidden>' +
+        '<svg class="bay-photo-crop-svg" id="bay-photo-crop-svg" aria-hidden="true">' +
+          '<defs>' +
+            '<mask id="bay-photo-crop-mask">' +
+              '<rect id="bay-photo-crop-mask-bg" width="100%" height="100%" fill="white"></rect>' +
+              '<polygon id="bay-photo-crop-mask-poly" fill="black"></polygon>' +
+            '</mask>' +
+          '</defs>' +
+          '<rect width="100%" height="100%" fill="rgba(0,0,0,0.58)" mask="url(#bay-photo-crop-mask)"></rect>' +
+          '<polygon id="bay-photo-crop-poly" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="2"></polygon>' +
+        '</svg>' +
+        '<button type="button" class="bay-photo-crop-handle" data-corner="tl" aria-label="Top left corner"></button>' +
+        '<button type="button" class="bay-photo-crop-handle" data-corner="tr" aria-label="Top right corner"></button>' +
+        '<button type="button" class="bay-photo-crop-handle" data-corner="br" aria-label="Bottom right corner"></button>' +
+        '<button type="button" class="bay-photo-crop-handle" data-corner="bl" aria-label="Bottom left corner"></button>' +
+      '</div>'
+    );
   }
 
   function allCapturesReady(st) {
@@ -231,14 +342,16 @@
       ' — capture each one, then review and adjust before submitting.';
 
     body.innerHTML =
-      '<div class="bay-photo-ref-block">' + renderHubPreviewHtml(st.dbkey, 'bay-photo-ref-preview') +
-        '<p class="bay-photo-ref-caption">Reference planogram</p></div>' +
-      '<p class="bay-photo-guidance">' +
-        'You will take <strong>one photo per bay</strong> in sequence. For each shot, step back until the ' +
-        '<strong>entire bay</strong> (full width and height) fits in the frame and stays centered. ' +
-        'After all bays are captured, you can crop, rotate, and auto-improve each photo before submitting.' +
-      '</p>' +
-      '<div class="flag-status" id="bay-photo-wizard-status"></div>';
+      '<div class="bay-photo-section">' +
+        '<div class="bay-photo-ref-block">' + renderHubPreviewHtml(st.dbkey, 'bay-photo-ref-preview') +
+          '<p class="bay-photo-ref-caption">Reference planogram</p></div>' +
+        '<p class="bay-photo-guidance">' +
+          'You will take <strong>one photo per bay</strong> in sequence. For each shot, step back until the ' +
+          '<strong>entire bay</strong> (full width and height) fits in the frame and stays centered. ' +
+          'After all bays are captured, you can crop, rotate, and auto-improve each photo before submitting.' +
+        '</p>' +
+        '<div class="flag-status" id="bay-photo-wizard-status"></div>' +
+      '</div>';
 
     footer.innerHTML =
       '<button type="button" class="btn btn-submit bay-photo-submit-btn" id="bay-photo-start-capture">Start capturing</button>';
@@ -268,13 +381,15 @@
       : '<div class="bay-photo-capture-placeholder">No photo yet</div>';
 
     body.innerHTML =
-      '<div class="bay-photo-capture-progress"><div class="bay-photo-capture-progress-bar" style="width:' + progressPct + '%"></div></div>' +
-      '<div class="bay-photo-capture-stage">' + previewThumb + '</div>' +
-      '<p class="bay-photo-editor-hint">' +
-        (hasPhoto ? 'Photo captured — continue to the next bay or retake this one.' : 'Tap the button below to open your camera.') +
-      '</p>' +
-      '<input type="file" id="bay-photo-file-input" accept="image/*" capture="environment" hidden>' +
-      '<div class="flag-status" id="bay-photo-wizard-status"></div>';
+      '<div class="bay-photo-section">' +
+        '<div class="bay-photo-capture-progress"><div class="bay-photo-capture-progress-bar" style="width:' + progressPct + '%"></div></div>' +
+        '<div class="bay-photo-stage">' + previewThumb + '</div>' +
+        '<p class="bay-photo-editor-hint">' +
+          (hasPhoto ? 'Photo captured — continue to the next bay or retake this one.' : 'Tap the button below to open your camera.') +
+        '</p>' +
+        '<input type="file" id="bay-photo-file-input" accept="image/*" capture="environment" hidden>' +
+        '<div class="flag-status" id="bay-photo-wizard-status"></div>' +
+      '</div>';
 
     footer.innerHTML =
       (idx > 0 ? '<button type="button" class="btn" id="bay-photo-capture-back">← Previous bay</button>' : '') +
@@ -357,9 +472,11 @@
     }).join('');
 
     body.innerHTML =
-      '<div class="bay-photo-review-grid">' + tiles + '</div>' +
-      '<button type="button" class="btn bay-photo-recapture-link" id="bay-photo-recapture">← Re-capture photos</button>' +
-      '<div class="flag-status" id="bay-photo-wizard-status"></div>';
+      '<div class="bay-photo-section">' +
+        '<div class="bay-photo-review-grid">' + tiles + '</div>' +
+        '<button type="button" class="btn bay-photo-recapture-link" id="bay-photo-recapture">← Re-capture photos</button>' +
+        '<div class="flag-status" id="bay-photo-wizard-status"></div>' +
+      '</div>';
 
     const ready = allCapturesReady(st);
     footer.innerHTML =
@@ -371,8 +488,9 @@
         st.editingBay = Number(btn.getAttribute('data-bay'));
         st.phase = 'edit';
         st.editCanvas = st.captures[st.editingBay] ? cloneCanvas(st.captures[st.editingBay]) : null;
-        st.cropRect = null;
+        st.cropQuad = null;
         st.cropMode = false;
+        st.draggingCorner = null;
         renderWizardPhase();
       });
     });
@@ -404,12 +522,13 @@
     document.getElementById('bay-photo-modal-sub').textContent = 'Adjust this photo, then save to return to review.';
 
     body.innerHTML =
-      '<div class="bay-photo-editor">' +
-        '<div class="bay-photo-canvas-wrap" id="bay-photo-canvas-wrap">' +
+      '<div class="bay-photo-section bay-photo-editor">' +
+        '<div class="bay-photo-stage bay-photo-canvas-wrap" id="bay-photo-canvas-wrap">' +
           '<canvas id="bay-photo-canvas"></canvas>' +
-          '<div class="bay-photo-crop-overlay" id="bay-photo-crop-overlay" hidden></div>' +
+          cropLayerHtml() +
         '</div>' +
-        '<div class="bay-photo-editor-tools">' +
+        '<p class="bay-photo-editor-hint" id="bay-photo-crop-hint">Use Crop to drag each corner independently for perspective correction.</p>' +
+        '<div class="bay-photo-tool-bar">' +
           '<button type="button" class="btn" id="bay-photo-rotate-l">↺ Rotate</button>' +
           '<button type="button" class="btn" id="bay-photo-rotate-r">Rotate ↻</button>' +
           '<button type="button" class="btn" id="bay-photo-improve">Auto improve</button>' +
@@ -425,17 +544,20 @@
       '<button type="button" class="btn btn-submit" id="bay-photo-save-edit">Save</button>';
 
     drawEditorCanvas();
+    bindCropHandles();
 
     document.getElementById('bay-photo-rotate-l')?.addEventListener('click', function () {
       if (!st.editCanvas) return;
       st.editCanvas = rotateCanvas(st.editCanvas, -90);
-      st.cropRect = null;
+      st.cropQuad = null;
+      exitCropMode(false);
       drawEditorCanvas();
     });
     document.getElementById('bay-photo-rotate-r')?.addEventListener('click', function () {
       if (!st.editCanvas) return;
       st.editCanvas = rotateCanvas(st.editCanvas, 90);
-      st.cropRect = null;
+      st.cropQuad = null;
+      exitCropMode(false);
       drawEditorCanvas();
     });
     document.getElementById('bay-photo-improve')?.addEventListener('click', function () {
@@ -453,6 +575,8 @@
       if (!file) return;
       loadImageFromFile(file).then(function (img) {
         st.editCanvas = imageToCanvas(img);
+        st.cropQuad = null;
+        exitCropMode(false);
         drawEditorCanvas();
       });
     });
@@ -463,6 +587,7 @@
     });
 
     document.getElementById('bay-photo-save-edit')?.addEventListener('click', function () {
+      if (st.cropMode) exitCropMode(true);
       if (st.editCanvas) st.captures[bayNum] = cloneCanvas(st.editCanvas);
       st.phase = 'review';
       renderWizardPhase();
@@ -481,85 +606,143 @@
     canvas.height = Math.round(src.height * scale);
     canvas.getContext('2d').drawImage(src, 0, 0, canvas.width, canvas.height);
     st.displayScale = scale;
-    if (st.cropMode && st.cropRect) drawCropOverlay(st.cropRect);
+    syncCropOverlay();
+  }
+
+  function exitCropMode(apply) {
+    const st = wizardState;
+    const layer = document.getElementById('bay-photo-crop-layer');
+    const btn = document.getElementById('bay-photo-crop-toggle');
+    const hint = document.getElementById('bay-photo-crop-hint');
+    if (apply && st && st.cropQuad && st.editCanvas) {
+      st.editCanvas = perspectiveCropCanvas(st.editCanvas, st.cropQuad);
+      st.cropQuad = null;
+    }
+    if (st) {
+      st.cropMode = false;
+      st.draggingCorner = null;
+    }
+    if (layer) {
+      layer.hidden = true;
+      layer.classList.remove('is-active');
+    }
+    if (btn) btn.classList.remove('active');
+    if (hint) hint.textContent = 'Use Crop to drag each corner independently for perspective correction.';
   }
 
   function toggleCropMode() {
     const st = wizardState;
     if (!st || !st.editCanvas) return;
-    st.cropMode = !st.cropMode;
-    const overlay = document.getElementById('bay-photo-crop-overlay');
-    const btn = document.getElementById('bay-photo-crop-toggle');
-    if (overlay) overlay.hidden = !st.cropMode;
-    if (btn) btn.classList.toggle('active', st.cropMode);
     if (st.cropMode) {
-      const w = st.editCanvas.width;
-      const h = st.editCanvas.height;
-      st.cropRect = { x: w * 0.05, y: h * 0.05, w: w * 0.9, h: h * 0.9 };
-      bindCropDrag();
+      exitCropMode(true);
       drawEditorCanvas();
-    } else if (st.cropRect) {
-      st.editCanvas = cropCanvas(st.editCanvas, st.cropRect);
-      st.cropRect = null;
-      drawEditorCanvas();
+      return;
     }
+    st.cropMode = true;
+    const w = st.editCanvas.width;
+    const h = st.editCanvas.height;
+    st.cropQuad = defaultCropQuad(w, h);
+    const layer = document.getElementById('bay-photo-crop-layer');
+    const btn = document.getElementById('bay-photo-crop-toggle');
+    const hint = document.getElementById('bay-photo-crop-hint');
+    if (layer) {
+      layer.hidden = false;
+      layer.classList.add('is-active');
+    }
+    if (btn) btn.classList.add('active');
+    if (hint) hint.textContent = 'Drag any corner handle, then tap Crop again to apply.';
+    syncCropOverlay();
   }
 
-  function bindCropDrag() {
+  function syncCropOverlay() {
+    const st = wizardState;
     const canvas = document.getElementById('bay-photo-canvas');
-    if (!canvas) return;
-    let dragging = false;
-    let startX = 0;
-    let startY = 0;
-    let startRect = null;
+    const layer = document.getElementById('bay-photo-crop-layer');
+    if (!st || !st.cropMode || !st.cropQuad || !canvas || !layer) return;
 
-    function pointerDown(ev) {
+    const scale = st.displayScale || 1;
+    const dw = canvas.width;
+    const dh = canvas.height;
+
+    const svg = document.getElementById('bay-photo-crop-svg');
+    const poly = document.getElementById('bay-photo-crop-poly');
+    const maskPoly = document.getElementById('bay-photo-crop-mask-poly');
+    const maskBg = document.getElementById('bay-photo-crop-mask-bg');
+    if (svg) {
+      svg.setAttribute('viewBox', '0 0 ' + dw + ' ' + dh);
+    }
+    if (maskBg) {
+      maskBg.setAttribute('width', String(dw));
+      maskBg.setAttribute('height', String(dh));
+    }
+
+    const pts = ['tl', 'tr', 'br', 'bl'].map(function (key) {
+      const p = st.cropQuad[key];
+      return (p.x * scale).toFixed(1) + ',' + (p.y * scale).toFixed(1);
+    }).join(' ');
+
+    if (poly) poly.setAttribute('points', pts);
+    if (maskPoly) maskPoly.setAttribute('points', pts);
+
+    layer.querySelectorAll('.bay-photo-crop-handle').forEach(function (handle) {
+      const key = handle.getAttribute('data-corner');
+      const p = st.cropQuad[key];
+      if (!p) return;
+      handle.style.left = (p.x * scale) + 'px';
+      handle.style.top = (p.y * scale) + 'px';
+    });
+  }
+
+  function bindCropHandles() {
+    const layer = document.getElementById('bay-photo-crop-layer');
+    if (!layer || layer.dataset.bound === '1') return;
+    layer.dataset.bound = '1';
+
+    let dragCorner = null;
+    let dragStart = null;
+
+    function onPointerDown(ev) {
       const st = wizardState;
-      if (!st || !st.cropMode || !st.cropRect) return;
-      dragging = true;
+      const handle = ev.target.closest('.bay-photo-crop-handle');
+      if (!st || !st.cropMode || !handle) return;
+      dragCorner = handle.getAttribute('data-corner');
+      st.draggingCorner = dragCorner;
       const pt = ev.touches ? ev.touches[0] : ev;
-      startX = pt.clientX;
-      startY = pt.clientY;
-      startRect = { x: st.cropRect.x, y: st.cropRect.y, w: st.cropRect.w, h: st.cropRect.h };
+      dragStart = { x: pt.clientX, y: pt.clientY, quad: cloneCropQuad(st.cropQuad) };
       ev.preventDefault();
     }
 
-    function pointerMove(ev) {
-      if (!dragging) return;
+    function onPointerMove(ev) {
+      if (!dragCorner || !dragStart) return;
       const st = wizardState;
-      if (!st || !startRect) return;
+      if (!st || !st.editCanvas) return;
       const pt = ev.touches ? ev.touches[0] : ev;
       const scale = st.displayScale || 1;
-      st.cropRect = {
-        x: Math.max(0, startRect.x + (pt.clientX - startX) / scale),
-        y: Math.max(0, startRect.y + (pt.clientY - startY) / scale),
-        w: startRect.w,
-        h: startRect.h,
-      };
-      drawEditorCanvas();
+      const dx = (pt.clientX - dragStart.x) / scale;
+      const dy = (pt.clientY - dragStart.y) / scale;
+      const w = st.editCanvas.width;
+      const h = st.editCanvas.height;
+      st.cropQuad[dragCorner] = clampPoint({
+        x: dragStart.quad[dragCorner].x + dx,
+        y: dragStart.quad[dragCorner].y + dy,
+      }, w, h);
+      syncCropOverlay();
       ev.preventDefault();
     }
 
-    function pointerUp() { dragging = false; }
+    function onPointerUp() {
+      dragCorner = null;
+      dragStart = null;
+      if (wizardState) wizardState.draggingCorner = null;
+    }
 
-    canvas.onmousedown = pointerDown;
-    canvas.onmousemove = pointerMove;
-    canvas.onmouseup = pointerUp;
-    canvas.onmouseleave = pointerUp;
-    canvas.ontouchstart = pointerDown;
-    canvas.ontouchmove = pointerMove;
-    canvas.ontouchend = pointerUp;
-  }
-
-  function drawCropOverlay(rect) {
-    const overlay = document.getElementById('bay-photo-crop-overlay');
-    if (!overlay || !wizardState) return;
-    const scale = wizardState.displayScale || 1;
-    overlay.hidden = false;
-    overlay.style.left = (rect.x * scale) + 'px';
-    overlay.style.top = (rect.y * scale) + 'px';
-    overlay.style.width = (rect.w * scale) + 'px';
-    overlay.style.height = (rect.h * scale) + 'px';
+    layer.addEventListener('mousedown', onPointerDown);
+    layer.addEventListener('mousemove', onPointerMove);
+    layer.addEventListener('mouseup', onPointerUp);
+    layer.addEventListener('mouseleave', onPointerUp);
+    layer.addEventListener('touchstart', onPointerDown, { passive: false });
+    layer.addEventListener('touchmove', onPointerMove, { passive: false });
+    layer.addEventListener('touchend', onPointerUp);
   }
 
   async function loadExistingCaptures(st) {
