@@ -748,6 +748,84 @@
     color: #1a1d27;
   }
 
+  .header-badge-btn--pending.has-items .count,
+  .pog-wv-queue-btn--pending.has-items .count {
+    animation: pending-count-pulse 1.2s ease 2;
+  }
+
+  @keyframes pending-count-pulse {
+    0%, 100% { transform: scale(1); }
+    40% { transform: scale(1.15); }
+  }
+
+  .pog-wv-queue-btns {
+    display: none;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .pog-wv-queue-btns.visible {
+    display: flex;
+  }
+
+  .pog-wv-queue-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 34px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .pog-wv-queue-btn .count {
+    border-radius: 999px;
+    min-width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 0 5px;
+  }
+
+  .pog-wv-queue-btn--pending {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+  }
+
+  .pog-wv-queue-btn--pending .count {
+    background: #f59e0b;
+    color: #1a1d27;
+  }
+
+  .pog-wv-queue-btn--tag-batch {
+    border-color: #14b8a6;
+    background: rgba(20, 184, 166, 0.15);
+    color: #5eead4;
+  }
+
+  .pog-wv-queue-btn--tag-batch .count {
+    background: #14b8a6;
+    color: #1a1d27;
+  }
+
+  .pending-item--signoff .pending-item-summary {
+    color: #5eead4;
+  }
+
   .header-badge-btn--tag-batch {
     border-color: #14b8a6;
     background: rgba(20, 184, 166, 0.15);
@@ -1514,7 +1592,7 @@
     max-height: 62vh;
     background: var(--surface);
     border-top: 1px solid var(--border);
-    z-index: 215;
+    z-index: 550;
     transform: translateY(100%);
     transition: transform 0.25s ease;
     display: flex;
@@ -1784,7 +1862,7 @@
     max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
     background: var(--surface);
     border-top: 1px solid var(--border);
-    z-index: 210;
+    z-index: 550;
     transform: translateY(100%);
     transition: transform 0.25s ease;
     display: flex;
@@ -3297,7 +3375,7 @@
 
 <aside class="pending-panel" id="pending-panel" aria-label="Pending queue">
   <div class="pending-panel-header">
-    <h2>Pending — lead review</h2>
+    <h2>Pending — flags &amp; sign-offs</h2>
     <button type="button" class="detail-close" id="pending-close" aria-label="Close">&times;</button>
   </div>
   <div class="pending-panel-body">
@@ -3348,6 +3426,14 @@
         <span class="pog-wv-tag-tally-count" id="pog-wv-tag-tally-count">0</span>
         <span class="pog-wv-tag-tally-label">missing</span>
         <button type="button" class="pog-wv-tag-tally-btn" id="pog-wv-tag-tally-submit" disabled>Submit</button>
+      </div>
+      <div class="pog-wv-queue-btns" id="pog-wv-queue-btns" aria-label="Lead queues">
+        <button type="button" class="pog-wv-queue-btn pog-wv-queue-btn--pending" id="pog-wv-pending-badge" aria-label="Pending queue">
+          Pending <span class="count" id="pog-wv-pending-count">0</span>
+        </button>
+        <button type="button" class="pog-wv-queue-btn pog-wv-queue-btn--tag-batch" id="pog-wv-tag-batch-badge" aria-label="Tag batch">
+          Tags <span class="count" id="pog-wv-tag-batch-count">0</span>
+        </button>
       </div>
     </div>
     <div class="pog-wv-toolbar">
@@ -3753,6 +3839,7 @@ let sectionTagDrafts = [];
 let sectionTagDraftsDbkey = null;
 let selectedPendingId = null;
 let pendingDetailCache = {};
+let lastPendingQueueCount = 0;
 let streamAbort = null;
 let streamConnected = false;
 let streamReconnectTimer = null;
@@ -3901,6 +3988,41 @@ function formatRaisedAt(iso) {
   }
 }
 
+/** Lead queue: rep flags (pending_actions) + sets awaiting supervisor sign-off. */
+function collectPendingQueueItems() {
+  const items = [];
+  for (const pa of hubContext.pendingActions || []) {
+    items.push({
+      id: String(pa.id),
+      kind: 'action',
+      action_type: pa.action_type,
+      dbkey: pa.dbkey,
+      lane: '',
+      summary: pa.summary || pa.action_type,
+      raised_by_name: pa.raised_by_name,
+      raised_at: pa.raised_at,
+      sortAt: pa.raised_at ? new Date(pa.raised_at).getTime() : 0,
+    });
+  }
+  for (const row of Object.values(hubContext.sections || {})) {
+    if (!row || row.state !== 'done_pending_signoff' || !row.dbkey) continue;
+    const lane = row.lane || '';
+    items.push({
+      id: 'signoff:' + sectionKey(lane, row.dbkey),
+      kind: 'signoff',
+      action_type: 'signoff',
+      dbkey: row.dbkey,
+      lane,
+      summary: 'Done — pending sign-off',
+      raised_by_name: row.assignee_name || '',
+      raised_at: row.updated_at,
+      sortAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
+    });
+  }
+  items.sort((a, b) => (b.sortAt || 0) - (a.sortAt || 0));
+  return items;
+}
+
 function applySnapshot(snapshot) {
   hubContext.myRank = snapshot.myRank ?? 1;
   hubContext.myUserId = snapshot.myUserId ?? null;
@@ -3921,12 +4043,14 @@ function applySnapshot(snapshot) {
   updateTagBatchBadge();
   if (hubCurrentView === 'assignments') renderAssignmentsView();
   renderPendingList();
-  if (selectedPendingId && !hubContext.pendingActions.some(p => p.id === selectedPendingId)) {
+  const queueIds = new Set(collectPendingQueueItems().map(p => p.id));
+  if (selectedPendingId != null && !queueIds.has(String(selectedPendingId))) {
     selectedPendingId = null;
     closePendingDetail();
   }
   refreshPogWorkingChrome();
   updateSignedInDisplay();
+  if (hubContext.myRank >= 2 && liveVisitId) ensureHubStream();
 }
 
 function getFixtureState(lane, dbkey) {
@@ -4860,6 +4984,18 @@ function bindEvents() {
     if (hubContext.myRank >= 2) {
       toggleTagBatchPanel(false);
       togglePendingPanel(true);
+    }
+  });
+  document.getElementById('pog-wv-pending-badge')?.addEventListener('click', () => {
+    if (hubContext.myRank >= 2) {
+      toggleTagBatchPanel(false);
+      togglePendingPanel(true);
+    }
+  });
+  document.getElementById('pog-wv-tag-batch-badge')?.addEventListener('click', () => {
+    if (hubContext.myRank >= 2) {
+      togglePendingPanel(false);
+      toggleTagBatchPanel(true);
     }
   });
   document.getElementById('pending-close').addEventListener('click', () => togglePendingPanel(false));
@@ -7516,17 +7652,44 @@ function ensureHubStream() {
 function updatePendingBadge() {
   const badge = document.getElementById('pending-badge');
   const countEl = document.getElementById('pending-count');
+  const pogBadge = document.getElementById('pog-wv-pending-badge');
+  const pogCountEl = document.getElementById('pog-wv-pending-count');
+  const pogBtns = document.getElementById('pog-wv-queue-btns');
   if (!badge || !countEl) return;
 
-  const count = hubContext.pendingActions.length;
-  countEl.textContent = String(count);
+  const count = collectPendingQueueItems().length;
+  const prevCount = lastPendingQueueCount;
+  const countText = String(count);
+  countEl.textContent = countText;
+  if (pogCountEl) pogCountEl.textContent = countText;
 
-  if (liveVisitId && hubContext.myRank >= 2) {
+  const showLeadQueues = !!(liveVisitId && hubContext.myRank >= 2);
+  if (showLeadQueues) {
     badge.classList.add('visible');
+    pogBtns?.classList.add('visible');
+    if (count > 0) badge.classList.add('has-items');
+    else badge.classList.remove('has-items');
+    if (count > 0) pogBadge?.classList.add('has-items');
+    else pogBadge?.classList.remove('has-items');
+    if (count > prevCount) {
+      badge.classList.remove('has-items');
+      void badge.offsetWidth;
+      badge.classList.add('has-items');
+      if (pogBadge) {
+        pogBadge.classList.remove('has-items');
+        void pogBadge.offsetWidth;
+        pogBadge.classList.add('has-items');
+      }
+      toggleTagBatchPanel(false);
+      togglePendingPanel(true);
+    }
   } else {
-    badge.classList.remove('visible');
+    badge.classList.remove('visible', 'has-items');
+    pogBtns?.classList.remove('visible');
+    pogBadge?.classList.remove('has-items');
     togglePendingPanel(false);
   }
+  lastPendingQueueCount = count;
 }
 
 function togglePendingPanel(open) {
@@ -7545,13 +7708,18 @@ function togglePendingPanel(open) {
 function updateTagBatchBadge() {
   const badge = document.getElementById('tag-batch-badge');
   const countEl = document.getElementById('tag-batch-count');
+  const pogBadge = document.getElementById('pog-wv-tag-batch-badge');
+  const pogCountEl = document.getElementById('pog-wv-tag-batch-count');
   if (!badge || !countEl) return;
 
   const count = hubContext.verifiedUnsentTags || 0;
-  countEl.textContent = String(count);
+  const countText = String(count);
+  countEl.textContent = countText;
+  if (pogCountEl) pogCountEl.textContent = countText;
 
   if (liveVisitId && hubContext.myRank >= 2) {
     badge.classList.add('visible');
+    pogBadge?.classList.remove('hidden');
   } else {
     badge.classList.remove('visible');
     toggleTagBatchPanel(false);
@@ -7866,20 +8034,26 @@ function renderPendingList() {
     return;
   }
 
-  if (!hubContext.pendingActions.length) {
+  const queue = collectPendingQueueItems();
+  if (!queue.length) {
     listEl.innerHTML = '<p class="hub-panel-empty">No pending items</p>';
     closePendingDetail();
     return;
   }
 
-  listEl.innerHTML = hubContext.pendingActions.map(item => {
+  listEl.innerHTML = queue.map(item => {
     const section = fixtureNameForDbkey(item.dbkey);
-    const selected = item.id === selectedPendingId ? ' selected' : '';
+    const selected = String(item.id) === String(selectedPendingId) ? ' selected' : '';
+    const signoffClass = item.kind === 'signoff' ? ' pending-item--signoff' : '';
+    const who = item.kind === 'signoff'
+      ? escapeHtml('Rep: ' + (item.raised_by_name || '—'))
+      : escapeHtml(item.raised_by_name || '');
+    const pendingIdAttr = String(item.id).replace(/"/g, '');
     return (
-      '<button type="button" class="pending-item' + selected + '" data-pending-id="' + item.id + '">' +
+      '<button type="button" class="pending-item' + signoffClass + selected + '" data-pending-id="' + pendingIdAttr + '">' +
         '<div class="pending-item-summary">' + escapeHtml(item.summary || item.action_type) + '</div>' +
         '<div class="pending-item-meta">' +
-          escapeHtml(section) + ' · ' + escapeHtml(item.raised_by_name || '') +
+          escapeHtml(section) + ' · ' + who +
           (item.raised_at ? ' · ' + escapeHtml(formatRaisedAt(item.raised_at)) : '') +
         '</div>' +
       '</button>'
@@ -7887,7 +8061,7 @@ function renderPendingList() {
   }).join('');
 
   listEl.querySelectorAll('[data-pending-id]').forEach(btn => {
-    btn.addEventListener('click', () => openPendingDetail(Number(btn.getAttribute('data-pending-id'))));
+    btn.addEventListener('click', () => openPendingDetail(btn.getAttribute('data-pending-id')));
   });
 }
 
@@ -7910,19 +8084,71 @@ async function openPendingDetail(pendingId) {
   selectedPendingId = pendingId;
   renderPendingList();
 
-  const summary = hubContext.pendingActions.find(p => p.id === pendingId);
+  const queueItem = collectPendingQueueItems().find(p => String(p.id) === String(pendingId));
   const detailEl = document.getElementById('pending-detail');
   const scrollEl = document.getElementById('pending-detail-scroll');
   const footerEl = document.getElementById('pending-detail-footer');
   const backBtn = document.getElementById('pending-detail-back');
   const panel = document.getElementById('pending-panel');
-  if (!detailEl || !scrollEl || !footerEl || !summary) return;
+  if (!detailEl || !scrollEl || !footerEl || !queueItem) return;
 
   detailEl.classList.add('open');
   panel?.classList.add('has-detail');
   if (backBtn) backBtn.hidden = false;
   scrollEl.innerHTML = '<p class="hub-panel-empty">Loading details…</p>';
   footerEl.innerHTML = '';
+
+  if (queueItem.kind === 'signoff') {
+    const fixture = findFixture(queueItem.dbkey, null, queueItem.lane);
+    scrollEl.innerHTML =
+      '<div class="detail-row"><div class="label">Set</div><div class="value">' + escapeHtml(fixtureNameForDbkey(queueItem.dbkey)) + '</div></div>' +
+      '<div class="detail-row"><div class="label">DBKey</div><div class="value"><code>' + escapeHtml(String(queueItem.dbkey)) + '</code></div></div>' +
+      (queueItem.lane ? '<div class="detail-row"><div class="label">Lane</div><div class="value">' + escapeHtml(queueItem.lane) + '</div></div>' : '') +
+      '<div class="detail-row"><div class="label">Completed by</div><div class="value">' + escapeHtml(queueItem.raised_by_name || '—') + '</div></div>' +
+      (queueItem.raised_at ? '<div class="detail-row"><div class="label">Marked done</div><div class="value">' + escapeHtml(formatRaisedAt(queueItem.raised_at)) + '</div></div>' : '') +
+      '<p class="hub-panel-empty" style="margin-top:12px;">Review the set, then sign off when the reset looks correct.</p>';
+
+    footerEl.innerHTML =
+      '<div class="verify-actions">' +
+        '<button type="button" class="btn-verify" id="btn-pending-open-set">Open set</button>' +
+        '<button type="button" class="btn-verify" id="btn-pending-signoff">Sign off</button>' +
+      '</div>' +
+      '<div class="flag-status" id="pending-action-status"></div>';
+
+    const setStatus = (msg, kind) => {
+      const el = document.getElementById('pending-action-status');
+      if (el) {
+        el.textContent = msg || '';
+        el.className = 'flag-status' + (kind ? ' ' + kind : '');
+      }
+    };
+
+    document.getElementById('btn-pending-open-set')?.addEventListener('click', async () => {
+      togglePendingPanel(false);
+      const fx = fixture || findFixture(queueItem.dbkey, null, queueItem.lane);
+      if (fx) await openPogWorkingView(fx);
+      else setStatus('Set not found on manifest', 'error');
+    });
+
+    document.getElementById('btn-pending-signoff')?.addEventListener('click', async () => {
+      setStatus('Signing off…');
+      try {
+        await hubSectionMutate(queueItem.dbkey, queueItem.lane, 'signoff', {});
+        setStatus('Signed off', 'ok');
+        closePendingDetail();
+        togglePendingPanel(false);
+      } catch (err) {
+        setStatus(err.message || 'Sign off failed', 'error');
+      }
+    });
+    return;
+  }
+
+  const summary = hubContext.pendingActions.find(p => String(p.id) === String(pendingId));
+  if (!summary) {
+    scrollEl.innerHTML = '<p class="flag-status error">Pending item not found</p>';
+    return;
+  }
 
   try {
     let full = pendingDetailCache[pendingId];
