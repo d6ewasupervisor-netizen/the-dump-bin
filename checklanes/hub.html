@@ -2855,7 +2855,7 @@
     width: 100%;
     aspect-ratio: 1;
     object-fit: contain;
-    background: #fff;
+    background: transparent;
     border-radius: 4px;
   }
 
@@ -2926,7 +2926,7 @@
     aspect-ratio: 1;
     border-radius: 4px;
     overflow: hidden;
-    background: #fff;
+    background: transparent;
   }
 
   .pog-wv-tile-visual .pog-wv-tile-img {
@@ -3124,7 +3124,7 @@
     width: 100%;
     max-height: 50vh;
     object-fit: contain;
-    background: #fff;
+    background: transparent;
     border-radius: 8px;
     margin-bottom: 12px;
   }
@@ -5266,7 +5266,7 @@ function openPogProductModal(prod, bay, fixture) {
 
   if (img) {
     img.classList.remove('is-hidden');
-    img.src = pogUrl('/products-png/' + encodeURIComponent(upc) + '.png');
+    img.src = pogUrl('/products-webp/' + encodeURIComponent(upc) + '.webp');
     img.alt = displayName;
     img.onerror = () => {
       img.classList.add('is-hidden');
@@ -5472,7 +5472,7 @@ function mountHubPlanogram(layout) {
   if (!host || !layout) return;
 
   window.PLANOGRAM_IMG_RESOLVER = (upc) =>
-    pogUrl('/products-png/' + encodeURIComponent(String(upc)) + '.png');
+    pogUrl('/products-webp/' + encodeURIComponent(String(upc)) + '.webp');
 
   window.PLANOGRAM_TILE_CLICK = ({ item, bayNum, fixture }) => {
     const bay = (layout.bays || []).find(b => String(b.bay_num) === String(bayNum)) ||
@@ -5496,7 +5496,7 @@ function renderPogTile(prod, bay, fixture, dbkey) {
   const name = productDisplayName(upc, prod);
   const size = productDisplaySize(upc, prod);
   const tileId = 'pog-tile-' + dbkey + '-' + bay.bay_num + '-' + fixture.fixture_num + '-' + upc;
-  const imgUrl = pogUrl('/products-png/' + encodeURIComponent(upc) + '.png');
+  const imgUrl = pogUrl('/products-webp/' + encodeURIComponent(upc) + '.webp');
   const facings = prod.facings > 1 ? (' · ×' + prod.facings) : '';
   const newBadge = prod.is_new ? '<span class="pog-wv-badge-new">NEW</span>' : '';
 

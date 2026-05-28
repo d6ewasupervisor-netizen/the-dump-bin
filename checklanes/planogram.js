@@ -140,7 +140,7 @@
     if (typeof window.PLANOGRAM_IMG_RESOLVER === 'function') {
       return window.PLANOGRAM_IMG_RESOLVER(upc);
     }
-    return 'products-png/' + encodeURIComponent(String(upc)) + '.png';
+    return 'products-webp/' + encodeURIComponent(String(upc)) + '.webp';
   }
 
   /** R/C digits are Kroger inch coordinates; allow optional space between R and C. */
