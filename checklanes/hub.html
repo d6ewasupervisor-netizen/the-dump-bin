@@ -1190,20 +1190,82 @@
     background: var(--surface);
   }
 
-  .assignments-flat-list .assign-set-row {
-    grid-template-columns: auto 52px 88px minmax(0, 1fr) auto;
-  }
-
-  .assignments-flat-list .assign-set-row.has-assign {
-    grid-template-columns: auto 52px 88px minmax(0, 1fr) auto minmax(160px, 240px);
-  }
-
-  .assignments-flat-list .assign-set-row.has-bulk {
-    grid-template-columns: auto 52px 88px minmax(0, 1fr) auto;
-  }
-
+  .assignments-flat-list .assign-set-row,
+  .assignments-flat-list .assign-set-row.has-assign,
+  .assignments-flat-list .assign-set-row.has-bulk,
   .assignments-flat-list .assign-set-row.has-assign.has-bulk {
-    grid-template-columns: auto 52px 88px minmax(0, 1fr) auto minmax(160px, 240px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 45%);
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas:
+      "lane    dbkey"
+      "name    preview"
+      "pill    preview"
+      "actions preview";
+    column-gap: 12px;
+    row-gap: 6px;
+    padding: 12px 14px;
+    align-items: start;
+    min-height: 0;
+  }
+
+  .assignments-flat-list .assign-set-lane {
+    grid-area: lane;
+    align-self: center;
+  }
+
+  .assignments-flat-list .assign-set-dbkey {
+    grid-area: dbkey;
+    justify-self: end;
+    align-self: center;
+    white-space: nowrap;
+  }
+
+  .assignments-flat-list .assign-set-name {
+    grid-area: name;
+    align-self: start;
+    white-space: normal;
+  }
+
+  .assignments-flat-list .assign-set-row > .state-pill {
+    grid-area: pill;
+    justify-self: start;
+    align-self: center;
+  }
+
+  .assignments-flat-list .assign-set-actions {
+    grid-area: actions;
+    flex-direction: column;
+    align-items: stretch;
+    align-self: end;
+    width: 100%;
+  }
+
+  .assignments-flat-list .assign-set-actions .hub-roster-select,
+  .assignments-flat-list .assign-set-actions .btn-assign,
+  .assignments-flat-list .assign-set-actions .btn-unassign {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .assign-set-preview {
+    grid-area: preview;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 110px;
+    max-height: 320px;
+    object-fit: contain;
+    object-position: center;
+    align-self: stretch;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+
+  .assign-set-preview.is-hidden {
+    display: none;
   }
 
   .assign-set-check {
@@ -1906,14 +1968,26 @@
     .pod-facing-row { flex-wrap: wrap; }
     .pod-stand-cell { min-width: 88px; }
 
-    .assign-set-row,
+    .assign-set-row {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      gap: 6px;
+      padding: 12px;
+    }
+
     .assignments-flat-list .assign-set-row,
     .assignments-flat-list .assign-set-row.has-assign,
     .assignments-flat-list .assign-set-row.has-bulk,
     .assignments-flat-list .assign-set-row.has-assign.has-bulk {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto;
-      gap: 6px;
+      grid-template-columns: minmax(0, 1fr) minmax(120px, 48%);
+      grid-template-rows: auto auto auto 1fr;
+      grid-template-areas:
+        "lane    dbkey"
+        "name    preview"
+        "pill    preview"
+        "actions preview";
+      column-gap: 10px;
+      row-gap: 6px;
       padding: 12px;
     }
 
@@ -1927,6 +2001,10 @@
     .assign-set-actions .btn-unassign {
       width: 100%;
       min-height: 44px;
+    }
+
+    .assign-set-preview {
+      min-height: 96px;
     }
 
     .assignments-toolbar {
@@ -6388,18 +6466,16 @@ function assignmentAssignControlsHtml(row) {
 
 function renderAssignmentSetRowHtml(row) {
   const assignHtml = assignmentAssignControlsHtml(row);
-  const assigneeHtml = !isRepHubView()
-    ? '<span class="assign-set-assignee">' + escapeHtml(row.assigneeName || 'Unassigned') + '</span>'
-    : '';
   const rowClass = 'assign-set-row' + (assignHtml ? ' has-assign' : '');
+  const previewUrl = pogUrl('/previews/' + encodeURIComponent(row.dbkey) + '.png');
   return (
     '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
       '<span class="assign-set-lane">' + escapeHtml(row.lane) + '</span>' +
       '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
       '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
-      assigneeHtml +
       statePillHtml({ on_manifest: true, lane: row.lane, dbkey: row.dbkey }) +
       assignHtml +
+      '<img class="assign-set-preview" src="' + escapeHtml(previewUrl) + '" alt="POG preview ' + escapeHtml(row.dbkey) + '" loading="lazy" decoding="async" onerror="this.classList.add(\'is-hidden\')">' +
     '</li>'
   );
 }
