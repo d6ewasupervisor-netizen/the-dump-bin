@@ -952,8 +952,8 @@
     font-size: 0.75rem;
   }
 
-  .assign-set-store-aisle { grid-area: store-aisle; min-width: 0; }
-  .assign-set-register { grid-area: register; font-size: 0.68rem; font-weight: 700; color: var(--text3); letter-spacing: 0.03em; text-transform: uppercase; }
+  .assign-set-store-aisle { min-width: 0; }
+  .assign-set-register { font-size: 0.68rem; font-weight: 700; color: var(--text3); letter-spacing: 0.03em; text-transform: uppercase; flex: 0 0 auto; }
   .store-aisle-badge { display: inline-flex; align-items: center; max-width: 100%; padding: 6px 10px; border-radius: 999px; background: rgba(37,99,235,0.18); border: 1px solid rgba(147,197,253,0.35); color: #bfdbfe; font-size: 0.88rem; font-weight: 800; line-height: 1.2; }
   .store-aisle-badge.is-empty { background: rgba(107,114,128,0.12); border-color: var(--border); color: var(--text3); font-weight: 600; font-size: 0.78rem; }
   .aisle-picker { position: relative; width: 100%; min-width: 0; }
@@ -1306,80 +1306,165 @@
   .assignments-flat-list .assign-set-row.has-assign,
   .assignments-flat-list .assign-set-row.has-bulk,
   .assignments-flat-list .assign-set-row.has-assign.has-bulk {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(140px, 45%);
-    grid-template-rows: auto auto auto auto 1fr;
-    grid-template-areas:
-      "store-aisle dbkey"
-      "register    preview"
-      "name        preview"
-      "pill        preview"
-      "actions     preview";
-    column-gap: 12px;
-    row-gap: 6px;
-    padding: 12px 14px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    align-items: stretch;
     min-height: 0;
   }
 
-  .assignments-flat-list .assign-set-store-aisle {
-    grid-area: store-aisle;
-    align-self: center;
+  .assignments-flat-list .assign-set-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
   }
 
-  .assignments-flat-list .assign-set-register {
-    grid-area: register;
-    align-self: start;
+  .assignments-flat-list .assign-set-head-main {
+    flex: 1;
+    min-width: 0;
   }
 
   .assignments-flat-list .assign-set-dbkey {
-    grid-area: dbkey;
-    justify-self: end;
+    flex: 0 0 auto;
     align-self: center;
     white-space: nowrap;
+    font-size: 0.76rem;
+  }
+
+  .assignments-flat-list .assign-set-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    min-width: 0;
   }
 
   .assignments-flat-list .assign-set-name {
-    grid-area: name;
-    align-self: start;
-    white-space: normal;
+    flex: 1 1 100%;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.76rem;
   }
 
-  .assignments-flat-list .assign-set-row > .state-pill {
-    grid-area: pill;
-    justify-self: start;
-    align-self: center;
+  .assignments-flat-list .assign-set-body {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+
+  .assignments-flat-list .assign-set-row:not(.has-assign) .assign-set-body {
+    grid-template-columns: 72px;
+  }
+
+  .assignments-flat-list .assign-set-preview-wrap {
+    width: 72px;
+    height: 52px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .assignments-flat-list .assign-set-preview {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    pointer-events: none;
   }
 
   .assignments-flat-list .assign-set-actions {
-    grid-area: actions;
+    display: flex;
     flex-direction: column;
+    gap: 6px;
     align-items: stretch;
-    align-self: end;
-    width: 100%;
+    min-width: 0;
   }
 
   .assignments-flat-list .assign-set-actions .hub-roster-select,
   .assignments-flat-list .assign-set-actions .btn-assign,
   .assignments-flat-list .assign-set-actions .btn-unassign {
     width: 100%;
-    min-height: 40px;
+    min-height: 38px;
+  }
+
+  .assignments-flat-list .aisle-picker-trigger {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+  }
+
+  .assignments-flat-list .aisle-picker-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .assignments-flat-list .store-aisle-badge {
+    padding: 4px 8px;
+    font-size: 0.78rem;
+  }
+
+  @media (min-width: 480px) {
+    .assignments-flat-list .assign-set-name {
+      flex: 1 1 auto;
+      min-width: 6rem;
+    }
+  }
+
+  @media (min-width: 520px) {
+    .assignments-flat-list .assign-set-actions {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: stretch;
+    }
+
+    .assignments-flat-list .assign-set-actions .hub-roster-select {
+      flex: 1 1 140px;
+      width: auto;
+      min-width: 0;
+    }
+
+    .assignments-flat-list .assign-set-actions .btn-assign,
+    .assignments-flat-list .assign-set-actions .btn-unassign {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 5.5rem;
+    }
   }
 
   .assign-set-preview {
-    grid-area: preview;
     display: block;
     width: 100%;
-    height: 100%;
-    min-height: 110px;
-    max-height: 320px;
+    max-height: 120px;
     object-fit: contain;
     object-position: center;
-    align-self: stretch;
     border-radius: 6px;
     border: 1px solid var(--border);
     background: rgba(0, 0, 0, 0.35);
     pointer-events: none;
+  }
+
+  .assignments-flat-list .assign-set-preview.is-hidden {
+    display: none;
+  }
+
+  .assignments-flat-list .assign-set-preview-wrap:has(.assign-set-preview.is-hidden) {
+    display: none;
+  }
+
+  .assignments-flat-list .assign-set-body:has(.assign-set-preview.is-hidden) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .assign-set-preview.is-hidden {
@@ -2496,36 +2581,29 @@
       padding: 12px;
     }
 
-    .assignments-flat-list .assign-set-row,
-    .assignments-flat-list .assign-set-row.has-assign,
-    .assignments-flat-list .assign-set-row.has-bulk,
-    .assignments-flat-list .assign-set-row.has-assign.has-bulk {
-      grid-template-columns: minmax(0, 1fr) minmax(120px, 48%);
-      grid-template-rows: auto auto auto 1fr;
-      grid-template-areas:
-        "lane    dbkey"
-        "name    preview"
-        "pill    preview"
-        "actions preview";
-      column-gap: 10px;
-      row-gap: 6px;
-      padding: 12px;
+    .assignments-flat-list .assign-set-body {
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 8px;
     }
 
-    .assign-set-actions {
+    .assignments-flat-list .assign-set-row:not(.has-assign) .assign-set-body {
+      grid-template-columns: 64px;
+    }
+
+    .assignments-flat-list .assign-set-preview-wrap {
+      width: 64px;
+      height: 48px;
+    }
+
+    .assignments-flat-list .assign-set-actions {
       flex-direction: column;
-      width: 100%;
     }
 
-    .assign-set-actions .hub-roster-select,
-    .assign-set-actions .btn-assign,
-    .assign-set-actions .btn-unassign {
+    .assignments-flat-list .assign-set-actions .hub-roster-select,
+    .assignments-flat-list .assign-set-actions .btn-assign,
+    .assignments-flat-list .assign-set-actions .btn-unassign {
       width: 100%;
-      min-height: 44px;
-    }
-
-    .assign-set-preview {
-      min-height: 96px;
+      min-height: 42px;
     }
 
     .assignments-toolbar {
@@ -7640,13 +7718,21 @@ function renderAssignmentSetRowHtml(row) {
   const previewUrl = hubAssignPreviewUrl(row.dbkey);
   return (
     '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
-      renderAislePickerHtml(row, editableAisle) +
-      '<span class="assign-set-register">' + escapeHtml(formatRegisterLabel(row.lane)) + '</span>' +
-      '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
-      '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
-      statePillHtml({ on_manifest: true, lane: row.lane, dbkey: row.dbkey }) +
-      assignHtml +
-      '<img class="assign-set-preview" src="' + escapeHtml(previewUrl) + '" alt="POG preview ' + escapeHtml(row.dbkey) + '" loading="lazy" decoding="async" onerror="this.classList.add(\'is-hidden\')">' +
+      '<div class="assign-set-head">' +
+        '<div class="assign-set-head-main">' + renderAislePickerHtml(row, editableAisle) + '</div>' +
+        '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
+      '</div>' +
+      '<div class="assign-set-meta">' +
+        '<span class="assign-set-register">' + escapeHtml(formatRegisterLabel(row.lane)) + '</span>' +
+        statePillHtml({ on_manifest: true, lane: row.lane, dbkey: row.dbkey }) +
+        '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
+      '</div>' +
+      '<div class="assign-set-body">' +
+        '<div class="assign-set-preview-wrap">' +
+          '<img class="assign-set-preview" src="' + escapeHtml(previewUrl) + '" alt="POG preview ' + escapeHtml(row.dbkey) + '" loading="lazy" decoding="async" onerror="this.classList.add(\'is-hidden\')">' +
+        '</div>' +
+        assignHtml +
+      '</div>' +
     '</li>'
   );
 }
