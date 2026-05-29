@@ -1369,6 +1369,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
   }
 
   .assignments-flat-list .assign-set-preview {
@@ -1377,7 +1378,7 @@
     height: 100%;
     object-fit: contain;
     object-position: center;
-    pointer-events: none;
+    cursor: pointer;
   }
 
   .assignments-flat-list .assign-set-actions {
@@ -1450,7 +1451,134 @@
     border-radius: 6px;
     border: 1px solid var(--border);
     background: rgba(0, 0, 0, 0.35);
-    pointer-events: none;
+    cursor: pointer;
+  }
+
+  .assign-set-preview-wrap {
+    cursor: pointer;
+  }
+
+  .assign-preview-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 850;
+    background: rgba(0, 0, 0, 0.94);
+    display: none;
+    flex-direction: column;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+
+  .assign-preview-fullscreen.open {
+    display: flex;
+  }
+
+  body.assign-preview-fs-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .assign-preview-fs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .assign-preview-fs-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text2);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .assign-preview-fs-close {
+    appearance: none;
+    background: none;
+    border: none;
+    color: var(--text2);
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    min-height: 44px;
+    min-width: 44px;
+    flex-shrink: 0;
+  }
+
+  .assign-preview-fs-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 8px 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .assign-preview-fs-body img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 6px;
+    background: #fff;
+  }
+
+  .assign-preview-fs-body img.is-hidden {
+    display: none;
+  }
+
+  .assign-preview-fs-footer {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    align-items: stretch;
+  }
+
+  .assign-preview-fs-assign-wrap {
+    display: flex;
+    flex: 1 1 12rem;
+    gap: 8px;
+    min-width: 0;
+    align-items: stretch;
+  }
+
+  .assign-preview-fs-assign-wrap .hub-roster-select {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .assign-preview-fs-footer .btn-assign,
+  .assign-preview-fs-footer .btn-pog-open {
+    flex: 1 1 8rem;
+    min-height: 44px;
+    margin-top: 0;
+  }
+
+  .assign-preview-fs-status {
+    width: 100%;
+    font-size: 0.78rem;
+    color: var(--text2);
+  }
+
+  .assign-preview-fs-status.error {
+    color: #f87171;
+  }
+
+  .assign-preview-fs-status.ok {
+    color: #86efac;
   }
 
   .assignments-flat-list .assign-set-preview.is-hidden {
@@ -4996,6 +5124,24 @@
   </div>
 </div>
 
+<div class="assign-preview-fullscreen" id="assign-preview-fullscreen" role="dialog" aria-modal="true" aria-label="Planogram preview" aria-hidden="true" hidden>
+  <div class="assign-preview-fs-header">
+    <div class="assign-preview-fs-title" id="assign-preview-fs-title"></div>
+    <button type="button" class="assign-preview-fs-close" id="assign-preview-fs-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="assign-preview-fs-body">
+    <img id="assign-preview-fs-img" alt="" decoding="async">
+  </div>
+  <div class="assign-preview-fs-footer" id="assign-preview-fs-footer">
+    <div class="assign-preview-fs-assign-wrap" id="assign-preview-fs-assign-wrap" hidden>
+      <select class="hub-roster-select" id="assign-preview-fs-select" aria-label="Assign rep"></select>
+      <button type="button" class="btn-assign" id="assign-preview-fs-assign">Assign</button>
+    </div>
+    <button type="button" class="btn btn-pog-open" id="assign-preview-fs-open-pog">Open POG</button>
+    <div class="assign-preview-fs-status" id="assign-preview-fs-status" hidden></div>
+  </div>
+</div>
+
 <div class="pog-product-modal" id="pog-product-modal" aria-hidden="true">
   <div class="pog-product-modal-card">
     <button type="button" class="pog-product-modal-close" id="pog-product-modal-close" aria-label="Close">&times;</button>
@@ -6190,7 +6336,7 @@ function hideDetailForPog() {
 }
 
 function closeDetail(opts) {
-  if (!opts?.skipHistory && isDetailOpen() && !confirmLeaveDetail()) {
+  if (!opts?.skipConfirm && !opts?.skipHistory && isDetailOpen() && !confirmLeaveDetail()) {
     hubNavLock = true;
     syncHubUrl({ fixture: selectedDbkey, lane: selectedLane, pog: null });
     hubNavLock = false;
@@ -6770,6 +6916,18 @@ function bindEvents() {
       e.stopPropagation();
       return;
     }
+    const previewWrap = e.target.closest('.assign-set-preview-wrap');
+    if (previewWrap) {
+      const previewImg = previewWrap.querySelector('.assign-set-preview');
+      if (previewImg && !previewImg.classList.contains('is-hidden')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const previewRow = previewWrap.closest('.assign-set-row[data-dbkey]');
+        if (previewRow) openAssignPreviewFullscreen(previewRow);
+        return;
+      }
+    }
+
     if (e.target.closest('.assign-set-actions')) {
       const unassignBtn = e.target.closest('.assign-set-unassign-btn');
       if (unassignBtn) {
@@ -6822,8 +6980,25 @@ function bindEvents() {
     });
   });
 
-  document.getElementById('detail-close').addEventListener('click', closeDetail);
-  document.getElementById('overlay').addEventListener('click', closeDetail);
+  document.getElementById('detail-close').addEventListener('click', () => closeDetail({ skipConfirm: true }));
+  document.getElementById('overlay').addEventListener('click', () => closeDetail({ skipConfirm: true }));
+
+  document.getElementById('assign-preview-fs-close')?.addEventListener('click', closeAssignPreviewFullscreen);
+  document.getElementById('assign-preview-fs-assign')?.addEventListener('click', () => {
+    handleAssignPreviewFullscreenAssign();
+  });
+  document.getElementById('assign-preview-fs-open-pog')?.addEventListener('click', () => {
+    handleAssignPreviewFullscreenOpenPog();
+  });
+  document.getElementById('assign-preview-fullscreen')?.addEventListener('click', e => {
+    if (e.target.id === 'assign-preview-fullscreen') closeAssignPreviewFullscreen();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('assign-preview-fullscreen')?.classList.contains('open')) {
+      closeAssignPreviewFullscreen();
+    }
+  });
 
   document.getElementById('pending-badge').addEventListener('click', () => {
     if (hubContext.myRank >= 2) {
@@ -6988,6 +7163,160 @@ function hubAssignPreviewUrl(dbkey) {
 /** Fallback to the un-minimized cropped webp if a minimized preview is missing. */
 function hubAssignPreviewFallbackUrl(dbkey) {
   return pogUrl('/previews-cropped-webp/' + encodeURIComponent(dbkey) + '.webp');
+}
+
+/** Full-size planogram sources for assignment preview lightbox (largest first). */
+function hubAssignPreviewSources(dbkey) {
+  const dk = encodeURIComponent(dbkey);
+  return [
+    pogUrl('/previews-cropped-webp/' + dk + '.webp'),
+    pogUrl('/previews-cropped/' + dk + '.png'),
+    pogUrl('/previews/' + dk + '.png'),
+  ];
+}
+
+let assignPreviewFullscreenCtx = null;
+
+function assignPreviewImgOnError(img) {
+  const step = Number(img.dataset.fbkStep || '0');
+  const raw = img.dataset.fbkSources;
+  if (!raw) {
+    img.classList.add('is-hidden');
+    return;
+  }
+  let sources;
+  try { sources = JSON.parse(decodeURIComponent(raw)); } catch (_) { sources = []; }
+  if (step < sources.length) {
+    img.dataset.fbkStep = String(step + 1);
+    img.src = sources[step];
+  } else {
+    img.classList.add('is-hidden');
+  }
+}
+
+function setAssignPreviewFullscreenStatus(msg, kind) {
+  const el = document.getElementById('assign-preview-fs-status');
+  if (!el) return;
+  if (!msg) {
+    el.hidden = true;
+    el.textContent = '';
+    el.className = 'assign-preview-fs-status';
+    return;
+  }
+  el.hidden = false;
+  el.textContent = msg;
+  el.className = 'assign-preview-fs-status' + (kind ? ' ' + kind : '');
+}
+
+function closeAssignPreviewFullscreen() {
+  const panel = document.getElementById('assign-preview-fullscreen');
+  if (!panel) return;
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+  panel.hidden = true;
+  document.body.classList.remove('assign-preview-fs-open');
+  assignPreviewFullscreenCtx = null;
+  setAssignPreviewFullscreenStatus('');
+}
+
+function openAssignPreviewFullscreen(rowEl) {
+  const dbkey = rowEl.getAttribute('data-dbkey');
+  const lane = rowEl.getAttribute('data-lane');
+  if (!dbkey) return;
+
+  const panel = document.getElementById('assign-preview-fullscreen');
+  const img = document.getElementById('assign-preview-fs-img');
+  const titleEl = document.getElementById('assign-preview-fs-title');
+  const assignWrap = document.getElementById('assign-preview-fs-assign-wrap');
+  const select = document.getElementById('assign-preview-fs-select');
+  const assignBtn = document.getElementById('assign-preview-fs-assign');
+  const openPogBtn = document.getElementById('assign-preview-fs-open-pog');
+  if (!panel || !img) return;
+
+  const nameEl = rowEl.querySelector('.assign-set-name');
+  const registerEl = rowEl.querySelector('.assign-set-register');
+  const titleParts = [
+    registerEl ? registerEl.textContent.trim() : '',
+    dbkey,
+    nameEl ? nameEl.textContent.trim() : '',
+  ].filter(Boolean);
+  if (titleEl) titleEl.textContent = titleParts.join(' · ');
+
+  const sources = hubAssignPreviewSources(dbkey);
+  img.classList.remove('is-hidden');
+  img.alt = 'Planogram preview ' + dbkey;
+  img.dataset.fbkStep = '0';
+  img.dataset.fbkSources = encodeURIComponent(JSON.stringify(sources.slice(1)));
+  img.onerror = () => assignPreviewImgOnError(img);
+  img.src = sources[0];
+
+  const rowSelect = rowEl.querySelector('.assign-set-select');
+  const showAssign = !!assignWrap && !!select && canShowSectionAssign(lane, dbkey) && liveVisitId && hubContext.myRank >= 2;
+  if (showAssign) {
+    assignWrap.hidden = false;
+    select.innerHTML = '<option value="">Rep…</option>' + rosterSelectOptionsHtml(rowSelect?.value || '');
+    if (rowSelect?.value) select.value = rowSelect.value;
+    if (assignBtn) assignBtn.disabled = false;
+    select.disabled = false;
+  } else if (assignWrap) {
+    assignWrap.hidden = true;
+  }
+
+  if (openPogBtn) {
+    openPogBtn.disabled = false;
+    openPogBtn.textContent = 'Open POG';
+  }
+
+  assignPreviewFullscreenCtx = { dbkey, lane, action: rowEl.getAttribute('data-action') };
+  setAssignPreviewFullscreenStatus('');
+
+  panel.hidden = false;
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('assign-preview-fs-open');
+}
+
+async function handleAssignPreviewFullscreenAssign() {
+  const ctx = assignPreviewFullscreenCtx;
+  const select = document.getElementById('assign-preview-fs-select');
+  const assignBtn = document.getElementById('assign-preview-fs-assign');
+  if (!ctx || !select) return;
+
+  const assigneeId = Number(select.value);
+  if (!Number.isFinite(assigneeId)) {
+    setAssignPreviewFullscreenStatus('Choose a rep', 'error');
+    select.focus();
+    return;
+  }
+
+  if (assignBtn) {
+    assignBtn.disabled = true;
+    assignBtn.textContent = '…';
+  }
+  select.disabled = true;
+  setAssignPreviewFullscreenStatus('Assigning…');
+
+  try {
+    await hubSectionMutate(ctx.dbkey, ctx.lane, 'assign', { assigneeId });
+    setAssignPreviewFullscreenStatus('Assigned', 'ok');
+    closeAssignPreviewFullscreen();
+  } catch (err) {
+    setAssignPreviewFullscreenStatus(err.message || 'Assign failed', 'error');
+    if (assignBtn) {
+      assignBtn.disabled = false;
+      assignBtn.textContent = 'Assign';
+    }
+    select.disabled = false;
+  }
+}
+
+async function handleAssignPreviewFullscreenOpenPog() {
+  const ctx = assignPreviewFullscreenCtx;
+  if (!ctx) return;
+  const fix = findFixture(ctx.dbkey, ctx.action, ctx.lane) || fixtureForDbkey(ctx.dbkey);
+  if (!fix) return;
+  closeAssignPreviewFullscreen();
+  await openPogWorkingView(fix);
 }
 
 async function ensurePogCatalogLoaded() {
