@@ -1635,6 +1635,93 @@
     color: #86efac;
   }
 
+  .team-invite-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+  }
+
+  .team-invite-modal[hidden] {
+    display: none !important;
+  }
+
+  .team-invite-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card-bg, #fff);
+    border-radius: 12px;
+    border: 1px solid var(--card-border, #e5e7eb);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    padding: 20px 22px 18px;
+  }
+
+  .team-invite-card h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: var(--text, #1f2937);
+  }
+
+  .team-invite-lead {
+    margin: 0 0 16px;
+    font-size: 14px;
+    color: var(--text-muted, #6b7280);
+    line-height: 1.45;
+  }
+
+  .team-invite-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .team-invite-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .team-invite-option input {
+    margin-top: 3px;
+  }
+
+  .team-invite-custom {
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--card-border, #d1d5db);
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  .team-invite-custom:disabled {
+    opacity: 0.5;
+    background: #f3f4f6;
+  }
+
+  .team-invite-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .team-invite-status {
+    min-height: 1.2em;
+    font-size: 13px;
+    margin-bottom: 10px;
+    color: var(--text-muted, #6b7280);
+  }
+
+  .team-invite-status.error { color: #dc2626; }
+  .team-invite-status.ok { color: #15803d; }
+
   .assignments-flat-list .assign-set-preview.is-hidden {
     display: none;
   }
@@ -5209,6 +5296,29 @@
   </div>
 </div>
 
+<div class="team-invite-modal" id="team-invite-modal" role="dialog" aria-modal="true" aria-labelledby="team-invite-title" hidden>
+  <div class="team-invite-card">
+    <h2 id="team-invite-title">Invite team member</h2>
+    <p class="team-invite-lead" id="team-invite-lead"></p>
+    <div class="team-invite-options">
+      <label class="team-invite-option">
+        <input type="radio" name="team-invite-email-mode" id="team-invite-mode-onfile" value="onfile" checked>
+        <span id="team-invite-onfile-label">Send to email on file</span>
+      </label>
+      <label class="team-invite-option">
+        <input type="radio" name="team-invite-email-mode" id="team-invite-mode-custom" value="custom">
+        <span>Use a different email</span>
+      </label>
+      <input type="email" class="team-invite-custom" id="team-invite-custom-email" placeholder="name@example.com" autocomplete="email" disabled>
+    </div>
+    <div class="team-invite-status" id="team-invite-status" aria-live="polite"></div>
+    <div class="team-invite-actions">
+      <button type="button" class="btn" id="team-invite-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="team-invite-send">Send invite</button>
+    </div>
+  </div>
+</div>
+
 <div class="pog-product-modal" id="pog-product-modal" aria-hidden="true">
   <div class="pog-product-modal-card">
     <button type="button" class="pog-product-modal-close" id="pog-product-modal-close" aria-label="Close">&times;</button>
@@ -7051,6 +7161,14 @@ function bindEvents() {
   document.getElementById('detail-close').addEventListener('click', () => closeDetail({ skipConfirm: true }));
   document.getElementById('overlay').addEventListener('click', () => closeDetail({ skipConfirm: true }));
 
+  document.getElementById('team-invite-cancel')?.addEventListener('click', () => closeTeamInviteModal(false));
+  document.getElementById('team-invite-send')?.addEventListener('click', () => sendTeamInviteFromModal());
+  document.getElementById('team-invite-modal')?.addEventListener('click', e => {
+    if (e.target.id === 'team-invite-modal') closeTeamInviteModal(false);
+  });
+  document.querySelectorAll('input[name="team-invite-email-mode"]').forEach(el => {
+    el.addEventListener('change', syncTeamInviteEmailMode);
+  });
   document.getElementById('assign-preview-fs-close')?.addEventListener('click', closeAssignPreviewFullscreen);
   document.getElementById('assign-preview-fs-assign')?.addEventListener('click', () => {
     handleAssignPreviewFullscreenAssign();
@@ -7063,6 +7181,10 @@ function bindEvents() {
   });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
+    if (!document.getElementById('team-invite-modal')?.hidden) {
+      closeTeamInviteModal(false);
+      return;
+    }
     if (document.getElementById('assign-preview-fullscreen')?.classList.contains('open')) {
       closeAssignPreviewFullscreen();
     }
@@ -7356,6 +7478,15 @@ async function handleAssignPreviewFullscreenAssign() {
   setAssignPreviewFullscreenStatus('Assigning…');
 
   try {
+    if (!(await ensureTeamMemberInvited(assigneeId))) {
+      setAssignPreviewFullscreenStatus('Invite cancelled', 'error');
+      if (assignBtn) {
+        assignBtn.disabled = false;
+        assignBtn.textContent = 'Assign';
+      }
+      select.disabled = false;
+      return;
+    }
     await hubSectionMutate(ctx.dbkey, ctx.lane, 'assign', { assigneeId });
     setAssignPreviewFullscreenStatus('Assigned', 'ok');
     closeAssignPreviewFullscreen();
@@ -9057,11 +9188,126 @@ function hubSectionPost(dbkey, lane, suffix, body) {
   });
 }
 
+function rosterMemberById(userId) {
+  return hubRoster.find(p => Number(p.id) === Number(userId)) || null;
+}
+
+function rosterRepsForAssign() {
+  return hubRoster.filter(p => Number(p.rank) < 2);
+}
+
 function rosterSelectOptionsHtml(selectedId) {
-  return hubRoster.map(p => {
+  return rosterRepsForAssign().map(p => {
     const selected = selectedId != null && Number(p.id) === Number(selectedId) ? ' selected' : '';
-    return '<option value="' + escapeHtml(String(p.id)) + '"' + selected + '>' + escapeHtml(p.name) + '</option>';
+    const hint = p.needsInvite ? ' (invite required)' : '';
+    return '<option value="' + escapeHtml(String(p.id)) + '"' + selected + '>' +
+      escapeHtml(p.name + hint) + '</option>';
   }).join('');
+}
+
+let teamInviteModalResolver = null;
+let teamInviteModalMember = null;
+
+function closeTeamInviteModal(result) {
+  const modal = document.getElementById('team-invite-modal');
+  if (modal) modal.hidden = true;
+  const resolver = teamInviteModalResolver;
+  teamInviteModalResolver = null;
+  teamInviteModalMember = null;
+  if (resolver) resolver(!!result);
+}
+
+function setTeamInviteStatus(msg, kind) {
+  const el = document.getElementById('team-invite-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'team-invite-status' + (kind ? ' ' + kind : '');
+}
+
+function syncTeamInviteEmailMode() {
+  const custom = document.getElementById('team-invite-custom-email');
+  const useCustom = document.getElementById('team-invite-mode-custom')?.checked;
+  if (custom) {
+    custom.disabled = !useCustom;
+    if (useCustom) custom.focus();
+  }
+}
+
+function openTeamInviteModal(member) {
+  return new Promise((resolve) => {
+    teamInviteModalResolver = resolve;
+    teamInviteModalMember = member;
+    const modal = document.getElementById('team-invite-modal');
+    const lead = document.getElementById('team-invite-lead');
+    const onFileLabel = document.getElementById('team-invite-onfile-label');
+    const onFileRadio = document.getElementById('team-invite-mode-onfile');
+    const customRadio = document.getElementById('team-invite-mode-custom');
+    const customInput = document.getElementById('team-invite-custom-email');
+    const onFile = member.emailOnFile || member.loginEmail || '';
+    if (lead) {
+      lead.textContent =
+        'Send ' + (member.name || 'this rep') +
+        ' a one-time sign-in link for Checklane assignments. They need this before they can access the hub.';
+    }
+    if (onFileLabel) {
+      onFileLabel.textContent = onFile
+        ? 'Send to email on file: ' + onFile
+        : 'No email on file — enter an address below';
+    }
+    if (onFileRadio) onFileRadio.disabled = !onFile;
+    if (customRadio) customRadio.checked = !onFile;
+    if (onFileRadio) onFileRadio.checked = !!onFile;
+    if (customInput) {
+      customInput.value = member.loginEmail && member.loginEmail !== onFile
+        ? member.loginEmail
+        : '';
+    }
+    syncTeamInviteEmailMode();
+    setTeamInviteStatus('');
+    const sendBtn = document.getElementById('team-invite-send');
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Send invite';
+    }
+    if (modal) modal.hidden = false;
+  });
+}
+
+async function sendTeamInviteFromModal() {
+  const member = teamInviteModalMember;
+  if (!member || !liveVisitId) return;
+  const useOnFile = document.getElementById('team-invite-mode-onfile')?.checked;
+  const customEmail = (document.getElementById('team-invite-custom-email')?.value || '').trim();
+  const sendBtn = document.getElementById('team-invite-send');
+  if (sendBtn) {
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending…';
+  }
+  setTeamInviteStatus('Sending invite…');
+  try {
+    await hubMutatePost('/team-invite', {
+      userId: member.id,
+      useOnFileEmail: !!useOnFile,
+      customEmail: useOnFile ? undefined : customEmail,
+    });
+    member.needsInvite = false;
+    member.invitedAt = new Date().toISOString();
+    if (!useOnFile && customEmail) member.loginEmail = customEmail.toLowerCase();
+    setTeamInviteStatus('Invite sent', 'ok');
+    setTimeout(() => closeTeamInviteModal(true), 400);
+  } catch (err) {
+    setTeamInviteStatus(err.message || 'Invite failed', 'error');
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Send invite';
+    }
+  }
+}
+
+async function ensureTeamMemberInvited(assigneeId) {
+  const member = rosterMemberById(assigneeId);
+  if (!member || !member.needsInvite) return true;
+  return openTeamInviteModal(member);
 }
 
 function populateRosterSelect(selectEl) {
@@ -9273,6 +9519,11 @@ function bindSectionWorkflow(lane, dbkey, ids, fixture) {
     setBusy(true);
     setStatus('Assigning…');
     try {
+      if (!(await ensureTeamMemberInvited(assigneeId))) {
+        setStatus('Invite cancelled', 'error');
+        setBusy(false);
+        return;
+      }
       await hubSectionMutate(dbkey, lane, 'assign', { assigneeId });
       setStatus('Assigned', 'ok');
     } catch (err) {
@@ -9747,6 +9998,9 @@ async function handleBulkAssignPanelClick(e) {
 }
 
 async function hubBulkAssign(sections, assigneeId) {
+  if (!(await ensureTeamMemberInvited(assigneeId))) {
+    throw new Error('Invite cancelled');
+  }
   const result = await hubMutatePost('/sections/bulk-assign', { assigneeId, sections });
   const msg = 'Assigned ' + (result.assigned || 0) + ' set' + ((result.assigned || 0) !== 1 ? 's' : '');
   if (result.skipped) {
@@ -9889,6 +10143,15 @@ async function handleInlineAssignment(rowEl) {
   setStatus('Assigning…');
 
   try {
+    if (!(await ensureTeamMemberInvited(assigneeId))) {
+      setStatus('Invite cancelled', 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Assign';
+      }
+      if (select) select.disabled = false;
+      return;
+    }
     await hubSectionMutate(dbkey, lane, 'assign', { assigneeId });
     setStatus('Assigned', 'ok');
   } catch (err) {
