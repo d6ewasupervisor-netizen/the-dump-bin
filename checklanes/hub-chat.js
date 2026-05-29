@@ -31,6 +31,8 @@
   let pollInFlight = false;
   const POLL_OPEN_MS = 4000;
   const POLL_BADGE_MS = 20000;
+  let chatReady = false;
+  let lastUnreadTotal = 0;
 
   function canManage() {
     return typeof canManageHubAssignments === 'function' && canManageHubAssignments();
@@ -259,6 +261,104 @@
     } else {
       badge.hidden = true;
     }
+    updateHeaderChatBtn();
+  }
+
+  function updateHeaderChatBtn() {
+    const btn = document.getElementById('hub-header-chat-btn');
+    const dot = document.getElementById('hub-header-chat-dot');
+    if (!btn) return;
+    const unreadLabel = unreadTotal > 0
+      ? 'Team chat, ' + (unreadTotal > 99 ? '99+' : unreadTotal) + ' unread'
+      : 'Team chat';
+    btn.setAttribute('aria-label', unreadLabel);
+    btn.title = unreadTotal > 0 ? unreadLabel : 'Open team chat';
+    btn.classList.toggle('is-open', panelOpen);
+    if (dot) dot.hidden = unreadTotal <= 0;
+  }
+
+  function showHeaderChatBtn(visible) {
+    const btn = document.getElementById('hub-header-chat-btn');
+    if (!btn) return;
+    if (visible) {
+      btn.removeAttribute('hidden');
+      btn.classList.add('visible');
+    } else {
+      btn.setAttribute('hidden', '');
+      btn.classList.remove('visible');
+    }
+  }
+
+  function wireHeaderChatBtn() {
+    const btn = document.getElementById('hub-header-chat-btn');
+    if (!btn || btn.dataset.hubChatWired) return;
+    btn.dataset.hubChatWired = '1';
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      togglePanel(!panelOpen);
+    });
+  }
+
+  function shouldAutoOpenPanel(evt, prevUnread) {
+    if (panelOpen) return false;
+    if (
+      evt &&
+      evt.type === 'message' &&
+      evt.message &&
+      hubContext.myUserId &&
+      evt.message.senderId !== hubContext.myUserId
+    ) {
+      return true;
+    }
+    return chatReady && unreadTotal > prevUnread;
+  }
+
+  async function openPanelForIncoming(evt) {
+    if (panelOpen) return;
+    const panel = document.getElementById('hub-chat-panel');
+    const bubble = document.getElementById('hub-chat-bubble');
+    if (!panel || !bubble) return;
+
+    panelOpen = true;
+    panel.classList.add('is-open');
+    bubble.setAttribute('aria-expanded', 'true');
+    updateHeaderChatBtn();
+    scheduleNextPoll();
+
+    setStatus('Loading…');
+    try {
+      await Promise.all([loadRecipients(), loadThreads()]);
+      renderRecipientSelect();
+      setStatus('');
+
+      if (evt && evt.threadId) {
+        const thread = threads.find(function (t) { return t.id === evt.threadId; });
+        if (thread && canManage()) {
+          openConversationWithRep(thread.repId);
+          return;
+        }
+      }
+
+      if (canManage()) {
+        openInbox();
+      } else {
+        if (!selectedRecipientId && recipients.length) {
+          selectedRecipientId = recipients[0].id;
+        }
+        openConversation();
+      }
+    } catch (err) {
+      setStatus(err.message || 'Could not load chat');
+      chatView = 'conversation';
+      applyViewVisibility();
+      render();
+    }
+  }
+
+  function maybeAutoOpenPanel(evt, prevUnread) {
+    if (!shouldAutoOpenPanel(evt, prevUnread)) return Promise.resolve();
+    return openPanelForIncoming(evt);
   }
 
   function togglePanel(open) {
@@ -269,6 +369,7 @@
 
     panel.classList.toggle('is-open', open);
     bubble.setAttribute('aria-expanded', open ? 'true' : 'false');
+    updateHeaderChatBtn();
 
     if (open) {
       bootstrapPanel();
@@ -313,10 +414,13 @@
 
   async function loadThreads() {
     if (!liveVisitId) return;
+    const prevUnread = unreadTotal;
     const data = await hubGet('/chat/threads');
     threads = data.threads || [];
     unreadTotal = data.unreadTotal || 0;
     updateBadge();
+    await maybeAutoOpenPanel(null, prevUnread);
+    lastUnreadTotal = unreadTotal;
   }
 
   // ── Polling backstop ──
@@ -730,8 +834,11 @@
 
   function onSnapshot(snapshot) {
     if (snapshot && snapshot.chatSummary) {
+      const prevUnread = unreadTotal;
       unreadTotal = snapshot.chatSummary.unreadTotal || 0;
       updateBadge();
+      maybeAutoOpenPanel(null, prevUnread);
+      lastUnreadTotal = unreadTotal;
     }
     // Snapshots arrive on every (re)connect — when the panel is open, use them
     // as an extra cue to pull fresh threads/messages even if chat events were
@@ -746,13 +853,19 @@
 
   function onChatEvent(evt) {
     if (!evt) return;
+    const prevUnread = unreadTotal;
     if (evt.chatSummary) {
       unreadTotal = evt.chatSummary.unreadTotal || 0;
       updateBadge();
     }
-    if (!panelOpen) return;
-
-    loadThreads().then(function () {
+    maybeAutoOpenPanel(evt, prevUnread).then(function () {
+      if (!panelOpen) {
+        lastUnreadTotal = unreadTotal;
+        return;
+      }
+      return loadThreads();
+    }).then(function () {
+      if (!panelOpen) return;
       if (chatView === 'inbox') {
         renderInbox();
         return;
@@ -781,6 +894,8 @@
 
   function init() {
     ensureDom();
+    wireHeaderChatBtn();
+    showHeaderChatBtn(!!liveVisitId);
     updateBadge();
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', function () {
@@ -792,9 +907,15 @@
       });
     }
     if (liveVisitId) {
-      loadThreads().catch(function (err) {
-        console.warn('[Hub chat] initial thread load failed:', err);
-      });
+      loadThreads()
+        .then(function () {
+          chatReady = true;
+          lastUnreadTotal = unreadTotal;
+        })
+        .catch(function (err) {
+          chatReady = true;
+          console.warn('[Hub chat] initial thread load failed:', err);
+        });
     }
     startPolling();
   }
