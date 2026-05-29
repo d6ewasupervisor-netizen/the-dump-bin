@@ -994,7 +994,11 @@
     return el;
   }
 
-  function attachPlanogramZoom(viewport, stage, wrap) {
+  function attachPlanogramZoom(viewport, stage, wrap, options) {
+    options = options || {};
+    var scrollEl = options.scrollEl || null;
+    var pageScrollOnBackground = !!options.pageScrollOnBackground;
+
     var scale = 1;
     var tx = 0;
     var ty = 0;
@@ -1018,6 +1022,7 @@
     var suppressClick = false;
     var rafId = 0;
     var draggingPan = false;
+    var scrollDrag = null;
 
     var TAP_MOVE_PX = 6;
     var TAP_MS = 300;
@@ -1157,7 +1162,29 @@
       scheduleApply();
     }
 
+    function isProductPointerTarget(el) {
+      return !!(el && el.closest && el.closest('.planogram-tile, .pog-wv-tile'));
+    }
+
+    function beginBackgroundScroll(e) {
+      if (!scrollEl) return;
+      scrollDrag = {
+        pointerId: e.pointerId,
+        startY: e.clientY,
+        startScrollTop: scrollEl.scrollTop,
+      };
+      try {
+        viewport.setPointerCapture(e.pointerId);
+      } catch (err) {
+        /* ignore */
+      }
+    }
+
     function onPointerDown(e) {
+      if (pageScrollOnBackground && isProductPointerTarget(e.target)) {
+        return;
+      }
+
       suppressClick = false;
       pointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
 
@@ -1166,6 +1193,7 @@
       } else if (pointers.size >= 2) {
         sessionHadPinch = true;
         singleDownId = null;
+        scrollDrag = null;
       }
 
       if (pointers.size === 2) {
@@ -1180,6 +1208,13 @@
         singleDownX = p.x;
         singleDownY = p.y;
         singleDownId = e.pointerId;
+
+        if (pageScrollOnBackground && scrollEl && !scaledBeyondFit()) {
+          beginBackgroundScroll(e);
+          e.preventDefault();
+          return;
+        }
+
         panPtrId = e.pointerId;
         panStartX = e.clientX;
         panStartY = e.clientY;
@@ -1194,8 +1229,23 @@
       pointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
 
       if (pointers.size >= 2) {
+        scrollDrag = null;
         if (!pinchActive) beginPinchIfNeeded();
         updatePinch();
+        e.preventDefault();
+        return;
+      }
+
+      if (
+        scrollDrag &&
+        scrollDrag.pointerId === e.pointerId &&
+        scrollEl
+      ) {
+        var sdy = e.clientY - scrollDrag.startY;
+        if (Math.abs(sdy) > TAP_MOVE_PX) {
+          suppressClick = true;
+        }
+        scrollEl.scrollTop = scrollDrag.startScrollTop - sdy;
         e.preventDefault();
         return;
       }
@@ -1219,6 +1269,14 @@
 
     function onPointerUp(e) {
       var hadPinch = pinchActive;
+      if (scrollDrag && scrollDrag.pointerId === e.pointerId) {
+        scrollDrag = null;
+        try {
+          viewport.releasePointerCapture(e.pointerId);
+        } catch (err) {
+          /* ignore */
+        }
+      }
       pointers.delete(e.pointerId);
 
       if (pinchActive && pointers.size < 2) {
@@ -1807,43 +1865,20 @@
     pegViewSyncToolbar();
   };
 
-  /**
-   * Hub working view: render every bay in a scroll list using the same inch-accurate
-   * pegboard/shelf layout as the standalone Checklanes virtual POG.
-   */
-  function fitHubBayToViewport(viewport, stage, wrap) {
-    function applyFit() {
-      var natW = Math.max(1, wrap.offsetWidth || 1);
-      var natH = Math.max(1, wrap.offsetHeight || 1);
-      var vw = viewport.clientWidth || 1;
-      var vh = viewport.clientHeight || 1;
-      var scale = Math.min(vw / natW, vh / natH);
-      if (!isFinite(scale) || scale <= 0) scale = 1;
-      var tx = (vw - natW * scale) / 2;
-      var ty = (vh - natH * scale) / 2;
-      stage.style.transform =
-        'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
-      if (typeof window.planogramSyncTileCardFonts === 'function') {
-        window.planogramSyncTileCardFonts(wrap);
-      }
-    }
+  var hubBayZoomTeardowns = [];
 
-    applyFit();
-    requestAnimationFrame(function () {
-      requestAnimationFrame(applyFit);
-    });
-
-    if (typeof ResizeObserver !== 'undefined') {
-      var ro = new ResizeObserver(applyFit);
-      ro.observe(viewport);
-      ro.observe(wrap);
+  function clearHubBayZoomListeners() {
+    var i;
+    for (i = 0; i < hubBayZoomTeardowns.length; i++) {
+      if (typeof hubBayZoomTeardowns[i] === 'function') hubBayZoomTeardowns[i]();
     }
-    window.addEventListener('resize', applyFit);
+    hubBayZoomTeardowns = [];
   }
 
   function renderHubPlanogramBays(containerEl, layoutData, products) {
     if (!containerEl || !layoutData) return;
 
+    clearHubBayZoomListeners();
     containerEl.innerHTML = '';
     containerEl.classList.add('planogram-hub-bays');
 
@@ -1912,7 +1947,12 @@
       bayWrap.appendChild(fixturesWrap);
       containerEl.appendChild(bayWrap);
 
-      fitHubBayToViewport(viewport, stage, wrap);
+      hubBayZoomTeardowns.push(
+        attachPlanogramZoom(viewport, stage, wrap, {
+          pageScrollOnBackground: true,
+          scrollEl: document.getElementById('pog-wv-scroll'),
+        })
+      );
     }
 
     activePlanogramWrapEl = containerEl;

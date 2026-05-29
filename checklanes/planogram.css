@@ -18,22 +18,22 @@
 .planogram-hub-bay-viewport {
   min-height: min(72dvh, 680px);
   width: 100%;
-  touch-action: pan-y;
+  touch-action: none;
 }
 
 .planogram-hub-bay-viewport .planogram-zoom-stage {
-  touch-action: pan-y;
+  touch-action: none;
   pointer-events: none;
 }
 
 .planogram-hub-bay-viewport .planogram-wrap {
   pointer-events: none;
-  touch-action: pan-y;
+  touch-action: none;
 }
 
 .planogram-hub-bay-viewport .planogram-tile {
   pointer-events: auto;
-  touch-action: pan-y;
+  touch-action: manipulation;
 }
 
 #planogram-container {
