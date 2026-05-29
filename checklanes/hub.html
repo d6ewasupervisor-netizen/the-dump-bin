@@ -2102,6 +2102,177 @@
     flex-wrap: wrap;
   }
 
+  .btn-store-scan {
+    background: rgba(99, 102, 241, 0.18);
+    border-color: rgba(99, 102, 241, 0.45);
+    color: #c7d2fe;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .btn-store-scan:active { opacity: 0.8; }
+  .btn-store-scan.active {
+    background: rgba(99, 102, 241, 0.35);
+    border-color: #818cf8;
+    color: #e0e7ff;
+  }
+
+  /* ── Store Scan Panel ── */
+  .store-scan-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 72vh;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 560;
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -8px 28px rgba(0,0,0,0.5);
+    border-radius: 14px 14px 0 0;
+  }
+  .store-scan-panel.open { transform: translateY(0); }
+
+  .store-scan-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .store-scan-input-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .store-scan-input-row input {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    border-radius: var(--radius);
+    font-size: 1rem;
+  }
+  .store-scan-camera-btn { font-size: 1.1rem; padding: 8px 12px; }
+  .store-scan-go-btn { font-weight: 700; }
+
+  .store-scan-scanner-box { margin-bottom: 4px; }
+
+  /* Results */
+  .store-scan-results { display: flex; flex-direction: column; gap: 12px; }
+
+  .store-scan-not-found {
+    padding: 18px 12px;
+    text-align: center;
+    color: var(--text2);
+    font-size: 0.9rem;
+  }
+
+  .store-scan-multi-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius);
+    color: #fde68a;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .store-scan-multi-notice-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+  .store-scan-product-group {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    overflow: hidden;
+  }
+  .store-scan-product-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .store-scan-product-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 6px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .store-scan-product-info { flex: 1; min-width: 0; }
+  .store-scan-product-name {
+    font-weight: 700;
+    font-size: 0.92rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .store-scan-product-upc {
+    font-size: 0.75rem;
+    color: var(--text2);
+    font-family: monospace;
+    margin-top: 2px;
+  }
+  .store-scan-product-size {
+    font-size: 0.75rem;
+    color: var(--text2);
+    margin-top: 1px;
+  }
+
+  .store-scan-sets-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text2);
+    padding: 7px 12px 4px;
+  }
+  .store-scan-set-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+  }
+  .store-scan-set-info { flex: 1; min-width: 0; }
+  .store-scan-set-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .store-scan-set-lane {
+    font-size: 0.75rem;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .store-scan-set-open {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .store-scan-set-open:active { opacity: 0.8; }
+
   .pending-badge {
     /* legacy hook — styling via .header-badge-btn--pending */
   }
@@ -4564,6 +4735,7 @@
   </div>
   <div class="header-actions">
     <a href="./" class="btn" style="text-decoration:none;display:inline-flex;align-items:center;">← Stores</a>
+    <button type="button" class="btn btn-store-scan" id="btn-store-scan" aria-label="Scan product across store">🔍 Scan Product</button>
     <button type="button" class="header-badge-btn header-badge-btn--pending pending-badge" id="pending-badge" aria-label="Pending queue">
       Pending <span class="count" id="pending-count">0</span>
     </button>
@@ -4664,6 +4836,33 @@
     <button type="button" class="detail-close" id="bulk-assign-close" aria-label="Close">&times;</button>
   </div>
   <div class="bulk-assign-panel-body" id="bulk-assign-panel-body"></div>
+</aside>
+
+<aside class="store-scan-panel" id="store-scan-panel" aria-label="Scan product across store" aria-hidden="true">
+  <div class="pending-panel-header">
+    <h2>Scan Product — Entire Store</h2>
+    <button type="button" class="detail-close" id="store-scan-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="store-scan-body">
+    <div class="store-scan-input-row">
+      <input type="text" id="store-scan-input" inputmode="numeric" autocomplete="off"
+        placeholder="UPC or last 4 digits — scan or type">
+      <button type="button" class="btn store-scan-camera-btn" id="store-scan-camera-btn"
+        title="Scan barcode" aria-label="Scan barcode">📷</button>
+      <button type="button" class="btn store-scan-go-btn" id="store-scan-go-btn">Search</button>
+    </div>
+    <div class="store-scan-scanner-box pog-wv-scanner-box" id="store-scan-scanner-box" hidden>
+      <div class="pog-wv-scanner-controls">
+        <button type="button" class="btn" id="store-scan-stop-btn">Stop</button>
+        <button type="button" class="btn" id="store-scan-torch-btn" hidden>Torch</button>
+      </div>
+      <p class="pog-wv-scanner-hint">Point at barcode — scans full frame</p>
+      <div id="store-scan-region"></div>
+      <p class="pog-wv-scanner-error" id="store-scan-error" hidden></p>
+    </div>
+    <div class="pog-wv-scan-banner store-scan-intel-banner" id="store-scan-intel-banner" role="alert" aria-live="assertive" hidden></div>
+    <div class="store-scan-results" id="store-scan-results"></div>
+  </div>
 </aside>
 
 <div class="pog-working-view" id="pog-working-view" aria-hidden="true">
@@ -7785,6 +7984,363 @@ async function updateHubScanBanner(rawUpc) {
   } catch { clearHubScanBanner(); }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   STORE-LEVEL SCAN PRODUCT
+   Searches every set on the manifest for this store — no open
+   POG required.  Reuses Scanner, product catalog, and scan-index
+   infrastructure already in place.
+   ══════════════════════════════════════════════════════════════ */
+
+let storeScanWakeLock = null;
+
+async function acquireStoreScanWakeLock() {
+  if ('wakeLock' in navigator) {
+    try { storeScanWakeLock = await navigator.wakeLock.request('screen'); } catch { /* ok */ }
+  }
+}
+async function releaseStoreScanWakeLock() {
+  try {
+    if (storeScanWakeLock) { await storeScanWakeLock.release(); storeScanWakeLock = null; }
+  } catch { /* ok */ }
+}
+
+async function openStoreScanPanel() {
+  const panel = document.getElementById('store-scan-panel');
+  if (!panel) return;
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  document.getElementById('btn-store-scan')?.classList.add('active');
+  // pre-load catalog in background
+  ensurePogCatalogLoaded().catch(() => {});
+  document.getElementById('store-scan-input')?.focus();
+}
+
+async function closeStoreScanPanel() {
+  await stopStoreScanCamera();
+  const panel = document.getElementById('store-scan-panel');
+  if (!panel) return;
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+  document.getElementById('btn-store-scan')?.classList.remove('active');
+  clearStoreScanIntelBanner();
+  const results = document.getElementById('store-scan-results');
+  if (results) results.innerHTML = '';
+  const inp = document.getElementById('store-scan-input');
+  if (inp) inp.value = '';
+}
+
+async function startStoreScanCamera() {
+  const box = document.getElementById('store-scan-scanner-box');
+  const errEl = document.getElementById('store-scan-error');
+  if (!box) return;
+
+  box.hidden = false;
+  if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+
+  if (typeof Scanner === 'undefined') {
+    if (errEl) { errEl.textContent = 'Scanner unavailable. Use text search.'; errEl.hidden = false; }
+    return;
+  }
+
+  // Stop any in-POG or tag-batch scanner first
+  if (Scanner.isRunning) await Scanner.stop();
+  const pogBox = document.getElementById('pog-wv-scanner-box');
+  if (pogBox) pogBox.hidden = true;
+  const tbBox = document.getElementById('tag-batch-scanner-box');
+  if (tbBox) tbBox.hidden = true;
+
+  await acquireStoreScanWakeLock();
+  await Scanner.start('store-scan-region', handleStoreScan);
+
+  if (!Scanner.isRunning) {
+    await releaseStoreScanWakeLock();
+    if (errEl) { errEl.textContent = 'Camera unavailable or permission denied. Use text search.'; errEl.hidden = false; }
+    box.hidden = true;
+    return;
+  }
+
+  const torchBtn = document.getElementById('store-scan-torch-btn');
+  if (torchBtn) {
+    torchBtn.hidden = !Scanner.torchAvailable;
+    torchBtn.textContent = 'Torch';
+  }
+}
+
+async function stopStoreScanCamera() {
+  if (typeof Scanner !== 'undefined' && Scanner.isRunning) await Scanner.stop();
+  await releaseStoreScanWakeLock();
+  const box = document.getElementById('store-scan-scanner-box');
+  if (box) box.hidden = true;
+  const errEl = document.getElementById('store-scan-error');
+  if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+}
+
+async function handleStoreScan(code) {
+  await stopStoreScanCamera();
+  const resolved = resolveScanToCatalogUpc(code);
+  const searchValue = resolved.display || normalizeUpcInput(code);
+  const inp = document.getElementById('store-scan-input');
+  if (inp) inp.value = searchValue;
+  await runAndRenderStoreScan(code);
+}
+
+function runStoreScan(query) {
+  const q = String(query || '').trim();
+  if (!q) return { ok: false, hits: [], notFound: false, multiMatch: false, matchedUpcs: [] };
+
+  const allDbkeys = uniqueManifestDbkeys();
+  const hits = searchInDbkeyList(allDbkeys, q, null);
+
+  // Detect multi-UPC suffix ambiguity
+  const matchedUpcs = [...new Set(hits.map(h => normalizeUpcInput(String(h.upc))))];
+  const qDigits = normalizeUpcDigits(q);
+  const multiMatch = /^\d{4}$/.test(qDigits) && matchedUpcs.length > 1;
+
+  return { ok: true, hits, notFound: hits.length === 0, multiMatch, matchedUpcs };
+}
+
+/* Store-level scan intelligence — no single "current set" context.
+   Show delete/relocate/UPC-change flags based on the full index. */
+async function classifyStoreScan(rawUpc) {
+  const idx = await loadHubScanIndex(HUB_STORE_NUM);
+  if (!idx || !idx.items) return null;
+
+  let U = null;
+  let it = null;
+  for (const cand of expandScanCandidates(rawUpc)) {
+    if (idx.items[cand]) { U = cand; it = idx.items[cand]; break; }
+  }
+  if (!it) {
+    const k = normalizeUpcInput(rawUpc);
+    if (k && idx.items[k]) { U = k; it = idx.items[k]; }
+  }
+  if (!it) return null;
+
+  const nameOf = k => { const i = productInfo(k); return (i && (i.name || i.fallback_desc)) || ''; };
+  const imgOf  = k => { const i = productInfo(k); return i && i.image ? pogUrl('/' + i.image) : ''; };
+
+  if (it.cf && Array.isArray(it.cf.on) && it.cf.on.length) {
+    return { level: 'purple', kind: 'upc_change_old', product: it.desc || nameOf(U),
+      oldUpc: U, newUpc: it.cf.to, newDesc: nameOf(it.cf.to) || it.cf.toDesc || '',
+      stays: hubLaneLabels(idx, it.cf.on), img: imgOf(it.cf.to) };
+  }
+  if (it.ct && Array.isArray(it.ct.on) && it.ct.on.length) {
+    return { level: 'purple', kind: 'upc_change_new', product: it.desc || nameOf(U),
+      newUpc: U, oldUpc: it.ct.from, oldDesc: nameOf(it.ct.from) || it.ct.fromDesc || '',
+      stays: hubLaneLabels(idx, it.ct.on), img: imgOf(U) };
+  }
+  if (Array.isArray(it.del) && it.del.length) {
+    if (Array.isArray(it.act) && it.act.length) {
+      return { level: 'orange', kind: 'relocated', product: it.desc || nameOf(U), upc: U,
+        stays: hubLaneLabels(idx, it.act), img: imgOf(U) };
+    }
+    return { level: 'red', kind: 'true_delete', product: it.desc || nameOf(U), upc: U, img: imgOf(U) };
+  }
+  return null;
+}
+
+function clearStoreScanIntelBanner() {
+  const el = document.getElementById('store-scan-intel-banner');
+  if (!el) return;
+  el.hidden = true;
+  el.className = 'pog-wv-scan-banner store-scan-intel-banner';
+  el.innerHTML = '';
+}
+
+async function updateStoreScanIntelBanner(rawUpc) {
+  if (!rawUpc) { clearStoreScanIntelBanner(); return; }
+  try {
+    const d = await classifyStoreScan(rawUpc);
+    if (!d) { clearStoreScanIntelBanner(); return; }
+    // Reuse the existing banner renderer, but target our banner element
+    const el = document.getElementById('store-scan-intel-banner');
+    if (!el) return;
+    let icon = '', title = '', body = '';
+    const product = d.product ? '<div class="scan-banner-product">' + escapeHtml(d.product) + '</div>' : '';
+    if (d.level === 'red') {
+      icon = '⛔'; title = 'TRUE DELETE — pull from store';
+      body = '<div class="scan-banner-detail">Not set on any checklane planogram at this store. Pull it.</div>';
+    } else if (d.level === 'orange') {
+      icon = '↪'; title = 'MOVES — off this set, stays in store';
+      body = '<div class="scan-banner-detail">Remove from the planogram shown below — it stays here:</div>' +
+        hubScanWhereHtml(d.stays);
+    } else if (d.level === 'purple') {
+      icon = '🔁'; title = 'UPC CHANGE';
+      if (d.kind === 'upc_change_old') {
+        body = '<div class="scan-banner-detail">Old UPC <code>' + escapeHtml(d.oldUpc) + '</code> → new UPC <code>' +
+          escapeHtml(d.newUpc) + '</code>' + (d.newDesc ? ' · ' + escapeHtml(d.newDesc) : '') + '.</div>' +
+          '<div class="scan-banner-detail">Set the new item here:</div>' + hubScanWhereHtml(d.stays);
+      } else {
+        body = '<div class="scan-banner-detail">New UPC <code>' + escapeHtml(d.newUpc) + '</code> replaces old UPC <code>' +
+          escapeHtml(d.oldUpc) + '</code>' + (d.oldDesc ? ' · ' + escapeHtml(d.oldDesc) : '') + '.</div>' +
+          '<div class="scan-banner-detail">Set it here:</div>' + hubScanWhereHtml(d.stays);
+      }
+    } else {
+      clearStoreScanIntelBanner(); return;
+    }
+    const thumb = d.img ? '<img class="scan-banner-thumb" src="' + escapeHtml(d.img) + '" alt="" onerror="this.remove()">' : '';
+    el.className = 'pog-wv-scan-banner store-scan-intel-banner scan-' + d.level;
+    el.innerHTML =
+      '<div class="scan-banner-row">' + thumb + '<div class="scan-banner-main">' +
+      '<div class="scan-banner-head"><span class="scan-banner-icon" aria-hidden="true">' + icon + '</span>' +
+      '<span class="scan-banner-title">' + escapeHtml(title) + '</span></div>' +
+      product + body + '</div></div>';
+    el.hidden = false;
+  } catch { clearStoreScanIntelBanner(); }
+}
+
+function renderStoreScanResults(scanResult) {
+  const box = document.getElementById('store-scan-results');
+  if (!box) return;
+
+  if (!scanResult.ok) { box.innerHTML = ''; return; }
+
+  if (scanResult.notFound) {
+    box.innerHTML = '<div class="store-scan-not-found">No sets found containing this product at this store.</div>';
+    return;
+  }
+
+  let html = '';
+
+  if (scanResult.multiMatch) {
+    html += '<div class="store-scan-multi-notice">' +
+      '<span class="store-scan-multi-notice-icon">⚠</span>' +
+      '<span>Last 4 digits match <strong>' + scanResult.matchedUpcs.length + ' different products</strong> — all shown below.</span>' +
+      '</div>';
+  }
+
+  // Group hits by UPC
+  const byUpc = new Map();
+  for (const h of scanResult.hits) {
+    const uKey = normalizeUpcInput(String(h.upc));
+    if (!byUpc.has(uKey)) byUpc.set(uKey, []);
+    byUpc.get(uKey).push(h);
+  }
+
+  for (const [upc, rows] of byUpc) {
+    const info = productInfo(upc);
+    const name = productDisplayName(upc, null);
+    const size = productDisplaySize(upc, null);
+    const imgSrc = pogUrl('/products-webp/' + encodeURIComponent(upc) + '.webp');
+
+    // Deduplicate by dbkey
+    const seenDb = new Set();
+    const uniqueRows = rows.filter(r => {
+      const k = String(r.dbkey);
+      if (seenDb.has(k)) return false;
+      seenDb.add(k); return true;
+    });
+
+    html += '<div class="store-scan-product-group">';
+    html += '<div class="store-scan-product-head">' +
+      '<img class="store-scan-product-img" src="' + escapeHtml(imgSrc) + '" alt="" ' +
+        'onerror="this.style.display=\'none\'">' +
+      '<div class="store-scan-product-info">' +
+        '<div class="store-scan-product-name">' + escapeHtml(name) + '</div>' +
+        (size ? '<div class="store-scan-product-size">' + escapeHtml(size) + '</div>' : '') +
+        '<div class="store-scan-product-upc">UPC ' + escapeHtml(upc) + '</div>' +
+      '</div>' +
+      '</div>';
+
+    html += '<div class="store-scan-sets-label">Found in ' + uniqueRows.length +
+      ' set' + (uniqueRows.length !== 1 ? 's' : '') + '</div>';
+
+    for (const row of uniqueRows) {
+      html += '<div class="store-scan-set-row">' +
+        '<div class="store-scan-set-info">' +
+          '<div class="store-scan-set-name">' + escapeHtml(row.title) + '</div>' +
+          '<div class="store-scan-set-lane">Lane ' + escapeHtml(String(row.lane)) + '</div>' +
+        '</div>' +
+        '<button type="button" class="store-scan-set-open" ' +
+          'data-open-dbkey="' + escapeHtml(String(row.dbkey)) + '" ' +
+          'data-open-upc="' + escapeHtml(String(row.upc)) + '">Open</button>' +
+      '</div>';
+    }
+
+    html += '</div>';
+  }
+
+  box.innerHTML = html;
+
+  // Bind Open buttons — navigate straight to the set (no current POG required)
+  box.addEventListener('click', e => {
+    const btn = e.target.closest('[data-open-dbkey]');
+    if (!btn) return;
+    const dbkey = btn.getAttribute('data-open-dbkey');
+    const upc   = btn.getAttribute('data-open-upc');
+    const fix = fixtureForDbkey(dbkey);
+    if (!fix) return;
+    closeStoreScanPanel();
+    openPogWorkingView(fix, { searchHighlightUpc: upc || null });
+  });
+}
+
+async function runAndRenderStoreScan(rawQuery) {
+  const inp = document.getElementById('store-scan-input');
+  const query = rawQuery || (inp ? inp.value.trim() : '');
+  if (!query) return;
+
+  const results = document.getElementById('store-scan-results');
+  if (results) results.innerHTML = '<div class="store-scan-not-found">Searching…</div>';
+  clearStoreScanIntelBanner();
+
+  try {
+    await ensurePogCatalogLoaded();
+  } catch {
+    if (results) results.innerHTML = '<div class="store-scan-not-found">Could not load product catalog. Check connection.</div>';
+    return;
+  }
+
+  const scanResult = runStoreScan(query);
+  renderStoreScanResults(scanResult);
+  void updateStoreScanIntelBanner(query);
+}
+
+function bindStoreScanPanel() {
+  const panel = document.getElementById('store-scan-panel');
+  if (!panel) return;
+
+  document.getElementById('btn-store-scan')?.addEventListener('click', () => {
+    if (panel.classList.contains('open')) {
+      closeStoreScanPanel();
+    } else {
+      openStoreScanPanel();
+    }
+  });
+
+  document.getElementById('store-scan-close')?.addEventListener('click', closeStoreScanPanel);
+
+  document.getElementById('store-scan-go-btn')?.addEventListener('click', () => runAndRenderStoreScan());
+
+  document.getElementById('store-scan-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); runAndRenderStoreScan(); }
+  });
+
+  // Auto-search on exactly 4 digits
+  document.getElementById('store-scan-input')?.addEventListener('input', e => {
+    const v = (e.target.value || '').replace(/\D/g, '');
+    if (v.length === 4) runAndRenderStoreScan(v);
+  });
+
+  document.getElementById('store-scan-camera-btn')?.addEventListener('click', () => {
+    const box = document.getElementById('store-scan-scanner-box');
+    if (box && !box.hidden && typeof Scanner !== 'undefined' && Scanner.isRunning) {
+      stopStoreScanCamera();
+    } else {
+      startStoreScanCamera();
+    }
+  });
+
+  document.getElementById('store-scan-stop-btn')?.addEventListener('click', stopStoreScanCamera);
+
+  document.getElementById('store-scan-torch-btn')?.addEventListener('click', async () => {
+    if (typeof Scanner === 'undefined') return;
+    const on = await Scanner.toggleTorch();
+    const btn = document.getElementById('store-scan-torch-btn');
+    if (btn) btn.textContent = on ? 'Torch off' : 'Torch';
+  });
+}
+
 function clearPogSearch() {
   const input = document.getElementById('pog-wv-search-input');
   if (input) input.value = '';
@@ -9354,6 +9910,8 @@ async function openPogWorkingView(fixture, opts) {
   }
 
   await stopPogScanner();
+  await stopStoreScanCamera();
+  closeStoreScanPanel();
   closePogProductModal();
 
   pogWorkingFixture = fixture;
@@ -10644,6 +11202,7 @@ async function init() {
   renderList();
   bindPogWorkingActions();
   bindEvents();
+  bindStoreScanPanel();
   syncHubUrl(readHubUrlState(), true);
 
   if (visitId) {
