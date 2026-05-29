@@ -84,8 +84,8 @@
   }
 
   function clampPosition(x, y, el) {
-    const w = el ? el.offsetWidth : 64;
-    const h = el ? el.offsetHeight : 64;
+    const w = el ? el.offsetWidth : 38;
+    const h = el ? el.offsetHeight : 38;
     return {
       x: Math.max(8, Math.min(window.innerWidth - w - 8, x)),
       y: Math.max(8, Math.min(window.innerHeight - h - 8, y)),

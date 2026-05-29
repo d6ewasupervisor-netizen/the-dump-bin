@@ -2346,6 +2346,25 @@
 
   .store-scan-scanner-box { margin-bottom: 4px; }
 
+  .store-scan-results-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .store-scan-results-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text2);
+  }
+  .store-scan-clear-btn {
+    flex-shrink: 0;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 0.72rem;
+  }
+
   /* Results */
   .store-scan-results { display: flex; flex-direction: column; gap: 12px; }
 
@@ -3868,8 +3887,8 @@
   }
 
   .pog-wv-header .pog-wv-scanner-box {
-    margin-top: 6px;
-    margin-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 6px;
     padding: 8px 10px;
   }
 
@@ -4457,12 +4476,14 @@
     margin-top: 8px;
   }
 
-  /* ── Floating team chat ── */
+  /* ── Floating team chat (~1/3 footprint via uniform scale) ── */
   .hub-chat-root {
     position: fixed;
     right: 20px;
     bottom: 20px;
     z-index: 12000;
+    transform: scale(0.58);
+    transform-origin: bottom right;
   }
 
   .hub-chat-launcher {
@@ -5020,13 +5041,6 @@
     <button type="button" class="detail-close" id="store-scan-close" aria-label="Close">&times;</button>
   </div>
   <div class="store-scan-body">
-    <div class="store-scan-input-row">
-      <input type="text" id="store-scan-input" inputmode="numeric" autocomplete="off"
-        placeholder="UPC or last 4 digits — scan or type">
-      <button type="button" class="btn store-scan-camera-btn" id="store-scan-camera-btn"
-        title="Scan barcode" aria-label="Scan barcode">📷</button>
-      <button type="button" class="btn store-scan-go-btn" id="store-scan-go-btn">Search</button>
-    </div>
     <div class="store-scan-scanner-box pog-wv-scanner-box" id="store-scan-scanner-box" hidden>
       <div class="pog-wv-scanner-controls">
         <button type="button" class="btn" id="store-scan-stop-btn">Stop</button>
@@ -5035,6 +5049,13 @@
       <p class="pog-wv-scanner-hint">Point at barcode — scans full frame</p>
       <div id="store-scan-region"></div>
       <p class="pog-wv-scanner-error" id="store-scan-error" hidden></p>
+    </div>
+    <div class="store-scan-input-row">
+      <input type="text" id="store-scan-input" inputmode="numeric" autocomplete="off"
+        placeholder="UPC or last 4 digits — scan or type">
+      <button type="button" class="btn store-scan-camera-btn" id="store-scan-camera-btn"
+        title="Scan barcode" aria-label="Scan barcode">📷</button>
+      <button type="button" class="btn store-scan-go-btn" id="store-scan-go-btn">Search</button>
     </div>
     <div class="pog-wv-scan-banner store-scan-intel-banner" id="store-scan-intel-banner" role="alert" aria-live="assertive" hidden></div>
     <div class="store-scan-results" id="store-scan-results"></div>
@@ -5065,6 +5086,15 @@
         </button>
       </div>
     </div>
+    <div class="pog-wv-scanner-box" id="pog-wv-scanner-box" hidden>
+      <div class="pog-wv-scanner-controls">
+        <button type="button" class="btn" id="pog-wv-scanner-stop">Stop</button>
+        <button type="button" class="btn" id="pog-wv-scanner-torch" hidden>Torch</button>
+      </div>
+      <p class="pog-wv-scanner-hint">Point at barcode — scans full frame</p>
+      <div id="pog-wv-scanner-region"></div>
+      <p class="pog-wv-scanner-error" id="pog-wv-scanner-error" hidden></p>
+    </div>
     <div class="pog-wv-toolbar">
       <div class="pog-wv-toolbar-mask">
         <label for="pog-wv-mask-slider">Mask</label>
@@ -5075,15 +5105,6 @@
         <input type="text" class="pog-wv-search-input" id="pog-wv-search-input" inputmode="numeric" autocomplete="off" placeholder="UPC or name">
         <button type="button" class="btn pog-wv-scan-btn" id="pog-wv-scan-btn" title="Scan barcode" aria-label="Scan barcode">📷</button>
       </div>
-    </div>
-    <div class="pog-wv-scanner-box" id="pog-wv-scanner-box" hidden>
-      <div class="pog-wv-scanner-controls">
-        <button type="button" class="btn" id="pog-wv-scanner-stop">Stop</button>
-        <button type="button" class="btn" id="pog-wv-scanner-torch" hidden>Torch</button>
-      </div>
-      <p class="pog-wv-scanner-hint">Point at barcode — scans full frame</p>
-      <div id="pog-wv-scanner-region"></div>
-      <p class="pog-wv-scanner-error" id="pog-wv-scanner-error" hidden></p>
     </div>
     <div class="pog-wv-scan-banner" id="pog-wv-scan-banner" role="alert" aria-live="assertive" hidden></div>
     <div class="pog-wv-search-results" id="pog-wv-search-results"></div>
@@ -8367,9 +8388,37 @@ async function openStoreScanPanel() {
   panel.classList.add('open');
   panel.setAttribute('aria-hidden', 'false');
   document.getElementById('btn-store-scan')?.classList.add('active');
-  // pre-load catalog in background
   ensurePogCatalogLoaded().catch(() => {});
-  document.getElementById('store-scan-input')?.focus();
+  clearStoreScanAll();
+  const inp = document.getElementById('store-scan-input');
+  if (inp) inp.blur();
+  await startStoreScanCamera();
+}
+
+function clearStoreScanDisplay() {
+  clearStoreScanIntelBanner();
+  const results = document.getElementById('store-scan-results');
+  if (results) results.innerHTML = '';
+}
+
+function clearStoreScanAll() {
+  clearStoreScanDisplay();
+  const inp = document.getElementById('store-scan-input');
+  if (inp) inp.value = '';
+}
+
+async function beginStoreScanCamera() {
+  clearStoreScanDisplay();
+  const inp = document.getElementById('store-scan-input');
+  if (inp) {
+    inp.value = '';
+    inp.blur();
+  }
+  if (typeof Scanner !== 'undefined' && Scanner.isRunning) {
+    await stopStoreScanCamera();
+  }
+  document.querySelector('.store-scan-body')?.scrollTo({ top: 0, behavior: 'smooth' });
+  await startStoreScanCamera();
 }
 
 async function closeStoreScanPanel() {
@@ -8553,11 +8602,21 @@ function renderStoreScanResults(scanResult) {
   if (!scanResult.ok) { box.innerHTML = ''; return; }
 
   if (scanResult.notFound) {
-    box.innerHTML = '<div class="store-scan-not-found">No sets found containing this product at this store.</div>';
+    box.innerHTML =
+      '<div class="store-scan-results-head">' +
+        '<span class="store-scan-results-title">Results</span>' +
+        '<button type="button" class="btn store-scan-clear-btn" id="store-scan-clear-btn">Clear</button>' +
+      '</div>' +
+      '<div class="store-scan-not-found">No sets found containing this product at this store.</div>';
+    document.getElementById('store-scan-clear-btn')?.addEventListener('click', clearStoreScanAll);
     return;
   }
 
-  let html = '';
+  let html =
+    '<div class="store-scan-results-head">' +
+      '<span class="store-scan-results-title">Results</span>' +
+      '<button type="button" class="btn store-scan-clear-btn" id="store-scan-clear-btn">Clear</button>' +
+    '</div>';
 
   if (scanResult.multiMatch) {
     html += '<div class="store-scan-multi-notice">' +
@@ -8619,6 +8678,8 @@ function renderStoreScanResults(scanResult) {
 
   box.innerHTML = html;
 
+  document.getElementById('store-scan-clear-btn')?.addEventListener('click', clearStoreScanAll);
+
   // Bind Open buttons — navigate straight to the set (no current POG required)
   box.addEventListener('click', e => {
     const btn = e.target.closest('[data-open-dbkey]');
@@ -8667,25 +8728,39 @@ function bindStoreScanPanel() {
 
   document.getElementById('store-scan-close')?.addEventListener('click', closeStoreScanPanel);
 
-  document.getElementById('store-scan-go-btn')?.addEventListener('click', () => runAndRenderStoreScan());
-
-  document.getElementById('store-scan-input')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); runAndRenderStoreScan(); }
+  document.getElementById('store-scan-go-btn')?.addEventListener('click', async () => {
+    if (typeof Scanner !== 'undefined' && Scanner.isRunning) {
+      await stopStoreScanCamera();
+    }
+    runAndRenderStoreScan();
   });
 
-  // Auto-search on exactly 4 digits
-  document.getElementById('store-scan-input')?.addEventListener('input', e => {
+  document.getElementById('store-scan-input')?.addEventListener('focus', e => {
+    const results = document.getElementById('store-scan-results');
+    if (results && results.innerHTML.trim()) e.target.select();
+  });
+
+  document.getElementById('store-scan-input')?.addEventListener('keydown', async e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (typeof Scanner !== 'undefined' && Scanner.isRunning) {
+        await stopStoreScanCamera();
+      }
+      runAndRenderStoreScan();
+    }
+  });
+
+  document.getElementById('store-scan-input')?.addEventListener('input', async e => {
+    if (typeof Scanner !== 'undefined' && Scanner.isRunning) {
+      await stopStoreScanCamera();
+    }
+    clearStoreScanDisplay();
     const v = (e.target.value || '').replace(/\D/g, '');
     if (v.length === 4) runAndRenderStoreScan(v);
   });
 
   document.getElementById('store-scan-camera-btn')?.addEventListener('click', () => {
-    const box = document.getElementById('store-scan-scanner-box');
-    if (box && !box.hidden && typeof Scanner !== 'undefined' && Scanner.isRunning) {
-      stopStoreScanCamera();
-    } else {
-      startStoreScanCamera();
-    }
+    beginStoreScanCamera();
   });
 
   document.getElementById('store-scan-stop-btn')?.addEventListener('click', stopStoreScanCamera);
@@ -8698,15 +8773,33 @@ function bindStoreScanPanel() {
   });
 }
 
-function clearPogSearch() {
-  const input = document.getElementById('pog-wv-search-input');
-  if (input) input.value = '';
+function clearPogScanDisplay() {
   clearHubScanBanner();
   renderPogSearchResults({ hits: [], notFound: false });
   document.querySelectorAll('.pog-wv-tile--highlight, .planogram-tile--highlight').forEach(el => {
     el.classList.remove('pog-wv-tile--highlight', 'planogram-tile--highlight');
   });
+}
+
+function clearPogSearch() {
+  const input = document.getElementById('pog-wv-search-input');
+  if (input) input.value = '';
+  clearPogScanDisplay();
   saveHubSession({ pogSearch: '' });
+}
+
+async function beginPogScanCamera() {
+  clearPogScanDisplay();
+  const input = document.getElementById('pog-wv-search-input');
+  if (input) {
+    input.value = '';
+    input.blur();
+  }
+  if (typeof Scanner !== 'undefined' && Scanner.isRunning) {
+    await stopPogScanner();
+  }
+  document.querySelector('.pog-wv-header')?.scrollTo({ top: 0, behavior: 'smooth' });
+  await startPogScanner();
 }
 
 function highlightPogTile(upc) {
@@ -8737,10 +8830,19 @@ function bindPogSearchUi() {
     saveHubSession({ pogSearch: query });
   };
 
+  input?.addEventListener('focus', () => {
+    const box = document.getElementById('pog-wv-search-results');
+    if (box && box.innerHTML.trim()) input.select();
+  });
+
   input?.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); run(); }
   });
-  input?.addEventListener('input', () => {
+  input?.addEventListener('input', async () => {
+    if (typeof Scanner !== 'undefined' && Scanner.isRunning) {
+      await stopPogScanner();
+    }
+    clearPogScanDisplay();
     const v = (input.value || '').trim();
     saveHubSession({ pogSearch: v });
     if (/^\d{4}$/.test(v)) run();
@@ -8770,12 +8872,7 @@ function bindPogSearchUi() {
   applyPogMaskOpacity(pogMaskCardOpacity);
 
   document.getElementById('pog-wv-scan-btn')?.addEventListener('click', () => {
-    const box = document.getElementById('pog-wv-scanner-box');
-    if (box && !box.hidden && typeof Scanner !== 'undefined' && Scanner.isRunning) {
-      stopPogScanner();
-    } else {
-      startPogScanner();
-    }
+    beginPogScanCamera();
   });
 
   document.getElementById('pog-wv-scanner-stop')?.addEventListener('click', () => stopPogScanner());
