@@ -127,9 +127,6 @@
           '<div class="hub-chat-panel-title" id="hub-chat-panel-title">Team chat</div>' +
           '<button type="button" class="hub-chat-minimize" id="hub-chat-minimize" aria-label="Minimize chat" title="Minimize">&minus;</button>' +
         '</div>' +
-        '<div class="hub-chat-notice" id="hub-chat-notice">' +
-          'All messages are monitored. Leads and supervisors can view every conversation.' +
-        '</div>' +
         '<div class="hub-chat-inbox" id="hub-chat-inbox" hidden>' +
           '<button type="button" class="hub-chat-new-btn" id="hub-chat-new-btn">+ New message</button>' +
           '<div class="hub-chat-inbox-list" id="hub-chat-inbox-list"></div>' +
