@@ -5537,6 +5537,7 @@ let liveVisitId = null;
 let hubCurrentView = 'assignments';
 let assignmentsSort = { col: 'store-aisle', asc: true };
 let bulkAssignPanelSelectedKeys = new Set();
+let bulkAssignPanelFilterLane = '';
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
 let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, aislePresets: [], myTagSweepAisleKeys: [] };
@@ -7030,6 +7031,11 @@ function bindEvents() {
   document.getElementById('tag-batch-close').addEventListener('click', () => toggleTagBatchPanel(false));
   document.getElementById('bulk-assign-close')?.addEventListener('click', () => toggleBulkAssignPanel(false));
   document.getElementById('bulk-assign-panel')?.addEventListener('click', handleBulkAssignPanelClick);
+  document.getElementById('bulk-assign-panel')?.addEventListener('change', e => {
+    if (e.target.id !== 'bulk-panel-aisle') return;
+    bulkAssignPanelFilterLane = e.target.value || '';
+    renderBulkAssignPanelBody();
+  });
   document.getElementById('btn-refresh-tag-gather')?.addEventListener('click', () => loadTagBatchPreview());
   document.getElementById('tag-batch-sweep-back')?.addEventListener('click', () => showTagBatchAislesView());
   document.getElementById('tag-batch-sweep-add')?.addEventListener('click', () => addTagBatchSweepTag());
@@ -9228,7 +9234,7 @@ function bindSectionWorkflow(lane, dbkey, ids, fixture) {
     }
   });
 
-  document.getElementById('section-bulk-tools-btn')?.addEventListener('click', () => openBulkAssignPanel());
+  document.getElementById('section-bulk-tools-btn')?.addEventListener('click', () => openBulkAssignPanel({ lane }));
 
   document.getElementById(ids.signoffId)?.addEventListener('click', async () => {
     setBusy(true);
@@ -9460,7 +9466,19 @@ function renderBulkAssignPanelBody() {
 
   const rows = sortAssignmentRows(bulkAssignableRows());
   const aisles = uniqueAssignmentAisles(rows);
-  const pickItems = rows.map(row => {
+  const existingAisleSelect = document.getElementById('bulk-panel-aisle');
+  const filterLane = existingAisleSelect?.value ?? bulkAssignPanelFilterLane ?? '';
+  bulkAssignPanelFilterLane = filterLane;
+  const filteredRows = filterLane
+    ? rows.filter(r => String(r.lane) === String(filterLane))
+    : rows;
+  if (filterLane) {
+    const visibleKeys = new Set(filteredRows.map(r => assignmentRowKey(r)));
+    for (const key of bulkAssignPanelSelectedKeys) {
+      if (!visibleKeys.has(key)) bulkAssignPanelSelectedKeys.delete(key);
+    }
+  }
+  const pickItems = filteredRows.map(row => {
     const key = assignmentRowKey(row);
     const checked = bulkAssignPanelSelectedKeys.has(key) ? ' checked' : '';
     return (
@@ -9485,7 +9503,8 @@ function renderBulkAssignPanelBody() {
           aisles.map(lane => {
             const sample = rows.find(r => String(r.lane) === String(lane));
             const label = (sample?.aisleLabel ? sample.aisleLabel + ' · ' : '') + formatRegisterLabel(lane);
-            return '<option value="' + escapeHtml(lane) + '">' + escapeHtml(label) + '</option>';
+            const selected = String(lane) === String(filterLane) ? ' selected' : '';
+            return '<option value="' + escapeHtml(lane) + '"' + selected + '>' + escapeHtml(label) + '</option>';
           }).join('') +
         '</select>' +
         '<select class="assignments-bulk-select" id="bulk-panel-aisle-rep" aria-label="Rep for aisle">' +
@@ -9508,12 +9527,15 @@ function renderBulkAssignPanelBody() {
       '</div>' +
       (pickItems
         ? '<div class="bulk-assign-pick-list" id="bulk-panel-pick-list">' + pickItems + '</div>'
-        : '<p class="hub-panel-empty">No assignable sets on the manifest.</p>') +
+        : '<p class="hub-panel-empty">' + (filterLane
+          ? 'No assignable sets for ' + escapeHtml(formatRegisterLabel(filterLane)) + '.'
+          : 'No assignable sets on the manifest.') + '</p>') +
     '</div>';
 }
 
-function openBulkAssignPanel() {
+function openBulkAssignPanel(options = {}) {
   if (!canManageHubAssignments()) return;
+  bulkAssignPanelFilterLane = options.lane != null ? String(options.lane) : '';
   loadHubRoster().then(() => {
     togglePendingPanel(false);
     toggleTagBatchPanel(false);
@@ -9532,6 +9554,7 @@ function toggleBulkAssignPanel(open) {
     panel.classList.remove('open');
     panel.hidden = true;
     bulkAssignPanelSelectedKeys.clear();
+    bulkAssignPanelFilterLane = '';
   }
 }
 
