@@ -4476,14 +4476,12 @@
     margin-top: 8px;
   }
 
-  /* ── Floating team chat (~1/3 footprint via uniform scale) ── */
+  /* ── Floating team chat (compact launcher; full-size panel) ── */
   .hub-chat-root {
     position: fixed;
     right: 20px;
     bottom: 20px;
     z-index: 12000;
-    transform: scale(0.58);
-    transform-origin: bottom right;
   }
 
   .hub-chat-launcher {
@@ -4491,6 +4489,8 @@
     align-items: center;
     gap: 0;
     filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.35));
+    transform: scale(0.58);
+    transform-origin: bottom right;
   }
 
   .hub-chat-drag-handle {
@@ -4562,7 +4562,7 @@
     display: none;
     position: absolute;
     right: 0;
-    bottom: 68px;
+    bottom: 42px;
     width: min(360px, calc(100vw - 32px));
     max-height: min(520px, calc(100vh - 120px));
     background: var(--surface);
