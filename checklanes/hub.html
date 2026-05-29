@@ -5396,6 +5396,9 @@ async function handleAislePresetSelection(picker, preset) {
   try {
     await saveSectionAisleDesignation(lane, dbkey, preset, null);
     closeAllAislePickers();
+    // The post-save refresh skips re-rendering while the picker is open/focused,
+    // so repaint now that it's closed to reflect the saved aisle immediately.
+    if (hubCurrentView === 'assignments') renderAssignmentsView();
   } catch (err) {
     alert(err.message || 'Failed to save store aisle');
     if (trigger) trigger.disabled = false;
@@ -5442,6 +5445,7 @@ function bindAislePickers(root) {
           try {
             await saveSectionAisleDesignation(picker.getAttribute('data-lane'), picker.getAttribute('data-dbkey'), AISLE_OTHER_PRESET, custom);
             closeAllAislePickers();
+            if (hubCurrentView === 'assignments') renderAssignmentsView();
           } catch (err) {
             alert(err.message || 'Failed to save custom aisle');
           } finally {
@@ -5631,7 +5635,17 @@ function collectPendingQueueItems() {
   return items;
 }
 
+let lastSnapshotGeneratedAt = 0;
+
 function applySnapshot(snapshot) {
+  // Ignore snapshots older than the newest one we've already applied. A poll or
+  // SSE message generated just before a mutation committed can otherwise land
+  // after the post-save refresh and overwrite fresh data with stale values —
+  // e.g. a just-saved store aisle snapping back to "Choose store aisle…".
+  const genAt = snapshot.generatedAt ? new Date(snapshot.generatedAt).getTime() : 0;
+  if (genAt && lastSnapshotGeneratedAt && genAt < lastSnapshotGeneratedAt) return;
+  if (genAt) lastSnapshotGeneratedAt = genAt;
+
   hubContext.myRank = snapshot.myRank ?? 1;
   hubContext.myUserId = snapshot.myUserId ?? null;
   hubContext.sections = {};
