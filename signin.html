@@ -340,7 +340,10 @@
             }
             return;
           }
-          showStatus('ok', 'Check your email \u2014 your sign-in link is on its way.');
+          showStatus('ok', 'Check your email \u2014 your sign-in link is on its way.' +
+            (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+              ? ' On your phone: press and hold the link, then choose Open in browser.'
+              : ''));
           emailEl.value = '';
           sendBtn.textContent = 'Sent';
           setTimeout(function () {
