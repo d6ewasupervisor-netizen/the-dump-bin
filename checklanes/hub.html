@@ -7165,33 +7165,16 @@ function hubAssignPreviewFallbackUrl(dbkey) {
   return pogUrl('/previews-cropped-webp/' + encodeURIComponent(dbkey) + '.webp');
 }
 
-/** Full-size planogram sources for assignment preview lightbox (largest first). */
-function hubAssignPreviewSources(dbkey) {
-  const dk = encodeURIComponent(dbkey);
-  return [
-    pogUrl('/previews-cropped-webp/' + dk + '.webp'),
-    pogUrl('/previews-cropped/' + dk + '.png'),
-    pogUrl('/previews/' + dk + '.png'),
-  ];
-}
-
 let assignPreviewFullscreenCtx = null;
 
 function assignPreviewImgOnError(img) {
-  const step = Number(img.dataset.fbkStep || '0');
-  const raw = img.dataset.fbkSources;
-  if (!raw) {
-    img.classList.add('is-hidden');
+  const fallback = img.dataset.fallbackSrc;
+  if (fallback) {
+    img.removeAttribute('data-fallback-src');
+    img.src = fallback;
     return;
   }
-  let sources;
-  try { sources = JSON.parse(decodeURIComponent(raw)); } catch (_) { sources = []; }
-  if (step < sources.length) {
-    img.dataset.fbkStep = String(step + 1);
-    img.src = sources[step];
-  } else {
-    img.classList.add('is-hidden');
-  }
+  img.classList.add('is-hidden');
 }
 
 function setAssignPreviewFullscreenStatus(msg, kind) {
@@ -7242,13 +7225,16 @@ function openAssignPreviewFullscreen(rowEl) {
   ].filter(Boolean);
   if (titleEl) titleEl.textContent = titleParts.join(' · ');
 
-  const sources = hubAssignPreviewSources(dbkey);
+  const thumbImg = rowEl.querySelector('.assign-set-preview');
+  const previewUrl = hubAssignPreviewUrl(dbkey);
+  const previewFallbackUrl = hubAssignPreviewFallbackUrl(dbkey);
   img.classList.remove('is-hidden');
   img.alt = 'Planogram preview ' + dbkey;
-  img.dataset.fbkStep = '0';
-  img.dataset.fbkSources = encodeURIComponent(JSON.stringify(sources.slice(1)));
+  img.dataset.fallbackSrc = previewFallbackUrl;
   img.onerror = () => assignPreviewImgOnError(img);
-  img.src = sources[0];
+  img.src = (thumbImg && !thumbImg.classList.contains('is-hidden'))
+    ? (thumbImg.currentSrc || thumbImg.src)
+    : previewUrl;
 
   const rowSelect = rowEl.querySelector('.assign-set-select');
   const showAssign = !!assignWrap && !!select && canShowSectionAssign(lane, dbkey) && liveVisitId && hubContext.myRank >= 2;
