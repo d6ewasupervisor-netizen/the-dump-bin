@@ -1172,6 +1172,7 @@
         pointerId: e.pointerId,
         startY: e.clientY,
         startScrollTop: scrollEl.scrollTop,
+        moved: false,
       };
       try {
         viewport.setPointerCapture(e.pointerId);
@@ -1182,6 +1183,7 @@
 
     function onPointerDown(e) {
       if (pageScrollOnBackground && isProductPointerTarget(e.target)) {
+        suppressClick = false;
         return;
       }
 
@@ -1244,6 +1246,7 @@
         var sdy = e.clientY - scrollDrag.startY;
         if (Math.abs(sdy) > TAP_MOVE_PX) {
           suppressClick = true;
+          scrollDrag.moved = true;
         }
         scrollEl.scrollTop = scrollDrag.startScrollTop - sdy;
         e.preventDefault();
@@ -1270,11 +1273,18 @@
     function onPointerUp(e) {
       var hadPinch = pinchActive;
       if (scrollDrag && scrollDrag.pointerId === e.pointerId) {
+        var didScrollDrag = !!scrollDrag.moved;
         scrollDrag = null;
         try {
           viewport.releasePointerCapture(e.pointerId);
         } catch (err) {
           /* ignore */
+        }
+        if (didScrollDrag) {
+          suppressClick = true;
+          setTimeout(function () {
+            suppressClick = false;
+          }, 350);
         }
       }
       pointers.delete(e.pointerId);
@@ -1373,7 +1383,7 @@
     }
 
     function onClickCapture(e) {
-      if (suppressClick) {
+      if (suppressClick && !isProductPointerTarget(e.target)) {
         e.preventDefault();
         e.stopPropagation();
       }
