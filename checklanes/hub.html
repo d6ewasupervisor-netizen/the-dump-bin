@@ -2545,6 +2545,27 @@
   .flag-status.error { color: #fca5a5; }
   .flag-status.ok { color: #86efac; }
 
+  /* ── Help/flag photo capture ── */
+  .help-photo-block { margin: 10px 0 4px; }
+  .help-photo-block > label {
+    display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text2); margin-bottom: 6px;
+  }
+  .help-photo-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .help-photo-thumbs:not(:empty) { margin-bottom: 8px; }
+  .help-photo-thumb { position: relative; width: 72px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
+  .help-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .help-photo-thumb-remove {
+    position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; padding: 0;
+    border: none; border-radius: 50%; background: rgba(17,24,39,0.82); color: #fff;
+    font-size: 15px; line-height: 18px; cursor: pointer;
+  }
+  .help-photo-add-btn { display: inline-flex; align-items: center; gap: 6px; }
+
+  .pending-photo-gallery { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 4px; }
+  .pending-photo-gallery a { display: block; width: 96px; height: 96px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
+  .pending-photo-gallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
   .pending-panel {
     position: fixed;
     bottom: 0;
@@ -4745,6 +4766,12 @@
       <textarea id="pog-wv-help-details" rows="3" placeholder="Describe the issue…"></textarea>
       <label for="pog-wv-help-note">Additional notes (optional)</label>
       <textarea id="pog-wv-help-note" rows="2" placeholder="Anything else the lead should know"></textarea>
+      <div class="help-photo-block">
+        <label>Photos (optional — show the lead/help desk the problem)</label>
+        <div class="help-photo-thumbs" id="pog-wv-help-photo-thumbs"></div>
+        <button type="button" class="btn help-photo-add-btn" id="pog-wv-help-photo-add">📷 Add photo</button>
+        <input type="file" accept="image/*" capture="environment" id="pog-wv-help-photo-input" multiple hidden>
+      </div>
       <div class="form-actions">
         <button type="button" class="btn btn-submit" id="pog-wv-help-submit">Submit help request</button>
       </div>
@@ -4992,7 +5019,106 @@ function collectHubHelpPayload(prefix) {
   const customLabel = (document.getElementById(prefix + '-help-custom-label')?.value || '').trim();
   const issueDetails = (document.getElementById(prefix + '-help-details')?.value || '').trim();
   const note = (document.getElementById(prefix + '-help-note')?.value || '').trim();
-  return { issueTypeId, issueTypeLabel, customLabel, issueDetails, note };
+  const photos = (hubHelpPhotos[prefix] || []).slice();
+  return { issueTypeId, issueTypeLabel, customLabel, issueDetails, note, photos };
+}
+
+/* ── Flag photo capture (shared by the detail-panel and POG-view help forms) ── */
+const HUB_HELP_MAX_PHOTOS = 6;
+const hubHelpPhotos = { flag: [], 'pog-wv': [] };
+
+function hubHelpPhotoBlockHtml(prefix) {
+  return '<div class="help-photo-block">' +
+    '<label>Photos (optional — show the lead/help desk the problem)</label>' +
+    '<div class="help-photo-thumbs" id="' + prefix + '-help-photo-thumbs"></div>' +
+    '<button type="button" class="btn help-photo-add-btn" id="' + prefix + '-help-photo-add">📷 Add photo</button>' +
+    '<input type="file" accept="image/*" capture="environment" id="' + prefix + '-help-photo-input" multiple hidden>' +
+    '</div>';
+}
+
+function resizeImageFileToDataUrl(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const scale = Math.min(1, (maxDim || 1600) / Math.max(w, h || 1));
+        const cw = Math.max(1, Math.round(w * scale));
+        const ch = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = cw;
+        canvas.height = ch;
+        canvas.getContext('2d').drawImage(img, 0, 0, cw, ch);
+        try {
+          resolve(canvas.toDataURL('image/jpeg', quality || 0.8));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderHubHelpPhotoThumbs(prefix) {
+  const el = document.getElementById(prefix + '-help-photo-thumbs');
+  if (!el) return;
+  const photos = hubHelpPhotos[prefix] || [];
+  el.innerHTML = photos.map((src, i) =>
+    '<div class="help-photo-thumb">' +
+      '<img src="' + src + '" alt="Attached photo ' + (i + 1) + '">' +
+      '<button type="button" class="help-photo-thumb-remove" data-idx="' + i + '" aria-label="Remove photo">&times;</button>' +
+    '</div>'
+  ).join('');
+  const addBtn = document.getElementById(prefix + '-help-photo-add');
+  if (addBtn) addBtn.textContent = photos.length ? '📷 Add another photo' : '📷 Add photo';
+}
+
+function resetHubHelpPhotos(prefix) {
+  hubHelpPhotos[prefix] = [];
+  renderHubHelpPhotoThumbs(prefix);
+}
+
+function bindHubHelpPhotoCapture(prefix) {
+  const addBtn = document.getElementById(prefix + '-help-photo-add');
+  const input = document.getElementById(prefix + '-help-photo-input');
+  const thumbs = document.getElementById(prefix + '-help-photo-thumbs');
+  if (addBtn && addBtn.dataset.bound !== '1') {
+    addBtn.dataset.bound = '1';
+    addBtn.addEventListener('click', () => input && input.click());
+  }
+  if (input && input.dataset.bound !== '1') {
+    input.dataset.bound = '1';
+    input.addEventListener('change', async () => {
+      const files = Array.from(input.files || []);
+      input.value = '';
+      if (!hubHelpPhotos[prefix]) hubHelpPhotos[prefix] = [];
+      for (const file of files) {
+        if (hubHelpPhotos[prefix].length >= HUB_HELP_MAX_PHOTOS) break;
+        try {
+          const dataUrl = await resizeImageFileToDataUrl(file, 1600, 0.8);
+          hubHelpPhotos[prefix].push(dataUrl);
+        } catch (_) { /* skip unreadable image */ }
+      }
+      renderHubHelpPhotoThumbs(prefix);
+    });
+  }
+  if (thumbs && thumbs.dataset.bound !== '1') {
+    thumbs.dataset.bound = '1';
+    thumbs.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-idx]');
+      if (!btn) return;
+      const idx = Number(btn.getAttribute('data-idx'));
+      if (hubHelpPhotos[prefix] && idx >= 0) hubHelpPhotos[prefix].splice(idx, 1);
+      renderHubHelpPhotoThumbs(prefix);
+    });
+  }
+  renderHubHelpPhotoThumbs(prefix);
 }
 
 function validateHubHelpPayload(payload) {
@@ -5014,6 +5140,7 @@ function buildHubHelpRequestBody(payload) {
     issue_details: payload.issueDetails,
     custom_label: payload.customLabel || undefined,
     note: payload.note || undefined,
+    photos: payload.photos && payload.photos.length ? payload.photos : undefined,
   };
 }
 
@@ -5083,6 +5210,13 @@ let streamConnected = false;
 let streamReconnectTimer = null;
 let streamReconnectDelayMs = 1000;
 const HUB_STREAM_RECONNECT_MAX_MS = 30000;
+// Polling backstop for the live snapshot. SSE streams get buffered/closed by
+// CDNs (Cloudflare), which leaves flags/assignments stale until manual reload.
+// We poll as a reliable fallback: slow while SSE looks healthy, faster when not.
+let hubSnapshotPollTimer = null;
+let hubSnapshotPollInFlight = false;
+const HUB_POLL_CONNECTED_MS = 25000;
+const HUB_POLL_DISCONNECTED_MS = 7000;
 
 function escapeHtml(str) {
   return String(str)
@@ -5521,7 +5655,12 @@ function applySnapshot(snapshot) {
     loadTagBatchPreview();
   }
   if (window.HubChat) HubChat.onSnapshot(snapshot);
-  if (hubCurrentView === 'assignments') renderAssignmentsView();
+  // Don't blow away an aisle picker the user is actively typing a custom name
+  // into — a live snapshot (SSE or poll) would otherwise re-render the list and
+  // discard their in-progress entry before they can save it.
+  const aisleEditing = openAislePickerMenu && document.activeElement &&
+    openAislePickerMenu.contains(document.activeElement);
+  if (hubCurrentView === 'assignments' && !aisleEditing) renderAssignmentsView();
   renderPendingList();
   const queueIds = new Set(collectPendingQueueItems().map(p => p.id));
   if (selectedPendingId != null && !queueIds.has(String(selectedPendingId))) {
@@ -5915,6 +6054,7 @@ function refreshDetailPanel(fixture) {
           '<textarea id="flag-help-details" rows="3" placeholder="Describe the issue…"></textarea>' +
           '<label for="flag-help-note">Additional notes (optional)</label>' +
           '<textarea id="flag-help-note" rows="2" placeholder="Anything else the lead should know"></textarea>' +
+          hubHelpPhotoBlockHtml('flag') +
           '<div class="form-actions">' +
             '<button type="button" class="btn btn-submit" id="flag-help-submit">Submit help request</button>' +
           '</div>' +
@@ -5998,6 +6138,8 @@ function refreshDetailPanel(fixture) {
     if (show) {
       form?.classList.add('open');
       syncHubHelpIssueForm('flag');
+      resetHubHelpPhotos('flag');
+      bindHubHelpPhotoCapture('flag');
       setTimeout(() => document.getElementById('flag-help-issue')?.focus(), 50);
     } else {
       form?.classList.remove('open');
@@ -6020,6 +6162,7 @@ function refreshDetailPanel(fixture) {
       if (isNis) {
         await hubMutatePost('/sections/' + encodeURIComponent(fixture.dbkey) + '/flag/nis', {
           lane: fixture.lane,
+          photos: payload.photos && payload.photos.length ? payload.photos : undefined,
           ...nisFixtureMeta(fixture),
         });
         setFlagStatus('Not-in-store flag sent — pending lead review', 'ok');
@@ -6031,6 +6174,7 @@ function refreshDetailPanel(fixture) {
         });
         setFlagStatus('Help request sent — pending lead review', 'ok');
       }
+      resetHubHelpPhotos('flag');
       document.getElementById('flag-help-form')?.classList.remove('open');
     } catch (err) {
       setFlagStatus(err.message || 'Failed', 'error');
@@ -6381,6 +6525,7 @@ function bindEvents() {
   installPogPullRefreshGuard();
   populateHubHelpIssueSelect(document.getElementById('pog-wv-help-issue'));
   document.getElementById('pog-wv-help-issue')?.addEventListener('change', () => syncHubHelpIssueForm('pog-wv'));
+  bindHubHelpPhotoCapture('pog-wv');
   /* Map/list tabs hidden for field rollout — handlers kept for restore.
   document.getElementById('btn-map').addEventListener('click', () => {
     if (isPogViewOpen()) {
@@ -6523,12 +6668,31 @@ function bindEvents() {
   });
 
   document.addEventListener('click', () => closeAllAislePickers());
+  // Keep the picker open while the user is interacting with it (typing a custom
+  // aisle name focuses an input inside the menu). On mobile, focusing that input
+  // opens the on-screen keyboard, which fires scroll/resize — without this guard
+  // the menu would close out from under the user before they can hit Save.
+  function aislePickerHasActiveFocus() {
+    const active = document.activeElement;
+    return !!(openAislePickerMenu && active && openAislePickerMenu.contains(active));
+  }
+  function repositionOpenAislePicker() {
+    if (!openAislePickerMenu) return;
+    const picker = openAislePickerMenu.closest('[data-aisle-picker]');
+    const trigger = picker && picker.querySelector('[data-aisle-picker-trigger]');
+    if (trigger) positionAislePickerMenu(openAislePickerMenu, trigger);
+  }
   window.addEventListener('scroll', (e) => {
     if (!openAislePickerMenu) return;
     if (e.target && e.target.nodeType === 1 && openAislePickerMenu.contains(e.target)) return;
+    if (aislePickerHasActiveFocus()) { repositionOpenAislePicker(); return; }
     closeAllAislePickers();
   }, true);
-  window.addEventListener('resize', () => { if (openAislePickerMenu) closeAllAislePickers(); });
+  window.addEventListener('resize', () => {
+    if (!openAislePickerMenu) return;
+    if (aislePickerHasActiveFocus()) { repositionOpenAislePicker(); return; }
+    closeAllAislePickers();
+  });
 
   document.getElementById('pog-wv-back').addEventListener('click', () => {
     if (pogSearchReturnState) {
@@ -8868,6 +9032,8 @@ function togglePogHelpForm(open) {
     populateHubHelpIssueSelect(document.getElementById('pog-wv-help-issue'));
     form.classList.add('open');
     syncHubHelpIssueForm('pog-wv');
+    resetHubHelpPhotos('pog-wv');
+    bindHubHelpPhotoCapture('pog-wv');
     document.getElementById('pog-wv-actions')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     setTimeout(() => document.getElementById('pog-wv-help-issue')?.focus(), 50);
   } else {
@@ -8991,12 +9157,15 @@ function bindPogWorkingActions() {
     setPogWvActionStatus(isNis ? 'Raising not-in-store flag…' : 'Raising help flag…');
     try {
       if (isNis) {
-        await submitPogSectionFlag('nis', {});
+        await submitPogSectionFlag('nis', {
+          photos: payload.photos && payload.photos.length ? payload.photos : undefined,
+        });
         setPogWvActionStatus('Not-in-store flag sent — pending lead review', 'ok');
       } else {
         await submitPogSectionFlag('help', buildHubHelpRequestBody(payload));
         setPogWvActionStatus('Flagged — pending lead review', 'ok');
       }
+      resetHubHelpPhotos('pog-wv');
       togglePogHelpForm(false);
     } catch (err) {
       setPogWvActionStatus(err.message || 'Failed', 'error');
@@ -9402,6 +9571,47 @@ function ensureHubStream() {
   connectHubStream(liveVisitId).catch(err => {
     console.warn('[Checklane Hub] SSE ensure connect failed:', err);
     scheduleHubStreamReconnect(liveVisitId);
+  });
+}
+
+function hubStreamLooksHealthy() {
+  return !!(streamConnected && streamAbort && !streamAbort.aborted);
+}
+
+function scheduleHubSnapshotPoll() {
+  if (hubSnapshotPollTimer) clearTimeout(hubSnapshotPollTimer);
+  if (!liveVisitId) return;
+  const delay = hubStreamLooksHealthy() ? HUB_POLL_CONNECTED_MS : HUB_POLL_DISCONNECTED_MS;
+  hubSnapshotPollTimer = setTimeout(hubSnapshotPollTick, delay);
+}
+
+async function hubSnapshotPollTick() {
+  hubSnapshotPollTimer = null;
+  if (!liveVisitId || (typeof document !== 'undefined' && document.hidden) || hubSnapshotPollInFlight) {
+    scheduleHubSnapshotPoll();
+    return;
+  }
+  hubSnapshotPollInFlight = true;
+  try {
+    await loadLiveState(liveVisitId);
+  } catch (err) {
+    console.warn('[Checklane Hub] snapshot poll failed:', err && err.message ? err.message : err);
+  } finally {
+    hubSnapshotPollInFlight = false;
+    scheduleHubSnapshotPoll();
+  }
+}
+
+function startHubSnapshotPolling() {
+  scheduleHubSnapshotPoll();
+  if (startHubSnapshotPolling._bound) return;
+  startHubSnapshotPolling._bound = true;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !liveVisitId) return;
+    // Coming back to the tab: reconnect SSE and refresh immediately.
+    ensureHubStream();
+    if (hubSnapshotPollTimer) clearTimeout(hubSnapshotPollTimer);
+    hubSnapshotPollTick();
   });
 }
 
@@ -10061,6 +10271,30 @@ function closePendingDetail() {
   selectedPendingId = null;
 }
 
+async function hydratePendingPhotos(root) {
+  if (!root) return;
+  const authFetch = window.dumpBinAuthFetch || fetch;
+  const imgs = root.querySelectorAll('img[data-pending-photo-src]');
+  for (let i = 0; i < imgs.length; i++) {
+    const img = imgs[i];
+    const src = img.getAttribute('data-pending-photo-src');
+    if (!src) continue;
+    try {
+      const resp = await authFetch(src, { noBounceOn401: true });
+      if (!resp.ok) { img.alt = 'Photo unavailable'; continue; }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      img.src = url;
+      img.removeAttribute('data-pending-photo-src');
+      const anchor = img.closest('a[data-pending-photo-href]');
+      if (anchor) {
+        anchor.href = url;
+        anchor.removeAttribute('data-pending-photo-href');
+      }
+    } catch (_) { /* leave placeholder */ }
+  }
+}
+
 async function openPendingDetail(pendingId) {
   if (hubContext.myRank < 2) return;
   selectedPendingId = pendingId;
@@ -10180,6 +10414,18 @@ async function openPendingDetail(pendingId) {
       payloadHtml = '<div class="detail-row"><div class="label">Note</div><div class="value">' + escapeHtml(payload.note) + '</div></div>';
     }
 
+    const flagPhotos = Array.isArray(full.photos) ? full.photos : [];
+    const flagPhotosHtml = flagPhotos.length
+      ? '<div class="detail-row"><div class="label">Photos from the field</div></div>' +
+        '<div class="pending-photo-gallery" id="pending-photo-gallery">' +
+        flagPhotos.map((p, i) =>
+          '<a data-pending-photo-href="' + escapeHtml(p.url) + '" target="_blank" rel="noopener">' +
+            '<img data-pending-photo-src="' + escapeHtml(p.url) + '" alt="Field photo ' + (i + 1) + '" loading="lazy">' +
+          '</a>'
+        ).join('') +
+        '</div>'
+      : '';
+
     scrollEl.innerHTML =
       (full.dbkey && window.HubBayPhotos
         ? '<div class="pending-signoff-preview">' + HubBayPhotos.renderHubPreviewHtml(full.dbkey) + '</div>'
@@ -10188,7 +10434,10 @@ async function openPendingDetail(pendingId) {
       '<div class="detail-row"><div class="label">Section</div><div class="value">' + escapeHtml(fixtureNameForDbkey(full.dbkey)) + '</div></div>' +
       '<div class="detail-row"><div class="label">Raised by</div><div class="value">' + escapeHtml(full.raised_by_name || '') + '</div></div>' +
       payloadHtml +
+      flagPhotosHtml +
       '<textarea class="reject-reason" id="reject-reason" placeholder="Optional reason if rejecting"></textarea>';
+
+    if (flagPhotos.length) hydratePendingPhotos(document.getElementById('pending-photo-gallery'));
 
     footerEl.innerHTML =
       '<div class="verify-actions">' +
@@ -10396,6 +10645,7 @@ async function init() {
       );
       console.log('[Checklane Hub] Live snapshot loaded', snapshot);
       ensureHubStream();
+      startHubSnapshotPolling();
     } catch (err) {
       console.error('[Checklane Hub] Live state failed, falling back to SEED_STATES:', err);
       applyState(SEED_STATES);
