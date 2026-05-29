@@ -16,7 +16,7 @@
  *      back to signin.html (unless the caller opts out, e.g. EOD's red-dot
  *      logic for downstream SAS-session 401s).
  *
- * Public (un-gated) pages: signin.html, admin.html. Everything else under
+ * Public (un-gated) pages: signin.html, admin.html, open-sign-in.html. Everything else under
  * the-dump-bin.com requires a session.
  */
 (function () {
@@ -24,13 +24,15 @@
 
   var SESSION_KEY = 'dumpBinSession';
   var LEGACY_KEY  = 'eodSession'; // pre-rename; auto-migrated on first read
+  var CHECKLANES_ENTRY_KEY = 'dumpBinChecklanesEntry';
   var SIGNIN_PATH = '/signin.html';
   var ADMIN_PATH  = '/admin.html';
+  var OPEN_SIGNIN_PATH = '/open-sign-in.html';
 
   // Public paths that MUST stay reachable without a session. Anything else
   // is gated. The /admin.html flow has its own login UI (admin password,
   // not the user magic-link), so we leave it un-gated here.
-  var PUBLIC_PATHS = [SIGNIN_PATH, ADMIN_PATH];
+  var PUBLIC_PATHS = [SIGNIN_PATH, ADMIN_PATH, OPEN_SIGNIN_PATH];
 
   // Resolve the API base the same way signin.html / admin.html do.
   // Override locally with #api=http://localhost:3001 for dev.
@@ -80,9 +82,38 @@
     return false;
   }
 
+  function isChecklanesPath() {
+    var p = currentPathname();
+    return p === '/checklanes' || p === '/checklanes/' || p.indexOf('/checklanes/') === 0;
+  }
+
+  function isHubHomeReferrer() {
+    try {
+      var ref = document.referrer;
+      if (!ref) return false;
+      var u = new URL(ref);
+      if (u.hostname !== location.hostname) return false;
+      var path = (u.pathname || '/').toLowerCase();
+      return path === '/' || path === '/index.html';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function markDirectChecklanesEntry() {
+    try { localStorage.setItem(CHECKLANES_ENTRY_KEY, '1'); } catch (_) {}
+  }
+
+  function noteDirectChecklanesEntryIfNeeded() {
+    if (isChecklanesPath() && !isHubHomeReferrer()) {
+      markDirectChecklanesEntry();
+    }
+  }
+
   function bounceToSignIn(reason) {
     clearSession();
     if (isPublicPath()) return;
+    if (isChecklanesPath()) markDirectChecklanesEntry();
     try { console.warn('[auth-gate] redirect to signin:', reason || ''); } catch (_) {}
     var next = encodeURIComponent(location.pathname + location.search + location.hash);
     location.replace(SIGNIN_PATH + '?next=' + next);
@@ -218,6 +249,7 @@
         return;
       }
     }
+    noteDirectChecklanesEntryIfNeeded();
     revealPage();
   })();
 

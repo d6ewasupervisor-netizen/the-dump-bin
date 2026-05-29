@@ -251,7 +251,7 @@
 </head>
 <body>
 <div class="cl-wrap">
-  <a href="/" class="cl-back">← Team Resources</a>
+  <a href="/" class="cl-back" id="cl-back-home" hidden>← Team Resources</a>
 
   <section class="cl-hero">
     <h1>Checklanes</h1>
@@ -531,8 +531,21 @@
     });
   }
 
+  function applyDirectChecklanesUi() {
+    const back = document.getElementById('cl-back-home');
+    if (!back) return;
+    try {
+      if (localStorage.getItem('dumpBinChecklanesEntry') === '1') {
+        back.hidden = true;
+        return;
+      }
+    } catch (_) {}
+    back.hidden = false;
+  }
+
   async function init() {
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
+    applyDirectChecklanesUi();
 
     const status = document.getElementById('status');
     try {

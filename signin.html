@@ -209,10 +209,22 @@
       const SESSION_KEY = 'dumpBinSession';
       const LEGACY_KEY  = 'eodSession';
 
+      const CHECKLANES_ENTRY_KEY = 'dumpBinChecklanesEntry';
+
       function resolveNext(next) {
         if (!next) return '/';
         if (next.indexOf('/') === 0) return next;
         return '/';
+      }
+
+      function buildChecklanesReturnTo(next) {
+        const path = resolveNext(next);
+        if (!path.toLowerCase().startsWith('/checklanes')) return null;
+        return location.origin.replace(/\/+$/, '') + path;
+      }
+
+      function markDirectChecklanesEntry() {
+        try { localStorage.setItem(CHECKLANES_ENTRY_KEY, '1'); } catch (_) {}
       }
 
       // If the user is already signed in, bounce them to the hub home (or
@@ -305,7 +317,13 @@
         sendBtn.disabled = true;
         sendBtn.textContent = 'Sending\u2026';
         try {
+          const next = (new URLSearchParams(location.search)).get('next');
+          const returnTo = buildChecklanesReturnTo(next);
           const payload = { email: email };
+          if (returnTo) {
+            payload.returnTo = returnTo;
+            markDirectChecklanesEntry();
+          }
           const res = await fetch(API_BASE + '/api/request-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
