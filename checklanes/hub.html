@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Checklane Reset Hub</title>
 <script src="/auth-gate.js"></script>
+<script src="hub-presence.js"></script>
 <link rel="stylesheet" href="planogram.css">
 <link rel="stylesheet" href="pog-pdf-viewer.css">
 <script src="planogram.js" defer></script>
@@ -141,6 +142,119 @@
     color: #bbf7d0;
     background: rgba(34, 197, 94, 0.16);
     border-color: rgba(34, 197, 94, 0.35);
+  }
+
+  .hub-header-presence {
+    position: relative;
+    margin-top: 8px;
+    max-width: 100%;
+  }
+
+  .hub-header-presence-toggle {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(34, 197, 94, 0.45);
+    background: rgba(34, 197, 94, 0.12);
+    color: #bbf7d0;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    max-width: 100%;
+  }
+
+  .hub-header-presence-toggle:active { opacity: 0.88; }
+
+  .hub-header-presence-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+    flex-shrink: 0;
+  }
+
+  .hub-header-presence-summary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hub-header-presence-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 120;
+    min-width: min(320px, calc(100vw - 32px));
+    max-width: 360px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    padding: 12px;
+  }
+
+  .hub-header-presence-popover-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+  }
+
+  .hub-header-presence-popover-head strong {
+    color: var(--text);
+    font-size: 0.78rem;
+  }
+
+  .hub-header-presence-empty {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text2);
+  }
+
+  .hub-header-presence-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1.2fr) minmax(100px, 1.4fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hub-header-presence-row:last-child { border-bottom: none; }
+
+  .hub-header-presence-who {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .hub-header-presence-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hub-header-presence-where {
+    font-size: 0.8rem;
+    color: var(--text);
+  }
+
+  .hub-header-presence-when {
+    font-size: 0.72rem;
+    color: var(--text2);
+    white-space: nowrap;
   }
 
   .app-header .store-tag {
@@ -5012,6 +5126,19 @@
       <span class="signed-in-rank-pill" id="signed-in-rank-pill" hidden></span>
     </div>
     <div class="store-tag" id="store-tag">Store 00163 · 83 fixtures · 26 lanes</div>
+    <div class="hub-header-presence" id="hub-header-presence" hidden>
+      <button type="button" class="hub-header-presence-toggle" id="hub-header-presence-toggle" aria-expanded="false" aria-controls="hub-header-presence-popover">
+        <span class="hub-header-presence-dot" aria-hidden="true"></span>
+        <span class="hub-header-presence-summary" id="hub-header-presence-summary">Here with you</span>
+      </button>
+      <div class="hub-header-presence-popover" id="hub-header-presence-popover" hidden>
+        <div class="hub-header-presence-popover-head">
+          <strong>In this store</strong>
+          <span id="hub-header-presence-updated"></span>
+        </div>
+        <div id="hub-header-presence-list"></div>
+      </div>
+    </div>
   </div>
   <div class="header-actions">
     <a href="./" class="btn" style="text-decoration:none;display:inline-flex;align-items:center;">← Stores</a>
@@ -5745,6 +5872,28 @@ let selectedLane = null;
 let listSort = { col: 'lane', asc: true };
 let liveVisitId = null;
 let hubCurrentView = 'assignments';
+
+function reportHubPresence() {
+  if (!window.ChecklanePresence) return;
+  ChecklanePresence.ping();
+}
+
+function hubPresenceMeta() {
+  const url = readHubUrlState();
+  let detail = null;
+  if (typeof isPogViewOpen === 'function' && isPogViewOpen() && pogWorkingFixture?.dbkey) {
+    detail = 'POG ' + pogWorkingFixture.dbkey;
+  } else if (typeof isDetailOpen === 'function' && isDetailOpen() && selectedDbkey) {
+    detail = 'Set ' + selectedDbkey;
+  }
+  return {
+    page: 'hub',
+    storeNumber: HUB_STORE_NUM,
+    visitId: liveVisitId,
+    view: url.view || hubCurrentView,
+    detail,
+  };
+}
 let assignmentsSort = { col: 'store-aisle', asc: true };
 let bulkAssignPanelSelectedKeys = new Set();
 let bulkAssignPanelFilterLane = '';
@@ -6538,6 +6687,7 @@ function openDetail(dbkey, action, opts) {
   document.getElementById('main-layout').classList.add('panel-open');
   if (!opts?.skipHistory) syncHubUrl({ fixture: dbkey, lane: fixture.lane, pog: null });
   saveHubSession({ fixture: dbkey, lane: fixture.lane, pog: null });
+  reportHubPresence();
 }
 
 function hideDetailForPog() {
@@ -6560,6 +6710,7 @@ function closeDetail(opts) {
   document.getElementById('main-layout').classList.remove('panel-open');
   if (!opts?.skipHistory) syncHubUrl({ fixture: null, lane: null, pog: null });
   saveHubSession({ fixture: null });
+  reportHubPresence();
 }
 
 function refreshDetailPanel(fixture) {
@@ -6822,6 +6973,7 @@ function setView(view, opts) {
   }
   if (!opts?.skipHistory) syncHubUrl({ view });
   saveHubSession({ view });
+  reportHubPresence();
 }
 
 function hubSessionRead() {
@@ -10745,6 +10897,7 @@ async function openPogWorkingView(fixture, opts) {
   if (!opts?.restoreSession && !opts?.searchHighlightUpc) {
     document.getElementById('pog-wv-scroll')?.scrollTo(0, 0);
   }
+  reportHubPresence();
 }
 
 function closePogWorkingView(opts) {
@@ -10797,6 +10950,7 @@ function closePogWorkingView(opts) {
       selectedLane = selectedLane || prevFixture?.lane || null;
     }
     saveHubSession({ pog: null });
+    reportHubPresence();
   };
 
   if (prevDbkey && !opts?.skipDraftFlush) {
@@ -11950,6 +12104,22 @@ async function init() {
 
   resolveHubStoreFromUrl();
   await loadHubIdentity();
+
+  if (window.ChecklanePresence) {
+    ChecklanePresence.configure(hubPresenceMeta);
+    ChecklanePresence.start();
+    ChecklanePresence.startHubHeaderPanel({
+      wrap: document.getElementById('hub-header-presence'),
+      toggleEl: document.getElementById('hub-header-presence-toggle'),
+      popoverEl: document.getElementById('hub-header-presence-popover'),
+      summaryEl: document.getElementById('hub-header-presence-summary'),
+      listEl: document.getElementById('hub-header-presence-list'),
+      statusEl: document.getElementById('hub-header-presence-updated'),
+      currentEmail: hubSignedInUser.email,
+      storeNumber: HUB_STORE_NUM,
+    });
+  }
+
   await loadStoreFixtures(HUB_STORE_NUM);
   ensureFixtureTypes(FIXTURES);
   renderLegend();

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Checklanes — Select Store</title>
 <script src="/auth-gate.js"></script>
+<script src="hub-presence.js"></script>
 <link rel="stylesheet" href="/styles.css">
 <style>
   :root {
@@ -247,6 +248,91 @@
   }
 
   .cl-back:hover { color: var(--cl-text); }
+
+  .cl-presence-panel {
+    margin-bottom: 20px;
+  }
+
+  .cl-presence-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .cl-presence-head h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .cl-presence-updated {
+    font-size: 0.75rem;
+    color: var(--cl-text2);
+  }
+
+  .cl-presence-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cl-presence-row {
+    display: grid;
+    grid-template-columns: minmax(160px, 1.2fr) minmax(180px, 2fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--cl-border);
+    background: var(--cl-bg);
+  }
+
+  @media (max-width: 720px) {
+    .cl-presence-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .cl-presence-who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .cl-presence-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+    flex-shrink: 0;
+  }
+
+  .cl-presence-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  .cl-presence-email {
+    font-size: 0.75rem;
+    color: var(--cl-text2);
+  }
+
+  .cl-presence-where {
+    font-size: 0.85rem;
+    color: var(--cl-text);
+  }
+
+  .cl-presence-when {
+    font-size: 0.75rem;
+    color: var(--cl-text2);
+    white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -261,6 +347,14 @@
       <span class="cl-badge cl-badge--admin" id="admin-badge" hidden>Admin</span>
       <span class="cl-badge cl-badge--supervisor" id="supervisor-badge" hidden>Supervisor</span>
     </div>
+  </section>
+
+  <section class="cl-panel cl-presence-panel" id="presence-panel" hidden>
+    <div class="cl-presence-head">
+      <h2>Live activity</h2>
+      <span class="cl-presence-updated" id="presence-updated"></span>
+    </div>
+    <div id="presence-list"></div>
   </section>
 
   <div id="status" class="cl-loading">Loading your stores…</div>
@@ -547,11 +641,28 @@
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
     applyDirectChecklanesUi();
 
+    if (window.ChecklanePresence) {
+      ChecklanePresence.configure(function () {
+        return { page: 'store-picker' };
+      });
+      ChecklanePresence.start();
+    }
+
     const status = document.getElementById('status');
     try {
       const payload = await apiFetch('/stores');
       lastPayload = payload;
       renderStores(payload);
+
+      if (payload.canViewPresence && window.ChecklanePresence) {
+        const panel = document.getElementById('presence-panel');
+        panel.hidden = false;
+        ChecklanePresence.startAdminPanel({
+          panel: document.getElementById('presence-list'),
+          statusEl: document.getElementById('presence-updated'),
+          currentEmail: payload.email,
+        });
+      }
     } catch (err) {
       status.className = 'cl-error';
       status.textContent = err.message || 'Failed to load stores';
