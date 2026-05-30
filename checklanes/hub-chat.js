@@ -13,6 +13,8 @@
   let unreadTotal = 0;
   let recipients = [];
   let threads = [];
+  let chatQueue = null;
+  let myQueueStatus = null;
   let selectedRecipientId = null;
   let activeThreadId = null;
   let messages = [];
@@ -128,10 +130,12 @@
           '<button type="button" class="hub-chat-minimize" id="hub-chat-minimize" aria-label="Minimize chat" title="Minimize">&minus;</button>' +
         '</div>' +
         '<div class="hub-chat-inbox" id="hub-chat-inbox" hidden>' +
+          '<div class="hub-chat-inbox-queue-hint" id="hub-chat-inbox-queue-hint" hidden role="status"></div>' +
           '<button type="button" class="hub-chat-new-btn" id="hub-chat-new-btn">+ New message</button>' +
           '<div class="hub-chat-inbox-list" id="hub-chat-inbox-list"></div>' +
         '</div>' +
         '<div class="hub-chat-conversation" id="hub-chat-conversation">' +
+          '<div class="hub-chat-queue-banner" id="hub-chat-queue-banner" hidden role="status"></div>' +
           '<div class="hub-chat-recipient-row" id="hub-chat-recipient-row">' +
             '<label class="hub-chat-recipient-label" for="hub-chat-recipient">To</label>' +
             '<select class="hub-chat-recipient-select" id="hub-chat-recipient" aria-label="Message recipient">' +
@@ -414,6 +418,8 @@
     const prevUnread = unreadTotal;
     const data = await hubGet('/chat/threads');
     threads = data.threads || [];
+    chatQueue = data.chatQueue || null;
+    myQueueStatus = data.myQueueStatus || null;
     unreadTotal = data.unreadTotal || 0;
     updateBadge();
     await maybeAutoOpenPanel(null, prevUnread);
@@ -698,6 +704,11 @@
 
   function inboxThreadsSorted() {
     return threads.slice().sort(function (a, b) {
+      const qa = a.queuePosition;
+      const qb = b.queuePosition;
+      if (qa != null && qb != null && qa !== qb) return qa - qb;
+      if (qa != null && qb == null) return -1;
+      if (qa == null && qb != null) return 1;
       const ua = a.unreadCount || 0;
       const ub = b.unreadCount || 0;
       if (ua !== ub) return ub - ua;
@@ -708,9 +719,66 @@
     });
   }
 
+  function renderQueueHint() {
+    const hint = document.getElementById('hub-chat-inbox-queue-hint');
+    if (!hint) return;
+    if (!canManage() || !chatQueue || !chatQueue.waitingCount) {
+      hint.hidden = true;
+      hint.textContent = '';
+      return;
+    }
+    hint.hidden = false;
+    const focus = chatQueue.focusRepName || 'a rep';
+    const reason = chatQueue.focusReason ? ' (' + chatQueue.focusReason + ')' : '';
+    hint.textContent =
+      chatQueue.waitingCount + ' rep' + (chatQueue.waitingCount === 1 ? '' : 's') +
+      ' waiting — start with ' + focus + reason + '.';
+  }
+
+  function renderQueueBanner() {
+    const banner = document.getElementById('hub-chat-queue-banner');
+    if (!banner) return;
+    if (canManage() || chatView !== 'conversation' || !myQueueStatus || !myQueueStatus.waitingForLead) {
+      banner.hidden = true;
+      banner.textContent = '';
+      banner.classList.remove('hub-chat-queue-banner--first');
+      return;
+    }
+    banner.hidden = false;
+    if (myQueueStatus.position === 1) {
+      banner.classList.add('hub-chat-queue-banner--first');
+      banner.textContent = 'You are first in line for your lead. ' + (myQueueStatus.repContext?.statusLabel || '');
+    } else if (myQueueStatus.position != null) {
+      banner.classList.remove('hub-chat-queue-banner--first');
+      const ahead = myQueueStatus.aheadCount || (myQueueStatus.position - 1);
+      const focus = myQueueStatus.leadFocus;
+      const focusLine = focus
+        ? ' Your lead is with ' + focus.repName + ' (' + focus.reason + ')'
+        : '';
+      banner.textContent =
+        '#' + myQueueStatus.position + ' in line · ' + ahead + ' rep' + (ahead === 1 ? '' : 's') +
+        ' ahead' + focusLine + '. ' + (myQueueStatus.repContext?.statusLabel || '');
+    } else {
+      banner.classList.remove('hub-chat-queue-banner--first');
+      banner.textContent = myQueueStatus.statusLabel || '';
+    }
+  }
+
+  function repContextLine(thread) {
+    if (!thread || !thread.repContext) return '';
+    const ctx = thread.repContext;
+    const parts = [ctx.statusLabel];
+    if (thread.waitReason && thread.needsLeadAttention) {
+      parts.unshift(thread.waitReason);
+    }
+    return parts.filter(Boolean).join(' · ');
+  }
+
   function renderInbox() {
     const list = document.getElementById('hub-chat-inbox-list');
     if (!list) return;
+
+    renderQueueHint();
 
     const sorted = inboxThreadsSorted();
     const withActivity = sorted.filter(function (t) { return t.lastMessage || t.unreadCount; });
@@ -729,16 +797,25 @@
       const badge = unread
         ? '<span class="hub-chat-inbox-unread">' + (unread > 99 ? '99+' : unread) + '</span>'
         : '';
+      const queuePill = t.queuePosition
+        ? '<span class="hub-chat-queue-pill' + (t.queuePosition === 1 ? ' hub-chat-queue-pill--first' : '') + '">#' +
+          t.queuePosition + '</span>'
+        : '';
+      const contextLine = repContextLine(t);
+      const contextHtml = contextLine
+        ? '<div class="hub-chat-rep-context">' + escapeHtml(contextLine) + '</div>'
+        : '';
       return (
         '<button type="button" class="hub-chat-inbox-item' + (unread ? ' is-unread' : '') + '" data-rep-id="' + escapeHtml(String(t.repId)) + '">' +
           '<div class="hub-chat-inbox-row">' +
-            '<span class="hub-chat-inbox-name">' + escapeHtml(t.repName || 'Rep') + '</span>' +
+            '<span class="hub-chat-inbox-name">' + queuePill + escapeHtml(t.repName || 'Rep') + '</span>' +
             (time ? '<span class="hub-chat-inbox-time">' + escapeHtml(time) + '</span>' : '') +
           '</div>' +
           '<div class="hub-chat-inbox-row">' +
             '<span class="hub-chat-inbox-preview">' + escapeHtml(sender + preview) + '</span>' +
             badge +
           '</div>' +
+          contextHtml +
         '</button>'
       );
     }).join('');
@@ -823,6 +900,7 @@
     if (canManage() && chatView === 'inbox') {
       renderInbox();
     } else {
+      renderQueueBanner();
       renderMessages();
       renderQuickActions();
     }
