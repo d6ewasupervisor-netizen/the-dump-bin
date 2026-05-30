@@ -90,6 +90,14 @@
     gap: 14px;
   }
 
+  #store-grid:not(.cl-grid) {
+    display: block;
+  }
+
+  #store-grid.cl-grid {
+    display: grid;
+  }
+
   .cl-store-card {
     border: 1px solid var(--cl-border);
     border-radius: var(--cl-radius);
@@ -137,6 +145,61 @@
   .cl-role-pill--lead { color: #fde68a; }
   .cl-role-pill--rep { color: #bfdbfe; }
   .cl-role-pill--supervisor { color: #bbf7d0; }
+
+  .cl-shift-info {
+    margin: 0;
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--cl-border);
+    background: var(--cl-bg);
+  }
+
+  .cl-shift-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: baseline;
+    font-size: 0.8rem;
+  }
+
+  .cl-shift-label {
+    color: var(--cl-text2);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.65rem;
+  }
+
+  .cl-shift-value {
+    color: var(--cl-text);
+    font-weight: 600;
+  }
+
+  .cl-shift-note {
+    color: var(--cl-text2);
+    font-size: 0.75rem;
+  }
+
+  .cl-supervisor-section {
+    margin-bottom: 24px;
+  }
+
+  .cl-supervisor-heading {
+    margin: 0 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--cl-border);
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--cl-text);
+  }
+
+  .cl-supervisor-count {
+    color: var(--cl-text2);
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
 
   .cl-actions {
     display: flex;
@@ -358,7 +421,7 @@
   </section>
 
   <div id="status" class="cl-loading">Loading your stores…</div>
-  <div id="store-grid" class="cl-grid" hidden></div>
+  <div id="store-grid" hidden></div>
 </div>
 
 <script>
@@ -382,6 +445,84 @@
     if (!visit) return null;
     return 'hub.html?store=' + encodeURIComponent(store.storeNumber) +
       '&visit=' + encodeURIComponent(visit);
+  }
+
+  function formatShiftWindow(shift) {
+    if (!shift) return '';
+    const parts = [];
+    if (shift.scheduledDateLabel) parts.push(shift.scheduledDateLabel);
+    if (shift.shiftStart && shift.shiftEnd) {
+      parts.push(shift.shiftStart + ' – ' + shift.shiftEnd);
+    } else if (shift.shiftStart) {
+      parts.push(shift.shiftStart);
+    }
+    return parts.join(' · ');
+  }
+
+  function appendShiftInfo(card, store) {
+    const shift = store.shift;
+    if (!shift || (!shift.leadName && !shift.supervisorLabel)) return;
+
+    const block = document.createElement('div');
+    block.className = 'cl-shift-info';
+
+    if (shift.leadName) {
+      const row = document.createElement('div');
+      row.className = 'cl-shift-row';
+      row.innerHTML =
+        '<span class="cl-shift-label">Lead</span>' +
+        '<span class="cl-shift-value">' + escapeHtml(shift.leadName) + '</span>';
+      if (shift.leadSource === 'hub+schedule' && shift.visitLead && shift.hubLead) {
+        row.innerHTML += '<span class="cl-shift-note">Schedule: ' + escapeHtml(shift.visitLead) + '</span>';
+      } else if (shift.leadSource === 'schedule' && !shift.hubLead) {
+        row.innerHTML += '<span class="cl-shift-note">From schedule</span>';
+      }
+      block.appendChild(row);
+    } else {
+      const row = document.createElement('div');
+      row.className = 'cl-shift-row';
+      row.innerHTML =
+        '<span class="cl-shift-label">Lead</span>' +
+        '<span class="cl-shift-note">Not assigned yet</span>';
+      block.appendChild(row);
+    }
+
+    if (shift.supervisorLabel) {
+      const row = document.createElement('div');
+      row.className = 'cl-shift-row';
+      row.innerHTML =
+        '<span class="cl-shift-label">Supervisor</span>' +
+        '<span class="cl-shift-value">' + escapeHtml(shift.supervisorLabel) + '</span>';
+      block.appendChild(row);
+    }
+
+    const when = formatShiftWindow(shift);
+    if (when) {
+      const row = document.createElement('div');
+      row.className = 'cl-shift-row';
+      row.innerHTML =
+        '<span class="cl-shift-label">Shift</span>' +
+        '<span class="cl-shift-note">' + escapeHtml(when) + '</span>';
+      block.appendChild(row);
+    }
+
+    card.appendChild(block);
+  }
+
+  function groupStoresBySupervisor(stores) {
+    const groups = new Map();
+    stores.forEach(function (store) {
+      const key = (store.shift && store.shift.supervisorKey) || '__unassigned__';
+      const label = (store.shift && store.shift.supervisorLabel) || 'No supervisor assigned';
+      if (!groups.has(key)) groups.set(key, { label: label, stores: [] });
+      groups.get(key).stores.push(store);
+    });
+
+    return Array.from(groups.values()).sort(function (a, b) {
+      if (a.label === 'No supervisor assigned') return 1;
+      if (b.label === 'No supervisor assigned') return -1;
+      return a.label.localeCompare(b.label);
+    });
   }
 
   async function apiFetch(path, options) {
@@ -543,6 +684,8 @@
       card.appendChild(role);
     }
 
+    appendShiftInfo(card, store);
+
     const actions = document.createElement('div');
     actions.className = 'cl-actions';
 
@@ -613,12 +756,38 @@
 
     status.hidden = true;
     grid.hidden = false;
+    grid.className = payload.organizeBySupervisor ? '' : 'cl-grid';
     grid.innerHTML = '';
 
     const sorted = payload.stores.slice().sort(function (a, b) {
       if (a.isAssigned !== b.isAssigned) return a.isAssigned ? -1 : 1;
       return (a.name || '').localeCompare(b.name || '');
     });
+
+    if (payload.organizeBySupervisor) {
+      const groups = groupStoresBySupervisor(sorted);
+      groups.forEach(function (group) {
+        const section = document.createElement('section');
+        section.className = 'cl-supervisor-section';
+
+        const heading = document.createElement('h2');
+        heading.className = 'cl-supervisor-heading';
+        heading.innerHTML =
+          escapeHtml(group.label) +
+          ' <span class="cl-supervisor-count">(' + group.stores.length + ' store' +
+          (group.stores.length === 1 ? '' : 's') + ')</span>';
+        section.appendChild(heading);
+
+        const groupGrid = document.createElement('div');
+        groupGrid.className = 'cl-grid';
+        group.stores.forEach(function (store) {
+          groupGrid.appendChild(renderStoreCard(store));
+        });
+        section.appendChild(groupGrid);
+        grid.appendChild(section);
+      });
+      return;
+    }
 
     sorted.forEach(function (store) {
       grid.appendChild(renderStoreCard(store));
