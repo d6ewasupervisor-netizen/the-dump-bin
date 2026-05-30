@@ -251,28 +251,230 @@
     pollTimers[key] = setInterval(refreshFn, intervalMs || 15000);
   }
 
-  function startAdminPanel(options) {
-    var panel = options && options.panel;
-    var statusEl = options && options.statusEl;
-    if (!panel) return;
+  function formatDateTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
 
-    startPolling('admin', function () {
+  function formatDuration(startIso, endIso) {
+    if (!startIso) return '';
+    var start = Date.parse(startIso);
+    var end = endIso ? Date.parse(endIso) : Date.now();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return '';
+    var sec = Math.round((end - start) / 1000);
+    if (sec < 60) return sec + 's';
+    var min = Math.round(sec / 60);
+    if (min < 60) return min + 'm';
+    var hr = Math.floor(min / 60);
+    var rem = min % 60;
+    return hr + 'h' + (rem ? ' ' + rem + 'm' : '');
+  }
+
+  function historyLocationLabel(entry) {
+    return locationLabel({
+      page: entry.page,
+      storeName: entry.storeName,
+      storeNumber: entry.storeNumber,
+      view: entry.view,
+      detail: entry.detail,
+    });
+  }
+
+  function renderHistoryPanel(container, entries, options) {
+    if (!container) return;
+    container.innerHTML = '';
+
+    var visible = (entries || []).slice();
+    if (options && options.currentEmail) {
+      visible = visible.filter(function (entry) {
+        return (entry.email || '').toLowerCase() !== options.currentEmail.toLowerCase();
+      });
+    }
+
+    if (!visible.length) {
+      container.innerHTML = '<p class="cl-store-meta">No activity recorded for this time range yet.</p>';
+      return;
+    }
+
+    var list = document.createElement('div');
+    list.className = 'cl-presence-list';
+
+    visible.forEach(function (entry) {
+      var row = document.createElement('div');
+      row.className = 'cl-presence-row cl-history-row';
+
+      var who = document.createElement('div');
+      who.className = 'cl-presence-who';
+      who.innerHTML =
+        '<span class="cl-presence-dot' + (entry.isOpen ? '' : ' cl-presence-dot--past') + '" aria-hidden="true"></span>' +
+        '<span class="cl-presence-name">' + escapeHtml(entry.name || entry.email) + '</span>' +
+        (entry.name ? '<span class="cl-presence-email">' + escapeHtml(entry.email) + '</span>' : '');
+
+      var where = document.createElement('div');
+      where.className = 'cl-presence-where';
+      where.textContent = historyLocationLabel(entry);
+
+      var when = document.createElement('div');
+      when.className = 'cl-presence-when cl-history-when';
+      var duration = formatDuration(entry.startedAt, entry.endedAt);
+      when.innerHTML =
+        escapeHtml(formatDateTime(entry.startedAt)) +
+        (duration ? '<span class="cl-history-duration">' + escapeHtml(duration) + '</span>' : '') +
+        (entry.isOpen ? '<span class="cl-history-open">Still active</span>' : '');
+
+      row.appendChild(who);
+      row.appendChild(where);
+      row.appendChild(when);
+      list.appendChild(row);
+    });
+
+    container.appendChild(list);
+  }
+
+  function buildHistoryQuery(options) {
+    var params = new URLSearchParams();
+    if (options.hours) params.set('hours', String(options.hours));
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.storeNumber) params.set('storeNumber', String(options.storeNumber));
+    if (options.email) params.set('email', String(options.email));
+    var q = params.toString();
+    return '/presence/history' + (q ? '?' + q : '');
+  }
+
+  function startActivityPanel(options) {
+    options = options || {};
+    var root = options.root;
+    var livePanel = options.livePanel;
+    var historyPanel = options.historyPanel;
+    var livePaneWrap = options.livePaneWrap;
+    var historyPaneWrap = options.historyPaneWrap;
+    var statusEl = options.statusEl;
+    var historyFiltersEl = options.historyFiltersEl;
+    var storeOptions = options.storeOptions || [];
+    var currentEmail = options.currentEmail;
+    if (!root || !livePanel || !historyPanel) return;
+
+    var state = {
+      tab: 'live',
+      hours: 72,
+      storeNumber: '',
+    };
+
+    function setStatus(text) {
+      if (statusEl) statusEl.textContent = text;
+    }
+
+    function showTab(tab) {
+      state.tab = tab;
+      root.querySelectorAll('[data-activity-tab]').forEach(function (btn) {
+        var active = btn.getAttribute('data-activity-tab') === tab;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      if (livePaneWrap) livePaneWrap.hidden = tab !== 'live';
+      if (historyPaneWrap) historyPaneWrap.hidden = tab !== 'history';
+      if (historyFiltersEl) historyFiltersEl.hidden = tab !== 'history';
+    }
+
+    root.querySelectorAll('[data-activity-tab]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        showTab(btn.getAttribute('data-activity-tab') || 'live');
+      });
+    });
+
+    if (historyFiltersEl) {
+      var hoursSelect = historyFiltersEl.querySelector('[data-history-hours]');
+      var storeSelect = historyFiltersEl.querySelector('[data-history-store]');
+
+      if (storeSelect && storeOptions.length) {
+        storeOptions.forEach(function (store) {
+          var opt = document.createElement('option');
+          opt.value = store.storeNumber;
+          opt.textContent = store.name || ('Store ' + store.storeNumber);
+          storeSelect.appendChild(opt);
+        });
+      }
+
+      function onFilterChange() {
+        if (hoursSelect) state.hours = Number(hoursSelect.value) || 72;
+        if (storeSelect) state.storeNumber = storeSelect.value || '';
+        refreshHistory();
+      }
+
+      if (hoursSelect) hoursSelect.addEventListener('change', onFilterChange);
+      if (storeSelect) storeSelect.addEventListener('change', onFilterChange);
+    }
+
+    function refreshLive() {
       apiFetch('/presence', { noBounceOn401: true })
         .then(function (resp) {
           if (!resp.ok) throw new Error('unavailable');
           return resp.json();
         })
         .then(function (data) {
-          if (statusEl) {
-            statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          if (state.tab === 'live') {
+            setStatus('Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
           }
-          renderPresencePanel(panel, data.sessions || [], {
-            currentEmail: options.currentEmail,
-          });
+          renderPresencePanel(livePanel, data.sessions || [], { currentEmail: currentEmail });
         })
         .catch(function () {
-          if (statusEl) statusEl.textContent = 'Could not refresh activity';
+          if (state.tab === 'live') setStatus('Could not refresh activity');
         });
+    }
+
+    function refreshHistory() {
+      apiFetch(buildHistoryQuery({
+        hours: state.hours,
+        limit: 200,
+        storeNumber: state.storeNumber || undefined,
+      }), { noBounceOn401: true })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error('unavailable');
+          return resp.json();
+        })
+        .then(function (data) {
+          if (state.tab === 'history') {
+            setStatus('History · last ' + state.hours + 'h');
+          }
+          renderHistoryPanel(historyPanel, data.entries || [], { currentEmail: currentEmail });
+        })
+        .catch(function () {
+          if (state.tab === 'history') setStatus('Could not load history');
+        });
+    }
+
+    function refreshAll() {
+      refreshLive();
+      if (state.tab === 'history') refreshHistory();
+    }
+
+    showTab(options.initialTab === 'history' ? 'history' : 'live');
+    refreshAll();
+    startPolling('activity', refreshAll, 15000);
+
+    return {
+      showTab: showTab,
+      refreshHistory: refreshHistory,
+    };
+  }
+
+  function startAdminPanel(options) {
+    startActivityPanel({
+      root: options.root,
+      livePanel: options.panel,
+      historyPanel: options.historyPanel,
+      statusEl: options.statusEl,
+      historyFiltersEl: options.historyFiltersEl,
+      storeOptions: options.storeOptions,
+      currentEmail: options.currentEmail,
+      initialTab: options.initialTab,
     });
   }
 
@@ -342,6 +544,7 @@
     start: start,
     ping: ping,
     leave: leave,
+    startActivityPanel: startActivityPanel,
     startAdminPanel: startAdminPanel,
     startHubHeaderPanel: startHubHeaderPanel,
     locationLabel: locationLabel,

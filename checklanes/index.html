@@ -316,6 +316,83 @@
     margin-bottom: 20px;
   }
 
+  .cl-activity-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .cl-activity-head h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    flex: 1 1 auto;
+  }
+
+  .cl-activity-tabs {
+    display: inline-flex;
+    gap: 6px;
+    padding: 3px;
+    border-radius: 999px;
+    border: 1px solid var(--cl-border);
+    background: var(--cl-bg);
+  }
+
+  .cl-activity-tab {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--cl-text2);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  .cl-activity-tab.is-active {
+    background: var(--cl-surface2);
+    color: var(--cl-text);
+  }
+
+  .cl-history-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .cl-history-filters .cl-select {
+    min-width: 140px;
+    min-height: 34px;
+    flex: 0 1 auto;
+  }
+
+  .cl-presence-dot--past {
+    background: #64748b;
+    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.18);
+  }
+
+  .cl-history-when {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .cl-history-duration,
+  .cl-history-open {
+    font-size: 0.72rem;
+    color: var(--cl-text2);
+  }
+
+  .cl-history-open {
+    color: #86efac;
+    font-weight: 700;
+  }
+
   .cl-presence-head {
     display: flex;
     flex-wrap: wrap;
@@ -413,11 +490,30 @@
   </section>
 
   <section class="cl-panel cl-presence-panel" id="presence-panel" hidden>
-    <div class="cl-presence-head">
-      <h2>Live activity</h2>
+    <div class="cl-activity-head">
+      <h2>Activity</h2>
+      <div class="cl-activity-tabs" role="tablist" aria-label="Activity views">
+        <button type="button" class="cl-activity-tab is-active" data-activity-tab="live" role="tab" aria-selected="true">Live</button>
+        <button type="button" class="cl-activity-tab" data-activity-tab="history" role="tab" aria-selected="false">History</button>
+      </div>
       <span class="cl-presence-updated" id="presence-updated"></span>
     </div>
-    <div id="presence-list"></div>
+    <div class="cl-history-filters" id="presence-history-filters" hidden>
+      <select class="cl-select" data-history-hours aria-label="History time range">
+        <option value="24">Last 24 hours</option>
+        <option value="72" selected>Last 3 days</option>
+        <option value="168">Last 7 days</option>
+      </select>
+      <select class="cl-select" data-history-store aria-label="Filter by store">
+        <option value="">All stores</option>
+      </select>
+    </div>
+    <div id="presence-live-pane">
+      <div id="presence-list"></div>
+    </div>
+    <div id="presence-history-pane" hidden>
+      <div id="presence-history-list"></div>
+    </div>
   </section>
 
   <div id="status" class="cl-loading">Loading your stores…</div>
@@ -826,10 +922,18 @@
       if (payload.canViewPresence && window.ChecklanePresence) {
         const panel = document.getElementById('presence-panel');
         panel.hidden = false;
-        ChecklanePresence.startAdminPanel({
-          panel: document.getElementById('presence-list'),
+        var initialTab = (location.hash === '#activity-history') ? 'history' : 'live';
+        ChecklanePresence.startActivityPanel({
+          root: panel,
+          livePanel: document.getElementById('presence-list'),
+          historyPanel: document.getElementById('presence-history-list'),
+          livePaneWrap: document.getElementById('presence-live-pane'),
+          historyPaneWrap: document.getElementById('presence-history-pane'),
           statusEl: document.getElementById('presence-updated'),
+          historyFiltersEl: document.getElementById('presence-history-filters'),
+          storeOptions: payload.stores || [],
           currentEmail: payload.email,
+          initialTab: initialTab,
         });
       }
     } catch (err) {
