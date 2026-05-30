@@ -53,9 +53,8 @@ jobs:
 
       - name: Run agent scenarios
         if: >-
-          secrets.CURSOR_API_KEY != '' &&
-          ((github.event_name == 'workflow_dispatch' && inputs.run_agents) ||
-          (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+          (github.event_name == 'workflow_dispatch' && inputs.run_agents) ||
+          (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: npm run strength
         env:
           STRENGTH_HUB_BASE_URL: https://the-dump-bin.com/checklanes
