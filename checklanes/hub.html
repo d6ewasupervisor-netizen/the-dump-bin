@@ -5706,6 +5706,39 @@ function resolveHubStoreFromUrl() {
   return HUB_STORE_NUM;
 }
 
+function hubFixtureSummary() {
+  const lanes = new Set(FIXTURES.map(f => f.lane));
+  return FIXTURES.length + ' fixtures · ' + lanes.size + ' lanes';
+}
+
+async function loadStoreFixtures(storeNum) {
+  const authFetch = window.dumpBinAuthFetch || fetch;
+  try {
+    const resp = await authFetch(
+      '/api/hub/stores/' + encodeURIComponent(storeNum) + '/fixtures',
+      { noBounceOn401: true }
+    );
+    if (resp.ok) {
+      const data = await resp.json();
+      if (Array.isArray(data.fixtures) && data.fixtures.length) {
+        FIXTURES.length = 0;
+        FIXTURES.push(...data.fixtures);
+        console.log('[Checklane Hub] Loaded fixture catalog for store', storeNum, data.fixtureCount);
+        return data;
+      }
+    }
+    if (resp.status === 404) {
+      console.warn('[Checklane Hub] No fixture catalog on server for store', storeNum);
+    }
+  } catch (err) {
+    console.warn('[Checklane Hub] Fixture catalog fetch failed:', err.message || err);
+  }
+  if (String(storeNum) !== '163') {
+    FIXTURES.length = 0;
+  }
+  return null;
+}
+
 let fixtureStates = {};
 let selectedDbkey = null;
 let selectedLane = null;
@@ -11917,6 +11950,7 @@ async function init() {
 
   resolveHubStoreFromUrl();
   await loadHubIdentity();
+  await loadStoreFixtures(HUB_STORE_NUM);
   ensureFixtureTypes(FIXTURES);
   renderLegend();
   renderMap();
@@ -11948,7 +11982,7 @@ async function init() {
     }
   } else {
     applyState(SEED_STATES);
-    setDataSourceLabel('Store ' + padStoreNumber(HUB_STORE_NUM) + ' · 83 fixtures · 26 lanes · SEED_STATES demo');
+    setDataSourceLabel('Store ' + padStoreNumber(HUB_STORE_NUM) + ' · ' + hubFixtureSummary() + ' · SEED_STATES demo');
   }
 
   await restoreHubNavigation();
