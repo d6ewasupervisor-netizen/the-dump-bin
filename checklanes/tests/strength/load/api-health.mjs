@@ -6,6 +6,8 @@
 import { performance } from 'node:perf_hooks';
 import { API_BASE, SITE_BASE } from '../config.mjs';
 
+const UA = 'Mozilla/5.0 (compatible; ChecklanesStrengthTest/1.0)';
+
 const URL = `${API_BASE}/api/hub/stores`;
 const CONNECTIONS = Number(process.env.STRENGTH_LOAD_CONNECTIONS || 30);
 const DURATION_SEC = Number(process.env.STRENGTH_LOAD_DURATION_SEC || 15);
@@ -22,7 +24,7 @@ async function worker() {
   while (!stop) {
     const start = performance.now();
     try {
-      const res = await fetch(URL, { headers: { Origin: SITE_BASE } });
+      const res = await fetch(URL, { headers: { Origin: SITE_BASE, 'User-Agent': UA } });
       latencies.push(performance.now() - start);
       total += 1;
       if (res.status >= 500) errors += 1;

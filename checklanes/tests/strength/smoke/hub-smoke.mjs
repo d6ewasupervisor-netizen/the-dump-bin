@@ -7,6 +7,8 @@
  */
 import { API_BASE, HUB_BASE, POG_BASE, SITE_BASE } from '../config.mjs';
 
+const UA = 'Mozilla/5.0 (compatible; ChecklanesStrengthTest/1.0)';
+
 /** @type {{ name: string, pass: boolean, detail: string }[]} */
 const checks = [];
 
@@ -20,7 +22,11 @@ async function check(name, fn) {
 }
 
 async function headOrGet(url, opts = {}) {
-  const res = await fetch(url, { redirect: 'follow', ...opts });
+  const res = await fetch(url, {
+    redirect: 'follow',
+    headers: { 'User-Agent': UA, ...(opts.headers || {}) },
+    ...opts,
+  });
   return res;
 }
 
@@ -54,7 +60,7 @@ await check('GET checklanes/hub-presence.js', async () => {
 
 await check('GET eod-api hub routes reachable', async () => {
   const res = await fetch(`${API_BASE}/api/hub/stores`, {
-    headers: { Origin: SITE_BASE },
+    headers: { Origin: SITE_BASE, 'User-Agent': UA },
   });
   if (res.status >= 500) return { pass: false, detail: `HTTP ${res.status}` };
   return { pass: true, detail: `HTTP ${res.status} (Railway eod-api responding)` };
@@ -62,7 +68,7 @@ await check('GET eod-api hub routes reachable', async () => {
 
 await check('GET /api/hub/stores requires auth (401)', async () => {
   const res = await fetch(`${API_BASE}/api/hub/stores`, {
-    headers: { Origin: SITE_BASE },
+    headers: { Origin: SITE_BASE, 'User-Agent': UA },
   });
   if (res.status === 401) return { pass: true, detail: 'HTTP 401' };
   if (res.status === 403) return { pass: true, detail: 'HTTP 403' };
@@ -74,6 +80,7 @@ await check('CORS allows the-dump-bin.com on hub API', async () => {
     method: 'OPTIONS',
     headers: {
       Origin: SITE_BASE,
+      'User-Agent': UA,
       'Access-Control-Request-Method': 'GET',
     },
   });
