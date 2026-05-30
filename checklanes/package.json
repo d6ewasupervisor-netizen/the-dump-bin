@@ -1,0 +1,11 @@
+{
+  "name": "checklanes-hub",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "strength": "node tests/strength/agent/run-strength-suite.js",
+    "strength:smoke": "node tests/strength/smoke/hub-smoke.mjs",
+    "strength:load": "node tests/strength/load/api-health.mjs"
+  }
+}

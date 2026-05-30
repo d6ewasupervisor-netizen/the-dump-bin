@@ -12,3 +12,8 @@ desktop.ini
 # Logs
 *.log
 npm-debug.log*
+
+# Strength test artifacts
+checklanes/tests/strength/results/*
+!checklanes/tests/strength/results/.gitkeep
+checklanes/tests/strength/agent/node_modules/

@@ -1,0 +1,74 @@
+name: Strength tests (Checklanes hub)
+
+on:
+  pull_request:
+    paths:
+      - 'checklanes/**'
+      - 'auth-gate.js'
+      - '.github/workflows/strength-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'checklanes/**'
+      - 'auth-gate.js'
+      - '.github/workflows/strength-tests.yml'
+  workflow_dispatch:
+    inputs:
+      run_agents:
+        description: Run Cursor agent scenarios (requires CURSOR_API_KEY secret)
+        type: boolean
+        default: true
+
+jobs:
+  strength:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: checklanes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install agent harness dependencies
+        run: npm install
+        working-directory: checklanes/tests/strength/agent
+
+      - name: Build agent harness
+        run: npm run build
+        working-directory: checklanes/tests/strength/agent
+
+      - name: Run hub smoke + API load
+        run: |
+          npm run strength:smoke
+          npm run strength:load
+        env:
+          STRENGTH_HUB_BASE_URL: https://the-dump-bin.com/checklanes
+          STRENGTH_API_BASE_URL: https://eod-api.the-dump-bin.com
+          STRENGTH_POG_BASE_URL: https://checklanes.the-dump-bin.com
+          STRENGTH_SITE_BASE_URL: https://the-dump-bin.com
+
+      - name: Run agent scenarios
+        if: >-
+          secrets.CURSOR_API_KEY != '' &&
+          ((github.event_name == 'workflow_dispatch' && inputs.run_agents) ||
+          (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+        run: npm run strength
+        env:
+          STRENGTH_HUB_BASE_URL: https://the-dump-bin.com/checklanes
+          STRENGTH_API_BASE_URL: https://eod-api.the-dump-bin.com
+          STRENGTH_POG_BASE_URL: https://checklanes.the-dump-bin.com
+          STRENGTH_SITE_BASE_URL: https://the-dump-bin.com
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          STRENGTH_SESSION_JWT: ${{ secrets.STRENGTH_SESSION_JWT }}
+
+      - name: Upload strength results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strength-results
+          path: checklanes/tests/strength/results/
+          if-no-files-found: ignore
