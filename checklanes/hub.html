@@ -7651,6 +7651,7 @@ function bindEvents() {
    ═══════════════════════════════════════════════════════════════════════════ */
 let pogProductsCache = null;
 let pogCatalogCache = null;
+let pogPdfByDbkey = null;
 let pogCatalogLoadPromise = null;
 const pogLayoutCache = {};
 let pogWorkingFixture = null;
@@ -7827,8 +7828,19 @@ async function handleAssignPreviewFullscreenOpenPog() {
   await openPogWorkingView(fix);
 }
 
+function buildPogPdfIndexFromManifestText(text) {
+  const map = Object.create(null);
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || !/\.pdf$/i.test(trimmed)) continue;
+    const m = trimmed.match(/_(\d{7})\.pdf$/i);
+    if (m) map[m[1]] = trimmed;
+  }
+  return map;
+}
+
 async function ensurePogCatalogLoaded() {
-  if (pogProductsCache && pogCatalogCache) return;
+  if (pogProductsCache && pogCatalogCache && pogPdfByDbkey) return;
   if (!pogCatalogLoadPromise) {
     pogCatalogLoadPromise = Promise.all([
       fetch(pogUrl('/products.json')).then(r => {
@@ -7839,9 +7851,14 @@ async function ensurePogCatalogLoaded() {
         if (!r.ok) throw new Error('pog_products.json ' + r.status);
         return r.json();
       }),
-    ]).then(([products, pogProducts]) => {
+      fetch(pogUrl('/expected_pdfs.txt')).then(r => {
+        if (!r.ok) throw new Error('expected_pdfs.txt ' + r.status);
+        return r.text();
+      }),
+    ]).then(([products, pogProducts, pdfManifestText]) => {
       pogCatalogCache = products;
       pogProductsCache = pogProducts;
+      pogPdfByDbkey = buildPogPdfIndexFromManifestText(pdfManifestText);
     });
   }
   try {
@@ -7865,15 +7882,9 @@ async function fetchPogLayout(dbkey) {
 
 function pdfFilenameFromFixture(fixture) {
   if (!fixture) return null;
-  const id = fixture.manifest_pog_id;
-  if (id) {
-    // POG static host stores canonical PDFs with L00000, not per-store lane ids.
-    return id.replace(/_L\d{5}_/, '_L00000_') + '.pdf';
-  }
-  const action = fixture.action;
-  const dbkey = fixture.dbkey;
-  if (action && dbkey) {
-    return 'D701_L00000_D03_' + action + '_' + dbkey + '.pdf';
+  const dbkey = fixture.dbkey != null ? String(fixture.dbkey) : '';
+  if (dbkey && pogPdfByDbkey && pogPdfByDbkey[dbkey]) {
+    return pogPdfByDbkey[dbkey];
   }
   return null;
 }
@@ -8340,7 +8351,12 @@ function applyPogMaskOpacity(pct) {
   }
 }
 
-function openHubPdfFromWorkingView(page) {
+async function openHubPdfFromWorkingView(page) {
+  try {
+    await ensurePogCatalogLoaded();
+  } catch (_) {
+    return;
+  }
   const opts = hubPdfOpenOpts(pogWorkingFixture, page || 1);
   if (!opts) return;
   document.getElementById('pog-working-view')?.classList.add('pog-pdf-open');

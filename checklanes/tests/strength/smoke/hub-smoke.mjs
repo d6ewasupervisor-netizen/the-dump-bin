@@ -133,14 +133,40 @@ await check('GET POG canonical PDF (hub CORS)', async () => {
     : { pass: false, detail: `missing CORS (${allowOrigin || 'none'})` };
 });
 
-await check('hub.html maps store manifest ids to L00000 PDFs', async () => {
+await check('GET POG store-specific PDF (163 dbkey index)', async () => {
+  const pdfPath = '/pdfs/D701_L00163_D03_C201_VS02_F024_MX_8844804.pdf';
+  const res = await headOrGet(`${POG_BASE}${pdfPath}`, {
+    headers: { Origin: SITE_BASE },
+  });
+  if (!res.ok) return { pass: false, detail: `HTTP ${res.status}` };
+  const allowOrigin = res.headers.get('access-control-allow-origin') || '';
+  const ok = allowOrigin === SITE_BASE || allowOrigin === '*';
+  return ok
+    ? { pass: true, detail: 'store 163 side-shelf PDF reachable' }
+    : { pass: false, detail: `missing CORS (${allowOrigin || 'none'})` };
+});
+
+await check('GET POG expected_pdfs.txt', async () => {
+  const res = await headOrGet(`${POG_BASE}/expected_pdfs.txt`);
+  if (!res.ok) return { pass: false, detail: `HTTP ${res.status}` };
+  const text = await res.text();
+  const lines = text.split(/\r?\n/).filter((ln) => /_\d{7}\.pdf$/i.test(ln.trim()));
+  return lines.length >= 200
+    ? { pass: true, detail: `${lines.length} pdf entries` }
+    : { pass: false, detail: `only ${lines.length} pdf entries` };
+});
+
+await check('hub.html resolves PDFs via expected_pdfs dbkey index', async () => {
   const res = await headOrGet(`${HUB_BASE}/hub.html`);
   if (!res.ok) return { pass: false, detail: `HTTP ${res.status}` };
   const text = await res.text();
-  const ok = text.includes("replace(/_L\\d{5}_/, '_L00000_')");
+  const ok =
+    text.includes('expected_pdfs.txt') &&
+    text.includes('pogPdfByDbkey') &&
+    text.includes('buildPogPdfIndexFromManifestText');
   return ok
-    ? { pass: true, detail: 'pdfFilenameFromFixture normalizes lane segment' }
-    : { pass: false, detail: 'hub.html still uses raw manifest_pog_id for PDF URLs' };
+    ? { pass: true, detail: 'hub loads dbkey→pdf map from POG host' }
+    : { pass: false, detail: 'hub.html missing expected_pdfs.pdf index wiring' };
 });
 
 const ok = checks.every((c) => c.pass);
