@@ -536,11 +536,15 @@
     return '';
   }
 
+  /** Keep in sync with checklanes/hub-version.json + hub.html HUB_BUILD. */
+  const HUB_RELEASE_BUILD = '20260602-dual-aisle-v2';
+
   function hubUrl(store) {
     const visit = store.defaultVisitId;
     if (!visit) return null;
     return 'hub.html?store=' + encodeURIComponent(store.storeNumber) +
-      '&visit=' + encodeURIComponent(visit);
+      '&visit=' + encodeURIComponent(visit) +
+      '&_hb=' + encodeURIComponent(HUB_RELEASE_BUILD);
   }
 
   function formatShiftWindow(shift) {

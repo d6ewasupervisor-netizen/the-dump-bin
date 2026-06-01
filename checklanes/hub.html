@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <title>Checklane Reset Hub</title>
 <script src="/auth-gate.js"></script>
 <script src="hub-presence.js"></script>
@@ -272,6 +274,15 @@
     font-size: 0.75rem;
     color: var(--text2);
     font-weight: 500;
+  }
+
+  .hub-build-stamp {
+    font-size: 0.62rem;
+    color: var(--text3);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-top: 2px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
 
   .prod-dispatch-banner {
@@ -1241,7 +1252,16 @@
   .dual-aisle-store { display: block; max-width: 100%; font-size: 1rem; font-weight: 800; color: #dbeafe; line-height: 1.15; letter-spacing: 0.01em; }
   .dual-aisle-manifest { display: block; font-size: 0.7rem; font-weight: 700; color: var(--text3); letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.2; }
   .dual-aisle-manifest--solo { font-size: 0.92rem; color: var(--lane-label); text-transform: none; letter-spacing: 0.02em; }
-  .dual-aisle-head { gap: 4px; }
+  .dual-aisle-head {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .dual-aisle-head .dual-aisle-manifest {
+    padding-left: 2px;
+    color: #a8b4d4;
+  }
   .dual-aisle-head .store-aisle-badge,
   .dual-aisle-head .aisle-picker { width: 100%; }
   .list-aisle-store { font-weight: 700; color: #dbeafe; }
@@ -5327,6 +5347,7 @@
       <span class="signed-in-rank-pill" id="signed-in-rank-pill" hidden></span>
     </div>
     <div class="store-tag" id="store-tag">Store 00163 · 83 fixtures · 26 lanes</div>
+    <div class="hub-build-stamp" id="hub-build-stamp" hidden></div>
     <div class="hub-header-presence" id="hub-header-presence" hidden>
       <button type="button" class="hub-header-presence-toggle" id="hub-header-presence-toggle" aria-expanded="false" aria-controls="hub-header-presence-popover">
         <span class="hub-header-presence-dot" aria-hidden="true"></span>
@@ -6069,7 +6090,7 @@ async function loadStoreFixtures(storeNum) {
 }
 
 /** Must match `checklanes/hub-version.json` on every hub deploy. */
-const HUB_BUILD = '20260601-hub-update-banner';
+const HUB_BUILD = '20260602-dual-aisle-v2';
 const HUB_VERSION_URL = 'hub-version.json';
 const HUB_UPDATE_CHECK_MS = 5 * 60 * 1000;
 const HUB_UPDATE_SNOOZE_MS = 15 * 60 * 1000;
@@ -6241,7 +6262,15 @@ function renderDualAisleHtml(lane, dbkey, opts) {
 function renderDualAisleManifestChip(lane) {
   const manifest = formatRegisterLabel(lane);
   if (!manifest) return '';
-  return '<span class="dual-aisle-manifest">' + escapeHtml(manifest) + '</span>';
+  return '<span class="dual-aisle-manifest" title="Manifest register from reset materials">Manifest ' +
+    escapeHtml(manifest) + '</span>';
+}
+
+function updateHubBuildStamp() {
+  const el = document.getElementById('hub-build-stamp');
+  if (!el || !HUB_BUILD) return;
+  el.hidden = false;
+  el.textContent = 'Hub build ' + HUB_BUILD;
 }
 
 function laneStoreAisleSummary(lane) {
@@ -12692,6 +12721,7 @@ async function init() {
   }
 
   await restoreHubNavigation();
+  updateHubBuildStamp();
   startHubUpdateChecks();
 }
 
