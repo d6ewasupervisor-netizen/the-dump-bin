@@ -539,8 +539,12 @@
   /** Keep in sync with checklanes/hub-version.json + hub.html HUB_BUILD. */
   const HUB_RELEASE_BUILD = '20260602-dual-aisle-v2';
 
+  function resolveStoreVisitId(store) {
+    return store.liveVisitId || (store.shift && store.shift.visitId) || store.defaultVisitId || null;
+  }
+
   function hubUrl(store) {
-    const visit = store.defaultVisitId;
+    const visit = resolveStoreVisitId(store);
     if (!visit) return null;
     return 'hub.html?store=' + encodeURIComponent(store.storeNumber) +
       '&visit=' + encodeURIComponent(visit) +
@@ -560,11 +564,21 @@
   }
 
   function appendShiftInfo(card, store) {
-    const shift = store.shift;
-    if (!shift || (!shift.leadName && !shift.supervisorLabel)) return;
+    const shift = store.shift || {};
+    const visitId = resolveStoreVisitId(store);
+    if (!visitId && !shift.leadName && !shift.supervisorLabel) return;
 
     const block = document.createElement('div');
     block.className = 'cl-shift-info';
+
+    if (visitId) {
+      const visitRow = document.createElement('div');
+      visitRow.className = 'cl-shift-row';
+      visitRow.innerHTML =
+        '<span class="cl-shift-label">Visit ID</span>' +
+        '<span class="cl-shift-value">' + escapeHtml(visitId) + '</span>';
+      block.appendChild(visitRow);
+    }
 
     if (shift.leadName) {
       const row = document.createElement('div');
@@ -772,7 +786,9 @@
 
     const meta = document.createElement('p');
     meta.className = 'cl-store-meta';
+    const visitNote = resolveStoreVisitId(store);
     meta.textContent = 'Store #' + padStore(store.storeNumber) +
+      (visitNote ? ' · Visit ' + visitNote : '') +
       (store.isTest ? ' · Test environment' : '') +
       (store.isAssigned ? ' · You are assigned here' : '');
     card.appendChild(meta);

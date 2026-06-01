@@ -12537,6 +12537,29 @@ function snapshotSectionsToStateMap(sections) {
   return map;
 }
 
+async function ensureCanonicalLiveVisit(storeNumber, requestedVisitId) {
+  const authFetch = window.dumpBinAuthFetch || fetch;
+  try {
+    const resp = await authFetch(
+      '/api/hub/stores/' + encodeURIComponent(storeNumber) + '/live-visit',
+      { noBounceOn401: true },
+    );
+    if (!resp.ok) return true;
+    const data = await resp.json();
+    const canonical = data.visitId != null ? String(data.visitId) : null;
+    if (!canonical || canonical === String(requestedVisitId)) return true;
+    const params = new URLSearchParams(window.location.search);
+    params.set('store', storeNumber);
+    params.set('visit', canonical);
+    const hash = window.location.hash || '';
+    window.location.replace('hub.html?' + params.toString() + hash);
+    return false;
+  } catch (err) {
+    console.warn('[Checklane Hub] live-visit resolve failed, using URL visit:', err);
+    return true;
+  }
+}
+
 async function loadLiveState(visitId) {
   const authFetch = window.dumpBinAuthFetch || fetch;
   const resp = await authFetch(
@@ -12669,6 +12692,9 @@ async function init() {
 
   resolveHubStoreFromUrl();
   await loadHubIdentity();
+
+  const canonicalOk = await ensureCanonicalLiveVisit(storeParam, visitId);
+  if (!canonicalOk) return;
 
   if (window.ChecklanePresence) {
     ChecklanePresence.configure(hubPresenceMeta);
