@@ -120,6 +120,29 @@ await check('GET POG scan_index/615.json', async () => {
     : { pass: false, detail: 'unexpected scan index payload' };
 });
 
+await check('GET POG canonical PDF (hub CORS)', async () => {
+  const pdfPath = '/pdfs/D701_L00000_D03_C201_VQ49_F002_MX_8920140.pdf';
+  const res = await headOrGet(`${POG_BASE}${pdfPath}`, {
+    headers: { Origin: SITE_BASE },
+  });
+  const allowOrigin = res.headers.get('access-control-allow-origin') || '';
+  if (!res.ok) return { pass: false, detail: `HTTP ${res.status}` };
+  const ok = allowOrigin === SITE_BASE || allowOrigin === '*';
+  return ok
+    ? { pass: true, detail: 'application/pdf + CORS' }
+    : { pass: false, detail: `missing CORS (${allowOrigin || 'none'})` };
+});
+
+await check('hub.html maps store manifest ids to L00000 PDFs', async () => {
+  const res = await headOrGet(`${HUB_BASE}/hub.html`);
+  if (!res.ok) return { pass: false, detail: `HTTP ${res.status}` };
+  const text = await res.text();
+  const ok = text.includes("replace(/_L\\d{5}_/, '_L00000_')");
+  return ok
+    ? { pass: true, detail: 'pdfFilenameFromFixture normalizes lane segment' }
+    : { pass: false, detail: 'hub.html still uses raw manifest_pog_id for PDF URLs' };
+});
+
 const ok = checks.every((c) => c.pass);
 console.log(
   JSON.stringify(

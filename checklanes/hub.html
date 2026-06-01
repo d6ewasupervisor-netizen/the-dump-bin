@@ -7866,8 +7866,26 @@ async function fetchPogLayout(dbkey) {
 function pdfFilenameFromFixture(fixture) {
   if (!fixture) return null;
   const id = fixture.manifest_pog_id;
-  if (id) return id + '.pdf';
+  if (id) {
+    // POG static host stores canonical PDFs with L00000, not per-store lane ids.
+    return id.replace(/_L\d{5}_/, '_L00000_') + '.pdf';
+  }
+  const action = fixture.action;
+  const dbkey = fixture.dbkey;
+  if (action && dbkey) {
+    return 'D701_L00000_D03_' + action + '_' + dbkey + '.pdf';
+  }
   return null;
+}
+
+function hubPdfOpenOpts(fixture, page) {
+  const pdfName = pdfFilenameFromFixture(fixture);
+  if (!pdfName) return null;
+  return {
+    url: pogUrl('/pdfs/' + encodeURIComponent(pdfName)),
+    page: page || 1,
+    title: fixture ? shortName(fixture.name) : 'Planogram PDF',
+  };
 }
 
 function productInfo(upc) {
@@ -8323,12 +8341,11 @@ function applyPogMaskOpacity(pct) {
 }
 
 function openHubPdfFromWorkingView(page) {
-  if (!pogWorkingPdfUrl) return;
-  const fixture = pogWorkingFixture;
-  const title = fixture ? shortName(fixture.name) : 'Planogram PDF';
+  const opts = hubPdfOpenOpts(pogWorkingFixture, page || 1);
+  if (!opts) return;
   document.getElementById('pog-working-view')?.classList.add('pog-pdf-open');
   if (typeof window.openHubPdfViewer === 'function') {
-    window.openHubPdfViewer({ url: pogWorkingPdfUrl, page: page || 1, title: title });
+    window.openHubPdfViewer(opts);
   }
 }
 
@@ -9371,10 +9388,10 @@ function renderPogWorkingContent(fixture, layout, loadError) {
     return;
   }
 
-  const pdfName = pdfFilenameFromFixture(fixture);
   const previewUrl = pogUrl('/previews/' + encodeURIComponent(fixture.dbkey) + '.png');
-  const pdfUrl = pdfName ? pogUrl('/pdfs/' + encodeURIComponent(pdfName)) : null;
-  pogWorkingPdfUrl = pdfUrl;
+  const pdfOpts = hubPdfOpenOpts(fixture, 1);
+  pogWorkingPdfUrl = pdfOpts ? pdfOpts.url : null;
+  window.__hubPendingPdfOpen = pdfOpts;
   closeHubPdfFromWorkingView();
 
   const meta =
@@ -9389,7 +9406,7 @@ function renderPogWorkingContent(fixture, layout, loadError) {
       '<button type="button" class="pog-wv-preview-toggle" id="pog-wv-preview-toggle" aria-expanded="false">Page 1 preview ▸</button>' +
       '<div class="pog-wv-preview-body">' +
         '<img id="pog-wv-preview-img" src="' + escapeHtml(previewUrl) + '" alt="Planogram page 1 preview" loading="lazy">' +
-        (pdfUrl
+        (pdfOpts
           ? '<button type="button" class="pog-wv-preview-pdf-btn" id="pog-wv-open-pdf">View full PDF</button>'
           : '') +
       '</div>' +
@@ -11063,6 +11080,7 @@ function closePogWorkingView(opts) {
     pogSelectedProduct = null;
     pogLastNotFoundUpc = null;
     pogWorkingPdfUrl = null;
+    window.__hubPendingPdfOpen = null;
     setPogWvActionStatus('');
     closePogWvActionsMenu();
     closeHubPdfFromWorkingView();
