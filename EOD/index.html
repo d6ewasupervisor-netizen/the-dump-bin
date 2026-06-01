@@ -3346,6 +3346,14 @@
                             <button type="button" class="btn btn-secondary" onclick="document.getElementById('helpdeskPhotoInput').click()">Upload photo</button>
                         </div>
                         <input type="file" id="helpdeskPhotoInput" accept="image/*,.heic,.heif" multiple style="display:none;" onchange="handleHelpdeskPhotos(this)">
+
+                        <div style="margin-top:12px;">
+                            <label style="display:block;margin-bottom:6px;">Supporting documents (optional)</label>
+                            <div id="hdDocumentsList" style="margin-bottom:8px;"></div>
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('helpdeskDocInput').click()">Attach document</button>
+                            <input type="file" id="helpdeskDocInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv" multiple style="display:none;" onchange="handleHelpdeskDocuments(this)">
+                            <p style="font-size:12px;color:#888;margin:6px 0 0;">PDF, Word, Excel, PowerPoint, or text files. Up to 5 documents.</p>
+                        </div>
                     </div>
 
                     <!-- ── Step D: Additional notes + send ── -->
@@ -4091,6 +4099,32 @@
             // ticket draft; cleared after a successful send).
             helpdesk: []
         };
+        let helpdeskDocuments = [];
+
+        const HD_DOC_MAX = 5;
+        const HD_DOC_MAX_FILE_BYTES = 10 * 1024 * 1024;
+        const HD_ALLOWED_DOC_MIMES = new Set([
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'text/csv',
+        ]);
+        const HD_DOC_MIME_BY_EXT = {
+            pdf: 'application/pdf',
+            doc: 'application/msword',
+            docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            xls: 'application/vnd.ms-excel',
+            xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ppt: 'application/vnd.ms-powerpoint',
+            pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            txt: 'text/plain',
+            csv: 'text/csv',
+        };
 
         // Tracks the saver response after a successful InstaWork JPG save.
         // When non-null, the lead has already confirmed-and-saved the
@@ -4174,6 +4208,7 @@
                         after: photosObj.after || [],
                         instawork: photosObj.instawork || [],
                         helpdesk: photosObj.helpdesk || [],
+                        helpdeskDocuments: photosObj.helpdeskDocuments || [],
                         timestamp: Date.now()
                     };
 
@@ -4208,10 +4243,11 @@
                                     signoff: data.signoff || [],
                                     after: data.after || [],
                                     instawork: data.instawork || [],
-                                    helpdesk: data.helpdesk || []
+                                    helpdesk: data.helpdesk || [],
+                                    helpdeskDocuments: data.helpdeskDocuments || []
                                 });
                             } else {
-                                resolve({ before: [], signoff: [], after: [], instawork: [], helpdesk: [] });
+                                resolve({ before: [], signoff: [], after: [], instawork: [], helpdesk: [], helpdeskDocuments: [] });
                             }
                         };
                         request.onerror = () => {
@@ -4221,7 +4257,7 @@
                     });
                 } catch (e) {
                     console.error('IndexedDB loadPhotos error:', e);
-                    return { before: [], signoff: [], after: [], instawork: [], helpdesk: [] };
+                    return { before: [], signoff: [], after: [], instawork: [], helpdesk: [], helpdeskDocuments: [] };
                 }
             },
 
@@ -4586,7 +4622,7 @@
             }
 
             // Save photos to IndexedDB (handles large files)
-            PhotoDB.savePhotos(photos).catch(e => {
+            PhotoDB.savePhotos({ ...photos, helpdeskDocuments }).catch(e => {
                 console.warn('Could not save photos to IndexedDB:', e);
             });
 
@@ -4777,7 +4813,7 @@
                     photos.helpdesk = data.photos.helpdesk || [];
 
                     // Save to IndexedDB
-                    await PhotoDB.savePhotos(photos);
+                    await PhotoDB.savePhotos({ ...photos, helpdeskDocuments });
 
                     // Remove photos from localStorage to free up space
                     delete data.photos;
@@ -4811,19 +4847,22 @@
                 const savedPhotos = await PhotoDB.loadPhotos();
                 const savedInstawork = savedPhotos.instawork || [];
                 const savedHelpdesk = savedPhotos.helpdesk || [];
-                if (savedPhotos.before.length || savedPhotos.signoff.length || savedPhotos.after.length || savedInstawork.length || savedHelpdesk.length) {
+                const savedHelpdeskDocs = savedPhotos.helpdeskDocuments || [];
+                if (savedPhotos.before.length || savedPhotos.signoff.length || savedPhotos.after.length || savedInstawork.length || savedHelpdesk.length || savedHelpdeskDocs.length) {
                     photos.before = deduplicatePhotos(savedPhotos.before);
                     photos.signoff = deduplicatePhotos(savedPhotos.signoff);
                     photos.after = deduplicatePhotos(savedPhotos.after);
                     // Cap InstaWork to a single photo even if older sessions stored more.
                     photos.instawork = deduplicatePhotos(savedInstawork).slice(-1);
                     photos.helpdesk = deduplicatePhotos(savedHelpdesk);
+                    helpdeskDocuments = Array.isArray(savedHelpdeskDocs) ? savedHelpdeskDocs : [];
 
                     renderPhotos('before');
                     renderPhotos('signoff');
                     renderPhotos('after');
                     renderPhotos('instawork');
                     renderHelpdeskPhotos();
+                    renderHelpdeskDocuments();
                     updateInstaworkSaveButton();
 
                     // Save back any cleaned up duplicates
@@ -4833,7 +4872,7 @@
                         photos.instawork.length !== savedInstawork.length ||
                         photos.helpdesk.length !== savedHelpdesk.length) {
                         console.log('Cleaned up duplicate photos');
-                        await PhotoDB.savePhotos(photos);
+                        await PhotoDB.savePhotos({ ...photos, helpdeskDocuments });
                     }
                 }
             } catch (e) {
@@ -5140,6 +5179,7 @@
             renderHdSetDropdown();
             renderHelpdeskChecklist();
             renderHelpdeskPhotos();
+            renderHelpdeskDocuments();
             updateHdSendButton();
         }
 
@@ -5379,6 +5419,95 @@
             autoSave();
         }
 
+        function resolveHelpdeskDocumentMime(file) {
+            const mime = String(file.type || '').toLowerCase();
+            if (HD_ALLOWED_DOC_MIMES.has(mime)) return mime;
+            const ext = String(file.name || '').split('.').pop()?.toLowerCase();
+            return ext ? (HD_DOC_MIME_BY_EXT[ext] || '') : '';
+        }
+
+        function formatHelpdeskFileSize(bytes) {
+            if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            if (bytes >= 1024) return Math.round(bytes / 1024) + ' KB';
+            return bytes + ' B';
+        }
+
+        function renderHelpdeskDocuments() {
+            const container = document.getElementById('hdDocumentsList');
+            if (!container) return;
+            if (!helpdeskDocuments.length) {
+                container.innerHTML = '';
+                updateHdPhotoSizeIndicator();
+                updateHdSendButton();
+                return;
+            }
+            container.innerHTML = helpdeskDocuments.map((doc, index) => `
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:6px 8px;border:1px solid #ccc;border-radius:6px;background:#fff;">
+                    <span style="flex:1;font-size:13px;word-break:break-word;">${escapeHtml(doc.name || 'Document')}</span>
+                    <span style="font-size:12px;color:#888;white-space:nowrap;">${escapeHtml(formatHelpdeskFileSize(doc.size || 0))}</span>
+                    <button type="button" class="photo-remove" onclick="removeHelpdeskDocument(${index})" title="Remove document">x</button>
+                </div>
+            `).join('');
+            updateHdPhotoSizeIndicator();
+            updateHdSendButton();
+        }
+
+        function removeHelpdeskDocument(index) {
+            helpdeskDocuments.splice(index, 1);
+            renderHelpdeskDocuments();
+            autoSave();
+        }
+
+        async function handleHelpdeskDocuments(input) {
+            const files = Array.from(input.files || []);
+            if (files.length === 0) return;
+            for (const file of files) {
+                if (helpdeskDocuments.length >= HD_DOC_MAX) {
+                    showAlert(`Maximum ${HD_DOC_MAX} documents per ticket.`);
+                    break;
+                }
+                const mimeType = resolveHelpdeskDocumentMime(file);
+                if (!mimeType) {
+                    showAlert(`Unsupported file type: ${file.name || 'unknown file'}`);
+                    continue;
+                }
+                if (file.size > HD_DOC_MAX_FILE_BYTES) {
+                    showAlert(`${file.name} is too large (${formatHelpdeskFileSize(file.size)}). Maximum ${formatHelpdeskFileSize(HD_DOC_MAX_FILE_BYTES)} per document.`);
+                    continue;
+                }
+                try {
+                    const dataUrl = await new Promise((res, rej) => {
+                        const reader = new FileReader();
+                        reader.onload = e => res(e.target.result);
+                        reader.onerror = rej;
+                        reader.readAsDataURL(file);
+                    });
+                    helpdeskDocuments.push({
+                        name: file.name,
+                        dataUrl,
+                        mimeType,
+                        size: file.size,
+                    });
+                } catch (e) {
+                    console.error('handleHelpdeskDocuments error', e);
+                    showAlert('Could not load document: ' + (e.message || 'unknown error'));
+                }
+            }
+            input.value = '';
+            renderHelpdeskDocuments();
+            autoSave();
+        }
+
+        function estimateHdAttachmentBytes() {
+            const photoBytes = photos.helpdesk.reduce((sum, p) => sum + Math.floor(String(p).length * 0.75), 0);
+            const docBytes = helpdeskDocuments.reduce((sum, doc) => {
+                const raw = String(doc.dataUrl || '');
+                const b64 = raw.includes(',') ? raw.split(',')[1] : raw;
+                return sum + Math.floor(b64.length * 0.75);
+            }, 0);
+            return photoBytes + docBytes;
+        }
+
         function renderHelpdeskCaptions() {
             const container = document.getElementById('hdCaptionsContainer');
             if (!container) return;
@@ -5403,11 +5532,13 @@
         function updateHdPhotoSizeIndicator() {
             const el = document.getElementById('hdPhotoSizeIndicator');
             if (!el) return;
-            const totalB = photos.helpdesk.reduce((sum, p) => sum + Math.floor(String(p).length * 0.75), 0);
+            const totalB = estimateHdAttachmentBytes();
             const MB = 23;
             const pct = Math.min(100, Math.round((totalB / (MB * 1024 * 1024)) * 100));
             const mb = (totalB / (1024 * 1024)).toFixed(1);
-            el.textContent = `Estimated email size: ${mb} MB / 25 MB (${pct}%)`;
+            const docCount = helpdeskDocuments.length;
+            const docSuffix = docCount ? ` · ${docCount} document${docCount !== 1 ? 's' : ''}` : '';
+            el.textContent = `Estimated email size: ${mb} MB / 25 MB (${pct}%)${docSuffix}`;
             el.style.color = pct > 90 ? '#c00' : pct > 70 ? '#b86' : '#888';
         }
 
@@ -5545,6 +5676,7 @@
                 ${hdDraft.measurements ? '<p><strong>Measurements:</strong> ' + escapeHtml(hdDraft.measurements) + '</p>' : ''}
                 <p><strong>Photos (${photos.helpdesk.length}):</strong></p>
                 ${photosHtml}
+                ${helpdeskDocuments.length ? `<p><strong>Documents (${helpdeskDocuments.length}):</strong></p><ul>${helpdeskDocuments.map((doc) => `<li>${escapeHtml(doc.name || 'Document')}</li>`).join('')}</ul>` : ''}
                 ${hdDraft.additionalNotes ? '<p><strong>Additional notes:</strong> ' + escapeHtml(hdDraft.additionalNotes || document.getElementById('hdAdditionalNotes')?.value || '') + '</p>' : ''}
                 ${err ? '<p style="color:#c00;background:#fff0f0;padding:8px;border-radius:4px;margin-top:8px;"><strong>Not ready to send:</strong> ' + escapeHtml(err) + '</p>' : ''}`;
 
@@ -5557,7 +5689,7 @@
             const MAX_BYTES = 23 * 1024 * 1024;
             const qualitySteps = [0.88, 0.75, 0.65];
             const widthSteps = [2400, 1800];
-            let total = photos.helpdesk.reduce((s, p) => s + Math.floor(p.length * 0.75), 0);
+            let total = estimateHdAttachmentBytes();
             if (total <= MAX_BYTES) return;
 
             for (const quality of qualitySteps) {
@@ -5566,11 +5698,11 @@
                     for (let i = 0; i < photos.helpdesk.length; i++) {
                         photos.helpdesk[i] = await compressImageForPDF(photos.helpdesk[i], maxWidth, 3200, quality);
                     }
-                    total = photos.helpdesk.reduce((s, p) => s + Math.floor(p.length * 0.75), 0);
+                    total = estimateHdAttachmentBytes();
                 }
             }
             if (total > MAX_BYTES) {
-                throw new Error(`Photos are still too large after compression (${(total / 1048576).toFixed(1)} MB). Please remove some photos and try again.`);
+                throw new Error(`Attachments are still too large after compression (${(total / 1048576).toFixed(1)} MB). Please remove some photos or documents and try again.`);
             }
         }
 
@@ -5621,6 +5753,11 @@
                 additionalNotes: hdDraft.additionalNotes,
                 photos: photos.helpdesk,
                 photoCaptions: hdDraft.photoCaptions || [],
+                documents: helpdeskDocuments.map((doc) => ({
+                    name: doc.name,
+                    dataUrl: doc.dataUrl,
+                    mimeType: doc.mimeType,
+                })),
                 userName,
                 userEmail,
                 shiftLeadEmail,
@@ -6363,7 +6500,7 @@
             try { renderPhotos('signoff'); } catch (e) {}
             try {
                 if (typeof autoSave === 'function') autoSave();
-                else if (typeof PhotoDB !== 'undefined') PhotoDB.savePhotos(photos);
+                else if (typeof PhotoDB !== 'undefined') PhotoDB.savePhotos({ ...photos, helpdeskDocuments });
             } catch (e) {
                 console.warn('Could not persist optimized photos:', e);
             }
