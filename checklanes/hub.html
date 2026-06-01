@@ -274,6 +274,55 @@
     font-weight: 500;
   }
 
+  .prod-dispatch-banner {
+    display: none;
+    margin: 0 12px 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(13, 79, 139, 0.95), rgba(30, 64, 175, 0.92));
+    border: 1px solid rgba(136, 196, 237, 0.35);
+    color: #eff6ff;
+    font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .prod-dispatch-banner.visible { display: block; }
+
+  .prod-dispatch-banner strong { color: #fff; }
+
+  .prod-dispatch-banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .prod-dispatch-banner-actions a,
+  .prod-dispatch-banner-actions button {
+    appearance: none;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .prod-dispatch-banner-actions .btn-review {
+    background: #fff;
+    color: #0d4f8b;
+  }
+
+  .prod-dispatch-banner-actions .btn-dismiss {
+    background: rgba(255,255,255,0.12);
+    color: #dbeafe;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+
   .btn {
     appearance: none;
     border: 1px solid var(--border);
@@ -5190,6 +5239,11 @@
 </head>
 <body>
 
+<div class="prod-dispatch-banner" id="prod-dispatch-banner" role="status" aria-live="polite">
+  <div id="prod-dispatch-banner-text"></div>
+  <div class="prod-dispatch-banner-actions" id="prod-dispatch-banner-actions"></div>
+</div>
+
 <header class="app-header">
   <div class="header-brand">
     <h1>Checklane Reset Hub</h1>
@@ -5973,7 +6027,8 @@ let bulkAssignPanelSelectedKeys = new Set();
 let bulkAssignPanelFilterLane = '';
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
-let hubContext = { myRank: 1, myUserId: null, sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, aislePresets: [], myTagSweepAisleKeys: [] };
+let hubContext = { myRank: 1, myUserId: null, isHubAdmin: false, isProdDispatchApprover: false, prodDispatchInbox: [], sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, aislePresets: [], myTagSweepAisleKeys: [] };
+let prodDispatchLiveAlert = null;
 let hubSignedInUser = { email: null };
 let hubRoster = [];
 let hubRosterLoadPromise = null;
@@ -6427,6 +6482,9 @@ function applySnapshot(snapshot) {
 
   hubContext.myRank = snapshot.myRank ?? 1;
   hubContext.myUserId = snapshot.myUserId ?? null;
+  hubContext.isHubAdmin = !!snapshot.isHubAdmin;
+  hubContext.isProdDispatchApprover = !!snapshot.isProdDispatchApprover;
+  hubContext.prodDispatchInbox = snapshot.prodDispatchInbox || [];
   hubContext.sections = {};
   (snapshot.sections || []).forEach(row => {
     if (row && row.dbkey) {
@@ -6444,6 +6502,7 @@ function applySnapshot(snapshot) {
 
   updatePendingBadge();
   updateTagBatchBadge();
+  renderProdDispatchBanner();
   if (document.getElementById('tag-batch-panel')?.classList.contains('open') && canUseTagBatch()) {
     loadTagBatchPreview();
   }
@@ -11171,6 +11230,69 @@ function startHubSnapshotPolling() {
   });
 }
 
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+function renderProdDispatchBanner() {
+  const banner = document.getElementById('prod-dispatch-banner');
+  const textEl = document.getElementById('prod-dispatch-banner-text');
+  const actionsEl = document.getElementById('prod-dispatch-banner-actions');
+  if (!banner || !textEl || !actionsEl) return;
+
+  const inbox = hubContext.prodDispatchInbox || [];
+  if (!hubContext.isProdDispatchApprover || (!inbox.length && !prodDispatchLiveAlert)) {
+    banner.classList.remove('visible');
+    return;
+  }
+
+  banner.classList.add('visible');
+  const latest = prodDispatchLiveAlert || inbox[inbox.length - 1];
+  const label = latest.setName || latest.dbkey || 'Set';
+  const lanePart = latest.lane ? ' · lane ' + latest.lane : '';
+  const whoPart = latest.signedOffByName ? ' · signed off by ' + latest.signedOffByName : '';
+  const countPart = inbox.length > 1 ? ' · ' + inbox.length + ' pending' : '';
+  textEl.innerHTML =
+    '<strong>PROD upload review</strong> — ' + escHtml(label) + lanePart + whoPart + countPart;
+
+  actionsEl.innerHTML = '';
+  const reviewUrl = latest.reviewUrl || prodDispatchLiveAlert?.reviewUrl;
+  if (reviewUrl) {
+    const link = document.createElement('a');
+    link.className = 'btn-review';
+    link.href = reviewUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Review photos & approve';
+    actionsEl.appendChild(link);
+  }
+  const dismissBtn = document.createElement('button');
+  dismissBtn.type = 'button';
+  dismissBtn.className = 'btn-dismiss';
+  dismissBtn.textContent = 'Dismiss';
+  dismissBtn.addEventListener('click', () => {
+    prodDispatchLiveAlert = null;
+    renderProdDispatchBanner();
+  });
+  actionsEl.appendChild(dismissBtn);
+}
+
+function handleProdDispatchEvent(raw) {
+  try {
+    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!payload || payload.status !== 'pending') return;
+    prodDispatchLiveAlert = payload;
+    renderProdDispatchBanner();
+    if (liveVisitId) {
+      loadLiveState(liveVisitId).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('[Checklane Hub] Bad prod_dispatch event:', err);
+  }
+}
+
 function updatePendingBadge() {
   const badge = document.getElementById('pending-badge');
   const countEl = document.getElementById('pending-count');
@@ -12141,6 +12263,8 @@ async function connectHubStream(visitId) {
             } catch (err) {
               console.warn('[Checklane Hub] Bad chat event:', err);
             }
+          } else if (evt.event === 'prod_dispatch') {
+            handleProdDispatchEvent(evt.data);
           }
         }
       }
