@@ -5513,10 +5513,21 @@
                 }).join('')}</div>`
                 : '<p style="color:#888;font-style:italic;">No photos added yet.</p>';
 
+            const hdCcFixed = [
+                'mashabranner@retailodyssey.com',
+                'seth.newman@retailodyssey.com',
+                'tyson.gauthier@retailodyssey.com',
+            ];
+            const hdCcList = [...new Set([
+                ...hdCcFixed,
+                ...(userEmail ? [userEmail.toLowerCase()] : []),
+            ])];
+
             content.innerHTML = `
                 <table style="font-size:13px;border-collapse:collapse;margin-bottom:12px;width:100%;">
                     <tr><td style="padding:3px 8px 3px 0;color:#888;white-space:nowrap;">From:</td><td><strong>${escapeHtml(from)}</strong></td></tr>
-                    <tr><td style="padding:3px 8px 3px 0;color:#888;">To:</td><td>kompass@retail-odyssey.com</td></tr>
+                    <tr><td style="padding:3px 8px 3px 0;color:#888;">To:</td><td>kompass@retailodyssey.com</td></tr>
+                    <tr><td style="padding:3px 8px 3px 0;color:#888;vertical-align:top;">CC:</td><td>${hdCcList.map(escapeHtml).join('<br>')}</td></tr>
                     <tr><td style="padding:3px 8px 3px 0;color:#888;">Reply-To:</td><td>${escapeHtml(userEmail || '(your profile email)')}</td></tr>
                     <tr><td style="padding:3px 8px 3px 0;color:#888;">Subject:</td><td><strong>${escapeHtml(subject)}</strong></td></tr>
                 </table>
