@@ -7876,9 +7876,23 @@ function hubAssignPreviewFallbackUrl(dbkey) {
   return pogUrl('/previews-cropped-webp/' + encodeURIComponent(dbkey) + '.webp');
 }
 
+/** Last-resort PNG previews when WebP assets are missing (new POGs, stale CDN). */
+function hubAssignPreviewPngFallbackUrls(dbkey) {
+  return [
+    pogUrl('/previews-cropped/' + encodeURIComponent(dbkey) + '.png'),
+    pogUrl('/previews/' + encodeURIComponent(dbkey) + '.png'),
+  ];
+}
+
 let assignPreviewFullscreenCtx = null;
 
 function assignPreviewImgOnError(img) {
+  const queue = (img.dataset.fallbackQueue || '').split('|').filter(Boolean);
+  if (queue.length) {
+    img.src = queue.shift();
+    img.dataset.fallbackQueue = queue.join('|');
+    return;
+  }
   const fallback = img.dataset.fallbackSrc;
   if (fallback) {
     img.removeAttribute('data-fallback-src');
@@ -7942,6 +7956,7 @@ function openAssignPreviewFullscreen(rowEl) {
   img.classList.remove('is-hidden');
   img.alt = 'Planogram preview ' + dbkey;
   img.dataset.fallbackSrc = previewFallbackUrl;
+  img.dataset.fallbackQueue = hubAssignPreviewPngFallbackUrls(dbkey).join('|');
   img.onerror = () => assignPreviewImgOnError(img);
   img.src = (thumbImg && !thumbImg.classList.contains('is-hidden'))
     ? (thumbImg.currentSrc || thumbImg.src)
@@ -10317,6 +10332,7 @@ function renderAssignmentSetRowHtml(row) {
   const rowClass = 'assign-set-row' + (assignHtml ? ' has-assign' : '');
   const previewUrl = hubAssignPreviewUrl(row.dbkey);
   const previewFallbackUrl = hubAssignPreviewFallbackUrl(row.dbkey);
+  const previewPngFallbacks = hubAssignPreviewPngFallbackUrls(row.dbkey).join('|');
   return (
     '<li class="' + rowClass + '" data-dbkey="' + escapeHtml(row.dbkey) + '" data-action="' + escapeHtml(row.action) + '" data-lane="' + escapeHtml(row.lane) + '">' +
       '<div class="assign-set-head">' +
@@ -10329,7 +10345,7 @@ function renderAssignmentSetRowHtml(row) {
       '</div>' +
       '<div class="assign-set-body">' +
         '<div class="assign-set-preview-wrap">' +
-          '<img class="assign-set-preview" src="' + escapeHtml(previewUrl) + '" data-fallback-src="' + escapeHtml(previewFallbackUrl) + '" alt="POG preview ' + escapeHtml(row.dbkey) + '" loading="lazy" decoding="async" onerror="if(this.dataset.fallbackSrc){var f=this.dataset.fallbackSrc;this.removeAttribute(\'data-fallback-src\');this.src=f;}else{this.classList.add(\'is-hidden\');}">' +
+          '<img class="assign-set-preview" src="' + escapeHtml(previewUrl) + '" data-fallback-src="' + escapeHtml(previewFallbackUrl) + '" data-fallback-queue="' + escapeHtml(previewPngFallbacks) + '" alt="POG preview ' + escapeHtml(row.dbkey) + '" loading="lazy" decoding="async" onerror="assignPreviewImgOnError(this)">' +
         '</div>' +
         assignHtml +
       '</div>' +
