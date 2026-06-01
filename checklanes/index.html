@@ -1029,7 +1029,9 @@
 
     if (!payload.stores.length) {
       status.className = 'cl-empty';
-      status.textContent = 'No stores are available for your account yet. Contact your supervisor to be assigned.';
+      status.textContent = payload.blitzWeek
+        ? ('No blitz stores scheduled for ' + payload.blitzWeek.from + ' through ' + payload.blitzWeek.to + '. Run the prod sync if this week looks wrong.')
+        : 'No stores are available for your account yet. Contact your supervisor to be assigned.';
       status.hidden = false;
       grid.hidden = true;
       document.getElementById('hub-filters').hidden = true;
