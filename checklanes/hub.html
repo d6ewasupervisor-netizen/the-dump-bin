@@ -323,6 +323,60 @@
     border: 1px solid rgba(255,255,255,0.2);
   }
 
+  .hub-update-banner {
+    display: none;
+    margin: 0 12px 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(146, 64, 14, 0.95), rgba(180, 83, 9, 0.92));
+    border: 1px solid rgba(253, 230, 138, 0.4);
+    color: #fffbeb;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .hub-update-banner.visible { display: block; }
+
+  .hub-update-banner strong { color: #fff; }
+
+  .hub-update-banner-detail {
+    margin-top: 4px;
+    opacity: 0.92;
+    font-size: 0.82rem;
+  }
+
+  .hub-update-banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .hub-update-banner-actions button {
+    appearance: none;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .hub-update-banner-actions .btn-reload {
+    background: #fff;
+    color: #92400e;
+  }
+
+  .hub-update-banner-actions .btn-snooze {
+    background: rgba(255,255,255,0.12);
+    color: #fef3c7;
+    border: 1px solid rgba(255,255,255,0.22);
+  }
+
   .btn {
     appearance: none;
     border: 1px solid var(--border);
@@ -5254,6 +5308,11 @@
 </head>
 <body>
 
+<div class="hub-update-banner" id="hub-update-banner" role="status" aria-live="polite">
+  <div id="hub-update-banner-text"></div>
+  <div class="hub-update-banner-actions" id="hub-update-banner-actions"></div>
+</div>
+
 <div class="prod-dispatch-banner" id="prod-dispatch-banner" role="status" aria-live="polite">
   <div id="prod-dispatch-banner-text"></div>
   <div class="prod-dispatch-banner-actions" id="prod-dispatch-banner-actions"></div>
@@ -6009,11 +6068,20 @@ async function loadStoreFixtures(storeNum) {
   return null;
 }
 
+/** Must match `checklanes/hub-version.json` on every hub deploy. */
+const HUB_BUILD = '20260601-hub-update-banner';
+const HUB_VERSION_URL = 'hub-version.json';
+const HUB_UPDATE_CHECK_MS = 5 * 60 * 1000;
+const HUB_UPDATE_SNOOZE_MS = 15 * 60 * 1000;
+
 let fixtureStates = {};
 let selectedDbkey = null;
 let selectedLane = null;
 let listSort = { col: 'lane', asc: true };
 let liveVisitId = null;
+let hubUpdateCheckTimer = null;
+let hubUpdateSnoozeUntil = 0;
+let hubUpdateReloadBound = false;
 let hubCurrentView = 'assignments';
 
 function reportHubPresence() {
@@ -11396,6 +11464,116 @@ function escHtml(s) {
   return d.innerHTML;
 }
 
+function hubVersionFetchUrl() {
+  const base = HUB_VERSION_URL.indexOf('/') === 0
+    ? HUB_VERSION_URL
+    : new URL(HUB_VERSION_URL, window.location.href).href;
+  return base + (base.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+}
+
+async function fetchLiveHubBuild() {
+  try {
+    const resp = await fetch(hubVersionFetchUrl(), { cache: 'no-store', credentials: 'same-origin' });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const build = data && data.build != null ? String(data.build).trim() : '';
+    return build || null;
+  } catch {
+    return null;
+  }
+}
+
+function hideHubUpdateBanner() {
+  const banner = document.getElementById('hub-update-banner');
+  if (banner) banner.classList.remove('visible');
+}
+
+function bindHubUpdateBannerActions(remoteBuild) {
+  const actionsEl = document.getElementById('hub-update-banner-actions');
+  if (!actionsEl || hubUpdateReloadBound) return;
+  hubUpdateReloadBound = true;
+
+  const reloadBtn = document.createElement('button');
+  reloadBtn.type = 'button';
+  reloadBtn.className = 'btn-reload';
+  reloadBtn.textContent = 'Reload now';
+  reloadBtn.addEventListener('click', () => { window.location.reload(); });
+  actionsEl.appendChild(reloadBtn);
+
+  const snoozeBtn = document.createElement('button');
+  snoozeBtn.type = 'button';
+  snoozeBtn.className = 'btn-snooze';
+  snoozeBtn.textContent = 'Not now';
+  snoozeBtn.addEventListener('click', () => {
+    hubUpdateSnoozeUntil = Date.now() + HUB_UPDATE_SNOOZE_MS;
+    try {
+      sessionStorage.setItem('hubUpdateSnoozeUntil', String(hubUpdateSnoozeUntil));
+      if (remoteBuild) sessionStorage.setItem('hubUpdateSnoozeBuild', remoteBuild);
+    } catch (_) { /* private mode */ }
+    hideHubUpdateBanner();
+  });
+  actionsEl.appendChild(snoozeBtn);
+}
+
+function showHubUpdateBanner(remoteBuild) {
+  const banner = document.getElementById('hub-update-banner');
+  const textEl = document.getElementById('hub-update-banner-text');
+  if (!banner || !textEl) return;
+
+  bindHubUpdateBannerActions(remoteBuild);
+  textEl.innerHTML =
+    '<strong>Hub update available</strong>' +
+    '<div class="hub-update-banner-detail">Reload to get the latest Checklanes screen. ' +
+    'Your assignments and progress stay saved on the server.</div>';
+  banner.classList.add('visible');
+}
+
+async function checkHubUpdate() {
+  if (!HUB_BUILD) return;
+
+  const remote = await fetchLiveHubBuild();
+  if (!remote || remote === HUB_BUILD) {
+    hideHubUpdateBanner();
+    return;
+  }
+
+  try {
+    const storedSnooze = Number(sessionStorage.getItem('hubUpdateSnoozeUntil') || 0);
+    const snoozeBuild = sessionStorage.getItem('hubUpdateSnoozeBuild') || '';
+    if (storedSnooze > Date.now() && snoozeBuild === remote) {
+      hubUpdateSnoozeUntil = storedSnooze;
+      hideHubUpdateBanner();
+      return;
+    }
+    if (storedSnooze <= Date.now()) {
+      sessionStorage.removeItem('hubUpdateSnoozeUntil');
+      sessionStorage.removeItem('hubUpdateSnoozeBuild');
+    }
+  } catch (_) { /* ignore */ }
+
+  if (Date.now() < hubUpdateSnoozeUntil) {
+    hideHubUpdateBanner();
+    return;
+  }
+
+  showHubUpdateBanner(remote);
+}
+
+function startHubUpdateChecks() {
+  try {
+    hubUpdateSnoozeUntil = Number(sessionStorage.getItem('hubUpdateSnoozeUntil') || 0);
+  } catch (_) {
+    hubUpdateSnoozeUntil = 0;
+  }
+
+  checkHubUpdate();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkHubUpdate();
+  });
+  if (hubUpdateCheckTimer) clearInterval(hubUpdateCheckTimer);
+  hubUpdateCheckTimer = setInterval(checkHubUpdate, HUB_UPDATE_CHECK_MS);
+}
+
 function renderProdDispatchBanner() {
   const banner = document.getElementById('prod-dispatch-banner');
   const textEl = document.getElementById('prod-dispatch-banner-text');
@@ -12514,6 +12692,7 @@ async function init() {
   }
 
   await restoreHubNavigation();
+  startHubUpdateChecks();
 }
 
 init();
