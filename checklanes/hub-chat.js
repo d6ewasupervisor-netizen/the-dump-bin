@@ -288,6 +288,7 @@
       btn.setAttribute('hidden', '');
       btn.classList.remove('visible');
     }
+    if (typeof syncHeaderOverflowMenu === 'function') syncHeaderOverflowMenu();
   }
 
   function wireHeaderChatBtn() {

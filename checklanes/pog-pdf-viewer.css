@@ -19,8 +19,8 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -31,11 +31,11 @@
   background: var(--surface2);
   color: var(--text);
   border-radius: var(--radius);
-  padding: 8px 12px;
-  font-size: 0.78rem;
+  padding: 5px 10px;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
-  min-height: 40px;
+  min-height: 34px;
   white-space: nowrap;
 }
 
@@ -58,19 +58,19 @@
 }
 
 .pog-pdf-ctrl-btn {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   padding: 0;
 }
