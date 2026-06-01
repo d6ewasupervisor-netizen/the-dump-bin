@@ -1182,6 +1182,18 @@
 
   .assign-set-store-aisle { min-width: 0; }
   .assign-set-register { font-size: 0.68rem; font-weight: 700; color: var(--text3); letter-spacing: 0.03em; text-transform: uppercase; flex: 0 0 auto; }
+  .dual-aisle-display { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; max-width: 100%; }
+  .dual-aisle-display--compact { gap: 2px; }
+  .dual-aisle-store { display: block; max-width: 100%; font-size: 1rem; font-weight: 800; color: #dbeafe; line-height: 1.15; letter-spacing: 0.01em; }
+  .dual-aisle-manifest { display: block; font-size: 0.7rem; font-weight: 700; color: var(--text3); letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.2; }
+  .dual-aisle-manifest--solo { font-size: 0.92rem; color: var(--lane-label); text-transform: none; letter-spacing: 0.02em; }
+  .dual-aisle-head { gap: 4px; }
+  .dual-aisle-head .store-aisle-badge,
+  .dual-aisle-head .aisle-picker { width: 100%; }
+  .list-aisle-store { font-weight: 700; color: #dbeafe; }
+  .list-aisle-manifest { font-size: 0.72rem; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.03em; }
+  .list-aisle-empty { color: var(--text3); font-style: italic; font-size: 0.78rem; }
+  .lane-store-aisle { display: block; font-size: 0.62rem; font-weight: 700; color: #93c5fd; line-height: 1.25; margin-top: 3px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .store-aisle-badge { display: inline-flex; align-items: center; max-width: 100%; padding: 6px 10px; border-radius: 999px; background: rgba(37,99,235,0.18); border: 1px solid rgba(147,197,253,0.35); color: #bfdbfe; font-size: 0.88rem; font-weight: 800; line-height: 1.2; }
   .store-aisle-badge.is-empty { background: rgba(107,114,128,0.12); border-color: var(--border); color: var(--text3); font-weight: 600; font-size: 0.78rem; }
   .aisle-picker { position: relative; width: 100%; min-width: 0; }
@@ -1199,7 +1211,10 @@
   .aisle-picker-custom-row { display: flex; gap: 8px; }
   .aisle-picker-custom input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 0.84rem; }
   .aisle-picker-custom button { appearance: none; border: none; border-radius: 8px; background: #2563eb; color: #fff; font: inherit; font-size: 0.78rem; font-weight: 700; padding: 8px 12px; cursor: pointer; }
-  .pog-wv-store-aisle { display: inline-flex; align-self: flex-start; margin-top: 2px; padding: 2px 9px; border-radius: 999px; background: rgba(37,99,235,0.2); border: 1px solid rgba(147,197,253,0.45); color: #dbeafe; font-size: 0.72rem; font-weight: 800; }
+  .pog-wv-store-aisle { display: flex; flex-direction: column; align-self: flex-start; margin-top: 4px; padding: 6px 10px; border-radius: 10px; background: rgba(37,99,235,0.16); border: 1px solid rgba(147,197,253,0.35); gap: 2px; max-width: min(100%, 320px); }
+  .pog-wv-store-aisle .dual-aisle-store { font-size: 0.95rem; }
+  .pog-wv-store-aisle .dual-aisle-manifest { font-size: 0.68rem; }
+  .pog-wv-store-aisle.dual-aisle-display--manifest-only { padding: 4px 10px; }
 
   .assignments-stat {
     background: var(--surface);
@@ -5411,7 +5426,7 @@
       <div class="pog-wv-title-wrap">
         <h2 id="pog-wv-heading">Working view</h2>
         <div class="sub" id="pog-wv-subheading"></div>
-        <div class="pog-wv-store-aisle" id="pog-wv-store-aisle" hidden></div>
+        <div class="pog-wv-store-aisle" id="pog-wv-store-aisle" aria-label="Store aisle and manifest register"></div>
         <div class="pog-wv-crumb" id="pog-wv-crumb"></div>
       </div>
       <div class="pog-wv-state-wrap" id="pog-wv-state-wrap"></div>
@@ -6122,12 +6137,68 @@ function formatRegisterLabel(lane) {
   return laneStr ? ('Reg ' + laneStr) : '';
 }
 
+/** Store aisle (lead override) + manifest register (fixture catalog) for cross-reference. */
+function getDualAisleInfo(lane, dbkey) {
+  const manifest = formatRegisterLabel(lane);
+  const store = getSectionStoreAisle(lane, dbkey);
+  return {
+    manifest,
+    store,
+    hasStore: !!store,
+    primary: store || manifest,
+    combined: store ? (store + ' · ' + manifest) : manifest,
+  };
+}
+
+function renderDualAisleHtml(lane, dbkey, opts) {
+  const info = getDualAisleInfo(lane, dbkey);
+  const compact = opts && opts.compact;
+  const cls = 'dual-aisle-display' + (compact ? ' dual-aisle-display--compact' : '') +
+    (info.hasStore ? '' : ' dual-aisle-display--manifest-only');
+  if (info.hasStore) {
+    return (
+      '<div class="' + cls + '">' +
+        '<span class="dual-aisle-store">' + escapeHtml(info.store) + '</span>' +
+        '<span class="dual-aisle-manifest">Manifest ' + escapeHtml(info.manifest) + '</span>' +
+      '</div>'
+    );
+  }
+  return (
+    '<div class="' + cls + '">' +
+      '<span class="dual-aisle-manifest dual-aisle-manifest--solo">' + escapeHtml(info.manifest) + '</span>' +
+    '</div>'
+  );
+}
+
+function renderDualAisleManifestChip(lane) {
+  const manifest = formatRegisterLabel(lane);
+  if (!manifest) return '';
+  return '<span class="dual-aisle-manifest">' + escapeHtml(manifest) + '</span>';
+}
+
+function laneStoreAisleSummary(lane) {
+  const labels = [];
+  const seen = new Set();
+  for (const f of FIXTURES) {
+    if (String(f.lane) !== String(lane) || !f.dbkey) continue;
+    const store = getSectionStoreAisle(f.lane, f.dbkey);
+    if (store && !seen.has(store)) {
+      seen.add(store);
+      labels.push(store);
+    }
+  }
+  return labels.join(', ');
+}
+
 function formatLocationDisplay(location, lane, dbkey) {
-  const storeAisle = getSectionStoreAisle(lane, dbkey);
+  const info = getDualAisleInfo(lane, dbkey);
   const loc = String(location || '').trim();
-  if (!storeAisle || !loc) return loc;
-  if (loc.includes(storeAisle)) return loc;
-  return storeAisle + ' · ' + loc;
+  const prefix = info.hasStore ? info.combined : info.manifest;
+  if (!prefix) return loc;
+  if (!loc) return prefix;
+  if (loc.includes(info.store || '') && loc.includes(String(lane || ''))) return loc;
+  if (info.store && loc.includes(info.store) && loc.includes(info.manifest)) return loc;
+  return prefix + ' · ' + loc;
 }
 
 let openAislePickerMenu = null;
@@ -6196,14 +6267,18 @@ function aislePickerMenuHtml(row) {
 function renderAislePickerHtml(row, editable) {
   const label = row.aisleLabel || getSectionStoreAisle(row.lane, row.dbkey);
   const triggerLabel = label || (editable ? 'Choose store aisle…' : 'No store aisle set');
+  const manifestChip = renderDualAisleManifestChip(row.lane);
   if (!editable) {
-    if (!label) return '<div class="assign-set-store-aisle"><span class="store-aisle-badge is-empty">No store aisle</span></div>';
-    return '<div class="assign-set-store-aisle"><span class="store-aisle-badge">' + escapeHtml(label) + '</span></div>';
+    const storeBadge = label
+      ? '<span class="store-aisle-badge">' + escapeHtml(label) + '</span>'
+      : '<span class="store-aisle-badge is-empty">No store aisle</span>';
+    return '<div class="assign-set-store-aisle dual-aisle-head">' + storeBadge + manifestChip + '</div>';
   }
-  return '<div class="assign-set-store-aisle"><div class="aisle-picker" data-aisle-picker data-lane="' + escapeHtml(row.lane) + '" data-dbkey="' + escapeHtml(row.dbkey) + '">' +
+  return '<div class="assign-set-store-aisle dual-aisle-head"><div class="aisle-picker" data-aisle-picker data-lane="' + escapeHtml(row.lane) + '" data-dbkey="' + escapeHtml(row.dbkey) + '">' +
     '<button type="button" class="aisle-picker-trigger' + (label ? '' : ' is-empty') + '" data-aisle-picker-trigger aria-haspopup="listbox">' +
     '<span class="aisle-picker-label">' + escapeHtml(triggerLabel) + '</span><span class="aisle-picker-caret" aria-hidden="true">▾</span></button>' +
-    '<div class="aisle-picker-menu" data-aisle-picker-menu hidden role="listbox">' + aislePickerMenuHtml(row) + '</div></div></div>';
+    '<div class="aisle-picker-menu" data-aisle-picker-menu hidden role="listbox">' + aislePickerMenuHtml(row) + '</div></div>' +
+    manifestChip + '</div>';
 }
 
 async function saveSectionAisleDesignation(lane, dbkey, preset, custom) {
@@ -6296,10 +6371,8 @@ function bindAislePickers(root) {
 function updatePogStoreAisleBadge(lane, dbkey) {
   const el = document.getElementById('pog-wv-store-aisle');
   if (!el) return;
-  const label = getSectionStoreAisle(lane, dbkey);
-  if (!label) { el.hidden = true; el.textContent = ''; return; }
   el.hidden = false;
-  el.textContent = label;
+  el.innerHTML = renderDualAisleHtml(lane, dbkey);
 }
 
 function classifyFixture(fixture) {
@@ -6635,6 +6708,7 @@ function flowArrowHtml() {
 
 function renderHorizontalLaneRow(laneRow) {
   const lane = laneRow.lane;
+  const storeSummary = laneStoreAisleSummary(lane);
   const fixtureHtml =
     (laneRow.left || []).map(renderFixtureEl).join('') +
     (laneRow.fixtures || []).map(renderFixtureEl).join('') +
@@ -6643,7 +6717,8 @@ function renderHorizontalLaneRow(laneRow) {
   return (
     '<div class="lane-row" data-lane="' + escapeHtml(lane) + '">' +
       '<div class="lane-row-label">' +
-        '<span class="lane-num">' + escapeHtml(lane) + '</span>' +
+        '<span class="lane-num">' + escapeHtml(formatRegisterLabel(lane)) + '</span>' +
+        (storeSummary ? '<span class="lane-store-aisle" title="Store aisle">' + escapeHtml(storeSummary) + '</span>' : '') +
       '</div>' +
       '<div class="lane-row-fixtures">' + fixtureHtml + '</div>' +
       flowArrowHtml() +
@@ -6692,6 +6767,10 @@ function renderList() {
   const rows = FIXTURES.slice().sort((a, b) => {
     let va, vb;
     switch (listSort.col) {
+      case 'store-aisle':
+        va = (getSectionStoreAisle(a.lane, a.dbkey) || '').toLowerCase();
+        vb = (getSectionStoreAisle(b.lane, b.dbkey) || '').toLowerCase();
+        break;
       case 'lane': va = Number(a.lane); vb = Number(b.lane); break;
       case 'name': va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break;
       case 'type': va = a.type; vb = b.type; break;
@@ -6722,13 +6801,18 @@ function renderList() {
     const assigneeClass = assignee === 'Unassigned' || assignee === '—'
       ? 'assignee-cell assignee-cell--none'
       : 'assignee-cell';
+    const storeAisle = getSectionStoreAisle(f.lane, f.dbkey);
+    const storeCell = storeAisle
+      ? '<span class="list-aisle-store">' + escapeHtml(storeAisle) + '</span>'
+      : '<span class="list-aisle-empty">—</span>';
     return (
       '<tr class="' + (f.on_manifest ? '' : 'row-muted') +
         (clickable ? ' row-clickable' : '') + '" ' +
         'data-list-key="' + escapeHtml(fixtureKey(f)) + '" ' +
         (clickable ? 'data-dbkey="' + escapeHtml(f.dbkey) + '" data-action="' + escapeHtml(f.action) + '" data-lane="' + escapeHtml(f.lane) + '"' : '') +
       '>' +
-        '<td>' + escapeHtml(getSectionStoreAisle(f.lane, f.dbkey) || formatRegisterLabel(f.lane)) + '</td>' +
+        '<td class="list-aisle-store-cell">' + storeCell + '</td>' +
+        '<td class="list-aisle-manifest-cell"><span class="list-aisle-manifest">' + escapeHtml(formatRegisterLabel(f.lane)) + '</span></td>' +
         '<td class="dbkey-cell">' + escapeHtml(f.dbkey || '—') + '</td>' +
         '<td>' + escapeHtml(f.name) + '</td>' +
         '<td class="' + assigneeClass + '">' + escapeHtml(assignee) + '</td>' +
@@ -6741,7 +6825,8 @@ function renderList() {
   document.getElementById('list-view').innerHTML =
     '<table class="list-table">' +
       '<thead><tr>' +
-        '<th data-sort="lane">Store aisle' + arrow('lane') + '</th>' +
+        '<th data-sort="store-aisle">Store aisle' + arrow('store-aisle') + '</th>' +
+        '<th data-sort="lane">Manifest reg' + arrow('lane') + '</th>' +
         '<th data-sort="dbkey">DBKey' + arrow('dbkey') + '</th>' +
         '<th data-sort="name">Name' + arrow('name') + '</th>' +
         '<th data-sort="assignee">Assignee' + arrow('assignee') + '</th>' +
@@ -6758,11 +6843,17 @@ function updateListStateCells() {
   document.querySelectorAll('#list-view tbody tr[data-list-key]').forEach(row => {
     const f = keyMap[row.getAttribute('data-list-key')];
     if (!f) return;
-    if (row.cells[5]) row.cells[5].innerHTML = statePillHtml(f);
-    if (row.cells[3] && f.on_manifest && f.dbkey) {
+    if (row.cells[6]) row.cells[6].innerHTML = statePillHtml(f);
+    if (row.cells[0]) {
+      const storeAisle = getSectionStoreAisle(f.lane, f.dbkey);
+      row.cells[0].innerHTML = storeAisle
+        ? '<span class="list-aisle-store">' + escapeHtml(storeAisle) + '</span>'
+        : '<span class="list-aisle-empty">—</span>';
+    }
+    if (row.cells[4] && f.on_manifest && f.dbkey) {
       const assignee = sectionAssigneeText(f.lane, f.dbkey);
-      row.cells[3].textContent = assignee;
-      row.cells[3].className = assignee === 'Unassigned'
+      row.cells[4].textContent = assignee;
+      row.cells[4].className = assignee === 'Unassigned'
         ? 'assignee-cell assignee-cell--none'
         : 'assignee-cell';
     }
@@ -6790,7 +6881,9 @@ function applyState(states) {
   });
 
   updateListStateCells();
+  updateMapLaneAisleLabels();
   updateMapAssigneeBadges();
+  if (hubCurrentView === 'list') renderList();
   if (hubCurrentView === 'assignments') renderAssignmentsView();
   if (selectedDbkey) refreshDetailPanel();
   if (isPogViewOpen()) refreshPogWorkingChrome();
@@ -6858,7 +6951,14 @@ function refreshDetailPanel(fixture) {
       ? '<div class="detail-preview-block">' + HubBayPhotos.renderHubPreviewHtml(fixture.dbkey) + '</div>'
       : '') +
     '<div class="detail-row"><div class="label">Name</div><div class="value">' + escapeHtml(fixture.name) + '</div></div>' +
-    '<div class="detail-row"><div class="label">Lane</div><div class="value">' + escapeHtml(fixture.lane) + '</div></div>' +
+    '<div class="detail-row"><div class="label">Manifest register</div><div class="value">' + escapeHtml(formatRegisterLabel(fixture.lane) || fixture.lane) + '</div></div>' +
+    (fixture.dbkey
+      ? '<div class="detail-row"><div class="label">Store aisle</div><div class="value">' +
+          (getSectionStoreAisle(fixture.lane, fixture.dbkey)
+            ? escapeHtml(getSectionStoreAisle(fixture.lane, fixture.dbkey))
+            : '<span style="color:var(--text3)">Not set</span>') +
+        '</div></div>'
+      : '') +
     '<div class="detail-row"><div class="label">Type</div><div class="value">' + escapeHtml(fixture.type) + '</div></div>' +
     '<div class="detail-row"><div class="label">Action</div><div class="value"><code>' + escapeHtml(fixture.action) + '</code></div></div>' +
     '<div class="detail-row"><div class="label">DBKey</div><div class="value">' + escapeHtml(fixture.dbkey || '—') + '</div></div>' +
@@ -7731,9 +7831,9 @@ function openAssignPreviewFullscreen(rowEl) {
   if (!panel || !img) return;
 
   const nameEl = rowEl.querySelector('.assign-set-name');
-  const registerEl = rowEl.querySelector('.assign-set-register');
+  const aisleInfo = getDualAisleInfo(lane, dbkey);
   const titleParts = [
-    registerEl ? registerEl.textContent.trim() : '',
+    aisleInfo.combined,
     dbkey,
     nameEl ? nameEl.textContent.trim() : '',
   ].filter(Boolean);
@@ -9147,7 +9247,7 @@ function renderStoreScanResults(scanResult) {
       html += '<div class="store-scan-set-row">' +
         '<div class="store-scan-set-info">' +
           '<div class="store-scan-set-name">' + escapeHtml(row.title) + '</div>' +
-          '<div class="store-scan-set-lane">Lane ' + escapeHtml(String(row.lane)) + '</div>' +
+          '<div class="store-scan-set-lane">' + renderDualAisleHtml(row.lane, row.dbkey, { compact: true }) + '</div>' +
         '</div>' +
         '<button type="button" class="store-scan-set-open" ' +
           'data-open-dbkey="' + escapeHtml(String(row.dbkey)) + '" ' +
@@ -10127,7 +10227,6 @@ function renderAssignmentSetRowHtml(row) {
         '<span class="assign-set-dbkey">' + escapeHtml(row.dbkey) + '</span>' +
       '</div>' +
       '<div class="assign-set-meta">' +
-        '<span class="assign-set-register">' + escapeHtml(formatRegisterLabel(row.lane)) + '</span>' +
         statePillHtml({ on_manifest: true, lane: row.lane, dbkey: row.dbkey }) +
         '<span class="assign-set-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.shortName) + '</span>' +
       '</div>' +
@@ -10202,7 +10301,7 @@ function renderBulkAssignPanelBody() {
       '<label class="bulk-assign-pick-item">' +
         '<input type="checkbox" data-bulk-pick="' + escapeHtml(key) + '"' + checked + '>' +
         '<div class="bulk-assign-pick-meta">' +
-          '<strong>' + escapeHtml((row.aisleLabel || formatRegisterLabel(row.lane)) + ' · ' + row.dbkey) + '</strong>' +
+          '<strong>' + escapeHtml(getDualAisleInfo(row.lane, row.dbkey).combined + ' · ' + row.dbkey) + '</strong>' +
           '<span>' + escapeHtml(row.shortName) + '</span>' +
         '</div>' +
       '</label>'
@@ -10215,11 +10314,13 @@ function renderBulkAssignPanelBody() {
     '<div class="bulk-assign-section">' +
       '<h3>Assign entire aisle</h3>' +
       '<div class="bulk-assign-row">' +
-        '<select class="assignments-aisle-select" id="bulk-panel-aisle" aria-label="Aisle">' +
-          '<option value="">Aisle…</option>' +
+        '<select class="assignments-aisle-select" id="bulk-panel-aisle" aria-label="Manifest register">' +
+          '<option value="">Manifest reg…</option>' +
           aisles.map(lane => {
             const sample = rows.find(r => String(r.lane) === String(lane));
-            const label = (sample?.aisleLabel ? sample.aisleLabel + ' · ' : '') + formatRegisterLabel(lane);
+            const label = sample
+              ? getDualAisleInfo(sample.lane, sample.dbkey).combined
+              : formatRegisterLabel(lane);
             const selected = String(lane) === String(filterLane) ? ' selected' : '';
             return '<option value="' + escapeHtml(lane) + '"' + selected + '>' + escapeHtml(label) + '</option>';
           }).join('') +
@@ -10522,6 +10623,29 @@ function assigneeShortLabel(lane, dbkey) {
   return parts[0] || name;
 }
 
+function updateMapLaneAisleLabels() {
+  document.querySelectorAll('.lane-row[data-lane]').forEach(row => {
+    const lane = row.getAttribute('data-lane');
+    const labelWrap = row.querySelector('.lane-row-label');
+    if (!labelWrap) return;
+    const laneNum = labelWrap.querySelector('.lane-num');
+    if (laneNum) laneNum.textContent = formatRegisterLabel(lane);
+    const storeSummary = laneStoreAisleSummary(lane);
+    let storeEl = labelWrap.querySelector('.lane-store-aisle');
+    if (storeSummary) {
+      if (!storeEl) {
+        storeEl = document.createElement('span');
+        storeEl.className = 'lane-store-aisle';
+        storeEl.title = 'Store aisle';
+        labelWrap.appendChild(storeEl);
+      }
+      storeEl.textContent = storeSummary;
+    } else if (storeEl) {
+      storeEl.remove();
+    }
+  });
+}
+
 function updateMapAssigneeBadges() {
   document.querySelectorAll('.fixture.interactive[data-dbkey]').forEach(el => {
     const dk = el.getAttribute('data-dbkey');
@@ -10542,10 +10666,10 @@ function updateMapAssigneeBadges() {
       el.setAttribute('data-base-title', baseTitle);
     }
     const assignee = sectionAssigneeText(lane, dk);
-    el.setAttribute(
-      'title',
-      assignee === 'Unassigned' ? baseTitle : (baseTitle + ' · ' + assignee)
-    );
+    const aisleRef = getDualAisleInfo(lane, dk).combined;
+    const titleParts = [baseTitle, aisleRef];
+    if (assignee !== 'Unassigned') titleParts.push(assignee);
+    el.setAttribute('title', titleParts.filter(Boolean).join(' · '));
     if (!label) {
       if (badge) badge.remove();
       return;
@@ -10577,10 +10701,8 @@ function pogWorkingDbkey() {
 
 function defaultPogFlagLocation() {
   if (!pogWorkingFixture) return undefined;
-  const storeAisle = getSectionStoreAisle(pogWorkingFixture.lane, pogWorkingFixture.dbkey);
   const setLabel = shortName(pogWorkingFixture.name);
-  if (storeAisle) return storeAisle + ' · ' + setLabel;
-  return formatRegisterLabel(pogWorkingFixture.lane) + ' · ' + setLabel;
+  return getDualAisleInfo(pogWorkingFixture.lane, pogWorkingFixture.dbkey).combined + ' · ' + setLabel;
 }
 
 function setPogWvActionStatus(msg, kind) {
@@ -10727,7 +10849,8 @@ function refreshPogWorkingChrome() {
   }
 
   if (sub && pogWorkingFixture && dbkey) {
-    sub.textContent = formatRegisterLabel(pogWorkingFixture.lane) + ' · DBKey ' + dbkey +
+    const aisleInfo = getDualAisleInfo(lane, dbkey);
+    sub.textContent = aisleInfo.combined + ' · DBKey ' + dbkey +
       ' · ' + sectionAssigneeText(lane, dbkey);
   }
   updatePogStoreAisleBadge(lane, dbkey);
@@ -10998,7 +11121,10 @@ async function openPogWorkingView(fixture, opts) {
   const content = document.getElementById('pog-wv-content');
 
   if (heading) heading.textContent = shortName(fixture.name);
-  if (sub) sub.textContent = formatRegisterLabel(fixture.lane) + ' · DBKey ' + fixture.dbkey;
+  if (sub) {
+    const aisleInfo = getDualAisleInfo(fixture.lane, fixture.dbkey);
+    sub.textContent = aisleInfo.combined + ' · DBKey ' + fixture.dbkey;
+  }
   updatePogStoreAisleBadge(fixture.lane, fixture.dbkey);
   if (crumb) {
     const viewLabel = hubCurrentView === 'list'
@@ -11006,8 +11132,8 @@ async function openPogWorkingView(fixture, opts) {
       : hubCurrentView === 'assignments'
         ? 'Sets'
         : 'Map';
-    const aislePart = getSectionStoreAisle(fixture.lane, fixture.dbkey) || formatRegisterLabel(fixture.lane);
-    crumb.textContent = viewLabel + ' › ' + aislePart + ' · ' + shortName(fixture.name);
+    const aisleInfo = getDualAisleInfo(fixture.lane, fixture.dbkey);
+    crumb.textContent = viewLabel + ' › ' + aisleInfo.combined + ' · ' + shortName(fixture.name);
   }
   if (content) content.innerHTML = '<div class="pog-wv-loading">Loading planogram…</div>';
 
