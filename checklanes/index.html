@@ -393,6 +393,42 @@
     font-weight: 700;
   }
 
+  .cl-hub-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border-radius: var(--cl-radius);
+    border: 1px solid var(--cl-border);
+    background: var(--cl-surface);
+  }
+
+  .cl-hub-filters-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--cl-text2);
+  }
+
+  .cl-hub-filters .cl-select {
+    min-width: 160px;
+    flex: 0 1 auto;
+  }
+
+  .cl-date-section {
+    margin-bottom: 16px;
+  }
+
+  .cl-date-heading {
+    margin: 0 0 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--cl-text2);
+  }
+
   .cl-presence-head {
     display: flex;
     flex-wrap: wrap;
@@ -517,6 +553,16 @@
   </section>
 
   <div id="status" class="cl-loading">Loading your stores…</div>
+  <div class="cl-hub-filters" id="hub-filters" hidden>
+    <span class="cl-hub-filters-label">Filter</span>
+    <select class="cl-select" id="filter-supervisor" aria-label="Filter by supervisor">
+      <option value="">All supervisors</option>
+    </select>
+    <select class="cl-select" id="filter-date" aria-label="Filter by shift date">
+      <option value="">All dates this week</option>
+    </select>
+    <button type="button" class="cl-btn cl-btn--ghost" id="filter-reset">Reset</button>
+  </div>
   <div id="store-grid" hidden></div>
 </div>
 
@@ -628,15 +674,130 @@
     stores.forEach(function (store) {
       const key = (store.shift && store.shift.supervisorKey) || '__unassigned__';
       const label = (store.shift && store.shift.supervisorLabel) || 'No supervisor assigned';
-      if (!groups.has(key)) groups.set(key, { label: label, stores: [] });
+      const sortOrder = (store.shift && store.shift.supervisorSortOrder != null)
+        ? store.shift.supervisorSortOrder
+        : 9999;
+      if (!groups.has(key)) groups.set(key, { label: label, sortOrder: sortOrder, stores: [] });
       groups.get(key).stores.push(store);
     });
 
-    return Array.from(groups.values()).sort(function (a, b) {
-      if (a.label === 'No supervisor assigned') return 1;
-      if (b.label === 'No supervisor assigned') return -1;
-      return a.label.localeCompare(b.label);
+    return Array.from(groups.values())
+      .sort(function (a, b) {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        if (a.label === 'No supervisor assigned') return 1;
+        if (b.label === 'No supervisor assigned') return -1;
+        return a.label.localeCompare(b.label);
+      })
+      .map(function (group) {
+        group.stores.sort(function (a, b) {
+          const dateA = (a.shift && a.shift.scheduledDate) || '9999-99-99';
+          const dateB = (b.shift && b.shift.scheduledDate) || '9999-99-99';
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          return Number(a.storeNumber) - Number(b.storeNumber);
+        });
+        return group;
+      });
+  }
+
+  function groupStoresBySupervisorAndDate(stores) {
+    const bySupervisor = groupStoresBySupervisor(stores);
+    return bySupervisor.map(function (group) {
+      const dateGroups = new Map();
+      group.stores.forEach(function (store) {
+        const dateKey = (store.shift && store.shift.scheduledDate) || '__no_date__';
+        const dateLabel = (store.shift && store.shift.scheduledDateLabel) || 'Date TBD';
+        if (!dateGroups.has(dateKey)) {
+          dateGroups.set(dateKey, { dateKey: dateKey, dateLabel: dateLabel, stores: [] });
+        }
+        dateGroups.get(dateKey).stores.push(store);
+      });
+      group.dateGroups = Array.from(dateGroups.values()).sort(function (a, b) {
+        if (a.dateKey === '__no_date__') return 1;
+        if (b.dateKey === '__no_date__') return -1;
+        return a.dateKey.localeCompare(b.dateKey);
+      });
+      return group;
     });
+  }
+
+  var hubFilterState = { supervisor: '', date: '' };
+
+  function loadHubFilterState() {
+    try {
+      var raw = localStorage.getItem('checklanesHubStoreFilters');
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      hubFilterState.supervisor = parsed.supervisor || '';
+      hubFilterState.date = parsed.date || '';
+    } catch (_) {}
+  }
+
+  function saveHubFilterState() {
+    try {
+      localStorage.setItem('checklanesHubStoreFilters', JSON.stringify(hubFilterState));
+    } catch (_) {}
+  }
+
+  function applyStoreFilters(stores) {
+    return stores.filter(function (store) {
+      var shift = store.shift || {};
+      if (hubFilterState.supervisor && shift.supervisorKey !== hubFilterState.supervisor) return false;
+      if (hubFilterState.date && shift.scheduledDate !== hubFilterState.date) return false;
+      return true;
+    });
+  }
+
+  function populateHubFilters(payload) {
+    var panel = document.getElementById('hub-filters');
+    if (!panel || !payload.organizeBySupervisor) {
+      if (panel) panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+
+    var supSelect = document.getElementById('filter-supervisor');
+    var dateSelect = document.getElementById('filter-date');
+    var filters = payload.storeHubFilters || {};
+
+    supSelect.innerHTML = '<option value="">All supervisors</option>';
+    (filters.supervisors || []).forEach(function (opt) {
+      var selected = opt.key === hubFilterState.supervisor ? ' selected' : '';
+      supSelect.innerHTML += '<option value="' + escapeHtml(opt.key) + '"' + selected + '>'
+        + escapeHtml(opt.label) + '</option>';
+    });
+
+    dateSelect.innerHTML = '<option value="">All dates this week</option>';
+    (filters.dates || []).forEach(function (opt) {
+      var selected = opt.value === hubFilterState.date ? ' selected' : '';
+      dateSelect.innerHTML += '<option value="' + escapeHtml(opt.value) + '"' + selected + '>'
+        + escapeHtml(opt.label) + '</option>';
+    });
+  }
+
+  function wireHubFilters(payload) {
+    populateHubFilters(payload);
+    var supSelect = document.getElementById('filter-supervisor');
+    var dateSelect = document.getElementById('filter-date');
+    var resetBtn = document.getElementById('filter-reset');
+    if (!supSelect || !dateSelect) return;
+
+    supSelect.onchange = function () {
+      hubFilterState.supervisor = supSelect.value;
+      saveHubFilterState();
+      renderStores(payload);
+    };
+    dateSelect.onchange = function () {
+      hubFilterState.date = dateSelect.value;
+      saveHubFilterState();
+      renderStores(payload);
+    };
+    resetBtn.onclick = function () {
+      hubFilterState = { supervisor: '', date: '' };
+      saveHubFilterState();
+      supSelect.value = '';
+      dateSelect.value = '';
+      renderStores(payload);
+    };
   }
 
   async function apiFetch(path, options) {
@@ -862,9 +1023,22 @@
     document.getElementById('admin-badge').hidden = !payload.isAdmin;
     document.getElementById('supervisor-badge').hidden = !payload.isSupervisor || payload.isAdmin;
 
+    populateHubFilters(payload);
+
+    const visibleStores = applyStoreFilters(payload.stores || []);
+
     if (!payload.stores.length) {
       status.className = 'cl-empty';
       status.textContent = 'No stores are available for your account yet. Contact your supervisor to be assigned.';
+      status.hidden = false;
+      grid.hidden = true;
+      document.getElementById('hub-filters').hidden = true;
+      return;
+    }
+
+    if (!visibleStores.length) {
+      status.className = 'cl-empty';
+      status.textContent = 'No stores match the current filters. Reset filters or pick another supervisor/date.';
       status.hidden = false;
       grid.hidden = true;
       return;
@@ -875,13 +1049,15 @@
     grid.className = payload.organizeBySupervisor ? '' : 'cl-grid';
     grid.innerHTML = '';
 
-    const sorted = payload.stores.slice().sort(function (a, b) {
-      if (a.isAssigned !== b.isAssigned) return a.isAssigned ? -1 : 1;
-      return (a.name || '').localeCompare(b.name || '');
-    });
+    const sorted = payload.organizeBySupervisor
+      ? visibleStores
+      : visibleStores.slice().sort(function (a, b) {
+        if (a.isAssigned !== b.isAssigned) return a.isAssigned ? -1 : 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
 
     if (payload.organizeBySupervisor) {
-      const groups = groupStoresBySupervisor(sorted);
+      const groups = groupStoresBySupervisorAndDate(sorted);
       groups.forEach(function (group) {
         const section = document.createElement('section');
         section.className = 'cl-supervisor-section';
@@ -894,12 +1070,24 @@
           (group.stores.length === 1 ? '' : 's') + ')</span>';
         section.appendChild(heading);
 
-        const groupGrid = document.createElement('div');
-        groupGrid.className = 'cl-grid';
-        group.stores.forEach(function (store) {
-          groupGrid.appendChild(renderStoreCard(store));
+        group.dateGroups.forEach(function (dateGroup) {
+          const dateSection = document.createElement('div');
+          dateSection.className = 'cl-date-section';
+
+          const dateHeading = document.createElement('h3');
+          dateHeading.className = 'cl-date-heading';
+          dateHeading.textContent = dateGroup.dateLabel;
+          dateSection.appendChild(dateHeading);
+
+          const groupGrid = document.createElement('div');
+          groupGrid.className = 'cl-grid';
+          dateGroup.stores.forEach(function (store) {
+            groupGrid.appendChild(renderStoreCard(store));
+          });
+          dateSection.appendChild(groupGrid);
+          section.appendChild(dateSection);
         });
-        section.appendChild(groupGrid);
+
         grid.appendChild(section);
       });
       return;
@@ -924,6 +1112,7 @@
 
   async function init() {
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
+    loadHubFilterState();
     applyDirectChecklanesUi();
 
     if (window.ChecklanePresence) {
@@ -937,6 +1126,7 @@
     try {
       const payload = await apiFetch('/stores');
       lastPayload = payload;
+      wireHubFilters(payload);
       renderStores(payload);
 
       if (payload.canViewPresence && window.ChecklanePresence) {
