@@ -5503,6 +5503,7 @@
             const from = `FM${store}_C${hdDraft.categoryNumber}@retail-odyssey.com`;
             const userEmail = document.getElementById('profileEmail')?.value.trim() || '';
             const userName = document.getElementById('profileName')?.value.trim() || '';
+            const shiftLeadEmail = document.getElementById('leadEmail')?.value.trim() || '';
             const subject = buildHdSubjectPreview();
             const workDate = document.getElementById('workDate')?.value || '';
 
@@ -5521,6 +5522,7 @@
             const hdCcList = [...new Set([
                 ...hdCcFixed,
                 ...(userEmail ? [userEmail.toLowerCase()] : []),
+                ...(shiftLeadEmail ? [shiftLeadEmail.toLowerCase()] : []),
             ])];
 
             content.innerHTML = `
@@ -5601,6 +5603,7 @@
             const workDate = document.getElementById('workDate')?.value || '';
             const userEmail = document.getElementById('profileEmail')?.value.trim() || '';
             const userName = document.getElementById('profileName')?.value.trim() || '';
+            const shiftLeadEmail = document.getElementById('leadEmail')?.value.trim() || '';
 
             const payload = {
                 storeNumber,
@@ -5620,6 +5623,7 @@
                 photoCaptions: hdDraft.photoCaptions || [],
                 userName,
                 userEmail,
+                shiftLeadEmail,
             };
 
             const dayConfirm = getActiveDayConfirmFor(storeNumber, workDate);
