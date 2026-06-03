@@ -2037,12 +2037,25 @@
             padding: var(--spacing-sm);
             margin-bottom: var(--spacing-sm);
         }
-        .assign-item img {
+        .assign-thumb-btn {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            border-radius: 6px;
+            cursor: zoom-in;
+            flex-shrink: 0;
+            touch-action: manipulation;
+        }
+        .assign-thumb-btn:focus-visible {
+            outline: 3px solid #88c4ed;
+            outline-offset: 2px;
+        }
+        .assign-thumb-btn img {
             width: 80px;
             height: 60px;
             object-fit: cover;
             border-radius: 6px;
-            flex-shrink: 0;
+            display: block;
         }
         .assign-radios {
             display: flex;
@@ -2077,6 +2090,59 @@
             touch-action: manipulation;
         }
         .assign-apply-btn:active { background: #0a3d6b; }
+        .assign-preview-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10020;
+            background: rgba(0,0,0,0.94);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-md);
+            padding: calc(var(--spacing-lg) + var(--safe-area-inset-top)) var(--spacing-lg) calc(var(--spacing-lg) + var(--safe-area-inset-bottom));
+        }
+        .assign-preview-image-wrap {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .assign-preview-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 0 0 1px rgba(148,163,184,0.35);
+            background: #111827;
+        }
+        .assign-preview-close {
+            position: fixed;
+            top: calc(12px + var(--safe-area-inset-top));
+            right: calc(12px + var(--safe-area-inset-right));
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            border: 1px solid #94a3b8;
+            background: rgba(15,23,42,0.9);
+            color: #f9fafb;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .assign-preview-caption {
+            position: fixed;
+            left: var(--spacing-lg);
+            right: var(--spacing-lg);
+            bottom: calc(12px + var(--safe-area-inset-bottom));
+            color: #d1d5db;
+            font-size: var(--font-size-sm);
+            text-align: center;
+            text-shadow: 0 1px 2px #000;
+        }
 
         /* Toast notifications */
         .toast-container {
@@ -9634,6 +9700,37 @@ ${data.Notes || ''}`;
         }
 
         // ── PROD after-image assignment modal ──
+        function openAssignmentImagePreview(image, label) {
+            if (!image || !image.url) return;
+            const preview = document.createElement('div');
+            preview.className = 'assign-preview-overlay';
+            preview.innerHTML = `
+                <button type="button" class="assign-preview-close" aria-label="Close image preview">&times;</button>
+                <div class="assign-preview-image-wrap">
+                    <img class="assign-preview-image" src="${image.url}" alt="${escapeHtml(label || 'PROD image preview')}">
+                </div>
+                <div class="assign-preview-caption">${escapeHtml(label || 'PROD image')} &bull; tap outside or press Esc to close</div>
+            `;
+
+            function closePreview() {
+                document.removeEventListener('keydown', onKeyDown);
+                preview.remove();
+            }
+
+            function onKeyDown(e) {
+                if (e.key === 'Escape') closePreview();
+            }
+
+            preview.querySelector('.assign-preview-close').addEventListener('click', closePreview);
+            preview.addEventListener('click', (e) => {
+                if (e.target === preview || e.target.classList.contains('assign-preview-image-wrap')) {
+                    closePreview();
+                }
+            });
+            document.addEventListener('keydown', onKeyDown);
+            document.body.appendChild(preview);
+        }
+
         function showAssignmentModal(images) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
@@ -9641,8 +9738,11 @@ ${data.Notes || ''}`;
 
                 let itemsHtml = images.map((img, i) => {
                     const existing = prodAfterAssignments[img.id];
+                    const label = `PROD image ${i + 1}`;
                     return `<div class="assign-item">
-                        <img src="${img.url}" alt="PROD image ${i + 1}">
+                        <button type="button" class="assign-thumb-btn" data-assign-preview-index="${i}" aria-label="Open ${label} full screen">
+                            <img src="${img.url}" alt="${label}">
+                        </button>
                         <div class="assign-radios">
                             <label><input type="radio" name="assign_${i}" value="after" ${existing === 'after' ? 'checked' : (!existing ? 'checked' : '')}> Cart After</label>
                             <label><input type="radio" name="assign_${i}" value="signoff" ${existing === 'signoff' ? 'checked' : ''}> Sign-off</label>
@@ -9659,6 +9759,13 @@ ${data.Notes || ''}`;
                 </div>`;
 
                 document.body.appendChild(overlay);
+
+                overlay.querySelectorAll('[data-assign-preview-index]').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const index = parseInt(btn.getAttribute('data-assign-preview-index'), 10);
+                        openAssignmentImagePreview(images[index], `PROD image ${index + 1}`);
+                    });
+                });
 
                 document.getElementById('assignApplyBtn').onclick = () => {
                     const assignments = {};
