@@ -9429,13 +9429,14 @@ function renderPogFixture(fixture, bay, dbkey) {
 function renderPogBays(layout) {
   const dbkey = layout.dbkey;
   const bays = (layout.bays || []).slice().sort((a, b) => (a.bay_num || 0) - (b.bay_num || 0));
+  const totalBays = bays.length;
   return bays.map(bay => {
     const fixtures = (bay.fixtures || []).slice()
       .sort((a, b) => (b.offset_from_base_in || 0) - (a.offset_from_base_in || 0));
     const fixtureHtml = fixtures.map(f => renderPogFixture(f, bay, dbkey)).join('');
     return (
       '<div class="pog-wv-bay" data-bay="' + escapeHtml(String(bay.bay_num)) + '">' +
-        '<div class="pog-wv-bay-head">Bay ' + escapeHtml(String(bay.bay_num)) +
+        '<div class="pog-wv-bay-head">Bay ' + escapeHtml(String(bay.bay_num)) + ' of ' + escapeHtml(String(totalBays)) +
           ' · ' + escapeHtml(String(bay.width_ft || '?')) + ' ft · PDF page ' + escapeHtml(String(bay.pdf_page || '—')) +
         '</div>' +
         '<div class="pog-wv-fixtures">' + fixtureHtml + '</div>' +
@@ -11685,6 +11686,11 @@ function openPogMissingTagForm(prefill) {
   setTimeout(() => upcEl?.focus(), 50);
 }
 
+function pogBayCountLabel() {
+  const total = Number((pogWorkingLayout && Array.isArray(pogWorkingLayout.bays) && pogWorkingLayout.bays.length) || 0);
+  return total > 0 ? (total + ' bay' + (total === 1 ? '' : 's')) : null;
+}
+
 function refreshPogWorkingChrome() {
   if (!isPogViewOpen()) return;
 
@@ -11718,7 +11724,9 @@ function refreshPogWorkingChrome() {
 
   if (sub && pogWorkingFixture && dbkey) {
     const aisleInfo = getDualAisleInfo(lane, dbkey);
+    const bayLabel = pogBayCountLabel();
     sub.textContent = aisleInfo.combined + ' · DBKey ' + dbkey +
+      (bayLabel ? (' · ' + bayLabel) : '') +
       ' · ' + sectionAssigneeText(lane, dbkey);
   }
   updatePogStoreAisleBadge(lane, dbkey);
@@ -11767,13 +11775,13 @@ function bindPogWorkingActions() {
 
   document.getElementById('pog-wv-tag-tally')?.addEventListener('click', () => {
     if (!(sectionTagDrafts || []).length) return;
-    submitSectionTagDraftsForPlanogram();
+    openPogMissingTagForm();
   });
   document.getElementById('pog-wv-tag-tally')?.addEventListener('keydown', e => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
     if (!(sectionTagDrafts || []).length) return;
-    submitSectionTagDraftsForPlanogram();
+    openPogMissingTagForm();
   });
 
   document.getElementById('pog-wv-flag-help')?.addEventListener('click', () => {
@@ -11991,7 +11999,8 @@ async function openPogWorkingView(fixture, opts) {
   if (heading) heading.textContent = shortName(fixture.name);
   if (sub) {
     const aisleInfo = getDualAisleInfo(fixture.lane, fixture.dbkey);
-    sub.textContent = aisleInfo.combined + ' · DBKey ' + fixture.dbkey;
+    const bayLabel = pogBayCountLabel();
+    sub.textContent = aisleInfo.combined + ' · DBKey ' + fixture.dbkey + (bayLabel ? (' · ' + bayLabel) : '');
   }
   updatePogStoreAisleBadge(fixture.lane, fixture.dbkey);
   if (crumb) {
@@ -12825,11 +12834,15 @@ async function submitSectionTagDraftsForPlanogram() {
   const dbkey = sectionTagDraftsDbkey || pogWorkingDbkey();
   if (!dbkey || !sectionTagDrafts.length) return;
   setPogWvActionsDisabled(true);
-  setPogWvActionStatus('Submitting ' + sectionTagDrafts.length + ' tag(s)…');
+  setPogWvActionStatus('Submitting and sending ' + sectionTagDrafts.length + ' tag(s)…');
   try {
-    const result = await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts/submit', {});
+    const result = await hubMutatePost('/sections/' + encodeURIComponent(dbkey) + '/tag-drafts/submit-and-send', {});
     await loadSectionTagDrafts(dbkey);
-    setPogWvActionStatus('Submitted ' + (result.count || 0) + ' tag(s) for lead review', 'ok');
+    setPogWvActionStatus(
+      'Your tag request was sent. Barcodes will print at Customer Service shortly; do not resubmit. ' +
+      'Printing can take about five minutes for the full batch.',
+      'ok',
+    );
     document.getElementById('pog-wv-missing-tag-form')?.classList.remove('open');
   } catch (err) {
     setPogWvActionStatus(err.message || 'Submit failed', 'error');

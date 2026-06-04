@@ -1919,7 +1919,7 @@
       var head = document.createElement('div');
       head.className = 'pog-wv-bay-head';
       var headText =
-        'Bay ' + (bay.bay_num != null ? bay.bay_num : '?') +
+        'Bay ' + (bay.bay_num != null ? bay.bay_num : '?') + ' of ' + bays.length +
         ' · ' + (bay.width_ft != null ? bay.width_ft : '?') + ' ft · PDF page ' +
         (bay.pdf_page != null ? bay.pdf_page : '—');
       head.textContent = headText;
