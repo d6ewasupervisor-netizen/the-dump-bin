@@ -152,6 +152,25 @@
     return canvas;
   }
 
+  function inspectPhotoQuality(canvas) {
+    if (!canvas) return { ok: false, note: 'Missing image' };
+    const w = canvas.width || 0;
+    const h = canvas.height || 0;
+    if (w < 700 || h < 700) return { ok: false, note: 'Low resolution — retake closer' };
+    const ctx = canvas.getContext('2d');
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let luminanceSum = 0;
+    let samples = 0;
+    for (let i = 0; i < data.length; i += 64) {
+      luminanceSum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      samples += 1;
+    }
+    const avg = samples ? (luminanceSum / samples) : 0;
+    if (avg < 48) return { ok: false, note: 'Image looks dark — increase lighting' };
+    if (h > w * 1.35) return { ok: false, note: 'Portrait orientation detected — landscape works better' };
+    return { ok: true, note: 'Looks good' };
+  }
+
   function defaultCropQuad(w, h) {
     const m = Math.min(w, h) * 0.05;
     return {
@@ -338,8 +357,9 @@
     const footer = document.getElementById('bay-photo-modal-footer');
     document.getElementById('bay-photo-modal-title').textContent = 'Bay photos required';
     document.getElementById('bay-photo-modal-sub').textContent =
+      'Set ' + st.dbkey + (st.lane ? (' · Lane ' + st.lane) : '') + ' · ' +
       st.bayNums.length + ' bay' + (st.bayNums.length !== 1 ? 's' : '') +
-      ' — capture each one, then review and adjust before submitting.';
+      ' to capture, review, and submit.';
 
     body.innerHTML =
       '<div class="bay-photo-section">' +
@@ -370,10 +390,12 @@
     const bayNum = st.bayNums[idx];
     const total = st.bayNums.length;
     const hasPhoto = !!st.captures[bayNum];
+    const quality = hasPhoto ? (st.captureQuality[bayNum] || inspectPhotoQuality(st.captures[bayNum])) : null;
 
     document.getElementById('bay-photo-modal-title').textContent = 'Bay ' + bayNum + ' · ' + (idx + 1) + ' of ' + total;
     document.getElementById('bay-photo-modal-sub').textContent =
-      'Center the full bay in frame — stand far enough back to include top shelf through floor.';
+      'Set ' + st.dbkey + (st.lane ? (' · Lane ' + st.lane) : '') +
+      ' — center full bay from top shelf to floor.';
 
     const progressPct = Math.round(((idx + (hasPhoto ? 1 : 0)) / total) * 100);
     const previewThumb = hasPhoto
@@ -387,6 +409,7 @@
         '<p class="bay-photo-editor-hint">' +
           (hasPhoto ? 'Photo captured — continue to the next bay or retake this one.' : 'Tap the button below to open your camera.') +
         '</p>' +
+        (quality ? '<p class="bay-photo-editor-hint">' + escapeHtml(quality.note) + '</p>' : '') +
         '<input type="file" id="bay-photo-file-input" accept="image/*" capture="environment" hidden>' +
         '<div class="flag-status" id="bay-photo-wizard-status"></div>' +
       '</div>';
@@ -412,6 +435,8 @@
       if (!file) return;
       loadImageFromFile(file).then(function (img) {
         st.captures[bayNum] = imageToCanvas(img);
+        st.captureQuality[bayNum] = inspectPhotoQuality(st.captures[bayNum]);
+        st.uploadStatus[bayNum] = 'queued';
         if (idx < total - 1) {
           st.captureIndex += 1;
           renderCapturePhase();
@@ -457,6 +482,8 @@
 
     const tiles = st.bayNums.map(function (bn) {
       const cap = st.captures[bn];
+      const quality = st.captureQuality[bn];
+      const uploadStatus = st.uploadStatus[bn] || (cap ? 'queued' : 'missing');
       const thumb = cap
         ? canvasToThumbDataUrl(cap, 320)
         : '';
@@ -466,6 +493,12 @@
             ? '<img src="' + thumb + '" alt="Bay ' + bn + '">'
             : '<span class="bay-photo-review-missing">Missing</span>') +
           '<span class="bay-photo-review-label">Bay ' + bn + '</span>' +
+          (cap
+            ? '<span class="bay-photo-review-edit">' + escapeHtml(quality?.note || 'Looks good') + '</span>'
+            : '<span class="bay-photo-review-edit">Capture required</span>') +
+          (cap
+            ? '<span class="bay-photo-review-edit">Upload: ' + escapeHtml(uploadStatus) + '</span>'
+            : '') +
           '<span class="bay-photo-review-edit">Edit</span>' +
         '</button>'
       );
@@ -759,6 +792,8 @@
           const img = new Image();
           img.onload = function () {
             st.captures[p.bay_num] = imageToCanvas(img);
+            st.captureQuality[p.bay_num] = inspectPhotoQuality(st.captures[p.bay_num]);
+            st.uploadStatus[p.bay_num] = 'synced';
             URL.revokeObjectURL(url);
             resolve();
           };
@@ -781,8 +816,12 @@
         const bn = st.bayNums[i];
         const canvas = st.captures[bn];
         if (!canvas) throw new Error('Missing photo for bay ' + bn);
+        st.uploadStatus[bn] = 'uploading';
+        renderReviewPhase();
         setWizardStatus('Uploading bay ' + bn + '…');
         await uploadBayPhoto(st.dbkey, st.lane, bn, canvasToDataUrl(canvas));
+        st.uploadStatus[bn] = 'synced';
+        renderReviewPhase();
       }
       setWizardStatus('Submitting for approval…');
       await hubSectionMutate(st.dbkey, st.lane, 'mark-done', { bayNums: st.bayNums });
@@ -790,8 +829,11 @@
       if (typeof st.onComplete === 'function') st.onComplete();
       window.setTimeout(closeBayPhotoWizard, 600);
     } catch (err) {
+      const failedBay = st.bayNums.find(function (bn) { return st.uploadStatus[bn] === 'uploading'; });
+      if (failedBay != null) st.uploadStatus[failedBay] = 'failed (tap submit to retry)';
       setWizardStatus(err.message || 'Submit failed', 'error');
       if (btn) btn.disabled = false;
+      renderReviewPhase();
     }
   }
 
@@ -834,6 +876,8 @@
       lane: lane,
       bayNums: bayNums,
       captures: {},
+      captureQuality: {},
+      uploadStatus: {},
       captureIndex: 0,
       onComplete: opts && opts.onComplete,
     };

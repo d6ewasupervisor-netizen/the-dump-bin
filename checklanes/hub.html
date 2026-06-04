@@ -8,6 +8,8 @@
 <title>Checklane Reset Hub</title>
 <script src="/auth-gate.js"></script>
 <script src="hub-presence.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1117">
 <link rel="stylesheet" href="planogram.css">
 <link rel="stylesheet" href="pog-pdf-viewer.css">
 <script src="planogram.js" defer></script>
@@ -442,6 +444,129 @@
     background: var(--surface2);
     border: 1px dashed var(--text3);
     opacity: 0.45;
+  }
+
+  .hub-guidance {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 10px 14px 4px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .hub-guidance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px;
+  }
+
+  .hub-guidance-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 12px;
+  }
+
+  .hub-guidance-card h2 {
+    margin: 0 0 10px;
+    font-size: 0.82rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .hub-guidance-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .hub-guidance-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--surface2);
+  }
+
+  .hub-guidance-item-main {
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: var(--text);
+  }
+
+  .hub-guidance-item-sub {
+    margin-top: 3px;
+    font-size: 0.75rem;
+    color: var(--text2);
+  }
+
+  .hub-guidance-item button {
+    margin-top: 7px;
+  }
+
+  .hub-lane-map {
+    display: grid;
+    gap: 8px;
+  }
+
+  .hub-lane-chip {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--surface2);
+  }
+
+  .hub-lane-chip-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: baseline;
+  }
+
+  .hub-lane-chip-name {
+    font-weight: 800;
+    font-size: 0.82rem;
+  }
+
+  .hub-lane-chip-progress {
+    font-size: 0.75rem;
+    color: var(--text2);
+  }
+
+  .hub-lane-chip-meta {
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--text2);
+  }
+
+  .hub-checklist-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    border-bottom: 1px solid var(--border);
+    padding: 6px 0;
+  }
+
+  .hub-checklist-row:last-child { border-bottom: none; }
+
+  .hub-checklist-status {
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .hub-checklist-status--ok {
+    background: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+  }
+
+  .hub-checklist-status--warn {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fcd34d;
   }
 
   .main-layout {
@@ -5699,6 +5824,31 @@
 
 <div class="legend" id="legend"></div>
 
+<section class="hub-guidance" id="hub-guidance">
+  <div class="hub-guidance-card">
+    <h2>Next actions</h2>
+    <div class="hub-guidance-list" id="hub-next-actions"></div>
+  </div>
+  <div class="hub-guidance-grid">
+    <div class="hub-guidance-card">
+      <h2>Lane progress</h2>
+      <div class="hub-lane-map" id="hub-lane-map"></div>
+    </div>
+    <div class="hub-guidance-card">
+      <h2>Exception center</h2>
+      <div class="hub-guidance-list" id="hub-exception-center"></div>
+    </div>
+    <div class="hub-guidance-card">
+      <h2>Team awareness</h2>
+      <div class="hub-guidance-list" id="hub-team-awareness"></div>
+    </div>
+    <div class="hub-guidance-card">
+      <h2>Closeout checklist</h2>
+      <div id="hub-closeout-checklist"></div>
+    </div>
+  </div>
+</section>
+
 <div class="main-layout" id="main-layout">
   <div class="view-container">
     <div class="map-view view-hidden view-container-inner" id="map-view"></div>
@@ -6304,7 +6454,7 @@ async function loadStoreFixtures(storeNum) {
 }
 
 /** Must match `checklanes/hub-version.json` on every hub deploy. */
-const HUB_BUILD = '20260601-live-blitz-stores-only';
+const HUB_BUILD = '20260604-ux-upgrade-v1';
 const HUB_VERSION_URL = 'hub-version.json';
 const HUB_UPDATE_CHECK_MS = 5 * 60 * 1000;
 const HUB_UPDATE_SNOOZE_MS = 15 * 60 * 1000;
@@ -6345,7 +6495,25 @@ let bulkAssignPanelSelectedKeys = new Set();
 let bulkAssignPanelFilterLane = '';
 let hubNavLock = false;
 const HUB_SESSION_KEY = 'checklanes-hub-session';
-let hubContext = { myRank: 1, myUserId: null, isHubAdmin: false, isProdDispatchApprover: false, prodDispatchInbox: [], sections: {}, pendingActions: [], verifiedUnsentTags: 0, draftTags: 0, aislePresets: [], myTagSweepAisleKeys: [] };
+let hubContext = {
+  myRank: 1,
+  myUserId: null,
+  isHubAdmin: false,
+  isProdDispatchApprover: false,
+  prodDispatchInbox: [],
+  sections: {},
+  pendingActions: [],
+  exceptionQueue: { total: 0, bySeverity: { high: 0, medium: 0, low: 0 }, items: [] },
+  verifiedUnsentTags: 0,
+  draftTags: 0,
+  aislePresets: [],
+  myTagSweepAisleKeys: [],
+  laneMap: { lanes: [], totals: {} },
+  nextActions: [],
+  closeoutChecklist: { ready: false, checklist: [] },
+  teamAwareness: { occupancy: [], totals: {} },
+  photoCoverage: { totalPhotos: 0, sectionsWithPhotos: 0 },
+};
 let prodDispatchLiveAlert = null;
 let hubSignedInUser = { email: null };
 let hubRoster = [];
@@ -6853,6 +7021,132 @@ function collectPendingQueueItems() {
   return items;
 }
 
+function renderGuidanceButton(action) {
+  if (!action) return '';
+  return '<button type="button" class="btn" data-hub-guidance-action="' + escapeHtml(action) + '">Open</button>';
+}
+
+function renderHubGuidance() {
+  const nextRoot = document.getElementById('hub-next-actions');
+  const laneRoot = document.getElementById('hub-lane-map');
+  const exceptionRoot = document.getElementById('hub-exception-center');
+  const teamRoot = document.getElementById('hub-team-awareness');
+  const closeoutRoot = document.getElementById('hub-closeout-checklist');
+  if (!nextRoot || !laneRoot || !exceptionRoot || !teamRoot || !closeoutRoot) return;
+
+  const next = hubContext.nextActions || [];
+  if (!next.length) {
+    nextRoot.innerHTML = '<div class="hub-guidance-item"><div class="hub-guidance-item-sub">No immediate actions. You are caught up.</div></div>';
+  } else {
+    nextRoot.innerHTML = next.map((item) =>
+      '<div class="hub-guidance-item">' +
+        '<div class="hub-guidance-item-main">' + escapeHtml(item.title || 'Action') + '</div>' +
+        (item.detail ? '<div class="hub-guidance-item-sub">' + escapeHtml(item.detail) + '</div>' : '') +
+        renderGuidanceButton(item.action) +
+      '</div>'
+    ).join('');
+  }
+
+  const lanes = (hubContext.laneMap && hubContext.laneMap.lanes) || [];
+  if (!lanes.length) {
+    laneRoot.innerHTML = '<div class="hub-guidance-item"><div class="hub-guidance-item-sub">Lane progress loads after snapshot sync.</div></div>';
+  } else {
+    laneRoot.innerHTML = lanes.slice(0, 8).map((lane) =>
+      '<div class="hub-lane-chip">' +
+        '<div class="hub-lane-chip-top">' +
+          '<span class="hub-lane-chip-name">' + escapeHtml(String(lane.lane || 'Lane')) + '</span>' +
+          '<span class="hub-lane-chip-progress">' + Number(lane.progressPct || 0) + '% complete</span>' +
+        '</div>' +
+        '<div class="hub-lane-chip-meta">' +
+          Number(lane.pendingExceptions || 0) + ' exception(s) · ' +
+          Number(lane.pendingSignoff || 0) + ' pending sign-off · ' +
+          Number(lane.needsAttention || 0) + ' needs attention' +
+        '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  const exceptions = (hubContext.exceptionQueue && hubContext.exceptionQueue.items) || [];
+  if (!exceptions.length) {
+    exceptionRoot.innerHTML = '<div class="hub-guidance-item"><div class="hub-guidance-item-main">Clear</div><div class="hub-guidance-item-sub">No open exceptions.</div></div>';
+  } else {
+    exceptionRoot.innerHTML =
+      '<div class="hub-guidance-item">' +
+        '<div class="hub-guidance-item-main">' + exceptions.length + ' open exception(s)</div>' +
+        '<div class="hub-guidance-item-sub">' +
+          Number(hubContext.exceptionQueue.bySeverity?.high || 0) + ' high · ' +
+          Number(hubContext.exceptionQueue.bySeverity?.medium || 0) + ' medium' +
+        '</div>' +
+        '<button type="button" class="btn" data-hub-guidance-action="open_pending_queue">Open queue</button>' +
+      '</div>' +
+      exceptions.slice(0, 3).map((item) =>
+        '<div class="hub-guidance-item">' +
+          '<div class="hub-guidance-item-main">' + escapeHtml(item.summary || item.type || 'Issue') + '</div>' +
+          '<div class="hub-guidance-item-sub">' +
+            (item.lane ? ('Lane ' + escapeHtml(String(item.lane)) + ' · ') : '') +
+            'Set ' + escapeHtml(String(item.dbkey || '—')) +
+          '</div>' +
+        '</div>'
+      ).join('');
+  }
+
+  const occupancy = (hubContext.teamAwareness && hubContext.teamAwareness.occupancy) || [];
+  if (!occupancy.length) {
+    teamRoot.innerHTML = '<div class="hub-guidance-item"><div class="hub-guidance-item-sub">No active assignments in progress yet.</div></div>';
+  } else {
+    teamRoot.innerHTML = occupancy.slice(0, 5).map((member) =>
+      '<div class="hub-guidance-item">' +
+        '<div class="hub-guidance-item-main">' + escapeHtml(member.assigneeName || 'Team member') + '</div>' +
+        '<div class="hub-guidance-item-sub">' +
+          'Lanes: ' + escapeHtml((member.lanes || []).join(', ') || '—') +
+          ' · Active sets: ' + Number(member.activeCount || 0) +
+          (member.blockedCount ? (' · Blocked: ' + Number(member.blockedCount || 0)) : '') +
+        '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  const checklist = (hubContext.closeoutChecklist && hubContext.closeoutChecklist.checklist) || [];
+  if (!checklist.length) {
+    closeoutRoot.innerHTML = '<div class="hub-guidance-item-sub">Closeout checklist unavailable.</div>';
+  } else {
+    closeoutRoot.innerHTML =
+      '<div class="hub-guidance-item-sub" style="margin-bottom:8px;">' +
+      (hubContext.closeoutChecklist.ready ? 'Store is closeout-ready.' : 'Blocking items still open before closeout.') +
+      '</div>' +
+      checklist.map((item) =>
+        '<div class="hub-checklist-row">' +
+          '<div>' +
+            '<div>' + escapeHtml(item.label || item.id || 'Checklist item') + '</div>' +
+            '<div class="hub-guidance-item-sub">' + escapeHtml(item.detail || '') + '</div>' +
+          '</div>' +
+          '<span class="hub-checklist-status ' + (item.ok ? 'hub-checklist-status--ok' : 'hub-checklist-status--warn') + '">' +
+            (item.ok ? 'ok' : (item.blocking ? 'blocked' : 'warn')) +
+          '</span>' +
+        '</div>'
+      ).join('');
+  }
+}
+
+function bindHubGuidanceActions() {
+  const root = document.getElementById('hub-guidance');
+  if (!root) return;
+  root.addEventListener('click', function (event) {
+    const btn = event.target && event.target.closest ? event.target.closest('[data-hub-guidance-action]') : null;
+    if (!btn) return;
+    const action = btn.getAttribute('data-hub-guidance-action');
+    if (action === 'open_pending_queue') {
+      togglePendingPanel(true);
+    } else if (action === 'open_assignments') {
+      syncHubUrl({ view: 'assignments' });
+    } else if (action === 'open_lane_map') {
+      syncHubUrl({ view: 'map' });
+    } else if (action === 'resume_section' || action === 'start_section') {
+      syncHubUrl({ view: 'assignments' });
+    }
+  });
+}
+
 let lastSnapshotGeneratedAt = 0;
 
 function applySnapshot(snapshot) {
@@ -6876,10 +7170,16 @@ function applySnapshot(snapshot) {
     }
   });
   hubContext.pendingActions = snapshot.pendingActions || [];
+  hubContext.exceptionQueue = snapshot.exceptionQueue || { total: 0, bySeverity: { high: 0, medium: 0, low: 0 }, items: [] };
   hubContext.verifiedUnsentTags = snapshot.stats?.verifiedUnsentTags ?? 0;
   hubContext.draftTags = snapshot.stats?.draftTags ?? 0;
   hubContext.aislePresets = snapshot.aislePresets || CLIENT_AISLE_PRESET_CATALOG;
   hubContext.myTagSweepAisleKeys = snapshot.myTagSweepAisleKeys || [];
+  hubContext.laneMap = snapshot.laneMap || { lanes: [], totals: {} };
+  hubContext.nextActions = snapshot.nextActions || [];
+  hubContext.closeoutChecklist = snapshot.closeoutChecklist || { ready: false, checklist: [] };
+  hubContext.teamAwareness = snapshot.teamAwareness || { occupancy: [], totals: {} };
+  hubContext.photoCoverage = snapshot.photoCoverage || { totalPhotos: 0, sectionsWithPhotos: 0 };
 
   const stateMap = snapshotSectionsToStateMap(snapshot.sections);
   applyState(stateMap);
@@ -6898,6 +7198,7 @@ function applySnapshot(snapshot) {
     openAislePickerMenu.contains(document.activeElement);
   if (hubCurrentView === 'assignments' && !aisleEditing) renderAssignmentsView();
   renderPendingList();
+  renderHubGuidance();
   const queueIds = new Set(collectPendingQueueItems().map(p => p.id));
   if (selectedPendingId != null && !queueIds.has(String(selectedPendingId))) {
     selectedPendingId = null;
@@ -13041,6 +13342,13 @@ function setDataSourceLabel(text) {
   if (el) el.textContent = text;
 }
 
+function registerPwaShell() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function (err) {
+    console.warn('[Checklane Hub] SW registration failed:', err.message || err);
+  });
+}
+
 async function init() {
   if (window.dumpBinAuthReady) {
     await window.dumpBinAuthReady;
@@ -13056,6 +13364,7 @@ async function init() {
 
   resolveHubStoreFromUrl();
   await loadHubIdentity();
+  registerPwaShell();
 
   const canonicalOk = await ensureCanonicalLiveVisit(storeParam, visitId);
   if (!canonicalOk) return;
@@ -13085,6 +13394,7 @@ async function init() {
   renderList();
   bindPogWorkingActions();
   bindEvents();
+  bindHubGuidanceActions();
   bindStoreScanPanel();
   syncHubUrl(readHubUrlState(), true);
 

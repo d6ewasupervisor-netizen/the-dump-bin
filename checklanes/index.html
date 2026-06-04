@@ -6,6 +6,8 @@
 <title>Checklanes — Select Store</title>
 <script src="/auth-gate.js"></script>
 <script src="hub-presence.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1117">
 <link rel="stylesheet" href="/styles.css">
 <style>
   :root {
@@ -418,6 +420,36 @@
     flex: 0 1 auto;
   }
 
+  .cl-command-center {
+    margin-bottom: 20px;
+  }
+
+  .cl-cc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px;
+  }
+
+  .cl-cc-card {
+    border: 1px solid var(--cl-border);
+    border-radius: 10px;
+    background: var(--cl-bg);
+    padding: 10px 12px;
+  }
+
+  .cl-cc-card h3 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 800;
+  }
+
+  .cl-cc-meta {
+    margin-top: 5px;
+    font-size: 0.74rem;
+    color: var(--cl-text2);
+    line-height: 1.4;
+  }
+
   .cl-date-section {
     margin-bottom: 16px;
   }
@@ -552,6 +584,14 @@
     </div>
   </section>
 
+  <section class="cl-panel cl-command-center" id="command-center-panel" hidden>
+    <div class="cl-activity-head">
+      <h2>Supervisor command center</h2>
+      <span class="cl-presence-updated" id="command-center-updated"></span>
+    </div>
+    <div class="cl-cc-grid" id="command-center-grid"></div>
+  </section>
+
   <div id="status" class="cl-loading">Loading your stores…</div>
   <div class="cl-hub-filters" id="hub-filters" hidden>
     <span class="cl-hub-filters-label">Filter</span>
@@ -583,7 +623,7 @@
   }
 
   /** Keep in sync with checklanes/hub-version.json + hub.html HUB_BUILD. */
-  const HUB_RELEASE_BUILD = '20260602-dual-aisle-v2';
+  const HUB_RELEASE_BUILD = '20260604-ux-upgrade-v1';
 
   function resolveStoreVisitId(store) {
     return store.liveVisitId || (store.shift && store.shift.visitId) || store.defaultVisitId || null;
@@ -808,6 +848,51 @@
       throw new Error(err.error || ('Request failed (' + resp.status + ')'));
     }
     return resp.json();
+  }
+
+  function renderCommandCenter(payload) {
+    var panel = document.getElementById('command-center-panel');
+    var grid = document.getElementById('command-center-grid');
+    var updated = document.getElementById('command-center-updated');
+    if (!panel || !grid || !updated) return;
+    var stores = (payload && payload.stores) || [];
+    if (!stores.length) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    updated.textContent = payload.generatedAt
+      ? ('Updated ' + new Date(payload.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
+      : '';
+    grid.innerHTML = stores.slice(0, 12).map(function (store) {
+      var risk = Number(store.blockers || 0);
+      var signoff = Number(store.pendingSignoff || 0);
+      var progress = Number(store.progressPct || 0);
+      return '<article class="cl-cc-card">' +
+        '<h3>' + escapeHtml(store.name || ('Store ' + padStore(store.storeNumber))) + '</h3>' +
+        '<div class="cl-cc-meta">Store #' + escapeHtml(padStore(store.storeNumber)) + '</div>' +
+        '<div class="cl-cc-meta">' + progress + '% complete · ' + risk + ' blockers · ' + signoff + ' sign-off</div>' +
+        '<div class="cl-cc-meta">' + Number(store.activePeople || 0) + ' active teammate(s)' + (store.closeoutReady ? ' · Closeout ready' : '') + '</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  async function loadCommandCenter(payload) {
+    var canView = !!(payload && (payload.isAdmin || payload.isSupervisor || payload.canViewPresence));
+    if (!canView) return;
+    try {
+      var data = await apiFetch('/command-center');
+      renderCommandCenter(data);
+    } catch (err) {
+      console.warn('[Checklanes] command center load failed:', err.message || err);
+    }
+  }
+
+  function registerPwaShell() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function (err) {
+      console.warn('[Checklanes] SW registration failed:', err.message || err);
+    });
   }
 
   function renderMemberRow(member, storeNumber, canManage) {
@@ -1130,6 +1215,8 @@
       lastPayload = payload;
       wireHubFilters(payload);
       renderStores(payload);
+      loadCommandCenter(payload);
+      registerPwaShell();
 
       if (payload.canViewPresence && window.ChecklanePresence) {
         const panel = document.getElementById('presence-panel');

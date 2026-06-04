@@ -1,0 +1,16 @@
+{
+  "name": "Checklanes Hub",
+  "short_name": "Checklanes",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#0f1117",
+  "description": "Mobile-first checklane reset workflow hub with guided actions and live team coordination.",
+  "shortcuts": [
+    {
+      "name": "Store picker",
+      "url": "./index.html"
+    }
+  ]
+}
