@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-05-07T22:50Z send-eod-workdate-fix -->
+<!-- build: 2026-06-05T18:35Z apple-photo-upload-fix -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -4862,15 +4862,18 @@
                 try {
                     let processedFile = file;
 
-                    // Convert HEIC files to JPEG first
+                    // Prefer conversion for Apple HEIC/HEIF files, but do not
+                    // block capture if the conversion library or browser
+                    // decoder cannot handle a specific file. The final
+                    // fallback below preserves the original data URL so the
+                    // API can still attach it.
                     if (isHeicFile(file)) {
                         try {
                             processedFile = await convertHeicToJpeg(file);
-                            console.log('HEIC file converted to JPEG');
+                            console.log('HEIC/HEIF file converted before storage');
                         } catch (heicError) {
-                            console.error('HEIC conversion failed:', heicError);
-                            showAlert('Could not convert HEIC image. Please try a different photo or convert it to JPEG first.');
-                            continue;
+                            console.warn('HEIC/HEIF conversion failed; trying native decode:', heicError);
+                            processedFile = file;
                         }
                     }
 
@@ -4966,22 +4969,28 @@
             const name = file.name.toLowerCase();
             const type = file.type.toLowerCase();
             return name.endsWith('.heic') || name.endsWith('.heif') ||
-                   type === 'image/heic' || type === 'image/heif';
+                   type === 'image/heic' || type === 'image/heif' ||
+                   type === 'image/heic-sequence' || type === 'image/heif-sequence';
         }
 
-        // Convert HEIC file to PNG blob (lossless to preserve maximum quality)
+        // Convert HEIC/HEIF files to a browser-friendly JPEG when the helper
+        // library is available. Some iOS browsers can decode HEIC natively
+        // but heic2any can fail, so callers treat conversion as best-effort.
         async function convertHeicToJpeg(file) {
             try {
+                if (typeof heic2any !== 'function') {
+                    throw new Error('HEIC converter library is unavailable');
+                }
                 const blob = await heic2any({
                     blob: file,
-                    toType: 'image/png',  // Use PNG for lossless conversion to preserve HEIC quality
-                    quality: 1.0
+                    toType: 'image/jpeg',
+                    quality: 0.92
                 });
                 // heic2any can return a single blob or an array (for multi-image HEIC files)
                 const resultBlob = Array.isArray(blob) ? blob[0] : blob;
                 // Create a new File object with the converted blob
-                return new File([resultBlob], file.name.replace(/\.heic$/i, '.png').replace(/\.heif$/i, '.png'), {
-                    type: 'image/png'
+                return new File([resultBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+                    type: 'image/jpeg'
                 });
             } catch (error) {
                 console.error('HEIC conversion error:', error);
@@ -4993,7 +5002,9 @@
         async function processImageWithOrientation(file) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
+                const url = URL.createObjectURL(file);
                 img.onload = () => {
+                    URL.revokeObjectURL(url);
                     // Create canvas to draw the properly oriented image
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
@@ -5009,10 +5020,11 @@
                     const dataUrl = canvas.toDataURL('image/png');
                     resolve(dataUrl);
                 };
-                img.onerror = reject;
-
-                // Create object URL to load the image
-                img.src = URL.createObjectURL(file);
+                img.onerror = (err) => {
+                    URL.revokeObjectURL(url);
+                    reject(err);
+                };
+                img.src = url;
             });
         }
 
@@ -5540,22 +5552,23 @@
             try {
                 let processedFile = file;
 
-                // Convert HEIC files to JPEG first
+                // Convert HEIC/HEIF when possible, but let Apple browsers try
+                // their native decoder if the helper cannot handle this file.
                 if (isHeicFile(file)) {
                     try {
                         processedFile = await convertHeicToJpeg(file);
-                        console.log('Signature HEIC file converted to JPEG');
+                        console.log('Signature HEIC/HEIF file converted to JPEG');
                     } catch (heicError) {
-                        console.error('HEIC conversion failed:', heicError);
-                        showAlert('Could not convert HEIC image. Please try a different photo or convert it to JPEG first.');
-                        e.target.value = '';
-                        return;
+                        console.warn('Signature HEIC/HEIF conversion failed; trying native decode:', heicError);
+                        processedFile = file;
                     }
                 }
 
                 // Load and draw the image onto the signature canvas
                 const img = new Image();
+                const url = URL.createObjectURL(processedFile);
                 img.onload = () => {
+                    URL.revokeObjectURL(url);
                     // Clear the canvas first
                     fsCtx.clearRect(0, 0, fsCanvas.width, fsCanvas.height);
 
@@ -5577,9 +5590,10 @@
                     fsCtx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
                 };
                 img.onerror = () => {
+                    URL.revokeObjectURL(url);
                     showAlert('Could not load the selected image. Please try a different file.');
                 };
-                img.src = URL.createObjectURL(processedFile);
+                img.src = url;
             } catch (error) {
                 console.error('Error loading signature photo:', error);
                 showAlert('Error loading signature photo. Please try again.');
@@ -6835,10 +6849,22 @@
         }
 
         // Filename for each inline sign-off image (matches eod-api /send-eod)
+        const SIGNOFF_IMAGE_EXTENSIONS = {
+            'image/jpeg': 'jpg',
+            'image/jpg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp',
+            'image/gif': 'gif',
+            'image/heic': 'heic',
+            'image/heif': 'heif',
+            'image/heic-sequence': 'heic',
+            'image/heif-sequence': 'heif'
+        };
+
         function signoffPhotoAttachmentFilename(photo, i) {
-            const match = photo.match(/^data:(image\/\w+);base64,/);
-            const contentType = match ? match[1] : 'image/jpeg';
-            const ext = contentType.split('/')[1] || 'jpg';
+            const match = String(photo || '').match(/^data:([^;]+);base64,/i);
+            const contentType = (match ? match[1] : 'image/jpeg').toLowerCase();
+            const ext = SIGNOFF_IMAGE_EXTENSIONS[contentType] || 'jpg';
             return `signoff_${i}.${ext}`;
         }
 
