@@ -7,7 +7,7 @@
 <style>
  :root{--navy:#15243f;--sky:#2f6fb0;--ink:#1c2533;--mute:#5c6b80;--line:#e3e8ef;--bg:#f5f7fa;--card:#fff;--fix:#2f6fb0;--verify:#b8730a;--order:#a8400f;}
  *{box-sizing:border-box;}
- body{margin:0;background:var(--bg);color:var(--ink);font-family:'Carlito','Calibri',system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5;}
+ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Carlito','Calibri',system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5;-webkit-text-size-adjust:100%;}
  .wrap{max-width:880px;margin:0 auto;padding:0 18px 64px;}
  header.top{background:var(--navy);color:#fff;padding:26px 0 22px;}
  header.top .wrap{padding-bottom:0;}
@@ -26,7 +26,7 @@
  .pog-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;}
  .pog-group{border:1px solid var(--line);border-radius:11px;padding:12px;background:#f9fbfe;}
  .pog-group h3{margin:0 0 8px;color:var(--navy);font-size:.92rem;}
- .pog-group a{display:block;margin:6px 0;color:var(--sky);font-weight:700;text-decoration:none;font-size:.86rem;}
+ .pog-group a{display:flex;flex-direction:column;justify-content:center;min-height:44px;margin:8px 0;padding:10px 12px;border:1px solid #d9e6f4;border-radius:10px;background:#fff;color:var(--sky);font-weight:700;text-decoration:none;font-size:.86rem;line-height:1.25;}
  .pog-group a:hover{text-decoration:underline;}
  .pog-group small{display:block;color:var(--mute);font-weight:500;margin-top:1px;}
  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:18px 0;}
@@ -72,6 +72,29 @@
  .pog-pdf-panel .pog-pdf-toolbar{box-shadow:0 2px 10px rgba(21,36,63,.12);}
  .pog-pdf-panel .pog-pdf-body{background:#0a0b0f;}
  footer{text-align:center;color:var(--mute);font-size:.78rem;margin-top:30px;}
+ @media(max-width:700px){
+  .wrap{padding:0 12px 48px;}
+  header.top{padding:22px 0 18px;}
+  .intro,.pog-links{padding:14px;margin:14px 0;}
+  .pog-groups{grid-template-columns:1fr;gap:12px;}
+  .pog-group{padding:10px;}
+  .pog-group h3{font-size:.95rem;}
+  .pog-group a{font-size:.9rem;}
+  .gallery{grid-template-columns:1fr;padding:8px 14px 4px;}
+  ul.rows{padding:8px 14px 6px;}
+  .row{padding-left:12px;}
+  .reg-foot{padding:14px;}
+  select.outcome,textarea,.reg-foot input[type=file],.order-fields input{font-size:16px;}
+  .order-fields{display:grid;grid-template-columns:1fr;}
+  .order-fields .qty input,.order-fields .spec input{width:100%;}
+  button.send,button.copy{width:100%;min-height:44px;}
+  .pog-pdf-panel .pog-pdf-toolbar{flex-wrap:wrap;gap:8px;padding:8px;}
+  .pog-pdf-panel .pog-pdf-back{flex:1 1 100%;text-align:center;}
+  .pog-pdf-panel .pog-pdf-title{order:2;flex:1 1 100%;white-space:normal;text-align:center;line-height:1.25;}
+  .pog-pdf-panel .pog-pdf-toolbar-pages,.pog-pdf-panel .pog-pdf-toolbar-zoom{flex:1 1 auto;justify-content:center;}
+  .pog-pdf-panel .pog-pdf-ctrl-btn{width:40px;height:40px;min-width:40px;min-height:40px;}
+  .pog-pdf-panel .pog-pdf-body{padding:4px;}
+ }
  @media(max-width:520px){header.top h1{font-size:1.38rem;} .card-head{flex-direction:column;gap:6px;}}
 </style></head><body>
 <header class="top"><div class="wrap">
