@@ -1396,6 +1396,9 @@
             max-height: 100%;
             touch-action: none;
         }
+        #editorCanvas.annotation-active {
+            cursor: crosshair;
+        }
 
         .crop-overlay {
             position: absolute;
@@ -1504,6 +1507,10 @@
             padding: 8px 12px;
             border-radius: 8px;
         }
+        .editor-control-group.annotation-options {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
 
         .editor-control-label {
             color: #fff;
@@ -1560,6 +1567,10 @@
         .editor-btn.active {
             background: #0d4f8b;
         }
+        .editor-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
 
         .editor-btn-icon {
             width: 36px;
@@ -1576,6 +1587,23 @@
             font-size: 0.85em;
             min-width: 35px;
             text-align: center;
+        }
+        .annotation-color {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.55);
+            background: var(--annotation-color);
+            cursor: pointer;
+            padding: 0;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
+        }
+        .annotation-color.active {
+            border-color: #ffffff;
+            box-shadow: 0 0 0 3px #88c4ed;
+        }
+        .annotation-size-slider {
+            width: 90px;
         }
 
         /* Editor mobile styles */
@@ -3211,9 +3239,9 @@
                     <span class="sync-status" id="syncSignoffStatus"></span>
                 </div>
                 <div id="signoffOrientationHint" style="display:none; margin-top:6px; font-size:13px; color:#fde68a; background:#422006; border-left:3px solid #f59e0b; padding:8px 10px; border-radius:6px; line-height:1.4;">
-                    Tap each sign-off photo to confirm orientation and crop.
+                    Tap each sign-off photo to confirm orientation, crop, or annotate.
                     Landscape captures are auto-rotated to portrait, but please
-                    crop and verify each one before submitting.
+                    crop, mark up, and verify each one before submitting.
                 </div>
                 <div id="prodPreviewSignoff" class="photo-preview"></div>
                 <div class="photo-button-group">
@@ -3634,6 +3662,21 @@
                 <button class="editor-btn editor-btn-icon" id="rotateRight" title="Rotate Right">&#8635;</button>
                 <button class="editor-btn" id="toggleCrop">Crop</button>
                 <button class="editor-btn" id="applyCrop" style="display: none;">Apply Crop</button>
+                <button class="editor-btn" id="toggleAnnotate">Annotate</button>
+                <button class="editor-btn" id="undoAnnotation" style="display: none;" disabled>Undo Mark</button>
+                <button class="editor-btn" id="clearAnnotations" style="display: none;" disabled>Clear Marks</button>
+            </div>
+            <div class="editor-control-row" id="annotationControlRow" style="display: none;">
+                <div class="editor-control-group annotation-options" id="annotationOptions">
+                    <span class="editor-control-label">Color</span>
+                    <button type="button" class="annotation-color active" data-color="#ef4444" style="--annotation-color:#ef4444" aria-label="Red annotation"></button>
+                    <button type="button" class="annotation-color" data-color="#facc15" style="--annotation-color:#facc15" aria-label="Yellow annotation"></button>
+                    <button type="button" class="annotation-color" data-color="#2563eb" style="--annotation-color:#2563eb" aria-label="Blue annotation"></button>
+                    <button type="button" class="annotation-color" data-color="#111827" style="--annotation-color:#111827" aria-label="Black annotation"></button>
+                    <span class="editor-control-label">Size</span>
+                    <input type="range" id="annotationSize" class="editor-slider annotation-size-slider" min="3" max="28" value="10">
+                    <span class="slider-value" id="annotationSizeValue">10</span>
+                </div>
             </div>
         </div>
     </div>
@@ -5333,9 +5376,8 @@
             if (!container) return;
             container.innerHTML = '';
 
-            // Both sign-off and InstaWork photos need the in-place rotate /
-            // crop / brightness / contrast editor — the user explicitly
-            // asked for the "same tools" on the InstaWork capture.
+            // Both sign-off and InstaWork photos share the in-place rotate /
+            // crop / brightness / contrast / annotate editor.
             const isEditable = (type === 'signoff' || type === 'instawork');
 
             // Keep the review-flag array aligned with the photos list
@@ -5796,6 +5838,12 @@
         const brightnessValue = document.getElementById('brightnessValue');
         const contrastValue = document.getElementById('contrastValue');
         const cropOverlay = document.getElementById('cropOverlay');
+        const toggleAnnotateBtn = document.getElementById('toggleAnnotate');
+        const undoAnnotationBtn = document.getElementById('undoAnnotation');
+        const clearAnnotationsBtn = document.getElementById('clearAnnotations');
+        const annotationControlRow = document.getElementById('annotationControlRow');
+        const annotationSizeSlider = document.getElementById('annotationSize');
+        const annotationSizeValue = document.getElementById('annotationSizeValue');
 
         let editorOriginalImage = null;
         let editorCurrentPhotoIndex = -1;
@@ -5807,6 +5855,11 @@
         let editorBrightness = 0;
         let editorContrast = 0;
         let cropMode = false;
+        let annotateMode = false;
+        let annotationPaths = [];
+        let activeAnnotationPath = null;
+        let selectedAnnotationColor = '#ef4444';
+        let selectedAnnotationSize = 10;
 
         // Polygon crop variables
         let polygonPoints = []; // Array of {x, y} coordinates
@@ -5820,6 +5873,112 @@
         const cropMaskPolygon = document.getElementById('cropMaskPolygon');
         const cropPolygonOutline = document.getElementById('cropPolygonOutline');
         const cropHandlesContainer = document.getElementById('cropHandlesContainer');
+
+        function updateAnnotationControls() {
+            const hasMarks = annotationPaths.length > 0;
+            if (toggleAnnotateBtn) toggleAnnotateBtn.classList.toggle('active', annotateMode);
+            if (editorCanvas) editorCanvas.classList.toggle('annotation-active', annotateMode);
+            if (annotationControlRow) annotationControlRow.style.display = annotateMode ? 'flex' : 'none';
+            if (undoAnnotationBtn) {
+                undoAnnotationBtn.style.display = (annotateMode || hasMarks) ? 'inline-block' : 'none';
+                undoAnnotationBtn.disabled = !hasMarks;
+            }
+            if (clearAnnotationsBtn) {
+                clearAnnotationsBtn.style.display = (annotateMode || hasMarks) ? 'inline-block' : 'none';
+                clearAnnotationsBtn.disabled = !hasMarks;
+            }
+            document.querySelectorAll('.annotation-color').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.color === selectedAnnotationColor);
+            });
+            if (annotationSizeSlider) annotationSizeSlider.value = String(selectedAnnotationSize);
+            if (annotationSizeValue) annotationSizeValue.textContent = String(selectedAnnotationSize);
+        }
+
+        function clearEditorAnnotations() {
+            annotationPaths = [];
+            activeAnnotationPath = null;
+            updateAnnotationControls();
+        }
+
+        function setAnnotateMode(active) {
+            annotateMode = !!active;
+            if (annotateMode && cropMode) {
+                cropMode = false;
+                document.getElementById('toggleCrop').classList.remove('active');
+                document.getElementById('applyCrop').style.display = 'none';
+                cropOverlay.classList.remove('active');
+            }
+            activeAnnotationPath = null;
+            updateAnnotationControls();
+        }
+
+        function drawAnnotationsOnContext(ctx, width, height, lineScale) {
+            if (!annotationPaths.length) return;
+            const scale = lineScale || 1;
+            ctx.save();
+            ctx.filter = 'none';
+            ctx.globalCompositeOperation = 'source-over';
+            annotationPaths.forEach(path => {
+                const points = path.points || [];
+                if (!points.length) return;
+                ctx.beginPath();
+                ctx.strokeStyle = path.color || '#ef4444';
+                ctx.lineWidth = Math.max(2, (path.size || 10) * scale);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.moveTo(points[0].x * width, points[0].y * height);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x * width, points[i].y * height);
+                }
+                if (points.length === 1) {
+                    const p = points[0];
+                    ctx.lineTo((p.x * width) + 0.01, p.y * height);
+                }
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
+
+        function getAnnotationPoint(e) {
+            const source = e.touches ? e.touches[0] : e;
+            const rect = editorCanvas.getBoundingClientRect();
+            const x = (source.clientX - rect.left) * (editorCanvas.width / rect.width);
+            const y = (source.clientY - rect.top) * (editorCanvas.height / rect.height);
+            return {
+                x: Math.max(0, Math.min(1, x / editorCanvas.width)),
+                y: Math.max(0, Math.min(1, y / editorCanvas.height))
+            };
+        }
+
+        function handleAnnotationStart(e) {
+            if (!annotateMode || cropMode || !editorOriginalImage) return;
+            e.preventDefault();
+            const point = getAnnotationPoint(e);
+            activeAnnotationPath = {
+                color: selectedAnnotationColor,
+                size: selectedAnnotationSize,
+                points: [point]
+            };
+            annotationPaths.push(activeAnnotationPath);
+            updateAnnotationControls();
+            renderEditorCanvas();
+        }
+
+        function handleAnnotationMove(e) {
+            if (!annotateMode || !activeAnnotationPath) return;
+            e.preventDefault();
+            const point = getAnnotationPoint(e);
+            const points = activeAnnotationPath.points;
+            const last = points[points.length - 1];
+            if (!last || Math.hypot(point.x - last.x, point.y - last.y) > 0.002) {
+                points.push(point);
+                renderEditorCanvas();
+            }
+        }
+
+        function handleAnnotationEnd() {
+            activeAnnotationPath = null;
+        }
 
         function openImageEditor(photoIndex, type) {
             editorCurrentPhotoIndex = photoIndex;
@@ -5835,9 +5994,12 @@
             brightnessValue.textContent = '0';
             contrastValue.textContent = '0';
             cropMode = false;
+            annotateMode = false;
+            clearEditorAnnotations();
             document.getElementById('toggleCrop').classList.remove('active');
             document.getElementById('applyCrop').style.display = 'none';
             cropOverlay.classList.remove('active');
+            updateAnnotationControls();
 
             // Load the image
             editorOriginalImage = new Image();
@@ -5868,6 +6030,7 @@
             // Apply brightness and contrast via filter
             const brightnessPercent = 100 + editorBrightness;
             const contrastPercent = 100 + editorContrast;
+            fullCtx.save();
             fullCtx.filter = `brightness(${brightnessPercent}%) contrast(${contrastPercent}%)`;
 
             // Center and rotate
@@ -5878,6 +6041,13 @@
             const drawWidth = isRotated90 ? fullHeight : fullWidth;
             const drawHeight = isRotated90 ? fullWidth : fullHeight;
             fullCtx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+            fullCtx.restore();
+
+            const displayScale = Math.min(
+                fullWidth / Math.max(editorCanvas.width, 1),
+                fullHeight / Math.max(editorCanvas.height, 1)
+            );
+            drawAnnotationsOnContext(fullCtx, fullWidth, fullHeight, displayScale);
 
             return fullCanvas;
         }
@@ -5938,6 +6108,7 @@
             editorCtx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 
             editorCtx.restore();
+            drawAnnotationsOnContext(editorCtx, displayWidth, displayHeight, 1);
 
             // Update crop overlay if active
             if (cropMode) {
@@ -6218,6 +6389,7 @@
 
         document.getElementById('toggleCrop').addEventListener('click', () => {
             cropMode = !cropMode;
+            if (cropMode) setAnnotateMode(false);
             document.getElementById('toggleCrop').classList.toggle('active', cropMode);
             document.getElementById('applyCrop').style.display = cropMode ? 'inline-block' : 'none';
             cropOverlay.classList.toggle('active', cropMode);
@@ -6226,6 +6398,41 @@
                 setTimeout(initCrop, 50);
             }
         });
+
+        toggleAnnotateBtn.addEventListener('click', () => {
+            setAnnotateMode(!annotateMode);
+        });
+
+        undoAnnotationBtn.addEventListener('click', () => {
+            annotationPaths.pop();
+            activeAnnotationPath = null;
+            updateAnnotationControls();
+            renderEditorCanvas();
+        });
+
+        clearAnnotationsBtn.addEventListener('click', () => {
+            clearEditorAnnotations();
+            renderEditorCanvas();
+        });
+
+        document.querySelectorAll('.annotation-color').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedAnnotationColor = btn.dataset.color || '#ef4444';
+                updateAnnotationControls();
+            });
+        });
+
+        annotationSizeSlider.addEventListener('input', (e) => {
+            selectedAnnotationSize = parseInt(e.target.value, 10) || 10;
+            updateAnnotationControls();
+        });
+
+        editorCanvas.addEventListener('mousedown', handleAnnotationStart);
+        editorCanvas.addEventListener('touchstart', handleAnnotationStart, { passive: false });
+        document.addEventListener('mousemove', handleAnnotationMove);
+        document.addEventListener('touchmove', handleAnnotationMove, { passive: false });
+        document.addEventListener('mouseup', handleAnnotationEnd);
+        document.addEventListener('touchend', handleAnnotationEnd);
 
         // Perspective transform helper functions
         function solvePerspectiveMatrix(src, dst) {
@@ -6470,6 +6677,8 @@
                 document.getElementById('toggleCrop').classList.remove('active');
                 document.getElementById('applyCrop').style.display = 'none';
                 cropOverlay.classList.remove('active');
+                setAnnotateMode(false);
+                clearEditorAnnotations();
 
                 renderEditorCanvas();
             };
@@ -6488,6 +6697,8 @@
             brightnessValue.textContent = '0';
             contrastValue.textContent = '0';
             cropMode = false;
+            setAnnotateMode(false);
+            clearEditorAnnotations();
             document.getElementById('toggleCrop').classList.remove('active');
             document.getElementById('applyCrop').style.display = 'none';
             cropOverlay.classList.remove('active');
@@ -6503,6 +6714,8 @@
             imageEditorOverlay.classList.remove('show');
             editorOriginalImage = null;
             editorCurrentPhotoIndex = -1;
+            setAnnotateMode(false);
+            clearEditorAnnotations();
         });
 
         document.getElementById('editorSave').addEventListener('click', async () => {
@@ -6548,6 +6761,8 @@
             imageEditorOverlay.classList.remove('show');
             editorOriginalImage = null;
             editorCurrentPhotoIndex = -1;
+            setAnnotateMode(false);
+            clearEditorAnnotations();
         });
 
         // Handle window resize
@@ -6797,7 +7012,7 @@
             alignSignoffReviewState();
             const unreviewedCount = signoffNeedsReview.filter(Boolean).length;
             if (unreviewedCount > 0) {
-                issues.push(`Tap each sign-off photo to review orientation and crop (${unreviewedCount} still need${unreviewedCount === 1 ? 's' : ''} review).`);
+                issues.push(`Tap each sign-off photo to review orientation, crop, or annotate (${unreviewedCount} still need${unreviewedCount === 1 ? 's' : ''} review).`);
                 flagPhotoSection('signoffPhotoSection');
             }
 
