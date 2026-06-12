@@ -4064,7 +4064,8 @@
             signoff: []
         };
 
-        // Track which PROD after-images have been assigned (keyed by image ID)
+        // Track which PROD images have been assigned (keyed by image ID)
+        const prodBeforeAssignments = {};
         const prodAfterAssignments = {};
         const prodPhotoLocalCopies = {
             before: {},
@@ -10044,15 +10045,16 @@ ${data.Notes || ''}`;
             });
         }
 
-        // ── PROD after-image assignment modal ──
+        // ── PROD image assignment modal ──
         function openAssignmentImagePreview(image, label) {
             if (!image || !image.url) return;
             const preview = document.createElement('div');
+            const displayUrl = resolveProdPhotoUrl(image.url);
             preview.className = 'assign-preview-overlay';
             preview.innerHTML = `
                 <button type="button" class="assign-preview-close" aria-label="Close image preview">&times;</button>
                 <div class="assign-preview-image-wrap">
-                    <img class="assign-preview-image" src="${image.url}" alt="${escapeHtml(label || 'PROD image preview')}">
+                    <img class="assign-preview-image" src="${displayUrl}" alt="${escapeHtml(label || 'PROD image preview')}">
                 </div>
                 <div class="assign-preview-caption">${escapeHtml(label || 'PROD image')} &bull; tap outside or press Esc to close</div>
             `;
@@ -10076,29 +10078,43 @@ ${data.Notes || ''}`;
             document.body.appendChild(preview);
         }
 
-        function showAssignmentModal(images) {
+        function showAssignmentModal(images, options) {
             return new Promise((resolve) => {
+                const config = options || {};
+                const assignmentStore = config.assignmentStore || prodAfterAssignments;
+                const choices = config.choices || [
+                    { value: 'after', label: 'Cart After', default: true },
+                    { value: 'signoff', label: 'Sign-off' },
+                    { value: 'skip', label: 'Skip' }
+                ];
+                const title = config.title || 'Assign PROD Images';
+                const description = config.description || `PROD has ${images.length} image(s) in the after slot. Assign each to the correct section:`;
                 const overlay = document.createElement('div');
                 overlay.className = 'assign-modal-overlay';
 
                 let itemsHtml = images.map((img, i) => {
-                    const existing = prodAfterAssignments[img.id];
+                    const existing = assignmentStore[img.id];
                     const label = `PROD image ${i + 1}`;
+                    const choiceHtml = choices.map((choice, choiceIndex) => {
+                        const checked = existing
+                            ? existing === choice.value
+                            : (choice.default || (!choices.some(c => c.default) && choiceIndex === 0));
+                        return `<label><input type="radio" name="assign_${i}" value="${escapeHtml(choice.value)}" ${checked ? 'checked' : ''}> ${escapeHtml(choice.label)}</label>`;
+                    }).join('');
+                    const displayUrl = resolveProdPhotoUrl(img.url);
                     return `<div class="assign-item">
                         <button type="button" class="assign-thumb-btn" data-assign-preview-index="${i}" aria-label="Open ${label} full screen">
-                            <img src="${img.url}" alt="${label}">
+                            <img src="${displayUrl}" alt="${label}">
                         </button>
                         <div class="assign-radios">
-                            <label><input type="radio" name="assign_${i}" value="after" ${existing === 'after' ? 'checked' : (!existing ? 'checked' : '')}> Cart After</label>
-                            <label><input type="radio" name="assign_${i}" value="signoff" ${existing === 'signoff' ? 'checked' : ''}> Sign-off</label>
-                            <label><input type="radio" name="assign_${i}" value="skip" ${existing === 'skip' ? 'checked' : ''}> Skip</label>
+                            ${choiceHtml}
                         </div>
                     </div>`;
                 }).join('');
 
                 overlay.innerHTML = `<div class="assign-modal">
-                    <h3>Assign PROD Images</h3>
-                    <p>PROD has ${images.length} image(s) in the after slot. Assign each to the correct section:</p>
+                    <h3>${escapeHtml(title)}</h3>
+                    <p>${escapeHtml(description)}</p>
                     ${itemsHtml}
                     <button class="assign-apply-btn" id="assignApplyBtn">Apply</button>
                 </div>`;
@@ -10177,11 +10193,11 @@ ${data.Notes || ''}`;
             try {
                 // ── PHASE 1: PULL ──
                 if (type === 'before') {
-                    // Pull before images
+                    // Pull before-slot images and assign them before showing section actions.
                     const resp = await authFetch(`${SM_API_BASE}/api/visit-photos/${encodeURIComponent(visitId)}/before-images`);
                     if (resp.ok) {
                         const data = await resp.json();
-                        const prodImages = (data.images || data.photos || []).map(img => ({
+                        const allBeforeImages = (data.images || data.photos || []).map(img => ({
                             id: img.id || img.url,
                             url: img.url,
                             source: 'prod',
@@ -10189,24 +10205,43 @@ ${data.Notes || ''}`;
                             timestamp: img.timestamp ? new Date(img.timestamp).getTime() : Date.now()
                         }));
 
-                        if (prodImages.length > 0) {
-                            // Auto-select if 1 PROD and 0 local
-                            if (prodImages.length === 1 && photos.before.length === 0) {
-                                prodPhotos.before = prodImages;
-                            } else if (prodImages.length > 0 && photos.before.length > 0) {
-                                const resolution = await resolveConflict('before', prodImages);
-                                if (resolution === 'use_prod') {
-                                    photos.before = [];
-                                    renderPhotos('before');
-                                    prodPhotos.before = prodImages;
-                                } else if (resolution === 'keep_local') {
-                                    prodImages.forEach(p => p.selectedForEod = false);
-                                    prodPhotos.before = prodImages;
+                        const unassigned = allBeforeImages.filter(img => !prodBeforeAssignments[img.id]);
+
+                        if (unassigned.length > 0) {
+                            setSyncState(type, 'syncing', 'Assign PROD images...');
+                            const assignments = await showAssignmentModal(unassigned, {
+                                assignmentStore: prodBeforeAssignments,
+                                title: 'Assign PROD Before Images',
+                                description: `PROD has ${unassigned.length} image(s) in the before slot. Assign each to the before section or skip it:`,
+                                choices: [
+                                    { value: 'before', label: 'Cart Before', default: true },
+                                    { value: 'skip', label: 'Skip' }
+                                ]
+                            });
+                            Object.assign(prodBeforeAssignments, assignments);
+                        }
+
+                        if (allBeforeImages.length > 0) {
+                            const beforeImages = allBeforeImages.filter(img => prodBeforeAssignments[img.id] === 'before');
+
+                            if (beforeImages.length > 0) {
+                                if (photos.before.length > 0) {
+                                    const resolution = await resolveConflict('before', beforeImages);
+                                    if (resolution === 'use_prod') {
+                                        photos.before = [];
+                                        renderPhotos('before');
+                                        prodPhotos.before = beforeImages;
+                                    } else if (resolution === 'keep_local') {
+                                        beforeImages.forEach(p => p.selectedForEod = false);
+                                        prodPhotos.before = beforeImages;
+                                    } else {
+                                        prodPhotos.before = beforeImages;
+                                    }
                                 } else {
-                                    prodPhotos.before = prodImages;
+                                    prodPhotos.before = beforeImages;
                                 }
                             } else {
-                                prodPhotos.before = prodImages;
+                                prodPhotos.before = [];
                             }
                             renderProdPhotos('before');
                             rebuildEodSelections('before');
