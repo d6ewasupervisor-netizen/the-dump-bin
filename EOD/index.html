@@ -4066,6 +4066,11 @@
 
         // Track which PROD after-images have been assigned (keyed by image ID)
         const prodAfterAssignments = {};
+        const prodPhotoLocalCopies = {
+            before: {},
+            after: {},
+            signoff: {}
+        };
 
         // Pending removal polling state
         const pendingRemovalPolls = {}; // { requestId: { intervalId, employeeId, startTime } }
@@ -9832,6 +9837,72 @@ ${data.Notes || ''}`;
             document.getElementById('lightboxOverlay').classList.remove('show');
         }
 
+        function getProdPhotoKey(photo) {
+            return String(photo?.id || photo?.url || '');
+        }
+
+        function resolveProdPhotoUrl(url) {
+            if (!url || typeof url !== 'string') return '';
+            if (/^(https?:|data:|blob:)/i.test(url)) return url;
+            if (url.startsWith('/')) return `${SM_API_BASE}${url}`;
+            return url;
+        }
+
+        function readBlobAsDataUrl(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error || new Error('Could not read image data.'));
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function importProdPhotoDataUrl(type, photo) {
+            const key = getProdPhotoKey(photo);
+            if (key && prodPhotoLocalCopies[type]?.[key]) return prodPhotoLocalCopies[type][key];
+            if (photo.localDataUrl) return photo.localDataUrl;
+
+            const url = resolveProdPhotoUrl(photo.url);
+            if (!url) throw new Error('PROD photo is missing an image URL.');
+
+            let dataUrl;
+            if (url.startsWith('data:')) {
+                dataUrl = url;
+            } else {
+                const useAuth = url.startsWith(SM_API_BASE) || url.startsWith(EOD_API_BASE);
+                const resp = useAuth ? await authFetch(url) : await fetch(url);
+                if (!resp.ok) throw new Error(`Could not load selected photo (${resp.status}).`);
+                dataUrl = await readBlobAsDataUrl(await resp.blob());
+            }
+
+            const optimized = await optimizePhotoForStorage(dataUrl, type);
+            photo.localDataUrl = optimized;
+            if (key && prodPhotoLocalCopies[type]) prodPhotoLocalCopies[type][key] = optimized;
+            return optimized;
+        }
+
+        function removeImportedProdPhoto(type, photo) {
+            const key = getProdPhotoKey(photo);
+            const localDataUrl = photo.localDataUrl || prodPhotoLocalCopies[type]?.[key];
+            if (!localDataUrl || !photos[type]) return;
+
+            const index = photos[type].indexOf(localDataUrl);
+            if (index !== -1) {
+                photos[type].splice(index, 1);
+                if (type === 'signoff') signoffNeedsReview.splice(index, 1);
+            }
+            if (key && prodPhotoLocalCopies[type]) delete prodPhotoLocalCopies[type][key];
+            delete photo.localDataUrl;
+        }
+
+        function isImportedProdPhoto(type, dataUrl) {
+            return Object.values(prodPhotoLocalCopies[type] || {}).includes(dataUrl);
+        }
+
+        function getLocallyCapturedPhotos(type) {
+            return (photos[type] || []).filter(photo => !isImportedProdPhoto(type, photo));
+        }
+
         // Render PROD photos for a given type (before/after/signoff)
         function renderProdPhotos(type) {
             const containerId = `prodPreview${type.charAt(0).toUpperCase() + type.slice(1)}`;
@@ -9859,11 +9930,12 @@ ${data.Notes || ''}`;
                 const badge = type === 'signoff' ? 'SYNC' : 'PROD';
                 const badgeClass = type === 'signoff' ? 'sync-badge' : 'prod-badge';
                 const isSelected = photo.selectedForEod;
+                const displayUrl = resolveProdPhotoUrl(photo.url);
                 item.innerHTML = `
-                    <img src="${photo.url}" alt="${type} PROD photo" onclick="openLightbox('${photo.url}', 'PROD ${type} photo #${index + 1}')" style="cursor:pointer;">
+                    <img src="${displayUrl}" alt="${type} PROD photo" onclick="openLightbox('${displayUrl}', 'PROD ${type} photo #${index + 1}')" style="cursor:pointer;">
                     <span class="${badgeClass}">${badge}</span>
                     <div class="photo-actions">
-                        <button class="btn-use ${isSelected ? 'active' : ''}" onclick="toggleProdPhotoEod('${type}', ${index}, true)">✓ Use</button>
+                        <button class="btn-use ${isSelected ? 'active' : ''}" onclick="toggleProdPhotoEod('${type}', ${index}, true)">Use</button>
                         <button class="btn-skip ${!isSelected ? 'active' : ''}" onclick="toggleProdPhotoEod('${type}', ${index}, false)">Skip</button>
                     </div>
                 `;
@@ -9871,11 +9943,42 @@ ${data.Notes || ''}`;
             });
         }
 
-        function toggleProdPhotoEod(type, index, useForEod) {
-            if (prodPhotos[type][index]) {
-                prodPhotos[type][index].selectedForEod = useForEod;
+        async function toggleProdPhotoEod(type, index, useForEod) {
+            const photo = prodPhotos[type]?.[index];
+            if (!photo) return;
+
+            const containerId = `prodPreview${type.charAt(0).toUpperCase() + type.slice(1)}`;
+            const button = document.querySelector(`#${containerId} .photo-actions button[onclick="toggleProdPhotoEod('${type}', ${index}, true)"]`);
+            if (button) {
+                button.disabled = true;
+                button.textContent = useForEod ? 'Adding...' : 'Use';
+            }
+
+            try {
+                if (useForEod) {
+                    const localDataUrl = await importProdPhotoDataUrl(type, photo);
+                    if (!photos[type].includes(localDataUrl)) {
+                        const insertedIndex = photos[type].push(localDataUrl) - 1;
+                        if (type === 'signoff') {
+                            alignSignoffReviewState();
+                            signoffNeedsReview[insertedIndex] = false;
+                        }
+                    }
+                    photo.selectedForEod = true;
+                    showToast(`${type === 'signoff' ? 'Sign-off' : 'Kompass cart'} photo added to this section.`, 'success');
+                } else {
+                    removeImportedProdPhoto(type, photo);
+                    photo.selectedForEod = false;
+                }
+
+                renderPhotos(type);
                 renderProdPhotos(type);
                 rebuildEodSelections(type);
+                autoSave();
+            } catch (err) {
+                console.error('[sync] Could not use PROD photo:', err);
+                showToast(err.message || 'Could not add selected photo.', 'error');
+                renderProdPhotos(type);
             }
         }
 
@@ -9883,9 +9986,9 @@ ${data.Notes || ''}`;
             eodSelections[type] = [];
 
             prodPhotos[type].forEach(p => {
-                if (p.selectedForEod) {
+                if (p.selectedForEod && !p.localDataUrl) {
                     eodSelections[type].push({
-                        dataUrl: p.url,
+                        dataUrl: resolveProdPhotoUrl(p.url),
                         source: 'prod',
                         timestamp: p.timestamp || Date.now(),
                         isUrl: true
@@ -9894,9 +9997,10 @@ ${data.Notes || ''}`;
             });
 
             photos[type].forEach((dataUrl, i) => {
+                const importedFromProd = isImportedProdPhoto(type, dataUrl);
                 eodSelections[type].push({
                     dataUrl: dataUrl,
-                    source: 'local',
+                    source: importedFromProd ? 'prod' : 'local',
                     timestamp: Date.now() - (photos[type].length - i),
                     isUrl: false
                 });
@@ -10023,7 +10127,8 @@ ${data.Notes || ''}`;
         // ── Push signoff photos to backend ──
         async function pushSignoffPhotos() {
             if (!selectedShift || !selectedShift.visitId) return;
-            if (photos.signoff.length === 0) return;
+            const signoffPhotosToPush = getLocallyCapturedPhotos('signoff');
+            if (signoffPhotosToPush.length === 0) return;
 
             const storeNumber = document.getElementById('storeNumber').value;
             const date = document.getElementById('workDate').value;
@@ -10036,7 +10141,7 @@ ${data.Notes || ''}`;
                         visitId: String(selectedShift.visitId),
                         storeNumber: parseInt(storeNumber) || 0,
                         date: date,
-                        photos: photos.signoff.map((dataUrl, i) => ({
+                        photos: signoffPhotosToPush.map((dataUrl, i) => ({
                             filename: `signoff_${i + 1}.jpg`,
                             dataUrl: dataUrl
                         }))
@@ -10256,12 +10361,12 @@ ${data.Notes || ''}`;
                 // ── PHASE 2: PUSH ──
                 setSyncState(type, 'syncing', 'Pushing to PROD...');
 
-                if (photos[type] && photos[type].length > 0) {
+                if (getLocallyCapturedPhotos(type).length > 0) {
                     await syncToSAS(type);
                 }
 
                 // For signoff, also push to the signoff backend
-                if (type === 'signoff' && photos.signoff.length > 0) {
+                if (type === 'signoff' && getLocallyCapturedPhotos('signoff').length > 0) {
                     await pushSignoffPhotos();
                 }
 
@@ -10327,7 +10432,7 @@ ${data.Notes || ''}`;
                 return;
             }
 
-            const photoArray = photos[type];
+            const photoArray = getLocallyCapturedPhotos(type);
             if (!photoArray || photoArray.length === 0) {
                 showAlert('No Photos', `No ${type} photos to sync. Take or upload a photo first.`);
                 return;
