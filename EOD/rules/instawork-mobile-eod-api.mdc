@@ -1,0 +1,10 @@
+---
+description: InstaWork EOD saves must work on mobile (hosted API only)
+globs: index.html
+alwaysApply: false
+---
+
+# InstaWork in EOD `index.html`
+
+- InstaWork JPG save must call **`https://eod-api.the-dump-bin.com/instawork/save-image`** via **`authFetch()`** (not raw `fetch` to localhost). Same JSON body as before (`storeNumber`, `workDate`, `imageBase64`).
+- Do not change this to `127.0.0.1:3001`; mobile browsers will always fail against localhost.

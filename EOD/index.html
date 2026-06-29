@@ -10010,6 +10010,12 @@ ${data.Notes || ''}`;
             eodSelections[type].sort((a, b) => a.timestamp - b.timestamp);
         }
 
+        function mergeProdPhotos(type, incomingPhotos) {
+            if (!Array.isArray(incomingPhotos) || incomingPhotos.length === 0) return;
+            const existing = prodPhotos[type].filter(p => !incomingPhotos.find(incoming => incoming.id === p.id));
+            prodPhotos[type] = [...existing, ...incomingPhotos];
+        }
+
         // ── Photo conflict resolution ──
         function resolveConflict(type, prodArr) {
             return new Promise((resolve) => {
@@ -10312,10 +10318,16 @@ ${data.Notes || ''}`;
                         } else if (allAfterImages.length > 0) {
                             // All already assigned — just redistribute from assignments
                             const afterImages = allAfterImages.filter(img => prodAfterAssignments[img.id] === 'after');
+                            const signoffImages = allAfterImages.filter(img => prodAfterAssignments[img.id] === 'signoff');
                             if (afterImages.length > 0) {
                                 prodPhotos.after = afterImages;
                                 renderProdPhotos('after');
                                 rebuildEodSelections('after');
+                            }
+                            if (signoffImages.length > 0) {
+                                mergeProdPhotos('signoff', signoffImages);
+                                renderProdPhotos('signoff');
+                                rebuildEodSelections('signoff');
                             }
                         }
                     }
@@ -10337,23 +10349,32 @@ ${data.Notes || ''}`;
 
                         if (unassigned.length > 0) {
                             setSyncState(type, 'syncing', 'Assign PROD images...');
-                            const assignments = await showAssignmentModal(unassigned);
+                            const assignments = await showAssignmentModal(unassigned, {
+                                assignmentStore: prodAfterAssignments,
+                                title: 'Assign PROD Sign-Off Images',
+                                description: `PROD has ${unassigned.length} image(s) in the after slot. Assign sign-off sheets here, or send cart photos back to Cart After:`,
+                                choices: [
+                                    { value: 'signoff', label: 'Sign-off', default: true },
+                                    { value: 'after', label: 'Cart After' },
+                                    { value: 'skip', label: 'Skip' }
+                                ]
+                            });
                             Object.assign(prodAfterAssignments, assignments);
+                        }
 
-                            // Distribute
-                            const afterImages = allAfterImages.filter(img => prodAfterAssignments[img.id] === 'after');
-                            const signoffFromAfter = allAfterImages.filter(img => prodAfterAssignments[img.id] === 'signoff');
+                        // Redistribute every known after-slot image, including images
+                        // assigned during a previous Cart After sync.
+                        const afterImages = allAfterImages.filter(img => prodAfterAssignments[img.id] === 'after');
+                        const signoffFromAfter = allAfterImages.filter(img => prodAfterAssignments[img.id] === 'signoff');
 
-                            if (afterImages.length > 0 && prodPhotos.after.length === 0) {
-                                prodPhotos.after = afterImages;
-                                renderProdPhotos('after');
-                                rebuildEodSelections('after');
-                            }
+                        if (afterImages.length > 0 && prodPhotos.after.length === 0) {
+                            prodPhotos.after = afterImages;
+                            renderProdPhotos('after');
+                            rebuildEodSelections('after');
+                        }
 
-                            if (signoffFromAfter.length > 0) {
-                                const existing = prodPhotos.signoff.filter(p => !signoffFromAfter.find(s => s.id === p.id));
-                                prodPhotos.signoff = [...existing, ...signoffFromAfter];
-                            }
+                        if (signoffFromAfter.length > 0) {
+                            mergeProdPhotos('signoff', signoffFromAfter);
                         }
                     }
 
