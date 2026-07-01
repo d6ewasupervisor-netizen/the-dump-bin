@@ -105,7 +105,10 @@
         try {
           var u = new URL(url);
           if (u.protocol !== 'https:') return false;
-          return !!ALLOWED_HOSTS[u.host];
+          if (ALLOWED_HOSTS[u.host]) return true;
+          // Hub tools hosted on Railway (e.g. Central Pet Scheduler).
+          if (/\.up\.railway\.app$/i.test(u.host)) return true;
+          return false;
         } catch (_) {
           return false;
         }
