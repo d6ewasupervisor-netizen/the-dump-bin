@@ -18,7 +18,7 @@ and gates its own routes with the same JWT.
 | `/admin.html`   | this repo, hub root | Public-ish (its own password gate). First-time setup uses `ADMIN_SETUP_TOKEN`; afterwards admin email + password. Provides CRUD over the `allowed_emails` table. |
 | eod-api `/api/request-link` | Railway | Issues a one-shot `typ:'link'` JWT, stores its `jti` in `link_requests`, and emails the link via Resend (`From: The Dump Bin <noreply@retail-odyssey.com>`). |
 | eod-api `/api/verify-token` | Railway | Exchanges the link JWT for a long-lived `typ:'session'` JWT (45 days). Marks the `link_requests` row used so it can't be replayed. |
-| eod-api `/api/me` | Railway | Returns identity + roles for the bearer of a session JWT. Called on every page load that needs role-based UI (currently just EOD). |
+| eod-api `/api/me` | Railway | Returns identity + roles for the bearer of a session JWT. Called on every page load that needs role-based UI (currently just EOD). Roles come from Railway env vars `KOMPASS_ADMIN_EMAILS`, `KOMPASS_SUPERVISOR_EMAILS`, and `KOMPASS_LEAD_EMAILS`. Users with `admin` or `supervisor` auto-pass the EOD daily store-confirmation gate (`/api/verify-store`) and can submit for any store without an override email. |
 | eod-api `/api/admin/session/*` | Railway | Admin password setup, login, forgot-password, reset, me. Issues `typ:'admin'` JWTs. |
 | eod-api `/api/admin/allowed-emails` | Railway | CRUD on the allowlist. Admin JWT required. |
 | eod-api `/api/access-request` + `/:id/(approve|deny)` | Railway | Self-serve access requests. Approval emails go to `ACCESS_REQUEST_APPROVERS` (defaults to Tyson). The approve/deny click in the email is HMAC-signed and atomic. |
