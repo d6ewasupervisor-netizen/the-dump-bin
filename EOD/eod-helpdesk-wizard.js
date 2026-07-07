@@ -65,15 +65,47 @@
     function newIssueBlock() {
         return {
             issueTypeId: '',
+            setEntryManual: false,
             shiftVisitId: '',
             setLabel: '',
             categoryNumber: '',
             version: '',
+            manualShiftName: '',
+            manualSetName: '',
+            manualCategoryNumber: '',
+            manualVersion: '',
+            manualDbkey: '',
             customIssue: '',
             details: '',
             photos: [],
             reportAnother: false,
         };
+    }
+
+    function resolveIssueSetMeta(issue, map) {
+        if (issue.setEntryManual) {
+            return {
+                shiftLabel: (issue.manualShiftName || '').trim(),
+                setLabel: (issue.manualSetName || '').trim(),
+                categoryNumber: (issue.manualCategoryNumber || '').trim() || null,
+                version: (issue.manualVersion || '').trim() || null,
+                dbkey: (issue.manualDbkey || '').trim() || null,
+            };
+        }
+        return {
+            shiftLabel: issue.shiftVisitId && map[issue.shiftVisitId]
+                ? map[issue.shiftVisitId].label
+                : '',
+            setLabel: (issue.setLabel || '').trim(),
+            categoryNumber: issue.categoryNumber || null,
+            version: issue.version || null,
+            dbkey: null,
+        };
+    }
+
+    function issueSetDisplayName(issue) {
+        const meta = resolveIssueSetMeta(issue, window.allShiftsSetsMap || {});
+        return meta.setLabel || issue.customIssue || 'Unnamed set';
     }
 
     function renderWizardIssues() {
@@ -82,24 +114,59 @@
 
         container.innerHTML = wizardIssues.map((issue, idx) => {
             const isCustom = issue.issueTypeId === 'custom';
-            const showSet = issue.issueTypeId && issue.issueTypeId !== 'custom';
+            const hasIssueType = !!issue.issueTypeId;
+            const isManual = !!issue.setEntryManual;
+            const showShiftSetPickers = hasIssueType && !isManual;
+            const showManualFields = hasIssueType && isManual;
             return `<div class="hd-issue-card" data-issue-idx="${idx}">
                 <div class="hd-issue-header">Issue ${idx + 1}</div>
                 <div class="field">
                     <label>Issue type</label>
                     <select class="hd-issue-type" data-idx="${idx}">${issueOptionsHtml(issue.issueTypeId)}</select>
                 </div>
-                <div class="field hd-shift-field" style="${showSet ? '' : 'display:none'}">
+                ${hasIssueType ? `
+                <div class="checkbox-option hd-manual-set-wrap" style="margin: 10px 0;">
+                    <input type="checkbox" class="hd-set-manual" id="hdSetManual${idx}" data-idx="${idx}" ${isManual ? 'checked' : ''}>
+                    <label for="hdSetManual${idx}">Set isn't on my shift — enter set details manually</label>
+                </div>
+                <p class="sets-help hd-manual-hint" style="${isManual ? '' : 'display:none'}; margin-bottom:10px;">
+                    Use this when you have materials for a set that isn't loaded on any shift in the system.
+                </p>` : ''}
+                <div class="field hd-shift-field" style="${showShiftSetPickers ? '' : 'display:none'}">
                     <label>Shift</label>
                     <select class="hd-shift-select" data-idx="${idx}">${shiftOptionsHtml(issue.shiftVisitId)}</select>
                 </div>
-                <div class="field hd-set-field" style="${showSet ? '' : 'display:none'}">
+                <div class="field hd-set-field" style="${showShiftSetPickers ? '' : 'display:none'}">
                     <label>Set</label>
                     <select class="hd-set-select" data-idx="${idx}">${setOptionsHtml(issue.shiftVisitId, issue.setLabel)}</select>
                 </div>
+                <div class="hd-manual-set-fields" style="${showManualFields ? '' : 'display:none'}">
+                    <div class="field">
+                        <label>Shift name <span class="hd-photo-hint">(optional — e.g. ISE, Blitz)</span></label>
+                        <input type="text" class="hd-manual-shift" data-idx="${idx}" value="${escapeHtml(issue.manualShiftName)}" placeholder="Which shift is this for?">
+                    </div>
+                    <div class="field" style="margin-top:10px;">
+                        <label>Set name / description</label>
+                        <input type="text" class="hd-manual-set-name" data-idx="${idx}" value="${escapeHtml(issue.manualSetName)}" placeholder="e.g. Frozen Pizza 4ft endcap">
+                    </div>
+                    <div class="field-group" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+                        <div class="field" style="flex:1; min-width:120px;">
+                            <label>Category # (C)</label>
+                            <input type="text" class="hd-manual-category" data-idx="${idx}" value="${escapeHtml(issue.manualCategoryNumber)}" placeholder="1234" inputmode="numeric">
+                        </div>
+                        <div class="field" style="flex:1; min-width:120px;">
+                            <label>Version (V)</label>
+                            <input type="text" class="hd-manual-version" data-idx="${idx}" value="${escapeHtml(issue.manualVersion)}" placeholder="D701">
+                        </div>
+                        <div class="field" style="flex:1; min-width:140px;">
+                            <label>DB key <span class="hd-photo-hint">(optional)</span></label>
+                            <input type="text" class="hd-manual-dbkey" data-idx="${idx}" value="${escapeHtml(issue.manualDbkey)}" placeholder="8509659" inputmode="numeric">
+                        </div>
+                    </div>
+                </div>
                 <div class="field hd-custom-field" style="${isCustom ? '' : 'display:none'}">
                     <label>Describe the issue</label>
-                    <input type="text" class="hd-custom-input" data-idx="${idx}" value="${escapeHtml(issue.customIssue)}" placeholder="Type the issue manually">
+                    <input type="text" class="hd-custom-input" data-idx="${idx}" value="${escapeHtml(issue.customIssue)}" placeholder="What is wrong or what do you need?">
                 </div>
                 <div class="field">
                     <label>Details</label>
@@ -136,6 +203,26 @@
             });
         });
 
+        container.querySelectorAll('.hd-set-manual').forEach((cb) => {
+            cb.addEventListener('change', () => {
+                const i = Number(cb.dataset.idx);
+                wizardIssues[i].setEntryManual = cb.checked;
+                if (cb.checked) {
+                    wizardIssues[i].shiftVisitId = '';
+                    wizardIssues[i].setLabel = '';
+                    wizardIssues[i].categoryNumber = '';
+                    wizardIssues[i].version = '';
+                } else {
+                    wizardIssues[i].manualShiftName = '';
+                    wizardIssues[i].manualSetName = '';
+                    wizardIssues[i].manualCategoryNumber = '';
+                    wizardIssues[i].manualVersion = '';
+                    wizardIssues[i].manualDbkey = '';
+                }
+                renderWizardIssues();
+            });
+        });
+
         container.querySelectorAll('.hd-shift-select').forEach((sel) => {
             sel.addEventListener('change', () => {
                 const i = Number(sel.dataset.idx);
@@ -158,6 +245,36 @@
         container.querySelectorAll('.hd-custom-input').forEach((inp) => {
             inp.addEventListener('input', () => {
                 wizardIssues[Number(inp.dataset.idx)].customIssue = inp.value;
+            });
+        });
+
+        container.querySelectorAll('.hd-manual-shift').forEach((inp) => {
+            inp.addEventListener('input', () => {
+                wizardIssues[Number(inp.dataset.idx)].manualShiftName = inp.value;
+            });
+        });
+
+        container.querySelectorAll('.hd-manual-set-name').forEach((inp) => {
+            inp.addEventListener('input', () => {
+                wizardIssues[Number(inp.dataset.idx)].manualSetName = inp.value;
+            });
+        });
+
+        container.querySelectorAll('.hd-manual-category').forEach((inp) => {
+            inp.addEventListener('input', () => {
+                wizardIssues[Number(inp.dataset.idx)].manualCategoryNumber = inp.value;
+            });
+        });
+
+        container.querySelectorAll('.hd-manual-version').forEach((inp) => {
+            inp.addEventListener('input', () => {
+                wizardIssues[Number(inp.dataset.idx)].manualVersion = inp.value;
+            });
+        });
+
+        container.querySelectorAll('.hd-manual-dbkey').forEach((inp) => {
+            inp.addEventListener('input', () => {
+                wizardIssues[Number(inp.dataset.idx)].manualDbkey = inp.value;
             });
         });
 
@@ -321,12 +438,16 @@
         const photoWarnings = [];
         wizardIssues.forEach((issue, i) => {
             if (!issue.issueTypeId) problems.push(`Issue ${i + 1}: select an issue type.`);
-            if (issue.issueTypeId && issue.issueTypeId !== 'custom') {
-                if (!issue.shiftVisitId) problems.push(`Issue ${i + 1}: select a shift.`);
-                if (!issue.setLabel) problems.push(`Issue ${i + 1}: select a set (or use Report other).`);
+            if (issue.issueTypeId === 'custom' && !issue.customIssue.trim() && !issue.manualSetName.trim()) {
+                problems.push(`Issue ${i + 1}: describe the issue or enter a set name.`);
             }
-            if (issue.issueTypeId === 'custom' && !issue.customIssue.trim()) {
-                problems.push(`Issue ${i + 1}: describe the custom issue.`);
+            if (issue.setEntryManual) {
+                if (!issue.manualSetName.trim()) {
+                    problems.push(`Issue ${i + 1}: enter the set name or description.`);
+                }
+            } else if (issue.issueTypeId && issue.issueTypeId !== 'custom') {
+                if (!issue.shiftVisitId) problems.push(`Issue ${i + 1}: select a shift, or check "enter set details manually".`);
+                if (!issue.setLabel) problems.push(`Issue ${i + 1}: select a set, or check "enter set details manually".`);
             }
             if (!issue.photos.length) {
                 photoWarnings.push(`Issue ${i + 1} has no photos.`);
@@ -371,9 +492,11 @@
             const issuesToSend = wizardIssues.filter((issue) => issue.issueTypeId);
             for (const issue of issuesToSend) {
                 const opt = EOD_HELPDESK_ISSUE_OPTIONS.find((o) => o.id === issue.issueTypeId);
-                const shiftLabel = issue.shiftVisitId && map[issue.shiftVisitId]
-                    ? map[issue.shiftVisitId].label
-                    : '';
+                const meta = resolveIssueSetMeta(issue, map);
+                const issueDetails = [
+                    issue.details,
+                    meta.dbkey ? `DB key: ${meta.dbkey}` : '',
+                ].filter(Boolean).join('\n');
 
                 const resp = await window.authFetch(`${window.EOD_API_BASE}/send-eod-helpdesk-report`, {
                     method: 'POST',
@@ -381,14 +504,15 @@
                     body: JSON.stringify({
                         storeNumber,
                         workDate,
-                        shiftLabel,
-                        setLabel: issue.setLabel || issue.customIssue,
-                        categoryNumber: issue.categoryNumber || null,
-                        version: issue.version || null,
+                        shiftLabel: meta.shiftLabel,
+                        setLabel: meta.setLabel || issue.customIssue,
+                        categoryNumber: meta.categoryNumber,
+                        version: meta.version,
                         issueTypeId: issue.issueTypeId,
                         issueTypeLabel: opt?.label || issue.issueTypeId,
-                        issueDetails: issue.details,
+                        issueDetails,
                         customIssue: issue.customIssue,
+                        setEntryManual: issue.setEntryManual,
                         photos: issue.photos,
                         userName,
                         userEmail,
@@ -437,7 +561,7 @@
         const issueEl = document.getElementById('issue');
         const summary = submitted.map((s) => {
             const opt = EOD_HELPDESK_ISSUE_OPTIONS.find((o) => o.id === s.issueTypeId);
-            return `${opt?.label || s.issueTypeId}: ${s.setLabel || s.customIssue}`;
+            return `${opt?.label || s.issueTypeId}: ${issueSetDisplayName(s)}`;
         }).join('; ');
         if (commodities) commodities.value = 'See help desk reports';
         if (issueEl) issueEl.value = summary;
@@ -452,9 +576,10 @@
         }
 
         submitted.forEach((issue) => {
-            if (issue.issueTypeId === 'not_in_store' && issue.setLabel) {
-                if (!window.notInStoreSelected.includes(issue.setLabel)) {
-                    window.notInStoreSelected.push(issue.setLabel);
+            const setName = issueSetDisplayName(issue);
+            if (issue.issueTypeId === 'not_in_store' && setName) {
+                if (!window.notInStoreSelected.includes(setName)) {
+                    window.notInStoreSelected.push(setName);
                 }
             }
         });
