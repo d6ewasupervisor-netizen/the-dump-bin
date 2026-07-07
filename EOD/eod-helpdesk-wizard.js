@@ -30,35 +30,55 @@
     let wizardPhotoEdit = null;
 
     function issueOptionsHtml(selected) {
-        return EOD_HELPDESK_ISSUE_OPTIONS.map((opt) =>
-            `<option value="${opt.id}"${selected === opt.id ? ' selected' : ''}>${escapeHtml(opt.label)}</option>`
-        ).join('');
+        const opts = '<option value=""' + (!selected ? ' selected' : '') + '>Select or enter the issue…</option>' +
+            EOD_HELPDESK_ISSUE_OPTIONS.map((opt) =>
+                `<option value="${opt.id}"${selected === opt.id ? ' selected' : ''}>${escapeHtml(opt.label)}</option>`
+            ).join('');
+        return opts;
     }
 
     function shiftOptionsHtml(selectedVisitId) {
         const map = window.allShiftsSetsMap || {};
         const keys = Object.keys(map);
+        const normSelected = typeof window.normalizeVisitId === 'function'
+            ? window.normalizeVisitId(selectedVisitId)
+            : String(selectedVisitId || '');
         if (!keys.length) {
             return '<option value="">Find shifts first</option>';
         }
         return '<option value="">Select shift…</option>' +
             keys.map((vid) => {
-                const lbl = map[vid].label || vid;
-                return `<option value="${escapeHtml(vid)}"${selectedVisitId === vid ? ' selected' : ''}>${escapeHtml(lbl)}</option>`;
+                const info = map[vid];
+                const lbl = info?.label || vid;
+                const normVid = typeof window.normalizeVisitId === 'function'
+                    ? window.normalizeVisitId(vid)
+                    : String(vid);
+                return `<option value="${escapeHtml(vid)}"${normSelected === normVid ? ' selected' : ''}>${escapeHtml(lbl)}</option>`;
             }).join('');
     }
 
     function setOptionsHtml(visitId, selectedLabel) {
         const map = window.allShiftsSetsMap || {};
-        const entry = visitId && map[visitId];
+        const normVisitId = typeof window.normalizeVisitId === 'function'
+            ? window.normalizeVisitId(visitId)
+            : String(visitId || '');
+        const entry = normVisitId && map[normVisitId];
         const sets = entry ? entry.sets : [];
-        if (!sets.length) {
+        if (!normVisitId) {
             return '<option value="">Select a shift first</option>';
         }
+        if (!sets.length) {
+            return '<option value="">No sets loaded for this shift</option>';
+        }
+        const displayFn = typeof window.setDisplayLabel === 'function'
+            ? window.setDisplayLabel
+            : (typeof window.setLabel === 'function' ? window.setLabel : (s) => s.name || '');
+        const valueFn = typeof window.setLabel === 'function' ? window.setLabel : (s) => s.name || '';
         return '<option value="">Select set…</option>' +
             sets.map((s) => {
-                const lbl = typeof window.setLabel === 'function' ? window.setLabel(s) : (s.name || '');
-                return `<option value="${escapeHtml(lbl)}" data-number="${s.number || ''}" data-version="${escapeHtml(s.version || '')}" data-dbkey="${escapeHtml(s.dbkey || '')}"${selectedLabel === lbl ? ' selected' : ''}>${escapeHtml(lbl)}</option>`;
+                const lbl = valueFn(s);
+                const text = displayFn(s);
+                return `<option value="${escapeHtml(lbl)}" data-number="${s.number || ''}" data-version="${escapeHtml(s.version || '')}" data-dbkey="${escapeHtml(s.dbkey || '')}" data-footage="${escapeHtml(s.footage || '')}"${selectedLabel === lbl ? ' selected' : ''}>${escapeHtml(text)}</option>`;
             }).join('');
     }
 
@@ -82,6 +102,11 @@
         };
     }
 
+    function normalizeVisitId(visitId) {
+        if (typeof window.normalizeVisitId === 'function') return window.normalizeVisitId(visitId);
+        return visitId == null || visitId === '' ? '' : String(visitId);
+    }
+
     function resolveIssueSetMeta(issue, map) {
         if (issue.setEntryManual) {
             return {
@@ -93,8 +118,8 @@
             };
         }
         return {
-            shiftLabel: issue.shiftVisitId && map[issue.shiftVisitId]
-                ? map[issue.shiftVisitId].label
+            shiftLabel: issue.shiftVisitId && map[normalizeVisitId(issue.shiftVisitId)]
+                ? map[normalizeVisitId(issue.shiftVisitId)].label
                 : '',
             setLabel: (issue.setLabel || '').trim(),
             categoryNumber: issue.categoryNumber || null,
@@ -228,6 +253,8 @@
                 const i = Number(sel.dataset.idx);
                 wizardIssues[i].shiftVisitId = sel.value;
                 wizardIssues[i].setLabel = '';
+                wizardIssues[i].categoryNumber = '';
+                wizardIssues[i].version = '';
                 renderWizardIssues();
             });
         });

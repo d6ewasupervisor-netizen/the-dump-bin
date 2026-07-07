@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-07-07T16:25Z eod-v2.0-mobile-optimization -->
+<!-- build: 2026-07-07T16:45Z eod-v2.1-shift-set-picker-fix -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -3041,7 +3041,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v2.0</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v2.1</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4001,7 +4001,7 @@
         // gated app under the-dump-bin.com. EOD only waits for that gate and
         // uses its authenticated fetch helper for EOD API calls.
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-        const EOD_APP_VERSION = '2.0';
+        const EOD_APP_VERSION = '2.1';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
@@ -8669,6 +8669,9 @@ ${data.Notes || ''}`;
             window.emailRecipients = emailRecipients;
             window.helpdeskSubmittedReports = helpdeskSubmittedReports;
             if (typeof setLabel === 'function') window.setLabel = setLabel;
+            if (typeof setDisplayLabel === 'function') window.setDisplayLabel = setDisplayLabel;
+            if (typeof buildShiftDisplayLabel === 'function') window.buildShiftDisplayLabel = buildShiftDisplayLabel;
+            if (typeof normalizeVisitId === 'function') window.normalizeVisitId = normalizeVisitId;
         }
         window.syncEodWizardGlobals = syncEodWizardGlobals;
         syncEodWizardGlobals();
@@ -9432,8 +9435,53 @@ ${data.Notes || ''}`;
         // Build the display label for a set: "{dbkey}_{categoryName}".
         // Falls back to just the name when no dbkey is available.
         function setLabel(s) {
-            const k = extractDbkey(s.planogramId);
+            const k = extractDbkey(s.planogramId) || s.dbkey;
             return k ? `${k}_${s.name}` : s.name;
+        }
+
+        function extractFootageFromPlanogram(planogramId) {
+            const raw = String(planogramId || '').trim();
+            if (!raw) return null;
+            const f = raw.match(/_F(\d{3,5})_/);
+            if (f) {
+                const n = parseInt(f[1], 10);
+                return n ? `${n} ft` : null;
+            }
+            const l = raw.match(/_L(\d{5})_/);
+            if (l) {
+                const n = parseInt(l[1], 10);
+                if (!n) return null;
+                const ft = n / 100;
+                const txt = Number.isInteger(ft) ? String(ft) : ft.toFixed(2).replace(/\.?0+$/, '');
+                return `${txt} ft`;
+            }
+            return null;
+        }
+
+        function setDisplayLabel(s) {
+            const name = (s.name || 'Unnamed').trim();
+            const version = s.version ? `V${s.version}` : '';
+            const footage = s.footage || extractFootageFromPlanogram(s.planogramId);
+            const parts = [name];
+            if (footage) parts.push(footage);
+            if (version) parts.push(version);
+            const dbkey = s.dbkey || extractDbkey(s.planogramId);
+            if (dbkey) parts.push(`#${dbkey}`);
+            return parts.join(' · ');
+        }
+
+        function normalizeVisitId(visitId) {
+            return visitId == null || visitId === '' ? '' : String(visitId);
+        }
+
+        function buildShiftDisplayLabel(shift) {
+            const project = (shift?.projectName || shift?.teamName || 'Unnamed Shift').trim();
+            const lead = (shift?.visitLead || '').trim();
+            const hours = shift?.totalHours != null ? `${shift.totalHours}h` : '';
+            const parts = [project];
+            if (hours) parts.push(hours);
+            if (lead) parts.push(`Lead: ${lead}`);
+            return parts.join(' · ');
         }
         syncEodWizardGlobals();
 
@@ -9450,15 +9498,16 @@ ${data.Notes || ''}`;
 
             await Promise.allSettled(
                 shifts.map(async (shift) => {
-                    const visitId = shift && shift.visitId;
+                    const visitId = normalizeVisitId(shift && shift.visitId);
                     if (!visitId) return;
                     try {
                         const resp = await authFetch(`${SM_API_BASE}/api/shifts/${encodeURIComponent(visitId)}/sets`);
                         if (!resp.ok) throw new Error(`Server error (${resp.status})`);
                         const data = await resp.json();
-                        const label = shift.kompassType || shift.projectName || String(visitId);
+                        const label = buildShiftDisplayLabel(shift);
                         allShiftsSetsMap[visitId] = {
                             label,
+                            shift,
                             sets: Array.isArray(data?.sets) ? data.sets : [],
                         };
                     } catch (err) {
@@ -9468,14 +9517,14 @@ ${data.Notes || ''}`;
             );
 
             // Auto-select so the pickers work immediately without any extra click:
-            // one shift → select it; multiple shifts → select "all" so every set
-            // from every shift is visible right away.
+            // one shift → select it; multiple shifts → leave unselected so the
+            // lead picks the exact Blitz vs regular ISE shift themselves.
             const visitIds = Object.keys(allShiftsSetsMap);
             if (visitIds.length === 1) {
-                notInPickerShiftId = parseInt(visitIds[0], 10);
+                notInPickerShiftId = visitIds[0];
                 shiftSets = allShiftsSetsMap[visitIds[0]].sets;
             } else if (visitIds.length > 1) {
-                notInPickerShiftId = 'all';
+                notInPickerShiftId = null;
             }
 
             renderShiftPickerDropdown();
@@ -9503,7 +9552,7 @@ ${data.Notes || ''}`;
                 `<option value="all"${allSelected ? ' selected' : ''}>All shifts (${totalCount} sets)</option>` +
                 visitIds.map((vid) => {
                     const info = allShiftsSetsMap[vid];
-                    const isSelected = String(notInPickerShiftId) === String(vid);
+                    const isSelected = normalizeVisitId(notInPickerShiftId) === normalizeVisitId(vid);
                     return `<option value="${vid}"${isSelected ? ' selected' : ''}>${escapeHtml(info.label)}</option>`;
                 }).join('');
 
@@ -9511,8 +9560,8 @@ ${data.Notes || ''}`;
                 if (notInPickerShiftId === 'all') {
                     help.textContent = `Showing all ${totalCount} set${totalCount === 1 ? '' : 's'} across all shifts.`;
                 } else {
-                    const count = notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId]
-                        ? allShiftsSetsMap[notInPickerShiftId].sets.length
+                    const count = notInPickerShiftId && allShiftsSetsMap[normalizeVisitId(notInPickerShiftId)]
+                        ? allShiftsSetsMap[normalizeVisitId(notInPickerShiftId)].sets.length
                         : null;
                     help.textContent = count != null
                         ? `${count} set${count === 1 ? '' : 's'} on this shift.`
@@ -9538,7 +9587,7 @@ ${data.Notes || ''}`;
                 });
                 shiftSets = merged;
             } else {
-                notInPickerShiftId = raw ? parseInt(raw, 10) : null;
+                notInPickerShiftId = raw ? normalizeVisitId(raw) : null;
                 if (notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId]) {
                     shiftSets = allShiftsSetsMap[notInPickerShiftId].sets;
                 }
@@ -9552,7 +9601,7 @@ ${data.Notes || ''}`;
         // for this shift (loaded by loadAllShiftsSets in the background) we
         // reuse it rather than re-fetching.
         async function loadShiftSets(shift) {
-            const visitId = shift && shift.visitId;
+            const visitId = normalizeVisitId(shift && shift.visitId);
             if (!visitId) {
                 shiftSets = [];
                 renderSetsPickers();
@@ -9575,8 +9624,8 @@ ${data.Notes || ''}`;
                 const data = await resp.json();
                 shiftSets = Array.isArray(data?.sets) ? data.sets : [];
                 // Populate allShiftsSetsMap so the picker can use it too.
-                const label = shift.kompassType || shift.projectName || String(visitId);
-                allShiftsSetsMap[visitId] = { label, sets: shiftSets };
+                const label = buildShiftDisplayLabel(shift);
+                allShiftsSetsMap[visitId] = { label, shift, sets: shiftSets };
             } catch (err) {
                 console.warn('Failed to load shift sets:', err);
                 shiftSets = [];
@@ -9615,18 +9664,17 @@ ${data.Notes || ''}`;
                     });
                 });
             } else {
-                activeSets = (notInPickerShiftId && allShiftsSetsMap[notInPickerShiftId])
-                    ? allShiftsSetsMap[notInPickerShiftId].sets
+                activeSets = (notInPickerShiftId && allShiftsSetsMap[normalizeVisitId(notInPickerShiftId)])
+                    ? allShiftsSetsMap[normalizeVisitId(notInPickerShiftId)].sets
                     : (Object.keys(allShiftsSetsMap).length === 1
                         ? allShiftsSetsMap[Object.keys(allShiftsSetsMap)[0]].sets
                         : shiftSets);
             }
 
-            // Build dropdown options using "{dbkey}_{name}" labels so the
-            // lead can identify the exact planogram at a glance.
+            // Build dropdown options — show full name, footage, and version.
             const remaining = activeSets
-                .map(s => setLabel(s))
-                .filter(label => label && !selected.includes(label));
+                .map(s => ({ value: setLabel(s), text: setDisplayLabel(s) }))
+                .filter(item => item.value && !selected.includes(item.value));
 
             let placeholder;
             if (!hasAnyShifts) {
@@ -9640,7 +9688,7 @@ ${data.Notes || ''}`;
             }
 
             select.innerHTML = `<option value="">${placeholder}</option>` +
-                remaining.map(label => `<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`).join('');
+                remaining.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.text)}</option>`).join('');
             select.disabled = !hasAnyShifts || needsShiftPick || activeSets.length === 0;
 
             // Render selection chips with X buttons. We use data
@@ -11214,6 +11262,6 @@ ${data.Notes || ''}`;
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=2.0"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.1"></script>
 </body>
 </html>
