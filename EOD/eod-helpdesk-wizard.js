@@ -558,6 +558,7 @@
                         storeNumber,
                         reportDate,
                         shiftLabel: meta.shiftLabel,
+                        shiftVisitId: issue.shiftVisitId || '',
                         setLabel: meta.setLabel || issue.customIssue,
                         categoryNumber: meta.categoryNumber,
                         categoryName: meta.categoryName,
