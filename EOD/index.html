@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-06-05T18:35Z apple-photo-upload-fix -->
+<!-- build: 2026-07-07T15:35Z eod-v1.8-hotfix-helpdesk-wizard -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -151,6 +151,161 @@
             max-width: 500px;
             width: 80%;
             margin-bottom: 15px;
+        }
+
+        .header-logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .eod-version-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #93c5fd;
+            background: #1e3a5f;
+            border: 1px solid #2563eb;
+            border-radius: 999px;
+            padding: 4px 10px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .eod-update-banner {
+            display: none;
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            background: #1e3a5f;
+            border: 1px solid #2563eb;
+            border-radius: 8px;
+            color: #dbeafe;
+            font-size: 14px;
+            line-height: 1.45;
+            text-align: left;
+        }
+
+        .eod-update-banner.visible {
+            display: block;
+        }
+
+        .eod-update-banner strong {
+            color: #93c5fd;
+        }
+
+        /* Help desk wizard */
+        .helpdesk-wizard-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            background: rgba(0, 0, 0, 0.75);
+            overflow-y: auto;
+            padding: 16px;
+            padding-top: calc(16px + var(--safe-area-inset-top));
+            padding-bottom: calc(16px + var(--safe-area-inset-bottom));
+        }
+
+        .helpdesk-wizard-overlay.show {
+            display: block;
+        }
+
+        .helpdesk-wizard-dialog {
+            max-width: 720px;
+            margin: 0 auto;
+            background: #111827;
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid #374151;
+        }
+
+        .hd-issue-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .hd-issue-header {
+            font-weight: 700;
+            color: #93c5fd;
+            margin-bottom: 10px;
+        }
+
+        .hd-photo-hint {
+            font-weight: 400;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .hd-photo-thumbs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0;
+        }
+
+        .hd-photo-thumb {
+            position: relative;
+            width: 88px;
+            height: 88px;
+        }
+
+        .hd-photo-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #4b5563;
+        }
+
+        .hd-photo-thumb button {
+            position: absolute;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+            padding: 2px 5px;
+        }
+
+        .hd-photo-annotate {
+            left: 4px;
+            bottom: 4px;
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .hd-photo-remove {
+            right: 4px;
+            top: 4px;
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .recipient-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1f2937;
+            border: 1px solid #4b5563;
+            border-radius: 999px;
+            padding: 4px 10px;
+            margin: 4px 6px 4px 0;
+            font-size: 13px;
+        }
+
+        .recipient-chip button {
+            background: none;
+            border: none;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
         }
 
         .header h1 {
@@ -2774,6 +2929,10 @@
 </head>
 <body>
     <div class="container">
+        <div id="eodUpdateBanner" class="eod-update-banner" role="status" aria-live="polite">
+            <strong>App update installing</strong><br>
+            A new version is available. Your photos, signature, and form entries are saved on this device and will not be lost. Reloading automatically…
+        </div>
         <div class="header" onclick="openQuickView()">
             <button class="refresh-connections-btn" id="refreshConnectionsBtn" onclick="event.stopPropagation(); refreshConnections();" title="Refresh SAS / Rebotics auth">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2784,6 +2943,9 @@
                 </svg>
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
+            <div class="header-logo-row">
+                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v1.8</span>
+            </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
             <p>GENERATOR</p>
@@ -3280,20 +3442,34 @@
             </div>
 
             <div class="field" style="margin-top: 15px;">
-                <label>Did you call the KOMPASS Hotline?</label>
+                <label>Do you need to contact the Kompass help desk?</label>
                 <div class="checkbox-group">
                     <div class="checkbox-option">
-                        <input type="checkbox" id="hotlineYes" name="hotline" value="Yes" onchange="toggleHotline(this)">
-                        <label for="hotlineYes">Yes</label>
+                        <input type="checkbox" id="helpdeskNeedYes" name="helpdeskNeed" value="Yes" onchange="toggleHelpdeskNeed(this)">
+                        <label for="helpdeskNeedYes">Yes</label>
                     </div>
                     <div class="checkbox-option">
-                        <input type="checkbox" id="hotlineNo" name="hotline" value="No" onchange="toggleHotline(this)">
-                        <label for="hotlineNo">No</label>
+                        <input type="checkbox" id="helpdeskNeedNo" name="helpdeskNeed" value="No" onchange="toggleHelpdeskNeed(this)">
+                        <label for="helpdeskNeedNo">No</label>
                     </div>
                 </div>
+                <div class="sets-help" style="margin-top:8px;">If yes, a report form opens to send issue details and photos to the help desk.</div>
             </div>
 
             <div id="hotlineDetails" style="display: none; margin-top: 15px;">
+                <div class="field">
+                    <label>Did you contact the KOMPASS help desk?</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-option">
+                            <input type="checkbox" id="hotlineYes" name="hotline" value="Yes" onchange="toggleHotline(this)">
+                            <label for="hotlineYes">Yes</label>
+                        </div>
+                        <div class="checkbox-option">
+                            <input type="checkbox" id="hotlineNo" name="hotline" value="No" onchange="toggleHotline(this)">
+                            <label for="hotlineNo">No</label>
+                        </div>
+                    </div>
+                </div>
                 <div class="field">
                     <label>Commodities involved:</label>
                     <input type="text" id="commodities" placeholder="Enter commodities">
@@ -3387,7 +3563,7 @@
                     <select id="notInStoreSelect" onchange="addSetNotIn('store')">
                         <option value="">-- Select a set from your shift --</option>
                     </select>
-                    <input type="text" id="notInStoreOther" placeholder="Other (set not in the list above)" oninput="autoSave()">
+                    <input type="text" id="notInStoreOther" placeholder="Other — type set name and press Enter" onkeydown="onNotInOtherKeydown(event, 'store')" oninput="autoSave()">
                 </div>
                 <div class="sets-help" id="notInStoreHelp">Find shifts to load the available sets.</div>
             </div>
@@ -3399,7 +3575,7 @@
                     <select id="notInSiSelect" onchange="addSetNotIn('si')">
                         <option value="">-- Select a set from your shift --</option>
                     </select>
-                    <input type="text" id="notInSiOther" placeholder="Other (set not in the list above)" oninput="autoSave()">
+                    <input type="text" id="notInSiOther" placeholder="Other — type set name and press Enter" onkeydown="onNotInOtherKeydown(event, 'si')" oninput="autoSave()">
                 </div>
                 <div class="sets-help" id="notInSiHelp">Find shifts to load the available sets.</div>
             </div>
@@ -3495,6 +3671,37 @@
         <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
         <img id="lightboxImage" src="" alt="Full size photo">
         <div id="lightboxInfo" class="lightbox-info"></div>
+    </div>
+
+    <!-- Help Desk Report Wizard -->
+    <div id="helpdeskWizardOverlay" class="helpdesk-wizard-overlay" onclick="if(event.target===this)closeHelpdeskWizard()">
+        <div class="helpdesk-wizard-dialog" onclick="event.stopPropagation()">
+            <h2 style="color:#93c5fd; margin-bottom:8px;">KOMPASS Help Desk Report</h2>
+            <p style="color:#9ca3af; font-size:14px; margin-bottom:14px;">Complete one section per issue. Each issue is emailed separately. Add photos and annotate them so the problem area is visible.</p>
+            <div id="helpdeskWizardIssues"></div>
+            <div class="section" style="margin-top:12px; padding:12px; background:#0f172a;">
+                <div class="section-title" style="font-size:15px;">Email copies</div>
+                <div class="field">
+                    <label>Add recipient (CC):</label>
+                    <div class="email-input-group">
+                        <input type="email" id="helpdeskWizardEmailInput" placeholder="recipient@example.com">
+                        <button type="button" class="btn btn-primary add-recipient-btn" id="helpdeskWizardAddRecipient">Add</button>
+                    </div>
+                </div>
+                <div class="field" id="helpdeskWizardRecipientContainer" style="margin-top:8px; display:none;">
+                    <label>CC recipients:</label>
+                    <div id="helpdeskWizardRecipientList"></div>
+                </div>
+                <div class="checkbox-option" style="margin-top:8px;">
+                    <input type="checkbox" id="helpdeskAddRetailOdysseyTeam">
+                    <label for="helpdeskAddRetailOdysseyTeam">Add Retail Odyssey Team</label>
+                </div>
+            </div>
+            <div class="button-group" style="margin-top:16px;">
+                <button type="button" class="btn btn-secondary" onclick="closeHelpdeskWizard()">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitHelpdeskWizard()">Confirm help desk reports are complete and submit</button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal -->
@@ -3688,6 +3895,11 @@
         // gated app under the-dump-bin.com. EOD only waits for that gate and
         // uses its authenticated fetch helper for EOD API calls.
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
+        const EOD_APP_VERSION = '1.8';
+        const EOD_VERSION_URL = 'eod-version.json';
+        const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
+        const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
+        window.EOD_API_BASE = EOD_API_BASE;
 
         function applyUserRoles(roles) {
             document.body.className = document.body.className
@@ -3733,6 +3945,7 @@
 
             return resp;
         }
+        window.authFetch = authFetch;
 
         // EOD app boot after the site-wide auth gate settles.
         (async () => {
@@ -4035,6 +4248,7 @@
             // unchanged. We only ever keep the most-recent photo (length <= 1).
             instawork: []
         };
+        if (!photos.helpdesk) photos.helpdesk = [];
 
         // Tracks the saver response after a successful InstaWork JPG save.
         // When non-null, the lead has already confirmed-and-saved the
@@ -4490,6 +4704,9 @@
                 emailRecipients: emailRecipients,
                 hotlineYes: document.getElementById('hotlineYes').checked,
                 hotlineNo: document.getElementById('hotlineNo').checked,
+                helpdeskNeedYes: document.getElementById('helpdeskNeedYes')?.checked || false,
+                helpdeskNeedNo: document.getElementById('helpdeskNeedNo')?.checked || false,
+                helpdeskSubmittedReports: helpdeskSubmittedReports || [],
                 instaworkYes: document.getElementById('instaworkYes')?.checked || false,
                 instaworkNo: document.getElementById('instaworkNo')?.checked || false,
                 resolvedYes: document.getElementById('resolvedYes').checked,
@@ -4592,6 +4809,17 @@
                     document.getElementById('hotlineDetails').style.display = 'block';
                 }
                 if (data.hotlineNo) document.getElementById('hotlineNo').checked = true;
+                if (data.helpdeskNeedYes) {
+                    const el = document.getElementById('helpdeskNeedYes');
+                    if (el) el.checked = true;
+                }
+                if (data.helpdeskNeedNo) {
+                    const el = document.getElementById('helpdeskNeedNo');
+                    if (el) el.checked = true;
+                }
+                if (Array.isArray(data.helpdeskSubmittedReports)) {
+                    helpdeskSubmittedReports = data.helpdeskSubmittedReports.slice();
+                }
                 const instaworkYesEl = document.getElementById('instaworkYes');
                 const instaworkNoEl = document.getElementById('instaworkNo');
                 const instaworkPanelEl = document.getElementById('instaworkYesPanel');
@@ -4873,7 +5101,13 @@
         const photoProcessingGuard = {};
 
         // Photo handling with orientation correction and HEIC support
-        // Auto-check checkbox when photo is added, auto-uncheck when all photos removed
+        // Auto-check checkbox when photo is added (local or PROD sync), auto-uncheck when empty
+        function hasPhotosForType(type) {
+            const localCount = (photos[type] || []).length;
+            const prodCount = (prodPhotos[type] || []).filter((p) => p.selectedForEod !== false).length;
+            return localCount + prodCount > 0;
+        }
+
         function updatePhotoCheckbox(type) {
             const checkboxMap = {
                 'before': 'beforeComplete',
@@ -4884,7 +5118,8 @@
             if (checkboxId) {
                 const checkbox = document.getElementById(checkboxId);
                 if (checkbox) {
-                    checkbox.checked = photos[type].length > 0;
+                    checkbox.checked = hasPhotosForType(type);
+                    if (checkbox.checked && typeof autoSave === 'function') autoSave();
                 }
             }
         }
@@ -5988,7 +6223,11 @@
 
         function openImageEditor(photoIndex, type) {
             editorCurrentPhotoIndex = photoIndex;
-            editorCurrentType = (type === 'instawork') ? 'instawork' : 'signoff';
+            if (type === 'helpdesk') {
+                editorCurrentType = 'helpdesk';
+            } else {
+                editorCurrentType = (type === 'instawork') ? 'instawork' : 'signoff';
+            }
             const photoData = photos[editorCurrentType][photoIndex];
 
             // Reset all editor state
@@ -6737,7 +6976,19 @@
             // as a 10-20MB PNG.
             const rawDataUrl = fullResCanvas.toDataURL('image/png');
             const targetType = editorCurrentType;
-            const finalDataUrl = await optimizePhotoForStorage(rawDataUrl, targetType);
+            const finalDataUrl = await optimizePhotoForStorage(rawDataUrl, targetType === 'helpdesk' ? 'signoff' : targetType);
+
+            if (targetType === 'helpdesk') {
+                if (typeof window.saveHelpdeskAnnotatedPhoto === 'function') {
+                    window.saveHelpdeskAnnotatedPhoto(finalDataUrl);
+                }
+                imageEditorOverlay.classList.remove('show');
+                editorOriginalImage = null;
+                editorCurrentPhotoIndex = -1;
+                setAnnotateMode(false);
+                clearEditorAnnotations();
+                return;
+            }
 
             // Update the photo in the array (signoff OR instawork)
             photos[targetType][editorCurrentPhotoIndex] = finalDataUrl;
@@ -7222,7 +7473,7 @@ Store Number: ${data.StoreNumber || ''}
 Before picture of KOMPASS cart taken: ${beforeDone ? 'Yes' : 'No'}
 Manager checked in with: ${data.CheckInManager || ''}
 InstaWork support: ${instaworkYes ? 'Yes' : 'No'}${instaworkSave ? ` (sign-out sheet photo saved → ${instaworkSave.folder}\\${(instaworkSave.filePath || '').split(/[\\/]/).pop()})` : ''}
-Called KOMPASS Hotline: ${pickYN(data.CalledHotline)}
+Called KOMPASS Help Desk: ${pickYN(data.CalledHotline)}
 Commodities: ${data.IssueCommodities || 'N/A'}
 Issue: ${data.WhatIsIssue || 'N/A'}
 Issue resolved: ${data.IssueResolved || 'N/A'}
@@ -7989,13 +8240,22 @@ ${data.Notes || ''}`;
                         '<span class="toggle-slider"></span>' +
                     '</label>' +
                     '<label class="toggle-switch-label" for="resetPersonalToggle" style="font-size: 14px;">Remove personal details</label>' +
+                '</div>' +
+                '<div class="toggle-switch" style="margin-top: 12px; justify-content: flex-start; background: #450a0a;">' +
+                    '<label class="toggle-switch-wrapper">' +
+                        '<input type="checkbox" id="resetEraseEverythingToggle">' +
+                        '<span class="toggle-slider"></span>' +
+                    '</label>' +
+                    '<label class="toggle-switch-label" for="resetEraseEverythingToggle" style="font-size: 14px; color:#fecaca;">Erase everything (images, store, signature, all checkboxes)</label>' +
                 '</div>',
                 () => {
                     const removePersonal = document.getElementById('resetPersonalToggle').checked;
+                    const eraseEverything = document.getElementById('resetEraseEverythingToggle').checked;
+                    const wipeAll = removePersonal || eraseEverything;
 
-                    // Save personal details before reset if toggle is off
+                    // Save personal details before reset if neither destructive toggle is on
                     let savedName, savedEmail, savedSignature, savedProfile;
-                    if (!removePersonal) {
+                    if (!wipeAll) {
                         savedName = document.getElementById('profileName').value;
                         savedEmail = document.getElementById('profileEmail').value;
                         savedProfile = localStorage.getItem('kompassProfile');
@@ -8003,6 +8263,12 @@ ${data.Notes || ''}`;
                     }
 
                     localStorage.removeItem('kompassEOD');
+                    if (eraseEverything) {
+                        localStorage.removeItem('kompassProfile');
+                        localStorage.removeItem('kompassSignature');
+                        localStorage.removeItem('kompassDayConfirm');
+                        helpdeskSubmittedReports = [];
+                    }
                     // Clear photos from IndexedDB
                     PhotoDB.clearPhotos().catch(e => console.warn('Could not clear photos from IndexedDB:', e));
                     photos.before = [];
@@ -8015,10 +8281,12 @@ ${data.Notes || ''}`;
                     setInstaworkOverlay('hide');
                     reopenInstaworkPanel();
                     emailRecipients = [];
+                    syncEodWizardGlobals();
                     selectedShift = null;
                     shiftSets = [];
                     notInStoreSelected = [];
                     notInSiSelected = [];
+                    syncEodWizardGlobals();
                     clearValidationHighlights();
                     smClearAll();
                     document.querySelectorAll('input, textarea').forEach(el => {
@@ -8027,7 +8295,7 @@ ${data.Notes || ''}`;
                         else el.value = '';
                     });
 
-                    if (removePersonal) {
+                    if (wipeAll) {
                         // Clear personal details storage
                         localStorage.removeItem('kompassProfile');
                         localStorage.removeItem('kompassSignature');
@@ -8281,11 +8549,23 @@ ${data.Notes || ''}`;
         // number is preserved even when the form is reloaded.
         let shiftSets = [];         // legacy: sets for the currently selected shift card
         let notInStoreSelected = []; // string[]
-        let notInSiSelected = [];    // string[]
+        let notInSiSelected = []; // string[]
+        let helpdeskSubmittedReports = [];
         // Map of visitId → { label, sets[] } for ALL shifts found on the date.
         // Populated automatically after smFindShifts succeeds so the user
         // doesn't have to select each shift card to access its set list.
         let allShiftsSetsMap = {};
+
+        function syncEodWizardGlobals() {
+            window.allShiftsSetsMap = allShiftsSetsMap;
+            window.notInStoreSelected = notInStoreSelected;
+            window.notInSiSelected = notInSiSelected;
+            window.emailRecipients = emailRecipients;
+            window.helpdeskSubmittedReports = helpdeskSubmittedReports;
+            if (typeof setLabel === 'function') window.setLabel = setLabel;
+        }
+        window.syncEodWizardGlobals = syncEodWizardGlobals;
+        syncEodWizardGlobals();
         // Which shift the "Sets from shift" picker is set to (visitId as number).
         // null means "nothing selected yet" (multi-shift) or N/A (single auto-selected).
         let notInPickerShiftId = null;
@@ -9049,6 +9329,7 @@ ${data.Notes || ''}`;
             const k = extractDbkey(s.planogramId);
             return k ? `${k}_${s.name}` : s.name;
         }
+        syncEodWizardGlobals();
 
         // Load sets for EVERY shift in parallel and populate allShiftsSetsMap.
         // Called automatically after smFindShifts succeeds — the user never
@@ -9057,6 +9338,7 @@ ${data.Notes || ''}`;
             if (!shifts || shifts.length === 0) return;
             allShiftsSetsMap = {};
             notInPickerShiftId = null;
+            syncEodWizardGlobals();
             renderShiftPickerDropdown();
             renderSetsPickers();
 
@@ -9286,6 +9568,20 @@ ${data.Notes || ''}`;
             const list = isStore ? notInStoreSelected : notInSiSelected;
             if (!list.includes(value)) list.push(value);
             select.value = '';
+            renderSetsPicker(kind);
+            autoSave();
+        }
+
+        function onNotInOtherKeydown(event, kind) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            const isStore = kind === 'store';
+            const input = document.getElementById(isStore ? 'notInStoreOther' : 'notInSiOther');
+            const value = (input?.value || '').trim();
+            if (!value) return;
+            const list = isStore ? notInStoreSelected : notInSiSelected;
+            if (!list.includes(value)) list.push(value);
+            input.value = '';
             renderSetsPicker(kind);
             autoSave();
         }
@@ -10427,6 +10723,7 @@ ${data.Notes || ''}`;
                 }
 
                 setSyncState(type, 'synced', 'Synced');
+                updatePhotoCheckbox(type);
 
             } catch (err) {
                 console.error(`[sync] ${type} error:`, err);
@@ -10768,6 +11065,45 @@ ${data.Notes || ''}`;
             return imageDataUrl;
         }
 
+        // ─── EOD hotfix version check (unattended reload; data in localStorage/IndexedDB) ───
+        (function startEodVersionWatch() {
+            const badge = document.getElementById('eodVersionBadge');
+            if (badge) badge.textContent = 'v' + EOD_APP_VERSION;
+
+            async function fetchLiveEodVersion() {
+                try {
+                    const url = EOD_VERSION_URL + '?t=' + Date.now();
+                    const resp = await fetch(url, { cache: 'no-store' });
+                    if (!resp.ok) return null;
+                    const data = await resp.json();
+                    return data && data.version ? String(data.version).trim() : null;
+                } catch {
+                    return null;
+                }
+            }
+
+            function triggerEodHotfixReload() {
+                const banner = document.getElementById('eodUpdateBanner');
+                if (banner) banner.classList.add('visible');
+                setTimeout(() => window.location.reload(), EOD_UPDATE_AUTO_RELOAD_MS);
+            }
+
+            async function checkEodVersion() {
+                const remote = await fetchLiveEodVersion();
+                if (!remote || remote === EOD_APP_VERSION) return;
+                triggerEodHotfixReload();
+            }
+
+            checkEodVersion();
+            setInterval(checkEodVersion, EOD_UPDATE_CHECK_MS);
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) checkEodVersion();
+            });
+        })();
+
+        syncEodWizardGlobals();
+
     </script>
+    <script src="eod-helpdesk-wizard.js?v=1.8"></script>
 </body>
 </html>
