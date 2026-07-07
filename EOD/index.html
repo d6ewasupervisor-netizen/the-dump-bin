@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-07-07T16:45Z eod-v2.1-shift-set-picker-fix -->
+<!-- build: 2026-07-07T16:55Z eod-v2.2-helpdesk-modal-day-confirm-fix -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -838,7 +838,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 1300;
             padding: var(--spacing-md);
             padding-top: calc(var(--spacing-md) + var(--safe-area-inset-top));
             padding-bottom: calc(var(--spacing-md) + var(--safe-area-inset-bottom));
@@ -3041,7 +3041,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v2.1</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v2.2</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3825,7 +3825,7 @@
     <!-- Email Options Modal (legacy, replaced by confirmation flow) -->
 
     <!-- Daily Store Confirmation Gate -->
-    <div id="dayConfirmModal" class="modal-overlay" style="z-index: 1100;">
+    <div id="dayConfirmModal" class="modal-overlay" style="z-index: 1310;">
         <div class="modal-dialog">
             <h2 id="dayConfirmTitle">Confirm Today's Store</h2>
             <div id="dayConfirmBody">
@@ -4001,7 +4001,7 @@
         // gated app under the-dump-bin.com. EOD only waits for that gate and
         // uses its authenticated fetch helper for EOD API calls.
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-        const EOD_APP_VERSION = '2.1';
+        const EOD_APP_VERSION = '2.2';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
@@ -4093,6 +4093,13 @@
         const VERIFY_STORE_URL = 'https://eod-api.the-dump-bin.com/api/verify-store';
         const STORE_CONFIRM_REQ_URL = 'https://eod-api.the-dump-bin.com/api/store-confirm-request';
         let dayConfirmPolling = null;
+        let pendingEodSendPayload = null;
+
+        function runPendingEodSendAfterDayConfirm() {
+            const payload = pendingEodSendPayload;
+            pendingEodSendPayload = null;
+            if (payload) sendEmail(payload);
+        }
 
         function normStoreNumber(s) {
             return String(s || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
@@ -4216,6 +4223,7 @@
                     try { autoSave(); } catch (e) {}
                     try { loadStoreData(store); } catch (e) {}
                     hideDayConfirmModal();
+                    runPendingEodSendAfterDayConfirm();
                     return;
                 }
 
@@ -4297,11 +4305,15 @@
                         document.getElementById('workDate').value = date;
                         try { autoSave(); } catch (e) {}
                         try { loadStoreData(store); } catch (e) {}
+                        const hadPendingEodSend = !!pendingEodSendPayload;
                         hideDayConfirmModal();
-                        showAlert(
-                            'Override Approved',
-                            'Your supervisor approved this override. You can submit EOD for store #' + escapeHtml(store) + ' on ' + escapeHtml(date) + '.'
-                        );
+                        runPendingEodSendAfterDayConfirm();
+                        if (!hadPendingEodSend) {
+                            showAlert(
+                                'Override Approved',
+                                'Your supervisor approved this override. You can submit EOD for store #' + escapeHtml(store) + ' on ' + escapeHtml(date) + '.'
+                            );
+                        }
                     } else if (result.status === 'denied') {
                         clearInterval(dayConfirmPolling); dayConfirmPolling = null;
                         document.getElementById('dayConfirmStatus').innerHTML =
@@ -7745,6 +7757,8 @@ ${data.Notes || ''}`;
                 if (response.status === 412) {
                     loading.classList.remove('show');
                     clearDayConfirm();
+                    pendingEodSendPayload = payload;
+                    document.getElementById('modal')?.classList.remove('show');
                     showDayConfirmModal({
                         store: sendStore,
                         date: sendDate,
@@ -11262,6 +11276,6 @@ ${data.Notes || ''}`;
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=2.1"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.2"></script>
 </body>
 </html>
