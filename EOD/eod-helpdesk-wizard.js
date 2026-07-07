@@ -78,7 +78,7 @@
             sets.map((s) => {
                 const lbl = valueFn(s);
                 const text = displayFn(s);
-                return `<option value="${escapeHtml(lbl)}" data-number="${s.number || ''}" data-version="${escapeHtml(s.version || '')}" data-dbkey="${escapeHtml(s.dbkey || '')}" data-footage="${escapeHtml(s.footage || '')}"${selectedLabel === lbl ? ' selected' : ''}>${escapeHtml(text)}</option>`;
+                return `<option value="${escapeHtml(lbl)}" data-number="${s.number || ''}" data-version="${escapeHtml(s.version || '')}" data-dbkey="${escapeHtml(s.dbkey || '')}" data-footage="${escapeHtml(s.footage || '')}" data-planogram-id="${escapeHtml(s.planogramId || '')}" data-set-name="${escapeHtml(s.name || '')}"${selectedLabel === lbl ? ' selected' : ''}>${escapeHtml(text)}</option>`;
             }).join('');
     }
 
@@ -90,6 +90,9 @@
             setLabel: '',
             categoryNumber: '',
             version: '',
+            dbkey: '',
+            planogramId: '',
+            footageToken: '',
             manualShiftName: '',
             manualSetName: '',
             manualCategoryNumber: '',
@@ -107,24 +110,47 @@
         return visitId == null || visitId === '' ? '' : String(visitId);
     }
 
+    function findSelectedSet(issue, map) {
+        if (issue.setEntryManual || !issue.shiftVisitId || !issue.setLabel) return null;
+        const entry = map[normalizeVisitId(issue.shiftVisitId)];
+        if (!entry || !Array.isArray(entry.sets)) return null;
+        const valueFn = typeof window.setLabel === 'function' ? window.setLabel : (s) => s.name || '';
+        return entry.sets.find((s) => valueFn(s) === issue.setLabel) || null;
+    }
+
+    function todayReportDateIso() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dd}`;
+    }
+
     function resolveIssueSetMeta(issue, map) {
         if (issue.setEntryManual) {
             return {
                 shiftLabel: (issue.manualShiftName || '').trim(),
                 setLabel: (issue.manualSetName || '').trim(),
+                categoryName: (issue.manualSetName || '').trim(),
                 categoryNumber: (issue.manualCategoryNumber || '').trim() || null,
-                version: (issue.manualVersion || '').trim() || null,
+                version: (issue.manualVersion || '').trim().replace(/^V/i, '') || null,
                 dbkey: (issue.manualDbkey || '').trim() || null,
+                planogramId: null,
+                footageToken: null,
             };
         }
+        const set = findSelectedSet(issue, map);
         return {
             shiftLabel: issue.shiftVisitId && map[normalizeVisitId(issue.shiftVisitId)]
                 ? map[normalizeVisitId(issue.shiftVisitId)].label
                 : '',
             setLabel: (issue.setLabel || '').trim(),
-            categoryNumber: issue.categoryNumber || null,
-            version: issue.version || null,
-            dbkey: null,
+            categoryNumber: set?.number || issue.categoryNumber || null,
+            categoryName: set?.name || null,
+            version: set?.version || issue.version || null,
+            dbkey: set?.dbkey || issue.dbkey || null,
+            planogramId: set?.planogramId || issue.planogramId || null,
+            footageToken: issue.footageToken || null,
         };
     }
 
@@ -266,6 +292,9 @@
                 wizardIssues[i].setLabel = sel.value;
                 wizardIssues[i].categoryNumber = opt?.dataset?.number || '';
                 wizardIssues[i].version = opt?.dataset?.version || '';
+                wizardIssues[i].dbkey = opt?.dataset?.dbkey || '';
+                wizardIssues[i].planogramId = opt?.dataset?.planogramId || '';
+                wizardIssues[i].footageToken = '';
             });
         });
 
@@ -505,7 +534,7 @@
     async function submitHelpdeskWizardInner() {
 
         const storeNumber = document.getElementById('storeNumber')?.value?.trim();
-        const workDate = document.getElementById('workDate')?.value;
+        const reportDate = todayReportDateIso();
         const userName = document.getElementById('profileName')?.value?.trim() || '';
         const userEmail = document.getElementById('profileEmail')?.value?.trim() || '';
         const addTeam = document.getElementById('helpdeskAddRetailOdysseyTeam')?.checked || false;
@@ -520,21 +549,22 @@
             for (const issue of issuesToSend) {
                 const opt = EOD_HELPDESK_ISSUE_OPTIONS.find((o) => o.id === issue.issueTypeId);
                 const meta = resolveIssueSetMeta(issue, map);
-                const issueDetails = [
-                    issue.details,
-                    meta.dbkey ? `DB key: ${meta.dbkey}` : '',
-                ].filter(Boolean).join('\n');
+                const issueDetails = (issue.details || '').trim();
 
                 const resp = await window.authFetch(`${window.EOD_API_BASE}/send-eod-helpdesk-report`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         storeNumber,
-                        workDate,
+                        reportDate,
                         shiftLabel: meta.shiftLabel,
                         setLabel: meta.setLabel || issue.customIssue,
                         categoryNumber: meta.categoryNumber,
+                        categoryName: meta.categoryName,
+                        planogramId: meta.planogramId,
                         version: meta.version,
+                        dbkey: meta.dbkey,
+                        footageToken: meta.footageToken,
                         issueTypeId: issue.issueTypeId,
                         issueTypeLabel: opt?.label || issue.issueTypeId,
                         issueDetails,

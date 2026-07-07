@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-07-07T16:55Z eod-v2.2-helpdesk-modal-day-confirm-fix -->
+<!-- build: 2026-07-07T17:20Z eod-v2.3-helpdesk-email-format -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -3041,7 +3041,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v2.2</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v2.3</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4001,7 +4001,7 @@
         // gated app under the-dump-bin.com. EOD only waits for that gate and
         // uses its authenticated fetch helper for EOD API calls.
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-        const EOD_APP_VERSION = '2.2';
+        const EOD_APP_VERSION = '2.3';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
@@ -9474,7 +9474,9 @@ ${data.Notes || ''}`;
 
         function setDisplayLabel(s) {
             const name = (s.name || 'Unnamed').trim();
-            const version = s.version ? `V${s.version}` : '';
+            const version = s.version
+                ? (String(s.version).startsWith('V') ? String(s.version) : `V${s.version}`)
+                : '';
             const footage = s.footage || extractFootageFromPlanogram(s.planogramId);
             const parts = [name];
             if (footage) parts.push(footage);
@@ -11276,6 +11278,6 @@ ${data.Notes || ''}`;
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=2.2"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.3"></script>
 </body>
 </html>
