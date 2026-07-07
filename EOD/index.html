@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-07-07T16:10Z eod-v1.9-manual-set-entry -->
+<!-- build: 2026-07-07T16:25Z eod-v2.0-mobile-optimization -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -306,6 +306,24 @@
             cursor: pointer;
             font-size: 16px;
             line-height: 1;
+            min-width: var(--min-touch-target);
+            min-height: var(--min-touch-target);
+            touch-action: manipulation;
+        }
+
+        .btn-label-short {
+            display: none;
+        }
+
+        .hd-field-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .hd-field-row .field {
+            flex: 1;
+            min-width: 120px;
         }
 
         .header h1 {
@@ -1094,6 +1112,42 @@
             .add-recipient-btn {
                 width: 100%;
             }
+
+            .sets-other-row {
+                flex-direction: column;
+            }
+
+            .sets-other-add-btn {
+                width: 100%;
+            }
+
+            .helpdesk-wizard-overlay {
+                padding: 0;
+            }
+
+            .helpdesk-wizard-dialog {
+                border-radius: 0;
+                min-height: 100%;
+                padding: 12px;
+                padding-bottom: calc(12px + var(--safe-area-inset-bottom));
+            }
+
+            .hd-field-row {
+                flex-direction: column;
+            }
+
+            .hd-field-row .field {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .btn-label-long {
+                display: none;
+            }
+
+            .btn-label-short {
+                display: inline;
+            }
         }
 
         /* Small phone breakpoint */
@@ -1157,6 +1211,30 @@
 
             .toggle-switch-label {
                 margin-left: 0;
+            }
+
+            .set-tag .set-tag-x {
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
+                min-height: 36px;
+                font-size: 18px;
+            }
+
+            .hd-photo-thumb {
+                width: 96px;
+                height: 96px;
+            }
+
+            .hd-photo-thumb button {
+                min-width: 36px;
+                min-height: 36px;
+                padding: 4px 6px;
+                font-size: 14px;
+            }
+
+            .hd-issue-card {
+                padding: 12px;
             }
 
             .quick-view-content .qv-row {
@@ -2683,6 +2761,25 @@
             -webkit-appearance: none;
             appearance: none;
         }
+
+        .sets-other-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .sets-other-row input[type="text"] {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sets-other-add-btn {
+            white-space: nowrap;
+            padding: 10px 16px;
+            min-height: var(--min-touch-target);
+            flex-shrink: 0;
+            touch-action: manipulation;
+        }
         .sets-picker select:disabled {
             opacity: 0.55;
             cursor: not-allowed;
@@ -2944,7 +3041,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v1.9</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="EOD app version">v2.0</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3563,7 +3660,10 @@
                     <select id="notInStoreSelect" onchange="addSetNotIn('store')">
                         <option value="">-- Select a set from your shift --</option>
                     </select>
-                    <input type="text" id="notInStoreOther" placeholder="Other — type set name and press Enter" onkeydown="onNotInOtherKeydown(event, 'store')" oninput="autoSave()">
+                    <div class="sets-other-row">
+                        <input type="text" id="notInStoreOther" placeholder="Other set name" onkeydown="onNotInOtherKeydown(event, 'store')" oninput="autoSave()">
+                        <button type="button" class="btn btn-primary sets-other-add-btn" onclick="addSetNotInOther('store')">Add</button>
+                    </div>
                 </div>
                 <div class="sets-help" id="notInStoreHelp">Find shifts to load the available sets.</div>
             </div>
@@ -3575,7 +3675,10 @@
                     <select id="notInSiSelect" onchange="addSetNotIn('si')">
                         <option value="">-- Select a set from your shift --</option>
                     </select>
-                    <input type="text" id="notInSiOther" placeholder="Other — type set name and press Enter" onkeydown="onNotInOtherKeydown(event, 'si')" oninput="autoSave()">
+                    <div class="sets-other-row">
+                        <input type="text" id="notInSiOther" placeholder="Other set name" onkeydown="onNotInOtherKeydown(event, 'si')" oninput="autoSave()">
+                        <button type="button" class="btn btn-primary sets-other-add-btn" onclick="addSetNotInOther('si')">Add</button>
+                    </div>
                 </div>
                 <div class="sets-help" id="notInSiHelp">Find shifts to load the available sets.</div>
             </div>
@@ -3697,9 +3800,12 @@
                     <label for="helpdeskAddRetailOdysseyTeam">Add Retail Odyssey Team</label>
                 </div>
             </div>
-            <div class="button-group" style="margin-top:16px;">
+            <div class="button-group helpdesk-wizard-actions" style="margin-top:16px;">
                 <button type="button" class="btn btn-secondary" onclick="closeHelpdeskWizard()">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="submitHelpdeskWizard()">Confirm help desk reports are complete and submit</button>
+                <button type="button" class="btn btn-success" onclick="submitHelpdeskWizard()">
+                    <span class="btn-label-long">Confirm help desk reports are complete and submit</span>
+                    <span class="btn-label-short">Submit reports</span>
+                </button>
             </div>
         </div>
     </div>
@@ -3895,7 +4001,7 @@
         // gated app under the-dump-bin.com. EOD only waits for that gate and
         // uses its authenticated fetch helper for EOD API calls.
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-        const EOD_APP_VERSION = '1.9';
+        const EOD_APP_VERSION = '2.0';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
@@ -9572,18 +9678,22 @@ ${data.Notes || ''}`;
             autoSave();
         }
 
-        function onNotInOtherKeydown(event, kind) {
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
+        function addSetNotInOther(kind) {
             const isStore = kind === 'store';
             const input = document.getElementById(isStore ? 'notInStoreOther' : 'notInSiOther');
             const value = (input?.value || '').trim();
             if (!value) return;
             const list = isStore ? notInStoreSelected : notInSiSelected;
             if (!list.includes(value)) list.push(value);
-            input.value = '';
+            if (input) input.value = '';
             renderSetsPicker(kind);
             autoSave();
+        }
+
+        function onNotInOtherKeydown(event, kind) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            addSetNotInOther(kind);
         }
 
         function removeSetNotIn(kind, name) {
@@ -11104,6 +11214,6 @@ ${data.Notes || ''}`;
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=1.9"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.0"></script>
 </body>
 </html>

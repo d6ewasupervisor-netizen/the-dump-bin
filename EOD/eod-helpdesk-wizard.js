@@ -149,7 +149,7 @@
                         <label>Set name / description</label>
                         <input type="text" class="hd-manual-set-name" data-idx="${idx}" value="${escapeHtml(issue.manualSetName)}" placeholder="e.g. Frozen Pizza 4ft endcap">
                     </div>
-                    <div class="field-group" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+                    <div class="field-group hd-field-row" style="margin-top:10px;">
                         <div class="field" style="flex:1; min-width:120px;">
                             <label>Category # (C)</label>
                             <input type="text" class="hd-manual-category" data-idx="${idx}" value="${escapeHtml(issue.manualCategoryNumber)}" placeholder="1234" inputmode="numeric">
