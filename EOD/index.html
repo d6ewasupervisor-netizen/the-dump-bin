@@ -7550,6 +7550,42 @@
             );
         }
 
+        async function collectSignoffPhotosForEmail(data) {
+            const entries = eodSelections.signoff.length > 0
+                ? eodSelections.signoff.slice()
+                : data.photos.signoff.map(p => ({ dataUrl: p, source: 'local', isUrl: false }));
+
+            const result = [];
+            const seen = new Set();
+
+            for (const entry of entries) {
+                let dataUrl = entry.dataUrl || entry;
+                if (entry.isUrl || (typeof dataUrl === 'string' && /^https?:/i.test(dataUrl))) {
+                    const url = resolveProdPhotoUrl(dataUrl);
+                    const dedupeKey = `url:${normalizeProdPhotoUrlForDedup(url)}`;
+                    if (seen.has(dedupeKey)) continue;
+
+                    const useAuth = url.startsWith(SM_API_BASE) || url.startsWith(EOD_API_BASE);
+                    const resp = useAuth ? await authFetch(url) : await fetch(url);
+                    if (!resp.ok) {
+                        console.warn('[email] Could not load sign-off image for inline embed:', resp.status, url);
+                        continue;
+                    }
+                    dataUrl = await readBlobAsDataUrl(await resp.blob());
+                    seen.add(dedupeKey);
+                } else if (typeof dataUrl === 'string') {
+                    if (seen.has(dataUrl)) continue;
+                    seen.add(dataUrl);
+                } else {
+                    continue;
+                }
+
+                result.push(dataUrl);
+            }
+
+            return result;
+        }
+
         // Shared collector for Preview Email and Send Email (always full body; legacy "notes only" removed).
         // draft: when true, build anyway and return draftWarnings for the preview modal (Send Email still strict).
         async function tryBuildEodEmailPayload(options = {}) {
@@ -7585,6 +7621,10 @@
             const notInStoreText = formatNotInList(data.NotInStoreSelected, data.NotInStoreOther);
             const notInSiText    = formatNotInList(data.NotInSiSelected,    data.NotInSiOther);
 
+            const signoffCount = eodSelections.signoff.length > 0
+                ? eodSelections.signoff.length
+                : data.photos.signoff.length;
+
             const body = `Lead Name: ${data.LeadName || ''}
 Date: ${data.DateMMDDYYYY || ''}
 Store Number: ${data.StoreNumber || ''}
@@ -7603,7 +7643,7 @@ Not in store: ${notInStoreText}
 Not in SI: ${notInSiText}
 After picture of KOMPASS cart taken: ${afterDone ? 'Yes' : 'No'}
 Sign-off sheets photographed: ${signoffDone ? 'Yes' : 'No'}
-Number of sign-off photos: ${data.photos.signoff.length}
+Number of sign-off photos: ${signoffCount}
 Notes:
 ${data.Notes || ''}`;
 
@@ -7627,6 +7667,8 @@ ${data.Notes || ''}`;
             const userName = document.getElementById('profileName').value.trim();
             const subject = `KOMPASS EOD FM${data.StoreNumberPadded} ${data.DateMMDDYYYY}`;
 
+            const signoffPhotos = await collectSignoffPhotosForEmail(data);
+
             const payload = {
                 storeNumber: data.StoreNumber,
                 workDate: data.WorkDateISO,
@@ -7638,7 +7680,7 @@ ${data.Notes || ''}`;
                 userEmail,
                 checkInManager: document.getElementById('checkInManager').value.trim(),
                 checkOutManager: document.getElementById('checkOutManager').value.trim(),
-                signoffPhotos: data.photos.signoff,
+                signoffPhotos,
                 ...(pdfBase64 && { pdfBase64 })
             };
 
@@ -10312,6 +10354,23 @@ ${data.Notes || ''}`;
             return String(photo?.id || photo?.url || '');
         }
 
+        function normalizeProdPhotoUrlForDedup(url) {
+            const resolved = resolveProdPhotoUrl(url || '');
+            if (!resolved) return '';
+            if (resolved.startsWith('data:')) return resolved;
+            try {
+                const parsed = new URL(resolved, SM_API_BASE);
+                return `${parsed.origin}${parsed.pathname}`.toLowerCase();
+            } catch {
+                return resolved.split('?')[0].toLowerCase();
+            }
+        }
+
+        function getLocalDataUrlForProdPhoto(type, photo) {
+            const key = getProdPhotoKey(photo);
+            return photo?.localDataUrl || (prodPhotoLocalCopies[type] || {})[key] || null;
+        }
+
         function resolveProdPhotoUrl(url) {
             if (!url || typeof url !== 'string') return '';
             if (/^(https?:|data:|blob:)/i.test(url)) return url;
@@ -10454,36 +10513,69 @@ ${data.Notes || ''}`;
         }
 
         function rebuildEodSelections(type) {
-            eodSelections[type] = [];
+            const entries = [];
+            const seenUrlKeys = new Set();
+            const seenDataUrls = new Set();
 
             prodPhotos[type].forEach(p => {
-                if (p.selectedForEod && !p.localDataUrl) {
-                    eodSelections[type].push({
-                        dataUrl: resolveProdPhotoUrl(p.url),
-                        source: 'prod',
-                        timestamp: p.timestamp || Date.now(),
-                        isUrl: true
-                    });
-                }
+                if (!p.selectedForEod) return;
+                if (getLocalDataUrlForProdPhoto(type, p)) return;
+                const urlKey = normalizeProdPhotoUrlForDedup(p.url);
+                if (!urlKey || seenUrlKeys.has(urlKey)) return;
+                seenUrlKeys.add(urlKey);
+                entries.push({
+                    dataUrl: resolveProdPhotoUrl(p.url),
+                    source: 'prod',
+                    timestamp: p.timestamp || Date.now(),
+                    isUrl: true
+                });
             });
 
             photos[type].forEach((dataUrl, i) => {
+                if (!dataUrl || seenDataUrls.has(dataUrl)) return;
+
                 const importedFromProd = isImportedProdPhoto(type, dataUrl);
-                eodSelections[type].push({
-                    dataUrl: dataUrl,
+                if (importedFromProd) {
+                    prodPhotos[type].forEach(p => {
+                        if (getLocalDataUrlForProdPhoto(type, p) === dataUrl) {
+                            seenUrlKeys.add(normalizeProdPhotoUrlForDedup(p.url));
+                        }
+                    });
+                }
+
+                seenDataUrls.add(dataUrl);
+                entries.push({
+                    dataUrl,
                     source: importedFromProd ? 'prod' : 'local',
                     timestamp: Date.now() - (photos[type].length - i),
                     isUrl: false
                 });
             });
 
-            eodSelections[type].sort((a, b) => a.timestamp - b.timestamp);
+            eodSelections[type] = entries.sort((a, b) => a.timestamp - b.timestamp);
         }
 
         function mergeProdPhotos(type, incomingPhotos) {
             if (!Array.isArray(incomingPhotos) || incomingPhotos.length === 0) return;
-            const existing = prodPhotos[type].filter(p => !incomingPhotos.find(incoming => incoming.id === p.id));
-            prodPhotos[type] = [...existing, ...incomingPhotos];
+            const byUrl = new Map();
+            for (const p of [...prodPhotos[type], ...incomingPhotos]) {
+                const key = normalizeProdPhotoUrlForDedup(p.url);
+                if (!key) continue;
+                const existing = byUrl.get(key);
+                if (!existing) {
+                    byUrl.set(key, p);
+                    continue;
+                }
+                byUrl.set(key, {
+                    ...existing,
+                    ...p,
+                    id: existing.id || p.id,
+                    selectedForEod: existing.selectedForEod !== false && p.selectedForEod !== false,
+                    localDataUrl: existing.localDataUrl || p.localDataUrl,
+                    timestamp: Math.min(existing.timestamp || Date.now(), p.timestamp || Date.now())
+                });
+            }
+            prodPhotos[type] = Array.from(byUrl.values());
         }
 
         // ── Photo conflict resolution ──
@@ -10778,9 +10870,9 @@ ${data.Notes || ''}`;
                                     const resolution = await resolveConflict('signoff', signoffImages);
                                     if (resolution === 'use_prod') { photos.signoff = []; renderPhotos('signoff'); prodPhotos.signoff = signoffImages; }
                                     else if (resolution === 'keep_local') { signoffImages.forEach(p => p.selectedForEod = false); prodPhotos.signoff = signoffImages; }
-                                    else { prodPhotos.signoff = [...prodPhotos.signoff, ...signoffImages]; }
+                                    else { mergeProdPhotos('signoff', signoffImages); }
                                 } else {
-                                    prodPhotos.signoff = [...prodPhotos.signoff, ...signoffImages];
+                                    mergeProdPhotos('signoff', signoffImages);
                                 }
                                 renderProdPhotos('signoff');
                                 rebuildEodSelections('signoff');
@@ -10862,11 +10954,7 @@ ${data.Notes || ''}`;
                                     uploadedBy: p.uploadedBy,
                                     timestamp: new Date(p.uploadedAt || Date.now()).getTime()
                                 }));
-                                // Merge, avoiding duplicates
-                                const existingIds = new Set(prodPhotos.signoff.map(p => p.id));
-                                serverSignoffs.forEach(p => {
-                                    if (!existingIds.has(p.id)) prodPhotos.signoff.push(p);
-                                });
+                                mergeProdPhotos('signoff', serverSignoffs);
                             }
                         }
                     } catch (e) {
