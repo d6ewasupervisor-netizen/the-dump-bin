@@ -217,10 +217,13 @@
         return '/';
       }
 
-      function buildChecklanesReturnTo(next) {
+      function buildDeepLinkReturnTo(next) {
         const path = resolveNext(next);
-        if (!path.toLowerCase().startsWith('/checklanes')) return null;
-        return location.origin.replace(/\/+$/, '') + path;
+        const lowered = path.toLowerCase();
+        if (lowered.startsWith('/checklanes') || lowered.startsWith('/dc-scan')) {
+          return location.origin.replace(/\/+$/, '') + path;
+        }
+        return null;
       }
 
       function markDirectChecklanesEntry() {
@@ -318,7 +321,7 @@
         sendBtn.textContent = 'Sending\u2026';
         try {
           const next = (new URLSearchParams(location.search)).get('next');
-          const returnTo = buildChecklanesReturnTo(next);
+          const returnTo = buildDeepLinkReturnTo(next);
           const payload = { email: email };
           if (returnTo) {
             payload.returnTo = returnTo;
