@@ -133,8 +133,17 @@ body {
 .badge.scheduled { background: rgba(77,166,255,0.15); color: var(--accent); }
 .store-card .who { font-size: 13px; color: var(--text-secondary); margin-top: 10px; line-height: 1.45; word-break: break-word; }
 .store-card .prod-status { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.prod-banner { font-size: 12px; color: var(--text-secondary); margin: -6px 0 12px; }
+.prod-banner { font-size: 12px; color: var(--text-secondary); margin: -6px 0 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
 .prod-banner.warn { color: var(--amber); }
+.prod-banner-text { flex: 1; min-width: 12rem; }
+.prod-resync-btn {
+  padding: 10px 14px; border-radius: 8px; border: 1px solid var(--card-border);
+  background: var(--card); color: var(--text); font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer; min-height: 44px; touch-action: manipulation;
+  white-space: nowrap;
+}
+.prod-resync-btn:disabled { opacity: 0.6; cursor: wait; }
+.prod-resync-btn:not(:disabled):active { border-color: var(--accent); color: var(--accent); }
 .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .panel {
   background: var(--card); border: 1px solid var(--card-border);
@@ -230,7 +239,10 @@ textarea { min-height: 84px; resize: vertical; }
       <span id="live-label">Connecting…</span>
     </div>
   </div>
-  <div class="prod-banner" id="prod-banner" hidden></div>
+  <div class="prod-banner" id="prod-banner" hidden>
+    <span class="prod-banner-text" id="prod-banner-text"></span>
+    <button type="button" class="prod-resync-btn" id="prod-resync-btn">Resync SAS PROD</button>
+  </div>
 
   <div class="urgent">
     <strong>Need coverage this week.</strong>
@@ -473,20 +485,21 @@ textarea { min-height: 84px; resize: vertical; }
   }
 
   function updateProdBanner(snap) {
-    const el = $('prod-banner');
+    const wrap = $('prod-banner');
+    const el = $('prod-banner-text');
     const prod = snap.prod || {};
     if (!prod.syncedAt && !prod.error) {
-      el.hidden = true;
+      wrap.hidden = true;
       return;
     }
-    el.hidden = false;
+    wrap.hidden = false;
+    wrap.className = 'prod-banner' + (prod.ok ? '' : ' warn');
     if (prod.ok) {
       const when = prod.syncedAt ? new Date(prod.syncedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—';
-      el.className = 'prod-banner';
       el.textContent = 'SAS PROD project 8081 · ' + (prod.visitCount || 0) + ' visit(s) · synced ' + when;
     } else {
-      el.className = 'prod-banner warn';
-      el.textContent = 'SAS PROD sync: ' + (prod.error || 'waiting for session');
+      const sasHint = prod.sas?.error ? (' · ' + prod.sas.error) : '';
+      el.textContent = 'SAS PROD sync: ' + (prod.error || 'waiting for session') + sasHint;
     }
   }
 
@@ -565,6 +578,29 @@ textarea { min-height: 84px; resize: vertical; }
   }
 
   $('claim-scope').addEventListener('change', refreshClaimOptions);
+
+  $('prod-resync-btn').addEventListener('click', async () => {
+    const btn = $('prod-resync-btn');
+    const banner = $('prod-banner-text');
+    const prevLabel = btn.textContent;
+    clearMsg($('finalize-msg'));
+    try {
+      btn.disabled = true;
+      btn.textContent = 'Resyncing…';
+      if (banner) banner.textContent = 'Refreshing SAS session and PROD schedule…';
+      const data = await api('/resync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      applySnapshot(data.snapshot);
+      updateLivePill(data.snapshot, Boolean(es && es.readyState === EventSource.OPEN));
+      showMsg($('finalize-msg'), data.message || 'PROD resync complete.', Boolean(data.success));
+    } catch (err) {
+      showMsg($('finalize-msg'), err.message || 'PROD resync failed.', false);
+      if (snapshot) updateProdBanner(snapshot);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+    }
+  });
+
   $('claim-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     clearMsg($('claim-msg'));
