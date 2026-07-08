@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>DC Scan Signup — Live Board</title>
+<script src="/auth-gate.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -200,6 +201,15 @@ textarea { min-height: 84px; resize: vertical; }
 .pledge-list .store { font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
 .denied { opacity: 0.55; }
 .hidden { display: none !important; }
+.boot-status {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: calc(24px + var(--safe-top)) 14px 24px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  text-align: center;
+}
+.boot-status.err { color: var(--red); }
 .mobile-nav {
   display: none;
   position: fixed;
@@ -249,6 +259,7 @@ textarea { min-height: 84px; resize: vertical; }
 </style>
 </head>
 <body>
+<div id="boot-status" class="boot-status">Loading DC Scan board…</div>
 <div class="wrap" id="app" hidden>
   <div class="top-bar">
     <div>
@@ -369,7 +380,7 @@ textarea { min-height: 84px; resize: vertical; }
   </nav>
 </div>
 
-<script src="/auth-gate.js"></script>
+
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -455,11 +466,32 @@ textarea { min-height: 84px; resize: vertical; }
     })[c]);
   }
 
+  function showBootStatus(text, isError) {
+    const el = $('boot-status');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'boot-status' + (isError ? ' err' : '');
+    el.hidden = false;
+  }
+  function hideBootStatus() {
+    const el = $('boot-status');
+    if (!el) return;
+    el.hidden = true;
+  }
+
+  async function api(path, opts) {
+    const res = await window.dumpBinAuthFetch('/api/dc-scan' + path, opts || {});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
   function updateParticipantUi() {
     const canParticipate = Boolean(accessStatus && accessStatus.canParticipate);
     const pending = Boolean(accessStatus && accessStatus.pendingAccessRequest);
     const gate = $('access-gate');
     const panels = $('participant-panels');
+    if (!gate || !panels) return;
     if (!canParticipate) {
       gate.classList.remove('hidden');
       gate.classList.toggle('pending', pending);
@@ -474,14 +506,20 @@ textarea { min-height: 84px; resize: vertical; }
   }
 
   async function loadAccessStatus() {
-    const data = await api('/approved-users');
-    accessStatus = data;
-    if (!accessStatus.canParticipate && me && me.email) {
-      const guess = me.email.split('@')[0].replace(/\./g, ' ');
-      $('access-name').value = $('access-name').value || guess.replace(/\b\w/g, (c) => c.toUpperCase());
+    try {
+      const data = await api('/approved-users');
+      accessStatus = data;
+      if (!accessStatus.canParticipate && me && me.email) {
+        const guess = me.email.split('@')[0].replace(/\./g, ' ');
+        const nameEl = $('access-name');
+        if (nameEl) nameEl.value = nameEl.value || guess.replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+      updateParticipantUi();
+      return accessStatus;
+    } catch (err) {
+      console.warn('access status', err);
+      return null;
     }
-    updateParticipantUi();
-    return accessStatus;
   }
 
   function isAllowlistError(message) {
@@ -489,8 +527,6 @@ textarea { min-height: 84px; resize: vertical; }
   }
 
   function panelForScope(scope) {
-    return scope === 'ongoing' ? snapshot.ongoing : snapshot.thisWeek;
-  }
     return scope === 'ongoing' ? snapshot.ongoing : snapshot.thisWeek;
   }
 
@@ -616,13 +652,6 @@ textarea { min-height: 84px; resize: vertical; }
     renderMyList();
   }
 
-  async function api(path, opts) {
-    const res = await window.dumpBinAuthFetch('/api/dc-scan' + path, opts || {});
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    return data;
-  }
-
   function connectSse() {
     if (es) { try { es.close(); } catch (_) {} }
     const tok = localStorage.getItem('dumpBinSession') || localStorage.getItem('eodSession') || '';
@@ -641,29 +670,41 @@ textarea { min-height: 84px; resize: vertical; }
   }
 
   async function boot() {
-    await (window.dumpBinAuthReady || Promise.resolve());
-    const meRes = await window.dumpBinAuthFetch('/api/me');
-    const meData = await meRes.json();
-    if (!meRes.ok) throw new Error(meData.error || 'Not signed in');
-    me = meData;
-    $('me-email').textContent = me.email || '—';
-    $('app').hidden = false;
-
+    showBootStatus('Loading DC Scan board…', false);
     try {
+      await (window.dumpBinAuthReady || Promise.resolve());
+      const meRes = await window.dumpBinAuthFetch('/api/me');
+      const meData = await meRes.json();
+      if (!meRes.ok) throw new Error(meData.error || 'Not signed in');
+      me = meData;
+      $('me-email').textContent = me.email || '—';
+      $('app').hidden = false;
+      hideBootStatus();
+
       await loadAccessStatus();
+
+      try {
+        const cached = localStorage.getItem('dc_scan_snapshot');
+        if (cached) applySnapshot(JSON.parse(cached));
+      } catch (_) {}
+
+      try {
+        const data = await api('/');
+        applySnapshot(data.snapshot);
+        updateLivePill(data.snapshot, false);
+        connectSse();
+      } catch (err) {
+        if (!snapshot) throw err;
+        console.warn('live snapshot', err);
+        updateLivePill(snapshot, false);
+        connectSse();
+      }
     } catch (err) {
-      console.warn('access status', err);
+      hideBootStatus();
+      $('app').hidden = false;
+      showBootStatus((err && err.message) || 'Failed to load board. Try refreshing, or sign out and sign in again.', true);
+      throw err;
     }
-
-    try {
-      const cached = localStorage.getItem('dc_scan_snapshot');
-      if (cached) applySnapshot(JSON.parse(cached));
-    } catch (_) {}
-
-    const data = await api('/');
-    applySnapshot(data.snapshot);
-    updateLivePill(data.snapshot, false);
-    connectSse();
   }
 
   $('claim-scope').addEventListener('change', refreshClaimOptions);
@@ -818,7 +859,6 @@ textarea { min-height: 84px; resize: vertical; }
 
   boot().catch((err) => {
     console.error(err);
-    alert(err.message || 'Failed to load board');
   });
 })();
 </script>

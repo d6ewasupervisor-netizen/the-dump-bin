@@ -111,6 +111,7 @@
   }
 
   function bounceToSignIn(reason) {
+    revealPage();
     clearSession();
     if (isPublicPath()) return;
     if (isChecklanesPath()) markDirectChecklanesEntry();
