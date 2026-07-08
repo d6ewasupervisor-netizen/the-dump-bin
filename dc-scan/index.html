@@ -119,6 +119,7 @@ body {
 .store-card.pledged { border-color: rgba(77,166,255,0.4); }
 .store-card.finalized { border-color: rgba(255,204,0,0.4); background: var(--amber-bg); }
 .store-card.built { border-color: rgba(0,232,122,0.45); background: var(--green-bg); }
+.store-card.completed { border-color: rgba(0,232,122,0.55); background: var(--green-bg); }
 .store-card.scheduled { border-color: rgba(77,166,255,0.35); background: rgba(77,166,255,0.08); }
 .store-card .fm { font-size: 18px; font-weight: 800; }
 .store-card .loc { font-size: 12px; color: var(--muted); margin: 2px 0 10px; }
@@ -130,6 +131,7 @@ body {
 .badge.pledged { background: rgba(77,166,255,0.15); color: var(--accent); }
 .badge.finalized { background: var(--amber-bg); color: var(--amber); }
 .badge.built { background: var(--green-bg); color: var(--green); }
+.badge.completed { background: var(--green-bg); color: var(--green); }
 .badge.scheduled { background: rgba(77,166,255,0.15); color: var(--accent); }
 .store-card .who { font-size: 13px; color: var(--text-secondary); margin-top: 10px; line-height: 1.45; word-break: break-word; }
 .store-card .prod-status { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -359,7 +361,8 @@ textarea { min-height: 84px; resize: vertical; }
   }
 
   function statusBadge(status) {
-    const label = status === 'built' ? 'Built'
+    const label = status === 'completed' ? 'Completed'
+      : status === 'built' ? 'In PROD'
       : status === 'scheduled' ? 'In PROD'
       : status === 'finalized' ? 'Finalized'
       : status === 'pledged' ? 'Claimed'
@@ -371,7 +374,8 @@ textarea { min-height: 84px; resize: vertical; }
     el.innerHTML = [
       ['open', stats.open, 'Open'],
       ['pledged', stats.pledged, 'Claimed'],
-      ['done', (stats.finalized || 0) + (stats.built || 0), 'Locked'],
+      ['done', stats.inProd || stats.built || 0, 'In PROD'],
+      ['', stats.finalized || 0, 'Finalized'],
       ['', stats.remaining, 'Left'],
     ].map(([cls, num, lbl]) =>
       '<div class="stat ' + cls + '"><div class="num">' + num + '</div><div class="lbl">' + lbl + '</div></div>'
@@ -382,7 +386,10 @@ textarea { min-height: 84px; resize: vertical; }
     if (!prod) return '';
     const bits = [];
     if (prod.scheduleLabel) bits.push(escapeHtml(prod.scheduleLabel));
-    if (prod.visitStatus) bits.push('<span class="prod-status">' + escapeHtml(prod.visitStatus) + '</span>');
+    const statuses = [];
+    if (prod.visitStatus) statuses.push(escapeHtml(prod.visitStatus));
+    if (prod.shiftStatus && prod.shiftStatus !== prod.visitStatus) statuses.push(escapeHtml(prod.shiftStatus));
+    if (statuses.length) bits.push('<span class="prod-status">' + statuses.join(' · ') + '</span>');
     return bits.length ? '<br/>' + bits.join(' · ') : '';
   }
 
@@ -440,20 +447,25 @@ textarea { min-height: 84px; resize: vertical; }
       return;
     }
     list.innerHTML = mine.map((p) => {
-      const locked = p.finalized || p.buildStatus === 'built';
+      const locked = Boolean(p.finalized);
       const prod = p.prod;
       const timeLine = prod && prod.scheduleLabel ? (' · ' + prod.scheduleLabel) : '';
+      const prodLine = p.prodConfirmed
+        ? ' · <em>confirmed in PROD</em>'
+        : (locked ? ' · <em>finalized, awaiting PROD</em>' : '');
       return '<li>' +
         '<div><span class="store">FM ' + escapeHtml(p.storeId) + '</span> · ' +
         escapeHtml(p.scope) + ' · ' + fmtDate(p.scheduledDate) + timeLine +
         (locked ? ' · <em>locked</em>' : '') +
+        prodLine +
+        prodDetailHtml(prod) +
         '</div>' +
         (locked
           ? ''
           : '<button type="button" class="unclaim-btn" data-pledge="' + escapeHtml(p.id) + '">Release / swap</button>') +
         '</li>';
     }).join('');
-    $('finalize-btn').disabled = mine.every((p) => p.finalized || p.buildStatus === 'built');
+    $('finalize-btn').disabled = mine.every((p) => p.finalized);
     list.querySelectorAll('[data-pledge]').forEach((btn) => {
       btn.addEventListener('click', () => openChange(btn.getAttribute('data-pledge')));
     });
@@ -496,7 +508,9 @@ textarea { min-height: 84px; resize: vertical; }
     wrap.className = 'prod-banner' + (prod.ok ? '' : ' warn');
     if (prod.ok) {
       const when = prod.syncedAt ? new Date(prod.syncedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—';
-      el.textContent = 'SAS PROD project 8081 · ' + (prod.visitCount || 0) + ' visit(s) · synced ' + when;
+      el.textContent = 'SAS PROD connected · project 8081 · ' + (prod.visitCount || 0) + ' visit(s) · synced ' + when;
+    } else if (prod.sessionAlive) {
+      el.textContent = 'SAS session active · loading project 8081 schedule…';
     } else {
       const sasHint = prod.sas?.error ? (' · ' + prod.sas.error) : '';
       el.textContent = 'SAS PROD sync: ' + (prod.error || 'waiting for session') + sasHint;
