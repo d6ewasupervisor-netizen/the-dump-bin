@@ -1,0 +1,18 @@
+---
+description: DC Scan dashboard UI on the-dump-bin — canonical path and API wiring
+alwaysApply: false
+globs:
+  - dc-scan/**
+  - dc-scan.html
+  - decide.html
+---
+
+# DC Scan UI (the-dump-bin)
+
+- **Canonical dashboard:** `dc-scan/index.html` at `https://the-dump-bin.com/dc-scan/`
+- Auth via `auth-gate.js` + Dump Bin magic link; API on `eod-api.the-dump-bin.com`.
+- **Resync SAS PROD** calls `POST /api/dc-scan/resync` and updates snapshot in place — no `location.reload()`.
+- Release/swap: `decide.html` with `type=dcscan`.
+- Full skill: `.cursor/skills/dc-scan-volunteer-board/SKILL.md`
+
+Push **the-dump-bin** for UI changes; push **eod-api** for API/PROD sync changes.
