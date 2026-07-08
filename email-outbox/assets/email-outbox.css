@@ -68,6 +68,8 @@ label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color:
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { border-bottom: 1px solid #1f2937; padding: 10px 8px; text-align: left; vertical-align: top; }
 th { color: #94a3b8; font-weight: 600; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover, th.sortable.is-sorted { color: #e2e8f0; }
 tbody tr { cursor: pointer; }
 tbody tr:hover, tbody tr.is-selected { background: #172554; }
 .muted { color: #94a3b8; }

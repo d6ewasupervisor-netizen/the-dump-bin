@@ -8,6 +8,8 @@
     selectedId: null,
     filters: {},
     sources: [],
+    sortBy: 'createdAt',
+    sortDir: 'desc',
   };
 
   function tokenHeader() {
@@ -111,15 +113,46 @@
       .replace(/"/g, '&quot;');
   }
 
+  function sortIndicator(column) {
+    if (state.sortBy !== column) return '';
+    return state.sortDir === 'asc' ? ' ▲' : ' ▼';
+  }
+
+  function updateSortHeaders() {
+    document.querySelectorAll('th[data-sort]').forEach((th) => {
+      const col = th.dataset.sort;
+      const label = th.dataset.label || th.textContent.replace(/[▲▼]/g, '').trim();
+      th.textContent = `${label}${sortIndicator(col)}`;
+      th.classList.toggle('is-sorted', state.sortBy === col);
+    });
+  }
+
+  function onSortColumn(column) {
+    if (state.sortBy === column) {
+      state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.sortBy = column;
+      state.sortDir = (column === 'subject' || column === 'sourceSystem' || column === 'to') ? 'asc' : 'desc';
+    }
+    state.page = 1;
+    updateSortHeaders();
+    loadList();
+  }
+
   async function loadList() {
     const params = new URLSearchParams({
       page: String(state.page),
       pageSize: String(state.pageSize),
+      sortBy: state.sortBy,
+      sortDir: state.sortDir,
     });
     Object.entries(state.filters).forEach(([k, v]) => {
       if (v) params.set(k, v);
     });
     const data = await api(`${API_PREFIX}?${params.toString()}`);
+    if (data.sortBy) state.sortBy = data.sortBy;
+    if (data.sortDir) state.sortDir = data.sortDir;
+    updateSortHeaders();
     state.total = data.total || 0;
     document.getElementById('listSummary').textContent = `${state.total} email(s)`;
     const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
@@ -312,6 +345,11 @@
         btn.disabled = false;
       }
     });
+
+    document.querySelectorAll('th[data-sort]').forEach((th) => {
+      th.addEventListener('click', () => onSortColumn(th.dataset.sort));
+    });
+    updateSortHeaders();
 
     await loadSources();
     await loadList();
