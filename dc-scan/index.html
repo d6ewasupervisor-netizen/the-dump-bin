@@ -80,6 +80,25 @@ body {
   padding: 12px 14px; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);
 }
 .signed-in strong { word-break: break-all; color: var(--text); }
+.access-gate {
+  background: linear-gradient(135deg, rgba(255,204,0,0.14), rgba(255,140,66,0.10));
+  border: 1px solid rgba(255,204,0,0.45);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.access-gate h3 { font-size: 15px; margin-bottom: 8px; }
+.access-gate p { color: var(--text-secondary); margin-bottom: 10px; }
+.access-gate label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 0 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.access-gate input, .access-gate textarea {
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--card-border);
+  background: var(--bg-elevated); color: var(--text); font: inherit;
+}
+.access-gate textarea { min-height: 72px; resize: vertical; }
+.access-gate .btn { margin-top: 12px; }
+.access-gate.pending { border-color: rgba(77,166,255,0.45); background: rgba(77,166,255,0.08); }
+.read-only-actions { opacity: 0.55; pointer-events: none; }
 .signed-in button, .unclaim-btn, .btn-secondary {
   padding: 10px 14px; border-radius: 8px; border: 1px solid var(--card-border);
   background: var(--bg-elevated); color: var(--text-secondary);
@@ -257,6 +276,20 @@ textarea { min-height: 84px; resize: vertical; }
     <button type="button" id="sign-out-btn">Sign out</button>
   </div>
 
+  <div class="access-gate hidden" id="access-gate">
+    <h3 id="access-gate-title">Request DC Scan access</h3>
+    <p id="access-gate-copy">Your signed-in email is not on the DC Scan volunteer list yet. You can view the board, but claiming stores requires supervisor approval.</p>
+    <div id="access-request-form">
+      <label for="access-name">Your name</label>
+      <input type="text" id="access-name" autocomplete="name" />
+      <label for="access-reason">Note for supervisor (optional)</label>
+      <textarea id="access-reason" placeholder="e.g. District 8 DC Scan volunteer"></textarea>
+      <button type="button" class="btn" id="access-request-btn">Request access</button>
+      <div class="msg" id="access-msg"></div>
+    </div>
+    <p class="hidden" id="access-pending-copy">Your access request is pending. Refresh this page after your supervisor approves it, or sign out and back in with your other work email if you have one.</p>
+  </div>
+
   <section class="section" id="this-week-section">
     <div class="section-head">
       <div>
@@ -279,7 +312,7 @@ textarea { min-height: 84px; resize: vertical; }
     <div class="grid" id="ongoing-grid"></div>
   </section>
 
-  <div class="panels">
+  <div class="panels" id="participant-panels">
     <div class="panel">
       <h3>Claim a store</h3>
       <p class="sub">Open stores only. You can claim more than one. Choosing a day is required (Wed–Fri).</p>
@@ -342,6 +375,7 @@ textarea { min-height: 84px; resize: vertical; }
   const $ = (id) => document.getElementById(id);
   let snapshot = null;
   let me = null;
+  let accessStatus = null;
   let es = null;
 
   function showMsg(el, text, ok) {
@@ -421,7 +455,42 @@ textarea { min-height: 84px; resize: vertical; }
     })[c]);
   }
 
+  function updateParticipantUi() {
+    const canParticipate = Boolean(accessStatus && accessStatus.canParticipate);
+    const pending = Boolean(accessStatus && accessStatus.pendingAccessRequest);
+    const gate = $('access-gate');
+    const panels = $('participant-panels');
+    if (!canParticipate) {
+      gate.classList.remove('hidden');
+      gate.classList.toggle('pending', pending);
+      $('access-request-form').classList.toggle('hidden', pending);
+      $('access-pending-copy').classList.toggle('hidden', !pending);
+      $('access-gate-title').textContent = pending ? 'Access request pending' : 'Request DC Scan access';
+      panels.classList.add('read-only-actions');
+    } else {
+      gate.classList.add('hidden');
+      panels.classList.remove('read-only-actions');
+    }
+  }
+
+  async function loadAccessStatus() {
+    const data = await api('/approved-users');
+    accessStatus = data;
+    if (!accessStatus.canParticipate && me && me.email) {
+      const guess = me.email.split('@')[0].replace(/\./g, ' ');
+      $('access-name').value = $('access-name').value || guess.replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+    updateParticipantUi();
+    return accessStatus;
+  }
+
+  function isAllowlistError(message) {
+    return String(message || '').toLowerCase().includes('allowlist');
+  }
+
   function panelForScope(scope) {
+    return scope === 'ongoing' ? snapshot.ongoing : snapshot.thisWeek;
+  }
     return scope === 'ongoing' ? snapshot.ongoing : snapshot.thisWeek;
   }
 
@@ -581,6 +650,12 @@ textarea { min-height: 84px; resize: vertical; }
     $('app').hidden = false;
 
     try {
+      await loadAccessStatus();
+    } catch (err) {
+      console.warn('access status', err);
+    }
+
+    try {
       const cached = localStorage.getItem('dc_scan_snapshot');
       if (cached) applySnapshot(JSON.parse(cached));
     } catch (_) {}
@@ -633,7 +708,13 @@ textarea { min-height: 84px; resize: vertical; }
       applySnapshot(data.snapshot);
       showMsg($('claim-msg'), data.message || 'Claimed.', true);
     } catch (err) {
-      showMsg($('claim-msg'), err.message, false);
+      const msg = err.message || 'Claim failed.';
+      if (isAllowlistError(msg)) {
+        showMsg($('claim-msg'), msg + ' Use the access request form above, or sign out and sign in with your other work email.', false);
+        try { await loadAccessStatus(); } catch (_) {}
+      } else {
+        showMsg($('claim-msg'), msg, false);
+      }
     } finally {
       $('claim-btn').disabled = false;
     }
@@ -683,6 +764,27 @@ textarea { min-height: 84px; resize: vertical; }
       $('change-box').classList.add('hidden');
     } catch (err) {
       showMsg($('change-msg'), err.message, false);
+    }
+  });
+
+  $('access-request-btn').addEventListener('click', async () => {
+    clearMsg($('access-msg'));
+    try {
+      $('access-request-btn').disabled = true;
+      const data = await api('/access-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: $('access-name').value,
+          reason: $('access-reason').value,
+        }),
+      });
+      showMsg($('access-msg'), data.message || 'Request sent.', true);
+      accessStatus = Object.assign({}, accessStatus || {}, { pendingAccessRequest: true, canParticipate: false });
+      updateParticipantUi();
+    } catch (err) {
+      showMsg($('access-msg'), err.message || 'Could not submit request.', false);
+      $('access-request-btn').disabled = false;
     }
   });
 
