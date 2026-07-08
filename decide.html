@@ -24,13 +24,16 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      min-height: 100dvh;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
-      padding: 20px 16px 48px;
+      padding: 20px 16px calc(48px + env(safe-area-inset-bottom, 0px));
+      overflow-x: hidden;
     }
     .wrap {
       max-width: 440px;
       margin: 0 auto;
+      width: 100%;
     }
     h1 {
       font-size: 1.35rem;
@@ -87,6 +90,9 @@
       cursor: pointer;
       font-weight: 600;
       font-size: 1rem;
+      min-height: 48px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     button:disabled {
       opacity: 0.45;
@@ -193,6 +199,7 @@
   function labelType(t) {
     if (t === 'store') return 'Store confirmation override';
     if (t === 'shift') return 'Shift removal';
+    if (t === 'dcscan') return 'DC Scan release / swap';
     return t || 'Request';
   }
 
@@ -206,7 +213,7 @@
     return '<dt>' + esc(term) + '</dt><dd>' + htmlInner + '</dd>';
   }
 
-  if (!type || !id || !token || (type !== 'store' && type !== 'shift')) {
+  if (!type || !id || !token || (type !== 'store' && type !== 'shift' && type !== 'dcscan')) {
     showError('This link is missing required parameters (type, id, token). Open the link from your email.');
     return;
   }
@@ -235,8 +242,14 @@
     if (type === 'store' && data.reason) {
       parts.push(row('Reason', '<blockquote class="reason">' + esc(data.reason) + '</blockquote>'));
     }
+    if (type === 'dcscan' && data.reason) {
+      parts.push(row('Details', '<blockquote class="reason">' + esc(data.reason) + '</blockquote>'));
+    }
     if (type === 'shift' && data.memberName) {
       parts.push(row('Remove', esc(data.memberName)));
+    }
+    if (type === 'dcscan' && data.memberName) {
+      parts.push(row('Volunteer', esc(data.memberName)));
     }
     if (data.requestedAt) {
       try {
