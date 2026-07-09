@@ -5583,44 +5583,103 @@
             });
         }
 
-        // Compress image for PDF embedding - balances quality and file size
-        // Returns a JPEG data URL at optimized resolution for email-friendly PDFs
-        async function compressImageForPDF(dataUrl, maxWidth, maxHeight, quality) {
-            maxWidth = maxWidth || 1600;
-            maxHeight = maxHeight || 1200;
-            quality = quality || 0.82;
+        // Sign-off sheets must stay verification-grade (~300 DPI on letter).
+        // PROD maintenance after-slot photos are often server-compressed, so
+        // we upscale small sources instead of only downscaling them.
+        const SIGNOFF_VERIFICATION_POLICY = {
+            minWidth: 2480,
+            minHeight: 3200,
+            maxWidth: 3264,
+            maxHeight: 4224,
+            quality: 0.95,
+            allowUpscale: true,
+            sharpenOnUpscale: true,
+            label: 'signoff-verify',
+        };
+
+        async function prepareImageForEmbed(dataUrl, policy = {}) {
+            const {
+                minWidth = 0,
+                minHeight = 0,
+                maxWidth = 1600,
+                maxHeight = 1200,
+                quality = 0.82,
+                allowUpscale = false,
+                sharpenOnUpscale = false,
+                label = 'image',
+            } = policy;
 
             return new Promise((resolve, reject) => {
                 const img = new Image();
                 img.onload = () => {
-                    let w = img.naturalWidth;
-                    let h = img.naturalHeight;
+                    const srcW = img.naturalWidth;
+                    const srcH = img.naturalHeight;
+                    if (!srcW || !srcH) {
+                        resolve(dataUrl);
+                        return;
+                    }
 
-                    // Scale down if exceeds max dimensions while maintaining aspect ratio
-                    if (w > maxWidth || h > maxHeight) {
-                        const scale = Math.min(maxWidth / w, maxHeight / h);
-                        w = Math.round(w * scale);
-                        h = Math.round(h * scale);
+                    let targetW = srcW;
+                    let targetH = srcH;
+
+                    if (allowUpscale) {
+                        let scale = 1;
+                        if (minWidth && targetW < minWidth) scale = Math.max(scale, minWidth / targetW);
+                        if (minHeight && targetH < minHeight) scale = Math.max(scale, minHeight / targetH);
+                        if (scale > 1) {
+                            targetW = Math.round(srcW * scale);
+                            targetH = Math.round(srcH * scale);
+                        }
+                    }
+
+                    if (targetW > maxWidth || targetH > maxHeight) {
+                        const scale = Math.min(maxWidth / targetW, maxHeight / targetH);
+                        targetW = Math.round(targetW * scale);
+                        targetH = Math.round(targetH * scale);
                     }
 
                     const canvas = document.createElement('canvas');
-                    canvas.width = w;
-                    canvas.height = h;
+                    canvas.width = targetW;
+                    canvas.height = targetH;
                     const ctx = canvas.getContext('2d');
-
-                    // Use high-quality image smoothing for downscaling
                     ctx.imageSmoothingEnabled = true;
                     ctx.imageSmoothingQuality = 'high';
-                    ctx.drawImage(img, 0, 0, w, h);
+                    if (sharpenOnUpscale && (targetW > srcW || targetH > srcH)) {
+                        ctx.filter = 'contrast(1.06)';
+                    }
+                    ctx.drawImage(img, 0, 0, targetW, targetH);
+                    ctx.filter = 'none';
 
-                    // Convert to JPEG with specified quality
-                    const compressed = canvas.toDataURL('image/jpeg', quality);
-                    console.log(`Image compressed: ${Math.round(dataUrl.length/1024)}KB -> ${Math.round(compressed.length/1024)}KB (${w}x${h}, q=${quality})`);
-                    resolve(compressed);
+                    const out = canvas.toDataURL('image/jpeg', quality);
+                    console.log(
+                        `[${label}] ${srcW}x${srcH} -> ${targetW}x${targetH} q=${quality}` +
+                        (targetW > srcW || targetH > srcH ? ' (upscaled)' : '')
+                    );
+                    resolve(out);
                 };
                 img.onerror = reject;
                 img.src = dataUrl;
             });
+        }
+
+        // Compress image for PDF embedding - balances quality and file size
+        // Returns a JPEG data URL at optimized resolution for email-friendly PDFs
+        async function compressImageForPDF(dataUrl, maxWidth, maxHeight, quality) {
+            return prepareImageForEmbed(dataUrl, {
+                maxWidth: maxWidth || 1600,
+                maxHeight: maxHeight || 1200,
+                quality: quality || 0.82,
+                label: 'pdf-cart',
+            });
+        }
+
+        async function prepareSignoffForDelivery(dataUrl, { fromProd = false } = {}) {
+            const policy = {
+                ...SIGNOFF_VERIFICATION_POLICY,
+                minWidth: fromProd ? 2550 : SIGNOFF_VERIFICATION_POLICY.minWidth,
+                minHeight: fromProd ? 3300 : SIGNOFF_VERIFICATION_POLICY.minHeight,
+            };
+            return prepareImageForEmbed(dataUrl, policy);
         }
 
         // Per-type compression policy applied at capture/save time so we
@@ -5631,7 +5690,7 @@
         // shelf state, so they drop to minimal quality for ~20-40x storage
         // savings vs the previous PNG pipeline.
         const PHOTO_STORAGE_COMPRESSION = {
-            signoff:   { maxWidth: 2400, maxHeight: 3200, quality: 0.90, label: 'sign-off' },
+            signoff:   { ...SIGNOFF_VERIFICATION_POLICY, label: 'sign-off' },
             instawork: { maxWidth: 2400, maxHeight: 3200, quality: 0.90, label: 'InstaWork' },
             before:    { maxWidth: 1280, maxHeight: 1280, quality: 0.65, label: 'cart-before' },
             after:     { maxWidth: 1280, maxHeight: 1280, quality: 0.65, label: 'cart-after' }
@@ -5648,12 +5707,10 @@
             // Remote URLs (PROD-synced previews) aren't ours to recompress
             if (dataUrl.startsWith('http')) return dataUrl;
             try {
-                const optimized = await compressImageForPDF(
-                    dataUrl,
-                    cfg.maxWidth,
-                    cfg.maxHeight,
-                    cfg.quality
-                );
+                const optimized = await prepareImageForEmbed(dataUrl, {
+                    ...cfg,
+                    label: cfg.label || type,
+                });
                 const beforeKB = Math.round(dataUrl.length / 1024);
                 const afterKB = Math.round(optimized.length / 1024);
                 console.log(`[photo:${cfg.label}] stored ${afterKB}KB (was ${beforeKB}KB, ${beforeKB > 0 ? Math.round((1 - afterKB / beforeKB) * 100) : 0}% smaller)`);
@@ -5669,7 +5726,7 @@
         // optimize-existing flow. These are intentionally generous so we
         // only re-encode photos that actually pre-date the new pipeline.
         const PHOTO_STORAGE_BUDGET_BYTES = {
-            signoff:   2_400_000, // ~2.4 MB
+            signoff:   4_000_000, // ~4 MB — verification-grade sign-off sheets
             instawork: 2_400_000,
             before:      600_000, // ~600 KB
             after:       600_000
@@ -7718,13 +7775,12 @@
                     const dedupeKey = `url:${normalizeProdPhotoUrlForDedup(url)}`;
                     if (seen.has(dedupeKey)) continue;
 
-                    const useAuth = url.startsWith(SM_API_BASE) || url.startsWith(EOD_API_BASE);
-                    const resp = useAuth ? await authFetch(url) : await fetch(url);
-                    if (!resp.ok) {
-                        console.warn('[email] Could not load sign-off image for inline embed:', resp.status, url);
+                    try {
+                        dataUrl = await fetchImageAsDataUrl(url);
+                    } catch (err) {
+                        console.warn('[email] Could not load sign-off image for inline embed:', err.message || err, url);
                         continue;
                     }
-                    dataUrl = await readBlobAsDataUrl(await resp.blob());
                     seen.add(dedupeKey);
                 } else if (typeof dataUrl === 'string') {
                     if (seen.has(dataUrl)) continue;
@@ -7733,6 +7789,9 @@
                     continue;
                 }
 
+                dataUrl = await prepareSignoffForDelivery(dataUrl, {
+                    fromProd: !!(entry.isUrl || entry.source === 'prod'),
+                });
                 result.push(dataUrl);
             }
 
@@ -8377,15 +8436,8 @@ ${data.Notes || ''}`;
             // Helper: load image data for PDF embedding (handles both data URLs and remote URLs)
             const loadImageForPDF = async (photoEntry, maxW, maxH, quality) => {
                 let photoData = photoEntry.dataUrl || photoEntry;
-                // If it's a remote URL (PROD), fetch and convert to data URL
-                if (typeof photoData === 'string' && photoData.startsWith('http')) {
-                    const resp = await fetch(photoData);
-                    const blob = await resp.blob();
-                    photoData = await new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(blob);
-                    });
+                if (typeof photoData === 'string' && /^https?:/i.test(photoData)) {
+                    photoData = await fetchImageAsDataUrl(photoData);
                 }
                 return await compressImageForPDF(photoData, maxW, maxH, quality);
             };
@@ -8457,19 +8509,14 @@ ${data.Notes || ''}`;
                     const addSignoffSheetPage = async (photoEntry, title) => {
                         try {
                             let photoData = photoEntry.dataUrl || photoEntry;
-                            // Handle remote URLs
-                            if (typeof photoData === 'string' && photoData.startsWith('http')) {
-                                const resp = await fetch(photoData);
-                                const blob = await resp.blob();
-                                photoData = await new Promise((resolve) => {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => resolve(reader.result);
-                                    reader.readAsDataURL(blob);
-                                });
+                            if (typeof photoData === 'string' && /^https?:/i.test(photoData)) {
+                                photoData = await fetchImageAsDataUrl(photoData);
                             }
 
                             const portraitData = await ensurePortraitOrientation(photoData);
-                            const compressed = await compressImageForPDF(portraitData, 2000, 2600, 0.85);
+                            const compressed = await prepareSignoffForDelivery(portraitData, {
+                                fromProd: photoEntry.source === 'prod' || photoEntry.isUrl,
+                            });
                             const imgBytes = await fetch(compressed).then(r => r.arrayBuffer());
                             const img = await pdfDoc.embedJpg(imgBytes);
 
@@ -10538,6 +10585,16 @@ ${data.Notes || ''}`;
             return url;
         }
 
+        async function fetchImageAsDataUrl(url) {
+            const resolved = resolveProdPhotoUrl(url);
+            if (!resolved) throw new Error('Image URL is missing.');
+            if (resolved.startsWith('data:')) return resolved;
+            const useAuth = resolved.startsWith(SM_API_BASE) || resolved.startsWith(EOD_API_BASE);
+            const resp = useAuth ? await authFetch(resolved) : await fetch(resolved);
+            if (!resp.ok) throw new Error(`Could not load image (${resp.status}).`);
+            return readBlobAsDataUrl(await resp.blob());
+        }
+
         function readBlobAsDataUrl(blob) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -10559,13 +10616,16 @@ ${data.Notes || ''}`;
             if (url.startsWith('data:')) {
                 dataUrl = url;
             } else {
-                const useAuth = url.startsWith(SM_API_BASE) || url.startsWith(EOD_API_BASE);
-                const resp = useAuth ? await authFetch(url) : await fetch(url);
-                if (!resp.ok) throw new Error(`Could not load selected photo (${resp.status}).`);
-                dataUrl = await readBlobAsDataUrl(await resp.blob());
+                dataUrl = await fetchImageAsDataUrl(url);
             }
 
-            const optimized = await optimizePhotoForStorage(dataUrl, type);
+            if (type === 'signoff') {
+                dataUrl = await prepareSignoffForDelivery(dataUrl, { fromProd: true });
+            }
+
+            const optimized = type === 'signoff'
+                ? dataUrl
+                : await optimizePhotoForStorage(dataUrl, type);
             photo.localDataUrl = optimized;
             if (key && prodPhotoLocalCopies[type]) prodPhotoLocalCopies[type][key] = optimized;
             return optimized;
