@@ -351,7 +351,14 @@ textarea { min-height: 84px; resize: vertical; }
 
       <div id="open-offers-box" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--card-border)">
         <h3 style="margin-bottom:8px">Open coverage</h3>
-        <p class="sub">Teammates asked to back out — take a shift if you can cover it.</p>
+        <p class="sub">Teammates asked to back out — review below, then confirm to assign yourself. Email links only open this panel; they never auto-assign.</p>
+        <div id="offer-confirm-box" class="hidden" style="margin-bottom:12px;padding:12px;border:1px solid rgba(0,232,122,0.45);border-radius:10px;background:var(--green-bg)">
+          <strong id="offer-confirm-title">Confirm take shift</strong>
+          <p class="sub" id="offer-confirm-detail" style="margin:8px 0"></p>
+          <button type="button" class="btn green" id="offer-confirm-btn">Confirm — assign me as lead</button>
+          <button type="button" class="btn-secondary" id="offer-confirm-cancel" style="width:100%;margin-top:8px">Cancel</button>
+          <div class="msg" id="offer-confirm-msg"></div>
+        </div>
         <ul class="pledge-list" id="open-offers-list"></ul>
       </div>
 
@@ -603,6 +610,8 @@ textarea { min-height: 84px; resize: vertical; }
     renderOpenOffers();
   }
 
+  let pendingTakeOfferId = null;
+
   function renderOpenOffers() {
     const box = $('open-offers-box');
     const list = $('open-offers-list');
@@ -610,25 +619,80 @@ textarea { min-height: 84px; resize: vertical; }
     const offers = (snapshot.openOffers || []).filter(
       (o) => String(o.requestedByEmail || '').toLowerCase() !== email
     );
-    if (!offers.length) {
+    if (!offers.length && !pendingTakeOfferId) {
       box.classList.add('hidden');
       list.innerHTML = '';
+      $('offer-confirm-box').classList.add('hidden');
       return;
     }
     box.classList.remove('hidden');
-    list.innerHTML = offers.map((o) =>
-      '<li>' +
-      '<div><span class="store">FM ' + escapeHtml(o.storeId) + '</span> · ' +
-      fmtDate(o.scheduledDate) + ' · from ' + escapeHtml(o.requestedByName) +
-      (o.note ? '<br/><em>' + escapeHtml(o.note) + '</em>' : '') +
-      '</div>' +
-      '<button type="button" class="btn green" style="margin-top:8px" data-take-offer="' +
-      escapeHtml(o.id) + '">I can take this shift</button>' +
-      '</li>'
-    ).join('');
-    list.querySelectorAll('[data-take-offer]').forEach((btn) => {
-      btn.addEventListener('click', () => takeOffer(btn.getAttribute('data-take-offer')));
+    list.innerHTML = offers.map((o) => {
+      const selected = pendingTakeOfferId && pendingTakeOfferId === o.id;
+      return '<li' + (selected ? ' style="border-color:rgba(0,232,122,0.55)"' : '') + '>' +
+        '<div><span class="store">FM ' + escapeHtml(o.storeId) + '</span> · ' +
+        fmtDate(o.scheduledDate) + ' · from ' + escapeHtml(o.requestedByName) +
+        (o.note ? '<br/><em>' + escapeHtml(o.note) + '</em>' : '') +
+        (selected ? '<br/><em>selected — confirm above</em>' : '') +
+        '</div>' +
+        '<button type="button" class="btn' + (selected ? ' green' : '') + '" style="margin-top:8px" data-select-offer="' +
+        escapeHtml(o.id) + '">' + (selected ? 'Selected' : 'Select this shift') + '</button>' +
+        '</li>';
+    }).join('') || '<li class="denied">No open coverage offers right now.</li>';
+    list.querySelectorAll('[data-select-offer]').forEach((btn) => {
+      btn.addEventListener('click', () => selectOfferForConfirm(btn.getAttribute('data-select-offer')));
     });
+    syncOfferConfirmBox();
+  }
+
+  function selectOfferForConfirm(requestId) {
+    pendingTakeOfferId = String(requestId || '').trim() || null;
+    syncOfferConfirmBox();
+    renderOpenOffers();
+    try { $('open-offers-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
+  }
+
+  function syncOfferConfirmBox() {
+    const box = $('offer-confirm-box');
+    const detail = $('offer-confirm-detail');
+    clearMsg($('offer-confirm-msg'));
+    if (!pendingTakeOfferId) {
+      box.classList.add('hidden');
+      return;
+    }
+    const offer = (snapshot.openOffers || []).find((o) => o.id === pendingTakeOfferId);
+    if (!offer) {
+      box.classList.remove('hidden');
+      detail.textContent = 'That coverage offer is no longer open. Pick another from the list, or refresh.';
+      $('offer-confirm-btn').disabled = true;
+      return;
+    }
+    box.classList.remove('hidden');
+    $('offer-confirm-btn').disabled = false;
+    detail.innerHTML =
+      'You are about to take <strong>FM ' + escapeHtml(offer.storeId) + '</strong> on ' +
+      '<strong>' + fmtDate(offer.scheduledDate) + '</strong> from ' +
+      escapeHtml(offer.requestedByName) +
+      '. This will make you the SAS lead and remove them from the shift. Nothing happens until you confirm.';
+  }
+
+  async function confirmTakeOffer() {
+    if (!pendingTakeOfferId) return;
+    clearMsg($('offer-confirm-msg'));
+    try {
+      $('offer-confirm-btn').disabled = true;
+      const data = await api('/take-offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: pendingTakeOfferId }),
+      });
+      pendingTakeOfferId = null;
+      applySnapshot(data.snapshot);
+      showMsg($('finalize-msg'), data.message || 'Shift taken.', Boolean(data.success));
+      showMsg($('offer-confirm-msg'), data.message || 'Shift taken.', Boolean(data.success));
+    } catch (err) {
+      showMsg($('offer-confirm-msg'), err.message, false);
+      $('offer-confirm-btn').disabled = false;
+    }
   }
 
   function openChange(pledgeId) {
@@ -675,21 +739,6 @@ textarea { min-height: 84px; resize: vertical; }
       $('swap-date').innerHTML = dates.map((d) =>
         '<option value="' + d + '"' + (d === pledge.scheduledDate ? ' selected' : '') + '>' + fmtDate(d) + '</option>'
       ).join('');
-    }
-  }
-
-  async function takeOffer(requestId) {
-    if (!confirm('Take this open shift? You will become the SAS lead and the previous person will be removed.')) return;
-    try {
-      const data = await api('/take-offer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId }),
-      });
-      applySnapshot(data.snapshot);
-      showMsg($('finalize-msg'), data.message || 'Shift taken.', Boolean(data.success));
-    } catch (err) {
-      showMsg($('finalize-msg'), err.message, false);
     }
   }
 
@@ -807,13 +856,19 @@ textarea { min-height: 84px; resize: vertical; }
         connectSse();
       }
 
-      // Deep link from teammate coverage email: ?takeOffer=<requestId>
+      // Email deep link only PREFILLS the confirm panel — never auto-assigns
+      // (security scanners / link bots must not mutate SAS by following the URL).
       try {
         const params = new URLSearchParams(location.search);
-        const takeId = params.get('takeOffer');
+        const takeId = params.get('takeOffer') || params.get('offer');
         if (takeId) {
           history.replaceState({}, '', location.pathname);
-          await takeOffer(takeId);
+          selectOfferForConfirm(takeId);
+          showMsg(
+            $('finalize-msg'),
+            'Coverage offer loaded. Review Open coverage and click Confirm — assign me as lead to take it.',
+            true,
+          );
         }
       } catch (_) {}
     } catch (err) {
@@ -823,6 +878,16 @@ textarea { min-height: 84px; resize: vertical; }
       throw err;
     }
   }
+
+  $('offer-confirm-btn').addEventListener('click', () => {
+    confirmTakeOffer();
+  });
+  $('offer-confirm-cancel').addEventListener('click', () => {
+    pendingTakeOfferId = null;
+    syncOfferConfirmBox();
+    renderOpenOffers();
+    clearMsg($('offer-confirm-msg'));
+  });
 
   $('claim-scope').addEventListener('change', refreshClaimOptions);
 
