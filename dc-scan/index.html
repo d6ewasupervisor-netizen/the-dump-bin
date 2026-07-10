@@ -324,6 +324,28 @@ textarea { min-height: 84px; resize: vertical; }
   </section>
 
   <div class="panels" id="participant-panels">
+    <div class="panel hidden" id="admin-assign-panel">
+      <h3>Admin assign</h3>
+      <p class="sub">Assign any store to any volunteer (force-replaces current holder). Available to site admins.</p>
+      <form id="admin-assign-form">
+        <label for="admin-scope">Panel</label>
+        <select id="admin-scope" required>
+          <option value="thisWeek">This week (urgent)</option>
+          <option value="ongoing">Going forward</option>
+        </select>
+        <label for="admin-store">Store</label>
+        <select id="admin-store" required><option value="">Select…</option></select>
+        <label for="admin-date">Scan day</label>
+        <select id="admin-date" required><option value="">Select…</option></select>
+        <label for="admin-assignee">Assign to</label>
+        <select id="admin-assignee" required><option value="">Select…</option></select>
+        <label for="admin-note">Note (optional)</label>
+        <textarea id="admin-note" placeholder="Why this assignment?"></textarea>
+        <button type="submit" class="btn green" id="admin-assign-btn">Assign store</button>
+        <div class="msg" id="admin-assign-msg"></div>
+      </form>
+    </div>
+
     <div class="panel">
       <h3>Claim a store</h3>
       <p class="sub">Open stores only. You can claim more than one. Choosing a day is required (Wed–Fri).</p>
@@ -506,6 +528,10 @@ textarea { min-height: 84px; resize: vertical; }
     return data;
   }
 
+  function isSiteAdmin() {
+    return Boolean(accessStatus && (accessStatus.isAdmin || accessStatus.isSupervisor));
+  }
+
   function updateParticipantUi() {
     const canParticipate = Boolean(accessStatus && accessStatus.canParticipate);
     const pending = Boolean(accessStatus && accessStatus.pendingAccessRequest);
@@ -523,6 +549,37 @@ textarea { min-height: 84px; resize: vertical; }
       gate.classList.add('hidden');
       panels.classList.remove('read-only-actions');
     }
+    const adminPanel = $('admin-assign-panel');
+    if (adminPanel) {
+      adminPanel.classList.toggle('hidden', !isSiteAdmin());
+      if (isSiteAdmin()) refreshAdminAssignOptions();
+    }
+  }
+
+  function refreshAdminAssignOptions() {
+    if (!$('admin-assign-panel') || $('admin-assign-panel').classList.contains('hidden')) return;
+    const scope = $('admin-scope').value || 'thisWeek';
+    const panel = panelForScope(scope);
+    const storeSel = $('admin-store');
+    const dateSel = $('admin-date');
+    const assigneeSel = $('admin-assignee');
+    const stores = (panel && panel.stores) || [];
+    storeSel.innerHTML = '<option value="">Select…</option>' +
+      stores.map((s) =>
+        '<option value="' + s.id + '">' + s.label + ' — ' + s.city +
+        (s.status !== 'open' ? ' (' + s.status + ')' : '') + '</option>'
+      ).join('');
+    dateSel.innerHTML = '<option value="">Select…</option>' +
+      ((panel && panel.allowedDates) || []).map((d) =>
+        '<option value="' + d + '">' + fmtDate(d) + '</option>'
+      ).join('');
+    const volunteers = (accessStatus && accessStatus.volunteers) ||
+      (snapshot && snapshot.volunteers) || [];
+    assigneeSel.innerHTML = '<option value="">Select…</option>' +
+      volunteers.map((v) =>
+        '<option value="' + escapeHtml(v.email) + '">' +
+        escapeHtml(v.name || v.displayName || v.email) + '</option>'
+      ).join('');
   }
 
   async function loadAccessStatus() {
@@ -890,6 +947,37 @@ textarea { min-height: 84px; resize: vertical; }
   });
 
   $('claim-scope').addEventListener('change', refreshClaimOptions);
+  if ($('admin-scope')) {
+    $('admin-scope').addEventListener('change', refreshAdminAssignOptions);
+  }
+  if ($('admin-assign-form')) {
+    $('admin-assign-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearMsg($('admin-assign-msg'));
+      try {
+        $('admin-assign-btn').disabled = true;
+        const data = await api('/admin-assign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scope: $('admin-scope').value,
+            storeId: $('admin-store').value,
+            scheduledDate: $('admin-date').value,
+            assignToEmail: $('admin-assignee').value,
+            note: $('admin-note').value,
+            force: true,
+          }),
+        });
+        applySnapshot(data.snapshot);
+        showMsg($('admin-assign-msg'), data.message || 'Assigned.', true);
+        refreshAdminAssignOptions();
+      } catch (err) {
+        showMsg($('admin-assign-msg'), err.message, false);
+      } finally {
+        $('admin-assign-btn').disabled = false;
+      }
+    });
+  }
 
   $('prod-resync-btn').addEventListener('click', async () => {
     const btn = $('prod-resync-btn');
