@@ -365,8 +365,8 @@ textarea { min-height: 84px; resize: vertical; }
     </div>
 
     <div class="panel">
-      <h3>My selections</h3>
-      <p class="sub">Reschedule a day yourself (Wed–Fri). Back out emails teammates and holds the SAS shift until someone takes it. Finalize locks new picks and builds SAS visits.</p>
+      <h3 id="my-selections-title">My selections</h3>
+      <p class="sub" id="my-selections-sub">Reschedule a day yourself (Wed–Fri). Back out emails teammates and holds the SAS shift until someone takes it. Finalize locks new picks and builds SAS visits.</p>
       <ul class="pledge-list" id="my-list"></ul>
       <button type="button" class="btn green" id="finalize-btn" disabled>Confirm / Finalize my selections</button>
       <div class="msg" id="finalize-msg"></div>
@@ -621,10 +621,22 @@ textarea { min-height: 84px; resize: vertical; }
 
   function renderMyList() {
     const email = (me && me.email || '').toLowerCase();
-    const mine = (snapshot.pledges || []).filter((p) => String(p.email).toLowerCase() === email);
+    const admin = isSiteAdmin();
+    const all = snapshot.pledges || [];
+    const mine = admin
+      ? all.slice().sort((a, b) => String(a.storeId).localeCompare(String(b.storeId)))
+      : all.filter((p) => String(p.email).toLowerCase() === email);
     const list = $('my-list');
+    const title = $('my-selections-title');
+    const sub = $('my-selections-sub');
+    if (title) title.textContent = admin ? 'All selections (admin)' : 'My selections';
+    if (sub) {
+      sub.textContent = admin
+        ? 'You can see every claim, reschedule/back out for anyone, unassign, or reassign. Finalize still applies to your own unfinalized picks.'
+        : 'Reschedule a day yourself (Wed–Fri). Back out emails teammates and holds the SAS shift until someone takes it. Finalize locks new picks and builds SAS visits.';
+    }
     if (!mine.length) {
-      list.innerHTML = '<li class="denied">No claims yet.</li>';
+      list.innerHTML = '<li class="denied">' + (admin ? 'No claims on the board yet.' : 'No claims yet.') + '</li>';
       $('finalize-btn').disabled = true;
       renderOpenOffers();
       return;
@@ -632,6 +644,7 @@ textarea { min-height: 84px; resize: vertical; }
     const pendingOffers = (snapshot.changeRequests || []).filter((r) => r.type === 'dropout' && r.status === 'pending');
     list.innerHTML = mine.map((p) => {
       const locked = Boolean(p.finalized);
+      const isMine = String(p.email).toLowerCase() === email;
       const prod = p.prod;
       const timeLine = prod && prod.scheduleLabel ? (' · ' + prod.scheduleLabel) : '';
       const prodLine = p.prodConfirmed
@@ -641,30 +654,63 @@ textarea { min-height: 84px; resize: vertical; }
       const offerLine = myOffer
         ? '<br/><em>coverage offer open — waiting for a teammate</em>'
         : '';
+      const whoLine = admin
+        ? ('<br/><strong>' + escapeHtml(p.name || p.email) + '</strong>' +
+           (isMine ? ' <em>(you)</em>' : ''))
+        : '';
       return '<li>' +
         '<div><span class="store">FM ' + escapeHtml(p.storeId) + '</span> · ' +
         escapeHtml(p.scope) + ' · ' + fmtDate(p.scheduledDate) + timeLine +
         (locked ? ' · <em>locked</em>' : '') +
         prodLine +
+        whoLine +
         offerLine +
         prodDetailHtml(prod) +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
         '<button type="button" class="unclaim-btn" data-modify="' + escapeHtml(p.id) + '">Reschedule / back out</button>' +
-        (myOffer
+        (admin
+          ? '<button type="button" class="btn-secondary" data-unassign="' + escapeHtml(p.id) +
+            '" data-store="' + escapeHtml(p.storeId) + '" data-who="' + escapeHtml(p.name || p.email) +
+            '">Unassign</button>'
+          : '') +
+        (myOffer && (admin || isMine)
           ? '<button type="button" class="btn-secondary" data-cancel-offer="' + escapeHtml(myOffer.id) + '">Cancel offer</button>'
           : '') +
         '</div>' +
         '</li>';
     }).join('');
-    $('finalize-btn').disabled = mine.every((p) => p.finalized);
+    const myOwn = all.filter((p) => String(p.email).toLowerCase() === email);
+    $('finalize-btn').disabled = !myOwn.length || myOwn.every((p) => p.finalized);
     list.querySelectorAll('[data-modify]').forEach((btn) => {
       btn.addEventListener('click', () => openChange(btn.getAttribute('data-modify')));
     });
     list.querySelectorAll('[data-cancel-offer]').forEach((btn) => {
       btn.addEventListener('click', () => cancelOffer(btn.getAttribute('data-cancel-offer')));
     });
+    list.querySelectorAll('[data-unassign]').forEach((btn) => {
+      btn.addEventListener('click', () => adminUnassign(
+        btn.getAttribute('data-unassign'),
+        btn.getAttribute('data-store'),
+        btn.getAttribute('data-who'),
+      ));
+    });
     renderOpenOffers();
+  }
+
+  async function adminUnassign(pledgeId, storeId, who) {
+    if (!confirm('Unassign FM ' + storeId + ' from ' + who + '? The store will open again on the board.')) return;
+    try {
+      const data = await api('/admin-assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pledgeId, release: true, note: 'Unassigned by admin' }),
+      });
+      applySnapshot(data.snapshot);
+      showMsg($('finalize-msg'), data.message || 'Unassigned.', true);
+    } catch (err) {
+      showMsg($('finalize-msg'), err.message, false);
+    }
   }
 
   let pendingTakeOfferId = null;
@@ -673,8 +719,9 @@ textarea { min-height: 84px; resize: vertical; }
     const box = $('open-offers-box');
     const list = $('open-offers-list');
     const email = (me && me.email || '').toLowerCase();
+    const admin = isSiteAdmin();
     const offers = (snapshot.openOffers || []).filter(
-      (o) => String(o.requestedByEmail || '').toLowerCase() !== email
+      (o) => admin || String(o.requestedByEmail || '').toLowerCase() !== email
     );
     if (!offers.length && !pendingTakeOfferId) {
       box.classList.add('hidden');
