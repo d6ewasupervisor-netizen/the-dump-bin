@@ -344,28 +344,39 @@ textarea { min-height: 84px; resize: vertical; }
 
     <div class="panel">
       <h3>My selections</h3>
-      <p class="sub">Release/swap needs supervisor approval. When your list is right, finalize — that locks picks and builds SAS shifts for you.</p>
+      <p class="sub">Reschedule a day yourself (Wed–Fri). Back out emails teammates and holds the SAS shift until someone takes it. Finalize locks new picks and builds SAS visits.</p>
       <ul class="pledge-list" id="my-list"></ul>
       <button type="button" class="btn green" id="finalize-btn" disabled>Confirm / Finalize my selections</button>
       <div class="msg" id="finalize-msg"></div>
 
+      <div id="open-offers-box" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--card-border)">
+        <h3 style="margin-bottom:8px">Open coverage</h3>
+        <p class="sub">Teammates asked to back out — take a shift if you can cover it.</p>
+        <ul class="pledge-list" id="open-offers-list"></ul>
+      </div>
+
       <div id="change-box" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--card-border)">
-        <h3 style="margin-bottom:8px">Request release / swap</h3>
+        <h3 style="margin-bottom:8px" id="change-title">Modify shift</h3>
         <input type="hidden" id="change-pledge-id" />
-        <label for="change-type">Request type</label>
+        <label for="change-type">What do you need?</label>
         <select id="change-type">
-          <option value="release">Release store</option>
-          <option value="swap">Swap to another store</option>
+          <option value="reschedule">Reschedule day (self-serve)</option>
+          <option value="dropout">Back out — ask teammates to cover</option>
+          <option value="swap">Swap to another store (needs approval)</option>
         </select>
+        <div id="reschedule-fields">
+          <label for="reschedule-date">New scan day</label>
+          <select id="reschedule-date"></select>
+        </div>
         <div id="swap-fields" class="hidden">
           <label for="swap-store">Swap to store</label>
           <select id="swap-store"></select>
           <label for="swap-date">Swap to date</label>
           <select id="swap-date"></select>
         </div>
-        <label for="change-note">Note</label>
+        <label for="change-note">Note (optional)</label>
         <textarea id="change-note" placeholder="Why the change?"></textarea>
-        <button type="button" class="btn" id="change-submit">Send for approval</button>
+        <button type="button" class="btn" id="change-submit">Save change</button>
         <button type="button" class="btn-secondary" id="change-cancel" style="width:100%;margin-top:8px">Cancel</button>
         <div class="msg" id="change-msg"></div>
       </div>
@@ -549,8 +560,10 @@ textarea { min-height: 84px; resize: vertical; }
     if (!mine.length) {
       list.innerHTML = '<li class="denied">No claims yet.</li>';
       $('finalize-btn').disabled = true;
+      renderOpenOffers();
       return;
     }
+    const pendingOffers = (snapshot.changeRequests || []).filter((r) => r.type === 'dropout' && r.status === 'pending');
     list.innerHTML = mine.map((p) => {
       const locked = Boolean(p.finalized);
       const prod = p.prod;
@@ -558,21 +571,61 @@ textarea { min-height: 84px; resize: vertical; }
       const prodLine = p.prodConfirmed
         ? ' · <em>confirmed in PROD</em>'
         : (locked ? ' · <em>finalized, awaiting PROD</em>' : '');
+      const myOffer = pendingOffers.find((r) => r.pledgeId === p.id);
+      const offerLine = myOffer
+        ? '<br/><em>coverage offer open — waiting for a teammate</em>'
+        : '';
       return '<li>' +
         '<div><span class="store">FM ' + escapeHtml(p.storeId) + '</span> · ' +
         escapeHtml(p.scope) + ' · ' + fmtDate(p.scheduledDate) + timeLine +
         (locked ? ' · <em>locked</em>' : '') +
         prodLine +
+        offerLine +
         prodDetailHtml(prod) +
         '</div>' +
-        (locked
-          ? ''
-          : '<button type="button" class="unclaim-btn" data-pledge="' + escapeHtml(p.id) + '">Release / swap</button>') +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
+        '<button type="button" class="unclaim-btn" data-modify="' + escapeHtml(p.id) + '">Reschedule / back out</button>' +
+        (myOffer
+          ? '<button type="button" class="btn-secondary" data-cancel-offer="' + escapeHtml(myOffer.id) + '">Cancel offer</button>'
+          : '') +
+        '</div>' +
         '</li>';
     }).join('');
     $('finalize-btn').disabled = mine.every((p) => p.finalized);
-    list.querySelectorAll('[data-pledge]').forEach((btn) => {
-      btn.addEventListener('click', () => openChange(btn.getAttribute('data-pledge')));
+    list.querySelectorAll('[data-modify]').forEach((btn) => {
+      btn.addEventListener('click', () => openChange(btn.getAttribute('data-modify')));
+    });
+    list.querySelectorAll('[data-cancel-offer]').forEach((btn) => {
+      btn.addEventListener('click', () => cancelOffer(btn.getAttribute('data-cancel-offer')));
+    });
+    renderOpenOffers();
+  }
+
+  function renderOpenOffers() {
+    const box = $('open-offers-box');
+    const list = $('open-offers-list');
+    const email = (me && me.email || '').toLowerCase();
+    const offers = (snapshot.openOffers || []).filter(
+      (o) => String(o.requestedByEmail || '').toLowerCase() !== email
+    );
+    if (!offers.length) {
+      box.classList.add('hidden');
+      list.innerHTML = '';
+      return;
+    }
+    box.classList.remove('hidden');
+    list.innerHTML = offers.map((o) =>
+      '<li>' +
+      '<div><span class="store">FM ' + escapeHtml(o.storeId) + '</span> · ' +
+      fmtDate(o.scheduledDate) + ' · from ' + escapeHtml(o.requestedByName) +
+      (o.note ? '<br/><em>' + escapeHtml(o.note) + '</em>' : '') +
+      '</div>' +
+      '<button type="button" class="btn green" style="margin-top:8px" data-take-offer="' +
+      escapeHtml(o.id) + '">I can take this shift</button>' +
+      '</li>'
+    ).join('');
+    list.querySelectorAll('[data-take-offer]').forEach((btn) => {
+      btn.addEventListener('click', () => takeOffer(btn.getAttribute('data-take-offer')));
     });
   }
 
@@ -580,25 +633,77 @@ textarea { min-height: 84px; resize: vertical; }
     const p = (snapshot.pledges || []).find((x) => x.id === pledgeId);
     if (!p) return;
     $('change-pledge-id').value = pledgeId;
-    $('change-type').value = 'release';
+    $('change-type').value = 'reschedule';
     $('change-note').value = '';
     $('change-box').classList.remove('hidden');
-    updateSwapFields(p);
+    updateChangeFields(p);
     clearMsg($('change-msg'));
+    try { $('change-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
   }
 
-  function updateSwapFields(pledge) {
-    const isSwap = $('change-type').value === 'swap';
+  function updateChangeFields(pledge) {
+    const type = $('change-type').value;
+    const isSwap = type === 'swap';
+    const isReschedule = type === 'reschedule';
     $('swap-fields').classList.toggle('hidden', !isSwap);
-    if (!isSwap || !pledge) return;
+    $('reschedule-fields').classList.toggle('hidden', !isReschedule);
+    $('change-title').textContent =
+      type === 'dropout' ? 'Back out of shift' :
+      type === 'swap' ? 'Swap store (needs approval)' :
+      'Reschedule day';
+    $('change-submit').textContent =
+      type === 'dropout' ? 'Email teammates' :
+      type === 'swap' ? 'Send for approval' :
+      'Save new day';
+
+    if (!pledge) return;
     const panel = panelForScope(pledge.scope);
-    const open = panel.stores.filter((s) => s.status === 'open');
-    $('swap-store').innerHTML = open.map((s) =>
-      '<option value="' + s.id + '">' + s.label + ' — ' + s.city + '</option>'
-    ).join('') || '<option value="">No open stores</option>';
-    $('swap-date').innerHTML = (panel.allowedDates || []).map((d) =>
-      '<option value="' + d + '"' + (d === pledge.scheduledDate ? ' selected' : '') + '>' + fmtDate(d) + '</option>'
-    ).join('');
+    const dates = panel.allowedDates || [];
+    if (isReschedule) {
+      $('reschedule-date').innerHTML = dates.map((d) =>
+        '<option value="' + d + '"' + (d === pledge.scheduledDate ? ' selected' : '') + '>' +
+        fmtDate(d) + (d === pledge.scheduledDate ? ' (current)' : '') + '</option>'
+      ).join('') || '<option value="">No dates</option>';
+    }
+    if (isSwap) {
+      const open = panel.stores.filter((s) => s.status === 'open');
+      $('swap-store').innerHTML = open.map((s) =>
+        '<option value="' + s.id + '">' + s.label + ' — ' + s.city + '</option>'
+      ).join('') || '<option value="">No open stores</option>';
+      $('swap-date').innerHTML = dates.map((d) =>
+        '<option value="' + d + '"' + (d === pledge.scheduledDate ? ' selected' : '') + '>' + fmtDate(d) + '</option>'
+      ).join('');
+    }
+  }
+
+  async function takeOffer(requestId) {
+    if (!confirm('Take this open shift? You will become the SAS lead and the previous person will be removed.')) return;
+    try {
+      const data = await api('/take-offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId }),
+      });
+      applySnapshot(data.snapshot);
+      showMsg($('finalize-msg'), data.message || 'Shift taken.', Boolean(data.success));
+    } catch (err) {
+      showMsg($('finalize-msg'), err.message, false);
+    }
+  }
+
+  async function cancelOffer(requestId) {
+    if (!confirm('Cancel your coverage offer? You stay assigned to this store.')) return;
+    try {
+      const data = await api('/cancel-offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId }),
+      });
+      applySnapshot(data.snapshot);
+      showMsg($('finalize-msg'), data.message || 'Offer cancelled.', true);
+    } catch (err) {
+      showMsg($('finalize-msg'), err.message, false);
+    }
   }
 
   function updateProdBanner(snap) {
@@ -699,6 +804,16 @@ textarea { min-height: 84px; resize: vertical; }
         updateLivePill(snapshot, false);
         connectSse();
       }
+
+      // Deep link from teammate coverage email: ?takeOffer=<requestId>
+      try {
+        const params = new URLSearchParams(location.search);
+        const takeId = params.get('takeOffer');
+        if (takeId) {
+          history.replaceState({}, '', location.pathname);
+          await takeOffer(takeId);
+        }
+      } catch (_) {}
     } catch (err) {
       hideBootStatus();
       $('app').hidden = false;
@@ -778,33 +893,53 @@ textarea { min-height: 84px; resize: vertical; }
   $('change-type').addEventListener('change', () => {
     const pid = $('change-pledge-id').value;
     const p = (snapshot.pledges || []).find((x) => x.id === pid);
-    updateSwapFields(p);
+    updateChangeFields(p);
   });
   $('change-cancel').addEventListener('click', () => {
     $('change-box').classList.add('hidden');
   });
   $('change-submit').addEventListener('click', async () => {
     clearMsg($('change-msg'));
+    const type = $('change-type').value;
+    const pledgeId = $('change-pledge-id').value;
+    const note = $('change-note').value;
     try {
-      const body = {
-        pledgeId: $('change-pledge-id').value,
-        type: $('change-type').value,
-        note: $('change-note').value,
-      };
-      if (body.type === 'swap') {
-        body.swapToStoreId = $('swap-store').value;
-        body.swapToDate = $('swap-date').value;
+      $('change-submit').disabled = true;
+      let data;
+      if (type === 'reschedule') {
+        data = await api('/reschedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pledgeId,
+            scheduledDate: $('reschedule-date').value,
+            note,
+          }),
+        });
+      } else {
+        const body = { pledgeId, type, note };
+        if (type === 'swap') {
+          body.swapToStoreId = $('swap-store').value;
+          body.swapToDate = $('swap-date').value;
+        }
+        if (type === 'dropout' && !confirm(
+          'Email teammates and hold this shift until someone takes it? Nothing is removed from SAS until then.'
+        )) {
+          return;
+        }
+        data = await api('/change-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
       }
-      const data = await api('/change-request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
       applySnapshot(data.snapshot);
-      showMsg($('change-msg'), data.message || 'Sent.', true);
+      showMsg($('change-msg'), data.message || 'Saved.', Boolean(data.success !== false));
       $('change-box').classList.add('hidden');
     } catch (err) {
       showMsg($('change-msg'), err.message, false);
+    } finally {
+      $('change-submit').disabled = false;
     }
   });
 
