@@ -456,7 +456,9 @@ textarea { min-height: 84px; resize: vertical; }
         ? ('<div class="who"><strong>' + escapeHtml(s.pledge.name) + '</strong><br/>' +
            fmtDate(s.pledge.scheduledDate) +
            prodDetailHtml(prod) +
-           (s.pendingChange ? '<br/><em>change pending</em>' : '') +
+           (s.pendingChange
+             ? ('<br/><em>' + (s.pendingChange.type === 'dropout' ? 'coverage needed' : 'change pending') + '</em>')
+             : '') +
            (s.pledge.buildStatus === 'error' ? '<br/><span style="color:#ff4757">Build error</span>' : '') +
            (s.pledge.source === 'prod' ? '<br/><em>from SAS PROD</em>' : '') +
            '</div>')
