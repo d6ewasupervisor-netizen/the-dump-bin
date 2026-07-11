@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Fax Service Survey — Retail Odyssey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0E2A47;
+    --sky: #2F6FB0;
+    --sky-tint: #E8F0F9;
+    --ink: #1C2733;
+    --muted: #5A6B7D;
+    --line: #D6DEE8;
+    --bg: #F2F5F8;
+    --white: #FFFFFF;
+    --error: #B3261E;
+    --ok: #1E7A46;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Carlito, Calibri, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 17px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .band {
+    background: var(--navy);
+    color: var(--white);
+    padding: 22px 20px 26px;
+  }
+  .band .inner { max-width: 640px; margin: 0 auto; }
+  .brand {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #9FC0E4;
+    margin-bottom: 6px;
+  }
+  .band h1 { font-size: 26px; font-weight: 700; line-height: 1.2; }
+  .band p { margin-top: 8px; color: #C7D6E7; font-size: 15px; max-width: 46ch; }
+
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 56px; }
+
+  .q {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 18px 20px;
+    margin-top: 14px;
+  }
+  .q-label { font-weight: 700; font-size: 17px; }
+  .q-hint { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .q-body { margin-top: 12px; }
+
+  input[type="text"], textarea {
+    width: 100%;
+    font: inherit;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 12px;
+    background: var(--white);
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  input[type="text"]:focus, textarea:focus, .opt input:focus-visible + span, button:focus-visible {
+    outline: 3px solid var(--sky);
+    outline-offset: 2px;
+  }
+
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opt { display: block; cursor: pointer; }
+  .opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .opt span {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 14px;
+    background: var(--white);
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .opt input:checked + span {
+    background: var(--sky-tint);
+    border-color: var(--sky);
+    box-shadow: inset 0 0 0 1px var(--sky);
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .field-err { color: var(--error); font-size: 14px; margin-top: 8px; display: none; }
+  .q.invalid { border-color: var(--error); }
+  .q.invalid .field-err { display: block; }
+
+  .actions { margin-top: 20px; }
+  button {
+    font: inherit;
+    font-weight: 700;
+    background: var(--sky);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    padding: 13px 26px;
+    width: 100%;
+    cursor: pointer;
+  }
+  button:hover { background: #275E97; }
+  button:disabled { background: #8FA9C4; cursor: default; }
+
+  .submit-err {
+    display: none;
+    margin-top: 12px;
+    background: #FBEDEC;
+    border: 1px solid #E5B5B2;
+    color: var(--error);
+    border-radius: 8px;
+    padding: 11px 14px;
+    font-size: 15px;
+  }
+
+  .done {
+    display: none;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 34px 22px;
+    margin-top: 14px;
+    text-align: center;
+  }
+  .done .check {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--ok);
+    color: var(--white);
+    font-size: 28px;
+    line-height: 52px;
+    margin: 0 auto 14px;
+  }
+  .done h2 { color: var(--navy); font-size: 22px; }
+  .done p { color: var(--muted); margin-top: 6px; }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 0 16px 40px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .q, .actions { animation: rise 0.35s ease both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+
+<div class="band">
+  <div class="inner">
+    <div class="brand">Retail Odyssey</div>
+    <h1>Fax Service Survey</h1>
+    <p>Six quick questions to help improve the fax and sign-off sheet service. Takes about a minute.</p>
+  </div>
+</div>
+
+<main>
+  <form id="survey" novalidate>
+
+    <div class="q" data-field="name">
+      <label class="q-label" for="name">Your name</label>
+      <div class="q-body">
+        <input type="text" id="name" name="name" maxlength="100" autocomplete="name" placeholder="First and last name">
+      </div>
+      <div class="field-err">Please enter your name.</div>
+    </div>
+
+    <div class="q" data-field="serviceUseful">
+      <div class="q-label">Do you find the fax service useful?</div>
+      <div class="q-body opts">
+        <label class="opt"><input type="radio" name="serviceUseful" value="yes"><span>Yes</span></label>
+        <label class="opt"><input type="radio" name="serviceUseful" value="somewhat"><span>Somewhat</span></label>
+        <label class="opt"><input type="radio" name="serviceUseful" value="no"><span>No</span></label>
+      </div>
+      <div class="field-err">Please choose an option.</div>
+    </div>
+
+    <div class="q" data-field="sheetPreference">
+      <div class="q-label">How should sign-off sheets be organized?</div>
+      <div class="q-hint">They are currently separated by team.</div>
+      <div class="q-body opts">
+        <label class="opt"><input type="radio" name="sheetPreference" value="by_store"><span>Separated by store</span></label>
+        <label class="opt"><input type="radio" name="sheetPreference" value="by_team"><span>Separated by team (as they are now)</span></label>
+        <label class="opt"><input type="radio" name="sheetPreference" value="both"><span>Both would be useful</span></label>
+      </div>
+      <div class="field-err">Please choose an option.</div>
+    </div>
+
+    <div class="q" data-field="receivedEmailUseful">
+      <div class="q-label">Is the confirmation email saying your fax was received useful?</div>
+      <div class="q-body opts">
+        <label class="opt"><input type="radio" name="receivedEmailUseful" value="yes"><span>Yes</span></label>
+        <label class="opt"><input type="radio" name="receivedEmailUseful" value="no"><span>No</span></label>
+        <label class="opt"><input type="radio" name="receivedEmailUseful" value="unaware"><span>I didn&rsquo;t know about it</span></label>
+      </div>
+      <div class="field-err">Please choose an option.</div>
+    </div>
+
+    <div class="q" data-field="pickupEmailUseful">
+      <div class="q-label">Is the email saying your document is ready for pickup useful?</div>
+      <div class="q-body opts">
+        <label class="opt"><input type="radio" name="pickupEmailUseful" value="yes"><span>Yes</span></label>
+        <label class="opt"><input type="radio" name="pickupEmailUseful" value="no"><span>No</span></label>
+        <label class="opt"><input type="radio" name="pickupEmailUseful" value="unaware"><span>I didn&rsquo;t know about it</span></label>
+      </div>
+      <div class="field-err">Please choose an option.</div>
+    </div>
+
+    <div class="q" data-field="suggestions">
+      <label class="q-label" for="suggestions">Suggestions or anything you&rsquo;d like to add</label>
+      <div class="q-hint">Optional</div>
+      <div class="q-body">
+        <textarea id="suggestions" name="suggestions" maxlength="2000" placeholder="Ideas, issues, requests&hellip;"></textarea>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" id="submitBtn">Submit survey</button>
+      <div class="submit-err" id="submitErr"></div>
+    </div>
+  </form>
+
+  <div class="done" id="done">
+    <div class="check">&#10003;</div>
+    <h2>Thank you</h2>
+    <p>Your response was recorded. It helps shape how the service runs.</p>
+  </div>
+</main>
+
+<footer>Retail Odyssey &middot; Fax &amp; Sign-Off Sheet Service</footer>
+
+<script>
+(function () {
+  var API = "https://fax-survey-api-production.up.railway.app/api/responses";
+  var form = document.getElementById("survey");
+  var btn = document.getElementById("submitBtn");
+  var submitErr = document.getElementById("submitErr");
+
+  function radioValue(name) {
+    var el = form.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : null;
+  }
+
+  function setInvalid(field, invalid) {
+    var q = form.querySelector('.q[data-field="' + field + '"]');
+    if (q) q.classList.toggle("invalid", invalid);
+  }
+
+  // Clear a field's error as soon as it's answered
+  form.addEventListener("change", function (e) {
+    var q = e.target.closest(".q");
+    if (q) q.classList.remove("invalid");
+  });
+  document.getElementById("name").addEventListener("input", function () {
+    setInvalid("name", false);
+  });
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    submitErr.style.display = "none";
+
+    var payload = {
+      name: document.getElementById("name").value.trim(),
+      serviceUseful: radioValue("serviceUseful"),
+      sheetPreference: radioValue("sheetPreference"),
+      receivedEmailUseful: radioValue("receivedEmailUseful"),
+      pickupEmailUseful: radioValue("pickupEmailUseful"),
+      suggestions: document.getElementById("suggestions").value.trim() || null
+    };
+
+    var missing = [];
+    if (!payload.name) missing.push("name");
+    ["serviceUseful", "sheetPreference", "receivedEmailUseful", "pickupEmailUseful"].forEach(function (f) {
+      if (!payload[f]) missing.push(f);
+    });
+
+    ["name", "serviceUseful", "sheetPreference", "receivedEmailUseful", "pickupEmailUseful"].forEach(function (f) {
+      setInvalid(f, missing.indexOf(f) !== -1);
+    });
+
+    if (missing.length) {
+      var first = form.querySelector(".q.invalid");
+      if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Submitting\u2026";
+
+    fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (res.status === 201) {
+          form.style.display = "none";
+          var done = document.getElementById("done");
+          done.style.display = "block";
+          done.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+        if (res.status === 429) throw new Error("Too many submissions from this device. Please try again in a few minutes.");
+        return res.json().then(function (body) {
+          throw new Error(body && body.error ? body.error : "Something went wrong. Please try again.");
+        });
+      })
+      .catch(function (err) {
+        submitErr.textContent = err.message || "Could not reach the server. Check your connection and try again.";
+        submitErr.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Submit survey";
+      });
+  });
+})();
+</script>
+
+</body>
+</html>
