@@ -634,6 +634,14 @@ async function downloadAsZip() {
 function wirePrintModal() {
   const search = document.getElementById('storeSearch');
   search.addEventListener('input', () => renderStoreList(search.value));
+  search.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const manual999 = maybeManualStore999(search.value);
+    if (!manual999) return;
+    e.preventDefault();
+    selectStore(manual999);
+    renderStoreList(search.value);
+  });
   renderStoreList('');
 
   document.getElementById('sendPrintBtn').addEventListener('click', sendPrint);
@@ -670,26 +678,44 @@ function openPrintModal() {
   openModal('printModal');
 }
 
+function selectStore(store) {
+  selectedStore = store;
+  const label = store.city
+    ? `#${store.num} — ${store.city}`
+    : `#${store.num}`;
+  document.getElementById('selectedStoreLabel').textContent = label;
+  document.getElementById('sendPrintBtn').disabled = false;
+}
+
+/** Store 999 is an ops/test destination — accept typed entry even though it is not in STORES. */
+function maybeManualStore999(query) {
+  const digits = String(query || '').trim().replace(/^#/, '');
+  if (digits !== '999') return null;
+  return { num: 999, city: 'Special' };
+}
+
 function renderStoreList(query) {
   const list = document.getElementById('storeList');
   const q = query.toLowerCase().trim();
   const filtered = q
     ? STORES.filter(s => String(s.num).includes(q) || s.city.toLowerCase().includes(q))
     : STORES;
-  if (filtered.length === 0) {
+  const manual999 = maybeManualStore999(q);
+  const items = manual999 && !filtered.some(s => Number(s.num) === 999)
+    ? [...filtered, manual999]
+    : filtered;
+  if (items.length === 0) {
     list.innerHTML = '<div class="db-store-empty">No matches.</div>';
     return;
   }
-  list.innerHTML = filtered.map(s => `
-    <div class="db-store-item${selectedStore?.num === s.num ? ' selected' : ''}" data-num="${s.num}" data-city="${escapeAttr(s.city)}">
+  list.innerHTML = items.map(s => `
+    <div class="db-store-item${selectedStore?.num === s.num ? ' selected' : ''}" data-num="${s.num}" data-city="${escapeAttr(s.city || '')}">
       <span class="db-store-item__num">#${s.num}</span>
-      <span class="db-store-item__city">${escapeHtml(s.city)}</span>
+      <span class="db-store-item__city">${escapeHtml(s.city || '')}</span>
     </div>`).join('');
   list.querySelectorAll('.db-store-item').forEach(el => {
     el.addEventListener('click', () => {
-      selectedStore = { num: Number(el.dataset.num), city: el.dataset.city };
-      document.getElementById('selectedStoreLabel').textContent = `#${selectedStore.num} — ${selectedStore.city}`;
-      document.getElementById('sendPrintBtn').disabled = false;
+      selectStore({ num: Number(el.dataset.num), city: el.dataset.city });
       list.querySelectorAll('.db-store-item').forEach(x => x.classList.remove('selected'));
       el.classList.add('selected');
     });
