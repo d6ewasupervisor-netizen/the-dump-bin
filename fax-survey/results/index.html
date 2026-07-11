@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Survey Results — Retail Odyssey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0E2A47;
+    --sky: #2F6FB0;
+    --sky-tint: #E8F0F9;
+    --ink: #1C2733;
+    --muted: #5A6B7D;
+    --line: #D6DEE8;
+    --bg: #F2F5F8;
+    --white: #FFFFFF;
+    --error: #B3261E;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Carlito, Calibri, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.45;
+  }
+  .band { background: var(--navy); color: var(--white); padding: 20px; }
+  .band .inner { max-width: 860px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .brand { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #9FC0E4; margin-bottom: 4px; }
+  .band h1 { font-size: 23px; }
+  .band-actions { display: flex; gap: 8px; }
+  .band-actions button {
+    font: inherit; font-size: 14px; font-weight: 700;
+    background: transparent; color: #C7D6E7;
+    border: 1px solid #3D5A7C; border-radius: 7px;
+    padding: 7px 14px; cursor: pointer;
+  }
+  .band-actions button:hover { background: #1A3A5E; color: var(--white); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 18px 16px 60px; }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    margin-top: 14px;
+  }
+  .card h2 { font-size: 17px; color: var(--navy); margin-bottom: 12px; }
+
+  /* Login */
+  #login { max-width: 460px; margin: 40px auto 0; }
+  #login p { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+  #login input {
+    width: 100%; font: inherit; border: 1px solid var(--line);
+    border-radius: 8px; padding: 11px 12px;
+  }
+  #login button {
+    font: inherit; font-weight: 700; width: 100%;
+    background: var(--sky); color: var(--white);
+    border: none; border-radius: 8px; padding: 12px; margin-top: 10px; cursor: pointer;
+  }
+  #login button:hover { background: #275E97; }
+  .err { color: var(--error); font-size: 14px; margin-top: 10px; display: none; }
+
+  /* Stats */
+  .statgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .stat { background: var(--sky-tint); border-radius: 8px; padding: 14px; }
+  .stat .n { font-size: 30px; font-weight: 700; color: var(--navy); line-height: 1.1; }
+  .stat .l { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  /* Tally bars */
+  .tally { margin-top: 10px; }
+  .tally-row { display: grid; grid-template-columns: 200px 1fr 70px; align-items: center; gap: 10px; padding: 5px 0; }
+  .tally-row .lbl { font-size: 15px; }
+  .bar { background: var(--sky-tint); border-radius: 6px; height: 20px; overflow: hidden; }
+  .bar > div { background: var(--sky); height: 100%; border-radius: 6px; min-width: 2px; }
+  .bar > div.zero { min-width: 0; width: 0; }
+  .tally-row .cnt { font-size: 14px; color: var(--muted); text-align: right; white-space: nowrap; }
+  @media (max-width: 560px) {
+    .tally-row { grid-template-columns: 1fr; gap: 3px; padding: 8px 0; }
+    .tally-row .cnt { text-align: left; }
+  }
+
+  /* Respondents */
+  details.resp { border-top: 1px solid var(--line); }
+  details.resp:first-of-type { border-top: none; }
+  details.resp summary {
+    cursor: pointer; padding: 11px 4px; list-style: none;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  details.resp summary::-webkit-details-marker { display: none; }
+  details.resp summary .who { font-weight: 700; color: var(--navy); }
+  details.resp summary .meta { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .sub {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; margin: 0 4px 12px; font-size: 14px;
+  }
+  .sub + .sub { margin-top: -4px; }
+  .sub .when { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
+  .sub dl { display: grid; grid-template-columns: 170px 1fr; row-gap: 3px; }
+  .sub dt { color: var(--muted); }
+  .sub dd { font-weight: 700; }
+  .sub .sugg { grid-column: 1 / -1; margin-top: 6px; font-weight: 400; font-style: italic; }
+
+  /* Suggestions */
+  .sg { border-top: 1px solid var(--line); padding: 11px 4px; }
+  .sg:first-child { border-top: none; }
+  .sg .who { font-weight: 700; color: var(--navy); font-size: 14px; }
+  .sg .when { color: var(--muted); font-size: 12.5px; margin-left: 6px; }
+  .sg p { margin-top: 3px; font-size: 15px; white-space: pre-wrap; }
+
+  .empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
+  #loading { text-align: center; color: var(--muted); padding: 40px 0; display: none; }
+  input:focus, button:focus-visible, summary:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<div class="band">
+  <div class="inner">
+    <div>
+      <div class="brand">Retail Odyssey</div>
+      <h1>Fax Service Survey — Results</h1>
+    </div>
+    <div class="band-actions" id="bandActions" style="display:none">
+      <button id="refreshBtn" type="button">Refresh</button>
+      <button id="csvBtn" type="button">Export CSV</button>
+      <button id="logoutBtn" type="button">Sign out</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="card" id="login">
+    <h2>Admin access</h2>
+    <p>Enter the admin token to view results. It's kept on this device only.</p>
+    <input type="password" id="tokenInput" placeholder="Admin token" autocomplete="off">
+    <button id="loginBtn" type="button">View results</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+
+  <div id="loading">Loading results&hellip;</div>
+
+  <div id="results" style="display:none">
+    <div class="card">
+      <div class="statgrid">
+        <div class="stat"><div class="n" id="statTotal">–</div><div class="l">Total submissions</div></div>
+        <div class="stat"><div class="n" id="statUnique">–</div><div class="l">Unique respondents</div></div>
+        <div class="stat"><div class="n" id="statSugg">–</div><div class="l">Suggestions left</div></div>
+      </div>
+    </div>
+
+    <div class="card"><h2>Is the fax service useful?</h2><div class="tally" id="tServiceUseful"></div></div>
+    <div class="card"><h2>Sign-off sheet preference</h2><div class="tally" id="tSheetPreference"></div></div>
+    <div class="card"><h2>&ldquo;Fax received&rdquo; email useful?</h2><div class="tally" id="tReceivedEmailUseful"></div></div>
+    <div class="card"><h2>&ldquo;Ready for pickup&rdquo; email useful?</h2><div class="tally" id="tPickupEmailUseful"></div></div>
+
+    <div class="card"><h2>Suggestions</h2><div id="suggList"></div></div>
+    <div class="card"><h2>Respondents</h2><div id="respList"></div></div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var API = "https://fax-survey-api-production.up.railway.app/api/responses";
+  var KEY = "faxSurveyAdminToken";
+  var lastData = null;
+
+  var LABELS = {
+    serviceUseful: { yes: "Yes", somewhat: "Somewhat", no: "No" },
+    sheetPreference: { by_store: "By store", by_team: "By team (current)", both: "Both" },
+    receivedEmailUseful: { yes: "Yes", no: "No", unaware: "Didn't know about it" },
+    pickupEmailUseful: { yes: "Yes", no: "No", unaware: "Didn't know about it" }
+  };
+  var ORDER = {
+    serviceUseful: ["yes", "somewhat", "no"],
+    sheetPreference: ["by_store", "by_team", "both"],
+    receivedEmailUseful: ["yes", "no", "unaware"],
+    pickupEmailUseful: ["yes", "no", "unaware"]
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function show(state) {
+    $("login").style.display = state === "login" ? "block" : "none";
+    $("loading").style.display = state === "loading" ? "block" : "none";
+    $("results").style.display = state === "results" ? "block" : "none";
+    $("bandActions").style.display = state === "results" ? "flex" : "none";
+  }
+
+  function renderTally(elId, field, tallies) {
+    var t = tallies[field] || {};
+    var total = 0;
+    ORDER[field].forEach(function (k) { total += t[k] || 0; });
+    var html = ORDER[field].map(function (k) {
+      var n = t[k] || 0;
+      var pct = total ? Math.round((n / total) * 100) : 0;
+      return '<div class="tally-row">' +
+        '<div class="lbl">' + esc(LABELS[field][k]) + '</div>' +
+        '<div class="bar"><div class="' + (n ? "" : "zero") + '" style="width:' + pct + '%"></div></div>' +
+        '<div class="cnt">' + n + ' &middot; ' + pct + '%</div>' +
+        '</div>';
+    }).join("");
+    $(elId).innerHTML = html || '<div class="empty">No responses yet.</div>';
+  }
+
+  function renderSubmission(s) {
+    return '<div class="sub">' +
+      '<div class="when">' + esc(fmtDate(s.submittedAt)) + '</div>' +
+      '<dl>' +
+      '<dt>Service useful</dt><dd>' + esc(LABELS.serviceUseful[s.serviceUseful] || s.serviceUseful) + '</dd>' +
+      '<dt>Sheet preference</dt><dd>' + esc(LABELS.sheetPreference[s.sheetPreference] || s.sheetPreference) + '</dd>' +
+      '<dt>Received email</dt><dd>' + esc(LABELS.receivedEmailUseful[s.receivedEmailUseful] || s.receivedEmailUseful) + '</dd>' +
+      '<dt>Pickup email</dt><dd>' + esc(LABELS.pickupEmailUseful[s.pickupEmailUseful] || s.pickupEmailUseful) + '</dd>' +
+      (s.suggestions ? '<dd class="sugg">&ldquo;' + esc(s.suggestions) + '&rdquo;</dd>' : '') +
+      '</dl></div>';
+  }
+
+  function render(data) {
+    lastData = data;
+    $("statTotal").textContent = data.total;
+    $("statUnique").textContent = data.uniqueRespondents;
+    $("statSugg").textContent = (data.suggestions || []).length;
+
+    ["serviceUseful", "sheetPreference", "receivedEmailUseful", "pickupEmailUseful"].forEach(function (f) {
+      renderTally("t" + f.charAt(0).toUpperCase() + f.slice(1), f, data.tallies || {});
+    });
+
+    var sg = (data.suggestions || []).map(function (s) {
+      return '<div class="sg"><span class="who">' + esc(s.name) + '</span>' +
+        '<span class="when">' + esc(fmtDate(s.submittedAt)) + '</span>' +
+        '<p>' + esc(s.text) + '</p></div>';
+    }).join("");
+    $("suggList").innerHTML = sg || '<div class="empty">No suggestions yet.</div>';
+
+    var rp = (data.respondents || []).map(function (r) {
+      var count = r.submissionCount > 1 ? r.submissionCount + " submissions" : "1 submission";
+      return '<details class="resp"><summary>' +
+        '<span class="who">' + esc(r.name) + '</span>' +
+        '<span class="meta">' + count + '</span></summary>' +
+        (r.submissions || []).map(renderSubmission).join("") +
+        '</details>';
+    }).join("");
+    $("respList").innerHTML = rp || '<div class="empty">No respondents yet.</div>';
+
+    show("results");
+  }
+
+  function load(token, fromLogin) {
+    show("loading");
+    fetch(API, { headers: { "Authorization": "Bearer " + token } })
+      .then(function (res) {
+        if (res.status === 401) {
+          localStorage.removeItem(KEY);
+          show("login");
+          if (!fromLogin) return;
+          var e = $("loginErr");
+          e.textContent = "That token wasn't accepted.";
+          e.style.display = "block";
+          return;
+        }
+        if (!res.ok) throw new Error("Server returned " + res.status + ".");
+        return res.json().then(function (data) {
+          localStorage.setItem(KEY, token);
+          render(data);
+        });
+      })
+      .catch(function (err) {
+        show("login");
+        var e = $("loginErr");
+        e.textContent = err.message || "Could not reach the server.";
+        e.style.display = "block";
+      });
+  }
+
+  function toCsv(data) {
+    var rows = [["name", "submitted_at", "service_useful", "sheet_preference", "received_email_useful", "pickup_email_useful", "suggestions"]];
+    (data.respondents || []).forEach(function (r) {
+      (r.submissions || []).forEach(function (s) {
+        rows.push([r.name, s.submittedAt, s.serviceUseful, s.sheetPreference, s.receivedEmailUseful, s.pickupEmailUseful, s.suggestions || ""]);
+      });
+    });
+    return rows.map(function (row) {
+      return row.map(function (v) {
+        v = String(v == null ? "" : v);
+        return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      }).join(",");
+    }).join("\r\n");
+  }
+
+  $("loginBtn").addEventListener("click", function () {
+    $("loginErr").style.display = "none";
+    var token = $("tokenInput").value.trim();
+    if (!token) return;
+    load(token, true);
+  });
+  $("tokenInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") $("loginBtn").click();
+  });
+  $("refreshBtn").addEventListener("click", function () {
+    var token = localStorage.getItem(KEY);
+    if (token) load(token, false);
+  });
+  $("logoutBtn").addEventListener("click", function () {
+    localStorage.removeItem(KEY);
+    lastData = null;
+    $("tokenInput").value = "";
+    show("login");
+  });
+  $("csvBtn").addEventListener("click", function () {
+    if (!lastData) return;
+    var blob = new Blob([toCsv(lastData)], { type: "text/csv" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "fax-survey-results.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  var saved = localStorage.getItem(KEY);
+  if (saved) load(saved, false); else show("login");
+})();
+</script>
+
+</body>
+</html>
