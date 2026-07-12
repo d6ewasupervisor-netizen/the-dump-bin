@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome Letter — The Dump Bin</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&display=swap" rel="stylesheet">
+  <script src="/auth-gate.js"></script>
+  <style>
+    :root {
+      --wl-navy: #0E2A47;
+      --wl-sky: #2F6FB0;
+      --wl-sky-tint: #EAF1F8;
+      --wl-ink: #1C2733;
+      --wl-muted: #5A6B7D;
+      --wl-line: #D6DEE8;
+      --wl-bg: #F2F5F8;
+      --wl-white: #FFFFFF;
+      --wl-error: #B3261E;
+      --wl-ok: #1E7A46;
+      --wl-font: Carlito, Calibri, "Segoe UI", sans-serif;
+    }
+
+    .wl-page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 28px 16px 64px;
+      font-family: var(--wl-font);
+      color: var(--wl-ink);
+    }
+
+    .wl-card {
+      background: var(--wl-white);
+      border: 1px solid var(--wl-line);
+      border-radius: 12px;
+      padding: 28px 24px 32px;
+      box-shadow: 0 8px 24px rgba(14, 42, 71, 0.08);
+    }
+
+    .wl-brand {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--wl-sky);
+      margin-bottom: 8px;
+    }
+
+    .wl-card h1 {
+      margin: 0;
+      font-size: 1.85rem;
+      color: var(--wl-navy);
+      line-height: 1.2;
+    }
+
+    .wl-sub {
+      margin: 10px 0 0;
+      color: var(--wl-muted);
+      font-size: 15px;
+      max-width: 46ch;
+    }
+
+    .wl-field {
+      margin-top: 18px;
+    }
+
+    .wl-field label {
+      display: block;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--wl-navy);
+      margin-bottom: 6px;
+    }
+
+    .wl-field input {
+      width: 100%;
+      font: inherit;
+      font-size: 16px;
+      color: var(--wl-ink);
+      border: 1px solid var(--wl-line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: var(--wl-white);
+    }
+
+    .wl-field input:focus {
+      outline: 3px solid rgba(47, 111, 176, 0.35);
+      outline-offset: 1px;
+      border-color: var(--wl-sky);
+    }
+
+    .wl-field.invalid input {
+      border-color: var(--wl-error);
+    }
+
+    .wl-field-err {
+      display: none;
+      color: var(--wl-error);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .wl-field.invalid .wl-field-err {
+      display: block;
+    }
+
+    .wl-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .wl-btn {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 12px 18px;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+
+    .wl-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .wl-btn-primary {
+      background: var(--wl-sky);
+      color: #fff;
+    }
+
+    .wl-btn-primary:hover:not(:disabled) {
+      background: #275f97;
+    }
+
+    .wl-btn-ghost {
+      background: transparent;
+      color: var(--wl-navy);
+      border: 1px solid var(--wl-line);
+    }
+
+    .wl-btn-ghost:hover:not(:disabled) {
+      background: var(--wl-sky-tint);
+    }
+
+    .wl-meta {
+      margin-top: 18px;
+      background: var(--wl-sky-tint);
+      border: 1px solid #BFD6EC;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .wl-meta dt {
+      float: left;
+      clear: left;
+      width: 72px;
+      font-weight: 700;
+      color: var(--wl-navy);
+    }
+
+    .wl-meta dd {
+      margin: 0 0 6px 72px;
+      color: var(--wl-ink);
+      word-break: break-word;
+    }
+
+    .wl-preview-wrap {
+      margin-top: 18px;
+      border: 1px solid var(--wl-line);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .wl-preview-label {
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--wl-muted);
+      background: #F7FAFC;
+      border-bottom: 1px solid var(--wl-line);
+    }
+
+    .wl-preview-frame {
+      width: 100%;
+      min-height: 520px;
+      height: 65vh;
+      border: 0;
+      background: #F2F5F8;
+    }
+
+    .wl-banner {
+      margin-top: 18px;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .wl-banner.ok {
+      background: #E8F6EE;
+      border: 1px solid #A7D7B8;
+      color: var(--wl-ok);
+    }
+
+    .wl-banner.err {
+      background: #FCEAEA;
+      border: 1px solid #E8B4B0;
+      color: var(--wl-error);
+    }
+
+    .wl-hidden { display: none !important; }
+
+    .wl-status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--wl-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <a href="/"><img src="/logo-banner.png" alt="Home" class="site-nav__logo"></a>
+      <a href="/" class="site-nav__link">Home</a>
+    </div>
+  </nav>
+
+  <main class="wl-page">
+    <div class="wl-card">
+
+      <!-- FORM -->
+      <section id="stepForm">
+        <div class="wl-brand">Retail Odyssey</div>
+        <h1>Send Welcome Letter</h1>
+        <p class="wl-sub">Enter the new hire’s details, preview the personalized letter, then confirm to send.</p>
+
+        <form id="welcomeForm" novalidate>
+          <div class="wl-field" id="firstNameField">
+            <label for="firstName">First Name</label>
+            <input id="firstName" name="firstName" type="text" autocomplete="given-name" required maxlength="80" placeholder="Jordan">
+            <div class="wl-field-err" id="firstNameErr">First name is required.</div>
+          </div>
+
+          <div class="wl-field" id="emailField">
+            <label for="email">Email Address</label>
+            <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="new.hire@example.com">
+            <div class="wl-field-err" id="emailErr">Enter a valid email address.</div>
+          </div>
+
+          <div class="wl-actions">
+            <button type="submit" class="wl-btn wl-btn-primary" id="reviewBtn">Review Letter</button>
+          </div>
+          <p class="wl-status" id="formStatus" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <!-- VERIFY -->
+      <section id="stepVerify" class="wl-hidden">
+        <div class="wl-brand">Verify before sending</div>
+        <h1>Confirm Welcome Letter</h1>
+        <p class="wl-sub">Review the addressing and personalized preview. Nothing is sent until you confirm.</p>
+
+        <dl class="wl-meta" id="verifyMeta"></dl>
+
+        <div class="wl-preview-wrap">
+          <div class="wl-preview-label">Email preview</div>
+          <iframe id="previewFrame" class="wl-preview-frame" title="Welcome letter preview" sandbox=""></iframe>
+        </div>
+
+        <div class="wl-actions">
+          <button type="button" class="wl-btn wl-btn-primary" id="confirmBtn">Confirm &amp; Send</button>
+          <button type="button" class="wl-btn wl-btn-ghost" id="backBtn">Go Back / Edit</button>
+        </div>
+        <p class="wl-status" id="verifyStatus" aria-live="polite"></p>
+      </section>
+
+      <!-- RESULT -->
+      <section id="stepResult" class="wl-hidden">
+        <div class="wl-brand">Retail Odyssey</div>
+        <h1 id="resultTitle">Sent</h1>
+        <div id="resultBanner" class="wl-banner" role="status"></div>
+        <div class="wl-actions">
+          <button type="button" class="wl-btn wl-btn-primary wl-hidden" id="anotherBtn">Send Another</button>
+          <button type="button" class="wl-btn wl-btn-ghost" id="retryBtn">Try Again</button>
+          <a href="/email-outbox/" class="wl-btn wl-btn-ghost" id="outboxLink">Open Email Outbox</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+(function () {
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const stepForm = document.getElementById('stepForm');
+  const stepVerify = document.getElementById('stepVerify');
+  const stepResult = document.getElementById('stepResult');
+  const form = document.getElementById('welcomeForm');
+  const firstNameInput = document.getElementById('firstName');
+  const emailInput = document.getElementById('email');
+  const firstNameField = document.getElementById('firstNameField');
+  const emailField = document.getElementById('emailField');
+  const firstNameErr = document.getElementById('firstNameErr');
+  const emailErr = document.getElementById('emailErr');
+  const formStatus = document.getElementById('formStatus');
+  const verifyMeta = document.getElementById('verifyMeta');
+  const previewFrame = document.getElementById('previewFrame');
+  const verifyStatus = document.getElementById('verifyStatus');
+  const confirmBtn = document.getElementById('confirmBtn');
+  const backBtn = document.getElementById('backBtn');
+  const reviewBtn = document.getElementById('reviewBtn');
+  const resultTitle = document.getElementById('resultTitle');
+  const resultBanner = document.getElementById('resultBanner');
+  const anotherBtn = document.getElementById('anotherBtn');
+  const retryBtn = document.getElementById('retryBtn');
+
+  let pending = null;
+
+  function showStep(step) {
+    stepForm.classList.toggle('wl-hidden', step !== 'form');
+    stepVerify.classList.toggle('wl-hidden', step !== 'verify');
+    stepResult.classList.toggle('wl-hidden', step !== 'result');
+  }
+
+  function readFields() {
+    return {
+      firstName: String(firstNameInput.value || '').trim().replace(/\s+/g, ' '),
+      email: String(emailInput.value || '').trim(),
+    };
+  }
+
+  function validateLocal() {
+    const { firstName, email } = readFields();
+    let ok = true;
+
+    firstNameField.classList.remove('invalid');
+    emailField.classList.remove('invalid');
+
+    if (!firstName) {
+      firstNameErr.textContent = 'First name is required.';
+      firstNameField.classList.add('invalid');
+      ok = false;
+    }
+
+    if (!email) {
+      emailErr.textContent = 'Email address is required.';
+      emailField.classList.add('invalid');
+      ok = false;
+    } else if (!EMAIL_RE.test(email)) {
+      emailErr.textContent = 'Enter a valid email address.';
+      emailField.classList.add('invalid');
+      ok = false;
+    }
+
+    return ok ? { firstName, email } : null;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderMeta(preview) {
+    const cc = Array.isArray(preview.cc) ? preview.cc.join(', ') : String(preview.cc || '');
+    verifyMeta.innerHTML =
+      `<dt>To</dt><dd>${escapeHtml(preview.to)}</dd>` +
+      `<dt>CC</dt><dd>${escapeHtml(cc)}</dd>` +
+      `<dt>From</dt><dd>${escapeHtml(preview.from)}</dd>` +
+      `<dt>Reply-To</dt><dd>${escapeHtml(preview.replyTo || '')}</dd>` +
+      `<dt>Subject</dt><dd>${escapeHtml(preview.subject)}</dd>`;
+  }
+
+  async function apiJson(path, body) {
+    const res = await window.dumpBinAuthFetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (_) {
+      data = null;
+    }
+    return { res, data };
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    formStatus.textContent = '';
+    const fields = validateLocal();
+    if (!fields) return;
+
+    reviewBtn.disabled = true;
+    formStatus.textContent = 'Building preview…';
+
+    try {
+      const { res, data } = await apiJson('/api/welcome-letter/preview', fields);
+      if (!res.ok || !data || !data.ok) {
+        const msg = (data && data.error) || `Preview failed (${res.status})`;
+        formStatus.textContent = msg;
+        return;
+      }
+      pending = {
+        firstName: data.firstName,
+        email: data.to,
+        preview: data,
+      };
+      renderMeta(data);
+      previewFrame.srcdoc = data.html;
+      verifyStatus.textContent = '';
+      showStep('verify');
+    } catch (err) {
+      formStatus.textContent = err.message || 'Could not reach the email service.';
+    } finally {
+      reviewBtn.disabled = false;
+      if (stepForm.classList.contains('wl-hidden')) formStatus.textContent = '';
+    }
+  });
+
+  backBtn.addEventListener('click', function () {
+    showStep('form');
+    verifyStatus.textContent = '';
+  });
+
+  confirmBtn.addEventListener('click', async function () {
+    if (!pending) return;
+    confirmBtn.disabled = true;
+    backBtn.disabled = true;
+    verifyStatus.textContent = 'Sending…';
+
+    try {
+      const { res, data } = await apiJson('/api/welcome-letter/send', {
+        firstName: pending.firstName,
+        email: pending.email,
+      });
+
+      if (!res.ok || !data || !data.ok) {
+        const msg = (data && data.error) || `Send failed (${res.status})`;
+        resultTitle.textContent = 'Send failed';
+        resultBanner.className = 'wl-banner err';
+        resultBanner.textContent = msg;
+        anotherBtn.classList.add('wl-hidden');
+        retryBtn.classList.remove('wl-hidden');
+        showStep('result');
+        return;
+      }
+
+      resultTitle.textContent = 'Letter sent';
+      resultBanner.className = 'wl-banner ok';
+      resultBanner.textContent =
+        `Welcome letter sent to ${data.to}.` +
+        (data.emailId ? ` Message ID: ${data.emailId}.` : '') +
+        ' It is stored in the email outbox for exact resend.';
+      anotherBtn.classList.remove('wl-hidden');
+      retryBtn.classList.add('wl-hidden');
+      showStep('result');
+    } catch (err) {
+      resultTitle.textContent = 'Send failed';
+      resultBanner.className = 'wl-banner err';
+      resultBanner.textContent = err.message || 'Could not reach the email service.';
+      anotherBtn.classList.add('wl-hidden');
+      retryBtn.classList.remove('wl-hidden');
+      showStep('result');
+    } finally {
+      confirmBtn.disabled = false;
+      backBtn.disabled = false;
+      verifyStatus.textContent = '';
+    }
+  });
+
+  anotherBtn.addEventListener('click', function () {
+    pending = null;
+    form.reset();
+    firstNameField.classList.remove('invalid');
+    emailField.classList.remove('invalid');
+    formStatus.textContent = '';
+    previewFrame.removeAttribute('srcdoc');
+    showStep('form');
+    firstNameInput.focus();
+  });
+
+  retryBtn.addEventListener('click', function () {
+    showStep(pending ? 'verify' : 'form');
+  });
+})();
+  </script>
+</body>
+</html>
