@@ -40,6 +40,30 @@
     padding: 7px 14px; cursor: pointer;
   }
   .band-actions button:hover { background: #1A3A5E; color: var(--white); }
+  .band-actions button.danger { border-color: #7A3230; color: #F3C6C4; }
+  .band-actions button.danger:hover { background: #6B211E; color: var(--white); }
+
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0; background: rgba(14, 42, 71, 0.55);
+    align-items: center; justify-content: center; padding: 20px; z-index: 10;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white); border-radius: 10px; max-width: 420px; width: 100%;
+    padding: 22px; box-shadow: 0 12px 32px rgba(14, 42, 71, 0.28);
+  }
+  .modal h2 { color: var(--navy); font-size: 18px; }
+  .modal p { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .modal-actions button {
+    font: inherit; font-weight: 700; flex: 1; border-radius: 8px; padding: 11px; cursor: pointer; border: none;
+  }
+  .modal-actions .cancel { background: var(--sky-tint); color: var(--navy); }
+  .modal-actions .cancel:hover { background: #D9E6F3; }
+  .modal-actions .confirm { background: var(--error); color: var(--white); }
+  .modal-actions .confirm:hover { background: #8F1F19; }
+  .modal .err { margin-top: 12px; }
 
   main { max-width: 860px; margin: 0 auto; padding: 18px 16px 60px; }
 
@@ -130,8 +154,22 @@
     <div class="band-actions" id="bandActions" style="display:none">
       <button id="refreshBtn" type="button">Refresh</button>
       <button id="csvBtn" type="button">Export CSV</button>
+      <button id="clearBtn" type="button" class="danger">Clear results</button>
       <button id="logoutBtn" type="button">Sign out</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="clearOverlay">
+  <div class="modal">
+    <h2>Clear all results?</h2>
+    <p>This permanently deletes every submission and cannot be undone. Type <strong>CLEAR</strong> below to confirm.</p>
+    <input type="text" id="clearConfirmInput" autocomplete="off" placeholder="Type CLEAR to confirm" style="width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:11px 12px;margin-top:12px;">
+    <div class="modal-actions">
+      <button class="cancel" id="clearCancelBtn" type="button">Cancel</button>
+      <button class="confirm" id="clearConfirmBtn" type="button">Delete everything</button>
+    </div>
+    <div class="err" id="clearErr"></div>
   </div>
 </div>
 
@@ -331,6 +369,72 @@
     a.download = "fax-survey-results.csv";
     a.click();
     URL.revokeObjectURL(a.href);
+  });
+
+  function openClearModal() {
+    $("clearErr").style.display = "none";
+    $("clearConfirmInput").value = "";
+    $("clearOverlay").classList.add("open");
+    $("clearConfirmInput").focus();
+  }
+  function closeClearModal() {
+    $("clearOverlay").classList.remove("open");
+  }
+
+  $("clearBtn").addEventListener("click", openClearModal);
+  $("clearCancelBtn").addEventListener("click", closeClearModal);
+  $("clearOverlay").addEventListener("click", function (e) {
+    if (e.target === $("clearOverlay")) closeClearModal();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && $("clearOverlay").classList.contains("open")) closeClearModal();
+  });
+
+  $("clearConfirmBtn").addEventListener("click", function () {
+    var e = $("clearErr");
+    e.style.display = "none";
+
+    if ($("clearConfirmInput").value.trim().toUpperCase() !== "CLEAR") {
+      e.textContent = 'Type "CLEAR" to confirm.';
+      e.style.display = "block";
+      return;
+    }
+
+    var token = localStorage.getItem(KEY);
+    if (!token) {
+      closeClearModal();
+      show("login");
+      return;
+    }
+
+    var btn = $("clearConfirmBtn");
+    btn.disabled = true;
+    btn.textContent = "Deleting\u2026";
+
+    fetch(API, { method: "DELETE", headers: { "Authorization": "Bearer " + token } })
+      .then(function (res) {
+        if (res.status === 401) {
+          localStorage.removeItem(KEY);
+          closeClearModal();
+          show("login");
+          return;
+        }
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (body) {
+            throw new Error(body && body.error ? body.error : "Server returned " + res.status + ".");
+          });
+        }
+        closeClearModal();
+        load(token, false);
+      })
+      .catch(function (err) {
+        e.textContent = err.message || "Could not reach the server.";
+        e.style.display = "block";
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Delete everything";
+      });
   });
 
   var saved = localStorage.getItem(KEY);
