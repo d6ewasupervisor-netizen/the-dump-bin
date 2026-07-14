@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-07-07T18:25Z eod-v2.4-helpdesk-routing -->
+<!-- build: 2026-07-14T04:40Z eod-v2.5-version-reload-fix -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -4149,10 +4149,13 @@
         // gated app under the-dump-bin.com. EOD only waits for that gate and
         // uses its authenticated fetch helper for EOD API calls.
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-        const EOD_APP_VERSION = '2.4';
+        // Keep this in lockstep with eod-version.json — a mismatch triggers an
+        // auto-reload. If you bump the badge / version file, bump this too.
+        const EOD_APP_VERSION = '2.5';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
+        const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
         let eodTestMode = sessionStorage.getItem(EOD_TEST_MODE_KEY) === '1';
         const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
@@ -11837,6 +11840,17 @@ ${data.Notes || ''}`;
             const badge = document.getElementById('eodVersionBadge');
             if (badge && !eodTestMode) badge.textContent = 'v' + EOD_APP_VERSION;
 
+            // If we already reloaded once for this remote version and HTML is
+            // still stale (CDN/browser cache), clear the pending flag only when
+            // local matches — otherwise show a hard-refresh prompt instead of
+            // looping reloads forever.
+            try {
+                const pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY);
+                if (pending && pending === EOD_APP_VERSION) {
+                    sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
+                }
+            } catch (_) { /* private mode */ }
+
             async function fetchLiveEodVersion() {
                 try {
                     const url = EOD_VERSION_URL + '?t=' + Date.now();
@@ -11849,16 +11863,61 @@ ${data.Notes || ''}`;
                 }
             }
 
-            function triggerEodHotfixReload() {
+            function showStaleCacheBanner(remoteVersion) {
                 const banner = document.getElementById('eodUpdateBanner');
-                if (banner) banner.classList.add('visible');
-                setTimeout(() => window.location.reload(), EOD_UPDATE_AUTO_RELOAD_MS);
+                if (!banner) return;
+                banner.classList.add('visible');
+                banner.innerHTML =
+                    '<strong>Update ready — hard refresh needed</strong><br>' +
+                    `This tab is still on v${EOD_APP_VERSION} (server is v${escapeHtml(remoteVersion)}). ` +
+                    'Your form data is saved. Do a hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac).';
+            }
+
+            function triggerEodHotfixReload(remoteVersion) {
+                try {
+                    sessionStorage.setItem(EOD_PENDING_VERSION_KEY, remoteVersion);
+                } catch (_) { /* private mode */ }
+                const banner = document.getElementById('eodUpdateBanner');
+                if (banner) {
+                    banner.classList.add('visible');
+                    banner.innerHTML =
+                        '<strong>App update installing</strong><br>' +
+                        'A new version is available. Your photos, signature, and form entries are saved on this device and will not be lost. Reloading automatically…';
+                }
+                // Bust HTML cache: reload with a cache-busting query (preserves hash).
+                setTimeout(() => {
+                    try {
+                        const u = new URL(window.location.href);
+                        u.searchParams.set('eodv', remoteVersion);
+                        u.searchParams.set('_', String(Date.now()));
+                        window.location.replace(u.toString());
+                    } catch {
+                        window.location.reload();
+                    }
+                }, EOD_UPDATE_AUTO_RELOAD_MS);
             }
 
             async function checkEodVersion() {
                 const remote = await fetchLiveEodVersion();
-                if (!remote || remote === EOD_APP_VERSION) return;
-                triggerEodHotfixReload();
+                if (!remote || remote === EOD_APP_VERSION) {
+                    try {
+                        if (sessionStorage.getItem(EOD_PENDING_VERSION_KEY) === remote) {
+                            sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
+                        }
+                    } catch (_) { /* private mode */ }
+                    return;
+                }
+
+                // Already tried reloading for this remote version but still mismatched
+                // → HTML is stuck in cache; don't loop.
+                let pending = null;
+                try { pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY); } catch (_) {}
+                if (pending === remote) {
+                    showStaleCacheBanner(remote);
+                    return;
+                }
+
+                triggerEodHotfixReload(remote);
             }
 
             checkEodVersion();
@@ -11871,6 +11930,6 @@ ${data.Notes || ''}`;
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=2.4"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.5"></script>
 </body>
 </html>
