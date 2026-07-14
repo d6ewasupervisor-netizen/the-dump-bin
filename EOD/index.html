@@ -668,28 +668,47 @@
         .manager-chip {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
             background: #374151;
             border: 1px solid #4b5563;
             color: #d1d5db;
-            padding: 4px 10px;
+            padding: 8px 12px;
             border-radius: 16px;
-            font-size: 12px;
+            font-size: 13px;
             cursor: pointer;
-            transition: background 0.15s;
+            transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+            -webkit-tap-highlight-color: rgba(136, 196, 237, 0.25);
+            touch-action: manipulation;
+            user-select: none;
+            min-height: 36px;
         }
-        .manager-chip:hover { background: #4b5563; }
-        .manager-chip .chip-select { flex: 1; }
+        .manager-chip:hover,
+        .manager-chip:focus-visible {
+            background: #4b5563;
+            border-color: #88c4ed;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(136, 196, 237, 0.35);
+        }
+        .manager-chip:active { background: #1f3a5f; }
+        .manager-chip .chip-select {
+            flex: 1;
+            pointer-events: none; /* whole pill is the hit target */
+        }
         .manager-chip .chip-remove {
             color: #9ca3af;
-            font-size: 14px;
+            font-size: 16px;
             line-height: 1;
-            padding: 0 2px;
+            padding: 4px 6px;
+            margin: -4px -4px -4px 0;
             background: none;
             border: none;
             cursor: pointer;
+            border-radius: 999px;
+            min-width: 28px;
+            min-height: 28px;
+            touch-action: manipulation;
         }
-        .manager-chip .chip-remove:hover { color: #ef4444; }
+        .manager-chip .chip-remove:hover { color: #ef4444; background: rgba(239, 68, 68, 0.12); }
 
         .photo-section {
             margin-top: 15px;
@@ -1764,10 +1783,49 @@
             transform: translate(-50%, -50%) scale(1.05);
         }
 
+        /* Mid-edge grab bars — drag straight out along the edge normal */
+        .crop-edge-handle {
+            position: absolute;
+            width: 44px;
+            height: 14px;
+            background: #0d4f8b;
+            border: 2px solid #88c4ed;
+            border-radius: 8px;
+            pointer-events: auto;
+            cursor: ns-resize;
+            transform: translate(-50%, -50%);
+            z-index: 11;
+            touch-action: none;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+        }
+        .crop-edge-handle::after {
+            content: '';
+            position: absolute;
+            left: 8px;
+            right: 8px;
+            top: 50%;
+            height: 2px;
+            margin-top: -1px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 1px;
+            pointer-events: none;
+        }
+        .crop-edge-handle:hover {
+            background: #1a6fc4;
+            transform: translate(-50%, -50%) scale(1.08);
+        }
+        .crop-edge-handle:active {
+            background: #2a8fe4;
+        }
+
         @media (max-width: 480px) {
             .crop-handle {
                 width: 40px;
                 height: 40px;
+            }
+            .crop-edge-handle {
+                width: 52px;
+                height: 18px;
             }
         }
 
@@ -1780,6 +1838,18 @@
             width: 100%;
             line-height: 18px;
             pointer-events: none;
+        }
+
+        .editor-rotate-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 160px;
+        }
+        .editor-rotate-group .editor-slider {
+            flex: 1;
+            min-width: 100px;
         }
 
         .editor-controls {
@@ -3114,7 +3184,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.4</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.5</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4044,8 +4114,13 @@
                 </div>
             </div>
             <div class="editor-control-row">
-                <button class="editor-btn editor-btn-icon" id="rotateLeft" title="Rotate Left">&#8634;</button>
-                <button class="editor-btn editor-btn-icon" id="rotateRight" title="Rotate Right">&#8635;</button>
+                <button class="editor-btn editor-btn-icon" id="rotateLeft" title="Rotate 90° Left">&#8634;</button>
+                <button class="editor-btn editor-btn-icon" id="rotateRight" title="Rotate 90° Right">&#8635;</button>
+                <div class="editor-rotate-group" title="Free rotate around center">
+                    <span class="editor-control-label">Pivot</span>
+                    <input type="range" id="rotationSlider" class="editor-slider" min="-180" max="180" value="0" step="0.5">
+                    <span class="slider-value" id="rotationValue">0°</span>
+                </div>
                 <button class="editor-btn" id="toggleCrop">Crop</button>
                 <button class="editor-btn" id="applyCrop" style="display: none;">Apply Crop</button>
                 <button class="editor-btn" id="toggleAnnotate">Annotate</button>
@@ -4790,6 +4865,19 @@
             } catch (e) { console.warn('addFredmeyerEmailToPool API call failed:', e.message); }
         }
 
+        // Select a prior manager name into the check-in / check-out field.
+        // Whole pill is the hit target (mobile + browser).
+        function selectManagerName(which, name) {
+            const input = document.getElementById(`${which}Manager`);
+            if (!input) return;
+            input.value = name;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            if (typeof autoSave === 'function') autoSave();
+            // Brief visual feedback on the field
+            input.focus({ preventScroll: true });
+        }
+
         // Render manager name suggestion chips below each manager input
         function renderManagerSuggestions() {
             ['checkIn', 'checkOut'].forEach((which) => {
@@ -4808,16 +4896,20 @@
                         .join('');
                 }
                 suggestionsEl.style.display = 'flex';
-                suggestionsEl.innerHTML = managerNamePool.map((name) => `
-                    <span class="manager-chip" title="Tap to fill">
-                        <span class="chip-select"
-                              onclick="document.getElementById('${which}Manager').value=${JSON.stringify(name)};autoSave();"
-                        >${name}</span>
-                        <button type="button" class="chip-remove"
-                                onclick="removeManagerName(${JSON.stringify(name)});event.stopPropagation();"
-                                title="Remove from saved list">&times;</button>
-                    </span>
-                `).join('');
+                suggestionsEl.innerHTML = managerNamePool.map((name) => {
+                    const safeName = escapeHtml(name);
+                    const encoded = encodeURIComponent(name);
+                    return `
+                    <button type="button" class="manager-chip" title="Tap to select ${safeName}"
+                            data-manager-which="${which}" data-manager-name="${encoded}"
+                            onclick="selectManagerName('${which}', decodeURIComponent(this.dataset.managerName))">
+                        <span class="chip-select">${safeName}</span>
+                        <span role="button" tabindex="0" class="chip-remove"
+                              data-remove-manager="${encoded}"
+                              onclick="event.preventDefault();event.stopPropagation();removeManagerName(decodeURIComponent(this.dataset.removeManager));"
+                              title="Remove from saved list">&times;</span>
+                    </button>`;
+                }).join('');
             });
         }
 
@@ -5945,9 +6037,9 @@
             if (!container) return;
             container.innerHTML = '';
 
-            // Both sign-off and InstaWork photos share the in-place rotate /
-            // crop / brightness / contrast / annotate editor.
-            const isEditable = (type === 'signoff' || type === 'instawork');
+            // Sign-off, InstaWork, and Kompass cart (before/after) photos share
+            // the in-place rotate / crop / brightness / contrast / annotate editor.
+            const isEditable = (type === 'signoff' || type === 'instawork' || type === 'before' || type === 'after');
 
             // Keep the review-flag array aligned with the photos list
             // before we render. This protects against legacy saved data
@@ -6434,9 +6526,11 @@
         let polygonPoints = []; // Array of {x, y} coordinates
         let isDragging = false;
         let dragPointIndex = -1;
+        let dragEdgeIndex = -1; // mid-edge grab bar (−1 when dragging a corner)
         let dragStartX = 0;
         let dragStartY = 0;
         let dragStartPoint = null;
+        let dragStartEdgePoints = null; // [{x,y},{x,y}] snapshot for edge drag
 
         const cropSvg = document.getElementById('cropSvg');
         const cropMaskPolygon = document.getElementById('cropMaskPolygon');
@@ -6553,10 +6647,13 @@
             editorCurrentPhotoIndex = photoIndex;
             if (type === 'helpdesk') {
                 editorCurrentType = 'helpdesk';
+            } else if (type === 'instawork' || type === 'before' || type === 'after' || type === 'signoff') {
+                editorCurrentType = type;
             } else {
-                editorCurrentType = (type === 'instawork') ? 'instawork' : 'signoff';
+                editorCurrentType = 'signoff';
             }
             const photoData = photos[editorCurrentType][photoIndex];
+            if (!photoData) return;
 
             // Reset all editor state
             editorRotation = 0;
@@ -6566,6 +6663,7 @@
             contrastSlider.value = 0;
             brightnessValue.textContent = '0';
             contrastValue.textContent = '0';
+            syncRotationSliderUI();
             cropMode = false;
             annotateMode = false;
             clearEditorAnnotations();
@@ -6583,16 +6681,35 @@
             editorOriginalImage.src = photoData;
         }
 
+        // Bounding box of a w×h image rotated by deg around its center.
+        function getRotatedBounds(w, h, deg) {
+            const rad = (deg * Math.PI) / 180;
+            const cos = Math.abs(Math.cos(rad));
+            const sin = Math.abs(Math.sin(rad));
+            return {
+                width: Math.max(1, Math.ceil(w * cos + h * sin)),
+                height: Math.max(1, Math.ceil(w * sin + h * cos)),
+            };
+        }
+
+        function syncRotationSliderUI() {
+            const slider = document.getElementById('rotationSlider');
+            const label = document.getElementById('rotationValue');
+            // Normalize display to -180..180 for the free-pivot slider
+            let display = ((editorRotation % 360) + 360) % 360;
+            if (display > 180) display -= 360;
+            if (slider) slider.value = String(Math.round(display * 10) / 10);
+            if (label) label.textContent = `${Math.round(display * 10) / 10}°`;
+        }
+
         // Create a full-resolution canvas with all transformations applied
         function createFullResolutionCanvas() {
             if (!editorOriginalImage) return null;
 
             const img = editorOriginalImage;
-
-            // Calculate rotated dimensions at full resolution
-            const isRotated90 = Math.abs(editorRotation % 180) === 90;
-            const fullWidth = isRotated90 ? img.height : img.width;
-            const fullHeight = isRotated90 ? img.width : img.height;
+            const bounds = getRotatedBounds(img.width, img.height, editorRotation);
+            const fullWidth = bounds.width;
+            const fullHeight = bounds.height;
 
             // Create full-resolution canvas
             const fullCanvas = document.createElement('canvas');
@@ -6606,14 +6723,10 @@
             fullCtx.save();
             fullCtx.filter = `brightness(${brightnessPercent}%) contrast(${contrastPercent}%)`;
 
-            // Center and rotate
+            // Center and free-rotate around the image midpoint
             fullCtx.translate(fullWidth / 2, fullHeight / 2);
             fullCtx.rotate((editorRotation * Math.PI) / 180);
-
-            // Draw the image at full resolution
-            const drawWidth = isRotated90 ? fullHeight : fullWidth;
-            const drawHeight = isRotated90 ? fullWidth : fullHeight;
-            fullCtx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+            fullCtx.drawImage(img, -img.width / 2, -img.height / 2, img.width, img.height);
             fullCtx.restore();
 
             const displayScale = Math.min(
@@ -6630,13 +6743,11 @@
             if (!editorOriginalImage) return { scaleX: 1, scaleY: 1 };
 
             const img = editorOriginalImage;
-            const isRotated90 = Math.abs(editorRotation % 180) === 90;
-            const fullWidth = isRotated90 ? img.height : img.width;
-            const fullHeight = isRotated90 ? img.width : img.height;
+            const bounds = getRotatedBounds(img.width, img.height, editorRotation);
 
             return {
-                scaleX: fullWidth / editorCanvas.width,
-                scaleY: fullHeight / editorCanvas.height
+                scaleX: bounds.width / Math.max(editorCanvas.width, 1),
+                scaleY: bounds.height / Math.max(editorCanvas.height, 1)
             };
         }
 
@@ -6645,11 +6756,9 @@
 
             const img = editorOriginalImage;
             const container = editorCanvasContainer;
-
-            // Calculate rotated dimensions
-            const isRotated90 = Math.abs(editorRotation % 180) === 90;
-            const srcWidth = isRotated90 ? img.height : img.width;
-            const srcHeight = isRotated90 ? img.width : img.height;
+            const bounds = getRotatedBounds(img.width, img.height, editorRotation);
+            const srcWidth = bounds.width;
+            const srcHeight = bounds.height;
 
             // Scale to fit container while maintaining aspect ratio
             const maxWidth = container.clientWidth - 20;
@@ -6671,13 +6780,11 @@
             const contrastPercent = 100 + editorContrast;
             editorCtx.filter = `brightness(${brightnessPercent}%) contrast(${contrastPercent}%)`;
 
-            // Center and rotate
+            // Center and free-rotate around midpoint
             editorCtx.translate(displayWidth / 2, displayHeight / 2);
             editorCtx.rotate((editorRotation * Math.PI) / 180);
-
-            // Draw the image centered
-            const drawWidth = isRotated90 ? displayHeight : displayWidth;
-            const drawHeight = isRotated90 ? displayWidth : displayHeight;
+            const drawWidth = img.width * scale;
+            const drawHeight = img.height * scale;
             editorCtx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 
             editorCtx.restore();
@@ -6730,10 +6837,7 @@
             // Clear existing handles
             cropHandlesContainer.innerHTML = '';
 
-            const overlayWidth = parseFloat(cropOverlay.style.width);
-            const overlayHeight = parseFloat(cropOverlay.style.height);
-
-            // Create a handle for each polygon point
+            // Corner anchors
             polygonPoints.forEach((point, index) => {
                 const handle = document.createElement('div');
                 handle.className = 'crop-handle';
@@ -6749,6 +6853,30 @@
 
                 cropHandlesContainer.appendChild(handle);
             });
+
+            // Mid-edge grab bars — drag straight out along the edge normal so the
+            // two connected corners move together (adjacent sides extend/contract).
+            for (let i = 0; i < polygonPoints.length; i++) {
+                const p1 = polygonPoints[i];
+                const p2 = polygonPoints[(i + 1) % polygonPoints.length];
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+                const edge = document.createElement('div');
+                edge.className = 'crop-edge-handle';
+                edge.dataset.edgeIndex = String(i);
+                edge.style.left = midX + 'px';
+                edge.style.top = midY + 'px';
+                edge.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`;
+                // Cursor: prefer ns/ew based on edge orientation
+                const absAngle = Math.abs(((angleDeg % 180) + 180) % 180);
+                edge.style.cursor = (absAngle > 45 && absAngle < 135) ? 'ew-resize' : 'ns-resize';
+                edge.title = 'Drag to move this crop edge';
+                cropHandlesContainer.appendChild(edge);
+            }
         }
 
         // Add a new point on line between two existing points
@@ -6770,6 +6898,13 @@
         // Touch tolerance for mobile - larger radius makes anchors easier to grab
         const ANCHOR_TOUCH_TOLERANCE = 50; // pixels
 
+        function clampCropPoint(p, overlayWidth, overlayHeight) {
+            return {
+                x: Math.max(0, Math.min(overlayWidth, p.x)),
+                y: Math.max(0, Math.min(overlayHeight, p.y)),
+            };
+        }
+
         function handleCropStart(e) {
             if (!cropMode) return;
 
@@ -6781,11 +6916,46 @@
 
             // First check if target is directly on a handle (mouse clicks)
             const target = e.target;
+            if (target.classList.contains('crop-edge-handle') || target.closest?.('.crop-edge-handle')) {
+                const edgeEl = target.classList.contains('crop-edge-handle')
+                    ? target
+                    : target.closest('.crop-edge-handle');
+                dragEdgeIndex = parseInt(edgeEl.dataset.edgeIndex, 10);
+                dragPointIndex = -1;
+                dragStartX = x;
+                dragStartY = y;
+                const i1 = dragEdgeIndex;
+                const i2 = (dragEdgeIndex + 1) % polygonPoints.length;
+                dragStartEdgePoints = [
+                    { ...polygonPoints[i1] },
+                    { ...polygonPoints[i2] },
+                ];
+                isDragging = true;
+                return;
+            }
             if (target.classList.contains('crop-handle')) {
-                dragPointIndex = parseInt(target.dataset.pointIndex);
+                dragPointIndex = parseInt(target.dataset.pointIndex, 10);
+                dragEdgeIndex = -1;
                 dragStartX = x;
                 dragStartY = y;
                 dragStartPoint = { ...polygonPoints[dragPointIndex] };
+                isDragging = true;
+                return;
+            }
+
+            // Prefer mid-edge grab when near an edge midpoint (mobile-friendly)
+            const midHit = findClosestEdgeMidpoint(x, y);
+            if (midHit.index >= 0 && midHit.distance <= ANCHOR_TOUCH_TOLERANCE) {
+                dragEdgeIndex = midHit.index;
+                dragPointIndex = -1;
+                dragStartX = x;
+                dragStartY = y;
+                const i1 = dragEdgeIndex;
+                const i2 = (dragEdgeIndex + 1) % polygonPoints.length;
+                dragStartEdgePoints = [
+                    { ...polygonPoints[i1] },
+                    { ...polygonPoints[i2] },
+                ];
                 isDragging = true;
                 return;
             }
@@ -6795,6 +6965,7 @@
             const { index, distance } = findClosestAnchorPoint(x, y);
             if (index >= 0 && distance <= ANCHOR_TOUCH_TOLERANCE) {
                 dragPointIndex = index;
+                dragEdgeIndex = -1;
                 dragStartX = x;
                 dragStartY = y;
                 dragStartPoint = { ...polygonPoints[dragPointIndex] };
@@ -6803,7 +6974,8 @@
         }
 
         function handleCropMove(e) {
-            if (!isDragging || !cropMode || dragPointIndex < 0) return;
+            if (!isDragging || !cropMode) return;
+            if (dragPointIndex < 0 && dragEdgeIndex < 0) return;
 
             e.preventDefault();
             const touch = e.touches ? e.touches[0] : e;
@@ -6813,12 +6985,46 @@
 
             const overlayWidth = rect.width;
             const overlayHeight = rect.height;
+            const dx = x - dragStartX;
+            const dy = y - dragStartY;
 
-            // Update the point position, constrained to overlay bounds
-            polygonPoints[dragPointIndex] = {
-                x: Math.max(0, Math.min(overlayWidth, dragStartPoint.x + (x - dragStartX))),
-                y: Math.max(0, Math.min(overlayHeight, dragStartPoint.y + (y - dragStartY)))
-            };
+            if (dragEdgeIndex >= 0 && dragStartEdgePoints) {
+                // Move the whole edge along its outward normal so the two
+                // connected corners travel together; perpendicular sides
+                // extend/contract as a result.
+                const p1 = dragStartEdgePoints[0];
+                const p2 = dragStartEdgePoints[1];
+                const edgeDx = p2.x - p1.x;
+                const edgeDy = p2.y - p1.y;
+                const edgeLen = Math.hypot(edgeDx, edgeDy) || 1;
+                // Unit normal (rotate edge 90°): (-dy, dx)
+                let nx = -edgeDy / edgeLen;
+                let ny = edgeDx / edgeLen;
+                // Project pointer delta onto the normal
+                const proj = dx * nx + dy * ny;
+                const i1 = dragEdgeIndex;
+                const i2 = (dragEdgeIndex + 1) % polygonPoints.length;
+                polygonPoints[i1] = clampCropPoint(
+                    { x: p1.x + nx * proj, y: p1.y + ny * proj },
+                    overlayWidth,
+                    overlayHeight
+                );
+                polygonPoints[i2] = clampCropPoint(
+                    { x: p2.x + nx * proj, y: p2.y + ny * proj },
+                    overlayWidth,
+                    overlayHeight
+                );
+            } else if (dragPointIndex >= 0 && dragStartPoint) {
+                // Update the corner position, constrained to overlay bounds
+                polygonPoints[dragPointIndex] = clampCropPoint(
+                    {
+                        x: dragStartPoint.x + dx,
+                        y: dragStartPoint.y + dy,
+                    },
+                    overlayWidth,
+                    overlayHeight
+                );
+            }
 
             updateCropOverlay();
         }
@@ -6826,7 +7032,26 @@
         function handleCropEnd() {
             isDragging = false;
             dragPointIndex = -1;
+            dragEdgeIndex = -1;
             dragStartPoint = null;
+            dragStartEdgePoints = null;
+        }
+
+        function findClosestEdgeMidpoint(x, y) {
+            let minDist = Infinity;
+            let closestIndex = -1;
+            for (let i = 0; i < polygonPoints.length; i++) {
+                const p1 = polygonPoints[i];
+                const p2 = polygonPoints[(i + 1) % polygonPoints.length];
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                const dist = Math.hypot(x - midX, y - midY);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestIndex = i;
+                }
+            }
+            return { index: closestIndex, distance: minDist };
         }
 
         // Find closest anchor point to a given coordinate (for proximity-based hit detection)
@@ -6946,6 +7171,7 @@
 
         document.getElementById('rotateLeft').addEventListener('click', () => {
             editorRotation = (editorRotation - 90 + 360) % 360;
+            syncRotationSliderUI();
             renderEditorCanvas();
             if (cropMode) {
                 setTimeout(initCrop, 50);
@@ -6954,11 +7180,26 @@
 
         document.getElementById('rotateRight').addEventListener('click', () => {
             editorRotation = (editorRotation + 90) % 360;
+            syncRotationSliderUI();
             renderEditorCanvas();
             if (cropMode) {
                 setTimeout(initCrop, 50);
             }
         });
+
+        // Free pivot/rotate around image center (−180° … 180°)
+        const rotationSlider = document.getElementById('rotationSlider');
+        if (rotationSlider) {
+            rotationSlider.addEventListener('input', (e) => {
+                editorRotation = parseFloat(e.target.value) || 0;
+                syncRotationSliderUI();
+                renderEditorCanvas();
+                if (cropMode) {
+                    // Keep crop overlay aligned with the resized canvas
+                    setTimeout(initCrop, 30);
+                }
+            });
+        }
 
         document.getElementById('toggleCrop').addEventListener('click', () => {
             cropMode = !cropMode;
@@ -7244,6 +7485,7 @@
                 contrastSlider.value = 0;
                 brightnessValue.textContent = '0';
                 contrastValue.textContent = '0';
+                syncRotationSliderUI();
 
                 // Exit crop mode
                 cropMode = false;
@@ -7269,6 +7511,7 @@
             contrastSlider.value = 0;
             brightnessValue.textContent = '0';
             contrastValue.textContent = '0';
+            syncRotationSliderUI();
             cropMode = false;
             setAnnotateMode(false);
             clearEditorAnnotations();
@@ -7318,7 +7561,7 @@
                 return;
             }
 
-            // Update the photo in the array (signoff OR instawork)
+            // Update the photo in the array (signoff / instawork / cart before-after)
             photos[targetType][editorCurrentPhotoIndex] = finalDataUrl;
 
             // Saving the editor for a sign-off photo counts as the lead
@@ -7340,6 +7583,9 @@
 
             // Re-render and save
             renderPhotos(targetType);
+            if (targetType === 'before' || targetType === 'after' || targetType === 'signoff') {
+                updatePhotoCheckbox(targetType);
+            }
             autoSave();
 
             // Close editor
@@ -8638,12 +8884,23 @@ ${data.Notes || ''}`;
                         localStorage.removeItem('kompassDayConfirm');
                         helpdeskSubmittedReports = [];
                     }
-                    // Clear photos from IndexedDB
+                    // Clear photos from IndexedDB + in-memory local / PROD state
                     PhotoDB.clearPhotos().catch(e => console.warn('Could not clear photos from IndexedDB:', e));
                     photos.before = [];
                     photos.signoff = [];
                     photos.after = [];
                     photos.instawork = [];
+                    prodPhotos.before = [];
+                    prodPhotos.after = [];
+                    prodPhotos.signoff = [];
+                    eodSelections.before = [];
+                    eodSelections.after = [];
+                    eodSelections.signoff = [];
+                    Object.keys(prodBeforeAssignments).forEach((k) => { delete prodBeforeAssignments[k]; });
+                    Object.keys(prodAfterAssignments).forEach((k) => { delete prodAfterAssignments[k]; });
+                    prodPhotoLocalCopies.before = {};
+                    prodPhotoLocalCopies.after = {};
+                    prodPhotoLocalCopies.signoff = {};
                     signoffNeedsReview = [];
                     instaworkSavedInfo = null;
                     instaworkSaving = false;
@@ -8653,14 +8910,17 @@ ${data.Notes || ''}`;
                     syncEodWizardGlobals();
                     selectedShift = null;
                     shiftSets = [];
+                    allShiftsSetsMap = {};
+                    notInPickerShiftId = null;
                     notInStoreSelected = [];
                     notInSiSelected = [];
                     syncEodWizardGlobals();
                     clearValidationHighlights();
                     smClearAll();
-                    document.querySelectorAll('input, textarea').forEach(el => {
-                        if (el.type === 'checkbox') el.checked = false;
+                    document.querySelectorAll('input, textarea, select').forEach(el => {
+                        if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
                         else if (el.type === 'date') el.valueAsDate = new Date();
+                        else if (el.tagName === 'SELECT') el.selectedIndex = 0;
                         else el.value = '';
                     });
 
@@ -8680,7 +8940,14 @@ ${data.Notes || ''}`;
                     renderPhotos('signoff');
                     renderPhotos('after');
                     renderPhotos('instawork');
+                    renderProdPhotos('before');
+                    renderProdPhotos('after');
+                    renderProdPhotos('signoff');
+                    updatePhotoCheckbox('before');
+                    updatePhotoCheckbox('after');
+                    updatePhotoCheckbox('signoff');
                     renderSetsPickers();
+                    renderShiftPickerDropdown();
                     renderRecipientList();
                     updateSignaturePreview();
                     document.getElementById('hotlineDetails').style.display = 'none';
@@ -9782,14 +10049,23 @@ ${data.Notes || ''}`;
             );
 
             // Auto-select so the pickers work immediately without any extra click:
-            // one shift → select it; multiple shifts → leave unselected so the
-            // lead picks the exact Blitz vs regular ISE shift themselves.
+            // one shift → select it; multiple shifts → "all" so ISE + Cut In (etc.)
+            // sets appear together instead of hiding behind an empty picker.
             const visitIds = Object.keys(allShiftsSetsMap);
             if (visitIds.length === 1) {
                 notInPickerShiftId = visitIds[0];
                 shiftSets = allShiftsSetsMap[visitIds[0]].sets;
             } else if (visitIds.length > 1) {
-                notInPickerShiftId = null;
+                notInPickerShiftId = 'all';
+                const seen = new Set();
+                const merged = [];
+                Object.values(allShiftsSetsMap).forEach(({ sets }) => {
+                    sets.forEach((s) => {
+                        const lbl = setLabel(s);
+                        if (!seen.has(lbl)) { seen.add(lbl); merged.push(s); }
+                    });
+                });
+                shiftSets = merged;
             }
 
             renderShiftPickerDropdown();
@@ -10724,6 +11000,7 @@ ${data.Notes || ''}`;
                 renderPhotos(type);
                 renderProdPhotos(type);
                 rebuildEodSelections(type);
+                updatePhotoCheckbox(type);
                 autoSave();
             } catch (err) {
                 console.error('[sync] Could not use PROD photo:', err);
@@ -10773,6 +11050,12 @@ ${data.Notes || ''}`;
             });
 
             eodSelections[type] = entries.sort((a, b) => a.timestamp - b.timestamp);
+
+            // Keep the "Kompass cart … picture taken" checkboxes in sync with
+            // whatever photos (local or PROD-selected) are currently active.
+            if (type === 'before' || type === 'after' || type === 'signoff') {
+                updatePhotoCheckbox(type);
+            }
         }
 
         function mergeProdPhotos(type, incomingPhotos) {
