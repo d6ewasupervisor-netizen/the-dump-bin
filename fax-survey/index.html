@@ -248,6 +248,29 @@
   var form = document.getElementById("survey");
   var btn = document.getElementById("submitBtn");
   var submitErr = document.getElementById("submitErr");
+  var nameInput = document.getElementById("name");
+
+  /**
+   * Prefill "Your name" from the email deep link, e.g.
+   *   /fax-survey/?first=Chris&last=Metzger
+   *   /fax-survey/?name=Chris%20Metzger
+   * Recipients can still edit the field before submit.
+   */
+  function prefillNameFromQuery() {
+    try {
+      var params = new URLSearchParams(window.location.search || "");
+      var full = (params.get("name") || "").trim();
+      if (!full) {
+        var first = (params.get("first") || "").trim();
+        var last = (params.get("last") || "").trim();
+        full = [first, last].filter(Boolean).join(" ");
+      }
+      if (full) nameInput.value = full;
+    } catch (err) {
+      // ignore malformed query strings
+    }
+  }
+  prefillNameFromQuery();
 
   function radioValue(name) {
     var el = form.querySelector('input[name="' + name + '"]:checked');
@@ -264,7 +287,7 @@
     var q = e.target.closest(".q");
     if (q) q.classList.remove("invalid");
   });
-  document.getElementById("name").addEventListener("input", function () {
+  nameInput.addEventListener("input", function () {
     setInvalid("name", false);
   });
 
