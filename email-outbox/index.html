@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Email Outbox</title>
-  <link rel="stylesheet" href="/email-outbox/assets/email-outbox.css?v=20260713-1" />
+  <link rel="stylesheet" href="/email-outbox/assets/email-outbox.css?v=20260715-1" />
   <script src="/auth-gate.js"></script>
 </head>
 <body>
@@ -76,6 +76,7 @@
                 <th data-sort="createdAt" data-label="When" class="sortable">When</th>
                 <th data-sort="status" data-label="Status" class="sortable">Status</th>
                 <th data-sort="deliveryStatus" data-label="Delivery" class="sortable">Delivery</th>
+                <th data-sort="openedAt" data-label="Opened" class="sortable">Opened</th>
                 <th data-sort="sourceSystem" data-label="Source" class="sortable">Source</th>
                 <th data-sort="from" data-label="From" class="sortable">From</th>
                 <th data-sort="subject" data-label="Subject" class="sortable">Subject</th>
@@ -83,7 +84,7 @@
               </tr>
             </thead>
             <tbody id="emailRows">
-              <tr><td colspan="7" class="muted">Loading…</td></tr>
+              <tr><td colspan="8" class="muted">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -124,6 +125,6 @@
       </section>
     </section>
   </main>
-  <script src="/email-outbox/assets/email-outbox.js?v=20260713-1"></script>
+  <script src="/email-outbox/assets/email-outbox.js?v=20260715-1"></script>
 </body>
 </html>

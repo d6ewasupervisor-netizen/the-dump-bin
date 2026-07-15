@@ -81,10 +81,17 @@
     return badge(delivery || '—', 'pending');
   }
 
+  function openedBadge(item) {
+    if (item.openCount > 0) {
+      return badge(`Opened${item.openCount > 1 ? ` ×${item.openCount}` : ''}`, 'delivered');
+    }
+    return badge('—', 'pending');
+  }
+
   function renderRows(items) {
     const tbody = document.getElementById('emailRows');
     if (!items.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="muted">No emails match these filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">No emails match these filters.</td></tr>';
       return;
     }
     tbody.innerHTML = items.map((item) => {
@@ -94,6 +101,7 @@
         <td>${fmtDate(item.createdAt)}</td>
         <td>${statusBadge(item.status)}</td>
         <td>${deliveryBadge(item.deliveryStatus || item.lastEvent)}</td>
+        <td>${openedBadge(item)}</td>
         <td><div>${item.sourceSystem}</div><div class="muted">${item.sourceType}</div></td>
         <td class="from-cell">${escapeHtml(item.from || '—')}</td>
         <td class="subject-cell">${escapeHtml(item.subject || '—')}</td>
@@ -192,10 +200,19 @@
     document.getElementById('detailEmpty').hidden = true;
     document.getElementById('detailBody').hidden = false;
     const meta = document.getElementById('detailMeta');
+    const openedLine = item.openCount > 0
+      ? `${item.openCount}× (first ${fmtDate(item.openedAt)})`
+      : 'Not opened yet';
+    const clickedLine = item.clickCount > 0
+      ? `${item.clickCount}× (first ${fmtDate(item.clickedAt)})`
+      : 'No link clicks yet';
+
     const rows = [
       ['When', fmtDate(item.createdAt)],
       ['Status', item.status],
       ['Delivery', item.deliveryStatus || item.lastEvent || '—'],
+      ['Opened', openedLine],
+      ['Clicked', clickedLine],
       ['From', item.from || '—'],
       ['To', (item.to || []).join(', ') || '—'],
       ['CC', (item.cc || []).join(', ') || '—'],
