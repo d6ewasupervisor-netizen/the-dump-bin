@@ -99,10 +99,11 @@
         <span class="card__desc">Look up and manage p03w3 vitamin planogram details.</span>
       </a>
 
-      <a href="/central-pet/?to=shiftday" class="card">
+      <!-- Central Pet: only James, Brian, Kim, Wolf, and supervisor accounts -->
+      <a href="/central-pet/?to=dashboard" class="card" id="cp-team-card" hidden>
         <span class="card__icon">🐾</span>
-        <span class="card__title">Central Pet — Shift Day</span>
-        <span class="card__desc">D8 field schedule, visits, and store day work. Uses your Dump Bin sign-in.</span>
+        <span class="card__title">Central Pet</span>
+        <span class="card__desc">Your D8 schedule — tap a store to open the visit. Supervisors see the whole team.</span>
       </a>
 
       <a href="/central-pet/?to=admin" class="card" id="cp-planning-desk-card" hidden>
@@ -115,18 +116,35 @@
   </main>
 
   <script>
-    // Show Planning Desk card for host admin/supervisor roles (KOMPASS_* on eod-api).
     (async function () {
+      // Keep in sync with CP field team + supervisor accounts.
+      var CP_CARD_EMAILS = {
+        'james.duchene@retailodyssey.com': true,
+        'bcampb9565@sbcglobal.net': true,
+        'kimberlyjanellclaf@gmail.com': true,
+        'aiyana.natarisalazar@retailodyssey.com': true, // Wolf
+        'tyson.gauthier@retailodyssey.com': true,
+        'd6ewa.supervisor@gmail.com': true,
+        'tgauthier2011@gmail.com': true
+      };
+
       try {
         if (typeof dumpBinAuthFetch !== 'function') return;
         var res = await dumpBinAuthFetch('/api/me', { noBounceOn401: true });
         if (!res.ok) return;
         var me = await res.json();
+        var email = String((me && me.email) || '').trim().toLowerCase();
         var roles = (me && me.roles) || [];
-        var isAdmin = roles.indexOf('admin') >= 0 || roles.indexOf('supervisor') >= 0;
-        if (isAdmin) {
-          var card = document.getElementById('cp-planning-desk-card');
-          if (card) card.hidden = false;
+        var isHostAdmin = roles.indexOf('admin') >= 0 || roles.indexOf('supervisor') >= 0;
+
+        if (CP_CARD_EMAILS[email]) {
+          var team = document.getElementById('cp-team-card');
+          if (team) team.hidden = false;
+        }
+        // Planning Desk stays admin/supervisor only (not field reps).
+        if (isHostAdmin) {
+          var desk = document.getElementById('cp-planning-desk-card');
+          if (desk) desk.hidden = false;
         }
       } catch (_) {}
     })();

@@ -58,11 +58,13 @@
 
       function targetPath() {
         var q = new URLSearchParams(location.search);
-        var to = (q.get('to') || q.get('dest') || 'shiftday').toLowerCase();
+        var to = (q.get('to') || q.get('dest') || 'dashboard').toLowerCase();
         if (to === 'admin' || to === 'desk' || to === 'planning' || to === 'index') return '/';
+        if (to === 'dashboard' || to === 'home' || to === 'team') return '/dashboard.html';
         if (to === 'rep' || to === 'week') return '/rep.html';
+        if (to === 'shiftday' || to === 'shift') return '/shiftday.html';
         if (to === 'signin') return '/signin.html';
-        return '/shiftday.html';
+        return '/dashboard.html';
       }
 
       function showError(msg) {
