@@ -99,8 +99,38 @@
         <span class="card__desc">Look up and manage p03w3 vitamin planogram details.</span>
       </a>
 
+      <a href="/central-pet/?to=shiftday" class="card">
+        <span class="card__icon">🐾</span>
+        <span class="card__title">Central Pet — Shift Day</span>
+        <span class="card__desc">D8 field schedule, visits, and store day work. Uses your Dump Bin sign-in.</span>
+      </a>
+
+      <a href="/central-pet/?to=admin" class="card" id="cp-planning-desk-card" hidden>
+        <span class="card__icon">🗓️</span>
+        <span class="card__title">Central Pet — Planning Desk</span>
+        <span class="card__desc">Admin: all reps, match, dry-run, live tools, photo delivery.</span>
+      </a>
+
     </div>
   </main>
+
+  <script>
+    // Show Planning Desk card for host admin/supervisor roles (KOMPASS_* on eod-api).
+    (async function () {
+      try {
+        if (typeof dumpBinAuthFetch !== 'function') return;
+        var res = await dumpBinAuthFetch('/api/me', { noBounceOn401: true });
+        if (!res.ok) return;
+        var me = await res.json();
+        var roles = (me && me.roles) || [];
+        var isAdmin = roles.indexOf('admin') >= 0 || roles.indexOf('supervisor') >= 0;
+        if (isAdmin) {
+          var card = document.getElementById('cp-planning-desk-card');
+          if (card) card.hidden = false;
+        }
+      } catch (_) {}
+    })();
+  </script>
 
 </body>
 </html>
