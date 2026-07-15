@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome Letter Board — The Dump Bin</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&display=swap" rel="stylesheet">
+  <script src="/auth-gate.js"></script>
+  <style>
+    :root {
+      --wb-navy: #0E2A47;
+      --wb-sky: #2F6FB0;
+      --wb-sky-tint: #EAF1F8;
+      --wb-ink: #1C2733;
+      --wb-muted: #5A6B7D;
+      --wb-line: #D6DEE8;
+      --wb-bg: #F2F5F8;
+      --wb-white: #FFFFFF;
+      --wb-error: #B3261E;
+      --wb-ok: #1E7A46;
+      --wb-warn: #8A5A00;
+      --wb-font: Carlito, Calibri, "Segoe UI", sans-serif;
+    }
+
+    body { background: var(--wb-bg); }
+
+    .wb-page {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+      font-family: var(--wb-font);
+      color: var(--wb-ink);
+    }
+
+    .wb-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .wb-brand {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--wb-sky);
+      margin-bottom: 6px;
+    }
+
+    .wb-head h1 { margin: 0; font-size: 1.8rem; color: var(--wb-navy); }
+    .wb-head p { margin: 8px 0 0; color: var(--wb-muted); font-size: 15px; max-width: 60ch; }
+
+    .wb-btn {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 10px 16px;
+      cursor: pointer;
+      line-height: 1.2;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .wb-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .wb-btn-primary { background: var(--wb-sky); color: #fff; }
+    .wb-btn-primary:hover:not(:disabled) { background: #275f97; }
+    .wb-btn-ghost { background: transparent; color: var(--wb-navy); border: 1px solid var(--wb-line); }
+    .wb-btn-ghost:hover:not(:disabled) { background: var(--wb-sky-tint); }
+    .wb-btn-danger { background: #B3261E; color: #fff; }
+
+    .wb-banner {
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 15px;
+      line-height: 1.45;
+      margin-bottom: 16px;
+    }
+    .wb-banner.ok { background: #E8F6EE; border: 1px solid #A7D7B8; color: var(--wb-ok); }
+    .wb-banner.err { background: #FCEAEA; border: 1px solid #E8B4B0; color: var(--wb-error); }
+
+    .wb-card {
+      background: var(--wb-white);
+      border: 1px solid var(--wb-line);
+      border-radius: 12px;
+      padding: 18px 18px 20px;
+      box-shadow: 0 8px 24px rgba(14, 42, 71, 0.06);
+      margin-bottom: 16px;
+    }
+
+    .wb-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+    .wb-filters label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--wb-navy); }
+    .wb-filters input, .wb-filters select {
+      font: inherit;
+      font-size: 14px;
+      color: var(--wb-ink);
+      border: 1px solid var(--wb-line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: var(--wb-white);
+      min-height: 38px;
+    }
+    .wb-filter-actions { display: flex; gap: 8px; }
+
+    .wb-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+      gap: 16px;
+    }
+    @media (max-width: 980px) { .wb-layout { grid-template-columns: 1fr; } }
+
+    .wb-list-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; font-size: 13px; color: var(--wb-muted); }
+    .wb-pager { display: flex; align-items: center; gap: 8px; }
+    .wb-table-wrap { overflow: auto; }
+    table.wb-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.wb-table th, table.wb-table td { border-bottom: 1px solid var(--wb-line); padding: 10px 8px; text-align: left; vertical-align: top; }
+    table.wb-table th { color: var(--wb-muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+    table.wb-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    table.wb-table th.sortable:hover, table.wb-table th.is-sorted { color: var(--wb-navy); }
+    table.wb-table tbody tr { cursor: pointer; }
+    table.wb-table tbody tr:hover, table.wb-table tbody tr.is-selected { background: var(--wb-sky-tint); }
+    .wb-muted { color: var(--wb-muted); }
+
+    .wb-badge { border-radius: 999px; display: inline-block; font-size: 12px; padding: 2px 9px; white-space: nowrap; font-weight: 700; }
+    .wb-badge-sent { background: #DFF3E5; color: #1E7A46; }
+    .wb-badge-failed { background: #FBE1DF; color: #B3261E; }
+    .wb-badge-pending { background: #FDF0D6; color: #8A5A00; }
+    .wb-badge-delivered { background: #DFF3E5; color: #1E7A46; }
+    .wb-badge-complained { background: #EFE1FA; color: #6B2FA6; }
+    .wb-badge-opened { background: var(--wb-sky-tint); color: var(--wb-sky); }
+    .wb-badge-not-opened { background: #EEF1F4; color: var(--wb-muted); }
+
+    .wb-detail-empty { color: var(--wb-muted); font-size: 14px; }
+    .wb-detail-grid { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; margin: 0 0 14px; }
+    .wb-detail-grid dt { color: var(--wb-muted); margin: 0; font-size: 13px; font-weight: 700; }
+    .wb-detail-grid dd { margin: 0; word-break: break-word; font-size: 14px; }
+    .wb-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .wb-preview-wrap { border: 1px solid var(--wb-line); border-radius: 10px; overflow: hidden; }
+    .wb-preview-label { padding: 8px 12px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--wb-muted); background: #F7FAFC; border-bottom: 1px solid var(--wb-line); }
+    #detailPreview { width: 100%; min-height: 360px; height: 46vh; border: 0; background: #fff; }
+    .wb-error { color: var(--wb-error); font-size: 13px; margin-top: 10px; }
+
+    .wb-hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <a href="/"><img src="/logo-banner.png" alt="Home" class="site-nav__logo"></a>
+      <a href="/" class="site-nav__link">Home</a>
+      <a href="/welcome/" class="site-nav__link">Send Welcome Letter</a>
+    </div>
+  </nav>
+
+  <main class="wb-page">
+
+    <div class="wb-head">
+      <div>
+        <div class="wb-brand">Retail Odyssey</div>
+        <h1>Welcome Letter Board</h1>
+        <p>Every welcome letter sent to new hires — delivery status, open tracking, and exact resend.</p>
+      </div>
+      <a href="/welcome/" class="wb-btn wb-btn-primary">Send New Welcome Letter</a>
+    </div>
+
+    <div id="justSentBanner" class="wb-banner wb-hidden"></div>
+
+    <section class="wb-card">
+      <form id="filterForm" class="wb-filters">
+        <label>Search
+          <input id="search" placeholder="name or email…">
+        </label>
+        <label>Status
+          <select id="status">
+            <option value="">Any</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+            <option value="pending">Pending</option>
+          </select>
+        </label>
+        <label>Delivery
+          <select id="deliveryStatus">
+            <option value="">Any</option>
+            <option value="delivered">Delivered</option>
+            <option value="sent">In flight</option>
+            <option value="failed">Failed / bounced</option>
+            <option value="complained">Complained</option>
+          </select>
+        </label>
+        <div class="wb-filter-actions">
+          <button type="submit" class="wb-btn wb-btn-primary">Apply</button>
+          <button type="button" id="clearFilters" class="wb-btn wb-btn-ghost">Clear</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="wb-layout">
+      <section class="wb-card">
+        <div class="wb-list-meta">
+          <span id="listSummary">Loading…</span>
+          <div class="wb-pager">
+            <button type="button" id="prevPage" class="wb-btn wb-btn-ghost" disabled>Prev</button>
+            <span id="pageLabel">Page 1</span>
+            <button type="button" id="nextPage" class="wb-btn wb-btn-ghost" disabled>Next</button>
+          </div>
+        </div>
+        <div class="wb-table-wrap">
+          <table class="wb-table">
+            <thead>
+              <tr>
+                <th data-sort="createdAt" data-label="When" class="sortable">When</th>
+                <th data-sort="status" data-label="Status" class="sortable">Status</th>
+                <th data-sort="deliveryStatus" data-label="Delivery" class="sortable">Delivery</th>
+                <th data-sort="openedAt" data-label="Opened" class="sortable">Opened</th>
+                <th>First Name</th>
+                <th data-sort="to" data-label="Sent To" class="sortable">Sent To</th>
+                <th>Sent By</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr><td colspan="7" class="wb-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="wb-card" id="detailCard">
+        <h2 style="margin-top:0;color:var(--wb-navy);">Details</h2>
+        <p class="wb-detail-empty" id="detailEmpty">Select a welcome letter to inspect or resend.</p>
+        <div id="detailBody" hidden>
+          <dl class="wb-detail-grid" id="detailMeta"></dl>
+          <div class="wb-detail-actions">
+            <button type="button" id="resendBtn" class="wb-btn wb-btn-primary">Resend exactly</button>
+          </div>
+          <div class="wb-preview-wrap">
+            <div class="wb-preview-label">Email preview</div>
+            <iframe id="detailPreview" title="Welcome letter preview" sandbox=""></iframe>
+          </div>
+          <p id="detailError" class="wb-error" hidden></p>
+        </div>
+      </section>
+    </section>
+
+  </main>
+
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=20260715-1"></script>
+</body>
+</html>

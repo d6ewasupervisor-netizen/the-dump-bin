@@ -237,6 +237,7 @@
     <div class="site-nav__inner">
       <a href="/"><img src="/logo-banner.png" alt="Home" class="site-nav__logo"></a>
       <a href="/" class="site-nav__link">Home</a>
+      <a href="/welcome-letter-board/" class="site-nav__link">Welcome Letter Board</a>
     </div>
   </nav>
 
@@ -289,7 +290,7 @@
         <p class="wl-status" id="verifyStatus" aria-live="polite"></p>
       </section>
 
-      <!-- RESULT -->
+      <!-- RESULT (only shown when nothing was recorded to view on the board, e.g. validation failure) -->
       <section id="stepResult" class="wl-hidden">
         <div class="wl-brand">Retail Odyssey</div>
         <h1 id="resultTitle">Sent</h1>
@@ -297,7 +298,7 @@
         <div class="wl-actions">
           <button type="button" class="wl-btn wl-btn-primary wl-hidden" id="anotherBtn">Send Another</button>
           <button type="button" class="wl-btn wl-btn-ghost" id="retryBtn">Try Again</button>
-          <a href="/email-outbox/" class="wl-btn wl-btn-ghost" id="outboxLink">Open Email Outbox</a>
+          <a href="/welcome-letter-board/" class="wl-btn wl-btn-ghost">Open Welcome Letter Board</a>
         </div>
       </section>
 
@@ -442,6 +443,14 @@
     verifyStatus.textContent = '';
   });
 
+  function goToBoard(recordId, { ok, message }) {
+    const params = new URLSearchParams();
+    if (recordId) params.set('id', String(recordId));
+    params.set('justSent', ok ? '1' : '0');
+    if (message) params.set('msg', message);
+    window.location.href = `/welcome-letter-board/?${params.toString()}`;
+  }
+
   confirmBtn.addEventListener('click', async function () {
     if (!pending) return;
     confirmBtn.disabled = true;
@@ -453,9 +462,16 @@
         firstName: pending.firstName,
         email: pending.email,
       });
+      const recordId = data && data.recordId;
 
       if (!res.ok || !data || !data.ok) {
         const msg = (data && data.error) || `Send failed (${res.status})`;
+        if (recordId) {
+          goToBoard(recordId, { ok: false, message: msg });
+          return;
+        }
+        // Nothing was recorded (e.g. validation failure before any send attempt) —
+        // there's no board entry to navigate to, so show the error inline.
         resultTitle.textContent = 'Send failed';
         resultBanner.className = 'wl-banner err';
         resultBanner.textContent = msg;
@@ -465,15 +481,10 @@
         return;
       }
 
-      resultTitle.textContent = 'Letter sent';
-      resultBanner.className = 'wl-banner ok';
-      resultBanner.textContent =
-        `Welcome letter sent to ${data.to}.` +
-        (data.emailId ? ` Message ID: ${data.emailId}.` : '') +
-        ' It is stored in the email outbox for exact resend.';
-      anotherBtn.classList.remove('wl-hidden');
-      retryBtn.classList.add('wl-hidden');
-      showStep('result');
+      goToBoard(recordId, {
+        ok: true,
+        message: `Welcome letter sent to ${data.to}.`,
+      });
     } catch (err) {
       resultTitle.textContent = 'Send failed';
       resultBanner.className = 'wl-banner err';
