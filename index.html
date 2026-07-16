@@ -26,13 +26,14 @@
 
     <div class="card-grid">
 
-      <a href="/welcome/" class="card">
+      <!-- Welcome Letter: Tyson + Wolf only -->
+      <a href="/welcome/" class="card" id="welcome-letter-card" hidden>
         <span class="card__icon">✉️</span>
         <span class="card__title">Welcome Letter</span>
         <span class="card__desc">Send the new-hire welcome letter with a live preview and outbox tracking.</span>
       </a>
 
-      <a href="/welcome-letter-board/" class="card">
+      <a href="/welcome-letter-board/" class="card" id="welcome-letter-board-card" hidden>
         <span class="card__icon">📊</span>
         <span class="card__title">Welcome Letter Board</span>
         <span class="card__desc">See who's been sent a welcome letter, delivery/open status, and resend if needed.</span>
@@ -128,6 +129,14 @@
         'tgauthier2011@gmail.com': true
       };
 
+      // Keep in sync with eod-api WELCOME_LETTER_ALLOWED_EMAILS (Tyson + Wolf only).
+      var WELCOME_LETTER_EMAILS = {
+        'tyson.gauthier@retailodyssey.com': true,
+        'tyson.gauthier@retail-odyssey.com': true,
+        'tgauthier2011@gmail.com': true,
+        'aiyana.natarisalazar@retailodyssey.com': true // Wolf
+      };
+
       try {
         if (typeof dumpBinAuthFetch !== 'function') return;
         var res = await dumpBinAuthFetch('/api/me', { noBounceOn401: true });
@@ -145,6 +154,12 @@
         if (isHostAdmin) {
           var desk = document.getElementById('cp-planning-desk-card');
           if (desk) desk.hidden = false;
+        }
+        if (WELCOME_LETTER_EMAILS[email]) {
+          var wl = document.getElementById('welcome-letter-card');
+          var wlb = document.getElementById('welcome-letter-board-card');
+          if (wl) wl.hidden = false;
+          if (wlb) wlb.hidden = false;
         }
       } catch (_) {}
     })();

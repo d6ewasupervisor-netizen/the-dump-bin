@@ -242,7 +242,16 @@
   </nav>
 
   <main class="wl-page">
-    <div class="wl-card">
+    <div id="wlAccessDenied" class="wl-card wl-hidden">
+      <div class="wl-brand">Retail Odyssey</div>
+      <h1>Access restricted</h1>
+      <p class="wl-sub">The Welcome Letter tool is limited to authorized supervisors. If you need access, contact Tyson Gauthier.</p>
+      <div class="wl-actions">
+        <a href="/" class="wl-btn wl-btn-primary">Back to Home</a>
+      </div>
+    </div>
+
+    <div class="wl-card" id="wlApp" hidden>
 
       <!-- FORM -->
       <section id="stepForm">
@@ -302,11 +311,19 @@
         </div>
       </section>
 
-    </div>
+    </div><!-- #wlApp -->
   </main>
 
   <script>
 (function () {
+  // Keep in sync with eod-api WELCOME_LETTER_ALLOWED_EMAILS (Tyson + Wolf only).
+  const WELCOME_LETTER_EMAILS = {
+    'tyson.gauthier@retailodyssey.com': true,
+    'tyson.gauthier@retail-odyssey.com': true,
+    'tgauthier2011@gmail.com': true,
+    'aiyana.natarisalazar@retailodyssey.com': true, // Wolf
+  };
+
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const stepForm = document.getElementById('stepForm');
@@ -330,8 +347,32 @@
   const resultBanner = document.getElementById('resultBanner');
   const anotherBtn = document.getElementById('anotherBtn');
   const retryBtn = document.getElementById('retryBtn');
+  const wlApp = document.getElementById('wlApp');
+  const wlAccessDenied = document.getElementById('wlAccessDenied');
 
   let pending = null;
+  let accessGranted = false;
+
+  async function ensureWelcomeAccess() {
+    try {
+      if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
+      const res = await window.dumpBinAuthFetch('/api/me', { noBounceOn401: true });
+      if (!res.ok) throw new Error('auth failed');
+      const me = await res.json();
+      const email = String((me && me.email) || '').trim().toLowerCase();
+      accessGranted = !!WELCOME_LETTER_EMAILS[email];
+    } catch (_) {
+      accessGranted = false;
+    }
+    if (!accessGranted) {
+      if (wlApp) wlApp.hidden = true;
+      if (wlAccessDenied) wlAccessDenied.classList.remove('wl-hidden');
+      return false;
+    }
+    if (wlAccessDenied) wlAccessDenied.classList.add('wl-hidden');
+    if (wlApp) wlApp.hidden = false;
+    return true;
+  }
 
   function showStep(step) {
     stepForm.classList.toggle('wl-hidden', step !== 'form');
@@ -407,6 +448,7 @@
 
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
+    if (!accessGranted) return;
     formStatus.textContent = '';
     const fields = validateLocal();
     if (!fields) return;
@@ -452,7 +494,7 @@
   }
 
   confirmBtn.addEventListener('click', async function () {
-    if (!pending) return;
+    if (!pending || !accessGranted) return;
     confirmBtn.disabled = true;
     backBtn.disabled = true;
     verifyStatus.textContent = 'Sending…';
@@ -513,6 +555,8 @@
   retryBtn.addEventListener('click', function () {
     showStep(pending ? 'verify' : 'form');
   });
+
+  ensureWelcomeAccess();
 })();
   </script>
 </body>

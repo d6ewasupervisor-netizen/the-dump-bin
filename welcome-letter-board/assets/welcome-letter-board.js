@@ -1,6 +1,14 @@
 (function () {
   const API_PREFIX = '/api/welcome-letter/board';
 
+  // Keep in sync with eod-api WELCOME_LETTER_ALLOWED_EMAILS (Tyson + Wolf only).
+  const WELCOME_LETTER_EMAILS = {
+    'tyson.gauthier@retailodyssey.com': true,
+    'tyson.gauthier@retail-odyssey.com': true,
+    'tgauthier2011@gmail.com': true,
+    'aiyana.natarisalazar@retailodyssey.com': true, // Wolf
+  };
+
   const state = {
     page: 1,
     pageSize: 50,
@@ -249,8 +257,39 @@
     el.textContent = message;
   }
 
+  async function ensureWelcomeAccess() {
+    try {
+      if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
+      const fetchFn = window.dumpBinAuthFetch || fetch;
+      const res = await fetchFn('/api/me', { noBounceOn401: true, credentials: 'include' });
+      if (!res.ok) return false;
+      const me = await res.json();
+      const email = String((me && me.email) || '').trim().toLowerCase();
+      return !!WELCOME_LETTER_EMAILS[email];
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  function showAccessDenied() {
+    const denied = document.getElementById('wbAccessDenied');
+    const app = document.getElementById('wbApp');
+    if (app) app.hidden = true;
+    if (denied) denied.classList.remove('wb-hidden');
+  }
+
   async function boot() {
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
+
+    const allowed = await ensureWelcomeAccess();
+    if (!allowed) {
+      showAccessDenied();
+      return;
+    }
+    const denied = document.getElementById('wbAccessDenied');
+    const app = document.getElementById('wbApp');
+    if (denied) denied.classList.add('wb-hidden');
+    if (app) app.hidden = false;
 
     const url = new URL(window.location.href);
     const justSent = url.searchParams.get('justSent');
@@ -296,6 +335,7 @@
   }
 
   boot().catch((err) => {
-    document.getElementById('listSummary').textContent = err.message;
+    const summary = document.getElementById('listSummary');
+    if (summary) summary.textContent = err.message;
   });
 })();
