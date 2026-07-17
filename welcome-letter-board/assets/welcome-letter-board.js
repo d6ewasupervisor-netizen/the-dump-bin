@@ -1,15 +1,6 @@
 (function () {
   const API_PREFIX = '/api/welcome-letter/board';
 
-  // Keep in sync with eod-api WELCOME_LETTER_ALLOWED_EMAILS.
-  const WELCOME_LETTER_EMAILS = {
-    'tyson.gauthier@retailodyssey.com': true,
-    'tyson.gauthier@retail-odyssey.com': true,
-    'tgauthier2011@gmail.com': true,
-    'aiyana.natarisalazar@retailodyssey.com': true, // Wolf
-    'd6ewa.supervisor@gmail.com': true, // admin
-  };
-
   const state = {
     page: 1,
     pageSize: 50,
@@ -265,8 +256,10 @@
       const res = await fetchFn('/api/me', { noBounceOn401: true, credentials: 'include' });
       if (!res.ok) return false;
       const me = await res.json();
-      const email = String((me && me.email) || '').trim().toLowerCase();
-      return !!WELCOME_LETTER_EMAILS[email];
+      // Single source of truth: eod-api's WELCOME_LETTER_ALLOWED_EMAILS,
+      // via /api/me's hasWelcomeLetterAccess. Don't keep a separate copy of
+      // the allowlist here — that's exactly what caused it to drift before.
+      return !!(me && me.hasWelcomeLetterAccess);
     } catch (_err) {
       return false;
     }
