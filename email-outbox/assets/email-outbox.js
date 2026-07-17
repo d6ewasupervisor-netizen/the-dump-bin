@@ -10,6 +10,7 @@
     sources: [],
     sortBy: 'createdAt',
     sortDir: 'desc',
+    previewObjectUrl: null,
   };
 
   function tokenHeader() {
@@ -25,17 +26,26 @@
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  async function api(path, options = {}) {
+  /** Prefer auth-gate fetch so /api/* is rewritten to eod-api.the-dump-bin.com. */
+  function authFetch(url, options = {}) {
     const fetchFn = window.dumpBinAuthFetch || fetch;
+    const headers = { ...(options.headers || {}) };
+    if (!window.dumpBinAuthFetch) {
+      Object.assign(headers, tokenHeader());
+    }
+    return fetchFn(url, {
+      credentials: 'include',
+      ...options,
+      headers,
+    });
+  }
+
+  async function api(path, options = {}) {
     const headers = {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     };
-    if (!window.dumpBinAuthFetch) {
-      Object.assign(headers, tokenHeader());
-    }
-    const res = await fetchFn(path, {
-      credentials: 'include',
+    const res = await authFetch(path, {
       ...options,
       headers,
     });
@@ -51,6 +61,70 @@
     return body;
   }
 
+  /**
+   * Authenticated binary download. Uses authFetch + blob so Bearer auth works
+   * (plain <a href> would not send the session header or hit the API host).
+   */
+  async function downloadBinary(path, fallbackFilename) {
+    const res = await authFetch(path);
+    if (!res.ok) {
+      let message = `HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        message = body.error || body.message || message;
+      } catch (_err) {
+        try {
+          const text = await res.text();
+          if (text) message = text.slice(0, 200);
+        } catch (_e2) {}
+      }
+      throw new Error(message);
+    }
+    const blob = await res.blob();
+    const filename = filenameFromContentDisposition(res.headers.get('Content-Disposition'))
+      || fallbackFilename
+      || 'download';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    return { blob, filename, contentType: res.headers.get('Content-Type') || blob.type };
+  }
+
+  async function fetchBinary(path) {
+    const res = await authFetch(path);
+    if (!res.ok) {
+      let message = `HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        message = body.error || body.message || message;
+      } catch (_err) {}
+      throw new Error(message);
+    }
+    const blob = await res.blob();
+    const filename = filenameFromContentDisposition(res.headers.get('Content-Disposition')) || 'attachment';
+    return {
+      blob,
+      filename,
+      contentType: (res.headers.get('Content-Type') || blob.type || 'application/octet-stream').split(';')[0].trim(),
+    };
+  }
+
+  function filenameFromContentDisposition(header) {
+    if (!header) return null;
+    const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(header);
+    if (utf8) {
+      try { return decodeURIComponent(utf8[1].trim()); } catch (_err) { /* fall through */ }
+    }
+    const plain = /filename="([^"]+)"/i.exec(header) || /filename=([^;]+)/i.exec(header);
+    if (plain) return plain[1].trim().replace(/^["']|["']$/g, '');
+    return null;
+  }
+
   function fmtDate(iso) {
     if (!iso) return '—';
     try {
@@ -58,6 +132,13 @@
     } catch (_err) {
       return iso;
     }
+  }
+
+  function fmtBytes(n) {
+    const bytes = Number(n) || 0;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   function badge(label, kind) {
@@ -120,6 +201,51 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function clearAttachmentPreview() {
+    if (state.previewObjectUrl) {
+      URL.revokeObjectURL(state.previewObjectUrl);
+      state.previewObjectUrl = null;
+    }
+    const viewer = document.getElementById('attachmentViewer');
+    const body = document.getElementById('attachmentViewerBody');
+    if (viewer) viewer.hidden = true;
+    if (body) body.innerHTML = '';
+  }
+
+  function showAttachmentPreview({ blob, filename, contentType }) {
+    clearAttachmentPreview();
+    const viewer = document.getElementById('attachmentViewer');
+    const title = document.getElementById('attachmentViewerTitle');
+    const body = document.getElementById('attachmentViewerBody');
+    if (!viewer || !body || !title) return;
+    const url = URL.createObjectURL(blob);
+    state.previewObjectUrl = url;
+    title.textContent = filename || 'Attachment preview';
+    viewer.hidden = false;
+
+    const ct = String(contentType || '').toLowerCase();
+    if (ct.startsWith('image/')) {
+      body.innerHTML = `<img src="${url}" alt="${escapeHtml(filename || 'attachment')}" />`;
+      return;
+    }
+    if (ct === 'application/pdf') {
+      body.innerHTML = `<iframe title="${escapeHtml(filename || 'PDF')}" src="${url}"></iframe>`;
+      return;
+    }
+    if (ct.startsWith('text/') || ct === 'application/json' || ct === 'application/xml') {
+      blob.text().then((text) => {
+        body.innerHTML = `<pre>${escapeHtml(text)}</pre>`;
+      }).catch(() => {
+        body.innerHTML = `<p class="muted">Could not render text preview.</p>
+          <p><a href="${url}" download="${escapeHtml(filename || 'download')}">Download instead</a></p>`;
+      });
+      return;
+    }
+
+    body.innerHTML = `<p class="muted">No in-app preview for <code>${escapeHtml(ct || 'unknown type')}</code>.</p>
+      <p><a href="${url}" download="${escapeHtml(filename || 'download')}">Download ${escapeHtml(filename || 'file')}</a></p>`;
   }
 
   function sortIndicator(column) {
@@ -189,11 +315,18 @@
 
   async function selectEmail(id) {
     state.selectedId = id;
+    clearAttachmentPreview();
     document.querySelectorAll('#emailRows tr[data-id]').forEach((row) => {
       row.classList.toggle('is-selected', Number(row.dataset.id) === id);
     });
     const data = await api(`${API_PREFIX}/${id}`);
     renderDetail(data.item);
+  }
+
+  function showDetailError(message) {
+    const err = document.getElementById('detailError');
+    err.hidden = false;
+    err.textContent = message;
   }
 
   function renderDetail(item) {
@@ -221,6 +354,7 @@
       ['Resend ID', item.resendId || '—'],
       ['Attachments', String(item.attachmentCount || 0)],
       ['Can resend', item.canResend ? 'Yes' : 'No'],
+      ['Can download', item.canDownload ? 'Yes' : 'No'],
     ];
     if (item.errorMessage) rows.push(['Error', item.errorMessage]);
     if (item.compacted) rows.push(['Storage', 'Compacted (body/attachments cleared)']);
@@ -236,13 +370,92 @@
 
     const attachments = document.getElementById('attachmentList');
     const list = Array.isArray(item.attachments) ? item.attachments : [];
-    attachments.innerHTML = list.length
-      ? list.map((a) => `<li>${escapeHtml(a.filename || 'attachment')}${a.content_type ? ` <span class="muted">(${escapeHtml(a.content_type)})</span>` : ''}</li>`).join('')
-      : '<li class="muted">No attachments</li>';
+    if (!list.length) {
+      attachments.innerHTML = '<li class="muted">No attachments</li>';
+    } else {
+      attachments.innerHTML = list.map((a) => {
+        const idx = a.index != null ? a.index : 0;
+        const name = a.filename || 'attachment';
+        const type = a.contentType || a.content_type || '';
+        const size = a.sizeBytes != null ? fmtBytes(a.sizeBytes) : '';
+        // API returns hasContent; never expect content_base64 in detail JSON anymore.
+        const downloadable = a.hasContent === true || Boolean(a.content_base64);
+        const viewable = Boolean(a.viewable) && downloadable;
+        const metaBits = [type, size].filter(Boolean).join(' · ');
+        return `<li class="attachment-item" data-index="${idx}">
+          <div class="attachment-meta">
+            <span class="attachment-name">${escapeHtml(name)}</span>
+            <span class="muted">${escapeHtml(metaBits || (downloadable ? 'stored' : 'content missing'))}</span>
+          </div>
+          <div class="attachment-actions">
+            ${viewable ? `<button type="button" class="secondary att-view" data-index="${idx}">View</button>` : ''}
+            ${downloadable ? `<button type="button" class="secondary att-download" data-index="${idx}" data-filename="${escapeHtml(name)}">Download</button>` : '<span class="muted">Unavailable</span>'}
+          </div>
+        </li>`;
+      }).join('');
+
+      attachments.querySelectorAll('.att-download').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const index = Number(btn.dataset.index);
+          const filename = btn.dataset.filename || `attachment-${index}`;
+          btn.disabled = true;
+          try {
+            await downloadBinary(
+              `${API_PREFIX}/${item.id}/attachments/${index}`,
+              filename,
+            );
+          } catch (err) {
+            showDetailError(err.message);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+
+      attachments.querySelectorAll('.att-view').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const index = Number(btn.dataset.index);
+          btn.disabled = true;
+          try {
+            const file = await fetchBinary(
+              `${API_PREFIX}/${item.id}/attachments/${index}?disposition=inline`,
+            );
+            showAttachmentPreview(file);
+          } catch (err) {
+            showDetailError(err.message);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+    }
 
     const err = document.getElementById('detailError');
     err.hidden = true;
     err.textContent = '';
+
+    const downloadEmailBtn = document.getElementById('downloadEmailBtn');
+    if (downloadEmailBtn) {
+      downloadEmailBtn.disabled = item.canDownload === false || item.compacted;
+      downloadEmailBtn.onclick = async () => {
+        downloadEmailBtn.disabled = true;
+        try {
+          const safeSubject = String(item.subject || `email-${item.id}`)
+            .replace(/[/\\?%*:|"<>]/g, '_')
+            .slice(0, 80);
+          await downloadBinary(
+            `${API_PREFIX}/${item.id}/download`,
+            `${safeSubject || `email-${item.id}`}.eml`,
+          );
+        } catch (e) {
+          showDetailError(e.message);
+        } finally {
+          downloadEmailBtn.disabled = item.canDownload === false || item.compacted;
+        }
+      };
+    }
 
     const resendBtn = document.getElementById('resendBtn');
     resendBtn.disabled = !item.canResend;
@@ -256,8 +469,7 @@
         await loadList();
         if (result.recordId) await selectEmail(result.recordId);
       } catch (e) {
-        err.hidden = false;
-        err.textContent = e.message;
+        showDetailError(e.message);
       } finally {
         resendBtn.disabled = !item.canResend;
       }
@@ -273,8 +485,7 @@
         await loadList();
         await selectEmail(item.id);
       } catch (e) {
-        err.hidden = false;
-        err.textContent = e.message;
+        showDetailError(e.message);
       } finally {
         compactBtn.disabled = false;
       }
@@ -285,12 +496,12 @@
       try {
         await api(`${API_PREFIX}/${item.id}`, { method: 'DELETE' });
         state.selectedId = null;
+        clearAttachmentPreview();
         document.getElementById('detailEmpty').hidden = false;
         document.getElementById('detailBody').hidden = true;
         await loadList();
       } catch (e) {
-        err.hidden = false;
-        err.textContent = e.message;
+        showDetailError(e.message);
       }
     };
 
@@ -308,8 +519,7 @@
         await loadList();
         await selectEmail(item.id);
       } catch (ex) {
-        err.hidden = false;
-        err.textContent = ex.message;
+        showDetailError(ex.message);
       }
     };
   }
@@ -368,6 +578,11 @@
       th.addEventListener('click', () => onSortColumn(th.dataset.sort));
     });
     updateSortHeaders();
+
+    const closePreview = document.getElementById('attachmentViewerClose');
+    if (closePreview) {
+      closePreview.addEventListener('click', clearAttachmentPreview);
+    }
 
     await loadSources();
     await loadList();
