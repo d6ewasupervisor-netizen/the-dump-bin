@@ -1,12 +1,13 @@
 (function () {
   const API_PREFIX = '/api/welcome-letter/board';
 
-  // Keep in sync with eod-api WELCOME_LETTER_ALLOWED_EMAILS (Tyson + Wolf only).
+  // Keep in sync with eod-api WELCOME_LETTER_ALLOWED_EMAILS.
   const WELCOME_LETTER_EMAILS = {
     'tyson.gauthier@retailodyssey.com': true,
     'tyson.gauthier@retail-odyssey.com': true,
     'tgauthier2011@gmail.com': true,
     'aiyana.natarisalazar@retailodyssey.com': true, // Wolf
+    'd6ewa.supervisor@gmail.com': true, // admin
   };
 
   const state = {
