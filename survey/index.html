@@ -447,7 +447,6 @@ async function renderPicker(fromHistory) {
           <span class="id-chip">${esc(ME.user.name || ME.user.email)}</span>
           <span class="id-chip">${esc(roleLabel)}</span>
           ${ME.user.team ? `<span class="id-chip">${esc(ME.user.team)}</span>` : ''}
-          ${ME.user.phone ? `<span class="id-chip">${esc(ME.user.phone)}</span>` : ''}
         </div>
       </div>
     </div>
@@ -517,18 +516,9 @@ async function openStore(store) {
 }
 
 function suggestionsFor(questionId) {
-  const list = (SUGGESTIONS && SUGGESTIONS.byQuestion && SUGGESTIONS.byQuestion[questionId]) || [];
-  const people = (SUGGESTIONS && SUGGESTIONS.people) || [];
-  // Name-like questions also get teammate names
-  if (/^Q7a$|^Q3[4-7]_d$/.test(questionId)) {
-    const names = people.map((p) => p.name).filter(Boolean);
-    const merged = [...list];
-    for (const n of names) {
-      if (!merged.some((x) => String(x).toLowerCase() === String(n).toLowerCase())) merged.push(n);
-    }
-    return merged;
-  }
-  return list;
+  // Only store-operational priors (locations, entry, previously entered store-side names).
+  // Never RO teammates — store contacts are other companies.
+  return (SUGGESTIONS && SUGGESTIONS.byQuestion && SUGGESTIONS.byQuestion[questionId]) || [];
 }
 
 function wireTypeahead(input, questionId) {
