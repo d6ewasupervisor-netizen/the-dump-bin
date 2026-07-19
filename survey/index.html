@@ -135,6 +135,29 @@
   .store-btn .done{color:var(--good); font-size:13px; font-weight:600}
   .store-btn .draft{color:var(--accent); font-size:13px; font-weight:600}
   .store-btn .label{font-weight:600}
+  .store-search{
+    width:100%; border:1.5px solid var(--line); border-radius:12px; padding:12px 14px;
+    font-size:16px; margin-bottom:12px; background:#fff;
+  }
+  .id-chip{
+    display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;
+    background:var(--accent-soft); color:var(--accent-deep); border-radius:999px;
+    padding:6px 12px; font-size:12px; font-weight:600; margin:4px 4px 0 0;
+  }
+  .suggest-wrap{position:relative}
+  .suggest-list{
+    position:absolute; left:0; right:0; top:100%; z-index:8;
+    background:#fff; border:1px solid var(--line); border-radius:10px;
+    max-height:200px; overflow:auto; box-shadow:0 8px 20px rgba(0,0,0,.12);
+    display:none;
+  }
+  .suggest-list.open{display:block}
+  .suggest-list button{
+    display:block; width:100%; text-align:left; border:0; background:#fff;
+    padding:12px 14px; font-size:15px; cursor:pointer; border-bottom:1px solid var(--line);
+    min-height:44px;
+  }
+  .suggest-list button:active,.suggest-list button:hover{background:var(--accent-soft)}
   .review-item{padding:12px 0; border-bottom:1px solid var(--line); font-size:14px}
   .review-item .a{font-weight:600}
   .missing{color:var(--danger)}
@@ -223,6 +246,8 @@ let ME = null, SPEC = null, STORE = null, SECTION = -1;
 let ANSWERS = {}, PHOTOS = [], BASELINE = {}, saveTimer = null, dirty = false, saving = false;
 let historyReady = false;
 let lastToast = 0;
+let SUGGESTIONS = { byQuestion: {}, people: [], profile: {} };
+let STORE_FILTER = '';
 
 const $ = (sel) => document.querySelector(sel);
 const main = $('#main');
@@ -379,50 +404,97 @@ async function saveDraft(submit = false, silent = false) {
   }
 }
 
+function storeList() {
+  // Prefer rich storeDetails (district + status); fall back to flat numbers
+  if (Array.isArray(ME.storeDetails) && ME.storeDetails.length) return ME.storeDetails;
+  return (ME.stores || []).map((n) => ({ storeNum: n, district: ME.user?.district || null, status: null }));
+}
+
 async function renderPicker(fromHistory) {
   SECTION = -1;
   STORE = null;
   setProgress();
   $('#stepnav').hidden = true;
   $('#hdr-title').textContent = 'Division 701 Store Survey';
-  const statuses = await Promise.all(
-    ME.stores.map(async (s) => {
-      try {
-        const c = await api(`/api/survey/stores/${s}/context`);
-        return [s, c.myResponse];
-      } catch {
-        return [s, null];
-      }
-    })
-  );
+
+  const details = storeList();
   const first = (ME.user.name || '').split(' ')[0] || 'there';
+  const roleLabel = ME.user.isMasterAdmin
+    ? 'Master admin · all stores'
+    : ME.user.role === 'supervisor'
+      ? `Supervisor · District ${ME.user.district || '—'}`
+      : ME.user.role === 'lead'
+        ? `Lead · ${ME.user.team || 'District ' + (ME.user.district || '')}`
+        : `${ME.user.role || 'Team'} · District ${ME.user.district || '—'}`;
+
+  const q = STORE_FILTER.trim().toLowerCase();
+  const filtered = details.filter((s) => {
+    if (!q) return true;
+    return (
+      String(s.storeNum).includes(q)
+      || String(s.district || '').toLowerCase().includes(q)
+      || (`store ${s.storeNum}`).includes(q)
+    );
+  });
+
   main.innerHTML =
     `<div class="card welcome">
       <img src="${ASSET}/ro-logo.png" alt="Retail Odyssey" width="56" height="56">
       <div>
-        <strong>Hi ${first}.</strong>
-        <div class="hint">Pick a store. Answers save after every tap — if the connection drops or you leave, you can pick up where you left off.</div>
+        <strong>Hi ${esc(first)}.</strong>
+        <div class="hint">We already know who you are — only <strong>your</strong> stores are listed. Answers save after every tap.</div>
+        <div>
+          <span class="id-chip">${esc(ME.user.name || ME.user.email)}</span>
+          <span class="id-chip">${esc(roleLabel)}</span>
+          ${ME.user.team ? `<span class="id-chip">${esc(ME.user.team)}</span>` : ''}
+          ${ME.user.phone ? `<span class="id-chip">${esc(ME.user.phone)}</span>` : ''}
+        </div>
       </div>
-    </div>` +
-    statuses
-      .map(
-        ([s, resp]) => `<button type="button" class="store-btn" data-store="${s}">
-      <span class="store-ico">${String(s).slice(-2)}</span>
+    </div>
+    <input class="store-search" id="store-search" type="search" inputmode="numeric" enterkeyhint="search"
+      placeholder="Filter your stores (e.g. 23 or district 8)" value="${escAttr(STORE_FILTER)}"
+      autocomplete="off">
+    <div id="store-list"></div>
+    <div class="foot-brand">The Retail Odyssey Company · Division 701</div>`;
+
+  const listEl = $('#store-list');
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="card hint">No stores match that filter. Clear the search to see all ${details.length} assigned stores.</div>`;
+  } else {
+    listEl.innerHTML = filtered
+      .map((s) => {
+        const st = s.status;
+        const badge = st === 'submitted'
+          ? '<div class="done">Submitted — tap to review or update</div>'
+          : st === 'draft'
+            ? '<div class="draft">Draft in progress</div>'
+            : '<div class="hint">Not started</div>';
+        return `<button type="button" class="store-btn" data-store="${s.storeNum}">
+      <span class="store-ico">${String(s.storeNum).slice(-2)}</span>
       <span>
-        <div class="label">Store ${s}</div>
-        ${
-          resp
-            ? resp.status === 'submitted'
-              ? '<div class="done">Submitted — tap to review or update</div>'
-              : '<div class="draft">Draft in progress</div>'
-            : '<div class="hint">Not started</div>'
-        }
+        <div class="label">Store ${s.storeNum}${s.district ? ` · District ${esc(s.district)}` : ''}</div>
+        ${badge}
       </span>
-    </button>`
-      )
-      .join('') +
-    `<div class="foot-brand">The Retail Odyssey Company · Division 701</div>`;
-  main.querySelectorAll('.store-btn').forEach((b) => {
+    </button>`;
+      })
+      .join('');
+  }
+
+  // Live filter as user types store number / district
+  const search = $('#store-search');
+  search.oninput = () => {
+    STORE_FILTER = search.value;
+    // re-render list only (keep focus)
+    const caret = search.selectionStart;
+    renderPicker(true).then(() => {
+      const s2 = $('#store-search');
+      if (s2) {
+        s2.focus();
+        try { s2.setSelectionRange(caret, caret); } catch (_) {}
+      }
+    });
+  };
+  listEl.querySelectorAll('.store-btn').forEach((b) => {
     b.onclick = () => openStore(Number(b.dataset.store));
   });
   if (!fromHistory) pushAppState(true);
@@ -438,9 +510,66 @@ async function openStore(store) {
   PHOTOS = (ph.photos || []).filter((p) => p.respondent === ME.user.email);
   BASELINE = {};
   for (const b of ctx.baseline || []) Object.assign(BASELINE, b.answers);
+  if (ctx.suggestions) SUGGESTIONS = ctx.suggestions;
   SECTION = 0;
   renderSection();
   pushAppState(false);
+}
+
+function suggestionsFor(questionId) {
+  const list = (SUGGESTIONS && SUGGESTIONS.byQuestion && SUGGESTIONS.byQuestion[questionId]) || [];
+  const people = (SUGGESTIONS && SUGGESTIONS.people) || [];
+  // Name-like questions also get teammate names
+  if (/^Q7a$|^Q3[4-7]_d$/.test(questionId)) {
+    const names = people.map((p) => p.name).filter(Boolean);
+    const merged = [...list];
+    for (const n of names) {
+      if (!merged.some((x) => String(x).toLowerCase() === String(n).toLowerCase())) merged.push(n);
+    }
+    return merged;
+  }
+  return list;
+}
+
+function wireTypeahead(input, questionId) {
+  const wrap = input.closest('.suggest-wrap') || input.parentElement;
+  let panel = wrap.querySelector('.suggest-list');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'suggest-list';
+    panel.setAttribute('role', 'listbox');
+    wrap.appendChild(panel);
+  }
+  const all = suggestionsFor(questionId);
+  function renderOpts(filter) {
+    const f = String(filter || '').toLowerCase();
+    const opts = all.filter((v) => !f || String(v).toLowerCase().includes(f)).slice(0, 8);
+    if (!opts.length) {
+      panel.classList.remove('open');
+      panel.innerHTML = '';
+      return;
+    }
+    panel.innerHTML = opts
+      .map((v) => `<button type="button" role="option" data-val="${escAttr(String(v))}">${esc(String(v))}</button>`)
+      .join('');
+    panel.classList.add('open');
+    panel.querySelectorAll('button').forEach((b) => {
+      b.onmousedown = (e) => e.preventDefault(); // keep focus
+      b.onclick = () => {
+        input.value = b.dataset.val;
+        ANSWERS[questionId] = b.dataset.val;
+        markDirty();
+        panel.classList.remove('open');
+      };
+    });
+  }
+  input.addEventListener('focus', () => renderOpts(input.value));
+  input.addEventListener('input', () => {
+    ANSWERS[questionId] = input.value;
+    markDirty();
+    renderOpts(input.value);
+  });
+  input.addEventListener('blur', () => setTimeout(() => panel.classList.remove('open'), 150));
 }
 
 function commentBlock(q) {
@@ -503,11 +632,14 @@ function questionHtml(q) {
         .join('') +
       '</div>';
   } else {
-    body = `<input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="Type your answer" autocomplete="off" enterkeyhint="done">`;
+    const ph = suggestionsFor(q.id).length
+      ? 'Start typing — we will suggest known answers'
+      : 'Type your answer';
+    body = `<div class="suggest-wrap"><input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="${escAttr(ph)}" autocomplete="off" enterkeyhint="done"></div>`;
   }
   const detail =
     q.detailOn && ANSWERS[q.id] === q.detailOn
-      ? `<div style="margin-top:8px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="Please explain" autocomplete="off"></div>`
+      ? `<div class="suggest-wrap" style="margin-top:8px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="Start typing a name or detail" autocomplete="off"></div>`
       : '';
   return `<div class="card" data-qcard="${q.id}">
     <div class="qtext">${q.id.replace(/^Q/, '')}. ${esc(q.text)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
@@ -568,10 +700,7 @@ function wire() {
     };
   });
   main.querySelectorAll('input[data-tq]').forEach((i) => {
-    i.oninput = () => {
-      ANSWERS[i.dataset.tq] = i.value;
-      markDirty();
-    };
+    wireTypeahead(i, i.dataset.tq);
   });
   main.querySelectorAll('textarea[data-comment]').forEach((t) => {
     t.oninput = () => {
@@ -730,10 +859,12 @@ $('#btn-next').onclick = async () => {
     }
     ME = me;
     SPEC = q.questionSet.spec;
-    // Optional deep link ?store=
+    SUGGESTIONS = me.suggestions || { byQuestion: {}, people: [], profile: {} };
+    // Optional deep link ?store= (must be one of THIS user's stores)
     const sp = new URLSearchParams(location.search);
     const deepStore = Number(sp.get('store'));
-    if (deepStore && ME.stores.includes(deepStore)) {
+    const allowed = new Set((ME.stores || []).map(Number));
+    if (deepStore && allowed.has(deepStore)) {
       await openStore(deepStore);
       const sec = Number(sp.get('sec'));
       if (Number.isFinite(sec) && sec >= 0 && sec < SPEC.sections.length) {
