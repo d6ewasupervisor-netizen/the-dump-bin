@@ -113,6 +113,18 @@
         <span class="card__desc">Admin: all reps, match, dry-run, live tools, photo delivery.</span>
       </a>
 
+      <a href="/survey/" class="card">
+        <span class="card__icon">📝</span>
+        <span class="card__title">Store Survey</span>
+        <span class="card__desc">Division 701 in-store best practices survey — one store at a time, saves as you go.</span>
+      </a>
+
+      <a href="/survey-admin/" class="card" id="survey-admin-card" hidden>
+        <span class="card__icon">📈</span>
+        <span class="card__title">Survey Admin</span>
+        <span class="card__desc">Trending problem questions, filters, and exports for the office.</span>
+      </a>
+
     </div>
   </main>
 
@@ -155,6 +167,11 @@
           var wlb = document.getElementById('welcome-letter-board-card');
           if (wl) wl.hidden = false;
           if (wlb) wlb.hidden = false;
+        }
+        // Survey admin dashboard — Kompass admin role only
+        if (roles.indexOf('admin') >= 0) {
+          var sa = document.getElementById('survey-admin-card');
+          if (sa) sa.hidden = false;
         }
       } catch (_) {}
     })();
