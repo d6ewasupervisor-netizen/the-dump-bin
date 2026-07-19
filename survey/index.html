@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#0f5c8c">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
 <title>Division 701 Store Survey · Retail Odyssey</title>
 <link rel="icon" href="/survey/assets/ro-logo.png">
 <script src="/auth-gate.js"></script>
@@ -13,182 +12,113 @@
   :root{
     --ink:#1a2430; --ink-soft:#5c6b7a; --line:#d5dde6; --paper:#eef2f6; --card:#fff;
     --accent:#0f5c8c; --accent-deep:#0a4063; --accent-soft:#e3eef6; --good:#2e7d52; --saved:#2e7d52; --danger:#b3402a;
-    --hdr: calc(env(safe-area-inset-top, 0px) + 64px);
-    --nav: calc(env(safe-area-inset-bottom, 0px) + 68px);
-    --tap: 48px;
+    --tap:48px;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent}
-  html{height:100%; overscroll-behavior:none}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{height:100%;overscroll-behavior:none}
   body{
-    margin:0; min-height:100%; background:var(--paper); color:var(--ink);
-    font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif; font-size:16px; line-height:1.4;
-    overscroll-behavior-y:none; touch-action:pan-y;
-    padding-bottom:var(--nav);
+    margin:0;min-height:100%;background:var(--paper);color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;font-size:16px;line-height:1.4;
+    overscroll-behavior-y:none;touch-action:pan-y;
+    padding-bottom:calc(72px + env(safe-area-inset-bottom,0px));
   }
-  /* Brand bar */
   .brandbar{
-    position:sticky; top:0; z-index:20;
-    background:linear-gradient(180deg,#fff 0%,#f7fafc 100%);
+    position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg,#fff,#f7fafc);
     border-bottom:2px solid var(--accent);
-    padding:8px 12px calc(8px) ;
-    padding-top:max(8px, env(safe-area-inset-top, 0px));
+    padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top,0px));
   }
-  .brandbar .top{display:flex; align-items:center; gap:10px}
-  .brand-logo{height:36px; width:auto; display:block; flex-shrink:0}
-  .brand-titles{flex:1; min-width:0}
-  .brand-titles .co{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:700}
-  .brand-titles h1{font-size:15px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  #save-state{font-size:11px; color:var(--ink-soft); white-space:nowrap; max-width:36%; text-align:right}
-  #save-state.saved{color:var(--saved); font-weight:600}
-  #save-state.warn{color:var(--danger); font-weight:600}
-  .progress{height:5px; background:var(--line); border-radius:3px; margin-top:8px; overflow:hidden}
-  .progress i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),#1a8fbf); width:0; transition:width .25s}
-  @media (prefers-reduced-motion:reduce){.progress i{transition:none}}
-
-  main{max-width:640px; margin:0 auto; padding:12px 12px 24px}
-
-  .hero{
-    display:flex; gap:12px; align-items:center;
-    background:var(--card); border:1px solid var(--line); border-radius:14px;
-    padding:12px; margin-bottom:12px;
-    box-shadow:0 1px 2px rgba(15,92,140,.06);
-  }
-  .hero img{width:72px; height:72px; border-radius:12px; object-fit:cover; flex-shrink:0; background:#eef5fa}
-  .hero .meta{min-width:0; flex:1}
-  .hero .eyebrow{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700}
-  .hero h2{margin:2px 0 4px; font-size:17px; line-height:1.25}
-  .hero .sub{font-size:13px; color:var(--ink-soft)}
-
-  .card{
-    background:var(--card); border:1px solid var(--line); border-radius:14px;
-    padding:14px; margin-bottom:12px;
-    box-shadow:0 1px 2px rgba(26,36,48,.04);
-  }
-  .sec-title{font-size:12px; letter-spacing:.6px; text-transform:uppercase; color:var(--ink-soft); margin:2px 0 10px}
-  .qtext{font-weight:600; margin-bottom:10px; line-height:1.35; font-size:16px}
-  .opts{display:flex; flex-wrap:wrap; gap:8px}
+  .brandbar .top{display:flex;align-items:center;gap:10px}
+  .brand-logo{height:34px;width:auto}
+  .brand-titles{flex:1;min-width:0}
+  .brand-titles .co{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .brand-titles h1{font-size:14px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #save-state{font-size:11px;color:var(--ink-soft);text-align:right;max-width:34%}
+  #save-state.saved{color:var(--saved);font-weight:600}
+  #save-state.warn{color:var(--danger);font-weight:600}
+  .progress{height:4px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden}
+  .progress i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#1a8fbf);width:0;transition:width .2s}
+  main{max-width:560px;margin:0 auto;padding:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .qtext{font-weight:600;margin-bottom:12px;line-height:1.35;font-size:17px}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opts.row{flex-direction:row;flex-wrap:wrap}
   .opt{
-    border:1.5px solid var(--line); border-radius:12px; padding:12px 16px; background:#fff;
-    font-size:16px; cursor:pointer; min-height:var(--tap); min-width:72px;
-    touch-action:manipulation; user-select:none;
+    border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff;
+    font-size:16px;cursor:pointer;min-height:var(--tap);text-align:left;
+    touch-action:manipulation;user-select:none;width:100%;
   }
-  .opt[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft); font-weight:600; color:var(--accent-deep)}
-  textarea,input[type=text]{
-    width:100%; border:1.5px solid var(--line); border-radius:12px; padding:12px;
-    font-size:16px; font-family:inherit; background:#fff; /* 16px prevents iOS zoom */
+  .opts.row .opt{width:auto;min-width:88px;text-align:center}
+  .opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600;color:var(--accent-deep)}
+  textarea,input[type=text],select{
+    width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;
+    font-size:16px;font-family:inherit;background:#fff;
   }
-  textarea{min-height:80px; resize:vertical}
-  .hint{font-size:13px; color:var(--ink-soft); margin-top:8px}
+  select{min-height:var(--tap)}
+  textarea{min-height:72px;resize:vertical}
+  .hint{font-size:13px;color:var(--ink-soft);margin-top:8px}
+  .note{font-size:13px;color:var(--ink-soft);background:#f0f6fa;border:1px solid #d0e0ec;border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.45}
   .chip{
-    display:inline-block; border:1px dashed var(--accent); color:var(--accent);
-    border-radius:16px; padding:8px 12px; font-size:13px; cursor:pointer; background:#fff;
-    min-height:40px; touch-action:manipulation;
+    display:inline-block;border:1px dashed var(--accent);color:var(--accent);
+    border-radius:16px;padding:8px 12px;font-size:13px;cursor:pointer;background:#fff;
+    margin:4px 4px 0 0;touch-action:manipulation;
   }
-  details.comment{margin-top:10px}
-  details.comment summary{
-    font-size:14px; color:var(--accent); cursor:pointer; list-style:none;
-    min-height:var(--tap); display:flex; align-items:center; touch-action:manipulation;
-  }
-  details.comment summary::before{content:"+ "; font-weight:700; margin-right:4px}
+  details.comment{margin-top:12px}
+  details.comment summary{font-size:14px;color:var(--accent);cursor:pointer;list-style:none;min-height:40px;display:flex;align-items:center}
+  details.comment summary::before{content:"+ ";font-weight:700}
   details.comment[open] summary::before{content:"− "}
-  .photo-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; align-items:center}
-  .photo-row img{width:72px; height:72px; object-fit:cover; border-radius:10px; border:1px solid var(--line)}
+  .photo-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .photo-row img{width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
   .photo-add{
-    border:1.5px dashed var(--line); border-radius:10px; width:72px; height:72px;
-    display:flex; align-items:center; justify-content:center; font-size:26px;
-    color:var(--ink-soft); background:#fff; cursor:pointer; touch-action:manipulation;
+    border:1.5px dashed var(--line);border-radius:10px;width:72px;height:72px;
+    display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--ink-soft);background:#fff;cursor:pointer;
   }
   .thumb{position:relative}
-  .thumb button{
-    position:absolute; top:-8px; right:-8px; width:28px; height:28px; border-radius:50%;
-    background:var(--danger); color:#fff; border:0; font-size:16px; line-height:1;
-    cursor:pointer; padding:0; touch-action:manipulation;
-  }
-
+  .thumb button{position:absolute;top:-8px;right:-8px;width:28px;height:28px;border-radius:50%;background:var(--danger);color:#fff;border:0;font-size:16px}
   nav.stepnav{
-    position:fixed; bottom:0; left:0; right:0; z-index:20;
-    background:rgba(255,255,255,.96); backdrop-filter:blur(8px);
-    border-top:1px solid var(--line);
-    padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-    display:flex; gap:10px;
+    position:fixed;bottom:0;left:0;right:0;z-index:20;
+    background:rgba(255,255,255,.97);border-top:1px solid var(--line);
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+    display:flex;gap:10px;align-items:center;
   }
   nav.stepnav button{
-    flex:1; min-height:52px; font-size:16px; font-weight:600; border-radius:12px;
-    border:0; cursor:pointer; touch-action:manipulation;
+    min-height:44px;font-size:15px;font-weight:600;border-radius:10px;border:0;cursor:pointer;touch-action:manipulation;
+    padding:0 16px;
   }
-  #btn-back{background:#fff; border:1.5px solid var(--accent); color:var(--accent)}
-  #btn-next{background:var(--accent); color:#fff}
+  #btn-back{background:#fff;border:1.5px solid var(--accent);color:var(--accent);flex:0 0 auto}
+  #btn-next{background:var(--accent);color:#fff;flex:1}
+  #btn-next:disabled{background:#9bb6c9;cursor:not-allowed}
   #btn-next.submit{background:var(--good)}
-  #btn-next:disabled,#btn-back:disabled{opacity:.55}
-
-  .store-btn{
-    display:flex; gap:12px; align-items:center; width:100%; text-align:left;
-    background:#fff; border:1.5px solid var(--line); border-radius:14px;
-    padding:14px; font-size:16px; margin-bottom:10px; cursor:pointer;
-    min-height:var(--tap); touch-action:manipulation;
+  .store-grid{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto;-webkit-overflow-scrolling:touch}
+  .store-row{
+    display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid var(--line);
+    border-radius:12px;background:#fff;cursor:pointer;min-height:var(--tap);
   }
-  .store-btn:active{border-color:var(--accent); background:var(--accent-soft)}
-  .store-ico{
-    width:48px; height:48px; border-radius:10px; background:var(--accent-soft);
-    display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); flex-shrink:0;
-  }
-  .store-btn .done{color:var(--good); font-size:13px; font-weight:600}
-  .store-btn .draft{color:var(--accent); font-size:13px; font-weight:600}
-  .store-btn .label{font-weight:600}
-  .store-search{
-    width:100%; border:1.5px solid var(--line); border-radius:12px; padding:12px 14px;
-    font-size:16px; margin-bottom:12px; background:#fff;
-  }
-  .id-chip{
-    display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;
-    background:var(--accent-soft); color:var(--accent-deep); border-radius:999px;
-    padding:6px 12px; font-size:12px; font-weight:600; margin:4px 4px 0 0;
-  }
+  .store-row.suggested{border-color:#9ec3dc;background:#f5fafd}
+  .store-row.selected{border-color:var(--accent);background:var(--accent-soft)}
+  .store-row input{width:20px;height:20px;flex-shrink:0}
+  .eyebrow{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:4px}
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+  .filters label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   .suggest-wrap{position:relative}
   .suggest-list{
-    position:absolute; left:0; right:0; top:100%; z-index:8;
-    background:#fff; border:1px solid var(--line); border-radius:10px;
-    max-height:200px; overflow:auto; box-shadow:0 8px 20px rgba(0,0,0,.12);
-    display:none;
+    position:absolute;left:0;right:0;top:100%;z-index:8;background:#fff;border:1px solid var(--line);
+    border-radius:10px;max-height:180px;overflow:auto;display:none;box-shadow:0 8px 20px rgba(0,0,0,.1);
   }
   .suggest-list.open{display:block}
-  .suggest-list button{
-    display:block; width:100%; text-align:left; border:0; background:#fff;
-    padding:12px 14px; font-size:15px; cursor:pointer; border-bottom:1px solid var(--line);
-    min-height:44px;
-  }
-  .suggest-list button:active,.suggest-list button:hover{background:var(--accent-soft)}
-  .review-item{padding:12px 0; border-bottom:1px solid var(--line); font-size:14px}
-  .review-item .a{font-weight:600}
-  .missing{color:var(--danger)}
-  .welcome{display:flex; gap:12px; align-items:flex-start}
-  .welcome img{width:56px; height:auto}
-  .foot-brand{
-    text-align:center; font-size:11px; color:var(--ink-soft); margin:20px 0 8px;
-    letter-spacing:.04em; text-transform:uppercase;
-  }
-  .guard-toast{
-    position:fixed; left:50%; bottom:calc(var(--nav) + 12px); transform:translateX(-50%);
-    background:var(--accent-deep); color:#fff; padding:10px 16px; border-radius:20px;
-    font-size:13px; z-index:40; opacity:0; pointer-events:none; transition:opacity .2s;
-    max-width:90%; text-align:center;
-  }
-  .guard-toast.show{opacity:1}
-  button:focus-visible,.opt:focus-visible,summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
-
-  @media (max-width:380px){
-    .hero img{width:56px; height:56px}
-    .brand-titles h1{font-size:14px}
-  }
+  .suggest-list button{display:block;width:100%;text-align:left;border:0;background:#fff;padding:12px;font-size:15px;border-bottom:1px solid var(--line)}
+  .cross-bar{margin-top:10px}
+  .meta-line{font-size:13px;color:var(--ink-soft);margin-bottom:8px}
+  button:focus-visible,.opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
 <body>
 <header class="brandbar">
   <div class="top">
-    <img class="brand-logo" src="/survey/assets/ro-logo.png" alt="The Retail Odyssey Company" width="120" height="36">
+    <img class="brand-logo" src="/survey/assets/ro-logo.png" alt="Retail Odyssey" width="120" height="34">
     <div class="brand-titles">
       <div class="co">Retail Odyssey</div>
-      <h1 id="hdr-title">Division 701 Store Survey</h1>
+      <h1 id="hdr-title">Store Survey</h1>
     </div>
     <span id="save-state" role="status" aria-live="polite"></span>
   </div>
@@ -197,182 +127,115 @@
 <main id="main"></main>
 <nav class="stepnav" id="stepnav" hidden>
   <button type="button" id="btn-back">Back</button>
-  <button type="button" id="btn-next">Next</button>
+  <button type="button" id="btn-next" disabled>Next</button>
 </nav>
-<div class="guard-toast" id="guard-toast" role="status" aria-live="polite"></div>
 
 <script>
 (function () {
 'use strict';
 
 const ASSET = '/survey/assets';
-const SECTION_ART = {
-  A: ASSET + '/section-A.jpg',
-  B: ASSET + '/section-B.jpg',
-  C: ASSET + '/section-C.jpg',
-  D: ASSET + '/section-D.jpg',
-  E: ASSET + '/section-E.jpg',
-  F: ASSET + '/section-F.jpg',
-  G: ASSET + '/section-G.jpg',
-  H: ASSET + '/section-H.jpg',
-  I: ASSET + '/section-I.jpg',
-  J: ASSET + '/section-J.jpg',
-  K: ASSET + '/section-K.jpg',
-};
+const SECTION_ART = {};
+'ABCDEFGHIJK'.split('').forEach((id) => { SECTION_ART[id] = ASSET + '/section-' + id + '.jpg'; });
 
 function resolveApiBase() {
   const h = (location.hostname || '').toLowerCase();
   if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3001';
-  // Page lives on the-dump-bin.com; API is always eod-api.
   return 'https://eod-api.the-dump-bin.com';
 }
 const API = resolveApiBase();
+const sessionTok = () =>
+  (window.dumpBinAuth && window.dumpBinAuth.getSession && window.dumpBinAuth.getSession())
+  || localStorage.getItem('dumpBinSession')
+  || '';
 
 const authHeaders = () => ({
-  Authorization: 'Bearer ' + (((window.dumpBinAuth && window.dumpBinAuth.getSession && window.dumpBinAuth.getSession()) || localStorage.getItem('dumpBinSession')) || ''),
+  Authorization: 'Bearer ' + sessionTok(),
   'Content-Type': 'application/json',
 });
 
 async function api(path, opts = {}) {
   const r = await fetch(API + path, { headers: authHeaders(), ...opts });
   if (r.status === 401) {
-    location.href = '/signin.html?next=' + encodeURIComponent(location.pathname + location.search + location.hash);
+    location.href = '/signin.html?next=' + encodeURIComponent(location.pathname + location.search);
     throw new Error('auth');
   }
   return r.json();
 }
 
-let ME = null, SPEC = null, STORE = null, SECTION = -1;
-let ANSWERS = {}, PHOTOS = [], BASELINE = {}, saveTimer = null, dirty = false, saving = false;
-let historyReady = false;
-let lastToast = 0;
-let SUGGESTIONS = { byQuestion: {}, people: [], profile: {} };
-let STORE_FILTER = '';
-
-const $ = (sel) => document.querySelector(sel);
+const $ = (s) => document.querySelector(s);
 const main = $('#main');
 
-function toast(msg) {
-  const el = $('#guard-toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.remove('show'), 2200);
+// Phase: 'pick' | 'survey' | 'done'
+let ME = null, SPEC = null, PHASE = 'pick';
+let SELECTED_STORES = []; // multi before start; then single active
+let STORE = null;
+let FLAT = []; // flattened visible questions for current store
+let QINDEX = 0;
+let ANSWERS = {};
+let PHOTOS = [];
+let BASELINE = {};
+let SUGGESTIONS = { byQuestion: {}, crossStoreAnswers: {} };
+let dirty = false, saveTimer = null, saving = false;
+let filterDistrict = '', filterTeam = '';
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
 
-// ─── navigation guards ───────────────────────────────────────────────────────
-function pushAppState(replace) {
-  if (!historyReady) return;
-  const state = { app: 'survey', store: STORE, section: SECTION };
-  const url = STORE
-    ? (location.pathname + '?store=' + STORE + (SECTION >= 0 ? '&sec=' + SECTION : ''))
-    : location.pathname;
-  try {
-    if (replace) history.replaceState(state, '', url);
-    else history.pushState(state, '', url);
-  } catch (_) {}
-}
-
-function installGuards() {
-  // Seed a history entry so the first system-back stays in-app
-  try {
-    history.replaceState({ app: 'survey', store: null, section: -1 }, '', location.pathname);
-    history.pushState({ app: 'survey', store: null, section: -1 }, '', location.pathname);
-  } catch (_) {}
-  historyReady = true;
-
-  window.addEventListener('popstate', async (e) => {
-    // Always try to keep work safe first
-    if (dirty || STORE != null) await saveDraft(false, true);
-
-    if (STORE != null && SECTION > 0) {
-      SECTION--;
-      renderSection(true);
-      pushAppState(true);
-      toast('Saved — use Back to leave this store');
-      return;
-    }
-    if (STORE != null && SECTION === 0) {
-      await saveDraft(false, true);
-      await renderPicker(true);
-      pushAppState(true);
-      toast('Progress saved');
-      return;
-    }
-    // On store picker: re-push so another back needs a second gesture; warn once
-    pushAppState(false);
-    const now = Date.now();
-    if (now - lastToast > 1500) {
-      lastToast = now;
-      toast('Stay in the survey — use the buttons below to move around');
-    }
-  });
-
-  window.addEventListener('beforeunload', (e) => {
-    if (dirty || STORE != null) {
-      // Fire-and-forget beacon-style save where possible
-      try { saveDraft(false, true); } catch (_) {}
-      e.preventDefault();
-      e.returnValue = '';
-    }
-  });
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && (dirty || STORE != null)) {
-      saveDraft(false, true);
-    }
-  });
-
-  // Soften accidental edge overscroll; cannot fully block iOS edge-swipe without app shell
-  document.addEventListener('touchstart', () => {}, { passive: true });
-}
-
-// ─── survey logic ────────────────────────────────────────────────────────────
-function visibleBranches(q) {
-  const v = ANSWERS[q.id];
-  return (q.branches || []).filter((b) => {
-    const w = Array.isArray(b.when) ? b.when : [b.when];
-    return v != null && w.includes(v);
-  });
-}
-function sectionQuestions(sec) {
+function flattenQuestions(spec, answers) {
   const out = [];
-  for (const q of sec.questions) {
-    out.push(q);
-    out.push(...visibleBranches(q));
+  for (const sec of spec.sections || []) {
+    for (const q of sec.questions || []) {
+      out.push({ ...q, section: sec.id, sectionTitle: sec.title });
+      for (const b of q.branches || []) {
+        const w = Array.isArray(b.when) ? b.when : [b.when];
+        const v = answers[q.id];
+        if (v != null && w.includes(v)) {
+          out.push({ ...b, section: sec.id, sectionTitle: sec.title, parent: q.id });
+        }
+      }
+    }
   }
   return out;
 }
-function answeredCount() {
-  let total = 0, done = 0;
-  for (const sec of SPEC.sections) {
-    for (const q of sectionQuestions(sec)) {
-      if (q.optional) continue;
-      total++;
-      const v = ANSWERS[q.id];
-      if (v != null && v !== '' && !(Array.isArray(v) && !v.length)) done++;
-    }
+
+function isAnswered(q) {
+  if (q.optional) return true;
+  const v = ANSWERS[q.id];
+  if (v == null || v === '') return false;
+  if (Array.isArray(v) && !v.length) return false;
+  if (q.detailOn && v === q.detailOn) {
+    const d = ANSWERS[q.id + '_d'];
+    if (d == null || String(d).trim() === '') return false;
   }
-  return { total, done };
+  return true;
 }
+
 function setProgress() {
-  if (SECTION < 0 || !SPEC) {
+  if (PHASE !== 'survey' || !FLAT.length) {
     $('#prog').style.width = '0';
     return;
   }
-  const pct = SECTION >= SPEC.sections.length ? 100 : Math.round((SECTION / SPEC.sections.length) * 100);
-  $('#prog').style.width = pct + '%';
+  const pct = Math.round(((QINDEX) / Math.max(FLAT.length, 1)) * 100);
+  $('#prog').style.width = Math.min(100, pct) + '%';
+}
+
+function setSave(msg, cls) {
+  const el = $('#save-state');
+  el.textContent = msg || '';
+  el.className = cls || '';
 }
 
 function markDirty() {
   dirty = true;
-  $('#save-state').textContent = 'Saving…';
-  $('#save-state').className = '';
+  setSave('Saving…', '');
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveDraft(false), 800);
+  saveTimer = setTimeout(() => saveDraft(false), 600);
 }
 
-async function saveDraft(submit = false, silent = false) {
+async function saveDraft(submit) {
   if (!STORE) return null;
   clearTimeout(saveTimer);
   if (saving) return null;
@@ -383,301 +246,314 @@ async function saveDraft(submit = false, silent = false) {
       body: JSON.stringify({
         answers: ANSWERS,
         photos: PHOTOS.map((p) => ({ id: p.id, questionId: p.question_id })),
-        submit,
+        submit: !!submit,
       }),
     });
     dirty = false;
-    if (!silent) {
-      $('#save-state').textContent = submit ? 'Submitted ✓' : 'Saved ✓';
-      $('#save-state').className = 'saved';
-    }
+    setSave(submit ? 'Submitted ✓' : 'Saved ✓', 'saved');
     return r;
   } catch (e) {
-    if (!silent) {
-      $('#save-state').textContent = 'Offline — will retry';
-      $('#save-state').className = 'warn';
-    }
-    saveTimer = setTimeout(() => saveDraft(submit, silent), 5000);
+    setSave('Offline — retrying', 'warn');
+    saveTimer = setTimeout(() => saveDraft(submit), 4000);
     return null;
   } finally {
     saving = false;
   }
 }
 
-function storeList() {
-  // Prefer rich storeDetails (district + status); fall back to flat numbers
-  if (Array.isArray(ME.storeDetails) && ME.storeDetails.length) return ME.storeDetails;
-  return (ME.stores || []).map((n) => ({ storeNum: n, district: ME.user?.district || null, status: null }));
-}
-
-async function renderPicker(fromHistory) {
-  SECTION = -1;
+// ─── Store picker (catalog + schedule prefill) ───────────────────────────────
+function renderPicker() {
+  PHASE = 'pick';
   STORE = null;
+  FLAT = [];
+  QINDEX = 0;
   setProgress();
   $('#stepnav').hidden = true;
-  $('#hdr-title').textContent = 'Division 701 Store Survey';
+  $('#hdr-title').textContent = 'Store Survey';
 
-  const details = storeList();
-  const first = (ME.user.name || '').split(' ')[0] || 'there';
-  const roleLabel = ME.user.isMasterAdmin
-    ? 'Master admin · all stores'
-    : ME.user.role === 'supervisor'
-      ? `Supervisor · District ${ME.user.district || '—'}`
-      : ME.user.role === 'lead'
-        ? `Lead · ${ME.user.team || 'District ' + (ME.user.district || '')}`
-        : `${ME.user.role || 'Team'} · District ${ME.user.district || '—'}`;
+  const catalog = ME.catalog || { districts: [], teams: [], stores: [] };
+  const suggested = new Set(ME.suggestedStores || []);
+  if (!SELECTED_STORES.length && suggested.size) {
+    SELECTED_STORES = [...suggested];
+  }
 
-  const q = STORE_FILTER.trim().toLowerCase();
-  const filtered = details.filter((s) => {
-    if (!q) return true;
-    return (
-      String(s.storeNum).includes(q)
-      || String(s.district || '').toLowerCase().includes(q)
-      || (`store ${s.storeNum}`).includes(q)
-    );
-  });
+  let stores = catalog.stores || ME.storeDetails || [];
+  if (filterDistrict) stores = stores.filter((s) => String(s.district) === filterDistrict);
 
-  main.innerHTML =
-    `<div class="card welcome">
-      <img src="${ASSET}/ro-logo.png" alt="Retail Odyssey" width="56" height="56">
-      <div>
-        <strong>Hi ${esc(first)}.</strong>
-        <div class="hint">We already know who you are — only <strong>your</strong> stores are listed. Answers save after every tap.</div>
+  const distOpts = (catalog.districts || []).map((d) =>
+    `<option value="${escAttr(d)}" ${filterDistrict === d ? 'selected' : ''}>District ${esc(d)}</option>`
+  ).join('');
+  const teamOpts = (catalog.teams || []).map((t) =>
+    `<option value="${escAttr(t)}" ${filterTeam === t ? 'selected' : ''}>${esc(t)}</option>`
+  ).join('');
+
+  main.innerHTML = `
+    <div class="card">
+      <div class="eyebrow">Division 701</div>
+      <div class="qtext" style="margin-bottom:8px">Which store are you surveying?</div>
+      <div class="note">Based on your current route schedule we’ve pre-selected these stores. If that’s wrong or incomplete, manually override by selecting the correct store(s) below — leads move around, so you’re never locked in.</div>
+      <div class="filters">
         <div>
-          <span class="id-chip">${esc(ME.user.name || ME.user.email)}</span>
-          <span class="id-chip">${esc(roleLabel)}</span>
-          ${ME.user.team ? `<span class="id-chip">${esc(ME.user.team)}</span>` : ''}
+          <label for="f-dist">District</label>
+          <select id="f-dist"><option value="">All districts</option>${distOpts}</select>
+        </div>
+        <div>
+          <label for="f-team">Team (filter hint)</label>
+          <select id="f-team"><option value="">All teams</option>${teamOpts}</select>
         </div>
       </div>
-    </div>
-    <input class="store-search" id="store-search" type="search" inputmode="numeric" enterkeyhint="search"
-      placeholder="Filter your stores (e.g. 23 or district 8)" value="${escAttr(STORE_FILTER)}"
-      autocomplete="off">
-    <div id="store-list"></div>
-    <div class="foot-brand">The Retail Odyssey Company · Division 701</div>`;
+      <div class="store-grid" id="store-grid">
+        ${stores.map((s) => {
+          const sn = s.storeNum;
+          const sug = suggested.has(sn) || s.suggested;
+          const sel = SELECTED_STORES.includes(sn);
+          const st = s.status;
+          const badge = st === 'submitted' ? ' · submitted' : st === 'draft' ? ' · draft' : '';
+          return `<label class="store-row ${sug ? 'suggested' : ''} ${sel ? 'selected' : ''}">
+            <input type="checkbox" data-store="${sn}" ${sel ? 'checked' : ''}>
+            <span><strong>Store ${sn}</strong> · D${esc(s.district || '?')}${sug ? ' · on your schedule' : ''}${badge}</span>
+          </label>`;
+        }).join('') || '<div class="hint">No stores match this filter.</div>'}
+      </div>
+      <p class="hint" style="margin-top:10px">${SELECTED_STORES.length} store(s) selected. You’ll complete one store at a time.</p>
+    </div>`;
 
-  const listEl = $('#store-list');
-  if (!filtered.length) {
-    listEl.innerHTML = `<div class="card hint">No stores match that filter. Clear the search to see all ${details.length} assigned stores.</div>`;
-  } else {
-    listEl.innerHTML = filtered
-      .map((s) => {
-        const st = s.status;
-        const badge = st === 'submitted'
-          ? '<div class="done">Submitted — tap to review or update</div>'
-          : st === 'draft'
-            ? '<div class="draft">Draft in progress</div>'
-            : '<div class="hint">Not started</div>';
-        return `<button type="button" class="store-btn" data-store="${s.storeNum}">
-      <span class="store-ico">${String(s.storeNum).slice(-2)}</span>
-      <span>
-        <div class="label">Store ${s.storeNum}${s.district ? ` · District ${esc(s.district)}` : ''}</div>
-        ${badge}
-      </span>
-    </button>`;
-      })
-      .join('');
-  }
-
-  // Live filter as user types store number / district
-  const search = $('#store-search');
-  search.oninput = () => {
-    STORE_FILTER = search.value;
-    // re-render list only (keep focus)
-    const caret = search.selectionStart;
-    renderPicker(true).then(() => {
-      const s2 = $('#store-search');
-      if (s2) {
-        s2.focus();
-        try { s2.setSelectionRange(caret, caret); } catch (_) {}
+  $('#f-dist').onchange = (e) => { filterDistrict = e.target.value; renderPicker(); };
+  $('#f-team').onchange = (e) => { filterTeam = e.target.value; /* team filter is informational for now */ };
+  main.querySelectorAll('input[data-store]').forEach((inp) => {
+    inp.onchange = () => {
+      const sn = Number(inp.dataset.store);
+      if (inp.checked) {
+        if (!SELECTED_STORES.includes(sn)) SELECTED_STORES.push(sn);
+      } else {
+        SELECTED_STORES = SELECTED_STORES.filter((x) => x !== sn);
       }
-    });
-  };
-  listEl.querySelectorAll('.store-btn').forEach((b) => {
-    b.onclick = () => openStore(Number(b.dataset.store));
+      // update row class without full re-render
+      inp.closest('.store-row').classList.toggle('selected', inp.checked);
+      updatePickerNext();
+    };
   });
-  if (!fromHistory) pushAppState(true);
-  window.scrollTo(0, 0);
+
+  $('#stepnav').hidden = false;
+  $('#btn-back').textContent = 'Clear';
+  $('#btn-next').textContent = 'Start survey';
+  updatePickerNext();
 }
 
-async function openStore(store) {
-  await saveDraft(false, true);
-  STORE = store;
-  const ctx = await api(`/api/survey/stores/${store}/context`);
+function updatePickerNext() {
+  const btn = $('#btn-next');
+  if (PHASE === 'pick') {
+    btn.disabled = !SELECTED_STORES.length;
+    btn.className = '';
+    btn.textContent = SELECTED_STORES.length === 1
+      ? 'Start · Store ' + SELECTED_STORES[0]
+      : `Start · ${SELECTED_STORES.length} stores`;
+  }
+}
+
+async function startSelectedStores() {
+  if (!SELECTED_STORES.length) return;
+  // Start first selected store
+  await openStore(SELECTED_STORES[0]);
+}
+
+async function openStore(storeNum) {
+  STORE = storeNum;
+  PHASE = 'survey';
+  const ctx = await api(`/api/survey/stores/${storeNum}/context`);
   ANSWERS = ctx.myResponse ? { ...ctx.myResponse.answers } : {};
-  const ph = await api(`/api/survey/stores/${store}/photos`);
+  const ph = await api(`/api/survey/stores/${storeNum}/photos`);
   PHOTOS = (ph.photos || []).filter((p) => p.respondent === ME.user.email);
   BASELINE = {};
-  for (const b of ctx.baseline || []) Object.assign(BASELINE, b.answers);
-  if (ctx.suggestions) SUGGESTIONS = ctx.suggestions;
-  SECTION = 0;
-  renderSection();
-  pushAppState(false);
-}
-
-function suggestionsFor(questionId) {
-  // Only store-operational priors (locations, entry, previously entered store-side names).
-  // Never RO teammates — store contacts are other companies.
-  return (SUGGESTIONS && SUGGESTIONS.byQuestion && SUGGESTIONS.byQuestion[questionId]) || [];
-}
-
-function wireTypeahead(input, questionId) {
-  const wrap = input.closest('.suggest-wrap') || input.parentElement;
-  let panel = wrap.querySelector('.suggest-list');
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.className = 'suggest-list';
-    panel.setAttribute('role', 'listbox');
-    wrap.appendChild(panel);
+  for (const b of ctx.baseline || []) Object.assign(BASELINE, b.answers || {});
+  SUGGESTIONS = ctx.suggestions || ME.suggestions || { byQuestion: {}, crossStoreAnswers: {} };
+  rebuildFlat();
+  // Resume at first unanswered required question
+  QINDEX = 0;
+  for (let i = 0; i < FLAT.length; i++) {
+    if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
+    QINDEX = i;
   }
-  const all = suggestionsFor(questionId);
-  function renderOpts(filter) {
-    const f = String(filter || '').toLowerCase();
-    const opts = all.filter((v) => !f || String(v).toLowerCase().includes(f)).slice(0, 8);
-    if (!opts.length) {
-      panel.classList.remove('open');
-      panel.innerHTML = '';
-      return;
+  if (FLAT.every(isAnswered) && FLAT.length) QINDEX = FLAT.length; // review
+  renderQuestion();
+}
+
+function rebuildFlat() {
+  FLAT = flattenQuestions(SPEC, ANSWERS);
+}
+
+// ─── One question at a time (no full-page jump) ──────────────────────────────
+function renderQuestion() {
+  PHASE = 'survey';
+  setProgress();
+  $('#stepnav').hidden = false;
+  $('#btn-back').textContent = QINDEX <= 0 ? 'Stores' : 'Back';
+
+  if (QINDEX >= FLAT.length) {
+    renderReview();
+    return;
+  }
+
+  const q = FLAT[QINDEX];
+  $('#hdr-title').textContent = `Store ${STORE} · ${q.section}`;
+  $('#btn-next').textContent = QINDEX >= FLAT.length - 1 ? 'Review' : 'Next';
+  $('#btn-next').className = '';
+  $('#btn-next').disabled = !isAnswered(q);
+
+  const art = SECTION_ART[q.section] || ASSET + '/ro-logo.png';
+  const body = questionBody(q);
+  const photo = photoBlock(q);
+  const comment = commentBlock(q);
+  const cross = crossStoreChips(q);
+  const base = baselineChip(q);
+
+  // In-place update: replace main content without scrollTo(0)
+  main.innerHTML = `
+    <div class="card" id="q-card">
+      <div class="meta-line">Question ${QINDEX + 1} of ${FLAT.length} · ${esc(q.sectionTitle || q.section)}</div>
+      <div class="eyebrow">Store ${STORE}</div>
+      <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + q.text)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
+      ${body}
+      ${base}
+      ${cross}
+      ${photo}
+      ${comment}
+    </div>`;
+
+  wireQuestion(q);
+  // Keep focus near question — only scroll if card is way off screen
+  const card = $('#q-card');
+  if (card) {
+    const rect = card.getBoundingClientRect();
+    if (rect.top < 80 || rect.top > window.innerHeight * 0.55) {
+      card.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
-    panel.innerHTML = opts
-      .map((v) => `<button type="button" role="option" data-val="${escAttr(String(v))}">${esc(String(v))}</button>`)
-      .join('');
-    panel.classList.add('open');
-    panel.querySelectorAll('button').forEach((b) => {
-      b.onmousedown = (e) => e.preventDefault(); // keep focus
-      b.onclick = () => {
-        input.value = b.dataset.val;
-        ANSWERS[questionId] = b.dataset.val;
-        markDirty();
-        panel.classList.remove('open');
-      };
-    });
   }
-  input.addEventListener('focus', () => renderOpts(input.value));
-  input.addEventListener('input', () => {
-    ANSWERS[questionId] = input.value;
-    markDirty();
-    renderOpts(input.value);
-  });
-  input.addEventListener('blur', () => setTimeout(() => panel.classList.remove('open'), 150));
+}
+
+function questionBody(q) {
+  if (q.type === 'yesno' || q.type === 'choice') {
+    const opts = q.type === 'yesno' ? ['Yes', 'No'] : (q.options || []);
+    const cls = opts.length <= 4 ? 'opts row' : 'opts';
+    return `<div class="${cls}" role="group">` +
+      opts.map((o) =>
+        `<button type="button" class="opt" data-q="${q.id}" data-val="${escAttr(o)}" aria-pressed="${ANSWERS[q.id] === o}">${esc(o)}</button>`
+      ).join('') + '</div>' +
+      (q.detailOn && ANSWERS[q.id] === q.detailOn
+        ? `<div class="suggest-wrap" style="margin-top:10px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="Please explain / name" autocomplete="off"></div>`
+        : '');
+  }
+  if (q.type === 'multiselect') {
+    const cur = ANSWERS[q.id] || [];
+    return `<div class="opts">` +
+      (q.options || []).map((o) =>
+        `<button type="button" class="opt" data-mq="${q.id}" data-val="${escAttr(o)}" aria-pressed="${cur.includes(o)}">${esc(o)}</button>`
+      ).join('') + '</div>';
+  }
+  return `<div class="suggest-wrap"><input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="Type your answer" autocomplete="off"></div>`;
 }
 
 function commentBlock(q) {
   const key = q.id + '_c';
   const val = ANSWERS[key] || '';
   return `<details class="comment" ${val ? 'open' : ''}><summary>Add a comment</summary>
-    <textarea data-comment="${q.id}" rows="3" placeholder="Anything worth noting — exceptions, context, how it really works here.">${esc(val)}</textarea>
+    <textarea data-comment="${q.id}" rows="2" placeholder="Optional notes for this answer">${esc(val)}</textarea>
   </details>`;
 }
+
 function photoBlock(q) {
   if (!q.photo) return '';
   const mine = PHOTOS.filter((p) => p.question_id === q.id);
-  const tok = encodeURIComponent(((window.dumpBinAuth && window.dumpBinAuth.getSession && window.dumpBinAuth.getSession()) || localStorage.getItem('dumpBinSession')) || '');
-  return `<div class="photo-row" data-photos="${q.id}">
-    ${mine
-      .map(
-        (p) =>
-          `<span class="thumb"><img src="${API}/api/survey/photos/${p.id}?access_token=${tok}" alt="Photo for ${q.id}"><button type="button" data-del="${p.id}" aria-label="Remove photo">×</button></span>`
-      )
-      .join('')}
-    <button type="button" class="photo-add" data-add="${q.id}" aria-label="Add photo">📷</button>
-  </div><div class="hint">Photo optional — camera opens facing the shelf. Compressed before upload for store wifi.</div>`;
+  const tok = encodeURIComponent(sessionTok());
+  return `<div class="note" style="margin-top:12px">A short description helps — a photo of the area is greatly appreciated when you can take one.</div>
+    <div class="photo-row">
+      ${mine.map((p) =>
+        `<span class="thumb"><img src="${API}/api/survey/photos/${p.id}?access_token=${tok}" alt=""><button type="button" data-del="${p.id}" aria-label="Remove">×</button></span>`
+      ).join('')}
+      <button type="button" class="photo-add" data-add="${q.id}" aria-label="Add photo">📷</button>
+    </div>`;
 }
+
 function baselineChip(q) {
   const b = BASELINE[q.id];
   if (b == null || ANSWERS[q.id] != null) return '';
-  return `<div class="hint">2025 answer: <button type="button" class="chip" data-chip="${q.id}" data-val="${escAttr(String(b))}">${esc(String(b))} — tap to use</button></div>`;
+  return `<div class="hint">2025: <button type="button" class="chip" data-chip="${q.id}" data-val="${escAttr(String(b))}">${esc(String(b))} — use this</button></div>`;
 }
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-function escAttr(s) {
-  return esc(s).replace(/"/g, '&quot;');
-}
-function questionHtml(q) {
-  let body = '';
-  if (q.type === 'yesno' || q.type === 'choice') {
-    const opts = q.type === 'yesno' ? ['Yes', 'No'] : q.options;
-    body =
-      `<div class="opts" role="group" aria-label="${escAttr(q.text)}">` +
-      opts
-        .map(
-          (o) =>
-            `<button type="button" class="opt" data-q="${q.id}" data-val="${escAttr(o)}" aria-pressed="${ANSWERS[q.id] === o}">${esc(o)}</button>`
-        )
-        .join('') +
-      '</div>';
-  } else if (q.type === 'multiselect') {
-    const cur = ANSWERS[q.id] || [];
-    body =
-      `<div class="opts">` +
-      q.options
-        .map(
-          (o) =>
-            `<button type="button" class="opt" data-mq="${q.id}" data-val="${escAttr(o)}" aria-pressed="${cur.includes(o)}">${esc(o)}</button>`
-        )
-        .join('') +
-      '</div>';
-  } else {
-    const ph = suggestionsFor(q.id).length
-      ? 'Start typing — we will suggest known answers'
-      : 'Type your answer';
-    body = `<div class="suggest-wrap"><input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="${escAttr(ph)}" autocomplete="off" enterkeyhint="done"></div>`;
+
+function crossStoreChips(q) {
+  const cross = SUGGESTIONS.crossStoreAnswers || {};
+  const chips = [];
+  for (const [sn, ans] of Object.entries(cross)) {
+    const v = ans[q.id];
+    if (v == null || v === '' || (Array.isArray(v) && !v.length)) continue;
+    const label = Array.isArray(v) ? v.join(', ') : String(v);
+    if (label.length > 60) continue;
+    chips.push(`<button type="button" class="chip" data-cross-store="${sn}" data-cross-q="${q.id}">Same as store ${esc(sn)}: ${esc(label)}</button>`);
   }
-  const detail =
-    q.detailOn && ANSWERS[q.id] === q.detailOn
-      ? `<div class="suggest-wrap" style="margin-top:8px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="Start typing a name or detail" autocomplete="off"></div>`
-      : '';
-  return `<div class="card" data-qcard="${q.id}">
-    <div class="qtext">${q.id.replace(/^Q/, '')}. ${esc(q.text)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
-    ${body}${detail}${baselineChip(q)}${photoBlock(q)}${commentBlock(q)}
-  </div>`;
+  if (!chips.length) return '';
+  return `<div class="cross-bar"><div class="hint">Reuse an answer from another store you already surveyed:</div>${chips.join('')}</div>`;
 }
 
-function sectionHero(sec) {
-  const art = SECTION_ART[sec.id] || ASSET + '/ro-logo.png';
-  const n = SPEC.sections.length;
-  const idx = SPEC.sections.findIndex((s) => s.id === sec.id) + 1;
-  return `<div class="hero">
-    <img src="${art}" alt="" width="72" height="72" loading="eager">
-    <div class="meta">
-      <div class="eyebrow">Section ${sec.id} · ${idx} of ${n}</div>
-      <h2>${esc(sec.title)}</h2>
-      <div class="sub">Store ${STORE} · answers save as you go</div>
-    </div>
-  </div>`;
+function suggestionsFor(qid) {
+  return (SUGGESTIONS.byQuestion && SUGGESTIONS.byQuestion[qid]) || [];
 }
 
-function renderSection(fromHistory) {
-  setProgress();
-  $('#stepnav').hidden = false;
-  if (SECTION >= SPEC.sections.length) return renderReview(fromHistory);
-  const sec = SPEC.sections[SECTION];
-  $('#hdr-title').textContent = `Store ${STORE} · ${sec.title}`;
-  main.innerHTML = sectionHero(sec) + sectionQuestions(sec).map(questionHtml).join('');
-  $('#btn-back').textContent = SECTION === 0 ? 'All stores' : 'Back';
-  $('#btn-next').textContent = SECTION === SPEC.sections.length - 1 ? 'Review' : 'Next';
-  $('#btn-next').className = '';
-  wire();
-  if (!fromHistory) pushAppState(true);
-  window.scrollTo({ top: 0, behavior: 'instant' in document.documentElement.style ? 'instant' : 'auto' });
+function wireTypeahead(input, qid) {
+  const wrap = input.closest('.suggest-wrap') || input.parentElement;
+  let panel = wrap.querySelector('.suggest-list');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'suggest-list';
+    wrap.appendChild(panel);
+  }
+  const all = suggestionsFor(qid);
+  const show = (filter) => {
+    const f = String(filter || '').toLowerCase();
+    const opts = all.filter((v) => !f || String(v).toLowerCase().includes(f)).slice(0, 8);
+    if (!opts.length) { panel.classList.remove('open'); panel.innerHTML = ''; return; }
+    panel.innerHTML = opts.map((v) =>
+      `<button type="button" data-val="${escAttr(String(v))}">${esc(String(v))}</button>`
+    ).join('');
+    panel.classList.add('open');
+    panel.querySelectorAll('button').forEach((b) => {
+      b.onmousedown = (e) => e.preventDefault();
+      b.onclick = () => {
+        input.value = b.dataset.val;
+        ANSWERS[qid] = b.dataset.val;
+        markDirty();
+        panel.classList.remove('open');
+        refreshNextEnabled();
+      };
+    });
+  };
+  input.addEventListener('focus', () => show(input.value));
+  input.addEventListener('input', () => {
+    ANSWERS[qid] = input.value;
+    markDirty();
+    show(input.value);
+    refreshNextEnabled();
+  });
+  input.addEventListener('blur', () => setTimeout(() => panel.classList.remove('open'), 120));
 }
 
-function wire() {
+function wireQuestion(q) {
   main.querySelectorAll('.opt[data-q]').forEach((b) => {
     b.onclick = () => {
       ANSWERS[b.dataset.q] = b.dataset.val;
       markDirty();
-      renderSection(true);
+      // Re-render only this question card (branches may change) — stay in place
+      const prevLen = FLAT.length;
+      rebuildFlat();
+      // If branch questions inserted after current, keep index on same q
+      const idx = FLAT.findIndex((x) => x.id === q.id);
+      if (idx >= 0) QINDEX = idx;
+      renderQuestion();
+      refreshNextEnabled();
     };
   });
   main.querySelectorAll('.opt[data-mq]').forEach((b) => {
     b.onclick = () => {
-      const id = b.dataset.mq;
-      const val = b.dataset.val;
+      const id = b.dataset.mq, val = b.dataset.val;
       let cur = ANSWERS[id] || [];
       if (val === 'None') cur = cur.includes('None') ? [] : ['None'];
       else {
@@ -686,23 +562,35 @@ function wire() {
       }
       ANSWERS[id] = cur;
       markDirty();
-      renderSection(true);
+      // Update pressed state in place without full rebuild when possible
+      renderQuestion();
     };
   });
-  main.querySelectorAll('input[data-tq]').forEach((i) => {
-    wireTypeahead(i, i.dataset.tq);
-  });
+  main.querySelectorAll('input[data-tq]').forEach((i) => wireTypeahead(i, i.dataset.tq));
   main.querySelectorAll('textarea[data-comment]').forEach((t) => {
-    t.oninput = () => {
-      ANSWERS[t.dataset.comment + '_c'] = t.value;
-      markDirty();
-    };
+    t.oninput = () => { ANSWERS[t.dataset.comment + '_c'] = t.value; markDirty(); };
   });
   main.querySelectorAll('.chip[data-chip]').forEach((c) => {
     c.onclick = () => {
       ANSWERS[c.dataset.chip] = c.dataset.val;
       markDirty();
-      renderSection(true);
+      rebuildFlat();
+      renderQuestion();
+    };
+  });
+  main.querySelectorAll('.chip[data-cross-store]').forEach((c) => {
+    c.onclick = () => {
+      const sn = c.dataset.crossStore;
+      const qid = c.dataset.crossQ;
+      const ans = (SUGGESTIONS.crossStoreAnswers || {})[sn] || {};
+      if (ans[qid] != null) {
+        ANSWERS[qid] = Array.isArray(ans[qid]) ? [...ans[qid]] : ans[qid];
+        if (ans[qid + '_d'] != null) ANSWERS[qid + '_d'] = ans[qid + '_d'];
+        if (ans[qid + '_c'] != null) ANSWERS[qid + '_c'] = ans[qid + '_c'];
+        markDirty();
+        rebuildFlat();
+        renderQuestion();
+      }
     };
   });
   main.querySelectorAll('[data-add]').forEach((b) => {
@@ -713,9 +601,49 @@ function wire() {
       await api('/api/survey/photos/' + b.dataset.del, { method: 'DELETE' });
       PHOTOS = PHOTOS.filter((p) => p.id !== Number(b.dataset.del));
       markDirty();
-      renderSection(true);
+      renderQuestion();
     };
   });
+  refreshNextEnabled();
+}
+
+function refreshNextEnabled() {
+  if (PHASE !== 'survey' || QINDEX >= FLAT.length) return;
+  const q = FLAT[QINDEX];
+  $('#btn-next').disabled = !isAnswered(q);
+}
+
+function renderReview() {
+  $('#hdr-title').textContent = `Store ${STORE} · Review`;
+  let answered = 0, total = 0;
+  let html = '';
+  rebuildFlat();
+  FLAT.forEach((q, i) => {
+    if (!q.optional) total++;
+    const ok = isAnswered(q);
+    if (ok && !q.optional) answered++;
+    const v = ANSWERS[q.id];
+    const disp = !ok
+      ? '<span style="color:var(--danger)">Not answered</span>'
+      : esc(Array.isArray(v) ? v.join(', ') : String(v ?? ''));
+    html += `<button type="button" class="store-row" data-jump="${i}" style="width:100%">
+      <span style="flex:1;text-align:left"><strong>${esc(q.id)}</strong> ${esc(q.text.slice(0, 48))}${q.text.length > 48 ? '…' : ''}<br><span class="hint">${disp}</span></span>
+    </button>`;
+  });
+  main.innerHTML = `
+    <div class="card">
+      <div class="qtext">${answered} of ${total} required answered</div>
+      <div class="hint">Tap any question to change it. Submitting updates this store — previous versions are kept in history.</div>
+    </div>
+    <div class="card" style="padding:8px">${html}</div>`;
+  main.querySelectorAll('[data-jump]').forEach((b) => {
+    b.onclick = () => { QINDEX = Number(b.dataset.jump); renderQuestion(); };
+  });
+  $('#btn-back').textContent = 'Back';
+  $('#btn-next').textContent = 'Submit store';
+  $('#btn-next').className = 'submit';
+  $('#btn-next').disabled = false;
+  setProgress();
 }
 
 function addPhoto(questionId) {
@@ -726,8 +654,7 @@ function addPhoto(questionId) {
   input.onchange = async () => {
     const file = input.files[0];
     if (!file) return;
-    $('#save-state').textContent = 'Uploading photo…';
-    $('#save-state').className = '';
+    setSave('Adding photo…', '');
     try {
       const img = await new Promise((res, rej) => {
         const i = new Image();
@@ -740,8 +667,7 @@ function addPhoto(questionId) {
       cv.width = Math.round(img.width * scale);
       cv.height = Math.round(img.height * scale);
       cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      const dataUrl = cv.toDataURL('image/jpeg', 0.72);
-      const b64 = dataUrl.split(',')[1];
+      const b64 = cv.toDataURL('image/jpeg', 0.72).split(',')[1];
       const r = await api(`/api/survey/stores/${STORE}/photos`, {
         method: 'POST',
         body: JSON.stringify({ questionId, mime: 'image/jpeg', data: b64 }),
@@ -749,124 +675,93 @@ function addPhoto(questionId) {
       if (r.ok) {
         PHOTOS.push({ ...r.photo, respondent: ME.user.email });
         markDirty();
-        renderSection(true);
-      } else {
-        $('#save-state').textContent = r.error || 'Photo failed';
-        $('#save-state').className = 'warn';
-      }
-    } catch (e) {
-      $('#save-state').textContent = 'Photo failed';
-      $('#save-state').className = 'warn';
+        renderQuestion();
+      } else setSave(r.error || 'Photo failed', 'warn');
+    } catch {
+      setSave('Photo failed', 'warn');
     }
   };
   input.click();
 }
 
-function renderReview(fromHistory) {
-  $('#hdr-title').textContent = `Store ${STORE} · Review`;
-  const { total, done } = answeredCount();
-  let items = '';
-  for (const sec of SPEC.sections) {
-    for (const q of sectionQuestions(sec)) {
-      const v = ANSWERS[q.id];
-      const disp =
-        v == null || v === '' || (Array.isArray(v) && !v.length)
-          ? q.optional
-            ? '<span class="hint">skipped</span>'
-            : '<span class="missing">not answered</span>'
-          : `<span class="a">${esc(Array.isArray(v) ? v.join(', ') : String(v))}</span>`;
-      const c = ANSWERS[q.id + '_c'] ? `<div class="hint">💬 ${esc(ANSWERS[q.id + '_c'])}</div>` : '';
-      items += `<div class="review-item">${q.id.replace(/^Q/, '')}. ${esc(q.text)}<br>${disp}${c}</div>`;
-    }
-  }
-  main.innerHTML = `<div class="hero">
-      <img src="${ASSET}/ro-logo.png" alt="Retail Odyssey" width="72" height="72">
-      <div class="meta">
-        <div class="eyebrow">Review · Store ${STORE}</div>
-        <h2>${done} of ${total} answered</h2>
-        <div class="sub">${done < total ? 'You can submit with blanks, or go back and finish.' : 'Looks complete — submit when ready.'}</div>
-      </div>
-    </div>
-    <div class="card">${items}</div>
-    <div class="foot-brand">The Retail Odyssey Company</div>`;
-  $('#btn-back').textContent = 'Back';
-  $('#btn-next').textContent = 'Submit for this store';
-  $('#btn-next').className = 'submit';
-  if (!fromHistory) pushAppState(true);
-  window.scrollTo(0, 0);
-}
-
+// ─── Nav ─────────────────────────────────────────────────────────────────────
 $('#btn-back').onclick = async () => {
-  $('#btn-back').disabled = true;
-  try {
-    await saveDraft();
-    if (SECTION <= 0) {
-      await renderPicker();
-      return;
-    }
-    SECTION--;
-    renderSection();
-  } finally {
-    $('#btn-back').disabled = false;
+  if (PHASE === 'pick') {
+    SELECTED_STORES = [];
+    renderPicker();
+    return;
   }
+  await saveDraft(false);
+  if (QINDEX <= 0) {
+    // back to store list; keep remaining selected
+    renderPicker();
+    return;
+  }
+  QINDEX--;
+  // skip orphaned branch questions
+  rebuildFlat();
+  if (QINDEX >= FLAT.length) QINDEX = FLAT.length - 1;
+  renderQuestion();
 };
 
 $('#btn-next').onclick = async () => {
-  $('#btn-next').disabled = true;
-  try {
-    if (SECTION >= SPEC.sections.length) {
-      const r = await saveDraft(true);
-      if (r && r.ok) {
-        main.innerHTML = `<div class="card welcome">
-          <img src="${ASSET}/ro-logo.png" alt="" width="56">
-          <div>
-            <strong>Store ${STORE} submitted. ✓</strong>
-            <div class="hint">You can reopen it any time to update — updates replace your answers for this store.</div>
-          </div>
-        </div>`;
-        $('#stepnav').hidden = true;
-        dirty = false;
-        setTimeout(() => renderPicker(), 1400);
-      }
-      return;
-    }
-    await saveDraft();
-    SECTION++;
-    renderSection();
-  } finally {
-    $('#btn-next').disabled = false;
+  if (PHASE === 'pick') {
+    await startSelectedStores();
+    return;
   }
+  if (QINDEX >= FLAT.length) {
+    const r = await saveDraft(true);
+    if (r && r.ok) {
+      // Remove completed store from queue; open next or done
+      SELECTED_STORES = SELECTED_STORES.filter((s) => s !== STORE);
+      if (SELECTED_STORES.length) {
+        main.innerHTML = `<div class="card"><div class="qtext">Store ${STORE} saved. ✓</div><div class="hint">Opening next store…</div></div>`;
+        setTimeout(() => openStore(SELECTED_STORES[0]), 700);
+      } else {
+        PHASE = 'done';
+        $('#stepnav').hidden = true;
+        main.innerHTML = `<div class="card">
+          <div class="qtext">All selected stores complete. ✓</div>
+          <div class="hint">You can reopen any store later to update answers — history is kept automatically.</div>
+          <button type="button" class="opt" id="again" style="margin-top:12px">Survey another store</button>
+        </div>`;
+        $('#again').onclick = () => { SELECTED_STORES = []; renderPicker(); };
+      }
+    }
+    return;
+  }
+  const q = FLAT[QINDEX];
+  if (!isAnswered(q)) return;
+  await saveDraft(false);
+  QINDEX++;
+  rebuildFlat();
+  // After answering, branch list may grow — clamp
+  if (QINDEX > FLAT.length) QINDEX = FLAT.length;
+  renderQuestion();
 };
 
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && STORE) saveDraft(false);
+});
+window.addEventListener('beforeunload', (e) => {
+  if (dirty && STORE) { e.preventDefault(); e.returnValue = ''; }
+});
+
 (async function init() {
-  installGuards();
   try {
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
     const [me, q] = await Promise.all([api('/api/survey/me'), api('/api/survey/questions')]);
     if (!me.ok) {
-      main.innerHTML = `<div class="card">${esc(me.error || 'You are not on the survey roster.')}</div>`;
+      main.innerHTML = `<div class="card">${esc(me.error || 'Not on survey roster')}</div>`;
       return;
     }
     ME = me;
     SPEC = q.questionSet.spec;
-    SUGGESTIONS = me.suggestions || { byQuestion: {}, people: [], profile: {} };
-    // Optional deep link ?store= (must be one of THIS user's stores)
-    const sp = new URLSearchParams(location.search);
-    const deepStore = Number(sp.get('store'));
-    const allowed = new Set((ME.stores || []).map(Number));
-    if (deepStore && allowed.has(deepStore)) {
-      await openStore(deepStore);
-      const sec = Number(sp.get('sec'));
-      if (Number.isFinite(sec) && sec >= 0 && sec < SPEC.sections.length) {
-        SECTION = sec;
-        renderSection(true);
-      }
-    } else {
-      await renderPicker();
-    }
+    SUGGESTIONS = me.suggestions || { byQuestion: {}, crossStoreAnswers: {} };
+    renderPicker();
   } catch (e) {
     console.error(e);
-    main.innerHTML = `<div class="card">Could not load the survey. Check your connection and try again.</div>`;
+    main.innerHTML = `<div class="card">Could not load the survey. Check your connection.</div>`;
   }
 })();
 })();
