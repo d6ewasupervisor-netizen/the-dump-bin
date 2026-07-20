@@ -83,6 +83,10 @@
     border-radius:16px;padding:8px 12px;font-size:13px;cursor:pointer;background:var(--chip-bg);
     margin:4px 4px 0 0;touch-action:manipulation;
   }
+  .chip.common{
+    border-style:solid;font-weight:600;background:var(--accent-soft);color:var(--accent-deep);
+  }
+  .common-wrap{margin:0 0 12px}
   details.comment{margin-top:12px}
   details.comment summary{font-size:14px;color:var(--accent);cursor:pointer;list-style:none;min-height:40px;display:flex;align-items:center}
   details.comment summary::before{content:"+ ";font-weight:700}
@@ -819,6 +823,7 @@ function renderQuestion(opts = {}) {
   $('#btn-next').className = '';
   $('#btn-next').disabled = !isAnswered(q);
 
+  const common = commonChip(q);
   const body = questionBody(q);
   const photo = photoBlock(q);
   const comment = commentBlock(q);
@@ -830,6 +835,7 @@ function renderQuestion(opts = {}) {
       <div class="meta-line">Question ${QINDEX + 1} of ${FLAT.length} · ${esc(q.sectionTitle || q.section)}</div>
       <div class="eyebrow">Store ${STORE}</div>
       <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + q.text)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
+      ${common}
       ${body}
       ${base}
       ${cross}
@@ -928,9 +934,45 @@ function photoBlock(q) {
     </div>`;
 }
 
+function commonInfo(qid) {
+  const map = (SUGGESTIONS && SUGGESTIONS.commonByQuestion) || {};
+  const c = map[qid];
+  if (!c) return null;
+  if (typeof c === 'string') return { value: c, n: 0, source: 'good' };
+  if (c.value == null || c.value === '') return null;
+  return c;
+}
+
+/** "Common: Yes" — tappable to apply. Hides once this question is answered. */
+function commonChip(q) {
+  if (ANSWERS[q.id] != null && ANSWERS[q.id] !== '' && !(Array.isArray(ANSWERS[q.id]) && !ANSWERS[q.id].length)) {
+    return '';
+  }
+  const c = commonInfo(q.id);
+  if (!c) return '';
+  const val = String(c.value);
+  // Multiselect common may be comma-joined; still offer as one-tap when single token matches an option
+  let applyVal = val;
+  if (q.type === 'multiselect') {
+    applyVal = val.includes(',') ? val.split(',').map((s) => s.trim()).filter(Boolean) : [val];
+  }
+  const label = Array.isArray(applyVal) ? applyVal.join(', ') : applyVal;
+  if (!label || label.length > 80) return '';
+  const countHint = c.n > 0 ? ` · ${c.n} answers` : '';
+  const dataVal = Array.isArray(applyVal) ? applyVal.join('\u001f') : applyVal;
+  return `<div class="common-wrap">
+    <button type="button" class="chip common" data-common="${escAttr(q.id)}" data-common-val="${escAttr(dataVal)}" data-common-multi="${q.type === 'multiselect' ? '1' : '0'}">
+      Common: ${esc(label)}${esc(countHint)}
+    </button>
+  </div>`;
+}
+
 function baselineChip(q) {
   const b = BASELINE[q.id];
   if (b == null || ANSWERS[q.id] != null) return '';
+  // Avoid duplicating the same value as Common chip
+  const c = commonInfo(q.id);
+  if (c && String(c.value) === String(b)) return '';
   return `<div class="hint">2025: <button type="button" class="chip" data-chip="${q.id}" data-val="${escAttr(String(b))}">${esc(String(b))} — use this</button></div>`;
 }
 
@@ -1108,6 +1150,40 @@ function wireQuestion(q) {
       rebuildFlat();
       // Chip is text-like prefills for text questions — don't auto-advance
       renderQuestion({ focusText: true });
+    };
+  });
+  main.querySelectorAll('.chip[data-common]').forEach((c) => {
+    c.onclick = () => {
+      const qid = c.dataset.common;
+      const multi = c.dataset.commonMulti === '1';
+      const raw = c.dataset.commonVal || '';
+      if (multi) {
+        ANSWERS[qid] = raw.split('\u001f').filter(Boolean);
+      } else {
+        ANSWERS[qid] = raw;
+      }
+      markDirty();
+      rebuildFlat();
+      const idx = FLAT.findIndex((x) => x.id === qid);
+      if (idx >= 0) QINDEX = idx;
+      const cur = FLAT[QINDEX];
+      const needsDetail = cur && cur.detailOn && ANSWERS[qid] === cur.detailOn;
+      if (needsDetail) {
+        renderQuestion({ focusDetail: true });
+        return;
+      }
+      // Auto-advance for yes/no and choice when fully answered
+      if (cur && (cur.type === 'yesno' || cur.type === 'choice') && isAnswered(cur)) {
+        clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = setTimeout(() => goNext(true), 180);
+        renderQuestion();
+        return;
+      }
+      if (cur && cur.type === 'text') {
+        renderQuestion({ focusText: true });
+        return;
+      }
+      renderQuestion();
     };
   });
   main.querySelectorAll('.chip[data-cross-store]').forEach((c) => {
