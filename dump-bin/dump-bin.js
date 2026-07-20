@@ -63,13 +63,17 @@ async function resolveDownloadUrl(f) {
 const PRINT_COOLDOWN_MS = 2 * 60 * 1000;
 const PRINT_LAST_SEND_KEY = 'dumpBinLastPrintSend';
 
+// Per-file fax copies (e.g. a week's worth of EOD cover sheets). Stepper only —
+// no free typing — so bumping to 5 takes four deliberate + taps.
+const MAX_COPIES = 5;
+
 // State
 let weeks = [];
 let currentWeekIdx = 0;
 let currentPrefix = '';
 let userEmail = null;
 
-// Selection: Map<key, { name, size, key, t? }> — `t` is download JWT when known
+// Selection: Map<key, { name, size, key, t?, copies }> — `t` is download JWT when known
 const selection = new Map();
 
 // Store picker state
@@ -392,11 +396,14 @@ function renderBrowser(data) {
       const key = cb.dataset.key;
       const fileObj = files.find(f => f.key === key);
       if (cb.checked && fileObj) {
+        // Keep an existing copies value if the user unchecked/rechecked.
+        const prev = selection.get(key);
         selection.set(key, {
           key,
           name: fileObj.name,
           size: fileObj.size,
           t: fileObj.t,
+          copies: clampCopies(prev?.copies ?? 1),
         });
       } else {
         selection.delete(key);
@@ -412,12 +419,15 @@ function renderBrowser(data) {
     selectAll.addEventListener('change', () => {
       files.forEach(f => {
         if (selectAll.checked) {
-          selection.set(f.key, {
-            key: f.key,
-            name: f.name,
-            size: f.size,
-            t: f.t,
-          });
+          if (!selection.has(f.key)) {
+            selection.set(f.key, {
+              key: f.key,
+              name: f.name,
+              size: f.size,
+              t: f.t,
+              copies: 1,
+            });
+          }
         } else {
           selection.delete(f.key);
         }
@@ -534,12 +544,84 @@ function wireSelectionBar() {
   else updatePrintAtStoreButton();
 }
 
+function clampCopies(n) {
+  const c = Math.floor(Number(n));
+  if (!Number.isFinite(c)) return 1;
+  return Math.min(MAX_COPIES, Math.max(1, c));
+}
+
+function getFileCopies(f) {
+  return clampCopies(f?.copies ?? 1);
+}
+
+function selectionSheetCount() {
+  return Array.from(selection.values()).reduce((s, f) => s + getFileCopies(f), 0);
+}
+
+function selectionEffectiveBytes() {
+  return Array.from(selection.values()).reduce(
+    (s, f) => s + f.size * getFileCopies(f),
+    0
+  );
+}
+
+function formatFilesAndSheets() {
+  const files = selection.size;
+  const sheets = selectionSheetCount();
+  if (sheets === files) return String(files);
+  return `${files} files · ${sheets} copies`;
+}
+
+function setFileCopies(key, next) {
+  const f = selection.get(key);
+  if (!f) return;
+  f.copies = clampCopies(next);
+  selection.set(key, f);
+}
+
+function copiesStepperHtml(key, copies, { showLabel = true } = {}) {
+  const c = clampCopies(copies);
+  const label = showLabel
+    ? `<span class="db-copies__label${c > 1 ? ' db-copies__label--active' : ''}">${c === 1 ? '1 copy' : `${c} copies`}</span>`
+    : '';
+  return `
+    <div class="db-copies" data-key="${escapeAttr(key)}" title="How many copies to fax (max ${MAX_COPIES})">
+      <button type="button" class="db-copies__btn" data-delta="-1" data-key="${escapeAttr(key)}" aria-label="Fewer copies" ${c <= 1 ? 'disabled' : ''}>−</button>
+      <span class="db-copies__value" aria-live="polite">${c}</span>
+      <button type="button" class="db-copies__btn" data-delta="1" data-key="${escapeAttr(key)}" aria-label="More copies" ${c >= MAX_COPIES ? 'disabled' : ''}>+</button>
+      ${label}
+    </div>`;
+}
+
+function wireCopiesSteppers(root, { onChange } = {}) {
+  if (!root) return;
+  root.querySelectorAll('.db-copies__btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.dataset.key;
+      const f = selection.get(key);
+      if (!f) return;
+      const delta = Number(btn.dataset.delta) || 0;
+      setFileCopies(key, getFileCopies(f) + delta);
+      if (typeof onChange === 'function') onChange();
+    });
+  });
+}
+
 function updateSelectionBar() {
   const bar = document.getElementById('selectionBar');
   const count = selection.size;
+  const sheets = selectionSheetCount();
   document.getElementById('selectionCount').textContent = count;
-  const totalSize = Array.from(selection.values()).reduce((s, f) => s + f.size, 0);
-  document.getElementById('selectionSize').textContent = count ? `(${formatSize(totalSize)})` : '';
+  const sizeEl = document.getElementById('selectionSize');
+  if (!count) {
+    sizeEl.textContent = '';
+  } else if (sheets !== count) {
+    sizeEl.textContent = `(${sheets} copies · ${formatSize(selectionEffectiveBytes())})`;
+  } else {
+    sizeEl.textContent = `(${formatSize(selectionEffectiveBytes())})`;
+  }
   bar.classList.toggle('visible', count > 0);
 }
 
@@ -551,6 +633,7 @@ function renderSelectionList() {
   }
   list.innerHTML = Array.from(selection.values()).map(f => {
     const folderPath = f.key.split('/').slice(0, -1).join(' / ');
+    const copies = getFileCopies(f);
     return `
       <div class="db-selection-item">
         <span>${fileIcon(f.name)}</span>
@@ -558,10 +641,18 @@ function renderSelectionList() {
           <div class="db-selection-item__name">${escapeHtml(f.name)}</div>
           <div class="db-selection-item__path">${escapeHtml(folderPath)}</div>
         </div>
+        ${copiesStepperHtml(f.key, copies)}
         <span class="db-item__meta">${formatSize(f.size)}</span>
         <button class="db-selection-item__remove" data-key="${escapeAttr(f.key)}" title="Remove">✕</button>
       </div>`;
   }).join('');
+  wireCopiesSteppers(list, {
+    onChange: () => {
+      renderSelectionList();
+      updateSelectionBar();
+      refreshPrintSummaries();
+    },
+  });
   list.querySelectorAll('.db-selection-item__remove').forEach(btn => {
     btn.addEventListener('click', () => {
       selection.delete(btn.dataset.key);
@@ -570,6 +661,60 @@ function renderSelectionList() {
       navigate(currentPrefix);
     });
   });
+}
+
+function renderPrintFileList() {
+  const list = document.getElementById('printFileList');
+  if (!list) return;
+  if (selection.size === 0) {
+    list.innerHTML = '<div class="db-empty">No files selected.</div>';
+    return;
+  }
+  list.innerHTML = Array.from(selection.values()).map(f => {
+    const copies = getFileCopies(f);
+    return `
+      <div class="db-print-file${copies > 1 ? ' db-print-file--multi' : ''}">
+        <span class="db-print-file__icon">${fileIcon(f.name)}</span>
+        <div class="db-print-file__stack">
+          <div class="db-print-file__name">${escapeHtml(f.name)}</div>
+          <div class="db-print-file__meta">${formatSize(f.size)}${copies > 1 ? ` · ${formatSize(f.size * copies)} total` : ''}</div>
+        </div>
+        ${copiesStepperHtml(f.key, copies)}
+      </div>`;
+  }).join('');
+  wireCopiesSteppers(list, {
+    onChange: () => {
+      renderPrintFileList();
+      updateSelectionBar();
+      refreshPrintSummaries();
+    },
+  });
+}
+
+function refreshPrintSummaries() {
+  const filesSheets = formatFilesAndSheets();
+  const size = formatSize(selectionEffectiveBytes());
+  const fileCountEl = document.getElementById('printFileCount');
+  const sizeEl = document.getElementById('printSize');
+  if (fileCountEl) fileCountEl.textContent = filesSheets;
+  if (sizeEl) sizeEl.textContent = size;
+  const confirmCount = document.getElementById('confirmFileCount');
+  const confirmSize = document.getElementById('confirmSize');
+  if (confirmCount) confirmCount.textContent = filesSheets;
+  if (confirmSize) confirmSize.textContent = size;
+  const copiesHint = document.getElementById('confirmCopiesHint');
+  if (copiesHint) {
+    const sheets = selectionSheetCount();
+    const files = selection.size;
+    if (sheets > files) {
+      copiesHint.hidden = false;
+      copiesHint.textContent =
+        `This will fax ${sheets} attachments from ${files} file${files === 1 ? '' : 's'} (extra copies of the same document).`;
+    } else {
+      copiesHint.hidden = true;
+      copiesHint.textContent = '';
+    }
+  }
 }
 
 // --- Downloads ---
@@ -669,10 +814,9 @@ function openPrintModal() {
   }
   selectedStore = null;
   document.getElementById('selectedStoreLabel').textContent = 'none';
-  document.getElementById('printFileCount').textContent = selection.size;
-  const totalSize = Array.from(selection.values()).reduce((s, f) => s + f.size, 0);
-  document.getElementById('printSize').textContent = formatSize(totalSize);
   document.getElementById('storeSearch').value = '';
+  renderPrintFileList();
+  refreshPrintSummaries();
   renderStoreList('');
   setPrintModalState('picker');
   openModal('printModal');
@@ -731,9 +875,7 @@ async function sendPrint() {
   if (printModalState === 'picker') {
     document.getElementById('confirmStoreLabel').textContent =
       `#${selectedStore.num} — ${selectedStore.city}`;
-    document.getElementById('confirmFileCount').textContent = selection.size;
-    const totalSize = Array.from(selection.values()).reduce((s, f) => s + f.size, 0);
-    document.getElementById('confirmSize').textContent = formatSize(totalSize);
+    refreshPrintSummaries();
     setPrintModalState('confirm');
     return;
   }
@@ -741,18 +883,28 @@ async function sendPrint() {
 
   setPrintModalState('sending');
   try {
+    const files = Array.from(selection.values()).map(f => ({
+      key: f.key,
+      copies: getFileCopies(f),
+    }));
     const res = await fetchPrintAtStoreApi(`${API}/print-at-store`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        keys: Array.from(selection.keys()),
+        files,
+        // Keep keys for older API builds / debugging; server prefers `files`.
+        keys: files.map(f => f.key),
         storeNumber: selectedStore.num,
         storeCity: selectedStore.city,
       }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Send failed');
-    toast(`Sent to #${selectedStore.num} — ${selectedStore.city}. You're CC'd.`, 'success');
+    const sheets = data.fileCount ?? selectionSheetCount();
+    toast(
+      `Sent ${sheets} attachment${sheets === 1 ? '' : 's'} to #${selectedStore.num} — ${selectedStore.city}. You're CC'd.`,
+      'success'
+    );
     document.getElementById('transitSubline').textContent =
       `Your job for #${selectedStore.num} — ${selectedStore.city} has been injected into the relay and is being transcoded for the fax gateway. Nothing more to do on your end.`;
     localStorage.setItem(PRINT_LAST_SEND_KEY, String(Date.now()));
@@ -790,7 +942,11 @@ function setPrintModalState(state) {
   } else if (state === 'confirm') {
     title.textContent = 'Before you send…';
     sendBtn.style.display = '';
-    sendBtn.textContent = 'Yes, send it →';
+    const sheets = selectionSheetCount();
+    sendBtn.textContent =
+      sheets > selection.size
+        ? `Yes, send ${sheets} copies →`
+        : 'Yes, send it →';
     sendBtn.disabled = false;
     cancelBtn.textContent = '← Back';
   } else if (state === 'sending') {

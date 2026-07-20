@@ -570,7 +570,6 @@
 }
 
 .db-selection-item__name {
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -599,6 +598,115 @@
 .db-selection-item__stack {
   flex: 1;
   min-width: 0;
+}
+
+/* --- Per-file copy steppers (print / selection) --- */
+.db-copies {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.db-copies__btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+
+.db-copies__btn:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent, #4a7fb5);
+}
+
+.db-copies__btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.db-copies__value {
+  min-width: 1.4em;
+  text-align: center;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  font-size: .95rem;
+}
+
+.db-copies__label {
+  margin-left: 4px;
+  font-size: .72rem;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+
+.db-copies__label--active {
+  color: var(--color-accent, #4a7fb5);
+  font-weight: 600;
+}
+
+.db-print-file-list {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.db-print-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: .85rem;
+}
+
+.db-print-file:last-child {
+  border-bottom: none;
+}
+
+.db-print-file--multi {
+  background: rgba(74, 127, 181, 0.08);
+}
+
+.db-print-file__icon {
+  flex-shrink: 0;
+}
+
+.db-print-file__stack {
+  flex: 1;
+  min-width: 0;
+}
+
+.db-print-file__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.db-print-file__meta {
+  font-size: .72rem;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+}
+
+.db-confirm-copies-hint {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: rgba(74, 127, 181, 0.1);
+  color: var(--color-text);
+  border: 1px solid rgba(74, 127, 181, 0.28);
 }
 
 /* --- Store picker --- */
@@ -838,6 +946,18 @@
     padding: 14px;
     font-size: .92rem;
   }
-  .db-selection-item { padding: 10px 6px; font-size: .85rem; }
+  .db-selection-item {
+    padding: 10px 6px;
+    font-size: .85rem;
+    flex-wrap: wrap;
+  }
   .db-selection-item__path { font-size: .7rem; }
+  .db-copies__label { display: none; }
+  .db-print-file {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .db-print-file .db-copies {
+    margin-left: auto;
+  }
 }

@@ -86,7 +86,10 @@
         <h2>Selected Files</h2>
         <button class="modal__close" data-close="selectionModal">✕</button>
       </div>
-      <div class="modal__body" id="selectionList"></div>
+      <div class="modal__body">
+        <p class="text-dim text-sm" style="margin:0 0 10px;">Set copies with <strong>+</strong> / <strong>−</strong> when you'll need extras at the store (max&nbsp;5). Defaults to 1 so nothing doubles by accident.</p>
+        <div id="selectionList"></div>
+      </div>
       <div class="modal__actions">
         <button class="btn btn-ghost" data-close="selectionModal">Close</button>
       </div>
@@ -103,7 +106,11 @@
 
       <!-- Picker view -->
       <div class="modal__body db-print-view db-print-view--picker">
-        <p class="text-dim text-sm">Selected files will be faxed to the customer service desk at your chosen store. You'll receive an acknowledgment email when your request is submitted, followed by a confirmation email once the files have printed. Total file size must be under 35&nbsp;MB. Images are not supported.</p>
+        <p class="text-dim text-sm">Selected files will be faxed to the customer service desk at your chosen store. You'll receive an acknowledgment email when your request is submitted, followed by a confirmation email once the files have printed. Use <strong>+</strong> / <strong>−</strong> below if you need more than one copy of a document (max&nbsp;5). Total size must be under 35&nbsp;MB. Images are not supported.</p>
+        <div class="form-group mt-4">
+          <label>Files &amp; copies</label>
+          <div class="db-print-file-list" id="printFileList"></div>
+        </div>
         <div class="form-group mt-4">
           <label for="storeSearch">Search store #</label>
           <input type="text" id="storeSearch" placeholder="Type a number or city…" autocomplete="off">
@@ -111,7 +118,7 @@
         <div class="db-store-list" id="storeList"></div>
         <div class="modal__summary" id="printSummary">
           <div class="row"><span class="label">Selected store:</span><span class="value" id="selectedStoreLabel">none</span></div>
-          <div class="row"><span class="label">Files:</span><span class="value" id="printFileCount">0</span></div>
+          <div class="row"><span class="label">To fax:</span><span class="value" id="printFileCount">0</span></div>
           <div class="row"><span class="label">Total size:</span><span class="value" id="printSize">0 B</span></div>
         </div>
       </div>
@@ -132,9 +139,10 @@
         </div>
         <div class="modal__summary">
           <div class="row"><span class="label">Destination:</span><span class="value" id="confirmStoreLabel">—</span></div>
-          <div class="row"><span class="label">Files:</span><span class="value" id="confirmFileCount">0</span></div>
+          <div class="row"><span class="label">To fax:</span><span class="value" id="confirmFileCount">0</span></div>
           <div class="row"><span class="label">Total size:</span><span class="value" id="confirmSize">0 B</span></div>
         </div>
+        <p class="text-sm db-confirm-copies-hint" id="confirmCopiesHint" hidden></p>
       </div>
 
       <!-- Transit view: post-send cooldown -->
