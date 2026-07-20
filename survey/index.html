@@ -827,8 +827,6 @@ function renderQuestion(opts = {}) {
   const body = questionBody(q);
   const photo = photoBlock(q);
   const comment = commentBlock(q);
-  const cross = crossStoreChips(q);
-  const base = baselineChip(q);
 
   main.innerHTML = `
     <div class="card" id="q-card">
@@ -837,8 +835,6 @@ function renderQuestion(opts = {}) {
       <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + q.text)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
       ${common}
       ${body}
-      ${base}
-      ${cross}
       ${photo}
       ${comment}
     </div>`;
@@ -965,29 +961,6 @@ function commonChip(q) {
       Common: ${esc(label)}${esc(countHint)}
     </button>
   </div>`;
-}
-
-function baselineChip(q) {
-  const b = BASELINE[q.id];
-  if (b == null || ANSWERS[q.id] != null) return '';
-  // Avoid duplicating the same value as Common chip
-  const c = commonInfo(q.id);
-  if (c && String(c.value) === String(b)) return '';
-  return `<div class="hint">2025: <button type="button" class="chip" data-chip="${q.id}" data-val="${escAttr(String(b))}">${esc(String(b))} — use this</button></div>`;
-}
-
-function crossStoreChips(q) {
-  const cross = SUGGESTIONS.crossStoreAnswers || {};
-  const chips = [];
-  for (const [sn, ans] of Object.entries(cross)) {
-    const v = ans[q.id];
-    if (v == null || v === '' || (Array.isArray(v) && !v.length)) continue;
-    const label = Array.isArray(v) ? v.join(', ') : String(v);
-    if (label.length > 60) continue;
-    chips.push(`<button type="button" class="chip" data-cross-store="${sn}" data-cross-q="${q.id}">Same as store ${esc(sn)}: ${esc(label)}</button>`);
-  }
-  if (!chips.length) return '';
-  return `<div class="cross-bar"><div class="hint">Reuse an answer from another store you already surveyed:</div>${chips.join('')}</div>`;
 }
 
 function suggestionsFor(qid) {
@@ -1143,15 +1116,6 @@ function wireQuestion(q) {
   main.querySelectorAll('textarea[data-comment]').forEach((t) => {
     t.oninput = () => { ANSWERS[t.dataset.comment + '_c'] = t.value; markDirty(); };
   });
-  main.querySelectorAll('.chip[data-chip]').forEach((c) => {
-    c.onclick = () => {
-      ANSWERS[c.dataset.chip] = c.dataset.val;
-      markDirty();
-      rebuildFlat();
-      // Chip is text-like prefills for text questions — don't auto-advance
-      renderQuestion({ focusText: true });
-    };
-  });
   main.querySelectorAll('.chip[data-common]').forEach((c) => {
     c.onclick = () => {
       const qid = c.dataset.common;
@@ -1184,22 +1148,6 @@ function wireQuestion(q) {
         return;
       }
       renderQuestion();
-    };
-  });
-  main.querySelectorAll('.chip[data-cross-store]').forEach((c) => {
-    c.onclick = () => {
-      const sn = c.dataset.crossStore;
-      const qid = c.dataset.crossQ;
-      const ans = (SUGGESTIONS.crossStoreAnswers || {})[sn] || {};
-      if (ans[qid] != null) {
-        ANSWERS[qid] = Array.isArray(ans[qid]) ? [...ans[qid]] : ans[qid];
-        if (ans[qid + '_d'] != null) ANSWERS[qid + '_d'] = ans[qid + '_d'];
-        if (ans[qid + '_c'] != null) ANSWERS[qid + '_c'] = ans[qid + '_c'];
-        markDirty();
-        rebuildFlat();
-        renderQuestion();
-        // If fully answered choice after cross-fill, stay for user confirm (no auto)
-      }
     };
   });
   main.querySelectorAll('[data-add]').forEach((b) => {
