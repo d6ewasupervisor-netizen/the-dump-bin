@@ -100,6 +100,39 @@
   .eyebrow{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:4px}
   .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
   .filters label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
+  .sel-section{margin-top:4px}
+  .sel-section + .sel-section{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+  .sel-section h2{
+    font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);
+    font-weight:700;margin:0 0 10px;
+  }
+  .sel-list{display:flex;flex-direction:column;gap:8px}
+  .sel-item{
+    display:flex;align-items:center;gap:10px;padding:12px 12px 12px 14px;
+    border:1.5px solid var(--accent);border-radius:12px;background:var(--accent-soft);min-height:var(--tap);
+  }
+  .sel-item .meta{flex:1;min-width:0}
+  .sel-item .meta strong{display:block}
+  .sel-item .tag{
+    display:inline-block;font-size:11px;font-weight:600;color:var(--accent-deep);
+    background:#fff;border:1px solid #9ec3dc;border-radius:999px;padding:2px 8px;margin-top:4px;
+  }
+  .sel-item .tag.draft{border-color:#c9b27a;color:#7a5c12}
+  .sel-item .tag.submitted{border-color:#7ab894;color:var(--good)}
+  .sel-remove{
+    flex-shrink:0;width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);
+    background:#fff;color:var(--danger);font-size:20px;line-height:1;cursor:pointer;touch-action:manipulation;
+  }
+  .sel-empty{font-size:14px;color:var(--ink-soft);padding:8px 0}
+  .add-store{display:flex;flex-direction:column;gap:10px}
+  .add-store label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
+  .add-store .add-row{display:flex;gap:8px;align-items:stretch}
+  .add-store .add-row select{flex:1}
+  #btn-add-store{
+    min-height:var(--tap);padding:0 16px;border:0;border-radius:12px;background:var(--accent);
+    color:#fff;font-size:15px;font-weight:600;cursor:pointer;touch-action:manipulation;white-space:nowrap;
+  }
+  #btn-add-store:disabled{background:#9bb6c9;cursor:not-allowed}
   .suggest-wrap{position:relative}
   .suggest-list{
     position:absolute;left:0;right:0;top:100%;z-index:8;background:#fff;border:1px solid var(--line);
@@ -177,7 +210,7 @@ let PHOTOS = [];
 let BASELINE = {};
 let SUGGESTIONS = { byQuestion: {}, crossStoreAnswers: {} };
 let dirty = false, saveTimer = null, saving = false;
-let filterDistrict = '', filterTeam = '';
+let addDistrict = '', addStorePick = '';
 
 function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -262,6 +295,37 @@ async function saveDraft(submit) {
 }
 
 // ─── Store picker (catalog + schedule prefill) ───────────────────────────────
+function storeMetaMap() {
+  const map = new Map();
+  const catalog = ME.catalog || { stores: [] };
+  const detailList = ME.storeDetails || [];
+  for (const s of (catalog.stores || [])) {
+    map.set(Number(s.storeNum), {
+      storeNum: Number(s.storeNum),
+      district: s.district || '?',
+      status: null,
+      suggested: false,
+    });
+  }
+  for (const s of detailList) {
+    const sn = Number(s.storeNum);
+    const prev = map.get(sn) || { storeNum: sn, district: s.district || '?', suggested: false };
+    map.set(sn, {
+      ...prev,
+      district: s.district || prev.district || '?',
+      status: s.status || null,
+      suggested: !!(s.suggested || prev.suggested),
+    });
+  }
+  const suggested = ME.suggestedStores || [];
+  for (const sn of suggested) {
+    const n = Number(sn);
+    const prev = map.get(n) || { storeNum: n, district: '?', status: null };
+    map.set(n, { ...prev, suggested: true });
+  }
+  return map;
+}
+
 function renderPicker() {
   PHASE = 'pick';
   STORE = null;
@@ -272,65 +336,117 @@ function renderPicker() {
   $('#hdr-title').textContent = 'Store Survey';
 
   const catalog = ME.catalog || { districts: [], teams: [], stores: [] };
-  const suggested = new Set(ME.suggestedStores || []);
+  const suggested = new Set((ME.suggestedStores || []).map(Number));
   if (!SELECTED_STORES.length && suggested.size) {
     SELECTED_STORES = [...suggested];
   }
+  SELECTED_STORES = SELECTED_STORES.map(Number).filter((n) => Number.isFinite(n));
 
-  let stores = catalog.stores || ME.storeDetails || [];
-  if (filterDistrict) stores = stores.filter((s) => String(s.district) === filterDistrict);
+  const meta = storeMetaMap();
+  const allStores = catalog.stores || ME.storeDetails || [];
+  const districts = (catalog.districts && catalog.districts.length)
+    ? catalog.districts
+    : [...new Set(allStores.map((s) => s.district).filter(Boolean))].sort();
 
-  const distOpts = (catalog.districts || []).map((d) =>
-    `<option value="${escAttr(d)}" ${filterDistrict === d ? 'selected' : ''}>District ${esc(d)}</option>`
+  // Keep add-district selection valid; default store pick empty after district change.
+  if (addDistrict && !districts.map(String).includes(String(addDistrict))) addDistrict = '';
+  const districtStores = addDistrict
+    ? allStores
+        .filter((s) => String(s.district) === String(addDistrict))
+        .map((s) => Number(s.storeNum))
+        .filter((n) => Number.isFinite(n) && !SELECTED_STORES.includes(n))
+        .sort((a, b) => a - b)
+    : [];
+  if (addStorePick && !districtStores.includes(Number(addStorePick))) addStorePick = '';
+
+  const distOpts = districts.map((d) =>
+    `<option value="${escAttr(d)}" ${String(addDistrict) === String(d) ? 'selected' : ''}>District ${esc(d)}</option>`
   ).join('');
-  const teamOpts = (catalog.teams || []).map((t) =>
-    `<option value="${escAttr(t)}" ${filterTeam === t ? 'selected' : ''}>${esc(t)}</option>`
+  const storeOpts = districtStores.map((sn) =>
+    `<option value="${sn}" ${Number(addStorePick) === sn ? 'selected' : ''}>Store ${sn}</option>`
   ).join('');
+
+  const selectionHtml = SELECTED_STORES.length
+    ? SELECTED_STORES.map((sn) => {
+        const m = meta.get(sn) || { district: '?', suggested: suggested.has(sn), status: null };
+        const tags = [];
+        if (m.suggested || suggested.has(sn)) tags.push('<span class="tag">on your schedule</span>');
+        if (m.status === 'draft') tags.push('<span class="tag draft">draft</span>');
+        if (m.status === 'submitted') tags.push('<span class="tag submitted">submitted</span>');
+        return `<div class="sel-item" data-store="${sn}">
+          <div class="meta">
+            <strong>Store ${sn}</strong>
+            <span class="hint">District ${esc(m.district || '?')}</span>
+            ${tags.length ? `<div>${tags.join(' ')}</div>` : ''}
+          </div>
+          <button type="button" class="sel-remove" data-remove="${sn}" aria-label="Remove store ${sn}">×</button>
+        </div>`;
+      }).join('')
+    : '<div class="sel-empty">No stores selected yet. Choose a district and store below to add one.</div>';
+
+  const storeSelectDisabled = !addDistrict;
+  const storePlaceholder = !addDistrict
+    ? 'Select a district first'
+    : (districtStores.length ? 'Select a store' : 'No more stores in this district');
 
   main.innerHTML = `
     <div class="card">
       <div class="eyebrow">Division 701</div>
       <div class="qtext" style="margin-bottom:8px">Which store are you surveying?</div>
-      <div class="note">Based on your current route schedule we’ve pre-selected these stores. If that’s wrong or incomplete, manually override by selecting the correct store(s) below — leads move around, so you’re never locked in.</div>
-      <div class="filters">
-        <div>
-          <label for="f-dist">District</label>
-          <select id="f-dist"><option value="">All districts</option>${distOpts}</select>
-        </div>
-        <div>
-          <label for="f-team">Team (filter hint)</label>
-          <select id="f-team"><option value="">All teams</option>${teamOpts}</select>
+      <div class="note">Based on your schedule in PROD, the stores below were pre-selected. If this is incorrect, please adjust accordingly.</div>
+
+      <div class="sel-section">
+        <h2>Your store selections</h2>
+        <div class="sel-list" id="sel-list">${selectionHtml}</div>
+        <p class="hint" style="margin-top:10px">${SELECTED_STORES.length} store(s) selected. You’ll complete one store at a time.</p>
+      </div>
+
+      <div class="sel-section">
+        <h2>Add a store</h2>
+        <div class="add-store">
+          <div>
+            <label for="f-dist">District</label>
+            <select id="f-dist">
+              <option value="">Select district…</option>
+              ${distOpts}
+            </select>
+          </div>
+          <div>
+            <label for="f-store">Store in district</label>
+            <div class="add-row">
+              <select id="f-store" ${storeSelectDisabled ? 'disabled' : ''}>
+                <option value="">${esc(storePlaceholder)}</option>
+                ${storeOpts}
+              </select>
+              <button type="button" id="btn-add-store" ${!addStorePick ? 'disabled' : ''}>Add</button>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="store-grid" id="store-grid">
-        ${stores.map((s) => {
-          const sn = s.storeNum;
-          const sug = suggested.has(sn) || s.suggested;
-          const sel = SELECTED_STORES.includes(sn);
-          const st = s.status;
-          const badge = st === 'submitted' ? ' · submitted' : st === 'draft' ? ' · draft' : '';
-          return `<label class="store-row ${sug ? 'suggested' : ''} ${sel ? 'selected' : ''}">
-            <input type="checkbox" data-store="${sn}" ${sel ? 'checked' : ''}>
-            <span><strong>Store ${sn}</strong> · D${esc(s.district || '?')}${sug ? ' · on your schedule' : ''}${badge}</span>
-          </label>`;
-        }).join('') || '<div class="hint">No stores match this filter.</div>'}
-      </div>
-      <p class="hint" style="margin-top:10px">${SELECTED_STORES.length} store(s) selected. You’ll complete one store at a time.</p>
     </div>`;
 
-  $('#f-dist').onchange = (e) => { filterDistrict = e.target.value; renderPicker(); };
-  $('#f-team').onchange = (e) => { filterTeam = e.target.value; /* team filter is informational for now */ };
-  main.querySelectorAll('input[data-store]').forEach((inp) => {
-    inp.onchange = () => {
-      const sn = Number(inp.dataset.store);
-      if (inp.checked) {
-        if (!SELECTED_STORES.includes(sn)) SELECTED_STORES.push(sn);
-      } else {
-        SELECTED_STORES = SELECTED_STORES.filter((x) => x !== sn);
-      }
-      // update row class without full re-render
-      inp.closest('.store-row').classList.toggle('selected', inp.checked);
-      updatePickerNext();
+  $('#f-dist').onchange = (e) => {
+    addDistrict = e.target.value;
+    addStorePick = '';
+    renderPicker();
+  };
+  $('#f-store').onchange = (e) => {
+    addStorePick = e.target.value;
+    const btn = $('#btn-add-store');
+    if (btn) btn.disabled = !addStorePick;
+  };
+  $('#btn-add-store').onclick = () => {
+    const sn = Number(addStorePick);
+    if (!Number.isFinite(sn) || SELECTED_STORES.includes(sn)) return;
+    SELECTED_STORES.push(sn);
+    addStorePick = '';
+    renderPicker();
+  };
+  main.querySelectorAll('[data-remove]').forEach((btn) => {
+    btn.onclick = () => {
+      const sn = Number(btn.dataset.remove);
+      SELECTED_STORES = SELECTED_STORES.filter((x) => x !== sn);
+      renderPicker();
     };
   });
 
