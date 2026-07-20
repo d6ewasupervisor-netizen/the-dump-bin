@@ -201,7 +201,7 @@ const main = $('#main');
 
 // Phase: 'pick' | 'survey' | 'done'
 let ME = null, SPEC = null, PHASE = 'pick';
-let SELECTED_STORES = []; // multi before start; then single active
+let SELECTED_STORE = null; // single store preselect / override
 let STORE = null;
 let FLAT = []; // flattened visible questions for current store
 let QINDEX = 0;
@@ -294,7 +294,7 @@ async function saveDraft(submit) {
   }
 }
 
-// ─── Store picker (catalog + schedule prefill) ───────────────────────────────
+// ─── Store picker (today's schedule prefill + district/store override) ───────
 function storeMetaMap() {
   const map = new Map();
   const catalog = ME.catalog || { stores: [] };
@@ -326,6 +326,17 @@ function storeMetaMap() {
   return map;
 }
 
+function formatScheduleDate(iso) {
+  if (!iso) return '';
+  try {
+    const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return String(iso);
+  }
+}
+
 function renderPicker() {
   PHASE = 'pick';
   STORE = null;
@@ -336,11 +347,14 @@ function renderPicker() {
   $('#hdr-title').textContent = 'Store Survey';
 
   const catalog = ME.catalog || { districts: [], teams: [], stores: [] };
-  const suggested = new Set((ME.suggestedStores || []).map(Number));
-  if (!SELECTED_STORES.length && suggested.size) {
-    SELECTED_STORES = [...suggested];
+  const scheduleDate = ME.scheduleDate || '';
+  const primary = ME.primaryStore != null
+    ? Number(ME.primaryStore)
+    : (ME.suggestedStores && ME.suggestedStores.length ? Number(ME.suggestedStores[0]) : null);
+  if (SELECTED_STORE == null && Number.isFinite(primary)) {
+    SELECTED_STORE = primary;
   }
-  SELECTED_STORES = SELECTED_STORES.map(Number).filter((n) => Number.isFinite(n));
+  if (SELECTED_STORE != null) SELECTED_STORE = Number(SELECTED_STORE);
 
   const meta = storeMetaMap();
   const allStores = catalog.stores || ME.storeDetails || [];
@@ -348,61 +362,81 @@ function renderPicker() {
     ? catalog.districts
     : [...new Set(allStores.map((s) => s.district).filter(Boolean))].sort();
 
-  // Keep add-district selection valid; default store pick empty after district change.
+  // Sync district dropdown to selected store when possible
+  if (SELECTED_STORE != null && !addDistrict) {
+    const m = meta.get(SELECTED_STORE);
+    if (m && m.district && m.district !== '?') addDistrict = String(m.district);
+  }
   if (addDistrict && !districts.map(String).includes(String(addDistrict))) addDistrict = '';
+
   const districtStores = addDistrict
     ? allStores
         .filter((s) => String(s.district) === String(addDistrict))
         .map((s) => Number(s.storeNum))
-        .filter((n) => Number.isFinite(n) && !SELECTED_STORES.includes(n))
+        .filter((n) => Number.isFinite(n))
         .sort((a, b) => a - b)
     : [];
-  if (addStorePick && !districtStores.includes(Number(addStorePick))) addStorePick = '';
+  if (addStorePick && !districtStores.includes(Number(addStorePick))) {
+    addStorePick = (SELECTED_STORE != null && districtStores.includes(SELECTED_STORE))
+      ? String(SELECTED_STORE)
+      : '';
+  } else if (!addStorePick && SELECTED_STORE != null && districtStores.includes(SELECTED_STORE)) {
+    addStorePick = String(SELECTED_STORE);
+  }
 
   const distOpts = districts.map((d) =>
     `<option value="${escAttr(d)}" ${String(addDistrict) === String(d) ? 'selected' : ''}>District ${esc(d)}</option>`
   ).join('');
   const storeOpts = districtStores.map((sn) =>
-    `<option value="${sn}" ${Number(addStorePick) === sn ? 'selected' : ''}>Store ${sn}</option>`
+    `<option value="${sn}" ${Number(addStorePick) === sn || SELECTED_STORE === sn ? 'selected' : ''}>Store ${sn}</option>`
   ).join('');
 
-  const selectionHtml = SELECTED_STORES.length
-    ? SELECTED_STORES.map((sn) => {
-        const m = meta.get(sn) || { district: '?', suggested: suggested.has(sn), status: null };
-        const tags = [];
-        if (m.suggested || suggested.has(sn)) tags.push('<span class="tag">on your schedule</span>');
-        if (m.status === 'draft') tags.push('<span class="tag draft">draft</span>');
-        if (m.status === 'submitted') tags.push('<span class="tag submitted">submitted</span>');
-        return `<div class="sel-item" data-store="${sn}">
+  const fromSchedule = SELECTED_STORE != null && (
+    Number(ME.primaryStore) === SELECTED_STORE
+    || (ME.suggestedStores || []).map(Number).includes(SELECTED_STORE)
+  );
+  const mSel = SELECTED_STORE != null ? (meta.get(SELECTED_STORE) || {}) : {};
+  const tags = [];
+  if (fromSchedule) tags.push('<span class="tag">today\'s schedule</span>');
+  if (mSel.status === 'draft') tags.push('<span class="tag draft">draft</span>');
+  if (mSel.status === 'submitted') tags.push('<span class="tag submitted">submitted</span>');
+
+  const selectionHtml = SELECTED_STORE != null
+    ? `<div class="sel-item" data-store="${SELECTED_STORE}">
           <div class="meta">
-            <strong>Store ${sn}</strong>
-            <span class="hint">District ${esc(m.district || '?')}</span>
+            <strong>Store ${SELECTED_STORE}</strong>
+            <span class="hint">District ${esc(mSel.district || '?')}</span>
             ${tags.length ? `<div>${tags.join(' ')}</div>` : ''}
           </div>
-          <button type="button" class="sel-remove" data-remove="${sn}" aria-label="Remove store ${sn}">×</button>
-        </div>`;
-      }).join('')
-    : '<div class="sel-empty">No stores selected yet. Choose a district and store below to add one.</div>';
+          <button type="button" class="sel-remove" data-clear="1" aria-label="Clear store selection">×</button>
+        </div>`
+    : '<div class="sel-empty">No store selected yet. Choose a district and store below.</div>';
+
+  const noteHtml = fromSchedule && SELECTED_STORE != null
+    ? `Based on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''}, <strong>Store ${SELECTED_STORE}</strong> was pre-selected for you. If this is incorrect, please adjust using the district and store dropdowns below.`
+    : scheduleDate
+      ? `No store was found on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''} for your name. Please select your district and store below.`
+      : 'Please select your district and store below.';
 
   const storeSelectDisabled = !addDistrict;
   const storePlaceholder = !addDistrict
     ? 'Select a district first'
-    : (districtStores.length ? 'Select a store' : 'No more stores in this district');
+    : (districtStores.length ? 'Select a store' : 'No stores in this district');
 
   main.innerHTML = `
     <div class="card">
       <div class="eyebrow">Division 701</div>
-      <div class="qtext" style="margin-bottom:8px">Which store are you surveying?</div>
-      <div class="note">Based on your schedule in PROD, the stores below were pre-selected. If this is incorrect, please adjust accordingly.</div>
+      <div class="qtext" style="margin-bottom:8px">Which store are you surveying today?</div>
+      <div class="note">${noteHtml}</div>
 
       <div class="sel-section">
-        <h2>Your store selections</h2>
+        <h2>Your store selection</h2>
         <div class="sel-list" id="sel-list">${selectionHtml}</div>
-        <p class="hint" style="margin-top:10px">${SELECTED_STORES.length} store(s) selected. You’ll complete one store at a time.</p>
+        <p class="hint" style="margin-top:10px">One store per visit. You can change it any time before you start.</p>
       </div>
 
       <div class="sel-section">
-        <h2>Add a store</h2>
+        <h2>Change store</h2>
         <div class="add-store">
           <div>
             <label for="f-dist">District</label>
@@ -418,7 +452,7 @@ function renderPicker() {
                 <option value="">${esc(storePlaceholder)}</option>
                 ${storeOpts}
               </select>
-              <button type="button" id="btn-add-store" ${!addStorePick ? 'disabled' : ''}>Add</button>
+              <button type="button" id="btn-add-store" ${!addStorePick ? 'disabled' : ''}>Use store</button>
             </div>
           </div>
         </div>
@@ -437,15 +471,14 @@ function renderPicker() {
   };
   $('#btn-add-store').onclick = () => {
     const sn = Number(addStorePick);
-    if (!Number.isFinite(sn) || SELECTED_STORES.includes(sn)) return;
-    SELECTED_STORES.push(sn);
-    addStorePick = '';
+    if (!Number.isFinite(sn)) return;
+    SELECTED_STORE = sn;
     renderPicker();
   };
-  main.querySelectorAll('[data-remove]').forEach((btn) => {
+  main.querySelectorAll('[data-clear]').forEach((btn) => {
     btn.onclick = () => {
-      const sn = Number(btn.dataset.remove);
-      SELECTED_STORES = SELECTED_STORES.filter((x) => x !== sn);
+      SELECTED_STORE = null;
+      addStorePick = '';
       renderPicker();
     };
   });
@@ -459,18 +492,17 @@ function renderPicker() {
 function updatePickerNext() {
   const btn = $('#btn-next');
   if (PHASE === 'pick') {
-    btn.disabled = !SELECTED_STORES.length;
+    btn.disabled = SELECTED_STORE == null;
     btn.className = '';
-    btn.textContent = SELECTED_STORES.length === 1
-      ? 'Start · Store ' + SELECTED_STORES[0]
-      : `Start · ${SELECTED_STORES.length} stores`;
+    btn.textContent = SELECTED_STORE != null
+      ? 'Start · Store ' + SELECTED_STORE
+      : 'Start survey';
   }
 }
 
 async function startSelectedStores() {
-  if (!SELECTED_STORES.length) return;
-  // Start first selected store
-  await openStore(SELECTED_STORES[0]);
+  if (SELECTED_STORE == null) return;
+  await openStore(SELECTED_STORE);
 }
 
 async function openStore(storeNum) {
@@ -503,7 +535,7 @@ function renderQuestion() {
   PHASE = 'survey';
   setProgress();
   $('#stepnav').hidden = false;
-  $('#btn-back').textContent = QINDEX <= 0 ? 'Stores' : 'Back';
+  $('#btn-back').textContent = QINDEX <= 0 ? 'Change store' : 'Back';
 
   if (QINDEX >= FLAT.length) {
     renderReview();
@@ -547,17 +579,31 @@ function renderQuestion() {
   }
 }
 
+function examplesBlock(examples, label) {
+  if (!examples || !examples.length) return '';
+  const title = label || 'Examples';
+  return `<div class="note" style="margin-top:10px">
+    <div style="font-weight:600;margin-bottom:6px">${esc(title)}</div>
+    <ul style="margin:0;padding-left:18px">
+      ${examples.map((ex) => `<li style="margin-bottom:4px">${esc(ex)}</li>`).join('')}
+    </ul>
+  </div>`;
+}
+
 function questionBody(q) {
   if (q.type === 'yesno' || q.type === 'choice') {
     const opts = q.type === 'yesno' ? ['Yes', 'No'] : (q.options || []);
     const cls = opts.length <= 4 ? 'opts row' : 'opts';
-    return `<div class="${cls}" role="group">` +
+    let html = `<div class="${cls}" role="group">` +
       opts.map((o) =>
         `<button type="button" class="opt" data-q="${q.id}" data-val="${escAttr(o)}" aria-pressed="${ANSWERS[q.id] === o}">${esc(o)}</button>`
-      ).join('') + '</div>' +
-      (q.detailOn && ANSWERS[q.id] === q.detailOn
-        ? `<div class="suggest-wrap" style="margin-top:10px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="Please explain / name" autocomplete="off"></div>`
-        : '');
+      ).join('') + '</div>';
+    if (q.detailOn && ANSWERS[q.id] === q.detailOn) {
+      const ph = q.detailPlaceholder || 'Please explain / name';
+      html += `<div class="suggest-wrap" style="margin-top:10px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="${escAttr(ph)}" autocomplete="off"></div>`;
+      html += examplesBlock(q.detailExamples, q.detailExamplesLabel || 'Suggestions');
+    }
+    return html;
   }
   if (q.type === 'multiselect') {
     const cur = ANSWERS[q.id] || [];
@@ -566,7 +612,9 @@ function questionBody(q) {
         `<button type="button" class="opt" data-mq="${q.id}" data-val="${escAttr(o)}" aria-pressed="${cur.includes(o)}">${esc(o)}</button>`
       ).join('') + '</div>';
   }
-  return `<div class="suggest-wrap"><input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="Type your answer" autocomplete="off"></div>`;
+  const ph = q.placeholder || 'Type your answer';
+  return examplesBlock(q.examples, q.examplesLabel || 'Examples') +
+    `<div class="suggest-wrap"><input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="${escAttr(ph)}" autocomplete="off"></div>`;
 }
 
 function commentBlock(q) {
@@ -803,13 +851,14 @@ function addPhoto(questionId) {
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 $('#btn-back').onclick = async () => {
   if (PHASE === 'pick') {
-    SELECTED_STORES = [];
+    SELECTED_STORE = null;
+    addStorePick = '';
     renderPicker();
     return;
   }
   await saveDraft(false);
   if (QINDEX <= 0) {
-    // back to store list; keep remaining selected
+    // back to store picker; keep current selection
     renderPicker();
     return;
   }
@@ -828,21 +877,19 @@ $('#btn-next').onclick = async () => {
   if (QINDEX >= FLAT.length) {
     const r = await saveDraft(true);
     if (r && r.ok) {
-      // Remove completed store from queue; open next or done
-      SELECTED_STORES = SELECTED_STORES.filter((s) => s !== STORE);
-      if (SELECTED_STORES.length) {
-        main.innerHTML = `<div class="card"><div class="qtext">Store ${STORE} saved. ✓</div><div class="hint">Opening next store…</div></div>`;
-        setTimeout(() => openStore(SELECTED_STORES[0]), 700);
-      } else {
-        PHASE = 'done';
-        $('#stepnav').hidden = true;
-        main.innerHTML = `<div class="card">
-          <div class="qtext">All selected stores complete. ✓</div>
-          <div class="hint">You can reopen any store later to update answers — history is kept automatically.</div>
+      PHASE = 'done';
+      $('#stepnav').hidden = true;
+      main.innerHTML = `<div class="card">
+          <div class="qtext">Store ${STORE} complete. ✓</div>
+          <div class="hint">You can reopen this store later to update answers — history is kept automatically.</div>
           <button type="button" class="opt" id="again" style="margin-top:12px">Survey another store</button>
         </div>`;
-        $('#again').onclick = () => { SELECTED_STORES = []; renderPicker(); };
-      }
+      $('#again').onclick = () => {
+        SELECTED_STORE = null;
+        addDistrict = '';
+        addStorePick = '';
+        renderPicker();
+      };
     }
     return;
   }
