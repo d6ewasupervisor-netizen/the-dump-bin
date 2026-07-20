@@ -57,7 +57,14 @@
     if (s === 'sent') return badge('Sent', 'sent');
     if (s === 'failed') return badge('Failed', 'failed');
     if (s === 'pending') return badge('Pending', 'pending');
+    if (s === 'cancelled' || s === 'canceled') return badge('Cancelled', 'cancelled');
     return badge(status || '—', 'pending');
+  }
+
+  function kindLabel(item) {
+    if (item.metadata?.kind === 'disregard') return 'Disregard notice';
+    if (item.status === 'cancelled') return 'Welcome letter (cancelled)';
+    return 'Welcome letter';
   }
 
   function deliveryBadge(delivery) {
@@ -86,12 +93,16 @@
       const selected = item.id === state.selectedId ? ' is-selected' : '';
       const to = (item.to || []).join(', ');
       const firstName = item.metadata?.firstName || '—';
+      let nameExtra = '';
+      if (item.metadata?.kind === 'disregard') {
+        nameExtra = ' <span class="wb-muted">(disregard)</span>';
+      }
       return `<tr data-id="${item.id}" class="${selected}">
         <td>${fmtDate(item.createdAt)}</td>
         <td>${statusBadge(item.status)}</td>
         <td>${deliveryBadge(item.deliveryStatus || item.lastEvent)}</td>
         <td>${openedBadge(item)}</td>
-        <td>${escapeHtml(firstName)}</td>
+        <td>${escapeHtml(firstName)}${nameExtra}</td>
         <td>${escapeHtml(to || '—')}</td>
         <td class="wb-muted">${escapeHtml(item.sentByEmail || '—')}</td>
       </tr>`;
@@ -190,8 +201,10 @@
 
     const rows = [
       ['When', fmtDate(item.createdAt)],
+      ['Type', kindLabel(item)],
       ['Status', item.status],
       ['Delivery', item.deliveryStatus || item.lastEvent || '—'],
+      ['Last event', item.lastEvent || '—'],
       ['Opened', openedLine],
       ['Clicked', clickedLine],
       ['First Name', item.metadata?.firstName || '—'],
@@ -202,7 +215,12 @@
       ['Sent By', item.sentByEmail || '—'],
       ['Resend ID', item.resendId || '—'],
       ['Can resend', item.canResend ? 'Yes' : 'No'],
+      ['Can cancel', item.canCancel ? 'Yes' : 'No'],
     ];
+    if (item.metadata?.cancelledAt) {
+      rows.push(['Cancelled at', fmtDate(item.metadata.cancelledAt)]);
+      rows.push(['Cancelled by', item.metadata.cancelledBy || '—']);
+    }
     if (item.errorMessage) rows.push(['Error', item.errorMessage]);
     meta.innerHTML = rows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('');
 
@@ -215,6 +233,11 @@
 
     const resendBtn = document.getElementById('resendBtn');
     resendBtn.disabled = !item.canResend;
+    resendBtn.title = item.canResend
+      ? 'Send this exact letter again'
+      : (item.status === 'cancelled'
+        ? 'Cancelled variants cannot be resent — send a new welcome letter'
+        : 'Resend not available for this message');
     resendBtn.onclick = async () => {
       if (!item.canResend) return;
       if (!window.confirm(`Resend this welcome letter exactly as sent to ${(item.to || []).join(', ')}?`)) return;
@@ -231,6 +254,72 @@
         resendBtn.disabled = !item.canResend;
       }
     };
+
+    const cancelBtn = document.getElementById('cancelBtn');
+    const canCancel = Boolean(item.canCancel);
+    cancelBtn.disabled = !canCancel;
+    cancelBtn.title = canCancel
+      ? 'Mark cancelled, block resend of this variant, and email a disregard notice'
+      : 'Already cancelled or not eligible';
+    cancelBtn.onclick = async () => {
+      if (!canCancel) return;
+      const to = (item.to || []).join(', ') || 'recipient';
+      const openedNote = item.openCount > 0
+        ? '\n\nNote: open tracking shows this may already have been opened. Cancel still marks it cancelled and sends the disregard notice, but we cannot remove the original from their inbox.'
+        : '\n\nIf they have not opened it yet, they may still receive/see the original — cancel marks it in our board and sends a polite disregard notice.';
+      if (!window.confirm(
+        `Cancel this welcome letter to ${to}?\n\n`
+        + '• Marks it Cancelled on the board\n'
+        + '• Blocks exact resend of this variant\n'
+        + '• Sends a polite "please disregard" email (tools & contacts updating)'
+        + openedNote,
+      )) return;
+
+      cancelBtn.disabled = true;
+      resendBtn.disabled = true;
+      try {
+        const result = await api(`${API_PREFIX}/${item.id}/cancel`, { method: 'POST', body: '{}' });
+        await loadList();
+        await selectEmail(item.id);
+        const disregardNote = result.disregardSent
+          ? ' Disregard notice sent.'
+          : (result.error ? ` ${result.error}` : ' Disregard notice may have failed.');
+        showJustSentBanner({
+          ok: Boolean(result.disregardSent),
+          message: `Welcome letter cancelled.${disregardNote}`,
+        });
+      } catch (e) {
+        err.hidden = false;
+        err.textContent = e.message;
+        cancelBtn.disabled = !canCancel;
+        resendBtn.disabled = !item.canResend;
+      }
+    };
+  }
+
+  async function refreshFromResend() {
+    const btn = document.getElementById('refreshBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Refreshing…';
+    }
+    try {
+      const result = await api(`${API_PREFIX}/refresh`, { method: 'POST', body: '{}' });
+      await loadList();
+      if (state.selectedId) await selectEmail(state.selectedId, { pushUrl: false });
+      const opens = result.opensFound != null ? `, ${result.opensFound} with open/click last event` : '';
+      showJustSentBanner({
+        ok: true,
+        message: `Refreshed from Resend: checked ${result.checked || 0}, updated ${result.updated || 0}${opens}.`,
+      });
+    } catch (e) {
+      showJustSentBanner({ ok: false, message: `Refresh failed: ${e.message}` });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Refresh from Resend';
+      }
+    }
   }
 
   function readFiltersFromForm() {
@@ -319,6 +408,14 @@
     document.querySelectorAll('th[data-sort]').forEach((th) => {
       th.addEventListener('click', () => onSortColumn(th.dataset.sort));
     });
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        refreshFromResend().catch((e) => {
+          showJustSentBanner({ ok: false, message: e.message });
+        });
+      });
+    }
     updateSortHeaders();
 
     await loadList();

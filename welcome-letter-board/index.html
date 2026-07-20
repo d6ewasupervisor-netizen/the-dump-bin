@@ -143,6 +143,7 @@
     .wb-badge-complained { background: #EFE1FA; color: #6B2FA6; }
     .wb-badge-opened { background: var(--wb-sky-tint); color: var(--wb-sky); }
     .wb-badge-not-opened { background: #EEF1F4; color: var(--wb-muted); }
+    .wb-badge-cancelled { background: #EEF1F4; color: #5A6B7D; text-decoration: line-through; }
 
     .wb-detail-empty { color: var(--wb-muted); font-size: 14px; }
     .wb-detail-grid { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; margin: 0 0 14px; }
@@ -182,9 +183,12 @@
       <div>
         <div class="wb-brand">Retail Odyssey</div>
         <h1>Welcome Letter Board</h1>
-        <p>Every welcome letter sent to new hires — delivery status, open tracking, and exact resend.</p>
+        <p>Every welcome letter sent to new hires — delivery status, open tracking, cancel (disregard), and exact resend.</p>
       </div>
-      <a href="/welcome/" class="wb-btn wb-btn-primary">Send New Welcome Letter</a>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <button type="button" id="refreshBtn" class="wb-btn wb-btn-ghost">Refresh from Resend</button>
+        <a href="/welcome/" class="wb-btn wb-btn-primary">Send New Welcome Letter</a>
+      </div>
     </div>
 
     <div id="justSentBanner" class="wb-banner wb-hidden"></div>
@@ -200,6 +204,7 @@
             <option value="sent">Sent</option>
             <option value="failed">Failed</option>
             <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </label>
         <label>Delivery
@@ -250,11 +255,12 @@
 
       <section class="wb-card" id="detailCard">
         <h2 style="margin-top:0;color:var(--wb-navy);">Details</h2>
-        <p class="wb-detail-empty" id="detailEmpty">Select a welcome letter to inspect or resend.</p>
+        <p class="wb-detail-empty" id="detailEmpty">Select a welcome letter to inspect, cancel, or resend.</p>
         <div id="detailBody" hidden>
           <dl class="wb-detail-grid" id="detailMeta"></dl>
           <div class="wb-detail-actions">
             <button type="button" id="resendBtn" class="wb-btn wb-btn-primary">Resend exactly</button>
+            <button type="button" id="cancelBtn" class="wb-btn wb-btn-danger">Cancel &amp; send disregard</button>
           </div>
           <div class="wb-preview-wrap">
             <div class="wb-preview-label">Email preview</div>
@@ -269,6 +275,6 @@
 
   </main>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=20260717-2"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=20260720-1"></script>
 </body>
 </html>
