@@ -9,10 +9,22 @@
 <link rel="icon" href="/survey/assets/ro-logo.png">
 <script src="/auth-gate.js"></script>
 <style>
-  :root{
+  :root, [data-theme="light"]{
     --ink:#1a2430; --ink-soft:#5c6b7a; --line:#d5dde6; --paper:#eef2f6; --card:#fff;
     --accent:#0f5c8c; --accent-deep:#0a4063; --accent-soft:#e3eef6; --good:#2e7d52; --saved:#2e7d52; --danger:#b3402a;
+    --bar-bg:linear-gradient(180deg,#fff,#f7fafc);
+    --nav-bg:rgba(255,255,255,.97);
+    --note-bg:#f0f6fa; --note-line:#d0e0ec;
+    --opt-bg:#fff; --input-bg:#fff; --chip-bg:#fff;
     --tap:48px;
+  }
+  [data-theme="dark"]{
+    --ink:#e8eef4; --ink-soft:#9aabba; --line:#2f4052; --paper:#0f1419; --card:#1a2330;
+    --accent:#4aa3d9; --accent-deep:#8ec8ea; --accent-soft:#1a3348; --good:#4caf7a; --saved:#4caf7a; --danger:#e0705c;
+    --bar-bg:linear-gradient(180deg,#15202b,#121a22);
+    --nav-bg:rgba(18,26,34,.97);
+    --note-bg:#152636; --note-line:#2a4258;
+    --opt-bg:#1e2a38; --input-bg:#121a22; --chip-bg:#1e2a38;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{height:100%;overscroll-behavior:none}
@@ -24,16 +36,24 @@
   }
   .brandbar{
     position:sticky;top:0;z-index:20;
-    background:linear-gradient(180deg,#fff,#f7fafc);
+    background:var(--bar-bg);
     border-bottom:2px solid var(--accent);
     padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top,0px));
   }
-  .brandbar .top{display:flex;align-items:center;gap:10px}
+  .brandbar .top{display:flex;align-items:center;gap:8px}
   .brand-logo{height:34px;width:auto}
   .brand-titles{flex:1;min-width:0}
   .brand-titles .co{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
   .brand-titles h1{font-size:14px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #save-state{font-size:11px;color:var(--ink-soft);text-align:right;max-width:34%}
+  .brand-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .icon-btn{
+    min-width:40px;min-height:40px;padding:0 10px;border-radius:10px;
+    border:1.5px solid var(--line);background:var(--card);color:var(--ink);
+    font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation;
+    display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  }
+  .icon-btn:active{transform:scale(.97)}
+  #save-state{font-size:11px;color:var(--ink-soft);text-align:right;max-width:28%}
   #save-state.saved{color:var(--saved);font-weight:600}
   #save-state.warn{color:var(--danger);font-weight:600}
   .progress{height:4px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden}
@@ -44,23 +64,23 @@
   .opts{display:flex;flex-direction:column;gap:8px}
   .opts.row{flex-direction:row;flex-wrap:wrap}
   .opt{
-    border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff;
-    font-size:16px;cursor:pointer;min-height:var(--tap);text-align:left;
+    border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--opt-bg);
+    font-size:16px;cursor:pointer;min-height:var(--tap);text-align:left;color:var(--ink);
     touch-action:manipulation;user-select:none;width:100%;
   }
   .opts.row .opt{width:auto;min-width:88px;text-align:center}
   .opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600;color:var(--accent-deep)}
   textarea,input[type=text],select{
     width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;
-    font-size:16px;font-family:inherit;background:#fff;
+    font-size:16px;font-family:inherit;background:var(--input-bg);color:var(--ink);
   }
   select{min-height:var(--tap)}
   textarea{min-height:72px;resize:vertical}
   .hint{font-size:13px;color:var(--ink-soft);margin-top:8px}
-  .note{font-size:13px;color:var(--ink-soft);background:#f0f6fa;border:1px solid #d0e0ec;border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.45}
+  .note{font-size:13px;color:var(--ink-soft);background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.45}
   .chip{
     display:inline-block;border:1px dashed var(--accent);color:var(--accent);
-    border-radius:16px;padding:8px 12px;font-size:13px;cursor:pointer;background:#fff;
+    border-radius:16px;padding:8px 12px;font-size:13px;cursor:pointer;background:var(--chip-bg);
     margin:4px 4px 0 0;touch-action:manipulation;
   }
   details.comment{margin-top:12px}
@@ -71,13 +91,13 @@
   .photo-row img{width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
   .photo-add{
     border:1.5px dashed var(--line);border-radius:10px;width:72px;height:72px;
-    display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--ink-soft);background:#fff;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--ink-soft);background:var(--opt-bg);cursor:pointer;
   }
   .thumb{position:relative}
   .thumb button{position:absolute;top:-8px;right:-8px;width:28px;height:28px;border-radius:50%;background:var(--danger);color:#fff;border:0;font-size:16px}
   nav.stepnav{
     position:fixed;bottom:0;left:0;right:0;z-index:20;
-    background:rgba(255,255,255,.97);border-top:1px solid var(--line);
+    background:var(--nav-bg);border-top:1px solid var(--line);
     padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
     display:flex;gap:10px;align-items:center;
   }
@@ -85,21 +105,16 @@
     min-height:44px;font-size:15px;font-weight:600;border-radius:10px;border:0;cursor:pointer;touch-action:manipulation;
     padding:0 16px;
   }
-  #btn-back{background:#fff;border:1.5px solid var(--accent);color:var(--accent);flex:0 0 auto}
+  #btn-back{background:var(--card);border:1.5px solid var(--accent);color:var(--accent);flex:0 0 auto}
   #btn-next{background:var(--accent);color:#fff;flex:1}
-  #btn-next:disabled{background:#9bb6c9;cursor:not-allowed}
+  #btn-next:disabled{background:#9bb6c9;cursor:not-allowed;opacity:.75}
   #btn-next.submit{background:var(--good)}
-  .store-grid{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto;-webkit-overflow-scrolling:touch}
   .store-row{
     display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid var(--line);
-    border-radius:12px;background:#fff;cursor:pointer;min-height:var(--tap);
+    border-radius:12px;background:var(--opt-bg);cursor:pointer;min-height:var(--tap);color:var(--ink);width:100%;text-align:left;
   }
-  .store-row.suggested{border-color:#9ec3dc;background:#f5fafd}
   .store-row.selected{border-color:var(--accent);background:var(--accent-soft)}
-  .store-row input{width:20px;height:20px;flex-shrink:0}
   .eyebrow{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:4px}
-  .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-  .filters label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   .sel-section{margin-top:4px}
   .sel-section + .sel-section{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
   .sel-section h2{
@@ -115,45 +130,62 @@
   .sel-item .meta strong{display:block}
   .sel-item .tag{
     display:inline-block;font-size:11px;font-weight:600;color:var(--accent-deep);
-    background:#fff;border:1px solid #9ec3dc;border-radius:999px;padding:2px 8px;margin-top:4px;
+    background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin-top:4px;
   }
-  .sel-item .tag.draft{border-color:#c9b27a;color:#7a5c12}
+  .sel-item .tag.draft{border-color:#c9b27a;color:#c9a24a}
   .sel-item .tag.submitted{border-color:#7ab894;color:var(--good)}
   .sel-remove{
     flex-shrink:0;width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);
-    background:#fff;color:var(--danger);font-size:20px;line-height:1;cursor:pointer;touch-action:manipulation;
+    background:var(--card);color:var(--danger);font-size:20px;line-height:1;cursor:pointer;touch-action:manipulation;
   }
   .sel-empty{font-size:14px;color:var(--ink-soft);padding:8px 0}
   .add-store{display:flex;flex-direction:column;gap:10px}
   .add-store label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   .add-store .add-row{display:flex;gap:8px;align-items:stretch}
   .add-store .add-row select{flex:1}
-  #btn-add-store{
+  #btn-add-store,#btn-use-store{
     min-height:var(--tap);padding:0 16px;border:0;border-radius:12px;background:var(--accent);
     color:#fff;font-size:15px;font-weight:600;cursor:pointer;touch-action:manipulation;white-space:nowrap;
   }
-  #btn-add-store:disabled{background:#9bb6c9;cursor:not-allowed}
+  #btn-add-store:disabled,#btn-use-store:disabled{background:#9bb6c9;cursor:not-allowed}
   .suggest-wrap{position:relative}
   .suggest-list{
-    position:absolute;left:0;right:0;top:100%;z-index:8;background:#fff;border:1px solid var(--line);
-    border-radius:10px;max-height:180px;overflow:auto;display:none;box-shadow:0 8px 20px rgba(0,0,0,.1);
+    position:absolute;left:0;right:0;top:100%;z-index:8;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;max-height:180px;overflow:auto;display:none;box-shadow:0 8px 20px rgba(0,0,0,.2);
   }
   .suggest-list.open{display:block}
-  .suggest-list button{display:block;width:100%;text-align:left;border:0;background:#fff;padding:12px;font-size:15px;border-bottom:1px solid var(--line)}
+  .suggest-list button{display:block;width:100%;text-align:left;border:0;background:var(--card);color:var(--ink);padding:12px;font-size:15px;border-bottom:1px solid var(--line)}
   .cross-bar{margin-top:10px}
   .meta-line{font-size:13px;color:var(--ink-soft);margin-bottom:8px}
-  button:focus-visible,.opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .answer-row{
+    display:flex;align-items:flex-start;gap:10px;padding:12px;border:1.5px solid var(--line);
+    border-radius:12px;background:var(--opt-bg);cursor:pointer;min-height:var(--tap);width:100%;text-align:left;color:var(--ink);
+    margin-bottom:8px;
+  }
+  .answer-row:active{border-color:var(--accent)}
+  .answer-row .num{font-weight:700;color:var(--accent);min-width:2.2em}
+  .answer-row .body{flex:1;min-width:0}
+  .answer-row .q{font-weight:600;font-size:14px;line-height:1.3}
+  .answer-row .a{font-size:13px;color:var(--ink-soft);margin-top:4px;word-break:break-word}
+  .answer-row .a.empty{color:var(--danger)}
+  .answer-row .edit-hint{font-size:11px;color:var(--accent);margin-top:4px;font-weight:600}
+  .stack-actions{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .stack-actions .opt{text-align:center}
+  button:focus-visible,.opt:focus-visible,.icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
 <body>
 <header class="brandbar">
   <div class="top">
-    <img class="brand-logo" src="/survey/assets/ro-logo.png" alt="Retail Odyssey" width="120" height="34">
+    <button type="button" class="icon-btn" id="btn-home" title="Home — store selection" aria-label="Home">⌂ Home</button>
     <div class="brand-titles">
       <div class="co">Retail Odyssey</div>
       <h1 id="hdr-title">Store Survey</h1>
     </div>
-    <span id="save-state" role="status" aria-live="polite"></span>
+    <div class="brand-actions">
+      <button type="button" class="icon-btn" id="btn-theme" title="Toggle light/dark mode" aria-label="Toggle theme">Dark</button>
+      <span id="save-state" role="status" aria-live="polite"></span>
+    </div>
   </div>
   <div class="progress" aria-hidden="true"><i id="prog"></i></div>
 </header>
@@ -170,6 +202,7 @@
 const ASSET = '/survey/assets';
 const SECTION_ART = {};
 'ABCDEFGHIJK'.split('').forEach((id) => { SECTION_ART[id] = ASSET + '/section-' + id + '.jpg'; });
+const THEME_KEY = 'surveyTheme';
 
 function resolveApiBase() {
   const h = (location.hostname || '').toLowerCase();
@@ -199,18 +232,41 @@ async function api(path, opts = {}) {
 const $ = (s) => document.querySelector(s);
 const main = $('#main');
 
-// Phase: 'pick' | 'survey' | 'done'
+// Phase: 'pick' | 'answers' | 'survey' | 'done'
 let ME = null, SPEC = null, PHASE = 'pick';
-let SELECTED_STORE = null; // single store preselect / override
+let SELECTED_STORE = null;
 let STORE = null;
-let FLAT = []; // flattened visible questions for current store
+let FLAT = [];
 let QINDEX = 0;
 let ANSWERS = {};
 let PHOTOS = [];
 let BASELINE = {};
 let SUGGESTIONS = { byQuestion: {}, crossStoreAnswers: {} };
+let RESPONSE_META = null; // status, updatedAt from context
 let dirty = false, saveTimer = null, saving = false;
 let addDistrict = '', addStorePick = '';
+let autoAdvanceTimer = null;
+
+// ─── Theme ───────────────────────────────────────────────────────────────────
+function getTheme() {
+  const t = localStorage.getItem(THEME_KEY);
+  if (t === 'dark' || t === 'light') return t;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+  return 'light';
+}
+function applyTheme(theme) {
+  const t = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem(THEME_KEY, t);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = t === 'dark' ? '#121a22' : '#0f5c8c';
+  const btn = $('#btn-theme');
+  if (btn) btn.textContent = t === 'dark' ? 'Light' : 'Dark';
+}
+applyTheme(getTheme());
+$('#btn-theme').onclick = () => {
+  applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
+};
 
 function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -246,9 +302,26 @@ function isAnswered(q) {
   return true;
 }
 
+function displayAnswer(q) {
+  const v = ANSWERS[q.id];
+  if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
+  let s = Array.isArray(v) ? v.join(', ') : String(v);
+  if (q.detailOn && v === q.detailOn && ANSWERS[q.id + '_d']) {
+    s += ' — ' + ANSWERS[q.id + '_d'];
+  }
+  if (ANSWERS[q.id + '_c']) s += ' (note)';
+  return s;
+}
+
 function setProgress() {
-  if (PHASE !== 'survey' || !FLAT.length) {
+  if ((PHASE !== 'survey' && PHASE !== 'answers') || !FLAT.length) {
     $('#prog').style.width = '0';
+    return;
+  }
+  if (PHASE === 'answers') {
+    const done = FLAT.filter(isAnswered).length;
+    const pct = Math.round((done / Math.max(FLAT.length, 1)) * 100);
+    $('#prog').style.width = Math.min(100, pct) + '%';
     return;
   }
   const pct = Math.round(((QINDEX) / Math.max(FLAT.length, 1)) * 100);
@@ -284,6 +357,32 @@ async function saveDraft(submit) {
     });
     dirty = false;
     setSave(submit ? 'Submitted ✓' : 'Saved ✓', 'saved');
+    // Keep local status in ME so home list stays current
+    if (ME && ME.storeDetails) {
+      const sn = Number(STORE);
+      let found = false;
+      ME.storeDetails = ME.storeDetails.map((s) => {
+        if (Number(s.storeNum) !== sn) return s;
+        found = true;
+        return {
+          ...s,
+          status: submit ? 'submitted' : (s.status === 'submitted' ? 'submitted' : 'draft'),
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      if (!found) {
+        ME.storeDetails.push({
+          storeNum: sn,
+          district: null,
+          suggested: false,
+          status: submit ? 'submitted' : 'draft',
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+    if (RESPONSE_META) {
+      RESPONSE_META.status = submit ? 'submitted' : (RESPONSE_META.status || 'draft');
+    }
     return r;
   } catch (e) {
     setSave('Offline — retrying', 'warn');
@@ -294,7 +393,29 @@ async function saveDraft(submit) {
   }
 }
 
-// ─── Store picker (today's schedule prefill + district/store override) ───────
+async function goHome() {
+  clearTimeout(autoAdvanceTimer);
+  if (STORE && dirty) await saveDraft(false);
+  STORE = null;
+  FLAT = [];
+  QINDEX = 0;
+  ANSWERS = {};
+  PHOTOS = [];
+  RESPONSE_META = null;
+  // Refresh me for latest statuses (best-effort)
+  try {
+    const me = await api('/api/survey/me');
+    if (me && me.ok) {
+      ME = me;
+      SUGGESTIONS = me.suggestions || SUGGESTIONS;
+    }
+  } catch (_) { /* keep cached ME */ }
+  renderPicker();
+}
+
+$('#btn-home').onclick = () => { goHome(); };
+
+// ─── Store picker / home ─────────────────────────────────────────────────────
 function storeMetaMap() {
   const map = new Map();
   const catalog = ME.catalog || { stores: [] };
@@ -305,6 +426,7 @@ function storeMetaMap() {
       district: s.district || '?',
       status: null,
       suggested: false,
+      updatedAt: null,
     });
   }
   for (const s of detailList) {
@@ -315,6 +437,7 @@ function storeMetaMap() {
       district: s.district || prev.district || '?',
       status: s.status || null,
       suggested: !!(s.suggested || prev.suggested),
+      updatedAt: s.updatedAt || s.updated_at || null,
     });
   }
   const suggested = ME.suggestedStores || [];
@@ -337,11 +460,45 @@ function formatScheduleDate(iso) {
   }
 }
 
+function formatUpdated(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function recentStores(meta) {
+  const out = [];
+  for (const s of (ME.storeDetails || [])) {
+    if (!s.status) continue;
+    const sn = Number(s.storeNum);
+    const m = meta.get(sn) || s;
+    out.push({
+      storeNum: sn,
+      district: m.district || s.district || '?',
+      status: s.status,
+      updatedAt: s.updatedAt || s.updated_at || null,
+      suggested: !!(m.suggested),
+    });
+  }
+  out.sort((a, b) => {
+    const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return tb - ta;
+  });
+  return out;
+}
+
 function renderPicker() {
   PHASE = 'pick';
   STORE = null;
   FLAT = [];
   QINDEX = 0;
+  clearTimeout(autoAdvanceTimer);
   setProgress();
   $('#stepnav').hidden = true;
   $('#hdr-title').textContent = 'Store Survey';
@@ -362,7 +519,6 @@ function renderPicker() {
     ? catalog.districts
     : [...new Set(allStores.map((s) => s.district).filter(Boolean))].sort();
 
-  // Sync district dropdown to selected store when possible
   if (SELECTED_STORE != null && !addDistrict) {
     const m = meta.get(SELECTED_STORE);
     if (m && m.district && m.district !== '?') addDistrict = String(m.district);
@@ -423,20 +579,39 @@ function renderPicker() {
     ? 'Select a district first'
     : (districtStores.length ? 'Select a store' : 'No stores in this district');
 
+  const recent = recentStores(meta);
+  const recentHtml = recent.length
+    ? recent.map((s) => {
+        const when = formatUpdated(s.updatedAt);
+        const st = s.status === 'submitted' ? 'submitted' : 'draft';
+        return `<button type="button" class="store-row" data-open-store="${s.storeNum}">
+          <span style="flex:1">
+            <strong>Store ${s.storeNum}</strong> · D${esc(s.district || '?')}
+            <br><span class="hint">${st}${when ? ' · updated ' + esc(when) : ''} · tap to review / edit answers</span>
+          </span>
+        </button>`;
+      }).join('')
+    : '<div class="sel-empty">No drafts or submissions yet. Start a store below — you can return here anytime with Home.</div>';
+
   main.innerHTML = `
     <div class="card">
       <div class="eyebrow">Division 701</div>
-      <div class="qtext" style="margin-bottom:8px">Which store are you surveying today?</div>
+      <div class="qtext" style="margin-bottom:8px">Your stores</div>
       <div class="note">${noteHtml}</div>
 
       <div class="sel-section">
-        <h2>Your store selection</h2>
+        <h2>Today's store</h2>
         <div class="sel-list" id="sel-list">${selectionHtml}</div>
-        <p class="hint" style="margin-top:10px">One store per visit. You can change it any time before you start.</p>
+        <p class="hint" style="margin-top:10px">Open a store to answer questions, leave, and come back later to edit.</p>
       </div>
 
       <div class="sel-section">
-        <h2>Change store</h2>
+        <h2>In progress &amp; completed</h2>
+        <div class="sel-list">${recentHtml}</div>
+      </div>
+
+      <div class="sel-section">
+        <h2>Change / pick a store</h2>
         <div class="add-store">
           <div>
             <label for="f-dist">District</label>
@@ -452,7 +627,7 @@ function renderPicker() {
                 <option value="">${esc(storePlaceholder)}</option>
                 ${storeOpts}
               </select>
-              <button type="button" id="btn-add-store" ${!addStorePick ? 'disabled' : ''}>Use store</button>
+              <button type="button" id="btn-use-store" ${!addStorePick ? 'disabled' : ''}>Use store</button>
             </div>
           </div>
         </div>
@@ -466,10 +641,10 @@ function renderPicker() {
   };
   $('#f-store').onchange = (e) => {
     addStorePick = e.target.value;
-    const btn = $('#btn-add-store');
+    const btn = $('#btn-use-store');
     if (btn) btn.disabled = !addStorePick;
   };
-  $('#btn-add-store').onclick = () => {
+  $('#btn-use-store').onclick = () => {
     const sn = Number(addStorePick);
     if (!Number.isFinite(sn)) return;
     SELECTED_STORE = sn;
@@ -482,10 +657,16 @@ function renderPicker() {
       renderPicker();
     };
   });
+  main.querySelectorAll('[data-open-store]').forEach((btn) => {
+    btn.onclick = () => {
+      SELECTED_STORE = Number(btn.dataset.openStore);
+      openStore(SELECTED_STORE, { preferAnswers: true });
+    };
+  });
 
   $('#stepnav').hidden = false;
   $('#btn-back').textContent = 'Clear';
-  $('#btn-next').textContent = 'Start survey';
+  $('#btn-next').textContent = 'Open store';
   updatePickerNext();
 }
 
@@ -495,34 +676,50 @@ function updatePickerNext() {
     btn.disabled = SELECTED_STORE == null;
     btn.className = '';
     btn.textContent = SELECTED_STORE != null
-      ? 'Start · Store ' + SELECTED_STORE
-      : 'Start survey';
+      ? 'Open · Store ' + SELECTED_STORE
+      : 'Open store';
   }
 }
 
-async function startSelectedStores() {
-  if (SELECTED_STORE == null) return;
-  await openStore(SELECTED_STORE);
-}
-
-async function openStore(storeNum) {
-  STORE = storeNum;
-  PHASE = 'survey';
-  const ctx = await api(`/api/survey/stores/${storeNum}/context`);
+async function openStore(storeNum, opts = {}) {
+  const preferAnswers = !!opts.preferAnswers;
+  const jumpTo = opts.jumpTo != null ? Number(opts.jumpTo) : null;
+  STORE = Number(storeNum);
+  SELECTED_STORE = STORE;
+  clearTimeout(autoAdvanceTimer);
+  setSave('Loading…', '');
+  const ctx = await api(`/api/survey/stores/${STORE}/context`);
   ANSWERS = ctx.myResponse ? { ...ctx.myResponse.answers } : {};
-  const ph = await api(`/api/survey/stores/${storeNum}/photos`);
+  RESPONSE_META = ctx.myResponse
+    ? { status: ctx.myResponse.status, updatedAt: ctx.myResponse.updated_at || ctx.myResponse.updatedAt }
+    : null;
+  const ph = await api(`/api/survey/stores/${STORE}/photos`);
   PHOTOS = (ph.photos || []).filter((p) => p.respondent === ME.user.email);
   BASELINE = {};
   for (const b of ctx.baseline || []) Object.assign(BASELINE, b.answers || {});
   SUGGESTIONS = ctx.suggestions || ME.suggestions || { byQuestion: {}, crossStoreAnswers: {} };
   rebuildFlat();
-  // Resume at first unanswered required question
-  QINDEX = 0;
-  for (let i = 0; i < FLAT.length; i++) {
-    if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
-    QINDEX = i;
+  setSave('', '');
+
+  const hasAnyAnswer = Object.keys(ANSWERS).some((k) => {
+    if (k.endsWith('_c') || k.endsWith('_d')) return false;
+    const v = ANSWERS[k];
+    return v != null && v !== '' && !(Array.isArray(v) && !v.length);
+  });
+
+  if (jumpTo != null && Number.isFinite(jumpTo)) {
+    QINDEX = Math.max(0, Math.min(jumpTo, FLAT.length));
+    renderQuestion();
+    return;
   }
-  if (FLAT.every(isAnswered) && FLAT.length) QINDEX = FLAT.length; // review
+
+  if (preferAnswers || hasAnyAnswer) {
+    renderAnswerList();
+    return;
+  }
+
+  // Fresh store — start survey
+  QINDEX = 0;
   renderQuestion();
 }
 
@@ -530,12 +727,86 @@ function rebuildFlat() {
   FLAT = flattenQuestions(SPEC, ANSWERS);
 }
 
-// ─── One question at a time (no full-page jump) ──────────────────────────────
-function renderQuestion() {
-  PHASE = 'survey';
+// ─── Answer list (review / edit hub for a store) ─────────────────────────────
+function renderAnswerList() {
+  PHASE = 'answers';
+  clearTimeout(autoAdvanceTimer);
+  rebuildFlat();
   setProgress();
   $('#stepnav').hidden = false;
-  $('#btn-back').textContent = QINDEX <= 0 ? 'Change store' : 'Back';
+  $('#hdr-title').textContent = `Store ${STORE} · Answers`;
+
+  let answered = 0, total = 0;
+  let html = '';
+  FLAT.forEach((q, i) => {
+    if (!q.optional) total++;
+    const ok = isAnswered(q);
+    if (ok && !q.optional) answered++;
+    const disp = displayAnswer(q);
+    const label = disp == null
+      ? '<span class="a empty">Not answered</span>'
+      : `<span class="a">${esc(disp)}</span>`;
+    html += `<button type="button" class="answer-row" data-jump="${i}">
+      <span class="num">${esc(q.id.replace(/^Q/, ''))}</span>
+      <span class="body">
+        <div class="q">${esc(q.text)}</div>
+        ${label}
+        <div class="edit-hint">Tap to edit</div>
+      </span>
+    </button>`;
+  });
+
+  const statusLabel = RESPONSE_META?.status === 'submitted'
+    ? 'Submitted'
+    : (RESPONSE_META?.status === 'draft' || answered > 0 ? 'Draft saved' : 'Not started');
+
+  main.innerHTML = `
+    <div class="card">
+      <div class="eyebrow">Store ${STORE}</div>
+      <div class="qtext" style="margin-bottom:6px">${answered} of ${total} required answered</div>
+      <div class="hint">${statusLabel}. Tap any question to edit. Use Home to switch stores anytime — progress is saved.</div>
+      <div class="stack-actions">
+        <button type="button" class="opt" id="btn-continue-survey" style="text-align:center;background:var(--accent);color:#fff;border-color:var(--accent)">Continue survey</button>
+        <button type="button" class="opt" id="btn-review-end" style="text-align:center">Review &amp; submit</button>
+      </div>
+    </div>
+    <div class="card" style="padding:10px">${html || '<div class="sel-empty">No questions loaded.</div>'}</div>`;
+
+  main.querySelectorAll('[data-jump]').forEach((b) => {
+    b.onclick = () => {
+      QINDEX = Number(b.dataset.jump);
+      renderQuestion();
+    };
+  });
+  $('#btn-continue-survey').onclick = () => {
+    // Resume at first unanswered, or review if all done
+    QINDEX = 0;
+    for (let i = 0; i < FLAT.length; i++) {
+      if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
+      QINDEX = i;
+    }
+    if (FLAT.length && FLAT.every(isAnswered)) QINDEX = FLAT.length;
+    renderQuestion();
+  };
+  $('#btn-review-end').onclick = () => {
+    QINDEX = FLAT.length;
+    renderReview();
+  };
+
+  $('#btn-back').textContent = 'Home';
+  $('#btn-next').textContent = 'Continue';
+  $('#btn-next').className = '';
+  $('#btn-next').disabled = false;
+}
+
+// ─── One question at a time ──────────────────────────────────────────────────
+function renderQuestion(opts = {}) {
+  PHASE = 'survey';
+  const focusDetail = !!opts.focusDetail;
+  const focusText = !!opts.focusText;
+  setProgress();
+  $('#stepnav').hidden = false;
+  $('#btn-back').textContent = QINDEX <= 0 ? 'Answers' : 'Back';
 
   if (QINDEX >= FLAT.length) {
     renderReview();
@@ -548,14 +819,12 @@ function renderQuestion() {
   $('#btn-next').className = '';
   $('#btn-next').disabled = !isAnswered(q);
 
-  const art = SECTION_ART[q.section] || ASSET + '/ro-logo.png';
   const body = questionBody(q);
   const photo = photoBlock(q);
   const comment = commentBlock(q);
   const cross = crossStoreChips(q);
   const base = baselineChip(q);
 
-  // In-place update: replace main content without scrollTo(0)
   main.innerHTML = `
     <div class="card" id="q-card">
       <div class="meta-line">Question ${QINDEX + 1} of ${FLAT.length} · ${esc(q.sectionTitle || q.section)}</div>
@@ -569,7 +838,6 @@ function renderQuestion() {
     </div>`;
 
   wireQuestion(q);
-  // Keep focus near question — only scroll if card is way off screen
   const card = $('#q-card');
   if (card) {
     const rect = card.getBoundingClientRect();
@@ -577,6 +845,28 @@ function renderQuestion() {
       card.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
   }
+
+  // Focus text fields so mobile keyboard opens
+  requestAnimationFrame(() => {
+    let target = null;
+    if (focusDetail) {
+      target = main.querySelector(`input[data-tq="${q.id}_d"]`);
+    } else if (focusText || q.type === 'text') {
+      target = main.querySelector(`input[data-tq="${q.id}"]`);
+    }
+    if (target) {
+      try {
+        target.focus({ preventScroll: false });
+        // Place caret at end
+        const len = target.value.length;
+        if (typeof target.setSelectionRange === 'function') {
+          target.setSelectionRange(len, len);
+        }
+      } catch (_) {
+        try { target.focus(); } catch (__) {}
+      }
+    }
+  });
 }
 
 function examplesBlock(examples, label) {
@@ -600,7 +890,7 @@ function questionBody(q) {
       ).join('') + '</div>';
     if (q.detailOn && ANSWERS[q.id] === q.detailOn) {
       const ph = q.detailPlaceholder || 'Please explain / name';
-      html += `<div class="suggest-wrap" style="margin-top:10px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="${escAttr(ph)}" autocomplete="off"></div>`;
+      html += `<div class="suggest-wrap" style="margin-top:10px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="${escAttr(ph)}" autocomplete="off" enterkeyhint="done"></div>`;
       html += examplesBlock(q.detailExamples, q.detailExamplesLabel || 'Suggestions');
     }
     return html;
@@ -614,7 +904,7 @@ function questionBody(q) {
   }
   const ph = q.placeholder || 'Type your answer';
   return examplesBlock(q.examples, q.examplesLabel || 'Examples') +
-    `<div class="suggest-wrap"><input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="${escAttr(ph)}" autocomplete="off"></div>`;
+    `<div class="suggest-wrap"><input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="${escAttr(ph)}" autocomplete="off" enterkeyhint="done"></div>`;
 }
 
 function commentBlock(q) {
@@ -697,20 +987,97 @@ function wireTypeahead(input, qid) {
     show(input.value);
     refreshNextEnabled();
   });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.classList.remove('open');
+      input.blur();
+      // After text entry, allow advancing if complete
+      if (PHASE === 'survey' && isAnswered(FLAT[QINDEX])) {
+        goNext(false);
+      }
+    }
+  });
   input.addEventListener('blur', () => setTimeout(() => panel.classList.remove('open'), 120));
+}
+
+/** Advance to next question (or review). Auto-save first. */
+async function goNext(fromAuto) {
+  if (PHASE === 'pick') {
+    if (SELECTED_STORE == null) return;
+    await openStore(SELECTED_STORE, { preferAnswers: true });
+    return;
+  }
+  if (PHASE === 'answers') {
+    QINDEX = 0;
+    for (let i = 0; i < FLAT.length; i++) {
+      if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
+      QINDEX = i;
+    }
+    if (FLAT.length && FLAT.every(isAnswered)) QINDEX = FLAT.length;
+    renderQuestion();
+    return;
+  }
+  if (PHASE === 'survey' && QINDEX >= FLAT.length) {
+    const r = await saveDraft(true);
+    if (r && r.ok) {
+      PHASE = 'done';
+      $('#stepnav').hidden = true;
+      main.innerHTML = `<div class="card">
+          <div class="qtext">Store ${STORE} complete. ✓</div>
+          <div class="hint">Answers are saved. Use Home to open another store, or reopen this one to edit anytime.</div>
+          <div class="stack-actions">
+            <button type="button" class="opt" id="btn-done-answers" style="text-align:center">View answers</button>
+            <button type="button" class="opt" id="btn-done-home" style="text-align:center;background:var(--accent);color:#fff;border-color:var(--accent)">Home</button>
+          </div>
+        </div>`;
+      $('#btn-done-answers').onclick = () => renderAnswerList();
+      $('#btn-done-home').onclick = () => goHome();
+    }
+    return;
+  }
+  if (PHASE !== 'survey') return;
+  const q = FLAT[QINDEX];
+  if (!isAnswered(q)) return;
+  await saveDraft(false);
+  QINDEX++;
+  rebuildFlat();
+  if (QINDEX > FLAT.length) QINDEX = FLAT.length;
+  renderQuestion();
 }
 
 function wireQuestion(q) {
   main.querySelectorAll('.opt[data-q]').forEach((b) => {
     b.onclick = () => {
-      ANSWERS[b.dataset.q] = b.dataset.val;
+      const val = b.dataset.val;
+      ANSWERS[b.dataset.q] = val;
+      // Clear stale detail if no longer needed
+      if (q.detailOn && val !== q.detailOn) {
+        delete ANSWERS[q.id + '_d'];
+      }
       markDirty();
-      // Re-render only this question card (branches may change) — stay in place
-      const prevLen = FLAT.length;
       rebuildFlat();
-      // If branch questions inserted after current, keep index on same q
       const idx = FLAT.findIndex((x) => x.id === q.id);
       if (idx >= 0) QINDEX = idx;
+
+      const needsDetail = q.detailOn && val === q.detailOn;
+      if (needsDetail) {
+        // Show text field and focus for keyboard
+        renderQuestion({ focusDetail: true });
+        return;
+      }
+
+      // Yes/No and single-choice: auto-advance when fully answered
+      if ((q.type === 'yesno' || q.type === 'choice') && isAnswered(q)) {
+        // Brief visual update then advance
+        main.querySelectorAll(`.opt[data-q="${q.id}"]`).forEach((el) => {
+          el.setAttribute('aria-pressed', el.dataset.val === val ? 'true' : 'false');
+        });
+        clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = setTimeout(() => goNext(true), 180);
+        return;
+      }
+
       renderQuestion();
       refreshNextEnabled();
     };
@@ -726,7 +1093,7 @@ function wireQuestion(q) {
       }
       ANSWERS[id] = cur;
       markDirty();
-      // Update pressed state in place without full rebuild when possible
+      // Multiselect: never auto-advance
       renderQuestion();
     };
   });
@@ -739,7 +1106,8 @@ function wireQuestion(q) {
       ANSWERS[c.dataset.chip] = c.dataset.val;
       markDirty();
       rebuildFlat();
-      renderQuestion();
+      // Chip is text-like prefills for text questions — don't auto-advance
+      renderQuestion({ focusText: true });
     };
   });
   main.querySelectorAll('.chip[data-cross-store]').forEach((c) => {
@@ -754,6 +1122,7 @@ function wireQuestion(q) {
         markDirty();
         rebuildFlat();
         renderQuestion();
+        // If fully answered choice after cross-fill, stay for user confirm (no auto)
       }
     };
   });
@@ -778,6 +1147,7 @@ function refreshNextEnabled() {
 }
 
 function renderReview() {
+  PHASE = 'survey';
   $('#hdr-title').textContent = `Store ${STORE} · Review`;
   let answered = 0, total = 0;
   let html = '';
@@ -786,12 +1156,17 @@ function renderReview() {
     if (!q.optional) total++;
     const ok = isAnswered(q);
     if (ok && !q.optional) answered++;
-    const v = ANSWERS[q.id];
-    const disp = !ok
+    const disp = displayAnswer(q);
+    const label = disp == null
       ? '<span style="color:var(--danger)">Not answered</span>'
-      : esc(Array.isArray(v) ? v.join(', ') : String(v ?? ''));
-    html += `<button type="button" class="store-row" data-jump="${i}" style="width:100%">
-      <span style="flex:1;text-align:left"><strong>${esc(q.id)}</strong> ${esc(q.text.slice(0, 48))}${q.text.length > 48 ? '…' : ''}<br><span class="hint">${disp}</span></span>
+      : esc(disp);
+    html += `<button type="button" class="answer-row" data-jump="${i}">
+      <span class="num">${esc(q.id.replace(/^Q/, ''))}</span>
+      <span class="body">
+        <div class="q">${esc(q.text.slice(0, 72))}${q.text.length > 72 ? '…' : ''}</div>
+        <div class="a">${label}</div>
+        <div class="edit-hint">Tap to edit</div>
+      </span>
     </button>`;
   });
   main.innerHTML = `
@@ -799,11 +1174,11 @@ function renderReview() {
       <div class="qtext">${answered} of ${total} required answered</div>
       <div class="hint">Tap any question to change it. Submitting updates this store — previous versions are kept in history.</div>
     </div>
-    <div class="card" style="padding:8px">${html}</div>`;
+    <div class="card" style="padding:10px">${html}</div>`;
   main.querySelectorAll('[data-jump]').forEach((b) => {
     b.onclick = () => { QINDEX = Number(b.dataset.jump); renderQuestion(); };
   });
-  $('#btn-back').textContent = 'Back';
+  $('#btn-back').textContent = 'Answers';
   $('#btn-next').textContent = 'Submit store';
   $('#btn-next').className = 'submit';
   $('#btn-next').disabled = false;
@@ -850,57 +1225,36 @@ function addPhoto(questionId) {
 
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 $('#btn-back').onclick = async () => {
+  clearTimeout(autoAdvanceTimer);
   if (PHASE === 'pick') {
     SELECTED_STORE = null;
     addStorePick = '';
     renderPicker();
     return;
   }
+  if (PHASE === 'answers') {
+    await goHome();
+    return;
+  }
   await saveDraft(false);
+  if (QINDEX >= FLAT.length) {
+    // Review → answer list
+    renderAnswerList();
+    return;
+  }
   if (QINDEX <= 0) {
-    // back to store picker; keep current selection
-    renderPicker();
+    renderAnswerList();
     return;
   }
   QINDEX--;
-  // skip orphaned branch questions
   rebuildFlat();
   if (QINDEX >= FLAT.length) QINDEX = FLAT.length - 1;
   renderQuestion();
 };
 
 $('#btn-next').onclick = async () => {
-  if (PHASE === 'pick') {
-    await startSelectedStores();
-    return;
-  }
-  if (QINDEX >= FLAT.length) {
-    const r = await saveDraft(true);
-    if (r && r.ok) {
-      PHASE = 'done';
-      $('#stepnav').hidden = true;
-      main.innerHTML = `<div class="card">
-          <div class="qtext">Store ${STORE} complete. ✓</div>
-          <div class="hint">You can reopen this store later to update answers — history is kept automatically.</div>
-          <button type="button" class="opt" id="again" style="margin-top:12px">Survey another store</button>
-        </div>`;
-      $('#again').onclick = () => {
-        SELECTED_STORE = null;
-        addDistrict = '';
-        addStorePick = '';
-        renderPicker();
-      };
-    }
-    return;
-  }
-  const q = FLAT[QINDEX];
-  if (!isAnswered(q)) return;
-  await saveDraft(false);
-  QINDEX++;
-  rebuildFlat();
-  // After answering, branch list may grow — clamp
-  if (QINDEX > FLAT.length) QINDEX = FLAT.length;
-  renderQuestion();
+  clearTimeout(autoAdvanceTimer);
+  await goNext(false);
 };
 
 document.addEventListener('visibilitychange', () => {
