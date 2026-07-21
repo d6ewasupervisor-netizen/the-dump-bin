@@ -247,7 +247,8 @@ let ANSWERS = {};
 let PHOTOS = [];
 let BASELINE = {};
 let SUGGESTIONS = { byQuestion: {}, crossStoreAnswers: {} };
-let RESPONSE_META = null; // status, updatedAt from context
+let RESPONSE_META = null; // status, updatedAt, id from context
+let MY_SUBMISSIONS = [];
 let dirty = false, saveTimer = null, saving = false;
 let addDistrict = '', addStorePick = '';
 let autoAdvanceTimer = null;
@@ -366,7 +367,12 @@ function setSave(msg, cls) {
   el.className = cls || '';
 }
 
+function isLocked() {
+  return !!(RESPONSE_META && RESPONSE_META.status === 'submitted');
+}
+
 function markDirty() {
+  if (isLocked()) return;
   dirty = true;
   setSave('Saving…', '');
   clearTimeout(saveTimer);
@@ -375,6 +381,11 @@ function markDirty() {
 
 async function saveDraft(submit) {
   if (!STORE) return null;
+  if (isLocked() && !submit) return null;
+  if (isLocked() && submit) {
+    setSave('Already submitted — retake to add a new response', 'warn');
+    return { ok: false, locked: true };
+  }
   clearTimeout(saveTimer);
   if (saving) return null;
   saving = true;
@@ -387,6 +398,10 @@ async function saveDraft(submit) {
         submit: !!submit,
       }),
     });
+    if (r && r.locked && !submit) {
+      setSave(r.error || 'Locked', 'warn');
+      return r;
+    }
     dirty = false;
     setSave(submit ? 'Submitted ✓' : 'Saved ✓', 'saved');
     // Keep local status in ME so home list stays current
@@ -396,10 +411,12 @@ async function saveDraft(submit) {
       ME.storeDetails = ME.storeDetails.map((s) => {
         if (Number(s.storeNum) !== sn) return s;
         found = true;
+        const prevCount = Number(s.submissionCount) || 0;
         return {
           ...s,
-          status: submit ? 'submitted' : (s.status === 'submitted' ? 'submitted' : 'draft'),
+          status: submit ? 'submitted' : 'draft',
           updatedAt: new Date().toISOString(),
+          submissionCount: submit && s.status !== 'submitted' ? prevCount + 1 : prevCount,
         };
       });
       if (!found) {
@@ -409,11 +426,22 @@ async function saveDraft(submit) {
           suggested: false,
           status: submit ? 'submitted' : 'draft',
           updatedAt: new Date().toISOString(),
+          submissionCount: submit ? 1 : 0,
         });
       }
     }
     if (RESPONSE_META) {
       RESPONSE_META.status = submit ? 'submitted' : (RESPONSE_META.status || 'draft');
+      if (r && r.response) {
+        RESPONSE_META.id = r.response.id;
+        RESPONSE_META.updatedAt = r.response.updated_at || r.response.updatedAt;
+      }
+    } else if (r && r.response) {
+      RESPONSE_META = {
+        id: r.response.id,
+        status: r.response.status,
+        updatedAt: r.response.updated_at || r.response.updatedAt,
+      };
     }
     return r;
   } catch (e) {
@@ -425,9 +453,44 @@ async function saveDraft(submit) {
   }
 }
 
+async function retakeSurvey() {
+  if (!STORE) return;
+  if (!confirm('Start a new survey for this store? Your previous submitted answers stay on record and will still count in division results.')) {
+    return;
+  }
+  setSave('Starting new survey…', '');
+  try {
+    const r = await api(`/api/survey/stores/${STORE}/retake`, { method: 'POST', body: '{}' });
+    if (!r || !r.ok) {
+      setSave((r && r.error) || 'Retake failed', 'warn');
+      return;
+    }
+    ANSWERS = {};
+    PHOTOS = [];
+    dirty = false;
+    RESPONSE_META = {
+      id: r.response.id,
+      status: 'draft',
+      updatedAt: r.response.updated_at || r.response.updatedAt || new Date().toISOString(),
+    };
+    if (ME && ME.storeDetails) {
+      const sn = Number(STORE);
+      ME.storeDetails = ME.storeDetails.map((s) =>
+        Number(s.storeNum) === sn ? { ...s, status: 'draft', updatedAt: new Date().toISOString() } : s
+      );
+    }
+    setSave('New survey started', 'saved');
+    QINDEX = 0;
+    rebuildFlat();
+    renderQuestion();
+  } catch (e) {
+    setSave(e.message || 'Retake failed', 'warn');
+  }
+}
+
 async function goHome() {
   clearTimeout(autoAdvanceTimer);
-  if (STORE && dirty) await saveDraft(false);
+  if (STORE && dirty && !isLocked()) await saveDraft(false);
   STORE = null;
   STORE_NAME = null;
   FLAT = [];
@@ -435,6 +498,7 @@ async function goHome() {
   ANSWERS = {};
   PHOTOS = [];
   RESPONSE_META = null;
+  MY_SUBMISSIONS = [];
   // Refresh me for latest statuses (best-effort)
   try {
     const me = await api('/api/survey/me');
@@ -730,15 +794,20 @@ async function openStore(storeNum, opts = {}) {
   STORE_NAME = (ctx.store && (ctx.store.storeName || ctx.store.store_name)) || STORE_NAME || null;
   ANSWERS = ctx.myResponse ? { ...ctx.myResponse.answers } : {};
   RESPONSE_META = ctx.myResponse
-    ? { status: ctx.myResponse.status, updatedAt: ctx.myResponse.updated_at || ctx.myResponse.updatedAt }
+    ? {
+        id: ctx.myResponse.id,
+        status: ctx.myResponse.status,
+        updatedAt: ctx.myResponse.updated_at || ctx.myResponse.updatedAt,
+      }
     : null;
+  MY_SUBMISSIONS = ctx.mySubmissions || [];
   const ph = await api(`/api/survey/stores/${STORE}/photos`);
   PHOTOS = (ph.photos || []).filter((p) => p.respondent === ME.user.email);
   BASELINE = {};
   for (const b of ctx.baseline || []) Object.assign(BASELINE, b.answers || {});
   SUGGESTIONS = ctx.suggestions || ME.suggestions || { byQuestion: {}, crossStoreAnswers: {} };
   rebuildFlat();
-  setSave('', '');
+  setSave(isLocked() ? 'Submitted — locked' : '', isLocked() ? 'saved' : '');
 
   const hasAnyAnswer = Object.keys(ANSWERS).some((k) => {
     if (k.endsWith('_c') || k.endsWith('_d')) return false;
@@ -746,13 +815,13 @@ async function openStore(storeNum, opts = {}) {
     return v != null && v !== '' && !(Array.isArray(v) && !v.length);
   });
 
-  if (jumpTo != null && Number.isFinite(jumpTo)) {
+  if (jumpTo != null && Number.isFinite(jumpTo) && !isLocked()) {
     QINDEX = Math.max(0, Math.min(jumpTo, FLAT.length));
     renderQuestion();
     return;
   }
 
-  if (preferAnswers || hasAnyAnswer) {
+  if (isLocked() || preferAnswers || hasAnyAnswer) {
     renderAnswerList();
     return;
   }
@@ -785,29 +854,38 @@ function renderAnswerList() {
     const label = disp == null
       ? '<span class="a empty">Not answered</span>'
       : `<span class="a">${esc(disp)}</span>`;
+    const editHint = isLocked()
+      ? '<div class="edit-hint">Locked</div>'
+      : '<div class="edit-hint">Tap to edit</div>';
     html += `<button type="button" class="answer-row" data-jump="${i}">
       <span class="num">${esc(q.id.replace(/^Q/, ''))}</span>
       <span class="body">
         <div class="q">${esc(fillStoreVars(q.text))}</div>
         ${label}
-        <div class="edit-hint">Tap to edit</div>
+        ${editHint}
       </span>
     </button>`;
   });
 
-  const statusLabel = RESPONSE_META?.status === 'submitted'
-    ? 'Submitted'
+  const subCount = MY_SUBMISSIONS.length || (isLocked() ? 1 : 0);
+  const statusLabel = isLocked()
+    ? `Submitted & locked${subCount > 1 ? ` · ${subCount} submissions on record` : ''}`
     : (RESPONSE_META?.status === 'draft' || answered > 0 ? 'Draft saved' : 'Not started');
+
+  const actions = isLocked()
+    ? `<button type="button" class="opt" id="btn-retake" style="text-align:center;background:var(--accent);color:#fff;border-color:var(--accent)">Retake survey</button>
+       <button type="button" class="opt" id="btn-view-locked" style="text-align:center">Review answers</button>`
+    : `<button type="button" class="opt" id="btn-continue-survey" style="text-align:center;background:var(--accent);color:#fff;border-color:var(--accent)">Continue survey</button>
+       <button type="button" class="opt" id="btn-review-end" style="text-align:center">Review &amp; submit</button>`;
 
   main.innerHTML = `
     <div class="card">
       <div class="eyebrow">${esc(storeLabel(STORE))}</div>
       <div class="qtext" style="margin-bottom:6px">${answered} of ${total} required answered</div>
-      <div class="hint">${statusLabel}. Tap any question to edit. Use Home to switch stores anytime — progress is saved.</div>
-      <div class="stack-actions">
-        <button type="button" class="opt" id="btn-continue-survey" style="text-align:center;background:var(--accent);color:#fff;border-color:var(--accent)">Continue survey</button>
-        <button type="button" class="opt" id="btn-review-end" style="text-align:center">Review &amp; submit</button>
-      </div>
+      <div class="hint">${statusLabel}. ${isLocked()
+        ? 'These answers stay on record. Retake to add a new submission for this store — prior data is not overwritten.'
+        : 'Tap any question to edit. Use Home to switch stores anytime — progress is saved.'}</div>
+      <div class="stack-actions">${actions}</div>
     </div>
     <div class="card" style="padding:10px">${html || '<div class="sel-empty">No questions loaded.</div>'}</div>`;
 
@@ -817,23 +895,37 @@ function renderAnswerList() {
       renderQuestion();
     };
   });
-  $('#btn-continue-survey').onclick = () => {
-    // Resume at first unanswered, or review if all done
-    QINDEX = 0;
-    for (let i = 0; i < FLAT.length; i++) {
-      if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
-      QINDEX = i;
-    }
-    if (FLAT.length && FLAT.every(isAnswered)) QINDEX = FLAT.length;
-    renderQuestion();
-  };
-  $('#btn-review-end').onclick = () => {
-    QINDEX = FLAT.length;
-    renderReview();
-  };
+  const btnRetake = $('#btn-retake');
+  if (btnRetake) btnRetake.onclick = () => retakeSurvey();
+  const btnViewLocked = $('#btn-view-locked');
+  if (btnViewLocked) {
+    btnViewLocked.onclick = () => {
+      QINDEX = 0;
+      renderQuestion();
+    };
+  }
+  const btnContinue = $('#btn-continue-survey');
+  if (btnContinue) {
+    btnContinue.onclick = () => {
+      QINDEX = 0;
+      for (let i = 0; i < FLAT.length; i++) {
+        if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
+        QINDEX = i;
+      }
+      if (FLAT.length && FLAT.every(isAnswered)) QINDEX = FLAT.length;
+      renderQuestion();
+    };
+  }
+  const btnReview = $('#btn-review-end');
+  if (btnReview) {
+    btnReview.onclick = () => {
+      QINDEX = FLAT.length;
+      renderReview();
+    };
+  }
 
   $('#btn-back').textContent = 'Home';
-  $('#btn-next').textContent = 'Continue';
+  $('#btn-next').textContent = isLocked() ? 'Retake' : 'Continue';
   $('#btn-next').className = '';
   $('#btn-next').disabled = false;
 }
@@ -854,28 +946,46 @@ function renderQuestion(opts = {}) {
 
   const q = FLAT[QINDEX];
   $('#hdr-title').textContent = `${storeLabel(STORE)} · ${q.section}`;
-  $('#btn-next').textContent = QINDEX >= FLAT.length - 1 ? 'Review' : 'Next';
-  $('#btn-next').className = '';
-  $('#btn-next').disabled = !isAnswered(q);
+  if (isLocked()) {
+    $('#btn-next').textContent = QINDEX >= FLAT.length - 1 ? 'Done' : 'Next';
+    $('#btn-next').className = '';
+    $('#btn-next').disabled = false;
+  } else {
+    $('#btn-next').textContent = QINDEX >= FLAT.length - 1 ? 'Review' : 'Next';
+    $('#btn-next').className = '';
+    $('#btn-next').disabled = !isAnswered(q);
+  }
 
-  const common = commonChip(q);
+  const common = isLocked() ? '' : commonChip(q);
   const body = questionBody(q);
   const photo = photoBlock(q);
   const comment = commentBlock(q);
   const qDisplay = fillStoreVars(q.text);
+  const lockNote = isLocked()
+    ? '<div class="note" style="margin-top:8px">Submitted answers are locked. Retake to add a new response for this store.</div>'
+    : '';
 
   main.innerHTML = `
     <div class="card" id="q-card">
-      <div class="meta-line">Question ${QINDEX + 1} of ${FLAT.length} · ${esc(q.sectionTitle || q.section)}</div>
+      <div class="meta-line">Question ${QINDEX + 1} of ${FLAT.length} · ${esc(q.sectionTitle || q.section)}${isLocked() ? ' · locked' : ''}</div>
       <div class="eyebrow">${esc(storeLabel(STORE))}</div>
       <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + qDisplay)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
+      ${lockNote}
       ${common}
       ${body}
       ${photo}
       ${comment}
     </div>`;
 
-  wireQuestion(q);
+  if (isLocked()) {
+    main.querySelectorAll('button.opt, input, textarea, button.photo-add, [data-del]').forEach((el) => {
+      el.disabled = true;
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '0.85';
+    });
+  } else {
+    wireQuestion(q);
+  }
   const card = $('#q-card');
   if (card) {
     const rect = card.getBoundingClientRect();
@@ -1060,6 +1170,10 @@ async function goNext(fromAuto) {
     return;
   }
   if (PHASE === 'answers') {
+    if (isLocked()) {
+      await retakeSurvey();
+      return;
+    }
     QINDEX = 0;
     for (let i = 0; i < FLAT.length; i++) {
       if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
@@ -1070,27 +1184,34 @@ async function goNext(fromAuto) {
     return;
   }
   if (PHASE === 'survey' && QINDEX >= FLAT.length) {
+    if (isLocked()) {
+      renderAnswerList();
+      return;
+    }
     const r = await saveDraft(true);
     if (r && r.ok) {
       PHASE = 'done';
+      MY_SUBMISSIONS = [...MY_SUBMISSIONS, { id: r.response?.id, status: 'submitted', submittedAt: r.response?.submitted_at }];
       $('#stepnav').hidden = true;
       main.innerHTML = `<div class="card">
-          <div class="qtext">${esc(storeLabel(STORE))} complete. ✓</div>
-          <div class="hint">Answers are saved. Use Home to open another store, or reopen this one to edit anytime.</div>
+          <div class="qtext">${esc(storeLabel(STORE))} submitted. ✓</div>
+          <div class="hint">Answers are locked and kept on record. Retake anytime to add another submission for this store — previous data is not overwritten.</div>
           <div class="stack-actions">
             <button type="button" class="opt" id="btn-done-answers" style="text-align:center">View answers</button>
+            <button type="button" class="opt" id="btn-done-retake" style="text-align:center">Retake survey</button>
             <button type="button" class="opt" id="btn-done-home" style="text-align:center;background:var(--accent);color:#fff;border-color:var(--accent)">Home</button>
           </div>
         </div>`;
       $('#btn-done-answers').onclick = () => renderAnswerList();
+      $('#btn-done-retake').onclick = () => retakeSurvey();
       $('#btn-done-home').onclick = () => goHome();
     }
     return;
   }
   if (PHASE !== 'survey') return;
   const q = FLAT[QINDEX];
-  if (!isAnswered(q)) return;
-  await saveDraft(false);
+  if (!isLocked() && !isAnswered(q)) return;
+  if (!isLocked()) await saveDraft(false);
   QINDEX++;
   rebuildFlat();
   if (QINDEX > FLAT.length) QINDEX = FLAT.length;
@@ -1207,6 +1328,10 @@ function refreshNextEnabled() {
 }
 
 function renderReview() {
+  if (isLocked()) {
+    renderAnswerList();
+    return;
+  }
   PHASE = 'survey';
   $('#hdr-title').textContent = `${storeLabel(STORE)} · Review`;
   let answered = 0, total = 0;
@@ -1233,7 +1358,7 @@ function renderReview() {
   main.innerHTML = `
     <div class="card">
       <div class="qtext">${answered} of ${total} required answered</div>
-      <div class="hint">Tap any question to change it. Submitting updates this store — previous versions are kept in history.</div>
+      <div class="hint">Tap any question to change it. Submit locks this response on record. A later retake adds a new submission — it does not overwrite this one.</div>
     </div>
     <div class="card" style="padding:10px">${html}</div>`;
   main.querySelectorAll('[data-jump]').forEach((b) => {
@@ -1297,7 +1422,7 @@ $('#btn-back').onclick = async () => {
     await goHome();
     return;
   }
-  await saveDraft(false);
+  if (!isLocked()) await saveDraft(false);
   if (QINDEX >= FLAT.length) {
     // Review → answer list
     renderAnswerList();
@@ -1319,7 +1444,7 @@ $('#btn-next').onclick = async () => {
 };
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && STORE) saveDraft(false);
+  if (document.visibilityState === 'hidden' && STORE && !isLocked()) saveDraft(false);
 });
 window.addEventListener('beforeunload', (e) => {
   if (dirty && STORE) { e.preventDefault(); e.returnValue = ''; }

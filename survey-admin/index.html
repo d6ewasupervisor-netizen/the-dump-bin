@@ -263,7 +263,7 @@ async function loadData() {
 
 function renderGrid() {
   const cols = visibleQuestionCols();
-  const meta = [['store_num', 'Store'], ['district', 'District'], ['respondent_name', 'Respondent'], ['team', 'Team'], ['status', 'Status'], ['submitted_at', 'Submitted']];
+  const meta = [['id', '#'], ['store_num', 'Store'], ['district', 'District'], ['respondent_name', 'Respondent'], ['team', 'Team'], ['status', 'Status'], ['submitted_at', 'Submitted']];
   const thead = document.querySelector('#grid thead');
   const tbody = document.querySelector('#grid tbody');
   thead.innerHTML = '<tr>' + meta.concat(cols.map(c => [c.id, c.id])).map(([k, lbl]) =>
@@ -323,6 +323,7 @@ document.getElementById('exp-xlsx').onclick = () => {
   DATA.forEach(r => cols.forEach(c => { if (r.answers[c.id + '_c']) hasComment.add(c.id); }));
   const rows = DATA.map(r => {
     const o = {
+      'Response #': r.id,
       Store: r.store_num,
       'Store name': r.store_name || r.storeName || '',
       District: r.district,
