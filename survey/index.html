@@ -1461,7 +1461,14 @@ window.addEventListener('beforeunload', (e) => {
     ME = me;
     SPEC = q.questionSet.spec;
     SUGGESTIONS = me.suggestions || { byQuestion: {}, crossStoreAnswers: {} };
-    renderPicker();
+    const params = new URLSearchParams(location.search || '');
+    const deepStore = Number(params.get('store'));
+    if (Number.isFinite(deepStore) && deepStore > 0) {
+      SELECTED_STORE = deepStore;
+      await openStore(deepStore, { preferAnswers: true });
+    } else {
+      renderPicker();
+    }
   } catch (e) {
     console.error(e);
     main.innerHTML = `<div class="card">Could not load the survey. Check your connection.</div>`;

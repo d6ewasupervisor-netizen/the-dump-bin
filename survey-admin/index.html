@@ -12,30 +12,170 @@
 <style>
   :root{
     --ink:#1c2733; --ink-soft:#5a6b7d; --line:#d8dfe6; --paper:#eef2f6; --card:#ffffff;
-    --accent:#0f5c8c; --accent-deep:#0a4063; --good:#2e7d52; --bad:#b3402a; --warn:#c98a1b; --focus:#0f5c8c;
+    --accent:#0f5c8c; --accent-deep:#0a4063; --accent-soft:#e8f1f7;
+    --good:#2e7d52; --good-bg:#e8f5ee; --bad:#b3402a; --bad-bg:#fcecea;
+    --warn:#c98a1b; --warn-bg:#fdf4e4; --focus:#0f5c8c; --shadow:0 1px 2px rgba(15,92,140,.06);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html{overscroll-behavior:none}
-  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:15px;overscroll-behavior-y:none}
+  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:15px;overscroll-behavior-y:none;line-height:1.45}
+
   header.brand{
-    position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#fff,#f7fafc);
+    position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#fff,#f7fafc);
     border-bottom:2px solid var(--accent);
-    padding:10px 14px calc(10px);
+    padding:10px 14px 0;
     padding-top:max(10px, env(safe-area-inset-top, 0px));
-    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   }
+  header.brand .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:8px}
   header.brand .logo{height:36px;width:auto}
   header.brand .titles{flex:1;min-width:140px}
   header.brand .co{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
   header.brand h1{font-size:16px;margin:0;letter-spacing:.2px}
-  header.brand .who{color:var(--ink-soft);font-size:12px;word-break:break-all}
-  main{max-width:1280px;margin:0 auto;padding:14px 12px calc(40px + env(safe-area-inset-bottom,0px))}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 14px;box-shadow:0 1px 2px rgba(15,92,140,.05)}
-  .card .big{font-size:24px;font-weight:600}
-  .card .lbl{color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
-  h2{font-size:15px;margin:20px 0 10px;color:var(--ink);display:flex;align-items:center;gap:8px}
+  header.brand .who{color:var(--ink-soft);font-size:12px;text-align:right}
+  header.brand .who strong{display:block;color:var(--ink);font-size:13px}
+
+  .tabs{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{
+    flex:0 0 auto;background:transparent;color:var(--ink-soft);border:0;border-bottom:3px solid transparent;
+    border-radius:0;padding:10px 14px;font-size:13px;font-weight:600;min-height:44px;cursor:pointer;
+  }
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent}
+  .tabs button:hover{color:var(--accent-deep)}
+
+  main{max-width:1280px;margin:0 auto;padding:14px 12px calc(48px + env(safe-area-inset-bottom,0px))}
+  .panel{display:none}
+  .panel.active{display:block}
+
+  .scope-banner{
+    background:var(--accent-soft);border:1px solid #c5d8e6;border-radius:10px;
+    padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--accent-deep);display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  }
+  .scope-banner .tag{font-weight:700;letter-spacing:.02em}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+  .card .big{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+  .card .lbl{color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+  .card.needs .big{color:var(--bad)} .card.assigned .big{color:var(--warn)} .card.done .big{color:var(--good)}
+
+  h2{font-size:15px;margin:18px 0 10px;color:var(--ink);display:flex;align-items:center;gap:8px}
   h2 .sec-ico{width:28px;height:28px;border-radius:8px;object-fit:cover}
+  h3{font-size:14px;margin:0 0 8px;color:var(--ink)}
+  .muted{color:var(--ink-soft)}
+  .hint{font-size:13px;color:var(--ink-soft);margin:0 0 12px}
+
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:#fff;
+    border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;min-height:36px;
+  }
+  .chip.active{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .chip .count{background:var(--paper);border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700}
+  .chip.active .count{background:#fff}
+
+  .status{
+    display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;
+    font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;
+  }
+  .status.needs_assign{background:var(--bad-bg);color:var(--bad)}
+  .status.assigned{background:var(--warn-bg);color:#8a5f10}
+  .status.done{background:var(--good-bg);color:var(--good)}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+  .search{
+    flex:1 1 200px;min-width:160px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    background:#fff;font-size:16px;min-height:44px;
+  }
+  select,input[type="text"],input[type="date"],input[type="number"],input[type="search"],textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:16px;min-height:44px;font-family:inherit;
+  }
+  select[multiple]{min-height:140px;font-size:14px;padding:6px}
+  textarea{min-height:80px;resize:vertical}
+  label.field{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;font-weight:600}
+  .field-wrap{margin-bottom:12px}
+
+  button{
+    background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 14px;
+    font-size:14px;font-weight:600;cursor:pointer;min-height:44px;touch-action:manipulation;
+  }
+  button.secondary{background:#fff;color:var(--accent);border:1.5px solid var(--accent)}
+  button.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
+  button.danger{background:var(--bad)}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+  .check{display:flex;align-items:flex-start;gap:10px;font-size:14px;margin:8px 0}
+  .check input{width:auto;min-height:0;margin-top:3px}
+
+  .panel-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);margin-bottom:12px}
+  .empty{
+    text-align:center;padding:28px 16px;background:var(--card);border:1px dashed var(--line);border-radius:12px;color:var(--ink-soft);
+  }
+  .empty strong{display:block;color:var(--ink);margin-bottom:6px;font-size:15px}
+
+  .cov-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  .cov-table th,.cov-table td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  .cov-table th{background:#eef2f6;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);position:sticky;top:0;z-index:1}
+  .cov-table tr:last-child td{border-bottom:0}
+  .cov-table tr:hover td{background:#f5f8fb}
+  .tablewrap{max-height:min(70vh,620px);overflow:auto;border-radius:12px;-webkit-overflow-scrolling:touch;border:1px solid var(--line)}
+  .assignee-list{display:flex;flex-direction:column;gap:4px}
+  .assignee-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .assignee-row .due{font-size:12px;color:var(--ink-soft)}
+  .btn-xs{min-height:32px;padding:5px 10px;font-size:12px;border-radius:8px}
+
+  .cov-cards{display:none;gap:10px}
+  .store-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
+  .store-card .head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:6px}
+  .store-card .num{font-weight:700;font-size:16px}
+  .store-card .name{font-size:13px;color:var(--ink-soft);margin-bottom:8px}
+
+  .wizard-steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .wizard-steps span{
+    font-size:12px;font-weight:700;color:var(--ink-soft);background:#fff;border:1px solid var(--line);
+    border-radius:999px;padding:6px 11px;
+  }
+  .wizard-steps span.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .wizard-grid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media (min-width:900px){
+    .wizard-grid{grid-template-columns:1fr 1fr}
+    .wizard-grid .span2{grid-column:1 / -1}
+  }
+
+  .typeahead{position:relative}
+  .typeahead-results{
+    position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid var(--line);
+    border-radius:10px;margin-top:4px;max-height:240px;overflow:auto;box-shadow:0 8px 24px rgba(28,39,51,.12);display:none;
+  }
+  .typeahead-results.open{display:block}
+  .typeahead-results button{
+    display:block;width:100%;text-align:left;background:#fff;color:var(--ink);border:0;border-radius:0;
+    border-bottom:1px solid var(--line);padding:10px 12px;font-weight:500;font-size:13px;min-height:0;
+  }
+  .typeahead-results button:last-child{border-bottom:0}
+  .typeahead-results button:hover{background:var(--accent-soft)}
+  .typeahead-results .sub{display:block;font-size:11px;color:var(--ink-soft);font-weight:400}
+  .sel-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;margin-top:8px}
+  .sel-chip{
+    display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent-deep);
+    border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;
+  }
+  .sel-chip button{all:unset;cursor:pointer;color:var(--accent);font-weight:700;padding:0 2px;min-height:0}
+  .dist-picks{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+  .dist-picks label{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+  .store-pick-list{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .store-pick-list label{
+    display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-bottom:1px solid var(--line);
+    font-size:13px;cursor:pointer;margin:0;
+  }
+  .store-pick-list label:last-child{border-bottom:0}
+  .store-pick-list label:hover{background:#f5f8fb}
+  .store-pick-list input{width:auto;min-height:0;margin-top:2px}
+  .success-box{background:var(--good-bg);border:1px solid #b7dfc7;border-radius:12px;padding:14px;margin-top:12px;display:none}
+  .success-box.show{display:block}
+  .err-box{background:var(--bad-bg);border:1px solid #f0c2ba;border-radius:12px;padding:12px;margin-top:10px;color:var(--bad);font-size:13px;display:none}
+  .err-box.show{display:block}
+
   .trend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}
   .trend-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
   .trend-card .qtext{font-size:13px;min-height:36px;margin-bottom:8px}
@@ -44,90 +184,320 @@
   .delta{font-size:12px;color:var(--ink-soft)}
   .filters{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px;margin-bottom:12px}
   .filters label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px}
-  .filters select,.filters input{width:100%;padding:10px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:16px}
-  .filters select[multiple]{height:110px;font-size:14px}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 14px}
-  button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:12px 14px;font-size:14px;font-weight:600;cursor:pointer;min-height:44px;touch-action:manipulation}
-  button.secondary{background:#fff;color:var(--accent);border:1.5px solid var(--accent)}
-  button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
   .viewbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%}
-  .viewbar input,.viewbar select{min-height:44px;font-size:16px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px}
-  th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-  th{background:#eef2f6;cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0}
-  th .dir{color:var(--accent)}
-  tr:hover td{background:#f2f6fa}
+  .viewbar input,.viewbar select{min-height:44px;font-size:16px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:auto}
+  table.grid{width:100%;border-collapse:collapse;background:var(--card);font-size:13px}
+  table.grid th,table.grid td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  table.grid th{background:#eef2f6;cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0}
+  table.grid th .dir{color:var(--accent)}
+  table.grid tr:hover td{background:#f2f6fa}
   td.problem{color:var(--bad);font-weight:600}
   .heat{display:inline-block;width:56px;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--good),var(--warn),var(--bad));position:relative;vertical-align:middle;margin-right:6px}
   .heat i{position:absolute;top:-3px;width:2px;height:16px;background:var(--ink)}
-  .muted{color:var(--ink-soft)}
-  .tablewrap{max-height:min(70vh,560px);overflow:auto;border-radius:12px;-webkit-overflow-scrolling:touch}
-  #status{font-size:13px;color:var(--ink-soft);margin-left:auto}
+  #explore-status{font-size:13px;color:var(--ink-soft);margin-left:auto}
+
+  .toggle-list{display:flex;flex-direction:column;gap:10px}
+  .toggle-row{
+    display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+  }
+  .toggle-row strong{display:block;font-size:14px}
+  .toggle-row span{font-size:12px;color:var(--ink-soft)}
+  .switch{position:relative;width:48px;height:28px;flex:0 0 auto}
+  .switch input{opacity:0;width:0;height:0}
+  .switch .slider{
+    position:absolute;inset:0;background:#c5ced6;border-radius:999px;cursor:pointer;transition:.15s;
+  }
+  .switch .slider:before{
+    content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;
+  }
+  .switch input:checked + .slider{background:var(--accent)}
+  .switch input:checked + .slider:before{transform:translateX(20px)}
+
+  .export-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
   .foot-brand{text-align:center;font-size:11px;color:var(--ink-soft);margin:24px 0 8px;letter-spacing:.04em;text-transform:uppercase}
-  @media (max-width:640px){
+  .loading-overlay{
+    position:fixed;inset:0;background:rgba(238,242,246,.72);z-index:50;display:none;align-items:center;justify-content:center;
+    font-weight:600;color:var(--accent-deep);
+  }
+  .loading-overlay.show{display:flex}
+
+  @media (max-width:720px){
+    .cov-desktop{display:none}
+    .cov-cards{display:grid}
     .toolbar button{flex:1 1 calc(50% - 8px)}
     .viewbar{flex-direction:column;align-items:stretch}
     .viewbar input,.viewbar select{width:100%}
-    #status{margin-left:0;width:100%}
+    #explore-status{margin-left:0;width:100%}
+    header.brand .who{text-align:left;width:100%}
   }
   @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
 </style>
 </head>
 <body>
+<div class="loading-overlay" id="loading">Loading survey admin…</div>
 <header class="brand">
-  <img class="logo" src="/survey/assets/ro-logo.png" alt="The Retail Odyssey Company" width="120" height="36">
-  <div class="titles">
-    <div class="co">Retail Odyssey · Division 701</div>
-    <h1>Survey Admin</h1>
+  <div class="top">
+    <img class="logo" src="/survey/assets/ro-logo.png" alt="The Retail Odyssey Company" width="120" height="36">
+    <div class="titles">
+      <div class="co">Retail Odyssey · Division 701</div>
+      <h1>Survey Admin</h1>
+    </div>
+    <div class="who" id="who"><span class="muted">Signing in…</span></div>
   </div>
-  <span class="who" id="who"></span>
+  <nav class="tabs" id="tabs" aria-label="Survey admin sections">
+    <button type="button" data-tab="coverage" class="active">Coverage</button>
+    <button type="button" data-tab="assign">Assign</button>
+    <button type="button" data-tab="explore">Explore</button>
+    <button type="button" data-tab="alerts">Alerts</button>
+    <button type="button" data-tab="export">Export</button>
+  </nav>
 </header>
+
 <main>
-  <div class="cards">
-    <div class="card"><div class="big" id="c-resp">–</div><div class="lbl">Responses</div></div>
-    <div class="card"><div class="big" id="c-stores">–</div><div class="lbl">Stores reporting</div></div>
-    <div class="card"><div class="big" id="c-base">21</div><div class="lbl">2025 baseline stores</div></div>
+  <div class="scope-banner" id="scope-banner" hidden>
+    <span class="tag" id="scope-tag">Division view</span>
+    <span id="scope-detail"></span>
   </div>
 
-  <h2><img class="sec-ico" src="/survey/assets/section-J.jpg" alt="" width="28" height="28"> Top trending problem questions</h2>
-  <div class="trend-grid" id="trending"></div>
+  <!-- ========== COVERAGE ========== -->
+  <section class="panel active" id="panel-coverage" aria-label="Coverage">
+    <div class="cards">
+      <div class="card"><div class="big" id="c-stores">–</div><div class="lbl">Stores</div></div>
+      <div class="card needs"><div class="big" id="c-needs">–</div><div class="lbl">Needs assign</div></div>
+      <div class="card assigned"><div class="big" id="c-assigned">–</div><div class="lbl">Assigned</div></div>
+      <div class="card done"><div class="big" id="c-done">–</div><div class="lbl">Done</div></div>
+    </div>
 
-  <h2><img class="sec-ico" src="/survey/assets/section-E.jpg" alt="" width="28" height="28"> Explore responses</h2>
-  <div class="filters">
-    <div><label for="f-district">Districts</label><select id="f-district" multiple></select></div>
-    <div><label for="f-store">Stores</label><select id="f-store" multiple></select></div>
-    <div><label for="f-section">Question blocks</label><select id="f-section" multiple></select></div>
-    <div><label for="f-question">Individual questions</label><select id="f-question" multiple></select></div>
-    <div><label for="f-status">Status</label>
-      <select id="f-status">
-        <option value="submitted" selected>Submitted only</option>
-        <option value="all">Submitted + drafts</option>
-      </select>
-      <label for="f-group" style="margin-top:8px">Group rows by</label>
-      <select id="f-group">
-        <option value="">No grouping (flat)</option>
-        <option value="district">District</option>
-        <option value="store_num">Store</option>
+    <div class="chip-row" id="cov-chips">
+      <button type="button" class="chip active" data-state="all">All <span class="count" id="chip-all">0</span></button>
+      <button type="button" class="chip" data-state="needs_assign">Needs assign <span class="count" id="chip-needs">0</span></button>
+      <button type="button" class="chip" data-state="assigned">Assigned <span class="count" id="chip-assigned">0</span></button>
+      <button type="button" class="chip" data-state="done">Done <span class="count" id="chip-done">0</span></button>
+      <select id="cov-district" style="width:auto;min-width:140px;margin-left:auto">
+        <option value="">All districts</option>
       </select>
     </div>
-  </div>
 
-  <div class="toolbar">
-    <button id="apply">Apply filters</button>
-    <button class="secondary" id="clear">Clear</button>
-    <button class="secondary" id="exp-csv">Export CSV</button>
-    <button class="secondary" id="exp-xlsx">Export XLSX</button>
-    <span class="viewbar">
-      <label class="muted" for="views">Saved views:</label>
-      <select id="views"><option value="">— select —</option></select>
-      <input id="view-name" placeholder="View name" style="width:130px;padding:6px 8px;border:1px solid var(--line);border-radius:6px">
-      <button class="secondary" id="view-save">Save view</button>
-      <button class="secondary" id="view-del">Delete</button>
-    </span>
-    <span id="status"></span>
-  </div>
+    <div class="toolbar">
+      <input class="search" id="cov-search" type="search" placeholder="Search store # or name…" autocomplete="off">
+      <button type="button" class="secondary" id="cov-refresh">Refresh</button>
+      <button type="button" id="cov-goto-assign">Assign people</button>
+    </div>
 
-  <div class="tablewrap"><table id="grid"><thead></thead><tbody></tbody></table></div>
+    <div class="tablewrap cov-desktop">
+      <table class="cov-table" id="cov-table">
+        <thead>
+          <tr>
+            <th>Store #</th><th>Name</th><th>District</th><th>Status</th><th>Assignees</th><th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="cov-cards" id="cov-cards"></div>
+    <div class="empty" id="cov-empty" hidden>
+      <strong>No stores match these filters</strong>
+      <p class="hint" style="margin:0 0 12px">Try clearing search, or assign people to stores that still need coverage.</p>
+      <button type="button" id="cov-empty-assign">Assign people</button>
+    </div>
+  </section>
+
+  <!-- ========== ASSIGN ========== -->
+  <section class="panel" id="panel-assign" aria-label="Assign">
+    <p class="hint">Walk through who should take the survey, which stores they cover, when it’s due, then send magic-link invites.</p>
+    <div class="wizard-steps" aria-hidden="true">
+      <span class="on">1 · Who</span><span class="on">2 · Where</span><span class="on">3 · When</span><span class="on">4 · Send</span>
+    </div>
+
+    <div class="wizard-grid">
+      <div class="panel-card">
+        <h3>1. Who</h3>
+        <div class="field-wrap typeahead">
+          <label class="field" for="roster-q">Search roster</label>
+          <input id="roster-q" type="search" placeholder="Name, email, or team…" autocomplete="off">
+          <div class="typeahead-results" id="roster-results"></div>
+        </div>
+        <div class="toolbar" style="margin-top:0">
+          <div class="field-wrap" style="flex:1;margin:0">
+            <label class="field" for="bulk-team">Team</label>
+            <select id="bulk-team"><option value="">Any team</option></select>
+          </div>
+          <div class="field-wrap" style="flex:1;margin:0">
+            <label class="field" for="bulk-role">Role</label>
+            <select id="bulk-role">
+              <option value="">Any role</option>
+              <option value="lead">Lead</option>
+              <option value="member">Member</option>
+              <option value="supervisor">Supervisor</option>
+            </select>
+          </div>
+          <button type="button" class="secondary" id="bulk-add" style="align-self:flex-end">Add from team/role</button>
+        </div>
+        <div class="sel-chips" id="assignee-chips"></div>
+        <p class="muted" style="font-size:12px;margin:8px 0 0" id="assignee-count">No assignees selected</p>
+      </div>
+
+      <div class="panel-card">
+        <h3>2. Where</h3>
+        <div class="toolbar" style="margin-bottom:8px">
+          <button type="button" class="secondary btn-xs" id="pick-needs">All needs-assign stores</button>
+          <button type="button" class="ghost btn-xs" id="pick-clear">Clear stores</button>
+        </div>
+        <div class="dist-picks" id="dist-picks"></div>
+        <div class="store-pick-list" id="store-picks"></div>
+        <p class="muted" style="font-size:12px;margin:8px 0 0" id="store-count">0 stores selected</p>
+      </div>
+
+      <div class="panel-card">
+        <h3>3. When</h3>
+        <div class="field-wrap">
+          <label class="field" for="due-at">Due date</label>
+          <input id="due-at" type="date">
+        </div>
+        <div class="field-wrap">
+          <label class="field" for="remind-days">Remind days before</label>
+          <input id="remind-days" type="number" min="0" max="30" value="1">
+        </div>
+        <div class="field-wrap" style="margin:0">
+          <label class="field" for="assign-notes">Notes (optional)</label>
+          <textarea id="assign-notes" placeholder="Anything the assignee should know…"></textarea>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3>4. Send</h3>
+        <label class="check">
+          <input type="checkbox" id="send-invites" checked>
+          <span>Email magic-link invites now</span>
+        </label>
+        <p class="hint">Assignees get a secure link to open the survey for each assigned store.</p>
+        <button type="button" id="assign-submit">Create assignments</button>
+        <div class="err-box" id="assign-err"></div>
+        <div class="success-box" id="assign-ok"></div>
+      </div>
+    </div>
+
+    <div class="panel-card span2">
+      <h3>Bulk assign from store access</h3>
+      <p class="hint">For each selected store (or all needs-assign stores if none selected), assign the preferred lead or member from store access and optionally email invites.</p>
+      <div class="toolbar">
+        <button type="button" class="secondary" id="bulk-access">Bulk assign from store access</button>
+      </div>
+      <div class="err-box" id="bulk-err"></div>
+      <div class="success-box" id="bulk-ok"></div>
+    </div>
+  </section>
+
+  <!-- ========== EXPLORE ========== -->
+  <section class="panel" id="panel-explore" aria-label="Explore">
+    <div class="cards">
+      <div class="card"><div class="big" id="c-resp">–</div><div class="lbl">Responses</div></div>
+      <div class="card"><div class="big" id="c-stores-rep">–</div><div class="lbl">Stores reporting</div></div>
+      <div class="card"><div class="big">21</div><div class="lbl">2025 baseline stores</div></div>
+    </div>
+
+    <h2><img class="sec-ico" src="/survey/assets/section-J.jpg" alt="" width="28" height="28"> Top trending problem questions</h2>
+    <div class="trend-grid" id="trending"></div>
+
+    <h2><img class="sec-ico" src="/survey/assets/section-E.jpg" alt="" width="28" height="28"> Explore responses</h2>
+    <div class="filters">
+      <div><label for="f-district">Districts</label><select id="f-district" multiple></select></div>
+      <div><label for="f-store">Stores</label><select id="f-store" multiple></select></div>
+      <div><label for="f-section">Question blocks</label><select id="f-section" multiple></select></div>
+      <div><label for="f-question">Individual questions</label><select id="f-question" multiple></select></div>
+      <div>
+        <label for="f-status">Status</label>
+        <select id="f-status">
+          <option value="submitted" selected>Submitted only</option>
+          <option value="all">Submitted + drafts</option>
+        </select>
+        <label for="f-group" style="margin-top:8px">Group rows by</label>
+        <select id="f-group">
+          <option value="">No grouping (flat)</option>
+          <option value="district">District</option>
+          <option value="store_num">Store</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button type="button" id="apply">Apply filters</button>
+      <button type="button" class="secondary" id="clear">Clear</button>
+      <span class="viewbar">
+        <label class="muted" for="views">Saved views:</label>
+        <select id="views"><option value="">— select —</option></select>
+        <input id="view-name" placeholder="View name" style="width:130px">
+        <button type="button" class="secondary" id="view-save">Save view</button>
+        <button type="button" class="secondary" id="view-del">Delete</button>
+      </span>
+      <span id="explore-status"></span>
+    </div>
+
+    <div class="tablewrap"><table class="grid" id="grid"><thead></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- ========== ALERTS ========== -->
+  <section class="panel" id="panel-alerts" aria-label="Alerts">
+    <p class="hint">Choose what email alerts you receive for survey activity in your scope. Leave districts empty to use your full admin scope.</p>
+    <div class="panel-card">
+      <div class="toggle-list">
+        <div class="toggle-row">
+          <div>
+            <strong>Notify on new submit</strong>
+            <span>Email when a store in scope submits a completed survey.</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="al-submit" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <strong>Notify on due soon</strong>
+            <span>Reminder when an open assignment is approaching its due date.</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="al-due" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <strong>Weekly digest</strong>
+            <span>A weekly summary of coverage: needs assign, assigned, and done.</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="al-digest"><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <label class="field" for="al-districts">Limit to districts (optional)</label>
+      <select id="al-districts" multiple></select>
+      <p class="muted" style="font-size:12px;margin:8px 0 12px">Empty = all districts in your scope. Hold Ctrl/Cmd to select multiple.</p>
+      <button type="button" id="al-save">Save alert preferences</button>
+      <div class="err-box" id="al-err"></div>
+      <div class="success-box" id="al-ok">Preferences saved.</div>
+    </div>
+  </section>
+
+  <!-- ========== EXPORT ========== -->
+  <section class="panel" id="panel-export" aria-label="Export">
+    <div class="panel-card">
+      <h3>Export survey data</h3>
+      <p class="hint">Uses the current Explore filters (districts, stores, status, and selected questions). If you haven’t filtered Explore, exports cover everything in your admin scope.</p>
+      <label class="check">
+        <input type="checkbox" id="exp-with-photos">
+        <span>Include photos ZIP with CSV / XLSX export</span>
+      </label>
+      <div class="export-actions">
+        <button type="button" id="exp-csv">Export CSV</button>
+        <button type="button" class="secondary" id="exp-xlsx">Export XLSX</button>
+        <button type="button" class="secondary" id="exp-photos">Download photos ZIP</button>
+      </div>
+      <p class="muted" style="font-size:13px;margin:0">
+        Photo files are named intelligently:
+        <code style="background:var(--paper);padding:2px 6px;border-radius:4px">FM{store}_{name}_Q{id}_{user}_{photoId}.jpg</code>
+        and grouped into per-store folders inside the ZIP.
+      </p>
+      <div class="err-box" id="exp-err"></div>
+    </div>
+  </section>
+
   <div class="foot-brand">The Retail Odyssey Company · In-store best practices v2</div>
 </main>
 
@@ -137,58 +507,87 @@ const API = (function () {
   if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3001';
   return 'https://eod-api.the-dump-bin.com';
 })();
-const authHeaders = () => ({ 'Authorization': 'Bearer ' + (((window.dumpBinAuth && window.dumpBinAuth.getSession && window.dumpBinAuth.getSession()) || localStorage.getItem('dumpBinSession')) || ''), 'Content-Type': 'application/json' });
-let SPEC = null, QLIST = [], DATA = [], SORT = { col: 'store_num', dir: 1 };
+
+function token() {
+  return ((window.dumpBinAuth && window.dumpBinAuth.getSession && window.dumpBinAuth.getSession())
+    || localStorage.getItem('dumpBinSession') || '');
+}
+const authHeaders = () => ({
+  Authorization: 'Bearer ' + token(),
+  'Content-Type': 'application/json',
+});
+
+let SPEC = null;
+let QLIST = [];
+let DATA = [];
+let SORT = { col: 'store_num', dir: 1 };
+let COVERAGE = { stores: [], totals: {} };
+let FILTERS = { districts: [], stores: [], teams: [], scope: null, user: null };
+let ACCESS = { scope: null, user: null };
+let SELECTED_ASSIGNEES = new Map(); // email -> person
+let SELECTED_STORES = new Set();
+let COV_STATE = 'all';
+let rosterTimer = null;
+let charts = [];
+
+function showForbidden() {
+  document.body.innerHTML = `
+    <main style="max-width:520px;margin:48px auto;padding:24px;font-family:Segoe UI,system-ui,sans-serif;color:#1c2733">
+      <img src="/survey/assets/ro-logo.png" alt="Retail Odyssey" style="height:40px;margin-bottom:16px">
+      <h1 style="font-size:20px;margin:0 0 10px">Survey admin is for supervisors &amp; managers</h1>
+      <p style="color:#5a6b7d;line-height:1.5;margin:0 0 16px">
+        Your account doesn’t have survey admin access. Supervisors see stores they supervise;
+        managers and directors see the full division. Ask your ops lead if you believe you should have access.
+      </p>
+      <a href="/" style="color:#0f5c8c;font-weight:600">Back to Dump Bin</a>
+    </main>`;
+}
 
 async function api(path, opts = {}) {
-  const r = await fetch(API + path, { headers: authHeaders(), ...opts });
+  const headers = { ...authHeaders(), ...(opts.headers || {}) };
+  const r = await fetch(API + path, { ...opts, headers });
   if (r.status === 401) {
     location.href = '/signin.html?next=' + encodeURIComponent(location.pathname + location.search + location.hash);
     throw new Error('auth');
   }
   if (r.status === 403) {
-    document.body.innerHTML = '<main style="padding:40px;font-family:sans-serif"><img src="/survey/assets/ro-logo.png" alt="" style="height:40px"><p>This page requires admin access. Ask Tyson if you believe you should have it.</p></main>';
+    showForbidden();
     throw new Error('forbidden');
   }
-  return r.json();
+  const ct = r.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    if (!r.ok) throw new Error('Request failed (' + r.status + ')');
+    return r;
+  }
+  const body = await r.json();
+  if (!r.ok) {
+    const err = new Error(body.error || ('Request failed (' + r.status + ')'));
+    err.status = r.status;
+    err.body = body;
+    throw err;
+  }
+  return body;
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function flatQuestions(spec) {
   const out = [];
-  for (const s of spec.sections) for (const q of s.questions) {
-    out.push({ ...q, section: s.id, sectionTitle: s.title });
-    (q.branches || []).forEach(b => out.push({ ...b, section: s.id, sectionTitle: s.title, parent: q.id }));
+  for (const s of spec.sections || []) {
+    for (const q of s.questions || []) {
+      out.push({ ...q, section: s.id, sectionTitle: s.title });
+      (q.branches || []).forEach((b) => out.push({ ...b, section: s.id, sectionTitle: s.title, parent: q.id }));
+    }
   }
   return out;
 }
 
-function selected(id) { return [...document.getElementById(id).selectedOptions].map(o => o.value); }
-function setSelected(id, vals) {
-  const set = new Set(vals || []);
-  [...document.getElementById(id).options].forEach(o => o.selected = set.has(o.value));
-}
-function filterQS() {
-  const p = new URLSearchParams();
-  const d = selected('f-district'); if (d.length) p.set('districts', d.join(','));
-  const s = selected('f-store'); if (s.length) p.set('stores', s.join(','));
-  p.set('status', document.getElementById('f-status').value);
-  return p;
-}
-function visibleQuestionCols() {
-  const secs = new Set(selected('f-section'));
-  const qs = new Set(selected('f-question'));
-  return QLIST.filter(q => (qs.size ? qs.has(q.id) : true) && (secs.size ? secs.has(q.section) : true));
-}
-function isProblem(q, val) {
-  if (!q.good || val == null || val === '') return null;
-  if (q.type === 'multiselect') {
-    const arr = Array.isArray(val) ? val : String(val).split(',').map(x => x.trim());
-    return !(arr.length === 1 && arr[0] === q.good);
-  }
-  return String(val).trim() !== q.good;
+function plainQuestionText(q) {
+  return String(q.text || '').split('{{storeName}}').join('this store');
 }
 
-/** Match survey taker display: Yes — Name for detailOn fields. */
 function formatAnswer(q, answers) {
   const a = answers || {};
   const v = a[q.id];
@@ -201,37 +600,521 @@ function formatAnswer(q, answers) {
   return s;
 }
 
-function plainQuestionText(q) {
-  return String(q.text || '').split('{{storeName}}').join('this store');
+function isProblem(q, val) {
+  if (!q.good || val == null || val === '') return null;
+  if (q.type === 'multiselect') {
+    const arr = Array.isArray(val) ? val : String(val).split(',').map((x) => x.trim());
+    return !(arr.length === 1 && arr[0] === q.good);
+  }
+  return String(val).trim() !== q.good;
 }
 
-async function loadIdentity() {
-  const me = await api('/api/me');
-  document.getElementById('who').textContent = me.email || '';
+function selected(id) {
+  return [...document.getElementById(id).selectedOptions].map((o) => o.value);
+}
+function setSelected(id, vals) {
+  const set = new Set(vals || []);
+  [...document.getElementById(id).options].forEach((o) => { o.selected = set.has(o.value); });
 }
 
+function filterQS() {
+  const p = new URLSearchParams();
+  const d = selected('f-district'); if (d.length) p.set('districts', d.join(','));
+  const s = selected('f-store'); if (s.length) p.set('stores', s.join(','));
+  p.set('status', document.getElementById('f-status').value);
+  return p;
+}
+
+function visibleQuestionCols() {
+  const secs = new Set(selected('f-section'));
+  const qs = new Set(selected('f-question'));
+  return QLIST.filter((q) => (qs.size ? qs.has(q.id) : true) && (secs.size ? secs.has(q.section) : true));
+}
+
+function statusLabel(state) {
+  if (state === 'needs_assign') return 'Needs assign';
+  if (state === 'assigned') return 'Assigned';
+  if (state === 'done') return 'Done';
+  return state || '';
+}
+
+function formatDue(d) {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch (_) { return String(d).slice(0, 10); }
+}
+
+function setLoading(on) {
+  document.getElementById('loading').classList.toggle('show', !!on);
+}
+
+/* ---------- Tabs ---------- */
+document.getElementById('tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  switchTab(btn.dataset.tab);
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'alerts') loadAlerts().catch(console.error);
+  if (name === 'explore' && !DATA.length) refreshExplore().catch(console.error);
+}
+
+document.getElementById('cov-goto-assign').onclick = () => switchTab('assign');
+document.getElementById('cov-empty-assign').onclick = () => switchTab('assign');
+
+/* ---------- Scope banner ---------- */
+function renderScope() {
+  const scope = ACCESS.scope || FILTERS.scope;
+  const user = ACCESS.user || FILTERS.user;
+  const banner = document.getElementById('scope-banner');
+  const tag = document.getElementById('scope-tag');
+  const detail = document.getElementById('scope-detail');
+  banner.hidden = false;
+  if (scope && scope.level === 'district') {
+    tag.textContent = 'District view · stores you supervise';
+    const dists = (scope.districts || []).join(', ');
+    detail.textContent = dists ? ('Districts: ' + dists) : (user?.district ? ('District ' + user.district) : '');
+  } else {
+    tag.textContent = 'Division view';
+    detail.textContent = 'All Division 701 stores in catalog';
+  }
+  const who = document.getElementById('who');
+  if (user) {
+    who.innerHTML = `<strong>${escHtml(user.name || user.email || '')}</strong>${escHtml(user.email || '')}${user.role ? ' · ' + escHtml(user.role) : ''}`;
+  }
+}
+
+/* ---------- Coverage ---------- */
+function filteredCoverageStores() {
+  const q = (document.getElementById('cov-search').value || '').trim().toLowerCase();
+  const dist = document.getElementById('cov-district').value;
+  return (COVERAGE.stores || []).filter((s) => {
+    if (COV_STATE !== 'all' && s.state !== COV_STATE) return false;
+    if (dist && String(s.district) !== String(dist)) return false;
+    if (q) {
+      const hay = `${s.storeNum} ${s.storeName || ''} ${s.district || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderCoverage() {
+  const t = COVERAGE.totals || {};
+  document.getElementById('c-stores').textContent = t.stores ?? 0;
+  document.getElementById('c-needs').textContent = t.needsAssign ?? 0;
+  document.getElementById('c-assigned').textContent = t.assigned ?? 0;
+  document.getElementById('c-done').textContent = t.done ?? 0;
+  document.getElementById('chip-all').textContent = t.stores ?? 0;
+  document.getElementById('chip-needs').textContent = t.needsAssign ?? 0;
+  document.getElementById('chip-assigned').textContent = t.assigned ?? 0;
+  document.getElementById('chip-done').textContent = t.done ?? 0;
+
+  const distSel = document.getElementById('cov-district');
+  const prev = distSel.value;
+  const dists = [...new Set((COVERAGE.stores || []).map((s) => s.district).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  distSel.innerHTML = '<option value="">All districts</option>' + dists.map((d) => `<option value="${escHtml(d)}">District ${escHtml(d)}</option>`).join('');
+  if (prev && dists.map(String).includes(String(prev))) distSel.value = prev;
+
+  const rows = filteredCoverageStores();
+  const tbody = document.querySelector('#cov-table tbody');
+  const cards = document.getElementById('cov-cards');
+  const empty = document.getElementById('cov-empty');
+
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    cards.innerHTML = '';
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+
+  tbody.innerHTML = rows.map((s) => {
+    const assignees = (s.assignees || []).map((a) => `
+      <div class="assignee-row">
+        <span>${escHtml(a.assigneeName || a.assigneeEmail)}</span>
+        ${a.dueAt ? `<span class="due">due ${escHtml(formatDue(a.dueAt))}</span>` : ''}
+        <button type="button" class="ghost btn-xs" data-cancel="${a.id}">Cancel</button>
+      </div>`).join('') || '<span class="muted">—</span>';
+    return `<tr>
+      <td><strong>${s.storeNum}</strong></td>
+      <td>${escHtml(s.storeName || '—')}</td>
+      <td>${escHtml(s.district || '—')}</td>
+      <td><span class="status ${s.state}">${statusLabel(s.state)}</span></td>
+      <td><div class="assignee-list">${assignees}</div></td>
+      <td>${s.state === 'needs_assign' ? '<button type="button" class="secondary btn-xs" data-assign-store="' + s.storeNum + '">Assign</button>' : ''}</td>
+    </tr>`;
+  }).join('');
+
+  cards.innerHTML = rows.map((s) => {
+    const assignees = (s.assignees || []).map((a) => `
+      <div class="assignee-row">
+        <span>${escHtml(a.assigneeName || a.assigneeEmail)}</span>
+        ${a.dueAt ? `<span class="due">due ${escHtml(formatDue(a.dueAt))}</span>` : ''}
+        <button type="button" class="ghost btn-xs" data-cancel="${a.id}">Cancel</button>
+      </div>`).join('') || '<span class="muted">No assignees</span>';
+    return `<div class="store-card">
+      <div class="head">
+        <span class="num">${s.storeNum}</span>
+        <span class="status ${s.state}">${statusLabel(s.state)}</span>
+      </div>
+      <div class="name">${escHtml(s.storeName || '—')} · D${escHtml(s.district || '—')}</div>
+      <div class="assignee-list">${assignees}</div>
+      ${s.state === 'needs_assign' ? '<div style="margin-top:10px"><button type="button" class="secondary btn-xs" data-assign-store="' + s.storeNum + '">Assign</button></div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+async function loadCoverage() {
+  const cov = await api('/api/survey/admin/coverage');
+  COVERAGE = { stores: cov.stores || [], totals: cov.totals || {} };
+  if (cov.scope) ACCESS.scope = cov.scope;
+  renderCoverage();
+  renderStorePicks();
+}
+
+document.getElementById('cov-chips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip[data-state]');
+  if (!chip) return;
+  COV_STATE = chip.dataset.state;
+  document.querySelectorAll('#cov-chips .chip').forEach((c) => c.classList.toggle('active', c === chip));
+  renderCoverage();
+});
+document.getElementById('cov-district').onchange = renderCoverage;
+document.getElementById('cov-search').oninput = renderCoverage;
+document.getElementById('cov-refresh').onclick = () => loadCoverage().catch(console.error);
+
+document.getElementById('panel-coverage').addEventListener('click', async (e) => {
+  const cancelBtn = e.target.closest('[data-cancel]');
+  if (cancelBtn) {
+    const id = cancelBtn.dataset.cancel;
+    if (!confirm('Cancel this assignment?')) return;
+    try {
+      await api('/api/survey/admin/assignments/' + id, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled' }) });
+      await loadCoverage();
+    } catch (err) {
+      alert(err.message || 'Could not cancel assignment');
+    }
+    return;
+  }
+  const assignBtn = e.target.closest('[data-assign-store]');
+  if (assignBtn) {
+    SELECTED_STORES = new Set([Number(assignBtn.dataset.assignStore)]);
+    renderStorePicks();
+    updateStoreCount();
+    switchTab('assign');
+  }
+});
+
+/* ---------- Assign wizard ---------- */
+function renderAssigneeChips() {
+  const wrap = document.getElementById('assignee-chips');
+  wrap.innerHTML = [...SELECTED_ASSIGNEES.values()].map((p) => `
+    <span class="sel-chip">${escHtml(p.name || p.email)}
+      <button type="button" data-rm="${escHtml(p.email)}" aria-label="Remove">×</button>
+    </span>`).join('');
+  const n = SELECTED_ASSIGNEES.size;
+  document.getElementById('assignee-count').textContent = n ? `${n} assignee${n === 1 ? '' : 's'} selected` : 'No assignees selected';
+  wrap.querySelectorAll('[data-rm]').forEach((btn) => {
+    btn.onclick = () => {
+      SELECTED_ASSIGNEES.delete(btn.dataset.rm);
+      renderAssigneeChips();
+    };
+  });
+}
+
+function addAssignee(person) {
+  if (!person || !person.email) return;
+  SELECTED_ASSIGNEES.set(String(person.email).toLowerCase(), {
+    email: String(person.email).toLowerCase(),
+    name: person.name,
+    role: person.role,
+    team: person.team,
+  });
+  renderAssigneeChips();
+}
+
+async function searchRoster(q) {
+  const team = document.getElementById('bulk-team').value;
+  const role = document.getElementById('bulk-role').value;
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (team) params.set('team', team);
+  if (role) params.set('role', role);
+  params.set('limit', '25');
+  const res = await api('/api/survey/admin/roster-search?' + params.toString());
+  return res.people || [];
+}
+
+function showRosterResults(people) {
+  const box = document.getElementById('roster-results');
+  if (!people.length) {
+    box.innerHTML = '<button type="button" disabled>No matches</button>';
+    box.classList.add('open');
+    return;
+  }
+  box.innerHTML = people.map((p) => `
+    <button type="button" data-email="${escHtml(p.email)}">
+      ${escHtml(p.name || p.email)}
+      <span class="sub">${escHtml(p.email)}${p.team ? ' · ' + escHtml(p.team) : ''}${p.role ? ' · ' + escHtml(p.role) : ''}</span>
+    </button>`).join('');
+  box.classList.add('open');
+  box.querySelectorAll('button[data-email]').forEach((btn) => {
+    btn.onclick = () => {
+      const person = people.find((x) => x.email === btn.dataset.email);
+      addAssignee(person);
+      document.getElementById('roster-q').value = '';
+      box.classList.remove('open');
+    };
+  });
+}
+
+document.getElementById('roster-q').addEventListener('input', () => {
+  clearTimeout(rosterTimer);
+  const q = document.getElementById('roster-q').value.trim();
+  rosterTimer = setTimeout(async () => {
+    if (q.length < 2 && !document.getElementById('bulk-team').value && !document.getElementById('bulk-role').value) {
+      document.getElementById('roster-results').classList.remove('open');
+      return;
+    }
+    try {
+      const people = await searchRoster(q);
+      showRosterResults(people);
+    } catch (e) { console.error(e); }
+  }, 280);
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.typeahead')) {
+    document.getElementById('roster-results').classList.remove('open');
+  }
+});
+
+document.getElementById('bulk-add').onclick = async () => {
+  const team = document.getElementById('bulk-team').value;
+  const role = document.getElementById('bulk-role').value;
+  if (!team && !role) {
+    alert('Pick a team and/or role first.');
+    return;
+  }
+  try {
+    const people = await searchRoster('');
+    people.forEach(addAssignee);
+    if (!people.length) alert('No roster matches for that team/role.');
+  } catch (e) {
+    alert(e.message || 'Roster search failed');
+  }
+};
+
+function renderStorePicks() {
+  const stores = FILTERS.stores || [];
+  const distWrap = document.getElementById('dist-picks');
+  const dists = [...new Set(stores.map((s) => s.district).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  distWrap.innerHTML = dists.map((d) => `
+    <label><input type="checkbox" data-dist="${escHtml(d)}"> District ${escHtml(d)}</label>`).join('');
+
+  distWrap.querySelectorAll('input[data-dist]').forEach((cb) => {
+    cb.onchange = () => {
+      const d = cb.dataset.dist;
+      stores.filter((s) => String(s.district) === String(d)).forEach((s) => {
+        if (cb.checked) SELECTED_STORES.add(Number(s.store_num));
+        else SELECTED_STORES.delete(Number(s.store_num));
+      });
+      renderStorePicks();
+      updateStoreCount();
+    };
+    const inDist = stores.filter((s) => String(s.district) === String(cb.dataset.dist));
+    cb.checked = inDist.length > 0 && inDist.every((s) => SELECTED_STORES.has(Number(s.store_num)));
+  });
+
+  const list = document.getElementById('store-picks');
+  const covByNum = new Map((COVERAGE.stores || []).map((s) => [Number(s.storeNum), s]));
+  list.innerHTML = stores.map((s) => {
+    const sn = Number(s.store_num);
+    const name = s.store_name || s.storeName || '';
+    const state = covByNum.get(sn)?.state;
+    const checked = SELECTED_STORES.has(sn) ? 'checked' : '';
+    return `<label>
+      <input type="checkbox" value="${sn}" ${checked}>
+      <span><strong>${sn}</strong> · ${escHtml(name || '—')} · D${escHtml(s.district || '—')}
+        ${state ? ` <span class="status ${state}" style="margin-left:4px">${statusLabel(state)}</span>` : ''}
+      </span>
+    </label>`;
+  }).join('') || '<div class="muted" style="padding:12px">No stores in your scope.</div>';
+
+  list.querySelectorAll('input[type=checkbox]').forEach((cb) => {
+    cb.onchange = () => {
+      const n = Number(cb.value);
+      if (cb.checked) SELECTED_STORES.add(n);
+      else SELECTED_STORES.delete(n);
+      updateStoreCount();
+      distWrap.querySelectorAll('input[data-dist]').forEach((dcb) => {
+        const inDist = stores.filter((s) => String(s.district) === String(dcb.dataset.dist));
+        dcb.checked = inDist.length > 0 && inDist.every((s) => SELECTED_STORES.has(Number(s.store_num)));
+      });
+    };
+  });
+  updateStoreCount();
+}
+
+function updateStoreCount() {
+  const n = SELECTED_STORES.size;
+  document.getElementById('store-count').textContent = `${n} store${n === 1 ? '' : 's'} selected`;
+}
+
+document.getElementById('pick-needs').onclick = () => {
+  SELECTED_STORES = new Set(
+    (COVERAGE.stores || []).filter((s) => s.state === 'needs_assign').map((s) => Number(s.storeNum))
+  );
+  renderStorePicks();
+};
+document.getElementById('pick-clear').onclick = () => {
+  SELECTED_STORES = new Set();
+  renderStorePicks();
+};
+
+function inviteSummary(results) {
+  if (!results || !results.length) return 'No invite emails sent.';
+  const ok = results.filter((r) => r.ok !== false && !r.error).length;
+  const fail = results.length - ok;
+  return `${results.length} invite attempt${results.length === 1 ? '' : 's'}: ${ok} sent${fail ? `, ${fail} failed` : ''}.`;
+}
+
+document.getElementById('assign-submit').onclick = async () => {
+  const err = document.getElementById('assign-err');
+  const ok = document.getElementById('assign-ok');
+  err.classList.remove('show');
+  ok.classList.remove('show');
+
+  const emails = [...SELECTED_ASSIGNEES.keys()];
+  const storeNums = [...SELECTED_STORES];
+  if (!emails.length) {
+    err.textContent = 'Add at least one assignee.';
+    err.classList.add('show');
+    return;
+  }
+  if (!storeNums.length) {
+    err.textContent = 'Select at least one store.';
+    err.classList.add('show');
+    return;
+  }
+
+  const dueAt = document.getElementById('due-at').value || null;
+  const remindDaysBefore = Number(document.getElementById('remind-days').value);
+  const notes = document.getElementById('assign-notes').value.trim() || null;
+  const sendInvites = document.getElementById('send-invites').checked;
+
+  try {
+    setLoading(true);
+    const res = await api('/api/survey/admin/assignments', {
+      method: 'POST',
+      body: JSON.stringify({
+        assigneeEmails: emails,
+        storeNums,
+        dueAt,
+        notes,
+        remindDaysBefore: Number.isFinite(remindDaysBefore) ? remindDaysBefore : 1,
+        sendInvites,
+        scopeLabel: 'Survey admin assign',
+      }),
+    });
+    ok.innerHTML = `<strong>Created ${res.created} assignment${res.created === 1 ? '' : 's'}.</strong><br>${escHtml(inviteSummary(res.inviteResults))}`;
+    ok.classList.add('show');
+    await loadCoverage();
+  } catch (e) {
+    err.textContent = e.message || 'Assignment failed';
+    err.classList.add('show');
+  } finally {
+    setLoading(false);
+  }
+};
+
+document.getElementById('bulk-access').onclick = async () => {
+  const err = document.getElementById('bulk-err');
+  const ok = document.getElementById('bulk-ok');
+  err.classList.remove('show');
+  ok.classList.remove('show');
+  const storeNums = [...SELECTED_STORES];
+  const dueAt = document.getElementById('due-at').value || null;
+  const sendInvites = document.getElementById('send-invites').checked;
+  if (!confirm(storeNums.length
+    ? `Bulk-assign preferred lead/member for ${storeNums.length} selected store(s)?`
+    : 'Bulk-assign preferred lead/member for all needs-assign stores in your scope?')) return;
+  try {
+    setLoading(true);
+    const res = await api('/api/survey/admin/assignments/bulk-from-access', {
+      method: 'POST',
+      body: JSON.stringify({
+        storeNums: storeNums.length ? storeNums : undefined,
+        dueAt,
+        sendInvites,
+      }),
+    });
+    ok.innerHTML = `<strong>Created ${res.created} assignment${res.created === 1 ? '' : 's'} across ${res.storesCovered} store${res.storesCovered === 1 ? '' : 's'}.</strong><br>${escHtml(inviteSummary(res.inviteResults))}`;
+    ok.classList.add('show');
+    await loadCoverage();
+  } catch (e) {
+    err.textContent = e.message || 'Bulk assign failed';
+    err.classList.add('show');
+  } finally {
+    setLoading(false);
+  }
+};
+
+/* ---------- Explore (ported) ---------- */
 async function loadFilters() {
   const f = await api('/api/survey/admin/filters');
+  FILTERS = {
+    districts: f.districts || [],
+    stores: f.stores || [],
+    teams: f.teams || [],
+    scope: f.scope,
+    user: f.user,
+  };
+  if (f.user) ACCESS.user = f.user;
+  if (f.scope) ACCESS.scope = f.scope;
+
   const dsel = document.getElementById('f-district');
+  dsel.innerHTML = '';
   f.districts.concat(['Unassigned']).filter((v, i, a) => a.indexOf(v) === i)
-    .forEach(d => dsel.add(new Option('District ' + d, d)));
+    .forEach((d) => dsel.add(new Option('District ' + d, d)));
+
   const ssel = document.getElementById('f-store');
-  f.stores.forEach(s => {
+  ssel.innerHTML = '';
+  f.stores.forEach((s) => {
     const name = s.store_name || s.storeName;
     const label = name
       ? `${s.store_num} · ${name} (D${s.district})`
       : `${s.store_num} (D${s.district})`;
     ssel.add(new Option(label, s.store_num));
   });
+
+  const teamSel = document.getElementById('bulk-team');
+  teamSel.innerHTML = '<option value="">Any team</option>';
+  (f.teams || []).forEach((t) => teamSel.add(new Option(t, t)));
+
+  const alDist = document.getElementById('al-districts');
+  alDist.innerHTML = '';
+  (f.districts || []).forEach((d) => alDist.add(new Option('District ' + d, d)));
+
+  renderStorePicks();
+  renderScope();
 }
 
 async function loadSpec() {
   const q = await api('/api/survey/questions');
-  SPEC = q.questionSet.spec; QLIST = flatQuestions(SPEC);
+  SPEC = q.questionSet.spec;
+  QLIST = flatQuestions(SPEC);
   const sec = document.getElementById('f-section');
-  SPEC.sections.forEach(s => sec.add(new Option(`${s.id}. ${s.title}`, s.id)));
+  sec.innerHTML = '';
+  SPEC.sections.forEach((s) => sec.add(new Option(`${s.id}. ${s.title}`, s.id)));
   const qsel = document.getElementById('f-question');
-  QLIST.forEach(qq => {
+  qsel.innerHTML = '';
+  QLIST.forEach((qq) => {
     const t = plainQuestionText(qq);
     qsel.add(new Option(`${qq.id} — ${t.slice(0, 60)}`, qq.id));
   });
@@ -240,29 +1123,36 @@ async function loadSpec() {
 async function loadSummary() {
   const s = await api('/api/survey/admin/summary?' + filterQS().toString());
   document.getElementById('c-resp').textContent = s.totals.responses;
-  document.getElementById('c-stores').textContent = s.totals.stores;
+  document.getElementById('c-stores-rep').textContent = s.totals.stores;
   const wrap = document.getElementById('trending');
+  charts.forEach((c) => { try { c.destroy(); } catch (_) {} });
+  charts = [];
   wrap.innerHTML = '';
-  if (!s.trending.length) { wrap.innerHTML = '<div class="card muted">No submitted responses yet. Trending appears once at least 3 answers exist per question.</div>'; return; }
+  if (!s.trending.length) {
+    wrap.innerHTML = '<div class="card muted">No submitted responses yet. Trending appears once at least 3 answers exist per question.</div>';
+    return;
+  }
   s.trending.forEach((t, i) => {
-    const card = document.createElement('div'); card.className = 'trend-card';
+    const card = document.createElement('div');
+    card.className = 'trend-card';
     const rate = Math.round(t.problemRate * 100);
     const cls = rate >= 50 ? 'bad' : rate >= 25 ? 'warn' : 'good';
     const b = s.baseline[t.id];
     const delta = b ? `2025 baseline: ${Math.round(b.problemRate * 100)}% problem (${b.n} stores)` : 'No 2025 baseline for this question';
     const qtext = String(t.text || '').split('{{storeName}}').join('this store');
-    card.innerHTML = `<div class="qtext"><strong>${t.id}.</strong> ${qtext}</div>
+    card.innerHTML = `<div class="qtext"><strong>${t.id}.</strong> ${escHtml(qtext)}</div>
       <div><span class="heat" aria-hidden="true"><i style="left:${Math.min(rate, 100) * 0.56}px"></i></span>
       <span class="rate ${cls}">${rate}% problem</span> <span class="muted">(${t.n} answers)</span></div>
-      <div class="delta">${delta}</div>
+      <div class="delta">${escHtml(delta)}</div>
       <canvas id="trend-chart-${i}" height="130" aria-label="Answer distribution for ${t.id}"></canvas>`;
     wrap.appendChild(card);
-    const labels = Object.keys(t.counts), vals = labels.map(l => t.counts[l]);
-    new Chart(document.getElementById('trend-chart-' + i), {
+    const labels = Object.keys(t.counts);
+    const vals = labels.map((l) => t.counts[l]);
+    charts.push(new Chart(document.getElementById('trend-chart-' + i), {
       type: 'bar',
-      data: { labels, datasets: [{ data: vals, backgroundColor: labels.map(l => l === t.good ? '#2e7d52' : '#b3402a') }] },
-      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-    });
+      data: { labels, datasets: [{ data: vals, backgroundColor: labels.map((l) => l === t.good ? '#2e7d52' : '#b3402a') }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+    }));
   });
 }
 
@@ -274,7 +1164,6 @@ async function loadData() {
 
 function renderGrid() {
   const cols = visibleQuestionCols();
-  // On-screen: no respondent identity. Exports still include respondent columns.
   const meta = [
     ['id', '#'],
     ['store_num', 'Store #'],
@@ -285,14 +1174,14 @@ function renderGrid() {
   ];
   const thead = document.querySelector('#grid thead');
   const tbody = document.querySelector('#grid tbody');
-  thead.innerHTML = '<tr>' + meta.concat(cols.map(c => [c.id, c.id])).map(([k, lbl]) =>
-    `<th data-col="${k}" title="${cols.find(c => c.id === k) ? plainQuestionText(cols.find(c => c.id === k)) : lbl}">${lbl}${SORT.col === k ? ` <span class="dir">${SORT.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('') + '</tr>';
+  thead.innerHTML = '<tr>' + meta.concat(cols.map((c) => [c.id, c.id])).map(([k, lbl]) =>
+    `<th data-col="${k}" title="${cols.find((c) => c.id === k) ? escHtml(plainQuestionText(cols.find((c) => c.id === k))) : lbl}">${lbl}${SORT.col === k ? ` <span class="dir">${SORT.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('') + '</tr>';
 
   const groupBy = document.getElementById('f-group').value;
   let rows = [...DATA];
   const getv = (r, k) => {
     if (k === 'store_name') return r.store_name || r.storeName || '';
-    if (k.startsWith('Q')) return formatAnswer(QLIST.find(q => q.id === k) || { id: k }, r.answers) || '';
+    if (k.startsWith('Q')) return formatAnswer(QLIST.find((q) => q.id === k) || { id: k }, r.answers) || '';
     return r[k];
   };
   rows.sort((a, b) => {
@@ -306,15 +1195,18 @@ function renderGrid() {
   for (const r of rows) {
     if (groupBy && r[groupBy] !== lastGroup) {
       lastGroup = r[groupBy];
-      html += `<tr><td colspan="${meta.length + cols.length}" style="background:#e7edf3;font-weight:600">${groupBy === 'district' ? 'District ' : ''}${lastGroup}</td></tr>`;
+      html += `<tr><td colspan="${meta.length + cols.length}" style="background:#e7edf3;font-weight:600">${groupBy === 'district' ? 'District ' : ''}${escHtml(lastGroup)}</td></tr>`;
     }
     html += '<tr>' + meta.map(([k]) => {
       if (k === 'submitted_at' && r[k]) return `<td>${new Date(r[k]).toLocaleDateString()}</td>`;
-      if (k === 'store_name') return `<td>${r.store_name || r.storeName || '<span class="muted">—</span>'}</td>`;
+      if (k === 'store_name') {
+        const sn = r.store_name || r.storeName;
+        return `<td>${sn ? escHtml(sn) : '<span class="muted">—</span>'}</td>`;
+      }
       if (k === 'store_num') return `<td>${r.store_num ?? ''}</td>`;
-      return `<td>${r[k] ?? ''}</td>`;
+      return `<td>${escHtml(r[k] ?? '')}</td>`;
     }).join('') +
-      cols.map(c => {
+      cols.map((c) => {
         const v = r.answers[c.id];
         const disp = formatAnswer(c, r.answers);
         const shown = disp == null ? '<span class="muted">—</span>' : escHtml(disp);
@@ -322,87 +1214,62 @@ function renderGrid() {
       }).join('') + '</tr>';
   }
   tbody.innerHTML = html || `<tr><td colspan="${meta.length + cols.length}" class="muted">No responses match these filters.</td></tr>`;
-  document.getElementById('status').textContent = `${rows.length} rows · ${cols.length} question columns`;
-  thead.querySelectorAll('th').forEach(th => th.onclick = () => {
-    const col = th.dataset.col;
-    SORT = { col, dir: SORT.col === col ? -SORT.dir : 1 };
-    renderGrid();
-  });
-}
-
-function escHtml(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-// ---- exports
-document.getElementById('exp-csv').onclick = () => {
-  const p = filterQS();
-  const cols = visibleQuestionCols().map(c => c.id);
-  if (cols.length && cols.length !== QLIST.length) p.set('questions', cols.join(','));
-  const a = document.createElement('a');
-  a.href = API + '/api/survey/admin/export.csv?' + p.toString() + '&access_token=' + encodeURIComponent(((window.dumpBinAuth && window.dumpBinAuth.getSession && window.dumpBinAuth.getSession()) || localStorage.getItem('dumpBinSession')) || '');
-  a.click();
-};
-document.getElementById('exp-xlsx').onclick = () => {
-  const cols = visibleQuestionCols();
-  const hasComment = new Set();
-  const hasDetail = new Set();
-  DATA.forEach(r => cols.forEach(c => {
-    if (r.answers[c.id + '_c']) hasComment.add(c.id);
-    if (r.answers[c.id + '_d']) hasDetail.add(c.id);
-  }));
-  const rows = DATA.map(r => {
-    const o = {
-      'Response #': r.id,
-      Store: r.store_num,
-      'Store name': r.store_name || r.storeName || '',
-      District: r.district,
-      Respondent: r.respondent_name,
-      'Respondent email': r.respondent,
-      Team: r.team,
-      Status: r.status,
-      Submitted: r.submitted_at,
+  document.getElementById('explore-status').textContent = `${rows.length} rows · ${cols.length} question columns`;
+  thead.querySelectorAll('th').forEach((th) => {
+    th.onclick = () => {
+      const col = th.dataset.col;
+      SORT = { col, dir: SORT.col === col ? -SORT.dir : 1 };
+      renderGrid();
     };
-    cols.forEach(c => {
-      const label = `${c.id} ${plainQuestionText(c).slice(0, 40)}`;
-      o[label] = Array.isArray(r.answers[c.id]) ? r.answers[c.id].join('; ') : (r.answers[c.id] ?? '');
-      if (hasDetail.has(c.id)) o[`${c.id} detail / name`] = r.answers[c.id + '_d'] ?? '';
-      if (hasComment.has(c.id)) o[`${c.id} comment`] = r.answers[c.id + '_c'] ?? '';
-    });
-    return o;
   });
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Responses');
-  XLSX.writeFile(wb, `survey-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+async function refreshExplore() {
+  await Promise.all([loadSummary(), loadData()]);
+}
+
+document.getElementById('apply').onclick = () => refreshExplore().catch(console.error);
+document.getElementById('clear').onclick = () => {
+  ['f-district', 'f-store', 'f-section', 'f-question'].forEach((id) => setSelected(id, []));
+  document.getElementById('f-status').value = 'submitted';
+  document.getElementById('f-group').value = '';
+  refreshExplore().catch(console.error);
 };
 
-// ---- saved views
 function currentConfig() {
   return {
-    districts: selected('f-district'), stores: selected('f-store'),
-    sections: selected('f-section'), questions: selected('f-question'),
-    status: document.getElementById('f-status').value, group: document.getElementById('f-group').value, sort: SORT,
+    districts: selected('f-district'),
+    stores: selected('f-store'),
+    sections: selected('f-section'),
+    questions: selected('f-question'),
+    status: document.getElementById('f-status').value,
+    group: document.getElementById('f-group').value,
+    sort: SORT,
   };
 }
 function applyConfig(c) {
-  setSelected('f-district', c.districts); setSelected('f-store', c.stores);
-  setSelected('f-section', c.sections); setSelected('f-question', c.questions);
+  setSelected('f-district', c.districts);
+  setSelected('f-store', c.stores);
+  setSelected('f-section', c.sections);
+  setSelected('f-question', c.questions);
   document.getElementById('f-status').value = c.status || 'submitted';
   document.getElementById('f-group').value = c.group === 'respondent_name' ? '' : (c.group || '');
   SORT = c.sort || SORT;
-  refresh();
+  refreshExplore().catch(console.error);
 }
 async function loadViews() {
   const v = await api('/api/survey/admin/views');
   const sel = document.getElementById('views');
   sel.innerHTML = '<option value="">— select —</option>';
-  v.views.forEach(x => sel.add(new Option(x.name, x.name)));
-  sel.dataset.store = JSON.stringify(Object.fromEntries(v.views.map(x => [x.name, x.config])));
+  v.views.forEach((x) => sel.add(new Option(x.name, x.name)));
+  sel.dataset.store = JSON.stringify(Object.fromEntries(v.views.map((x) => [x.name, x.config])));
 }
-document.getElementById('views').onchange = e => {
+document.getElementById('views').onchange = (e) => {
   const store = JSON.parse(e.target.dataset.store || '{}');
-  if (e.target.value && store[e.target.value]) { document.getElementById('view-name').value = e.target.value; applyConfig(store[e.target.value]); }
+  if (e.target.value && store[e.target.value]) {
+    document.getElementById('view-name').value = e.target.value;
+    applyConfig(store[e.target.value]);
+  }
 };
 document.getElementById('view-save').onclick = async () => {
   const name = document.getElementById('view-name').value.trim();
@@ -418,22 +1285,146 @@ document.getElementById('view-del').onclick = async () => {
   await loadViews();
 };
 
-async function refresh() { await Promise.all([loadSummary(), loadData()]); }
-document.getElementById('apply').onclick = refresh;
-document.getElementById('clear').onclick = () => {
-  ['f-district', 'f-store', 'f-section', 'f-question'].forEach(id => setSelected(id, []));
-  document.getElementById('f-status').value = 'submitted';
-  document.getElementById('f-group').value = '';
-  refresh();
+/* ---------- Alerts ---------- */
+async function loadAlerts() {
+  const res = await api('/api/survey/admin/alerts');
+  const p = res.prefs || {};
+  document.getElementById('al-submit').checked = p.notify_on_submit !== false;
+  document.getElementById('al-due').checked = p.notify_on_due_soon !== false;
+  document.getElementById('al-digest').checked = !!p.notify_weekly_digest;
+  setSelected('al-districts', p.districts || []);
+}
+
+document.getElementById('al-save').onclick = async () => {
+  const err = document.getElementById('al-err');
+  const ok = document.getElementById('al-ok');
+  err.classList.remove('show');
+  ok.classList.remove('show');
+  try {
+    await api('/api/survey/admin/alerts', {
+      method: 'PUT',
+      body: JSON.stringify({
+        notifyOnSubmit: document.getElementById('al-submit').checked,
+        notifyOnDueSoon: document.getElementById('al-due').checked,
+        notifyWeeklyDigest: document.getElementById('al-digest').checked,
+        districts: selected('al-districts'),
+      }),
+    });
+    ok.classList.add('show');
+  } catch (e) {
+    err.textContent = e.message || 'Could not save preferences';
+    err.classList.add('show');
+  }
 };
 
+/* ---------- Export ---------- */
+function downloadWithToken(path) {
+  const p = typeof path === 'string' && path.includes('?') ? path + '&' : path + '?';
+  const a = document.createElement('a');
+  a.href = API + p + 'access_token=' + encodeURIComponent(token());
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function exportCsv() {
+  const p = filterQS();
+  const cols = visibleQuestionCols().map((c) => c.id);
+  if (cols.length && cols.length !== QLIST.length) p.set('questions', cols.join(','));
+  downloadWithToken('/api/survey/admin/export.csv?' + p.toString());
+}
+
+function exportXlsx() {
+  const cols = visibleQuestionCols();
+  const hasComment = new Set();
+  const hasDetail = new Set();
+  DATA.forEach((r) => cols.forEach((c) => {
+    if (r.answers[c.id + '_c']) hasComment.add(c.id);
+    if (r.answers[c.id + '_d']) hasDetail.add(c.id);
+  }));
+  const rows = DATA.map((r) => {
+    const o = {
+      'Response #': r.id,
+      Store: r.store_num,
+      'Store name': r.store_name || r.storeName || '',
+      District: r.district,
+      Respondent: r.respondent_name,
+      'Respondent email': r.respondent,
+      Team: r.team,
+      Status: r.status,
+      Submitted: r.submitted_at,
+    };
+    cols.forEach((c) => {
+      const label = `${c.id} ${plainQuestionText(c).slice(0, 40)}`;
+      o[label] = Array.isArray(r.answers[c.id]) ? r.answers[c.id].join('; ') : (r.answers[c.id] ?? '');
+      if (hasDetail.has(c.id)) o[`${c.id} detail / name`] = r.answers[c.id + '_d'] ?? '';
+      if (hasComment.has(c.id)) o[`${c.id} comment`] = r.answers[c.id + '_c'] ?? '';
+    });
+    return o;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Responses');
+  XLSX.writeFile(wb, `survey-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function exportPhotos() {
+  const p = filterQS();
+  downloadWithToken('/api/survey/admin/photos.zip?' + p.toString());
+}
+
+async function maybeWithPhotos(fn) {
+  const err = document.getElementById('exp-err');
+  err.classList.remove('show');
+  try {
+    if (!DATA.length) await loadData();
+    fn();
+    if (document.getElementById('exp-with-photos').checked) {
+      setTimeout(exportPhotos, 400);
+    }
+  } catch (e) {
+    err.textContent = e.message || 'Export failed';
+    err.classList.add('show');
+  }
+}
+
+document.getElementById('exp-csv').onclick = () => maybeWithPhotos(exportCsv);
+document.getElementById('exp-xlsx').onclick = () => maybeWithPhotos(exportXlsx);
+document.getElementById('exp-photos').onclick = () => {
+  const err = document.getElementById('exp-err');
+  err.classList.remove('show');
+  try { exportPhotos(); } catch (e) {
+    err.textContent = e.message || 'Photo download failed';
+    err.classList.add('show');
+  }
+};
+
+/* ---------- Init ---------- */
 (async function init() {
   try {
+    setLoading(true);
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
-    await loadIdentity();
-    await Promise.all([loadSpec(), loadFilters(), loadViews()]);
-    await refresh();
-  } catch (e) { console.error(e); }
+
+    const [access] = await Promise.all([
+      api('/api/survey/admin/access'),
+      loadFilters(),
+      loadCoverage(),
+      loadSpec(),
+      loadSummary().catch(() => {}),
+      loadViews().catch(() => {}),
+    ]);
+    ACCESS = { scope: access.scope, user: access.user };
+    renderScope();
+    await loadData().catch(() => {});
+  } catch (e) {
+    if (e.message !== 'forbidden' && e.message !== 'auth') {
+      console.error(e);
+      document.getElementById('who').innerHTML = `<span style="color:var(--bad)">Could not load admin: ${escHtml(e.message)}</span>`;
+    }
+  } finally {
+    setLoading(false);
+  }
 })();
 </script>
 </body>
