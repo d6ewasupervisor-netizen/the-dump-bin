@@ -86,7 +86,6 @@
   <div class="cards">
     <div class="card"><div class="big" id="c-resp">–</div><div class="lbl">Responses</div></div>
     <div class="card"><div class="big" id="c-stores">–</div><div class="lbl">Stores reporting</div></div>
-    <div class="card"><div class="big" id="c-people">–</div><div class="lbl">Respondents</div></div>
     <div class="card"><div class="big" id="c-base">21</div><div class="lbl">2025 baseline stores</div></div>
   </div>
 
@@ -97,7 +96,6 @@
   <div class="filters">
     <div><label for="f-district">Districts</label><select id="f-district" multiple></select></div>
     <div><label for="f-store">Stores</label><select id="f-store" multiple></select></div>
-    <div><label for="f-resp">Respondents</label><select id="f-resp" multiple></select></div>
     <div><label for="f-section">Question blocks</label><select id="f-section" multiple></select></div>
     <div><label for="f-question">Individual questions</label><select id="f-question" multiple></select></div>
     <div><label for="f-status">Status</label>
@@ -110,7 +108,6 @@
         <option value="">No grouping (flat)</option>
         <option value="district">District</option>
         <option value="store_num">Store</option>
-        <option value="respondent_name">Respondent</option>
       </select>
     </div>
   </div>
@@ -174,7 +171,6 @@ function filterQS() {
   const p = new URLSearchParams();
   const d = selected('f-district'); if (d.length) p.set('districts', d.join(','));
   const s = selected('f-store'); if (s.length) p.set('stores', s.join(','));
-  const r = selected('f-resp'); if (r.length) p.set('respondents', r.join(','));
   p.set('status', document.getElementById('f-status').value);
   return p;
 }
@@ -190,6 +186,23 @@ function isProblem(q, val) {
     return !(arr.length === 1 && arr[0] === q.good);
   }
   return String(val).trim() !== q.good;
+}
+
+/** Match survey taker display: Yes — Name for detailOn fields. */
+function formatAnswer(q, answers) {
+  const a = answers || {};
+  const v = a[q.id];
+  if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
+  let s = Array.isArray(v) ? v.join(', ') : String(v);
+  if (q.detailOn && String(v) === String(q.detailOn) && a[q.id + '_d']) {
+    s += ' — ' + a[q.id + '_d'];
+  }
+  if (a[q.id + '_c']) s += ' (note)';
+  return s;
+}
+
+function plainQuestionText(q) {
+  return String(q.text || '').split('{{storeName}}').join('this store');
 }
 
 async function loadIdentity() {
@@ -210,8 +223,6 @@ async function loadFilters() {
       : `${s.store_num} (D${s.district})`;
     ssel.add(new Option(label, s.store_num));
   });
-  const rsel = document.getElementById('f-resp');
-  f.respondents.forEach(r => rsel.add(new Option(`${r.name} — ${r.role}`, r.email)));
 }
 
 async function loadSpec() {
@@ -221,7 +232,7 @@ async function loadSpec() {
   SPEC.sections.forEach(s => sec.add(new Option(`${s.id}. ${s.title}`, s.id)));
   const qsel = document.getElementById('f-question');
   QLIST.forEach(qq => {
-    const t = String(qq.text || '').split('{{storeName}}').join('this store');
+    const t = plainQuestionText(qq);
     qsel.add(new Option(`${qq.id} — ${t.slice(0, 60)}`, qq.id));
   });
 }
@@ -230,7 +241,6 @@ async function loadSummary() {
   const s = await api('/api/survey/admin/summary?' + filterQS().toString());
   document.getElementById('c-resp').textContent = s.totals.responses;
   document.getElementById('c-stores').textContent = s.totals.stores;
-  document.getElementById('c-people').textContent = s.totals.respondents;
   const wrap = document.getElementById('trending');
   wrap.innerHTML = '';
   if (!s.trending.length) { wrap.innerHTML = '<div class="card muted">No submitted responses yet. Trending appears once at least 3 answers exist per question.</div>'; return; }
@@ -240,7 +250,8 @@ async function loadSummary() {
     const cls = rate >= 50 ? 'bad' : rate >= 25 ? 'warn' : 'good';
     const b = s.baseline[t.id];
     const delta = b ? `2025 baseline: ${Math.round(b.problemRate * 100)}% problem (${b.n} stores)` : 'No 2025 baseline for this question';
-    card.innerHTML = `<div class="qtext"><strong>${t.id}.</strong> ${t.text}</div>
+    const qtext = String(t.text || '').split('{{storeName}}').join('this store');
+    card.innerHTML = `<div class="qtext"><strong>${t.id}.</strong> ${qtext}</div>
       <div><span class="heat" aria-hidden="true"><i style="left:${Math.min(rate, 100) * 0.56}px"></i></span>
       <span class="rate ${cls}">${rate}% problem</span> <span class="muted">(${t.n} answers)</span></div>
       <div class="delta">${delta}</div>
@@ -263,18 +274,30 @@ async function loadData() {
 
 function renderGrid() {
   const cols = visibleQuestionCols();
-  const meta = [['id', '#'], ['store_num', 'Store'], ['district', 'District'], ['respondent_name', 'Respondent'], ['team', 'Team'], ['status', 'Status'], ['submitted_at', 'Submitted']];
+  // On-screen: no respondent identity. Exports still include respondent columns.
+  const meta = [
+    ['id', '#'],
+    ['store_num', 'Store #'],
+    ['store_name', 'Store name'],
+    ['district', 'District'],
+    ['status', 'Status'],
+    ['submitted_at', 'Submitted'],
+  ];
   const thead = document.querySelector('#grid thead');
   const tbody = document.querySelector('#grid tbody');
   thead.innerHTML = '<tr>' + meta.concat(cols.map(c => [c.id, c.id])).map(([k, lbl]) =>
-    `<th data-col="${k}" title="${cols.find(c => c.id === k)?.text || lbl}">${lbl}${SORT.col === k ? ` <span class="dir">${SORT.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('') + '</tr>';
+    `<th data-col="${k}" title="${cols.find(c => c.id === k) ? plainQuestionText(cols.find(c => c.id === k)) : lbl}">${lbl}${SORT.col === k ? ` <span class="dir">${SORT.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('') + '</tr>';
 
   const groupBy = document.getElementById('f-group').value;
   let rows = [...DATA];
-  const getv = (r, k) => k.startsWith('Q') ? r.answers[k] : r[k];
+  const getv = (r, k) => {
+    if (k === 'store_name') return r.store_name || r.storeName || '';
+    if (k.startsWith('Q')) return formatAnswer(QLIST.find(q => q.id === k) || { id: k }, r.answers) || '';
+    return r[k];
+  };
   rows.sort((a, b) => {
     const av = getv(a, SORT.col), bv = getv(b, SORT.col);
-    return (av == null) - (bv == null) || (av > bv ? 1 : av < bv ? -1 : 0);
+    return (av == null || av === '') - (bv == null || bv === '') || (av > bv ? 1 : av < bv ? -1 : 0);
   });
   if (SORT.dir < 0) rows.reverse();
   if (groupBy) rows.sort((a, b) => String(a[groupBy]).localeCompare(String(b[groupBy]), undefined, { numeric: true }));
@@ -287,16 +310,15 @@ function renderGrid() {
     }
     html += '<tr>' + meta.map(([k]) => {
       if (k === 'submitted_at' && r[k]) return `<td>${new Date(r[k]).toLocaleDateString()}</td>`;
-      if (k === 'store_num') {
-        const name = r.store_name || r.storeName;
-        return `<td>${name ? `${r.store_num} · ${name}` : (r.store_num ?? '')}</td>`;
-      }
+      if (k === 'store_name') return `<td>${r.store_name || r.storeName || '<span class="muted">—</span>'}</td>`;
+      if (k === 'store_num') return `<td>${r.store_num ?? ''}</td>`;
       return `<td>${r[k] ?? ''}</td>`;
     }).join('') +
       cols.map(c => {
         const v = r.answers[c.id];
-        const disp = v == null ? '<span class="muted">—</span>' : (Array.isArray(v) ? v.join(', ') : String(v));
-        return `<td class="${isProblem(c, v) === true ? 'problem' : ''}">${disp}</td>`;
+        const disp = formatAnswer(c, r.answers);
+        const shown = disp == null ? '<span class="muted">—</span>' : escHtml(disp);
+        return `<td class="${isProblem(c, v) === true ? 'problem' : ''}">${shown}</td>`;
       }).join('') + '</tr>';
   }
   tbody.innerHTML = html || `<tr><td colspan="${meta.length + cols.length}" class="muted">No responses match these filters.</td></tr>`;
@@ -306,6 +328,10 @@ function renderGrid() {
     SORT = { col, dir: SORT.col === col ? -SORT.dir : 1 };
     renderGrid();
   });
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ---- exports
@@ -320,7 +346,11 @@ document.getElementById('exp-csv').onclick = () => {
 document.getElementById('exp-xlsx').onclick = () => {
   const cols = visibleQuestionCols();
   const hasComment = new Set();
-  DATA.forEach(r => cols.forEach(c => { if (r.answers[c.id + '_c']) hasComment.add(c.id); }));
+  const hasDetail = new Set();
+  DATA.forEach(r => cols.forEach(c => {
+    if (r.answers[c.id + '_c']) hasComment.add(c.id);
+    if (r.answers[c.id + '_d']) hasDetail.add(c.id);
+  }));
   const rows = DATA.map(r => {
     const o = {
       'Response #': r.id,
@@ -328,12 +358,15 @@ document.getElementById('exp-xlsx').onclick = () => {
       'Store name': r.store_name || r.storeName || '',
       District: r.district,
       Respondent: r.respondent_name,
+      'Respondent email': r.respondent,
       Team: r.team,
       Status: r.status,
       Submitted: r.submitted_at,
     };
     cols.forEach(c => {
-      o[`${c.id} ${c.text.slice(0, 40)}`] = Array.isArray(r.answers[c.id]) ? r.answers[c.id].join('; ') : (r.answers[c.id] ?? '');
+      const label = `${c.id} ${plainQuestionText(c).slice(0, 40)}`;
+      o[label] = Array.isArray(r.answers[c.id]) ? r.answers[c.id].join('; ') : (r.answers[c.id] ?? '');
+      if (hasDetail.has(c.id)) o[`${c.id} detail / name`] = r.answers[c.id + '_d'] ?? '';
       if (hasComment.has(c.id)) o[`${c.id} comment`] = r.answers[c.id + '_c'] ?? '';
     });
     return o;
@@ -347,16 +380,16 @@ document.getElementById('exp-xlsx').onclick = () => {
 // ---- saved views
 function currentConfig() {
   return {
-    districts: selected('f-district'), stores: selected('f-store'), respondents: selected('f-resp'),
+    districts: selected('f-district'), stores: selected('f-store'),
     sections: selected('f-section'), questions: selected('f-question'),
     status: document.getElementById('f-status').value, group: document.getElementById('f-group').value, sort: SORT,
   };
 }
 function applyConfig(c) {
-  setSelected('f-district', c.districts); setSelected('f-store', c.stores); setSelected('f-resp', c.respondents);
+  setSelected('f-district', c.districts); setSelected('f-store', c.stores);
   setSelected('f-section', c.sections); setSelected('f-question', c.questions);
   document.getElementById('f-status').value = c.status || 'submitted';
-  document.getElementById('f-group').value = c.group || '';
+  document.getElementById('f-group').value = c.group === 'respondent_name' ? '' : (c.group || '');
   SORT = c.sort || SORT;
   refresh();
 }
@@ -388,7 +421,7 @@ document.getElementById('view-del').onclick = async () => {
 async function refresh() { await Promise.all([loadSummary(), loadData()]); }
 document.getElementById('apply').onclick = refresh;
 document.getElementById('clear').onclick = () => {
-  ['f-district', 'f-store', 'f-resp', 'f-section', 'f-question'].forEach(id => setSelected(id, []));
+  ['f-district', 'f-store', 'f-section', 'f-question'].forEach(id => setSelected(id, []));
   document.getElementById('f-status').value = 'submitted';
   document.getElementById('f-group').value = '';
   refresh();
