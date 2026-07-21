@@ -1,50 +1,71 @@
 ---
-name: dc-scan-volunteer-board
+name: dc-scan-volunteer-board-ui
 description: >-
-  Operate the DC Scan volunteer dashboard on the-dump-bin.com: auth-gate sign-in,
-  two-panel claim UI, PROD banner, Resync SAS PROD button, decide.html release/swap.
-  Use when editing dc-scan/index.html or DC Scan UI on the dump bin.
+  Operate and troubleshoot the DC Scan volunteer board UI on the-dump-bin
+  (dc-scan/index.html): auth-gate boot, black-screen failures, access-request
+  banner, Resync SAS PROD, and GitHub Pages deploy. Use when DC Scan UI is blank,
+  not loading, or needs front-end changes; pairs with eod-api dc-scan-volunteer-board skill.
 ---
 
-# DC Scan dashboard (the-dump-bin)
+# DC Scan board UI (the-dump-bin)
 
-API and SAS logic live in **eod-api** — see `eod-api/.cursor/skills/dc-scan-volunteer-board/SKILL.md`.
+Canonical dashboard: `https://the-dump-bin.com/dc-scan/`  
+File: `dc-scan/index.html`  
+API: `https://eod-api.the-dump-bin.com/api/dc-scan/` (via `dumpBinAuthFetch`)
 
-## Canonical files
-
-| File | Role |
-|------|------|
-| `dc-scan/index.html` | **Production UI** (GitHub Pages) |
-| `dc-scan.html` | Redirect to `/dc-scan/` |
-| `signin.html` | Magic-link sign-in; support `?next=/dc-scan/` |
-| `decide.html` | `type=dcscan` approve/deny release and swap |
-| `auth-gate.js` | JWT session; `dumpBinAuthFetch` → eod-api |
-
-Do **not** point the UI at `localhost` or eod-api static paths for production.
-
-## API wiring
-
-```js
-window.dumpBinAuthFetch('/api/dc-scan' + path, opts)
-// SSE: API_BASE + '/api/dc-scan/events?access_token=' + token
-```
-
-## UI behaviors to preserve
-
-1. **Two sections:** this week (urgent) + going forward.
-2. **Status badges:** Open, Claimed, Finalized, In PROD, Completed — from `snapshot` only (no page reload for resync).
-3. **Resync SAS PROD** → `POST /api/dc-scan/resync` → `applySnapshot(data.snapshot)`.
-4. **Finalize** disabled when all user pledges are `finalized` (not when `buildStatus === 'built'`).
-5. **My list** shows `confirmed in PROD` vs `finalized, awaiting PROD`.
-6. PROD banner: connected + visit count when `prod.ok`; warn when not.
+Backend skill: `eod-api/.cursor/skills/dc-scan-volunteer-board/`  
+UI troubleshooting: [ui-troubleshooting.md](ui-troubleshooting.md)
 
 ## Deploy
 
-Push `main` on **the-dump-bin** → GitHub Pages (workflow `.github/workflows/deploy-pages.yml`).
-Hard-refresh after deploy. API changes require separate **eod-api** Railway deploy.
+UI changes require **push the-dump-bin to GitHub main** (GitHub Pages).  
+API changes require **push eod-api** (Railway). Both repos for full features.
 
-## Gotchas
+After deploy: hard-refresh on mobile (close tab or pull-to-refresh).
 
-- Claimed on the board ≠ In PROD — card stays **Claimed** until API snapshot shows PROD confirmation.
-- After eod-api deploy, click **Resync SAS PROD** if banner stuck on pending.
-- See eod-api skill `gotchas.md` for Railway/Windows and store-matching issues.
+## Page structure
+
+| Element | Purpose |
+|---------|---------|
+| `#boot-status` | Visible loading/error before `#app` un-hides |
+| `#app` | Main board (`hidden` until `/api/me` succeeds) |
+| `#access-gate` | Request-access banner when `canParticipate` is false |
+| `#participant-panels` | Claim + My selections (read-only when no access) |
+| `auth-gate.js` | **Must load in `<head>`** before body paint |
+
+## Boot sequence
+
+1. `await dumpBinAuthReady` — magic-link exchange or session check.
+2. `GET /api/me` — show signed-in email; unhide `#app`.
+3. `GET /api/dc-scan/approved-users` — show/hide access gate.
+4. `GET /api/dc-scan/` — snapshot; optional cached `dc_scan_snapshot` in localStorage.
+5. SSE `/api/dc-scan/events?access_token=…` — live updates.
+
+## Access gate (signed in but not volunteer)
+
+When `approved-users` returns `canParticipate: false`:
+
+- Show `#access-gate` with request form or pending message.
+- Add `read-only-actions` on claim panels (view board, cannot claim).
+- Submit → `POST /api/dc-scan/access-request` with `{ name, reason }`.
+
+Claim errors containing `allowlist` should point user to the access form above.
+
+## UI conventions
+
+- **Resync SAS PROD** → `POST /api/dc-scan/resync`; apply returned `snapshot` in place (no full reload).
+- Release/swap → `decide.html?type=dcscan&id=…&token=…`
+- Sign out → clear `dumpBinSession` / `eodSession` → `/signin.html?next=/dc-scan/`
+
+## Validate JS before push
+
+```powershell
+node -e "const fs=require('fs'); const h=fs.readFileSync('dc-scan/index.html','utf8'); const m=h.match(/<script>\s*\(function \(\) \{([\s\S]*)\}\)\(\);/); if(!m) throw new Error('no script'); new Function(m[1]); console.log('syntax ok')"
+```
+
+Run from the-dump-bin repo root.
+
+## Related
+
+- Rule: `.cursor/rules/dc-scan-volunteer-board.mdc`
+- API allowlist workflow: `eod-api/.cursor/skills/dc-scan-volunteer-board/access-and-allowlist.md`
