@@ -13,6 +13,7 @@ globs:
 - Auth via `auth-gate.js` + Dump Bin magic link; API on `eod-api.the-dump-bin.com`.
 - **Resync SAS PROD** calls `POST /api/dc-scan/resync` and updates snapshot in place — no `location.reload()`.
 - Release/swap: `decide.html` with `type=dcscan`.
-- Full skill: `.cursor/skills/dc-scan-volunteer-board/SKILL.md`
+- Access gate UI for non-volunteers; black-screen fixes: `.cursor/skills/dc-scan-volunteer-board/`
+- API skill: `eod-api/.cursor/skills/dc-scan-volunteer-board/`
 
 Push **the-dump-bin** for UI changes; push **eod-api** for API/PROD sync changes.
