@@ -279,6 +279,21 @@ function esc(s) {
 }
 function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
 
+/** District 1, 2, … 9, 10 (not 1, 10, 2). Unassigned last. */
+function sortDistrictLabels(list) {
+  return [...(list || [])].filter((d) => d != null && String(d).trim() !== '').sort((a, b) => {
+    const sa = String(a), sb = String(b);
+    if (sa === 'Unassigned' && sb !== 'Unassigned') return 1;
+    if (sb === 'Unassigned' && sa !== 'Unassigned') return -1;
+    const na = /^\d+$/.test(sa) ? Number(sa) : null;
+    const nb = /^\d+$/.test(sb) ? Number(sb) : null;
+    if (na != null && nb != null) return na - nb;
+    if (na != null) return -1;
+    if (nb != null) return 1;
+    return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
 /** Resolve FM store name for a store number (catalog / open-store context). */
 function lookupStoreName(storeNum) {
   const n = Number(storeNum);
@@ -616,9 +631,11 @@ function renderPicker() {
 
   const meta = storeMetaMap();
   const allStores = catalog.stores || ME.storeDetails || [];
-  const districts = (catalog.districts && catalog.districts.length)
-    ? catalog.districts
-    : [...new Set(allStores.map((s) => s.district).filter(Boolean))].sort();
+  const districts = sortDistrictLabels(
+    (catalog.districts && catalog.districts.length)
+      ? catalog.districts
+      : [...new Set(allStores.map((s) => s.district).filter(Boolean))]
+  );
 
   if (SELECTED_STORE != null && !addDistrict) {
     const m = meta.get(SELECTED_STORE);

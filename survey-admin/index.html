@@ -573,6 +573,22 @@ function escHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/** District 1, 2, … 9, 10 (not 1, 10, 2). Unassigned last. */
+function compareDistrictLabels(a, b) {
+  const sa = String(a ?? ''), sb = String(b ?? '');
+  if (sa === 'Unassigned' && sb !== 'Unassigned') return 1;
+  if (sb === 'Unassigned' && sa !== 'Unassigned') return -1;
+  const na = /^\d+$/.test(sa) ? Number(sa) : null;
+  const nb = /^\d+$/.test(sb) ? Number(sb) : null;
+  if (na != null && nb != null) return na - nb;
+  if (na != null) return -1;
+  if (nb != null) return 1;
+  return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: 'base' });
+}
+function sortDistrictLabels(list) {
+  return [...(list || [])].filter((d) => d != null && String(d).trim() !== '').sort(compareDistrictLabels);
+}
+
 function flatQuestions(spec) {
   const out = [];
   for (const s of spec.sections || []) {
@@ -716,7 +732,7 @@ function renderCoverage() {
 
   const distSel = document.getElementById('cov-district');
   const prev = distSel.value;
-  const dists = [...new Set((COVERAGE.stores || []).map((s) => s.district).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  const dists = sortDistrictLabels([...(new Set((COVERAGE.stores || []).map((s) => s.district).filter(Boolean)))]);
   distSel.innerHTML = '<option value="">All districts</option>' + dists.map((d) => `<option value="${escHtml(d)}">District ${escHtml(d)}</option>`).join('');
   if (prev && dists.map(String).includes(String(prev))) distSel.value = prev;
 
@@ -913,7 +929,7 @@ document.getElementById('bulk-add').onclick = async () => {
 function renderStorePicks() {
   const stores = FILTERS.stores || [];
   const distWrap = document.getElementById('dist-picks');
-  const dists = [...new Set(stores.map((s) => s.district).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  const dists = sortDistrictLabels([...(new Set(stores.map((s) => s.district).filter(Boolean)))]);
   distWrap.innerHTML = dists.map((d) => `
     <label><input type="checkbox" data-dist="${escHtml(d)}"> District ${escHtml(d)}</label>`).join('');
 
@@ -1080,7 +1096,7 @@ async function loadFilters() {
 
   const dsel = document.getElementById('f-district');
   dsel.innerHTML = '';
-  f.districts.concat(['Unassigned']).filter((v, i, a) => a.indexOf(v) === i)
+  sortDistrictLabels(f.districts.concat(['Unassigned']).filter((v, i, a) => a.indexOf(v) === i))
     .forEach((d) => dsel.add(new Option('District ' + d, d)));
 
   const ssel = document.getElementById('f-store');
@@ -1099,7 +1115,7 @@ async function loadFilters() {
 
   const alDist = document.getElementById('al-districts');
   alDist.innerHTML = '';
-  (f.districts || []).forEach((d) => alDist.add(new Option('District ' + d, d)));
+  sortDistrictLabels(f.districts || []).forEach((d) => alDist.add(new Option('District ' + d, d)));
 
   renderStorePicks();
   renderScope();
@@ -1189,7 +1205,8 @@ function renderGrid() {
     return (av == null || av === '') - (bv == null || bv === '') || (av > bv ? 1 : av < bv ? -1 : 0);
   });
   if (SORT.dir < 0) rows.reverse();
-  if (groupBy) rows.sort((a, b) => String(a[groupBy]).localeCompare(String(b[groupBy]), undefined, { numeric: true }));
+  if (groupBy === 'district') rows.sort((a, b) => compareDistrictLabels(a.district, b.district));
+  else if (groupBy) rows.sort((a, b) => String(a[groupBy]).localeCompare(String(b[groupBy]), undefined, { numeric: true }));
 
   let lastGroup = null, html = '';
   for (const r of rows) {
