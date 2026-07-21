@@ -59,6 +59,14 @@
   .progress{height:4px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden}
   .progress i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#1a8fbf);width:0;transition:width .2s}
   main{max-width:560px;margin:0 auto;padding:12px}
+  @media (min-width:720px){
+    main{max-width:640px;padding:16px 20px}
+    .brand-titles h1{font-size:16px}
+  }
+  @media (min-width:1024px){
+    main{max-width:720px;padding:20px 24px}
+    .qtext{font-size:18px}
+  }
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
   .qtext{font-weight:600;margin-bottom:12px;line-height:1.35;font-size:17px}
   .opts{display:flex;flex-direction:column;gap:8px}

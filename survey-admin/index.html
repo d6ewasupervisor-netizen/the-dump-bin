@@ -4,24 +4,37 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#0f5c8c">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Survey Admin — Division 701 · Retail Odyssey</title>
 <link rel="icon" href="/survey/assets/ro-logo.png">
 <script src="/auth-gate.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root{
+  :root, [data-theme="light"]{
     --ink:#1c2733; --ink-soft:#5a6b7d; --line:#d8dfe6; --paper:#eef2f6; --card:#ffffff;
     --accent:#0f5c8c; --accent-deep:#0a4063; --accent-soft:#e8f1f7;
     --good:#2e7d52; --good-bg:#e8f5ee; --bad:#b3402a; --bad-bg:#fcecea;
     --warn:#c98a1b; --warn-bg:#fdf4e4; --focus:#0f5c8c; --shadow:0 1px 2px rgba(15,92,140,.06);
+    --bar-bg:linear-gradient(180deg,#fff,#f7fafc);
+    --th-bg:#eef2f6; --row-hover:#f5f8fb; --group-bg:#e7edf3;
+    --input-bg:#fff; --chip-bg:#fff; --overlay:rgba(238,242,246,.78);
+  }
+  [data-theme="dark"]{
+    --ink:#e8eef4; --ink-soft:#9aabba; --line:#2f4052; --paper:#0f1419; --card:#1a2330;
+    --accent:#4aa3d9; --accent-deep:#8ec8ea; --accent-soft:#1a3348;
+    --good:#4caf7a; --good-bg:#1a3328; --bad:#e0705c; --bad-bg:#3a221e;
+    --warn:#e0b34a; --warn-bg:#3a3018; --focus:#4aa3d9; --shadow:0 1px 2px rgba(0,0,0,.35);
+    --bar-bg:linear-gradient(180deg,#15202b,#121a22);
+    --th-bg:#15202b; --row-hover:#1e2a38; --group-bg:#152636;
+    --input-bg:#121a22; --chip-bg:#1e2a38; --overlay:rgba(15,20,25,.82);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html{overscroll-behavior:none}
-  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:15px;overscroll-behavior-y:none;line-height:1.45}
+  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:15px;overscroll-behavior-y:none;line-height:1.45;touch-action:pan-y}
 
   header.brand{
-    position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#fff,#f7fafc);
+    position:sticky;top:0;z-index:40;background:var(--bar-bg);
     border-bottom:2px solid var(--accent);
     padding:10px 14px 0;
     padding-top:max(10px, env(safe-area-inset-top, 0px));
@@ -33,6 +46,12 @@
   header.brand h1{font-size:16px;margin:0;letter-spacing:.2px}
   header.brand .who{color:var(--ink-soft);font-size:12px;text-align:right}
   header.brand .who strong{display:block;color:var(--ink);font-size:13px}
+  header.brand .brand-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .icon-btn{
+    min-width:44px;min-height:44px;padding:0 12px;border-radius:10px;
+    border:1.5px solid var(--line);background:var(--card);color:var(--ink);
+    font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation;
+  }
 
   .tabs{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px;scrollbar-width:none}
   .tabs::-webkit-scrollbar{display:none}
@@ -67,12 +86,12 @@
 
   .chip-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
   .chip{
-    display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:#fff;
+    display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--chip-bg);
     border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;min-height:36px;
   }
   .chip.active{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
   .chip .count{background:var(--paper);border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700}
-  .chip.active .count{background:#fff}
+  .chip.active .count{background:var(--card)}
 
   .status{
     display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;
@@ -85,10 +104,10 @@
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   .search{
     flex:1 1 200px;min-width:160px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
-    background:#fff;font-size:16px;min-height:44px;
+    background:var(--input-bg);color:var(--ink);font-size:16px;min-height:44px;
   }
   select,input[type="text"],input[type="date"],input[type="number"],input[type="search"],textarea{
-    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:16px;min-height:44px;font-family:inherit;
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--input-bg);color:var(--ink);font-size:16px;min-height:44px;font-family:inherit;
   }
   select[multiple]{min-height:140px;font-size:14px;padding:6px}
   textarea{min-height:80px;resize:vertical}
@@ -99,7 +118,7 @@
     background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 14px;
     font-size:14px;font-weight:600;cursor:pointer;min-height:44px;touch-action:manipulation;
   }
-  button.secondary{background:#fff;color:var(--accent);border:1.5px solid var(--accent)}
+  button.secondary{background:var(--card);color:var(--accent);border:1.5px solid var(--accent)}
   button.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
   button.danger{background:var(--bad)}
   button:disabled{opacity:.55;cursor:not-allowed}
@@ -115,9 +134,9 @@
 
   .cov-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
   .cov-table th,.cov-table td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-  .cov-table th{background:#eef2f6;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);position:sticky;top:0;z-index:1}
+  .cov-table th{background:var(--th-bg);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);position:sticky;top:0;z-index:1}
   .cov-table tr:last-child td{border-bottom:0}
-  .cov-table tr:hover td{background:#f5f8fb}
+  .cov-table tr:hover td{background:var(--row-hover)}
   .tablewrap{max-height:min(70vh,620px);overflow:auto;border-radius:12px;-webkit-overflow-scrolling:touch;border:1px solid var(--line)}
   .assignee-list{display:flex;flex-direction:column;gap:4px}
   .assignee-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -132,7 +151,7 @@
 
   .wizard-steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
   .wizard-steps span{
-    font-size:12px;font-weight:700;color:var(--ink-soft);background:#fff;border:1px solid var(--line);
+    font-size:12px;font-weight:700;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);
     border-radius:999px;padding:6px 11px;
   }
   .wizard-steps span.on{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -144,12 +163,12 @@
 
   .typeahead{position:relative}
   .typeahead-results{
-    position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid var(--line);
-    border-radius:10px;margin-top:4px;max-height:240px;overflow:auto;box-shadow:0 8px 24px rgba(28,39,51,.12);display:none;
+    position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;margin-top:4px;max-height:240px;overflow:auto;box-shadow:0 8px 24px rgba(28,39,51,.18);display:none;
   }
   .typeahead-results.open{display:block}
   .typeahead-results button{
-    display:block;width:100%;text-align:left;background:#fff;color:var(--ink);border:0;border-radius:0;
+    display:block;width:100%;text-align:left;background:var(--card);color:var(--ink);border:0;border-radius:0;
     border-bottom:1px solid var(--line);padding:10px 12px;font-weight:500;font-size:13px;min-height:0;
   }
   .typeahead-results button:last-child{border-bottom:0}
@@ -162,14 +181,14 @@
   }
   .sel-chip button{all:unset;cursor:pointer;color:var(--accent);font-weight:700;padding:0 2px;min-height:0}
   .dist-picks{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-  .dist-picks label{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
-  .store-pick-list{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .dist-picks label{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:var(--chip-bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+  .store-pick-list{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
   .store-pick-list label{
     display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-bottom:1px solid var(--line);
     font-size:13px;cursor:pointer;margin:0;
   }
   .store-pick-list label:last-child{border-bottom:0}
-  .store-pick-list label:hover{background:#f5f8fb}
+  .store-pick-list label:hover{background:var(--row-hover)}
   .store-pick-list input{width:auto;min-height:0;margin-top:2px}
   .success-box{background:var(--good-bg);border:1px solid #b7dfc7;border-radius:12px;padding:14px;margin-top:12px;display:none}
   .success-box.show{display:block}
@@ -185,12 +204,13 @@
   .filters{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px;margin-bottom:12px}
   .filters label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px}
   .viewbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%}
-  .viewbar input,.viewbar select{min-height:44px;font-size:16px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:auto}
+  .viewbar input,.viewbar select{min-height:44px;font-size:16px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:auto;background:var(--input-bg);color:var(--ink)}
   table.grid{width:100%;border-collapse:collapse;background:var(--card);font-size:13px}
   table.grid th,table.grid td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-  table.grid th{background:#eef2f6;cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0}
+  table.grid th{background:var(--th-bg);cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0}
   table.grid th .dir{color:var(--accent)}
-  table.grid tr:hover td{background:#f2f6fa}
+  table.grid tr:hover td{background:var(--row-hover)}
+  .group-row td{background:var(--group-bg)!important;font-weight:600}
   td.problem{color:var(--bad);font-weight:600}
   .heat{display:inline-block;width:56px;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--good),var(--warn),var(--bad));position:relative;vertical-align:middle;margin-right:6px}
   .heat i{position:absolute;top:-3px;width:2px;height:16px;background:var(--ink)}
@@ -198,7 +218,7 @@
 
   .toggle-list{display:flex;flex-direction:column;gap:10px}
   .toggle-row{
-    display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;
+    display:flex;justify-content:space-between;gap:12px;align-items:center;background:var(--card);
     border:1px solid var(--line);border-radius:12px;padding:12px 14px;
   }
   .toggle-row strong{display:block;font-size:14px}
@@ -217,19 +237,66 @@
   .export-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
   .foot-brand{text-align:center;font-size:11px;color:var(--ink-soft);margin:24px 0 8px;letter-spacing:.04em;text-transform:uppercase}
   .loading-overlay{
-    position:fixed;inset:0;background:rgba(238,242,246,.72);z-index:50;display:none;align-items:center;justify-content:center;
+    position:fixed;inset:0;background:var(--overlay);z-index:50;display:none;align-items:center;justify-content:center;
     font-weight:600;color:var(--accent-deep);
   }
   .loading-overlay.show{display:flex}
 
+  /* Response viewer */
+  .resp-list{display:flex;flex-direction:column;gap:10px}
+  .resp-card{
+    background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px;
+    cursor:pointer;touch-action:manipulation;box-shadow:var(--shadow);text-align:left;width:100%;color:var(--ink);
+  }
+  .resp-card:hover,.resp-card:focus-visible{border-color:var(--accent);background:var(--accent-soft)}
+  .resp-card .rc-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .resp-card .rc-store{font-weight:700;font-size:16px}
+  .resp-card .rc-meta{font-size:13px;color:var(--ink-soft);margin-top:4px}
+  .resp-card .rc-photos{font-size:12px;color:var(--accent);font-weight:600;margin-top:8px}
+  .viewer-shell{display:none}
+  .viewer-shell.open{display:block}
+  .viewer-nav{
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;
+    position:sticky;top:calc(72px + env(safe-area-inset-top,0px));z-index:5;
+    background:var(--paper);padding:8px 0;
+  }
+  .viewer-nav .pos{flex:1;font-size:13px;color:var(--ink-soft);text-align:center;min-width:120px}
+  .qa-block{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .qa-block .qid{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+  .qa-block .q{font-weight:600;margin:4px 0 8px;line-height:1.35}
+  .qa-block .a{font-size:14px;word-break:break-word}
+  .qa-block .a.problem{color:var(--bad);font-weight:600}
+  .qa-block .a.empty{color:var(--ink-soft)}
+  .photo-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .photo-thumbs a{
+    display:block;width:88px;height:88px;border-radius:10px;overflow:hidden;border:1px solid var(--line);
+    background:var(--paper);
+  }
+  .photo-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+  .explore-cards{display:none;gap:10px}
+  .code-pill{background:var(--paper);padding:2px 6px;border-radius:4px;font-size:12px;word-break:break-all}
+
   @media (max-width:720px){
-    .cov-desktop{display:none}
-    .cov-cards{display:grid}
+    .cov-desktop,.explore-desktop{display:none}
+    .cov-cards,.explore-cards{display:grid}
     .toolbar button{flex:1 1 calc(50% - 8px)}
     .viewbar{flex-direction:column;align-items:stretch}
     .viewbar input,.viewbar select{width:100%}
     #explore-status{margin-left:0;width:100%}
     header.brand .who{text-align:left;width:100%}
+    header.brand .brand-actions{width:100%;justify-content:flex-end}
+    .chip-row{gap:6px}
+    .chip-row select{margin-left:0!important;width:100%;flex:1 1 100%}
+    .filters{grid-template-columns:1fr}
+    select[multiple]{min-height:110px}
+    .export-actions button{flex:1 1 100%}
+  }
+  @media (min-width:721px) and (max-width:1024px){
+    main{padding:14px 16px calc(40px + env(safe-area-inset-bottom,0px))}
+    .filters{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (min-width:1025px){
+    main{max-width:1400px;padding:18px 20px calc(40px + env(safe-area-inset-bottom,0px))}
   }
   @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
 </style>
@@ -243,12 +310,16 @@
       <div class="co">Retail Odyssey · Division 701</div>
       <h1>Survey Admin</h1>
     </div>
-    <div class="who" id="who"><span class="muted">Signing in…</span></div>
+    <div class="brand-actions">
+      <button type="button" class="icon-btn" id="btn-theme" title="Toggle light/dark mode" aria-label="Toggle theme">Dark</button>
+      <div class="who" id="who"><span class="muted">Signing in…</span></div>
+    </div>
   </div>
   <nav class="tabs" id="tabs" aria-label="Survey admin sections">
     <button type="button" data-tab="coverage" class="active">Coverage</button>
     <button type="button" data-tab="assign">Assign</button>
     <button type="button" data-tab="explore">Explore</button>
+    <button type="button" data-tab="responses">Responses</button>
     <button type="button" data-tab="alerts">Alerts</button>
     <button type="button" data-tab="export">Export</button>
   </nav>
@@ -434,7 +505,37 @@
       <span id="explore-status"></span>
     </div>
 
-    <div class="tablewrap"><table class="grid" id="grid"><thead></thead><tbody></tbody></table></div>
+    <div class="tablewrap explore-desktop"><table class="grid" id="grid"><thead></thead><tbody></tbody></table></div>
+    <div class="explore-cards" id="explore-cards"></div>
+  </section>
+
+  <!-- ========== RESPONSES (GUI viewer) ========== -->
+  <section class="panel" id="panel-responses" aria-label="Responses">
+    <p class="hint">Scroll submitted surveys on screen. Uses the same filters as Explore. Photo links open without signing in.</p>
+    <div class="toolbar">
+      <button type="button" id="resp-refresh">Refresh</button>
+      <button type="button" class="secondary" id="resp-use-filters">Use Explore filters</button>
+      <span id="resp-status" class="muted" style="margin-left:auto;font-size:13px"></span>
+    </div>
+
+    <div id="resp-list-wrap">
+      <div class="resp-list" id="resp-list"></div>
+      <div class="empty" id="resp-empty" hidden>
+        <strong>No responses to show</strong>
+        <p class="hint" style="margin:0">Adjust Explore filters, then tap Refresh.</p>
+      </div>
+    </div>
+
+    <div class="viewer-shell" id="resp-viewer" aria-live="polite">
+      <div class="viewer-nav">
+        <button type="button" class="secondary" id="resp-back-list">← List</button>
+        <button type="button" class="ghost" id="resp-prev">Prev</button>
+        <span class="pos" id="resp-pos">1 / 1</span>
+        <button type="button" class="ghost" id="resp-next">Next</button>
+      </div>
+      <div class="panel-card" id="resp-viewer-head"></div>
+      <div id="resp-viewer-body"></div>
+    </div>
   </section>
 
   <!-- ========== ALERTS ========== -->
@@ -481,18 +582,22 @@
       <h3>Export survey data</h3>
       <p class="hint">Uses the current Explore filters (districts, stores, status, and selected questions). If you haven’t filtered Explore, exports cover everything in your admin scope.</p>
       <label class="check">
+        <input type="checkbox" id="exp-photo-links" checked>
+        <span>Include photo links (open in browser — no login). Links expire after <span id="exp-ttl">30</span> days.</span>
+      </label>
+      <label class="check">
         <input type="checkbox" id="exp-with-photos">
-        <span>Include photos ZIP with CSV / XLSX export</span>
+        <span>Also download photos ZIP (optional — large files)</span>
       </label>
       <div class="export-actions">
         <button type="button" id="exp-csv">Export CSV</button>
         <button type="button" class="secondary" id="exp-xlsx">Export XLSX</button>
-        <button type="button" class="secondary" id="exp-photos">Download photos ZIP</button>
+        <button type="button" class="ghost" id="exp-photos">Photos ZIP only</button>
       </div>
       <p class="muted" style="font-size:13px;margin:0">
-        Photo files are named intelligently:
-        <code style="background:var(--paper);padding:2px 6px;border-radius:4px">FM{store}_{name}_Q{id}_{user}_{photoId}.jpg</code>
-        and grouped into per-store folders inside the ZIP.
+        Spreadsheets get a <span class="code-pill">photo_urls</span> column per question plus <span class="code-pill">all_photo_urls</span>.
+        ZIP filenames look like
+        <span class="code-pill">FM{store}_{name}_Q{id}_{user}_{photoId}.jpg</span>.
       </p>
       <div class="err-box" id="exp-err"></div>
     </div>
@@ -520,6 +625,7 @@ const authHeaders = () => ({
 let SPEC = null;
 let QLIST = [];
 let DATA = [];
+let PHOTO_TTL_DAYS = 30;
 let SORT = { col: 'store_num', dir: 1 };
 let COVERAGE = { stores: [], totals: {} };
 let FILTERS = { districts: [], stores: [], teams: [], scope: null, user: null };
@@ -529,6 +635,28 @@ let SELECTED_STORES = new Set();
 let COV_STATE = 'all';
 let rosterTimer = null;
 let charts = [];
+let VIEW_IDX = -1;
+
+const THEME_KEY = 'surveyAdminTheme';
+function getTheme() {
+  const t = localStorage.getItem(THEME_KEY);
+  if (t === 'dark' || t === 'light') return t;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+  return 'light';
+}
+function applyTheme(theme) {
+  const t = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem(THEME_KEY, t);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = t === 'dark' ? '#121a22' : '#0f5c8c';
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.textContent = t === 'dark' ? 'Light' : 'Dark';
+}
+applyTheme(getTheme());
+document.getElementById('btn-theme').onclick = () => {
+  applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
+};
 
 function showForbidden() {
   document.body.innerHTML = `
@@ -677,6 +805,11 @@ function switchTab(name) {
   document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
   if (name === 'alerts') loadAlerts().catch(console.error);
   if (name === 'explore' && !DATA.length) refreshExplore().catch(console.error);
+  if (name === 'responses') {
+    showResponseList();
+    if (!DATA.length) refreshExplore().then(() => renderResponseList()).catch(console.error);
+    else renderResponseList();
+  }
 }
 
 document.getElementById('cov-goto-assign').onclick = () => switchTab('assign');
@@ -1174,8 +1307,32 @@ async function loadSummary() {
 
 async function loadData() {
   const r = await api('/api/survey/admin/responses?' + filterQS().toString());
-  DATA = r.responses;
+  DATA = r.responses || [];
+  if (r.photoLinkTtlDays) {
+    PHOTO_TTL_DAYS = r.photoLinkTtlDays;
+    const ttlEl = document.getElementById('exp-ttl');
+    if (ttlEl) ttlEl.textContent = String(PHOTO_TTL_DAYS);
+  }
   renderGrid();
+  if (document.getElementById('panel-responses').classList.contains('active')) renderResponseList();
+}
+
+function sortedFilteredRows() {
+  const groupBy = document.getElementById('f-group').value;
+  let rows = [...DATA];
+  const getv = (r, k) => {
+    if (k === 'store_name') return r.store_name || r.storeName || '';
+    if (k.startsWith('Q')) return formatAnswer(QLIST.find((q) => q.id === k) || { id: k }, r.answers) || '';
+    return r[k];
+  };
+  rows.sort((a, b) => {
+    const av = getv(a, SORT.col), bv = getv(b, SORT.col);
+    return (av == null || av === '') - (bv == null || bv === '') || (av > bv ? 1 : av < bv ? -1 : 0);
+  });
+  if (SORT.dir < 0) rows.reverse();
+  if (groupBy === 'district') rows.sort((a, b) => compareDistrictLabels(a.district, b.district));
+  else if (groupBy) rows.sort((a, b) => String(a[groupBy]).localeCompare(String(b[groupBy]), undefined, { numeric: true }));
+  return rows;
 }
 
 function renderGrid() {
@@ -1194,25 +1351,13 @@ function renderGrid() {
     `<th data-col="${k}" title="${cols.find((c) => c.id === k) ? escHtml(plainQuestionText(cols.find((c) => c.id === k))) : lbl}">${lbl}${SORT.col === k ? ` <span class="dir">${SORT.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('') + '</tr>';
 
   const groupBy = document.getElementById('f-group').value;
-  let rows = [...DATA];
-  const getv = (r, k) => {
-    if (k === 'store_name') return r.store_name || r.storeName || '';
-    if (k.startsWith('Q')) return formatAnswer(QLIST.find((q) => q.id === k) || { id: k }, r.answers) || '';
-    return r[k];
-  };
-  rows.sort((a, b) => {
-    const av = getv(a, SORT.col), bv = getv(b, SORT.col);
-    return (av == null || av === '') - (bv == null || bv === '') || (av > bv ? 1 : av < bv ? -1 : 0);
-  });
-  if (SORT.dir < 0) rows.reverse();
-  if (groupBy === 'district') rows.sort((a, b) => compareDistrictLabels(a.district, b.district));
-  else if (groupBy) rows.sort((a, b) => String(a[groupBy]).localeCompare(String(b[groupBy]), undefined, { numeric: true }));
+  const rows = sortedFilteredRows();
 
   let lastGroup = null, html = '';
   for (const r of rows) {
     if (groupBy && r[groupBy] !== lastGroup) {
       lastGroup = r[groupBy];
-      html += `<tr><td colspan="${meta.length + cols.length}" style="background:#e7edf3;font-weight:600">${groupBy === 'district' ? 'District ' : ''}${escHtml(lastGroup)}</td></tr>`;
+      html += `<tr class="group-row"><td colspan="${meta.length + cols.length}">${groupBy === 'district' ? 'District ' : ''}${escHtml(lastGroup)}</td></tr>`;
     }
     html += '<tr>' + meta.map(([k]) => {
       if (k === 'submitted_at' && r[k]) return `<td>${new Date(r[k]).toLocaleDateString()}</td>`;
@@ -1239,7 +1384,161 @@ function renderGrid() {
       renderGrid();
     };
   });
+
+  const cards = document.getElementById('explore-cards');
+  cards.innerHTML = rows.map((r) => {
+    const name = r.store_name || r.storeName || '—';
+    const when = r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : '—';
+    const nPhotos = (r.photos || []).length;
+    return `<button type="button" class="resp-card" data-open-id="${r.id}">
+      <div class="rc-top">
+        <div>
+          <div class="rc-store">${escHtml(String(r.store_num))} · ${escHtml(name)}</div>
+          <div class="rc-meta">D${escHtml(r.district || '?')} · ${escHtml(r.status || '')} · ${escHtml(when)}</div>
+        </div>
+        <span class="status ${escHtml(r.status || '')}">${escHtml(r.status || '')}</span>
+      </div>
+      ${nPhotos ? `<div class="rc-photos">${nPhotos} photo${nPhotos === 1 ? '' : 's'}</div>` : ''}
+    </button>`;
+  }).join('') || '<div class="empty"><strong>No responses</strong></div>';
+  cards.querySelectorAll('[data-open-id]').forEach((btn) => {
+    btn.onclick = () => {
+      switchTab('responses');
+      openResponseById(Number(btn.dataset.openId));
+    };
+  });
 }
+
+/* ---------- Responses GUI viewer ---------- */
+function showResponseList() {
+  document.getElementById('resp-list-wrap').hidden = false;
+  document.getElementById('resp-viewer').classList.remove('open');
+  VIEW_IDX = -1;
+}
+
+function renderResponseList() {
+  const list = document.getElementById('resp-list');
+  const empty = document.getElementById('resp-empty');
+  const rows = sortedFilteredRows();
+  document.getElementById('resp-status').textContent = `${rows.length} response${rows.length === 1 ? '' : 's'}`;
+  if (!rows.length) {
+    list.innerHTML = '';
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+  list.innerHTML = rows.map((r, i) => {
+    const name = r.store_name || r.storeName || '—';
+    const when = r.submitted_at ? new Date(r.submitted_at).toLocaleString() : 'Draft / not submitted';
+    const nPhotos = (r.photos || []).length;
+    return `<button type="button" class="resp-card" data-idx="${i}">
+      <div class="rc-top">
+        <div>
+          <div class="rc-store">${escHtml(String(r.store_num))} · ${escHtml(name)}</div>
+          <div class="rc-meta">District ${escHtml(r.district || '?')} · ${escHtml(when)}</div>
+        </div>
+        <span class="status ${escHtml(r.status || '')}">${escHtml(r.status || '')}</span>
+      </div>
+      ${nPhotos ? `<div class="rc-photos">${nPhotos} photo${nPhotos === 1 ? '' : 's'} · tap to review</div>` : '<div class="rc-photos" style="color:var(--ink-soft)">Tap to review answers</div>'}
+    </button>`;
+  }).join('');
+  list.querySelectorAll('[data-idx]').forEach((btn) => {
+    btn.onclick = () => openResponseAt(Number(btn.dataset.idx));
+  });
+}
+
+function openResponseById(id) {
+  const rows = sortedFilteredRows();
+  const idx = rows.findIndex((r) => Number(r.id) === Number(id));
+  if (idx >= 0) openResponseAt(idx);
+}
+
+function openResponseAt(idx) {
+  const rows = sortedFilteredRows();
+  if (!rows.length) return;
+  VIEW_IDX = Math.max(0, Math.min(idx, rows.length - 1));
+  const r = rows[VIEW_IDX];
+  document.getElementById('resp-list-wrap').hidden = true;
+  document.getElementById('resp-viewer').classList.add('open');
+  document.getElementById('resp-pos').textContent = `${VIEW_IDX + 1} / ${rows.length}`;
+  document.getElementById('resp-prev').disabled = VIEW_IDX <= 0;
+  document.getElementById('resp-next').disabled = VIEW_IDX >= rows.length - 1;
+
+  const name = r.store_name || r.storeName || '—';
+  const when = r.submitted_at ? new Date(r.submitted_at).toLocaleString() : '—';
+  document.getElementById('resp-viewer-head').innerHTML = `
+    <h3 style="margin:0 0 6px">Store ${escHtml(String(r.store_num))} · ${escHtml(name)}</h3>
+    <p class="muted" style="margin:0;font-size:13px">
+      District ${escHtml(r.district || '?')} · ${escHtml(r.status || '')} · Submitted ${escHtml(when)}
+      · Response #${escHtml(String(r.id))}
+    </p>`;
+
+  const photos = r.photos || [];
+  const byQ = new Map();
+  photos.forEach((p) => {
+    const qid = p.questionId || p.question_id || '_';
+    if (!byQ.has(qid)) byQ.set(qid, []);
+    byQ.get(qid).push(p);
+  });
+
+  const sections = (SPEC && SPEC.sections) || [];
+  let html = '';
+  for (const sec of sections) {
+    const qs = sec.questions || [];
+    const branchQs = [];
+    qs.forEach((q) => (q.branches || []).forEach((b) => branchQs.push(b)));
+    const all = qs.concat(branchQs);
+    const answered = all.filter((q) => {
+      const v = r.answers[q.id];
+      const has = !(v == null || v === '' || (Array.isArray(v) && !v.length));
+      return has || (byQ.get(q.id) || []).length;
+    });
+    if (!answered.length) continue;
+    html += `<h2 style="margin-top:18px">${escHtml(sec.id)}. ${escHtml(sec.title || '')}</h2>`;
+    for (const q of answered) {
+      const disp = formatAnswer(q, r.answers);
+      const empty = disp == null;
+      const prob = isProblem(q, r.answers[q.id]) === true;
+      const qPhotos = byQ.get(q.id) || [];
+      html += `<div class="qa-block">
+        <div class="qid">${escHtml(q.id)}</div>
+        <div class="q">${escHtml(plainQuestionText(q))}</div>
+        <div class="a ${prob ? 'problem' : ''} ${empty ? 'empty' : ''}">${empty ? 'No answer' : escHtml(disp)}</div>
+        ${qPhotos.length ? `<div class="photo-thumbs">${qPhotos.map((p) =>
+          p.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener" title="Open photo"><img src="${escHtml(p.url)}" alt="Photo for ${escHtml(q.id)}" loading="lazy"></a>` : ''
+        ).join('')}</div>` : ''}
+      </div>`;
+    }
+  }
+  const orphan = byQ.get('_') || [];
+  if (orphan.length) {
+    html += `<h2>Other photos</h2><div class="qa-block"><div class="photo-thumbs">${orphan.map((p) =>
+      p.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener"><img src="${escHtml(p.url)}" alt="Photo" loading="lazy"></a>` : ''
+    ).join('')}</div></div>`;
+  }
+  document.getElementById('resp-viewer-body').innerHTML = html || '<div class="empty"><strong>No answers on this response</strong></div>';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.getElementById('resp-back-list').onclick = () => {
+  showResponseList();
+  renderResponseList();
+};
+document.getElementById('resp-prev').onclick = () => openResponseAt(VIEW_IDX - 1);
+document.getElementById('resp-next').onclick = () => openResponseAt(VIEW_IDX + 1);
+document.getElementById('resp-refresh').onclick = () => refreshExplore().then(() => {
+  showResponseList();
+  renderResponseList();
+}).catch(console.error);
+document.getElementById('resp-use-filters').onclick = () => switchTab('explore');
+
+document.addEventListener('keydown', (e) => {
+  if (!document.getElementById('panel-responses').classList.contains('active')) return;
+  if (!document.getElementById('resp-viewer').classList.contains('open')) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); openResponseAt(VIEW_IDX - 1); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); openResponseAt(VIEW_IDX + 1); }
+  if (e.key === 'Escape') { showResponseList(); renderResponseList(); }
+});
 
 async function refreshExplore() {
   await Promise.all([loadSummary(), loadData()]);
@@ -1349,16 +1648,24 @@ function exportCsv() {
   const p = filterQS();
   const cols = visibleQuestionCols().map((c) => c.id);
   if (cols.length && cols.length !== QLIST.length) p.set('questions', cols.join(','));
+  p.set('photoLinks', document.getElementById('exp-photo-links').checked ? '1' : '0');
   downloadWithToken('/api/survey/admin/export.csv?' + p.toString());
+}
+
+function photosForQuestion(r, qid) {
+  return (r.photos || []).filter((p) => String(p.questionId || p.question_id || '') === String(qid)).map((p) => p.url).filter(Boolean);
 }
 
 function exportXlsx() {
   const cols = visibleQuestionCols();
+  const withLinks = document.getElementById('exp-photo-links').checked;
   const hasComment = new Set();
   const hasDetail = new Set();
+  const hasPhotos = new Set();
   DATA.forEach((r) => cols.forEach((c) => {
     if (r.answers[c.id + '_c']) hasComment.add(c.id);
     if (r.answers[c.id + '_d']) hasDetail.add(c.id);
+    if (withLinks && photosForQuestion(r, c.id).length) hasPhotos.add(c.id);
   }));
   const rows = DATA.map((r) => {
     const o = {
@@ -1377,7 +1684,11 @@ function exportXlsx() {
       o[label] = Array.isArray(r.answers[c.id]) ? r.answers[c.id].join('; ') : (r.answers[c.id] ?? '');
       if (hasDetail.has(c.id)) o[`${c.id} detail / name`] = r.answers[c.id + '_d'] ?? '';
       if (hasComment.has(c.id)) o[`${c.id} comment`] = r.answers[c.id + '_c'] ?? '';
+      if (hasPhotos.has(c.id)) o[`${c.id} photo_urls`] = photosForQuestion(r, c.id).join(' | ');
     });
+    if (withLinks) {
+      o.all_photo_urls = (r.photos || []).map((p) => p.url).filter(Boolean).join(' | ');
+    }
     return o;
   });
   const ws = XLSX.utils.json_to_sheet(rows);
