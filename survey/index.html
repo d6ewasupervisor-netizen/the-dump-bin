@@ -240,6 +240,7 @@ const main = $('#main');
 let ME = null, SPEC = null, PHASE = 'pick';
 let SELECTED_STORE = null;
 let STORE = null;
+let STORE_NAME = null;
 let FLAT = [];
 let QINDEX = 0;
 let ANSWERS = {};
@@ -276,6 +277,33 @@ function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
+
+/** Resolve FM store name for a store number (catalog / open-store context). */
+function lookupStoreName(storeNum) {
+  const n = Number(storeNum);
+  if (!Number.isFinite(n)) return null;
+  if (STORE != null && Number(STORE) === n && STORE_NAME) return STORE_NAME;
+  try {
+    const m = storeMetaMap().get(n);
+    if (m && m.storeName) return m.storeName;
+  } catch (_) { /* meta not ready */ }
+  return null;
+}
+
+/** Label like "657 · Thor Street" (falls back to "Store 657"). */
+function storeLabel(storeNum, opts = {}) {
+  const n = Number(storeNum);
+  if (!Number.isFinite(n)) return 'Store';
+  const name = lookupStoreName(n);
+  if (name) return `${n} · ${name}`;
+  return opts.plainNumber ? String(n) : `Store ${n}`;
+}
+
+/** Substitute {{storeName}} in question text for the open store. */
+function fillStoreVars(text, storeNum = STORE) {
+  const name = lookupStoreName(storeNum) || 'this store';
+  return String(text ?? '').split('{{storeName}}').join(name);
+}
 
 function flattenQuestions(spec, answers) {
   const out = [];
@@ -401,6 +429,7 @@ async function goHome() {
   clearTimeout(autoAdvanceTimer);
   if (STORE && dirty) await saveDraft(false);
   STORE = null;
+  STORE_NAME = null;
   FLAT = [];
   QINDEX = 0;
   ANSWERS = {};
@@ -428,6 +457,7 @@ function storeMetaMap() {
     map.set(Number(s.storeNum), {
       storeNum: Number(s.storeNum),
       district: s.district || '?',
+      storeName: s.storeName || s.store_name || null,
       status: null,
       suggested: false,
       updatedAt: null,
@@ -439,6 +469,7 @@ function storeMetaMap() {
     map.set(sn, {
       ...prev,
       district: s.district || prev.district || '?',
+      storeName: s.storeName || s.store_name || prev.storeName || null,
       status: s.status || null,
       suggested: !!(s.suggested || prev.suggested),
       updatedAt: s.updatedAt || s.updated_at || null,
@@ -484,6 +515,7 @@ function recentStores(meta) {
     out.push({
       storeNum: sn,
       district: m.district || s.district || '?',
+      storeName: m.storeName || s.storeName || s.store_name || null,
       status: s.status,
       updatedAt: s.updatedAt || s.updated_at || null,
       suggested: !!(m.suggested),
@@ -500,6 +532,7 @@ function recentStores(meta) {
 function renderPicker() {
   PHASE = 'pick';
   STORE = null;
+  STORE_NAME = null;
   FLAT = [];
   QINDEX = 0;
   clearTimeout(autoAdvanceTimer);
@@ -548,7 +581,7 @@ function renderPicker() {
     `<option value="${escAttr(d)}" ${String(addDistrict) === String(d) ? 'selected' : ''}>District ${esc(d)}</option>`
   ).join('');
   const storeOpts = districtStores.map((sn) =>
-    `<option value="${sn}" ${Number(addStorePick) === sn || SELECTED_STORE === sn ? 'selected' : ''}>Store ${sn}</option>`
+    `<option value="${sn}" ${Number(addStorePick) === sn || SELECTED_STORE === sn ? 'selected' : ''}>${esc(storeLabel(sn))}</option>`
   ).join('');
 
   const fromSchedule = SELECTED_STORE != null && (
@@ -564,7 +597,7 @@ function renderPicker() {
   const selectionHtml = SELECTED_STORE != null
     ? `<div class="sel-item" data-store="${SELECTED_STORE}">
           <div class="meta">
-            <strong>Store ${SELECTED_STORE}</strong>
+            <strong>${esc(storeLabel(SELECTED_STORE))}</strong>
             <span class="hint">District ${esc(mSel.district || '?')}</span>
             ${tags.length ? `<div>${tags.join(' ')}</div>` : ''}
           </div>
@@ -573,7 +606,7 @@ function renderPicker() {
     : '<div class="sel-empty">No store selected yet. Choose a district and store below.</div>';
 
   const noteHtml = fromSchedule && SELECTED_STORE != null
-    ? `Based on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''}, <strong>Store ${SELECTED_STORE}</strong> was pre-selected for you. If this is incorrect, please adjust using the district and store dropdowns below.`
+    ? `Based on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''}, <strong>${esc(storeLabel(SELECTED_STORE))}</strong> was pre-selected for you. If this is incorrect, please adjust using the district and store dropdowns below.`
     : scheduleDate
       ? `No store was found on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''} for your name. Please select your district and store below.`
       : 'Please select your district and store below.';
@@ -590,7 +623,7 @@ function renderPicker() {
         const st = s.status === 'submitted' ? 'submitted' : 'draft';
         return `<button type="button" class="store-row" data-open-store="${s.storeNum}">
           <span style="flex:1">
-            <strong>Store ${s.storeNum}</strong> · D${esc(s.district || '?')}
+            <strong>${esc(storeLabel(s.storeNum))}</strong> · D${esc(s.district || '?')}
             <br><span class="hint">${st}${when ? ' · updated ' + esc(when) : ''} · tap to review / edit answers</span>
           </span>
         </button>`;
@@ -680,7 +713,7 @@ function updatePickerNext() {
     btn.disabled = SELECTED_STORE == null;
     btn.className = '';
     btn.textContent = SELECTED_STORE != null
-      ? 'Open · Store ' + SELECTED_STORE
+      ? 'Open · ' + storeLabel(SELECTED_STORE)
       : 'Open store';
   }
 }
@@ -690,9 +723,11 @@ async function openStore(storeNum, opts = {}) {
   const jumpTo = opts.jumpTo != null ? Number(opts.jumpTo) : null;
   STORE = Number(storeNum);
   SELECTED_STORE = STORE;
+  STORE_NAME = lookupStoreName(STORE);
   clearTimeout(autoAdvanceTimer);
   setSave('Loading…', '');
   const ctx = await api(`/api/survey/stores/${STORE}/context`);
+  STORE_NAME = (ctx.store && (ctx.store.storeName || ctx.store.store_name)) || STORE_NAME || null;
   ANSWERS = ctx.myResponse ? { ...ctx.myResponse.answers } : {};
   RESPONSE_META = ctx.myResponse
     ? { status: ctx.myResponse.status, updatedAt: ctx.myResponse.updated_at || ctx.myResponse.updatedAt }
@@ -738,7 +773,7 @@ function renderAnswerList() {
   rebuildFlat();
   setProgress();
   $('#stepnav').hidden = false;
-  $('#hdr-title').textContent = `Store ${STORE} · Answers`;
+  $('#hdr-title').textContent = `${storeLabel(STORE)} · Answers`;
 
   let answered = 0, total = 0;
   let html = '';
@@ -753,7 +788,7 @@ function renderAnswerList() {
     html += `<button type="button" class="answer-row" data-jump="${i}">
       <span class="num">${esc(q.id.replace(/^Q/, ''))}</span>
       <span class="body">
-        <div class="q">${esc(q.text)}</div>
+        <div class="q">${esc(fillStoreVars(q.text))}</div>
         ${label}
         <div class="edit-hint">Tap to edit</div>
       </span>
@@ -766,7 +801,7 @@ function renderAnswerList() {
 
   main.innerHTML = `
     <div class="card">
-      <div class="eyebrow">Store ${STORE}</div>
+      <div class="eyebrow">${esc(storeLabel(STORE))}</div>
       <div class="qtext" style="margin-bottom:6px">${answered} of ${total} required answered</div>
       <div class="hint">${statusLabel}. Tap any question to edit. Use Home to switch stores anytime — progress is saved.</div>
       <div class="stack-actions">
@@ -818,7 +853,7 @@ function renderQuestion(opts = {}) {
   }
 
   const q = FLAT[QINDEX];
-  $('#hdr-title').textContent = `Store ${STORE} · ${q.section}`;
+  $('#hdr-title').textContent = `${storeLabel(STORE)} · ${q.section}`;
   $('#btn-next').textContent = QINDEX >= FLAT.length - 1 ? 'Review' : 'Next';
   $('#btn-next').className = '';
   $('#btn-next').disabled = !isAnswered(q);
@@ -827,12 +862,13 @@ function renderQuestion(opts = {}) {
   const body = questionBody(q);
   const photo = photoBlock(q);
   const comment = commentBlock(q);
+  const qDisplay = fillStoreVars(q.text);
 
   main.innerHTML = `
     <div class="card" id="q-card">
       <div class="meta-line">Question ${QINDEX + 1} of ${FLAT.length} · ${esc(q.sectionTitle || q.section)}</div>
-      <div class="eyebrow">Store ${STORE}</div>
-      <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + q.text)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
+      <div class="eyebrow">${esc(storeLabel(STORE))}</div>
+      <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + qDisplay)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
       ${common}
       ${body}
       ${photo}
@@ -1039,7 +1075,7 @@ async function goNext(fromAuto) {
       PHASE = 'done';
       $('#stepnav').hidden = true;
       main.innerHTML = `<div class="card">
-          <div class="qtext">Store ${STORE} complete. ✓</div>
+          <div class="qtext">${esc(storeLabel(STORE))} complete. ✓</div>
           <div class="hint">Answers are saved. Use Home to open another store, or reopen this one to edit anytime.</div>
           <div class="stack-actions">
             <button type="button" class="opt" id="btn-done-answers" style="text-align:center">View answers</button>
@@ -1172,7 +1208,7 @@ function refreshNextEnabled() {
 
 function renderReview() {
   PHASE = 'survey';
-  $('#hdr-title').textContent = `Store ${STORE} · Review`;
+  $('#hdr-title').textContent = `${storeLabel(STORE)} · Review`;
   let answered = 0, total = 0;
   let html = '';
   rebuildFlat();
@@ -1184,10 +1220,11 @@ function renderReview() {
     const label = disp == null
       ? '<span style="color:var(--danger)">Not answered</span>'
       : esc(disp);
+    const qDisplay = fillStoreVars(q.text);
     html += `<button type="button" class="answer-row" data-jump="${i}">
       <span class="num">${esc(q.id.replace(/^Q/, ''))}</span>
       <span class="body">
-        <div class="q">${esc(q.text.slice(0, 72))}${q.text.length > 72 ? '…' : ''}</div>
+        <div class="q">${esc(qDisplay.slice(0, 72))}${qDisplay.length > 72 ? '…' : ''}</div>
         <div class="a">${label}</div>
         <div class="edit-hint">Tap to edit</div>
       </span>

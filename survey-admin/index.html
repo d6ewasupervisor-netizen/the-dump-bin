@@ -203,7 +203,13 @@ async function loadFilters() {
   f.districts.concat(['Unassigned']).filter((v, i, a) => a.indexOf(v) === i)
     .forEach(d => dsel.add(new Option('District ' + d, d)));
   const ssel = document.getElementById('f-store');
-  f.stores.forEach(s => ssel.add(new Option(`${s.store_num} (D${s.district})`, s.store_num)));
+  f.stores.forEach(s => {
+    const name = s.store_name || s.storeName;
+    const label = name
+      ? `${s.store_num} · ${name} (D${s.district})`
+      : `${s.store_num} (D${s.district})`;
+    ssel.add(new Option(label, s.store_num));
+  });
   const rsel = document.getElementById('f-resp');
   f.respondents.forEach(r => rsel.add(new Option(`${r.name} — ${r.role}`, r.email)));
 }
@@ -214,7 +220,10 @@ async function loadSpec() {
   const sec = document.getElementById('f-section');
   SPEC.sections.forEach(s => sec.add(new Option(`${s.id}. ${s.title}`, s.id)));
   const qsel = document.getElementById('f-question');
-  QLIST.forEach(qq => qsel.add(new Option(`${qq.id} — ${qq.text.slice(0, 60)}`, qq.id)));
+  QLIST.forEach(qq => {
+    const t = String(qq.text || '').split('{{storeName}}').join('this store');
+    qsel.add(new Option(`${qq.id} — ${t.slice(0, 60)}`, qq.id));
+  });
 }
 
 async function loadSummary() {
@@ -276,7 +285,14 @@ function renderGrid() {
       lastGroup = r[groupBy];
       html += `<tr><td colspan="${meta.length + cols.length}" style="background:#e7edf3;font-weight:600">${groupBy === 'district' ? 'District ' : ''}${lastGroup}</td></tr>`;
     }
-    html += '<tr>' + meta.map(([k]) => `<td>${k === 'submitted_at' && r[k] ? new Date(r[k]).toLocaleDateString() : (r[k] ?? '')}</td>`).join('') +
+    html += '<tr>' + meta.map(([k]) => {
+      if (k === 'submitted_at' && r[k]) return `<td>${new Date(r[k]).toLocaleDateString()}</td>`;
+      if (k === 'store_num') {
+        const name = r.store_name || r.storeName;
+        return `<td>${name ? `${r.store_num} · ${name}` : (r.store_num ?? '')}</td>`;
+      }
+      return `<td>${r[k] ?? ''}</td>`;
+    }).join('') +
       cols.map(c => {
         const v = r.answers[c.id];
         const disp = v == null ? '<span class="muted">—</span>' : (Array.isArray(v) ? v.join(', ') : String(v));
@@ -306,7 +322,15 @@ document.getElementById('exp-xlsx').onclick = () => {
   const hasComment = new Set();
   DATA.forEach(r => cols.forEach(c => { if (r.answers[c.id + '_c']) hasComment.add(c.id); }));
   const rows = DATA.map(r => {
-    const o = { Store: r.store_num, District: r.district, Respondent: r.respondent_name, Team: r.team, Status: r.status, Submitted: r.submitted_at };
+    const o = {
+      Store: r.store_num,
+      'Store name': r.store_name || r.storeName || '',
+      District: r.district,
+      Respondent: r.respondent_name,
+      Team: r.team,
+      Status: r.status,
+      Submitted: r.submitted_at,
+    };
     cols.forEach(c => {
       o[`${c.id} ${c.text.slice(0, 40)}`] = Array.isArray(r.answers[c.id]) ? r.answers[c.id].join('; ') : (r.answers[c.id] ?? '');
       if (hasComment.has(c.id)) o[`${c.id} comment`] = r.answers[c.id + '_c'] ?? '';
