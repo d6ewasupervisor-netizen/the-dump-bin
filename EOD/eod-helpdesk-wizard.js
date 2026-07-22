@@ -23,6 +23,7 @@
         'tyson.gauthier@retailodyssey.com',
         'aiyana.natarisalazar@retailodyssey.com',
         'amanda.mathews@retailodyssey.com',
+        'april.gauthier@retailodyssey.com',
     ];
 
     let wizardIssues = [];
