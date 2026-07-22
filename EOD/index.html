@@ -7942,18 +7942,18 @@
                 : '<p style="color:#fbbf24;">(no recipients)</p>';
 
             const pdfLi = payload.pdfBase64
-                ? `<li><strong>PDF:</strong> ${escapeHtml(payload.pdfFilename || '')}</li>`
-                : `<li style="color:#fbbf24;"><strong>PDF:</strong> not attached (generation failed)</li>`;
+                ? `<li><strong>PDF:</strong> ${escapeHtml(payload.pdfFilename || '')} — hosted download link in email (valid 30 days, no sign-in)</li>`
+                : `<li style="color:#fbbf24;"><strong>PDF:</strong> not included (generation failed)</li>`;
 
             const signoff = Array.isArray(payload.signoffPhotos) ? payload.signoffPhotos : [];
             const inlineLi = signoff.map((photo, i) =>
-                `<li><strong>Inline:</strong> ${escapeHtml(signoffPhotoAttachmentFilename(photo, i))}</li>`
+                `<li><strong>Sign-off:</strong> ${escapeHtml(signoffPhotoAttachmentFilename(photo, i))} — hosted image link in email</li>`
             ).join('');
 
             const thumbs = signoff.length
                 ? `<div style="margin:12px 0 0;">
-                    <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Images below appear at the top of the email body, followed by the text block and signature.</p>
-                    <h4 style="margin:0 0 10px;font-size:14px;color:#e5e7eb;">Sign-Off Sheets</h4>
+                    <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Recipients get <strong>hosted links</strong> (not attachments) so the email stays small and deliverable. Links work from anywhere for 30 days with no sign-in. Preview thumbs below are local only.</p>
+                    <h4 style="margin:0 0 10px;font-size:14px;color:#e5e7eb;">Sign-Off Sheets (preview)</h4>
                     ${signoff.map((src, i) => `
                         <div style="margin-bottom:14px;">
                             <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">${escapeHtml(signoffPhotoAttachmentFilename(src, i))}</div>
@@ -7961,7 +7961,7 @@
                         </div>
                     `).join('')}
                 </div>`
-                : '<p style="margin:10px 0 0;color:#9ca3af;font-size:12px;">No sign-off photos — the email will not include inline sheet images.</p>';
+                : '<p style="margin:10px 0 0;color:#9ca3af;font-size:12px;">No sign-off photos — the email will not include sheet image links.</p>';
 
             const replyRow = payload.userEmail
                 ? `<p style="margin:6px 0 0;"><strong>Reply-To:</strong> ${escapeHtml(payload.userEmail)}</p>`
@@ -7982,7 +7982,7 @@
                     <p style="margin:10px 0 4px;"><strong>To</strong> (${recips.length})</p>
                     ${toList}
                     <p style="margin:8px 0 4px;"><strong>Subject:</strong> ${escapeHtml(payload.subject)}</p>
-                    <p style="margin:10px 0 4px;"><strong>Attachments</strong></p>
+                    <p style="margin:10px 0 4px;"><strong>Hosted files</strong> <span style="color:#9ca3af;font-weight:400;">(links in email — not attachments)</span></p>
                     <ul style="margin:0 0 8px 18px;padding:0;line-height:1.45;">${pdfLi}${inlineLi}</ul>
                     ${instaworkSavedRow}
                     <hr style="border-color:#4b5563;margin:12px 0;">
@@ -8282,7 +8282,10 @@ ${data.Notes || ''}`;
                     const intro = outbound.testMode
                         ? 'Test EOD report sent successfully (test mode).'
                         : 'EOD report sent successfully.';
-                    showAlert(title, `${intro}<br><br><strong>From:</strong> EOD_FM${storeNumberPadded}@retail-odyssey.com<br><strong>To:</strong> ${sentTo}`);
+                    const linkNote = result.linkTtlDays
+                        ? `<br><br><span style="color:#94a3b8;font-size:13px;">PDF and sign-off photos are <strong>hosted links</strong> in the email (valid ${result.linkTtlDays} days, no sign-in). Nothing is attached as a file.</span>`
+                        : `<br><br><span style="color:#94a3b8;font-size:13px;">PDF and sign-off photos are hosted links in the email (valid 30 days, no sign-in).</span>`;
+                    showAlert(title, `${intro}<br><br><strong>From:</strong> EOD_FM${storeNumberPadded}@retail-odyssey.com<br><strong>To:</strong> ${sentTo}${linkNote}`);
                 } else {
                     showAlert('Send Failed', 'Error: ' + (result.error || 'Unknown error'));
                 }
