@@ -616,6 +616,29 @@ function recentStores(meta) {
   return out;
 }
 
+/** Today's scheduled store numbers (full day list). */
+function scheduleStoreNums() {
+  const nums = [];
+  const seen = new Set();
+  const push = (raw) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || seen.has(n)) return;
+    seen.add(n);
+    nums.push(n);
+  };
+  for (const a of (ME.scheduleToday || [])) push(a.storeNum);
+  if (!nums.length) {
+    for (const sn of (ME.suggestedStores || [])) push(sn);
+  }
+  if (!nums.length && ME.primaryStore != null) push(ME.primaryStore);
+  return nums;
+}
+
+/** Submitted stores leave Today's list; drafts stay until submit. */
+function isCompletedSurvey(meta, sn) {
+  return (meta.get(Number(sn)) || {}).status === 'submitted';
+}
+
 function renderPicker() {
   PHASE = 'pick';
   STORE = null;
@@ -629,15 +652,19 @@ function renderPicker() {
 
   const catalog = ME.catalog || { districts: [], teams: [], stores: [] };
   const scheduleDate = ME.scheduleDate || '';
-  const primary = ME.primaryStore != null
-    ? Number(ME.primaryStore)
-    : (ME.suggestedStores && ME.suggestedStores.length ? Number(ME.suggestedStores[0]) : null);
-  if (SELECTED_STORE == null && Number.isFinite(primary)) {
-    SELECTED_STORE = primary;
-  }
-  if (SELECTED_STORE != null) SELECTED_STORE = Number(SELECTED_STORE);
-
   const meta = storeMetaMap();
+  const scheduled = scheduleStoreNums();
+  // Submitted stores leave Today's list — they only live under In progress & completed
+  const todayPending = scheduled.filter((sn) => !isCompletedSurvey(meta, sn));
+
+  if (SELECTED_STORE != null) SELECTED_STORE = Number(SELECTED_STORE);
+  if (SELECTED_STORE != null && isCompletedSurvey(meta, SELECTED_STORE)) {
+    SELECTED_STORE = null;
+  }
+  if (SELECTED_STORE == null && todayPending.length) {
+    SELECTED_STORE = todayPending[0];
+  }
+
   const allStores = catalog.stores || ME.storeDetails || [];
   const districts = sortDistrictLabels(
     (catalog.districts && catalog.districts.length)
@@ -673,32 +700,45 @@ function renderPicker() {
     `<option value="${sn}" ${Number(addStorePick) === sn || SELECTED_STORE === sn ? 'selected' : ''}>${esc(storeLabel(sn))}</option>`
   ).join('');
 
-  const fromSchedule = SELECTED_STORE != null && (
-    Number(ME.primaryStore) === SELECTED_STORE
-    || (ME.suggestedStores || []).map(Number).includes(SELECTED_STORE)
-  );
-  const mSel = SELECTED_STORE != null ? (meta.get(SELECTED_STORE) || {}) : {};
-  const tags = [];
-  if (fromSchedule) tags.push('<span class="tag">today\'s schedule</span>');
-  if (mSel.status === 'draft') tags.push('<span class="tag draft">draft</span>');
-  if (mSel.status === 'submitted') tags.push('<span class="tag submitted">submitted</span>');
+  // Today's list: remaining schedule stores + any manual pick not yet submitted
+  const todayList = todayPending.slice();
+  if (
+    SELECTED_STORE != null
+    && !isCompletedSurvey(meta, SELECTED_STORE)
+    && !todayList.includes(SELECTED_STORE)
+  ) {
+    todayList.push(SELECTED_STORE);
+  }
 
-  const selectionHtml = SELECTED_STORE != null
-    ? `<div class="sel-item" data-store="${SELECTED_STORE}">
+  const selectionHtml = todayList.length
+    ? todayList.map((sn) => {
+        const m = meta.get(sn) || {};
+        const fromSchedule = scheduled.includes(sn);
+        const selected = SELECTED_STORE === sn;
+        const tags = [];
+        if (fromSchedule) tags.push('<span class="tag">today\'s schedule</span>');
+        if (m.status === 'draft') tags.push('<span class="tag draft">draft</span>');
+        if (selected) tags.push('<span class="tag">selected</span>');
+        return `<div class="sel-item" data-select-store="${sn}" style="${selected ? '' : 'opacity:.92'}">
           <div class="meta">
-            <strong>${esc(storeLabel(SELECTED_STORE))}</strong>
-            <span class="hint">District ${esc(mSel.district || '?')}</span>
+            <strong>${esc(storeLabel(sn))}</strong>
+            <span class="hint">District ${esc(m.district || '?')}</span>
             ${tags.length ? `<div>${tags.join(' ')}</div>` : ''}
           </div>
-          <button type="button" class="sel-remove" data-clear="1" aria-label="Clear store selection">×</button>
-        </div>`
-    : '<div class="sel-empty">No store selected yet. Choose a district and store below.</div>';
+          <button type="button" class="sel-remove" data-clear="1" data-clear-store="${sn}" aria-label="Clear store selection">×</button>
+        </div>`;
+      }).join('')
+    : scheduled.length
+      ? '<div class="sel-empty">All of today\'s scheduled stores are completed — see In progress &amp; completed below.</div>'
+      : '<div class="sel-empty">No store on today\'s schedule. Choose a district and store below.</div>';
 
-  const noteHtml = fromSchedule && SELECTED_STORE != null
-    ? `Based on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''}, <strong>${esc(storeLabel(SELECTED_STORE))}</strong> was pre-selected for you. If this is incorrect, please adjust using the district and store dropdowns below.`
-    : scheduleDate
-      ? `No store was found on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''} for your name. Please select your district and store below.`
-      : 'Please select your district and store below.';
+  const noteHtml = todayPending.length
+    ? `Based on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''}, <strong>${esc(storeLabel(todayPending[0]))}</strong>${todayPending.length > 1 ? ' and ' + (todayPending.length - 1) + ' more' : ''} ${todayPending.length > 1 ? 'are' : 'is'} ready to survey. After you submit, the store moves to <strong>In progress &amp; completed</strong>.`
+    : scheduled.length
+      ? `Today's scheduled store${scheduled.length > 1 ? 's are' : ' is'} completed. Open ${scheduled.length > 1 ? 'them' : 'it'} under In progress &amp; completed, or pick another store.`
+      : scheduleDate
+        ? `No store was found on today's schedule${scheduleDate ? ' (' + esc(formatScheduleDate(scheduleDate)) + ')' : ''} for your name. Please select your district and store below.`
+        : 'Please select your district and store below.';
 
   const storeSelectDisabled = !addDistrict;
   const storePlaceholder = !addDistrict
@@ -726,9 +766,9 @@ function renderPicker() {
       <div class="note">${noteHtml}</div>
 
       <div class="sel-section">
-        <h2>Today's store</h2>
+        <h2>Today's stores</h2>
         <div class="sel-list" id="sel-list">${selectionHtml}</div>
-        <p class="hint" style="margin-top:10px">Open a store to answer questions, leave, and come back later to edit.</p>
+        <p class="hint" style="margin-top:10px">Open a store to answer questions. After you submit, it leaves this list and appears under In progress &amp; completed.</p>
       </div>
 
       <div class="sel-section">
@@ -774,12 +814,27 @@ function renderPicker() {
     const sn = Number(addStorePick);
     if (!Number.isFinite(sn)) return;
     SELECTED_STORE = sn;
+    // Already submitted → open from In progress path, not Today's list
+    if (isCompletedSurvey(meta, sn)) {
+      openStore(sn, { preferAnswers: true });
+      return;
+    }
     renderPicker();
   };
   main.querySelectorAll('[data-clear]').forEach((btn) => {
-    btn.onclick = () => {
-      SELECTED_STORE = null;
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const clearSn = Number(btn.dataset.clearStore);
+      if (Number.isFinite(clearSn) && SELECTED_STORE === clearSn) SELECTED_STORE = null;
+      else if (!Number.isFinite(clearSn)) SELECTED_STORE = null;
       addStorePick = '';
+      renderPicker();
+    };
+  });
+  main.querySelectorAll('[data-select-store]').forEach((el) => {
+    el.onclick = (e) => {
+      if (e.target.closest('[data-clear]')) return;
+      SELECTED_STORE = Number(el.dataset.selectStore);
       renderPicker();
     };
   });
