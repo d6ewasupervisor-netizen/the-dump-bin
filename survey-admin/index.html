@@ -294,6 +294,11 @@
   }
   .photo-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
   .explore-cards{display:none;gap:10px}
+  .ans-preview{margin-top:10px;display:flex;flex-direction:column;gap:6px;text-align:left}
+  .ans-line{font-size:13px;line-height:1.35;padding:6px 8px;border-radius:8px;background:var(--paper);border:1px solid var(--line)}
+  .ans-line strong{color:var(--accent);margin-right:6px;font-size:11px;letter-spacing:.03em}
+  .ans-line.problem{border-color:#f0c2ba;background:var(--bad-bg)}
+  .ans-line .qtext{display:block;font-size:11px;color:var(--ink-soft);font-weight:500;margin:2px 0 2px}
   .code-pill{background:var(--paper);padding:2px 6px;border-radius:4px;font-size:12px;word-break:break-all}
 
   @media (max-width:720px){
@@ -1212,8 +1217,17 @@ function plainQuestionText(q) {
   return String(q.text || '').split('{{storeName}}').join('this store');
 }
 
+function normalizeAnswers(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) || {}; } catch (_) { return {}; }
+  }
+  return raw;
+}
+
 function formatAnswer(q, answers) {
-  const a = answers || {};
+  const a = normalizeAnswers(answers);
+  if (!q || !q.id) return null;
   const v = a[q.id];
   if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
   let s = Array.isArray(v) ? v.join(', ') : String(v);
@@ -1222,6 +1236,32 @@ function formatAnswer(q, answers) {
   }
   if (a[q.id + '_c']) s += ' (note)';
   return s;
+}
+
+function colsForCards() {
+  const cols = visibleQuestionCols();
+  const filtered = selected('f-question').length > 0 || selected('f-section').length > 0;
+  if (filtered) return cols;
+  return cols.slice(0, 8);
+}
+
+function answerPreviewHtml(r, cols) {
+  const list = cols || colsForCards();
+  if (!list.length) return '';
+  const answers = normalizeAnswers(r.answers);
+  return `<div class="ans-preview">${list.map((c) => {
+    const disp = formatAnswer(c, answers);
+    const prob = isProblem(c, answers[c.id]) === true;
+    const qtext = plainQuestionText(c);
+    const short = qtext.length > 90 ? qtext.slice(0, 90) + '…' : qtext;
+    return `<div class="ans-line ${prob ? 'problem' : ''}">
+      <strong>${escHtml(c.id)}</strong>
+      <span class="qtext">${escHtml(short)}</span>
+      ${disp == null ? '<span class="muted">No answer</span>' : escHtml(disp)}
+    </div>`;
+  }).join('')}${(!selected('f-question').length && !selected('f-section').length && visibleQuestionCols().length > list.length)
+    ? `<div class="muted" style="font-size:12px">Showing ${list.length} of ${visibleQuestionCols().length} questions — filter to focus.</div>`
+    : ''}</div>`;
 }
 
 function isProblem(q, val) {
@@ -1849,7 +1889,11 @@ async function loadSummary() {
 
 async function loadData() {
   const r = await api('/api/survey/admin/responses?' + filterQS().toString());
-  DATA = r.responses || [];
+  DATA = (r.responses || []).map((row) => ({
+    ...row,
+    answers: normalizeAnswers(row.answers),
+    photos: Array.isArray(row.photos) ? row.photos : [],
+  }));
   if (r.photoLinkTtlDays) {
     PHOTO_TTL_DAYS = r.photoLinkTtlDays;
     const ttlEl = document.getElementById('exp-ttl');
@@ -1864,6 +1908,7 @@ function sortedFilteredRows() {
   let rows = [...DATA];
   const getv = (r, k) => {
     if (k === 'store_name') return r.store_name || r.storeName || '';
+    if (k === 'respondent_name') return r.respondent_name || r.respondent || '';
     if (k.startsWith('Q')) return formatAnswer(QLIST.find((q) => q.id === k) || { id: k }, r.answers) || '';
     return r[k];
   };
@@ -1884,19 +1929,28 @@ function renderGrid() {
     ['store_num', 'Store #'],
     ['store_name', 'Store name'],
     ['district', 'District'],
+    ['respondent_name', 'Respondent'],
     ['status', 'Status'],
     ['submitted_at', 'Submitted'],
   ];
   const thead = document.querySelector('#grid thead');
   const tbody = document.querySelector('#grid tbody');
-  thead.innerHTML = '<tr>' + meta.concat(cols.map((c) => [c.id, c.id])).map(([k, lbl]) =>
-    `<th data-col="${k}" title="${cols.find((c) => c.id === k) ? escHtml(plainQuestionText(cols.find((c) => c.id === k))) : lbl}">${lbl}${SORT.col === k ? ` <span class="dir">${SORT.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('') + '</tr>';
+  thead.innerHTML = '<tr>' + meta.concat(cols.map((c) => {
+    const qtext = plainQuestionText(c);
+    const short = qtext.length > 42 ? qtext.slice(0, 42) + '…' : qtext;
+    return [c.id, `${c.id}: ${short}`];
+  })).map(([k, lbl]) => {
+    const q = cols.find((c) => c.id === k);
+    const title = q ? escHtml(plainQuestionText(q)) : escHtml(lbl);
+    return `<th data-col="${k}" title="${title}">${escHtml(lbl)}${SORT.col === k ? ` <span class="dir">${SORT.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`;
+  }).join('') + '</tr>';
 
   const groupBy = document.getElementById('f-group').value;
   const rows = sortedFilteredRows();
 
   let lastGroup = null, html = '';
   for (const r of rows) {
+    const answers = normalizeAnswers(r.answers);
     if (groupBy && r[groupBy] !== lastGroup) {
       lastGroup = r[groupBy];
       html += `<tr class="group-row"><td colspan="${meta.length + cols.length}">${groupBy === 'district' ? 'District ' : ''}${escHtml(lastGroup)}</td></tr>`;
@@ -1907,18 +1961,25 @@ function renderGrid() {
         const sn = r.store_name || r.storeName;
         return `<td>${sn ? escHtml(sn) : '<span class="muted">—</span>'}</td>`;
       }
+      if (k === 'respondent_name') {
+        const who = r.respondent_name || r.respondent;
+        return `<td>${who ? escHtml(who) : '<span class="muted">—</span>'}</td>`;
+      }
       if (k === 'store_num') return `<td>${r.store_num ?? ''}</td>`;
       return `<td>${escHtml(r[k] ?? '')}</td>`;
     }).join('') +
       cols.map((c) => {
-        const v = r.answers[c.id];
-        const disp = formatAnswer(c, r.answers);
+        const v = answers[c.id];
+        const disp = formatAnswer(c, answers);
         const shown = disp == null ? '<span class="muted">—</span>' : escHtml(disp);
         return `<td class="${isProblem(c, v) === true ? 'problem' : ''}">${shown}</td>`;
       }).join('') + '</tr>';
   }
-  tbody.innerHTML = html || `<tr><td colspan="${meta.length + cols.length}" class="muted">No responses match these filters.</td></tr>`;
-  document.getElementById('explore-status').textContent = `${rows.length} rows · ${cols.length} question columns`;
+  tbody.innerHTML = html || `<tr><td colspan="${meta.length + Math.max(cols.length, 1)}" class="muted">No responses match these filters.</td></tr>`;
+  const filterNote = (selected('f-question').length || selected('f-section').length)
+    ? ` · showing answers for ${cols.length} filtered question${cols.length === 1 ? '' : 's'}`
+    : ` · ${cols.length} question columns`;
+  document.getElementById('explore-status').textContent = `${rows.length} rows${filterNote}`;
   thead.querySelectorAll('th').forEach((th) => {
     th.onclick = () => {
       const col = th.dataset.col;
@@ -1927,19 +1988,22 @@ function renderGrid() {
     };
   });
 
+  const cardCols = colsForCards();
   const cards = document.getElementById('explore-cards');
   cards.innerHTML = rows.map((r) => {
     const name = r.store_name || r.storeName || '—';
     const when = r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : '—';
     const nPhotos = (r.photos || []).length;
+    const who = r.respondent_name || r.respondent || '';
     return `<button type="button" class="resp-card" data-open-id="${r.id}">
       <div class="rc-top">
         <div>
           <div class="rc-store">${escHtml(String(r.store_num))} · ${escHtml(name)}</div>
-          <div class="rc-meta">D${escHtml(r.district || '?')} · ${escHtml(r.status || '')} · ${escHtml(when)}</div>
+          <div class="rc-meta">D${escHtml(r.district || '?')} · ${escHtml(r.status || '')} · ${escHtml(when)}${who ? ' · ' + escHtml(who) : ''}</div>
         </div>
         <span class="status ${escHtml(r.status || '')}">${escHtml(r.status || '')}</span>
       </div>
+      ${answerPreviewHtml(r, cardCols)}
       ${nPhotos ? `<div class="rc-photos">${nPhotos} photo${nPhotos === 1 ? '' : 's'}</div>` : ''}
     </button>`;
   }).join('') || '<div class="empty"><strong>No responses</strong></div>';
@@ -1969,19 +2033,22 @@ function renderResponseList() {
     return;
   }
   empty.hidden = true;
+  const cardCols = colsForCards();
   list.innerHTML = rows.map((r, i) => {
     const name = r.store_name || r.storeName || '—';
     const when = r.submitted_at ? new Date(r.submitted_at).toLocaleString() : 'Draft / not submitted';
     const nPhotos = (r.photos || []).length;
+    const who = r.respondent_name || r.respondent || '';
     return `<button type="button" class="resp-card" data-idx="${i}">
       <div class="rc-top">
         <div>
           <div class="rc-store">${escHtml(String(r.store_num))} · ${escHtml(name)}</div>
-          <div class="rc-meta">District ${escHtml(r.district || '?')} · ${escHtml(when)}</div>
+          <div class="rc-meta">District ${escHtml(r.district || '?')} · ${escHtml(when)}${who ? ' · ' + escHtml(who) : ''}</div>
         </div>
         <span class="status ${escHtml(r.status || '')}">${escHtml(r.status || '')}</span>
       </div>
-      ${nPhotos ? `<div class="rc-photos">${nPhotos} photo${nPhotos === 1 ? '' : 's'} · tap to review</div>` : '<div class="rc-photos" style="color:var(--ink-soft)">Tap to review answers</div>'}
+      ${answerPreviewHtml(r, cardCols)}
+      ${nPhotos ? `<div class="rc-photos">${nPhotos} photo${nPhotos === 1 ? '' : 's'} · tap to review</div>` : '<div class="rc-photos" style="color:var(--ink-soft)">Tap to open full response</div>'}
     </button>`;
   }).join('');
   list.querySelectorAll('[data-idx]').forEach((btn) => {
@@ -2023,6 +2090,9 @@ function openResponseAt(idx) {
     byQ.get(qid).push(p);
   });
 
+  const answers = normalizeAnswers(r.answers);
+  const filterIds = new Set(visibleQuestionCols().map((q) => q.id));
+  const questionFilterOn = selected('f-question').length > 0 || selected('f-section').length > 0;
   const sections = (SPEC && SPEC.sections) || [];
   let html = '';
   for (const sec of sections) {
@@ -2031,16 +2101,17 @@ function openResponseAt(idx) {
     qs.forEach((q) => (q.branches || []).forEach((b) => branchQs.push(b)));
     const all = qs.concat(branchQs);
     const answered = all.filter((q) => {
-      const v = r.answers[q.id];
+      if (questionFilterOn && !filterIds.has(q.id)) return false;
+      const v = answers[q.id];
       const has = !(v == null || v === '' || (Array.isArray(v) && !v.length));
       return has || (byQ.get(q.id) || []).length;
     });
     if (!answered.length) continue;
     html += `<h2 style="margin-top:18px">${escHtml(sec.id)}. ${escHtml(sec.title || '')}</h2>`;
     for (const q of answered) {
-      const disp = formatAnswer(q, r.answers);
+      const disp = formatAnswer(q, answers);
       const empty = disp == null;
-      const prob = isProblem(q, r.answers[q.id]) === true;
+      const prob = isProblem(q, answers[q.id]) === true;
       const qPhotos = byQ.get(q.id) || [];
       html += `<div class="qa-block">
         <div class="qid">${escHtml(q.id)}</div>
