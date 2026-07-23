@@ -4332,7 +4332,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.7.1';
+        const EOD_APP_VERSION = '2.7.2';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5720,6 +5720,98 @@
             return String(n);
         }
 
+        function isKompassTimesheetShift(shift) {
+            const hay = [
+                shift?.projectName,
+                shift?.kompassType,
+                shift?.programName,
+                shift?.program,
+                shift?.shiftType,
+                shift?.type,
+                shift?.teamName,
+            ].map((v) => String(v || '')).join(' ');
+            return /kompass\s*ise|blitz|cut[\s-]?in/i.test(hay);
+        }
+
+        function addTimesheetEmployee(map, member) {
+            if (!member) return;
+            const name = String(member.name || member.personName || '').trim();
+            if (!name) return;
+            const id = member.employeeId != null && member.employeeId !== ''
+                ? `id:${member.employeeId}`
+                : `name:${name.toLowerCase().replace(/\s+/g, ' ')}`;
+            if (map.has(id)) return;
+            map.set(id, name);
+        }
+
+        async function collectTimesheetEmployees(storeNumber, workDate) {
+            const byKey = new Map();
+            let shifts = Array.isArray(smShifts) ? smShifts.slice() : [];
+
+            if (!shifts.length && storeNumber && workDate) {
+                try {
+                    const resp = await authFetch(
+                        `${SM_API_BASE}/api/shifts?store=${encodeURIComponent(storeNumber)}&date=${encodeURIComponent(workDate)}`
+                    );
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        shifts = Array.isArray(data) ? data : (data.shifts || []);
+                        // Exact store match — same rule as Find Shifts.
+                        const input = String(storeNumber).replace(/^0+/, '');
+                        shifts = shifts.filter((s) => {
+                            const sStore = String(s.storeNumber || s.store_number || s.store || '').replace(/^0+/, '');
+                            return sStore === input;
+                        });
+                    }
+                } catch (err) {
+                    console.warn('Timesheet employee shift lookup failed:', err);
+                }
+            }
+
+            const relevant = shifts.filter(isKompassTimesheetShift);
+            const targets = relevant.length ? relevant : shifts;
+
+            for (const shift of targets) {
+                const visitId = shift.visitId || shift.id;
+                if (!visitId) continue;
+
+                if (
+                    smSelectedShift
+                    && String(smSelectedShift.visitId) === String(visitId)
+                    && Array.isArray(smMembers)
+                    && smMembers.length
+                ) {
+                    smMembers.forEach((m) => addTimesheetEmployee(byKey, m));
+                    continue;
+                }
+
+                try {
+                    const resp = await authFetch(
+                        `${SM_API_BASE}/api/shifts/${encodeURIComponent(visitId)}/members`
+                    );
+                    if (!resp.ok) continue;
+                    const data = await resp.json();
+                    const members = Array.isArray(data) ? data : (data.members || data.employees || []);
+                    members.forEach((m) => addTimesheetEmployee(byKey, m));
+                } catch (err) {
+                    console.warn('Timesheet members lookup failed for visit', visitId, err);
+                }
+            }
+
+            return Array.from(byKey.values());
+        }
+
+        function resolveTimesheetLeadName() {
+            return (
+                (document.getElementById('profileName')?.value || '').trim()
+                || (document.getElementById('leadName')?.value || '').trim()
+            );
+        }
+
+        function resolveTimesheetWorkDate() {
+            return (document.getElementById('workDate')?.value || '').trim();
+        }
+
         let timesheetFaxInFlight = false;
 
         async function printEodTimesheet(sheet) {
@@ -5739,6 +5831,13 @@
             }
             syncTimesheetAckStoreFields(storeNumber);
 
+            const leadName = resolveTimesheetLeadName();
+            const workDate = resolveTimesheetWorkDate();
+            if (!workDate) {
+                showAlert('Date required', 'Set the work date on the EOD form before printing the timesheet.');
+                return;
+            }
+
             if (timesheetFaxInFlight) return;
             timesheetFaxInFlight = true;
 
@@ -5746,25 +5845,40 @@
             closeKompassTimesheetAck();
             setTimesheetFaxState(
                 'sending',
-                `Sending ${label}\u2026`,
-                `Faxing a blank sheet to store #${storeNumber}. This usually takes under a minute.`
+                `Preparing ${label}\u2026`,
+                `Loading assigned people and filling store #${storeNumber}, then faxing.`
             );
 
             try {
+                const employees = await collectTimesheetEmployees(storeNumber, workDate);
+                setTimesheetFaxState(
+                    'sending',
+                    `Sending ${label}\u2026`,
+                    `Filled with ${employees.length} name${employees.length === 1 ? '' : 's'} for store #${storeNumber}.`
+                );
+
                 const resp = await authFetch(`${EOD_API_BASE}/api/eod/print-timesheet`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ storeNumber, sheet: sheetKey }),
+                    body: JSON.stringify({
+                        storeNumber,
+                        sheet: sheetKey,
+                        leadName,
+                        workDate,
+                        employees,
+                    }),
                 });
                 let data = null;
                 try { data = await resp.json(); } catch (_) { data = null; }
                 if (!resp.ok) {
                     throw new Error((data && data.error) || `Print failed (HTTP ${resp.status})`);
                 }
+                const pages = data?.pageCount || 1;
+                const filled = data?.employeeCount != null ? data.employeeCount : employees.length;
                 setTimesheetFaxState(
                     'success',
                     'On its way to the fax machine',
-                    `Your ${label} for store #${storeNumber} is in the email-to-fax pipeline. It should be available at the customer service desk fax machine in a couple of minutes — no further action needed.`,
+                    `Your ${label} for store #${storeNumber} is filled (${filled} name${filled === 1 ? '' : 's'} across ${pages} sheet${pages === 1 ? '' : 's'}) and is in the email-to-fax pipeline. It should be available at the customer service desk fax machine in a couple of minutes — no further action needed.`,
                     true
                 );
             } catch (err) {
@@ -12306,6 +12420,6 @@ ${data.Notes || ''}`;
 
     </script>
     <script src="eod-helpdesk-wizard.js?v=2.5"></script>
-    <script src="eod-materials-browser.js?v=2.7.1"></script>
+    <script src="eod-materials-browser.js?v=2.7.2"></script>
 </body>
 </html>
