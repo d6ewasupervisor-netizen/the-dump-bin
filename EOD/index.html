@@ -1065,6 +1065,13 @@
             box-shadow: 0 18px 50px rgba(16, 185, 129, 0.25);
         }
         .iw-overlay[data-state="success"] .iw-overlay-title { color: #a7f3d0; }
+        .iw-overlay[data-state="error"] .iw-spinner { display: none; }
+        .iw-overlay[data-state="error"] .iw-check { display: none; }
+        .iw-overlay[data-state="error"] .iw-overlay-card {
+            border-color: #ef4444;
+            box-shadow: 0 18px 50px rgba(239, 68, 68, 0.2);
+        }
+        .iw-overlay[data-state="error"] .iw-overlay-title { color: #fecaca; }
         @media (max-width: 480px) {
             .iw-overlay-card { padding: 24px 18px; }
             .iw-overlay-title { font-size: 1.25em; }
@@ -3184,7 +3191,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.5</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.6</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3234,6 +3241,7 @@
                 <div style="padding:12px 14px; background:#1f2937; border-left:4px solid #fbbf24; color:#fde68a; border-radius:6px;">
                     <p style="margin:0 0 6px 0; font-weight:700;">Make sure your InstaWork crew signs in &amp; out</p>
                     <ul style="margin:0; padding-left:18px; line-height:1.55;">
+                        <li>If you have InstaWork, <strong>print an InstaWork Time Sheet</strong> for them to use (button in the acknowledgement).</li>
                         <li>Have every InstaWork employee fill out the sign-off sheet <strong>first thing in the morning</strong>.</li>
                         <li>Have them fill it out <strong>again when they leave</strong> for the day.</li>
                     </ul>
@@ -3278,6 +3286,21 @@
                         <div id="instaworkCollapsedDest" style="font-size:12px; color:#6ee7b7; margin-top:2px; word-break:break-word;"></div>
                     </div>
                     <button type="button" class="iw-retake-btn" onclick="reopenInstaworkPanel()">Re-take photo</button>
+                </div>
+            </div>
+
+            <!-- Kompass timesheet print prompt — sits just below the InstaWork badge/section -->
+            <div class="field" style="margin-top:18px; padding-top:14px; border-top:1px solid rgba(148,163,184,0.25);">
+                <label>Do you need a Kompass Time sheet?</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="kompassTimesheetYes" name="kompassTimesheet" value="Yes" onchange="toggleKompassTimesheet(this)">
+                        <label for="kompassTimesheetYes">Yes</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="kompassTimesheetNo" name="kompassTimesheet" value="No" onchange="toggleKompassTimesheet(this)">
+                        <label for="kompassTimesheetNo">No</label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4011,6 +4034,56 @@
         </div>
     </div>
 
+    <!-- InstaWork Yes acknowledgement (includes print timesheet) -->
+    <div id="instaworkAckOverlay" class="modal-overlay">
+        <div class="modal-dialog" style="max-width:520px;">
+            <h2 style="color:#fbbf24;">InstaWork Support Today</h2>
+            <div style="margin-bottom:12px; line-height:1.6; font-size:14px;">
+                <p style="margin:0 0 10px;">Have every InstaWork employee fill out the sign-off sheet <strong>first thing in the morning</strong> and <strong>again when they leave</strong>.</p>
+                <p style="margin:0 0 10px;">If you have InstaWork, you need to <strong>print out an InstaWork Time Sheet</strong> for them to use. Use the button below to fax a blank sheet to this store&rsquo;s customer service desk.</p>
+                <div class="field" style="margin:12px 0 0;">
+                    <label for="instaworkAckStoreNumber">Store # for print:</label>
+                    <input type="text" id="instaworkAckStoreNumber" inputmode="numeric" placeholder="Enter store #" style="max-width:160px;">
+                </div>
+            </div>
+            <div class="button-group" style="flex-wrap:wrap; gap:8px;">
+                <button class="btn btn-secondary" type="button" onclick="closeInstaworkAck()">Got It</button>
+                <button class="btn btn-primary" type="button" id="printInstaworkTimesheetBtn" onclick="printEodTimesheet('instawork')">Print InstaWork Time Sheet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kompass timesheet acknowledgement -->
+    <div id="kompassTimesheetAckOverlay" class="modal-overlay">
+        <div class="modal-dialog" style="max-width:520px;">
+            <h2 style="color:#93c5fd;">Kompass Time Sheet</h2>
+            <div style="margin-bottom:12px; line-height:1.6; font-size:14px;">
+                <p style="margin:0 0 10px;">Print a blank <strong>Kompass Daily Time Tracker</strong> to the store fax so it&rsquo;s waiting at customer service.</p>
+                <div class="field" style="margin:12px 0 0;">
+                    <label for="kompassAckStoreNumber">Store # for print:</label>
+                    <input type="text" id="kompassAckStoreNumber" inputmode="numeric" placeholder="Enter store #" style="max-width:160px;">
+                </div>
+            </div>
+            <div class="button-group" style="flex-wrap:wrap; gap:8px;">
+                <button class="btn btn-secondary" type="button" onclick="closeKompassTimesheetAck()">Got It</button>
+                <button class="btn btn-primary" type="button" id="printKompassTimesheetBtn" onclick="printEodTimesheet('kompass')">Print Kompass Time Sheet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared timesheet fax progress / confirmation -->
+    <div id="timesheetFaxOverlay" class="iw-overlay" data-state="sending">
+        <div class="iw-overlay-card" style="max-width:480px;">
+            <div class="iw-spinner" aria-hidden="true"></div>
+            <div class="iw-check" aria-hidden="true">&#10003;</div>
+            <div id="timesheetFaxTitle" class="iw-overlay-title">Sending to store fax&hellip;</div>
+            <div id="timesheetFaxSubtitle" class="iw-overlay-subtitle">Starting the email-to-fax job for your store.</div>
+            <div id="timesheetFaxActions" style="display:none; margin-top:18px;">
+                <button class="btn btn-primary" type="button" onclick="closeTimesheetFaxOverlay()">Got It</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Rebotics modals — inside #adminToolsLegacy (hidden until admin section is built) -->
     <div id="adminToolsLegacyModals" data-admin-feature="legacy-rebotics-modals" hidden>
     <div id="reboticsHelpModal" class="modal-overlay">
@@ -4151,7 +4224,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.5.1';
+        const EOD_APP_VERSION = '2.6.0';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5075,6 +5148,8 @@
                 helpdeskSubmittedReports: helpdeskSubmittedReports || [],
                 instaworkYes: document.getElementById('instaworkYes')?.checked || false,
                 instaworkNo: document.getElementById('instaworkNo')?.checked || false,
+                kompassTimesheetYes: document.getElementById('kompassTimesheetYes')?.checked || false,
+                kompassTimesheetNo: document.getElementById('kompassTimesheetNo')?.checked || false,
                 resolvedYes: document.getElementById('resolvedYes').checked,
                 resolvedNo: document.getElementById('resolvedNo').checked,
                 resolvedNA: document.getElementById('resolvedNA').checked,
@@ -5194,6 +5269,10 @@
                     if (instaworkPanelEl) instaworkPanelEl.style.display = 'block';
                 }
                 if (instaworkNoEl && data.instaworkNo) instaworkNoEl.checked = true;
+                const kompassTsYesEl = document.getElementById('kompassTimesheetYes');
+                const kompassTsNoEl = document.getElementById('kompassTimesheetNo');
+                if (kompassTsYesEl && data.kompassTimesheetYes) kompassTsYesEl.checked = true;
+                if (kompassTsNoEl && data.kompassTimesheetNo) kompassTsNoEl.checked = true;
                 if (data.resolvedYes) document.getElementById('resolvedYes').checked = true;
                 if (data.resolvedNo) {
                     document.getElementById('resolvedNo').checked = true;
@@ -5397,9 +5476,11 @@
             if (checkbox.id === 'instaworkYes' && checkbox.checked) {
                 no.checked = false;
                 showPanel();
+                openInstaworkAck();
             } else if (checkbox.id === 'instaworkNo' && checkbox.checked) {
                 yes.checked = false;
                 hidePanel();
+                closeInstaworkAck();
                 // Selecting "No" abandons any in-progress InstaWork capture
                 // so the form doesn't quietly hold a stale photo.
                 photos.instawork = [];
@@ -5412,8 +5493,150 @@
                 reopenInstaworkPanel();
             } else if (!yes.checked && !no.checked) {
                 hidePanel();
+                closeInstaworkAck();
             }
             autoSave();
+        }
+
+        function syncTimesheetAckStoreFields(forceValue) {
+            const formStore = (document.getElementById('storeNumber')?.value || '').trim();
+            const value = String(forceValue || formStore || '').trim();
+            const iw = document.getElementById('instaworkAckStoreNumber');
+            const kp = document.getElementById('kompassAckStoreNumber');
+            if (forceValue) {
+                if (iw) iw.value = value;
+                if (kp) kp.value = value;
+            } else {
+                if (iw && !iw.value.trim()) iw.value = value;
+                if (kp && !kp.value.trim()) kp.value = value;
+            }
+        }
+
+        function openInstaworkAck() {
+            syncTimesheetAckStoreFields();
+            const overlay = document.getElementById('instaworkAckOverlay');
+            if (overlay) overlay.classList.add('show');
+        }
+
+        function closeInstaworkAck() {
+            const overlay = document.getElementById('instaworkAckOverlay');
+            if (overlay) overlay.classList.remove('show');
+        }
+
+        function toggleKompassTimesheet(checkbox) {
+            const yes = document.getElementById('kompassTimesheetYes');
+            const no = document.getElementById('kompassTimesheetNo');
+
+            if (checkbox.id === 'kompassTimesheetYes' && checkbox.checked) {
+                no.checked = false;
+                openKompassTimesheetAck();
+            } else if (checkbox.id === 'kompassTimesheetNo' && checkbox.checked) {
+                yes.checked = false;
+                closeKompassTimesheetAck();
+            } else if (!yes.checked && !no.checked) {
+                closeKompassTimesheetAck();
+            }
+            autoSave();
+        }
+
+        function openKompassTimesheetAck() {
+            syncTimesheetAckStoreFields();
+            const overlay = document.getElementById('kompassTimesheetAckOverlay');
+            if (overlay) overlay.classList.add('show');
+        }
+
+        function closeKompassTimesheetAck() {
+            const overlay = document.getElementById('kompassTimesheetAckOverlay');
+            if (overlay) overlay.classList.remove('show');
+        }
+
+        function closeTimesheetFaxOverlay() {
+            const overlay = document.getElementById('timesheetFaxOverlay');
+            if (overlay) overlay.classList.remove('show');
+        }
+
+        function setTimesheetFaxState(state, title, subtitle, showActions) {
+            const overlay = document.getElementById('timesheetFaxOverlay');
+            const titleEl = document.getElementById('timesheetFaxTitle');
+            const subEl = document.getElementById('timesheetFaxSubtitle');
+            const actions = document.getElementById('timesheetFaxActions');
+            if (!overlay) return;
+            overlay.dataset.state = state;
+            if (titleEl) titleEl.textContent = title;
+            if (subEl) subEl.textContent = subtitle;
+            if (actions) actions.style.display = showActions ? 'block' : 'none';
+            overlay.classList.add('show');
+        }
+
+        function resolveTimesheetPrintStore(sheet) {
+            const ackId = sheet === 'kompass' ? 'kompassAckStoreNumber' : 'instaworkAckStoreNumber';
+            const ackVal = (document.getElementById(ackId)?.value || '').trim();
+            const formVal = (document.getElementById('storeNumber')?.value || '').trim();
+            const raw = ackVal || formVal;
+            const digits = String(raw).replace(/\D/g, '');
+            if (!digits) return null;
+            const n = Number(digits);
+            if (!Number.isFinite(n) || n <= 0) return null;
+            return String(n);
+        }
+
+        let timesheetFaxInFlight = false;
+
+        async function printEodTimesheet(sheet) {
+            const sheetKey = sheet === 'kompass' ? 'kompass' : 'instawork';
+            const label = sheetKey === 'kompass' ? 'Kompass Time Sheet' : 'InstaWork Time Sheet';
+            const storeNumber = resolveTimesheetPrintStore(sheetKey);
+            if (!storeNumber) {
+                showAlert('Store required', 'Enter the store number before printing so the sheet can fax to the right customer service desk.');
+                return;
+            }
+
+            // Keep the main form store field in sync when they typed it only in the ack.
+            const storeEl = document.getElementById('storeNumber');
+            if (storeEl && !storeEl.value.trim()) {
+                storeEl.value = storeNumber;
+                try { loadStoreData(storeNumber); } catch (_) { /* ignore */ }
+            }
+            syncTimesheetAckStoreFields(storeNumber);
+
+            if (timesheetFaxInFlight) return;
+            timesheetFaxInFlight = true;
+
+            closeInstaworkAck();
+            closeKompassTimesheetAck();
+            setTimesheetFaxState(
+                'sending',
+                `Sending ${label}\u2026`,
+                `Faxing a blank sheet to store #${storeNumber}. This usually takes under a minute.`
+            );
+
+            try {
+                const resp = await authFetch(`${EOD_API_BASE}/api/eod/print-timesheet`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ storeNumber, sheet: sheetKey }),
+                });
+                let data = null;
+                try { data = await resp.json(); } catch (_) { data = null; }
+                if (!resp.ok) {
+                    throw new Error((data && data.error) || `Print failed (HTTP ${resp.status})`);
+                }
+                setTimesheetFaxState(
+                    'success',
+                    'On its way to the fax machine',
+                    `Your ${label} for store #${storeNumber} is in the email-to-fax pipeline. It should be available at the customer service desk fax machine in a couple of minutes — no further action needed.`,
+                    true
+                );
+            } catch (err) {
+                setTimesheetFaxState(
+                    'error',
+                    'Could not start the fax',
+                    (err && err.message) ? err.message : 'Something went wrong sending the timesheet.',
+                    true
+                );
+            } finally {
+                timesheetFaxInFlight = false;
+            }
         }
 
         function toggleResolved(checkbox) {
