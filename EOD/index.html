@@ -3289,9 +3289,11 @@
                     <button type="button" class="iw-retake-btn" onclick="reopenInstaworkPanel()">Re-take photo</button>
                 </div>
             </div>
+        </div>
 
-            <!-- Kompass timesheet print prompt — sits just below the InstaWork badge/section -->
-            <div class="field" style="margin-top:18px; padding-top:14px; border-top:1px solid rgba(148,163,184,0.25);">
+        <div class="section" id="kompassTimesheetSection" style="border-color:#fbbf24;">
+            <div class="section-title" style="color:#fde68a;">Kompass Time Sheet</div>
+            <div class="field">
                 <label>Do you need a Kompass Time sheet?</label>
                 <div class="checkbox-group">
                     <div class="checkbox-option">
@@ -3304,12 +3306,11 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Pre-shift materials acknowledgement -->
-            <div class="field" style="margin-top:18px; padding-top:14px; border-top:1px solid rgba(148,163,184,0.25);">
-                <div style="margin-bottom:10px;">
-                    <span class="info-badge"><span class="info-badge__q" aria-hidden="true">?</span> Information</span>
-                </div>
+        <div class="section" id="materialsInfoSection" style="border-color:#fbbf24;">
+            <div class="section-title" style="color:#fde68a;">Information</div>
+            <div class="field">
                 <label>Before you begin, have you read all provided material and ensured that each team member is aware of those details?</label>
                 <div class="checkbox-group">
                     <div class="checkbox-option">
@@ -4331,7 +4332,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.7.0';
+        const EOD_APP_VERSION = '2.7.1';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -12305,6 +12306,6 @@ ${data.Notes || ''}`;
 
     </script>
     <script src="eod-helpdesk-wizard.js?v=2.5"></script>
-    <script src="eod-materials-browser.js?v=2.7.0"></script>
+    <script src="eod-materials-browser.js?v=2.7.1"></script>
 </body>
 </html>
