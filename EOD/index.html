@@ -3192,7 +3192,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.7</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.8</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4332,12 +4332,15 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.7.2';
+        const EOD_APP_VERSION = '2.8.0';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
+        const EOD_TEST_STORE = '999';
+        const EOD_TEST_VISIT_ID = 'test-999-kompass-ise';
         const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
         let eodTestMode = sessionStorage.getItem(EOD_TEST_MODE_KEY) === '1';
+        let eodTestScenarioActive = false;
         const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
         window.EOD_API_BASE = EOD_API_BASE;
@@ -4419,16 +4422,197 @@
             if (eodTestMode) sessionStorage.setItem(EOD_TEST_MODE_KEY, '1');
             else sessionStorage.removeItem(EOD_TEST_MODE_KEY);
             applyEodTestModeUi();
+            if (eodTestMode) {
+                setupEodTestScenario().catch((err) => {
+                    console.warn('[test-mode] scenario setup failed:', err);
+                    showToast(`Test mode ON, but mock visit setup failed: ${err.message || err}`, 'warning');
+                });
+            } else {
+                clearEodTestScenario();
+            }
         }
 
         function toggleEodTestMode() {
             setEodTestMode(!eodTestMode);
+            if (!eodTestMode) {
+                showToast('Test mode OFF — live recipients restored.', 'success');
+            }
+        }
+
+        async function setupEodTestScenario() {
+            const storeEl = document.getElementById('storeNumber');
+            const dateEl = document.getElementById('workDate');
+            if (storeEl) storeEl.value = EOD_TEST_STORE;
+            if (dateEl && !dateEl.value) dateEl.value = todayLocalIsoDate();
+            const workDate = (dateEl?.value || todayLocalIsoDate()).trim();
+
+            // Prefill lead from profile when blank.
+            const leadEl = document.getElementById('leadName');
+            const profileName = (document.getElementById('profileName')?.value || '').trim();
+            const profileEmail = (document.getElementById('profileEmail')?.value || '').trim();
+            if (leadEl && !leadEl.value.trim() && profileName) leadEl.value = profileName;
+
+            let reports = [];
+            try {
+                const resp = await authFetch(`${EOD_API_BASE}/api/employees`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    reports = Array.isArray(data) ? data : (data.employees || []);
+                    smEmployeesCache = reports;
+                }
+            } catch (err) {
+                console.warn('[test-mode] could not load direct reports:', err);
+            }
+
+            const leadName = profileName || (leadEl?.value || '').trim() || 'Test Lead';
+            const members = [
+                {
+                    employeeId: 'test-lead-self',
+                    name: leadName,
+                    email: profileEmail || EOD_TEST_RECIPIENT,
+                    isLead: true,
+                    title: 'Lead',
+                    shiftTime: '05:00 – 14:00',
+                },
+                ...reports.map((emp, idx) => ({
+                    employeeId: emp.employeeId || `test-report-${idx}`,
+                    name: emp.name || emp.preferredName || `Team Member ${idx + 1}`,
+                    email: emp.email || '',
+                    isLead: false,
+                    title: emp.title || '',
+                    shiftTime: '05:00 – 14:00',
+                })),
+            ];
+
+            // Deduplicate by employeeId / name (lead may also appear in reports).
+            const seen = new Set();
+            const uniqueMembers = [];
+            for (const m of members) {
+                const key = m.employeeId != null
+                    ? `id:${m.employeeId}`
+                    : `name:${String(m.name || '').toLowerCase()}`;
+                if (seen.has(key)) continue;
+                // Prefer keeping the lead entry when names collide.
+                if (
+                    !m.isLead
+                    && uniqueMembers.some((u) => String(u.name || '').toLowerCase() === String(m.name || '').toLowerCase())
+                ) {
+                    continue;
+                }
+                seen.add(key);
+                uniqueMembers.push(m);
+            }
+
+            smShifts = [{
+                visitId: EOD_TEST_VISIT_ID,
+                projectName: 'Kompass ISE',
+                kompassType: 'Kompass ISE',
+                storeNumber: Number(EOD_TEST_STORE),
+                storeName: 'Test Fax Destination',
+                scheduledDate: workDate,
+                totalHours: 8,
+                currentStatus: 'active',
+                visitLead: leadName,
+                empCount: uniqueMembers.length,
+                shiftTime: '05:00 – 14:00',
+                _testMock: true,
+            }];
+            smSelectedShift = smShifts[0];
+            smMembers = uniqueMembers;
+            eodTestScenarioActive = true;
+
+            // Render the mock shift card + members UI.
+            const resultsDiv = document.getElementById('smShiftResults');
+            const listDiv = document.getElementById('smShiftList');
+            const smSection = document.getElementById('smSection');
+            if (listDiv) {
+                listDiv.innerHTML = `<div class="sm-shift-card selected" data-index="0" onclick="smSelectShift(0)">
+                    <div class="sm-shift-card-info">
+                        <div class="sm-shift-card-project">Kompass ISE <span style="color:#fbbf24;font-size:12px;">(TEST)</span></div>
+                        <div><span class="kompass-type-badge">Kompass ISE</span></div>
+                        <div class="sm-shift-card-detail">
+                            <span>8 hrs</span>
+                            <span>${uniqueMembers.length} people</span>
+                            <span class="sm-status-badge in-progress">active</span>
+                        </div>
+                        <div class="sm-shift-card-meta">
+                            <span>05:00 – 14:00</span>
+                            <span>${escapeHtml(workDate)}</span>
+                            <span>Store #${EOD_TEST_STORE}</span>
+                        </div>
+                    </div>
+                    <span class="sm-shift-card-check">&#10003;</span>
+                </div>`;
+            }
+            if (resultsDiv) resultsDiv.style.display = 'block';
+            if (smSection) smSection.style.display = 'block';
+            const membersSection = document.getElementById('smMembersSection');
+            if (membersSection) membersSection.style.display = 'block';
+            if (typeof smRenderMembers === 'function') smRenderMembers();
+            else {
+                const container = document.getElementById('smMembersList');
+                if (container) {
+                    container.innerHTML = uniqueMembers.map((emp) => `
+                        <div class="sm-member-row">
+                            <div class="sm-member-info">
+                                <div class="sm-member-name">
+                                    ${emp.isLead ? '<span class="sm-lead-star">&#9733;</span>' : ''}${escapeHtml(emp.name || 'Unknown')}${emp.isLead ? ' (Lead)' : ''}
+                                </div>
+                            </div>
+                            <div class="sm-member-time">${escapeHtml(emp.shiftTime || '')}</div>
+                        </div>`).join('');
+                }
+            }
+
+            try { await loadStoreData(EOD_TEST_STORE); } catch (_) { /* ignore */ }
+            try { autoSave(); } catch (_) { /* ignore */ }
+
+            // Mint day-confirm for store 999 so send/fax paths work immediately.
+            try {
+                await ensureDayConfirmForTestStore(workDate);
+            } catch (err) {
+                console.warn('[test-mode] day-confirm for 999 failed:', err);
+            }
+
             showToast(
-                eodTestMode
-                    ? 'Test mode ON — EOD emails will only go to Tyson.'
-                    : 'Test mode OFF — live recipients restored.',
-                eodTestMode ? 'warning' : 'success'
+                `Test mode ON — store #${EOD_TEST_STORE} mock Kompass ISE visit loaded with ${uniqueMembers.length} people. Emails go to you; faxes go to your #999 line.`,
+                'warning'
             );
+        }
+
+        function clearEodTestScenario() {
+            if (!eodTestScenarioActive && !(smShifts || []).some((s) => s?._testMock || s?.visitId === EOD_TEST_VISIT_ID)) {
+                return;
+            }
+            eodTestScenarioActive = false;
+            if ((smSelectedShift && smSelectedShift.visitId === EOD_TEST_VISIT_ID) || (smShifts || []).some((s) => s?._testMock)) {
+                if (typeof smClearAll === 'function') smClearAll();
+                else {
+                    smShifts = [];
+                    smSelectedShift = null;
+                    smMembers = [];
+                }
+            }
+        }
+
+        async function ensureDayConfirmForTestStore(workDate) {
+            const date = workDate || (document.getElementById('workDate')?.value || '').trim();
+            if (!date) return;
+            const resp = await authFetch(`${EOD_API_BASE}/api/verify-store`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ storeNumber: EOD_TEST_STORE, date }),
+            });
+            if (!resp.ok) return;
+            const data = await resp.json().catch(() => ({}));
+            if (data.ok && data.token && typeof persistDayConfirm === 'function') {
+                persistDayConfirm({
+                    token: data.token,
+                    store: EOD_TEST_STORE,
+                    date,
+                    expiresInMs: data.expiresInMs || (12 * 60 * 60 * 1000),
+                });
+            }
         }
 
         function initEodTestMode() {
@@ -4440,15 +4624,22 @@
                 });
             }
             applyEodTestModeUi();
+            if (eodTestMode) {
+                // Rehydrate mock visit after a refresh while still in test mode.
+                setTimeout(() => {
+                    setupEodTestScenario().catch((err) => {
+                        console.warn('[test-mode] restore failed:', err);
+                    });
+                }, 400);
+            }
         }
 
         function buildEodTestSendWarningHtml() {
             return `<div class="eod-test-send-warning">
                 <p style="margin:0 0 8px;"><strong>You&apos;re in test mode.</strong></p>
                 <p style="margin:0;">
-                    Hope you understand that this email will only be sent to
-                    <strong>${escapeHtml(EOD_TEST_RECIPIENT)}</strong>.
-                    Store managers and other recipients you selected will not receive it.
+                    Emails go only to <strong>${escapeHtml(EOD_TEST_RECIPIENT)}</strong>.
+                    Store is set to <strong>#${EOD_TEST_STORE}</strong> (your test fax line) with a mock Kompass ISE visit of your direct reports.
                 </p>
             </div>`;
         }
@@ -4458,6 +4649,7 @@
             return {
                 ...payload,
                 testMode: true,
+                storeNumber: payload.storeNumber || EOD_TEST_STORE,
                 recipients: [EOD_TEST_RECIPIENT],
                 subject: payload.subject && !/^\[TEST\]/i.test(payload.subject)
                     ? `[TEST] ${payload.subject}`
@@ -5782,6 +5974,11 @@
                     && smMembers.length
                 ) {
                     smMembers.forEach((m) => addTimesheetEmployee(byKey, m));
+                    continue;
+                }
+
+                // Mock test visits never hit SAS.
+                if (String(visitId).startsWith('test-') || shift._testMock) {
                     continue;
                 }
 
@@ -8465,10 +8662,62 @@
                     <hr style="border-color:#4b5563;margin:12px 0;">
                     ${thumbs}
                     <h4 style="margin:16px 0 8px;font-size:14px;color:#e5e7eb;">Message body</h4>
-                    <pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:#d1d5db;background:#1f2937;padding:10px;border-radius:6px;margin:0;">${escapeHtml(payload.body)}</pre>
+                    ${buildBrandedEodBodyPreviewHtml(payload.report || null, payload.body || '')}
                     ${sigBlock}
                 </div>
             `;
+        }
+
+        function buildBrandedEodBodyPreviewHtml(report, body) {
+            const rows = report && typeof report === 'object'
+                ? [
+                    ['Lead name', report.leadName],
+                    ['Date', report.date],
+                    ['Store number', report.storeNumber],
+                    ['Before picture of KOMPASS cart', report.beforeTaken],
+                    ['Manager checked in with', report.checkInManager],
+                    ['InstaWork support', report.instaworkSupport],
+                    ['Called KOMPASS Help Desk', report.calledHelpDesk],
+                    ['Commodities', report.commodities],
+                    ['Issue', report.issue],
+                    ['Issue resolved', report.issueResolved],
+                    ['Temporary solution', report.tempSolution],
+                    ['Manager checked out with', report.checkOutManager],
+                    ['Signed out in PROD', report.signedOutProd],
+                    ['Signed out in SI', report.signedOutSi],
+                    ['Not in store', report.notInStore],
+                    ['Not in SI', report.notInSi],
+                    ['After picture of KOMPASS cart', report.afterTaken],
+                    ['Sign-off sheets photographed', report.signoffDone],
+                    ['Number of sign-off photos', report.signoffCount],
+                ]
+                : [];
+
+            if (!rows.length) {
+                return `<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:#d1d5db;background:#1f2937;padding:10px;border-radius:6px;margin:0;">${escapeHtml(body || '')}</pre>`;
+            }
+
+            const tableRows = rows.map(([label, value], i) => {
+                const bg = i % 2 ? '#172033' : '#111827';
+                return `<tr>
+                    <td style="background:${bg};border:1px solid #334155;padding:8px 10px;color:#93c5fd;font-weight:600;width:40%;vertical-align:top;">${escapeHtml(label)}</td>
+                    <td style="background:${bg};border:1px solid #334155;padding:8px 10px;color:#e5e7eb;vertical-align:top;white-space:pre-wrap;word-break:break-word;">${escapeHtml(value == null || value === '' ? '—' : value)}</td>
+                </tr>`;
+            }).join('');
+            const notes = report.notes
+                ? `<div style="margin-top:10px;padding:10px;border:1px solid #334155;border-radius:8px;background:#111827;">
+                    <div style="font-weight:700;color:#93c5fd;margin-bottom:4px;">Notes</div>
+                    <div style="white-space:pre-wrap;color:#e5e7eb;">${escapeHtml(report.notes)}</div>
+                </div>`
+                : '';
+
+            return `<div style="border:1px solid #1d4ed8;border-radius:10px;overflow:hidden;background:#0b1220;">
+                <div style="padding:10px 12px;background:linear-gradient(90deg,#0E2A47,#1e3a8a);color:#eff6ff;font-weight:700;font-size:13px;">
+                    Retail Odyssey · KOMPASS EOD summary
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">${tableRows}</table>
+                ${notes}
+            </div>`;
         }
 
         function showValidationBlocked(validation, sendOrPreviewLabel) {
@@ -8585,6 +8834,33 @@ Number of sign-off photos: ${signoffCount}
 Notes:
 ${data.Notes || ''}`;
 
+            const report = {
+                leadName: data.LeadName || '',
+                date: data.DateMMDDYYYY || '',
+                storeNumber: data.StoreNumber || '',
+                beforeTaken: beforeDone ? 'Yes' : 'No',
+                checkInManager: data.CheckInManager || '',
+                instaworkSupport: instaworkYes
+                    ? (instaworkSave
+                        ? `Yes (sign-out sheet saved → ${instaworkSave.folder}\\${(instaworkSave.filePath || '').split(/[\\/]/).pop()})`
+                        : 'Yes')
+                    : 'No',
+                calledHelpDesk: pickYN(data.CalledHotline),
+                commodities: data.IssueCommodities || 'N/A',
+                issue: data.WhatIsIssue || 'N/A',
+                issueResolved: data.IssueResolved || 'N/A',
+                tempSolution: data.TempSolution || 'N/A',
+                checkOutManager: data.CheckOutManager || '',
+                signedOutProd: pickYN(data.SignedOutPROD),
+                signedOutSi: pickYN(data.SignedOutSI),
+                notInStore: notInStoreText,
+                notInSi: notInSiText,
+                afterTaken: afterDone ? 'Yes' : 'No',
+                signoffDone: signoffDone ? 'Yes' : 'No',
+                signoffCount,
+                notes: data.Notes || '',
+            };
+
             let recipients = [...emailRecipients];
             if (document.getElementById('addRetailOdysseyTeam').checked) {
                 recipients = [...new Set([
@@ -8613,6 +8889,7 @@ ${data.Notes || ''}`;
                 workDate: data.WorkDateISO,
                 subject,
                 body,
+                report,
                 recipients,
                 pdfFilename,
                 userName,
@@ -10309,6 +10586,13 @@ ${data.Notes || ''}`;
 
             if (!storeNumber || !date) {
                 showAlert('Missing Info', 'Please enter a Store # and Date to find shifts.');
+                return;
+            }
+
+            // Test mode + store 999: keep the mock Kompass ISE visit instead of
+            // hitting SAS (999 is a fax test destination, not a real FM store).
+            if (eodTestMode && String(storeNumber).replace(/\D/g, '') === EOD_TEST_STORE) {
+                await setupEodTestScenario();
                 return;
             }
 
@@ -12420,6 +12704,6 @@ ${data.Notes || ''}`;
 
     </script>
     <script src="eod-helpdesk-wizard.js?v=2.5"></script>
-    <script src="eod-materials-browser.js?v=2.7.2"></script>
+    <script src="eod-materials-browser.js?v=2.8.0"></script>
 </body>
 </html>
