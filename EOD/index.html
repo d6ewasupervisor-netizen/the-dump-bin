@@ -21,6 +21,7 @@
     <script src="/auth-gate.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <link rel="stylesheet" href="eod-materials-browser.css">
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3191,7 +3192,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.6</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.7</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3300,6 +3301,24 @@
                     <div class="checkbox-option">
                         <input type="checkbox" id="kompassTimesheetNo" name="kompassTimesheet" value="No" onchange="toggleKompassTimesheet(this)">
                         <label for="kompassTimesheetNo">No</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pre-shift materials acknowledgement -->
+            <div class="field" style="margin-top:18px; padding-top:14px; border-top:1px solid rgba(148,163,184,0.25);">
+                <div style="margin-bottom:10px;">
+                    <span class="info-badge"><span class="info-badge__q" aria-hidden="true">?</span> Information</span>
+                </div>
+                <label>Before you begin, have you read all provided material and ensured that each team member is aware of those details?</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="materialsReadYes" name="materialsRead" value="Yes" onchange="toggleMaterialsRead(this)">
+                        <label for="materialsReadYes">Yes</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="materialsReadNo" name="materialsRead" value="No" onchange="toggleMaterialsRead(this)">
+                        <label for="materialsReadNo">No</label>
                     </div>
                 </div>
             </div>
@@ -4084,6 +4103,94 @@
         </div>
     </div>
 
+    <!-- Dump Bin materials browser (opened when materials-read = No) -->
+    <div id="materialsBrowserOverlay" class="mat-overlay" aria-hidden="true">
+        <div class="mat-shell">
+            <div class="mat-header">
+                <div>
+                    <h2>Dump Bin — This Week&rsquo;s Materials</h2>
+                    <p>Browse folders, open files, select pages/files to print at store or email to your team.</p>
+                </div>
+                <div class="mat-header__actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeMaterialsBrowser()">Close</button>
+                </div>
+            </div>
+            <div class="mat-week-nav">
+                <div class="mat-week-dial-row">
+                    <button type="button" class="mat-week-dial-nav" id="matPrevWeek" aria-label="Previous week">‹</button>
+                    <div class="mat-week-dial-window">
+                        <div class="mat-week-dial-track" id="matWeekDialTrack"></div>
+                    </div>
+                    <button type="button" class="mat-week-dial-nav" id="matNextWeek" aria-label="Next week">›</button>
+                </div>
+            </div>
+            <div class="mat-breadcrumb" id="matBreadcrumb"></div>
+            <div class="mat-browser" id="matBrowser">
+                <div class="mat-empty">Loading…</div>
+            </div>
+            <div class="mat-selection-bar" id="matSelectionBar">
+                <div>
+                    <strong id="matSelectionCount">0</strong> selected
+                    <span id="matSelectionSize" class="mat-muted"></span>
+                </div>
+                <div class="mat-selection-bar__actions">
+                    <button type="button" class="btn btn-secondary" id="matViewSelectionBtn">View</button>
+                    <button type="button" class="btn btn-secondary" id="matClearSelectionBtn">Clear</button>
+                    <button type="button" class="btn btn-primary" id="matEmailBtn">Email to Team</button>
+                    <button type="button" class="btn btn-primary" id="matPrintBtn">🖨 Print at Store</button>
+                </div>
+            </div>
+            <div id="matToast" class="mat-toast"></div>
+
+            <div class="mat-modal" id="matSelectionModal">
+                <div class="mat-modal__card">
+                    <div class="mat-modal__header">
+                        <h3>Selected files</h3>
+                        <button type="button" class="btn btn-secondary" data-mat-close="matSelectionModal">Close</button>
+                    </div>
+                    <p class="mat-muted">Use + / − for extra store copies (max 5).</p>
+                    <div id="matSelectionList"></div>
+                </div>
+            </div>
+
+            <div class="mat-modal" id="matPdfModal">
+                <div class="mat-modal__card mat-modal__card--wide">
+                    <div class="mat-modal__header">
+                        <h3 id="matPdfTitle">PDF</h3>
+                        <button type="button" class="btn btn-secondary" data-mat-close="matPdfModal">Close</button>
+                    </div>
+                    <div id="matPdfBody"></div>
+                    <div id="matPdfActions" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn btn-primary" id="matPdfAddPagesBtn">Add selected pages to selection</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mat-modal" id="matEmailModal">
+                <div class="mat-modal__card">
+                    <div class="mat-modal__header">
+                        <h3>Email materials</h3>
+                        <button type="button" class="btn btn-secondary" data-mat-close="matEmailModal">Close</button>
+                    </div>
+                    <p class="mat-muted">Choose assigned teammates (emails on file) and/or type addresses manually.</p>
+                    <div id="matEmailTeamList" style="margin:10px 0 14px;"></div>
+                    <div class="field">
+                        <label for="matEmailManual">Additional email(s)</label>
+                        <input type="text" id="matEmailManual" placeholder="name@example.com, other@example.com">
+                    </div>
+                    <div class="field" style="margin-top:10px;">
+                        <label for="matEmailNote">Optional note</label>
+                        <textarea id="matEmailNote" rows="3" placeholder="Please review before we start today…"></textarea>
+                    </div>
+                    <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="btn btn-secondary" data-mat-close="matEmailModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="matEmailSendBtn">Send email</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Rebotics modals — inside #adminToolsLegacy (hidden until admin section is built) -->
     <div id="adminToolsLegacyModals" data-admin-feature="legacy-rebotics-modals" hidden>
     <div id="reboticsHelpModal" class="modal-overlay">
@@ -4224,7 +4331,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.6.0';
+        const EOD_APP_VERSION = '2.7.0';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5150,6 +5257,8 @@
                 instaworkNo: document.getElementById('instaworkNo')?.checked || false,
                 kompassTimesheetYes: document.getElementById('kompassTimesheetYes')?.checked || false,
                 kompassTimesheetNo: document.getElementById('kompassTimesheetNo')?.checked || false,
+                materialsReadYes: document.getElementById('materialsReadYes')?.checked || false,
+                materialsReadNo: document.getElementById('materialsReadNo')?.checked || false,
                 resolvedYes: document.getElementById('resolvedYes').checked,
                 resolvedNo: document.getElementById('resolvedNo').checked,
                 resolvedNA: document.getElementById('resolvedNA').checked,
@@ -5273,6 +5382,10 @@
                 const kompassTsNoEl = document.getElementById('kompassTimesheetNo');
                 if (kompassTsYesEl && data.kompassTimesheetYes) kompassTsYesEl.checked = true;
                 if (kompassTsNoEl && data.kompassTimesheetNo) kompassTsNoEl.checked = true;
+                const materialsYesEl = document.getElementById('materialsReadYes');
+                const materialsNoEl = document.getElementById('materialsReadNo');
+                if (materialsYesEl && data.materialsReadYes) materialsYesEl.checked = true;
+                if (materialsNoEl && data.materialsReadNo) materialsNoEl.checked = true;
                 if (data.resolvedYes) document.getElementById('resolvedYes').checked = true;
                 if (data.resolvedNo) {
                     document.getElementById('resolvedNo').checked = true;
@@ -5548,6 +5661,32 @@
         function closeKompassTimesheetAck() {
             const overlay = document.getElementById('kompassTimesheetAckOverlay');
             if (overlay) overlay.classList.remove('show');
+        }
+
+        function toggleMaterialsRead(checkbox) {
+            const yes = document.getElementById('materialsReadYes');
+            const no = document.getElementById('materialsReadNo');
+            if (checkbox.id === 'materialsReadYes' && checkbox.checked) {
+                no.checked = false;
+            } else if (checkbox.id === 'materialsReadNo' && checkbox.checked) {
+                yes.checked = false;
+                openMaterialsBrowser();
+            }
+            autoSave();
+        }
+
+        function openMaterialsBrowser() {
+            if (window.EodMaterialsBrowser?.open) {
+                window.EodMaterialsBrowser.open();
+            } else {
+                showAlert('Materials browser', 'The Dump Bin materials browser failed to load. Refresh the page and try again.');
+            }
+        }
+
+        function closeMaterialsBrowser() {
+            if (window.EodMaterialsBrowser?.close) window.EodMaterialsBrowser.close();
+            else document.getElementById('materialsBrowserOverlay')?.classList.remove('show');
+            document.body.style.overflow = '';
         }
 
         function closeTimesheetFaxOverlay() {
@@ -9406,6 +9545,14 @@ ${data.Notes || ''}`;
         let smSelectedShift = null;
         let smMembers = [];
         let smEmployeesCache = null;
+
+        window.getEodTeamForMaterials = function getEodTeamForMaterials() {
+            return {
+                members: Array.isArray(smMembers) ? smMembers.slice() : [],
+                selectedShift: smSelectedShift,
+                employees: smEmployeesCache,
+            };
+        };
         let smPendingRemovals = new Set();
 
         // Sets the lead can pick from in the "Not in store" / "Not in SI"
@@ -12158,5 +12305,6 @@ ${data.Notes || ''}`;
 
     </script>
     <script src="eod-helpdesk-wizard.js?v=2.5"></script>
+    <script src="eod-materials-browser.js?v=2.7.0"></script>
 </body>
 </html>
