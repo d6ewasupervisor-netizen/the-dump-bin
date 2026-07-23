@@ -12,26 +12,46 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root, [data-theme="light"]{
-    --ink:#1c2733; --ink-soft:#5a6b7d; --line:#d8dfe6; --paper:#eef2f6; --card:#ffffff;
+    --ink:#1c2733; --ink-soft:#5a6b7d; --line:#d8dfe6; --paper:#e8eef5; --card:#ffffff;
     --accent:#0f5c8c; --accent-deep:#0a4063; --accent-soft:#e8f1f7;
     --good:#2e7d52; --good-bg:#e8f5ee; --bad:#b3402a; --bad-bg:#fcecea;
-    --warn:#c98a1b; --warn-bg:#fdf4e4; --focus:#0f5c8c; --shadow:0 1px 2px rgba(15,92,140,.06);
-    --bar-bg:linear-gradient(180deg,#fff,#f7fafc);
+    --warn:#c98a1b; --warn-bg:#fdf4e4; --focus:#0f5c8c; --shadow:0 10px 28px rgba(15,92,140,.08);
+    --bar-bg:linear-gradient(180deg,#fff,#f3f8fc);
     --th-bg:#eef2f6; --row-hover:#f5f8fb; --group-bg:#e7edf3;
     --input-bg:#fff; --chip-bg:#fff; --overlay:rgba(238,242,246,.78);
+    --glow:rgba(15,92,140,.12); --radius:16px;
   }
   [data-theme="dark"]{
-    --ink:#e8eef4; --ink-soft:#9aabba; --line:#2f4052; --paper:#0f1419; --card:#1a2330;
+    --ink:#e8eef4; --ink-soft:#9aabba; --line:#2f4052; --paper:#0c1218; --card:#172231;
     --accent:#4aa3d9; --accent-deep:#8ec8ea; --accent-soft:#1a3348;
     --good:#4caf7a; --good-bg:#1a3328; --bad:#e0705c; --bad-bg:#3a221e;
-    --warn:#e0b34a; --warn-bg:#3a3018; --focus:#4aa3d9; --shadow:0 1px 2px rgba(0,0,0,.35);
-    --bar-bg:linear-gradient(180deg,#15202b,#121a22);
+    --warn:#e0b34a; --warn-bg:#3a3018; --focus:#4aa3d9; --shadow:0 10px 28px rgba(0,0,0,.35);
+    --bar-bg:linear-gradient(180deg,#15202b,#101820);
     --th-bg:#15202b; --row-hover:#1e2a38; --group-bg:#152636;
     --input-bg:#121a22; --chip-bg:#1e2a38; --overlay:rgba(15,20,25,.82);
+    --glow:rgba(74,163,217,.16); --radius:16px;
+  }
+  [data-theme="inverse"]{
+    --ink:#f4f8fc; --ink-soft:#b7c6d4; --line:#3d556c; --paper:#062033; --card:#0b3a55;
+    --accent:#7fd0ff; --accent-deep:#c5ebff; --accent-soft:#0e4d70;
+    --good:#5fd49a; --good-bg:#0e3d32; --bad:#ff8f7a; --bad-bg:#4a241c;
+    --warn:#ffd27a; --warn-bg:#4a3814; --focus:#7fd0ff; --shadow:0 12px 30px rgba(0,0,0,.35);
+    --bar-bg:linear-gradient(135deg,#08324a,#0a4566 55%,#0c5a7a);
+    --th-bg:#08324a; --row-hover:#0e4666; --group-bg:#0a3a55;
+    --input-bg:#08324a; --chip-bg:#0e4666; --overlay:rgba(6,32,51,.85);
+    --glow:rgba(127,208,255,.2); --radius:16px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html{overscroll-behavior:none}
-  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:15px;overscroll-behavior-y:none;line-height:1.45;touch-action:pan-y}
+  body{
+    margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+    background:
+      radial-gradient(1100px 420px at 0% -10%, var(--glow), transparent 55%),
+      radial-gradient(900px 360px at 100% 0%, var(--glow), transparent 50%),
+      var(--paper);
+    color:var(--ink);font-size:calc(15px * var(--text-scale, 1));
+    overscroll-behavior-y:none;line-height:1.45;touch-action:pan-y;
+  }
 
   header.brand{
     position:sticky;top:0;z-index:40;background:var(--bar-bg);
@@ -299,6 +319,47 @@
     main{max-width:1400px;padding:18px 20px calc(40px + env(safe-area-inset-bottom,0px))}
   }
   @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+  .a11y-bar{display:flex;gap:4px;align-items:center}
+  .a11y-bar .icon-btn{min-width:36px;padding:0 8px;font-size:12px}
+  .panel-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius,16px);
+    padding:14px 16px;box-shadow:var(--shadow);
+  }
+  .prod-lead{
+    display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--line);
+    border-radius:14px;background:var(--chip-bg);margin-bottom:8px;
+  }
+  .prod-lead.unmatched{border-style:dashed;border-color:var(--warn)}
+  .prod-lead input[type="checkbox"]{margin-top:4px;width:18px;height:18px;flex:0 0 auto}
+  .prod-lead .meta{flex:1;min-width:0}
+  .prod-lead .meta strong{display:block}
+  .prod-lead .stores{font-size:12px;color:var(--ink-soft);margin-top:4px}
+  .prod-lead .email-override{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .prod-lead .email-override input{flex:1 1 200px;min-height:36px;font-size:14px;margin:0}
+  .prod-status{font-size:12px;color:var(--ink-soft);margin:8px 0}
+  .prod-status.ok{color:var(--good);font-weight:600}
+  .prod-status.bad{color:var(--bad);font-weight:600}
+  .prod-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:10px 0}
+  .prod-filters .field-wrap{margin:0;flex:1 1 140px}
+  .prod-leads-box{max-height:min(50vh,420px);overflow:auto;margin-top:8px}
+  .badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 7px;margin-left:6px;vertical-align:middle}
+  .badge.warn{background:var(--warn-bg);color:#8a5f10}
+  .badge.good{background:var(--good-bg);color:var(--good)}
+  .bulk-box{border:1px dashed var(--line);border-radius:12px;padding:12px;background:var(--paper);margin-top:10px}
+  .bulk-box h4{margin:0 0 4px;font-size:13px}
+  .hero-assign{
+    display:grid;gap:12px;grid-template-columns:1fr;
+    margin-bottom:14px;
+  }
+  @media (min-width:900px){
+    .hero-assign{grid-template-columns:1.35fr .65fr}
+  }
+  .dist-picks label.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-deep)}
+  @media (max-width:720px){
+    header.brand .who{display:none}
+    .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+  }
 </style>
 </head>
 <body>
@@ -311,7 +372,11 @@
       <h1>Survey Admin</h1>
     </div>
     <div class="brand-actions">
-      <button type="button" class="icon-btn" id="btn-theme" title="Toggle light/dark mode" aria-label="Toggle theme">Dark</button>
+      <div class="a11y-bar" role="group" aria-label="Display controls">
+        <button type="button" class="icon-btn" id="btn-text-down" title="Smaller text" aria-label="Decrease text size">A−</button>
+        <button type="button" class="icon-btn" id="btn-text-up" title="Larger text" aria-label="Increase text size">A+</button>
+        <button type="button" class="icon-btn" id="btn-theme" title="Cycle light / dark / inverse" aria-label="Cycle theme">Dark</button>
+      </div>
       <div class="who" id="who"><span class="muted">Signing in…</span></div>
     </div>
   </div>
@@ -376,7 +441,63 @@
 
   <!-- ========== ASSIGN ========== -->
   <section class="panel" id="panel-assign" aria-label="Assign">
-    <p class="hint">Walk through who should take the survey, which stores they cover, when it’s due, then send magic-link invites.</p>
+    <div class="hero-assign">
+      <div class="panel-card">
+        <h2 style="margin:0 0 6px;font-size:18px">Assign from live PROD</h2>
+        <p class="hint" style="margin-top:0">Sync Kompass ISE (project 1) from SAS PROD cycle management — current week, next week, any active cycle, or a single day — then pick leads by name.</p>
+        <div class="prod-filters">
+          <div class="field-wrap" style="flex:1 1 220px">
+            <label class="field" for="prod-cycle">Cycle (PROD cycle management)</label>
+            <select id="prod-cycle">
+              <option value="current">Current cycle / week</option>
+              <option value="next">Next cycle / week</option>
+              <option value="date">Single day…</option>
+            </select>
+          </div>
+          <div class="field-wrap" style="flex:0 0 150px" id="prod-date-wrap" hidden>
+            <label class="field" for="prod-date">Schedule date</label>
+            <input id="prod-date" type="date">
+          </div>
+          <button type="button" class="secondary" id="prod-refresh" style="align-self:flex-end">Sync with PROD</button>
+          <button type="button" id="prod-assign" style="align-self:flex-end">Assign selected</button>
+        </div>
+        <div class="prod-filters" id="prod-filter-row" hidden>
+          <div class="field-wrap" style="flex:1 1 180px">
+            <label class="field" for="prod-name-q">Find lead by name</label>
+            <input id="prod-name-q" type="search" placeholder="Type a lead name…" autocomplete="off">
+          </div>
+          <div class="field-wrap" style="flex:1 1 160px">
+            <label class="field" for="prod-team-f">Team</label>
+            <select id="prod-team-f"><option value="">All teams</option></select>
+          </div>
+        </div>
+        <div class="dist-picks" id="prod-dist-picks" aria-label="Filter PROD by district"></div>
+        <p class="muted" style="font-size:12px;margin:0 0 6px" id="prod-dist-hint" hidden>District checkboxes filter the lead/store list below. Leave all unchecked to show every district.</p>
+        <div class="prod-status" id="prod-status">Choose a cycle (or day), then Sync with PROD.</div>
+        <div class="toolbar" id="prod-select-tools" hidden style="margin:6px 0">
+          <button type="button" class="ghost btn-xs" id="prod-select-all">Select visible</button>
+          <button type="button" class="ghost btn-xs" id="prod-select-none">Clear selection</button>
+        </div>
+        <div class="prod-leads-box" id="prod-leads"></div>
+        <div class="err-box" id="prod-err"></div>
+        <div class="success-box" id="prod-ok"></div>
+      </div>
+      <div class="panel-card">
+        <h3 style="margin-top:0">How it works</h3>
+        <ol class="hint" style="padding-left:18px;margin:0">
+          <li>Sync pulls live Kompass ISE shifts from SAS PROD.</li>
+          <li>Filter by district, team, or lead name — then check who to assign.</li>
+          <li>Roster-matched leads use their system email; unmatched leads need a manual email.</li>
+          <li>Assignments cover each lead’s scheduled stores in the selected window.</li>
+        </ol>
+        <label class="check" style="margin-top:12px">
+          <input type="checkbox" id="prod-send-invites" checked>
+          <span>Email invites when assigning from PROD</span>
+        </label>
+      </div>
+    </div>
+
+    <p class="hint">Or walk through a manual assignment: who should take the survey, which stores they cover, when it’s due, then send magic-link invites.</p>
     <div class="wizard-steps" aria-hidden="true">
       <span class="on">1 · Who</span><span class="on">2 · Where</span><span class="on">3 · When</span><span class="on">4 · Send</span>
     </div>
@@ -389,21 +510,34 @@
           <input id="roster-q" type="search" placeholder="Name, email, or team…" autocomplete="off">
           <div class="typeahead-results" id="roster-results"></div>
         </div>
-        <div class="toolbar" style="margin-top:0">
-          <div class="field-wrap" style="flex:1;margin:0">
-            <label class="field" for="bulk-team">Team</label>
-            <select id="bulk-team"><option value="">Any team</option></select>
+        <div class="field-wrap">
+          <label class="field" for="manual-email">Manual email (alternate address)</label>
+          <div class="toolbar" style="margin:0">
+            <input id="manual-email" type="email" placeholder="name@example.com" style="flex:1 1 180px" autocomplete="off">
+            <input id="manual-name" type="text" placeholder="Display name (optional)" style="flex:1 1 140px" autocomplete="off">
+            <button type="button" class="secondary" id="manual-email-add" style="align-self:stretch">Add email</button>
           </div>
-          <div class="field-wrap" style="flex:1;margin:0">
-            <label class="field" for="bulk-role">Role</label>
-            <select id="bulk-role">
-              <option value="">Any role</option>
-              <option value="lead">Lead</option>
-              <option value="member">Member</option>
-              <option value="supervisor">Supervisor</option>
-            </select>
+          <p class="muted" style="font-size:12px;margin:6px 0 0">Use when the invite should go to a different address than the one on the roster.</p>
+        </div>
+        <div class="bulk-box">
+          <h4>Add everyone on a team / role</h4>
+          <p class="hint" style="margin:0 0 8px">Pick a team and/or role, then click the button to add <em>all matching roster people</em> as assignees (not stores).</p>
+          <div class="toolbar" style="margin:0">
+            <div class="field-wrap" style="flex:1;margin:0">
+              <label class="field" for="bulk-team">Team</label>
+              <select id="bulk-team"><option value="">Any team</option></select>
+            </div>
+            <div class="field-wrap" style="flex:1;margin:0">
+              <label class="field" for="bulk-role">Role</label>
+              <select id="bulk-role">
+                <option value="">Any role</option>
+                <option value="lead">Lead</option>
+                <option value="member">Member</option>
+                <option value="supervisor">Supervisor</option>
+              </select>
+            </div>
+            <button type="button" class="secondary" id="bulk-add" style="align-self:flex-end">Add matching people</button>
           </div>
-          <button type="button" class="secondary" id="bulk-add" style="align-self:flex-end">Add from team/role</button>
         </div>
         <div class="sel-chips" id="assignee-chips"></div>
         <p class="muted" style="font-size:12px;margin:8px 0 0" id="assignee-count">No assignees selected</p>
@@ -411,8 +545,10 @@
 
       <div class="panel-card">
         <h3>2. Where</h3>
+        <p class="hint" style="margin-top:0">Check one or more districts to show only those stores below. Then check individual stores (or use Select visible).</p>
         <div class="toolbar" style="margin-bottom:8px">
-          <button type="button" class="secondary btn-xs" id="pick-needs">All needs-assign stores</button>
+          <button type="button" class="secondary btn-xs" id="pick-needs">All needs-assign (visible)</button>
+          <button type="button" class="secondary btn-xs" id="pick-visible">Select visible stores</button>
           <button type="button" class="ghost btn-xs" id="pick-clear">Clear stores</button>
         </div>
         <div class="dist-picks" id="dist-picks"></div>
@@ -450,10 +586,10 @@
     </div>
 
     <div class="panel-card span2">
-      <h3>Bulk assign from store access</h3>
-      <p class="hint">For each selected store (or all needs-assign stores if none selected), assign the preferred lead or member from store access and optionally email invites.</p>
+      <h3>Bulk assign from store access map</h3>
+      <p class="hint">Different from “Add matching people” above. This looks up each <strong>selected store</strong> (or all needs-assign stores if none are selected) in the store-access table and assigns the preferred lead → member → supervisor for that store.</p>
       <div class="toolbar">
-        <button type="button" class="secondary" id="bulk-access">Bulk assign from store access</button>
+        <button type="button" class="secondary" id="bulk-access">Assign preferred person per store</button>
       </div>
       <div class="err-box" id="bulk-err"></div>
       <div class="success-box" id="bulk-ok"></div>
@@ -638,25 +774,369 @@ let charts = [];
 let VIEW_IDX = -1;
 
 const THEME_KEY = 'surveyAdminTheme';
+const TEXT_KEY = 'surveyAdminTextScale';
+const THEMES = ['light', 'dark', 'inverse'];
+let PROD_SCHEDULE = null;
+let PROD_CYCLES = null;
+let PROD_DISTRICT_FILTER = new Set(); // empty = show all
+let STORE_DISTRICT_FILTER = new Set(); // empty = show all stores in scope
+
 function getTheme() {
   const t = localStorage.getItem(THEME_KEY);
-  if (t === 'dark' || t === 'light') return t;
+  if (THEMES.includes(t)) return t;
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
   return 'light';
 }
 function applyTheme(theme) {
-  const t = theme === 'dark' ? 'dark' : 'light';
+  const t = THEMES.includes(theme) ? theme : 'light';
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem(THEME_KEY, t);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = t === 'dark' ? '#121a22' : '#0f5c8c';
+  if (meta) meta.content = t === 'inverse' ? '#062033' : t === 'dark' ? '#0c1218' : '#0f5c8c';
   const btn = document.getElementById('btn-theme');
-  if (btn) btn.textContent = t === 'dark' ? 'Light' : 'Dark';
+  if (btn) {
+    btn.textContent = ({ light: 'Dark', dark: 'Inverse', inverse: 'Light' })[t] || 'Theme';
+  }
+}
+function getTextScale() {
+  const n = Number(localStorage.getItem(TEXT_KEY));
+  if (Number.isFinite(n) && n >= 0.85 && n <= 1.45) return n;
+  return 1;
+}
+function applyTextScale(scale) {
+  const s = Math.min(1.45, Math.max(0.85, Number(scale) || 1));
+  document.documentElement.style.setProperty('--text-scale', String(s));
+  localStorage.setItem(TEXT_KEY, String(s));
 }
 applyTheme(getTheme());
+applyTextScale(getTextScale());
 document.getElementById('btn-theme').onclick = () => {
-  applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
+  const i = THEMES.indexOf(getTheme());
+  applyTheme(THEMES[(i + 1) % THEMES.length]);
 };
+document.getElementById('btn-text-up').onclick = () => applyTextScale(getTextScale() + 0.1);
+document.getElementById('btn-text-down').onclick = () => applyTextScale(getTextScale() - 0.1);
+
+function todayYmdLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function isValidEmail(s) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
+}
+
+function prodWindowLabel(sched) {
+  if (!sched) return '';
+  if (sched.cycle?.name) return sched.cycle.name;
+  if (sched.startDate && sched.endDate && sched.startDate !== sched.endDate) {
+    return `${sched.startDate} → ${sched.endDate}`;
+  }
+  return sched.date || sched.startDate || '';
+}
+
+function updateProdCycleUi() {
+  const mode = document.getElementById('prod-cycle').value;
+  document.getElementById('prod-date-wrap').hidden = mode !== 'date';
+}
+
+async function loadProdCycles(refresh) {
+  try {
+    const q = refresh ? '?refresh=1' : '';
+    const res = await api('/api/survey/admin/prod-cycles' + q);
+    PROD_CYCLES = res;
+    const sel = document.getElementById('prod-cycle');
+    const prev = sel.value;
+    const opts = [];
+    opts.push({ value: 'current', label: res.current
+      ? `Current · ${res.current.name} (${res.current.startDate}–${res.current.endDate})`
+      : 'Current cycle / week' });
+    opts.push({ value: 'next', label: res.next
+      ? `Next · ${res.next.name} (${res.next.startDate}–${res.next.endDate})`
+      : 'Next cycle / week' });
+    for (const c of (res.cycles || [])) {
+      opts.push({
+        value: 'cycle:' + c.id,
+        label: `${c.name} (${c.startDate}–${c.endDate})${c.isCurrent ? ' · current' : ''}`,
+      });
+    }
+    opts.push({ value: 'date', label: 'Single day…' });
+    sel.innerHTML = opts.map((o) => `<option value="${escHtml(o.value)}">${escHtml(o.label)}</option>`).join('');
+    if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+    else sel.value = 'current';
+    updateProdCycleUi();
+  } catch (e) {
+    console.warn('prod-cycles', e);
+  }
+}
+
+function buildProdScheduleQuery(refresh) {
+  const mode = document.getElementById('prod-cycle').value;
+  const q = new URLSearchParams();
+  if (refresh) q.set('refresh', '1');
+  if (mode === 'current') q.set('range', 'current');
+  else if (mode === 'next') q.set('range', 'next');
+  else if (mode.startsWith('cycle:')) q.set('cycleId', mode.slice(6));
+  else {
+    const date = document.getElementById('prod-date').value || todayYmdLocal();
+    document.getElementById('prod-date').value = date;
+    q.set('date', date);
+  }
+  return q;
+}
+
+function filteredProdLeads() {
+  const leads = PROD_SCHEDULE?.leads || [];
+  const nameQ = (document.getElementById('prod-name-q')?.value || '').trim().toLowerCase();
+  const team = document.getElementById('prod-team-f')?.value || '';
+  return leads.filter((L) => {
+    if (nameQ) {
+      const hay = `${L.name || ''} ${L.email || ''}`.toLowerCase();
+      if (!hay.includes(nameQ)) return false;
+    }
+    if (team) {
+      const teams = L.teams || (L.stores || []).map((s) => s.team).filter(Boolean);
+      if (!teams.includes(team) && L.team !== team) return false;
+    }
+    if (PROD_DISTRICT_FILTER.size) {
+      const dists = L.districts || [...new Set((L.stores || []).map((s) => s.district).filter(Boolean))];
+      if (!dists.some((d) => PROD_DISTRICT_FILTER.has(String(d)))) return false;
+    }
+    return true;
+  }).map((L) => {
+    if (!PROD_DISTRICT_FILTER.size) return L;
+    return {
+      ...L,
+      stores: (L.stores || []).filter((s) => PROD_DISTRICT_FILTER.has(String(s.district))),
+    };
+  }).filter((L) => (L.stores || []).length);
+}
+
+function renderProdDistrictFilters() {
+  const wrap = document.getElementById('prod-dist-picks');
+  const hint = document.getElementById('prod-dist-hint');
+  const leads = PROD_SCHEDULE?.leads || [];
+  const dists = sortDistrictLabels([
+    ...new Set(leads.flatMap((L) => (L.districts || (L.stores || []).map((s) => s.district)).filter(Boolean))),
+  ]);
+  if (!dists.length) {
+    wrap.innerHTML = '';
+    hint.hidden = true;
+    return;
+  }
+  hint.hidden = false;
+  wrap.innerHTML = dists.map((d) => `
+    <label class="${PROD_DISTRICT_FILTER.has(String(d)) ? 'active' : ''}">
+      <input type="checkbox" data-prod-dist="${escHtml(d)}" ${PROD_DISTRICT_FILTER.has(String(d)) ? 'checked' : ''}>
+      District ${escHtml(d)}
+    </label>`).join('');
+  wrap.querySelectorAll('input[data-prod-dist]').forEach((cb) => {
+    cb.onchange = () => {
+      const d = String(cb.dataset.prodDist);
+      if (cb.checked) PROD_DISTRICT_FILTER.add(d);
+      else PROD_DISTRICT_FILTER.delete(d);
+      renderProdLeads();
+    };
+  });
+}
+
+function renderProdTeamFilter() {
+  const sel = document.getElementById('prod-team-f');
+  const prev = sel.value;
+  const teams = [...new Set(
+    (PROD_SCHEDULE?.leads || []).flatMap((L) => L.teams || (L.stores || []).map((s) => s.team).filter(Boolean))
+  )].sort((a, b) => String(a).localeCompare(String(b)));
+  sel.innerHTML = '<option value="">All teams</option>' +
+    teams.map((t) => `<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('');
+  if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+}
+
+function renderProdLeads() {
+  const box = document.getElementById('prod-leads');
+  const status = document.getElementById('prod-status');
+  const tools = document.getElementById('prod-select-tools');
+  const filterRow = document.getElementById('prod-filter-row');
+  if (!PROD_SCHEDULE) {
+    box.innerHTML = '';
+    tools.hidden = true;
+    filterRow.hidden = true;
+    return;
+  }
+  filterRow.hidden = false;
+  tools.hidden = false;
+  renderProdDistrictFilters();
+  renderProdTeamFilter();
+
+  const allLeads = PROD_SCHEDULE.leads || [];
+  const leads = filteredProdLeads();
+  if (!PROD_SCHEDULE.ok) {
+    status.className = 'prod-status bad';
+    status.textContent = PROD_SCHEDULE.error || 'Could not load PROD schedule';
+  } else {
+    status.className = 'prod-status ok';
+    const win = prodWindowLabel(PROD_SCHEDULE);
+    status.textContent =
+      `PROD · ${win} · ${PROD_SCHEDULE.visitCount || 0} visits · ` +
+      `${PROD_SCHEDULE.matchedLeadCount ?? allLeads.filter((L) => L.matched).length} matched · ` +
+      `${PROD_SCHEDULE.unmatchedLeadCount ?? allLeads.filter((L) => !L.matched).length} need email · ` +
+      `showing ${leads.length}`;
+  }
+  if (!leads.length) {
+    box.innerHTML = '<div class="muted" style="padding:8px 0">No leads match the current filters. Try clearing district/name filters, or sync a different cycle.</div>';
+    return;
+  }
+  box.innerHTML = leads.map((L) => {
+    const key = L.leadKey || (L.email ? `email:${L.email}` : `name:${(L.name || '').toLowerCase()}`);
+    const stores = (L.stores || []).map((s) => {
+      const name = s.storeName ? ` · ${escHtml(s.storeName)}` : '';
+      const dist = s.district ? ` · D${escHtml(s.district)}` : '';
+      const day = s.date && PROD_SCHEDULE.startDate !== PROD_SCHEDULE.endDate ? ` (${escHtml(s.date)})` : '';
+      return `#${s.storeNum}${name}${dist}${day}`;
+    }).join(', ');
+    const badge = L.matched
+      ? '<span class="badge good">Roster</span>'
+      : '<span class="badge warn">Needs email</span>';
+    const emailLine = L.email
+      ? `<span class="muted" style="font-size:12px">${escHtml(L.email)}${L.team ? ' · ' + escHtml(L.team) : ''}</span>`
+      : `<span class="muted" style="font-size:12px">Not on roster — enter an email to assign</span>`;
+    const override = L.matched
+      ? `<div class="email-override">
+           <label class="field" style="margin:0;flex:0 0 auto">Invite email</label>
+           <input type="email" data-prod-email-input="${escHtml(key)}" value="${escHtml(L.email || '')}" placeholder="Override email (optional)">
+         </div>`
+      : `<div class="email-override">
+           <label class="field" style="margin:0;flex:0 0 auto">Email required</label>
+           <input type="email" data-prod-email-input="${escHtml(key)}" value="" placeholder="name@example.com" required>
+         </div>`;
+    return `<label class="prod-lead ${L.matched ? '' : 'unmatched'}">
+      <input type="checkbox" data-prod-key="${escHtml(key)}" ${L.matched ? 'checked' : ''}>
+      <span class="meta">
+        <strong>${escHtml(L.name || L.email || 'Lead')}${badge}</strong>
+        ${emailLine}
+        <div class="stores">${stores || 'No stores'}</div>
+        ${override}
+      </span>
+    </label>`;
+  }).join('');
+}
+
+async function loadProdSchedule(refresh) {
+  const err = document.getElementById('prod-err');
+  const ok = document.getElementById('prod-ok');
+  err.hidden = true; ok.hidden = true; err.textContent = ''; ok.innerHTML = '';
+  err.classList.remove('show');
+  ok.classList.remove('show');
+  document.getElementById('prod-status').textContent = 'Syncing live PROD Kompass ISE schedule… (full weeks can take a minute)';
+  document.getElementById('prod-status').className = 'prod-status';
+  try {
+    if (refresh || !PROD_CYCLES) await loadProdCycles(!!refresh);
+    const q = buildProdScheduleQuery(!!refresh);
+    const res = await api('/api/survey/admin/prod-schedule?' + q.toString());
+    PROD_SCHEDULE = res;
+    PROD_DISTRICT_FILTER = new Set();
+    renderProdLeads();
+  } catch (e) {
+    PROD_SCHEDULE = null;
+    document.getElementById('prod-leads').innerHTML = '';
+    document.getElementById('prod-status').className = 'prod-status bad';
+    document.getElementById('prod-status').textContent = e.message || 'Failed to load PROD schedule';
+    err.hidden = false;
+    err.classList.add('show');
+    err.textContent = e.message || 'Failed to load PROD schedule';
+  }
+}
+
+function collectProdSelections() {
+  const rows = [...document.querySelectorAll('#prod-leads input[data-prod-key]:checked')];
+  const selections = [];
+  const errors = [];
+  for (const cb of rows) {
+    const key = cb.dataset.prodKey;
+    const lead = (PROD_SCHEDULE?.leads || []).find((L) =>
+      (L.leadKey || (L.email ? `email:${L.email}` : `name:${(L.name || '').toLowerCase()}`)) === key
+    );
+    const row = cb.closest('.prod-lead');
+    const input = row?.querySelector('input[data-prod-email-input]');
+    const email = String(input?.value || lead?.email || '').trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      errors.push(lead?.name || key);
+      continue;
+    }
+    let storeNums = (lead?.stores || []).map((s) => Number(s.storeNum));
+    if (PROD_DISTRICT_FILTER.size) {
+      storeNums = (lead?.stores || [])
+        .filter((s) => PROD_DISTRICT_FILTER.has(String(s.district)))
+        .map((s) => Number(s.storeNum));
+    }
+    selections.push({
+      leadKey: key,
+      email,
+      name: lead?.name || null,
+      storeNums,
+    });
+  }
+  return { selections, errors };
+}
+
+async function assignFromProd() {
+  const err = document.getElementById('prod-err');
+  const ok = document.getElementById('prod-ok');
+  err.hidden = true; ok.hidden = true; err.textContent = ''; ok.innerHTML = '';
+  err.classList.remove('show');
+  ok.classList.remove('show');
+  if (!PROD_SCHEDULE?.ok) {
+    err.hidden = false;
+    err.classList.add('show');
+    err.textContent = 'Sync with PROD first.';
+    return;
+  }
+  const { selections, errors } = collectProdSelections();
+  if (errors.length) {
+    err.hidden = false;
+    err.classList.add('show');
+    err.textContent = `Enter a valid email for: ${errors.join(', ')}`;
+    return;
+  }
+  if (!selections.length) {
+    err.hidden = false;
+    err.classList.add('show');
+    err.textContent = 'Select at least one lead from the PROD schedule.';
+    return;
+  }
+  const mode = document.getElementById('prod-cycle').value;
+  const body = {
+    selections,
+    dueAt: document.getElementById('due-at')?.value || null,
+    remindDaysBefore: document.getElementById('remind-days')?.value ?? 1,
+    sendInvites: document.getElementById('prod-send-invites')?.checked !== false,
+    notes: document.getElementById('assign-notes')?.value || null,
+  };
+  if (mode === 'current') body.range = 'current';
+  else if (mode === 'next') body.range = 'next';
+  else if (mode.startsWith('cycle:')) body.cycleId = Number(mode.slice(6));
+  else body.date = document.getElementById('prod-date').value || todayYmdLocal();
+
+  try {
+    const res = await api('/api/survey/admin/assignments/from-prod', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    ok.hidden = false;
+    ok.classList.add('show');
+    const win = res.cycle?.name || (res.startDate && res.endDate && res.startDate !== res.endDate
+      ? `${res.startDate}–${res.endDate}`
+      : (res.date || ''));
+    ok.innerHTML = `<strong>Created ${res.created} assignment${res.created === 1 ? '' : 's'}</strong> for ${res.leadCount} lead${res.leadCount === 1 ? '' : 's'} from PROD ${escHtml(win)}.<br>${escHtml(inviteSummary(res.inviteResults))}`;
+    await loadCoverage();
+  } catch (e) {
+    err.hidden = false;
+    err.classList.add('show');
+    err.textContent = e.message || 'PROD assignment failed';
+  }
+}
 
 function showForbidden() {
   document.body.innerHTML = `
@@ -963,7 +1443,9 @@ document.getElementById('panel-coverage').addEventListener('click', async (e) =>
 function renderAssigneeChips() {
   const wrap = document.getElementById('assignee-chips');
   wrap.innerHTML = [...SELECTED_ASSIGNEES.values()].map((p) => `
-    <span class="sel-chip">${escHtml(p.name || p.email)}
+    <span class="sel-chip" title="${escHtml(p.email)}">${escHtml(p.name || p.email)}
+      ${p.manual ? '<span class="badge warn">Manual</span>' : ''}
+      <span class="muted" style="font-weight:500;font-size:11px">${escHtml(p.email)}</span>
       <button type="button" data-rm="${escHtml(p.email)}" aria-label="Remove">×</button>
     </span>`).join('');
   const n = SELECTED_ASSIGNEES.size;
@@ -978,14 +1460,32 @@ function renderAssigneeChips() {
 
 function addAssignee(person) {
   if (!person || !person.email) return;
-  SELECTED_ASSIGNEES.set(String(person.email).toLowerCase(), {
-    email: String(person.email).toLowerCase(),
-    name: person.name,
-    role: person.role,
-    team: person.team,
+  const email = String(person.email).trim().toLowerCase();
+  if (!isValidEmail(email)) {
+    alert('Enter a valid email address.');
+    return;
+  }
+  SELECTED_ASSIGNEES.set(email, {
+    email,
+    name: person.name || null,
+    role: person.role || null,
+    team: person.team || null,
+    manual: !!person.manual,
   });
   renderAssigneeChips();
 }
+
+document.getElementById('manual-email-add').onclick = () => {
+  const email = document.getElementById('manual-email').value.trim();
+  const name = document.getElementById('manual-name').value.trim();
+  if (!isValidEmail(email)) {
+    alert('Enter a valid email address (e.g. name@company.com).');
+    return;
+  }
+  addAssignee({ email, name: name || null, manual: true, role: 'lead' });
+  document.getElementById('manual-email').value = '';
+  document.getElementById('manual-name').value = '';
+};
 
 async function searchRoster(q) {
   const team = document.getElementById('bulk-team').value;
@@ -1047,42 +1547,51 @@ document.getElementById('bulk-add').onclick = async () => {
   const team = document.getElementById('bulk-team').value;
   const role = document.getElementById('bulk-role').value;
   if (!team && !role) {
-    alert('Pick a team and/or role first.');
+    alert('Pick a team and/or role first, then click “Add matching people”.');
     return;
   }
   try {
     const people = await searchRoster('');
     people.forEach(addAssignee);
     if (!people.length) alert('No roster matches for that team/role.');
+    else alert(`Added ${people.length} people from ${team || 'any team'} / ${role || 'any role'}.`);
   } catch (e) {
     alert(e.message || 'Roster search failed');
   }
 };
+
+function visibleStores() {
+  const stores = FILTERS.stores || [];
+  if (!STORE_DISTRICT_FILTER.size) return stores;
+  return stores.filter((s) => STORE_DISTRICT_FILTER.has(String(s.district)));
+}
 
 function renderStorePicks() {
   const stores = FILTERS.stores || [];
   const distWrap = document.getElementById('dist-picks');
   const dists = sortDistrictLabels([...(new Set(stores.map((s) => s.district).filter(Boolean)))]);
   distWrap.innerHTML = dists.map((d) => `
-    <label><input type="checkbox" data-dist="${escHtml(d)}"> District ${escHtml(d)}</label>`).join('');
+    <label class="${STORE_DISTRICT_FILTER.has(String(d)) ? 'active' : ''}">
+      <input type="checkbox" data-dist="${escHtml(d)}" ${STORE_DISTRICT_FILTER.has(String(d)) ? 'checked' : ''}>
+      District ${escHtml(d)}
+    </label>`).join('');
 
   distWrap.querySelectorAll('input[data-dist]').forEach((cb) => {
     cb.onchange = () => {
-      const d = cb.dataset.dist;
-      stores.filter((s) => String(s.district) === String(d)).forEach((s) => {
-        if (cb.checked) SELECTED_STORES.add(Number(s.store_num));
-        else SELECTED_STORES.delete(Number(s.store_num));
-      });
+      const d = String(cb.dataset.dist);
+      if (cb.checked) STORE_DISTRICT_FILTER.add(d);
+      else STORE_DISTRICT_FILTER.delete(d);
+      // Drop selections outside the new visible set so counts stay honest
+      const vis = new Set(visibleStores().map((s) => Number(s.store_num)));
+      SELECTED_STORES = new Set([...SELECTED_STORES].filter((n) => !STORE_DISTRICT_FILTER.size || vis.has(n)));
       renderStorePicks();
-      updateStoreCount();
     };
-    const inDist = stores.filter((s) => String(s.district) === String(cb.dataset.dist));
-    cb.checked = inDist.length > 0 && inDist.every((s) => SELECTED_STORES.has(Number(s.store_num)));
   });
 
+  const visible = visibleStores();
   const list = document.getElementById('store-picks');
   const covByNum = new Map((COVERAGE.stores || []).map((s) => [Number(s.storeNum), s]));
-  list.innerHTML = stores.map((s) => {
+  list.innerHTML = visible.map((s) => {
     const sn = Number(s.store_num);
     const name = s.store_name || s.storeName || '';
     const state = covByNum.get(sn)?.state;
@@ -1093,7 +1602,11 @@ function renderStorePicks() {
         ${state ? ` <span class="status ${state}" style="margin-left:4px">${statusLabel(state)}</span>` : ''}
       </span>
     </label>`;
-  }).join('') || '<div class="muted" style="padding:12px">No stores in your scope.</div>';
+  }).join('') || `<div class="muted" style="padding:12px">${
+    STORE_DISTRICT_FILTER.size
+      ? 'No stores in the selected district(s). Uncheck districts to show all.'
+      : 'No stores in your scope.'
+  }</div>`;
 
   list.querySelectorAll('input[type=checkbox]').forEach((cb) => {
     cb.onchange = () => {
@@ -1101,10 +1614,6 @@ function renderStorePicks() {
       if (cb.checked) SELECTED_STORES.add(n);
       else SELECTED_STORES.delete(n);
       updateStoreCount();
-      distWrap.querySelectorAll('input[data-dist]').forEach((dcb) => {
-        const inDist = stores.filter((s) => String(s.district) === String(dcb.dataset.dist));
-        dcb.checked = inDist.length > 0 && inDist.every((s) => SELECTED_STORES.has(Number(s.store_num)));
-      });
     };
   });
   updateStoreCount();
@@ -1112,19 +1621,47 @@ function renderStorePicks() {
 
 function updateStoreCount() {
   const n = SELECTED_STORES.size;
-  document.getElementById('store-count').textContent = `${n} store${n === 1 ? '' : 's'} selected`;
+  const vis = visibleStores().length;
+  const filterNote = STORE_DISTRICT_FILTER.size
+    ? ` · showing ${vis} in selected district${STORE_DISTRICT_FILTER.size === 1 ? '' : 's'}`
+    : ` · ${vis} visible`;
+  document.getElementById('store-count').textContent = `${n} store${n === 1 ? '' : 's'} selected${filterNote}`;
 }
 
 document.getElementById('pick-needs').onclick = () => {
-  SELECTED_STORES = new Set(
+  const needs = new Set(
     (COVERAGE.stores || []).filter((s) => s.state === 'needs_assign').map((s) => Number(s.storeNum))
   );
+  SELECTED_STORES = new Set(
+    visibleStores().map((s) => Number(s.store_num)).filter((n) => needs.has(n))
+  );
+  renderStorePicks();
+};
+document.getElementById('pick-visible').onclick = () => {
+  visibleStores().forEach((s) => SELECTED_STORES.add(Number(s.store_num)));
   renderStorePicks();
 };
 document.getElementById('pick-clear').onclick = () => {
   SELECTED_STORES = new Set();
   renderStorePicks();
 };
+
+document.getElementById('prod-date').value = todayYmdLocal();
+document.getElementById('prod-cycle').onchange = updateProdCycleUi;
+document.getElementById('prod-refresh').onclick = () => loadProdSchedule(true);
+document.getElementById('prod-assign').onclick = () => assignFromProd();
+document.getElementById('prod-name-q').addEventListener('input', () => {
+  clearTimeout(window.__prodNameTimer);
+  window.__prodNameTimer = setTimeout(renderProdLeads, 200);
+});
+document.getElementById('prod-team-f').onchange = () => renderProdLeads();
+document.getElementById('prod-select-all').onclick = () => {
+  document.querySelectorAll('#prod-leads input[data-prod-key]').forEach((cb) => { cb.checked = true; });
+};
+document.getElementById('prod-select-none').onclick = () => {
+  document.querySelectorAll('#prod-leads input[data-prod-key]').forEach((cb) => { cb.checked = false; });
+};
+loadProdCycles(false).catch(() => {});
 
 function inviteSummary(results) {
   if (!results || !results.length) return 'No invite emails sent.';
@@ -1139,10 +1676,14 @@ document.getElementById('assign-submit').onclick = async () => {
   err.classList.remove('show');
   ok.classList.remove('show');
 
-  const emails = [...SELECTED_ASSIGNEES.keys()];
+  const assignees = [...SELECTED_ASSIGNEES.values()].map((p) => ({
+    email: p.email,
+    name: p.name || null,
+    role: p.role || 'lead',
+  }));
   const storeNums = [...SELECTED_STORES];
-  if (!emails.length) {
-    err.textContent = 'Add at least one assignee.';
+  if (!assignees.length) {
+    err.textContent = 'Add at least one assignee (roster search or manual email).';
     err.classList.add('show');
     return;
   }
@@ -1162,7 +1703,8 @@ document.getElementById('assign-submit').onclick = async () => {
     const res = await api('/api/survey/admin/assignments', {
       method: 'POST',
       body: JSON.stringify({
-        assigneeEmails: emails,
+        assignees,
+        assigneeEmails: assignees.map((a) => a.email),
         storeNums,
         dueAt,
         notes,
@@ -1191,8 +1733,8 @@ document.getElementById('bulk-access').onclick = async () => {
   const dueAt = document.getElementById('due-at').value || null;
   const sendInvites = document.getElementById('send-invites').checked;
   if (!confirm(storeNums.length
-    ? `Bulk-assign preferred lead/member for ${storeNums.length} selected store(s)?`
-    : 'Bulk-assign preferred lead/member for all needs-assign stores in your scope?')) return;
+    ? `Assign the preferred store-access person for each of the ${storeNums.length} selected store(s)?`
+    : 'No stores selected — assign the preferred store-access person for every needs-assign store in your scope?')) return;
   try {
     setLoading(true);
     const res = await api('/api/survey/admin/assignments/bulk-from-access', {
@@ -1745,6 +2287,8 @@ document.getElementById('exp-photos').onclick = () => {
     ACCESS = { scope: access.scope, user: access.user };
     renderScope();
     await loadData().catch(() => {});
+    // Prefetch today's PROD schedule in background (non-blocking)
+    loadProdSchedule(false).catch(() => {});
   } catch (e) {
     if (e.message !== 'forbidden' && e.message !== 'auth') {
       console.error(e);
