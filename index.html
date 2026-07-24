@@ -113,6 +113,12 @@
         <span class="card__desc">Admin: all reps, match, dry-run, live tools, photo delivery.</span>
       </a>
 
+      <a href="/central-pet/updates/" class="card" id="cp-updates-card" hidden>
+        <span class="card__icon">📣</span>
+        <span class="card__title">Central Pet Updates</span>
+        <span class="card__desc">Team callouts and shipper alerts — newest first, with SMS links when posted.</span>
+      </a>
+
       <a href="/survey/" class="card">
         <span class="card__icon">📝</span>
         <span class="card__title">Store Survey</span>
@@ -167,6 +173,10 @@
           var wlb = document.getElementById('welcome-letter-board-card');
           if (wl) wl.hidden = false;
           if (wlb) wlb.hidden = false;
+        }
+        if (me && me.hasCentralPetUpdatesAccess) {
+          var cpu = document.getElementById('cp-updates-card');
+          if (cpu) cpu.hidden = false;
         }
         // Survey admin — supervisors/managers (ops ACL) or Kompass admin
         if (roles.indexOf('admin') >= 0) {

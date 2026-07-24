@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central Pet Updates — The Dump Bin</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/auth-gate.js"></script>
+  <style>
+    :root {
+      --cp-green: #0b5d3a;
+      --cp-green-2: #1a8a55;
+      --cp-mint: #e8f5ee;
+      --cp-line: #c8e6d4;
+      --cp-ink: #1f2937;
+      --cp-muted: #5a6b7d;
+      --cp-bg: #f6faf7;
+    }
+    body { background: var(--cp-bg); }
+    .cpu-page { max-width: 820px; margin: 0 auto; padding: 24px 14px 72px; }
+    .cpu-hero {
+      background: linear-gradient(135deg, var(--cp-green) 0%, var(--cp-green-2) 100%);
+      color: #fff;
+      border-radius: 10px;
+      padding: 22px 24px;
+      margin-bottom: 22px;
+    }
+    .cpu-hero .label {
+      font-size: 11px; letter-spacing: 2px; font-weight: 700; opacity: 0.85;
+    }
+    .cpu-hero h1 { margin: 6px 0 8px; font-size: 1.6rem; line-height: 1.25; }
+    .cpu-hero p { margin: 0; color: #eafaf1; font-size: 14px; line-height: 1.5; }
+    .cpu-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .cpu-toolbar a {
+      display: inline-block; padding: 8px 12px; border-radius: 8px;
+      background: #fff; border: 1px solid var(--cp-line); color: var(--cp-green);
+      text-decoration: none; font-size: 13px; font-weight: 600;
+    }
+    .cpu-status { color: var(--cp-muted); font-size: 14px; margin: 12px 0; }
+    .cpu-card {
+      background: #fff; border: 1px solid var(--cp-line); border-radius: 10px;
+      padding: 16px 18px; margin-bottom: 14px; cursor: pointer;
+      transition: box-shadow .15s ease, border-color .15s ease;
+    }
+    .cpu-card:hover, .cpu-card.open {
+      border-color: var(--cp-green-2);
+      box-shadow: 0 6px 18px rgba(11, 93, 58, 0.12);
+    }
+    .cpu-card .when { font-size: 12px; color: var(--cp-muted); margin-bottom: 4px; }
+    .cpu-card h2 { margin: 0 0 6px; font-size: 1.15rem; color: var(--cp-green); }
+    .cpu-card .summary { margin: 0; color: var(--cp-ink); font-size: 14px; line-height: 1.45; }
+    .cpu-body {
+      display: none; margin-top: 14px; padding-top: 14px;
+      border-top: 1px solid var(--cp-line);
+    }
+    .cpu-card.open .cpu-body { display: block; }
+    .cpu-frame {
+      width: 100%; border: 0; min-height: 420px; background: var(--cp-mint);
+      border-radius: 8px;
+    }
+    .cpu-atts { margin-top: 10px; font-size: 13px; color: var(--cp-muted); }
+  </style>
+</head>
+<body>
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <a href="/"><img src="/logo-banner.png" alt="Retail Odyssey Company" class="site-nav__logo"></a>
+      <a href="/" class="site-nav__link">Home</a>
+    </div>
+  </nav>
+
+  <main class="cpu-page">
+    <section class="cpu-hero">
+      <div class="label">CENTRAL PET UPDATES</div>
+      <h1>Team callouts</h1>
+      <p>Newest first — open a card for the full brief. Texts link straight here.</p>
+    </section>
+
+    <div class="cpu-toolbar" id="admin-bar" hidden>
+      <a href="/central-pet/updates-admin/">Admin: roster &amp; publish</a>
+    </div>
+
+    <div class="cpu-status" id="status">Loading updates…</div>
+    <div id="feed"></div>
+  </main>
+
+  <script>
+    (function () {
+      var feed = document.getElementById('feed');
+      var statusEl = document.getElementById('status');
+      var params = new URLSearchParams(location.search);
+      var focusSlug = params.get('p') || '';
+
+      function fmtWhen(iso) {
+        try {
+          return new Date(iso).toLocaleString(undefined, {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit'
+          });
+        } catch (_) { return iso; }
+      }
+
+      function openCard(card, update) {
+        var wasOpen = card.classList.contains('open');
+        document.querySelectorAll('.cpu-card.open').forEach(function (c) {
+          c.classList.remove('open');
+          var b = c.querySelector('.cpu-body');
+          if (b) b.innerHTML = '';
+        });
+        if (wasOpen) return;
+        card.classList.add('open');
+        var body = card.querySelector('.cpu-body');
+        body.innerHTML = '<div class="cpu-status">Loading brief…</div>';
+        dumpBinAuthFetch('/api/central-pet/updates/' + encodeURIComponent(update.slug))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok || !data.update) {
+              body.innerHTML = '<div class="cpu-status">Could not load this brief.</div>';
+              return;
+            }
+            var html = data.update.html_body || '';
+            var atts = Array.isArray(data.update.attachment_names) ? data.update.attachment_names : [];
+            var attHtml = atts.length
+              ? '<div class="cpu-atts"><strong>Attachments (on the email):</strong> '
+                + atts.map(function (a) { return String(a); }).join(', ') + '</div>'
+              : '';
+            body.innerHTML = '<iframe class="cpu-frame" sandbox=""></iframe>' + attHtml;
+            var iframe = body.querySelector('iframe');
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+            try {
+              history.replaceState(null, '', '?p=' + encodeURIComponent(update.slug));
+            } catch (_) {}
+          })
+          .catch(function () {
+            body.innerHTML = '<div class="cpu-status">Could not load this brief.</div>';
+          });
+      }
+
+      async function boot() {
+        try {
+          var meRes = await dumpBinAuthFetch('/api/me', { noBounceOn401: true });
+          if (!meRes.ok) {
+            statusEl.textContent = 'Sign in required.';
+            return;
+          }
+          var me = await meRes.json();
+          if (!me.hasCentralPetUpdatesAccess) {
+            statusEl.textContent = 'You do not have access to Central Pet Updates.';
+            return;
+          }
+          if (me.canAdminCentralPetUpdates) {
+            document.getElementById('admin-bar').hidden = false;
+          }
+
+          var res = await dumpBinAuthFetch('/api/central-pet/updates');
+          var data = await res.json();
+          if (!res.ok || !data.ok) {
+            statusEl.textContent = (data && data.error) || 'Could not load updates.';
+            return;
+          }
+          var updates = data.updates || [];
+          if (!updates.length) {
+            statusEl.textContent = 'No updates yet.';
+            return;
+          }
+          statusEl.textContent = updates.length + ' update' + (updates.length === 1 ? '' : 's');
+          feed.innerHTML = '';
+          updates.forEach(function (u) {
+            var card = document.createElement('article');
+            card.className = 'cpu-card';
+            card.dataset.slug = u.slug;
+            card.innerHTML =
+              '<div class="when">' + fmtWhen(u.published_at) + '</div>'
+              + '<h2></h2><p class="summary"></p><div class="cpu-body"></div>';
+            card.querySelector('h2').textContent = u.title || u.subject;
+            card.querySelector('.summary').textContent = u.summary || u.subject || '';
+            card.addEventListener('click', function (e) {
+              if (e.target.closest('.cpu-body')) return;
+              openCard(card, u);
+            });
+            feed.appendChild(card);
+            if (focusSlug && focusSlug === u.slug) {
+              openCard(card, u);
+              card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          });
+        } catch (err) {
+          statusEl.textContent = 'Could not load updates.';
+        }
+      }
+
+      boot();
+    })();
+  </script>
+</body>
+</html>

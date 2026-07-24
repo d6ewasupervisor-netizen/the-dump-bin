@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central Pet Updates Admin — The Dump Bin</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/auth-gate.js"></script>
+  <style>
+    :root {
+      --cp-green: #0b5d3a;
+      --cp-green-2: #1a8a55;
+      --cp-mint: #e8f5ee;
+      --cp-line: #c8e6d4;
+      --cp-ink: #1f2937;
+      --cp-muted: #5a6b7d;
+      --cp-bg: #f6faf7;
+      --cp-warn: #92400e;
+    }
+    body { background: var(--cp-bg); }
+    .adm { max-width: 960px; margin: 0 auto; padding: 24px 14px 80px; }
+    .adm h1 { margin: 0 0 6px; color: var(--cp-green); font-size: 1.6rem; }
+    .adm .sub { color: var(--cp-muted); margin: 0 0 20px; font-size: 14px; }
+    .panel {
+      background: #fff; border: 1px solid var(--cp-line); border-radius: 10px;
+      padding: 18px 20px; margin-bottom: 18px;
+    }
+    .panel h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--cp-green); }
+    label { display: block; font-weight: 700; font-size: 13px; margin: 12px 0 4px; color: var(--cp-ink); }
+    input[type=text], input[type=email], input[type=tel], textarea, select {
+      width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #c5d4cb;
+      border-radius: 8px; font: inherit; font-size: 14px;
+    }
+    textarea.html { min-height: 280px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 700px) { .row { grid-template-columns: 1fr; } }
+    .checks { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 14px; }
+    button, .btn {
+      appearance: none; border: 0; border-radius: 8px; padding: 10px 14px;
+      background: var(--cp-green); color: #fff; font-weight: 700; font-size: 14px;
+      cursor: pointer;
+    }
+    button.secondary { background: #fff; color: var(--cp-green); border: 1px solid var(--cp-line); }
+    button.danger { background: #b3261e; }
+    .msg { margin-top: 10px; font-size: 14px; }
+    .msg.ok { color: #1e7a46; }
+    .msg.err { color: #b3261e; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #e5eee8; vertical-align: top; }
+    th { color: var(--cp-muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+    .pill { display: inline-block; padding: 2px 7px; border-radius: 999px; background: var(--cp-mint); font-size: 11px; }
+    .pill.off { background: #f3f4f6; color: #6b7280; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    a.nav { color: var(--cp-green); font-weight: 600; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <a href="/"><img src="/logo-banner.png" alt="Retail Odyssey Company" class="site-nav__logo"></a>
+      <a href="/central-pet/updates/" class="site-nav__link">Updates</a>
+    </div>
+  </nav>
+
+  <main class="adm">
+    <h1>Central Pet Updates — Admin</h1>
+    <p class="sub">Publish a brief (email + SMS) and manage who gets notified. <a class="nav" href="/central-pet/updates/">View thread</a></p>
+    <div id="gate" class="msg">Checking access…</div>
+
+    <div id="app" hidden>
+      <section class="panel">
+        <h2>Publish update</h2>
+        <label for="subject">Email subject</label>
+        <input id="subject" type="text" placeholder="Shipper Alert – …">
+        <label for="title">Card title</label>
+        <input id="title" type="text" placeholder="Jumbo Axolotl Toy Shipper">
+        <label for="summary">One-line summary (thread + SMS context)</label>
+        <input id="summary" type="text" placeholder="New P7 Multipet shipper — …">
+        <label for="attachments">Attachment names (comma-separated, optional)</label>
+        <input id="attachments" type="text" placeholder="file.pdf, tips.docx">
+        <label for="htmlBody">HTML body (full email HTML)</label>
+        <textarea id="htmlBody" class="html" placeholder="Paste the full &lt;!DOCTYPE html&gt;… brief here"></textarea>
+        <div class="checks">
+          <label><input type="checkbox" id="notifyEmail" checked> Send email</label>
+          <label><input type="checkbox" id="notifySms" checked> Send SMS (TACTAG)</label>
+        </div>
+        <div style="margin-top:14px;">
+          <button id="publishBtn" type="button">Publish</button>
+        </div>
+        <div id="publishMsg" class="msg"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Notify roster</h2>
+        <div class="row">
+          <div>
+            <label for="rName">Name</label>
+            <input id="rName" type="text">
+          </div>
+          <div>
+            <label for="rDistricts">Districts (comma)</label>
+            <input id="rDistricts" type="text" value="D8">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="rEmail">Email</label>
+            <input id="rEmail" type="email">
+          </div>
+          <div>
+            <label for="rPhone">Phone</label>
+            <input id="rPhone" type="tel" placeholder="+15095551212">
+          </div>
+        </div>
+        <div class="checks">
+          <label><input type="checkbox" id="rNotifyEmail" checked> Email</label>
+          <label><input type="checkbox" id="rNotifySms" checked> SMS</label>
+          <label><input type="checkbox" id="rActive" checked> Active</label>
+        </div>
+        <div style="margin-top:14px;" class="actions">
+          <button id="addRecipientBtn" type="button">Add person</button>
+          <button id="reloadRecipientsBtn" type="button" class="secondary">Reload</button>
+        </div>
+        <div id="rosterMsg" class="msg"></div>
+        <div style="overflow-x:auto; margin-top:14px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th><th>Email</th><th>Phone</th><th>Districts</th><th>Flags</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="rosterBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var gate = document.getElementById('gate');
+      var app = document.getElementById('app');
+
+      function setMsg(el, text, ok) {
+        el.textContent = text || '';
+        el.className = 'msg ' + (ok ? 'ok' : 'err');
+      }
+
+      async function loadRoster() {
+        var res = await dumpBinAuthFetch('/api/central-pet/updates/recipients');
+        var data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Roster load failed');
+        var tbody = document.getElementById('rosterBody');
+        tbody.innerHTML = '';
+        (data.recipients || []).forEach(function (r) {
+          var tr = document.createElement('tr');
+          var flags = [];
+          flags.push('<span class="pill' + (r.active ? '' : ' off') + '">' + (r.active ? 'active' : 'off') + '</span>');
+          if (r.notify_email) flags.push('<span class="pill">email</span>');
+          if (r.notify_sms) flags.push('<span class="pill">sms</span>');
+          tr.innerHTML =
+            '<td></td><td></td><td></td><td></td><td>' + flags.join(' ') + '</td>'
+            + '<td class="actions"><button type="button" class="secondary edit">Edit</button>'
+            + (r.active ? '<button type="button" class="danger off">Deactivate</button>' : '') + '</td>';
+          tr.children[0].textContent = r.name || '';
+          tr.children[1].textContent = r.email || '';
+          tr.children[2].textContent = r.phone_e164 || '';
+          tr.children[3].textContent = (r.districts || []).join(', ');
+          tr.querySelector('.edit').onclick = function () {
+            document.getElementById('rName').value = r.name || '';
+            document.getElementById('rEmail').value = r.email || '';
+            document.getElementById('rPhone').value = r.phone_e164 || '';
+            document.getElementById('rDistricts').value = (r.districts || []).join(', ');
+            document.getElementById('rNotifyEmail').checked = !!r.notify_email;
+            document.getElementById('rNotifySms').checked = !!r.notify_sms;
+            document.getElementById('rActive').checked = !!r.active;
+            document.getElementById('addRecipientBtn').dataset.editId = String(r.id);
+            document.getElementById('addRecipientBtn').textContent = 'Save person #' + r.id;
+          };
+          var offBtn = tr.querySelector('.off');
+          if (offBtn) {
+            offBtn.onclick = async function () {
+              if (!confirm('Deactivate this person?')) return;
+              var d = await dumpBinAuthFetch('/api/central-pet/updates/recipients/' + r.id, { method: 'DELETE' });
+              var j = await d.json();
+              if (!d.ok || !j.ok) return setMsg(document.getElementById('rosterMsg'), j.error || 'Failed', false);
+              setMsg(document.getElementById('rosterMsg'), 'Deactivated.', true);
+              loadRoster();
+            };
+          }
+          tbody.appendChild(tr);
+        });
+      }
+
+      document.getElementById('addRecipientBtn').onclick = async function () {
+        var editId = this.dataset.editId;
+        var payload = {
+          name: document.getElementById('rName').value,
+          email: document.getElementById('rEmail').value,
+          phone: document.getElementById('rPhone').value,
+          districts: document.getElementById('rDistricts').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+          notify_email: document.getElementById('rNotifyEmail').checked,
+          notify_sms: document.getElementById('rNotifySms').checked,
+          active: document.getElementById('rActive').checked
+        };
+        var url = '/api/central-pet/updates/recipients';
+        var method = 'POST';
+        if (editId) {
+          url += '/' + editId;
+          method = 'PATCH';
+        }
+        var res = await dumpBinAuthFetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        var data = await res.json();
+        if (!res.ok || !data.ok) {
+          setMsg(document.getElementById('rosterMsg'), data.error || 'Save failed', false);
+          return;
+        }
+        setMsg(document.getElementById('rosterMsg'), 'Saved.', true);
+        delete this.dataset.editId;
+        this.textContent = 'Add person';
+        document.getElementById('rName').value = '';
+        document.getElementById('rEmail').value = '';
+        document.getElementById('rPhone').value = '';
+        loadRoster();
+      };
+
+      document.getElementById('reloadRecipientsBtn').onclick = function () { loadRoster(); };
+
+      document.getElementById('publishBtn').onclick = async function () {
+        var msg = document.getElementById('publishMsg');
+        setMsg(msg, 'Publishing…', true);
+        var atts = document.getElementById('attachments').value
+          .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        var res = await dumpBinAuthFetch('/api/central-pet/updates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: document.getElementById('subject').value,
+            title: document.getElementById('title').value,
+            summary: document.getElementById('summary').value,
+            htmlBody: document.getElementById('htmlBody').value,
+            attachmentNames: atts,
+            notify: {
+              email: document.getElementById('notifyEmail').checked,
+              sms: document.getElementById('notifySms').checked
+            }
+          })
+        });
+        var data = await res.json();
+        if (!res.ok || !data.ok) {
+          setMsg(msg, data.error || 'Publish failed', false);
+          return;
+        }
+        var u = data.update;
+        var meta = u.notify_meta || {};
+        setMsg(msg,
+          'Published “' + u.title + '” · email=' + (u.email_status || '?')
+          + ' · sms=' + (u.sms_status || '?')
+          + ' · link ?p=' + u.slug, true);
+        console.log('cp-update notify_meta', meta);
+      };
+
+      (async function boot() {
+        try {
+          var meRes = await dumpBinAuthFetch('/api/me');
+          var me = await meRes.json();
+          if (!me.canAdminCentralPetUpdates) {
+            gate.textContent = 'Admin/supervisor access required.';
+            gate.className = 'msg err';
+            return;
+          }
+          gate.hidden = true;
+          app.hidden = false;
+          await loadRoster();
+        } catch (e) {
+          gate.textContent = 'Could not verify access.';
+          gate.className = 'msg err';
+        }
+      })();
+    })();
+  </script>
+</body>
+</html>
