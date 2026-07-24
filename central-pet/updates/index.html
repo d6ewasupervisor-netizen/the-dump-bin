@@ -101,6 +101,30 @@
         } catch (_) { return iso; }
       }
 
+      function renderBrief(body, html, atts) {
+        var attHtml = atts.length
+          ? '<div class="cpu-atts"><strong>Attachments (on the email):</strong> '
+            + atts.map(function (a) { return String(a); }).join(', ') + '</div>'
+          : '';
+        // allow-same-origin so we can size the frame; no allow-scripts
+        body.innerHTML = '<iframe class="cpu-frame" title="Central Pet brief" sandbox="allow-same-origin allow-popups"></iframe>' + attHtml;
+        var iframe = body.querySelector('iframe');
+        // Blob URL handles large inline-image emails better than srcdoc size limits
+        var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        iframe.onload = function () {
+          try { URL.revokeObjectURL(url); } catch (_) {}
+          try {
+            var doc = iframe.contentDocument;
+            if (doc && doc.body) {
+              var h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight, 420);
+              iframe.style.height = Math.min(h + 24, 2400) + 'px';
+            }
+          } catch (_) {}
+        };
+        iframe.src = url;
+      }
+
       function openCard(card, update) {
         var wasOpen = card.classList.contains('open');
         document.querySelectorAll('.cpu-card.open').forEach(function (c) {
@@ -113,30 +137,34 @@
         var body = card.querySelector('.cpu-body');
         body.innerHTML = '<div class="cpu-status">Loading brief…</div>';
         dumpBinAuthFetch('/api/central-pet/updates/' + encodeURIComponent(update.slug))
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (!data.ok || !data.update) {
-              body.innerHTML = '<div class="cpu-status">Could not load this brief.</div>';
+          .then(function (r) {
+            return r.json().then(function (data) {
+              return { okHttp: r.ok, status: r.status, data: data };
+            });
+          })
+          .then(function (result) {
+            var data = result.data || {};
+            if (!result.okHttp || !data.ok || !data.update) {
+              body.innerHTML = '<div class="cpu-status">Could not load this brief'
+                + (data.error ? (': ' + data.error) : (' (HTTP ' + result.status + ')'))
+                + '.</div>';
               return;
             }
             var html = data.update.html_body || '';
+            if (!html) {
+              body.innerHTML = '<div class="cpu-status">This brief has no HTML body.</div>';
+              return;
+            }
             var atts = Array.isArray(data.update.attachment_names) ? data.update.attachment_names : [];
-            var attHtml = atts.length
-              ? '<div class="cpu-atts"><strong>Attachments (on the email):</strong> '
-                + atts.map(function (a) { return String(a); }).join(', ') + '</div>'
-              : '';
-            body.innerHTML = '<iframe class="cpu-frame" sandbox=""></iframe>' + attHtml;
-            var iframe = body.querySelector('iframe');
-            var doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write(html);
-            doc.close();
+            renderBrief(body, html, atts);
             try {
               history.replaceState(null, '', '?p=' + encodeURIComponent(update.slug));
             } catch (_) {}
           })
-          .catch(function () {
-            body.innerHTML = '<div class="cpu-status">Could not load this brief.</div>';
+          .catch(function (err) {
+            body.innerHTML = '<div class="cpu-status">Could not load this brief'
+              + (err && err.message ? (': ' + err.message) : '')
+              + '.</div>';
           });
       }
 
