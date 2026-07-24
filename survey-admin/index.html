@@ -42,14 +42,14 @@
     --glow:rgba(127,208,255,.2); --radius:16px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-  html{overscroll-behavior:none}
+  html{overscroll-behavior:none;font-size:calc(16px * var(--text-scale, 1))}
   body{
     margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
     background:
       radial-gradient(1100px 420px at 0% -10%, var(--glow), transparent 55%),
       radial-gradient(900px 360px at 100% 0%, var(--glow), transparent 50%),
       var(--paper);
-    color:var(--ink);font-size:calc(15px * var(--text-scale, 1));
+    color:var(--ink);font-size:1rem;
     overscroll-behavior-y:none;line-height:1.45;touch-action:pan-y;
   }
 
@@ -88,34 +88,34 @@
 
   .scope-banner{
     background:var(--accent-soft);border:1px solid #c5d8e6;border-radius:10px;
-    padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--accent-deep);display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    padding:10px 14px;margin-bottom:14px;font-size:.8125rem;color:var(--accent-deep);display:flex;gap:8px;align-items:center;flex-wrap:wrap;
   }
   .scope-banner .tag{font-weight:700;letter-spacing:.02em}
 
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
-  .card .big{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
-  .card .lbl{color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+  .card .big{font-size:1.625rem;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+  .card .lbl{color:var(--ink-soft);font-size:.6875rem;text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
   .card.needs .big{color:var(--bad)} .card.assigned .big{color:var(--warn)} .card.done .big{color:var(--good)}
 
-  h2{font-size:15px;margin:18px 0 10px;color:var(--ink);display:flex;align-items:center;gap:8px}
+  h2{font-size:.9375rem;margin:18px 0 10px;color:var(--ink);display:flex;align-items:center;gap:8px}
   h2 .sec-ico{width:28px;height:28px;border-radius:8px;object-fit:cover}
-  h3{font-size:14px;margin:0 0 8px;color:var(--ink)}
+  h3{font-size:.875rem;margin:0 0 8px;color:var(--ink)}
   .muted{color:var(--ink-soft)}
-  .hint{font-size:13px;color:var(--ink-soft);margin:0 0 12px}
+  .hint{font-size:.8125rem;color:var(--ink-soft);margin:0 0 12px}
 
   .chip-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
   .chip{
     display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--chip-bg);
-    border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;min-height:36px;
+    border-radius:999px;padding:7px 12px;font-size:.8125rem;font-weight:600;color:var(--ink-soft);cursor:pointer;min-height:36px;
   }
   .chip.active{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
-  .chip .count{background:var(--paper);border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700}
+  .chip .count{background:var(--paper);border-radius:999px;padding:1px 7px;font-size:.6875rem;font-weight:700}
   .chip.active .count{background:var(--card)}
 
   .status{
     display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;
-    font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;
+    font-size:.6875rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;
   }
   .status.needs_assign{background:var(--bad-bg);color:var(--bad)}
   .status.assigned{background:var(--warn-bg);color:#8a5f10}
@@ -127,54 +127,56 @@
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   .search{
     flex:1 1 200px;min-width:160px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
-    background:var(--input-bg);color:var(--ink);font-size:16px;min-height:44px;
+    background:var(--input-bg);color:var(--ink);font-size:max(16px,1rem);min-height:44px;
+    scroll-margin-top:96px;scroll-margin-bottom:24px;
   }
   select,input[type="text"],input[type="date"],input[type="number"],input[type="search"],textarea{
-    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--input-bg);color:var(--ink);font-size:16px;min-height:44px;font-family:inherit;
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--input-bg);color:var(--ink);font-size:max(16px,1rem);min-height:44px;font-family:inherit;
+    scroll-margin-top:96px;scroll-margin-bottom:24px;
   }
-  select[multiple]{min-height:140px;font-size:14px;padding:6px}
+  select[multiple]{min-height:140px;max-height:min(45vh,280px);font-size:.875rem;padding:6px}
   textarea{min-height:80px;resize:vertical}
-  label.field{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;font-weight:600}
+  label.field{display:block;font-size:.75rem;color:var(--ink-soft);margin-bottom:4px;font-weight:600}
   .field-wrap{margin-bottom:12px}
 
   button{
     background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 14px;
-    font-size:14px;font-weight:600;cursor:pointer;min-height:44px;touch-action:manipulation;
+    font-size:.875rem;font-weight:600;cursor:pointer;min-height:44px;touch-action:manipulation;
   }
   button.secondary{background:var(--card);color:var(--accent);border:1.5px solid var(--accent)}
   button.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
   button.danger{background:var(--bad)}
   button:disabled{opacity:.55;cursor:not-allowed}
   button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
-  .check{display:flex;align-items:flex-start;gap:10px;font-size:14px;margin:8px 0}
+  .check{display:flex;align-items:flex-start;gap:10px;font-size:.875rem;margin:8px 0}
   .check input{width:auto;min-height:0;margin-top:3px}
 
   .panel-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);margin-bottom:12px}
   .empty{
     text-align:center;padding:28px 16px;background:var(--card);border:1px dashed var(--line);border-radius:12px;color:var(--ink-soft);
   }
-  .empty strong{display:block;color:var(--ink);margin-bottom:6px;font-size:15px}
+  .empty strong{display:block;color:var(--ink);margin-bottom:6px;font-size:.9375rem}
 
-  .cov-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  .cov-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:.8125rem}
   .cov-table th,.cov-table td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-  .cov-table th{background:var(--th-bg);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);position:sticky;top:0;z-index:1}
+  .cov-table th{background:var(--th-bg);font-size:.6875rem;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);position:sticky;top:0;z-index:1}
   .cov-table tr:last-child td{border-bottom:0}
   .cov-table tr:hover td{background:var(--row-hover)}
   .tablewrap{max-height:min(70vh,620px);overflow:auto;border-radius:12px;-webkit-overflow-scrolling:touch;border:1px solid var(--line)}
   .assignee-list{display:flex;flex-direction:column;gap:4px}
   .assignee-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .assignee-row .due{font-size:12px;color:var(--ink-soft)}
-  .btn-xs{min-height:32px;padding:5px 10px;font-size:12px;border-radius:8px}
+  .assignee-row .due{font-size:.75rem;color:var(--ink-soft)}
+  .btn-xs{min-height:32px;padding:5px 10px;font-size:.75rem;border-radius:8px}
 
   .cov-cards{display:none;gap:10px}
   .store-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
   .store-card .head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:6px}
-  .store-card .num{font-weight:700;font-size:16px}
-  .store-card .name{font-size:13px;color:var(--ink-soft);margin-bottom:8px}
+  .store-card .num{font-weight:700;font-size:1rem}
+  .store-card .name{font-size:.8125rem;color:var(--ink-soft);margin-bottom:8px}
 
   .wizard-steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
   .wizard-steps span{
-    font-size:12px;font-weight:700;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);
+    font-size:.75rem;font-weight:700;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);
     border-radius:999px;padding:6px 11px;
   }
   .wizard-steps span.on{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -186,49 +188,51 @@
 
   .typeahead{position:relative}
   .typeahead-results{
-    position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--card);border:1px solid var(--line);
-    border-radius:10px;margin-top:4px;max-height:240px;overflow:auto;box-shadow:0 8px 24px rgba(28,39,51,.18);display:none;
+    position:absolute;left:0;right:0;top:100%;z-index:40;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;margin-top:4px;max-height:min(40vh,240px);overflow:auto;-webkit-overflow-scrolling:touch;
+    box-shadow:0 8px 24px rgba(28,39,51,.18);display:none;
   }
   .typeahead-results.open{display:block}
+  .typeahead-results.drop-up{top:auto;bottom:100%;margin-top:0;margin-bottom:4px;box-shadow:0 -8px 24px rgba(28,39,51,.18)}
   .typeahead-results button{
     display:block;width:100%;text-align:left;background:var(--card);color:var(--ink);border:0;border-radius:0;
-    border-bottom:1px solid var(--line);padding:10px 12px;font-weight:500;font-size:13px;min-height:0;
+    border-bottom:1px solid var(--line);padding:10px 12px;font-weight:500;font-size:.8125rem;min-height:44px;
   }
   .typeahead-results button:last-child{border-bottom:0}
   .typeahead-results button:hover{background:var(--accent-soft)}
-  .typeahead-results .sub{display:block;font-size:11px;color:var(--ink-soft);font-weight:400}
+  .typeahead-results .sub{display:block;font-size:.6875rem;color:var(--ink-soft);font-weight:400}
   .sel-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;margin-top:8px}
   .sel-chip{
     display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent-deep);
-    border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;
+    border-radius:999px;padding:5px 10px;font-size:.75rem;font-weight:600;
   }
   .sel-chip button{all:unset;cursor:pointer;color:var(--accent);font-weight:700;padding:0 2px;min-height:0}
   .dist-picks{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-  .dist-picks label{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:var(--chip-bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
-  .store-pick-list{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+  .dist-picks label{display:inline-flex;align-items:center;gap:6px;font-size:.8125rem;background:var(--chip-bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+  .store-pick-list{max-height:min(40vh,260px);overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;background:var(--card)}
   .store-pick-list label{
     display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-bottom:1px solid var(--line);
-    font-size:13px;cursor:pointer;margin:0;
+    font-size:.8125rem;cursor:pointer;margin:0;
   }
   .store-pick-list label:last-child{border-bottom:0}
   .store-pick-list label:hover{background:var(--row-hover)}
   .store-pick-list input{width:auto;min-height:0;margin-top:2px}
   .success-box{background:var(--good-bg);border:1px solid #b7dfc7;border-radius:12px;padding:14px;margin-top:12px;display:none}
   .success-box.show{display:block}
-  .err-box{background:var(--bad-bg);border:1px solid #f0c2ba;border-radius:12px;padding:12px;margin-top:10px;color:var(--bad);font-size:13px;display:none}
+  .err-box{background:var(--bad-bg);border:1px solid #f0c2ba;border-radius:12px;padding:12px;margin-top:10px;color:var(--bad);font-size:.8125rem;display:none}
   .err-box.show{display:block}
 
   .trend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}
   .trend-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
-  .trend-card .qtext{font-size:13px;min-height:36px;margin-bottom:8px}
+  .trend-card .qtext{font-size:.8125rem;min-height:36px;margin-bottom:8px}
   .rate{font-weight:700}
   .rate.bad{color:var(--bad)} .rate.warn{color:var(--warn)} .rate.good{color:var(--good)}
-  .delta{font-size:12px;color:var(--ink-soft)}
+  .delta{font-size:.75rem;color:var(--ink-soft)}
   .filters{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px;margin-bottom:12px}
-  .filters label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px}
+  .filters label{display:block;font-size:.75rem;color:var(--ink-soft);margin-bottom:4px}
   .viewbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%}
-  .viewbar input,.viewbar select{min-height:44px;font-size:16px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:auto;background:var(--input-bg);color:var(--ink)}
-  table.grid{width:100%;border-collapse:collapse;background:var(--card);font-size:13px}
+  .viewbar input,.viewbar select{min-height:44px;font-size:max(16px,1rem);scroll-margin-top:96px;scroll-margin-bottom:24px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:auto;background:var(--input-bg);color:var(--ink)}
+  table.grid{width:100%;border-collapse:collapse;background:var(--card);font-size:.8125rem}
   table.grid th,table.grid td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
   table.grid th{background:var(--th-bg);cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0}
   table.grid th .dir{color:var(--accent)}
@@ -237,15 +241,15 @@
   td.problem{color:var(--bad);font-weight:600}
   .heat{display:inline-block;width:56px;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--good),var(--warn),var(--bad));position:relative;vertical-align:middle;margin-right:6px}
   .heat i{position:absolute;top:-3px;width:2px;height:16px;background:var(--ink)}
-  #explore-status{font-size:13px;color:var(--ink-soft);margin-left:auto}
+  #explore-status{font-size:.8125rem;color:var(--ink-soft);margin-left:auto}
 
   .toggle-list{display:flex;flex-direction:column;gap:10px}
   .toggle-row{
     display:flex;justify-content:space-between;gap:12px;align-items:center;background:var(--card);
     border:1px solid var(--line);border-radius:12px;padding:12px 14px;
   }
-  .toggle-row strong{display:block;font-size:14px}
-  .toggle-row span{font-size:12px;color:var(--ink-soft)}
+  .toggle-row strong{display:block;font-size:.875rem}
+  .toggle-row span{font-size:.75rem;color:var(--ink-soft)}
   .switch{position:relative;width:48px;height:28px;flex:0 0 auto}
   .switch input{opacity:0;width:0;height:0}
   .switch .slider{
@@ -258,7 +262,7 @@
   .switch input:checked + .slider:before{transform:translateX(20px)}
 
   .export-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
-  .foot-brand{text-align:center;font-size:11px;color:var(--ink-soft);margin:24px 0 8px;letter-spacing:.04em;text-transform:uppercase}
+  .foot-brand{text-align:center;font-size:.6875rem;color:var(--ink-soft);margin:24px 0 8px;letter-spacing:.04em;text-transform:uppercase}
   .loading-overlay{
     position:fixed;inset:0;background:var(--overlay);z-index:50;display:none;align-items:center;justify-content:center;
     font-weight:600;color:var(--accent-deep);
@@ -273,9 +277,9 @@
   }
   .resp-card:hover,.resp-card:focus-visible{border-color:var(--accent);background:var(--accent-soft)}
   .resp-card .rc-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
-  .resp-card .rc-store{font-weight:700;font-size:16px}
-  .resp-card .rc-meta{font-size:13px;color:var(--ink-soft);margin-top:4px}
-  .resp-card .rc-photos{font-size:12px;color:var(--accent);font-weight:600;margin-top:8px}
+  .resp-card .rc-store{font-weight:700;font-size:1rem}
+  .resp-card .rc-meta{font-size:.8125rem;color:var(--ink-soft);margin-top:4px}
+  .resp-card .rc-photos{font-size:.75rem;color:var(--accent);font-weight:600;margin-top:8px}
   .viewer-shell{display:none}
   .viewer-shell.open{display:block}
   .viewer-nav{
@@ -283,11 +287,11 @@
     position:sticky;top:calc(72px + env(safe-area-inset-top,0px));z-index:5;
     background:var(--paper);padding:8px 0;
   }
-  .viewer-nav .pos{flex:1;font-size:13px;color:var(--ink-soft);text-align:center;min-width:120px}
+  .viewer-nav .pos{flex:1;font-size:.8125rem;color:var(--ink-soft);text-align:center;min-width:120px}
   .qa-block{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
-  .qa-block .qid{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+  .qa-block .qid{font-size:.6875rem;font-weight:700;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
   .qa-block .q{font-weight:600;margin:4px 0 8px;line-height:1.35}
-  .qa-block .a{font-size:14px;word-break:break-word}
+  .qa-block .a{font-size:.875rem;word-break:break-word}
   .qa-block .a.problem{color:var(--bad);font-weight:600}
   .qa-block .a.empty{color:var(--ink-soft)}
   .photo-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
@@ -298,11 +302,11 @@
   .photo-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
   .explore-cards{display:none;gap:10px}
   .ans-preview{margin-top:10px;display:flex;flex-direction:column;gap:6px;text-align:left}
-  .ans-line{font-size:13px;line-height:1.35;padding:6px 8px;border-radius:8px;background:var(--paper);border:1px solid var(--line)}
-  .ans-line strong{color:var(--accent);margin-right:6px;font-size:11px;letter-spacing:.03em}
+  .ans-line{font-size:.8125rem;line-height:1.35;padding:6px 8px;border-radius:8px;background:var(--paper);border:1px solid var(--line)}
+  .ans-line strong{color:var(--accent);margin-right:6px;font-size:.6875rem;letter-spacing:.03em}
   .ans-line.problem{border-color:#f0c2ba;background:var(--bad-bg)}
-  .ans-line .qtext{display:block;font-size:11px;color:var(--ink-soft);font-weight:500;margin:2px 0 2px}
-  .code-pill{background:var(--paper);padding:2px 6px;border-radius:4px;font-size:12px;word-break:break-all}
+  .ans-line .qtext{display:block;font-size:.6875rem;color:var(--ink-soft);font-weight:500;margin:2px 0 2px}
+  .code-pill{background:var(--paper);padding:2px 6px;border-radius:4px;font-size:.75rem;word-break:break-all}
 
   @media (max-width:720px){
     .cov-desktop,.explore-desktop{display:none}
@@ -316,7 +320,9 @@
     .chip-row{gap:6px}
     .chip-row select{margin-left:0!important;width:100%;flex:1 1 100%}
     .filters{grid-template-columns:1fr}
-    select[multiple]{min-height:110px}
+    select[multiple]{min-height:min(38vh,200px);max-height:42vh}
+    .typeahead-results{max-height:min(38vh,220px)}
+    .store-pick-list,.prod-leads-box{max-height:min(42vh,320px)}
     .export-actions button{flex:1 1 100%}
   }
   @media (min-width:721px) and (max-width:1024px){
@@ -341,20 +347,20 @@
   .prod-lead input[type="checkbox"]{margin-top:4px;width:18px;height:18px;flex:0 0 auto}
   .prod-lead .meta{flex:1;min-width:0}
   .prod-lead .meta strong{display:block}
-  .prod-lead .stores{font-size:12px;color:var(--ink-soft);margin-top:4px}
+  .prod-lead .stores{font-size:.75rem;color:var(--ink-soft);margin-top:4px}
   .prod-lead .email-override{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .prod-lead .email-override input{flex:1 1 200px;min-height:36px;font-size:14px;margin:0}
-  .prod-status{font-size:12px;color:var(--ink-soft);margin:8px 0}
+  .prod-lead .email-override input{flex:1 1 200px;min-height:36px;font-size:.875rem;margin:0}
+  .prod-status{font-size:.75rem;color:var(--ink-soft);margin:8px 0}
   .prod-status.ok{color:var(--good);font-weight:600}
   .prod-status.bad{color:var(--bad);font-weight:600}
   .prod-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:10px 0}
   .prod-filters .field-wrap{margin:0;flex:1 1 140px}
   .prod-leads-box{max-height:min(50vh,420px);overflow:auto;margin-top:8px}
-  .badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 7px;margin-left:6px;vertical-align:middle}
+  .badge{display:inline-block;font-size:.625rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 7px;margin-left:6px;vertical-align:middle}
   .badge.warn{background:var(--warn-bg);color:#8a5f10}
   .badge.good{background:var(--good-bg);color:var(--good)}
   .bulk-box{border:1px dashed var(--line);border-radius:12px;padding:12px;background:var(--paper);margin-top:10px}
-  .bulk-box h4{margin:0 0 4px;font-size:13px}
+  .bulk-box h4{margin:0 0 4px;font-size:.8125rem}
   .hero-assign{
     display:grid;gap:12px;grid-template-columns:1fr;
     margin-bottom:14px;
@@ -451,7 +457,7 @@
   <section class="panel" id="panel-assign" aria-label="Assign">
     <div class="hero-assign">
       <div class="panel-card">
-        <h2 style="margin:0 0 6px;font-size:18px">Assign from live PROD</h2>
+        <h2 style="margin:0 0 6px;font-size:1.125rem">Assign from live PROD</h2>
         <p class="hint" style="margin-top:0">Sync Kompass ISE (project 1) from SAS PROD cycle management — current week, next week, any active cycle, or a single day — then pick leads by name.</p>
         <div class="prod-filters">
           <div class="field-wrap" style="flex:1 1 220px">
@@ -480,7 +486,7 @@
           </div>
         </div>
         <div class="dist-picks" id="prod-dist-picks" aria-label="Filter PROD by district"></div>
-        <p class="muted" style="font-size:12px;margin:0 0 6px" id="prod-dist-hint" hidden>District checkboxes filter the lead/store list below. Leave all unchecked to show every district.</p>
+        <p class="muted" style="font-size:.75rem;margin:0 0 6px" id="prod-dist-hint" hidden>District checkboxes filter the lead/store list below. Leave all unchecked to show every district.</p>
         <div class="prod-status" id="prod-status">Choose a cycle (or day), then Sync with PROD.</div>
         <div class="toolbar" id="prod-select-tools" hidden style="margin:6px 0">
           <button type="button" class="ghost btn-xs" id="prod-select-all">Select visible</button>
@@ -525,7 +531,7 @@
             <input id="manual-name" type="text" placeholder="Display name (optional)" style="flex:1 1 140px" autocomplete="off">
             <button type="button" class="secondary" id="manual-email-add" style="align-self:stretch">Add email</button>
           </div>
-          <p class="muted" style="font-size:12px;margin:6px 0 0">Use when the invite should go to a different address than the one on the roster.</p>
+          <p class="muted" style="font-size:.75rem;margin:6px 0 0">Use when the invite should go to a different address than the one on the roster.</p>
         </div>
         <div class="bulk-box">
           <h4>Add everyone on a team / role</h4>
@@ -548,7 +554,7 @@
           </div>
         </div>
         <div class="sel-chips" id="assignee-chips"></div>
-        <p class="muted" style="font-size:12px;margin:8px 0 0" id="assignee-count">No assignees selected</p>
+        <p class="muted" style="font-size:.75rem;margin:8px 0 0" id="assignee-count">No assignees selected</p>
       </div>
 
       <div class="panel-card">
@@ -561,7 +567,7 @@
         </div>
         <div class="dist-picks" id="dist-picks"></div>
         <div class="store-pick-list" id="store-picks"></div>
-        <p class="muted" style="font-size:12px;margin:8px 0 0" id="store-count">0 stores selected</p>
+        <p class="muted" style="font-size:.75rem;margin:8px 0 0" id="store-count">0 stores selected</p>
       </div>
 
       <div class="panel-card">
@@ -660,7 +666,7 @@
     <div class="toolbar">
       <button type="button" id="resp-refresh">Refresh</button>
       <button type="button" class="secondary" id="resp-use-filters">Use Explore filters</button>
-      <span id="resp-status" class="muted" style="margin-left:auto;font-size:13px"></span>
+      <span id="resp-status" class="muted" style="margin-left:auto;font-size:.8125rem"></span>
     </div>
 
     <div id="resp-list-wrap">
@@ -714,7 +720,7 @@
     <div class="panel-card">
       <label class="field" for="al-districts">Limit to districts (optional)</label>
       <select id="al-districts" multiple></select>
-      <p class="muted" style="font-size:12px;margin:8px 0 12px">Empty = all districts in your scope. Hold Ctrl/Cmd to select multiple.</p>
+      <p class="muted" style="font-size:.75rem;margin:8px 0 12px">Empty = all districts in your scope. Hold Ctrl/Cmd to select multiple.</p>
       <button type="button" id="al-save">Save alert preferences</button>
       <div class="err-box" id="al-err"></div>
       <div class="success-box" id="al-ok">Preferences saved.</div>
@@ -739,7 +745,7 @@
         <button type="button" class="secondary" id="exp-xlsx">Export XLSX</button>
         <button type="button" class="ghost" id="exp-photos">Photos ZIP only</button>
       </div>
-      <p class="muted" style="font-size:13px;margin:0">
+      <p class="muted" style="font-size:.8125rem;margin:0">
         Spreadsheets get a <span class="code-pill">photo_urls</span> column per question plus <span class="code-pill">all_photo_urls</span>.
         ZIP filenames look like
         <span class="code-pill">FM{store}_{name}_Q{id}_{user}_{photoId}.jpg</span>.
@@ -825,6 +831,40 @@ document.getElementById('btn-theme').onclick = () => {
 };
 document.getElementById('btn-text-up').onclick = () => applyTextScale(getTextScale() + 0.1);
 document.getElementById('btn-text-down').onclick = () => applyTextScale(getTextScale() - 0.1);
+
+/** Flip a floating menu above its anchor when there isn't room below (mobile-safe). */
+function placeFloatingMenu(anchorEl, panel, preferredMax = 240) {
+  if (!anchorEl || !panel) return;
+  panel.classList.remove('drop-up');
+  panel.style.maxHeight = '';
+  const rect = anchorEl.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const bottomChrome = 88;
+  const spaceBelow = Math.max(0, vh - rect.bottom - bottomChrome);
+  const spaceAbove = Math.max(0, rect.top - 12);
+  const want = preferredMax;
+  if (spaceBelow < Math.min(want, 160) && spaceAbove > spaceBelow) {
+    panel.classList.add('drop-up');
+    panel.style.maxHeight = Math.max(120, Math.min(want, spaceAbove)) + 'px';
+  } else {
+    panel.style.maxHeight = Math.max(120, Math.min(want, Math.max(spaceBelow, 140))) + 'px';
+  }
+}
+
+document.addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (!el || !el.matches) return;
+  if (!el.matches('input, textarea, select')) return;
+  setTimeout(() => {
+    try { el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }); } catch (_) {}
+  }, 120);
+});
+
+window.addEventListener('resize', () => {
+  const box = document.getElementById('roster-results');
+  const input = document.getElementById('roster-q');
+  if (box && box.classList.contains('open') && input) placeFloatingMenu(input, box, 240);
+});
 
 function todayYmdLocal() {
   const d = new Date();
@@ -1009,8 +1049,8 @@ function renderProdLeads() {
       ? '<span class="badge good">Roster</span>'
       : '<span class="badge warn">Needs email</span>';
     const emailLine = L.email
-      ? `<span class="muted" style="font-size:12px">${escHtml(L.email)}${L.team ? ' · ' + escHtml(L.team) : ''}</span>`
-      : `<span class="muted" style="font-size:12px">Not on roster — enter an email to assign</span>`;
+      ? `<span class="muted" style="font-size:.75rem">${escHtml(L.email)}${L.team ? ' · ' + escHtml(L.team) : ''}</span>`
+      : `<span class="muted" style="font-size:.75rem">Not on roster — enter an email to assign</span>`;
     const override = L.matched
       ? `<div class="email-override">
            <label class="field" style="margin:0;flex:0 0 auto">Invite email</label>
@@ -1151,7 +1191,7 @@ function showForbidden() {
   document.body.innerHTML = `
     <main style="max-width:520px;margin:48px auto;padding:24px;font-family:Segoe UI,system-ui,sans-serif;color:#1c2733">
       <img src="/survey/assets/ro-logo.png" alt="Retail Odyssey" style="height:40px;margin-bottom:16px">
-      <h1 style="font-size:20px;margin:0 0 10px">Survey admin is for supervisors &amp; managers</h1>
+      <h1 style="font-size:1.25rem;margin:0 0 10px">Survey admin is for supervisors &amp; managers</h1>
       <p style="color:#5a6b7d;line-height:1.5;margin:0 0 16px">
         Your account doesn’t have survey admin access. Supervisors see stores they supervise;
         managers and directors see the full division. Ask your ops lead if you believe you should have access.
@@ -1264,7 +1304,7 @@ function answerPreviewHtml(r, cols) {
       ${disp == null ? '<span class="muted">No answer</span>' : escHtml(disp)}
     </div>`;
   }).join('')}${(!selected('f-question').length && !selected('f-section').length && visibleQuestionCols().length > list.length)
-    ? `<div class="muted" style="font-size:12px">Showing ${list.length} of ${visibleQuestionCols().length} questions — filter to focus.</div>`
+    ? `<div class="muted" style="font-size:.75rem">Showing ${list.length} of ${visibleQuestionCols().length} questions — filter to focus.</div>`
     : ''}</div>`;
 }
 
@@ -1489,7 +1529,7 @@ function renderAssigneeChips() {
   wrap.innerHTML = [...SELECTED_ASSIGNEES.values()].map((p) => `
     <span class="sel-chip" title="${escHtml(p.email)}">${escHtml(p.name || p.email)}
       ${p.manual ? '<span class="badge warn">Manual</span>' : ''}
-      <span class="muted" style="font-weight:500;font-size:11px">${escHtml(p.email)}</span>
+      <span class="muted" style="font-weight:500;font-size:.6875rem">${escHtml(p.email)}</span>
       <button type="button" data-rm="${escHtml(p.email)}" aria-label="Remove">×</button>
     </span>`).join('');
   const n = SELECTED_ASSIGNEES.size;
@@ -1545,9 +1585,11 @@ async function searchRoster(q) {
 
 function showRosterResults(people) {
   const box = document.getElementById('roster-results');
+  const input = document.getElementById('roster-q');
   if (!people.length) {
     box.innerHTML = '<button type="button" disabled>No matches</button>';
     box.classList.add('open');
+    placeFloatingMenu(input, box, 240);
     return;
   }
   box.innerHTML = people.map((p) => `
@@ -1556,12 +1598,14 @@ function showRosterResults(people) {
       <span class="sub">${escHtml(p.email)}${p.team ? ' · ' + escHtml(p.team) : ''}${p.role ? ' · ' + escHtml(p.role) : ''}</span>
     </button>`).join('');
   box.classList.add('open');
+  placeFloatingMenu(input, box, 240);
   box.querySelectorAll('button[data-email]').forEach((btn) => {
     btn.onclick = () => {
       const person = people.find((x) => x.email === btn.dataset.email);
       addAssignee(person);
       document.getElementById('roster-q').value = '';
-      box.classList.remove('open');
+      box.classList.remove('open', 'drop-up');
+      box.style.maxHeight = '';
     };
   });
 }
@@ -1571,7 +1615,9 @@ document.getElementById('roster-q').addEventListener('input', () => {
   const q = document.getElementById('roster-q').value.trim();
   rosterTimer = setTimeout(async () => {
     if (q.length < 2 && !document.getElementById('bulk-team').value && !document.getElementById('bulk-role').value) {
-      document.getElementById('roster-results').classList.remove('open');
+      const rb = document.getElementById('roster-results');
+      rb.classList.remove('open', 'drop-up');
+      rb.style.maxHeight = '';
       return;
     }
     try {
@@ -1583,7 +1629,9 @@ document.getElementById('roster-q').addEventListener('input', () => {
 
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.typeahead')) {
-    document.getElementById('roster-results').classList.remove('open');
+    const rb = document.getElementById('roster-results');
+    rb.classList.remove('open', 'drop-up');
+    rb.style.maxHeight = '';
   }
 });
 
@@ -2107,7 +2155,7 @@ function openResponseAt(idx) {
   const statusLabel = r.source === 'baseline' ? '2025 baseline' : (r.status || '');
   document.getElementById('resp-viewer-head').innerHTML = `
     <h3 style="margin:0 0 6px">Store ${escHtml(String(r.store_num))} · ${escHtml(name)}</h3>
-    <p class="muted" style="margin:0;font-size:13px">
+    <p class="muted" style="margin:0;font-size:.8125rem">
       District ${escHtml(r.district || '?')} · ${escHtml(statusLabel)} · Submitted ${escHtml(when)}
       · ${r.source === 'baseline' ? 'Historical' : 'Response'} #${escHtml(String(Math.abs(Number(r.id))))}
     </p>`;
