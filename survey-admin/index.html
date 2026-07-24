@@ -120,6 +120,9 @@
   .status.needs_assign{background:var(--bad-bg);color:var(--bad)}
   .status.assigned{background:var(--warn-bg);color:#8a5f10}
   .status.done{background:var(--good-bg);color:var(--good)}
+  .status.baseline{background:#e8eef8;color:#2a4a7a}
+  .status.submitted{background:var(--good-bg);color:var(--good)}
+  .status.draft{background:var(--warn-bg);color:#8a5f10}
 
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   .search{
@@ -606,8 +609,9 @@
     <div class="cards">
       <div class="card"><div class="big" id="c-resp">–</div><div class="lbl">Responses</div></div>
       <div class="card"><div class="big" id="c-stores-rep">–</div><div class="lbl">Stores reporting</div></div>
-      <div class="card"><div class="big">21</div><div class="lbl">2025 baseline stores</div></div>
+      <div class="card"><div class="big" id="c-baseline">–</div><div class="lbl">2025 baseline stores</div></div>
     </div>
+    <p class="hint" id="trend-source-hint" hidden></p>
 
     <h2><img class="sec-ico" src="/survey/assets/section-J.jpg" alt="" width="28" height="28"> Top trending problem questions</h2>
     <div class="trend-grid" id="trending"></div>
@@ -1855,12 +1859,24 @@ async function loadSummary() {
   const s = await api('/api/survey/admin/summary?' + filterQS().toString());
   document.getElementById('c-resp').textContent = s.totals.responses;
   document.getElementById('c-stores-rep').textContent = s.totals.stores;
+  const baseEl = document.getElementById('c-baseline');
+  if (baseEl) baseEl.textContent = s.totals.baselineStores != null ? s.totals.baselineStores : '–';
+  const hint = document.getElementById('trend-source-hint');
+  if (hint) {
+    if (s.trendingSource === 'baseline') {
+      hint.hidden = false;
+      hint.textContent = 'Trending and explore totals are seeded from the 2025 MS Forms historical answers until this year’s surveys are submitted.';
+    } else {
+      hint.hidden = true;
+      hint.textContent = '';
+    }
+  }
   const wrap = document.getElementById('trending');
   charts.forEach((c) => { try { c.destroy(); } catch (_) {} });
   charts = [];
   wrap.innerHTML = '';
   if (!s.trending.length) {
-    wrap.innerHTML = '<div class="card muted">No submitted responses yet. Trending appears once at least 3 answers exist per question.</div>';
+    wrap.innerHTML = '<div class="card muted">No chartable answers yet. Trending appears once at least 3 answers exist per question (this year or 2025 baseline).</div>';
     return;
   }
   s.trending.forEach((t, i) => {
@@ -1868,8 +1884,15 @@ async function loadSummary() {
     card.className = 'trend-card';
     const rate = Math.round(t.problemRate * 100);
     const cls = rate >= 50 ? 'bad' : rate >= 25 ? 'warn' : 'good';
-    const b = s.baseline[t.id];
-    const delta = b ? `2025 baseline: ${Math.round(b.problemRate * 100)}% problem (${b.n} stores)` : 'No 2025 baseline for this question';
+    const b = s.baseline && s.baseline[t.id];
+    let delta;
+    if (s.trendingSource === 'baseline') {
+      delta = `Seeded from 2025 historical (${t.n} stores)`;
+    } else if (b) {
+      delta = `2025 baseline: ${Math.round(b.problemRate * 100)}% problem (${b.n} stores)`;
+    } else {
+      delta = 'No 2025 baseline for this question';
+    }
     const qtext = String(t.text || '').split('{{storeName}}').join('this store');
     card.innerHTML = `<div class="qtext"><strong>${t.id}.</strong> ${escHtml(qtext)}</div>
       <div><span class="heat" aria-hidden="true"><i style="left:${Math.min(rate, 100) * 0.56}px"></i></span>
@@ -1965,6 +1988,10 @@ function renderGrid() {
         const who = r.respondent_name || r.respondent;
         return `<td>${who ? escHtml(who) : '<span class="muted">—</span>'}</td>`;
       }
+      if (k === 'status') {
+        const label = r.source === 'baseline' ? '2025 baseline' : (r.status || '');
+        return `<td>${escHtml(label)}</td>`;
+      }
       if (k === 'store_num') return `<td>${r.store_num ?? ''}</td>`;
       return `<td>${escHtml(r[k] ?? '')}</td>`;
     }).join('') +
@@ -1995,13 +2022,14 @@ function renderGrid() {
     const when = r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : '—';
     const nPhotos = (r.photos || []).length;
     const who = r.respondent_name || r.respondent || '';
+    const statusLabel = r.source === 'baseline' ? '2025 baseline' : (r.status || '');
     return `<button type="button" class="resp-card" data-open-id="${r.id}">
       <div class="rc-top">
         <div>
           <div class="rc-store">${escHtml(String(r.store_num))} · ${escHtml(name)}</div>
-          <div class="rc-meta">D${escHtml(r.district || '?')} · ${escHtml(r.status || '')} · ${escHtml(when)}${who ? ' · ' + escHtml(who) : ''}</div>
+          <div class="rc-meta">D${escHtml(r.district || '?')} · ${escHtml(statusLabel)} · ${escHtml(when)}${who ? ' · ' + escHtml(who) : ''}</div>
         </div>
-        <span class="status ${escHtml(r.status || '')}">${escHtml(r.status || '')}</span>
+        <span class="status ${escHtml(r.source === 'baseline' ? 'baseline' : (r.status || ''))}">${escHtml(statusLabel)}</span>
       </div>
       ${answerPreviewHtml(r, cardCols)}
       ${nPhotos ? `<div class="rc-photos">${nPhotos} photo${nPhotos === 1 ? '' : 's'}</div>` : ''}
@@ -2039,13 +2067,14 @@ function renderResponseList() {
     const when = r.submitted_at ? new Date(r.submitted_at).toLocaleString() : 'Draft / not submitted';
     const nPhotos = (r.photos || []).length;
     const who = r.respondent_name || r.respondent || '';
+    const statusLabel = r.source === 'baseline' ? '2025 baseline' : (r.status || '');
     return `<button type="button" class="resp-card" data-idx="${i}">
       <div class="rc-top">
         <div>
           <div class="rc-store">${escHtml(String(r.store_num))} · ${escHtml(name)}</div>
           <div class="rc-meta">District ${escHtml(r.district || '?')} · ${escHtml(when)}${who ? ' · ' + escHtml(who) : ''}</div>
         </div>
-        <span class="status ${escHtml(r.status || '')}">${escHtml(r.status || '')}</span>
+        <span class="status ${escHtml(r.source === 'baseline' ? 'baseline' : (r.status || ''))}">${escHtml(statusLabel)}</span>
       </div>
       ${answerPreviewHtml(r, cardCols)}
       ${nPhotos ? `<div class="rc-photos">${nPhotos} photo${nPhotos === 1 ? '' : 's'} · tap to review</div>` : '<div class="rc-photos" style="color:var(--ink-soft)">Tap to open full response</div>'}
@@ -2075,11 +2104,12 @@ function openResponseAt(idx) {
 
   const name = r.store_name || r.storeName || '—';
   const when = r.submitted_at ? new Date(r.submitted_at).toLocaleString() : '—';
+  const statusLabel = r.source === 'baseline' ? '2025 baseline' : (r.status || '');
   document.getElementById('resp-viewer-head').innerHTML = `
     <h3 style="margin:0 0 6px">Store ${escHtml(String(r.store_num))} · ${escHtml(name)}</h3>
     <p class="muted" style="margin:0;font-size:13px">
-      District ${escHtml(r.district || '?')} · ${escHtml(r.status || '')} · Submitted ${escHtml(when)}
-      · Response #${escHtml(String(r.id))}
+      District ${escHtml(r.district || '?')} · ${escHtml(statusLabel)} · Submitted ${escHtml(when)}
+      · ${r.source === 'baseline' ? 'Historical' : 'Response'} #${escHtml(String(Math.abs(Number(r.id))))}
     </p>`;
 
   const photos = r.photos || [];
@@ -2289,7 +2319,9 @@ function exportXlsx() {
       Respondent: r.respondent_name,
       'Respondent email': r.respondent,
       Team: r.team,
-      Status: r.status,
+      Status: r.source === 'baseline' ? '2025 baseline' : r.status,
+      Source: r.source || 'current',
+      Year: r.year || '',
       Submitted: r.submitted_at,
     };
     cols.forEach((c) => {
