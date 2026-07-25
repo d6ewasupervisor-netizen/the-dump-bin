@@ -4376,7 +4376,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.3';
+        const EOD_APP_VERSION = '2.9.4';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5181,6 +5181,46 @@
         // Email recipients array
         let emailRecipients = [];
         let selectedShift = null;
+
+        // District 8 stores — Aiyana stays on EOD/helpdesk To/Cc only for these.
+        const EOD_D8_STORES = new Set(['19', '23', '28', '31', '53', '215', '391', '459', '658', '682']);
+        const AIYANA_EMAIL = 'aiyana.natarisalazar@retailodyssey.com';
+        const RETAIL_ODYSSEY_TEAM_EMAILS = [
+            'mashabranner@retailodyssey.com',
+            'seth.newman@retailodyssey.com',
+            'tyson.gauthier@retailodyssey.com',
+            'aiyana.natarisalazar@retailodyssey.com',
+            'amanda.mathews@retailodyssey.com',
+            'april.gauthier@retailodyssey.com',
+        ];
+
+        function isDistrict8Store(storeNumber) {
+            const n = String(Number(storeNumber));
+            return n !== 'NaN' && EOD_D8_STORES.has(n);
+        }
+
+        function retailOdysseyTeamEmailsForStore(storeNumber) {
+            if (isDistrict8Store(storeNumber)) return [...RETAIL_ODYSSEY_TEAM_EMAILS];
+            return RETAIL_ODYSSEY_TEAM_EMAILS.filter((e) => e.toLowerCase() !== AIYANA_EMAIL);
+        }
+
+        /** Drop Aiyana from recipient lists for non–D8 stores (keep if she is the submitter). */
+        function omitAiyanaForNonDistrict8(emails, storeNumber, keepEmail) {
+            if (!Array.isArray(emails)) return emails;
+            if (isDistrict8Store(storeNumber)) return emails;
+            const keep = String(keepEmail || '').trim().toLowerCase();
+            return emails.filter((addr) => {
+                const n = String(addr || '').trim().toLowerCase();
+                if (!n) return false;
+                if (n === AIYANA_EMAIL && n !== keep) return false;
+                return true;
+            });
+        }
+
+        window.isDistrict8Store = isDistrict8Store;
+        window.retailOdysseyTeamEmailsForStore = retailOdysseyTeamEmailsForStore;
+        window.omitAiyanaForNonDistrict8 = omitAiyanaForNonDistrict8;
+        window.AIYANA_EMAIL = AIYANA_EMAIL;
 
         // Per-store pools loaded from the API (global across all users for a store)
         let fredmeyerEmailPool = [];   // @fredmeyer.com addresses saved for this store
@@ -9004,12 +9044,7 @@ ${data.Notes || ''}`;
             if (document.getElementById('addRetailOdysseyTeam').checked) {
                 recipients = [...new Set([
                     ...recipients,
-                    'MAshabranner@retailodyssey.com',
-                    'seth.newman@retailodyssey.com',
-                    'tyson.gauthier@retailodyssey.com',
-                    'aiyana.natarisalazar@retailodyssey.com',
-                    'amanda.mathews@retailodyssey.com',
-                    'april.gauthier@retailodyssey.com'
+                    ...retailOdysseyTeamEmailsForStore(data.StoreNumber),
                 ])];
             }
 
@@ -9017,6 +9052,7 @@ ${data.Notes || ''}`;
             if (userEmail) {
                 recipients = [...new Set([...recipients, userEmail.toLowerCase()])];
             }
+            recipients = omitAiyanaForNonDistrict8(recipients, data.StoreNumber, userEmail);
 
             const userName = document.getElementById('profileName').value.trim();
             const subject = `KOMPASS EOD FM${data.StoreNumberPadded} ${data.DateMMDDYYYY}`;
@@ -13321,7 +13357,7 @@ ${data.Notes || ''}`;
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=2.5"></script>
-    <script src="eod-materials-browser.js?v=2.9.3"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.6"></script>
+    <script src="eod-materials-browser.js?v=2.9.4"></script>
 </body>
 </html>

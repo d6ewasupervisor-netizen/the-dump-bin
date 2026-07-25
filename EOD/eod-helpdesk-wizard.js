@@ -26,6 +26,26 @@
         'april.gauthier@retailodyssey.com',
     ];
 
+    const AIYANA_EMAIL = 'aiyana.natarisalazar@retailodyssey.com';
+
+    function retailOdysseyTeamForStore(storeNumber) {
+        if (typeof window.retailOdysseyTeamEmailsForStore === 'function') {
+            return window.retailOdysseyTeamEmailsForStore(storeNumber);
+        }
+        const isD8 = typeof window.isDistrict8Store === 'function'
+            ? window.isDistrict8Store(storeNumber)
+            : false;
+        if (isD8) return [...RETAIL_ODYSSEY_TEAM];
+        return RETAIL_ODYSSEY_TEAM.filter((e) => e.toLowerCase() !== AIYANA_EMAIL);
+    }
+
+    function omitAiyanaForStore(emails, storeNumber, keepEmail) {
+        if (typeof window.omitAiyanaForNonDistrict8 === 'function') {
+            return window.omitAiyanaForNonDistrict8(emails, storeNumber, keepEmail);
+        }
+        return emails;
+    }
+
     let wizardIssues = [];
     let wizardExtraRecipients = [];
     let wizardPhotoEdit = null;
@@ -477,8 +497,10 @@
     function openHelpdeskWizard() {
         wizardIssues = [newIssueBlock()];
         wizardExtraRecipients = [];
+        const storeNumber = document.getElementById('storeNumber')?.value?.trim() || '';
+        const userEmail = document.getElementById('profileEmail')?.value?.trim() || '';
         const mainRecipients = window.emailRecipients || [];
-        wizardExtraRecipients = mainRecipients.slice();
+        wizardExtraRecipients = omitAiyanaForStore(mainRecipients.slice(), storeNumber, userEmail);
         renderWizardIssues();
         renderWizardRecipients();
         const overlay = document.getElementById('helpdeskWizardOverlay');
@@ -540,6 +562,7 @@
         const userEmail = document.getElementById('profileEmail')?.value?.trim() || '';
         const addTeam = document.getElementById('helpdeskAddRetailOdysseyTeam')?.checked || false;
         const map = window.allShiftsSetsMap || {};
+        const extraRecipients = omitAiyanaForStore(wizardExtraRecipients, storeNumber, userEmail);
 
         const loading = document.getElementById('loadingOverlay');
         if (loading) loading.classList.add('show');
@@ -575,7 +598,7 @@
                         photos: issue.photos,
                         userName,
                         userEmail,
-                        extraRecipients: wizardExtraRecipients,
+                        extraRecipients,
                         addRetailOdysseyTeam: addTeam,
                     }),
                 });
@@ -669,6 +692,18 @@
             addBtn.addEventListener('click', () => {
                 const email = input.value.trim().toLowerCase();
                 if (!email || !email.includes('@')) return;
+                const storeNumber = document.getElementById('storeNumber')?.value?.trim() || '';
+                const userEmail = document.getElementById('profileEmail')?.value?.trim() || '';
+                if (email === AIYANA_EMAIL
+                    && typeof window.isDistrict8Store === 'function'
+                    && !window.isDistrict8Store(storeNumber)
+                    && email !== userEmail.toLowerCase()) {
+                    input.value = '';
+                    if (typeof window.showAlert === 'function') {
+                        window.showAlert('District 8 only', 'Aiyana is only CC’d on District 8 stores.');
+                    }
+                    return;
+                }
                 if (!wizardExtraRecipients.includes(email)) wizardExtraRecipients.push(email);
                 input.value = '';
                 renderWizardRecipients();
