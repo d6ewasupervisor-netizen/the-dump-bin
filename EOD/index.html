@@ -21,7 +21,7 @@
     <script src="/auth-gate.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-    <link rel="stylesheet" href="eod-materials-browser.css?v=2.9.1">
+    <link rel="stylesheet" href="eod-materials-browser.css?v=2.9.2">
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3192,7 +3192,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.9.1</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.9.2</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4220,7 +4220,8 @@
                     </div>
                     <div class="field" style="margin-top:10px;">
                         <label for="matSmsPhones">Text (optional)</label>
-                        <input type="tel" id="matSmsPhones" placeholder="10-digit mobile — sends a 7-day secure link">
+                        <input type="tel" id="matSmsPhones" placeholder="10-digit mobile">
+                        <p class="mat-muted" style="margin:6px 0 0;font-size:12px;">Recipient must first text JOIN to (509) 572-9212 before they can receive texts. Sends a 7-day secure viewer link.</p>
                     </div>
                     <div class="field" style="margin-top:10px;">
                         <label for="matEmailNote">Optional note</label>
@@ -4375,7 +4376,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.1';
+        const EOD_APP_VERSION = '2.9.2';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -13004,6 +13005,6 @@ ${data.Notes || ''}`;
 
     </script>
     <script src="eod-helpdesk-wizard.js?v=2.5"></script>
-    <script src="eod-materials-browser.js?v=2.9.1"></script>
+    <script src="eod-materials-browser.js?v=2.9.2"></script>
 </body>
 </html>

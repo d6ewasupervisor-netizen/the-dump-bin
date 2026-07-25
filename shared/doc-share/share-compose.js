@@ -50,7 +50,7 @@
             <div class="dsc-panel" data-dsc-panel="sms" hidden>
               <label class="dsc-label" for="dscPhoneInput">Phone number(s)</label>
               <input type="tel" id="dscPhoneInput" placeholder="10-digit mobile, comma-separated" autocomplete="tel">
-              <p class="dsc-hint">Sends a link to a secure viewer. Link and files expire after 7 days.</p>
+              <p class="dsc-hint">Recipient must first text JOIN to (509) 572-9212 before they can receive texts. Link and files expire after 7 days.</p>
             </div>
             <label class="dsc-label" for="dscNote">Optional note</label>
             <textarea id="dscNote" rows="2" placeholder="Optional note"></textarea>
@@ -137,7 +137,7 @@
     const payload = opts.getPayload() || { keys: [], attachments: [] };
     const fileCount = (payload.keys?.length || 0) + (payload.attachments?.length || 0);
     document.getElementById('dscFileSummary').textContent =
-      `${fileCount} item(s) selected · Email attaches files · Text sends a 7-day secure link`;
+      `${fileCount} item(s) selected · Email attaches files · Text needs JOIN opt-in first`;
 
     const teamSlot = document.getElementById('dscTeamSlot');
     const members = (opts.teamMembers || []).filter((m) => m && (m.email || m.name));
