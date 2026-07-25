@@ -21,7 +21,7 @@
     <script src="/auth-gate.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-    <link rel="stylesheet" href="eod-materials-browser.css?v=2.9.0">
+    <link rel="stylesheet" href="eod-materials-browser.css?v=2.9.1">
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3192,7 +3192,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.9</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.9.1</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3319,7 +3319,7 @@
                     </div>
                     <div class="checkbox-option">
                         <input type="checkbox" id="materialsReadNo" name="materialsRead" value="No" onchange="toggleMaterialsRead(this)">
-                        <label for="materialsReadNo">No</label>
+                        <label for="materialsReadNo">Open the Dump Bin</label>
                     </div>
                 </div>
             </div>
@@ -4060,10 +4060,17 @@
             <h2 style="color:#fbbf24;">InstaWork Support Today</h2>
             <div style="margin-bottom:12px; line-height:1.6; font-size:14px;">
                 <p style="margin:0 0 10px;">Have every InstaWork employee fill out the sign-off sheet <strong>first thing in the morning</strong> and <strong>again when they leave</strong>.</p>
-                <p style="margin:0 0 10px;">If you have InstaWork, you need to <strong>print out an InstaWork Time Sheet</strong> for them to use. Use the button below to fax a blank sheet to this store&rsquo;s customer service desk.</p>
+                <p style="margin:0 0 10px;">If you have InstaWork, print an <strong>InstaWork Time Sheet</strong> to this store&rsquo;s customer service desk. Names are filled only when an InstaWork ID is also on today&rsquo;s scheduled shift.</p>
                 <div class="field" style="margin:12px 0 0;">
                     <label for="instaworkAckStoreNumber">Store # for print:</label>
                     <input type="text" id="instaworkAckStoreNumber" inputmode="numeric" placeholder="Enter store #" style="max-width:160px;">
+                </div>
+                <div class="toggle-switch" style="margin-top:14px; justify-content:flex-start; background:#1e293b;">
+                    <label class="toggle-switch-wrapper">
+                        <input type="checkbox" id="instaworkPrintBlankToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label class="toggle-switch-label" for="instaworkPrintBlankToggle" style="font-size:14px;">Print blank sheet</label>
                 </div>
             </div>
             <div class="button-group" style="flex-wrap:wrap; gap:8px;">
@@ -4078,10 +4085,17 @@
         <div class="modal-dialog" style="max-width:520px;">
             <h2 style="color:#93c5fd;">Kompass Time Sheet</h2>
             <div style="margin-bottom:12px; line-height:1.6; font-size:14px;">
-                <p style="margin:0 0 10px;">Print a blank <strong>Kompass Daily Time Tracker</strong> to the store fax so it&rsquo;s waiting at customer service.</p>
+                <p style="margin:0 0 10px;">Print a <strong>Kompass Daily Time Tracker</strong> to the store fax so it&rsquo;s waiting at customer service.</p>
                 <div class="field" style="margin:12px 0 0;">
                     <label for="kompassAckStoreNumber">Store # for print:</label>
                     <input type="text" id="kompassAckStoreNumber" inputmode="numeric" placeholder="Enter store #" style="max-width:160px;">
+                </div>
+                <div class="toggle-switch" style="margin-top:14px; justify-content:flex-start; background:#1e293b;">
+                    <label class="toggle-switch-wrapper">
+                        <input type="checkbox" id="kompassPrintBlankToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label class="toggle-switch-label" for="kompassPrintBlankToggle" style="font-size:14px;">Print blank sheet</label>
                 </div>
             </div>
             <div class="button-group" style="flex-wrap:wrap; gap:8px;">
@@ -4361,7 +4375,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.0';
+        const EOD_APP_VERSION = '2.9.1';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5849,6 +5863,8 @@
 
         function openInstaworkAck() {
             syncTimesheetAckStoreFields();
+            const blank = document.getElementById('instaworkPrintBlankToggle');
+            if (blank) blank.checked = false;
             const overlay = document.getElementById('instaworkAckOverlay');
             if (overlay) overlay.classList.add('show');
         }
@@ -5876,6 +5892,8 @@
 
         function openKompassTimesheetAck() {
             syncTimesheetAckStoreFields();
+            const blank = document.getElementById('kompassPrintBlankToggle');
+            if (blank) blank.checked = false;
             const overlay = document.getElementById('kompassTimesheetAckOverlay');
             if (overlay) overlay.classList.add('show');
         }
@@ -5962,10 +5980,57 @@
                 ? `id:${member.employeeId}`
                 : `name:${name.toLowerCase().replace(/\s+/g, ' ')}`;
             if (map.has(id)) return;
-            map.set(id, name);
+            map.set(id, {
+                name,
+                employeeId: member.employeeId,
+                workdayId: String(member.workdayId || member.workday_given_id || member.workday_id || '').trim(),
+            });
         }
 
-        async function collectTimesheetEmployees(storeNumber, workDate) {
+        let instaworkIdsCache = null;
+
+        function normalizeTimesheetNameKey(name) {
+            return String(name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+
+        async function loadInstaworkIdsRoster() {
+            if (instaworkIdsCache) return instaworkIdsCache;
+            const byWorkday = new Map();
+            const byName = new Map();
+            try {
+                const url = new URL('Timesheets/instawork_ids.csv', window.location.href).toString();
+                const resp = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const text = await resp.text();
+                const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+                for (let i = 0; i < lines.length; i += 1) {
+                    const line = lines[i];
+                    if (i === 0 && /workday|employee/i.test(line)) continue;
+                    // CSV: Workday Given Id,Employee Name
+                    const comma = line.indexOf(',');
+                    if (comma < 0) continue;
+                    const workdayId = line.slice(0, comma).trim();
+                    let name = line.slice(comma + 1).trim();
+                    if (name.startsWith('"') && name.endsWith('"')) name = name.slice(1, -1).replace(/""/g, '"');
+                    if (!workdayId && !name) continue;
+                    if (workdayId) byWorkday.set(workdayId.toLowerCase(), name || workdayId);
+                    if (name) byName.set(normalizeTimesheetNameKey(name), { workdayId, name });
+                }
+            } catch (err) {
+                console.warn('Could not load InstaWork IDs roster:', err);
+            }
+            instaworkIdsCache = { byWorkday, byName };
+            return instaworkIdsCache;
+        }
+
+        /**
+         * Names for timesheet fill.
+         * InstaWork: only people on today's scheduled PROD shift whose workday id
+         * (or name) appears in Timesheets/instawork_ids.csv — never the SAS
+         * employees directory.
+         * Kompass: scheduled Kompass/ISE/Blitz/Cut-in shift members.
+         */
+        async function collectTimesheetEmployees(storeNumber, workDate, sheetKey) {
             const byKey = new Map();
             let shifts = Array.isArray(smShifts) ? smShifts.slice() : [];
 
@@ -5977,7 +6042,6 @@
                     if (resp.ok) {
                         const data = await resp.json();
                         shifts = Array.isArray(data) ? data : (data.shifts || []);
-                        // Exact store match — same rule as Find Shifts.
                         const input = String(storeNumber).replace(/^0+/, '');
                         shifts = shifts.filter((s) => {
                             const sStore = String(s.storeNumber || s.store_number || s.store || '').replace(/^0+/, '');
@@ -5989,10 +6053,14 @@
                 }
             }
 
-            const relevant = shifts.filter(isKompassTimesheetShift);
-            const targets = relevant.length ? relevant : shifts;
+            const relevant = sheetKey === 'instawork'
+                ? shifts
+                : (() => {
+                    const kompassOnly = shifts.filter(isKompassTimesheetShift);
+                    return kompassOnly.length ? kompassOnly : shifts;
+                })();
 
-            for (const shift of targets) {
+            for (const shift of relevant) {
                 const visitId = shift.visitId || shift.id;
                 if (!visitId) continue;
 
@@ -6006,7 +6074,6 @@
                     continue;
                 }
 
-                // Mock test visits never hit SAS.
                 if (String(visitId).startsWith('test-') || shift._testMock) {
                     continue;
                 }
@@ -6024,7 +6091,34 @@
                 }
             }
 
-            return Array.from(byKey.values());
+            const scheduled = Array.from(byKey.values());
+            if (sheetKey !== 'instawork') {
+                return scheduled.map((m) => m.name);
+            }
+
+            const roster = await loadInstaworkIdsRoster();
+            if (!roster.byWorkday.size && !roster.byName.size) {
+                return [];
+            }
+
+            const out = [];
+            const seen = new Set();
+            for (const member of scheduled) {
+                const wd = String(member.workdayId || '').trim().toLowerCase();
+                let printName = null;
+                if (wd && roster.byWorkday.has(wd)) {
+                    printName = roster.byWorkday.get(wd) || member.name;
+                } else {
+                    const nameHit = roster.byName.get(normalizeTimesheetNameKey(member.name));
+                    if (nameHit) printName = nameHit.name || member.name;
+                }
+                if (!printName) continue;
+                const key = normalizeTimesheetNameKey(printName);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                out.push(printName);
+            }
+            return out;
         }
 
         function resolveTimesheetLeadName() {
@@ -6036,6 +6130,11 @@
 
         function resolveTimesheetWorkDate() {
             return (document.getElementById('workDate')?.value || '').trim();
+        }
+
+        function isTimesheetBlankRequested(sheetKey) {
+            const id = sheetKey === 'kompass' ? 'kompassPrintBlankToggle' : 'instaworkPrintBlankToggle';
+            return !!document.getElementById(id)?.checked;
         }
 
         let timesheetFaxInFlight = false;
@@ -6057,7 +6156,8 @@
             }
             syncTimesheetAckStoreFields(storeNumber);
 
-            const leadName = resolveTimesheetLeadName();
+            const blank = isTimesheetBlankRequested(sheetKey);
+            const leadName = blank ? '' : resolveTimesheetLeadName();
             const workDate = resolveTimesheetWorkDate();
             if (!workDate) {
                 showAlert('Date required', 'Set the work date on the EOD form before printing the timesheet.');
@@ -6072,15 +6172,21 @@
             setTimesheetFaxState(
                 'sending',
                 `Preparing ${label}\u2026`,
-                `Loading assigned people and filling store #${storeNumber}, then faxing.`
+                blank
+                    ? `Building a blank sheet for store #${storeNumber}, then faxing.`
+                    : `Loading assigned people and filling store #${storeNumber}, then faxing.`
             );
 
             try {
-                const employees = await collectTimesheetEmployees(storeNumber, workDate);
+                const employees = blank
+                    ? []
+                    : await collectTimesheetEmployees(storeNumber, workDate, sheetKey);
                 setTimesheetFaxState(
                     'sending',
                     `Sending ${label}\u2026`,
-                    `Filled with ${employees.length} name${employees.length === 1 ? '' : 's'} for store #${storeNumber}.`
+                    blank
+                        ? `Blank ${label} for store #${storeNumber}.`
+                        : `Filled with ${employees.length} name${employees.length === 1 ? '' : 's'} for store #${storeNumber}.`
                 );
 
                 const resp = await authFetch(`${EOD_API_BASE}/api/eod/print-timesheet`, {
@@ -6090,8 +6196,9 @@
                         storeNumber,
                         sheet: sheetKey,
                         leadName,
-                        workDate,
+                        workDate: blank ? '' : workDate,
                         employees,
+                        blank,
                     }),
                 });
                 let data = null;
@@ -6104,7 +6211,9 @@
                 setTimesheetFaxState(
                     'success',
                     'On its way to the fax machine',
-                    `Your ${label} for store #${storeNumber} is filled (${filled} name${filled === 1 ? '' : 's'} across ${pages} sheet${pages === 1 ? '' : 's'}) and is in the email-to-fax pipeline. It should be available at the customer service desk fax machine in a couple of minutes — no further action needed.`,
+                    blank
+                        ? `Your blank ${label} for store #${storeNumber} is in the email-to-fax pipeline. It should be available at the customer service desk fax machine in a couple of minutes — no further action needed.`
+                        : `Your ${label} for store #${storeNumber} is filled (${filled} name${filled === 1 ? '' : 's'} across ${pages} sheet${pages === 1 ? '' : 's'}) and is in the email-to-fax pipeline. It should be available at the customer service desk fax machine in a couple of minutes — no further action needed.`,
                     true
                 );
             } catch (err) {
@@ -12895,6 +13004,6 @@ ${data.Notes || ''}`;
 
     </script>
     <script src="eod-helpdesk-wizard.js?v=2.5"></script>
-    <script src="eod-materials-browser.js?v=2.9.0"></script>
+    <script src="eod-materials-browser.js?v=2.9.1"></script>
 </body>
 </html>
