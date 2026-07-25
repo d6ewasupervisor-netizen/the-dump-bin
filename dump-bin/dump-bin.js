@@ -79,6 +79,15 @@ const selection = new Map();
 // Store picker state
 let selectedStore = null;
 
+// Optional CC recipients for print-at-store (extra people beyond the requester).
+// Map<emailLower, { email, name }>
+const printCcRecipients = new Map();
+let printCcSuggestions = [];
+let printCcHighlight = -1;
+let printCcSearchTimer = null;
+const MAX_PRINT_CC = 10;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Print modal state: 'picker' | 'confirm' | 'sending' | 'transit'
 let printModalState = 'picker';
 let cooldownTicker = null;
@@ -715,6 +724,7 @@ function refreshPrintSummaries() {
       copiesHint.textContent = '';
     }
   }
+  refreshPrintCcSummary();
 }
 
 // --- Downloads ---
@@ -775,6 +785,234 @@ async function downloadAsZip() {
   }
 }
 
+// --- Print at Store CC (district leads / supervisors) ---
+function normalizePrintCcEmail(value) {
+  const t = String(value || '').trim().toLowerCase();
+  return EMAIL_RE.test(t) ? t : null;
+}
+
+function printCcSummaryText() {
+  if (printCcRecipients.size === 0) return 'you only';
+  const names = [...printCcRecipients.values()].map((p) => p.name || p.email);
+  if (names.length <= 2) return `you + ${names.join(', ')}`;
+  return `you + ${names.length} others`;
+}
+
+function refreshPrintCcSummary() {
+  const text = printCcSummaryText();
+  const a = document.getElementById('printCcSummary');
+  const b = document.getElementById('confirmCcLabel');
+  if (a) a.textContent = text;
+  if (b) b.textContent = text;
+}
+
+function renderPrintCcChips() {
+  const wrap = document.getElementById('printCcChips');
+  if (!wrap) return;
+  if (printCcRecipients.size === 0) {
+    wrap.innerHTML = '';
+    refreshPrintCcSummary();
+    return;
+  }
+  wrap.innerHTML = [...printCcRecipients.values()].map((p) => {
+    const label = p.name && p.name !== p.email
+      ? `${escapeHtml(p.name)} <span class="text-dim">&lt;${escapeHtml(p.email)}&gt;</span>`
+      : escapeHtml(p.email);
+    return `<span class="db-cc-chip" data-email="${escapeAttr(p.email)}">
+      <span class="db-cc-chip__label">${label}</span>
+      <button type="button" class="db-cc-chip__x" aria-label="Remove ${escapeAttr(p.email)}">&times;</button>
+    </span>`;
+  }).join('');
+  wrap.querySelectorAll('.db-cc-chip__x').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const email = btn.closest('.db-cc-chip')?.dataset?.email;
+      if (email) {
+        printCcRecipients.delete(email);
+        renderPrintCcChips();
+      }
+    });
+  });
+  refreshPrintCcSummary();
+}
+
+function addPrintCcRecipient({ email, name }) {
+  const normalized = normalizePrintCcEmail(email);
+  if (!normalized) {
+    toast('Enter a valid email address', 'error');
+    return false;
+  }
+  if (userEmail && normalized === String(userEmail).trim().toLowerCase()) {
+    toast("You're already CC'd automatically", 'error');
+    return false;
+  }
+  if (printCcRecipients.has(normalized)) return true;
+  if (printCcRecipients.size >= MAX_PRINT_CC) {
+    toast(`You can CC up to ${MAX_PRINT_CC} people`, 'error');
+    return false;
+  }
+  printCcRecipients.set(normalized, {
+    email: normalized,
+    name: String(name || '').trim() || normalized,
+  });
+  renderPrintCcChips();
+  return true;
+}
+
+function hidePrintCcDropdown() {
+  const dd = document.getElementById('printCcDropdown');
+  if (!dd) return;
+  dd.hidden = true;
+  dd.innerHTML = '';
+  printCcHighlight = -1;
+}
+
+function renderPrintCcDropdown(people, query) {
+  const dd = document.getElementById('printCcDropdown');
+  if (!dd) return;
+  printCcSuggestions = Array.isArray(people) ? people : [];
+  printCcHighlight = -1;
+
+  const q = String(query || '').trim();
+  const manualEmail = normalizePrintCcEmail(q);
+  const rows = [];
+
+  if (manualEmail && !printCcRecipients.has(manualEmail)
+      && !printCcSuggestions.some((p) => String(p.email || '').toLowerCase() === manualEmail)) {
+    rows.push({
+      email: manualEmail,
+      name: manualEmail,
+      meta: 'Use this email',
+      manual: true,
+    });
+  }
+
+  for (const p of printCcSuggestions) {
+    const email = normalizePrintCcEmail(p.email);
+    if (!email || printCcRecipients.has(email)) continue;
+    const role = p.role === 'supervisor' ? 'Supervisor' : 'Lead';
+    const dist = p.district ? ` · D${p.district}` : '';
+    const team = p.team ? ` · ${p.team}` : '';
+    rows.push({
+      email,
+      name: p.name || email,
+      meta: `${role}${dist}${team} · ${email}`,
+      manual: false,
+    });
+  }
+
+  if (rows.length === 0) {
+    dd.innerHTML = q
+      ? '<div class="db-cc-option__empty">No matching district lead or supervisor. Paste a full email to CC anyone.</div>'
+      : '<div class="db-cc-option__empty">Type a name to search district leads &amp; supervisors.</div>';
+    dd.hidden = false;
+    return;
+  }
+
+  dd.innerHTML = rows.map((r, i) => `
+    <div class="db-cc-option" data-idx="${i}" data-email="${escapeAttr(r.email)}" data-name="${escapeAttr(r.name)}">
+      <span class="db-cc-option__name">${escapeHtml(r.name)}</span>
+      <span class="db-cc-option__meta">${escapeHtml(r.meta)}</span>
+    </div>`).join('');
+  dd.hidden = false;
+  dd.querySelectorAll('.db-cc-option').forEach((el) => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      addPrintCcRecipient({ email: el.dataset.email, name: el.dataset.name });
+      const input = document.getElementById('printCcSearch');
+      if (input) input.value = '';
+      hidePrintCcDropdown();
+    });
+  });
+}
+
+async function searchPrintCcContacts(query) {
+  const q = String(query || '').trim();
+  try {
+    const res = await fetchPrintAtStoreApi(
+      `${API}/print-at-store/cc-contacts?q=${encodeURIComponent(q)}&limit=30`
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    renderPrintCcDropdown(data.people || [], q);
+  } catch (err) {
+    const dd = document.getElementById('printCcDropdown');
+    if (dd) {
+      dd.innerHTML = `<div class="db-cc-option__empty">Could not load contacts (${escapeHtml(err.message || 'error')}). You can still paste an email.</div>`;
+      dd.hidden = false;
+    }
+  }
+}
+
+function schedulePrintCcSearch(query) {
+  clearTimeout(printCcSearchTimer);
+  printCcSearchTimer = setTimeout(() => searchPrintCcContacts(query), 220);
+}
+
+function wirePrintCcPicker() {
+  const input = document.getElementById('printCcSearch');
+  const dd = document.getElementById('printCcDropdown');
+  if (!input || !dd) return;
+
+  input.addEventListener('input', () => {
+    const q = input.value;
+    if (!String(q || '').trim()) {
+      hidePrintCcDropdown();
+      return;
+    }
+    schedulePrintCcSearch(q);
+  });
+
+  input.addEventListener('focus', () => {
+    const q = input.value;
+    if (String(q || '').trim()) schedulePrintCcSearch(q);
+    else searchPrintCcContacts('');
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const options = [...dd.querySelectorAll('.db-cc-option')];
+    if (e.key === 'ArrowDown' && options.length) {
+      e.preventDefault();
+      printCcHighlight = Math.min(options.length - 1, printCcHighlight + 1);
+      options.forEach((el, i) => el.classList.toggle('active', i === printCcHighlight));
+      options[printCcHighlight]?.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (e.key === 'ArrowUp' && options.length) {
+      e.preventDefault();
+      printCcHighlight = Math.max(0, printCcHighlight - 1);
+      options.forEach((el, i) => el.classList.toggle('active', i === printCcHighlight));
+      options[printCcHighlight]?.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (e.key === 'Escape') {
+      hidePrintCcDropdown();
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (printCcHighlight >= 0 && options[printCcHighlight]) {
+        const el = options[printCcHighlight];
+        addPrintCcRecipient({ email: el.dataset.email, name: el.dataset.name });
+      } else {
+        const manual = normalizePrintCcEmail(input.value);
+        if (manual) addPrintCcRecipient({ email: manual, name: manual });
+        else if (options[0]) {
+          addPrintCcRecipient({ email: options[0].dataset.email, name: options[0].dataset.name });
+        } else {
+          toast('Pick someone from the list or enter a full email', 'error');
+          return;
+        }
+      }
+      input.value = '';
+      hidePrintCcDropdown();
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => hidePrintCcDropdown(), 150);
+  });
+}
+
 // --- Print at Store modal ---
 function wirePrintModal() {
   const search = document.getElementById('storeSearch');
@@ -788,6 +1026,7 @@ function wirePrintModal() {
     renderStoreList(search.value);
   });
   renderStoreList('');
+  wirePrintCcPicker();
 
   document.getElementById('sendPrintBtn').addEventListener('click', sendPrint);
 
@@ -813,8 +1052,13 @@ function openPrintModal() {
     return;
   }
   selectedStore = null;
+  printCcRecipients.clear();
   document.getElementById('selectedStoreLabel').textContent = 'none';
   document.getElementById('storeSearch').value = '';
+  const ccInput = document.getElementById('printCcSearch');
+  if (ccInput) ccInput.value = '';
+  hidePrintCcDropdown();
+  renderPrintCcChips();
   renderPrintFileList();
   refreshPrintSummaries();
   renderStoreList('');
@@ -876,6 +1120,7 @@ async function sendPrint() {
     document.getElementById('confirmStoreLabel').textContent =
       `#${selectedStore.num} — ${selectedStore.city}`;
     refreshPrintSummaries();
+    refreshPrintCcSummary();
     setPrintModalState('confirm');
     return;
   }
@@ -887,6 +1132,7 @@ async function sendPrint() {
       key: f.key,
       copies: getFileCopies(f),
     }));
+    const extraRecipients = [...printCcRecipients.keys()];
     const res = await fetchPrintAtStoreApi(`${API}/print-at-store`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -896,13 +1142,17 @@ async function sendPrint() {
         keys: files.map(f => f.key),
         storeNumber: selectedStore.num,
         storeCity: selectedStore.city,
+        extraRecipients,
       }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Send failed');
     const sheets = data.fileCount ?? selectionSheetCount();
+    const ccNote = extraRecipients.length
+      ? ` You're CC'd${extraRecipients.length === 1 ? ' with 1 other' : ` with ${extraRecipients.length} others`}.`
+      : ` You're CC'd.`;
     toast(
-      `Sent ${sheets} attachment${sheets === 1 ? '' : 's'} to #${selectedStore.num} — ${selectedStore.city}. You're CC'd.`,
+      `Sent ${sheets} attachment${sheets === 1 ? '' : 's'} to #${selectedStore.num} — ${selectedStore.city}.${ccNote}`,
       'success'
     );
     document.getElementById('transitSubline').textContent =

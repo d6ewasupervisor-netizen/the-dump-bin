@@ -760,6 +760,108 @@
   font-size: .85rem;
 }
 
+/* --- Print CC picker (district leads / supervisors) --- */
+.db-cc-picker {
+  position: relative;
+}
+
+.db-cc-picker input {
+  width: 100%;
+}
+
+.db-cc-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  z-index: 40;
+}
+
+.db-cc-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+  transition: background .1s;
+}
+
+.db-cc-option:last-child {
+  border-bottom: none;
+}
+
+.db-cc-option:hover,
+.db-cc-option.active {
+  background: var(--color-surface-hover);
+}
+
+.db-cc-option__name {
+  font-weight: 600;
+  font-size: .9rem;
+  color: var(--color-text);
+}
+
+.db-cc-option__meta {
+  font-size: .75rem;
+  color: var(--color-text-dim);
+}
+
+.db-cc-option__empty {
+  padding: 14px 12px;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--color-text-dim);
+}
+
+.db-cc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  min-height: 0;
+}
+
+.db-cc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 8px 4px 10px;
+  background: rgba(74, 127, 181, .15);
+  border: 1px solid rgba(74, 127, 181, .35);
+  border-radius: 999px;
+  font-size: .8rem;
+  color: var(--color-text);
+}
+
+.db-cc-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-cc-chip__x {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  font-size: .95rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.db-cc-chip__x:hover {
+  color: var(--color-text);
+}
+
 /* --- Print modal: multi-view state machine --- */
 .db-print-view { display: none; }
 .db-print-modal.state-picker  .db-print-view--picker,

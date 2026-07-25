@@ -116,8 +116,18 @@
           <input type="text" id="storeSearch" placeholder="Type a number or city…" autocomplete="off">
         </div>
         <div class="db-store-list" id="storeList"></div>
+        <div class="form-group mt-4">
+          <label for="printCcSearch">Copy (CC) someone <span class="text-dim text-xs">optional — district leads &amp; supervisors</span></label>
+          <p class="text-dim text-xs" style="margin:0 0 8px;">They'll get the same acknowledgment and &ldquo;printed&rdquo; emails so they know a fax is coming. Type a name or email; suggestions are leads and supervisors from our ten districts (live SAS workforce).</p>
+          <div class="db-cc-picker">
+            <input type="text" id="printCcSearch" placeholder="Search name or paste an email…" autocomplete="off" spellcheck="false">
+            <div class="db-cc-dropdown" id="printCcDropdown" hidden></div>
+          </div>
+          <div class="db-cc-chips" id="printCcChips"></div>
+        </div>
         <div class="modal__summary" id="printSummary">
           <div class="row"><span class="label">Selected store:</span><span class="value" id="selectedStoreLabel">none</span></div>
+          <div class="row"><span class="label">CC:</span><span class="value" id="printCcSummary">you only</span></div>
           <div class="row"><span class="label">To fax:</span><span class="value" id="printFileCount">0</span></div>
           <div class="row"><span class="label">Total size:</span><span class="value" id="printSize">0 B</span></div>
         </div>
@@ -139,6 +149,7 @@
         </div>
         <div class="modal__summary">
           <div class="row"><span class="label">Destination:</span><span class="value" id="confirmStoreLabel">—</span></div>
+          <div class="row"><span class="label">CC:</span><span class="value" id="confirmCcLabel">you only</span></div>
           <div class="row"><span class="label">To fax:</span><span class="value" id="confirmFileCount">0</span></div>
           <div class="row"><span class="label">Total size:</span><span class="value" id="confirmSize">0 B</span></div>
         </div>
