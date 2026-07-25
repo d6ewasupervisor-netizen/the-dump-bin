@@ -3851,7 +3851,7 @@
                         <button type="button" class="btn btn-primary sets-other-add-btn" onclick="addSetNotInOther('store')">Add</button>
                     </div>
                 </div>
-                <div class="sets-help" id="notInStoreHelp">Find shifts to load the available sets.</div>
+                <div class="sets-help" id="notInStoreHelp">Find shifts to load the available sets. Selecting a set also updates the PROD category comment and offers a help desk email.</div>
             </div>
 
             <div class="field" id="setsNotInSiField" style="margin-top: 15px;">
@@ -3866,7 +3866,7 @@
                         <button type="button" class="btn btn-primary sets-other-add-btn" onclick="addSetNotInOther('si')">Add</button>
                     </div>
                 </div>
-                <div class="sets-help" id="notInSiHelp">Find shifts to load the available sets.</div>
+                <div class="sets-help" id="notInSiHelp">Find shifts to load the available sets. Selecting a set also appends “Not In SI” on the matching PROD category comment.</div>
             </div>
 
             <div class="field" style="margin-top: 15px;">
@@ -4376,7 +4376,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.2';
+        const EOD_APP_VERSION = '2.9.3';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -10047,24 +10047,45 @@ ${data.Notes || ''}`;
             modal.classList.add('show');
         }
 
-        function showConfirm(title, message, callback) {
+        function showConfirm(title, message, callback, options) {
+            const opts = options && typeof options === 'object' ? options : {};
             const modal = document.getElementById('modal');
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalMessage').innerHTML = message;
-            document.getElementById('modalCancel').style.display = 'inline-block';
 
-            // Clone modalConfirm to clear any stale listeners from previous calls
-            const oldBtn = document.getElementById('modalConfirm');
-            const newBtn = oldBtn.cloneNode(true);
-            oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-            newBtn.addEventListener('click', () => {
+            const oldConfirm = document.getElementById('modalConfirm');
+            const newConfirm = oldConfirm.cloneNode(true);
+            oldConfirm.parentNode.replaceChild(newConfirm, oldConfirm);
+            newConfirm.textContent = opts.confirmText || 'OK';
+            newConfirm.style.display = 'inline-block';
+
+            const oldCancel = document.getElementById('modalCancel');
+            const newCancel = oldCancel.cloneNode(true);
+            oldCancel.parentNode.replaceChild(newCancel, oldCancel);
+            newCancel.textContent = opts.cancelText || 'Cancel';
+            newCancel.style.display = 'inline-block';
+
+            const resetLabels = () => {
+                document.getElementById('modalConfirm').textContent = 'OK';
+                document.getElementById('modalCancel').textContent = 'Cancel';
+            };
+
+            newConfirm.addEventListener('click', () => {
                 modal.classList.remove('show');
+                resetLabels();
                 if (callback) callback();
+            });
+            newCancel.addEventListener('click', () => {
+                modal.classList.remove('show');
+                resetLabels();
+                if (typeof opts.onCancel === 'function') opts.onCancel();
             });
 
             modal.classList.add('show');
         }
 
+        // Keep a noop cancel listener only if the original button is still present
+        // (showConfirm now clones Cancel for stand-down callbacks).
         document.getElementById('modalCancel').addEventListener('click', () => {
             document.getElementById('modal').classList.remove('show');
         });
@@ -11338,10 +11359,12 @@ ${data.Notes || ''}`;
             const value = select.value;
             if (!value) return;
             const list = isStore ? notInStoreSelected : notInSiSelected;
-            if (!list.includes(value)) list.push(value);
+            const isNew = !list.includes(value);
+            if (isNew) list.push(value);
             select.value = '';
             renderSetsPicker(kind);
             autoSave();
+            if (isNew) void handleNotInSideEffects(kind, value, { fromOther: false });
         }
 
         function addSetNotInOther(kind) {
@@ -11350,10 +11373,12 @@ ${data.Notes || ''}`;
             const value = (input?.value || '').trim();
             if (!value) return;
             const list = isStore ? notInStoreSelected : notInSiSelected;
-            if (!list.includes(value)) list.push(value);
+            const isNew = !list.includes(value);
+            if (isNew) list.push(value);
             if (input) input.value = '';
             renderSetsPicker(kind);
             autoSave();
+            if (isNew) void handleNotInSideEffects(kind, value, { fromOther: true });
         }
 
         function onNotInOtherKeydown(event, kind) {
@@ -11369,6 +11394,298 @@ ${data.Notes || ''}`;
             if (idx >= 0) list.splice(idx, 1);
             renderSetsPicker(kind);
             autoSave();
+        }
+
+        function classifyKompassShiftType(shift) {
+            const projectId = shift?.projectId != null ? Number(shift.projectId) : null;
+            const projectName = String(shift?.projectName || shift?.kompassType || '');
+            if (projectId === 1668 || /cut[\s-]?in/i.test(projectName)) return 'Cut In';
+            if (projectId === 1715 || /blitz/i.test(projectName)) return 'Blitz';
+            if (projectId === 1 || /kompass\s*ise/i.test(projectName)) return 'Kompass ISE';
+            if (shift?.kompassType) return String(shift.kompassType);
+            return projectName.trim() || 'Unknown shift';
+        }
+
+        function resolvePickerSetMatch(setLabelValue) {
+            const map = allShiftsSetsMap || {};
+            const wanted = String(setLabelValue || '').trim();
+            if (!wanted) return null;
+            const candidates = [];
+            Object.keys(map).forEach((visitId) => {
+                const info = map[visitId];
+                (info?.sets || []).forEach((s) => {
+                    if (setLabel(s) === wanted) {
+                        candidates.push({
+                            visitId: normalizeVisitId(visitId),
+                            set: s,
+                            shift: info.shift,
+                            shiftLabel: info.label || buildShiftDisplayLabel(info.shift),
+                        });
+                    }
+                });
+            });
+            if (!candidates.length) {
+                // Free-text / Other: try matching by category name (case-insensitive).
+                const wantedLower = wanted.toLowerCase();
+                Object.keys(map).forEach((visitId) => {
+                    const info = map[visitId];
+                    (info?.sets || []).forEach((s) => {
+                        const name = String(s.name || '').trim().toLowerCase();
+                        const lbl = setLabel(s).toLowerCase();
+                        if (name === wantedLower || lbl === wantedLower || lbl.endsWith('_' + wantedLower)) {
+                            candidates.push({
+                                visitId: normalizeVisitId(visitId),
+                                set: s,
+                                shift: info.shift,
+                                shiftLabel: info.label || buildShiftDisplayLabel(info.shift),
+                            });
+                        }
+                    });
+                });
+            }
+            if (!candidates.length) return null;
+            if (notInPickerShiftId && notInPickerShiftId !== 'all') {
+                const preferred = candidates.find(
+                    (c) => normalizeVisitId(c.visitId) === normalizeVisitId(notInPickerShiftId)
+                );
+                if (preferred) return preferred;
+            }
+            const rank = (c) => {
+                const t = classifyKompassShiftType(c.shift);
+                if (t === 'Kompass ISE') return 0;
+                if (t === 'Cut In') return 1;
+                if (t === 'Blitz') return 2;
+                return 3;
+            };
+            candidates.sort((a, b) => rank(a) - rank(b));
+            return candidates[0];
+        }
+
+        async function appendProdCategoryComment(match, appendText) {
+            if (!match?.visitId || !match?.set?.id) {
+                return { success: false, skipped: true, error: 'No matching PROD category reset found for this set.' };
+            }
+            const resp = await authFetch(
+                `${SM_API_BASE}/api/shifts/${encodeURIComponent(match.visitId)}/sets/${encodeURIComponent(match.set.id)}/append-comment`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appendText }),
+                }
+            );
+            const result = await resp.json().catch(() => ({}));
+            if (!resp.ok || result.success === false) {
+                throw new Error(result.error || `Server error (${resp.status})`);
+            }
+            return result;
+        }
+
+        function todayReportDateIsoLocal() {
+            return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+        }
+
+        function applyNotInStoreHelpdeskFormTouch(setDisplayName) {
+            const yes = document.getElementById('helpdeskNeedYes');
+            const no = document.getElementById('helpdeskNeedNo');
+            if (yes) yes.checked = true;
+            if (no) no.checked = false;
+
+            const hotlineYes = document.getElementById('hotlineYes');
+            const hotlineNo = document.getElementById('hotlineNo');
+            const details = document.getElementById('hotlineDetails');
+            if (hotlineYes) hotlineYes.checked = true;
+            if (hotlineNo) hotlineNo.checked = false;
+            if (details) details.style.display = 'block';
+
+            const commodities = document.getElementById('commodities');
+            const issueEl = document.getElementById('issue');
+            if (commodities && !commodities.value.trim()) commodities.value = 'See help desk reports';
+            if (issueEl) {
+                const line = `Set not in store: ${setDisplayName}`;
+                issueEl.value = issueEl.value.trim()
+                    ? `${issueEl.value.trim()}; ${line}`
+                    : line;
+            }
+            const resolvedNa = document.getElementById('resolvedNA');
+            if (resolvedNa) {
+                resolvedNa.checked = true;
+                ['resolvedYes', 'resolvedNo'].forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.checked = false;
+                });
+            }
+            autoSave();
+        }
+
+        async function sendNotInStoreHelpdeskReport(match, setLabelValue) {
+            const storeNumber = document.getElementById('storeNumber')?.value?.trim();
+            if (!storeNumber) throw new Error('Store number is required before contacting the help desk.');
+            const set = match?.set || {};
+            const displayName = match ? setDisplayLabel(set) : setLabelValue;
+            const shiftLabel = match?.shiftLabel || classifyKompassShiftType(match?.shift);
+            const resp = await authFetch(`${EOD_API_BASE}/send-eod-helpdesk-report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    storeNumber,
+                    reportDate: todayReportDateIsoLocal(),
+                    shiftLabel,
+                    shiftVisitId: match?.visitId || '',
+                    setLabel: match ? setLabel(set) : setLabelValue,
+                    categoryNumber: set.number != null ? String(set.number) : '',
+                    categoryName: set.name || setLabelValue,
+                    planogramId: set.planogramId || '',
+                    version: set.version || '',
+                    dbkey: set.dbkey || '',
+                    footageToken: set.footage || null,
+                    issueTypeId: 'not_in_store',
+                    issueTypeLabel: 'Set not in store',
+                    issueDetails: 'Marked Not In Store from the EOD coversheet picker.',
+                    customIssue: '',
+                    setEntryManual: !match,
+                    photos: [],
+                    userName: document.getElementById('profileName')?.value?.trim() || '',
+                    userEmail: document.getElementById('profileEmail')?.value?.trim() || '',
+                    extraRecipients: [],
+                    addRetailOdysseyTeam: false,
+                }),
+            });
+            const result = await resp.json().catch(() => ({}));
+            if (!resp.ok || !result.success) {
+                throw new Error(result.error || `Server error (${resp.status})`);
+            }
+            helpdeskSubmittedReports.push({
+                issueTypeId: 'not_in_store',
+                setLabel: match ? setLabel(set) : setLabelValue,
+                shiftVisitId: match?.visitId || '',
+                setEntryManual: !match,
+                manualSetName: match ? '' : setLabelValue,
+            });
+            syncEodWizardGlobals();
+            applyNotInStoreHelpdeskFormTouch(displayName);
+            return result;
+        }
+
+        function confirmNotInStoreHelpdesk(match, setLabelValue, commentResult) {
+            const set = match?.set;
+            const shiftType = classifyKompassShiftType(match?.shift);
+            const displayName = escapeHtml(match ? setDisplayLabel(set) : setLabelValue);
+            const commentNote = commentResult?.skipped
+                ? 'PROD comment was <strong>not</strong> updated (set not matched to a loaded shift category).'
+                : (commentResult?.alreadyPresent
+                    ? `PROD comment already includes this note.<br><code>${escapeHtml(commentResult.comment || '')}</code>`
+                    : `PROD comment updated to:<br><code>${escapeHtml(commentResult?.comment || 'Not In Store')}</code>`);
+
+            const msg =
+                `<div style="text-align:left;font-size:14px;line-height:1.45;">` +
+                `<p style="margin:0 0 10px;">This set was marked <strong>Not In Store</strong> on the coversheet.</p>` +
+                `<ul style="margin:0 0 12px;padding-left:18px;">` +
+                `<li><strong>Set:</strong> ${displayName}</li>` +
+                `<li><strong>Shift type:</strong> ${escapeHtml(shiftType)}${match?.shiftLabel ? ` <span style="color:#94a3b8;">(${escapeHtml(match.shiftLabel)})</span>` : ''}</li>` +
+                `<li><strong>Visit ID:</strong> ${escapeHtml(match?.visitId || 'n/a')}</li>` +
+                `<li><strong>Category reset ID:</strong> ${escapeHtml(match?.set?.id != null ? String(match.set.id) : 'n/a')}</li>` +
+                `</ul>` +
+                `<p style="margin:0 0 12px;">${commentNote}</p>` +
+                `<p style="margin:0 0 8px;">Send a <strong>KOMPASS help desk</strong> email for this set now ` +
+                `(same as answering Yes to “contact the help desk”)?</p>` +
+                `<p style="margin:0;color:#94a3b8;font-size:13px;">Stand down keeps the coversheet tag` +
+                `${commentResult?.changed ? ' and PROD comment' : ''} without emailing the help desk.</p>` +
+                `</div>`;
+
+            showConfirm(
+                'Contact KOMPASS help desk?',
+                msg,
+                async () => {
+                    const loading = document.getElementById('loadingOverlay');
+                    if (loading) loading.classList.add('show');
+                    try {
+                        const result = await sendNotInStoreHelpdeskReport(match, setLabelValue);
+                        showAlert(
+                            'Help desk report sent',
+                            `Sent to the KOMPASS help desk${result.subject ? `:<br><code>${escapeHtml(result.subject)}</code>` : '.'}`
+                        );
+                    } catch (err) {
+                        console.error('Not-in-store helpdesk send failed:', err);
+                        showAlert('Help desk send failed', escapeHtml(err.message || String(err)));
+                    } finally {
+                        if (loading) loading.classList.remove('show');
+                    }
+                },
+                {
+                    confirmText: 'Send help desk email',
+                    cancelText: 'Stand down',
+                    onCancel: () => {
+                        showAlert(
+                            'Stood down',
+                            'Help desk email was not sent. The coversheet Not In Store tag' +
+                            (commentResult?.changed ? ' and PROD comment update' : '') +
+                            ' remain.'
+                        );
+                    },
+                }
+            );
+        }
+
+        async function handleNotInSideEffects(kind, setLabelValue, opts) {
+            const isStore = kind === 'store';
+            const appendText = isStore ? 'Not In Store' : 'Not In SI';
+            const match = resolvePickerSetMatch(setLabelValue);
+            let commentResult = { skipped: true };
+
+            const loading = document.getElementById('loadingOverlay');
+            if (loading) loading.classList.add('show');
+            try {
+                if (match) {
+                    commentResult = await appendProdCategoryComment(match, appendText);
+                } else if (!opts?.fromOther) {
+                    commentResult = {
+                        skipped: true,
+                        error: 'Could not resolve this set to a PROD category reset. Find shifts first.',
+                    };
+                }
+            } catch (err) {
+                console.error('PROD comment append failed:', err);
+                if (loading) loading.classList.remove('show');
+                showAlert(
+                    'PROD comment update failed',
+                    `Could not append “${escapeHtml(appendText)}” on the PROD shift.<br><br>${escapeHtml(err.message || String(err))}` +
+                    (isStore ? '<br><br>You can still choose whether to email the help desk.' : '')
+                );
+                commentResult = { skipped: true, error: err.message || String(err) };
+                if (isStore) {
+                    confirmNotInStoreHelpdesk(match, setLabelValue, commentResult);
+                }
+                return;
+            } finally {
+                if (loading) loading.classList.remove('show');
+            }
+
+            if (isStore) {
+                confirmNotInStoreHelpdesk(match, setLabelValue, commentResult);
+                return;
+            }
+
+            // Not in SI — comment only (no helpdesk prompt).
+            if (commentResult.skipped) {
+                showAlert(
+                    'Not in SI noted',
+                    opts?.fromOther
+                        ? 'Added to the coversheet. No matching PROD set was found, so the shift comment was not updated.'
+                        : 'Added to the coversheet, but the PROD category comment could not be resolved. Find shifts and pick the set from the dropdown when possible.'
+                );
+            } else if (commentResult.alreadyPresent) {
+                showAlert(
+                    'Not in SI noted',
+                    `PROD comment already includes “Not In SI” on <strong>${escapeHtml(classifyKompassShiftType(match.shift))}</strong>.` +
+                    `<br><code>${escapeHtml(commentResult.comment || '')}</code>`
+                );
+            } else {
+                showAlert(
+                    'Not in SI noted',
+                    `Appended “Not In SI” to the PROD category comment on <strong>${escapeHtml(classifyKompassShiftType(match.shift))}</strong>.` +
+                    `<br><code>${escapeHtml(commentResult.comment || '')}</code>`
+                );
+            }
         }
 
         // After shifts load, check for multiple distinct visitLeads and show picker if needed
@@ -13005,6 +13322,6 @@ ${data.Notes || ''}`;
 
     </script>
     <script src="eod-helpdesk-wizard.js?v=2.5"></script>
-    <script src="eod-materials-browser.js?v=2.9.2"></script>
+    <script src="eod-materials-browser.js?v=2.9.3"></script>
 </body>
 </html>
