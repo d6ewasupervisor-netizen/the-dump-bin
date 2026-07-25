@@ -258,9 +258,26 @@
   cursor: pointer;
 }
 
+.mat-pdf-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mat-pdf-zoom button {
+  border: 0;
+  background: transparent;
+  color: #e2e8f0;
+  min-width: 36px;
+  min-height: 36px;
+  cursor: pointer;
+  font-weight: 700;
+}
 .mat-email-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   gap: 10px;
   align-items: center;
   padding: 8px 0;

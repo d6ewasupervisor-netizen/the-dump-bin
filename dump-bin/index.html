@@ -9,6 +9,9 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/dump-bin/dump-bin.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="/shared/doc-share/share-compose.js"></script>
 </head>
 <body>
 
@@ -69,6 +72,7 @@
       <button class="btn btn-ghost" id="viewSelectionBtn">View</button>
       <button class="btn btn-ghost" id="clearSelectionBtn">Clear</button>
       <button class="btn btn-primary" id="downloadBtn">Download ▾</button>
+      <button class="btn btn-primary" id="shareBtn">Share</button>
       <button class="btn btn-accent" id="printAtStoreBtn">🖨 Print at Store</button>
     </div>
   </div>
@@ -117,10 +121,9 @@
         </div>
         <div class="db-store-list" id="storeList"></div>
         <div class="form-group mt-4">
-          <label for="printCcSearch">Copy (CC) someone <span class="text-dim text-xs">optional — district leads &amp; supervisors</span></label>
-          <p class="text-dim text-xs" style="margin:0 0 8px;">They'll get the same acknowledgment and &ldquo;printed&rdquo; emails so they know a fax is coming. Type a name or email; suggestions are leads and supervisors from our ten districts (live SAS workforce).</p>
+          <label for="printCcSearch">Copy (CC)</label>
           <div class="db-cc-picker">
-            <input type="text" id="printCcSearch" placeholder="Search name or paste an email…" autocomplete="off" spellcheck="false">
+            <input type="text" id="printCcSearch" placeholder="Begin typing to select, or enter an address" autocomplete="off" spellcheck="false">
             <div class="db-cc-dropdown" id="printCcDropdown" hidden></div>
           </div>
           <div class="db-cc-chips" id="printCcChips"></div>
@@ -173,6 +176,32 @@
       <div class="modal__actions">
         <button class="btn btn-ghost" id="printCancelBtn">Cancel</button>
         <button class="btn btn-accent" id="sendPrintBtn" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF page picker modal -->
+  <div class="modal-backdrop" id="pdfPagesModal">
+    <div class="modal db-pdf-modal">
+      <div class="modal__header">
+        <h2 id="pdfPagesTitle">Select pages</h2>
+        <button class="modal__close" data-close="pdfPagesModal">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="db-pdf-toolbar">
+          <label><input type="checkbox" id="pdfSelectAllPages"> Select all</label>
+          <div class="db-pdf-zoom">
+            <button type="button" id="pdfZoomOut" aria-label="Zoom out">−</button>
+            <span id="pdfZoomLabel">100%</span>
+            <button type="button" id="pdfZoomIn" aria-label="Zoom in">+</button>
+          </div>
+          <span class="text-dim text-sm" id="pdfPageHint">Tap pages to include</span>
+        </div>
+        <div class="db-pdf-pages" id="pdfPagesBody"></div>
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn-ghost" data-close="pdfPagesModal">Cancel</button>
+        <button class="btn btn-primary" id="pdfAddPagesBtn">Add selected pages</button>
       </div>
     </div>
   </div>

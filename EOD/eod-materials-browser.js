@@ -18,6 +18,9 @@
   let pdfViewerFile = null;
   let pdfViewerPages = new Set();
   let pdfjsReady = null;
+  let pdfViewerZoom = 1;
+  const printCcRecipients = new Map();
+  let printCcTimer = null;
 
   function authFetch(url, init) {
     if (typeof window.authFetch === 'function') return window.authFetch(url, init);
@@ -398,8 +401,14 @@
     const pageCount = pdf.numPages;
     let html = `<div class="mat-pdf-toolbar">
       <label><input type="checkbox" id="matPdfSelectAllPages"> Select all ${pageCount} pages</label>
-      <span class="mat-muted" id="matPdfPageHint">Tap pages to include in print/email</span>
-    </div><div class="mat-pdf-pages">`;
+      <div class="mat-pdf-zoom">
+        <button type="button" id="matPdfZoomOutInline" aria-label="Zoom out">−</button>
+        <span id="matPdfZoomLabelInline">100%</span>
+        <button type="button" id="matPdfZoomInInline" aria-label="Zoom in">+</button>
+      </div>
+      <span class="mat-muted" id="matPdfPageHint">Tap pages to include</span>
+    </div><div class="mat-pdf-pages" id="matPdfPagesGrid" style="zoom:1">`;
+    pdfViewerZoom = 1;
     for (let i = 1; i <= pageCount; i += 1) {
       html += `<button type="button" class="mat-pdf-page" data-page="${i}">
         <canvas id="matPdfCanvas${i}"></canvas>
@@ -409,9 +418,24 @@
     html += '</div>';
     body.innerHTML = html;
 
+    const applyZoomLabel = () => {
+      const label = document.getElementById('matPdfZoomLabelInline');
+      if (label) label.textContent = `${Math.round(pdfViewerZoom * 100)}%`;
+      const grid = document.getElementById('matPdfPagesGrid');
+      if (grid) grid.style.zoom = String(pdfViewerZoom);
+    };
+    document.getElementById('matPdfZoomInInline')?.addEventListener('click', () => {
+      pdfViewerZoom = Math.min(2.5, Math.round((pdfViewerZoom + 0.25) * 100) / 100);
+      applyZoomLabel();
+    });
+    document.getElementById('matPdfZoomOutInline')?.addEventListener('click', () => {
+      pdfViewerZoom = Math.max(0.6, Math.round((pdfViewerZoom - 0.25) * 100) / 100);
+      applyZoomLabel();
+    });
+
     for (let i = 1; i <= pageCount; i += 1) {
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 0.35 });
+      const viewport = page.getViewport({ scale: 0.45 });
       const canvas = document.getElementById(`matPdfCanvas${i}`);
       if (!canvas) continue;
       const ctx = canvas.getContext('2d');
@@ -500,6 +524,36 @@
       toast('Enter your store # on the EOD form first', 'error');
       return;
     }
+    printCcRecipients.clear();
+    renderPrintCcChips();
+    const hint = document.getElementById('matPrintStoreHint');
+    if (hint) hint.textContent = `Fax to store #${storeNumber}`;
+    const search = document.getElementById('matPrintCcSearch');
+    if (search) search.value = '';
+    document.getElementById('matPrintCcModal')?.classList.add('show');
+  }
+
+  function renderPrintCcChips() {
+    const wrap = document.getElementById('matPrintCcChips');
+    if (!wrap) return;
+    wrap.innerHTML = [...printCcRecipients.values()].map((p) =>
+      `<span style="display:inline-flex;gap:6px;align-items:center;background:#1e293b;border-radius:999px;padding:4px 10px;font-size:12px;">${escapeHtml(p.email)} <button type="button" data-rm="${escapeAttr(p.email)}" style="border:0;background:transparent;color:#94a3b8;cursor:pointer;">&times;</button></span>`
+    ).join('');
+    wrap.querySelectorAll('[data-rm]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        printCcRecipients.delete(btn.getAttribute('data-rm'));
+        renderPrintCcChips();
+      });
+    });
+  }
+
+  async function confirmPrintSelection() {
+    if (!selection.size || printBusy) return;
+    const storeNumber = getStoreNumber();
+    if (!storeNumber) {
+      toast('Enter your store # on the EOD form first', 'error');
+      return;
+    }
     const last = Number(localStorage.getItem('eodMatLastPrint') || 0);
     if (last && Date.now() - last < PRINT_COOLDOWN_MS) {
       toast('A print job was just sent — wait a minute before sending again', 'error');
@@ -507,11 +561,10 @@
     }
 
     printBusy = true;
-    const btn = document.getElementById('matPrintBtn');
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Sending…';
-    }
+    const btn = document.getElementById('matPrintConfirmBtn');
+    const barBtn = document.getElementById('matPrintBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+    if (barBtn) { barBtn.disabled = true; barBtn.textContent = 'Sending…'; }
     try {
       const files = [];
       const attachments = [];
@@ -535,6 +588,7 @@
           keys: files.map((f) => f.key),
           attachments,
           storeNumber,
+          extraRecipients: [...printCcRecipients.keys()],
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -543,15 +597,14 @@
       selection.clear();
       updateSelectionBar();
       renderBrowser(lastListData);
+      document.getElementById('matPrintCcModal')?.classList.remove('show');
       toast(`Sent to store #${storeNumber} fax — check customer service in a couple minutes`, 'success');
     } catch (err) {
       toast(err.message || 'Print failed', 'error');
     } finally {
       printBusy = false;
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = '🖨 Print at Store';
-      }
+      if (btn) { btn.disabled = false; btn.textContent = 'Send fax'; }
+      if (barBtn) { barBtn.disabled = false; barBtn.textContent = '🖨 Print at Store'; }
     }
   }
 
@@ -624,21 +677,19 @@
       });
 
       if (!rows.length) {
-        box.innerHTML = '<div class="mat-muted">No assigned people found yet. Select a shift on the EOD form, or type an email below.</div>';
+        box.innerHTML = '';
         return;
       }
 
-      box.innerHTML = rows.map((r, i) => {
-        const disabled = !r.email;
-        return `<label class="mat-email-row${disabled ? ' is-disabled' : ''}">
-          <input type="checkbox" class="mat-email-cb" value="${escapeAttr(r.email)}" ${disabled ? 'disabled' : ''} data-idx="${i}">
+      box.innerHTML = rows.filter((r) => r.email).map((r, i) => {
+        return `<label class="mat-email-row">
+          <input type="checkbox" class="mat-email-cb" value="${escapeAttr(r.email)}" data-idx="${i}">
           <span class="mat-email-row__name">${escapeHtml(r.name)}</span>
-          <span class="mat-email-row__email">${escapeHtml(r.email || 'no email on file')}</span>
         </label>`;
       }).join('');
       return;
     } catch (_) {
-      box.innerHTML = '<div class="mat-muted">Could not load team list. Type an email below.</div>';
+      box.innerHTML = '';
     }
   }
 
@@ -661,8 +712,12 @@
       .map((cb) => cb.value.trim().toLowerCase())
       .filter(Boolean);
     const to = [...new Set([...checked, ...manual])];
-    if (!to.length) {
-      toast('Pick a teammate or enter an email address', 'error');
+    const phones = (document.getElementById('matSmsPhones')?.value || '')
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!to.length && !phones.length) {
+      toast('Add an email or phone number', 'error');
       return;
     }
 
@@ -683,28 +738,58 @@
         }
       }
       const note = (document.getElementById('matEmailNote')?.value || '').trim();
-      const res = await authFetch('https://eod-api.the-dump-bin.com/api/eod/email-materials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to,
-          keys,
-          attachments,
-          note,
-          storeNumber: getStoreNumber(),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Email failed (${res.status})`);
+      const messages = [];
+
+      if (to.length) {
+        const res = await authFetch('https://eod-api.the-dump-bin.com/api/eod/email-materials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to,
+            keys,
+            attachments,
+            note,
+            storeNumber: getStoreNumber(),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Email failed (${res.status})`);
+        messages.push(`Emailed ${data.fileCount || keys.length + attachments.length} file(s)`);
+      }
+
+      if (phones.length) {
+        const res = await authFetch('https://eod-api.the-dump-bin.com/api/secure-share', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phones,
+            sendSms: true,
+            sendEmail: false,
+            keys,
+            attachments,
+            note,
+            storeNumber: getStoreNumber(),
+            source: 'eod-materials',
+            requireDelivery: false,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Text failed (${res.status})`);
+        if (data.channelsOk?.sms === false) {
+          throw new Error(data.sms?.results?.find((r) => !r.ok)?.error || 'SMS delivery failed');
+        }
+        messages.push('Text sent (secure link, 7-day expiry)');
+      }
+
       document.getElementById('matEmailModal')?.classList.remove('show');
-      toast(`Emailed ${data.fileCount || keys.length + attachments.length} file(s) to ${to.length} recipient(s)`, 'success');
+      toast(messages.join(' · '), 'success');
     } catch (err) {
-      toast(err.message || 'Email failed', 'error');
+      toast(err.message || 'Share failed', 'error');
     } finally {
       emailBusy = false;
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Send email';
+        btn.textContent = 'Send';
       }
     }
   }
@@ -747,11 +832,59 @@
       document.getElementById('matSelectionModal')?.classList.add('show');
     });
     document.getElementById('matPrintBtn')?.addEventListener('click', () => printSelection());
+    document.getElementById('matPrintConfirmBtn')?.addEventListener('click', () => confirmPrintSelection());
     document.getElementById('matEmailBtn')?.addEventListener('click', () => openEmailModal());
     document.getElementById('matEmailSendBtn')?.addEventListener('click', () => sendEmailSelection());
     document.getElementById('matPdfAddPagesBtn')?.addEventListener('click', () => {
       addSelectedPagesToSelection().catch((err) => toast(err.message, 'error'));
     });
+
+    const ccSearch = document.getElementById('matPrintCcSearch');
+    if (ccSearch) {
+      ccSearch.addEventListener('input', () => {
+        clearTimeout(printCcTimer);
+        printCcTimer = setTimeout(async () => {
+          const q = ccSearch.value.trim();
+          const dd = document.getElementById('matPrintCcDropdown');
+          if (!dd) return;
+          if (!q) { dd.hidden = true; return; }
+          try {
+            const res = await authFetch(`${API}/print-at-store/cc-contacts?q=${encodeURIComponent(q)}&limit=20`);
+            const data = await res.json().catch(() => ({}));
+            const people = data.people || [];
+            const manual = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q) ? q.toLowerCase() : '';
+            const rows = [];
+            if (manual && !printCcRecipients.has(manual)) {
+              rows.push({ email: manual, name: manual });
+            }
+            for (const p of people) {
+              const email = String(p.email || '').trim().toLowerCase();
+              if (!email || printCcRecipients.has(email)) continue;
+              rows.push({ email, name: p.name || email });
+            }
+            if (!rows.length) {
+              dd.innerHTML = '<div style="padding:10px;color:#94a3b8;font-size:12px;">Keep typing a full email to add anyone</div>';
+              dd.hidden = false;
+              return;
+            }
+            dd.innerHTML = rows.map((r) =>
+              `<button type="button" data-email="${escapeAttr(r.email)}" data-name="${escapeAttr(r.name)}" style="display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #1e293b;background:transparent;color:#e2e8f0;padding:10px 12px;cursor:pointer;">${escapeHtml(r.name)}</button>`
+            ).join('');
+            dd.hidden = false;
+            dd.querySelectorAll('[data-email]').forEach((btn) => {
+              btn.addEventListener('click', () => {
+                printCcRecipients.set(btn.dataset.email, { email: btn.dataset.email, name: btn.dataset.name });
+                renderPrintCcChips();
+                ccSearch.value = '';
+                dd.hidden = true;
+              });
+            });
+          } catch (_) {
+            dd.hidden = true;
+          }
+        }, 220);
+      });
+    }
 
     document.querySelectorAll('[data-mat-close]').forEach((el) => {
       el.addEventListener('click', () => {
@@ -779,6 +912,7 @@
     document.getElementById('materialsBrowserOverlay')?.classList.remove('show');
     document.getElementById('matPdfModal')?.classList.remove('show');
     document.getElementById('matEmailModal')?.classList.remove('show');
+    document.getElementById('matPrintCcModal')?.classList.remove('show');
     document.getElementById('matSelectionModal')?.classList.remove('show');
     document.body.style.overflow = '';
   }

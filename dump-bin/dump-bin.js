@@ -382,11 +382,13 @@ function renderBrowser(data) {
       </div>`;
     html += files.map(f => {
       const isSel = selection.has(f.key);
+      const isPdf = /\.pdf$/i.test(f.name || '');
       return `
         <div class="db-item${isSel ? ' db-item--selected' : ''}" data-key="${escapeAttr(f.key)}">
           <input type="checkbox" class="db-item__checkbox" ${isSel ? 'checked' : ''} data-key="${escapeAttr(f.key)}">
           <span class="db-item__icon">${fileIcon(f.name)}</span>
           <a class="db-item__name" href="${escapeAttr(downloadUrlForFile(f))}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>
+          ${isPdf ? `<button type="button" class="btn btn-ghost db-item__pages" data-pages-key="${escapeAttr(f.key)}">Pages</button>` : ''}
           <span class="db-item__meta">${formatSize(f.size)}</span>
         </div>`;
     }).join('');
@@ -420,6 +422,16 @@ function renderBrowser(data) {
       cb.closest('.db-item').classList.toggle('db-item--selected', cb.checked);
       updateSelectionBar();
       syncSelectAllCheckbox(files);
+    });
+  });
+
+  browser.querySelectorAll('[data-pages-key]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.getAttribute('data-pages-key');
+      const fileObj = files.find((f) => f.key === key);
+      if (fileObj) openPdfPagePicker(fileObj).catch((err) => toast(err.message || 'Could not open PDF', 'error'));
     });
   });
 
@@ -547,6 +559,10 @@ function wireSelectionBar() {
     openPrintModal();
   });
 
+  document.getElementById('shareBtn')?.addEventListener('click', () => {
+    openShareModal();
+  });
+
   // If a recent submission is still in the cooldown window (including across
   // page reloads), keep the button locked until the fax pipeline catches up.
   if (getCooldownRemaining() > 0) startCooldownTicker();
@@ -640,8 +656,10 @@ function renderSelectionList() {
     list.innerHTML = '<div class="db-empty">No files selected.</div>';
     return;
   }
-  list.innerHTML = Array.from(selection.values()).map(f => {
-    const folderPath = f.key.split('/').slice(0, -1).join(' / ');
+  list.innerHTML = Array.from(selection.entries()).map(([id, f]) => {
+    const folderPath = f.key
+      ? f.key.split('/').slice(0, -1).join(' / ')
+      : (f.pages ? `Pages ${f.pages.join(', ')}` : '');
     const copies = getFileCopies(f);
     return `
       <div class="db-selection-item">
@@ -650,9 +668,9 @@ function renderSelectionList() {
           <div class="db-selection-item__name">${escapeHtml(f.name)}</div>
           <div class="db-selection-item__path">${escapeHtml(folderPath)}</div>
         </div>
-        ${copiesStepperHtml(f.key, copies)}
+        ${copiesStepperHtml(id, copies)}
         <span class="db-item__meta">${formatSize(f.size)}</span>
-        <button class="db-selection-item__remove" data-key="${escapeAttr(f.key)}" title="Remove">✕</button>
+        <button class="db-selection-item__remove" data-key="${escapeAttr(id)}" title="Remove">✕</button>
       </div>`;
   }).join('');
   wireCopiesSteppers(list, {
@@ -679,7 +697,7 @@ function renderPrintFileList() {
     list.innerHTML = '<div class="db-empty">No files selected.</div>';
     return;
   }
-  list.innerHTML = Array.from(selection.values()).map(f => {
+  list.innerHTML = Array.from(selection.entries()).map(([id, f]) => {
     const copies = getFileCopies(f);
     return `
       <div class="db-print-file${copies > 1 ? ' db-print-file--multi' : ''}">
@@ -688,7 +706,7 @@ function renderPrintFileList() {
           <div class="db-print-file__name">${escapeHtml(f.name)}</div>
           <div class="db-print-file__meta">${formatSize(f.size)}${copies > 1 ? ` · ${formatSize(f.size * copies)} total` : ''}</div>
         </div>
-        ${copiesStepperHtml(f.key, copies)}
+        ${copiesStepperHtml(id, copies)}
       </div>`;
   }).join('');
   wireCopiesSteppers(list, {
@@ -889,21 +907,18 @@ function renderPrintCcDropdown(people, query) {
   for (const p of printCcSuggestions) {
     const email = normalizePrintCcEmail(p.email);
     if (!email || printCcRecipients.has(email)) continue;
-    const role = p.role === 'supervisor' ? 'Supervisor' : 'Lead';
-    const dist = p.district ? ` · D${p.district}` : '';
-    const team = p.team ? ` · ${p.team}` : '';
     rows.push({
       email,
       name: p.name || email,
-      meta: `${role}${dist}${team} · ${email}`,
+      meta: email,
       manual: false,
     });
   }
 
   if (rows.length === 0) {
     dd.innerHTML = q
-      ? '<div class="db-cc-option__empty">No matching district lead or supervisor. Paste a full email to CC anyone.</div>'
-      : '<div class="db-cc-option__empty">Type a name to search district leads &amp; supervisors.</div>';
+      ? '<div class="db-cc-option__empty">Keep typing a full email to add anyone.</div>'
+      : '<div class="db-cc-option__empty">Begin typing to select, or enter an address.</div>';
     dd.hidden = false;
     return;
   }
@@ -1128,10 +1143,22 @@ async function sendPrint() {
 
   setPrintModalState('sending');
   try {
-    const files = Array.from(selection.values()).map(f => ({
-      key: f.key,
-      copies: getFileCopies(f),
-    }));
+    const files = [];
+    const attachments = [];
+    for (const f of selection.values()) {
+      if (f.contentBase64) {
+        for (let i = 0; i < getFileCopies(f); i += 1) {
+          attachments.push({
+            filename: getFileCopies(f) > 1
+              ? f.name.replace(/(\.pdf)?$/i, ` (${i + 1}).pdf`)
+              : f.name,
+            content: f.contentBase64,
+          });
+        }
+      } else if (f.key) {
+        files.push({ key: f.key, copies: getFileCopies(f) });
+      }
+    }
     const extraRecipients = [...printCcRecipients.keys()];
     const res = await fetchPrintAtStoreApi(`${API}/print-at-store`, {
       method: 'POST',
@@ -1140,6 +1167,7 @@ async function sendPrint() {
         files,
         // Keep keys for older API builds / debugging; server prefers `files`.
         keys: files.map(f => f.key),
+        attachments,
         storeNumber: selectedStore.num,
         storeCity: selectedStore.city,
         extraRecipients,
@@ -1274,6 +1302,171 @@ function wireModals() {
 
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// --- PDF page picker (zoom + select pages for share/fax) ---
+let pdfPickerFile = null;
+let pdfPickerPages = new Set();
+let pdfPickerZoom = 1;
+
+async function openPdfPagePicker(fileObj) {
+  pdfPickerFile = fileObj;
+  pdfPickerPages = new Set();
+  pdfPickerZoom = 1;
+  const title = document.getElementById('pdfPagesTitle');
+  const body = document.getElementById('pdfPagesBody');
+  const hint = document.getElementById('pdfPageHint');
+  if (title) title.textContent = fileObj.name;
+  if (body) body.innerHTML = '<div class="db-empty">Opening…</div>';
+  if (hint) hint.textContent = 'Tap pages to include';
+  document.getElementById('pdfZoomLabel').textContent = '100%';
+  openModal('pdfPagesModal');
+
+  if (!window.pdfjsLib) throw new Error('PDF.js not loaded');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const url = await resolveDownloadUrl(fileObj);
+  const pdf = await window.pdfjsLib.getDocument(url).promise;
+  const pageCount = pdf.numPages;
+  body.innerHTML = '';
+  for (let i = 1; i <= pageCount; i += 1) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'db-pdf-page';
+    btn.dataset.page = String(i);
+    btn.innerHTML = `<canvas></canvas><span class="db-pdf-page__label">Page ${i}</span>`;
+    body.appendChild(btn);
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 0.4 * pdfPickerZoom });
+    const canvas = btn.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    btn.addEventListener('click', () => {
+      const p = Number(btn.dataset.page);
+      if (pdfPickerPages.has(p)) {
+        pdfPickerPages.delete(p);
+        btn.classList.remove('is-selected');
+      } else {
+        pdfPickerPages.add(p);
+        btn.classList.add('is-selected');
+      }
+      if (hint) {
+        hint.textContent = pdfPickerPages.size
+          ? `${pdfPickerPages.size} page(s) selected`
+          : 'Tap pages to include';
+      }
+    });
+  }
+  const selectAll = document.getElementById('pdfSelectAllPages');
+  if (selectAll) {
+    selectAll.checked = false;
+    selectAll.onchange = () => {
+      pdfPickerPages = new Set();
+      body.querySelectorAll('.db-pdf-page').forEach((btn) => {
+        if (selectAll.checked) {
+          pdfPickerPages.add(Number(btn.dataset.page));
+          btn.classList.add('is-selected');
+        } else {
+          btn.classList.remove('is-selected');
+        }
+      });
+      if (hint) {
+        hint.textContent = pdfPickerPages.size
+          ? `${pdfPickerPages.size} page(s) selected`
+          : 'Tap pages to include';
+      }
+    };
+  }
+}
+
+async function addPdfPickerPagesToSelection() {
+  if (!pdfPickerFile || !pdfPickerPages.size) {
+    toast('Select at least one page first', 'error');
+    return;
+  }
+  if (!window.PDFLib?.PDFDocument) {
+    toast('PDF tools not loaded yet', 'error');
+    return;
+  }
+  const pages = Array.from(pdfPickerPages).sort((a, b) => a - b);
+  const url = await resolveDownloadUrl(pdfPickerFile);
+  const srcBytes = await fetch(url).then((r) => r.arrayBuffer());
+  const srcDoc = await PDFLib.PDFDocument.load(srcBytes);
+  const outDoc = await PDFLib.PDFDocument.create();
+  const copied = await outDoc.copyPages(srcDoc, pages.map((p) => p - 1));
+  copied.forEach((p) => outDoc.addPage(p));
+  const outBytes = await outDoc.save();
+  const bytes = new Uint8Array(outBytes);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  const contentBase64 = btoa(binary);
+  const pageLabel = pages.length === 1 ? `p${pages[0]}` : `p${pages[0]}-${pages[pages.length - 1]}`;
+  const base = String(pdfPickerFile.name || 'document.pdf').replace(/\.pdf$/i, '');
+  const name = `${base}_${pageLabel}.pdf`;
+  const id = `pages:${pdfPickerFile.key}:${pages.join(',')}`;
+  selection.set(id, {
+    name,
+    size: outBytes.byteLength,
+    copies: 1,
+    contentBase64,
+    pages,
+    sourceKey: pdfPickerFile.key,
+  });
+  updateSelectionBar();
+  toast(`Added ${pages.length} page(s) to selection`, 'success');
+  closeModal('pdfPagesModal');
+}
+
+function openShareModal() {
+  if (!selection.size) {
+    toast('Select files or pages first', 'error');
+    return;
+  }
+  if (!window.DocShareCompose) {
+    toast('Share tools not loaded', 'error');
+    return;
+  }
+  window.DocShareCompose.open({
+    authFetch: (url, init) => fetchPrintAtStoreApi(url, init),
+    toast,
+    searchContacts: async (q) => {
+      const res = await fetchPrintAtStoreApi(
+        `${API}/print-at-store/cc-contacts?q=${encodeURIComponent(q)}&limit=30`
+      );
+      const data = await res.json().catch(() => ({}));
+      return data.people || [];
+    },
+    getPayload: () => {
+      const keys = [];
+      const attachments = [];
+      for (const f of selection.values()) {
+        if (f.contentBase64) attachments.push({ filename: f.name, content: f.contentBase64 });
+        else if (f.key) keys.push(f.key);
+      }
+      return { keys, attachments, storeNumber: selectedStore?.num || '', source: 'dump-bin' };
+    },
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pdfAddPagesBtn')?.addEventListener('click', () => {
+    addPdfPickerPagesToSelection().catch((err) => toast(err.message || 'Failed', 'error'));
+  });
+  document.getElementById('pdfZoomIn')?.addEventListener('click', () => {
+    pdfPickerZoom = Math.min(2.5, Math.round((pdfPickerZoom + 0.25) * 100) / 100);
+    document.getElementById('pdfZoomLabel').textContent = `${Math.round(pdfPickerZoom * 100)}%`;
+    document.getElementById('pdfPagesBody')?.style.setProperty('zoom', String(pdfPickerZoom));
+  });
+  document.getElementById('pdfZoomOut')?.addEventListener('click', () => {
+    pdfPickerZoom = Math.max(0.6, Math.round((pdfPickerZoom - 0.25) * 100) / 100);
+    document.getElementById('pdfZoomLabel').textContent = `${Math.round(pdfPickerZoom * 100)}%`;
+    document.getElementById('pdfPagesBody')?.style.setProperty('zoom', String(pdfPickerZoom));
+  });
+});
 
 // --- Toasts ---
 function toast(msg, type = '') {
