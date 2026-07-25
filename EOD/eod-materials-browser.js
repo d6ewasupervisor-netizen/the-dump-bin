@@ -776,7 +776,10 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Text failed (${res.status})`);
         if (data.channelsOk?.sms === false) {
-          throw new Error(data.sms?.results?.find((r) => !r.ok)?.error || 'SMS delivery failed');
+          throw new Error(
+            data.sms?.results?.find((r) => !r.ok)?.error ||
+              'SMS delivery failed. If the recipient has not opted in, they must text JOIN to (509) 572-9212 first.'
+          );
         }
         messages.push('Text sent (secure link, 7-day expiry)');
       }

@@ -50,7 +50,7 @@
             <div class="dsc-panel" data-dsc-panel="sms" hidden>
               <label class="dsc-label" for="dscPhoneInput">Phone number(s)</label>
               <input type="tel" id="dscPhoneInput" placeholder="10-digit mobile, comma-separated" autocomplete="tel">
-              <p class="dsc-hint">Recipient must first text JOIN to (509) 572-9212 before they can receive texts. Link and files expire after 7 days.</p>
+              <p class="dsc-hint"><strong>Important:</strong> If the recipient would like to use the text feature, they must first text <strong>JOIN</strong> to <strong>(509) 572-9212</strong> from that mobile number (one-time opt-in). Until they do, texts cannot be delivered. Link and files expire after 7 days. Reply STOP anytime to opt out.</p>
             </div>
             <label class="dsc-label" for="dscNote">Optional note</label>
             <textarea id="dscNote" rows="2" placeholder="Optional note"></textarea>
@@ -317,7 +317,12 @@
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data.error || `Text failed (${res.status})`);
           const smsOk = data.channelsOk?.sms !== false;
-          if (!smsOk) throw new Error(data.sms?.results?.find((r) => !r.ok)?.error || 'SMS delivery failed');
+          if (!smsOk) {
+            throw new Error(
+              data.sms?.results?.find((r) => !r.ok)?.error ||
+                'SMS delivery failed. If the recipient has not opted in, they must text JOIN to (509) 572-9212 first.'
+            );
+          }
           toast('Text sent with secure viewer link (expires in 7 days)', 'success');
           close();
         }
