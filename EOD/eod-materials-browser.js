@@ -15,10 +15,7 @@
   let wired = false;
   let printBusy = false;
   let emailBusy = false;
-  let pdfViewerFile = null;
-  let pdfViewerPages = new Set();
   let pdfjsReady = null;
-  let pdfViewerZoom = 1;
   const printCcRecipients = new Map();
   let printCcTimer = null;
 
@@ -321,18 +318,56 @@
     }
   }
 
+  function selectionBytes() {
+    return Array.from(selection.values()).reduce(
+      (s, f) => s + (Number(f.size) || 0) * clampCopies(f.copies),
+      0
+    );
+  }
+
+  function selectionPageEstimate() {
+    let pages = 0;
+    for (const f of selection.values()) {
+      const copies = clampCopies(f.copies);
+      if (Array.isArray(f.pages) && f.pages.length) pages += f.pages.length * copies;
+      else pages += copies;
+    }
+    return pages;
+  }
+
   function updateSelectionBar() {
     const bar = document.getElementById('matSelectionBar');
     const countEl = document.getElementById('matSelectionCount');
     const sizeEl = document.getElementById('matSelectionSize');
     if (!bar) return;
     const count = selection.size;
+    const bytes = selectionBytes();
+    const pages = selectionPageEstimate();
     bar.classList.toggle('show', count > 0);
     if (countEl) countEl.textContent = String(count);
     if (sizeEl) {
-      const bytes = Array.from(selection.values()).reduce((s, f) => s + (Number(f.size) || 0) * clampCopies(f.copies), 0);
-      sizeEl.textContent = count ? `· ${formatSize(bytes)}` : '';
+      sizeEl.textContent = count
+        ? `· ${pages} page/copy${pages === 1 ? '' : 's'} · ${formatSize(bytes)}`
+        : '';
     }
+  }
+
+  function putExtractInSelection(payload) {
+    const pages = payload.pages || [];
+    const id = payload.sourceKey
+      ? `pages:${payload.sourceKey}:${pages.join(',')}`
+      : `pages:${payload.name}:${pages.join(',')}`;
+    selection.set(id, {
+      name: payload.name,
+      size: payload.size,
+      copies: 1,
+      contentBase64: payload.contentBase64,
+      pages,
+      sourceKey: payload.sourceKey || undefined,
+    });
+    updateSelectionBar();
+    renderBrowser(lastListData);
+    return id;
   }
 
   function renderSelectionList() {
@@ -376,145 +411,88 @@
   }
 
   async function openFileViewer(fileObj) {
-    pdfViewerFile = fileObj;
-    pdfViewerPages = new Set();
-    const modal = document.getElementById('matPdfModal');
-    const title = document.getElementById('matPdfTitle');
-    const body = document.getElementById('matPdfBody');
-    const actions = document.getElementById('matPdfActions');
-    if (!modal || !body) return;
-    if (title) title.textContent = fileObj.name;
-    body.innerHTML = '<div class="mat-empty">Opening…</div>';
-    if (actions) actions.style.display = isPdfName(fileObj.name) ? '' : 'none';
-    modal.classList.add('show');
-
     if (!isPdfName(fileObj.name)) {
       const url = await resolveDownloadUrl(fileObj);
-      body.innerHTML = `<p class="mat-muted">This file type opens in a new tab.</p>
-        <a class="btn btn-primary" href="${escapeAttr(url)}" target="_blank" rel="noopener">Open file</a>`;
+      window.open(url, '_blank', 'noopener');
       return;
     }
-
+    if (!window.MaterialsPdfViewer) {
+      toast('Document viewer failed to load — refresh and try again', 'error');
+      return;
+    }
     await ensurePdfJs();
     const url = await resolveDownloadUrl(fileObj);
-    const pdf = await window.pdfjsLib.getDocument(url).promise;
-    const pageCount = pdf.numPages;
-    let html = `<div class="mat-pdf-toolbar">
-      <label><input type="checkbox" id="matPdfSelectAllPages"> Select all ${pageCount} pages</label>
-      <div class="mat-pdf-zoom">
-        <button type="button" id="matPdfZoomOutInline" aria-label="Zoom out">−</button>
-        <span id="matPdfZoomLabelInline">100%</span>
-        <button type="button" id="matPdfZoomInInline" aria-label="Zoom in">+</button>
-      </div>
-      <span class="mat-muted" id="matPdfPageHint">Tap pages to include</span>
-    </div><div class="mat-pdf-pages" id="matPdfPagesGrid" style="zoom:1">`;
-    pdfViewerZoom = 1;
-    for (let i = 1; i <= pageCount; i += 1) {
-      html += `<button type="button" class="mat-pdf-page" data-page="${i}">
-        <canvas id="matPdfCanvas${i}"></canvas>
-        <span class="mat-pdf-page__label">Page ${i}</span>
-      </button>`;
-    }
-    html += '</div>';
-    body.innerHTML = html;
-
-    const applyZoomLabel = () => {
-      const label = document.getElementById('matPdfZoomLabelInline');
-      if (label) label.textContent = `${Math.round(pdfViewerZoom * 100)}%`;
-      const grid = document.getElementById('matPdfPagesGrid');
-      if (grid) grid.style.zoom = String(pdfViewerZoom);
-    };
-    document.getElementById('matPdfZoomInInline')?.addEventListener('click', () => {
-      pdfViewerZoom = Math.min(2.5, Math.round((pdfViewerZoom + 0.25) * 100) / 100);
-      applyZoomLabel();
+    await window.MaterialsPdfViewer.open({
+      title: fileObj.name,
+      fileName: fileObj.name,
+      url,
+      fileSize: Number(fileObj.size) || 0,
+      sourceKey: fileObj.key,
+      onToast: toast,
+      getGlobalSelection: () => ({
+        count: selection.size,
+        bytes: selectionBytes(),
+      }),
+      onAddToSelection: async (payload) => {
+        putExtractInSelection(payload);
+        toast(`Added ${payload.pages.length} page(s) to selection`, 'success');
+      },
+      onShare: async (payload) => {
+        putExtractInSelection(payload);
+        window.MaterialsPdfViewer.close();
+        openEmailModal();
+      },
+      onPrintAtStore: async (payload) => {
+        putExtractInSelection(payload);
+        window.MaterialsPdfViewer.close();
+        printSelection();
+      },
+      onDownload: async (payload) => {
+        const bin = atob(payload.contentBase64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = payload.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        toast(`Downloaded ${payload.name}`, 'success');
+      },
     });
-    document.getElementById('matPdfZoomOutInline')?.addEventListener('click', () => {
-      pdfViewerZoom = Math.max(0.6, Math.round((pdfViewerZoom - 0.25) * 100) / 100);
-      applyZoomLabel();
-    });
-
-    for (let i = 1; i <= pageCount; i += 1) {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 0.45 });
-      const canvas = document.getElementById(`matPdfCanvas${i}`);
-      if (!canvas) continue;
-      const ctx = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: ctx, viewport }).promise;
-    }
-
-    body.querySelectorAll('.mat-pdf-page').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const page = Number(btn.dataset.page);
-        if (pdfViewerPages.has(page)) {
-          pdfViewerPages.delete(page);
-          btn.classList.remove('is-selected');
-        } else {
-          pdfViewerPages.add(page);
-          btn.classList.add('is-selected');
-        }
-        const hint = document.getElementById('matPdfPageHint');
-        if (hint) hint.textContent = pdfViewerPages.size
-          ? `${pdfViewerPages.size} page(s) selected`
-          : 'Tap pages to include in print/email';
-      });
-    });
-    const selectAll = document.getElementById('matPdfSelectAllPages');
-    if (selectAll) {
-      selectAll.addEventListener('change', () => {
-        pdfViewerPages = new Set();
-        body.querySelectorAll('.mat-pdf-page').forEach((btn) => {
-          if (selectAll.checked) {
-            pdfViewerPages.add(Number(btn.dataset.page));
-            btn.classList.add('is-selected');
-          } else {
-            btn.classList.remove('is-selected');
-          }
-        });
-      });
-    }
   }
 
-  async function addSelectedPagesToSelection() {
-    if (!pdfViewerFile || !pdfViewerPages.size) {
-      toast('Select at least one page first', 'error');
+  async function downloadSelection() {
+    if (!selection.size) {
+      toast('Select files or pages first', 'error');
       return;
     }
-    if (!window.PDFLib?.PDFDocument) {
-      toast('PDF tools not loaded yet — wait a moment and try again', 'error');
-      return;
+    let n = 0;
+    for (const f of selection.values()) {
+      try {
+        let href;
+        let name = f.name || 'download';
+        if (f.contentBase64) {
+          const bin = atob(f.contentBase64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+          href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+        } else {
+          href = await resolveDownloadUrl(f);
+        }
+        const a = document.createElement('a');
+        a.href = href;
+        a.download = name;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.click();
+        if (f.contentBase64) setTimeout(() => URL.revokeObjectURL(href), 4000);
+        n += 1;
+      } catch (err) {
+        toast(err.message || `Could not download ${f.name}`, 'error');
+      }
     }
-    const pages = Array.from(pdfViewerPages).sort((a, b) => a - b);
-    const url = await resolveDownloadUrl(pdfViewerFile);
-    const srcBytes = await fetch(url).then((r) => r.arrayBuffer());
-    const srcDoc = await PDFLib.PDFDocument.load(srcBytes);
-    const outDoc = await PDFLib.PDFDocument.create();
-    const copied = await outDoc.copyPages(srcDoc, pages.map((p) => p - 1));
-    copied.forEach((p) => outDoc.addPage(p));
-    const outBytes = await outDoc.save();
-    const bytes = new Uint8Array(outBytes);
-    let binary = '';
-    const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-    }
-    const contentBase64 = btoa(binary);
-    const pageLabel = pages.length === 1 ? `p${pages[0]}` : `p${pages[0]}-${pages[pages.length - 1]}`;
-    const base = String(pdfViewerFile.name || 'document.pdf').replace(/\.pdf$/i, '');
-    const name = `${base}_${pageLabel}.pdf`;
-    const id = `pages:${pdfViewerFile.key}:${pages.join(',')}`;
-    selection.set(id, {
-      name,
-      size: outBytes.byteLength,
-      copies: 1,
-      contentBase64,
-      pages,
-      sourceKey: pdfViewerFile.key,
-    });
-    updateSelectionBar();
-    toast(`Added ${pages.length} page(s) to selection`, 'success');
-    document.getElementById('matPdfModal')?.classList.remove('show');
+    if (n) toast(`Started ${n} download(s)`, 'success');
   }
 
   async function printSelection() {
@@ -838,8 +816,8 @@
     document.getElementById('matPrintConfirmBtn')?.addEventListener('click', () => confirmPrintSelection());
     document.getElementById('matEmailBtn')?.addEventListener('click', () => openEmailModal());
     document.getElementById('matEmailSendBtn')?.addEventListener('click', () => sendEmailSelection());
-    document.getElementById('matPdfAddPagesBtn')?.addEventListener('click', () => {
-      addSelectedPagesToSelection().catch((err) => toast(err.message, 'error'));
+    document.getElementById('matDownloadBtn')?.addEventListener('click', () => {
+      downloadSelection().catch((err) => toast(err.message || 'Download failed', 'error'));
     });
 
     const ccSearch = document.getElementById('matPrintCcSearch');
@@ -913,10 +891,10 @@
 
   function close() {
     document.getElementById('materialsBrowserOverlay')?.classList.remove('show');
-    document.getElementById('matPdfModal')?.classList.remove('show');
     document.getElementById('matEmailModal')?.classList.remove('show');
     document.getElementById('matPrintCcModal')?.classList.remove('show');
     document.getElementById('matSelectionModal')?.classList.remove('show');
+    if (window.MaterialsPdfViewer?.isOpen?.()) window.MaterialsPdfViewer.close();
     document.body.style.overflow = '';
   }
 

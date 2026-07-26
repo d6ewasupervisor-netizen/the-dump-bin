@@ -643,9 +643,9 @@ function updateSelectionBar() {
   if (!count) {
     sizeEl.textContent = '';
   } else if (sheets !== count) {
-    sizeEl.textContent = `(${sheets} copies · ${formatSize(selectionEffectiveBytes())})`;
+    sizeEl.textContent = `${sheets} copies · ${formatSize(selectionEffectiveBytes())}`;
   } else {
-    sizeEl.textContent = `(${formatSize(selectionEffectiveBytes())})`;
+    sizeEl.textContent = formatSize(selectionEffectiveBytes());
   }
   bar.classList.toggle('visible', count > 0);
 }
@@ -1303,122 +1303,71 @@ function wireModals() {
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-// --- PDF page picker (zoom + select pages for share/fax) ---
-let pdfPickerFile = null;
-let pdfPickerPages = new Set();
-let pdfPickerZoom = 1;
+// --- Fullscreen PDF viewer (page select + share/fax/download) ---
+function putExtractInSelection(payload) {
+  const pages = payload.pages || [];
+  const id = payload.sourceKey
+    ? `pages:${payload.sourceKey}:${pages.join(',')}`
+    : `pages:${payload.name}:${pages.join(',')}`;
+  selection.set(id, {
+    name: payload.name,
+    size: payload.size,
+    copies: 1,
+    contentBase64: payload.contentBase64,
+    pages,
+    sourceKey: payload.sourceKey || undefined,
+  });
+  updateSelectionBar();
+  return id;
+}
 
 async function openPdfPagePicker(fileObj) {
-  pdfPickerFile = fileObj;
-  pdfPickerPages = new Set();
-  pdfPickerZoom = 1;
-  const title = document.getElementById('pdfPagesTitle');
-  const body = document.getElementById('pdfPagesBody');
-  const hint = document.getElementById('pdfPageHint');
-  if (title) title.textContent = fileObj.name;
-  if (body) body.innerHTML = '<div class="db-empty">Opening…</div>';
-  if (hint) hint.textContent = 'Tap pages to include';
-  document.getElementById('pdfZoomLabel').textContent = '100%';
-  openModal('pdfPagesModal');
-
+  if (!window.MaterialsPdfViewer) {
+    toast('Document viewer failed to load — refresh and try again', 'error');
+    return;
+  }
   if (!window.pdfjsLib) throw new Error('PDF.js not loaded');
   window.pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const url = await resolveDownloadUrl(fileObj);
-  const pdf = await window.pdfjsLib.getDocument(url).promise;
-  const pageCount = pdf.numPages;
-  body.innerHTML = '';
-  for (let i = 1; i <= pageCount; i += 1) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'db-pdf-page';
-    btn.dataset.page = String(i);
-    btn.innerHTML = `<canvas></canvas><span class="db-pdf-page__label">Page ${i}</span>`;
-    body.appendChild(btn);
-    const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 0.4 * pdfPickerZoom });
-    const canvas = btn.querySelector('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    btn.addEventListener('click', () => {
-      const p = Number(btn.dataset.page);
-      if (pdfPickerPages.has(p)) {
-        pdfPickerPages.delete(p);
-        btn.classList.remove('is-selected');
-      } else {
-        pdfPickerPages.add(p);
-        btn.classList.add('is-selected');
-      }
-      if (hint) {
-        hint.textContent = pdfPickerPages.size
-          ? `${pdfPickerPages.size} page(s) selected`
-          : 'Tap pages to include';
-      }
-    });
-  }
-  const selectAll = document.getElementById('pdfSelectAllPages');
-  if (selectAll) {
-    selectAll.checked = false;
-    selectAll.onchange = () => {
-      pdfPickerPages = new Set();
-      body.querySelectorAll('.db-pdf-page').forEach((btn) => {
-        if (selectAll.checked) {
-          pdfPickerPages.add(Number(btn.dataset.page));
-          btn.classList.add('is-selected');
-        } else {
-          btn.classList.remove('is-selected');
-        }
-      });
-      if (hint) {
-        hint.textContent = pdfPickerPages.size
-          ? `${pdfPickerPages.size} page(s) selected`
-          : 'Tap pages to include';
-      }
-    };
-  }
-}
-
-async function addPdfPickerPagesToSelection() {
-  if (!pdfPickerFile || !pdfPickerPages.size) {
-    toast('Select at least one page first', 'error');
-    return;
-  }
-  if (!window.PDFLib?.PDFDocument) {
-    toast('PDF tools not loaded yet', 'error');
-    return;
-  }
-  const pages = Array.from(pdfPickerPages).sort((a, b) => a - b);
-  const url = await resolveDownloadUrl(pdfPickerFile);
-  const srcBytes = await fetch(url).then((r) => r.arrayBuffer());
-  const srcDoc = await PDFLib.PDFDocument.load(srcBytes);
-  const outDoc = await PDFLib.PDFDocument.create();
-  const copied = await outDoc.copyPages(srcDoc, pages.map((p) => p - 1));
-  copied.forEach((p) => outDoc.addPage(p));
-  const outBytes = await outDoc.save();
-  const bytes = new Uint8Array(outBytes);
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  const contentBase64 = btoa(binary);
-  const pageLabel = pages.length === 1 ? `p${pages[0]}` : `p${pages[0]}-${pages[pages.length - 1]}`;
-  const base = String(pdfPickerFile.name || 'document.pdf').replace(/\.pdf$/i, '');
-  const name = `${base}_${pageLabel}.pdf`;
-  const id = `pages:${pdfPickerFile.key}:${pages.join(',')}`;
-  selection.set(id, {
-    name,
-    size: outBytes.byteLength,
-    copies: 1,
-    contentBase64,
-    pages,
-    sourceKey: pdfPickerFile.key,
+  await window.MaterialsPdfViewer.open({
+    title: fileObj.name,
+    fileName: fileObj.name,
+    url,
+    fileSize: Number(fileObj.size) || 0,
+    sourceKey: fileObj.key,
+    onToast: toast,
+    getGlobalSelection: () => ({
+      count: selection.size,
+      bytes: selectionEffectiveBytes(),
+    }),
+    onAddToSelection: async (payload) => {
+      putExtractInSelection(payload);
+      toast(`Added ${payload.pages.length} page(s) to selection`, 'success');
+    },
+    onShare: async (payload) => {
+      putExtractInSelection(payload);
+      window.MaterialsPdfViewer.close();
+      openShareModal();
+    },
+    onPrintAtStore: async (payload) => {
+      putExtractInSelection(payload);
+      window.MaterialsPdfViewer.close();
+      openPrintModal();
+    },
+    onDownload: async (payload) => {
+      const bin = atob(payload.contentBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = payload.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      toast(`Downloaded ${payload.name}`, 'success');
+    },
   });
-  updateSelectionBar();
-  toast(`Added ${pages.length} page(s) to selection`, 'success');
-  closeModal('pdfPagesModal');
 }
 
 function openShareModal() {
@@ -1453,19 +1402,7 @@ function openShareModal() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('pdfAddPagesBtn')?.addEventListener('click', () => {
-    addPdfPickerPagesToSelection().catch((err) => toast(err.message || 'Failed', 'error'));
-  });
-  document.getElementById('pdfZoomIn')?.addEventListener('click', () => {
-    pdfPickerZoom = Math.min(2.5, Math.round((pdfPickerZoom + 0.25) * 100) / 100);
-    document.getElementById('pdfZoomLabel').textContent = `${Math.round(pdfPickerZoom * 100)}%`;
-    document.getElementById('pdfPagesBody')?.style.setProperty('zoom', String(pdfPickerZoom));
-  });
-  document.getElementById('pdfZoomOut')?.addEventListener('click', () => {
-    pdfPickerZoom = Math.max(0.6, Math.round((pdfPickerZoom - 0.25) * 100) / 100);
-    document.getElementById('pdfZoomLabel').textContent = `${Math.round(pdfPickerZoom * 100)}%`;
-    document.getElementById('pdfPagesBody')?.style.setProperty('zoom', String(pdfPickerZoom));
-  });
+  // MaterialsPdfViewer wires its own controls; keep hook for future dump-bin boot.
 });
 
 // --- Toasts ---

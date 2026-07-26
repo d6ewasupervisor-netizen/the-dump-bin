@@ -483,22 +483,30 @@
 }
 
 .db-selection-bar__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: .95rem;
   font-weight: 600;
   color: var(--color-text);
+  min-width: 0;
+}
+
+.db-selection-bar__count {
   white-space: nowrap;
 }
 
 .db-selection-bar__info #selectionCount {
   color: var(--color-accent);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 .db-selection-bar__size {
   color: var(--color-text-dim);
-  font-weight: 400;
-  font-size: .85rem;
-  margin-left: 6px;
+  font-weight: 600;
+  font-size: .82rem;
+  margin-left: 0;
+  letter-spacing: 0.01em;
 }
 
 .db-selection-bar__actions {

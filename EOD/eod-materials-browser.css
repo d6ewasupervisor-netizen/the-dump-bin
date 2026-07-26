@@ -167,14 +167,20 @@
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: #0f172a;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.94);
   border: 1px solid #1d4ed8;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  z-index: 4;
 }
 .mat-shell { position: relative; }
 .mat-selection-bar.show { display: flex; }
+.mat-selection-bar__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mat-selection-bar__count { color: #f8fafc; font-size: 15px; }
+.mat-selection-bar__count strong { font-size: 1.25em; color: #93c5fd; }
+.mat-selection-bar__size { color: #94a3b8; font-size: 12px; font-weight: 600; letter-spacing: 0.01em; }
 .mat-selection-bar__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .mat-modal {
@@ -207,32 +213,6 @@
 }
 .mat-modal__header h3 { margin: 0; color: #e2e8f0; font-size: 1.05rem; }
 
-.mat-pdf-toolbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-  color: #cbd5e1;
-  font-size: 13px;
-}
-.mat-pdf-pages {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
-}
-.mat-pdf-page {
-  border: 2px solid #1e293b;
-  background: #020617;
-  border-radius: 10px;
-  padding: 6px;
-  cursor: pointer;
-  color: #cbd5e1;
-}
-.mat-pdf-page.is-selected { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.25); }
-.mat-pdf-page canvas { width: 100%; height: auto; display: block; border-radius: 6px; }
-.mat-pdf-page__label { display: block; margin-top: 4px; font-size: 11px; }
-
 .mat-sel-row {
   display: flex;
   align-items: center;
@@ -258,23 +238,6 @@
   cursor: pointer;
 }
 
-.mat-pdf-zoom {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.mat-pdf-zoom button {
-  border: 0;
-  background: transparent;
-  color: #e2e8f0;
-  min-width: 36px;
-  min-height: 36px;
-  cursor: pointer;
-  font-weight: 700;
-}
 .mat-email-row {
   display: grid;
   grid-template-columns: auto 1fr;
