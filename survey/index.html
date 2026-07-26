@@ -86,6 +86,8 @@
     .qtext{font-size:1.125rem}
   }
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+  .card:focus{outline:none}
+  .card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .qtext{font-weight:600;margin-bottom:12px;line-height:1.35;font-size:1.0625rem}
   .opts{display:flex;flex-direction:column;gap:8px}
   .opts.row{flex-direction:row;flex-wrap:wrap}
@@ -1189,8 +1191,6 @@ function renderAnswerList() {
 // ─── One question at a time ──────────────────────────────────────────────────
 function renderQuestion(opts = {}) {
   PHASE = 'survey';
-  const focusDetail = !!opts.focusDetail;
-  const focusText = !!opts.focusText;
   setProgress();
   $('#stepnav').hidden = false;
   $('#btn-back').textContent = QINDEX <= 0 ? 'Answers' : 'Back';
@@ -1222,7 +1222,7 @@ function renderQuestion(opts = {}) {
     : '';
 
   main.innerHTML = `
-    <div class="card" id="q-card">
+    <div class="card" id="q-card" tabindex="-1">
       <div class="meta-line">Question ${QINDEX + 1} of ${FLAT.length} · ${esc(q.sectionTitle || q.section)}${isLocked() ? ' · locked' : ''}</div>
       <div class="eyebrow">${esc(storeLabel(STORE))}</div>
       <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + qDisplay)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
@@ -1242,35 +1242,17 @@ function renderQuestion(opts = {}) {
   } else {
     wireQuestion(q);
   }
+  // Keep focus at the top of the card so the question can be read first
+  // (do not auto-focus text inputs — that jumps the view and opens the keyboard)
   const card = $('#q-card');
   if (card) {
-    const rect = card.getBoundingClientRect();
-    if (rect.top < 80 || rect.top > window.innerHeight * 0.55) {
-      card.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
-  }
-
-  // Focus text fields so mobile keyboard opens
-  requestAnimationFrame(() => {
-    let target = null;
-    if (focusDetail) {
-      target = main.querySelector(`input[data-tq="${q.id}_d"]`);
-    } else if (focusText || q.type === 'text') {
-      target = main.querySelector(`input[data-tq="${q.id}"]`);
-    }
-    if (target) {
-      try {
-        target.focus({ preventScroll: false });
-        // Place caret at end
-        const len = target.value.length;
-        if (typeof target.setSelectionRange === 'function') {
-          target.setSelectionRange(len, len);
-        }
-      } catch (_) {
-        try { target.focus(); } catch (__) {}
+    card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      try { card.focus({ preventScroll: true }); } catch (_) {
+        try { card.focus(); } catch (__) {}
       }
-    }
-  });
+    });
+  }
 }
 
 function examplesBlock(examples, label) {
@@ -1497,8 +1479,8 @@ function wireQuestion(q) {
 
       const needsDetail = q.detailOn && val === q.detailOn;
       if (needsDetail) {
-        // Show text field and focus for keyboard
-        renderQuestion({ focusDetail: true });
+        // Show detail text field; keep focus at top of card for reading
+        renderQuestion();
         return;
       }
 
@@ -1553,7 +1535,7 @@ function wireQuestion(q) {
       const cur = FLAT[QINDEX];
       const needsDetail = cur && cur.detailOn && ANSWERS[qid] === cur.detailOn;
       if (needsDetail) {
-        renderQuestion({ focusDetail: true });
+        renderQuestion();
         return;
       }
       // Auto-advance for yes/no and choice when fully answered
@@ -1561,10 +1543,6 @@ function wireQuestion(q) {
         clearTimeout(autoAdvanceTimer);
         autoAdvanceTimer = setTimeout(() => goNext(true), 180);
         renderQuestion();
-        return;
-      }
-      if (cur && cur.type === 'text') {
-        renderQuestion({ focusText: true });
         return;
       }
       renderQuestion();
