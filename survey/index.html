@@ -150,6 +150,9 @@
     border-radius:12px;background:var(--opt-bg);cursor:pointer;min-height:var(--tap);color:var(--ink);width:100%;text-align:left;
   }
   .store-row.selected{border-color:var(--accent);background:var(--accent-soft)}
+  .store-row.completed{opacity:.62;border-style:dashed}
+  .store-row.completed strong{color:var(--ink-soft)}
+  option.completed{color:#6b7c8a}
   .eyebrow{font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:4px}
   .sel-section{margin-top:4px}
   .sel-section + .sel-section{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
@@ -472,15 +475,26 @@ function flattenQuestions(spec, answers) {
   return out;
 }
 
-function isAnswered(q) {
-  if (q.optional) return true;
-  // Free-text questions (and text-only follow-ups) can be skipped
-  if (q.type === 'text') return true;
+/** True when the user has entered a value (for review counts / display). */
+function hasAnswerValue(q) {
   const v = ANSWERS[q.id];
   if (v == null || v === '') return false;
   if (Array.isArray(v) && !v.length) return false;
-  // Detail / explanation fields (Qn_d) are always optional
   return true;
+}
+
+/** All questions are skippable — Next is never blocked for unanswered cards. */
+function isAnswered(_q) {
+  return true;
+}
+
+function confirmCompletedStore(sn, meta) {
+  const map = meta || storeMetaMap();
+  if (!isCompletedSurvey(map, sn)) return true;
+  return confirm(
+    storeLabel(sn) + ' has already been completed for this survey cycle.\n\n' +
+    'You can still open it to review answers or submit another response.'
+  );
 }
 
 function displayAnswer(q) {
@@ -500,7 +514,7 @@ function setProgress() {
     return;
   }
   if (PHASE === 'answers') {
-    const done = FLAT.filter(isAnswered).length;
+    const done = FLAT.filter(hasAnswerValue).length;
     const pct = Math.round((done / Math.max(FLAT.length, 1)) * 100);
     $('#prog').style.width = Math.min(100, pct) + '%';
     return;
@@ -839,9 +853,12 @@ function renderPicker() {
   const distOpts = districts.map((d) =>
     `<option value="${escAttr(d)}" ${String(addDistrict) === String(d) ? 'selected' : ''}>District ${esc(d)}</option>`
   ).join('');
-  const storeOpts = districtStores.map((sn) =>
-    `<option value="${sn}" ${Number(addStorePick) === sn || SELECTED_STORE === sn ? 'selected' : ''}>${esc(storeLabel(sn))}</option>`
-  ).join('');
+  const storeOpts = districtStores.map((sn) => {
+    const done = isCompletedSurvey(meta, sn);
+    const sel = Number(addStorePick) === sn || SELECTED_STORE === sn ? 'selected' : '';
+    const label = esc(storeLabel(sn)) + (done ? ' · completed' : '');
+    return `<option value="${sn}" class="${done ? 'completed' : ''}" ${sel}>${label}</option>`;
+  }).join('');
 
   // Today's list: remaining schedule stores + any manual pick not yet submitted
   const todayList = todayPending.slice();
@@ -909,7 +926,8 @@ function renderPicker() {
     ? recent.map((s) => {
         const when = formatUpdated(s.updatedAt);
         const st = s.status === 'submitted' ? 'submitted' : 'draft';
-        return `<button type="button" class="store-row" data-open-store="${s.storeNum}">
+        const completed = s.status === 'submitted';
+        return `<button type="button" class="store-row${completed ? ' completed' : ''}" data-open-store="${s.storeNum}">
           <span style="flex:1">
             <strong>${esc(storeLabel(s.storeNum))}</strong> · D${esc(s.district || '?')}
             <br><span class="hint">${st}${when ? ' · updated ' + esc(when) : ''} · tap to review / edit answers</span>
@@ -974,6 +992,7 @@ function renderPicker() {
   $('#btn-use-store').onclick = () => {
     const sn = Number(addStorePick);
     if (!Number.isFinite(sn)) return;
+    if (!confirmCompletedStore(sn, meta)) return;
     SELECTED_STORE = sn;
     // Already submitted → open from In progress path, not Today's list
     if (isCompletedSurvey(meta, sn)) {
@@ -1001,8 +1020,10 @@ function renderPicker() {
   });
   main.querySelectorAll('[data-open-store]').forEach((btn) => {
     btn.onclick = () => {
-      SELECTED_STORE = Number(btn.dataset.openStore);
-      openStore(SELECTED_STORE, { preferAnswers: true });
+      const sn = Number(btn.dataset.openStore);
+      if (!confirmCompletedStore(sn, meta)) return;
+      SELECTED_STORE = sn;
+      openStore(sn, { preferAnswers: true });
     };
   });
 
@@ -1105,9 +1126,9 @@ function renderAnswerList() {
   let answered = 0, total = 0;
   let html = '';
   FLAT.forEach((q, i) => {
-    if (!q.optional) total++;
-    const ok = isAnswered(q);
-    if (ok && !q.optional) answered++;
+    total++;
+    const ok = hasAnswerValue(q);
+    if (ok) answered++;
     const disp = displayAnswer(q);
     const label = disp == null
       ? '<span class="a empty">Not answered</span>'
@@ -1139,10 +1160,10 @@ function renderAnswerList() {
   main.innerHTML = `
     <div class="card">
       <div class="eyebrow">${esc(storeLabel(STORE))}</div>
-      <div class="qtext" style="margin-bottom:6px">${answered} of ${total} required answered</div>
+      <div class="qtext" style="margin-bottom:6px">${answered} of ${total} answered</div>
       <div class="hint">${statusLabel}. ${isLocked()
         ? 'These answers stay on record. Retake to add a new submission for this store — prior data is not overwritten.'
-        : 'Tap any question to edit. Use Home to switch stores anytime — progress is saved.'}</div>
+        : 'Every question is optional — skip any you don’t know. Tap a question to edit. Use Home to switch stores anytime — progress is saved.'}</div>
       <div class="stack-actions">${actions}</div>
     </div>
     <div class="card" style="padding:10px">${html || '<div class="sel-empty">No questions loaded.</div>'}</div>`;
@@ -1167,10 +1188,10 @@ function renderAnswerList() {
     btnContinue.onclick = () => {
       QINDEX = 0;
       for (let i = 0; i < FLAT.length; i++) {
-        if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
+        if (!hasAnswerValue(FLAT[i])) { QINDEX = i; break; }
         QINDEX = i;
       }
-      if (FLAT.length && FLAT.every(isAnswered)) QINDEX = FLAT.length;
+      if (FLAT.length && FLAT.every(hasAnswerValue)) QINDEX = FLAT.length;
       renderQuestion();
     };
   }
@@ -1202,15 +1223,11 @@ function renderQuestion(opts = {}) {
 
   const q = FLAT[QINDEX];
   $('#hdr-title').textContent = `${storeLabel(STORE)} · ${q.section}`;
-  if (isLocked()) {
-    $('#btn-next').textContent = QINDEX >= FLAT.length - 1 ? 'Done' : 'Next';
-    $('#btn-next').className = '';
-    $('#btn-next').disabled = false;
-  } else {
-    $('#btn-next').textContent = QINDEX >= FLAT.length - 1 ? 'Review' : 'Next';
-    $('#btn-next').className = '';
-    $('#btn-next').disabled = !isAnswered(q);
-  }
+  $('#btn-next').textContent = isLocked()
+    ? (QINDEX >= FLAT.length - 1 ? 'Done' : 'Next')
+    : (QINDEX >= FLAT.length - 1 ? 'Review' : 'Next');
+  $('#btn-next').className = '';
+  $('#btn-next').disabled = false;
 
   const common = isLocked() ? '' : commonChip(q);
   const body = questionBody(q);
@@ -1220,15 +1237,19 @@ function renderQuestion(opts = {}) {
   const lockNote = isLocked()
     ? '<div class="note" style="margin-top:8px">Submitted answers are locked. Retake to add a new response for this store.</div>'
     : '';
+  const skipHint = !isLocked() && !hasAnswerValue(q)
+    ? '<p class="skip-hint">Optional — tap Next if you don’t know or prefer not to answer.</p>'
+    : '';
 
   main.innerHTML = `
     <div class="card" id="q-card" tabindex="-1">
       <div class="meta-line">Question ${QINDEX + 1} of ${FLAT.length} · ${esc(q.sectionTitle || q.section)}${isLocked() ? ' · locked' : ''}</div>
       <div class="eyebrow">${esc(storeLabel(STORE))}</div>
-      <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + qDisplay)}${q.optional ? ' <span class="hint">(optional)</span>' : ''}</div>
+      <div class="qtext">${esc(q.id.replace(/^Q/, '') + '. ' + qDisplay)}</div>
       ${lockNote}
       ${common}
       ${body}
+      ${skipHint}
       ${photo}
       ${comment}
     </div>`;
@@ -1411,6 +1432,7 @@ function wireTypeahead(input, qid) {
 async function goNext(fromAuto) {
   if (PHASE === 'pick') {
     if (SELECTED_STORE == null) return;
+    if (!confirmCompletedStore(SELECTED_STORE)) return;
     await openStore(SELECTED_STORE, { preferAnswers: true });
     return;
   }
@@ -1421,10 +1443,10 @@ async function goNext(fromAuto) {
     }
     QINDEX = 0;
     for (let i = 0; i < FLAT.length; i++) {
-      if (!isAnswered(FLAT[i])) { QINDEX = i; break; }
+      if (!hasAnswerValue(FLAT[i])) { QINDEX = i; break; }
       QINDEX = i;
     }
-    if (FLAT.length && FLAT.every(isAnswered)) QINDEX = FLAT.length;
+    if (FLAT.length && FLAT.every(hasAnswerValue)) QINDEX = FLAT.length;
     renderQuestion();
     return;
   }
@@ -1455,7 +1477,6 @@ async function goNext(fromAuto) {
   }
   if (PHASE !== 'survey') return;
   const q = FLAT[QINDEX];
-  if (!isLocked() && !isAnswered(q)) return;
   if (!isLocked()) await saveDraft(false);
   QINDEX++;
   rebuildFlat();
@@ -1564,8 +1585,7 @@ function wireQuestion(q) {
 
 function refreshNextEnabled() {
   if (PHASE !== 'survey' || QINDEX >= FLAT.length) return;
-  const q = FLAT[QINDEX];
-  $('#btn-next').disabled = !isAnswered(q);
+  $('#btn-next').disabled = false;
 }
 
 function renderReview() {
@@ -1579,9 +1599,9 @@ function renderReview() {
   let html = '';
   rebuildFlat();
   FLAT.forEach((q, i) => {
-    if (!q.optional) total++;
-    const ok = isAnswered(q);
-    if (ok && !q.optional) answered++;
+    total++;
+    const ok = hasAnswerValue(q);
+    if (ok) answered++;
     const disp = displayAnswer(q);
     const label = disp == null
       ? '<span style="color:var(--danger)">Not answered</span>'
@@ -1598,8 +1618,8 @@ function renderReview() {
   });
   main.innerHTML = `
     <div class="card">
-      <div class="qtext">${answered} of ${total} required answered</div>
-      <div class="hint">Tap any question to change it. Submit locks this response on record. A later retake adds a new submission — it does not overwrite this one.</div>
+      <div class="qtext">${answered} of ${total} answered</div>
+      <div class="hint">Every question is optional. Tap any question to change it, or submit with blanks. Submit locks this response on record. A later retake adds a new submission — it does not overwrite this one.</div>
     </div>
     <div class="card" style="padding:10px">${html}</div>`;
   main.querySelectorAll('[data-jump]').forEach((b) => {

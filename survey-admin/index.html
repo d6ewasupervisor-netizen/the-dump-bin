@@ -216,6 +216,10 @@
   }
   .store-pick-list label:last-child{border-bottom:0}
   .store-pick-list label:hover{background:var(--row-hover)}
+  .store-pick-list label.done{
+    opacity:.58;background:color-mix(in srgb, var(--paper) 70%, var(--card));
+  }
+  .store-pick-list label.done strong{color:var(--ink-soft)}
   .store-pick-list input{width:auto;min-height:0;margin-top:2px}
   .success-box{background:var(--good-bg);border:1px solid #b7dfc7;border-radius:12px;padding:14px;margin-top:12px;display:none}
   .success-box.show{display:block}
@@ -1658,6 +1662,14 @@ function visibleStores() {
   return stores.filter((s) => STORE_DISTRICT_FILTER.has(String(s.district)));
 }
 
+function confirmCompletedAssignStore(sn, storeName) {
+  const label = storeName ? `${sn} · ${storeName}` : String(sn);
+  return confirm(
+    label + ' has already been completed for this survey cycle.\n\n' +
+    'You can still assign it so someone can redo the survey or add another response.'
+  );
+}
+
 function renderStorePicks() {
   const stores = FILTERS.stores || [];
   const distWrap = document.getElementById('dist-picks');
@@ -1687,9 +1699,10 @@ function renderStorePicks() {
     const sn = Number(s.store_num);
     const name = s.store_name || s.storeName || '';
     const state = covByNum.get(sn)?.state;
+    const done = state === 'done';
     const checked = SELECTED_STORES.has(sn) ? 'checked' : '';
-    return `<label>
-      <input type="checkbox" value="${sn}" ${checked}>
+    return `<label class="${done ? 'done' : ''}">
+      <input type="checkbox" value="${sn}" data-store-name="${escHtml(name)}" ${checked}>
       <span><strong>${sn}</strong> · ${escHtml(name || '—')} · D${escHtml(s.district || '—')}
         ${state ? ` <span class="status ${state}" style="margin-left:4px">${statusLabel(state)}</span>` : ''}
       </span>
@@ -1703,8 +1716,18 @@ function renderStorePicks() {
   list.querySelectorAll('input[type=checkbox]').forEach((cb) => {
     cb.onchange = () => {
       const n = Number(cb.value);
-      if (cb.checked) SELECTED_STORES.add(n);
-      else SELECTED_STORES.delete(n);
+      if (cb.checked) {
+        const cov = covByNum.get(n);
+        if (cov?.state === 'done') {
+          if (!confirmCompletedAssignStore(n, cb.dataset.storeName || cov.storeName || '')) {
+            cb.checked = false;
+            return;
+          }
+        }
+        SELECTED_STORES.add(n);
+      } else {
+        SELECTED_STORES.delete(n);
+      }
       updateStoreCount();
     };
   });
@@ -1730,6 +1753,16 @@ document.getElementById('pick-needs').onclick = () => {
   renderStorePicks();
 };
 document.getElementById('pick-visible').onclick = () => {
+  const covByNum = new Map((COVERAGE.stores || []).map((s) => [Number(s.storeNum), s]));
+  const doneStores = visibleStores().filter((s) => covByNum.get(Number(s.store_num))?.state === 'done');
+  if (doneStores.length) {
+    const ok = confirm(
+      doneStores.length + ' store' + (doneStores.length === 1 ? ' has' : 's have') +
+      ' already been completed for this survey cycle.\n\n' +
+      'Continue selecting them? They can still be assigned for a redo or another response.'
+    );
+    if (!ok) return;
+  }
   visibleStores().forEach((s) => SELECTED_STORES.add(Number(s.store_num)));
   renderStorePicks();
 };
