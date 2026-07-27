@@ -24,9 +24,10 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
-    <script src="eod-guest-handoff.js?v=2.9.10" defer></script>
-    <script src="eod-dept-signatures.js?v=2.9.10" defer></script>
-    <script src="eod-digital-signoff.js?v=2.9.10" defer></script>
+    <script src="eod-sms-optin-qr.js?v=2.9.11" defer></script>
+    <script src="eod-guest-handoff.js?v=2.9.11" defer></script>
+    <script src="eod-dept-signatures.js?v=2.9.11" defer></script>
+    <script src="eod-digital-signoff.js?v=2.9.11" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3248,7 +3249,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.10</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.11</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4418,7 +4419,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.10';
+        const EOD_APP_VERSION = '2.9.11';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
