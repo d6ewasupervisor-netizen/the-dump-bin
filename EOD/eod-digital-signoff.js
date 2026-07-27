@@ -185,8 +185,8 @@
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Load failed (${resp.status})`);
       sheet = data.sheet || null;
-      if (sheet?.requiredRoles?.length && window.EodDeptSignatures) {
-        // Future: filter role list — for now leave all roles available.
+      if (sheet?.requiredRoles?.length && window.EodDeptSignatures?.setRequiredRoles) {
+        window.EodDeptSignatures.setRequiredRoles(sheet.requiredRoles);
       }
       render();
       syncLegacyPickersFromMarks();
@@ -245,22 +245,30 @@
       // Side effects for NIS / Not in SI — reuse existing EOD handlers when possible.
       let prodCommentOk = null;
       let helpdeskSent = false;
+      let visitId = null;
+      let resetId = null;
+      const label = row.catName || row.dbkey;
+      if (label && typeof window.resolvePickerSetMatch === 'function') {
+        const match = window.resolvePickerSetMatch(label);
+        if (match?.visitId) visitId = match.visitId;
+        if (match?.set?.id != null) resetId = String(match.set.id);
+      }
+
       if (markType === 'not_in_store' || markType === 'not_in_si') {
-        const label = row.catName || row.dbkey;
         if (label && typeof window.handleNotInSideEffects === 'function') {
           try {
             await window.handleNotInSideEffects(
               markType === 'not_in_store' ? 'store' : 'si',
               label,
-              { fromOther: false }
+              { fromOther: false, fromDigitalSheet: true }
             );
             prodCommentOk = true;
+            if (markType === 'not_in_store') helpdeskSent = true;
           } catch (e) {
             console.warn('NIS side effects', e);
             prodCommentOk = false;
           }
         } else if (label) {
-          // Fallback: push into picker lists for EOD email.
           const list = markType === 'not_in_store' ? window.notInStoreSelected : window.notInSiSelected;
           if (Array.isArray(list) && !list.includes(label)) list.push(label);
         }
@@ -274,6 +282,8 @@
           workDate: date,
           date,
           markType,
+          visitId,
+          resetId,
           prodCommentOk,
           helpdeskSent,
         }),

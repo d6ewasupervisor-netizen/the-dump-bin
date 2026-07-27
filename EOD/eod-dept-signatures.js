@@ -60,6 +60,27 @@
     return (roles.find((r) => r.key === key) || {}).label || key;
   }
 
+  const ROLE_LABEL_BY_KEY = Object.fromEntries(ROLE_FALLBACK.map((r) => [r.key, r.label]));
+
+  function applyRequiredRoleKeys(keys) {
+    if (!Array.isArray(keys) || !keys.length) {
+      roles = ROLE_FALLBACK.slice();
+      renderRoleList();
+      return;
+    }
+    const seen = new Set();
+    roles = keys
+      .map((k) => String(k || '').trim().toLowerCase())
+      .filter((k) => {
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return ROLE_LABEL_BY_KEY[k];
+      })
+      .map((k) => ({ key: k, label: ROLE_LABEL_BY_KEY[k] }));
+    if (!roles.length) roles = ROLE_FALLBACK.slice();
+    renderRoleList();
+  }
+
   function ensureUi() {
     if (document.getElementById('deptSigSection')) return;
     const sigSection = document.querySelector('.signature-section');
@@ -550,6 +571,7 @@
     refresh,
     ensureUi,
     getCollectedForEmail,
+    setRequiredRoles: applyRequiredRoleKeys,
     roles: () => roles.slice(),
   };
 
