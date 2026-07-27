@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-07-14T04:40Z eod-v2.5-version-reload-fix -->
+<!-- build: 2026-07-27T06:00Z eod-v2.9.5-mobile-update-btn -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -248,14 +248,15 @@
         .eod-update-banner {
             display: none;
             margin: 0 0 16px;
-            padding: 12px 14px;
-            background: #1e3a5f;
-            border: 1px solid #2563eb;
-            border-radius: 8px;
-            color: #dbeafe;
+            padding: 14px 14px 12px;
+            background: linear-gradient(135deg, #0E2A47 0%, #1e3a5f 55%, #1e66ab 100%);
+            border: 1px solid #2F6FB0;
+            border-radius: 10px;
+            color: #e8f1f8;
             font-size: 14px;
             line-height: 1.45;
             text-align: left;
+            box-shadow: 0 8px 24px rgba(14, 42, 71, 0.35);
         }
 
         .eod-update-banner.visible {
@@ -263,7 +264,54 @@
         }
 
         .eod-update-banner strong {
-            color: #93c5fd;
+            color: #fff;
+            font-size: 15px;
+        }
+
+        .eod-update-banner-detail {
+            margin-top: 4px;
+            opacity: 0.95;
+            font-size: 13px;
+        }
+
+        .eod-update-banner-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .eod-update-banner-actions button {
+            appearance: none;
+            -webkit-appearance: none;
+            border: none;
+            border-radius: 8px;
+            min-height: var(--min-touch-target);
+            padding: 10px 16px;
+            font: inherit;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1 1 140px;
+            touch-action: manipulation;
+        }
+
+        .eod-update-banner-actions .eod-btn-update {
+            background: #fff;
+            color: #0E2A47;
+        }
+
+        .eod-update-banner-actions .eod-btn-update:active {
+            transform: scale(0.98);
+        }
+
+        .eod-update-banner-actions .eod-btn-later {
+            background: rgba(255, 255, 255, 0.12);
+            color: #dbeafe;
+            border: 1px solid rgba(255, 255, 255, 0.28);
         }
 
         /* Help desk wizard */
@@ -3180,8 +3228,11 @@
     </div>
     <div class="container">
         <div id="eodUpdateBanner" class="eod-update-banner" role="status" aria-live="polite">
-            <strong>App update installing</strong><br>
-            A new version is available. Your photos, signature, and form entries are saved on this device and will not be lost. Reloading automatically…
+            <div id="eodUpdateBannerText">
+                <strong>App update available</strong>
+                <div class="eod-update-banner-detail">A new version is ready. Your photos, signature, and form entries stay on this phone.</div>
+            </div>
+            <div class="eod-update-banner-actions" id="eodUpdateBannerActions"></div>
         </div>
         <div class="header" onclick="openQuickView()">
             <button class="refresh-connections-btn" id="refreshConnectionsBtn" onclick="event.stopPropagation(); refreshConnections();" title="Refresh SAS / Rebotics auth">
@@ -3194,7 +3245,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode">v2.9.2</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.5</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4361,15 +4412,18 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.4';
+        const EOD_APP_VERSION = '2.9.5';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
         const EOD_TEST_STORE = '999';
         const EOD_TEST_VISIT_ID = 'test-999-kompass-ise';
         const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
+        const EOD_RO_LOGO_URL = 'https://the-dump-bin.com/welcome/assets/retail-odyssey-banner.png';
         let eodTestMode = sessionStorage.getItem(EOD_TEST_MODE_KEY) === '1';
         let eodTestScenarioActive = false;
+        let eodUpdateActionsBound = false;
+        let eodUpdateAutoReloadTimer = null;
         const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
         window.EOD_API_BASE = EOD_API_BASE;
@@ -4647,10 +4701,41 @@
         function initEodTestMode() {
             const badge = document.getElementById('eodVersionBadge');
             if (badge) {
+                let longPressTimer = null;
+                let longPressFired = false;
+                const clearLongPress = () => {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                };
+                const startLongPress = (event) => {
+                    longPressFired = false;
+                    clearLongPress();
+                    longPressTimer = setTimeout(() => {
+                        longPressFired = true;
+                        if (typeof window.forceEodAppUpdate === 'function') {
+                            window.forceEodAppUpdate();
+                        }
+                    }, 650);
+                    if (event.cancelable) event.preventDefault();
+                };
                 badge.addEventListener('click', (event) => {
                     event.stopPropagation();
+                    if (longPressFired) {
+                        longPressFired = false;
+                        return;
+                    }
                     toggleEodTestMode();
                 });
+                badge.addEventListener('pointerdown', (event) => {
+                    event.stopPropagation();
+                    startLongPress(event);
+                });
+                badge.addEventListener('pointerup', clearLongPress);
+                badge.addEventListener('pointerleave', clearLongPress);
+                badge.addEventListener('pointercancel', clearLongPress);
+                badge.addEventListener('contextmenu', (event) => event.preventDefault());
             }
             applyEodTestModeUi();
             if (eodTestMode) {
@@ -8862,21 +8947,24 @@
             }
 
             const tableRows = rows.map(([label, value], i) => {
-                const bg = i % 2 ? '#172033' : '#111827';
+                const bg = i % 2 ? '#F5F9FC' : '#FFFFFF';
                 return `<tr>
-                    <td style="background:${bg};border:1px solid #334155;padding:8px 10px;color:#93c5fd;font-weight:600;width:40%;vertical-align:top;">${escapeHtml(label)}</td>
-                    <td style="background:${bg};border:1px solid #334155;padding:8px 10px;color:#e5e7eb;vertical-align:top;white-space:pre-wrap;word-break:break-word;">${escapeHtml(value == null || value === '' ? '—' : value)}</td>
+                    <td style="background:${bg};border:1px solid #BFD6EC;padding:8px 10px;color:#0E2A47;font-weight:600;width:40%;vertical-align:top;">${escapeHtml(label)}</td>
+                    <td style="background:${bg};border:1px solid #BFD6EC;padding:8px 10px;color:#1C2733;vertical-align:top;white-space:pre-wrap;word-break:break-word;">${escapeHtml(value == null || value === '' ? '—' : value)}</td>
                 </tr>`;
             }).join('');
             const notes = report.notes
-                ? `<div style="margin-top:10px;padding:10px;border:1px solid #334155;border-radius:8px;background:#111827;">
-                    <div style="font-weight:700;color:#93c5fd;margin-bottom:4px;">Notes</div>
-                    <div style="white-space:pre-wrap;color:#e5e7eb;">${escapeHtml(report.notes)}</div>
+                ? `<div style="margin:10px 12px 12px;padding:10px;border:1px solid #BFD6EC;border-radius:8px;background:#FFFFFF;">
+                    <div style="font-weight:700;color:#0E2A47;margin-bottom:4px;">Notes</div>
+                    <div style="white-space:pre-wrap;color:#1C2733;">${escapeHtml(report.notes)}</div>
                 </div>`
                 : '';
 
-            return `<div style="border:1px solid #1d4ed8;border-radius:10px;overflow:hidden;background:#0b1220;">
-                <div style="padding:10px 12px;background:linear-gradient(90deg,#0E2A47,#1e3a8a);color:#eff6ff;font-weight:700;font-size:13px;">
+            return `<div style="border:1px solid #BFD6EC;border-radius:10px;overflow:hidden;background:#FFFFFF;">
+                <div style="padding:12px 14px;background:#FFFFFF;border-bottom:3px solid #2F6FB0;">
+                    <img src="${EOD_RO_LOGO_URL}" alt="The Retail Odyssey Company" style="display:block;width:100%;max-width:100%;height:auto;border:0;">
+                </div>
+                <div style="padding:10px 12px;background:#E8F1F8;color:#0E2A47;font-weight:700;font-size:13px;">
                     Retail Odyssey · KOMPASS EOD summary
                 </div>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;">${tableRows}</table>
@@ -13245,7 +13333,7 @@ ${data.Notes || ''}`;
             return imageDataUrl;
         }
 
-        // ─── EOD hotfix version check (unattended reload; data in localStorage/IndexedDB) ───
+        // ─── EOD hotfix version check (mobile Update + cache-bust reload) ───
         (function startEodVersionWatch() {
             initEodTestMode();
 
@@ -13263,6 +13351,87 @@ ${data.Notes || ''}`;
                 }
             } catch (_) { /* private mode */ }
 
+            function hardNavigateForUpdate(remoteVersion) {
+                const version = remoteVersion || String(Date.now());
+                try {
+                    sessionStorage.setItem(EOD_PENDING_VERSION_KEY, version);
+                } catch (_) { /* private mode */ }
+                try {
+                    const u = new URL(window.location.href);
+                    u.searchParams.set('eodv', version);
+                    u.searchParams.set('_', String(Date.now()));
+                    // Drop any hash so iOS Safari does not reuse a sticky document.
+                    u.hash = '';
+                    window.location.replace(u.toString());
+                } catch {
+                    window.location.reload();
+                }
+            }
+
+            window.forceEodAppUpdate = function forceEodAppUpdate() {
+                hardNavigateForUpdate('force-' + Date.now());
+            };
+
+            function bindEodUpdateBannerActions(remoteVersion) {
+                const actionsEl = document.getElementById('eodUpdateBannerActions');
+                if (!actionsEl) return;
+                if (!eodUpdateActionsBound) {
+                    eodUpdateActionsBound = true;
+                    const updateBtn = document.createElement('button');
+                    updateBtn.type = 'button';
+                    updateBtn.className = 'eod-btn-update';
+                    updateBtn.id = 'eodUpdateNowBtn';
+                    updateBtn.textContent = 'Update';
+                    updateBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (eodUpdateAutoReloadTimer) {
+                            clearTimeout(eodUpdateAutoReloadTimer);
+                            eodUpdateAutoReloadTimer = null;
+                        }
+                        hardNavigateForUpdate(updateBtn.dataset.remoteVersion || remoteVersion);
+                    });
+                    actionsEl.appendChild(updateBtn);
+
+                    const laterBtn = document.createElement('button');
+                    laterBtn.type = 'button';
+                    laterBtn.className = 'eod-btn-later';
+                    laterBtn.textContent = 'Later';
+                    laterBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (eodUpdateAutoReloadTimer) {
+                            clearTimeout(eodUpdateAutoReloadTimer);
+                            eodUpdateAutoReloadTimer = null;
+                        }
+                        const banner = document.getElementById('eodUpdateBanner');
+                        if (banner) banner.classList.remove('visible');
+                    });
+                    actionsEl.appendChild(laterBtn);
+                }
+                const updateBtn = document.getElementById('eodUpdateNowBtn');
+                if (updateBtn && remoteVersion) {
+                    updateBtn.dataset.remoteVersion = remoteVersion;
+                }
+            }
+
+            function renderEodUpdateBanner({ title, detail, remoteVersion, autoReload }) {
+                const banner = document.getElementById('eodUpdateBanner');
+                const textEl = document.getElementById('eodUpdateBannerText');
+                if (!banner || !textEl) return;
+                bindEodUpdateBannerActions(remoteVersion);
+                textEl.innerHTML =
+                    `<strong>${title}</strong>` +
+                    `<div class="eod-update-banner-detail">${detail}</div>`;
+                banner.classList.add('visible');
+                if (autoReload) {
+                    if (eodUpdateAutoReloadTimer) clearTimeout(eodUpdateAutoReloadTimer);
+                    eodUpdateAutoReloadTimer = setTimeout(() => {
+                        hardNavigateForUpdate(remoteVersion);
+                    }, EOD_UPDATE_AUTO_RELOAD_MS);
+                }
+            }
+
             async function fetchLiveEodVersion() {
                 try {
                     const url = EOD_VERSION_URL + '?t=' + Date.now();
@@ -13276,37 +13445,28 @@ ${data.Notes || ''}`;
             }
 
             function showStaleCacheBanner(remoteVersion) {
-                const banner = document.getElementById('eodUpdateBanner');
-                if (!banner) return;
-                banner.classList.add('visible');
-                banner.innerHTML =
-                    '<strong>Update ready — hard refresh needed</strong><br>' +
-                    `This tab is still on v${EOD_APP_VERSION} (server is v${escapeHtml(remoteVersion)}). ` +
-                    'Your form data is saved. Do a hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac).';
+                renderEodUpdateBanner({
+                    title: 'Update ready',
+                    detail:
+                        `This phone is still on v${EOD_APP_VERSION} (server is v${escapeHtml(remoteVersion)}). ` +
+                        'Your form data is saved. Tap <strong>Update</strong> to load the new app.',
+                    remoteVersion,
+                    autoReload: false,
+                });
             }
 
             function triggerEodHotfixReload(remoteVersion) {
                 try {
                     sessionStorage.setItem(EOD_PENDING_VERSION_KEY, remoteVersion);
                 } catch (_) { /* private mode */ }
-                const banner = document.getElementById('eodUpdateBanner');
-                if (banner) {
-                    banner.classList.add('visible');
-                    banner.innerHTML =
-                        '<strong>App update installing</strong><br>' +
-                        'A new version is available. Your photos, signature, and form entries are saved on this device and will not be lost. Reloading automatically…';
-                }
-                // Bust HTML cache: reload with a cache-busting query (preserves hash).
-                setTimeout(() => {
-                    try {
-                        const u = new URL(window.location.href);
-                        u.searchParams.set('eodv', remoteVersion);
-                        u.searchParams.set('_', String(Date.now()));
-                        window.location.replace(u.toString());
-                    } catch {
-                        window.location.reload();
-                    }
-                }, EOD_UPDATE_AUTO_RELOAD_MS);
+                renderEodUpdateBanner({
+                    title: 'App update available',
+                    detail:
+                        'A new version is ready. Your photos, signature, and form entries stay on this phone. ' +
+                        'Reloading automatically — or tap <strong>Update</strong> now.',
+                    remoteVersion,
+                    autoReload: true,
+                });
             }
 
             async function checkEodVersion() {
@@ -13317,6 +13477,8 @@ ${data.Notes || ''}`;
                             sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
                         }
                     } catch (_) { /* private mode */ }
+                    const banner = document.getElementById('eodUpdateBanner');
+                    if (banner) banner.classList.remove('visible');
                     return;
                 }
 
