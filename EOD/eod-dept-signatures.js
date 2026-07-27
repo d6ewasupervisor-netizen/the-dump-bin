@@ -188,6 +188,9 @@
             <button type="button" class="btn btn-primary" data-dept-sig-collect="${escapeHtml(role.key)}">
               ${collected ? 'Re-collect' : 'Hand to signer'}
             </button>
+            <button type="button" class="btn btn-secondary" data-dept-sig-send="${escapeHtml(role.key)}" title="Text or email a secure link">
+              Send text
+            </button>
             ${collected ? `<button type="button" class="btn btn-secondary" data-dept-sig-clear="${escapeHtml(role.key)}">Clear</button>` : ''}
           </div>
         </div>`;
@@ -195,6 +198,20 @@
 
     host.querySelectorAll('[data-dept-sig-collect]').forEach((btn) => {
       btn.onclick = () => openWizard(btn.getAttribute('data-dept-sig-collect'));
+    });
+    host.querySelectorAll('[data-dept-sig-send]').forEach((btn) => {
+      btn.onclick = () => {
+        const roleKey = btn.getAttribute('data-dept-sig-send');
+        const sig = byRole.get(roleKey);
+        const contact = sig
+          ? { fullName: sig.signerName, email: sig.signerEmail }
+          : contacts.find((c) => false);
+        if (window.EodGuestHandoff?.sendDeptHandoff) {
+          window.EodGuestHandoff.sendDeptHandoff(roleKey, roleLabel(roleKey), sig ? { fullName: sig.signerName, email: sig.signerEmail } : null);
+        } else if (typeof showAlert === 'function') {
+          showAlert('Not loaded', 'Guest handoff module is not available.');
+        }
+      };
     });
     host.querySelectorAll('[data-dept-sig-clear]').forEach((btn) => {
       btn.onclick = () => clearRole(btn.getAttribute('data-dept-sig-clear'));
@@ -281,7 +298,7 @@
       if (typeof showAlert === 'function') showAlert('Date required', 'Select the shift / work date first.');
       return;
     }
-    wizard = { roleKey, step: contacts.length ? 'pick' : 'name', contactId: null, fullName: '', email: '' };
+    wizard = { roleKey, step: contacts.length ? 'pick' : 'name', contactId: null, fullName: '', email: '', title: '' };
     renderWizard();
     document.getElementById('deptSigWizardOverlay')?.classList.add('show');
   }
@@ -294,9 +311,10 @@
   function wizardBack() {
     if (!wizard) return;
     if (wizard.step === 'email') wizard.step = 'name';
+    else if (wizard.step === 'title') wizard.step = 'email';
     else if (wizard.step === 'name' && contacts.length) wizard.step = 'pick';
     else if (wizard.step === 'sign') {
-      wizard.step = wizard.contactId || wizard.email ? 'confirm' : 'email';
+      wizard.step = wizard.contactId || wizard.email ? 'confirm' : 'title';
     } else if (wizard.step === 'confirm') {
       wizard.step = contacts.length ? 'pick' : 'name';
     }
@@ -328,6 +346,12 @@
         return;
       }
       wizard.email = email;
+      wizard.step = 'title';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'title') {
+      wizard.title = (body.querySelector('#deptSigTitleInput')?.value || '').trim();
       wizard.step = 'confirm';
       renderWizard();
       return;
@@ -404,10 +428,18 @@
       setTimeout(() => document.getElementById('deptSigEmailInput')?.focus(), 50);
       return;
     }
+    if (wizard.step === 'title') {
+      hint.textContent = 'What is your title? (e.g. Bakery Manager, Produce PIC)';
+      next.textContent = 'Continue';
+      body.innerHTML = `<div class="field"><label>Title</label>
+        <input type="text" id="deptSigTitleInput" value="${escapeHtml(wizard.title)}" autocomplete="organization-title" style="width:100%;"></div>`;
+      setTimeout(() => document.getElementById('deptSigTitleInput')?.focus(), 50);
+      return;
+    }
     if (wizard.step === 'confirm') {
       hint.innerHTML = `You will only need to enter your information once because our system remembers who you are at this store.<br><strong>You will still be asked to sign each time.</strong>`;
       next.textContent = 'Continue to signature';
-      body.innerHTML = `<p style="margin:0;"><strong>${escapeHtml(wizard.fullName)}</strong><br>${escapeHtml(wizard.email)}</p>`;
+      body.innerHTML = `<p style="margin:0;"><strong>${escapeHtml(wizard.fullName)}</strong>${wizard.title ? ` · ${escapeHtml(wizard.title)}` : ''}<br>${escapeHtml(wizard.email)}</p>`;
       return;
     }
     if (wizard.step === 'sign') {
@@ -507,6 +539,7 @@
           roleKey: wizard.roleKey,
           fullName: wizard.fullName,
           email: wizard.email,
+          signerTitle: wizard.title || undefined,
           signatureDataUrl: dataUrl,
         }),
       });
@@ -561,6 +594,7 @@
       roleKey: s.roleKey,
       roleLabel: roleLabel(s.roleKey),
       signerName: s.signerName,
+      signerTitle: s.signerTitle,
       signerEmail: s.signerEmail,
       signatureUrl: s.signatureUrl,
       createdAt: s.createdAt,

@@ -24,8 +24,9 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
-    <script src="eod-dept-signatures.js?v=2.9.9" defer></script>
-    <script src="eod-digital-signoff.js?v=2.9.9" defer></script>
+    <script src="eod-guest-handoff.js?v=2.9.10" defer></script>
+    <script src="eod-dept-signatures.js?v=2.9.10" defer></script>
+    <script src="eod-digital-signoff.js?v=2.9.10" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3247,7 +3248,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.9</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.10</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4131,6 +4132,7 @@
             </div>
             <div class="button-group" style="flex-wrap:wrap; gap:8px;">
                 <button class="btn btn-secondary" type="button" onclick="closeInstaworkAck()">Got It</button>
+                <button class="btn btn-secondary" type="button" onclick="EodGuestHandoff.sendTimesheetHandoff('instawork')">Send text / email link</button>
                 <button class="btn btn-primary" type="button" id="printInstaworkTimesheetBtn" onclick="printEodTimesheet('instawork')">Print InstaWork Time Sheet</button>
             </div>
         </div>
@@ -4156,6 +4158,7 @@
             </div>
             <div class="button-group" style="flex-wrap:wrap; gap:8px;">
                 <button class="btn btn-secondary" type="button" onclick="closeKompassTimesheetAck()">Got It</button>
+                <button class="btn btn-secondary" type="button" onclick="EodGuestHandoff.sendTimesheetHandoff('kompass')">Send text / email link</button>
                 <button class="btn btn-primary" type="button" id="printKompassTimesheetBtn" onclick="printEodTimesheet('kompass')">Print Kompass Time Sheet</button>
             </div>
         </div>
@@ -4415,7 +4418,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.9';
+        const EOD_APP_VERSION = '2.9.10';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -9158,7 +9161,7 @@
                 ? `Digital signoff: ${digitalSummary.summary.marked}/${digitalSummary.summary.total} marked (Complete ${digitalSummary.summary.complete}, NIS ${digitalSummary.summary.notInStore}, Not in SI ${digitalSummary.summary.notInSi})`
                 : 'Digital signoff: none loaded';
             const deptSigLine = deptSigs.length
-                ? `Department signatures: ${deptSigs.map((s) => `${s.roleLabel}=${s.signerName}`).join('; ')}`
+                ? `Department signatures: ${deptSigs.map((s) => `${s.roleLabel}=${s.signerName}${s.signerTitle ? ` (${s.signerTitle})` : ''}`).join('; ')}`
                 : 'Department signatures: none';
 
             const signoffCount = eodSelections.signoff.length > 0
