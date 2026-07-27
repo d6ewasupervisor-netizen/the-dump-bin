@@ -52,7 +52,8 @@
     section.innerHTML = `
       <div class="section-title" style="color:#7dd3fc;">Digital Signoff Sheet</div>
       <p class="sets-help" id="digitalSignoffHelp" style="margin:0 0 10px;">
-        Hosted completion worksheet for this store. Mark each set Complete, Not In Store, or Not In SI.
+        Hosted completion worksheet for this store. Toggle K/L/M independently — a set can be
+        <strong>Complete</strong> and <strong>Not in SI</strong> at the same time, like the paper sheet.
         Not In Store / Not In SI still update PROD comments and can open the help desk flow.
       </p>
       <div id="digitalSignoffSummary" class="sets-help" style="margin-bottom:10px;"></div>
@@ -81,7 +82,12 @@
         .ds-row-marked-complete { background:rgba(22,101,52,.25); }
         .ds-row-marked-nis { background:rgba(127,29,29,.28); }
         .ds-row-marked-nisi { background:rgba(120,53,15,.28); }
-        .ds-mark-pill { display:inline-block; font-size:11px; padding:2px 6px; border-radius:999px; background:#1e293b; }
+        .ds-actions button.ds-mark-on { outline: 2px solid #38bdf8; font-weight: 600; }
+        .ds-actions button.ds-mark-on[data-mark="complete"] { background: #166534; border-color: #22c55e; }
+        .ds-actions button.ds-mark-on[data-mark="not_in_store"] { background: #7f1d1d; border-color: #f87171; }
+        .ds-actions button.ds-mark-on[data-mark="not_in_si"] { background: #78350f; border-color: #fbbf24; }
+        .ds-row-marked-complete.ds-row-marked-nisi { background: linear-gradient(90deg, rgba(22,101,52,.25), rgba(120,53,15,.28)); }
+        .ds-mark-pill { display:inline-block; font-size:11px; padding:2px 6px; margin:1px 2px 1px 0; border-radius:999px; background:#1e293b; }
       `;
       document.head.appendChild(style);
     }
@@ -100,6 +106,39 @@
         );
       }
     };
+  }
+
+  function rowMarks(row) {
+    return row?.marks || row?.mark || null;
+  }
+
+  function markIsActive(row, markType) {
+    const m = rowMarks(row);
+    if (!m) return false;
+    if (Array.isArray(m.active)) return m.active.includes(markType);
+    if (markType === 'complete') return !!m.complete;
+    if (markType === 'not_in_store') return !!m.notInStore;
+    if (markType === 'not_in_si') return !!m.notInSi;
+    return m.type === markType;
+  }
+
+  function markStatusHtml(row) {
+    const m = rowMarks(row);
+    if (!m?.active?.length && !m?.type) {
+      return '<span class="ds-mark-pill">open</span>';
+    }
+    const types = Array.isArray(m.active) && m.active.length
+      ? m.active
+      : [m.type].filter(Boolean);
+    return types.map((t) => `<span class="ds-mark-pill">${escapeHtml(t.replace(/_/g, ' '))}</span>`).join(' ');
+  }
+
+  function rowClassForMarks(row) {
+    const classes = [];
+    if (markIsActive(row, 'complete')) classes.push('ds-row-marked-complete');
+    if (markIsActive(row, 'not_in_store')) classes.push('ds-row-marked-nis');
+    if (markIsActive(row, 'not_in_si')) classes.push('ds-row-marked-nisi');
+    return classes.join(' ');
   }
 
   function render() {
@@ -137,13 +176,13 @@
         </thead>
         <tbody>
           ${(sheet.rows || []).map((row) => {
-            const mark = row.mark;
-            const cls = mark?.type === 'complete' ? 'ds-row-marked-complete'
-              : mark?.type === 'not_in_store' ? 'ds-row-marked-nis'
-              : mark?.type === 'not_in_si' ? 'ds-row-marked-nisi' : '';
-            const status = mark
-              ? `<span class="ds-mark-pill">${escapeHtml(mark.type.replace(/_/g, ' '))}</span>`
-              : '<span class="ds-mark-pill">open</span>';
+            const cls = rowClassForMarks(row);
+            const status = markStatusHtml(row);
+            const btn = (type, label) => {
+              const on = markIsActive(row, type);
+              return `<button type="button" class="btn ${type === 'complete' ? 'btn-primary' : 'btn-secondary'}${on ? ' ds-mark-on' : ''}" data-mark="${type}">${on ? '✓ ' : ''}${label}</button>`;
+            };
+            const hasAny = !!(rowMarks(row)?.active?.length || rowMarks(row)?.type);
             return `<tr class="${cls}" data-row-id="${row.id}">
               <td><strong>${escapeHtml(row.catName || row.catId || '—')}</strong>
                 <div style="color:#94a3b8;font-size:12px;">${escapeHtml(row.week || '')} ${escapeHtml(row.shiftType || '')}</div></td>
@@ -151,10 +190,10 @@
               <td>${escapeHtml(row.dept || '—')}</td>
               <td>${status}</td>
               <td class="ds-actions">
-                <button type="button" class="btn btn-primary" data-mark="complete">Complete</button>
-                <button type="button" class="btn btn-secondary" data-mark="not_in_store">Not in store</button>
-                <button type="button" class="btn btn-secondary" data-mark="not_in_si">Not in SI</button>
-                ${mark ? '<button type="button" class="btn btn-secondary" data-mark="clear">Undo</button>' : ''}
+                ${btn('complete', 'Complete')}
+                ${btn('not_in_store', 'Not in store')}
+                ${btn('not_in_si', 'Not in SI')}
+                ${hasAny ? '<button type="button" class="btn btn-secondary" data-mark="clear">Clear row</button>' : ''}
               </td>
             </tr>`;
           }).join('')}
@@ -203,10 +242,10 @@
     for (const row of sheet.rows) {
       const label = row.catName || row.dbkey;
       if (!label) continue;
-      if (row.mark?.type === 'not_in_store' && !window.notInStoreSelected.includes(label)) {
+      if (markIsActive(row, 'not_in_store') && !window.notInStoreSelected.includes(label)) {
         window.notInStoreSelected.push(label);
       }
-      if (row.mark?.type === 'not_in_si' && !window.notInSiSelected.includes(label)) {
+      if (markIsActive(row, 'not_in_si') && !window.notInSiSelected.includes(label)) {
         window.notInSiSelected.push(label);
       }
     }
@@ -242,7 +281,27 @@
         return;
       }
 
-      // Side effects for NIS / Not in SI — reuse existing EOD handlers when possible.
+      const togglingOff = markIsActive(row, markType);
+      if (togglingOff) {
+        const resp = await authFetch(
+          `${API}/rows/${encodeURIComponent(rowId)}/mark?markType=${encodeURIComponent(markType)}`,
+          {
+            method: 'DELETE',
+            headers: dayConfirmHeaders(),
+            body: JSON.stringify({ storeNumber: store, workDate: date, date, markType }),
+          }
+        );
+        const data = await resp.json().catch(() => ({}));
+        if (resp.status === 412) {
+          if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+          throw new Error('Confirm today\'s store first');
+        }
+        if (!resp.ok) throw new Error(data.error || 'Clear mark failed');
+        await refresh();
+        return;
+      }
+
+      // Side effects when turning ON Not in store / Not in SI.
       let prodCommentOk = null;
       let helpdeskSent = false;
       let visitId = null;
@@ -312,7 +371,7 @@
       rows: (sheet.rows || []).map((r) => ({
         dbkey: r.dbkey,
         catName: r.catName,
-        mark: r.mark?.type || null,
+        marks: r.marks?.active || (r.mark?.type ? [r.mark.type] : []),
       })),
     };
   }
