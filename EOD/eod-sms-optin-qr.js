@@ -4,7 +4,7 @@
 
   const STORAGE_KEY = 'eodSmsOptinQrExpanded';
   const LABEL = 'Share QR code with team or Store PICs to opt into text alerts.';
-  const QR_SRC = 'assets/tactag-sms-optin-qr.svg';
+  const QR_SRC = 'assets/tactag-sms-optin-qr.svg?v=2.10.1';
 
   function isExpanded() {
     try {
@@ -21,7 +21,14 @@
   }
 
   function ensureUi() {
-    if (document.getElementById('eodSmsOptinQrBlock')) return;
+    // Rebuild if an older broken QR block is still on the page (e.g. soft nav).
+    const existing = document.getElementById('eodSmsOptinQrBlock');
+    if (existing) {
+      const img = existing.querySelector('.eod-sms-optin-qr__img');
+      if (img && String(img.getAttribute('src') || '').includes('v=2.10.1')) return;
+      existing.remove();
+      document.getElementById('eodSmsOptinQrStyles')?.remove();
+    }
 
     const container = document.querySelector('.container');
     if (!container) return;
@@ -36,7 +43,7 @@
       </button>
       <div class="eod-sms-optin-qr__panel" id="eodSmsOptinQrPanel" hidden>
         <div class="eod-sms-optin-qr__tile">
-          <img src="${QR_SRC}" width="296" height="296" alt="QR code — scan to open tactag.app/sms" class="eod-sms-optin-qr__img">
+          <img src="${QR_SRC}" width="296" height="296" alt="QR code — scan to open tactag.app/sms" class="eod-sms-optin-qr__img" decoding="async">
         </div>
         <p class="eod-sms-optin-qr__cta">Text JOIN to (509) 572-9212</p>
         <p class="eod-sms-optin-qr__url">tactag.app/sms</p>
@@ -96,24 +103,23 @@
         .eod-sms-optin-qr__panel[hidden] { display: none !important; }
         .eod-sms-optin-qr__tile {
           background: #ffffff;
-          padding: clamp(8px, 2.5vw, 14px);
+          padding: 12px;
           border-radius: 8px;
           line-height: 0;
-          width: min(72vw, min(296px, 70vh));
-          max-width: 100%;
+          width: min(78vw, 320px);
+          max-width: calc(100vw - 48px);
           box-sizing: border-box;
         }
         .eod-sms-optin-qr__img {
           display: block;
-          width: 100%;
-          height: auto;
-          aspect-ratio: 1 / 1;
+          width: 100% !important;
+          height: auto !important;
           max-width: 100%;
-          min-width: 0;
-          min-height: 0;
+          aspect-ratio: 1 / 1;
+          object-fit: contain;
         }
         @media (max-width: 380px) {
-          .eod-sms-optin-qr__tile { width: min(86vw, 70vh); }
+          .eod-sms-optin-qr__tile { width: min(88vw, 320px); padding: 10px; }
           .eod-sms-optin-qr__cta { font-size: 14px; }
           .eod-sms-optin-qr__url { font-size: 12px; }
         }
