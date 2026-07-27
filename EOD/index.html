@@ -24,8 +24,8 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
-    <script src="eod-dept-signatures.js?v=2.9.6" defer></script>
-    <script src="eod-digital-signoff.js?v=2.9.6" defer></script>
+    <script src="eod-dept-signatures.js?v=2.9.7" defer></script>
+    <script src="eod-digital-signoff.js?v=2.9.7" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3247,7 +3247,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.6</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.7</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3516,6 +3516,7 @@
                             <option value="688">
                             <option value="691">
                             <option value="694">
+                            <option value="999">
                         </datalist>
                     </div>
                     <div class="field">
@@ -4414,12 +4415,19 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.6';
+        const EOD_APP_VERSION = '2.9.7';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
         const EOD_TEST_STORE = '999';
         const EOD_TEST_VISIT_ID = 'test-999-kompass-ise';
+        const EOD_TEST_SETS_SOURCE_STORE = '19';
+        const EOD_TEST_LEAD_NAME = 'd6ewa.supervisor';
+        const EOD_TEST_LEAD_EMAIL = 'd6ewa.supervisor@gmail.com';
+        const EOD_TEST_INSTAWORK = [
+            { employeeId: 'test-iw-ftrkc16', name: '16 Fast Track C', workdayId: 'Ftrkc16' },
+            { employeeId: 'test-iw-ftrkc17', name: '17 Fast Track C', workdayId: 'Ftrkc17' },
+        ];
         const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
         const EOD_RO_LOGO_URL = 'https://the-dump-bin.com/welcome/assets/retail-odyssey-banner.png';
         let eodTestMode = sessionStorage.getItem(EOD_TEST_MODE_KEY) === '1';
@@ -4531,11 +4539,14 @@
             if (dateEl && !dateEl.value) dateEl.value = todayLocalIsoDate();
             const workDate = (dateEl?.value || todayLocalIsoDate()).trim();
 
-            // Prefill lead from profile when blank.
+            // Demo lead is always d6ewa.supervisor (not the logged-in profile).
             const leadEl = document.getElementById('leadName');
-            const profileName = (document.getElementById('profileName')?.value || '').trim();
-            const profileEmail = (document.getElementById('profileEmail')?.value || '').trim();
-            if (leadEl && !leadEl.value.trim() && profileName) leadEl.value = profileName;
+            if (leadEl) leadEl.value = EOD_TEST_LEAD_NAME;
+            const profileNameEl = document.getElementById('profileName');
+            const profileEmailEl = document.getElementById('profileEmail');
+            if (profileNameEl) profileNameEl.value = EOD_TEST_LEAD_NAME;
+            if (profileEmailEl) profileEmailEl.value = EOD_TEST_LEAD_EMAIL;
+            try { saveProfile(); } catch (_) { /* ignore */ }
 
             let reports = [];
             try {
@@ -4549,12 +4560,11 @@
                 console.warn('[test-mode] could not load direct reports:', err);
             }
 
-            const leadName = profileName || (leadEl?.value || '').trim() || 'Test Lead';
             const members = [
                 {
-                    employeeId: 'test-lead-self',
-                    name: leadName,
-                    email: profileEmail || EOD_TEST_RECIPIENT,
+                    employeeId: 'test-lead-d6ewa',
+                    name: EOD_TEST_LEAD_NAME,
+                    email: EOD_TEST_LEAD_EMAIL,
                     isLead: true,
                     title: 'Lead',
                     shiftTime: '05:00 – 14:00',
@@ -4567,6 +4577,16 @@
                     title: emp.title || '',
                     shiftTime: '05:00 – 14:00',
                 })),
+                ...EOD_TEST_INSTAWORK.map((iw) => ({
+                    employeeId: iw.employeeId,
+                    name: iw.name,
+                    email: '',
+                    workdayId: iw.workdayId,
+                    isLead: false,
+                    title: 'InstaWork',
+                    shiftTime: '05:00 – 14:00',
+                    _instawork: true,
+                })),
             ];
 
             // Deduplicate by employeeId / name (lead may also appear in reports).
@@ -4577,7 +4597,6 @@
                     ? `id:${m.employeeId}`
                     : `name:${String(m.name || '').toLowerCase()}`;
                 if (seen.has(key)) continue;
-                // Prefer keeping the lead entry when names collide.
                 if (
                     !m.isLead
                     && uniqueMembers.some((u) => String(u.name || '').toLowerCase() === String(m.name || '').toLowerCase())
@@ -4597,7 +4616,7 @@
                 scheduledDate: workDate,
                 totalHours: 8,
                 currentStatus: 'active',
-                visitLead: leadName,
+                visitLead: EOD_TEST_LEAD_NAME,
                 empCount: uniqueMembers.length,
                 shiftTime: '05:00 – 14:00',
                 _testMock: true,
@@ -4641,7 +4660,7 @@
                         <div class="sm-member-row">
                             <div class="sm-member-info">
                                 <div class="sm-member-name">
-                                    ${emp.isLead ? '<span class="sm-lead-star">&#9733;</span>' : ''}${escapeHtml(emp.name || 'Unknown')}${emp.isLead ? ' (Lead)' : ''}
+                                    ${emp.isLead ? '<span class="sm-lead-star">&#9733;</span>' : ''}${escapeHtml(emp.name || 'Unknown')}${emp.isLead ? ' (Lead)' : ''}${emp._instawork ? ' <span style="color:#fbbf24;font-size:11px;">(IW)</span>' : ''}
                                 </div>
                             </div>
                             <div class="sm-member-time">${escapeHtml(emp.shiftTime || '')}</div>
@@ -4649,18 +4668,79 @@
                 }
             }
 
+            // Clone store 19 digital sheet → 999 and load those rows as mock PROD sets.
+            let demoSets = [];
+            let demoWeek = '';
+            try {
+                const cloneResp = await authFetch(`${EOD_API_BASE}/api/digital-signoffs/demo-clone`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sourceStore: EOD_TEST_SETS_SOURCE_STORE,
+                        targetStore: EOD_TEST_STORE,
+                        date: workDate,
+                        clearMarks: true,
+                    }),
+                });
+                const cloneData = await cloneResp.json().catch(() => ({}));
+                if (!cloneResp.ok || !cloneData.ok) {
+                    throw new Error(cloneData.error || `demo-clone failed (${cloneResp.status})`);
+                }
+                const sheet = cloneData.sheet;
+                demoWeek = sheet?.fiscalWeek || cloneData.targetFiscalWeek || '';
+                demoSets = (sheet?.rows || []).map((row, idx) => ({
+                    id: `test-reset-${row.id || idx}`,
+                    name: row.catName || row.pog || row.dbkey || `Set ${idx + 1}`,
+                    number: row.catId != null ? row.catId : null,
+                    planogramId: row.dbkey || null,
+                    dbkey: row.dbkey || null,
+                    version: null,
+                    footage: row.size || null,
+                    resetType: row.shiftType || 'ISE',
+                    _testMock: true,
+                    _digitalRowId: row.id,
+                })).filter((s) => s.name);
+            } catch (err) {
+                console.warn('[test-mode] demo-clone / store-19 sets failed:', err);
+            }
+
+            const label = `Kompass ISE · Store #${EOD_TEST_STORE} (TEST)`;
+            allShiftsSetsMap = {
+                [EOD_TEST_VISIT_ID]: {
+                    label,
+                    shift: smSelectedShift,
+                    sets: demoSets,
+                },
+            };
+            notInPickerShiftId = EOD_TEST_VISIT_ID;
+            shiftSets = demoSets;
+            syncEodWizardGlobals();
+            if (typeof renderShiftPickerDropdown === 'function') renderShiftPickerDropdown();
+            if (typeof renderSetsPickers === 'function') renderSetsPickers();
+
             try { await loadStoreData(EOD_TEST_STORE); } catch (_) { /* ignore */ }
             try { autoSave(); } catch (_) { /* ignore */ }
 
-            // Mint day-confirm for store 999 so send/fax paths work immediately.
+            // Mint day-confirm for store 999 so send/fax / digital mark paths work.
             try {
                 await ensureDayConfirmForTestStore(workDate);
             } catch (err) {
                 console.warn('[test-mode] day-confirm for 999 failed:', err);
             }
 
+            if (typeof window.EodDigitalSignoff?.refresh === 'function') {
+                try { await window.EodDigitalSignoff.refresh(); } catch (_) { /* ignore */ }
+            }
+            if (typeof window.EodDeptSignatures?.refresh === 'function') {
+                try { await window.EodDeptSignatures.refresh(); } catch (_) { /* ignore */ }
+            }
+
+            const iwCount = EOD_TEST_INSTAWORK.length;
+            const setMsg = demoSets.length
+                ? `${demoSets.length} sets from store #${EOD_TEST_SETS_SOURCE_STORE}${demoWeek ? ` (${demoWeek})` : ''}`
+                : 'sets unavailable (clone failed — check API deploy)';
             showToast(
-                `Test mode ON — store #${EOD_TEST_STORE} mock Kompass ISE visit loaded with ${uniqueMembers.length} people. Emails go to you; faxes go to your #999 line.`,
+                `Test mode ON — #${EOD_TEST_STORE}, lead ${EOD_TEST_LEAD_NAME}, ${uniqueMembers.length} people (${iwCount} InstaWork), ${setMsg}. Emails/faxes stay on your test path.`,
                 'warning'
             );
         }
@@ -4677,6 +4757,11 @@
                     smSelectedShift = null;
                     smMembers = [];
                 }
+                allShiftsSetsMap = {};
+                shiftSets = [];
+                notInPickerShiftId = null;
+                if (typeof renderShiftPickerDropdown === 'function') renderShiftPickerDropdown();
+                if (typeof renderSetsPickers === 'function') renderSetsPickers();
             }
         }
 
@@ -4755,7 +4840,8 @@
                 <p style="margin:0 0 8px;"><strong>You&apos;re in test mode.</strong></p>
                 <p style="margin:0;">
                     Emails go only to <strong>${escapeHtml(EOD_TEST_RECIPIENT)}</strong>.
-                    Store is set to <strong>#${EOD_TEST_STORE}</strong> (your test fax line) with a mock Kompass ISE visit of your direct reports.
+                    Store is set to <strong>#${EOD_TEST_STORE}</strong> with lead <strong>${escapeHtml(EOD_TEST_LEAD_NAME)}</strong>,
+                    your direct reports, two mock InstaWork workers, and store #${EOD_TEST_SETS_SOURCE_STORE} sets cloned onto #${EOD_TEST_STORE}.
                 </p>
             </div>`;
         }
@@ -11603,6 +11689,18 @@ ${data.Notes || ''}`;
         async function appendProdCategoryComment(match, appendText) {
             if (!match?.visitId || !match?.set?.id) {
                 return { success: false, skipped: true, error: 'No matching PROD category reset found for this set.' };
+            }
+            if (eodTestMode || String(match.visitId).startsWith('test-') || match?.set?._testMock) {
+                return {
+                    success: true,
+                    testMock: true,
+                    alreadyPresent: false,
+                    changed: true,
+                    visitId: match.visitId,
+                    resetId: match.set.id,
+                    comment: appendText,
+                    appendedText: appendText,
+                };
             }
             const resp = await authFetch(
                 `${SM_API_BASE}/api/shifts/${encodeURIComponent(match.visitId)}/sets/${encodeURIComponent(match.set.id)}/append-comment`,

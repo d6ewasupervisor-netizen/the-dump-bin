@@ -42,7 +42,8 @@
   }
 
   function workDate() {
-    return (document.getElementById('shiftDate')?.value
+    return (document.getElementById('workDate')?.value
+      || document.getElementById('shiftDate')?.value
       || document.getElementById('dayConfirmDate')?.value
       || '').trim();
   }
@@ -555,7 +556,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     ensureUi();
     const storeEl = document.getElementById('storeNumber');
-    const dateEl = document.getElementById('shiftDate');
+    const dateEl = document.getElementById('workDate') || document.getElementById('shiftDate');
     if (storeEl) storeEl.addEventListener('change', () => refresh().catch(console.error));
     if (dateEl) dateEl.addEventListener('change', () => refresh().catch(console.error));
     setTimeout(() => refresh().catch(console.error), 800);
