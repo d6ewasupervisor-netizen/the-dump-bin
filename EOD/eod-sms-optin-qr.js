@@ -96,16 +96,26 @@
         .eod-sms-optin-qr__panel[hidden] { display: none !important; }
         .eod-sms-optin-qr__tile {
           background: #ffffff;
-          padding: 12px;
+          padding: clamp(8px, 2.5vw, 14px);
           border-radius: 8px;
           line-height: 0;
+          width: min(72vw, min(296px, 70vh));
+          max-width: 100%;
+          box-sizing: border-box;
         }
         .eod-sms-optin-qr__img {
           display: block;
-          width: min(100%, 296px);
+          width: 100%;
           height: auto;
-          min-width: 220px;
-          min-height: 220px;
+          aspect-ratio: 1 / 1;
+          max-width: 100%;
+          min-width: 0;
+          min-height: 0;
+        }
+        @media (max-width: 380px) {
+          .eod-sms-optin-qr__tile { width: min(86vw, 70vh); }
+          .eod-sms-optin-qr__cta { font-size: 14px; }
+          .eod-sms-optin-qr__url { font-size: 12px; }
         }
         .eod-sms-optin-qr__cta {
           margin: 4px 0 0;

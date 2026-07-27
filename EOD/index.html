@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-07-27T06:00Z eod-v2.9.5-mobile-update-btn -->
+<!-- build: 2026-07-27T18:40Z eod-v2.10.0-timesheet-mgmt -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -24,10 +24,11 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
-    <script src="eod-sms-optin-qr.js?v=2.9.11" defer></script>
-    <script src="eod-guest-handoff.js?v=2.9.11" defer></script>
-    <script src="eod-dept-signatures.js?v=2.9.11" defer></script>
-    <script src="eod-digital-signoff.js?v=2.9.11" defer></script>
+    <script src="eod-sms-optin-qr.js?v=2.10.0" defer></script>
+    <script src="eod-guest-handoff.js?v=2.10.0" defer></script>
+    <script src="eod-timesheet-mgmt.js?v=2.10.0" defer></script>
+    <script src="eod-dept-signatures.js?v=2.10.0" defer></script>
+    <script src="eod-digital-signoff.js?v=2.10.0" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3249,7 +3250,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.11</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.10.0</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3295,13 +3296,17 @@
                 </div>
             </div>
 
+            <button type="button" class="btn btn-primary" id="openInstaworkMgmtBtn" onclick="openInstaworkManagement()" style="width:100%; margin-top:10px;">
+                Open InstaWork Management
+            </button>
+
             <div id="instaworkYesPanel" style="display:none; margin-top:14px;">
                 <div style="padding:12px 14px; background:#1f2937; border-left:4px solid #fbbf24; color:#fde68a; border-radius:6px;">
-                    <p style="margin:0 0 6px 0; font-weight:700;">Make sure your InstaWork crew signs in &amp; out</p>
+                    <p style="margin:0 0 6px 0; font-weight:700;">InstaWork management is live</p>
                     <ul style="margin:0; padding-left:18px; line-height:1.55;">
-                        <li>If you have InstaWork, <strong>print an InstaWork Time Sheet</strong> for them to use (button in the acknowledgement).</li>
-                        <li>Have every InstaWork employee fill out the sign-off sheet <strong>first thing in the morning</strong>.</li>
-                        <li>Have them fill it out <strong>again when they leave</strong> for the day.</li>
+                        <li>Use <strong>Open InstaWork Management</strong> for the live time sheet (punches, confirmations, signatures).</li>
+                        <li>Show the JOIN QR so teammates can opt into texts, then send each person a secure confirm/edit link.</li>
+                        <li>After the last InstaWork employee leaves, capture the sign-out sheet photo below.</li>
                     </ul>
                 </div>
 
@@ -3332,12 +3337,6 @@
                     Confirm &amp; Save InstaWork Sign-Out Sheet
                 </button>
 
-                <!--
-                    Compact "saved" summary that takes the panel's place
-                    after a successful upload. The "Re-take photo" button
-                    re-expands the panel so the lead can re-capture if
-                    something was wrong with the first picture.
-                -->
                 <div id="instaworkCollapsedRow" class="iw-collapsed-row" style="display:none;">
                     <div>
                         <div style="font-weight:700;">&#10003; InstaWork sign-out sheet saved</div>
@@ -3349,9 +3348,9 @@
         </div>
 
         <div class="section" id="kompassTimesheetSection" style="border-color:#fbbf24;">
-            <div class="section-title" style="color:#fde68a;">Kompass Time Sheet</div>
+            <div class="section-title" style="color:#fde68a;">Kompass Team Sheet</div>
             <div class="field">
-                <label>Do you need a Kompass Time sheet?</label>
+                <label>Do you need a Kompass team / time sheet today?</label>
                 <div class="checkbox-group">
                     <div class="checkbox-option">
                         <input type="checkbox" id="kompassTimesheetYes" name="kompassTimesheet" value="Yes" onchange="toggleKompassTimesheet(this)">
@@ -3363,6 +3362,9 @@
                     </div>
                 </div>
             </div>
+            <button type="button" class="btn btn-primary" id="openKompassMgmtBtn" onclick="openKompassManagement()" style="width:100%; margin-top:10px;">
+                Open Kompass Team Management
+            </button>
         </div>
 
         <div class="section" id="materialsInfoSection" style="border-color:#fbbf24;">
@@ -4419,7 +4421,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.11';
+        const EOD_APP_VERSION = '2.10.0';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -6017,6 +6019,22 @@
             autoSave();
         }
 
+        function openInstaworkManagement() {
+            if (window.EodTimesheetMgmt?.openInstawork) {
+                window.EodTimesheetMgmt.openInstawork();
+            } else {
+                showAlert('InstaWork management', 'Module failed to load. Refresh and try again.');
+            }
+        }
+
+        function openKompassManagement() {
+            if (window.EodTimesheetMgmt?.openKompass) {
+                window.EodTimesheetMgmt.openKompass();
+            } else {
+                showAlert('Kompass team management', 'Module failed to load. Refresh and try again.');
+            }
+        }
+
         function toggleInstawork(checkbox) {
             const yes = document.getElementById('instaworkYes');
             const no = document.getElementById('instaworkNo');
@@ -6028,7 +6046,7 @@
             if (checkbox.id === 'instaworkYes' && checkbox.checked) {
                 no.checked = false;
                 showPanel();
-                openInstaworkAck();
+                openInstaworkManagement();
             } else if (checkbox.id === 'instaworkNo' && checkbox.checked) {
                 yes.checked = false;
                 hidePanel();
@@ -6083,7 +6101,7 @@
 
             if (checkbox.id === 'kompassTimesheetYes' && checkbox.checked) {
                 no.checked = false;
-                openKompassTimesheetAck();
+                openKompassManagement();
             } else if (checkbox.id === 'kompassTimesheetNo' && checkbox.checked) {
                 yes.checked = false;
                 closeKompassTimesheetAck();
@@ -6296,7 +6314,15 @@
 
             const scheduled = Array.from(byKey.values());
             if (sheetKey !== 'instawork') {
-                return scheduled.map((m) => m.name);
+                // Kompass sheet: exclude anyone on the InstaWork ID roster.
+                const roster = await loadInstaworkIdsRoster();
+                const kompassOnly = scheduled.filter((member) => {
+                    const wd = String(member.workdayId || '').trim().toLowerCase();
+                    if (wd && roster.byWorkday.has(wd)) return false;
+                    if (roster.byName.get(normalizeTimesheetNameKey(member.name))) return false;
+                    return true;
+                });
+                return kompassOnly.map((m) => m.name);
             }
 
             const roster = await loadInstaworkIdsRoster();
@@ -6381,9 +6407,28 @@
             );
 
             try {
-                const employees = blank
-                    ? []
-                    : await collectTimesheetEmployees(storeNumber, workDate, sheetKey);
+                let employees = [];
+                if (!blank) {
+                    try {
+                        const rosterResp = await authFetch(
+                            `${EOD_API_BASE}/api/eod/timesheet-mgmt?sheet=${encodeURIComponent(sheetKey)}&store=${encodeURIComponent(storeNumber)}&date=${encodeURIComponent(workDate)}`
+                        );
+                        if (rosterResp.ok) {
+                            const roster = await rosterResp.json();
+                            if (Array.isArray(roster.members) && roster.members.length) {
+                                employees = roster.members.map((m) => {
+                                    const bits = [m.name];
+                                    const times = [m.clockIn, m.lunchOut, m.lunchIn, m.clockOut].filter(Boolean);
+                                    if (times.length) bits.push(`(${times.join(' · ')})`);
+                                    return bits.join(' ');
+                                });
+                            }
+                        }
+                    } catch (_) { /* fall through */ }
+                    if (!employees.length) {
+                        employees = await collectTimesheetEmployees(storeNumber, workDate, sheetKey);
+                    }
+                }
                 setTimesheetFaxState(
                     'sending',
                     `Sending ${label}\u2026`,

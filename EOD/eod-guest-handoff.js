@@ -203,7 +203,7 @@
     openSendModal({
       sessionType: key,
       title: `Send ${label} time sheet link`,
-      hint: 'Employee can view the PDF, confirm or request a time adjustment, and sign.',
+      hint: 'Have them text JOIN to (509) 572-9212 first if needed. They can edit times, give a reason, sign, and your live sheet updates.',
       payload: { employees, leadName, blank: false },
     });
   }
