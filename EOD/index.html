@@ -24,6 +24,8 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
+    <script src="eod-dept-signatures.js?v=2.9.6" defer></script>
+    <script src="eod-digital-signoff.js?v=2.9.6" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3245,7 +3247,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.5</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.9.6</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4412,7 +4414,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.9.5';
+        const EOD_APP_VERSION = '2.9.6';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -9060,6 +9062,19 @@
             const notInStoreText = formatNotInList(data.NotInStoreSelected, data.NotInStoreOther);
             const notInSiText    = formatNotInList(data.NotInSiSelected,    data.NotInSiOther);
 
+            const digitalSummary = (window.EodDigitalSignoff && typeof window.EodDigitalSignoff.getSummaryForEmail === 'function')
+                ? window.EodDigitalSignoff.getSummaryForEmail()
+                : null;
+            const deptSigs = (window.EodDeptSignatures && typeof window.EodDeptSignatures.getCollectedForEmail === 'function')
+                ? window.EodDeptSignatures.getCollectedForEmail()
+                : [];
+            const digitalLine = digitalSummary?.summary
+                ? `Digital signoff: ${digitalSummary.summary.marked}/${digitalSummary.summary.total} marked (Complete ${digitalSummary.summary.complete}, NIS ${digitalSummary.summary.notInStore}, Not in SI ${digitalSummary.summary.notInSi})`
+                : 'Digital signoff: none loaded';
+            const deptSigLine = deptSigs.length
+                ? `Department signatures: ${deptSigs.map((s) => `${s.roleLabel}=${s.signerName}`).join('; ')}`
+                : 'Department signatures: none';
+
             const signoffCount = eodSelections.signoff.length > 0
                 ? eodSelections.signoff.length
                 : data.photos.signoff.length;
@@ -9080,6 +9095,8 @@ Signed out in PROD: ${pickYN(data.SignedOutPROD)}
 Signed out in SI: ${pickYN(data.SignedOutSI)}
 Not in store: ${notInStoreText}
 Not in SI: ${notInSiText}
+${digitalLine}
+${deptSigLine}
 After picture of KOMPASS cart taken: ${afterDone ? 'Yes' : 'No'}
 Sign-off sheets photographed: ${signoffDone ? 'Yes' : 'No'}
 Number of sign-off photos: ${signoffCount}
@@ -9107,6 +9124,8 @@ ${data.Notes || ''}`;
                 signedOutSi: pickYN(data.SignedOutSI),
                 notInStore: notInStoreText,
                 notInSi: notInSiText,
+                digitalSignoff: digitalLine.replace(/^Digital signoff:\s*/, ''),
+                deptSignatures: deptSigLine.replace(/^Department signatures:\s*/, ''),
                 afterTaken: afterDone ? 'Yes' : 'No',
                 signoffDone: signoffDone ? 'Yes' : 'No',
                 signoffCount,
@@ -10386,6 +10405,17 @@ ${data.Notes || ''}`;
         let shiftSets = [];         // legacy: sets for the currently selected shift card
         let notInStoreSelected = []; // string[]
         let notInSiSelected = []; // string[]
+        // Exposed for eod-digital-signoff.js mark side-effects / email sync.
+        Object.defineProperty(window, 'notInStoreSelected', {
+            get() { return notInStoreSelected; },
+            set(v) { notInStoreSelected = Array.isArray(v) ? v : []; },
+            configurable: true,
+        });
+        Object.defineProperty(window, 'notInSiSelected', {
+            get() { return notInSiSelected; },
+            set(v) { notInSiSelected = Array.isArray(v) ? v : []; },
+            configurable: true,
+        });
         let helpdeskSubmittedReports = [];
         // Map of visitId → { label, sets[] } for ALL shifts found on the date.
         // Populated automatically after smFindShifts succeeds so the user
@@ -11796,6 +11826,8 @@ ${data.Notes || ''}`;
                 );
             }
         }
+        window.handleNotInSideEffects = handleNotInSideEffects;
+        window.renderSetsPicker = renderSetsPicker;
 
         // After shifts load, check for multiple distinct visitLeads and show picker if needed
         function checkMultipleLeads() {
