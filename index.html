@@ -107,6 +107,12 @@
         <span class="card__desc">Your D8 schedule — tap a store to open the visit. Supervisors see the whole team.</span>
       </a>
 
+      <a href="/central-pet/uploads/" class="card" id="cp-uploads-card" hidden>
+        <span class="card__icon">📷</span>
+        <span class="card__title">CP Uploads</span>
+        <span class="card__desc">Dump store photos from your gallery — Before, Load, After, Clip Strips, and more.</span>
+      </a>
+
       <a href="/central-pet/?to=admin" class="card" id="cp-planning-desk-card" hidden>
         <span class="card__icon">🗓️</span>
         <span class="card__title">Central Pet — Planning Desk</span>
@@ -159,6 +165,8 @@
         if (CP_CARD_EMAILS[email]) {
           var team = document.getElementById('cp-team-card');
           if (team) team.hidden = false;
+          var uploads = document.getElementById('cp-uploads-card');
+          if (uploads) uploads.hidden = false;
         }
         // Planning Desk stays admin/supervisor only (not field reps).
         if (isHostAdmin) {
