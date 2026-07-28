@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter v2.2 -->
+  <!-- welcome-letter v2.3 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.2">
+  <meta name="welcome-letter-version" content="v2.3">
   <title>Welcome Letter — The Dump Bin</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="/styles.css">
@@ -325,6 +325,89 @@
       line-height: 1.2;
       box-shadow: 0 4px 12px rgba(14, 42, 71, 0.12);
     }
+
+    .wl-recent {
+      display: block;
+      margin-top: 22px;
+      text-decoration: none;
+      color: inherit;
+      background: #F7FAFC;
+      border: 1px solid var(--wl-line);
+      border-radius: 10px;
+      padding: 14px 16px 12px;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+      cursor: pointer;
+    }
+
+    .wl-recent:hover {
+      background: var(--wl-sky-tint);
+      border-color: #BFD6EC;
+      box-shadow: 0 6px 16px rgba(14, 42, 71, 0.08);
+    }
+
+    .wl-recent:focus-visible {
+      outline: 3px solid rgba(47, 111, 176, 0.35);
+      outline-offset: 2px;
+    }
+
+    .wl-recent__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .wl-recent__title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--wl-muted);
+    }
+
+    .wl-recent__cta {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--wl-sky);
+      white-space: nowrap;
+    }
+
+    .wl-recent__list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .wl-recent__item {
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--wl-ink);
+      padding: 8px 10px;
+      background: var(--wl-white);
+      border: 1px solid var(--wl-line);
+      border-radius: 8px;
+    }
+
+    .wl-recent__to {
+      font-weight: 700;
+      color: var(--wl-navy);
+    }
+
+    .wl-recent__meta {
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--wl-muted);
+    }
+
+    .wl-recent__empty {
+      font-size: 13px;
+      color: var(--wl-muted);
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -373,6 +456,15 @@
           </div>
           <p class="wl-status" id="formStatus" aria-live="polite"></p>
         </form>
+
+        <a class="wl-recent" id="recentPanel" href="/welcome-letter-board/" title="Open Welcome Letter Board">
+          <div class="wl-recent__head">
+            <span class="wl-recent__title">Recent welcome letters</span>
+            <span class="wl-recent__cta">Open board →</span>
+          </div>
+          <p class="wl-recent__empty" id="recentEmpty">Loading recent sends…</p>
+          <ul class="wl-recent__list wl-hidden" id="recentList"></ul>
+        </a>
       </section>
 
       <!-- VERIFY -->
@@ -424,11 +516,11 @@
     </div>
   </div>
 
-  <span class="wl-version" id="wlVersion" title="Welcome Letter app version">v2.2</span>
+  <span class="wl-version" id="wlVersion" title="Welcome Letter app version">v2.3</span>
 
   <script>
 (function () {
-  const UI_VERSION = 'v2.2';
+  const UI_VERSION = 'v2.3';
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const stepForm = document.getElementById('stepForm');
@@ -460,6 +552,8 @@
   const priorSendAnywayBtn = document.getElementById('priorSendAnywayBtn');
   const priorCancelBtn = document.getElementById('priorCancelBtn');
   const wlVersion = document.getElementById('wlVersion');
+  const recentEmpty = document.getElementById('recentEmpty');
+  const recentList = document.getElementById('recentList');
 
   let pending = null;
   let accessGranted = false;
@@ -558,18 +652,8 @@
       .replace(/"/g, '&quot;');
   }
 
-  function renderMeta(preview) {
-    const cc = Array.isArray(preview.cc) ? preview.cc.join(', ') : String(preview.cc || '');
-    verifyMeta.innerHTML =
-      `<dt>To</dt><dd>${escapeHtml(preview.to)}</dd>` +
-      `<dt>CC</dt><dd>${escapeHtml(cc)}</dd>` +
-      `<dt>From</dt><dd>${escapeHtml(preview.from)}</dd>` +
-      `<dt>Reply-To</dt><dd>${escapeHtml(preview.replyTo || '')}</dd>` +
-      `<dt>Subject</dt><dd>${escapeHtml(preview.subject)}</dd>`;
-  }
-
   function formatSentAt(iso) {
-    if (!iso) return 'an unknown date';
+    if (!iso) return '—';
     try {
       return new Date(iso).toLocaleString(undefined, {
         dateStyle: 'medium',
@@ -580,11 +664,58 @@
     }
   }
 
+  async function loadRecentSends() {
+    if (!recentEmpty || !recentList) return;
+    recentEmpty.classList.remove('wl-hidden');
+    recentEmpty.textContent = 'Loading recent sends…';
+    recentList.classList.add('wl-hidden');
+    recentList.innerHTML = '';
+    try {
+      const res = await window.dumpBinAuthFetch('/api/welcome-letter/recent?limit=3', {
+        noBounceOn401: true,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !data.ok) {
+        recentEmpty.textContent = 'Could not load recent sends.';
+        return;
+      }
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) {
+        recentEmpty.textContent = 'No welcome letters sent yet.';
+        return;
+      }
+      recentList.innerHTML = items.map((item) => {
+        const to = (item.to && item.to[0]) || 'unknown recipient';
+        const name = item.firstName ? `${item.firstName} · ` : '';
+        const by = item.sentByEmail || 'unknown sender';
+        const when = formatSentAt(item.sentAt);
+        return `<li class="wl-recent__item">
+          <div class="wl-recent__to">${escapeHtml(name)}${escapeHtml(to)}</div>
+          <div class="wl-recent__meta">Sent by ${escapeHtml(by)} · ${escapeHtml(when)}</div>
+        </li>`;
+      }).join('');
+      recentEmpty.classList.add('wl-hidden');
+      recentList.classList.remove('wl-hidden');
+    } catch (_) {
+      recentEmpty.textContent = 'Could not load recent sends.';
+    }
+  }
+
+  function renderMeta(preview) {
+    const cc = Array.isArray(preview.cc) ? preview.cc.join(', ') : String(preview.cc || '');
+    verifyMeta.innerHTML =
+      `<dt>To</dt><dd>${escapeHtml(preview.to)}</dd>` +
+      `<dt>CC</dt><dd>${escapeHtml(cc)}</dd>` +
+      `<dt>From</dt><dd>${escapeHtml(preview.from)}</dd>` +
+      `<dt>Reply-To</dt><dd>${escapeHtml(preview.replyTo || '')}</dd>` +
+      `<dt>Subject</dt><dd>${escapeHtml(preview.subject)}</dd>`;
+  }
+
   function priorSummaryHtml(prior) {
     const who = prior && prior.sentByEmail
       ? escapeHtml(prior.sentByEmail)
       : 'an unknown sender';
-    const when = escapeHtml(formatSentAt(prior && prior.sentAt));
+    const when = escapeHtml(formatSentAt(prior && prior.sentAt) || 'an unknown date');
     return `This person already received a welcome letter from <strong>${who}</strong> on <strong>${when}</strong>.`;
   }
 
@@ -793,7 +924,10 @@
 
   ensureWelcomeAccess().then(function (ok) {
     setVersionBadge(null);
-    if (ok) refreshApiVersion();
+    if (ok) {
+      refreshApiVersion();
+      loadRecentSends();
+    }
   });
 })();
   </script>
