@@ -229,6 +229,80 @@
       font-size: 14px;
       color: var(--wl-muted);
     }
+
+    .wl-warn-banner {
+      margin-top: 18px;
+      background: #FFF8E8;
+      border: 1px solid #E8C96A;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #6B4E00;
+    }
+
+    .wl-warn-banner strong {
+      color: #5A4100;
+    }
+
+    .wl-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(14, 42, 71, 0.45);
+    }
+
+    .wl-modal-overlay.show {
+      display: flex;
+    }
+
+    .wl-modal {
+      width: 100%;
+      max-width: 440px;
+      background: var(--wl-white);
+      border: 1px solid var(--wl-line);
+      border-radius: 12px;
+      padding: 24px 22px 22px;
+      box-shadow: 0 16px 40px rgba(14, 42, 71, 0.22);
+      font-family: var(--wl-font);
+      color: var(--wl-ink);
+    }
+
+    .wl-modal h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: var(--wl-navy);
+      line-height: 1.25;
+    }
+
+    .wl-modal p {
+      margin: 12px 0 0;
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--wl-ink);
+    }
+
+    .wl-modal .wl-muted {
+      color: var(--wl-muted);
+      font-size: 14px;
+    }
+
+    .wl-modal .wl-actions {
+      margin-top: 20px;
+    }
+
+    .wl-btn-danger {
+      background: #B36A1E;
+      color: #fff;
+    }
+
+    .wl-btn-danger:hover:not(:disabled) {
+      background: #965812;
+    }
   </style>
 </head>
 <body>
@@ -287,6 +361,8 @@
 
         <dl class="wl-meta" id="verifyMeta"></dl>
 
+        <div id="priorWarnBanner" class="wl-warn-banner wl-hidden" role="status"></div>
+
         <div class="wl-preview-wrap">
           <div class="wl-preview-label">Email preview</div>
           <iframe id="previewFrame" class="wl-preview-frame" title="Welcome letter preview" sandbox=""></iframe>
@@ -314,6 +390,18 @@
     </div><!-- #wlApp -->
   </main>
 
+  <div id="priorModal" class="wl-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="priorModalTitle" hidden>
+    <div class="wl-modal">
+      <h2 id="priorModalTitle">Welcome letter already sent</h2>
+      <p id="priorModalBody"></p>
+      <p class="wl-muted">You can cancel, or send another welcome letter anyway.</p>
+      <div class="wl-actions">
+        <button type="button" class="wl-btn wl-btn-danger" id="priorSendAnywayBtn">Send Anyway</button>
+        <button type="button" class="wl-btn wl-btn-ghost" id="priorCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script>
 (function () {
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -330,6 +418,7 @@
   const emailErr = document.getElementById('emailErr');
   const formStatus = document.getElementById('formStatus');
   const verifyMeta = document.getElementById('verifyMeta');
+  const priorWarnBanner = document.getElementById('priorWarnBanner');
   const previewFrame = document.getElementById('previewFrame');
   const verifyStatus = document.getElementById('verifyStatus');
   const confirmBtn = document.getElementById('confirmBtn');
@@ -341,6 +430,10 @@
   const retryBtn = document.getElementById('retryBtn');
   const wlApp = document.getElementById('wlApp');
   const wlAccessDenied = document.getElementById('wlAccessDenied');
+  const priorModal = document.getElementById('priorModal');
+  const priorModalBody = document.getElementById('priorModalBody');
+  const priorSendAnywayBtn = document.getElementById('priorSendAnywayBtn');
+  const priorCancelBtn = document.getElementById('priorCancelBtn');
 
   let pending = null;
   let accessGranted = false;
@@ -425,6 +518,49 @@
       `<dt>Subject</dt><dd>${escapeHtml(preview.subject)}</dd>`;
   }
 
+  function formatSentAt(iso) {
+    if (!iso) return 'an unknown date';
+    try {
+      return new Date(iso).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    } catch (_) {
+      return String(iso);
+    }
+  }
+
+  function priorSummaryHtml(prior) {
+    const who = prior && prior.sentByEmail
+      ? escapeHtml(prior.sentByEmail)
+      : 'an unknown sender';
+    const when = escapeHtml(formatSentAt(prior && prior.sentAt));
+    return `This person already received a welcome letter from <strong>${who}</strong> on <strong>${when}</strong>.`;
+  }
+
+  function renderPriorBanner(prior) {
+    if (!prior) {
+      priorWarnBanner.classList.add('wl-hidden');
+      priorWarnBanner.innerHTML = '';
+      return;
+    }
+    priorWarnBanner.innerHTML = priorSummaryHtml(prior)
+      + ' Confirming send will ask you to send anyway or cancel.';
+    priorWarnBanner.classList.remove('wl-hidden');
+  }
+
+  function openPriorModal(prior) {
+    priorModalBody.innerHTML = priorSummaryHtml(prior);
+    priorModal.hidden = false;
+    priorModal.classList.add('show');
+    priorCancelBtn.focus();
+  }
+
+  function closePriorModal() {
+    priorModal.classList.remove('show');
+    priorModal.hidden = true;
+  }
+
   async function apiJson(path, body) {
     const res = await window.dumpBinAuthFetch(path, {
       method: 'POST',
@@ -461,8 +597,10 @@
         firstName: data.firstName,
         email: data.to,
         preview: data,
+        prior: data.prior || null,
       };
       renderMeta(data);
+      renderPriorBanner(pending.prior);
       previewFrame.srcdoc = data.html;
       verifyStatus.textContent = '';
       showStep('verify');
@@ -475,6 +613,7 @@
   });
 
   backBtn.addEventListener('click', function () {
+    closePriorModal();
     showStep('form');
     verifyStatus.textContent = '';
   });
@@ -487,18 +626,29 @@
     window.location.href = `/welcome-letter-board/?${params.toString()}`;
   }
 
-  confirmBtn.addEventListener('click', async function () {
+  async function sendWelcomeLetter({ forceSend = false } = {}) {
     if (!pending || !accessGranted) return;
     confirmBtn.disabled = true;
     backBtn.disabled = true;
-    verifyStatus.textContent = 'Sending…';
+    priorSendAnywayBtn.disabled = true;
+    priorCancelBtn.disabled = true;
+    verifyStatus.textContent = forceSend ? 'Sending anyway…' : 'Sending…';
 
     try {
       const { res, data } = await apiJson('/api/welcome-letter/send', {
         firstName: pending.firstName,
         email: pending.email,
+        forceSend: !!forceSend,
       });
       const recordId = data && data.recordId;
+
+      if (res.status === 409 && data && data.code === 'already_sent' && data.prior) {
+        pending.prior = data.prior;
+        renderPriorBanner(data.prior);
+        openPriorModal(data.prior);
+        verifyStatus.textContent = '';
+        return;
+      }
 
       if (!res.ok || !data || !data.ok) {
         const msg = (data && data.error) || `Send failed (${res.status})`;
@@ -508,6 +658,7 @@
         }
         // Nothing was recorded (e.g. validation failure before any send attempt) —
         // there's no board entry to navigate to, so show the error inline.
+        closePriorModal();
         resultTitle.textContent = 'Send failed';
         resultBanner.className = 'wl-banner err';
         resultBanner.textContent = msg;
@@ -522,6 +673,7 @@
         message: `Welcome letter sent to ${data.to}.`,
       });
     } catch (err) {
+      closePriorModal();
       resultTitle.textContent = 'Send failed';
       resultBanner.className = 'wl-banner err';
       resultBanner.textContent = err.message || 'Could not reach the email service.';
@@ -531,7 +683,44 @@
     } finally {
       confirmBtn.disabled = false;
       backBtn.disabled = false;
-      verifyStatus.textContent = '';
+      priorSendAnywayBtn.disabled = false;
+      priorCancelBtn.disabled = false;
+      if (!priorModal.classList.contains('show')) {
+        verifyStatus.textContent = '';
+      }
+    }
+  }
+
+  confirmBtn.addEventListener('click', async function () {
+    if (!pending || !accessGranted) return;
+    if (pending.prior) {
+      openPriorModal(pending.prior);
+      return;
+    }
+    await sendWelcomeLetter({ forceSend: false });
+  });
+
+  priorSendAnywayBtn.addEventListener('click', async function () {
+    closePriorModal();
+    await sendWelcomeLetter({ forceSend: true });
+  });
+
+  priorCancelBtn.addEventListener('click', function () {
+    closePriorModal();
+    verifyStatus.textContent = 'Send cancelled — no email was sent.';
+  });
+
+  priorModal.addEventListener('click', function (e) {
+    if (e.target === priorModal) {
+      closePriorModal();
+      verifyStatus.textContent = 'Send cancelled — no email was sent.';
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && priorModal.classList.contains('show')) {
+      closePriorModal();
+      verifyStatus.textContent = 'Send cancelled — no email was sent.';
     }
   });
 
@@ -541,6 +730,8 @@
     firstNameField.classList.remove('invalid');
     emailField.classList.remove('invalid');
     formStatus.textContent = '';
+    renderPriorBanner(null);
+    closePriorModal();
     previewFrame.removeAttribute('srcdoc');
     showStep('form');
     firstNameInput.focus();
