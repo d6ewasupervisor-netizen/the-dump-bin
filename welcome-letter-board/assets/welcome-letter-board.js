@@ -1,4 +1,5 @@
 (function () {
+  const UI_VERSION = 'v2.2';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -10,6 +11,35 @@
     sortBy: 'createdAt',
     sortDir: 'desc',
   };
+
+  function setVersionBadge(apiVersion) {
+    const el = document.getElementById('wbVersion');
+    if (!el) return;
+    el.textContent = UI_VERSION;
+    if (apiVersion) {
+      el.title = `UI ${UI_VERSION} · API ${apiVersion}`;
+      if (apiVersion !== UI_VERSION) {
+        el.textContent = `${UI_VERSION} / api ${apiVersion}`;
+      }
+    } else {
+      el.title = `Welcome Letter Board UI ${UI_VERSION}`;
+    }
+  }
+
+  async function refreshApiVersion() {
+    try {
+      const fetchFn = window.dumpBinAuthFetch || fetch;
+      const res = await fetchFn('/api/welcome-letter/version', {
+        noBounceOn401: true,
+        credentials: 'include',
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.version) setVersionBadge(data.version);
+    } catch (_err) {
+      // Keep UI-only badge if API version is unreachable.
+    }
+  }
 
   async function api(path, options = {}) {
     const fetchFn = window.dumpBinAuthFetch || fetch;
@@ -363,6 +393,7 @@
 
   async function boot() {
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
+    setVersionBadge(null);
 
     const allowed = await ensureWelcomeAccess();
     if (!allowed) {
@@ -373,6 +404,7 @@
     const app = document.getElementById('wbApp');
     if (denied) denied.classList.add('wb-hidden');
     if (app) app.hidden = false;
+    refreshApiVersion();
 
     const url = new URL(window.location.href);
     const justSent = url.searchParams.get('justSent');

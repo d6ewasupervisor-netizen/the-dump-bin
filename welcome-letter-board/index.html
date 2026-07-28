@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- welcome-letter-board v2.2 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="welcome-letter-version" content="v2.2">
   <title>Welcome Letter Board — The Dump Bin</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="/styles.css">
@@ -145,6 +147,26 @@
     .wb-badge-not-opened { background: #EEF1F4; color: var(--wb-muted); }
     .wb-badge-cancelled { background: #EEF1F4; color: #5A6B7D; text-decoration: line-through; }
 
+    .wb-version {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 50;
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--wb-sky);
+      background: var(--wb-white);
+      border: 1px solid #BFD6EC;
+      border-radius: 999px;
+      padding: 4px 10px;
+      white-space: nowrap;
+      user-select: none;
+      line-height: 1.2;
+      box-shadow: 0 4px 12px rgba(14, 42, 71, 0.12);
+    }
+
     .wb-detail-empty { color: var(--wb-muted); font-size: 14px; }
     .wb-detail-grid { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; margin: 0 0 14px; }
     .wb-detail-grid dt { color: var(--wb-muted); margin: 0; font-size: 13px; font-weight: 700; }
@@ -275,6 +297,8 @@
 
   </main>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=20260720-1"></script>
+  <span class="wb-version" id="wbVersion" title="Welcome Letter Board version">v2.2</span>
+
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.2"></script>
 </body>
 </html>
