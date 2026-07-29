@@ -132,14 +132,17 @@ img.sigimg{max-width:100%;height:auto;border:1px solid var(--border);border-radi
   function renderDone() {
     $('signArea').hidden = true;
     $('doneArea').hidden = false;
+    var pdfLink = '<p style="margin-top:12px"><a class="btn primary" style="display:inline-block;text-decoration:none" href="'
+      + escapeHtml(API + '/api/caf/public/' + encodeURIComponent(token) + '/pdf')
+      + '" target="_blank" rel="noopener">Download official SAS PDF</a></p>';
     if (caf.status === 'signed') {
       $('doneArea').innerHTML = '<div class="ok">Signed on '
         + escapeHtml(caf.signedAt ? new Date(caf.signedAt).toLocaleString() : 'this session')
-        + '. Thank you.</div>';
+        + '. Thank you.</div>' + pdfLink;
     } else if (caf.status === 'refused') {
       $('doneArea').innerHTML = '<div class="err">Marked as refused'
         + (caf.refusedAt ? (' on ' + escapeHtml(new Date(caf.refusedAt).toLocaleString())) : '')
-        + '.</div>';
+        + '.</div>' + pdfLink;
     } else if (caf.status === 'voided') {
       $('doneArea').innerHTML = '<div class="err">This CAF was voided and can no longer be signed.</div>';
     }
@@ -162,6 +165,16 @@ img.sigimg{max-width:100%;height:auto;border:1px solid var(--border);border-radi
     } else {
       $('supSigBlock').hidden = true;
     }
+    var pdfHint = document.getElementById('pdfHint');
+    if (!pdfHint) {
+      pdfHint = document.createElement('p');
+      pdfHint.id = 'pdfHint';
+      pdfHint.className = 'sub';
+      pdfHint.style.marginTop = '10px';
+      $('meta').appendChild(pdfHint);
+    }
+    pdfHint.innerHTML = '<a href="' + escapeHtml(API + '/api/caf/public/' + encodeURIComponent(token) + '/pdf')
+      + '" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">View / download official SAS PDF</a>';
     if (['signed', 'refused', 'voided'].includes(caf.status)) renderDone();
   }
 

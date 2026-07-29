@@ -169,6 +169,7 @@ textarea{min-height:96px;resize:vertical}
     <section class="panel" id="panel-detail">
       <div class="card detail" id="detailBody"></div>
       <div class="actions">
+        <button class="btn" id="pdfBtn">Download SAS PDF</button>
         <button class="btn" id="resendBtn">Resend</button>
         <button class="btn danger" id="voidBtn">Void</button>
         <button class="btn" id="copyLinkBtn">Copy sign link</button>
@@ -352,6 +353,32 @@ textarea{min-height:96px;resize:vertical}
     } catch (_) {
       prompt('Copy this link:', current.signUrl);
     }
+  };
+
+  async function downloadPdf(id) {
+    var res = await dumpBinAuthFetch('/api/caf/' + id + '/pdf');
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || ('PDF HTTP ' + res.status));
+    }
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'CAF_' + id + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  $('pdfBtn').onclick = async function () {
+    if (!current) return;
+    try {
+      showMsg('Building official SAS PDF…', true);
+      await downloadPdf(current.id);
+      showMsg('PDF downloaded.', true);
+    } catch (err) { showMsg(err.message, false); }
   };
 
   $('createForm').onsubmit = async function (e) {
