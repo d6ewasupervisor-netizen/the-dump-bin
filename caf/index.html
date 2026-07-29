@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Corrective Action Forms</title>
+<script src="/auth-gate.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0e13; --card:#151d28; --border:#243044; --text:#f0f4f8;
+  --muted:#6b7d94; --sec:#a8b8cc; --accent:#4da6ff; --green:#00e87a;
+  --amber:#ffcc00; --red:#ff4757; --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding:18px 14px 80px}
+.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:clamp(1.35rem,4vw,1.7rem);font-weight:800}
+.sub{color:var(--sec);font-size:13px;margin-top:4px}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab,.btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer;min-height:44px}
+.tab.active,.btn.primary{background:#1f4e79;border-color:#2d6aa8}
+.btn.danger{background:rgba(255,71,87,.12);border-color:rgba(255,71,87,.45);color:#ff8a96}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
+input,select,textarea{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:#111820;color:var(--text);font:inherit}
+textarea{min-height:96px;resize:vertical}
+.row{margin-bottom:12px}
+.muted{color:var(--muted);font-size:13px}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(77,166,255,.15);color:var(--accent)}
+.badge.signed{background:rgba(0,232,122,.15);color:var(--green)}
+.badge.viewed,.badge.delivered{background:rgba(255,204,0,.14);color:var(--amber)}
+.badge.refused,.badge.voided{background:rgba(255,71,87,.14);color:var(--red)}
+.list-item{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.list-item h3{font-size:15px;font-weight:700}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.sig-wrap{background:#fff;border-radius:8px;border:1px solid var(--border);touch-action:none}
+.sig-wrap canvas{width:100%;height:160px;display:block;cursor:crosshair}
+.err{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.4);color:#ffb4bb;padding:12px;border-radius:10px;margin-bottom:12px}
+.ok{background:rgba(0,232,122,.1);border:1px solid rgba(0,232,122,.35);color:#b6ffd7;padding:12px;border-radius:10px;margin-bottom:12px}
+.access{padding:24px;text-align:center}
+.detail dt{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;margin-top:10px}
+.detail dd{margin:2px 0 0;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Corrective Action Forms</h1>
+      <p class="sub" id="actorLine">Loading…</p>
+    </div>
+    <a class="btn" href="/">← Hub</a>
+  </div>
+
+  <div id="accessDenied" class="card access" hidden>
+    <h2>CAF access required</h2>
+    <p class="muted" style="margin-top:8px">This tool is limited to authorized supervisors and admins.</p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="tabs">
+      <button class="tab active" data-tab="list">Dashboard</button>
+      <button class="tab" data-tab="create">Issue CAF</button>
+      <button class="tab" data-tab="detail" id="detailTab" hidden>Details</button>
+    </div>
+
+    <div id="msg"></div>
+
+    <section class="panel active" id="panel-list">
+      <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+        <div style="min-width:160px">
+          <label>Status filter</label>
+          <select id="statusFilter">
+            <option value="">All</option>
+            <option>delivered</option>
+            <option>viewed</option>
+            <option>signed</option>
+            <option>refused</option>
+            <option>voided</option>
+            <option>sent</option>
+          </select>
+        </div>
+        <button class="btn" id="refreshBtn">Refresh</button>
+      </div>
+      <div id="cafList"></div>
+    </section>
+
+    <section class="panel" id="panel-create">
+      <form id="createForm" class="card">
+        <div class="grid">
+          <div class="row">
+            <label>CAF type</label>
+            <select id="templateKey" required></select>
+          </div>
+          <div class="row">
+            <label>Subject</label>
+            <select id="subject" required></select>
+          </div>
+          <div class="row">
+            <label>Discussion date</label>
+            <input type="date" id="discussionDate" required>
+          </div>
+          <div class="row">
+            <label>Program</label>
+            <input id="program" value="Kompass ISE">
+          </div>
+          <div class="row">
+            <label>Store / location</label>
+            <input id="storeLocation" placeholder="e.g. FM 28">
+          </div>
+          <div class="row">
+            <label>Associate (direct reports)</label>
+            <select id="associatePick"><option value="">— Select or type below —</option></select>
+          </div>
+          <div class="row">
+            <label>Associate name</label>
+            <input id="associateName" required>
+          </div>
+          <div class="row">
+            <label>Associate email</label>
+            <input id="associateEmail" type="email" placeholder="required for email delivery">
+          </div>
+          <div class="row">
+            <label>Associate phone</label>
+            <input id="associatePhone" placeholder="required for text delivery">
+          </div>
+          <div class="row">
+            <label>Delivery</label>
+            <select id="deliveryMethod">
+              <option value="email">Email (recommended)</option>
+              <option value="sms">Text (must have texted JOIN to 509-572-9212)</option>
+              <option value="both">Email + Text</option>
+              <option value="link_only">Link only (copy yourself)</option>
+            </select>
+            <p class="muted" style="margin-top:6px">Email is primary. Texts require prior JOIN opt-in; quiet hours and daily caps also apply.</p>
+          </div>
+        </div>
+        <div class="row">
+          <label>Specific details of discussion</label>
+          <textarea id="details" required minlength="20" placeholder="What happened, when, and what was discussed…"></textarea>
+        </div>
+        <div class="row">
+          <label>Required improvement / next steps</label>
+          <textarea id="requiredImprovement" required minlength="10"></textarea>
+        </div>
+        <div class="row">
+          <label>Policy expectations (from template)</label>
+          <textarea id="policyPreview" readonly style="min-height:120px;opacity:.85"></textarea>
+        </div>
+        <div class="row">
+          <label>Supervisor signature</label>
+          <div class="sig-wrap"><canvas id="supSig" width="700" height="160"></canvas></div>
+          <div class="actions">
+            <button type="button" class="btn" id="clearSupSig">Clear signature</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" type="submit" id="submitBtn">Create &amp; send CAF</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" id="panel-detail">
+      <div class="card detail" id="detailBody"></div>
+      <div class="actions">
+        <button class="btn" id="resendBtn">Resend</button>
+        <button class="btn danger" id="voidBtn">Void</button>
+        <button class="btn" id="copyLinkBtn">Copy sign link</button>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3 style="margin-bottom:8px">Timeline</h3>
+        <div id="eventList" class="muted"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  var templates = [];
+  var reports = [];
+  var actor = null;
+  var current = null;
+  var templateMap = {};
+
+  function $(id) { return document.getElementById(id); }
+  function showMsg(text, ok) {
+    var el = $('msg');
+    if (!text) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="' + (ok ? 'ok' : 'err') + '">' + escapeHtml(text) + '</div>';
+  }
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+  function badge(status) {
+    return '<span class="badge ' + escapeHtml(status) + '">' + escapeHtml(status) + '</span>';
+  }
+
+  function makePad(canvas) {
+    var ctx = canvas.getContext('2d');
+    var drawing = false;
+    function pos(e) {
+      var r = canvas.getBoundingClientRect();
+      var t = e.touches ? e.touches[0] : e;
+      return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
+    }
+    function start(e) { e.preventDefault(); drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+    function move(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      var p = pos(e);
+      ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#111';
+      ctx.lineTo(p.x, p.y); ctx.stroke();
+    }
+    function end() { drawing = false; }
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', end);
+    canvas.addEventListener('mouseleave', end);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', end);
+    return {
+      clear: function () { ctx.clearRect(0, 0, canvas.width, canvas.height); },
+      isEmpty: function () {
+        var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        for (var i = 3; i < data.length; i += 4) if (data[i] > 0) return false;
+        return true;
+      },
+      toDataURL: function () { return canvas.toDataURL('image/png'); }
+    };
+  }
+
+  var supPad = makePad($('supSig'));
+  $('clearSupSig').onclick = function () { supPad.clear(); };
+
+  document.querySelectorAll('.tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      $('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  function fillSubjects() {
+    var key = $('templateKey').value;
+    var tpl = templateMap[key];
+    var sel = $('subject');
+    sel.innerHTML = '';
+    (tpl && tpl.subjects || []).forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s; o.textContent = s; sel.appendChild(o);
+    });
+    $('policyPreview').value = (tpl && tpl.policy) || '';
+  }
+
+  async function api(path, opts) {
+    var res = await dumpBinAuthFetch(path, Object.assign({
+      headers: { 'Content-Type': 'application/json' }
+    }, opts || {}));
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
+  async function loadList() {
+    var status = $('statusFilter').value;
+    var q = status ? ('?status=' + encodeURIComponent(status)) : '';
+    var data = await api('/api/caf' + q);
+    var el = $('cafList');
+    if (!data.items || !data.items.length) {
+      el.innerHTML = '<div class="card muted">No CAFs yet.</div>';
+      return;
+    }
+    el.innerHTML = data.items.map(function (c) {
+      return '<div class="card list-item" data-id="' + c.id + '">'
+        + '<div><h3>' + escapeHtml(c.associateName) + ' — ' + escapeHtml(c.subject) + '</h3>'
+        + '<div class="muted">' + escapeHtml(c.discussionDate || '') + ' · ' + escapeHtml(c.supervisorName || '') + '</div>'
+        + '<div style="margin-top:8px">' + badge(c.status)
+        + (c.viewCount ? ' · views ' + c.viewCount : '')
+        + (c.signedAt ? ' · signed ' + new Date(c.signedAt).toLocaleString() : '')
+        + '</div></div>'
+        + '<button class="btn" data-open="' + c.id + '">Open</button></div>';
+    }).join('');
+    el.querySelectorAll('[data-open]').forEach(function (b) {
+      b.onclick = function () { openDetail(Number(b.getAttribute('data-open'))); };
+    });
+  }
+
+  async function openDetail(id) {
+    var data = await api('/api/caf/' + id);
+    current = data.caf;
+    $('detailTab').hidden = false;
+    document.querySelectorAll('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === 'detail'); });
+    document.querySelectorAll('.panel').forEach(function (p) { p.classList.toggle('active', p.id === 'panel-detail'); });
+    var c = current;
+    $('detailBody').innerHTML =
+      '<div style="margin-bottom:8px">' + badge(c.status) + '</div>'
+      + '<dl>'
+      + '<dt>Associate</dt><dd>' + escapeHtml(c.associateName) + '</dd>'
+      + '<dt>Subject</dt><dd>' + escapeHtml(c.subject) + '</dd>'
+      + '<dt>Discussion date</dt><dd>' + escapeHtml(c.discussionDate || '') + '</dd>'
+      + '<dt>Store</dt><dd>' + escapeHtml(c.storeLocation || '—') + '</dd>'
+      + '<dt>Delivery</dt><dd>' + escapeHtml(c.deliveryMethod || '') + ' · ' + escapeHtml(c.deliveryTarget || '—') + '</dd>'
+      + '<dt>Sign link</dt><dd><a href="' + escapeHtml(c.signUrl) + '" style="color:var(--accent)">' + escapeHtml(c.signUrl) + '</a></dd>'
+      + '<dt>Details</dt><dd>' + escapeHtml(c.details) + '</dd>'
+      + '<dt>Required improvement</dt><dd>' + escapeHtml(c.requiredImprovement) + '</dd>'
+      + '<dt>Associate comments</dt><dd>' + escapeHtml(c.associateComments || '—') + '</dd>'
+      + '</dl>';
+    $('eventList').innerHTML = (data.events || []).map(function (e) {
+      return '<div style="margin-bottom:6px"><strong>' + escapeHtml(e.eventType) + '</strong> · '
+        + new Date(e.createdAt).toLocaleString()
+        + (e.actorEmail ? ' · ' + escapeHtml(e.actorEmail) : '')
+        + '</div>';
+    }).join('') || 'No events.';
+  }
+
+  $('resendBtn').onclick = async function () {
+    if (!current) return;
+    try {
+      showMsg('Resending…', true);
+      await api('/api/caf/' + current.id + '/resend', { method: 'POST', body: '{}' });
+      showMsg('Resent.', true);
+      await openDetail(current.id);
+      await loadList();
+    } catch (err) { showMsg(err.message, false); }
+  };
+  $('voidBtn').onclick = async function () {
+    if (!current) return;
+    var reason = prompt('Void reason (optional):') || '';
+    try {
+      await api('/api/caf/' + current.id + '/void', { method: 'POST', body: JSON.stringify({ reason: reason }) });
+      showMsg('Voided.', true);
+      await openDetail(current.id);
+      await loadList();
+    } catch (err) { showMsg(err.message, false); }
+  };
+  $('copyLinkBtn').onclick = async function () {
+    if (!current || !current.signUrl) return;
+    try {
+      await navigator.clipboard.writeText(current.signUrl);
+      showMsg('Sign link copied.', true);
+    } catch (_) {
+      prompt('Copy this link:', current.signUrl);
+    }
+  };
+
+  $('createForm').onsubmit = async function (e) {
+    e.preventDefault();
+    if (supPad.isEmpty()) { showMsg('Supervisor signature is required.', false); return; }
+    var pick = reports.find(function (r) { return String(r.workdayId || r.sasEmployeeId) === $('associatePick').value; });
+    var body = {
+      templateKey: $('templateKey').value,
+      subject: $('subject').value,
+      discussionDate: $('discussionDate').value,
+      program: $('program').value,
+      storeLocation: $('storeLocation').value,
+      associateName: $('associateName').value,
+      associateEmail: $('associateEmail').value || null,
+      associatePhone: $('associatePhone').value || null,
+      associateWorkdayId: pick ? pick.workdayId : null,
+      associateSasEmployeeId: pick ? pick.sasEmployeeId : null,
+      deliveryMethod: $('deliveryMethod').value,
+      details: $('details').value,
+      requiredImprovement: $('requiredImprovement').value,
+      supervisorSignature: supPad.toDataURL(),
+      supervisorName: actor && actor.displayName
+    };
+    $('submitBtn').disabled = true;
+    try {
+      var data = await api('/api/caf/', { method: 'POST', body: JSON.stringify(body) });
+      var note = 'CAF #' + data.caf.id + ' created.';
+      if (data.delivery && data.delivery.signUrl) note += ' Link: ' + data.delivery.signUrl;
+      if (data.delivery && data.delivery.sms && data.delivery.sms.error) {
+        note += ' SMS note: ' + data.delivery.sms.error;
+      }
+      showMsg(note, true);
+      supPad.clear();
+      await loadList();
+      await openDetail(data.caf.id);
+    } catch (err) {
+      showMsg(err.message, false);
+    } finally {
+      $('submitBtn').disabled = false;
+    }
+  };
+
+  $('associatePick').onchange = function () {
+    var pick = reports.find(function (r) { return String(r.workdayId || r.sasEmployeeId) === $('associatePick').value; });
+    if (!pick) return;
+    $('associateName').value = pick.name || '';
+    $('associateEmail').value = pick.email || '';
+    $('associatePhone').value = pick.phone || '';
+  };
+  $('templateKey').onchange = fillSubjects;
+  $('refreshBtn').onclick = function () { loadList().catch(function (e) { showMsg(e.message, false); }); };
+  $('statusFilter').onchange = $('refreshBtn').onclick;
+
+  async function boot() {
+    try {
+      var me = await api('/api/me');
+      if (!me.hasCafAccess) {
+        $('accessDenied').hidden = false;
+        return;
+      }
+      var meCaf = await api('/api/caf/me');
+      actor = meCaf.actor;
+      $('actorLine').textContent = actor.displayName + ' · ' + actor.email + ' · ' + actor.role
+        + (actor.workdayId ? ' · WD ' + actor.workdayId : '');
+      var tpl = await api('/api/caf/templates');
+      templates = tpl.templates || [];
+      templateMap = {};
+      var sel = $('templateKey');
+      sel.innerHTML = '';
+      templates.forEach(function (t) {
+        templateMap[t.key] = t;
+        var o = document.createElement('option');
+        o.value = t.key; o.textContent = t.label; sel.appendChild(o);
+      });
+      fillSubjects();
+      var today = new Date();
+      $('discussionDate').value = today.toISOString().slice(0, 10);
+      try {
+        var rep = await api('/api/caf/reports');
+        reports = rep.reports || [];
+        var ap = $('associatePick');
+        reports.forEach(function (r) {
+          var o = document.createElement('option');
+          o.value = String(r.workdayId || r.sasEmployeeId);
+          o.textContent = (r.name || 'Associate') + (r.title ? ' — ' + r.title : '');
+          ap.appendChild(o);
+        });
+      } catch (_) {}
+      $('app').hidden = false;
+      await loadList();
+    } catch (err) {
+      $('accessDenied').hidden = false;
+      $('accessDenied').querySelector('p').textContent = err.message || 'Unable to load CAF tool.';
+    }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>

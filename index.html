@@ -125,6 +125,12 @@
         <span class="card__desc">Team callouts and shipper alerts — newest first, with SMS links when posted.</span>
       </a>
 
+      <a href="/caf/" class="card" id="caf-card" hidden>
+        <span class="card__icon">📑</span>
+        <span class="card__title">Corrective Action Forms</span>
+        <span class="card__desc">Issue CAFs to associates, deliver by email/text, and track viewed / signed status.</span>
+      </a>
+
       <a href="/survey/" class="card">
         <span class="card__icon">📝</span>
         <span class="card__title">Store Survey</span>
@@ -185,6 +191,10 @@
         if (me && me.hasCentralPetUpdatesAccess) {
           var cpu = document.getElementById('cp-updates-card');
           if (cpu) cpu.hidden = false;
+        }
+        if (me && me.hasCafAccess) {
+          var caf = document.getElementById('caf-card');
+          if (caf) caf.hidden = false;
         }
         // Survey admin — supervisors/managers (ops ACL) or Kompass admin
         if (roles.indexOf('admin') >= 0) {

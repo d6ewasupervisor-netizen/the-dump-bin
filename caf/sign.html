@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign Corrective Action Form</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f141b; --card:#fff; --text:#15202b; --muted:#5b6b7c; --accent:#1f4e79;
+  --border:#d7dee7; --red:#b42318; --green:#067647;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:18px 14px 60px}
+.card{background:var(--card);border-radius:14px;padding:18px 16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+h1{font-size:1.35rem;color:var(--accent);margin-bottom:6px}
+.sub{color:var(--muted);font-size:14px;margin-bottom:14px}
+.block{margin:14px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:#f7f9fc}
+.block h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
+label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
+textarea{width:100%;min-height:88px;padding:10px;border:1px solid var(--border);border-radius:8px;font:inherit}
+.sig{background:#fff;border:1px solid var(--border);border-radius:8px;touch-action:none}
+.sig canvas{width:100%;height:160px;display:block;cursor:crosshair}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:700;cursor:pointer;min-height:46px}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.secondary{background:#e8eef5;color:var(--accent)}
+.btn.danger{background:#f8e0de;color:var(--red)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.err{background:#fdecec;color:var(--red);padding:12px;border-radius:10px;margin-bottom:12px}
+.ok{background:#e8f8ef;color:var(--green);padding:12px;border-radius:10px;margin-bottom:12px}
+.meta{font-size:14px}
+.meta strong{font-weight:700}
+img.sigimg{max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px;background:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div id="msg"></div>
+    <div id="loading">Loading CAF…</div>
+    <div id="content" hidden>
+      <h1>Corrective Action Form</h1>
+      <p class="sub" id="headline"></p>
+      <div class="meta" id="meta"></div>
+      <div class="block"><h3>Policy expectations</h3><div id="policy"></div></div>
+      <div class="block"><h3>Specific details of discussion</h3><div id="details"></div></div>
+      <div class="block"><h3>Required improvement</h3><div id="improve"></div></div>
+      <div class="block" id="supSigBlock"><h3>Supervisor signature</h3><img class="sigimg" id="supSigImg" alt="Supervisor signature"></div>
+
+      <div id="signArea">
+        <label for="comments">Associate comments (optional)</label>
+        <textarea id="comments" placeholder="Optional comments…"></textarea>
+        <label>Your signature</label>
+        <div class="sig"><canvas id="sig" width="680" height="160"></canvas></div>
+        <label style="display:flex;gap:10px;align-items:flex-start;font-weight:600;margin-top:14px;text-transform:none;letter-spacing:0">
+          <input type="checkbox" id="esignConsent" style="width:auto;margin-top:3px">
+          <span>I agree to sign this Corrective Action Form electronically. I understand my electronic signature is legally binding to the same extent as a handwritten signature (ESIGN/UETA).</span>
+        </label>
+        <div class="actions">
+          <button class="btn secondary" type="button" id="clearBtn">Clear</button>
+          <button class="btn primary" type="button" id="signBtn">Sign &amp; acknowledge</button>
+          <button class="btn danger" type="button" id="refuseBtn">Refuse to sign</button>
+        </div>
+        <p class="sub" style="margin-top:12px">By signing, you acknowledge that this discussion occurred. Signing does not necessarily mean you agree with every statement.</p>
+      </div>
+
+      <div id="doneArea" hidden></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:3001'
+    : 'https://eod-api.the-dump-bin.com';
+  var token = new URLSearchParams(location.search).get('t') || '';
+  var caf = null;
+
+  function $(id) { return document.getElementById(id); }
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+  function showMsg(text, ok) {
+    $('msg').innerHTML = text
+      ? ('<div class="' + (ok ? 'ok' : 'err') + '">' + escapeHtml(text) + '</div>')
+      : '';
+  }
+
+  function makePad(canvas) {
+    var ctx = canvas.getContext('2d');
+    var drawing = false;
+    function pos(e) {
+      var r = canvas.getBoundingClientRect();
+      var t = e.touches ? e.touches[0] : e;
+      return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
+    }
+    function start(e) { e.preventDefault(); drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+    function move(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      var p = pos(e);
+      ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#111';
+      ctx.lineTo(p.x, p.y); ctx.stroke();
+    }
+    function end() { drawing = false; }
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', end);
+    canvas.addEventListener('mouseleave', end);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', end);
+    return {
+      clear: function () { ctx.clearRect(0, 0, canvas.width, canvas.height); },
+      isEmpty: function () {
+        var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        for (var i = 3; i < data.length; i += 4) if (data[i] > 0) return false;
+        return true;
+      },
+      toDataURL: function () { return canvas.toDataURL('image/png'); }
+    };
+  }
+
+  var pad = makePad($('sig'));
+  $('clearBtn').onclick = function () { pad.clear(); };
+
+  function renderDone() {
+    $('signArea').hidden = true;
+    $('doneArea').hidden = false;
+    if (caf.status === 'signed') {
+      $('doneArea').innerHTML = '<div class="ok">Signed on '
+        + escapeHtml(caf.signedAt ? new Date(caf.signedAt).toLocaleString() : 'this session')
+        + '. Thank you.</div>';
+    } else if (caf.status === 'refused') {
+      $('doneArea').innerHTML = '<div class="err">Marked as refused'
+        + (caf.refusedAt ? (' on ' + escapeHtml(new Date(caf.refusedAt).toLocaleString())) : '')
+        + '.</div>';
+    } else if (caf.status === 'voided') {
+      $('doneArea').innerHTML = '<div class="err">This CAF was voided and can no longer be signed.</div>';
+    }
+  }
+
+  function render() {
+    $('loading').hidden = true;
+    $('content').hidden = false;
+    $('headline').textContent = caf.subject + ' · ' + (caf.discussionDate || '');
+    $('meta').innerHTML =
+      '<p><strong>Associate:</strong> ' + escapeHtml(caf.associateName) + '</p>'
+      + '<p><strong>Supervisor:</strong> ' + escapeHtml(caf.supervisorName) + '</p>'
+      + (caf.storeLocation ? ('<p><strong>Location:</strong> ' + escapeHtml(caf.storeLocation) + '</p>') : '')
+      + '<p><strong>Status:</strong> ' + escapeHtml(caf.status) + '</p>';
+    $('policy').textContent = caf.policyExpectations || '';
+    $('details').textContent = caf.details || '';
+    $('improve').textContent = caf.requiredImprovement || '';
+    if (caf.supervisorSignature) {
+      $('supSigImg').src = caf.supervisorSignature;
+    } else {
+      $('supSigBlock').hidden = true;
+    }
+    if (['signed', 'refused', 'voided'].includes(caf.status)) renderDone();
+  }
+
+  async function load() {
+    if (!token) {
+      $('loading').textContent = 'Missing signing link token.';
+      return;
+    }
+    try {
+      var res = await fetch(API + '/api/caf/public/' + encodeURIComponent(token));
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to load CAF');
+      caf = data.caf;
+      render();
+    } catch (err) {
+      $('loading').textContent = err.message || 'Unable to load CAF';
+    }
+  }
+
+  $('signBtn').onclick = async function () {
+    if (!$('esignConsent').checked) {
+      showMsg('Check the electronic signature consent box before signing.', false);
+      return;
+    }
+    if (pad.isEmpty()) { showMsg('Signature is required to sign.', false); return; }
+    $('signBtn').disabled = true;
+    try {
+      var res = await fetch(API + '/api/caf/public/' + encodeURIComponent(token) + '/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          comments: $('comments').value,
+          signature: pad.toDataURL(),
+          electronicConsent: true
+        })
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sign failed');
+      caf = data.caf;
+      showMsg('Signed successfully.', true);
+      renderDone();
+    } catch (err) {
+      showMsg(err.message, false);
+      $('signBtn').disabled = false;
+    }
+  };
+
+  $('refuseBtn').onclick = async function () {
+    if (!confirm('Refuse to sign this CAF? Your supervisor will be notified via the tracking dashboard.')) return;
+    $('refuseBtn').disabled = true;
+    try {
+      var res = await fetch(API + '/api/caf/public/' + encodeURIComponent(token) + '/refuse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comments: $('comments').value || 'Associate refused to sign' })
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Refuse failed');
+      caf = data.caf;
+      showMsg('Recorded as refused.', true);
+      renderDone();
+    } catch (err) {
+      showMsg(err.message, false);
+      $('refuseBtn').disabled = false;
+    }
+  };
+
+  load();
+})();
+</script>
+</body>
+</html>
