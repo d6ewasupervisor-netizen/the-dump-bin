@@ -34,6 +34,12 @@ textarea{width:100%;min-height:88px;padding:10px;border:1px solid var(--border);
 .meta{font-size:14px}
 .meta strong{font-weight:700}
 img.sigimg{max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px;background:#fff}
+@media (max-width:640px){
+  .wrap{padding:12px 10px 48px}
+  .card{padding:14px 12px}
+  .actions{position:sticky;bottom:0;background:#fff;padding-top:10px;margin:0 -4px}
+  .btn{flex:1 1 calc(50% - 4px);min-width:140px}
+}
 </style>
 </head>
 <body>
@@ -64,7 +70,7 @@ img.sigimg{max-width:100%;height:auto;border:1px solid var(--border);border-radi
           <button class="btn primary" type="button" id="signBtn">Sign &amp; acknowledge</button>
           <button class="btn danger" type="button" id="refuseBtn">Refuse to sign</button>
         </div>
-        <p class="sub" style="margin-top:12px">By signing, you acknowledge that this discussion occurred. Signing does not necessarily mean you agree with every statement.</p>
+        <p class="sub" style="margin-top:12px">By signing, you acknowledge that this discussion occurred. Signing does not necessarily mean you agree with every statement. Your supervisor receives email updates when you view, sign, or refuse this form.</p>
       </div>
 
       <div id="doneArea" hidden></div>
@@ -178,6 +184,17 @@ img.sigimg{max-width:100%;height:auto;border:1px solid var(--border);border-radi
     if (['signed', 'refused', 'voided'].includes(caf.status)) renderDone();
   }
 
+  async function ackView() {
+    if (!token) return;
+    try {
+      await fetch(API + '/api/caf/public/' + encodeURIComponent(token) + '/view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+    } catch (_) {}
+  }
+
   async function load() {
     if (!token) {
       $('loading').textContent = 'Missing signing link token.';
@@ -189,6 +206,7 @@ img.sigimg{max-width:100%;height:auto;border:1px solid var(--border);border-radi
       if (!res.ok) throw new Error(data.error || 'Unable to load CAF');
       caf = data.caf;
       render();
+      requestAnimationFrame(function () { ackView(); });
     } catch (err) {
       $('loading').textContent = err.message || 'Unable to load CAF';
     }
@@ -223,7 +241,7 @@ img.sigimg{max-width:100%;height:auto;border:1px solid var(--border);border-radi
   };
 
   $('refuseBtn').onclick = async function () {
-    if (!confirm('Refuse to sign this CAF? Your supervisor will be notified via the tracking dashboard.')) return;
+    if (!confirm('Refuse to sign this CAF? Your supervisor will be notified by email and receive the completed PDF.')) return;
     $('refuseBtn').disabled = true;
     try {
       var res = await fetch(API + '/api/caf/public/' + encodeURIComponent(token) + '/refuse', {

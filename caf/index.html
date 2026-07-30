@@ -50,6 +50,19 @@ textarea{min-height:96px;resize:vertical}
 .access{padding:24px;text-align:center}
 .detail dt{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;margin-top:10px}
 .detail dd{margin:2px 0 0;white-space:pre-wrap}
+.prior-card{border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;background:#111820}
+.prior-card .grid{grid-template-columns:1fr 1fr 1fr}
+.sticky-actions{position:sticky;bottom:0;z-index:5;background:linear-gradient(transparent,var(--bg) 24%);padding:12px 0 4px;margin-top:8px}
+@media (max-width:640px){
+  .wrap{padding:12px 10px 72px}
+  .top{flex-direction:column;align-items:flex-start}
+  .tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .tab,.btn{flex:0 0 auto}
+  .grid,.prior-card .grid{grid-template-columns:1fr}
+  .list-item{flex-direction:column}
+  .actions .btn{flex:1 1 calc(50% - 4px);min-width:140px}
+  .sticky-actions .actions{margin:0}
+}
 </style>
 </head>
 <body>
@@ -130,6 +143,10 @@ textarea{min-height:96px;resize:vertical}
             <input id="associateName" required>
           </div>
           <div class="row">
+            <label>Employee ID #</label>
+            <input id="associateEmployeeId" inputmode="numeric" placeholder="SAS / Workday employee ID">
+          </div>
+          <div class="row">
             <label>Associate email</label>
             <input id="associateEmail" type="email" placeholder="required for email delivery">
           </div>
@@ -149,7 +166,15 @@ textarea{min-height:96px;resize:vertical}
           </div>
         </div>
         <div class="row">
-          <label>Specific details of discussion</label>
+          <label>Prior notifications (up to 3)</label>
+          <p class="muted" style="margin-bottom:8px">Auto-filled from previous CAFs for this associate. Edit or add manual entries.</p>
+          <div id="priorEntries"></div>
+          <div class="actions">
+            <button type="button" class="btn" id="addPriorBtn">Add prior slot</button>
+            <button type="button" class="btn" id="refreshPriorsBtn">Refresh from history</button>
+          </div>
+        </div>
+        <div class="row">
           <textarea id="details" required minlength="20" placeholder="What happened, when, and what was discussed…"></textarea>
         </div>
         <div class="row">
@@ -167,7 +192,7 @@ textarea{min-height:96px;resize:vertical}
             <button type="button" class="btn" id="clearSupSig">Clear signature</button>
           </div>
         </div>
-        <div class="actions">
+        <div class="actions sticky-actions">
           <button class="btn primary" type="submit" id="submitBtn">Create &amp; send CAF</button>
         </div>
       </form>
@@ -175,11 +200,25 @@ textarea{min-height:96px;resize:vertical}
 
     <section class="panel" id="panel-detail">
       <div class="card detail" id="detailBody"></div>
-      <div class="actions">
+      <div class="actions sticky-actions">
         <button class="btn" id="pdfBtn">Download SAS PDF</button>
         <button class="btn" id="resendBtn">Resend</button>
+        <button class="btn" id="faxBtn">Fax to store</button>
         <button class="btn danger" id="voidBtn">Void</button>
         <button class="btn" id="copyLinkBtn">Copy sign link</button>
+      </div>
+      <div class="card" id="faxPanel" hidden style="margin-top:12px">
+        <h3 style="margin-bottom:8px">Fax PDF to store</h3>
+        <p class="muted" style="margin-bottom:8px">Uses the shared store fax machine. Store <strong>999</strong> is Tyson&rsquo;s test fax. Do not fax confidential CAFs to shared store machines unless appropriate.</p>
+        <div class="grid">
+          <div class="row">
+            <label>Store number</label>
+            <input id="faxStoreNumber" inputmode="numeric" placeholder="e.g. 28 or 999">
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" type="button" id="faxSendBtn">Send fax</button>
+        </div>
       </div>
       <div class="card" style="margin-top:12px">
         <h3 style="margin-bottom:8px">Timeline</h3>
@@ -196,6 +235,79 @@ textarea{min-height:96px;resize:vertical}
   var actor = null;
   var current = null;
   var templateMap = {};
+  var priorTypes = ['Verbal Correction', 'Written Warning'];
+  var priorSlots = [];
+
+  function localDateInputValue(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function employeeIdForReport(r) {
+    if (!r) return '';
+    return String(r.sasEmployeeId || r.workdayId || '');
+  }
+
+  function renderPriorSlots() {
+    var host = $('priorEntries');
+    if (!host) return;
+    host.innerHTML = priorSlots.map(function (slot, idx) {
+      var typeOpts = priorTypes.map(function (t) {
+        return '<option value="' + escapeHtml(t) + '"' + (slot.type === t ? ' selected' : '') + '>' + escapeHtml(t) + '</option>';
+      }).join('');
+      return '<div class="prior-card" data-idx="' + idx + '">'
+        + '<div class="grid">'
+        + '<div class="row"><label>Type</label><select data-field="type">' + typeOpts + '</select></div>'
+        + '<div class="row"><label>Date</label><input type="date" data-field="date" value="' + escapeHtml(slot.date || '') + '"></div>'
+        + '<div class="row"><label>Subject</label><input data-field="subject" value="' + escapeHtml(slot.subject || '') + '"></div>'
+        + '</div>'
+        + '<div class="actions"><button type="button" class="btn" data-remove="' + idx + '">Remove</button></div>'
+        + '</div>';
+    }).join('');
+    host.querySelectorAll('[data-remove]').forEach(function (btn) {
+      btn.onclick = function () {
+        priorSlots.splice(Number(btn.getAttribute('data-remove')), 1);
+        renderPriorSlots();
+      };
+    });
+    host.querySelectorAll('.prior-card').forEach(function (card) {
+      var idx = Number(card.getAttribute('data-idx'));
+      card.querySelectorAll('[data-field]').forEach(function (el) {
+        el.onchange = el.oninput = function () {
+          priorSlots[idx][el.getAttribute('data-field')] = el.value;
+        };
+      });
+    });
+  }
+
+  function setPriorSlotsFromHistory(items) {
+    priorSlots = (items || []).slice(0, 3).map(function (p) {
+      return {
+        type: p.suggestedType || 'Written Warning',
+        date: p.discussionDate || '',
+        subject: p.subject || ''
+      };
+    });
+    renderPriorSlots();
+  }
+
+  async function refreshPriorsFromAssociate() {
+    var pick = reports.find(function (r) {
+      return String(r.workdayId || r.sasEmployeeId) === $('associatePick').value;
+    });
+    var q = [];
+    if (pick && pick.workdayId) q.push('associateWorkdayId=' + encodeURIComponent(pick.workdayId));
+    if (pick && pick.sasEmployeeId) q.push('associateSasEmployeeId=' + encodeURIComponent(pick.sasEmployeeId));
+    if ($('associateEmail').value) q.push('email=' + encodeURIComponent($('associateEmail').value.trim()));
+    if (!q.length) return;
+    try {
+      var data = await api('/api/caf/priors?' + q.join('&'));
+      if (data.priorTypes && data.priorTypes.length) priorTypes = data.priorTypes;
+      if (data.priors && data.priors.length) setPriorSlotsFromHistory(data.priors);
+    } catch (_) {}
+  }
 
   function $(id) { return document.getElementById(id); }
   function showMsg(text, ok) {
@@ -320,6 +432,26 @@ textarea{min-height:96px;resize:vertical}
     });
   }
 
+  $('faxBtn').onclick = function () {
+    $('faxPanel').hidden = !$('faxPanel').hidden;
+  };
+
+  $('faxSendBtn').onclick = async function () {
+    if (!current) return;
+    var storeNumber = String($('faxStoreNumber').value || '').trim();
+    if (!storeNumber) { showMsg('Enter a store number (999 for test fax).', false); return; }
+    if (!confirm('Fax this CAF PDF to store #' + storeNumber + '?')) return;
+    try {
+      showMsg('Queuing fax…', true);
+      var data = await api('/api/caf/' + current.id + '/fax', {
+        method: 'POST',
+        body: JSON.stringify({ storeNumber: storeNumber })
+      });
+      showMsg('Fax queued via print-at-store pipeline (email #' + (data.fax && data.fax.emailId || 'ok') + ').', true);
+      await openDetail(current.id);
+    } catch (err) { showMsg(err.message, false); }
+  };
+
   async function openDetail(id) {
     var data = await api('/api/caf/' + id);
     current = data.caf;
@@ -330,9 +462,19 @@ textarea{min-height:96px;resize:vertical}
     $('detailBody').innerHTML =
       '<div style="margin-bottom:8px">' + badge(c.status) + '</div>'
       + '<dl>'
-      + '<dt>Associate</dt><dd>' + escapeHtml(c.associateName) + '</dd>'
+      + '<dt>Associate</dt><dd>' + escapeHtml(c.associateName)
+      + (c.associateSasEmployeeId || c.associateWorkdayId
+        ? ' · ID ' + escapeHtml(String(c.associateSasEmployeeId || c.associateWorkdayId))
+        : '') + '</dd>'
       + '<dt>Subject</dt><dd>' + escapeHtml(c.subject) + '</dd>'
       + '<dt>Discussion date</dt><dd>' + escapeHtml(c.discussionDate || '') + '</dd>'
+      + '<dt>Prior notifications</dt><dd>' + (
+        (c.priorEntries && c.priorEntries.length)
+          ? c.priorEntries.map(function (p) {
+            return escapeHtml((p.type || 'Written Warning') + ' · ' + (p.date || '?') + ' · ' + (p.subject || ''));
+          }).join('<br>')
+          : escapeHtml((c.priorDate || '—') + (c.priorSubject ? (' · ' + c.priorSubject) : ''))
+      ) + '</dd>'
       + '<dt>Store</dt><dd>' + escapeHtml(c.storeLocation || '—') + '</dd>'
       + '<dt>Delivery</dt><dd>' + escapeHtml(c.deliveryMethod || '') + ' · ' + escapeHtml(c.deliveryTarget || '—') + '</dd>'
       + '<dt>Sign link</dt><dd><a href="' + escapeHtml(c.signUrl) + '" style="color:var(--accent)">' + escapeHtml(c.signUrl) + '</a></dd>'
@@ -346,6 +488,9 @@ textarea{min-height:96px;resize:vertical}
         + (e.actorEmail ? ' · ' + escapeHtml(e.actorEmail) : '')
         + '</div>';
     }).join('') || 'No events.';
+    if (c.storeLocation) {
+      $('faxStoreNumber').value = String(c.storeLocation).replace(/[^\d]/g, '') || c.storeLocation;
+    }
   }
 
   $('resendBtn').onclick = async function () {
@@ -417,8 +562,10 @@ textarea{min-height:96px;resize:vertical}
       associateName: $('associateName').value,
       associateEmail: $('associateEmail').value || null,
       associatePhone: $('associatePhone').value || null,
-      associateWorkdayId: pick ? pick.workdayId : null,
-      associateSasEmployeeId: pick ? pick.sasEmployeeId : null,
+      associateWorkdayId: pick ? pick.workdayId : ($('associateEmployeeId').value || null),
+      associateSasEmployeeId: pick ? pick.sasEmployeeId : ($('associateEmployeeId').value || null),
+      associateEmployeeId: $('associateEmployeeId').value || null,
+      priorEntries: priorSlots.filter(function (p) { return p.date || p.subject; }),
       deliveryMethod: $('deliveryMethod').value,
       details: $('details').value,
       requiredImprovement: $('requiredImprovement').value,
@@ -450,6 +597,19 @@ textarea{min-height:96px;resize:vertical}
     $('associateName').value = pick.name || '';
     $('associateEmail').value = pick.email || '';
     $('associatePhone').value = pick.phone || '';
+    $('associateEmployeeId').value = employeeIdForReport(pick);
+    refreshPriorsFromAssociate();
+  };
+  $('associateEmail').addEventListener('change', refreshPriorsFromAssociate);
+  $('addPriorBtn').onclick = function () {
+    if (priorSlots.length >= 3) { showMsg('Maximum 3 prior notification slots.', false); return; }
+    priorSlots.push({ type: 'Written Warning', date: '', subject: '' });
+    renderPriorSlots();
+  };
+  $('refreshPriorsBtn').onclick = function () {
+    refreshPriorsFromAssociate().then(function () {
+      showMsg('Prior notifications refreshed from CAF history.', true);
+    }).catch(function (e) { showMsg(e.message, false); });
   };
   $('templateKey').onchange = fillSubjects;
   $('refreshBtn').onclick = function () { loadList().catch(function (e) { showMsg(e.message, false); }); };
@@ -477,8 +637,8 @@ textarea{min-height:96px;resize:vertical}
         o.value = t.key; o.textContent = t.label; sel.appendChild(o);
       });
       fillSubjects();
-      var today = new Date();
-      $('discussionDate').value = today.toISOString().slice(0, 10);
+      renderPriorSlots();
+      $('discussionDate').value = localDateInputValue(new Date());
       try {
         var rep = await api('/api/caf/reports');
         reports = rep.reports || [];
@@ -486,7 +646,10 @@ textarea{min-height:96px;resize:vertical}
         reports.forEach(function (r) {
           var o = document.createElement('option');
           o.value = String(r.workdayId || r.sasEmployeeId);
-          o.textContent = (r.name || 'Associate') + (r.title ? ' — ' + r.title : '');
+          var idPart = employeeIdForReport(r);
+          o.textContent = (r.name || 'Associate')
+            + (idPart ? ' · ID ' + idPart : '')
+            + (r.title ? ' — ' + r.title : '');
           ap.appendChild(o);
         });
       } catch (_) {}
