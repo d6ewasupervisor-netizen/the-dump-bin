@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="caf-app-version" content="1.1">
+<meta name="caf-app-version" content="1.2">
 <title>Corrective Action Forms</title>
 <script src="/caf/caf-version.js"></script>
 <script src="/auth-gate.js"></script>
@@ -32,9 +32,6 @@ h1{font-size:clamp(1.35rem,4vw,1.7rem);font-weight:800}
 label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
 input,select,textarea{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:#111820;color:var(--text);font:inherit}
 input[type="date"]{color-scheme:dark;cursor:pointer}
-.date-picker{display:flex;gap:8px;align-items:stretch}
-.date-picker input{min-width:0}
-.calendar-btn{flex:0 0 46px;padding:0;font-size:20px;line-height:1}
 textarea{min-height:96px;resize:vertical}
 .row{margin-bottom:12px}
 .muted{color:var(--muted);font-size:13px}
@@ -123,10 +120,7 @@ textarea{min-height:96px;resize:vertical}
           </div>
           <div class="row">
             <label for="discussionDate">Discussion date</label>
-            <div class="date-picker">
-              <input type="date" id="discussionDate" required>
-              <button class="btn calendar-btn" type="button" id="discussionDatePicker" aria-label="Open discussion date calendar" title="Open calendar">📅</button>
-            </div>
+            <input type="date" id="discussionDate" required>
           </div>
           <div class="row">
             <label>Program</label>
@@ -177,6 +171,7 @@ textarea{min-height:96px;resize:vertical}
           </div>
         </div>
         <div class="row">
+          <label>Specific details of discussion</label>
           <textarea id="details" required minlength="20" placeholder="What happened, when, and what was discussed…"></textarea>
         </div>
         <div class="row">
@@ -190,9 +185,14 @@ textarea{min-height:96px;resize:vertical}
         <div class="row">
           <label>Supervisor signature</label>
           <div class="sig-wrap"><canvas id="supSig" width="700" height="160"></canvas></div>
+          <input type="file" id="supSigUpload" accept="image/png,image/jpeg,image/jpg" hidden>
           <div class="actions">
-            <button type="button" class="btn" id="clearSupSig">Clear signature</button>
+            <button type="button" class="btn" id="clearSupSig">Clear</button>
+            <button type="button" class="btn" id="loadSupSig">Load saved</button>
+            <button type="button" class="btn" id="saveSupSig">Save for reuse</button>
+            <button type="button" class="btn" id="uploadSupSig">Upload image</button>
           </div>
+          <p class="muted" id="supSigHint" style="margin-top:6px">Draw here, or load/upload a saved signature PNG/JPG.</p>
         </div>
         <div class="actions sticky-actions">
           <button class="btn primary" type="submit" id="submitBtn">Create &amp; send CAF</button>
@@ -326,6 +326,10 @@ textarea{min-height:96px;resize:vertical}
     return '<span class="badge ' + escapeHtml(status) + '">' + escapeHtml(status) + '</span>';
   }
 
+  function savedSigStorageKey(email) {
+    return 'caf-supervisor-signature:' + String(email || 'unknown').trim().toLowerCase();
+  }
+
   function makePad(canvas) {
     var ctx = canvas.getContext('2d');
     var drawing = false;
@@ -357,28 +361,93 @@ textarea{min-height:96px;resize:vertical}
         for (var i = 3; i < data.length; i += 4) if (data[i] > 0) return false;
         return true;
       },
-      toDataURL: function () { return canvas.toDataURL('image/png'); }
+      toDataURL: function () { return canvas.toDataURL('image/png'); },
+      loadDataUrl: function (dataUrl) {
+        return new Promise(function (resolve, reject) {
+          var img = new Image();
+          img.onload = function () {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve();
+          };
+          img.onerror = function () { reject(new Error('Could not load signature image.')); };
+          img.src = dataUrl;
+        });
+      }
     };
   }
 
   var supPad = makePad($('supSig'));
-  $('clearSupSig').onclick = function () { supPad.clear(); };
 
-  function openDatePicker() {
-    var input = $('discussionDate');
-    input.focus();
-    if (typeof input.showPicker === 'function') {
-      try { input.showPicker(); } catch (_) {}
-    } else {
-      input.click();
+  function setSupSigHint(text) {
+    var el = $('supSigHint');
+    if (el) el.textContent = text;
+  }
+
+  function readSavedSupervisorSig() {
+    if (!actor || !actor.email) return null;
+    try {
+      return localStorage.getItem(savedSigStorageKey(actor.email));
+    } catch (_) {
+      return null;
     }
   }
-  $('discussionDatePicker').onclick = openDatePicker;
-  $('discussionDate').addEventListener('click', function () {
-    if (typeof this.showPicker === 'function') {
-      try { this.showPicker(); } catch (_) {}
+
+  function writeSavedSupervisorSig(dataUrl) {
+    if (!actor || !actor.email) throw new Error('Sign in required to save a signature.');
+    localStorage.setItem(savedSigStorageKey(actor.email), dataUrl);
+  }
+
+  async function loadSavedSupervisorSig(showNotice) {
+    var saved = readSavedSupervisorSig();
+    if (!saved) {
+      if (showNotice) showMsg('No saved signature for your account yet.', false);
+      return false;
     }
-  });
+    await supPad.loadDataUrl(saved);
+    if (showNotice) showMsg('Loaded your saved supervisor signature.', true);
+    return true;
+  }
+
+  $('clearSupSig').onclick = function () {
+    supPad.clear();
+    setSupSigHint('Signature cleared. Draw, load saved, or upload an image.');
+  };
+  $('saveSupSig').onclick = function () {
+    if (supPad.isEmpty()) { showMsg('Draw or upload a signature before saving.', false); return; }
+    try {
+      writeSavedSupervisorSig(supPad.toDataURL());
+      showMsg('Supervisor signature saved for reuse on this device.', true);
+      setSupSigHint('Saved on this device — use Load saved next time.');
+    } catch (err) {
+      showMsg(err.message || 'Could not save signature.', false);
+    }
+  };
+  $('loadSupSig').onclick = function () {
+    loadSavedSupervisorSig(true).catch(function (err) {
+      showMsg(err.message || 'Could not load saved signature.', false);
+    });
+  };
+  $('uploadSupSig').onclick = function () { $('supSigUpload').click(); };
+  $('supSigUpload').onchange = function () {
+    var file = $('supSigUpload').files && $('supSigUpload').files[0];
+    $('supSigUpload').value = '';
+    if (!file) return;
+    if (!/^image\/(png|jpeg|jpg)$/i.test(file.type)) {
+      showMsg('Upload a PNG or JPG signature image.', false);
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      supPad.loadDataUrl(String(reader.result || '')).then(function () {
+        showMsg('Signature image loaded.', true);
+      }).catch(function (err) {
+        showMsg(err.message || 'Could not load image.', false);
+      });
+    };
+    reader.onerror = function () { showMsg('Could not read image file.', false); };
+    reader.readAsDataURL(file);
+  };
 
   document.querySelectorAll('.tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -584,6 +653,7 @@ textarea{min-height:96px;resize:vertical}
       }
       showMsg(note, true);
       supPad.clear();
+      loadSavedSupervisorSig(false).catch(function () {});
       await loadList();
       await openDetail(data.caf.id);
     } catch (err) {
@@ -628,6 +698,9 @@ textarea{min-height:96px;resize:vertical}
       actor = meCaf.actor;
       $('actorLine').textContent = actor.displayName + ' · ' + actor.email + ' · ' + actor.role
         + (actor.workdayId ? ' · WD ' + actor.workdayId : '');
+      loadSavedSupervisorSig(false).then(function (loaded) {
+        if (loaded) setSupSigHint('Loaded your saved signature — draw to replace, or Clear.');
+      }).catch(function () {});
       var tpl = await api('/api/caf/templates');
       templates = tpl.templates || [];
       templateMap = {};
