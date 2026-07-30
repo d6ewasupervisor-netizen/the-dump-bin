@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en" data-base="/sop">
+<head>
+<script src="/auth-gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Section 7 — Reading a Planogram · Kompass SOP</title>
+<link rel="stylesheet" href="/sop/assets/css/sop.css">
+</head>
+<body>
+
+<a class="ro-skip" href="#main">Skip to content</a>
+
+<header class="ro-header">
+  <img class="ro-header__logo" src="/sop/assets/brand/logo-full.png" alt="The Retail Odyssey Company">
+  <p class="ro-header__title">Section 7 — Reading a Planogram</p>
+  <button class="ro-iconbtn" type="button" data-ro-searchtoggle aria-expanded="false" aria-label="Search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+  </button>
+  <button class="ro-iconbtn ro-navtoggle" type="button" data-ro-navtoggle aria-expanded="false" aria-label="Sections">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+</header>
+
+<div class="ro-searchpanel" data-ro-searchpanel hidden>
+  <label class="ro-skip" for="ro-q">Search the guide</label>
+  <input class="ro-field" id="ro-q" type="search" placeholder="Search the guide…" data-ro-searchinput autocomplete="off">
+  <p class="ro-count" data-ro-searchcount role="status" aria-live="polite"></p>
+  <ul class="ro-results" data-ro-searchresults></ul>
+</div>
+
+<div class="ro-nav__backdrop" data-ro-backdrop></div>
+
+<div class="ro-shell">
+
+  <nav class="ro-nav" data-ro-nav aria-label="Sections"></nav>
+
+  <main class="ro-main" id="main">
+    <article data-ro-body>
+
+<h1>Section 7 — How to Read a Planogram</h1>
+
+<p>A planogram — often called a POG or a <a class="ro-term" href="/sop/part-2/glossary#schematic">schematic</a> — is the map for your assignment. It tells you what goes on the shelf, exactly where, and how many. You do not guess, and you do not improve on it. If the shelf can't match the planogram, you stop and contact me.</p>
+
+<p>Everything below uses a real Fred Meyer <a class="ro-term" href="/sop/part-2/glossary#set">set</a> you may actually be assigned to.</p>
+
+<details class="ro-toc" data-ro-toc></details>
+
+<h2 id="7-1">7.1 — Reading the file name</h2>
+
+<p>Your assignment arrives with a name that looks like nonsense. It isn't. Here's the one we're using:</p>
+
+<p><strong>D701_L00000_D03_C166_V689_F020_MX — HP 72IN HAIR CARE PREMIUM (FM)</strong></p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Piece</th>
+<th scope="col">Meaning</th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">D701</th><td>Division 701 — Fred Meyer</td></tr>
+<tr><th scope="row">L00000</th><td>Location code; all zeros means the set is standard across stores, not store-specific</td></tr>
+<tr><th scope="row">D03</th><td>Department 03 — <a class="ro-term" href="/sop/part-2/glossary#hbc">HBC</a> (Health &amp; Beauty Care)</td></tr>
+<tr><th scope="row">C166</th><td><a class="ro-term" href="/sop/part-2/glossary#commodity">Commodity</a> 166 — Hair Care Products</td></tr>
+<tr><th scope="row">V689</th><td>Version 689 of this planogram</td></tr>
+<tr><th scope="row">F020</th><td>The size of the set — 20 feet. This field isn't always feet; see below</td></tr>
+<tr><th scope="row">MX</th><td>Store format — the multi-department format covering both the grocery and home sides of the store</td></tr>
+<tr><th scope="row">HP 72IN</th><td>72-inch <a class="ro-term" href="/sop/part-2/glossary#fixture">fixture</a> height</td></tr>
+<tr><th scope="row">(FM)</th><td>Fred Meyer</td></tr>
+</tbody></table></div>
+
+<p><strong>Three of these matter more than the rest. Check all three before you touch anything.</strong></p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Check</th>
+<th scope="col">Why</th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">Category — C166</th><td>Tells you which set you're holding. The single most common way to start the wrong job is to pick up the right-looking planogram for the wrong commodity</td></tr>
+<tr><th scope="row">Size — F020</th><td>Twenty feet. This has to match the section in front of you. It's the first physical check you make, and it's in <a href="/sop/part-1/08-performing-a-full-reset#8-2">8.2</a> for exactly that reason</td></tr>
+<tr><th scope="row">Version — V689</th><td>How you know the plan is current. Planograms get revised. If your version doesn't match what your lead is working from, stop and ask before you set anything</td></tr>
+</tbody></table></div>
+
+<p>Category tells you <em>what</em>, size tells you <em>whether it fits</em>, and version tells you <em>whether it's still true.</em> Any one of the three being wrong means you're about to do work that has to be undone.</p>
+
+<p><strong>Size isn't always in feet. Read the letter before the number.</strong></p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Prefix</th>
+<th scope="col">Unit</th>
+<th scope="col">Example</th>
+<th scope="col">Where you'll see it</th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">F</th><td>Feet</td><td><strong>F020</strong> — 20 feet</td><td>Most sets</td></tr>
+<tr><th scope="row">D</th><td>Doors</td><td><strong>D05</strong> — 5 doors</td><td>Frozen and refrigerated cases, which are measured in doors rather than footage</td></tr>
+<tr><th scope="row">I</th><td>Inches</td><td><strong>I037</strong> — 37 inches</td><td>Short sets and odd sections where feet would round away the detail</td></tr>
+</tbody></table></div>
+
+<p><strong>Check the letter before you reach for the tape.</strong> A frozen set marked D05 doesn't want a measurement, it wants a door count — and someone who reads it as feet will conclude the section is wildly wrong and stop work over nothing.</p>
+
+<p><strong>One thing to watch: D appears three times in the string and means something different each time.</strong> In <strong>D701</strong> it's the division. In <strong>D03</strong> it's the department. In the size field it's doors. Position tells you which — the size field is always the one just before the format code.</p>
+
+<p><strong>Departments do change.</strong> Pet planograms recently moved from Department 01 to Department 03 following a family tree change. Older printouts and most people's memory still say 01. <strong>A department code that doesn't match what you expect isn't automatically a wrong planogram</strong> — check Part II, Commodities before you escalate it.</p>
+
+<p><strong>Two more worth understanding:</strong></p>
+
+<p><strong>L00000 — all zeros.</strong> The location code. All zeros means this set is <strong>standard across stores</strong>, not built for one store in particular. A code with digits in it means the opposite, and that's worth noticing — a store-specific plan exists because that store needed something different.</p>
+
+<p><strong>MX — the store format.</strong> Fred Meyer runs multiple formats, and a set built for one won't fit another. MX is the multi-department version covering both the grocery and home sides. If your footage or shelf count doesn't match, a format mismatch is one of the first things to check.</p>
+
+<h2 id="7-2">7.2 — The cover page tells you the job before you start</h2>
+
+<p>Page 1 carries the specs. Read them before you touch anything:</p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Field</th>
+<th scope="col">This set</th>
+</tr></thead>
+<tbody>
+<tr><td>Planogram Width</td><td>20 ft</td></tr>
+<tr><td>Planogram Height</td><td>78 inches</td></tr>
+<tr><td>Planogram Depth</td><td>22 inches</td></tr>
+<tr><td>Number of Shelves</td><td>30</td></tr>
+<tr><td>Number of Products</td><td>339</td></tr>
+<tr><td>Number of Pegs</td><td>0</td></tr>
+<tr><td>Number of Bars</td><td>0</td></tr>
+<tr><td><a class="ro-term" href="/sop/part-2/glossary#effective-date">Effective Date</a></td><td>7/19/2026</td></tr>
+<tr><td>Period Week</td><td>P07 W01 Y2026</td></tr>
+</tbody></table></div>
+
+<p><strong>What this actually tells you:</strong></p>
+
+<ul><li>20 feet of shelving, built as <strong>five 4-foot bays</strong>. Four feet is the standard <a class="ro-term" href="/sop/part-2/glossary#bay">bay</a> width — you'll see it constantly.</li><li>30 shelves ÷ 5 bays = <strong>6 shelves per bay</strong>.</li><li>Zero pegs and zero bars means this is an all-shelf set. Nothing hangs.</li><li><strong>Effective Date is the date the set goes live in the store.</strong> It is not the date you work it, and it is not the date the file was created — this one was generated 6/9 for a set effective 7/19.</li></ul>
+
+<p><strong>Before you start, verify two things against the physical section:</strong></p>
+
+<ol><li>Measure the section. It should be 20 feet.</li><li>Count the shelves. There should be 30.</li></ol>
+
+<p>Either one off? Stop and contact me. Do not adjust the planogram to fit the shelf.</p>
+
+<h2 id="7-3">7.3 — Shelf heights, and the measurement that trips people up</h2>
+
+<p>Each bay lists its shelves with an exact height:</p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Shelf</th>
+<th scope="col">Height from <a class="ro-term" href="/sop/part-2/glossary#base-shelf">base shelf</a></th>
+</tr></thead>
+<tbody>
+<tr><td>Shelf 1</td><td>0.00 — base shelf</td></tr>
+<tr><td>Shelf 2</td><td>13.00 in</td></tr>
+<tr><td>Shelf 3</td><td>25.00 in</td></tr>
+<tr><td>Shelf 4</td><td>37.00 in</td></tr>
+<tr><td>Shelf 5</td><td>49.00 in</td></tr>
+<tr><td>Shelf 6</td><td>61.00 in</td></tr>
+</tbody></table></div>
+
+<p><strong>How to measure — this is the part people get wrong.</strong></p>
+
+<p>The rule is printed directly on every page: <em>the measurement is the distance from the top of one shelf to the top of the next shelf up.</em></p>
+
+<p>Top of shelf to top of shelf. Not top-of-shelf to the underside of the one above it. Those two methods differ by the thickness of the shelf itself, and if you use the wrong one across six shelves the whole bay drifts.</p>
+
+<p>Check your work: 61 inches to the top shelf, plus 11 inches of clearance above it, is the 72-inch fixture. Add the 6-inch base deck and you have the 78-inch planogram height off the floor. If your numbers close like that, you measured correctly.</p>
+
+<p><strong>Three things that make the number right or wrong:</strong></p>
+
+<ul><li><strong>Read the tape at eye level</strong>, straight on, the way you'd read a measuring cup. Looking down at the tape from above reads long. One shelf, it's nothing. Six shelves, the bay drifts.</li><li><strong>When the shelf won't sit at the exact height</strong> using the nearest hole in the <a class="ro-term" href="/sop/part-2/glossary#gondola">gondola</a>, leave <strong>too much space rather than too little.</strong> Too much and the product still fits. Too little and it doesn't go on the shelf at all.</li><li><strong>Bread and chips sit on wire shelves. Measure to where the product sits, not to the top of the front lip.</strong> The front edge of a wire shelf rides above its deck, and measuring to the lip puts every shelf above it too high.</li></ul>
+
+<p><strong>When the diagram and the table disagree, the table wins.</strong> The shelf-height list is the specification. The callouts along the left edge of the picture are a visual aid.</p>
+
+<p><strong>The strip gives you a second opinion, and almost nobody uses it.</strong></p>
+
+<p>Along the bottom of the shelf strip, printed in red in very small type, is <strong><a class="ro-term" href="/sop/part-2/glossary#distance-from-base-shelf">DISTANCE FROM BASE SHELF</a></strong> and a number. That's how far that shelf sits above the base shelf.</p>
+
+<p>Use it. Measuring shelf to shelf up a bay means every measurement inherits the error in the one below it — six shelves, six chances to drift. The distance from the base shelf is taken from a single fixed datum, so it accumulates nothing. <strong>Set your heights the normal way, then check an <a class="ro-term" href="/sop/part-2/glossary#upper">upper</a> shelf against its distance-from-base number.</strong> If those agree, everything underneath is right.</p>
+
+<p><strong>Who makes these, and why your shelf doesn't always agree with them.</strong></p>
+
+<p>Planograms are built by a central team — the <strong>Planogram Center of Excellence</strong>, <a class="ro-term" href="/sop/part-2/glossary#pcoe">PCOE</a>. A separate team, <strong><a class="ro-term" href="/sop/part-2/glossary#lamcoe">LAMCOE</a></strong>, maps those planograms onto each store's floorplan. Between the two, every store gets told which plan goes on which fixture.</p>
+
+<p>That's why one plan covers a whole division, and why <a href="/sop/part-1/07-reading-a-planogram#7-6">7.6</a> exists. The plan is drawn to a standard. Your fixture is a real thing in a real building.</p>
+
+<h2 id="7-4">7.4 — Finding any product: Bay, Shelf, Position</h2>
+
+<p>Every item on the set has a three-part address, and it's how we'll talk about the work.</p>
+
+<p><strong>Bay → Shelf → Position.</strong></p>
+
+<ul><li><strong>Bay</strong> — which 4-foot section, numbered left to right, 1 through 5</li><li><strong>Shelf</strong> — numbered bottom to top, 1 through 6</li><li><strong>Position</strong> — left to right along that shelf, starting at 1</li></ul>
+
+<p>So &quot;Bay 3, Shelf 5, Position 4&quot; is one specific product, and there's no ambiguity about which one.</p>
+
+<p><strong>The counting rules are exact, and two of them will catch you out.</strong></p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col"></th>
+<th scope="col"></th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">Bays</th><td>Left to right across the planogram</td></tr>
+<tr><th scope="row">Shelves</th><td>Bottom to top <strong>within each bay</strong> — and the count <strong>includes empty shelves and signage shelves.</strong> A shelf with nothing on it is still a shelf and still gets a number</td></tr>
+<tr><th scope="row">Shelf extenders</th><td>Counted as the <strong>last</strong> fixture on the bay where the extender's left edge begins</td></tr>
+<tr><th scope="row">Positions</th><td>Left to right. <strong>Start with the first item whose left edge falls inside the bay. Stop with the last item whose left edge falls inside the bay</strong></td></tr>
+</tbody></table></div>
+
+<p><strong>The empty and signage shelves rule is the one that bites.</strong> <a href="/sop/part-1/08-performing-a-full-reset#8-2">Section 8.2</a> has you count the shelves and confirm they match the planogram. Skip a signage shelf because it holds no product and your count is off by one — which reads as a planogram that doesn't fit your section, and sends you to your lead over nothing.</p>
+
+<p><strong>The position start-and-stop rule is what resolves the straddling item.</strong> A product sitting across a bay seam belongs to whichever bay its <strong>left edge</strong> is in. That's why the same item appears in two bays' tables with the facings split between them.</p>
+
+<p><strong>Positions <a class="ro-term" href="/sop/part-2/glossary#run">run</a> continuously across bay boundaries.</strong> You will see a bay's product table open with a row belonging to the <em>previous</em> bay — Bay 2's Shelf 6 list starts with an entry labeled Bay 1, Shelf 6, Position 17. That's a product physically straddling the seam between two bays. It's not an error. Set it once, from whichever bay you're working.</p>
+
+<p><strong>On the diagram, a straddling product looks like a printing error.</strong> When an item lands right in the middle of a seam between two bays, there's no room to label it the usual way — so the planogram gives you a small arrow pointing at the seam, with the item information turned sideways and shrunk down to fit. It looks like something went wrong at the printer. It didn't.</p>
+
+<p>That sideways, tiny, arrowed label is the planogram telling you <strong>an item belongs right there, spanning the seam, with part of its facings on each side.</strong> When you see one, expect to find that same item listed in the position tables of <em>both</em> bays.</p>
+
+<p>This is also why a <a class="ro-term" href="/sop/part-2/glossary#facing">facing</a> count can look wrong when it isn't — <strong>the planogram divides a product at the bay line and the shelf strip doesn't.</strong> <a href="/sop/part-1/07-reading-a-planogram#7-7">Section 7.7</a> covers what to do about it.</p>
+
+<h2 id="7-5">7.5 — The position table, column by column</h2>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Column</th>
+<th scope="col">What it means</th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">Bay</th><td>Which 4-ft section</td></tr>
+<tr><th scope="row">Fi... (Fixture)</th><td>The shelf number</td></tr>
+<tr><th scope="row">Pos</th><td>Position, left to right on that shelf</td></tr>
+<tr><th scope="row"><a class="ro-term" href="/sop/part-2/glossary#upc">UPC</a></th><td>The barcode. This is the item's real identity — trust it over the description</td></tr>
+<tr><th scope="row">Fac</th><td><strong>Facings</strong> — how many of this product sit side by side across the front</td></tr>
+<tr><th scope="row">New/Chg</th><td>Flags an item new to this set</td></tr>
+<tr><th scope="row">Product Description</th><td>Abbreviated name</td></tr>
+<tr><th scope="row">Size</th><td>Package size</td></tr>
+<tr><th scope="row">Height / Width</th><td>Physical dimensions of the package</td></tr>
+<tr><th scope="row">Merch</th><td>How it's merchandised — <em>Unit</em> or <em>Display</em></td></tr>
+<tr><th scope="row">Safer Info</th><td>Handling flags for regulated or hazardous items. Blank on this set — if it isn't blank on yours, ask me before handling</td></tr>
+</tbody></table></div>
+
+<p><strong>On product descriptions:</strong> they're truncated and cryptic. <em>HRB ES</em> is Herbal Essences. <em>TRSME</em> is TreSemmé. <em>GRNR FRC</em> is Garnier Fructis. <em>LORL</em> is L'Oréal. <em>AUSS</em> is Aussie. You'll learn them fast, but <strong>when the description and the UPC disagree, scan the UPC.</strong> Descriptions repeat and mislead; UPCs don't.</p>
+
+<h2 id="7-6">7.6 — Facings</h2>
+
+<p>The <strong>Fac</strong> column is the number of that product across the front of the shelf, side by side.</p>
+
+<p>From Bay 1, Shelf 6 on this set:</p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Pos</th>
+<th scope="col">Product</th>
+<th scope="col">Fac</th>
+</tr></thead>
+<tbody>
+<tr><td>1</td><td>HRB ES CURL BOOSTING MSSE</td><td>1</td></tr>
+<tr><td>2</td><td>HRB ES TTL TWST CURL MSSE</td><td>2</td></tr>
+<tr><td>3</td><td>H/ESS BDY ENVY VOLUM MOUS</td><td>1</td></tr>
+<tr><td>4</td><td>HRB ES VOLUME HAIRSPRY</td><td>2</td></tr>
+</tbody></table></div>
+
+<p>Position 2 gets two units across the front. Position 3 gets one. Get this wrong and the whole shelf shifts sideways, and every product to the right of your mistake lands in the wrong place.</p>
+
+<p>Facings are horizontal only. Fill the shelf front to back behind each facing as depth allows — this set is 22 inches deep.</p>
+
+<p><strong>When the facings don't fit.</strong></p>
+
+<p>Corporate issues one planogram for a set. There are close to 130 stores in this division and just about as many variations in how the shelving actually sits. The plan is drawn to a standard in an office; your section is a real fixture that's been rebuilt, bumped, and worked around for years. The two will not always agree, and that is ordinary — it is not a fault to report and wait on.</p>
+
+<p>Two rules cover nearly all of it:</p>
+
+<ol><li><strong>A product with multiple facings that won't all fit — take it down by one facing.</strong> Set the rest as planned.</li><li><strong>A product with no room for even one facing</strong> — look for a neighbor on the same shelf that has multiple facings, and take one from it. An item with one facing is on the shelf. An item with none is invisible to the customer and to the store's inventory.</li></ol>
+
+<p><strong>Both cases: call it out to your lead. Neither case stops your work.</strong> Keep setting.</p>
+
+<p><strong>What does stop the work</strong> is a section that doesn't match at all — footage off, shelf count off, wrong version, wrong format. Facings that don't quite fit are a fitting problem, and you solve those on the shelf. A section that isn't the right size is a planning problem, and that's the one worth stopping for.</p>
+
+<h2 id="7-7">7.7 — The shelf strip</h2>
+
+<figure>
+  <picture>
+    <source type="image/webp" srcset="/sop/assets/img-opt/03-product-resets/03-product-resets_05.webp">
+    <img src="/sop/assets/img-opt/03-product-resets/03-product-resets_05.jpg" width="645" height="483"
+         loading="lazy" decoding="async" alt="GoGo squeeZ Fruit on the Go applesauce variety packs in 12-count and 20-count boxes stacked on a grocery shelf with price tags on the shelf edge.">
+  </picture>
+  <figcaption>GoGo squeeZ variety-pack boxes on shelf — an example of product whose shelf-strip facing count may span multiple bays.</figcaption>
+</figure>
+<figure>
+  <picture>
+    <source type="image/webp" srcset="/sop/assets/img-opt/03-product-resets/03-product-resets_06.webp">
+    <img src="/sop/assets/img-opt/03-product-resets/03-product-resets_06.jpg" width="768" height="1024"
+         loading="lazy" decoding="async" alt="Close-up of a printed shelf strip for GoGo squeeZ Fruit on the Go beneath the product box, showing a product thumbnail and the codes C1, H1, and W1.">
+  </picture>
+  <figcaption>Shelf strip with size codes — the letter-number pairs identify which tag size to use.</figcaption>
+</figure>
+<figure>
+  <picture>
+    <source type="image/webp" srcset="/sop/assets/img-opt/03-product-resets/03-product-resets_07.webp">
+    <img src="/sop/assets/img-opt/03-product-resets/03-product-resets_07.jpg" width="552" height="735"
+         loading="lazy" decoding="async" alt="Close-up of a Maxwell House coffee shelf label showing a product image, an SRP code box, and the identifiers H2 and W2.">
+  </picture>
+  <figcaption>Another shelf-strip example with height and width codes for tag sizing.</figcaption>
+</figure>
+
+<p>The planogram is what you carry. <strong>The shelf strip is what stays on the shelf</strong>, and it repeats the same instructions in a form you can read while your hands are full.</p>
+
+<p>The strip slides into the <a class="ro-term" href="/sop/part-2/glossary#data-skin">data skin</a> along the front edge.</p>
+
+<p><strong>The header band</strong> runs along the top and tells you where you are:</p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">On the header</th>
+<th scope="col">What it tells you</th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">Bay ## Shelf ##</th><td>The bay and fixture this strip belongs to</td></tr>
+<tr><th scope="row">POG space station name</th><td>The full planogram code — the same string as the file name in <a href="/sop/part-1/07-reading-a-planogram#7-1">7.1</a></td></tr>
+<tr><th scope="row">Period, week, year</th><td>Written like <strong>P4 Wk2 Y21</strong>. When this plan takes effect</td></tr>
+<tr><th scope="row">Division and store number</th><td>Which division and which store</td></tr>
+<tr><th scope="row">Aisle number and orientation</th><td>Which aisle, and which side of it you're standing at</td></tr>
+<tr><th scope="row">Generic POG description</th><td>The plain-language name of the set</td></tr>
+</tbody></table></div>
+
+<p><strong>Each product entry</strong> on the strip carries:</p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">On the entry</th>
+<th scope="col">What it tells you</th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">Commodity number</th><td>The commodity this item belongs to</td></tr>
+<tr><th scope="row">UPC and barcode</th><td>The item's real identity. Scan this, not the description</td></tr>
+<tr><th scope="row">Product description and size</th><td>Abbreviated name and pack size</td></tr>
+<tr><th scope="row">Wholesaler name</th><td>Who supplies it</td></tr>
+<tr><th scope="row">Black lines</th><td>The position boundaries. Product sits <strong>between</strong> the lines</td></tr>
+<tr><th scope="row">C / H / W</th><td>The stack notation — see below</td></tr>
+<tr><th scope="row"><a class="ro-term" href="/sop/part-2/glossary#srp">SRP</a></th><td>Marked in green. Leave the product in its shipping tray or box</td></tr>
+<tr><th scope="row">⇔</th><td><strong>The commodity spans bays.</strong> See below</td></tr>
+<tr><th scope="row">DISTANCE FROM BASE SHELF</th><td>Red, small type. The shelf's height above the base shelf — see <a href="/sop/part-1/07-reading-a-planogram#7-3">7.3</a></td></tr>
+<tr><th scope="row">DSL <a class="ro-term" href="/sop/part-2/glossary#tag">tag</a> size</th><td>Which size digital label this position takes — DSL stores only</td></tr>
+</tbody></table></div>
+
+<p><strong>Small item strips</strong> — spices, extracts, anything narrow — carry the same information in a compressed layout. Same fields, less room.</p>
+
+<p><strong>The ⇔ symbol means the item spans bays.</strong></p>
+
+<p>It's the printed version of everything <a href="/sop/part-1/07-reading-a-planogram#7-4">7.4</a> describes, and it's the fastest way to tell a straddling item from a mistake — the strip is telling you outright.</p>
+
+<p><strong>It continues onto the same shelf in the next bay.</strong> Each bay has its own shelves, so physically it's a different piece of steel — but it's the <strong>same shelf number, the same height, the same horizontal row.</strong> Bay 2 Shelf 3 carries on as Bay 3 Shelf 3.</p>
+
+<p><strong>Look sideways, never up or down.</strong> A spanning item stays in the horizontal flow with the products beside it.</p>
+
+<p><strong>The facing count on the strip is the total across both bays</strong>, not the part in front of you. So a strip reading W3 against a Fac column reading 2 means one more facing is waiting at the start of the next bay, on that same shelf. Go and find it before you decide the numbers are wrong.</p>
+
+<p><strong>The stack notation: C, H, W.</strong></p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Letter</th>
+<th scope="col">Officially</th>
+<th scope="col">On the shelf</th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">C</th><td><strong>Capping</strong></td><td>Number of <strong>caps</strong> — units laid flat on top of the standing product</td></tr>
+<tr><th scope="row">H</th><td><strong>High</strong></td><td>Number of <strong>layers</strong> — how many the product stacks upward</td></tr>
+<tr><th scope="row">W</th><td><strong>Wide</strong></td><td>Number of <strong>rows</strong> — the facings, same as the Fac column</td></tr>
+</tbody></table></div>
+
+<p>The official words are Capping, High, and Wide. Most people say caps, layers, and facings. Both are correct and you'll hear both.</p>
+
+<p><strong>When W and the planogram's Fac column disagree, check the adjoining bay first.</strong> Most of the time they aren't actually disagreeing.</p>
+
+<p>Here's why. <strong>The planogram is written bay by bay. The strip runs the full length of the run.</strong> So a product sitting at the end of a shelf often continues as position 1 on the same shelf in the next bay over. The planogram splits it — 2 facings in this bay's table, 1 more in the next bay's — while the strip, which doesn't care where the bays divide, shows all 3.</p>
+
+<p>So a strip reading <strong>W3</strong> against a Fac column reading <strong>2</strong> usually means there's one more facing of that item waiting at the start of the next bay. Add the two together before you treat it as a conflict.</p>
+
+<p>If you check the same shelf in the adjoining bay and it genuinely isn't that, <strong>follow the strip — if there's room for it.</strong> If there isn't, you're back to <a href="/sop/part-1/07-reading-a-planogram#7-6">7.6</a>: take it down a facing and keep setting. Either way, tell your lead. Neither one stops the work.</p>
+
+<p><strong>SRP is the one that catches people.</strong> On a strip or a planogram it means <strong>Shelf Ready Packaging</strong> — the product stays on the shelf in the tray or box it shipped in, not unpacked. Canned vegetables, baby food, frozen vegetables. In a conversation about pricing the same three letters mean Suggested Retail Price. If you're reading it off a strip, it's the packaging one.</p>
+
+<h2 id="7-8">7.8 — Unit vs. Display</h2>
+
+<p>The <strong>Merch</strong> column tells you how the item is presented.</p>
+
+<ul><li><strong>Unit</strong> — normal shelf placement, standing as the product is designed to stand.</li><li><strong>Display</strong> — the item sits in or on a display piece, often a small tray or <a class="ro-term" href="/sop/part-2/glossary#riser">riser</a>. On this set, five TreSemmé items on Bay 1 Shelf 5 are marked Display.</li></ul>
+
+<p>If a Display item arrives without its display piece, don't improvise a substitute. Ask me.</p>
+
+<h2 id="7-9">7.9 — The NEW and DELETE pages</h2>
+
+<p>Page 2 of every planogram lists what's changing:</p>
+
+<ul><li><strong>Products Added To Planogram (NEW)</strong> — items joining the set. This set adds 12.</li><li><strong>Products Removed From Planogram (DELETE)</strong> — items leaving. This set drops 7.</li></ul>
+
+<p>New items are also flagged inline in the position tables, so you'll see them twice.</p>
+
+<p><strong>A trap worth knowing:</strong> the same UPC can appear on <em>both</em> lists. On this set, LORL STDLN CLEAN GEL (UPC 0007124911933) is listed as added and as removed. That normally means the item is moving — different bay, different shelf, or different facing count — not that it's leaving the store. Set it where the position table puts it, and don't box it as discontinued because you saw it on the delete list.</p>
+
+<p>When in doubt about a product on both lists, ask me before you pull it.</p>
+
+<h2 id="7-10">7.10 — Fixtures that aren't shelves</h2>
+
+<p>Most of what you'll set is shelves. When it isn't, the counting changes — and if you assume shelf rules on a table or a <a class="ro-term" href="/sop/part-2/glossary#chest">chest</a>, the addresses won't line up.</p>
+
+<p><strong>Tables</strong> — bakery display tables, produce tables</p>
+
+<ul><li><strong>Each planogram is one bay</strong></li><li><strong>Fixtures count front to back</strong>, from the front of the store backward</li><li><strong>Positions count left to right, then front to back</strong> within the table</li><li>On a layout, tables are shaded differently from each other so they stay distinguishable in grayscale print</li></ul>
+
+<p><strong>Pegboards</strong></p>
+
+<ul><li><strong>An open <a class="ro-term" href="/sop/part-2/glossary#pegboard">pegboard</a> — no rods or bars — counts as one fixture</strong>, holding all the product pegged to it</li><li>A pegboard behind shelves is sequenced by its <strong>topmost</strong> position. A board between shelves 4 and 6 takes position 1</li><li><strong>A pegboard with no product positions isn't counted at all</strong></li><li><strong>Each bar or rod counts as one fixture</strong> if it holds a position or a sign. Empty bars and rods aren't counted</li><li><strong>Positions on rods and bars</strong> count left to right</li><li><strong>Positions on an open pegboard</strong> count <strong>top to bottom, then left to right</strong>. Products differing in height by a couple of inches count as the same row</li></ul>
+
+<p><strong>Chests</strong> — bunkers and open freezer wells</p>
+
+<ul><li>A chest may be <strong>one bay</strong>, or several counted left to right</li><li><strong>Bins and trays count left to right, then front to back</strong></li><li><strong>Positions count left to right, then front to back</strong>, within the tray or within the bay if there are no trays</li></ul>
+
+<p><strong>Sub-fixtures</strong></p>
+
+<p>A <a class="ro-term" href="/sop/part-2/glossary#sub-fixture">sub-fixture</a> is a fixture sitting inside another fixture. It <strong>inherits the parent's number</strong> and gets a three- or four-digit code: the first one or two digits are the parent, the rest is the sub-fixture counted bottom to top.</p>
+
+<div class="ro-tablewrap ro-tablewrap--stick">
+<table>
+<thead><tr>
+<th scope="col">Code</th>
+<th scope="col">Reads as</th>
+</tr></thead>
+<tbody>
+<tr><th scope="row">203</th><td>Third sub-fixture on fixture 2</td></tr>
+<tr><th scope="row">401</th><td>First sub-fixture on fixture 4</td></tr>
+<tr><th scope="row">1002</th><td>Second sub-fixture on fixture 10</td></tr>
+</tbody></table></div>
+
+<p>Positions inside a sub-fixture count left to right, then front to back.</p>
+
+<h2 id="7-11">7.11 — Working the set</h2>
+
+<p>Put it together in this order:</p>
+
+<ol><li>Confirm the effective date matches the set you were assigned</li><li>Measure the section — 20 ft — and count the shelves — 30</li><li>Work <strong>bay by bay, left to right</strong></li><li>Within each bay, work <strong>bottom shelf to top</strong></li><li>Within each shelf, work <strong>left to right by position</strong></li><li>Set facings exactly as the Fac column reads</li><li>Tag the set — paper tags to the left of each product, or digital labels installed and associated. <a href="/sop/part-1/08-performing-a-full-reset">Section 8</a>, Step 8 has both</li></ol>
+
+<p>Bottom to top, left to right, one bay at a time. That order is not a preference — it's what keeps you from rebuilding a shelf you already finished.</p>
+
+      <nav class="ro-pager" data-ro-pager aria-label="Section navigation"></nav>
+
+    </article>
+  </main>
+
+</div>
+
+<script src="/sop/assets/js/sop.js"></script>
+</body>
+</html>

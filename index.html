@@ -137,10 +137,28 @@
         <span class="card__desc">Division 701 in-store best practices survey — one store at a time, saves as you go.</span>
       </a>
 
+      <a href="/sop/" class="card">
+        <span class="card__icon">📖</span>
+        <span class="card__title">Kompass SOP</span>
+        <span class="card__desc">The full Kompass standard operating procedure — reset steps, safety, photo standards, and quick reference.</span>
+      </a>
+
+      <a href="/dc-scan/" class="card">
+        <span class="card__icon">📡</span>
+        <span class="card__title">DC Scan Signup</span>
+        <span class="card__desc">Live board for DC scan volunteer signup — see open slots and claim a shift.</span>
+      </a>
+
       <a href="/survey-admin/" class="card" id="survey-admin-card" hidden>
         <span class="card__icon">📈</span>
         <span class="card__title">Survey Admin</span>
         <span class="card__desc">Trending problem questions, filters, and exports for the office.</span>
+      </a>
+
+      <a href="/email-outbox/" class="card" id="email-outbox-card" hidden>
+        <span class="card__icon">📬</span>
+        <span class="card__title">Email Outbox</span>
+        <span class="card__desc">All outbound Resend emails across tools — delivery status and exact resend.</span>
       </a>
 
     </div>
@@ -195,6 +213,10 @@
         if (me && me.hasCafAccess) {
           var caf = document.getElementById('caf-card');
           if (caf) caf.hidden = false;
+        }
+        if (isHostAdmin) {
+          var eo = document.getElementById('email-outbox-card');
+          if (eo) eo.hidden = false;
         }
         // Survey admin — supervisors/managers (ops ACL) or Kompass admin
         if (roles.indexOf('admin') >= 0) {

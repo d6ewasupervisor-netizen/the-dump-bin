@@ -255,6 +255,8 @@
           lowered.startsWith('/checklanes')
           || lowered.startsWith('/dc-scan')
           || lowered.startsWith('/survey')
+          || lowered.startsWith('/sop')
+          || lowered.startsWith('/email-outbox')
           || lowered.startsWith('/caf')
         ) {
           return location.origin.replace(/\/+$/, '') + path;

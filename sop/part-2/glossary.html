@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en" data-base="/sop">
+<head>
+<script src="/auth-gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Glossary · Kompass SOP</title>
+<link rel="stylesheet" href="/sop/assets/css/sop.css">
+</head>
+<body>
+
+<a class="ro-skip" href="#main">Skip to content</a>
+
+<header class="ro-header">
+  <img class="ro-header__logo" src="/sop/assets/brand/logo-full.png" alt="The Retail Odyssey Company">
+  <p class="ro-header__title">Glossary</p>
+  <button class="ro-iconbtn" type="button" data-ro-searchtoggle aria-expanded="false" aria-label="Search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+  </button>
+  <button class="ro-iconbtn ro-navtoggle" type="button" data-ro-navtoggle aria-expanded="false" aria-label="Sections">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+</header>
+
+<div class="ro-searchpanel" data-ro-searchpanel hidden>
+  <label class="ro-skip" for="ro-q">Search the guide</label>
+  <input class="ro-field" id="ro-q" type="search" placeholder="Search the guide…" data-ro-searchinput autocomplete="off">
+  <p class="ro-count" data-ro-searchcount role="status" aria-live="polite"></p>
+  <ul class="ro-results" data-ro-searchresults></ul>
+</div>
+
+<div class="ro-nav__backdrop" data-ro-backdrop></div>
+
+<div class="ro-shell">
+
+  <nav class="ro-nav" data-ro-nav aria-label="Sections"></nav>
+
+  <main class="ro-main" id="main">
+    <article data-ro-body>
+
+
+      <h1>Part II — Glossary</h1>
+
+      <h2 id="first-week">The ones you'll hear in your first week</h2>
+
+      <p>Learn these eleven and most conversations will make sense. Everything else you can look up.</p>
+
+      <div class="ro-tablewrap ro-tablewrap--stick">
+        <table>
+          <thead>
+            <tr><th scope="col">Term</th><th scope="col">Short version</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Kompass</th><td>The program you work — Kroger Optimization Management Plan Aligning Store Sales</td></tr>
+            <tr><th scope="row">POG</th><td>Planogram. The map for your assignment</td></tr>
+            <tr><th scope="row">Bay</th><td>Each 4-foot segment of a gondola, numbered left to right</td></tr>
+            <tr><th scope="row">Set</th><td>A grouping of like items — pickles, peanut butter, laundry detergent. Also called a commodity</td></tr>
+            <tr><th scope="row">Facing</th><td>How many of one product sit side by side across the front of the shelf</td></tr>
+            <tr><th scope="row">Data skin</th><td>The clear channel that snaps onto the shelf front and holds the strip</td></tr>
+            <tr><th scope="row">Strip</th><td>The printed label strip that slides into the data skin</td></tr>
+            <tr><th scope="row">Tag</th><td>The individual price label for one product. Technically a UPL</td></tr>
+            <tr><th scope="row">Backstock</th><td>Product that won't fit on the shelf. Goes to top stock, a U-boat, or a banana box — never left in the aisle</td></tr>
+            <tr><th scope="row">DI</th><td>Discontinued item — comes off the set, carries a closeout tag</td></tr>
+            <tr><th scope="row">NII</th><td>New item introduction — a partial project adding new products to an existing set</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ro-toolbar">
+        <label for="ro-glossary-filter">Filter terms</label>
+        <input class="ro-field" id="ro-glossary-filter" type="search" data-ro-filter placeholder="Term or definition…" autocomplete="off">
+        <p class="ro-count" data-ro-count role="status" aria-live="polite"></p>
+      </div>
+
+      <ul class="ro-alpha" data-ro-alpha hidden></ul>
+
+      <div data-ro-glossary></div>
+
+
+      <nav class="ro-pager" data-ro-pager aria-label="Section navigation"></nav>
+
+    </article>
+  </main>
+
+</div>
+
+<script src="/sop/assets/js/sop.js"></script>
+<script src="/sop/assets/js/glossary.js"></script>
+</body>
+</html>
