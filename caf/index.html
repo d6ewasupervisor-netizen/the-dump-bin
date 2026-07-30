@@ -29,6 +29,10 @@ h1{font-size:clamp(1.35rem,4vw,1.7rem);font-weight:800}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
 input,select,textarea{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:#111820;color:var(--text);font:inherit}
+input[type="date"]{color-scheme:dark;cursor:pointer}
+.date-picker{display:flex;gap:8px;align-items:stretch}
+.date-picker input{min-width:0}
+.calendar-btn{flex:0 0 46px;padding:0;font-size:20px;line-height:1}
 textarea{min-height:96px;resize:vertical}
 .row{margin-bottom:12px}
 .muted{color:var(--muted);font-size:13px}
@@ -103,8 +107,11 @@ textarea{min-height:96px;resize:vertical}
             <select id="subject" required></select>
           </div>
           <div class="row">
-            <label>Discussion date</label>
-            <input type="date" id="discussionDate" required>
+            <label for="discussionDate">Discussion date</label>
+            <div class="date-picker">
+              <input type="date" id="discussionDate" required>
+              <button class="btn calendar-btn" type="button" id="discussionDatePicker" aria-label="Open discussion date calendar" title="Open calendar">📅</button>
+            </div>
           </div>
           <div class="row">
             <label>Program</label>
@@ -242,6 +249,22 @@ textarea{min-height:96px;resize:vertical}
 
   var supPad = makePad($('supSig'));
   $('clearSupSig').onclick = function () { supPad.clear(); };
+
+  function openDatePicker() {
+    var input = $('discussionDate');
+    input.focus();
+    if (typeof input.showPicker === 'function') {
+      try { input.showPicker(); } catch (_) {}
+    } else {
+      input.click();
+    }
+  }
+  $('discussionDatePicker').onclick = openDatePicker;
+  $('discussionDate').addEventListener('click', function () {
+    if (typeof this.showPicker === 'function') {
+      try { this.showPicker(); } catch (_) {}
+    }
+  });
 
   document.querySelectorAll('.tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
