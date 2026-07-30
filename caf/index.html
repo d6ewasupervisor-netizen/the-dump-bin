@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="caf-app-version" content="1.3">
+<meta name="caf-app-version" content="1.4">
 <title>Corrective Action Forms</title>
 <script src="/caf/caf-version.js"></script>
 <script src="/auth-gate.js"></script>
@@ -554,9 +554,18 @@ textarea{min-height:96px;resize:vertical}
       + '<dt>Associate comments</dt><dd>' + escapeHtml(c.associateComments || '—') + '</dd>'
       + '</dl>';
     $('eventList').innerHTML = (data.events || []).map(function (e) {
+      var d = e.detail || {};
+      var why = d.error || d.reason || '';
+      var note = why
+        ? '<div style="margin:2px 0 0 8px;color:#e0a030">'
+          + escapeHtml(why)
+          + (d.rule ? ' <span class="muted">(' + escapeHtml(d.rule) + ')</span>' : '')
+          + '</div>'
+        : '';
       return '<div style="margin-bottom:6px"><strong>' + escapeHtml(e.eventType) + '</strong> · '
         + new Date(e.createdAt).toLocaleString()
         + (e.actorEmail ? ' · ' + escapeHtml(e.actorEmail) : '')
+        + note
         + '</div>';
     }).join('') || 'No events.';
     if (c.storeLocation) {
