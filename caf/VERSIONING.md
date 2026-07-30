@@ -1,10 +1,10 @@
 # CAF app versioning
 
-Current version: **1.2**
+Current version: **1.3**
 
 ## Badge
 
-Both `index.html` and `sign.html` show a green lit **`v1.2`** badge (top-right) via `caf-version.js`.
+Both `index.html` and `sign.html` show a green lit **`v1.3`** badge (top-right) via `caf-version.js`.
 
 ## Sources of truth (keep identical)
 
