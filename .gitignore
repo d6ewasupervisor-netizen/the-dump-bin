@@ -1,4 +1,4 @@
-# Editor / IDE workspace files
+﻿# Editor / IDE workspace files
 *.code-workspace
 .vscode/
 .cursor/
@@ -17,3 +17,10 @@ npm-debug.log*
 checklanes/tests/strength/results/*
 !checklanes/tests/strength/results/.gitkeep
 checklanes/tests/strength/agent/node_modules/
+
+# Portable audit inventory (secrets-safe outputs)
+docs/portable-audit/
+
+# Nested standalone repo (has its own GitHub remote) -- never commit into this repo
+district1/
+
