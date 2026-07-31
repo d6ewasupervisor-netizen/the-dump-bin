@@ -126,6 +126,16 @@
       .eod-ts-qr-card img { width: 280px; height: 280px; background: #fff; }
       .eod-ts-qr-card h3 { margin: 0 0 8px; font-size: 1.2rem; }
       .eod-ts-qr-url { font-size: 12px; word-break: break-all; color: #475569; margin: 10px 0 16px; }
+      #eodTsTabletOverlay {
+        position: fixed; inset: 0; z-index: 10060; background: #0b1220;
+        display: none; flex-direction: column;
+      }
+      #eodTsTabletOverlay.show { display: flex; }
+      #eodTsTabletBar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 14px; background: #111827; border-bottom: 1px solid #334155;
+      }
+      #eodTsTabletFrame { flex: 1; border: none; width: 100%; background: #fff; }
     `;
     document.head.appendChild(style);
   }
@@ -166,6 +176,23 @@
       document.body.appendChild(qr);
       document.getElementById('eodTsQrClose').onclick = () => qr.classList.remove('show');
       document.getElementById('eodTsQrRefresh').onclick = () => refreshJoinToken(true).then(showJoinQr);
+    }
+
+    if (!document.getElementById('eodTsTabletOverlay')) {
+      const tablet = document.createElement('div');
+      tablet.id = 'eodTsTabletOverlay';
+      tablet.innerHTML = `
+        <div id="eodTsTabletBar">
+          <strong id="eodTsTabletTitle" style="color:#fde68a;">Worker sign-off</strong>
+          <button type="button" class="btn btn-secondary" id="eodTsTabletClose">Close</button>
+        </div>
+        <iframe id="eodTsTabletFrame" title="Worker time sheet" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
+      document.body.appendChild(tablet);
+      document.getElementById('eodTsTabletClose').onclick = () => {
+        tablet.classList.remove('show');
+        document.getElementById('eodTsTabletFrame').src = 'about:blank';
+        refresh(true).catch(() => {});
+      };
     }
   }
 
@@ -245,6 +272,7 @@
         <td>
           <div class="eod-ts-pin">${escapeHtml(m.pin || '—')}</div>
           <div class="eod-ts-row-actions" style="margin-top:6px;">
+            <button type="button" class="btn btn-secondary eod-ts-copy-pin" data-idx="${idx}">Copy PIN</button>
             <button type="button" class="btn btn-secondary eod-ts-regen" data-idx="${idx}">New PIN</button>
           </div>
         </td>
@@ -257,6 +285,7 @@
         <td>
           <div class="eod-ts-row-actions">
             <button type="button" class="btn btn-secondary eod-ts-save" data-idx="${idx}">Save</button>
+            <button type="button" class="btn btn-secondary eod-ts-tablet" data-idx="${idx}">Sign on tablet</button>
             <button type="button" class="btn btn-primary eod-ts-send" data-idx="${idx}">Text / email link</button>
           </div>
         </td>
@@ -291,6 +320,12 @@
     });
     body.querySelectorAll('.eod-ts-regen').forEach((btn) => {
       btn.addEventListener('click', () => regenPin(Number(btn.dataset.idx)).catch(showErr));
+    });
+    body.querySelectorAll('.eod-ts-copy-pin').forEach((btn) => {
+      btn.addEventListener('click', () => copyPin(Number(btn.dataset.idx)));
+    });
+    body.querySelectorAll('.eod-ts-tablet').forEach((btn) => {
+      btn.addEventListener('click', () => openTabletSign(Number(btn.dataset.idx)).catch(showErr));
     });
 
     if (status) {
@@ -379,6 +414,55 @@
     state.members[idx].pin = data.pin;
     render();
     if (typeof showAlert === 'function') showAlert('New PIN', `${m.name}: ${data.pin}`);
+  }
+
+  function copyPin(idx) {
+    const pin = state.members[idx]?.pin;
+    if (!pin) {
+      showErr(new Error('No PIN yet — refresh the roster.'));
+      return;
+    }
+    const done = () => {
+      if (typeof showAlert === 'function') showAlert('Copied', 'PIN copied to clipboard.');
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(String(pin)).then(done).catch(() => {
+        prompt('Copy PIN:', pin);
+      });
+    } else {
+      prompt('Copy PIN:', pin);
+    }
+  }
+
+  async function openTabletSign(idx) {
+    const m = state.members[idx];
+    if (!m) return;
+    const store = storeNumber();
+    const date = workDate();
+    if (!store || !date) throw new Error('Set store and work date first.');
+    const resp = await authFetch(`${API}/tablet-session`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: store,
+        workDate: date,
+        employeeKey: m.employeeKey,
+        employeeName: m.name,
+        sheetKey: state.sheetKey,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 412) {
+      if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+      throw new Error('Confirm today\'s store first');
+    }
+    if (!resp.ok || !data.timeUrl) throw new Error(data.error || 'Could not open tablet sign-off');
+    const overlay = document.getElementById('eodTsTabletOverlay');
+    const frame = document.getElementById('eodTsTabletFrame');
+    const title = document.getElementById('eodTsTabletTitle');
+    if (title) title.textContent = `${m.name} — sign off`;
+    if (frame) frame.src = data.timeUrl;
+    overlay?.classList.add('show');
   }
 
   function sendLink(idx) {
@@ -599,6 +683,9 @@
     stopPoll();
     document.getElementById('eodTsMgmtOverlay')?.classList.remove('show');
     document.getElementById('eodTsQrOverlay')?.classList.remove('show');
+    document.getElementById('eodTsTabletOverlay')?.classList.remove('show');
+    const frame = document.getElementById('eodTsTabletFrame');
+    if (frame) frame.src = 'about:blank';
     document.body.style.overflow = '';
   }
 
