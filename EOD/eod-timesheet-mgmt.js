@@ -1,4 +1,4 @@
-/* InstaWork + Kompass live timesheet management modules for the EOD app. */
+/* InstaWork + Kompass live timesheet management — JOIN QR, PINs, submit actions. */
 (function () {
   'use strict';
 
@@ -9,6 +9,7 @@
     sheetKey: null,
     members: [],
     handoffs: [],
+    join: null,
     pollTimer: null,
     loading: false,
   };
@@ -39,6 +40,15 @@
     return (document.getElementById('workDate')?.value
       || document.getElementById('shiftDate')?.value
       || document.getElementById('dayConfirmDate')?.value
+      || '').trim();
+  }
+
+  function leadName() {
+    if (typeof resolveTimesheetLeadName === 'function') {
+      try { return resolveTimesheetLeadName() || ''; } catch (_) { /* ignore */ }
+    }
+    return (document.getElementById('leadName')?.value
+      || document.getElementById('profileName')?.value
       || '').trim();
   }
 
@@ -74,17 +84,18 @@
       .eod-ts-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #1e293b; }
       .eod-ts-body { flex: 1; overflow: auto; padding: 12px 16px 24px; -webkit-overflow-scrolling: touch; }
       .eod-ts-table-wrap { overflow-x: auto; border: 1px solid #334155; border-radius: 10px; }
-      table.eod-ts-table {
-        width: 100%; border-collapse: collapse; min-width: 920px; font-size: 13px;
-      }
+      table.eod-ts-table { width: 100%; border-collapse: collapse; min-width: 1080px; font-size: 13px; }
       .eod-ts-table th, .eod-ts-table td {
         padding: 8px 8px; border-bottom: 1px solid #1e293b; text-align: left; vertical-align: top;
       }
       .eod-ts-table th { background: #1e293b; color: #cbd5e1; font-weight: 600; position: sticky; top: 0; z-index: 1; }
-      .eod-ts-table tr:last-child td { border-bottom: none; }
       .eod-ts-table input[type="text"] {
         width: 100%; min-width: 72px; box-sizing: border-box; padding: 6px 8px;
         border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-size: 13px;
+      }
+      .eod-ts-pin {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 16px; font-weight: 700; letter-spacing: 0.12em; color: #fde68a;
       }
       .eod-ts-name { font-weight: 600; color: #f8fafc; }
       .eod-ts-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
@@ -98,13 +109,23 @@
         margin-top: 6px; padding: 6px 8px; border-radius: 6px; background: #422006; color: #fde68a;
         font-size: 12px; line-height: 1.35;
       }
-      .eod-ts-sig {
-        max-width: 120px; max-height: 40px; background: #fff; border-radius: 4px; display: block;
-      }
+      .eod-ts-sig { max-width: 120px; max-height: 40px; background: #fff; border-radius: 4px; display: block; }
       .eod-ts-empty { padding: 28px 16px; text-align: center; color: #94a3b8; }
       .eod-ts-statusline { font-size: 12px; color: #64748b; padding: 0 16px 10px; }
       .eod-ts-row-actions { display: flex; flex-direction: column; gap: 6px; min-width: 110px; }
       .eod-ts-row-actions .btn { padding: 6px 8px; font-size: 12px; width: 100%; }
+      #eodTsQrOverlay {
+        position: fixed; inset: 0; z-index: 10050; background: rgba(2,6,23,.92);
+        display: none; align-items: center; justify-content: center; padding: 20px;
+      }
+      #eodTsQrOverlay.show { display: flex; }
+      .eod-ts-qr-card {
+        background: #fff; color: #0f172a; border-radius: 16px; padding: 24px; max-width: 420px; width: 100%;
+        text-align: center;
+      }
+      .eod-ts-qr-card img { width: 280px; height: 280px; background: #fff; }
+      .eod-ts-qr-card h3 { margin: 0 0 8px; font-size: 1.2rem; }
+      .eod-ts-qr-url { font-size: 12px; word-break: break-all; color: #475569; margin: 10px 0 16px; }
     `;
     document.head.appendChild(style);
   }
@@ -120,46 +141,68 @@
         <div class="eod-ts-header">
           <div>
             <h2 id="eodTsTitle">Timesheet management</h2>
-            <p id="eodTsSubtitle">Live punch times from PROD. InstaWork and Kompass are kept separate.</p>
+            <p id="eodTsSubtitle">Live punch times from PROD. Workers scan JOIN QR + enter their PIN.</p>
           </div>
           <button type="button" class="btn btn-secondary" id="eodTsCloseBtn">Close</button>
         </div>
-        <div class="eod-ts-actions">
-          <button type="button" class="btn btn-secondary" id="eodTsRefreshBtn">Refresh</button>
-          <button type="button" class="btn btn-secondary" id="eodTsShowQrBtn">Show JOIN QR</button>
-          <button type="button" class="btn btn-secondary" id="eodTsPrintBtn">Print sheet</button>
-          <button type="button" class="btn btn-primary" id="eodTsPhotoBtn" style="display:none;">Sign-out photo</button>
-        </div>
+        <div class="eod-ts-actions" id="eodTsActions"></div>
         <div class="eod-ts-statusline" id="eodTsStatus">Loading…</div>
         <div class="eod-ts-body" id="eodTsBody"></div>
       </div>`;
     document.body.appendChild(el);
     document.getElementById('eodTsCloseBtn').onclick = close;
+
+    if (!document.getElementById('eodTsQrOverlay')) {
+      const qr = document.createElement('div');
+      qr.id = 'eodTsQrOverlay';
+      qr.innerHTML = `<div class="eod-ts-qr-card">
+        <h3>Scan to join today's shift</h3>
+        <p style="margin:0;color:#64748b;font-size:14px;">Store #<span id="eodTsQrStore"></span> · <span id="eodTsQrDate"></span></p>
+        <img id="eodTsQrImg" alt="JOIN QR code" width="280" height="280">
+        <div class="eod-ts-qr-url" id="eodTsQrUrl"></div>
+        <button type="button" class="btn btn-primary" id="eodTsQrClose" style="width:100%;">Done</button>
+        <button type="button" class="btn btn-secondary" id="eodTsQrRefresh" style="width:100%;margin-top:8px;">Refresh QR</button>
+      </div>`;
+      document.body.appendChild(qr);
+      document.getElementById('eodTsQrClose').onclick = () => qr.classList.remove('show');
+      document.getElementById('eodTsQrRefresh').onclick = () => refreshJoinToken(true).then(showJoinQr);
+    }
+  }
+
+  function renderActions() {
+    const bar = document.getElementById('eodTsActions');
+    if (!bar) return;
+    const isIw = state.sheetKey === 'instawork';
+    bar.innerHTML = `
+      <button type="button" class="btn btn-secondary" id="eodTsRefreshBtn">Refresh</button>
+      <button type="button" class="btn btn-primary" id="eodTsShowQrBtn">Show JOIN QR</button>
+      <button type="button" class="btn btn-secondary" id="eodTsDownloadBtn">Download PDF</button>
+      <button type="button" class="btn btn-secondary" id="eodTsPrintBtn">Print at store</button>
+      <button type="button" class="btn btn-secondary" id="eodTsEmailBtn">Email PDF</button>
+      ${isIw
+        ? '<button type="button" class="btn btn-primary" id="eodTsSubmitOfficeBtn">Submit to office</button>'
+        : '<button type="button" class="btn btn-primary" id="eodTsSubmitSupBtn">Submit to supervisor</button>'}
+      ${isIw ? '<button type="button" class="btn btn-secondary" id="eodTsPhotoBtn">Sign-out photo</button>' : ''}`;
+
     document.getElementById('eodTsRefreshBtn').onclick = () => refresh(true);
-    document.getElementById('eodTsShowQrBtn').onclick = () => {
-      try {
-        window.EodSmsOptinQr?.ensureUi?.();
-        const block = document.getElementById('eodSmsOptinQrBlock');
-        const toggle = document.getElementById('eodSmsOptinQrToggle');
-        if (block && !block.classList.contains('is-expanded')) toggle?.click();
-        block?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } catch (_) { /* ignore */ }
-      if (typeof showAlert === 'function') {
-        showAlert(
-          'SMS opt-in',
-          'Have the employee scan the QR at the top of the EOD page (or text JOIN to (509) 572-9212). After they opt in, use Send link on their row.'
-        );
-      }
-    };
-    document.getElementById('eodTsPrintBtn').onclick = () => {
-      if (typeof printEodTimesheet === 'function') printEodTimesheet(state.sheetKey);
-    };
-    document.getElementById('eodTsPhotoBtn').onclick = () => {
+    document.getElementById('eodTsShowQrBtn').onclick = () => showJoinQr();
+    document.getElementById('eodTsDownloadBtn').onclick = () => downloadPdf().catch(showErr);
+    document.getElementById('eodTsPrintBtn').onclick = () => printAtStore().catch(showErr);
+    document.getElementById('eodTsEmailBtn').onclick = () => emailPdf().catch(showErr);
+    document.getElementById('eodTsSubmitOfficeBtn')?.addEventListener('click', () => submitOffice().catch(showErr));
+    document.getElementById('eodTsSubmitSupBtn')?.addEventListener('click', () => submitSupervisor().catch(showErr));
+    document.getElementById('eodTsPhotoBtn')?.addEventListener('click', () => {
       close();
       const panel = document.getElementById('instaworkYesPanel');
       if (panel) panel.style.display = 'block';
       panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
+    });
+  }
+
+  function showErr(err) {
+    const msg = err?.message || String(err);
+    if (typeof showAlert === 'function') showAlert('Timesheet', msg);
+    else alert(msg);
   }
 
   function statusBadge(status) {
@@ -172,16 +215,14 @@
     const body = document.getElementById('eodTsBody');
     const status = document.getElementById('eodTsStatus');
     if (!body) return;
-    const label = sheetLabel(state.sheetKey);
-    document.getElementById('eodTsTitle').textContent = `${label} management`;
+    document.getElementById('eodTsTitle').textContent = `${sheetLabel(state.sheetKey)} management`;
     document.getElementById('eodTsSubtitle').textContent = state.sheetKey === 'instawork'
-      ? 'Only Instawork roster people assigned on today’s PROD shift. Live clock / lunch / out from SAS punches + employee confirmations.'
-      : 'Only Kompass / ISE / Blitz / Cut-in teammates (Instawork roster excluded). Live clock / lunch / out from SAS punches + employee confirmations.';
-    const photoBtn = document.getElementById('eodTsPhotoBtn');
-    if (photoBtn) photoBtn.style.display = state.sheetKey === 'instawork' ? '' : 'none';
+      ? 'Instawork roster only. PIN login + signatures fill the Instawork sheet. Submit to office files into OneDrive.'
+      : 'Kompass / ISE / Blitz / Cut-in (Instawork excluded). Lead is on this sheet. Submit to supervisor emails a copy.';
 
     if (!state.members.length) {
-      body.innerHTML = `<div class="eod-ts-empty">No ${escapeHtml(label)} teammates found on today’s PROD assignment for store #${escapeHtml(storeNumber())}.</div>`;
+      body.innerHTML = `<div class="eod-ts-empty">No ${escapeHtml(sheetLabel(state.sheetKey))} teammates found for store #${escapeHtml(storeNumber())} on ${escapeHtml(workDate())}.
+        <br><br>You can still show the JOIN QR once people are clocked into PROD.</div>`;
       if (status) status.textContent = `Updated ${new Date().toLocaleTimeString()} · 0 people`;
       return;
     }
@@ -201,6 +242,12 @@
           <div class="eod-ts-meta">Source: ${escapeHtml(m.timeSource || 'sas')}</div>
           ${note}
         </td>
+        <td>
+          <div class="eod-ts-pin">${escapeHtml(m.pin || '—')}</div>
+          <div class="eod-ts-row-actions" style="margin-top:6px;">
+            <button type="button" class="btn btn-secondary eod-ts-regen" data-idx="${idx}">New PIN</button>
+          </div>
+        </td>
         <td><input type="text" data-field="clockIn" value="${escapeHtml(m.clockIn || '')}" aria-label="Clock in"></td>
         <td><input type="text" data-field="lunchOut" value="${escapeHtml(m.lunchOut || '')}" aria-label="Lunch out"></td>
         <td><input type="text" data-field="lunchIn" value="${escapeHtml(m.lunchIn || '')}" aria-label="Lunch in"></td>
@@ -210,7 +257,7 @@
         <td>
           <div class="eod-ts-row-actions">
             <button type="button" class="btn btn-secondary eod-ts-save" data-idx="${idx}">Save</button>
-            <button type="button" class="btn btn-primary eod-ts-send" data-idx="${idx}">Send link</button>
+            <button type="button" class="btn btn-primary eod-ts-send" data-idx="${idx}">Text / email link</button>
           </div>
         </td>
       </tr>`;
@@ -222,6 +269,7 @@
           <thead>
             <tr>
               <th>Teammate</th>
+              <th>PIN</th>
               <th>In</th>
               <th>Lunch out</th>
               <th>Lunch in</th>
@@ -236,16 +284,20 @@
       </div>`;
 
     body.querySelectorAll('.eod-ts-save').forEach((btn) => {
-      btn.addEventListener('click', () => saveRow(Number(btn.dataset.idx)).catch(console.error));
+      btn.addEventListener('click', () => saveRow(Number(btn.dataset.idx)).catch(showErr));
     });
     body.querySelectorAll('.eod-ts-send').forEach((btn) => {
       btn.addEventListener('click', () => sendLink(Number(btn.dataset.idx)));
+    });
+    body.querySelectorAll('.eod-ts-regen').forEach((btn) => {
+      btn.addEventListener('click', () => regenPin(Number(btn.dataset.idx)).catch(showErr));
     });
 
     if (status) {
       const adj = state.members.filter((m) => m.confirmation?.status === 'adjust').length;
       const conf = state.members.filter((m) => m.confirmation?.status === 'confirmed').length;
-      status.textContent = `Updated ${new Date().toLocaleTimeString()} · ${state.members.length} people · ${conf} confirmed · ${adj} with changes`;
+      const joinHint = state.join?.joinUrl ? ' · JOIN QR ready' : '';
+      status.textContent = `Updated ${new Date().toLocaleTimeString()} · ${state.members.length} people · ${conf} signed · ${adj} adjusted${joinHint}`;
     }
   }
 
@@ -269,7 +321,7 @@
     const store = storeNumber();
     const date = workDate();
     if (!store || !date) {
-      if (typeof showAlert === 'function') showAlert('Store & date required', 'Set store and work date first.');
+      showErr(new Error('Set store and work date first.'));
       return;
     }
     const resp = await authFetch(`${API}/row`, {
@@ -305,27 +357,48 @@
       clockOut: row.clockOut,
       timeSource: 'lead',
     });
-    if (typeof showAlert === 'function') showAlert('Saved', `${row.name} times updated on the ${sheetLabel(state.sheetKey)} sheet.`);
+    if (typeof showAlert === 'function') showAlert('Saved', `${row.name} times updated.`);
+  }
+
+  async function regenPin(idx) {
+    const m = state.members[idx];
+    if (!m) return;
+    const resp = await authFetch(`${API}/pins/regenerate`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        employeeKey: m.employeeKey,
+        employeeName: m.name,
+        sheetKey: state.sheetKey,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'Could not regenerate PIN');
+    state.members[idx].pin = data.pin;
+    render();
+    if (typeof showAlert === 'function') showAlert('New PIN', `${m.name}: ${data.pin}`);
   }
 
   function sendLink(idx) {
     const row = readRowInputs(idx) || state.members[idx];
     if (!row) return;
     if (!window.EodGuestHandoff?.openSendModal) {
-      if (typeof showAlert === 'function') showAlert('Unavailable', 'Guest handoff module failed to load.');
+      showErr(new Error('Guest handoff module failed to load.'));
       return;
     }
     const sessionType = state.sheetKey === 'instawork' ? 'instawork_timesheet' : 'kompass_timesheet';
     window.EodGuestHandoff.openSendModal({
       sessionType,
       title: `Send ${sheetLabel(state.sheetKey)} link — ${row.name}`,
-      hint: 'Employee must have texted JOIN to (509) 572-9212 first. They can edit times, give a reason, and sign. Updates appear here live.',
+      hint: 'Employee should have texted JOIN to (509) 572-9212 first (or use the JOIN QR + PIN). They can edit times and sign.',
       recipientName: row.name,
       recipientEmail: row.email || '',
       recipientPhone: row.phone || '',
       payload: {
         employees: state.members.map((m) => m.name),
-        leadName: (typeof resolveTimesheetLeadName === 'function' ? resolveTimesheetLeadName() : '') || '',
+        leadName: leadName(),
         blank: false,
         member: {
           name: row.name,
@@ -355,6 +428,115 @@
     });
   }
 
+  async function refreshJoinToken(refresh) {
+    const resp = await authFetch(`${API}/join-token`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        refresh: !!refresh,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) throw new Error(data.error || 'Could not mint JOIN QR');
+    state.join = data;
+    return data;
+  }
+
+  async function showJoinQr() {
+    try {
+      if (!state.join?.joinUrl) await refreshJoinToken(false);
+      const join = state.join;
+      if (!join?.joinUrl) throw new Error('JOIN URL missing');
+      document.getElementById('eodTsQrStore').textContent = join.storeNumber || storeNumber();
+      document.getElementById('eodTsQrDate').textContent = join.workDate || workDate();
+      document.getElementById('eodTsQrUrl').textContent = join.joinUrl;
+      const img = document.getElementById('eodTsQrImg');
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(join.joinUrl)}`;
+      document.getElementById('eodTsQrOverlay').classList.add('show');
+    } catch (err) {
+      showErr(err);
+    }
+  }
+
+  async function postAction(path, body) {
+    const resp = await authFetch(`${API}/${path}`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        sheetKey: state.sheetKey,
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        leadName: leadName(),
+        ...body,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 412) {
+      if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+      throw new Error('Confirm today\'s store first');
+    }
+    if (resp.status === 409 && data.pendingSignatures) {
+      const ok = confirm(`${data.error}\n\nSubmit anyway?`);
+      if (!ok) throw new Error('Cancelled');
+      return postAction(path, { ...body, force: true });
+    }
+    if (!resp.ok || data.ok === false) throw new Error(data.error || `Request failed (${resp.status})`);
+    return data;
+  }
+
+  async function downloadPdf() {
+    const data = await postAction('build-pdf', {});
+    const bin = atob(data.pdfBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = data.filename || 'timesheet.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function printAtStore() {
+    const data = await postAction('print-at-store', {});
+    if (typeof showAlert === 'function') {
+      showAlert('Print at store', `Fax job queued for store #${storeNumber()}.`);
+    }
+    return data;
+  }
+
+  async function emailPdf() {
+    const to = prompt('Email timesheet PDF to:', '');
+    if (!to) return;
+    const data = await postAction('email', { to });
+    if (typeof showAlert === 'function') showAlert('Emailed', `Sent to ${to}`);
+    return data;
+  }
+
+  async function submitOffice() {
+    const data = await postAction('submit-office', {});
+    if (typeof showAlert === 'function') {
+      showAlert('Submitted to office', `InstaWork timesheet emailed for OneDrive filing (${data.folder || 'P#W#'}).`);
+    }
+    return data;
+  }
+
+  async function submitSupervisor() {
+    let supervisorEmail = '';
+    const need = confirm('Submit Kompass timesheet to supervisor?\n\nOK = auto-resolve supervisor email\nCancel = enter email manually');
+    if (!need) {
+      supervisorEmail = prompt('Supervisor email:', '') || '';
+      if (!supervisorEmail) return;
+    }
+    const data = await postAction('submit-supervisor', { supervisorEmail: supervisorEmail || undefined });
+    if (typeof showAlert === 'function') {
+      showAlert('Submitted to supervisor', `Emailed ${data.to?.[0] || 'supervisor'} (you are CC'd).`);
+    }
+    return data;
+  }
+
   async function refresh(force) {
     if (state.loading && !force) return;
     const store = storeNumber();
@@ -376,6 +558,7 @@
       if (!resp.ok || data.ok === false) throw new Error(data.error || `Load failed (${resp.status})`);
       state.members = Array.isArray(data.members) ? data.members : [];
       state.handoffs = Array.isArray(data.handoffs) ? data.handoffs : [];
+      state.join = data.join || state.join;
       render();
     } catch (err) {
       const body = document.getElementById('eodTsBody');
@@ -404,6 +587,7 @@
     const key = sheetKey === 'instawork' ? 'instawork' : 'kompass';
     ensureOverlay();
     state.sheetKey = key;
+    renderActions();
     const overlay = document.getElementById('eodTsMgmtOverlay');
     overlay.classList.add('show');
     document.body.style.overflow = 'hidden';
@@ -414,6 +598,7 @@
   function close() {
     stopPoll();
     document.getElementById('eodTsMgmtOverlay')?.classList.remove('show');
+    document.getElementById('eodTsQrOverlay')?.classList.remove('show');
     document.body.style.overflow = '';
   }
 
@@ -423,5 +608,6 @@
     openInstawork: () => open('instawork'),
     openKompass: () => open('kompass'),
     refresh: () => refresh(true),
+    showJoinQr,
   };
 })();
