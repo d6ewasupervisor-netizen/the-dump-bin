@@ -12,7 +12,7 @@ Autonomy is not a separate product path. **Our tables are the app’s set/visit 
 
 Commercial note (scope, not a build batch): the same inversion — own IDs + CSV contract + optional provider adapters — is what makes this a field closeout product for operations that never had SAS. Contingency and sellability are nearly the same work **if** decided up front. This document decides the schema that way.
 
-Batch 5 (photo sessions) remains the next **shipped** item. Snapshot write-through is the next **autonomy** discrete slice once owner prioritizes it — it has a deadline we do not control.
+Batch 5 (photo sessions, FE 2.11.9) is **already shipped**. Snapshot write-through is the next **autonomy** discrete slice once owner prioritizes it — it has a deadline we do not control.
 
 ---
 
@@ -148,10 +148,29 @@ People who may appear on a store/date without requiring a live HR pull.
 | `clock_in` / `lunch_out` / `lunch_in` / `clock_out` | TEXT | no | display times |
 | `punch_status` | TEXT | no | |
 
-**Owned time SoT remains `eod_timesheet_rows`** (`time_source` sas\|employee\|lead). Snap punches are advisory “what PROD showed when we looked.”  
-**If absent:** lose mid-day PROD refresh history; lead/employee entered times still print. **Useful, not essential for autonomy closeout.**
+**Authoritative punches for print/fax = our timesheet, not PROD.**  
+`buildFilledTimesheet` → `rosterToFillEmployees` → `clockIn`/`lunch*`/`clockOut` from merged roster (`timesheet-delivery.js:62-90`, `eod-timesheet-mgmt.js:rosterToFillEmployees`). Merge prefers saved `eod_timesheet_rows` when `time_source` is `employee` or `lead`, and employee handoff/JOIN submits (`eod-timesheet-mgmt.js:379-409`). PIN/JOIN, real names, and the clock picker are a complete owned punch system. SAS `shift-complete` is a convenience prefill only. Snap punches here are advisory history of “what PROD showed when we looked.”
 
-### 1.8 Entity-id minting rules
+**If absent:** no loss of printed timesheet integrity.
+
+### 1.8 Owned visit creation and roster management (required for continuity)
+
+`eod-setlist` v1 already carries **`visit` + `person` + `set`** rows (§2) — not set lists alone. That covers importing a week’s work from a spreadsheet.
+
+Continuing to operate after the tap closes also needs **in-app** creation with `source=manual`, same tables, same validation as CSV:
+
+| Capability | Writes | Notes |
+|---|---|---|
+| Create visit | append `eod_snap_visits` | Mint `entity_id`; `client_visit_key` or generated key; no SAS id |
+| Add / remove shift member | append `eod_snap_shifts` | Latest observation shows membership; “remove” = append row with `current_status='removed'` (or omit from current-state filter) |
+| Edit set list | append `eod_snap_set_items` | Same pattern |
+| Maintain directory | append `eod_snap_roster_people` | Feeds add-member picker / HR search in autonomy |
+
+Without this slice, snapshots + CSV-only still leave a hole: the first Monday with no file and no UI to create a visit. **CSV import and manual create are the same door** (§ principle 5).
+
+**Day-confirm in autonomy:** eligibility = an owned current-state visit exists for `(store_number, work_date)` (optionally lead listed on that visit), or elevated role — **not** a live SAS schedule check. No owned/CSV/manual visit ⇒ cannot confirm; that is correct fail-closed, not a missing provider.
+
+### 1.9 Entity-id minting rules
 
 | Create path | Rule |
 |---|---|
@@ -163,7 +182,7 @@ People who may appear on a store/date without requiring a live HR pull.
 
 `client_visit_key` (CSV) is a lead- or importer-supplied stable string (e.g. `ise-a`, `cutin-1`) so re-imports append to the same visit lineage without SAS ids.
 
-### 1.9 Current-state view (not a table)
+### 1.10 Current-state view (not a table)
 
 ```sql
 -- Example pattern (not shipped this pass)
@@ -259,13 +278,15 @@ Importer rejects unknown `format` / unsupported `format_version`.
 
 ### 2.3 Arriving without any SAS identifier
 
-Minimum viable set list:
+**Confirmed:** v1 is a **visit + membership + set** contract, not “set lists only.”
+
+Minimum viable import for a working shift:
 
 1. One `visit` row with `client_visit_key`, `store_number`, `work_date`, `project_name`.
-2. One or more `person` rows with `client_person_key` + `person_name`.
-3. Zero or more `set` rows with `client_set_key` + `name` (zero sets allowed for time-only days; set integrity then means “empty set list was intentional”).
+2. One or more `person` rows with `client_person_key` + `person_name` (who is working).
+3. Zero or more `set` rows with `client_set_key` + `name` (zero sets allowed for time-only days; empty set list is intentional).
 
-Importer mints UUIDs; appends `source=csv` rows; never requires `ext_sas_*`.
+Importer mints UUIDs; appends `source=csv` rows; never requires `ext_sas_*`. Same shape as manual create (§1.8).
 
 ### 2.4 Versioning
 
@@ -419,28 +440,39 @@ Assumptions (from code comments + page sizes):
 ### Pruning policy (append-only preserved in spirit)
 
 1. **Hot window:** retain all observations for **90 days**.
-2. **Cold compact:** for rows older than 90 days, keep **one** “closing observation” per `entity_id` per `work_date` (latest `observed_at` that day) + any row referenced by timesheet/signoff foreign keys; delete intermediate refreshes.
-3. **Never delete** the latest row per `entity_id` if `work_date` is still open (no EOD complete / no timesheet submit) — optional flag later.
+2. **Cold compact:** for rows older than 90 days, delete **only intermediate** observations. **Never remove the latest observation per `entity_id`** (global latest across all time for that entity). Also retain, when useful for history, the latest observation **per (`entity_id`, `work_date`)** for dates inside any retention archive window, plus any row referenced by timesheet/signoff foreign keys.
+3. Compaction must fail closed: if a candidate delete would leave an `entity_id` with zero rows, skip that delete.
 4. Compaction is a **batch job**, separate from write-through — does not violate “no sync job for capture.”
 
-Append-only at raw refresh volume is affordable short-term (months); compaction keeps multi-year history sane.
+Append-only at raw refresh volume is affordable short-term (months); compaction keeps multi-year history sane. **Hard rule: prune never drops current state.**
 
 ---
 
-## 7. What autonomous mode still cannot do
+## 7. Limits — reads vs writes
 
-Stated plainly — these **require a live provider** (or an explicit product decision to drop the capability):
+Distinguish **writes into a provider that no longer exists** from **gaps in our own operating model**.
 
-1. **Push photos / coversheets into SAS PROD category-reset image slots** — needs live `ext_sas_visit_id` + `ext_sas_reset_id` and SAS session (`sas-bridge.js` upload / `sasPatch`). Autonomy can archive to R2/email only.
-2. **Append Not In Store / Not In SI comments onto live SAS resets** — live PATCH (`shift-management.js:534+`). Autonomy keeps marks in `digital_signoff_marks` / helpdesk email only.
-3. **Add/remove people on the live SAS schedule** — POST/PATCH `team-scheduling/shifts` with cycle (`shift-management.js:657+`). Autonomy edits owned shift snapshots / timesheet roster only; PROD schedule diverges until someone reconciles elsewhere.
-4. **Authoritative mid-day punch sync from PROD** — `shift-complete` refresh. Autonomy trusts JOIN/lead entry in `eod_timesheet_rows`.
-5. **Rebotics / Store Intelligence backlog mutations and SI photo truth** — always optional; autonomy does not replace SI.
-6. **Prove a lead was on the corporate schedule for day-confirm when no owned visit exists** — today falls back to live field-data (`store-confirmation.js:252+`). Autonomy must mint day-confirm from **owned visits / CSV calendar** or elevated roles; it cannot invent HR eligibility from nothing.
-7. **Workday employee directory search for arbitrary adds** without a roster snapshot/CSV — add-member picker empty unless `eod_snap_roster_people` or CSV persons exist.
-8. **Any capability that needs a SAS id that was never snapshotted or supplied** — e.g. uploading to a reset created in PROD after the last read and never observed.
+### 7A. Capabilities that disappear with the provider (by definition)
 
-If a future doc claims “nothing requires a live provider,” it is wrong. Autonomy means **time + set integrity + closeout artifacts we own**; it does not mean **full PROD parity**.
+These are outbound writes (or SI truth) to systems that are gone. They are **not** failures of autonomous mode. Closeout evidence lives in our tables / device / R2 / email instead.
+
+| # | Capability | Today | When provider is gone |
+|---|---|---|---|
+| A1 | SAS photo / coversheet upload into category-reset slots | `sas-bridge.js` `sasPatch` | Nothing to upload to; keep session photos + EOD/R2/email delivery |
+| A2 | Reset comment PATCH (Not In Store / Not In SI → PROD) | `shift-management.js:534+` | Nothing to comment on; keep `digital_signoff_marks` + helpdesk email |
+| A3 | Rebotics / Store Intelligence backlog + SI photo truth | `rebotics-bridge`, kompass-netcap | Optional enhancement disappears; must never have blocked closeout |
+
+### 7B. Genuine limitations / design resolutions
+
+| # | Topic | Resolution |
+|---|---|---|
+| B1 | **Create a shift from nothing** (former “add/remove on PROD schedule” + “day-confirm with no visit”) | **One gap, two hats.** Not a SAS dependency — a continuity requirement on *us*. **`eod-setlist` v1 already includes `visit` + `person` (+ `set`) rows** (§2.3), so CSV can stand up a store/date. **Also required:** in-app owned visit creation and membership management (`source=manual`, §1.8) so Monday works without a spreadsheet. Day-confirm in autonomy uses owned current-state visits (or elevated roles), fail-closed if none exist. |
+| B2 | **HR directory / add-member search** (former item 7) | **Covered by design, not a permanent limit.** `eod_snap_roster_people` (§1.6) + CSV `person` rows + manual roster appends (§1.8) *are* the directory. Autonomous add-member searches latest roster snapshots. If the picker is empty, the hole is “no roster data loaded,” not “needs Workday live.” Live Workday search remains a SAS-mode convenience only. |
+| B3 | **Needs a SAS id never observed** (former item 8) | **Unavoidable for provider-shaped actions** that still assume an `ext_sas_*` (e.g. uploading to a PROD reset created after the last read). Irrelevant to owned closeout once 7A capabilities are treated as gone. Do not invent SAS ids. |
+
+**Punch authority (former item 4) — removed from limitations.** Our timesheet is authoritative for what we print and fax (`buildFilledTimesheet` / `rosterToFillEmployees` / `eod_timesheet_rows` with employee|lead `time_source`). PROD punch pull is prefill only (§1.7).
+
+Autonomy means **continue operating** time + set integrity on owned data (import **or** create), not **full PROD write parity**.
 
 ---
 
@@ -451,9 +483,10 @@ If a future doc claims “nothing requires a live provider,” it is wrong. Auto
 | **S0** | This doc | Done |
 | **S1** | Migrations + write-through W1–W6 (visits/shifts/sets/punches) fire-and-forget | Accrues history immediately; no mode flag yet |
 | **S2** | Export `eod-setlist` v1 from current-state views | Enables live SAS diff drill |
-| **S3** | Import CSV → append `source=csv`; store 999 harness | Prove round-trip |
-| **S4** | Read path prefers latest snapshots when `EOD_PROVIDER_MODE=autonomous` (or store gate) | Config flag, not rewrite |
-| — | Batch 5 photo sessions | **Ships before or in parallel with planning; not blocked by S1–S4** |
+| **S3** | Import CSV → append `source=csv`; store 999 harness | Prove round-trip (visit+person+set) |
+| **S4** | Manual visit / member / set create (`source=manual`) + day-confirm from owned visits | Continuity without spreadsheet |
+| **S5** | Read path prefers latest snapshots when `EOD_PROVIDER_MODE=autonomous` | Config flag, not rewrite |
+| — | Batch 5 photo sessions | **Shipped (FE 2.11.9)** |
 
 S1 is the piece whose value starts the day it turns on and not one day earlier.
 
@@ -465,5 +498,7 @@ S1 is the piece whose value starts the day it turns on and not one day earlier.
 - [ ] Append-only inserts; no `UPDATE` of snapshot bodies  
 - [ ] `source` + `source_ref` populated  
 - [ ] W1–W6 write-through; failure does not change HTTP success of SAS read  
-- [ ] Round-trip test green; 999 CSV harness documented  
-- [ ] Section 7 capabilities explicitly disabled or stubbed with clear UI copy in autonomous mode  
+- [ ] Round-trip test green on visit+person+set; 999 CSV harness documented  
+- [ ] Manual visit/member create works without SAS ids  
+- [ ] Compact prune never deletes latest row per `entity_id`  
+- [ ] §7A capabilities disabled/stubbed with clear UI copy; not billed as autonomy bugs  
