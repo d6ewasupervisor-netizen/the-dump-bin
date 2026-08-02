@@ -715,7 +715,14 @@
   async function submitOffice() {
     const data = await postAction('submit-office', {});
     if (typeof showAlert === 'function') {
-      showAlert('Submitted to office', `InstaWork timesheet emailed for OneDrive filing (${data.folder || 'P#W#'}).`);
+      if (data.testMode) {
+        showAlert(
+          'Submitted (TEST)',
+          `Emailed the tester only — store 999 does not file into the live OneDrive InstaWork folder. Subject is prefixed [TEST]. Use a real store to exercise the Gmail → OneDrive router (${data.folder || 'P#W#'}).`
+        );
+      } else {
+        showAlert('Submitted to office', `InstaWork timesheet emailed for OneDrive filing (${data.folder || 'P#W#'}).`);
+      }
     }
     return data;
   }
