@@ -3254,7 +3254,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.4</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.5</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4425,7 +4425,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.11.4';
+        const EOD_APP_VERSION = '2.11.5';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5568,6 +5568,36 @@
             fmCheckboxChanged();
         }
 
+        /**
+         * Store-pool mutations (2.11.5): send X-Day-Confirm + store/date so the
+         * backend can later require the header without 412ing updated phones.
+         * Backend currently accepts without requiring the header (propagation window).
+         */
+        function storePoolMutationInit(extraBody) {
+            const storeNumber = (document.getElementById('storeNumber')?.value || '').trim();
+            const workDate = (document.getElementById('workDate')?.value || '').trim();
+            const headers = { 'Content-Type': 'application/json' };
+            let dc = null;
+            if (typeof getActiveDayConfirmFor === 'function' && storeNumber && workDate) {
+                dc = getActiveDayConfirmFor(storeNumber, workDate);
+            }
+            if (!dc && typeof getActiveDayConfirm === 'function') {
+                dc = getActiveDayConfirm();
+            }
+            if (dc?.token) headers['X-Day-Confirm'] = dc.token;
+            const date = workDate || dc?.date || '';
+            return {
+                storeNumber,
+                headers,
+                body: JSON.stringify({
+                    storeNumber,
+                    workDate: date,
+                    date,
+                    ...extraBody,
+                }),
+            };
+        }
+
         async function removeFredmeyerEmail(email) {
             const storeNumber = document.getElementById('storeNumber').value.trim();
             if (!storeNumber) return;
@@ -5577,9 +5607,10 @@
             renderRecipientList();
             autoSave();
             try {
+                const init = storePoolMutationInit({ email });
                 await authFetch(
                     `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(storeNumber)}/fredmeyer-email`,
-                    { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }
+                    { method: 'DELETE', headers: init.headers, body: init.body }
                 );
             } catch (e) { console.warn('removeFredmeyerEmail API call failed:', e.message); }
         }
@@ -5595,9 +5626,10 @@
             const storeNumber = document.getElementById('storeNumber').value.trim();
             if (!storeNumber) return;
             try {
+                const init = storePoolMutationInit({ fredmeyerEmails: [email] });
                 await authFetch(
                     `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(storeNumber)}`,
-                    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fredmeyerEmails: [email] }) }
+                    { method: 'POST', headers: init.headers, body: init.body }
                 );
             } catch (e) { console.warn('addFredmeyerEmailToPool API call failed:', e.message); }
         }
@@ -5656,9 +5688,10 @@
             managerNamePool = managerNamePool.filter((n) => n !== name);
             renderManagerSuggestions();
             try {
+                const init = storePoolMutationInit({ name });
                 await authFetch(
                     `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(storeNumber)}/manager-name`,
-                    { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }
+                    { method: 'DELETE', headers: init.headers, body: init.body }
                 );
             } catch (e) { console.warn('removeManagerName API call failed:', e.message); }
         }

@@ -138,6 +138,17 @@ UI mechanism: `data-requires-role` + `applyUserRoles` (`EOD/index.html` ~4457–
 | `/store-data/:storeNumber` (+ email/manager DELETE) | POST/DELETE | Fred Meyer pool UI (~5485/5467/5546) | **None** | **No new role gate** | — |
 | `/api/guest-handoff` | POST | timesheet Send link + dept handoff | **None** | **No new role gate** | — |
 
+### Context binding on role-ungated routes (separate axis from 2b)
+
+Role “never stricter than UI” does **not** mean accept any store/visit. Checked 2026-08-02:
+
+| Family | Role gate | Context bind before | Gap | Fix |
+|---|---|---|---|---|
+| timesheet-mgmt mutations | none (matches UI) | `requireDayConfirm` on body store/date (`eod-timesheet-mgmt.js:79+`) | none for store/date; no visit ID | keep |
+| dept-signatures mutations | none | day-confirm on **body** store; write uses **path** store | path≠body horizontal write | path/claim bind under `EOD_CONTEXT_VALIDATE_MODE` |
+| digital-signoffs mark | none | day-confirm on body store; mutate by **rowId** | row’s sheet store unbound | row→sheet store bind under same flag |
+| store-pool POST/DELETE | none | auth only (`index.js` → `store-data-pool.js`) | any store; no actor audit | **Step 1 (FE 2.11.5):** send `X-Day-Confirm` (BE ignores require). **Step 2:** flip `requireDayConfirm` after 2.11.4→2.11.5 propagation curve (threshold, not literal zero). Persisted `changed_by`/`changed_at` on `store_data`. |
+
 **Tier 2 deprecation candidates (no reachable UI — do not gate as the fix):**
 
 | Route | Why unreachable |
