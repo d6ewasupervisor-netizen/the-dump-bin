@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
-    <script src="eod-photo-sessions.js?v=2.12.2"></script>
+    <script src="eod-photo-sessions.js?v=2.12.3"></script>
     <script src="eod-clock-picker.js?v=2.12.0"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
     <script src="eod-guest-handoff.js?v=2.11.2" defer></script>
@@ -3288,7 +3288,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.2</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.3</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4459,7 +4459,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.12.2';
+        const EOD_APP_VERSION = '2.12.3';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -4487,6 +4487,75 @@
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
         window.EOD_API_BASE = EOD_API_BASE;
         window.EOD_APP_VERSION = EOD_APP_VERSION;
+
+        /**
+         * Nested overlays (alert over timesheet, clock over QR, etc.) share similar
+         * CSS z-indexes; same z + earlier DOM = "button did nothing". Whenever an
+         * overlay gains `.show`, lift it above every other currently-shown overlay.
+         */
+        (function installOverlayStacking() {
+            const OVERLAY_SEL = [
+                '.modal-overlay',
+                '.loading-overlay',
+                '.iw-overlay',
+                '.lightbox-overlay',
+                '.helpdesk-wizard-overlay',
+                '.signature-fullscreen-overlay',
+                '.camera-fullscreen-overlay',
+                '.image-editor-overlay',
+                '.assign-modal-overlay',
+                '.mat-overlay',
+                '.dept-sig-wizard-overlay',
+                '#eodTsQrOverlay',
+                '#eodTsTabletOverlay',
+                '#eodClockPickerOverlay',
+                '#dayConfirmModal',
+                '#guestHandoffModal',
+            ].join(',');
+            // Above static peaks (clock/mat ~12000, QR ~10050).
+            let stackTop = 20000;
+
+            function isOverlayEl(el) {
+                return !!(el && el.nodeType === 1 && el.matches && el.matches(OVERLAY_SEL));
+            }
+
+            function isShown(el) {
+                return el.classList.contains('show');
+            }
+
+            function bringOverlayToFront(el) {
+                if (!isOverlayEl(el) || !isShown(el)) return;
+                let maxZ = stackTop;
+                document.querySelectorAll(OVERLAY_SEL).forEach((o) => {
+                    if (o === el || !isShown(o)) return;
+                    const z = parseInt(o.style.zIndex || getComputedStyle(o).zIndex, 10);
+                    if (Number.isFinite(z) && z >= maxZ) maxZ = z;
+                });
+                stackTop = Math.max(stackTop, maxZ) + 1;
+                el.style.zIndex = String(stackTop);
+            }
+
+            window.bringOverlayToFront = bringOverlayToFront;
+
+            const obs = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                    if (m.type === 'attributes' && m.attributeName === 'class') {
+                        const el = m.target;
+                        if (isOverlayEl(el) && isShown(el)) bringOverlayToFront(el);
+                    } else if (m.type === 'childList') {
+                        m.addedNodes.forEach((node) => {
+                            if (isOverlayEl(node) && isShown(node)) bringOverlayToFront(node);
+                        });
+                    }
+                }
+            });
+            obs.observe(document.documentElement, {
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class'],
+                childList: true,
+            });
+        })();
 
         /**
          * Attach running-tab version for fleet measurement (API → client_versions).
