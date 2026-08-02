@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-07-31T17:30Z eod-v2.11.1-timesheet-tablet -->
+<!-- build: 2026-08-02T09:40Z eod-v2.11.2-poll-401-swallow -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -24,11 +24,11 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
-    <script src="eod-sms-optin-qr.js?v=2.11.1" defer></script>
-    <script src="eod-guest-handoff.js?v=2.11.1" defer></script>
-    <script src="eod-timesheet-mgmt.js?v=2.11.1" defer></script>
-    <script src="eod-dept-signatures.js?v=2.11.1" defer></script>
-    <script src="eod-digital-signoff.js?v=2.11.1" defer></script>
+    <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
+    <script src="eod-guest-handoff.js?v=2.11.2" defer></script>
+    <script src="eod-timesheet-mgmt.js?v=2.11.2" defer></script>
+    <script src="eod-dept-signatures.js?v=2.11.2" defer></script>
+    <script src="eod-digital-signoff.js?v=2.11.2" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3250,7 +3250,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.1</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.2</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4421,7 +4421,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.11.1';
+        const EOD_APP_VERSION = '2.11.2';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -12342,7 +12342,18 @@ ${data.Notes || ''}`;
                     return;
                 }
                 try {
-                    const resp = await authFetch(`${SM_API_BASE}/api/shift-request/${encodeURIComponent(requestId)}/status`);
+                    // Status is auth-gated (Batch 2a). Never bounce the lead to
+                    // sign-in from this background poll — swallow 401 and stop.
+                    const resp = await authFetch(
+                        `${SM_API_BASE}/api/shift-request/${encodeURIComponent(requestId)}/status`,
+                        { noBounceOn401: true }
+                    );
+                    if (resp.status === 401) {
+                        clearInterval(intervalId);
+                        delete pendingRemovalPolls[requestId];
+                        console.warn('[poll] session expired — stopped removal poll quietly');
+                        return;
+                    }
                     if (!resp.ok) return;
                     const data = await resp.json();
 
@@ -12544,12 +12555,99 @@ ${data.Notes || ''}`;
             return url;
         }
 
-        async function fetchImageAsDataUrl(url) {
+        /** Bare (pre-T0.6) signoff image paths lack ?t= and now 401. */
+        function isBareSignoffImageUrl(url) {
             const resolved = resolveProdPhotoUrl(url);
+            if (!resolved) return false;
+            try {
+                const u = new URL(resolved, SM_API_BASE);
+                if (!/\/api\/signoff-photos\/\d+\/image\/?$/i.test(u.pathname)) return false;
+                return !u.searchParams.get('t');
+            } catch {
+                return /\/api\/signoff-photos\/\d+\/image\/?$/i.test(resolved) && !/[?&]t=/.test(resolved);
+            }
+        }
+
+        let _signoffUrlRefreshPromise = null;
+        /** Re-fetch signed URLs for in-memory PROD signoffs after T0.6 enforce. */
+        async function refreshBareSignoffPhotoUrls() {
+            const visitId = (smSelectedShift && smSelectedShift.visitId)
+                || (selectedShift && selectedShift.visitId)
+                || null;
+            if (!visitId) return false;
+            const hasBare = (prodPhotos.signoff || []).some((p) => isBareSignoffImageUrl(p.url))
+                || (eodSelections.signoff || []).some((e) => e && e.isUrl && isBareSignoffImageUrl(e.dataUrl));
+            if (!hasBare) return false;
+            if (_signoffUrlRefreshPromise) return _signoffUrlRefreshPromise;
+
+            _signoffUrlRefreshPromise = (async () => {
+                try {
+                    const resp = await authFetch(
+                        `${SM_API_BASE}/api/signoff-photos?visitId=${encodeURIComponent(visitId)}`,
+                        { noBounceOn401: true }
+                    );
+                    if (!resp.ok) return false;
+                    const data = await resp.json();
+                    const fresh = Array.isArray(data.photos) ? data.photos : [];
+                    if (!fresh.length) return false;
+
+                    const byId = new Map();
+                    for (const p of fresh) {
+                        const id = String(p.id || '').replace(/^sig_/, '');
+                        if (id) byId.set(id, p.url);
+                        const m = String(p.url || '').match(/\/api\/signoff-photos\/(\d+)\/image/i);
+                        if (m) byId.set(m[1], p.url);
+                    }
+
+                    let changed = false;
+                    for (const photo of prodPhotos.signoff || []) {
+                        const m = String(photo.url || '').match(/\/api\/signoff-photos\/(\d+)\/image/i);
+                        if (!m) continue;
+                        const next = byId.get(m[1]);
+                        if (next && next !== photo.url) {
+                            photo.url = next;
+                            changed = true;
+                        }
+                    }
+                    for (const entry of eodSelections.signoff || []) {
+                        if (!entry || !entry.isUrl) continue;
+                        const m = String(entry.dataUrl || '').match(/\/api\/signoff-photos\/(\d+)\/image/i);
+                        if (!m) continue;
+                        const next = byId.get(m[1]);
+                        if (next) {
+                            entry.dataUrl = resolveProdPhotoUrl(next);
+                            changed = true;
+                        }
+                    }
+                    if (changed) console.log('[sync] Refreshed signed signoff image URLs');
+                    return changed;
+                } catch (e) {
+                    console.warn('[sync] Could not refresh signoff image URLs:', e);
+                    return false;
+                } finally {
+                    _signoffUrlRefreshPromise = null;
+                }
+            })();
+            return _signoffUrlRefreshPromise;
+        }
+
+        async function fetchImageAsDataUrl(url) {
+            let resolved = resolveProdPhotoUrl(url);
             if (!resolved) throw new Error('Image URL is missing.');
             if (resolved.startsWith('data:')) return resolved;
+            if (isBareSignoffImageUrl(resolved)) {
+                await refreshBareSignoffPhotoUrls();
+                const m = resolved.match(/\/api\/signoff-photos\/(\d+)\/image/i);
+                const refreshed = m && (prodPhotos.signoff || []).find((p) =>
+                    String(p.url || '').includes(`/api/signoff-photos/${m[1]}/image`)
+                );
+                if (refreshed) resolved = resolveProdPhotoUrl(refreshed.url);
+            }
             const useAuth = resolved.startsWith(SM_API_BASE) || resolved.startsWith(EOD_API_BASE);
-            const resp = useAuth ? await authFetch(resolved) : await fetch(resolved);
+            // Image GETs must never bounce the lead to sign-in (same class as removal poll).
+            const resp = useAuth
+                ? await authFetch(resolved, { noBounceOn401: true })
+                : await fetch(resolved);
             if (!resp.ok) throw new Error(`Could not load image (${resp.status}).`);
             return readBlobAsDataUrl(await resp.blob());
         }
@@ -12621,6 +12719,13 @@ ${data.Notes || ''}`;
 
             const prodArr = prodPhotos[type];
             if (!prodArr || prodArr.length === 0) return;
+
+            // After T0.6 enforce, refresh any bare URLs still held in memory from an earlier sync.
+            if (type === 'signoff' && prodArr.some((p) => isBareSignoffImageUrl(p.url))) {
+                refreshBareSignoffPhotoUrls().then((changed) => {
+                    if (changed) renderProdPhotos('signoff');
+                });
+            }
 
             const label = document.createElement('div');
             label.className = 'prod-photos-label';

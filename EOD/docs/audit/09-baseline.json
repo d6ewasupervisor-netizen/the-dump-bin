@@ -1,0 +1,17 @@
+{
+  "recordedAt": "2026-08-02T06:50:00.000Z",
+  "batch": 1,
+  "eodFrontendVersion": "2.11.1",
+  "eodApiPackageVersion": "1.0.0",
+  "railway": {
+    "projectId": "5bc0629e-2ebb-49f2-9e13-8b878a16bf93",
+    "projectName": "EOD",
+    "service": "eod-api",
+    "environment": "production",
+    "AUTH_MODE": "session"
+  },
+  "notes": [
+    "AUTH_MODE confirmed via railway variables --service eod-api --environment production",
+    "Source default remains cf-access if AUTH_MODE env is missing — keep watching Railway"
+  ]
+}
