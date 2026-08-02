@@ -14,6 +14,19 @@ Freeze EOD features until Tiers 0 and 1 are complete. Only production-safety fix
 
 Every numbered item below is one independently revertable change. Do not combine storage migration, authorization, UI behavior, and dead-code removal in one release. Backend response fields may be added but not removed or renamed while cached phones remain. A backend route that does not currently receive `X-Day-Confirm` must first gain server-side role/context validation and legacy-request telemetry; requiring the new header is a later release after the updated frontend is established (`EOD/index.html:6440-6451`, `EOD/index.html:11754-11760`, `EOD/index.html:12907-12918`, `EOD/index.html:13265-13323`).
 
+### Telemetry is a safety net, not a gate
+
+`[eod-audit]` stays on forever for regression catch. **Do not** hold T0.5 enforce, Batch 2b, or frontend safety ships waiting for log accumulation. Prepare workstreams in parallel; **ship sequentially** as separate deploys:
+
+| Order | Ship | Surface | Revert |
+|---|---|---|---|
+| **A** | **T0.9** awaited IndexedDB on update / reset / post-send clear | Frontend only (`eod-version` bump) | Redeploy prior `eod-version.json` + HTML |
+| **B** | **Batch 4 + T0.1a** | Frontend only (second release; **must** land on T0.9 update path) | Same |
+| **C** | **T0.5 class fixes → enforce** | Backend; `EOD_CONTEXT_VALIDATE_MODE` (`shadow`\|`enforce`, **default enforce**) | Set mode=`shadow` |
+| **D** | **Batch 2b** role gates (UI-matched only) | Backend; **per route-family** mode flag | Flip one family to `shadow` |
+
+Risky enforcements follow the `EOD_CONTEXT_VALIDATE_MODE` pattern: `shadow` (log only) \| `enforce` (reject), defaulting to **enforce**.
+
 # TIER 0 — STOP THE BLEEDING
 
 ## T0.1a — Stamp photos at capture (Batch 4 interim; no schema migration)
@@ -64,9 +77,15 @@ Every numbered item below is one independently revertable change. Do not combine
 ## T0.5 — Authorize and context-bind SAS mutations while preserving cached clients
 
 - **What breaks / trigger:** `/sas-upload`, category-comment append, signoff-photo write, and legacy shift add/remove accept authenticated caller-supplied IDs without the UI’s role/day/store guarantees (`eod-api/src/sas-bridge.js:424-496`, `eod-api/src/sas-bridge.js:680-718`, `eod-api/src/sas-bridge.js:954-1019`, `eod-api/src/sas-bridge.js:1183-1226`, `eod-api/src/shift-management.js:527-615`).
-- **Minimal fix:** separate commits per route family: (a) add lead/supervisor/admin role policy; (b) resolve visit/reset/shift server-side and exact-compare its store/date to the payload and authenticated user’s allowed context; (c) reject mismatches before queue/database/SAS writes. Accept the current request bodies unchanged. Add optional day-token validation now; require it only after the new frontend sends it and legacy telemetry is clear.
-- **Phone/store verification:** with lead credentials, perform normal photo sync, coversheet upload, Not In comment, and signoff save. Replay each request with another visit/store ID and confirm rejection before any SAS/DB mutation. Confirm supervisor/admin overrides still work.
-- **Regression catch:** integration tests assert no queue row or comment/photo mutation on mismatch; monitor 403/409 counts by app version and route.
+- **Minimal fix:** separate commits per route family: (a) role policy only where shipped UI already gates (Batch 2b); (b) resolve visit/reset/shift server-side and exact-compare its store/date to the **request payload** (job stamp), with the known-class corrections below; (c) reject mismatches before queue/database/SAS writes when `EOD_CONTEXT_VALIDATE_MODE=enforce`. Accept current request bodies unchanged. Day-token **require** stays Batch 8.
+- **Known classes corrected in the canonical matcher before enforce (unit fixture each):**
+  1. **Store 999 / `test-*` visit fixtures** — supervisor/admin test-mode must not 409.
+  2. **Leading zeros + 28 / 128 / 281 / 286 / 428** — whole-number exact match only (`lib/sas-store-match.js`).
+  3. **Supervisor / admin** — validate against **allowed** context (visit ↔ payload store/date; role may operate any store). Do **not** require visit store/date to equal the single day-confirm store/date.
+  4. **Guest-handoff / tablet** — requests with no day-confirm are not rejected for missing day-confirm; visit↔payload still applies when both present.
+  5. **Late jobs on a multi-store day** — validate job/body store+date vs visit, not vs the phone’s *current* day-confirm (earlier session stamps remain valid).
+- **Phone/store verification:** lead normal sync/comment/signoff; replay wrong visit/store → 409 before mutation; supervisor cross-store + 999 test-mode succeed; guest/tablet paths without day-confirm do not 409 for absence.
+- **Regression catch:** unit fixtures for the five classes; monitor 409 `context_validate` by route; revert with `EOD_CONTEXT_VALIDATE_MODE=shadow`.
 
 ## T0.6 — Close enumerable signoff-image URLs in one sitting (issuance + enforcement)
 
@@ -100,9 +119,33 @@ Every numbered item below is one independently revertable change. Do not combine
 ## T0.10 — Correct backend identity and role boundaries
 
 - **What breaks / trigger:** EOD/help-desk trust body `userEmail`; timesheet, department, digital-signoff, Rebotics, and shared store-data mutations are less restricted than their UI (`eod-api/src/index.js:1024-1065`, `eod-api/src/index.js:1355-1424`, `eod-api/src/routes/eod-timesheet-mgmt.js:79-305`, `eod-api/src/routes/dept-signatures.js:62-93`, `eod-api/src/routes/digital-signoffs.js:85-112`, `eod-api/src/rebotics-bridge.js:571-708`, `eod-api/src/index.js:1487-1533`).
-- **Minimal fix (split):** **Batch 2a** — bind actor/Reply-To/supervisor lookup to `req.user.email`; ignore body identity fields (do not reject). **Batch 2b (after telemetry week)** — add route roles matching shipped UI; Rebotics admin/district authorization; restrict store-pool writes to lead/supervisor/admin.
-- **Phone/store verification:** 2a — Reply-To is signed-in user even with modified body. 2b — lead/supervisor/admin/no-role matrix.
+- **Minimal fix (split):** **Batch 2a** — bind actor/Reply-To/supervisor lookup to `req.user.email`; ignore body identity fields (do not reject). **Batch 2b** — add route roles matching **shipped UI exactly, never stricter** (matrix below); each gated family has its own `EOD_ROLE_GATE_*_MODE` (`shadow`\|`enforce`, default enforce). Routes with no reachable UI → Tier 2 deprecation candidates, not new gates.
+- **Phone/store verification:** 2a — Reply-To is signed-in user even with modified body. 2b — only UI-gated families 403 no-role users; ungated UI routes still work for authenticated no-role users.
 - **Regression catch:** role-matrix integration tests and 403 monitoring by endpoint/app version after 2b. Production `AUTH_MODE=session` verified; keep watching.
+
+### Batch 2b — Role matrix (from shipped UI; gate only where UI already gates)
+
+UI mechanism: `data-requires-role` + `applyUserRoles` (`EOD/index.html` ~4457–4460). Roles from `/api/me`: `admin` \| `supervisor` \| `lead` only.
+
+| Route | Method | UI caller (file:line) | UI role condition | Backend policy | Mode flag |
+|---|---|---|---|---|---|
+| `/sas-upload` | POST | `index.html` sync/coversheet → `syncToSAS` (~13370) / coversheet (~13415); controls `#syncBefore/#syncAfter/#syncSignoff` (~3691/3716/3741), `.coversheet-action-wrap` (~3988) | `data-requires-role="lead supervisor admin"` | `lead, supervisor, admin` | `EOD_ROLE_GATE_SAS_UPLOAD_MODE` |
+| `/api/signoff-photos` | POST | `pushSignoffPhotos` (~13012) ← only `syncPhotos('signoff')` ← `#syncSignoff` (~3741) | same | `lead, supervisor, admin` | `EOD_ROLE_GATE_SIGNOFF_PHOTOS_MODE` |
+| `/api/shifts/:visitId/sets/:resetId/append-comment` | POST | Not-In pickers (~11641/11655) + digital sheet side effect | **None** (ungated) | **No new role gate** (match UI) | — |
+| `/api/eod/timesheet-mgmt/*` mutations | PATCH/POST | `eod-timesheet-mgmt.js` overlay (Save/JOIN/PIN/tablet/PDF/email/submit) | **None** | **No new role gate** | — |
+| `/api/dept-signatures/…` POST/DELETE | POST/DELETE | `eod-dept-signatures.js` wizard | **None** | **No new role gate** | — |
+| `/api/digital-signoffs/rows/:rowId/mark` | POST/DELETE | `eod-digital-signoff.js` mark buttons | **None** | **No new role gate** | — |
+| `/store-data/:storeNumber` (+ email/manager DELETE) | POST/DELETE | Fred Meyer pool UI (~5485/5467/5546) | **None** | **No new role gate** | — |
+| `/api/guest-handoff` | POST | timesheet Send link + dept handoff | **None** | **No new role gate** | — |
+
+**Tier 2 deprecation candidates (no reachable UI — do not gate as the fix):**
+
+| Route | Why unreachable |
+|---|---|
+| `/rebotics/tasks/bulk-backlog` POST | `#adminToolsLegacy[hidden]`; `initWeeklyTasks` never called |
+| `/rebotics/tasks/candidates` GET | same |
+| `/api/eod/timesheet-mgmt/pins` PATCH | UI only calls `pins/regenerate` |
+| `/api/dept-signatures/:storeNumber/contacts` POST | UI upserts via signature POST only |
 
 ## T0.11 — Close unintended public status access
 
@@ -261,38 +304,32 @@ Each batch is one sitting and one deployable/revertable unit. Within a batch, ke
 - **Watch:** auth failures, active orphan-route callers, queue failure/duplication baseline, image-route 429s, `AUTH_MODE` remaining `session`.
 - **Done when:** freeze docs published, telemetry deployed to Railway, and chat reply is **y** for Batch 2 kickoff.
 
-## Batch 2a — Telemetry-independent backend correctness (ship now)
+## Batch 2a — Telemetry-independent backend correctness (shipped)
 
-Hold full role enforcement until `[eod-audit]` has a full operating cycle (~1 week covering reset days + weekends). Do **not** gate timesheet / dept-signatures / digital-signoffs / Rebotics on roles until then.
+- **Shipped:** T0.7 atomic queue claim; T0.10 identity binding; T0.11 shift-status privacy.
+- Telemetry remains on as a safety net; it is **not** a precondition for 2b or T0.5 enforce.
 
-- **Ships now:**
-  1. **T0.7 atomic queue claim only** (not UI polling) — `FOR UPDATE SKIP LOCKED` claim in `claimPendingUploadJobs` (`eod-api/src/sas-bridge.js`).
-  2. **T0.10 identity binding** — actor/Reply-To/`sentByEmail`/supervisor lookup from `req.user.email` on `/send-eod`, `/send-helpdesk-ticket`, `/send-eod-helpdesk-report`; body `userEmail` ignored, not rejected (`eod-api/src/index.js`).
-  3. **T0.11 shift-status privacy** — remove public `/api/shift-request/` prefix; status requires auth like the EOD `authFetch` poller. Supervisor decisions remain on `/api/decide` (`eod-api/src/index.js` PUBLIC_PREFIXES).
-- **Not a Batch 2 defect (verified):** `/api/eod-files/:id` already checks `typ === eod_file` and `decoded.aid === :id`.
-- **Test:** claim unit test; unauthenticated `GET /api/shift-request/:id/status` → 401; authenticated poll still works; send-eod with spoofed body email still uses session Reply-To.
-- **Watch:** status-route 401s (should only be unauthenticated probes), duplicate/stuck queue jobs, Reply-To mismatches.
+## Batch 2b — Role middleware (UI-matched; ship after matrix above)
 
-## Batch 2b — Role middleware (hold for telemetry week)
+- **Ships (deploy D):** `requireRoleMode` on **only** the UI-gated families in the matrix (`/sas-upload`, `/api/signoff-photos`). Per-family env: `EOD_ROLE_GATE_SAS_UPLOAD_MODE`, `EOD_ROLE_GATE_SIGNOFF_PHOTOS_MODE` (`shadow`\|`enforce`, default **enforce**). Do **not** add stricter gates on ungated UI routes. Flag dead Rebotics/orphan routes for Tier 2 deprecation instead of gating.
+- **Test:** lead/supervisor/admin succeed; authenticated no-role → 403 on gated families only (enforce); shadow mode logs denial but allows; timesheet/dept/digital still work for no-role.
+- **Watch:** 403 spikes by endpoint and app version; revert one family via its mode flag without reverting the batch.
 
-- **Ships after ~1 week of `[eod-audit]` evidence:** `requireRole` on timesheet / dept-signatures / digital-signoffs mutations; Rebotics admin/district enforcement; store-pool write roles (`eod-api/src/routes/eod-timesheet-mgmt.js`, `dept-signatures.js`, `digital-signoffs.js`, `rebotics-bridge.js`). Zero legacy/orphan events alone is **not** enough — confirm instrumentation fires on known-hit routes first (Batch 1 verification).
-- **Test:** full role matrix; cached/current frontend.
-- **Watch:** 403 spikes by endpoint and app version.
+## Batch 3 — Backend store/visit validation (shadow) + signed-image close (shipped)
 
-## Batch 3 — Backend store/visit validation (shadow) + signed-image close
+- **Shipped:** T0.5 shadow + T0.6 signed images + T0.3 fax day-confirm shadow; EOD **2.11.2** poll/`noBounceOn401` + signoff URL refresh.
+- **Next (deploy C, after class fixtures):** correct the five known classes in `visit-context-validate.js`, unit fixtures, then flip `EOD_CONTEXT_VALIDATE_MODE=enforce` (default enforce in code). Revert: `shadow`.
 
-- **Preflight (done before ship):** removal poll must use `noBounceOn401` so status `401` cannot bounce a lead to sign-in (`EOD/index.html` `startRemovalPolling`). Supervisor emails use `/decide.html` → `/api/decide` (JWT), not `/api/shift-request/` — signed-out approve/deny still works.
-- **Ships:**
-  1. **T0.5 in shadow mode** — compute visit/store/date (and day-confirm) verdicts, emit `[eod-audit] context_validate`, **do not reject** until `EOD_CONTEXT_VALIDATE_MODE=enforce` after ~1 day of log review (`eod-api/src/lib/visit-context-validate.js`). Wired on `/sas-upload`, `/api/signoff-photos`, append-comment, print-timesheet.
-  2. **T0.6 signed signoff image URLs + enforcement** — list/store return `?t=` tokens; image route requires bound token (`eod-api/src/lib/signoff-photo-jwt.js`).
-  3. **T0.3 fax actor + day-confirm shadow check** on print-timesheet.
-- **Test:** unit tests for JWT + 28/281 context; bare image URL → 401; signed URL → 200; unauth decide still token-gated not session-gated.
-- **Watch:** `context_validate` with `ok:false` (especially storeOk/dateOk); image 401 on stale bare URLs (re-sync); print-timesheet dayConfirm mismatches. Flip enforce only after reviewing shadow logs.
-- **Persisted-URL check (2026-08-02):** IndexedDB `allPhotos` stores local **data URLs only** — not `/api/signoff-photos/…` HTTPS. `prodPhotos` / `eodSelections` hold API URLs **in memory only** (not in `kompassEOD` localStorage). Hosted emails use `/api/eod-files`. Risk is mid-session bare URLs after API deploy — EOD **2.11.2** refreshes bare signoff URLs via `GET /api/signoff-photos?visitId=` (fresh signed `?t=` every read).
-- **Shadow false-positive hunt before enforce:** store 999 test fixtures; leading zeros / 28·281·286; supervisor/admin cross-store; guest handoff / tablet (no day-confirm); multi-store day late jobs. Flip `EOD_CONTEXT_VALIDATE_MODE=enforce` only when `ok:false` lines are genuine mismatches.
+## Frontend release A — T0.9 alone (deploy A; ship first)
 
-## Batch 4 — Wrong-recipient/wrong-store frontend hotfix + photo stamp guard
+- **Ships:** T0.9 awaited IndexedDB save/clear before Update navigation, reset completion, and post-send clear; on failure leave memory/UI intact and block reload/success messaging. Bump `eod-version` (e.g. 2.11.3).
+- **Hard rule for every later FE deploy:** the Update path must await durable photo save before `location.replace` / reload.
+- **Test:** simulated IndexedDB failure blocks Update/reset/clear; normal path succeeds.
+- **Watch:** “work not saved/cleared” banners; update loops.
 
+## Batch 4 — Wrong-recipient/wrong-store frontend hotfix + photo stamp guard (deploy B; after A)
+
+- **Depends on:** Frontend release A (T0.9) already on phones so this bump’s Update path awaits IndexedDB.
 - **Ships:** T0.2 stale-response rejection, T0.3 immutable fax store, T0.4 exact materials fallback, T0.8 state accessors, **and T0.1a capture-time store/date stamps with outbound exclusion of mismatches/unstamped**; bump EOD version (`EOD/index.html:5395-5409`, `EOD/index.html:6071-6180`, `EOD/eod-materials-browser.js:613-628`, `EOD/index.html:10554-10572`, `EOD/index.html:5223-5270`, `EOD/eod-version.json:1-3`).
 - **Test:** throttled rapid store switches, 28/281 materials fixtures, fax test route, hydrated-draft signer CC/help-desk persistence; capture under A then day-confirm B and confirm A photos excluded from preview/send/SAS; unstamped legacy excluded from outbound without deletion.
 - **Watch:** wrong-recipient reports, store-data cancellations, preview recipient anomalies, reports of “missing” photos that are actually excluded mismatches (should be rare if stamp matches confirm).
@@ -304,11 +341,9 @@ Hold full role enforcement until `[eod-audit]` has a full operating cycle (~1 we
 - **Watch:** missing/unexpected photos; unsent sessions that never surface; any code path still reading a global preserved photo bucket after rollover.
 - **Checkpoint:** end of Batches 1–5 is the period freeze gate. If this batch is not landed by end of period, reassess rather than extending the freeze automatically (T0.1a in Batch 4 is the interim safety net).
 
-## Batch 6 — Durable save/reset/update
+## Batch 6 — (absorbed) Durable save/reset/update
 
-- **Ships:** T0.9 awaited explicit saves/deletes and update blocking on failure; session-aware reset (`EOD/index.html:5670-5739`, `EOD/index.html:10026-10217`, `EOD/index.html:13610-13621`).
-- **Test:** slow/failing IndexedDB, update during photo write, explicit reset/clear, recovery. Post-send auto-clear still deferred to Batch 7.
-- **Watch:** save-blocked messages, update loops, storage quota failures.
+- **Superseded by Frontend release A:** T0.9 ships alone before Batch 4. Session-aware reset refinements (active-session-only) remain with Batch 5 (T0.1). Post-send auto-clear still deferred to Batch 7 session-complete.
 
 ## Batch 7 — Truthful outbound completion + session-complete clear
 

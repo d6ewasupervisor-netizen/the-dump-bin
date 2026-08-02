@@ -3250,7 +3250,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.2</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.3</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4421,7 +4421,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.11.2';
+        const EOD_APP_VERSION = '2.11.3';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5253,35 +5253,43 @@
                 });
             },
 
-            // Save all photos to IndexedDB
+            // Save all photos to IndexedDB.
+            // Resolves true on success; rejects on failure (callers that must
+            // not proceed — Update / reset / clear — should await and check).
             async savePhotos(photosObj) {
-                try {
-                    const db = await this.init();
-                    const transaction = db.transaction([this.storeName], 'readwrite');
-                    const store = transaction.objectStore(this.storeName);
+                const db = await this.init();
+                const transaction = db.transaction([this.storeName], 'readwrite');
+                const store = transaction.objectStore(this.storeName);
 
-                    // Store all photo arrays as a single object
-                    const photoData = {
-                        id: 'allPhotos',
-                        before: photosObj.before || [],
-                        signoff: photosObj.signoff || [],
-                        after: photosObj.after || [],
-                        instawork: photosObj.instawork || [],
-                        timestamp: Date.now()
+                const photoData = {
+                    id: 'allPhotos',
+                    before: photosObj.before || [],
+                    signoff: photosObj.signoff || [],
+                    after: photosObj.after || [],
+                    instawork: photosObj.instawork || [],
+                    timestamp: Date.now()
+                };
+
+                return new Promise((resolve, reject) => {
+                    const request = store.put(photoData);
+                    // Prefer transaction completion over request.onsuccess so
+                    // durability is confirmed before Update/reload proceeds.
+                    transaction.oncomplete = () => resolve(true);
+                    transaction.onabort = () => {
+                        const err = transaction.error || request.error || new Error('IndexedDB save aborted');
+                        console.error('Error saving photos to IndexedDB:', err);
+                        reject(err);
                     };
-
-                    return new Promise((resolve, reject) => {
-                        const request = store.put(photoData);
-                        request.onsuccess = () => resolve(true);
-                        request.onerror = () => {
-                            console.error('Error saving photos to IndexedDB:', request.error);
-                            reject(request.error);
-                        };
-                    });
-                } catch (e) {
-                    console.error('IndexedDB savePhotos error:', e);
-                    return false;
-                }
+                    transaction.onerror = () => {
+                        const err = transaction.error || request.error || new Error('IndexedDB save error');
+                        console.error('Error saving photos to IndexedDB:', err);
+                        reject(err);
+                    };
+                    request.onerror = () => {
+                        console.error('Error saving photos to IndexedDB:', request.error);
+                        reject(request.error || new Error('IndexedDB put failed'));
+                    };
+                });
             },
 
             // Load all photos from IndexedDB
@@ -5317,27 +5325,54 @@
                 }
             },
 
-            // Clear all photos from IndexedDB
+            // Clear all photos from IndexedDB. Resolves true; rejects on failure.
             async clearPhotos() {
-                try {
-                    const db = await this.init();
-                    const transaction = db.transaction([this.storeName], 'readwrite');
-                    const store = transaction.objectStore(this.storeName);
+                const db = await this.init();
+                const transaction = db.transaction([this.storeName], 'readwrite');
+                const store = transaction.objectStore(this.storeName);
 
-                    return new Promise((resolve, reject) => {
-                        const request = store.delete('allPhotos');
-                        request.onsuccess = () => resolve(true);
-                        request.onerror = () => {
-                            console.error('Error clearing photos from IndexedDB:', request.error);
-                            reject(request.error);
-                        };
-                    });
-                } catch (e) {
-                    console.error('IndexedDB clearPhotos error:', e);
-                    return false;
-                }
+                return new Promise((resolve, reject) => {
+                    const request = store.delete('allPhotos');
+                    transaction.oncomplete = () => resolve(true);
+                    transaction.onabort = () => {
+                        const err = transaction.error || request.error || new Error('IndexedDB clear aborted');
+                        console.error('Error clearing photos from IndexedDB:', err);
+                        reject(err);
+                    };
+                    transaction.onerror = () => {
+                        const err = transaction.error || request.error || new Error('IndexedDB clear error');
+                        console.error('Error clearing photos from IndexedDB:', err);
+                        reject(err);
+                    };
+                    request.onerror = () => {
+                        console.error('Error clearing photos from IndexedDB:', request.error);
+                        reject(request.error || new Error('IndexedDB delete failed'));
+                    };
+                });
             }
         };
+
+        /** T0.9 — await durable photo write before Update / critical navigate. */
+        async function awaitDurablePhotoSave(reason) {
+            try {
+                await PhotoDB.savePhotos(photos);
+                return true;
+            } catch (e) {
+                console.error(`[T0.9] photo save failed (${reason}):`, e);
+                return false;
+            }
+        }
+
+        /** T0.9 — await durable photo clear; false means memory/UI must stay intact. */
+        async function awaitDurablePhotoClear(reason) {
+            try {
+                await PhotoDB.clearPhotos();
+                return true;
+            } catch (e) {
+                console.error(`[T0.9] photo clear failed (${reason}):`, e);
+                return false;
+            }
+        }
 
         // Initialize IndexedDB on load
         PhotoDB.init().catch(e => console.warn('Could not initialize IndexedDB:', e));
@@ -5733,7 +5768,8 @@
                 }
             }
 
-            // Save photos to IndexedDB (handles large files)
+            // Routine autosave — fire-and-forget (debounced coalescing is Tier 2).
+            // Critical paths (Update / reset / post-send) use awaitDurablePhotoSave.
             PhotoDB.savePhotos(photos).catch(e => {
                 console.warn('Could not save photos to IndexedDB:', e);
             });
@@ -10023,15 +10059,26 @@ ${data.Notes || ''}`;
             try { localStorage.setItem(EOD_POST_SEND_CLEAR_KEY, v); } catch (_) { /* ignore */ }
         }
 
-        /** Blank slate for next EOD — clears work content; keeps profile name/email/signature. */
-        function clearEodWorkSurface() {
+        /** Blank slate for next EOD — clears work content; keeps profile name/email/signature.
+         *  T0.9: awaits IndexedDB clear first; on failure leaves memory/UI intact and returns false. */
+        async function clearEodWorkSurface() {
+            const cleared = await awaitDurablePhotoClear('post-send');
+            if (!cleared) {
+                if (typeof showAlert === 'function') {
+                    showAlert(
+                        'Work not cleared',
+                        'Photos could not be cleared from this phone’s storage. Your form and photos are still here — try again or free storage, then clear manually.'
+                    );
+                }
+                return false;
+            }
+
             const savedName = document.getElementById('profileName')?.value;
             const savedEmail = document.getElementById('profileEmail')?.value;
             const savedProfile = localStorage.getItem('kompassProfile');
             const savedSignature = localStorage.getItem('kompassSignature');
 
             localStorage.removeItem('kompassEOD');
-            PhotoDB.clearPhotos().catch(e => console.warn('Could not clear photos from IndexedDB:', e));
             photos.before = [];
             photos.signoff = [];
             photos.after = [];
@@ -10101,13 +10148,18 @@ ${data.Notes || ''}`;
             document.getElementById('afterPhotoSection').querySelector('label.field').textContent = 'Kompass Cart - After:';
             document.getElementById('beforeComplete').nextElementSibling.textContent = 'Kompass cart before picture taken.';
             document.getElementById('afterComplete').nextElementSibling.textContent = 'Kompass cart after picture taken.';
+            return true;
         }
 
-        function showEodSendSuccess(title, message) {
+        async function showEodSendSuccess(title, message) {
             const pref = getEodPostSendClearPref();
             if (pref === 'always') {
-                clearEodWorkSurface();
-                showAlert(title, message + '<br><br><span style="color:#94a3b8;font-size:13px;">Form cleared for a blank slate (your preference).</span>');
+                const ok = await clearEodWorkSurface();
+                if (ok) {
+                    showAlert(title, message + '<br><br><span style="color:#94a3b8;font-size:13px;">Form cleared for a blank slate (your preference).</span>');
+                } else {
+                    showAlert(title, message);
+                }
                 return;
             }
             if (pref === 'never') {
@@ -10157,14 +10209,17 @@ ${data.Notes || ''}`;
             const newBtn = oldBtn.cloneNode(true);
             oldBtn.parentNode.replaceChild(newBtn, oldBtn);
             newBtn.textContent = 'Done';
-            newBtn.addEventListener('click', () => {
+            newBtn.addEventListener('click', async () => {
                 const doClear = !!document.getElementById('eodClearAfterSendToggle')?.checked;
                 const always = !!document.getElementById('eodClearAlwaysCb')?.checked;
                 const neverAsk = !!document.getElementById('eodClearNeverAskCb')?.checked;
                 if (always) setEodPostSendClearPref('always');
                 else if (neverAsk) setEodPostSendClearPref('never');
                 else setEodPostSendClearPref('ask');
-                if (doClear || always) clearEodWorkSurface();
+                if (doClear || always) {
+                    const ok = await clearEodWorkSurface();
+                    if (!ok) return; // leave modal open? clear already alerted; close modal so send success isn't stuck
+                }
                 modal.classList.remove('show');
             });
             modal.classList.add('show');
@@ -10188,10 +10243,20 @@ ${data.Notes || ''}`;
                     '</label>' +
                     '<label class="toggle-switch-label" for="resetEraseEverythingToggle" style="font-size: 14px; color:#fecaca;">Erase everything (images, store, signature, all checkboxes)</label>' +
                 '</div>',
-                () => {
+                async () => {
                     const removePersonal = document.getElementById('resetPersonalToggle').checked;
                     const eraseEverything = document.getElementById('resetEraseEverythingToggle').checked;
                     const wipeAll = removePersonal || eraseEverything;
+
+                    // T0.9: durable clear first — on failure leave memory/UI intact.
+                    const cleared = await awaitDurablePhotoClear('reset');
+                    if (!cleared) {
+                        showAlert(
+                            'Reset blocked',
+                            'Photos could not be cleared from this phone’s storage. Your work is still here — free storage or leave private mode, then try Reset again.'
+                        );
+                        return;
+                    }
 
                     // Save personal details before reset if neither destructive toggle is on
                     let savedName, savedEmail, savedSignature, savedProfile;
@@ -10209,8 +10274,6 @@ ${data.Notes || ''}`;
                         localStorage.removeItem('kompassDayConfirm');
                         helpdeskSubmittedReports = [];
                     }
-                    // Clear photos from IndexedDB + in-memory local / PROD state
-                    PhotoDB.clearPhotos().catch(e => console.warn('Could not clear photos from IndexedDB:', e));
                     photos.before = [];
                     photos.signoff = [];
                     photos.after = [];
@@ -13636,7 +13699,24 @@ ${data.Notes || ''}`;
                 }
             } catch (_) { /* private mode */ }
 
-            function hardNavigateForUpdate(remoteVersion) {
+            async function hardNavigateForUpdate(remoteVersion) {
+                // T0.9 — every Update path must await IndexedDB before reload.
+                const saved = await awaitDurablePhotoSave('update');
+                if (!saved) {
+                    if (eodUpdateAutoReloadTimer) {
+                        clearTimeout(eodUpdateAutoReloadTimer);
+                        eodUpdateAutoReloadTimer = null;
+                    }
+                    renderEodUpdateBanner({
+                        title: 'Update blocked',
+                        detail:
+                            'Photos could not be saved to this phone’s storage. Your work is still on screen. ' +
+                            'Free storage or leave private mode, then tap <strong>Update</strong> again.',
+                        remoteVersion,
+                        autoReload: false,
+                    });
+                    return;
+                }
                 const version = remoteVersion || String(Date.now());
                 try {
                     sessionStorage.setItem(EOD_PENDING_VERSION_KEY, version);
@@ -13654,7 +13734,7 @@ ${data.Notes || ''}`;
             }
 
             window.forceEodAppUpdate = function forceEodAppUpdate() {
-                hardNavigateForUpdate('force-' + Date.now());
+                void hardNavigateForUpdate('force-' + Date.now());
             };
 
             function bindEodUpdateBannerActions(remoteVersion) {
@@ -13674,7 +13754,7 @@ ${data.Notes || ''}`;
                             clearTimeout(eodUpdateAutoReloadTimer);
                             eodUpdateAutoReloadTimer = null;
                         }
-                        hardNavigateForUpdate(updateBtn.dataset.remoteVersion || remoteVersion);
+                        void hardNavigateForUpdate(updateBtn.dataset.remoteVersion || remoteVersion);
                     });
                     actionsEl.appendChild(updateBtn);
 
@@ -13712,7 +13792,7 @@ ${data.Notes || ''}`;
                 if (autoReload) {
                     if (eodUpdateAutoReloadTimer) clearTimeout(eodUpdateAutoReloadTimer);
                     eodUpdateAutoReloadTimer = setTimeout(() => {
-                        hardNavigateForUpdate(remoteVersion);
+                        void hardNavigateForUpdate(remoteVersion);
                     }, EOD_UPDATE_AUTO_RELOAD_MS);
                 }
             }
