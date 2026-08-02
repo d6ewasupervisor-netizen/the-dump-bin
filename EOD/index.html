@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
-    <script src="eod-photo-sessions.js?v=2.11.9"></script>
+    <script src="eod-photo-sessions.js?v=2.12.2"></script>
     <script src="eod-clock-picker.js?v=2.12.0"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
     <script src="eod-guest-handoff.js?v=2.11.2" defer></script>
@@ -3288,7 +3288,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.1</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.2</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4459,7 +4459,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.12.1';
+        const EOD_APP_VERSION = '2.12.2';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -4493,7 +4493,90 @@
          * Keep headers as a plain object — dumpBinAuthFetch merges with Object.assign/
          * spread; a Headers instance drops Content-Type and empties JSON bodies
          * (symptom: verify-store → missing_store_or_date).
+         *
+         * Also attaches last-known storage estimate (quota/usage/photo bytes) +
+         * display-mode so fleet caps can be validated against real Safari quotas.
          */
+        let eodStorageTelemetry = {
+            quota: null,
+            usage: null,
+            photoBytes: null,
+            displayMode: null,
+            persisted: null,
+            at: 0,
+        };
+
+        function eodDisplayMode() {
+            try {
+                if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+                    return 'standalone';
+                }
+                if (typeof navigator !== 'undefined' && navigator.standalone === true) {
+                    return 'standalone';
+                }
+            } catch (_) { /* ignore */ }
+            return 'browser';
+        }
+
+        async function refreshEodStorageTelemetry(force) {
+            const now = Date.now();
+            if (!force && eodStorageTelemetry.at && now - eodStorageTelemetry.at < 60 * 1000) {
+                return eodStorageTelemetry;
+            }
+            let quota = null;
+            let usage = null;
+            let persisted = null;
+            try {
+                if (navigator.storage && typeof navigator.storage.estimate === 'function') {
+                    const est = await navigator.storage.estimate();
+                    if (est) {
+                        if (Number.isFinite(est.quota)) quota = Math.floor(est.quota);
+                        if (Number.isFinite(est.usage)) usage = Math.floor(est.usage);
+                    }
+                }
+                if (navigator.storage && typeof navigator.storage.persisted === 'function') {
+                    persisted = await navigator.storage.persisted();
+                }
+            } catch (_) { /* Safari may throw */ }
+
+            let photoBytes = null;
+            try {
+                if (typeof PhotoDB?.storagePressure === 'function') {
+                    const p = await PhotoDB.storagePressure();
+                    photoBytes = p.totalBytes;
+                    if (p.quotaBytes != null) quota = p.quotaBytes;
+                    if (p.usageBytes != null) usage = p.usageBytes;
+                }
+            } catch (_) { /* PhotoDB may not be ready */ }
+
+            const displayMode = eodDisplayMode();
+            eodStorageTelemetry = {
+                quota,
+                usage,
+                photoBytes,
+                displayMode,
+                persisted,
+                at: now,
+            };
+
+            // Structured client log — searchable alongside [eod-audit] server lines.
+            try {
+                console.log('[eod-storage]', JSON.stringify({
+                    version: EOD_APP_VERSION,
+                    quotaBytes: quota,
+                    usageBytes: usage,
+                    photoBytes,
+                    displayMode,
+                    persisted,
+                    softFrac: window.EodPhotoSessions?.SOFT_QUOTA_FRAC ?? 0.3,
+                    hardFrac: window.EodPhotoSessions?.HARD_QUOTA_FRAC ?? 0.5,
+                }));
+            } catch (_) { /* ignore */ }
+
+            return eodStorageTelemetry;
+        }
+        window.refreshEodStorageTelemetry = refreshEodStorageTelemetry;
+
         function applyEodVersionHeader(init) {
             const opts = Object.assign({}, init || {});
             const src = opts.headers;
@@ -4506,7 +4589,26 @@
             if (!headers['X-EOD-Version'] && !headers['x-eod-version']) {
                 headers['X-EOD-Version'] = EOD_APP_VERSION;
             }
+            // Best-effort: attach last estimate without awaiting (refresh runs in background).
+            const t = eodStorageTelemetry;
+            if (t.quota != null && !headers['X-EOD-Storage-Quota']) {
+                headers['X-EOD-Storage-Quota'] = String(t.quota);
+            }
+            if (t.usage != null && !headers['X-EOD-Storage-Usage']) {
+                headers['X-EOD-Storage-Usage'] = String(t.usage);
+            }
+            if (t.photoBytes != null && !headers['X-EOD-Photo-Bytes']) {
+                headers['X-EOD-Photo-Bytes'] = String(t.photoBytes);
+            }
+            if (t.displayMode && !headers['X-EOD-Display-Mode']) {
+                headers['X-EOD-Display-Mode'] = t.displayMode;
+            }
+            if (t.persisted != null && !headers['X-EOD-Storage-Persisted']) {
+                headers['X-EOD-Storage-Persisted'] = t.persisted ? '1' : '0';
+            }
             opts.headers = headers;
+            // Kick a background refresh so the *next* request carries fresh numbers.
+            void refreshEodStorageTelemetry(false).catch(() => {});
             return opts;
         }
         window.applyEodVersionHeader = applyEodVersionHeader;
@@ -6059,6 +6161,7 @@
             }
             try { refreshStorageIndicator(); } catch (e) {}
             try { refreshUnsentWorkIndicator(); } catch (e) {}
+            try { void refreshEodStorageTelemetry(true); } catch (e) {}
         }
 
         /** Non-blocking unsent-work chip (Batch 5). Does not gate the active EOD. */
@@ -7129,15 +7232,27 @@
             panel.classList.toggle('storage-soft', Boolean(pressure?.soft && !pressure?.hard));
             panel.classList.toggle('storage-hard', Boolean(pressure?.hard));
 
+            const quotaLabel = pressure?.quotaBytes
+                ? ` · browser quota ${formatBytesShort(pressure.quotaBytes)} (${pressure.capMode === 'quota-frac' ? `${Math.round((pressure.softFrac || 0.3) * 100)}%/${Math.round((pressure.hardFrac || 0.5) * 100)}% caps` : 'fixed fallback caps'})`
+                : '';
+            const tabHint = eodDisplayMode() === 'browser'
+                ? ' Tip: Add to Home Screen — Safari tabs can evict site data after ~7 days unused.'
+                : '';
+
             if (pressure?.hard && pressure.unsentCount > 0 && pressure.totalBytes >= pressure.hardBytes) {
                 // Hard cap with nothing sent to drop — warn only (never delete unsent).
                 if (hintEl) {
-                    hintEl.textContent = `Device storage is full (${formatBytesShort(pressure.totalBytes)}). Unsent work may be at risk of browser eviction — compress below. Unsent sessions are never auto-deleted.`;
+                    hintEl.textContent = `Device storage is full (${formatBytesShort(pressure.totalBytes)}${quotaLabel}). Unsent work may be at risk of browser eviction — compress below. Unsent sessions are never auto-deleted.${tabHint}`;
+                    hintEl.classList.add('warn');
+                }
+            } else if (pressure?.originPressure) {
+                if (hintEl) {
+                    hintEl.textContent = `Browser origin storage is high (${formatBytesShort(pressure.usageBytes || 0)} / ${formatBytesShort(pressure.quotaBytes || 0)}). Compress photos; Safari may evict before our hard cap fires.${tabHint}`;
                     hintEl.classList.add('warn');
                 }
             } else if (pressure?.soft) {
                 if (hintEl) {
-                    hintEl.textContent = `Approaching storage soft cap (${formatBytesShort(pressure.totalBytes)} / ${formatBytesShort(pressure.softBytes)}). Compress old photos — nothing is deleted automatically.`;
+                    hintEl.textContent = `Approaching storage soft cap (${formatBytesShort(pressure.totalBytes)} / ${formatBytesShort(pressure.softBytes)}${quotaLabel}). Compress old photos — nothing is deleted automatically.${tabHint}`;
                     hintEl.classList.add('warn');
                 }
             }

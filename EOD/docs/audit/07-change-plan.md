@@ -399,10 +399,8 @@ Each batch is one sitting and one deployable/revertable unit. Within a batch, ke
 ## Batch 5 — Automatic photo-session keying (no email-based auto-clear yet)
 
 - **Ships (FE 2.11.9):** T0.1 via `EOD/eod-photo-sessions.js` — records `session:<store>:<YYYY-MM-DD>` keyed from day-confirm; `sentAt` always null until Batch 7; form rollover clears store/date/day-confirm but **never** reloads shared `allPhotos` into the new day; migration assigns T0.1a-stamped photos to sessions and parks unstamped in `quarantine:legacy` without deleting `allPhotos`; unsent-work banner (non-blocking) with Open session → day-confirm; reset/clear = active session only.
-- **Storage caps (from observed post-compression EOD sizes: typical 3–15 MB, signoff-heavy ~25 MB):**
-  - Soft **40 MB** across retained sessions — storage panel warning + Compress action; no auto-delete.
-  - Hard **90 MB** — drop oldest **sent** session only (`sentAt` set). Unsent never dropped. If hard hit with zero sent victims → warn only (eviction risk).
-  - Sent prune: 7 days after `sentAt` (no-op until Batch 7 writes `sentAt`).
+- **Storage caps:** Batch 5 initially used fixed soft **40 MB** / hard **90 MB**. FE **2.12.2** switches to **30% / 50% of `navigator.storage.estimate().quota`** (fallback 40/90 MB if estimate missing); fleet telemetry via `X-EOD-Storage-*` + `X-EOD-Display-Mode` → `client_versions` (eod-api migration 068). Until Batch 7 sets `sentAt`, hard drop never fires — compress + warn only. Safari tab ITP (~7 day unused eviction) is a separate risk; Home Screen / standalone is preferable.
+- **Sent prune:** 7 days after `sentAt` (no-op until Batch 7 writes `sentAt`).
 - **Rollback:** ≤2.11.8 only reads `allPhotos` by id and ignores `session:*` keys. Batch 5 never deletes `allPhotos` and dual-writes the active session into it on every save, so rolling back keeps active work visible; prior sessions remain on device as `session:*` until upgraded again.
 - **Test:** migration matrix on iPhone/Android — stamped-only / unstamped-only / mixed / empty; store+date switch; midnight-crossing same day-confirm; refresh mid-capture; forced update; quota pressure; rollback to 2.11.8; all four photo types; EOD preview = active session only.
 - **Watch:** missing/unexpected photos; unsent sessions that never surface; any code path still reading a global preserved photo bucket after rollover.
@@ -414,7 +412,7 @@ Each batch is one sitting and one deployable/revertable unit. Within a batch, ke
 
 ## Batch 7 — Truthful outbound completion + session-complete clear
 
-- **Priority note:** Batch 5 left `sentAt` null by design. Until Batch 7 writes `sentAt` on session-complete, the 7-day sent prune never fires and the **hard cap alone** manages photo storage — correct and conservative, but Batch 7 is the loop-closer, not a distant nice-to-have.
+- **Priority note:** Batch 5 left `sentAt` null by design. Until Batch 7 writes `sentAt` on session-complete, the 7-day sent prune never fires and the **hard cap cannot drop anything** (no sent victims) — only compress + quota-% warnings. Batch 7 is the loop-closer, not a distant nice-to-have.
 - **Ships:** T0.7 upload polling/terminal UI; T0.12 accurate digital help-desk result; **and** T0.1 session-complete auto-clear (email success **and** every session-originated SAS/coversheet job terminal `completed`). Keep local retry data while any job is `pending`/`processing`/`failed` (`EOD/index.html:13265-13339`, `EOD/eod-digital-signoff.js:304-349`).
 - **Test:** successful, failed, timeout, backgrounded, and retried photo/coversheet jobs; email-ok + job-pending (no clear); all jobs completed (clear); Send/Stand-down/failure digital marks.
 - **Watch:** queue timeouts, failed-job retry rates, premature photo clears, mismatch between help-desk metadata and sends.

@@ -5,8 +5,9 @@
  * Quarantine: quarantine:legacy (unstamped migration only)
  * Legacy allPhotos: never deleted (rollback safety for ≤2.11.8).
  *
- * Caps (from observed post-compression EOD sizes: typical 3–15 MB, signoff-heavy
- * up to ~25 MB): soft 40 MB / hard 90 MB across retained sessions.
+ * Caps: percentage of navigator.storage.estimate().quota when available
+ * (soft 30% / hard 50%). Fallback fixed 40 MB / 90 MB if estimate missing —
+ * fixed hard cap alone is meaningless vs Safari eviction; prefer % of quota.
  */
 (function (global) {
   'use strict';
@@ -17,11 +18,51 @@
   const MIGRATION_ID = 'migration:photoSessions:v1';
   const PHOTO_TYPES = ['before', 'signoff', 'after', 'instawork'];
 
-  /** Soft: ~3–5 typical EODs — prompt compress, never auto-delete. */
-  const SOFT_BYTES = 40 * 1024 * 1024;
-  /** Hard: ~6–10 typical EODs — drop oldest SENT only. */
-  const HARD_BYTES = 90 * 1024 * 1024;
+  /** Fallback when Storage API estimate is unavailable. */
+  const FALLBACK_SOFT_BYTES = 40 * 1024 * 1024;
+  const FALLBACK_HARD_BYTES = 90 * 1024 * 1024;
+  /** Fractions of reported origin quota. */
+  const SOFT_QUOTA_FRAC = 0.30;
+  const HARD_QUOTA_FRAC = 0.50;
   const SENT_PRUNE_MS = 7 * 24 * 60 * 60 * 1000;
+
+  let cachedEstimate = { quota: null, usage: null, at: 0 };
+  const ESTIMATE_TTL_MS = 60 * 1000;
+
+  async function readStorageEstimate(force) {
+    const now = Date.now();
+    if (!force && cachedEstimate.at && now - cachedEstimate.at < ESTIMATE_TTL_MS) {
+      return cachedEstimate;
+    }
+    let quota = null;
+    let usage = null;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.estimate === 'function') {
+        const est = await navigator.storage.estimate();
+        if (est) {
+          if (Number.isFinite(est.quota) && est.quota > 0) quota = Math.floor(est.quota);
+          if (Number.isFinite(est.usage) && est.usage >= 0) usage = Math.floor(est.usage);
+        }
+      }
+    } catch (_) { /* Safari quirks — fall back */ }
+    cachedEstimate = { quota, usage, at: now };
+    return cachedEstimate;
+  }
+
+  function capsFromQuota(quota) {
+    if (!Number.isFinite(quota) || quota <= 0) {
+      return {
+        softBytes: FALLBACK_SOFT_BYTES,
+        hardBytes: FALLBACK_HARD_BYTES,
+        mode: 'fallback',
+      };
+    }
+    const softBytes = Math.max(5 * 1024 * 1024, Math.floor(quota * SOFT_QUOTA_FRAC));
+    let hardBytes = Math.max(softBytes + (2 * 1024 * 1024), Math.floor(quota * HARD_QUOTA_FRAC));
+    // Never claim a hard cap above 80% of reported quota — leave headroom for eviction.
+    hardBytes = Math.min(hardBytes, Math.floor(quota * 0.80));
+    return { softBytes, hardBytes, mode: 'quota-frac' };
+  }
 
   function emptyArrays() {
     return { before: [], signoff: [], after: [], instawork: [] };
@@ -233,9 +274,11 @@
     }
 
     async function enforceHardCap() {
+      const est = await readStorageEstimate(false);
+      const caps = capsFromQuota(est.quota);
       let sessions = await listSessionSummaries();
       let total = sessions.reduce((a, s) => a + s.bytes, 0);
-      while (total > HARD_BYTES) {
+      while (total > caps.hardBytes) {
         const victims = sessions
           .filter((s) => s.sentAt && (!activeKey || s.id !== activeKey.id))
           .sort((a, b) => {
@@ -245,27 +288,52 @@
             return (a.timestamp || 0) - (b.timestamp || 0);
           });
         if (!victims.length) {
-          return { dropped: false, fullUnsent: true, totalBytes: total };
+          return {
+            dropped: false,
+            fullUnsent: true,
+            totalBytes: total,
+            hardBytes: caps.hardBytes,
+            quotaBytes: est.quota,
+          };
         }
         await deleteRecord(victims[0].id);
         sessions = await listSessionSummaries();
         total = sessions.reduce((a, s) => a + s.bytes, 0);
       }
-      return { dropped: true, fullUnsent: false, totalBytes: total };
+      return {
+        dropped: true,
+        fullUnsent: false,
+        totalBytes: total,
+        hardBytes: caps.hardBytes,
+        quotaBytes: est.quota,
+      };
     }
 
     async function storagePressure() {
       const sessions = await listSessionSummaries();
       const totalBytes = sessions.reduce((a, s) => a + s.bytes, 0);
       const unsent = sessions.filter((s) => !s.sentAt && s.count > 0);
+      const est = await readStorageEstimate(false);
+      const caps = capsFromQuota(est.quota);
+      const originUsageFrac = (est.quota && est.usage != null)
+        ? est.usage / est.quota
+        : null;
       return {
         totalBytes,
         sessionCount: sessions.length,
-        soft: totalBytes >= SOFT_BYTES,
-        hard: totalBytes >= HARD_BYTES,
+        soft: totalBytes >= caps.softBytes,
+        hard: totalBytes >= caps.hardBytes,
         unsentCount: unsent.length,
-        softBytes: SOFT_BYTES,
-        hardBytes: HARD_BYTES,
+        softBytes: caps.softBytes,
+        hardBytes: caps.hardBytes,
+        capMode: caps.mode,
+        softFrac: SOFT_QUOTA_FRAC,
+        hardFrac: HARD_QUOTA_FRAC,
+        quotaBytes: est.quota,
+        usageBytes: est.usage,
+        originUsageFrac,
+        // Browser already using most of origin quota — warn even if photo soft not hit.
+        originPressure: originUsageFrac != null && originUsageFrac >= HARD_QUOTA_FRAC,
       };
     }
 
@@ -533,12 +601,15 @@
       switchToDayConfirm,
       unsentSessions,
       quarantineSummary,
+      readStorageEstimate,
       storagePressure,
       listSessionSummaries,
       resolveActiveKey,
       sessionId,
-      SOFT_BYTES,
-      HARD_BYTES,
+      FALLBACK_SOFT_BYTES,
+      FALLBACK_HARD_BYTES,
+      SOFT_QUOTA_FRAC,
+      HARD_QUOTA_FRAC,
       LEGACY_ID,
       QUARANTINE_ID,
     };
@@ -549,8 +620,12 @@
     sessionId,
     parseSessionId,
     SCHEMA_VERSION,
-    SOFT_BYTES,
-    HARD_BYTES,
+    FALLBACK_SOFT_BYTES,
+    FALLBACK_HARD_BYTES,
+    SOFT_QUOTA_FRAC,
+    HARD_QUOTA_FRAC,
+    readStorageEstimate,
+    capsFromQuota,
     LEGACY_ID,
     QUARANTINE_ID,
     PHOTO_TYPES,
