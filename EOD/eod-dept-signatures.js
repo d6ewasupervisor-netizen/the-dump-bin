@@ -24,8 +24,11 @@
 
   function authFetch(url, init) {
     if (typeof window.authFetch === 'function') return window.authFetch(url, init);
-    if (window.dumpBinAuthFetch) return window.dumpBinAuthFetch(url, init);
-    return fetch(url, init);
+    const opts = typeof window.applyEodVersionHeader === 'function'
+      ? window.applyEodVersionHeader(init)
+      : init;
+    if (window.dumpBinAuthFetch) return window.dumpBinAuthFetch(url, opts);
+    return fetch(url, opts);
   }
 
   function dayConfirmHeaders(extra) {
