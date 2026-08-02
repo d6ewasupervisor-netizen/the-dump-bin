@@ -611,20 +611,36 @@
           members.push(...(Array.isArray(data) ? data : []));
         }
       } else {
+        // T0.4: never take visits[0] from a substring-matched SAS list.
+        // Exact whole-number store match only; 0 or >1 exact visits → require shift pick.
         const store = getStoreNumber();
         const date = (document.getElementById('workDate')?.value || '').trim();
-        if (store && date) {
+        const want = String(store || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+        if (store && date && want) {
           const shiftsResp = await authFetch(`${API.replace(/\/api$/, '')}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`);
           if (shiftsResp.ok) {
             const shiftsData = await shiftsResp.json();
             const visits = Array.isArray(shiftsData) ? shiftsData : (shiftsData.visits || shiftsData.shifts || []);
-            const visitId = visits[0]?.visitId || visits[0]?.id;
-            if (visitId) {
-              const resp = await authFetch(`${API.replace(/\/api$/, '')}/api/shifts/${encodeURIComponent(visitId)}/members`);
-              if (resp.ok) {
-                const data = await resp.json();
-                members.push(...(Array.isArray(data) ? data : []));
+            const exact = visits.filter((v) => {
+              const raw = v?.storeNumber ?? v?.store_number ?? v?.store?.number ?? v?.store?.store?.number ?? '';
+              const got = String(raw).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+              return got && got === want;
+            });
+            if (exact.length === 1) {
+              const visitId = exact[0]?.visitId || exact[0]?.id;
+              if (visitId) {
+                const resp = await authFetch(`${API.replace(/\/api$/, '')}/api/shifts/${encodeURIComponent(visitId)}/members`);
+                if (resp.ok) {
+                  const data = await resp.json();
+                  members.push(...(Array.isArray(data) ? data : []));
+                }
               }
+            } else if (exact.length > 1) {
+              box.innerHTML = '<div class="mat-muted">Multiple shifts match this store — select a shift on the EOD form first.</div>';
+              return;
+            } else {
+              box.innerHTML = '<div class="mat-muted">No exact store match for team recipients. Select a shift on the EOD form.</div>';
+              return;
             }
           }
         }

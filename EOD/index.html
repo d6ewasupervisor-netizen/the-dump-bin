@@ -185,6 +185,10 @@
             user-select: none;
         }
 
+        .photo-item.photo-context-mismatch {
+            opacity: 0.55;
+            outline: 1px dashed #f59e0b;
+        }
         .eod-version-badge.eod-test-mode-active {
             color: #fecaca;
             background: #7f1d1d;
@@ -3250,7 +3254,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.3</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.4</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4421,7 +4425,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.11.3';
+        const EOD_APP_VERSION = '2.11.4';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -4955,6 +4959,57 @@
             }));
         }
 
+        // ─── T0.1a photo store/date stamps ────────────────────────────────────
+        // Photos may be legacy strings (unstamped) or { dataUrl, storeNumber, workDate }.
+        function photoSrc(entry) {
+            if (!entry) return '';
+            if (typeof entry === 'string') return entry;
+            return entry.dataUrl || '';
+        }
+
+        function getCaptureStampContext() {
+            const dc = getActiveDayConfirm();
+            const store = (dc && dc.store) || normStoreNumber(document.getElementById('storeNumber')?.value);
+            const date = (dc && dc.date) || normIsoDate(document.getElementById('workDate')?.value);
+            return { store: store || null, date: date || null };
+        }
+
+        function stampCapturedPhoto(dataUrl) {
+            const ctx = getCaptureStampContext();
+            return {
+                dataUrl,
+                storeNumber: ctx.store,
+                workDate: ctx.date,
+                stampedAt: Date.now(),
+            };
+        }
+
+        function replacePhotoDataUrl(entry, newDataUrl) {
+            if (entry && typeof entry === 'object') {
+                return { ...entry, dataUrl: newDataUrl };
+            }
+            // Legacy unstamped string — keep unstamped (excluded from outbound).
+            return newDataUrl;
+        }
+
+        function photoMatchesActiveContext(entry) {
+            // Unstamped legacy strings / missing stamps are non-matching (hidden from outbound).
+            if (!entry || typeof entry === 'string') return false;
+            if (!entry.storeNumber || !entry.workDate) return false;
+            const ctx = getCaptureStampContext();
+            if (!ctx.store || !ctx.date) return false;
+            return normStoreNumber(entry.storeNumber) === ctx.store
+                && normIsoDate(entry.workDate) === ctx.date;
+        }
+
+        function outboundPhotoEntries(type) {
+            return (photos[type] || []).filter(photoMatchesActiveContext);
+        }
+
+        function outboundPhotoDataUrls(type) {
+            return outboundPhotoEntries(type).map(photoSrc).filter(Boolean);
+        }
+
         function clearDayConfirm() {
             try { localStorage.removeItem(DAY_CONFIRM_KEY); } catch (e) {}
         }
@@ -5425,25 +5480,48 @@
         let fredmeyerEmailPool = [];   // @fredmeyer.com addresses saved for this store
         let managerNamePool = [];      // Manager names saved for this store
         let currentLoadedStoreNumber = null;
+        let loadStoreDataSeq = 0;
+        let loadStoreDataAbort = null;
 
         // ─── Store data (global per-store pools) ───────────────────────────────
+        // T0.2: reject stale responses when the lead switches stores quickly.
         async function loadStoreData(storeNumber) {
-            if (!storeNumber || storeNumber === currentLoadedStoreNumber) return;
-            currentLoadedStoreNumber = storeNumber;
+            const requested = normStoreNumber(storeNumber);
+            if (!requested) return;
+            if (requested === currentLoadedStoreNumber && !loadStoreDataAbort) return;
+
+            const seq = ++loadStoreDataSeq;
+            if (loadStoreDataAbort) {
+                try { loadStoreDataAbort.abort(); } catch (_) { /* ignore */ }
+            }
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            loadStoreDataAbort = controller;
+
             try {
                 const resp = await authFetch(
-                    `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(storeNumber)}`
+                    `https://eod-api.the-dump-bin.com/store-data/${encodeURIComponent(requested)}`,
+                    controller ? { signal: controller.signal } : undefined
                 );
+                if (seq !== loadStoreDataSeq) return; // newer request won
+                const formNow = normStoreNumber(document.getElementById('storeNumber')?.value);
+                if (formNow && formNow !== requested) return; // user already moved on
                 if (!resp.ok) return;
                 const data = await resp.json();
+                if (seq !== loadStoreDataSeq) return;
+                const formAfter = normStoreNumber(document.getElementById('storeNumber')?.value);
+                if (formAfter && formAfter !== requested) return;
                 if (data.success) {
+                    currentLoadedStoreNumber = requested;
                     fredmeyerEmailPool = Array.isArray(data.fredmeyerEmails) ? data.fredmeyerEmails : [];
                     managerNamePool = Array.isArray(data.managerNames) ? data.managerNames : [];
                     renderFredmeyerDropdown();
                     renderManagerSuggestions();
                 }
             } catch (e) {
+                if (e?.name === 'AbortError') return;
                 console.warn('loadStoreData failed:', e.message);
+            } finally {
+                if (loadStoreDataAbort === controller) loadStoreDataAbort = null;
             }
         }
 
@@ -5956,8 +6034,8 @@
                     if (!Array.isArray(photoArray)) return [];
                     const seen = new Set();
                     return photoArray.filter(photo => {
-                        const prefix = photo.substring(0, 1000);
-                        if (seen.has(prefix)) return false;
+                        const prefix = photoSrc(photo).substring(0, 1000);
+                        if (!prefix || seen.has(prefix)) return false;
                         seen.add(prefix);
                         return true;
                     });
@@ -6104,17 +6182,21 @@
             autoSave();
         }
 
+        // T0.3: ack fields are display-only mirrors of the main form store.
         function syncTimesheetAckStoreFields(forceValue) {
-            const formStore = (document.getElementById('storeNumber')?.value || '').trim();
-            const value = String(forceValue || formStore || '').trim();
+            const formStore = normStoreNumber(document.getElementById('storeNumber')?.value) || '';
+            const value = String(forceValue != null && forceValue !== '' ? normStoreNumber(forceValue) : formStore || '').trim();
             const iw = document.getElementById('instaworkAckStoreNumber');
             const kp = document.getElementById('kompassAckStoreNumber');
-            if (forceValue) {
-                if (iw) iw.value = value;
-                if (kp) kp.value = value;
-            } else {
-                if (iw && !iw.value.trim()) iw.value = value;
-                if (kp && !kp.value.trim()) kp.value = value;
+            if (iw) {
+                iw.value = value;
+                iw.readOnly = true;
+                iw.setAttribute('aria-readonly', 'true');
+            }
+            if (kp) {
+                kp.value = value;
+                kp.readOnly = true;
+                kp.setAttribute('aria-readonly', 'true');
             }
         }
 
@@ -6204,12 +6286,10 @@
             overlay.classList.add('show');
         }
 
-        function resolveTimesheetPrintStore(sheet) {
-            const ackId = sheet === 'kompass' ? 'kompassAckStoreNumber' : 'instaworkAckStoreNumber';
-            const ackVal = (document.getElementById(ackId)?.value || '').trim();
+        // T0.3: always fax from the canonical main-form store (never ack field).
+        function resolveTimesheetPrintStore(_sheet) {
             const formVal = (document.getElementById('storeNumber')?.value || '').trim();
-            const raw = ackVal || formVal;
-            const digits = String(raw).replace(/\D/g, '');
+            const digits = String(formVal).replace(/\D/g, '');
             if (!digits) return null;
             const n = Number(digits);
             if (!Number.isFinite(n) || n <= 0) return null;
@@ -6555,8 +6635,9 @@
 
         // Check if a photo already exists in the array (compare first 1000 chars to avoid expensive full comparison)
         function isPhotoAlreadyAdded(photoArray, newPhoto) {
-            const newPhotoPrefix = newPhoto.substring(0, 1000);
-            return photoArray.some(existing => existing.substring(0, 1000) === newPhotoPrefix);
+            const newSrc = photoSrc(newPhoto) || (typeof newPhoto === 'string' ? newPhoto : '');
+            const newPhotoPrefix = newSrc.substring(0, 1000);
+            return photoArray.some(existing => photoSrc(existing).substring(0, 1000) === newPhotoPrefix);
         }
 
         // Processing guard to prevent duplicate uploads from rapid event firing
@@ -6643,19 +6724,20 @@
                     // persist a multi-MB PNG. See PHOTO_STORAGE_COMPRESSION.
                     correctedDataUrl = await optimizePhotoForStorage(correctedDataUrl, type);
 
-                    // Only add if not a duplicate
-                    if (!isPhotoAlreadyAdded(photos[type], correctedDataUrl)) {
+                    // T0.1a: stamp store/date at capture
+                    const stamped = stampCapturedPhoto(correctedDataUrl);
+                    if (!isPhotoAlreadyAdded(photos[type], stamped)) {
                         if (type === 'instawork') {
                             // InstaWork is single-photo: each new capture
                             // replaces the previous one and clears any
                             // prior "saved" confirmation.
-                            photos.instawork = [correctedDataUrl];
+                            photos.instawork = [stamped];
                             instaworkSavedInfo = null;
                             const statusEl = document.getElementById('instaworkSaveStatus');
                             if (statusEl) statusEl.style.display = 'none';
                             reopenInstaworkPanel();
                         } else {
-                            photos[type].push(correctedDataUrl);
+                            photos[type].push(stamped);
                             if (type === 'signoff') {
                                 // Newly added sign-off photos always start
                                 // out as "needs review" so the lead is
@@ -6683,16 +6765,16 @@
                         } catch (compressErr) {
                             console.warn('Fallback compression failed:', compressErr);
                         }
-                        // Only add if not a duplicate
-                        if (!isPhotoAlreadyAdded(photos[type], fallbackData)) {
+                        const stampedFallback = stampCapturedPhoto(fallbackData);
+                        if (!isPhotoAlreadyAdded(photos[type], stampedFallback)) {
                             if (type === 'instawork') {
-                                photos.instawork = [fallbackData];
+                                photos.instawork = [stampedFallback];
                                 instaworkSavedInfo = null;
                                 const statusEl = document.getElementById('instaworkSaveStatus');
                                 if (statusEl) statusEl.style.display = 'none';
                                 reopenInstaworkPanel();
                             } else {
-                                photos[type].push(fallbackData);
+                                photos[type].push(stampedFallback);
                                 if (type === 'signoff') {
                                     signoffNeedsReview.push(true);
                                 }
@@ -7148,6 +7230,12 @@
             photos[type].forEach((photo, index) => {
                 const item = document.createElement('div');
                 item.className = 'photo-item';
+                const src = photoSrc(photo);
+                // T0.1a: keep mismatched/unstamped on device but mark them (still excluded from outbound).
+                if (!photoMatchesActiveContext(photo)) {
+                    item.classList.add('photo-context-mismatch');
+                    item.title = 'Not included in send/SAS for the current store/date';
+                }
 
                 // Sign-off review badge — orange "Needs review" until the
                 // lead opens the editor and saves; green "Reviewed" after.
@@ -7169,7 +7257,7 @@
                     : `onclick="openLightbox(this.src, 'Local ${type} photo')" style="cursor:pointer;"`;
                 item.innerHTML = `
                     ${badge}
-                    <img src="${photo}" alt="${type} photo" ${imgClick}>
+                    <img src="${src}" alt="${type} photo" ${imgClick}>
                     ${editBtn}
                     <button class="photo-remove" onclick="removePhoto('${type}', ${index})">x</button>
                 `;
@@ -7753,6 +7841,8 @@
             }
             const photoData = photos[editorCurrentType][photoIndex];
             if (!photoData) return;
+            const src = photoSrc(photoData);
+            if (!src) return;
 
             // Reset all editor state
             editorRotation = 0;
@@ -7777,7 +7867,7 @@
                 imageEditorOverlay.classList.add('show');
                 renderEditorCanvas();
             };
-            editorOriginalImage.src = photoData;
+            editorOriginalImage.src = src;
         }
 
         // Bounding box of a w×h image rotated by deg around its center.
@@ -8602,7 +8692,7 @@
 
         document.getElementById('editorReset').addEventListener('click', () => {
             // Reload original image
-            const photoData = photos[editorCurrentType][editorCurrentPhotoIndex];
+            const photoData = photoSrc(photos[editorCurrentType][editorCurrentPhotoIndex]);
             editorRotation = 0;
             editorBrightness = 0;
             editorContrast = 0;
@@ -8661,7 +8751,11 @@
             }
 
             // Update the photo in the array (signoff / instawork / cart before-after)
-            photos[targetType][editorCurrentPhotoIndex] = finalDataUrl;
+            // T0.1a: preserve capture stamp when editing.
+            photos[targetType][editorCurrentPhotoIndex] = replacePhotoDataUrl(
+                photos[targetType][editorCurrentPhotoIndex],
+                finalDataUrl
+            );
 
             // Saving the editor for a sign-off photo counts as the lead
             // having reviewed the orientation/crop. Clears the badge.
@@ -8855,7 +8949,13 @@
                 NotInSiSelected: notInSiSelected.slice(),
                 NotInSiOther: (document.getElementById('notInSiOther')?.value || '').trim(),
                 signatureDataURL: await getSignatureDataURL(),
-                photos: photos
+                // T0.1a: outbound payload only includes stamped photos for active store/date.
+                photos: {
+                    before: outboundPhotoDataUrls('before'),
+                    signoff: outboundPhotoDataUrls('signoff'),
+                    after: outboundPhotoDataUrls('after'),
+                    instawork: outboundPhotoDataUrls('instawork'),
+                },
             };
         }
 
@@ -10615,6 +10715,17 @@ ${data.Notes || ''}`;
             configurable: true,
         });
         let helpdeskSubmittedReports = [];
+        // T0.8: accessor pattern so module copies survive hydration (same as Not In).
+        Object.defineProperty(window, 'emailRecipients', {
+            get() { return emailRecipients; },
+            set(v) { emailRecipients = Array.isArray(v) ? v : []; },
+            configurable: true,
+        });
+        Object.defineProperty(window, 'helpdeskSubmittedReports', {
+            get() { return helpdeskSubmittedReports; },
+            set(v) { helpdeskSubmittedReports = Array.isArray(v) ? v : []; },
+            configurable: true,
+        });
         // Map of visitId → { label, sets[] } for ALL shifts found on the date.
         // Populated automatically after smFindShifts succeeds so the user
         // doesn't have to select each shift card to access its set list.
@@ -10624,8 +10735,7 @@ ${data.Notes || ''}`;
             window.allShiftsSetsMap = allShiftsSetsMap;
             window.notInStoreSelected = notInStoreSelected;
             window.notInSiSelected = notInSiSelected;
-            window.emailRecipients = emailRecipients;
-            window.helpdeskSubmittedReports = helpdeskSubmittedReports;
+            // emailRecipients / helpdeskSubmittedReports use defineProperty accessors (T0.8)
             if (typeof setLabel === 'function') window.setLabel = setLabel;
             if (typeof setDisplayLabel === 'function') window.setDisplayLabel = setDisplayLabel;
             if (typeof buildShiftDisplayLabel === 'function') window.buildShiftDisplayLabel = buildShiftDisplayLabel;
@@ -12756,7 +12866,7 @@ ${data.Notes || ''}`;
             const localDataUrl = photo.localDataUrl || prodPhotoLocalCopies[type]?.[key];
             if (!localDataUrl || !photos[type]) return;
 
-            const index = photos[type].indexOf(localDataUrl);
+            const index = photos[type].findIndex((p) => photoSrc(p) === localDataUrl);
             if (index !== -1) {
                 photos[type].splice(index, 1);
                 if (type === 'signoff') signoffNeedsReview.splice(index, 1);
@@ -12765,12 +12875,14 @@ ${data.Notes || ''}`;
             delete photo.localDataUrl;
         }
 
-        function isImportedProdPhoto(type, dataUrl) {
-            return Object.values(prodPhotoLocalCopies[type] || {}).includes(dataUrl);
+        function isImportedProdPhoto(type, dataUrlOrEntry) {
+            const src = photoSrc(dataUrlOrEntry) || dataUrlOrEntry;
+            return Object.values(prodPhotoLocalCopies[type] || {}).includes(src);
         }
 
+        // T0.1a: SAS sync only uploads photos stamped for the active store/date.
         function getLocallyCapturedPhotos(type) {
-            return (photos[type] || []).filter(photo => !isImportedProdPhoto(type, photo));
+            return outboundPhotoDataUrls(type).filter((src) => !isImportedProdPhoto(type, src));
         }
 
         // Render PROD photos for a given type (before/after/signoff)
@@ -12834,8 +12946,10 @@ ${data.Notes || ''}`;
             try {
                 if (useForEod) {
                     const localDataUrl = await importProdPhotoDataUrl(type, photo);
-                    if (!photos[type].includes(localDataUrl)) {
-                        const insertedIndex = photos[type].push(localDataUrl) - 1;
+                    const already = photos[type].some((p) => photoSrc(p) === localDataUrl);
+                    if (!already) {
+                        // T0.1a: stamp PROD imports at import time for the active context.
+                        const insertedIndex = photos[type].push(stampCapturedPhoto(localDataUrl)) - 1;
                         if (type === 'signoff') {
                             alignSignoffReviewState();
                             signoffNeedsReview[insertedIndex] = false;
@@ -12879,7 +12993,10 @@ ${data.Notes || ''}`;
                 });
             });
 
-            photos[type].forEach((dataUrl, i) => {
+            // T0.1a: only stamped matching photos enter EOD selection / email / PDF.
+            photos[type].forEach((entry, i) => {
+                if (!photoMatchesActiveContext(entry)) return;
+                const dataUrl = photoSrc(entry);
                 if (!dataUrl || seenDataUrls.has(dataUrl)) return;
 
                 const importedFromProd = isImportedProdPhoto(type, dataUrl);
@@ -13870,6 +13987,6 @@ ${data.Notes || ''}`;
 
     </script>
     <script src="eod-helpdesk-wizard.js?v=2.6"></script>
-    <script src="eod-materials-browser.js?v=3.0.0"></script>
+    <script src="eod-materials-browser.js?v=3.0.1"></script>
 </body>
 </html>
