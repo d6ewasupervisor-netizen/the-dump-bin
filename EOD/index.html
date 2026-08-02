@@ -3254,7 +3254,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.7</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.8</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4425,7 +4425,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.11.7';
+        const EOD_APP_VERSION = '2.11.8';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -4454,17 +4454,23 @@
         window.EOD_API_BASE = EOD_API_BASE;
         window.EOD_APP_VERSION = EOD_APP_VERSION;
 
-        /** Attach running-tab version for fleet measurement (API → client_versions). */
+        /**
+         * Attach running-tab version for fleet measurement (API → client_versions).
+         * Keep headers as a plain object — dumpBinAuthFetch merges with Object.assign/
+         * spread; a Headers instance drops Content-Type and empties JSON bodies
+         * (symptom: verify-store → missing_store_or_date).
+         */
         function applyEodVersionHeader(init) {
             const opts = Object.assign({}, init || {});
+            const src = opts.headers;
             let headers;
-            if (opts.headers instanceof Headers) {
-                headers = new Headers(opts.headers);
+            if (src instanceof Headers) {
+                headers = Object.fromEntries(src.entries());
             } else {
-                headers = new Headers(opts.headers || {});
+                headers = Object.assign({}, src || {});
             }
-            if (!headers.has('X-EOD-Version')) {
-                headers.set('X-EOD-Version', EOD_APP_VERSION);
+            if (!headers['X-EOD-Version'] && !headers['x-eod-version']) {
+                headers['X-EOD-Version'] = EOD_APP_VERSION;
             }
             opts.headers = headers;
             return opts;
