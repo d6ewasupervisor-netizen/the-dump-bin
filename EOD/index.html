@@ -3254,7 +3254,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.6</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.7</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4425,7 +4425,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.11.6';
+        const EOD_APP_VERSION = '2.11.7';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -4434,6 +4434,11 @@
         const EOD_TEST_SETS_SOURCE_STORE = '19';
         const EOD_TEST_LEAD_NAME = 'd6ewa.supervisor';
         const EOD_TEST_LEAD_EMAIL = 'd6ewa.supervisor@gmail.com';
+        /** Stand-in Kompass crew (matches eod-api eod-test-fixtures). */
+        const EOD_TEST_KOMPASS = [
+            { employeeId: 'test-kp-alex', name: 'Alex Testworker', workdayId: 'TESTKP01', email: EOD_TEST_RECIPIENT },
+            { employeeId: 'test-kp-jordan', name: 'Jordan Testworker', workdayId: 'TESTKP02', email: EOD_TEST_RECIPIENT },
+        ];
         const EOD_TEST_INSTAWORK = [
             { employeeId: 'test-iw-ftrkc16', name: '16 Fast Track C', workdayId: 'Ftrkc16' },
             { employeeId: 'test-iw-ftrkc17', name: '17 Fast Track C', workdayId: 'Ftrkc17' },
@@ -4588,6 +4593,7 @@
                 console.warn('[test-mode] could not load direct reports:', err);
             }
 
+            // Stand-in Kompass crew always present; append live direct reports if any.
             const members = [
                 {
                     employeeId: 'test-lead-d6ewa',
@@ -4597,6 +4603,15 @@
                     title: 'Lead',
                     shiftTime: '05:00 – 14:00',
                 },
+                ...EOD_TEST_KOMPASS.map((kp) => ({
+                    employeeId: kp.employeeId,
+                    name: kp.name,
+                    email: kp.email || '',
+                    workdayId: kp.workdayId,
+                    isLead: false,
+                    title: 'Merchandiser',
+                    shiftTime: '05:00 – 14:00',
+                })),
                 ...reports.map((emp, idx) => ({
                     employeeId: emp.employeeId || `test-report-${idx}`,
                     name: emp.name || emp.preferredName || `Team Member ${idx + 1}`,
@@ -4767,8 +4782,26 @@
             const setMsg = demoSets.length
                 ? `${demoSets.length} sets from store #${EOD_TEST_SETS_SOURCE_STORE}${demoWeek ? ` (${demoWeek})` : ''}`
                 : 'sets unavailable (clone failed — check API deploy)';
+            // Prefill IW + Kompass Yes so timesheet / print panels are available.
+            try {
+                const iwYes = document.getElementById('instaworkYes');
+                const iwNo = document.getElementById('instaworkNo');
+                if (iwYes && !iwYes.checked) {
+                    iwYes.checked = true;
+                    if (iwNo) iwNo.checked = false;
+                    if (typeof toggleInstawork === 'function') toggleInstawork(iwYes);
+                }
+                const kpYes = document.getElementById('kompassTimesheetYes');
+                const kpNo = document.getElementById('kompassTimesheetNo');
+                if (kpYes && !kpYes.checked) {
+                    kpYes.checked = true;
+                    if (kpNo) kpNo.checked = false;
+                    if (typeof toggleKompassTimesheet === 'function') toggleKompassTimesheet(kpYes);
+                }
+            } catch (_) { /* ignore */ }
+
             showToast(
-                `Test mode ON — #${EOD_TEST_STORE}, lead ${EOD_TEST_LEAD_NAME}, ${uniqueMembers.length} people (${iwCount} InstaWork), ${setMsg}. Emails/faxes stay on your test path.`,
+                `Test mode ON — #${EOD_TEST_STORE}, lead ${EOD_TEST_LEAD_NAME}, ${uniqueMembers.length} people (${iwCount} InstaWork + stand-in Kompass), ${setMsg}. All EOD/fax/helpdesk/InstaWork mail goes only to ${EOD_TEST_RECIPIENT}.`,
                 'warning'
             );
         }
@@ -4874,8 +4907,15 @@
             </div>`;
         }
 
+        function isEodTestStore(store) {
+            const digits = String(store == null ? '' : store).replace(/\D/g, '');
+            const canon = digits.replace(/^0+/, '') || '';
+            return canon === EOD_TEST_STORE || eodTestMode;
+        }
+
         function applyEodTestModeToPayload(payload) {
-            if (!eodTestMode) return payload;
+            const store = payload?.storeNumber || document.getElementById('storeNumber')?.value;
+            if (!isEodTestStore(store)) return payload;
             return {
                 ...payload,
                 testMode: true,
