@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
+    <script src="eod-photo-sessions.js?v=2.11.9"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
     <script src="eod-guest-handoff.js?v=2.11.2" defer></script>
     <script src="eod-timesheet-mgmt.js?v=2.11.2" defer></script>
@@ -2207,6 +2208,37 @@
         .storage-panel .storage-hint.warn {
             color: #fde68a;
         }
+        .storage-panel.storage-soft {
+            border-left-color: #fbbf24;
+        }
+        .storage-panel.storage-hard {
+            border-left-color: #ef4444;
+        }
+        .eod-unsent-banner {
+            display: none;
+            margin: 0 0 12px;
+            padding: 10px 12px;
+            background: #1e3a5f;
+            border: 1px solid #3b82f6;
+            border-left: 4px solid #60a5fa;
+            border-radius: 8px;
+            color: #dbeafe;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .eod-unsent-banner.visible { display: block; }
+        .eod-unsent-banner strong { color: #fff; }
+        .eod-unsent-banner button {
+            margin: 6px 6px 0 0;
+            padding: 6px 12px;
+            background: #1d4ed8;
+            color: #fff;
+            border: 0;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
         .storage-optimize-btn {
             padding: 8px 16px;
             background: #065f46;
@@ -3243,6 +3275,7 @@
             </div>
             <div class="eod-update-banner-actions" id="eodUpdateBannerActions"></div>
         </div>
+        <div id="eodUnsentBanner" class="eod-unsent-banner" role="status" aria-live="polite"></div>
         <div class="header" onclick="openQuickView()">
             <button class="refresh-connections-btn" id="refreshConnectionsBtn" onclick="event.stopPropagation(); refreshConnections();" title="Refresh SAS / Rebotics auth">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -3254,7 +3287,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.8</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.11.9</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4425,7 +4458,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.11.8';
+        const EOD_APP_VERSION = '2.11.9';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5015,12 +5048,27 @@
 
         function persistDayConfirm({ token, store, date, expiresInMs }) {
             const expiresAt = Date.now() + (Number(expiresInMs) || 36 * 60 * 60 * 1000);
+            const canonStore = normStoreNumber(store);
+            const canonDate = normIsoDate(date);
             localStorage.setItem(DAY_CONFIRM_KEY, JSON.stringify({
                 token,
-                store: normStoreNumber(store),
-                date: normIsoDate(date),
+                store: canonStore,
+                date: canonDate,
                 expiresAt,
             }));
+            // Batch 5: day-confirm change switches photo session (never deletes).
+            if (typeof PhotoDB?.switchToDayConfirm === 'function') {
+                PhotoDB.switchToDayConfirm(canonStore, canonDate, photos)
+                    .then(() => {
+                        try { renderPhotos('before'); } catch (_) {}
+                        try { renderPhotos('signoff'); } catch (_) {}
+                        try { renderPhotos('after'); } catch (_) {}
+                        try { renderPhotos('instawork'); } catch (_) {}
+                        try { refreshStorageIndicator(); } catch (_) {}
+                        try { refreshUnsentWorkIndicator(); } catch (_) {}
+                    })
+                    .catch((err) => console.warn('[photo-sessions] switch failed:', err));
+            }
         }
 
         // ─── T0.1a photo store/date stamps ────────────────────────────────────
@@ -5339,137 +5387,18 @@
         // Pending removal polling state
         const pendingRemovalPolls = {}; // { requestId: { intervalId, employeeId, startTime } }
 
-        // IndexedDB for photo storage (handles large files beyond localStorage 5MB limit)
-        const PhotoDB = {
-            dbName: 'kompassEODPhotos',
-            dbVersion: 1,
-            storeName: 'photos',
-            db: null,
-
-            // Initialize/open the database
-            async init() {
-                if (this.db) return this.db;
-
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(this.dbName, this.dbVersion);
-
-                    request.onerror = () => {
-                        console.error('IndexedDB error:', request.error);
-                        reject(request.error);
-                    };
-
-                    request.onsuccess = () => {
-                        this.db = request.result;
-                        resolve(this.db);
-                    };
-
-                    request.onupgradeneeded = (event) => {
-                        const db = event.target.result;
-                        if (!db.objectStoreNames.contains(this.storeName)) {
-                            db.createObjectStore(this.storeName, { keyPath: 'id' });
-                        }
-                    };
-                });
-            },
-
-            // Save all photos to IndexedDB.
-            // Resolves true on success; rejects on failure (callers that must
-            // not proceed — Update / reset / clear — should await and check).
-            async savePhotos(photosObj) {
-                const db = await this.init();
-                const transaction = db.transaction([this.storeName], 'readwrite');
-                const store = transaction.objectStore(this.storeName);
-
-                const photoData = {
-                    id: 'allPhotos',
-                    before: photosObj.before || [],
-                    signoff: photosObj.signoff || [],
-                    after: photosObj.after || [],
-                    instawork: photosObj.instawork || [],
-                    timestamp: Date.now()
-                };
-
-                return new Promise((resolve, reject) => {
-                    const request = store.put(photoData);
-                    // Prefer transaction completion over request.onsuccess so
-                    // durability is confirmed before Update/reload proceeds.
-                    transaction.oncomplete = () => resolve(true);
-                    transaction.onabort = () => {
-                        const err = transaction.error || request.error || new Error('IndexedDB save aborted');
-                        console.error('Error saving photos to IndexedDB:', err);
-                        reject(err);
-                    };
-                    transaction.onerror = () => {
-                        const err = transaction.error || request.error || new Error('IndexedDB save error');
-                        console.error('Error saving photos to IndexedDB:', err);
-                        reject(err);
-                    };
-                    request.onerror = () => {
-                        console.error('Error saving photos to IndexedDB:', request.error);
-                        reject(request.error || new Error('IndexedDB put failed'));
-                    };
-                });
-            },
-
-            // Load all photos from IndexedDB
-            async loadPhotos() {
-                try {
-                    const db = await this.init();
-                    const transaction = db.transaction([this.storeName], 'readonly');
-                    const store = transaction.objectStore(this.storeName);
-
-                    return new Promise((resolve, reject) => {
-                        const request = store.get('allPhotos');
-                        request.onsuccess = () => {
-                            const data = request.result;
-                            if (data) {
-                                resolve({
-                                    before: data.before || [],
-                                    signoff: data.signoff || [],
-                                    after: data.after || [],
-                                    instawork: data.instawork || []
-                                });
-                            } else {
-                                resolve({ before: [], signoff: [], after: [], instawork: [] });
-                            }
-                        };
-                        request.onerror = () => {
-                            console.error('Error loading photos from IndexedDB:', request.error);
-                            reject(request.error);
-                        };
-                    });
-                } catch (e) {
-                    console.error('IndexedDB loadPhotos error:', e);
-                    return { before: [], signoff: [], after: [], instawork: [] };
-                }
-            },
-
-            // Clear all photos from IndexedDB. Resolves true; rejects on failure.
-            async clearPhotos() {
-                const db = await this.init();
-                const transaction = db.transaction([this.storeName], 'readwrite');
-                const store = transaction.objectStore(this.storeName);
-
-                return new Promise((resolve, reject) => {
-                    const request = store.delete('allPhotos');
-                    transaction.oncomplete = () => resolve(true);
-                    transaction.onabort = () => {
-                        const err = transaction.error || request.error || new Error('IndexedDB clear aborted');
-                        console.error('Error clearing photos from IndexedDB:', err);
-                        reject(err);
-                    };
-                    transaction.onerror = () => {
-                        const err = transaction.error || request.error || new Error('IndexedDB clear error');
-                        console.error('Error clearing photos from IndexedDB:', err);
-                        reject(err);
-                    };
-                    request.onerror = () => {
-                        console.error('Error clearing photos from IndexedDB:', request.error);
-                        reject(request.error || new Error('IndexedDB delete failed'));
-                    };
-                });
-            }
-        };
+        // Batch 5 / T0.1 — session-keyed IndexedDB (see eod-photo-sessions.js).
+        // Active key = day-confirm store+date. Dual-writes allPhotos for ≤2.11.8 rollback.
+        if (!window.EodPhotoSessions?.createPhotoDB) {
+            throw new Error('eod-photo-sessions.js failed to load');
+        }
+        const PhotoDB = window.EodPhotoSessions.createPhotoDB({
+            getActiveDayConfirm,
+            getFormStoreDate: () => ({
+                store: normStoreNumber(document.getElementById('storeNumber')?.value),
+                date: normIsoDate(document.getElementById('workDate')?.value),
+            }),
+        });
 
         /** T0.9 — await durable photo write before Update / critical navigate. */
         async function awaitDurablePhotoSave(reason) {
@@ -5949,10 +5878,8 @@
                 console.warn('Could not save photos to IndexedDB:', e);
             });
 
-            // Keep the storage indicator + Compress-old-photos button in
-            // sync with whatever just changed. Cheap — just sums string
-            // lengths over a few arrays.
             try { refreshStorageIndicator(); } catch (e) {}
+            try { refreshUnsentWorkIndicator(); } catch (e) {}
         }
 
         // Load saved data
@@ -5961,11 +5888,12 @@
             if (saved) {
                 const data = JSON.parse(saved);
 
-                // Daily reset: if the saved work date is not today's local
-                // date, drop store/date/shift state so a sticky overnight
-                // session can't auto-load yesterday's store. The day-confirm
-                // gate will then prompt the lead to re-confirm. Photos,
-                // profile, signature, and email recipients are preserved.
+                // Daily form rollover: if the saved work date is not today's
+                // local date, drop store/date/shift so a sticky overnight
+                // session can't auto-load yesterday's store. Day-confirm is
+                // cleared so the lead re-confirms. Batch 5: photos stay in
+                // their prior session:<store>:<date> records — this path must
+                // NOT reload a shared allPhotos bucket into the new day.
                 const todayIso = todayLocalIsoDate();
                 const savedDateIso = normIsoDate(data.date || '');
                 if (savedDateIso && savedDateIso !== todayIso) {
@@ -5977,11 +5905,7 @@
                     delete data.notInSiSelected;
                     delete data.notInStoreOther;
                     delete data.notInSiOther;
-                    // Persist the trimmed state immediately so a refresh
-                    // mid-rehydrate doesn't bring the stale values back.
                     try { localStorage.setItem('kompassEOD', JSON.stringify(data)); } catch (e) {}
-                    // A new day also means yesterday's day-confirm token
-                    // can't be valid for today.
                     clearDayConfirm();
                 }
 
@@ -6099,76 +6023,107 @@
                     signoffNeedsReview = data.signoffNeedsReview.slice();
                 }
 
-                // Migration: if photos exist in localStorage, migrate them to IndexedDB
-                if (data.photos && (data.photos.before?.length || data.photos.signoff?.length || data.photos.after?.length)) {
-                    console.log('Migrating photos from localStorage to IndexedDB...');
+                // One-time: localStorage-embedded photos → IndexedDB session layer.
+                if (data.photos && (data.photos.before?.length || data.photos.signoff?.length || data.photos.after?.length || data.photos.instawork?.length)) {
+                    console.log('Migrating photos from localStorage to IndexedDB sessions...');
                     photos.before = data.photos.before || [];
                     photos.signoff = data.photos.signoff || [];
                     photos.after = data.photos.after || [];
-
-                    // Save to IndexedDB
+                    photos.instawork = data.photos.instawork || [];
                     await PhotoDB.savePhotos(photos);
-
-                    // Remove photos from localStorage to free up space
                     delete data.photos;
                     try {
                         localStorage.setItem('kompassEOD', JSON.stringify(data));
-                        console.log('Photos migrated to IndexedDB and removed from localStorage');
                     } catch (e) {
                         console.warn('Could not update localStorage after migration:', e);
                     }
-
-                    renderPhotos('before');
-                    renderPhotos('signoff');
-                    renderPhotos('after');
-                    return; // Photos already loaded from migration, no need to load from IndexedDB
                 }
             }
 
-            // Load photos from IndexedDB
+            // Batch 5: load ACTIVE session only (day-confirm / form key).
+            // Never pull the legacy shared allPhotos bucket after rollover.
             try {
-                const deduplicatePhotos = (photoArray) => {
-                    if (!Array.isArray(photoArray)) return [];
-                    const seen = new Set();
-                    return photoArray.filter(photo => {
-                        const prefix = photoSrc(photo).substring(0, 1000);
-                        if (!prefix || seen.has(prefix)) return false;
-                        seen.add(prefix);
-                        return true;
+                await PhotoDB.migrateFromLegacyIfNeeded();
+                await PhotoDB.loadActiveInto(photos);
+                renderPhotos('before');
+                renderPhotos('signoff');
+                renderPhotos('after');
+                renderPhotos('instawork');
+                updateInstaworkSaveButton();
+                if (photos.before.length || photos.signoff.length || photos.after.length || photos.instawork.length) {
+                    await PhotoDB.savePhotos(photos);
+                }
+            } catch (e) {
+                console.warn('Could not load photo session from IndexedDB:', e);
+            }
+            try { refreshStorageIndicator(); } catch (e) {}
+            try { refreshUnsentWorkIndicator(); } catch (e) {}
+        }
+
+        /** Non-blocking unsent-work chip (Batch 5). Does not gate the active EOD. */
+        async function refreshUnsentWorkIndicator() {
+            const banner = document.getElementById('eodUnsentBanner');
+            if (!banner || typeof PhotoDB?.unsentSessions !== 'function') return;
+            try {
+                const unsent = await PhotoDB.unsentSessions();
+                const quarantine = await PhotoDB.quarantineSummary();
+                if (!unsent.length && !quarantine) {
+                    banner.classList.remove('visible');
+                    banner.innerHTML = '';
+                    return;
+                }
+                const parts = [];
+                parts.push('<strong>Unsent photo work on this phone</strong>');
+                for (const s of unsent.slice(0, 4)) {
+                    const label = `Store #${s.store} · ${s.date} · ${s.count} photo${s.count === 1 ? '' : 's'}`;
+                    parts.push(
+                        `<div style="margin-top:6px;">${label} ` +
+                        `<button type="button" data-unsent-store="${s.store}" data-unsent-date="${s.date}">Open session</button></div>`
+                    );
+                }
+                if (unsent.length > 4) {
+                    parts.push(`<div style="margin-top:4px;color:#93c5fd;">+${unsent.length - 4} more unsent session(s)</div>`);
+                }
+                if (quarantine) {
+                    parts.push(
+                        `<div style="margin-top:6px;color:#fde68a;">${quarantine.count} unstamped legacy photo(s) held in quarantine (not attached to today).</div>`
+                    );
+                }
+                banner.innerHTML = parts.join('');
+                banner.classList.add('visible');
+                banner.querySelectorAll('[data-unsent-store]').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const store = btn.getAttribute('data-unsent-store');
+                        const date = btn.getAttribute('data-unsent-date');
+                        resumeUnsentPhotoSession(store, date);
                     });
-                };
+                });
+            } catch (e) {
+                console.warn('[photo-sessions] unsent indicator failed:', e);
+            }
+        }
 
-                const savedPhotos = await PhotoDB.loadPhotos();
-                const savedInstawork = savedPhotos.instawork || [];
-                if (savedPhotos.before.length || savedPhotos.signoff.length || savedPhotos.after.length || savedInstawork.length) {
-                    photos.before = deduplicatePhotos(savedPhotos.before);
-                    photos.signoff = deduplicatePhotos(savedPhotos.signoff);
-                    photos.after = deduplicatePhotos(savedPhotos.after);
-                    // Cap InstaWork to a single photo even if older sessions stored more.
-                    photos.instawork = deduplicatePhotos(savedInstawork).slice(-1);
-
+        function resumeUnsentPhotoSession(store, date) {
+            const storeEl = document.getElementById('storeNumber');
+            const dateEl = document.getElementById('workDate');
+            if (storeEl) storeEl.value = store;
+            if (dateEl) dateEl.value = date;
+            // Prefer day-confirm for that store/date so session key matches.
+            if (typeof showDayConfirmModal === 'function') {
+                showDayConfirmModal();
+                const dcStore = document.getElementById('dayConfirmStore');
+                const dcDate = document.getElementById('dayConfirmDate');
+                if (dcStore) dcStore.value = store;
+                if (dcDate) dcDate.value = date;
+            } else if (typeof PhotoDB?.switchToDayConfirm === 'function') {
+                PhotoDB.switchToDayConfirm(store, date, photos).then(() => {
                     renderPhotos('before');
                     renderPhotos('signoff');
                     renderPhotos('after');
                     renderPhotos('instawork');
-                    updateInstaworkSaveButton();
-
-                    // Save back any cleaned up duplicates
-                    if (photos.before.length !== savedPhotos.before.length ||
-                        photos.signoff.length !== savedPhotos.signoff.length ||
-                        photos.after.length !== savedPhotos.after.length ||
-                        photos.instawork.length !== savedInstawork.length) {
-                        console.log('Cleaned up duplicate photos');
-                        await PhotoDB.savePhotos(photos);
-                    }
-                }
-            } catch (e) {
-                console.warn('Could not load photos from IndexedDB:', e);
+                    refreshUnsentWorkIndicator();
+                });
             }
-            // Storage indicator reflects whatever just came back from
-            // IndexedDB so the "Compress old photos" button surfaces
-            // pre-existing backlog the moment the app opens.
-            try { refreshStorageIndicator(); } catch (e) {}
         }
 
         // Profile load/save (separate localStorage key, never cleared by resetForm)
@@ -7105,20 +7060,17 @@
         // Decide whether an already-stored photo should be re-compressed
         // by the one-shot optimize button. We skip remote previews and
         // anything that's already a small JPEG.
-        function photoNeedsRecompression(dataUrl, type) {
+        function photoNeedsRecompression(entry, type) {
+            const dataUrl = photoSrc(entry);
             if (!dataUrl || typeof dataUrl !== 'string') return false;
             if (dataUrl.startsWith('http')) return false;
-            // Pre-pipeline captures were PNG — always recompress.
             if (dataUrl.startsWith('data:image/png')) return true;
             const budget = PHOTO_STORAGE_BUDGET_BYTES[type];
-            // Treat each base64 char as ~0.75 bytes of decoded data; fine for a budget check.
             const approxBytes = Math.floor(dataUrl.length * 0.75);
             return budget ? approxBytes > budget : false;
         }
 
-        // Sum the total in-memory size of all stored photos plus a
-        // per-type breakdown, used to drive the storage indicator panel
-        // under the Sign-Off Sheets section.
+        // Active-session in-memory stats (panel). Soft/hard caps use all retained sessions.
         function getPhotoStorageStats() {
             const types = ['before', 'after', 'signoff', 'instawork'];
             const stats = { totalBytes: 0, totalCount: 0, needsRecompressCount: 0, byType: {} };
@@ -7127,8 +7079,9 @@
                 let bytes = 0;
                 let needs = 0;
                 for (const p of arr) {
-                    if (typeof p !== 'string') continue;
-                    bytes += Math.floor(p.length * 0.75);
+                    const src = photoSrc(p);
+                    if (!src) continue;
+                    bytes += Math.floor(src.length * 0.75);
                     if (photoNeedsRecompression(p, t)) needs++;
                 }
                 stats.byType[t] = { count: arr.length, bytes, needs };
@@ -7148,7 +7101,7 @@
 
         // Refresh the storage indicator + button state. Safe to call
         // anywhere; no-ops if the panel isn't in the DOM yet.
-        function refreshStorageIndicator() {
+        async function refreshStorageIndicator() {
             const panel = document.getElementById('storagePanel');
             if (!panel) return;
             const sizeEl = document.getElementById('storageSize');
@@ -7157,36 +7110,58 @@
             const hintEl = document.getElementById('storageHint');
             const btn = document.getElementById('optimizeStorageBtn');
             if (!sizeEl || !countEl || !btn) return;
-            // Don't stomp on transient running text — the optimize flow
-            // updates the hint and button label directly while it runs.
             if (btn.classList.contains('running')) return;
 
             const stats = getPhotoStorageStats();
-            sizeEl.textContent = formatBytesShort(stats.totalBytes);
+            let pressure = null;
+            try {
+                if (typeof PhotoDB?.storagePressure === 'function') {
+                    pressure = await PhotoDB.storagePressure();
+                }
+            } catch (_) { /* ignore */ }
+
+            const displayBytes = pressure ? pressure.totalBytes : stats.totalBytes;
+            sizeEl.textContent = formatBytesShort(displayBytes);
             countEl.textContent = String(stats.totalCount);
             if (pluralEl) pluralEl.textContent = stats.totalCount === 1 ? '' : 's';
 
-            if (stats.totalCount === 0) {
+            panel.classList.toggle('storage-soft', Boolean(pressure?.soft && !pressure?.hard));
+            panel.classList.toggle('storage-hard', Boolean(pressure?.hard));
+
+            if (pressure?.hard && pressure.unsentCount > 0 && pressure.totalBytes >= pressure.hardBytes) {
+                // Hard cap with nothing sent to drop — warn only (never delete unsent).
                 if (hintEl) {
-                    hintEl.textContent = 'No photos captured yet.';
+                    hintEl.textContent = `Device storage is full (${formatBytesShort(pressure.totalBytes)}). Unsent work may be at risk of browser eviction — compress below. Unsent sessions are never auto-deleted.`;
+                    hintEl.classList.add('warn');
+                }
+            } else if (pressure?.soft) {
+                if (hintEl) {
+                    hintEl.textContent = `Approaching storage soft cap (${formatBytesShort(pressure.totalBytes)} / ${formatBytesShort(pressure.softBytes)}). Compress old photos — nothing is deleted automatically.`;
+                    hintEl.classList.add('warn');
+                }
+            }
+
+            if (stats.totalCount === 0 && !(pressure?.totalBytes > 0)) {
+                if (hintEl && !pressure?.soft) {
+                    hintEl.textContent = 'No photos in the active session yet.';
                     hintEl.classList.remove('warn');
                 }
                 btn.disabled = true;
                 btn.textContent = 'Nothing to compress';
             } else if (stats.needsRecompressCount > 0) {
-                if (hintEl) {
+                if (hintEl && !pressure?.soft && !pressure?.hard) {
                     hintEl.textContent = `${stats.needsRecompressCount} photo${stats.needsRecompressCount === 1 ? '' : 's'} can still be compressed.`;
                     hintEl.classList.add('warn');
                 }
                 btn.disabled = false;
                 btn.textContent = `Compress ${stats.needsRecompressCount} old photo${stats.needsRecompressCount === 1 ? '' : 's'}`;
             } else {
-                if (hintEl) {
-                    hintEl.textContent = 'All photos already compressed.';
+                if (hintEl && !pressure?.soft && !pressure?.hard) {
+                    hintEl.textContent = 'Active-session photos already compressed.';
                     hintEl.classList.remove('warn');
                 }
-                btn.disabled = true;
-                btn.textContent = 'All optimized';
+                btn.disabled = stats.totalCount === 0;
+                btn.textContent = stats.totalCount === 0 ? 'Nothing to compress' : 'All optimized';
             }
         }
 
@@ -7210,7 +7185,7 @@
                 }
             }
             if (work.length === 0) {
-                refreshStorageIndicator();
+                await refreshStorageIndicator();
                 return;
             }
 
@@ -7227,23 +7202,28 @@
             let savedBytes = 0;
             for (const item of work) {
                 const arr = photos[item.type];
-                const before = arr[item.index];
-                if (typeof before !== 'string') {
+                const beforeEntry = arr[item.index];
+                const beforeSrc = photoSrc(beforeEntry);
+                if (!beforeSrc || beforeSrc.startsWith('http')) {
                     done++;
                     continue;
                 }
                 try {
-                    const after = await optimizePhotoForStorage(before, item.type);
-                    if (typeof after === 'string' && after.length < before.length) {
-                        savedBytes += Math.floor((before.length - after.length) * 0.75);
-                        arr[item.index] = after;
+                    const afterSrc = await optimizePhotoForStorage(beforeSrc, item.type);
+                    if (typeof afterSrc === 'string' && afterSrc.length < beforeSrc.length) {
+                        savedBytes += Math.floor((beforeSrc.length - afterSrc.length) * 0.75);
+                        // Preserve T0.1a stamp when present.
+                        if (beforeEntry && typeof beforeEntry === 'object') {
+                            arr[item.index] = { ...beforeEntry, dataUrl: afterSrc };
+                        } else {
+                            arr[item.index] = afterSrc;
+                        }
                     }
                 } catch (e) {
                     console.warn(`Recompress failed for ${item.type}[${item.index}]:`, e);
                 }
                 done++;
                 btn.textContent = `Compressing ${done}/${work.length}...`;
-                // Yield to the event loop so the UI can repaint on phones.
                 await new Promise(r => setTimeout(r, 0));
             }
 
@@ -7262,10 +7242,7 @@
             const endedBytes = getPhotoStorageStats().totalBytes;
             const totalSaved = Math.max(0, startedBytes - endedBytes);
             btn.classList.remove('running');
-            // Let the standard indicator refresh repaint the size/count;
-            // it will also re-enable / re-disable the button based on
-            // whether anything still needs compressing.
-            refreshStorageIndicator();
+            await refreshStorageIndicator();
             if (hintEl) {
                 hintEl.textContent = `Saved ${formatBytesShort(totalSaved)} across ${done} photo${done === 1 ? '' : 's'}.`;
                 hintEl.classList.remove('warn');
@@ -10425,7 +10402,7 @@ ${data.Notes || ''}`;
         function resetForm() {
             showConfirm(
                 'Reset Form',
-                'Are you sure you want to reset all fields? This will clear all data, including photos?' +
+                'Are you sure you want to reset all fields? This clears the <strong>active</strong> photo session (today&apos;s store/date). Other unsent sessions stay on this phone.' +
                 '<div class="toggle-switch" style="margin-top: 16px; justify-content: flex-start; background: #374151;">' +
                     '<label class="toggle-switch-wrapper">' +
                         '<input type="checkbox" id="resetPersonalToggle">' +

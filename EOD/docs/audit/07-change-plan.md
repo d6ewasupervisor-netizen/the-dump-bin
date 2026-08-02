@@ -348,8 +348,13 @@ Each batch is one sitting and one deployable/revertable unit. Within a batch, ke
 
 ## Batch 5 — Automatic photo-session keying (no email-based auto-clear yet)
 
-- **Ships:** T0.1 session records keyed from day-confirm store/date; rollover switches active session and never deletes; unsent-work indicator + path back; remove any remaining shared `allPhotos` read path that bypasses the session key after `EOD/index.html:5753-5775` form rollover (`EOD/index.html:5224-5337`, `EOD/index.html:5748-5952`). T0.1a stamps remain valid inside session records. **Do not** auto-clear session photos on `/send-eod` success in this batch — that waits for session-complete semantics in Batch 7.
-- **Test:** migration matrix on iPhone/Android — midnight-crossing same day-confirm, new-day confirm, store switch, unsent indicator reopen, reset-active-only, legacy `allPhotos` not auto-attached, quota pressure, rollback. After a test email send, confirm photos still present until Batch 7.
+- **Ships (FE 2.11.9):** T0.1 via `EOD/eod-photo-sessions.js` — records `session:<store>:<YYYY-MM-DD>` keyed from day-confirm; `sentAt` always null until Batch 7; form rollover clears store/date/day-confirm but **never** reloads shared `allPhotos` into the new day; migration assigns T0.1a-stamped photos to sessions and parks unstamped in `quarantine:legacy` without deleting `allPhotos`; unsent-work banner (non-blocking) with Open session → day-confirm; reset/clear = active session only.
+- **Storage caps (from observed post-compression EOD sizes: typical 3–15 MB, signoff-heavy ~25 MB):**
+  - Soft **40 MB** across retained sessions — storage panel warning + Compress action; no auto-delete.
+  - Hard **90 MB** — drop oldest **sent** session only (`sentAt` set). Unsent never dropped. If hard hit with zero sent victims → warn only (eviction risk).
+  - Sent prune: 7 days after `sentAt` (no-op until Batch 7 writes `sentAt`).
+- **Rollback:** ≤2.11.8 only reads `allPhotos` by id and ignores `session:*` keys. Batch 5 never deletes `allPhotos` and dual-writes the active session into it on every save, so rolling back keeps active work visible; prior sessions remain on device as `session:*` until upgraded again.
+- **Test:** migration matrix on iPhone/Android — stamped-only / unstamped-only / mixed / empty; store+date switch; midnight-crossing same day-confirm; refresh mid-capture; forced update; quota pressure; rollback to 2.11.8; all four photo types; EOD preview = active session only.
 - **Watch:** missing/unexpected photos; unsent sessions that never surface; any code path still reading a global preserved photo bucket after rollover.
 - **Checkpoint:** end of Batches 1–5 is the period freeze gate. If this batch is not landed by end of period, reassess rather than extending the freeze automatically (T0.1a in Batch 4 is the interim safety net).
 
