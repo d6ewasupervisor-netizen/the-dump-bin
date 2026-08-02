@@ -271,9 +271,14 @@
   }
 
   function forceLiveChecked() {
+    const can = typeof window.canEodForceLive === 'function'
+      ? window.canEodForceLive()
+      : false;
+    if (!can) return false;
     return typeof window.isEodForceLiveDelivery === 'function'
       ? window.isEodForceLiveDelivery()
-      : sessionStorage.getItem('eodForceLiveDelivery') === '1';
+      : (sessionStorage.getItem('eodTestMode') === '1'
+        && sessionStorage.getItem('eodForceLiveDelivery') === '1');
   }
 
   function renderActions() {
@@ -281,6 +286,7 @@
     if (!bar) return;
     const isIw = state.sheetKey === 'instawork';
     const testCtx = isTestContext();
+    const canLive = typeof window.canEodForceLive === 'function' && window.canEodForceLive();
     const liveOn = forceLiveChecked();
     bar.innerHTML = `
       <button type="button" class="btn btn-secondary" id="eodTsRefreshBtn">Refresh</button>
@@ -292,7 +298,7 @@
         ? '<button type="button" class="btn btn-primary" id="eodTsSubmitOfficeBtn">Submit to office</button>'
         : '<button type="button" class="btn btn-primary" id="eodTsSubmitSupBtn">Submit to supervisor</button>'}
       ${isIw ? '<button type="button" class="btn btn-secondary" id="eodTsPhotoBtn">Sign-out photo</button>' : ''}
-      ${testCtx ? `<label class="eod-ts-live-toggle" style="display:flex;align-items:center;gap:8px;margin-left:auto;padding:6px 10px;border-radius:8px;background:${liveOn ? 'rgba(180,83,9,.25)' : 'rgba(15,23,42,.55)'};border:1px solid ${liveOn ? '#fbbf24' : '#334155'};font-size:13px;cursor:pointer;">
+      ${testCtx && canLive ? `<label class="eod-ts-live-toggle" title="Supervisor/admin only. Store 999 fax stays blocked." style="display:flex;align-items:center;gap:8px;margin-left:auto;padding:6px 10px;border-radius:8px;background:${liveOn ? 'rgba(180,83,9,.25)' : 'rgba(15,23,42,.55)'};border:1px solid ${liveOn ? '#fbbf24' : '#334155'};font-size:13px;cursor:pointer;">
         <input type="checkbox" data-eod-force-live id="eodTsForceLive"${liveOn ? ' checked' : ''} style="width:16px;height:16px;">
         <span>Live delivery path</span>
       </label>` : ''}`;

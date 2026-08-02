@@ -27,8 +27,8 @@
     <script src="eod-photo-sessions.js?v=2.12.3"></script>
     <script src="eod-clock-picker.js?v=2.12.0"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
-    <script src="eod-guest-handoff.js?v=2.12.5" defer></script>
-    <script src="eod-timesheet-mgmt.js?v=2.12.5" defer></script>
+    <script src="eod-guest-handoff.js?v=2.12.6" defer></script>
+    <script src="eod-timesheet-mgmt.js?v=2.12.6" defer></script>
     <script src="eod-dept-signatures.js?v=2.11.2" defer></script>
     <script src="eod-digital-signoff.js?v=2.11.2" defer></script>
     <style>
@@ -3288,7 +3288,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.5</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.6</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4459,7 +4459,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.12.5';
+        const EOD_APP_VERSION = '2.12.6';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -4482,7 +4482,13 @@
         const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
         const EOD_RO_LOGO_URL = 'https://the-dump-bin.com/welcome/assets/retail-odyssey-banner.png';
         let eodTestMode = sessionStorage.getItem(EOD_TEST_MODE_KEY) === '1';
-        let eodForceLiveDelivery = sessionStorage.getItem(EOD_FORCE_LIVE_KEY) === '1';
+        // sessionStorage only — never localStorage. Cleared when leaving test mode.
+        let eodForceLiveDelivery = eodTestMode && sessionStorage.getItem(EOD_FORCE_LIVE_KEY) === '1';
+        if (!eodTestMode) {
+          try { sessionStorage.removeItem(EOD_FORCE_LIVE_KEY); } catch (_) { /* ignore */ }
+          eodForceLiveDelivery = false;
+        }
+        let eodUserRoles = [];
         let eodTestScenarioActive = false;
         let eodUpdateActionsBound = false;
         let eodUpdateAutoReloadTimer = null;
@@ -4686,20 +4692,30 @@
         window.applyEodVersionHeader = applyEodVersionHeader;
 
         function applyUserRoles(roles) {
+            eodUserRoles = Array.isArray(roles) ? roles.slice() : [];
+            window.eodUserRoles = eodUserRoles;
             document.body.className = document.body.className
                 .split(' ')
                 .filter(c => !c.startsWith('role-'))
                 .join(' ');
 
-            (roles || []).forEach(role => {
+            eodUserRoles.forEach(role => {
                 document.body.classList.add(`role-${role}`);
             });
 
             document.querySelectorAll('[data-requires-role]').forEach(el => {
                 const requiredRoles = (el.dataset.requiresRole || '').split(/\s+/).filter(Boolean);
-                el.classList.toggle('role-visible', requiredRoles.some(r => (roles || []).includes(r)));
+                el.classList.toggle('role-visible', requiredRoles.some(r => eodUserRoles.includes(r)));
             });
+
+            // forceLive is supervisor/admin only — hide + clear if the actor can't use it.
+            if (!canEodForceLive()) setEodForceLiveDelivery(false);
         }
+
+        function canEodForceLive() {
+            return eodUserRoles.includes('supervisor') || eodUserRoles.includes('admin');
+        }
+        window.canEodForceLive = canEodForceLive;
 
         async function waitForDumpBinAuth() {
             const gate = window.dumpBinAuth;
@@ -4767,9 +4783,12 @@
         }
 
         function setEodForceLiveDelivery(enabled) {
-            eodForceLiveDelivery = !!enabled;
+            const want = !!enabled && eodTestMode && canEodForceLive();
+            eodForceLiveDelivery = want;
             if (eodForceLiveDelivery) sessionStorage.setItem(EOD_FORCE_LIVE_KEY, '1');
             else sessionStorage.removeItem(EOD_FORCE_LIVE_KEY);
+            // Never persist across browsers/devices via localStorage.
+            try { localStorage.removeItem(EOD_FORCE_LIVE_KEY); } catch (_) { /* ignore */ }
             document.querySelectorAll('[data-eod-force-live]').forEach((el) => {
                 if (el.type === 'checkbox') el.checked = eodForceLiveDelivery;
             });
@@ -5135,22 +5154,26 @@
 
         function buildEodTestSendWarningHtml() {
             const liveChecked = eodForceLiveDelivery ? ' checked' : '';
+            const canLive = canEodForceLive();
+            const liveToggle = canLive
+                ? `<label style="display:flex;gap:8px;align-items:flex-start;margin:0;padding:10px;border-radius:8px;background:rgba(180,83,9,.15);border:1px solid rgba(251,191,36,.45);cursor:pointer;">
+                    <input type="checkbox" data-eod-force-live id="eodForceLiveSendCheck"${liveChecked}
+                        style="margin-top:3px;width:18px;height:18px;flex-shrink:0;">
+                    <span>
+                        <strong>Use live delivery path</strong>
+                        <span style="display:block;font-size:13px;opacity:.9;margin-top:2px;">
+                            Supervisor/admin only. Hits real inbox / OneDrive (not tester-only). Store 999 fax stays blocked — no Metrofax destination.
+                        </span>
+                    </span>
+                </label>`
+                : `<p style="margin:0;font-size:13px;opacity:.85;">Live delivery override requires supervisor or admin.</p>`;
             return `<div class="eod-test-send-warning">
                 <p style="margin:0 0 8px;"><strong>You&apos;re in test mode.</strong></p>
                 <p style="margin:0 0 10px;">
                     Default: emails go only to <strong>${escapeHtml(EOD_TEST_RECIPIENT)}</strong>.
                     Store <strong>#${EOD_TEST_STORE}</strong>, lead <strong>${escapeHtml(EOD_TEST_LEAD_NAME)}</strong>.
                 </p>
-                <label style="display:flex;gap:8px;align-items:flex-start;margin:0;padding:10px;border-radius:8px;background:rgba(180,83,9,.15);border:1px solid rgba(251,191,36,.45);cursor:pointer;">
-                    <input type="checkbox" data-eod-force-live id="eodForceLiveSendCheck"${liveChecked}
-                        style="margin-top:3px;width:18px;height:18px;flex-shrink:0;">
-                    <span>
-                        <strong>Use live delivery path</strong>
-                        <span style="display:block;font-size:13px;opacity:.9;margin-top:2px;">
-                            Hits real recipients / OneDrive router / store fax (not tester-only). Confirm you mean it.
-                        </span>
-                    </span>
-                </label>
+                ${liveToggle}
             </div>`;
         }
 
