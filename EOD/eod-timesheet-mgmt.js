@@ -97,6 +97,8 @@
         width: 100%; min-width: 72px; box-sizing: border-box; padding: 6px 8px;
         border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-size: 13px;
       }
+      .eod-ts-table .eod-clock-wrap { min-width: 96px; }
+      .eod-ts-table .eod-clock-btn { width: 34px; min-width: 34px; background: #1e293b; }
       .eod-ts-pin {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         font-size: 16px; font-weight: 700; letter-spacing: 0.12em; color: #fde68a;
@@ -331,6 +333,13 @@
     body.querySelectorAll('.eod-ts-tablet').forEach((btn) => {
       btn.addEventListener('click', () => openTabletSign(Number(btn.dataset.idx)).catch(showErr));
     });
+
+    if (window.EodClockPicker) {
+      window.EodClockPicker.enhance(body, 'input[data-field="clockIn"], input[data-field="lunchOut"], input[data-field="lunchIn"], input[data-field="clockOut"]', {
+        format: 'display12',
+        snapMinutes: 5,
+      });
+    }
 
     if (status) {
       const adj = state.members.filter((m) => m.confirmation?.status === 'adjust').length;
