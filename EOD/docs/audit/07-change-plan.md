@@ -414,6 +414,7 @@ Each batch is one sitting and one deployable/revertable unit. Within a batch, ke
 
 ## Batch 7 — Truthful outbound completion + session-complete clear
 
+- **Priority note:** Batch 5 left `sentAt` null by design. Until Batch 7 writes `sentAt` on session-complete, the 7-day sent prune never fires and the **hard cap alone** manages photo storage — correct and conservative, but Batch 7 is the loop-closer, not a distant nice-to-have.
 - **Ships:** T0.7 upload polling/terminal UI; T0.12 accurate digital help-desk result; **and** T0.1 session-complete auto-clear (email success **and** every session-originated SAS/coversheet job terminal `completed`). Keep local retry data while any job is `pending`/`processing`/`failed` (`EOD/index.html:13265-13339`, `EOD/eod-digital-signoff.js:304-349`).
 - **Test:** successful, failed, timeout, backgrounded, and retried photo/coversheet jobs; email-ok + job-pending (no clear); all jobs completed (clear); Send/Stand-down/failure digital marks.
 - **Watch:** queue timeouts, failed-job retry rates, premature photo clears, mismatch between help-desk metadata and sends.

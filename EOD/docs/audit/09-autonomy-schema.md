@@ -168,7 +168,19 @@ Continuing to operate after the tap closes also needs **in-app** creation with `
 
 Without this slice, snapshots + CSV-only still leave a hole: the first Monday with no file and no UI to create a visit. **CSV import and manual create are the same door** (§ principle 5).
 
-**Day-confirm in autonomy:** eligibility = an owned current-state visit exists for `(store_number, work_date)` (optionally lead listed on that visit), or elevated role — **not** a live SAS schedule check. No owned/CSV/manual visit ⇒ cannot confirm; that is correct fail-closed, not a missing provider.
+#### Authority on manual create (non-negotiable — specify before any route exists)
+
+Manual visit create **mints authority**: a fabricated store/date can mint day-confirm and then satisfy every downstream context check. It must not reopen the confused-deputy holes closed in Tier 0 / Batch 2b.
+
+| Rule | Requirement |
+|---|---|
+| **Role gate** | Supervisor or admin **minimum**. Leads do **not** get manual visit create in v1 (CSV import for leads is a separate, later policy decision). |
+| **Context bind** | Created `store_number` must fall inside the actor’s allowed store context (same family of checks as day-confirm / store-pool — not “any authenticated user, any store”). Reject otherwise before insert. |
+| **Provenance** | Every manual append: `source = 'manual'`, `source_ref` includes actor identity (email / user id), and explicit columns `created_by_email` (and optional `created_by_role`) on the observation row. |
+| **Day-confirm provenance** | Tokens minted because eligibility came from a **manually created** visit must carry a distinguishable eligibility source, e.g. `source: 'owned-manual'` (vs `owned-sas` / `owned-csv` / existing `local` / `sas` / `role` / `test-store` in `store-confirmation.js`). Downstream policy (fax, upload stubs, pool mutations) must be able to treat `owned-manual` differently without guessing from visit tables at request time. |
+| **Order** | Role + context + provenance ship **in the same PR as the create route** — not a follow-up. No create endpoint without them. |
+
+**Day-confirm in autonomy:** eligibility = an owned current-state visit exists for `(store_number, work_date)` (optionally lead listed on that visit), or elevated role — **not** a live SAS schedule check. Record which owned lineage satisfied eligibility (`owned-sas` \| `owned-csv` \| `owned-manual`). No owned visit ⇒ cannot confirm (fail-closed), unless elevated `role` / `test-store` paths already defined.
 
 ### 1.9 Entity-id minting rules
 
@@ -484,9 +496,10 @@ Autonomy means **continue operating** time + set integrity on owned data (import
 | **S1** | Migrations + write-through W1–W6 (visits/shifts/sets/punches) fire-and-forget | Accrues history immediately; no mode flag yet |
 | **S2** | Export `eod-setlist` v1 from current-state views | Enables live SAS diff drill |
 | **S3** | Import CSV → append `source=csv`; store 999 harness | Prove round-trip (visit+person+set) |
-| **S4** | Manual visit / member / set create (`source=manual`) + day-confirm from owned visits | Continuity without spreadsheet |
+| **S4** | Manual visit / member / set create (`source=manual`) + day-confirm from owned visits | Continuity without spreadsheet; **§1.8 authority rules mandatory in-PR** |
 | **S5** | Read path prefers latest snapshots when `EOD_PROVIDER_MODE=autonomous` | Config flag, not rewrite |
 | — | Batch 5 photo sessions | **Shipped (FE 2.11.9)** |
+| — | **Batch 7** (truthful SAS job status + `sentAt` / session-complete) | **Next loop-closer after freeze items** — with `sentAt` null forever, 7-day sent prune never runs and hard cap alone manages storage |
 
 S1 is the piece whose value starts the day it turns on and not one day earlier.
 
@@ -500,5 +513,6 @@ S1 is the piece whose value starts the day it turns on and not one day earlier.
 - [ ] W1–W6 write-through; failure does not change HTTP success of SAS read  
 - [ ] Round-trip test green on visit+person+set; 999 CSV harness documented  
 - [ ] Manual visit/member create works without SAS ids  
+- [ ] Manual create: supervisor/admin only, store context-bound, `source=manual` + `created_by_*`, day-confirm `owned-manual` distinguishable  
 - [ ] Compact prune never deletes latest row per `entity_id`  
 - [ ] §7A capabilities disabled/stubbed with clear UI copy; not billed as autonomy bugs  
