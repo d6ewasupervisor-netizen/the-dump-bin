@@ -264,10 +264,24 @@
     }
   }
 
+  function isTestContext() {
+    const store = String(storeNumber() || '').replace(/\D/g, '').replace(/^0+/, '') || '';
+    return store === '999'
+      || (typeof window !== 'undefined' && sessionStorage.getItem('eodTestMode') === '1');
+  }
+
+  function forceLiveChecked() {
+    return typeof window.isEodForceLiveDelivery === 'function'
+      ? window.isEodForceLiveDelivery()
+      : sessionStorage.getItem('eodForceLiveDelivery') === '1';
+  }
+
   function renderActions() {
     const bar = document.getElementById('eodTsActions');
     if (!bar) return;
     const isIw = state.sheetKey === 'instawork';
+    const testCtx = isTestContext();
+    const liveOn = forceLiveChecked();
     bar.innerHTML = `
       <button type="button" class="btn btn-secondary" id="eodTsRefreshBtn">Refresh</button>
       <button type="button" class="btn btn-primary" id="eodTsShowQrBtn">Show JOIN QR</button>
@@ -277,7 +291,11 @@
       ${isIw
         ? '<button type="button" class="btn btn-primary" id="eodTsSubmitOfficeBtn">Submit to office</button>'
         : '<button type="button" class="btn btn-primary" id="eodTsSubmitSupBtn">Submit to supervisor</button>'}
-      ${isIw ? '<button type="button" class="btn btn-secondary" id="eodTsPhotoBtn">Sign-out photo</button>' : ''}`;
+      ${isIw ? '<button type="button" class="btn btn-secondary" id="eodTsPhotoBtn">Sign-out photo</button>' : ''}
+      ${testCtx ? `<label class="eod-ts-live-toggle" style="display:flex;align-items:center;gap:8px;margin-left:auto;padding:6px 10px;border-radius:8px;background:${liveOn ? 'rgba(180,83,9,.25)' : 'rgba(15,23,42,.55)'};border:1px solid ${liveOn ? '#fbbf24' : '#334155'};font-size:13px;cursor:pointer;">
+        <input type="checkbox" data-eod-force-live id="eodTsForceLive"${liveOn ? ' checked' : ''} style="width:16px;height:16px;">
+        <span>Live delivery path</span>
+      </label>` : ''}`;
 
     document.getElementById('eodTsRefreshBtn').onclick = () => refresh(true);
     document.getElementById('eodTsShowQrBtn').onclick = () => showJoinQr();
@@ -292,6 +310,19 @@
       if (panel) panel.style.display = 'block';
       panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+    const liveToggle = document.getElementById('eodTsForceLive');
+    if (liveToggle) {
+      liveToggle.addEventListener('change', () => {
+        if (typeof window.setEodForceLiveDelivery === 'function') {
+          window.setEodForceLiveDelivery(liveToggle.checked);
+        } else if (liveToggle.checked) {
+          sessionStorage.setItem('eodForceLiveDelivery', '1');
+        } else {
+          sessionStorage.removeItem('eodForceLiveDelivery');
+        }
+        renderActions();
+      });
+    }
   }
 
   function showErr(err) {
@@ -657,7 +688,18 @@
     }
   }
 
-  async function postAction(path, body) {
+  async function postAction(path, body, opts = {}) {
+    const live = forceLiveChecked();
+    const deliveryPaths = new Set(['print-at-store', 'email', 'submit-office', 'submit-supervisor']);
+    if (!opts.skipLiveConfirm && deliveryPaths.has(path) && live) {
+      if (typeof window.confirmForceLiveIfNeeded === 'function') {
+        const ok = await window.confirmForceLiveIfNeeded(path);
+        if (!ok) throw new Error('Cancelled');
+      } else {
+        const ok = confirm(`LIVE delivery override is ON for "${path}". Continue?`);
+        if (!ok) throw new Error('Cancelled');
+      }
+    }
     const resp = await authFetch(`${API}/${path}`, {
       method: 'POST',
       headers: dayConfirmHeaders(),
@@ -666,6 +708,8 @@
         storeNumber: storeNumber(),
         workDate: workDate(),
         leadName: leadName(),
+        forceLive: (live && deliveryPaths.has(path)) || undefined,
+        testMode: isTestContext() || undefined,
         ...body,
       }),
     });
@@ -677,7 +721,7 @@
     if (resp.status === 409 && data.pendingSignatures) {
       const ok = confirm(`${data.error}\n\nSubmit anyway?`);
       if (!ok) throw new Error('Cancelled');
-      return postAction(path, { ...body, force: true });
+      return postAction(path, { ...body, force: true }, { skipLiveConfirm: true });
     }
     if (!resp.ok || data.ok === false) throw new Error(data.error || `Request failed (${resp.status})`);
     return data;
@@ -699,16 +743,26 @@
   async function printAtStore() {
     const data = await postAction('print-at-store', {});
     if (typeof showAlert === 'function') {
-      showAlert('Print at store', `Fax job queued for store #${storeNumber()}.`);
+      showAlert(
+        data.forceLive || (forceLiveChecked() && !data.testMode) ? 'Print at store (LIVE)' : 'Print at store',
+        data.testMode
+          ? `TEST — emailed to tester only (not store fax) for #${storeNumber()}.`
+          : `Fax job queued for store #${storeNumber()}.`
+      );
     }
     return data;
   }
 
   async function emailPdf() {
-    const to = prompt('Email timesheet PDF to:', '');
+    const to = prompt('Email timesheet PDF to:', forceLiveChecked() ? '' : '');
     if (!to) return;
     const data = await postAction('email', { to });
-    if (typeof showAlert === 'function') showAlert('Emailed', `Sent to ${to}`);
+    if (typeof showAlert === 'function') {
+      showAlert(
+        data.testMode ? 'Emailed (TEST)' : 'Emailed',
+        data.testMode ? `Routed to tester only (requested ${to}).` : `Sent to ${to}`
+      );
+    }
     return data;
   }
 
@@ -718,7 +772,12 @@
       if (data.testMode) {
         showAlert(
           'Submitted (TEST)',
-          `Emailed the tester only — store 999 does not file into the live OneDrive InstaWork folder. Subject is prefixed [TEST]. Use a real store to exercise the Gmail → OneDrive router (${data.folder || 'P#W#'}).`
+          `Emailed the tester only — not filed into live OneDrive. Check "Live delivery path" to exercise Gmail → OneDrive (${data.folder || 'P#W#'}).`
+        );
+      } else if (data.forceLive) {
+        showAlert(
+          'Submitted (LIVE path)',
+          `InstaWork timesheet emailed on the live path for OneDrive filing (${data.folder || 'P#W#'}). Store still #999 in the PDF.`
         );
       } else {
         showAlert('Submitted to office', `InstaWork timesheet emailed for OneDrive filing (${data.folder || 'P#W#'}).`);
@@ -736,7 +795,12 @@
     }
     const data = await postAction('submit-supervisor', { supervisorEmail: supervisorEmail || undefined });
     if (typeof showAlert === 'function') {
-      showAlert('Submitted to supervisor', `Emailed ${data.to?.[0] || 'supervisor'} (you are CC'd).`);
+      showAlert(
+        data.testMode ? 'Submitted (TEST)' : 'Submitted to supervisor',
+        data.testMode
+          ? 'Emailed tester only (not the live supervisor inbox).'
+          : `Emailed ${data.to?.[0] || 'supervisor'} (you are CC'd).`
+      );
     }
     return data;
   }

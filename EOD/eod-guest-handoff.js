@@ -127,6 +127,16 @@
       return;
     }
 
+    const live = typeof window.isEodForceLiveDelivery === 'function'
+      && window.isEodForceLiveDelivery();
+    if (live) {
+      if (typeof window.confirmForceLiveIfNeeded === 'function') {
+        const ok = await window.confirmForceLiveIfNeeded('Guest handoff send');
+        if (!ok) return;
+      } else if (!confirm('LIVE delivery override is ON for guest handoff. Continue?')) {
+        return;
+      }
+    }
     const loading = document.getElementById('loadingOverlay');
     if (loading) loading.classList.add('show');
     try {
@@ -142,6 +152,7 @@
         recipientPhone: phone || undefined,
         sendEmail,
         sendSms,
+        forceLive: live || undefined,
         payload: pending.payload || {},
       };
       const resp = await authFetch(API, {

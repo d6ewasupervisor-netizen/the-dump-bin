@@ -27,8 +27,8 @@
     <script src="eod-photo-sessions.js?v=2.12.3"></script>
     <script src="eod-clock-picker.js?v=2.12.0"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
-    <script src="eod-guest-handoff.js?v=2.11.2" defer></script>
-    <script src="eod-timesheet-mgmt.js?v=2.12.4" defer></script>
+    <script src="eod-guest-handoff.js?v=2.12.5" defer></script>
+    <script src="eod-timesheet-mgmt.js?v=2.12.5" defer></script>
     <script src="eod-dept-signatures.js?v=2.11.2" defer></script>
     <script src="eod-digital-signoff.js?v=2.11.2" defer></script>
     <style>
@@ -3288,7 +3288,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.4</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.5</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4459,10 +4459,12 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.12.4';
+        const EOD_APP_VERSION = '2.12.5';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
+        /** When set, test-mode sends use live recipients / OneDrive / fax. */
+        const EOD_FORCE_LIVE_KEY = 'eodForceLiveDelivery';
         const EOD_TEST_STORE = '999';
         const EOD_TEST_VISIT_ID = 'test-999-kompass-ise';
         const EOD_TEST_SETS_SOURCE_STORE = '19';
@@ -4480,6 +4482,7 @@
         const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
         const EOD_RO_LOGO_URL = 'https://the-dump-bin.com/welcome/assets/retail-odyssey-banner.png';
         let eodTestMode = sessionStorage.getItem(EOD_TEST_MODE_KEY) === '1';
+        let eodForceLiveDelivery = sessionStorage.getItem(EOD_FORCE_LIVE_KEY) === '1';
         let eodTestScenarioActive = false;
         let eodUpdateActionsBound = false;
         let eodUpdateAutoReloadTimer = null;
@@ -4749,15 +4752,38 @@
                 badge.classList.toggle('eod-test-mode-active', eodTestMode);
                 badge.textContent = eodTestMode ? `TEST v${EOD_APP_VERSION}` : `v${EOD_APP_VERSION}`;
                 badge.title = eodTestMode
-                    ? 'Test mode ON — tap to turn off'
+                    ? (eodForceLiveDelivery
+                        ? 'Test mode ON · LIVE delivery override — tap to turn off'
+                        : 'Test mode ON (emails → you only) — tap to turn off')
                     : 'Tap to turn on test mode';
+                if (eodTestMode && eodForceLiveDelivery) {
+                    badge.textContent = `TEST LIVE v${EOD_APP_VERSION}`;
+                }
             }
         }
+
+        function isEodForceLiveDelivery() {
+            return !!eodForceLiveDelivery;
+        }
+
+        function setEodForceLiveDelivery(enabled) {
+            eodForceLiveDelivery = !!enabled;
+            if (eodForceLiveDelivery) sessionStorage.setItem(EOD_FORCE_LIVE_KEY, '1');
+            else sessionStorage.removeItem(EOD_FORCE_LIVE_KEY);
+            document.querySelectorAll('[data-eod-force-live]').forEach((el) => {
+                if (el.type === 'checkbox') el.checked = eodForceLiveDelivery;
+            });
+            applyEodTestModeUi();
+        }
+
+        window.isEodForceLiveDelivery = isEodForceLiveDelivery;
+        window.setEodForceLiveDelivery = setEodForceLiveDelivery;
 
         function setEodTestMode(enabled) {
             eodTestMode = !!enabled;
             if (eodTestMode) sessionStorage.setItem(EOD_TEST_MODE_KEY, '1');
             else sessionStorage.removeItem(EOD_TEST_MODE_KEY);
+            if (!eodTestMode) setEodForceLiveDelivery(false);
             applyEodTestModeUi();
             if (eodTestMode) {
                 setupEodTestScenario().catch((err) => {
@@ -5012,7 +5038,7 @@
             } catch (_) { /* ignore */ }
 
             showToast(
-                `Test mode ON — #${EOD_TEST_STORE}, lead ${EOD_TEST_LEAD_NAME}, ${uniqueMembers.length} people (${iwCount} InstaWork + stand-in Kompass), ${setMsg}. All EOD/fax/helpdesk/InstaWork mail goes only to ${EOD_TEST_RECIPIENT}.`,
+                `Test mode ON — #${EOD_TEST_STORE}, lead ${EOD_TEST_LEAD_NAME}, ${uniqueMembers.length} people (${iwCount} InstaWork + stand-in Kompass), ${setMsg}. Default: mail → ${EOD_TEST_RECIPIENT} only. Check "Live delivery path" to hit real inbox/OneDrive/fax.`,
                 'warning'
             );
         }
@@ -5108,14 +5134,29 @@
         }
 
         function buildEodTestSendWarningHtml() {
+            const liveChecked = eodForceLiveDelivery ? ' checked' : '';
             return `<div class="eod-test-send-warning">
                 <p style="margin:0 0 8px;"><strong>You&apos;re in test mode.</strong></p>
-                <p style="margin:0;">
-                    Emails go only to <strong>${escapeHtml(EOD_TEST_RECIPIENT)}</strong>.
-                    Store is set to <strong>#${EOD_TEST_STORE}</strong> with lead <strong>${escapeHtml(EOD_TEST_LEAD_NAME)}</strong>,
-                    your direct reports, two mock InstaWork workers, and store #${EOD_TEST_SETS_SOURCE_STORE} sets cloned onto #${EOD_TEST_STORE}.
+                <p style="margin:0 0 10px;">
+                    Default: emails go only to <strong>${escapeHtml(EOD_TEST_RECIPIENT)}</strong>.
+                    Store <strong>#${EOD_TEST_STORE}</strong>, lead <strong>${escapeHtml(EOD_TEST_LEAD_NAME)}</strong>.
                 </p>
+                <label style="display:flex;gap:8px;align-items:flex-start;margin:0;padding:10px;border-radius:8px;background:rgba(180,83,9,.15);border:1px solid rgba(251,191,36,.45);cursor:pointer;">
+                    <input type="checkbox" data-eod-force-live id="eodForceLiveSendCheck"${liveChecked}
+                        style="margin-top:3px;width:18px;height:18px;flex-shrink:0;">
+                    <span>
+                        <strong>Use live delivery path</strong>
+                        <span style="display:block;font-size:13px;opacity:.9;margin-top:2px;">
+                            Hits real recipients / OneDrive router / store fax (not tester-only). Confirm you mean it.
+                        </span>
+                    </span>
+                </label>
             </div>`;
+        }
+
+        function syncForceLiveFromModalCheckbox() {
+            const el = document.getElementById('eodForceLiveSendCheck');
+            if (el) setEodForceLiveDelivery(el.checked);
         }
 
         function isEodTestStore(store) {
@@ -5127,9 +5168,18 @@
         function applyEodTestModeToPayload(payload) {
             const store = payload?.storeNumber || document.getElementById('storeNumber')?.value;
             if (!isEodTestStore(store)) return payload;
+            if (isEodForceLiveDelivery()) {
+                return {
+                    ...payload,
+                    forceLive: true,
+                    testMode: true,
+                    storeNumber: payload.storeNumber || EOD_TEST_STORE,
+                };
+            }
             return {
                 ...payload,
                 testMode: true,
+                forceLive: false,
                 storeNumber: payload.storeNumber || EOD_TEST_STORE,
                 recipients: [EOD_TEST_RECIPIENT],
                 subject: payload.subject && !/^\[TEST\]/i.test(payload.subject)
@@ -5137,6 +5187,14 @@
                     : payload.subject,
             };
         }
+
+        async function confirmForceLiveIfNeeded(actionLabel) {
+            if (!eodTestMode || !isEodForceLiveDelivery()) return true;
+            return confirm(
+                `LIVE delivery override is ON.\n\n"${actionLabel}" will use the real path (inbox / OneDrive / fax) — not tester-only.\n\nContinue?`
+            );
+        }
+        window.confirmForceLiveIfNeeded = confirmForceLiveIfNeeded;
 
         // EOD app boot after the site-wide auth gate settles.
         (async () => {
@@ -9783,6 +9841,8 @@ ${data.Notes || ''}`;
             modal.classList.add('show');
 
             newConfirm.addEventListener('click', async () => {
+                syncForceLiveFromModalCheckbox();
+                if (!(await confirmForceLiveIfNeeded('Send EOD'))) return;
                 modal.classList.remove('show');
                 newConfirm.textContent = 'OK';
                 await sendEmail(applyEodTestModeToPayload(payload));
@@ -9829,10 +9889,14 @@ ${data.Notes || ''}`;
                 if (result.success) {
                     const storeNumberPadded = String(outbound.storeNumber || '').padStart(3, '0');
                     const sentTo = outbound.recipients.join(', ') || '(none)';
-                    const title = outbound.testMode ? 'Test EOD Sent' : 'Email Sent';
-                    const intro = outbound.testMode
-                        ? 'Test EOD report sent successfully (test mode).'
-                        : 'EOD report sent successfully.';
+                    const title = outbound.forceLive
+                        ? 'Test EOD Sent (LIVE path)'
+                        : (outbound.testMode ? 'Test EOD Sent' : 'Email Sent');
+                    const intro = outbound.forceLive
+                        ? 'Test EOD sent on the LIVE delivery path (real recipients).'
+                        : (outbound.testMode
+                            ? 'Test EOD report sent successfully (tester only).'
+                            : 'EOD report sent successfully.');
                     const linkNote = result.linkTtlDays
                         ? `<br><br><span style="color:#94a3b8;font-size:13px;">PDF and sign-off photos are <strong>hosted links</strong> in the email (valid ${result.linkTtlDays} days, no sign-in). Nothing is attached as a file.</span>`
                         : `<br><br><span style="color:#94a3b8;font-size:13px;">PDF and sign-off photos are hosted links in the email (valid 30 days, no sign-in).</span>`;
@@ -9880,10 +9944,19 @@ ${data.Notes || ''}`;
                 const dayConfirm = getActiveDayConfirmFor(storeNumber, workDate);
                 const headers = { 'Content-Type': 'application/json' };
                 if (dayConfirm?.token) headers['X-Day-Confirm'] = dayConfirm.token;
+                if (!(await confirmForceLiveIfNeeded('InstaWork sign-out save'))) {
+                    throw new Error('Cancelled — live delivery override was on.');
+                }
                 response = await authFetch(INSTAWORK_IMAGE_SAVER_URL, {
                     method: 'POST',
                     headers,
-                    body: JSON.stringify({ storeNumber, workDate, imageBase64 })
+                    body: JSON.stringify({
+                        storeNumber,
+                        workDate,
+                        imageBase64,
+                        forceLive: isEodForceLiveDelivery() || undefined,
+                        testMode: eodTestMode || undefined,
+                    })
                 });
             } catch (e) {
                 const msg = (e && e.message) ? String(e.message) : String(e);
