@@ -28,3 +28,7 @@ Ratings describe the code as it exists, not whether a future extraction is desir
 ## Overall portability conclusion
 
 The strongest portable seams are the browser image editor, materials selection/viewer UI, department-signature wizard, guest-handoff transport, and SMS QR block (`EOD/index.html:6529-6877`, `EOD/eod-materials-browser.js:233-463`, `EOD/eod-dept-signatures.js:290-569`, `EOD/eod-guest-handoff.js:101-171`, `EOD/eod-sms-optin-qr.js:23-171`). The central orchestration remains tightly bound to SAS visit IDs, Fred Meyer store identity, Kompass category semantics, Retail Odyssey routing, and fixed PDF templates (`EOD/index.html:11179-12282`, `EOD/index.html:9696-9987`, `eod-api/src/shift-management.js:287-758`).
+
+## Autonomous / provider-optional mode (standing product constraint)
+
+See **`07-change-plan.md` → Standing constraint — Autonomous / provider-optional mode**. Owner may gate off SAS/PROD and/or Store Intelligence/Rebotics; timekeeping + set integrity must continue via owned DB snapshots and CSV set load, with timesheet PDF output independent of live providers. Treat SAS/Rebotics as adapters; persist essential set/roster/punch details in eod-api databases on every successful touch so the flip does not require a rewrite.

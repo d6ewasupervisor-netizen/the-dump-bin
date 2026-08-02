@@ -6,6 +6,52 @@
 2. **Make “sent” and “synced” mean completed, not queued or assumed.** SAS upload acceptance is presented as success without polling, help-desk marks claim an email was sent before the user decides, and draft/reset operations report completion without awaiting IndexedDB (`EOD/index.html:13265-13300`, `EOD/eod-digital-signoff.js:304-349`, `EOD/index.html:5736-5739`, `EOD/index.html:10026-10054`).
 3. **Enforce operational authority on the server.** Cached UI hiding is not security. SAS uploads/comments, timesheet mutations, department signatures, digital marks, Rebotics backlog, shared store data, and public image/status routes need backend policy that does not depend on the currently loaded frontend (`eod-api/src/sas-bridge.js:680-718`, `eod-api/src/routes/eod-timesheet-mgmt.js:79-305`, `eod-api/src/routes/dept-signatures.js:62-93`, `eod-api/src/routes/digital-signoffs.js:85-112`, `eod-api/src/rebotics-bridge.js:571-708`, `eod-api/src/index.js:477-505`).
 
+## Standing constraint — Autonomous / provider-optional mode (owner-gated)
+
+**Intent (not a current build batch):** If SAS/PROD and/or Store Intelligence / Rebotics are ever unsupported, withdrawn, or **gated off on Tyson’s say-so**, EOD must still run at **100% for timekeeping and set integrity**: load sets from CSV (or equivalent owned import), collect punches/signatures, and output timesheets — without live SAS or Rebotics.
+
+This is a **design constraint on every future change**, not a request to implement the full switch now. Prefer work that makes a later flip cheap.
+
+### Already owned (keep and deepen — do not treat as disposable cache)
+
+| Domain | Where today | Autonomous role |
+|---|---|---|
+| Timesheet rows, PINs, JOIN, real names, signatures | `eod_timesheet_*`, guest handoff, fill/PDF delivery | **Source of truth for time** once entered or imported |
+| Day-confirm / store-date authority | `store-confirmation`, day-confirm token | Remains; eligibility must not *require* live SAS forever |
+| Store pools / shared store_data | `store_data` | Owned contact/routing data |
+| Digital signoff + dept signatures | `digital_signoff_*`, `store_dept_signatures` | Owned closeout marks (SAS comment side-effects optional) |
+| Device photos by session | IndexedDB session keys (Batch 5) | Local evidence survives provider loss |
+| InstaWork classifier CSV | `instawork_ids.csv` + assets | Pattern for **CSV-first** roster/set load |
+| Store 999 / test fixtures | `eod-test-fixtures`, no-SAS roster path | Prototype of “run without live SAS” |
+
+### Still provider-dependent (must become adapters + local mirrors)
+
+| Domain | Today | Target for quick autonomous flip |
+|---|---|---|
+| Sets / visits / category resets | Live SAS shift + category APIs | **Canonical `eod_sets` (or equiv.)** snapshot on every successful load; CSV import to create/replace day’s sets |
+| Live punch pull from PROD | SAS employee actuals | Optional enricher; **our `eod_timesheet_rows` win** when present |
+| SAS photo/coversheet upload | `sas-bridge` queue | No-op or local/R2 archive adapter when gated off |
+| Rebotics / SI backlog & photo sync | `rebotics-bridge`, kompass-netcap | Fully optional; never block time/set closeout |
+| Day-confirm eligibility from SAS schedule | store-confirmation SAS fallback | Fall back to **imported/owned set calendar** + lead day-confirm |
+
+### Rules for upcoming batches (so the flip stays “quick and easy”)
+
+1. **Persist essential details in our DB whenever we touch them.** When a set/roster/punch/reset is fetched from SAS, write a durable snapshot (store, work date, set/visit id, labels, members, category list, source=`sas|csv|manual`). Do not rely on re-fetching SAS to reprint yesterday’s sheet.
+2. **Provider behind a gate.** Prefer `EOD_PROVIDER_MODE=sas|autonomous` (name TBD) owner-flippable; autonomous skips SAS/Rebotics session requirements for roster/set/time paths (extend the store-999 pattern, do not special-case only 999 forever).
+3. **CSV is a first-class ingest**, not a demo hack: same schema as the snapshot tables; import replaces or merges the day’s sets for a store/date.
+4. **Timesheet output must not call SAS.** Fill PDF / office / supervisor send already mostly owned — keep it that way; never reintroduce a hard SAS dependency on submit.
+5. **Rebotics/SI is enhancement-only.** Backlog and SI photo sync must degrade to “unavailable” without blocking EOD, JOIN, punches, or timesheet PDF.
+6. **Do not delete owned history** when providers come back — reconcile, don’t wipe.
+
+### Minimal future slice (when prioritized — one revertable batch)
+
+Not scheduled ahead of Tier 0/1 bleeding work unless owner pulls it forward:
+
+1. Snapshot tables + write-through on SAS set/member load.
+2. CSV import → same tables.
+3. `providerMode=autonomous` reads only owned tables + CSV; timesheet mgmt/JOIN/PDF unchanged.
+4. Drill: gate SAS off, import CSV, complete punches, emit InstaWork/Kompass sheets.
+
 ## Change freeze and release rules
 
 Freeze EOD features until Tiers 0 and 1 are complete. Only production-safety fixes, tests, audit corrections, and the version file move during this plan; the audit is tied to the current 13,690-line page and current module/API contracts (`EOD/index.html:1-13690`, `EOD/eod-version.json:1-3`, `EOD/docs/audit/01-api-surface.md:9-140`).
