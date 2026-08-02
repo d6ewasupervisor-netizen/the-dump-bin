@@ -68,6 +68,67 @@
     return key === 'instawork' ? 'InstaWork' : 'Kompass Team';
   }
 
+  function displayName(m) {
+    return (m?.realName || m?.name || '').trim();
+  }
+
+  /** Add minutes to "8:00 AM" / "08:00" display times. */
+  function addMinutesToDisplayTime(raw, addMins) {
+    if (window.EodClockPicker?.parseTime && window.EodClockPicker?.formatDisplay12) {
+      const parsed = window.EodClockPicker.parseTime(raw);
+      if (!parsed) return '';
+      let h24 = parsed.hour12 % 12;
+      if (parsed.period === 'PM') h24 += 12;
+      let total = h24 * 60 + parsed.minute + Number(addMins || 0);
+      total = ((total % (24 * 60)) + (24 * 60)) % (24 * 60);
+      let h = Math.floor(total / 60);
+      const minute = total % 60;
+      const period = h >= 12 ? 'PM' : 'AM';
+      let hour12 = h % 12;
+      if (hour12 === 0) hour12 = 12;
+      return window.EodClockPicker.formatDisplay12(hour12, minute, period);
+    }
+    const s = String(raw || '').trim().replace(/\u202f/g, ' ');
+    const m = s.match(/^(\d{1,2}):(\d{2})\s*([ap]m)$/i);
+    if (!m) return '';
+    let h24 = Number(m[1]) % 12;
+    if (m[3].toUpperCase() === 'PM') h24 += 12;
+    let total = h24 * 60 + Number(m[2]) + Number(addMins || 0);
+    total = ((total % (24 * 60)) + (24 * 60)) % (24 * 60);
+    let h = Math.floor(total / 60);
+    const minute = String(total % 60).padStart(2, '0');
+    const period = h >= 12 ? 'PM' : 'AM';
+    let hour12 = h % 12;
+    if (hour12 === 0) hour12 = 12;
+    return `${hour12}:${minute} ${period}`;
+  }
+
+  function wireLunchAutoFill(scope) {
+    const root = scope || document;
+    root.querySelectorAll('input[data-field="lunchOut"], input#lunchOut').forEach((outEl) => {
+      if (outEl.dataset.lunchAutoWired === '1') return;
+      outEl.dataset.lunchAutoWired = '1';
+      const apply = () => {
+        const tr = outEl.closest('tr') || outEl.closest('.gh-time-grid') || outEl.closest('.gh-card');
+        const inEl = tr
+          ? (tr.querySelector('input[data-field="lunchIn"]') || tr.querySelector('input#lunchIn'))
+          : document.getElementById('lunchIn');
+        if (!inEl) return;
+        const next = addMinutesToDisplayTime(outEl.value, 30);
+        if (next) {
+          inEl.value = next;
+          inEl.dispatchEvent(new Event('input', { bubbles: true }));
+          inEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
+      outEl.addEventListener('change', apply);
+      outEl.addEventListener('input', () => {
+        // Debounce light: only auto when a parseable time is present
+        if (addMinutesToDisplayTime(outEl.value, 30)) apply();
+      });
+    });
+  }
+
   function ensureStyles() {
     if (document.getElementById('eodTimesheetMgmtStyles')) return;
     const style = document.createElement('style');
@@ -88,7 +149,8 @@
       .eod-ts-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #1e293b; }
       .eod-ts-body { flex: 1; overflow: auto; padding: 12px 16px 24px; -webkit-overflow-scrolling: touch; }
       .eod-ts-table-wrap { overflow-x: auto; border: 1px solid #334155; border-radius: 10px; }
-      table.eod-ts-table { width: 100%; border-collapse: collapse; min-width: 1080px; font-size: 13px; }
+      table.eod-ts-table { width: 100%; border-collapse: collapse; min-width: 1180px; font-size: 13px; }
+      .eod-ts-table input[data-field="realName"] { min-width: 110px; }
       .eod-ts-table th, .eod-ts-table td {
         padding: 8px 8px; border-bottom: 1px solid #1e293b; text-align: left; vertical-align: top;
       }
@@ -268,13 +330,19 @@
       const sig = conf.signatureDataUrl || conf.signatureUrl
         ? `<img class="eod-ts-sig" alt="Signature" src="${escapeHtml(conf.signatureDataUrl || conf.signatureUrl)}">`
         : '<span class="eod-ts-meta">—</span>';
+      const isIw = state.sheetKey === 'instawork';
+      const realNameCell = isIw
+        ? `<td><input type="text" data-field="realName" value="${escapeHtml(m.realName || '')}" placeholder="Legal / badge name" aria-label="Real name"></td>`
+        : '';
       return `<tr data-key="${escapeHtml(m.employeeKey)}" data-idx="${idx}">
         <td>
           <div class="eod-ts-name">${escapeHtml(m.name)}</div>
           <div class="eod-ts-meta">${m.isLead ? 'Lead · ' : ''}${escapeHtml(m.title || '')}${m.workdayId ? ` · WD ${escapeHtml(m.workdayId)}` : ''}</div>
           <div class="eod-ts-meta">Source: ${escapeHtml(m.timeSource || 'sas')}</div>
+          ${isIw && m.realName ? `<div class="eod-ts-meta">Real: ${escapeHtml(m.realName)}</div>` : ''}
           ${note}
         </td>
+        ${realNameCell}
         <td>
           <div class="eod-ts-pin">${escapeHtml(m.pin || '—')}</div>
           <div class="eod-ts-row-actions" style="margin-top:6px;">
@@ -298,12 +366,14 @@
       </tr>`;
     }).join('');
 
+    const realNameTh = state.sheetKey === 'instawork' ? '<th>Real name</th>' : '';
     body.innerHTML = `
       <div class="eod-ts-table-wrap">
         <table class="eod-ts-table">
           <thead>
             <tr>
               <th>Teammate</th>
+              ${realNameTh}
               <th>PIN</th>
               <th>In</th>
               <th>Lunch out</th>
@@ -340,6 +410,7 @@
         snapMinutes: 5,
       });
     }
+    wireLunchAutoFill(body);
 
     if (status) {
       const adj = state.members.filter((m) => m.confirmation?.status === 'adjust').length;
@@ -354,11 +425,17 @@
     const m = state.members[idx];
     if (!tr || !m) return null;
     const get = (field) => tr.querySelector(`input[data-field="${field}"]`)?.value?.trim() || '';
+    let lunchOut = get('lunchOut');
+    let lunchIn = get('lunchIn');
+    if (lunchOut && !lunchIn) {
+      lunchIn = addMinutesToDisplayTime(lunchOut, 30) || lunchIn;
+    }
     return {
       ...m,
+      realName: get('realName') || m.realName || '',
       clockIn: get('clockIn'),
-      lunchOut: get('lunchOut'),
-      lunchIn: get('lunchIn'),
+      lunchOut,
+      lunchIn,
       clockOut: get('clockOut'),
     };
   }
@@ -372,6 +449,10 @@
       showErr(new Error('Set store and work date first.'));
       return;
     }
+    if (state.sheetKey === 'instawork' && !row.realName) {
+      showErr(new Error('Enter a Real name for this InstaWork teammate before saving — it travels with their PIN.'));
+      return;
+    }
     const resp = await authFetch(`${API}/row`, {
       method: 'PATCH',
       headers: dayConfirmHeaders(),
@@ -381,6 +462,7 @@
         workDate: date,
         employeeKey: row.employeeKey,
         employeeName: row.name,
+        realName: row.realName || '',
         workdayId: row.workdayId,
         employeeId: row.employeeId,
         shiftId: row.shiftId,
@@ -399,13 +481,27 @@
     }
     if (!resp.ok || !data.ok) throw new Error(data.error || `Save failed (${resp.status})`);
     Object.assign(state.members[idx], {
+      realName: row.realName || '',
       clockIn: row.clockIn,
       lunchOut: row.lunchOut,
       lunchIn: row.lunchIn,
       clockOut: row.clockOut,
       timeSource: 'lead',
     });
-    if (typeof showAlert === 'function') showAlert('Saved', `${row.name} times updated.`);
+    // Refresh real-name label under teammate without full re-fetch
+    const tr = document.querySelector(`#eodTsBody tr[data-idx="${idx}"]`);
+    if (tr && state.sheetKey === 'instawork') {
+      let meta = tr.querySelector('.eod-ts-real-label');
+      if (!meta) {
+        meta = document.createElement('div');
+        meta.className = 'eod-ts-meta eod-ts-real-label';
+        tr.querySelector('td')?.appendChild(meta);
+      }
+      meta.textContent = row.realName ? `Real: ${row.realName}` : '';
+    }
+    if (typeof showAlert === 'function') {
+      showAlert('Saved', `${displayName(row) || row.name} times updated.`);
+    }
   }
 
   async function regenPin(idx) {
@@ -426,7 +522,7 @@
     if (!resp.ok || !data.ok) throw new Error(data.error || 'Could not regenerate PIN');
     state.members[idx].pin = data.pin;
     render();
-    if (typeof showAlert === 'function') showAlert('New PIN', `${m.name}: ${data.pin}`);
+    if (typeof showAlert === 'function') showAlert('New PIN', `${displayName(m) || m.name}: ${data.pin}`);
   }
 
   function copyPin(idx) {
@@ -461,6 +557,7 @@
         workDate: date,
         employeeKey: m.employeeKey,
         employeeName: m.name,
+        realName: m.realName || '',
         sheetKey: state.sheetKey,
       }),
     });
@@ -473,7 +570,7 @@
     const overlay = document.getElementById('eodTsTabletOverlay');
     const frame = document.getElementById('eodTsTabletFrame');
     const title = document.getElementById('eodTsTabletTitle');
-    if (title) title.textContent = `${m.name} — sign off`;
+    if (title) title.textContent = `${displayName(m) || m.name} — sign off`;
     if (frame) frame.src = data.timeUrl;
     overlay?.classList.add('show');
   }
@@ -485,20 +582,22 @@
       showErr(new Error('Guest handoff module failed to load.'));
       return;
     }
+    const who = displayName(row) || row.name;
     const sessionType = state.sheetKey === 'instawork' ? 'instawork_timesheet' : 'kompass_timesheet';
     window.EodGuestHandoff.openSendModal({
       sessionType,
-      title: `Send ${sheetLabel(state.sheetKey)} link — ${row.name}`,
+      title: `Send ${sheetLabel(state.sheetKey)} link — ${who}`,
       hint: 'Employee should have texted JOIN to (509) 572-9212 first (or use the JOIN QR + PIN). They can edit times and sign.',
-      recipientName: row.name,
+      recipientName: who,
       recipientEmail: row.email || '',
       recipientPhone: row.phone || '',
       payload: {
-        employees: state.members.map((m) => m.name),
+        employees: state.members.map((m) => displayName(m) || m.name),
         leadName: leadName(),
         blank: false,
         member: {
-          name: row.name,
+          name: who,
+          realName: row.realName || '',
           workdayId: row.workdayId,
           employeeId: row.employeeId,
           shiftId: row.shiftId,
@@ -510,7 +609,8 @@
           clockOut: row.clockOut,
         },
         prefill: {
-          name: row.name,
+          name: who,
+          realName: row.realName || '',
           title: row.title,
           clockIn: row.clockIn,
           lunchOut: row.lunchOut,
