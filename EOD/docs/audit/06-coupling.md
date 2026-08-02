@@ -31,4 +31,4 @@ The strongest portable seams are the browser image editor, materials selection/v
 
 ## Autonomous / provider-optional mode (standing product constraint)
 
-See **`07-change-plan.md` → Standing constraint — Autonomous / provider-optional mode**. Owner may gate off SAS/PROD and/or Store Intelligence/Rebotics; timekeeping + set integrity must continue via owned DB snapshots and CSV set load, with timesheet PDF output independent of live providers. Treat SAS/Rebotics as adapters; persist essential set/roster/punch details in eod-api databases on every successful touch so the flip does not require a rewrite.
+See **`07-change-plan.md` → Standing constraint** and the full design in **`09-autonomy-schema.md`**. Owner may gate off SAS/PROD and/or Store Intelligence/Rebotics; timekeeping + set integrity continue via owned append-only snapshots and CSV set load (`eod-setlist` v1), with timesheet PDF independent of live providers. SAS is an importer into our schema, not the schema.

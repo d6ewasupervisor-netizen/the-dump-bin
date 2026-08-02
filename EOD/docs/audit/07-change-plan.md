@@ -8,9 +8,13 @@
 
 ## Standing constraint — Autonomous / provider-optional mode (owner-gated)
 
-**Intent (not a current build batch):** If SAS/PROD and/or Store Intelligence / Rebotics are ever unsupported, withdrawn, or **gated off on Tyson’s say-so**, EOD must still run at **100% for timekeeping and set integrity**: load sets from CSV (or equivalent owned import), collect punches/signatures, and output timesheets — without live SAS or Rebotics.
+**Intent:** If SAS/PROD and/or Store Intelligence / Rebotics are ever unsupported, withdrawn, or **gated off on Tyson’s say-so**, EOD must still run at **100% for timekeeping and set integrity**: load sets from CSV (or equivalent owned import), collect punches/signatures, and output timesheets — without live SAS or Rebotics.
 
-This is a **design constraint on every future change**, not a request to implement the full switch now. Prefer work that makes a later flip cheap.
+**Schema + CSV contract (design):** [`09-autonomy-schema.md`](./09-autonomy-schema.md) — own IDs, append-only `observed_at` snapshots, `source`/`source_ref`, write-through on existing SAS reads, CSV as *our* format with SAS as one importer. Round-trip + store 999 harness specified there. **Section 7 of that doc lists what still requires a live provider** (do not hand-wave PROD parity).
+
+**Urgency split:** “Every batch should make the switch cheaper” is necessary but passive. **Write-through snapshots are a discrete slice whose value accrues only after they turn on** — history is not backfillable. Prefer shipping snapshot write-through (S1 in 09) soon after Batch 5, while SAS ground truth still exists to diff. Full autonomous flag / CSV UI can follow; empty snapshot tables cannot be reconstructed later.
+
+This remains a **design constraint on every future change**. Do not key new features on SAS visit/reset IDs as primary keys.
 
 ### Already owned (keep and deepen — do not treat as disposable cache)
 
