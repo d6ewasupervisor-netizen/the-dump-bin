@@ -1,6 +1,6 @@
 # 09 — Owned set/visit snapshot + CSV contract
 
-**Status:** design only — no migrations, routes, importer, or mode flag in this pass.  
+**Status:** **S1 capture shipped** (migrations + W1–W10 write-through + coverage/seed scripts + round-trip test). No read-path switch, no CSV UI, no mode flag.  
 **Prerequisite reading:** standing autonomy constraint in [`07-change-plan.md`](./07-change-plan.md).  
 **Coupling context:** [`06-coupling.md`](./06-coupling.md).
 

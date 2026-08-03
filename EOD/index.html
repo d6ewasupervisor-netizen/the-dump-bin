@@ -8,6 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#111827">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/eod-icon.svg">
     <!--
         Force fresh HTML on every load so server-side bug fixes (like the
         send-eod workDate / day-confirm 412 issue) reach phones without
@@ -3288,7 +3290,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.7</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.8</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4459,7 +4461,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.12.7';
+        const EOD_APP_VERSION = '2.12.8';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -4596,6 +4598,21 @@
             return 'browser';
         }
 
+        /** Request persistent storage once per origin (not just read the flag). */
+        async function ensurePersistentStorage() {
+            try {
+                if (!navigator.storage) return null;
+                if (typeof navigator.storage.persisted === 'function') {
+                    const already = await navigator.storage.persisted();
+                    if (already) return true;
+                }
+                if (typeof navigator.storage.persist === 'function') {
+                    return await navigator.storage.persist();
+                }
+            } catch (_) { /* Safari / private mode */ }
+            return null;
+        }
+
         async function refreshEodStorageTelemetry(force) {
             const now = Date.now();
             if (!force && eodStorageTelemetry.at && now - eodStorageTelemetry.at < 60 * 1000) {
@@ -4605,6 +4622,8 @@
             let usage = null;
             let persisted = null;
             try {
+                // Ask first — reading alone never moves persisted=false → true.
+                await ensurePersistentStorage();
                 if (navigator.storage && typeof navigator.storage.estimate === 'function') {
                     const est = await navigator.storage.estimate();
                     if (est) {
@@ -6312,6 +6331,7 @@
             try { refreshStorageIndicator(); } catch (e) {}
             try { void reconcileSasJobsOnOpen(); } catch (e) {}
             try { refreshUnsentWorkIndicator(); } catch (e) {}
+            try { void ensurePersistentStorage(); } catch (e) {}
             try { void refreshEodStorageTelemetry(true); } catch (e) {}
         }
 

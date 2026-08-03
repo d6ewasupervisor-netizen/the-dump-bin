@@ -1,0 +1,25 @@
+{
+  "name": "KOMPASS EOD Cover Sheet",
+  "short_name": "EOD",
+  "description": "Field closeout for one confirmed store and date — timesheets, photos, signoffs, and EOD send.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "./icons/eod-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/eod-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
