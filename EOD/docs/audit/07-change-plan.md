@@ -58,11 +58,11 @@ Not scheduled ahead of Tier 0/1 bleeding work unless owner pulls it forward:
 
 ## Change freeze and release rules
 
-Freeze EOD features until Tiers 0 and 1 are complete. Only production-safety fixes, tests, audit corrections, and the version file move during this plan; the audit is tied to the current 13,690-line page and current module/API contracts (`EOD/index.html:1-13690`, `EOD/eod-version.json:1-3`, `EOD/docs/audit/01-api-surface.md:9-140`).
+**Freeze lifted 2026-08-02 (PT)** after Tier 0 closed (Batch 7 / FE 2.12.7). See `09-feature-freeze.md`. Batches 8–12 remain on the board without a freeze gate.
 
-**Period checkpoint:** if Batches 1–5 are not done by end of the current fiscal period, treat the freeze as stalled — reassess scope, drop or defer non-bleeding Tier 1 items, and do not let the freeze drag into the next period by default. Field guidance (`08-field-guidance.md`) is preview hygiene only — photo isolation must not depend on lead habits.
+**Next discrete slice (before Batches 8–12):** snapshot write-through S1 (`09-autonomy-schema.md`) — history is not backfillable. Field guidance (`08-field-guidance.md`) is preview hygiene only — photo isolation must not depend on lead habits.
 
-Every numbered item below is one independently revertable change. Do not combine storage migration, authorization, UI behavior, and dead-code removal in one release. Backend response fields may be added but not removed or renamed while cached phones remain. A backend route that does not currently receive `X-Day-Confirm` must first gain server-side role/context validation and legacy-request telemetry; requiring the new header is a later release after the updated frontend is established (`EOD/index.html:6440-6451`, `EOD/index.html:11754-11760`, `EOD/index.html:12907-12918`, `EOD/index.html:13265-13323`).
+Release hygiene still applies: every numbered item below is one independently revertable change. Do not combine storage migration, authorization, UI behavior, and dead-code removal in one release. Backend response fields may be added but not removed or renamed while cached phones remain. A backend route that does not currently receive `X-Day-Confirm` must first gain server-side role/context validation and legacy-request telemetry; requiring the new header is a later release after the updated frontend is established (`EOD/index.html:6440-6451`, `EOD/index.html:11754-11760`, `EOD/index.html:12907-12918`, `EOD/index.html:13265-13323`).
 
 ### Telemetry is a safety net, not a gate
 
@@ -327,9 +327,9 @@ No new options should be added to these after their listed safety dependency:
 - Keep arbitrary timesheet email/download for now, but require lead/supervisor/admin and audit the recipient; it is useful recovery tooling and already day-confirmed (`EOD/eod-timesheet-mgmt.js:573-600`, `eod-api/src/routes/eod-timesheet-mgmt.js:158-239`).
 - Treat HEIC conversion, torch, compression, sharpening, dedupe, and retention purge as implementation behavior—not separate product features (`EOD/index.html:6571-7060`, `eod-api/src/index.js:809-822`).
 
-## After the freeze (not Tier 0)
+## After Tier 0 (product / autonomy)
 
-The coupling report (`06-coupling.md`) already flags portable pieces — photo capture/editor, department signature wizard, JOIN/PIN worker sessions, guest handoff, secure share — that are not Fred Meyer–specific. Schedule a product conversation after Tier 0/1; do not extract or re-platform them during the freeze.
+The coupling report (`06-coupling.md`) already flags portable pieces — photo capture/editor, department signature wizard, JOIN/PIN worker sessions, guest handoff, secure share — that are not Fred Meyer–specific. Snapshot write-through (S1) is the next autonomy slice; broader product extraction waits until owned set/visit history is accruing.
 
 ## Delete or retire
 

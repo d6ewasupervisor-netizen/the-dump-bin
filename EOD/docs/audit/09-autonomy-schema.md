@@ -12,7 +12,7 @@ Autonomy is not a separate product path. **Our tables are the app’s set/visit 
 
 Commercial note (scope, not a build batch): the same inversion — own IDs + CSV contract + optional provider adapters — is what makes this a field closeout product for operations that never had SAS. Contingency and sellability are nearly the same work **if** decided up front. This document decides the schema that way.
 
-Batch 5 (photo sessions, FE 2.11.9) is **already shipped**. Snapshot write-through is the next **autonomy** discrete slice once owner prioritizes it — it has a deadline we do not control.
+Batch 5 (photo sessions) and Batch 7 (`sentAt` / truthful SAS completion, FE 2.12.7) are **shipped**. Feature freeze is **lifted**. Snapshot write-through (**S1**) is the next discrete slice — it has a deadline we do not control and cannot be backfilled.
 
 ---
 
@@ -498,8 +498,9 @@ Autonomy means **continue operating** time + set integrity on owned data (import
 | **S3** | Import CSV → append `source=csv`; store 999 harness | Prove round-trip (visit+person+set) |
 | **S4** | Manual visit / member / set create (`source=manual`) + day-confirm from owned visits | Continuity without spreadsheet; **§1.8 authority rules mandatory in-PR** |
 | **S5** | Read path prefers latest snapshots when `EOD_PROVIDER_MODE=autonomous` | Config flag, not rewrite |
-| — | Batch 5 photo sessions | **Shipped (FE 2.11.9)** |
-| — | **Batch 7** (truthful SAS job status + `sentAt` / session-complete) | **Next loop-closer after freeze items** — with `sentAt` null forever, 7-day sent prune never runs and hard cap alone manages storage |
+| — | Batch 5 photo sessions | **Shipped (FE 2.11.9+)** |
+| — | Batch 7 (truthful SAS job status + `sentAt` / session-complete) | **Shipped (FE 2.12.7)** |
+| — | **S1 write-through (next)** | Accrue visit/set/member history while SAS is still readable |
 
 S1 is the piece whose value starts the day it turns on and not one day earlier.
 
