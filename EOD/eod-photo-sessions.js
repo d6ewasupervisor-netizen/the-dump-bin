@@ -25,6 +25,8 @@
   const SOFT_QUOTA_FRAC = 0.30;
   const HARD_QUOTA_FRAC = 0.50;
   const SENT_PRUNE_MS = 7 * 24 * 60 * 60 * 1000;
+  /** Email ok + only failed jobs (no open) → eligible for sentAt after this window. */
+  const FAILED_AFTER_EMAIL_ELIGIBLE_MS = 14 * 24 * 60 * 60 * 1000;
 
   let cachedEstimate = { quota: null, usage: null, at: 0 };
   const ESTIMATE_TTL_MS = 60 * 1000;
@@ -209,7 +211,52 @@
       });
     }
 
-    function buildSessionRecord(store, date, arrs, sentAt) {
+    function normalizeSasJobs(raw) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+      const out = {};
+      for (const [k, v] of Object.entries(raw)) {
+        const id = String(k || '').trim();
+        if (!id) continue;
+        const status = String(v || '').toLowerCase();
+        if (status === 'pending' || status === 'processing' || status === 'completed' || status === 'failed') {
+          out[id] = status;
+        } else {
+          out[id] = 'pending';
+        }
+      }
+      return out;
+    }
+
+    function sessionMetaFrom(existing) {
+      return {
+        sentAt: existing?.sentAt ?? null,
+        emailOk: !!existing?.emailOk,
+        emailOkAt: existing?.emailOkAt || null,
+        failuresDismissedAt: existing?.failuresDismissedAt || null,
+        sasJobs: normalizeSasJobs(existing?.sasJobs),
+      };
+    }
+
+    function buildSessionRecord(store, date, arrs, sentAtOrMeta, maybeExtra) {
+      // Compat: (store, date, arrs, sentAt) or (store, date, arrs, metaObject)
+      let meta;
+      if (sentAtOrMeta && typeof sentAtOrMeta === 'object' && !Array.isArray(sentAtOrMeta)) {
+        meta = {
+          sentAt: sentAtOrMeta.sentAt ?? null,
+          emailOk: !!sentAtOrMeta.emailOk,
+          emailOkAt: sentAtOrMeta.emailOkAt || null,
+          failuresDismissedAt: sentAtOrMeta.failuresDismissedAt || null,
+          sasJobs: normalizeSasJobs(sentAtOrMeta.sasJobs),
+        };
+      } else {
+        meta = {
+          sentAt: sentAtOrMeta == null ? null : sentAtOrMeta,
+          emailOk: !!(maybeExtra && maybeExtra.emailOk),
+          emailOkAt: (maybeExtra && maybeExtra.emailOkAt) || null,
+          failuresDismissedAt: (maybeExtra && maybeExtra.failuresDismissedAt) || null,
+          sasJobs: normalizeSasJobs(maybeExtra && maybeExtra.sasJobs),
+        };
+      }
       return {
         id: sessionId(store, date),
         schemaVersion: SCHEMA_VERSION,
@@ -219,9 +266,88 @@
         signoff: arrs.signoff || [],
         after: arrs.after || [],
         instawork: arrs.instawork || [],
-        sentAt: sentAt == null ? null : sentAt,
+        sentAt: meta.sentAt == null ? null : meta.sentAt,
+        emailOk: meta.emailOk,
+        emailOkAt: meta.emailOkAt,
+        failuresDismissedAt: meta.failuresDismissedAt,
+        sasJobs: meta.sasJobs,
         timestamp: Date.now(),
       };
+    }
+
+    function arraysFromRecord(rec) {
+      return {
+        before: rec?.before || [],
+        signoff: rec?.signoff || [],
+        after: rec?.after || [],
+        instawork: rec?.instawork || [],
+      };
+    }
+
+    function jobsAllCompleted(sasJobs) {
+      const ids = Object.keys(sasJobs || {});
+      if (!ids.length) return true;
+      return ids.every((id) => sasJobs[id] === 'completed');
+    }
+
+    function jobsHaveOpen(sasJobs) {
+      return Object.values(sasJobs || {}).some(
+        (s) => s === 'pending' || s === 'processing'
+      );
+    }
+
+    function jobsHaveFailed(sasJobs) {
+      return Object.values(sasJobs || {}).some((s) => s === 'failed');
+    }
+
+    function jobsHaveOpenOrFailed(sasJobs) {
+      return jobsHaveOpen(sasJobs) || jobsHaveFailed(sasJobs);
+    }
+
+    /** Email sent, no open jobs, failures dismissed or aged past the window. */
+    function failuresResolvedForComplete(meta, nowMs) {
+      if (!jobsHaveFailed(meta.sasJobs)) return true;
+      if (meta.failuresDismissedAt) return true;
+      const emailAt = meta.emailOkAt ? new Date(meta.emailOkAt).getTime() : NaN;
+      if (Number.isFinite(emailAt) && nowMs - emailAt >= FAILED_AFTER_EMAIL_ELIGIBLE_MS) {
+        return true;
+      }
+      return false;
+    }
+
+    function canSessionComplete(meta, nowMs) {
+      if (meta.sentAt) return { ok: true, already: true };
+      if (!meta.emailOk) return { ok: false, reason: 'email-pending' };
+      if (jobsHaveOpen(meta.sasJobs)) return { ok: false, reason: 'jobs-open' };
+      if (jobsAllCompleted(meta.sasJobs)) return { ok: true, reason: 'all-completed' };
+      if (jobsHaveFailed(meta.sasJobs) && failuresResolvedForComplete(meta, nowMs)) {
+        return { ok: true, reason: meta.failuresDismissedAt ? 'failures-dismissed' : 'failures-aged' };
+      }
+      if (jobsHaveFailed(meta.sasJobs)) {
+        return { ok: false, reason: 'jobs-failed' };
+      }
+      return { ok: false, reason: 'jobs-incomplete' };
+    }
+
+    async function patchSessionById(id, mutator) {
+      const parsed = parseSessionId(id);
+      if (!parsed) return null;
+      const existing = await getRecord(id);
+      if (!existing && !mutator) return null;
+      const arrs = arraysFromRecord(existing);
+      const meta = sessionMetaFrom(existing);
+      const nextMeta = mutator(meta, arrs) || meta;
+      const rec = buildSessionRecord(parsed.store, parsed.date, arrs, nextMeta);
+      // Preserve photo arrays from existing when mutator didn't touch arrs via rebuild —
+      // buildSessionRecord already got arrs from existing.
+      await putRecord(rec);
+      return rec;
+    }
+
+    async function patchActiveSession(mutator) {
+      activeKey = resolveActiveKey();
+      if (!activeKey) return null;
+      return patchSessionById(activeKey.id, mutator);
     }
 
     function resolveActiveKey() {
@@ -247,11 +373,18 @@
           after: rec.after || [],
           instawork: rec.instawork || [],
         };
+        const meta = sessionMetaFrom(rec);
         out.push({
           id: rec.id,
           store: parsed.store,
           date: parsed.date,
-          sentAt: rec.sentAt || null,
+          sentAt: meta.sentAt || null,
+          emailOk: meta.emailOk,
+          emailOkAt: meta.emailOkAt,
+          failuresDismissedAt: meta.failuresDismissedAt,
+          sasJobs: meta.sasJobs,
+          hasOpenJobs: jobsHaveOpen(meta.sasJobs),
+          hasFailedJobs: jobsHaveFailed(meta.sasJobs),
           bytes: arraysBytes(arrs),
           count: arraysCount(arrs),
           timestamp: rec.timestamp || 0,
@@ -396,7 +529,7 @@
           arrs
         );
         await putRecord(
-          buildSessionRecord(parsed.store, parsed.date, merged, existing?.sentAt ?? null)
+          buildSessionRecord(parsed.store, parsed.date, merged, sessionMetaFrom(existing))
         );
       }
 
@@ -488,7 +621,7 @@
           activeKey.store,
           activeKey.date,
           arrs,
-          existing?.sentAt ?? null
+          sessionMetaFrom(existing)
         );
         const { tx, store } = await txStore('readwrite');
         store.put(rec);
@@ -536,7 +669,7 @@
             signoff: photosObj.signoff || [],
             after: photosObj.after || [],
             instawork: photosObj.instawork || [],
-          }, existing?.sentAt ?? null)
+          }, sessionMetaFrom(existing))
         );
       }
 
@@ -581,6 +714,175 @@
       return { id: QUARANTINE_ID, count, bytes: arraysBytes(arrs), label: q.label };
     }
 
+    /** Batch 7 — track a SAS/coversheet job on the active session. */
+    async function trackSasJob(jobId, status) {
+      const id = String(jobId || '').trim();
+      if (!id) return null;
+      activeKey = resolveActiveKey();
+      if (!activeKey) return null;
+      return setSessionSasJobStatus(activeKey.id, id, status);
+    }
+
+    async function setSasJobStatus(jobId, status) {
+      return trackSasJob(jobId, status);
+    }
+
+    async function setSessionSasJobStatus(sessionRecId, jobId, status) {
+      const id = String(jobId || '').trim();
+      if (!id || !sessionRecId) return null;
+      const st = String(status || 'pending').toLowerCase();
+      return patchSessionById(sessionRecId, (meta) => {
+        meta.sasJobs[id] = (st === 'processing' || st === 'completed' || st === 'failed')
+          ? st
+          : 'pending';
+        // A later completed job means prior failures were retried — drop failed
+        // entries so session-complete can close once email + open jobs settle.
+        if (meta.sasJobs[id] === 'completed') {
+          for (const [jid, s] of Object.entries(meta.sasJobs)) {
+            if (s === 'failed') delete meta.sasJobs[jid];
+          }
+        }
+        return meta;
+      });
+    }
+
+    async function markEmailOk() {
+      const at = new Date().toISOString();
+      return patchActiveSession((meta) => {
+        meta.emailOk = true;
+        if (!meta.emailOkAt) meta.emailOkAt = at;
+        return meta;
+      });
+    }
+
+    /**
+     * Lead acknowledges email-sent + terminal upload failure(s).
+     * Removes failed job entries and marks failuresDismissedAt so sentAt can close.
+     */
+    async function dismissFailedUploads(sessionRecId) {
+      const id = sessionRecId || resolveActiveKey()?.id;
+      if (!id) return { ok: false, reason: 'no-session' };
+      const existing = await getRecord(id);
+      if (!existing) return { ok: false, reason: 'no-record' };
+      const meta = sessionMetaFrom(existing);
+      if (!meta.emailOk) return { ok: false, reason: 'email-pending' };
+      if (jobsHaveOpen(meta.sasJobs)) return { ok: false, reason: 'jobs-open' };
+      if (!jobsHaveFailed(meta.sasJobs)) {
+        return tryCompleteSessionById(id);
+      }
+      const at = new Date().toISOString();
+      await patchSessionById(id, (m) => {
+        m.failuresDismissedAt = at;
+        for (const [jid, s] of Object.entries(m.sasJobs)) {
+          if (s === 'failed') delete m.sasJobs[jid];
+        }
+        return m;
+      });
+      return tryCompleteSessionById(id);
+    }
+
+    /**
+     * Session-complete = emailOk AND (all jobs completed, OR no open jobs and
+     * failures dismissed/aged). Sets sentAt, hard-cap prune, clears if active.
+     */
+    async function tryCompleteSessionById(sessionRecId) {
+      const id = sessionRecId || resolveActiveKey()?.id;
+      if (!id) {
+        return { complete: false, reason: 'no-session' };
+      }
+      const parsed = parseSessionId(id);
+      if (!parsed) {
+        return { complete: false, reason: 'bad-id' };
+      }
+      const existing = await getRecord(id);
+      if (!existing) {
+        return { complete: false, reason: 'no-record' };
+      }
+      const meta = sessionMetaFrom(existing);
+      const gate = canSessionComplete(meta, Date.now());
+      if (gate.already) {
+        return { complete: true, already: true, sentAt: meta.sentAt, id };
+      }
+      if (!gate.ok) {
+        return { complete: false, reason: gate.reason, sasJobs: meta.sasJobs, id };
+      }
+
+      const sentAt = new Date().toISOString();
+      const arrs = arraysFromRecord(existing);
+      // Drop residual failed entries once we're closing (aged/dismissed path).
+      const closingJobs = { ...meta.sasJobs };
+      for (const [jid, s] of Object.entries(closingJobs)) {
+        if (s === 'failed') delete closingJobs[jid];
+      }
+      await putRecord(
+        buildSessionRecord(parsed.store, parsed.date, arrs, {
+          ...meta,
+          sasJobs: closingJobs,
+          sentAt,
+        })
+      );
+      await enforceHardCap().catch(() => {});
+
+      const active = resolveActiveKey();
+      const isActive = active && active.id === id;
+      if (!isActive) {
+        return { complete: true, sentAt, cleared: false, id, reason: gate.reason };
+      }
+      try {
+        await clearPhotos();
+      } catch (err) {
+        return {
+          complete: true,
+          sentAt,
+          cleared: false,
+          clearError: err && err.message ? err.message : String(err),
+          id,
+          reason: gate.reason,
+        };
+      }
+      return { complete: true, sentAt, cleared: true, id, reason: gate.reason };
+    }
+
+    async function tryCompleteSession() {
+      activeKey = resolveActiveKey();
+      if (!activeKey) {
+        return { complete: false, reason: 'no-active-session' };
+      }
+      return tryCompleteSessionById(activeKey.id);
+    }
+
+    /** Sessions with pending/processing jobs — for startup reconciliation. */
+    async function sessionsWithOpenJobs() {
+      const all = await listSessionSummaries();
+      return all.filter((s) => s.hasOpenJobs && !s.sentAt);
+    }
+
+    /**
+     * Close emailOk sessions whose failures aged past the eligibility window
+     * (no open jobs). Safe to run on every open.
+     */
+    async function settleAgedFailedSessions() {
+      const all = await listSessionSummaries();
+      const now = Date.now();
+      const settled = [];
+      for (const s of all) {
+        if (s.sentAt || !s.emailOk || s.hasOpenJobs || !s.hasFailedJobs) continue;
+        const emailAt = s.emailOkAt ? new Date(s.emailOkAt).getTime() : NaN;
+        if (!Number.isFinite(emailAt) || now - emailAt < FAILED_AFTER_EMAIL_ELIGIBLE_MS) continue;
+        const result = await tryCompleteSessionById(s.id);
+        if (result.complete) settled.push(result);
+      }
+      return settled;
+    }
+
+    async function getSessionOutboundState() {
+      activeKey = resolveActiveKey();
+      if (!activeKey) return null;
+      const existing = await getRecord(activeKey.id);
+      if (!existing) return { id: activeKey.id, ...sessionMetaFrom(null) };
+      return { id: activeKey.id, ...sessionMetaFrom(existing) };
+    }
+
     // Compatibility aliases used by existing index.html call sites
     return {
       dbName,
@@ -606,6 +908,17 @@
       listSessionSummaries,
       resolveActiveKey,
       sessionId,
+      trackSasJob,
+      setSasJobStatus,
+      setSessionSasJobStatus,
+      markEmailOk,
+      dismissFailedUploads,
+      tryCompleteSession,
+      tryCompleteSessionById,
+      sessionsWithOpenJobs,
+      settleAgedFailedSessions,
+      getSessionOutboundState,
+      FAILED_AFTER_EMAIL_ELIGIBLE_MS,
       FALLBACK_SOFT_BYTES,
       FALLBACK_HARD_BYTES,
       SOFT_QUOTA_FRAC,
@@ -624,6 +937,7 @@
     FALLBACK_HARD_BYTES,
     SOFT_QUOTA_FRAC,
     HARD_QUOTA_FRAC,
+    FAILED_AFTER_EMAIL_ELIGIBLE_MS,
     readStorageEstimate,
     capsFromQuota,
     LEGACY_ID,

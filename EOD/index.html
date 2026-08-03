@@ -24,13 +24,13 @@
     <link rel="stylesheet" href="eod-materials-browser.css?v=3.0.0">
     <link rel="stylesheet" href="/shared/pdf-viewer/materials-pdf-viewer.css?v=1.0.0">
     <script src="/shared/pdf-viewer/materials-pdf-viewer.js?v=1.0.0"></script>
-    <script src="eod-photo-sessions.js?v=2.12.3"></script>
+    <script src="eod-photo-sessions.js?v=2.12.7"></script>
     <script src="eod-clock-picker.js?v=2.12.0"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
     <script src="eod-guest-handoff.js?v=2.12.6" defer></script>
     <script src="eod-timesheet-mgmt.js?v=2.12.6" defer></script>
     <script src="eod-dept-signatures.js?v=2.11.2" defer></script>
-    <script src="eod-digital-signoff.js?v=2.11.2" defer></script>
+    <script src="eod-digital-signoff.js?v=2.12.7" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3288,7 +3288,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.6</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.7</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4459,7 +4459,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.12.6';
+        const EOD_APP_VERSION = '2.12.7';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -6310,8 +6310,101 @@
                 console.warn('Could not load photo session from IndexedDB:', e);
             }
             try { refreshStorageIndicator(); } catch (e) {}
+            try { void reconcileSasJobsOnOpen(); } catch (e) {}
             try { refreshUnsentWorkIndicator(); } catch (e) {}
             try { void refreshEodStorageTelemetry(true); } catch (e) {}
+        }
+
+        /**
+         * Batch 7 gap #2 — on open, re-query any non-terminal SAS jobs so a
+         * mid-poll app close still settles sentAt when the server already finished.
+         */
+        async function reconcileSasJobsOnOpen() {
+            if (typeof PhotoDB?.sessionsWithOpenJobs !== 'function') return;
+            try {
+                await PhotoDB.init();
+            } catch (_) { /* ignore */ }
+
+            const uploadBase = `${EOD_API_BASE}/sas-upload`;
+            let open = [];
+            try {
+                open = await PhotoDB.sessionsWithOpenJobs();
+            } catch (e) {
+                console.warn('[Batch7] sessionsWithOpenJobs failed:', e);
+                return;
+            }
+
+            for (const s of open) {
+                const jobs = s.sasJobs || {};
+                for (const [jobId, st] of Object.entries(jobs)) {
+                    if (st !== 'pending' && st !== 'processing') continue;
+                    try {
+                        const resp = await authFetch(
+                            `${uploadBase}/${encodeURIComponent(jobId)}`,
+                            { noBounceOn401: true }
+                        );
+                        const data = await resp.json().catch(() => ({}));
+                        if (resp.status === 404) {
+                            await PhotoDB.setSessionSasJobStatus(s.id, jobId, 'failed');
+                            continue;
+                        }
+                        if (!resp.ok || !data.job) continue;
+                        const status = String(data.job.status || '').toLowerCase();
+                        if (
+                            status === 'pending' ||
+                            status === 'processing' ||
+                            status === 'completed' ||
+                            status === 'failed'
+                        ) {
+                            await PhotoDB.setSessionSasJobStatus(s.id, jobId, status);
+                        }
+                    } catch (err) {
+                        console.warn(`[Batch7] reconcile job #${jobId}:`, err);
+                    }
+                }
+                try {
+                    const done = await PhotoDB.tryCompleteSessionById(s.id);
+                    if (done?.complete && done.cleared) {
+                        photos.before = [];
+                        photos.signoff = [];
+                        photos.after = [];
+                        photos.instawork = [];
+                        try { renderPhotoPreviews(); } catch (_) { /* ignore */ }
+                    }
+                } catch (err) {
+                    console.warn('[Batch7] tryComplete after reconcile:', err);
+                }
+            }
+
+            try {
+                const aged = await PhotoDB.settleAgedFailedSessions();
+                if (aged?.length) {
+                    console.log('[Batch7] settled aged failed sessions:', aged.length);
+                }
+            } catch (err) {
+                console.warn('[Batch7] settleAgedFailedSessions:', err);
+            }
+
+            // Catch emailOk + all completed after status refresh (including non-open).
+            try {
+                const summaries = await PhotoDB.listSessionSummaries();
+                for (const s of summaries) {
+                    if (s.sentAt || !s.emailOk || s.hasOpenJobs) continue;
+                    const done = await PhotoDB.tryCompleteSessionById(s.id);
+                    if (done?.complete && done.cleared) {
+                        photos.before = [];
+                        photos.signoff = [];
+                        photos.after = [];
+                        photos.instawork = [];
+                        try { renderPhotoPreviews(); } catch (_) { /* ignore */ }
+                    }
+                }
+            } catch (err) {
+                console.warn('[Batch7] post-reconcile complete pass:', err);
+            }
+
+            try { refreshUnsentWorkIndicator(); } catch (_) { /* ignore */ }
+            try { refreshStorageIndicator(); } catch (_) { /* ignore */ }
         }
 
         /** Non-blocking unsent-work chip (Batch 5). Does not gate the active EOD. */
@@ -6321,7 +6414,22 @@
             try {
                 const unsent = await PhotoDB.unsentSessions();
                 const quarantine = await PhotoDB.quarantineSummary();
-                if (!unsent.length && !quarantine) {
+                // Also surface email-ok + failed (still "unsent" until dismiss/age).
+                let failedEmailed = [];
+                try {
+                    const all = await PhotoDB.listSessionSummaries();
+                    const unsentIds = new Set(unsent.map((u) => u.id));
+                    failedEmailed = all.filter(
+                        (s) =>
+                            !s.sentAt &&
+                            s.emailOk &&
+                            s.hasFailedJobs &&
+                            !s.hasOpenJobs &&
+                            !unsentIds.has(s.id)
+                    );
+                } catch (_) { /* ignore */ }
+
+                if (!unsent.length && !quarantine && !failedEmailed.length) {
                     banner.classList.remove('visible');
                     banner.innerHTML = '';
                     return;
@@ -6330,13 +6438,26 @@
                 parts.push('<strong>Unsent photo work on this phone</strong>');
                 for (const s of unsent.slice(0, 4)) {
                     const label = `Store #${s.store} · ${s.date} · ${s.count} photo${s.count === 1 ? '' : 's'}`;
+                    let extra = '';
+                    if (s.emailOk && s.hasFailedJobs && !s.hasOpenJobs) {
+                        extra =
+                            ` <button type="button" data-dismiss-failed="${s.id}">Dismiss failed sync</button>`;
+                    } else if (s.hasOpenJobs) {
+                        extra = ' <span style="color:#fde68a;">(sync pending)</span>';
+                    }
                     parts.push(
                         `<div style="margin-top:6px;">${label} ` +
-                        `<button type="button" data-unsent-store="${s.store}" data-unsent-date="${s.date}">Open session</button></div>`
+                        `<button type="button" data-unsent-store="${s.store}" data-unsent-date="${s.date}">Open session</button>${extra}</div>`
                     );
                 }
                 if (unsent.length > 4) {
                     parts.push(`<div style="margin-top:4px;color:#93c5fd;">+${unsent.length - 4} more unsent session(s)</div>`);
+                }
+                for (const s of failedEmailed.slice(0, 3)) {
+                    parts.push(
+                        `<div style="margin-top:6px;color:#fde68a;">Store #${s.store} · ${s.date} — EOD emailed, photo sync failed. ` +
+                        `<button type="button" data-dismiss-failed="${s.id}">Dismiss failed sync</button></div>`
+                    );
                 }
                 if (quarantine) {
                     parts.push(
@@ -6350,6 +6471,36 @@
                         const store = btn.getAttribute('data-unsent-store');
                         const date = btn.getAttribute('data-unsent-date');
                         resumeUnsentPhotoSession(store, date);
+                    });
+                });
+                banner.querySelectorAll('[data-dismiss-failed]').forEach((btn) => {
+                    btn.addEventListener('click', async () => {
+                        const sid = btn.getAttribute('data-dismiss-failed');
+                        try {
+                            const result = await PhotoDB.dismissFailedUploads(sid);
+                            if (result?.complete && result.cleared) {
+                                photos.before = [];
+                                photos.signoff = [];
+                                photos.after = [];
+                                photos.instawork = [];
+                                try { renderPhotoPreviews(); } catch (_) { /* ignore */ }
+                            }
+                            if (result?.complete) {
+                                showAlert(
+                                    'Failed sync dismissed',
+                                    'Session marked sent. Photos can prune under the storage cap.'
+                                );
+                            } else {
+                                showAlert(
+                                    'Could not dismiss',
+                                    result?.reason || 'Session is not ready to dismiss yet.'
+                                );
+                            }
+                        } catch (err) {
+                            showAlert('Could not dismiss', err.message || String(err));
+                        }
+                        refreshUnsentWorkIndicator();
+                        try { refreshStorageIndicator(); } catch (_) { /* ignore */ }
                     });
                 });
             } catch (e) {
@@ -9910,6 +10061,12 @@ ${data.Notes || ''}`;
                 const result = await response.json();
                 loading.classList.remove('show');
                 if (result.success) {
+                    // Batch 7: email alone does not clear photos — mark emailOk, then
+                    // session-complete when every tracked SAS job is completed.
+                    try { await PhotoDB.markEmailOk(); } catch (e) {
+                        console.warn('[Batch7] markEmailOk failed:', e);
+                    }
+                    const sessionDone = await maybeCompletePhotoSession();
                     const storeNumberPadded = String(outbound.storeNumber || '').padStart(3, '0');
                     const sentTo = outbound.recipients.join(', ') || '(none)';
                     const title = outbound.forceLive
@@ -9923,8 +10080,16 @@ ${data.Notes || ''}`;
                     const linkNote = result.linkTtlDays
                         ? `<br><br><span style="color:#94a3b8;font-size:13px;">PDF and sign-off photos are <strong>hosted links</strong> in the email (valid ${result.linkTtlDays} days, no sign-in). Nothing is attached as a file.</span>`
                         : `<br><br><span style="color:#94a3b8;font-size:13px;">PDF and sign-off photos are hosted links in the email (valid 30 days, no sign-in).</span>`;
-                    const body = `${intro}<br><br><strong>From:</strong> EOD_FM${storeNumberPadded}@retail-odyssey.com<br><strong>To:</strong> ${sentTo}${linkNote}`;
-                    showEodSendSuccess(title, body);
+                    let sessionNote = '';
+                    if (sessionDone?.complete && sessionDone.cleared) {
+                        sessionNote = `<br><br><span style="color:#94a3b8;font-size:13px;">Photo session complete — local photos cleared.</span>`;
+                    } else if (sessionDone?.reason === 'jobs-open') {
+                        sessionNote = `<br><br><span style="color:#fbbf24;font-size:13px;">Email sent, but a photo sync is still running — photos stay until jobs finish (or settle on next open).</span>`;
+                    } else if (sessionDone?.reason === 'jobs-failed') {
+                        sessionNote = `<br><br><span style="color:#fbbf24;font-size:13px;">Email sent, but a photo sync failed. Retry sync, or dismiss the failed sync from the unsent banner so this session can prune.</span>`;
+                    }
+                    const body = `${intro}<br><br><strong>From:</strong> EOD_FM${storeNumberPadded}@retail-odyssey.com<br><strong>To:</strong> ${sentTo}${linkNote}${sessionNote}`;
+                    showEodSendSuccess(title, body, { photosClearedBySession: !!(sessionDone?.complete && sessionDone.cleared) });
                 } else {
                     showAlert('Send Failed', 'Error: ' + (result.error || 'Unknown error'));
                 }
@@ -10515,9 +10680,11 @@ ${data.Notes || ''}`;
         }
 
         /** Blank slate for next EOD — clears work content; keeps profile name/email/signature.
-         *  T0.9: awaits IndexedDB clear first; on failure leaves memory/UI intact and returns false. */
-        async function clearEodWorkSurface() {
-            const cleared = await awaitDurablePhotoClear('post-send');
+         *  T0.9: awaits IndexedDB clear first; on failure leaves memory/UI intact and returns false.
+         *  Batch 7: when session-complete already cleared photos, skip a second photo clear. */
+        async function clearEodWorkSurface(opts) {
+            const skipPhotos = !!(opts && opts.skipPhotoClear);
+            const cleared = skipPhotos ? true : await awaitDurablePhotoClear('post-send');
             if (!cleared) {
                 if (typeof showAlert === 'function') {
                     showAlert(
@@ -10606,10 +10773,11 @@ ${data.Notes || ''}`;
             return true;
         }
 
-        async function showEodSendSuccess(title, message) {
+        async function showEodSendSuccess(title, message, opts) {
+            const photosClearedBySession = !!(opts && opts.photosClearedBySession);
             const pref = getEodPostSendClearPref();
             if (pref === 'always') {
-                const ok = await clearEodWorkSurface();
+                const ok = await clearEodWorkSurface({ skipPhotoClear: photosClearedBySession });
                 if (ok) {
                     showAlert(title, message + '<br><br><span style="color:#94a3b8;font-size:13px;">Form cleared for a blank slate (your preference).</span>');
                 } else {
@@ -10672,7 +10840,7 @@ ${data.Notes || ''}`;
                 else if (neverAsk) setEodPostSendClearPref('never');
                 else setEodPostSendClearPref('ask');
                 if (doClear || always) {
-                    const ok = await clearEodWorkSurface();
+                    const ok = await clearEodWorkSurface({ skipPhotoClear: photosClearedBySession });
                     if (!ok) return; // leave modal open? clear already alerted; close modal so send success isn't stuck
                 }
                 modal.classList.remove('show');
@@ -10863,6 +11031,21 @@ ${data.Notes || ''}`;
             });
 
             modal.classList.add('show');
+        }
+
+        /** Promise wrapper for T0.12 — resolves true on confirm, false on cancel. */
+        function showConfirmAsync(title, message, options) {
+            const opts = options && typeof options === 'object' ? { ...options } : {};
+            return new Promise((resolve) => {
+                const prevCancel = opts.onCancel;
+                showConfirm(title, message, () => resolve(true), {
+                    ...opts,
+                    onCancel: () => {
+                        try { if (typeof prevCancel === 'function') prevCancel(); } catch (_) { /* ignore */ }
+                        resolve(false);
+                    },
+                });
+            });
         }
 
         // Keep a noop cancel listener only if the original button is still present
@@ -12380,7 +12563,8 @@ ${data.Notes || ''}`;
             return result;
         }
 
-        function confirmNotInStoreHelpdesk(match, setLabelValue, commentResult) {
+        /** T0.12 — waits for Send / Stand down / send outcome before resolving. */
+        async function confirmNotInStoreHelpdesk(match, setLabelValue, commentResult) {
             const set = match?.set;
             const shiftType = classifyKompassShiftType(match?.shift);
             const displayName = escapeHtml(match ? setDisplayLabel(set) : setLabelValue);
@@ -12406,38 +12590,40 @@ ${data.Notes || ''}`;
                 `${commentResult?.changed ? ' and PROD comment' : ''} without emailing the help desk.</p>` +
                 `</div>`;
 
-            showConfirm(
+            const send = await showConfirmAsync(
                 'Contact KOMPASS help desk?',
                 msg,
-                async () => {
-                    const loading = document.getElementById('loadingOverlay');
-                    if (loading) loading.classList.add('show');
-                    try {
-                        const result = await sendNotInStoreHelpdeskReport(match, setLabelValue);
-                        showAlert(
-                            'Help desk report sent',
-                            `Sent to the KOMPASS help desk${result.subject ? `:<br><code>${escapeHtml(result.subject)}</code>` : '.'}`
-                        );
-                    } catch (err) {
-                        console.error('Not-in-store helpdesk send failed:', err);
-                        showAlert('Help desk send failed', escapeHtml(err.message || String(err)));
-                    } finally {
-                        if (loading) loading.classList.remove('show');
-                    }
-                },
                 {
                     confirmText: 'Send help desk email',
                     cancelText: 'Stand down',
-                    onCancel: () => {
-                        showAlert(
-                            'Stood down',
-                            'Help desk email was not sent. The coversheet Not In Store tag' +
-                            (commentResult?.changed ? ' and PROD comment update' : '') +
-                            ' remain.'
-                        );
-                    },
                 }
             );
+            if (!send) {
+                showAlert(
+                    'Stood down',
+                    'Help desk email was not sent. The coversheet Not In Store tag' +
+                    (commentResult?.changed ? ' and PROD comment update' : '') +
+                    ' remain.'
+                );
+                return { helpdeskSent: false, stoodDown: true };
+            }
+
+            const loading = document.getElementById('loadingOverlay');
+            if (loading) loading.classList.add('show');
+            try {
+                const result = await sendNotInStoreHelpdeskReport(match, setLabelValue);
+                showAlert(
+                    'Help desk report sent',
+                    `Sent to the KOMPASS help desk${result.subject ? `:<br><code>${escapeHtml(result.subject)}</code>` : '.'}`
+                );
+                return { helpdeskSent: true, result };
+            } catch (err) {
+                console.error('Not-in-store helpdesk send failed:', err);
+                showAlert('Help desk send failed', escapeHtml(err.message || String(err)));
+                return { helpdeskSent: false, error: err.message || String(err) };
+            } finally {
+                if (loading) loading.classList.remove('show');
+            }
         }
 
         async function handleNotInSideEffects(kind, setLabelValue, opts) {
@@ -12467,16 +12653,25 @@ ${data.Notes || ''}`;
                 );
                 commentResult = { skipped: true, error: err.message || String(err) };
                 if (isStore) {
-                    confirmNotInStoreHelpdesk(match, setLabelValue, commentResult);
+                    const hd = await confirmNotInStoreHelpdesk(match, setLabelValue, commentResult);
+                    return {
+                        prodCommentOk: false,
+                        helpdeskSent: hd?.helpdeskSent === true,
+                        commentResult,
+                    };
                 }
-                return;
+                return { prodCommentOk: false, helpdeskSent: false, commentResult };
             } finally {
                 if (loading) loading.classList.remove('show');
             }
 
             if (isStore) {
-                confirmNotInStoreHelpdesk(match, setLabelValue, commentResult);
-                return;
+                const hd = await confirmNotInStoreHelpdesk(match, setLabelValue, commentResult);
+                return {
+                    prodCommentOk: !commentResult.skipped && !commentResult.error,
+                    helpdeskSent: hd?.helpdeskSent === true,
+                    commentResult,
+                };
             }
 
             // Not in SI — comment only (no helpdesk prompt).
@@ -12500,6 +12695,11 @@ ${data.Notes || ''}`;
                     `<br><code>${escapeHtml(commentResult.comment || '')}</code>`
                 );
             }
+            return {
+                prodCommentOk: !commentResult.skipped && !commentResult.error,
+                helpdeskSent: false,
+                commentResult,
+            };
         }
         window.handleNotInSideEffects = handleNotInSideEffects;
         window.resolvePickerSetMatch = resolvePickerSetMatch;
@@ -13819,8 +14019,10 @@ ${data.Notes || ''}`;
             }
         }
 
-        // ─── SAS SYNC FUNCTIONS ─────────────────────────────────────────────────────
+        // ─── SAS SYNC FUNCTIONS (Batch 7 / T0.7 — poll to terminal status) ───────────
         const SAS_UPLOAD_URL = 'https://eod-api.the-dump-bin.com/sas-upload';
+        const SAS_JOB_POLL_MS = 1500;
+        const SAS_JOB_TIMEOUT_MS = 3 * 60 * 1000;
 
         // Map EOD photo types to SAS slots
         const SYNC_SLOT_MAP = {
@@ -13861,6 +14063,58 @@ ${data.Notes || ''}`;
             }
         }
 
+        /** Poll GET /sas-upload/:jobId until completed/failed or timeout. */
+        async function pollSasUploadJob(jobId, { onStatus } = {}) {
+            const id = String(jobId || '').trim();
+            if (!id) throw new Error('Missing job id');
+            const started = Date.now();
+            let lastStatus = 'pending';
+            while (Date.now() - started < SAS_JOB_TIMEOUT_MS) {
+                const resp = await authFetch(`${SAS_UPLOAD_URL}/${encodeURIComponent(id)}`, {
+                    noBounceOn401: true,
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data.success || !data.job) {
+                    throw new Error(data.error || `Job status failed (${resp.status})`);
+                }
+                const status = String(data.job.status || '').toLowerCase();
+                lastStatus = status || lastStatus;
+                if (typeof onStatus === 'function') onStatus(status, data.job);
+                try { await PhotoDB.setSasJobStatus(id, status || 'pending'); } catch (_) { /* ignore */ }
+                if (status === 'completed') return { status: 'completed', job: data.job };
+                if (status === 'failed') {
+                    const err = new Error(data.job.error || 'SAS upload failed');
+                    err.job = data.job;
+                    err.status = 'failed';
+                    throw err;
+                }
+                await new Promise((r) => setTimeout(r, SAS_JOB_POLL_MS));
+            }
+            const timeoutErr = new Error(`SAS upload timed out (last status: ${lastStatus})`);
+            timeoutErr.status = lastStatus;
+            timeoutErr.timedOut = true;
+            throw timeoutErr;
+        }
+
+        /** After email + jobs settle, mark sentAt and clear (Batch 7 session-complete). */
+        async function maybeCompletePhotoSession() {
+            try {
+                const result = await PhotoDB.tryCompleteSession();
+                if (result?.complete && result.cleared) {
+                    photos.before = [];
+                    photos.signoff = [];
+                    photos.after = [];
+                    photos.instawork = [];
+                    try { renderPhotoPreviews(); } catch (_) { /* ignore */ }
+                    try { refreshStorageIndicator(); } catch (_) { /* ignore */ }
+                }
+                return result;
+            } catch (err) {
+                console.warn('[Batch7] tryCompleteSession failed:', err);
+                return { complete: false, reason: 'error', error: err.message };
+            }
+        }
+
         async function syncToSAS(type) {
             const storeNumber = document.getElementById('storeNumber').value;
             const date = document.getElementById('workDate').value;
@@ -13883,9 +14137,9 @@ ${data.Notes || ''}`;
             const storeNumPadded = String(storeNumber).padStart(3, '0');
             const dateCompact = date.replace(/-/g, '');
 
-            setSyncState(type, 'syncing', `Uploading ${photoArray.length} photo(s)...`);
+            setSyncState(type, 'syncing', `Queueing ${photoArray.length} photo(s)...`);
 
-            let successCount = 0;
+            let completedCount = 0;
             let lastError = null;
 
             for (let i = 0; i < photoArray.length; i++) {
@@ -13899,7 +14153,7 @@ ${data.Notes || ''}`;
                     filename = `fm${storeNumPadded}_kompass_cart_${type}_photo_${dateCompact}.jpg`;
                 }
 
-                setSyncState(type, 'syncing', `Uploading ${i + 1} of ${photoArray.length}...`);
+                setSyncState(type, 'syncing', `Queueing ${i + 1} of ${photoArray.length}...`);
 
                 try {
                     const resp = await authFetch(SAS_UPLOAD_URL, {
@@ -13918,23 +14172,35 @@ ${data.Notes || ''}`;
                     });
 
                     const result = await resp.json();
-                    if (result.success) {
-                        successCount++;
-                        console.log(`[sync] ${type} photo ${i + 1} queued: job #${result.jobId}`);
-                    } else {
+                    if (!result.success || !result.jobId) {
                         lastError = result.error || 'Unknown error';
-                        console.error(`[sync] ${type} photo ${i + 1} failed:`, lastError);
+                        console.error(`[sync] ${type} photo ${i + 1} enqueue failed:`, lastError);
+                        continue;
                     }
+
+                    const jobId = result.jobId;
+                    try { await PhotoDB.trackSasJob(jobId, 'pending'); } catch (_) { /* ignore */ }
+                    setSyncState(type, 'syncing', `Queued ${i + 1}/${photoArray.length} — waiting…`);
+                    console.log(`[sync] ${type} photo ${i + 1} queued: job #${jobId}`);
+
+                    await pollSasUploadJob(jobId, {
+                        onStatus: (status) => {
+                            const label = status === 'processing' ? 'Uploading' : 'Queued';
+                            setSyncState(type, 'syncing', `${label} ${i + 1}/${photoArray.length}…`);
+                        },
+                    });
+                    completedCount++;
                 } catch (err) {
                     lastError = err.message;
                     console.error(`[sync] ${type} photo ${i + 1} error:`, err);
                 }
             }
 
-            if (successCount === photoArray.length) {
-                setSyncState(type, 'synced', `${successCount} photo(s) synced`);
-            } else if (successCount > 0) {
-                setSyncState(type, 'error', `${successCount}/${photoArray.length} synced`);
+            if (completedCount === photoArray.length) {
+                setSyncState(type, 'synced', `${completedCount} photo(s) synced`);
+                await maybeCompletePhotoSession();
+            } else if (completedCount > 0) {
+                setSyncState(type, 'error', `${completedCount}/${photoArray.length} completed`);
             } else {
                 setSyncState(type, 'error', lastError || 'Upload failed');
             }
@@ -13943,7 +14209,7 @@ ${data.Notes || ''}`;
         // ─── ADD COVERSHEET — same completeness checks as Send Email; review then upload ─
         async function uploadCoversheetToKompassIseShift(payload) {
             const loading = document.getElementById('loadingOverlay');
-            loading.querySelector('span').textContent = 'Uploading coversheet to Kompass ISE...';
+            loading.querySelector('span').textContent = 'Queueing coversheet upload...';
             loading.classList.add('show');
 
             try {
@@ -13964,18 +14230,42 @@ ${data.Notes || ''}`;
 
                 const result = await resp.json();
 
-                loading.classList.remove('show');
-                loading.querySelector('span').textContent = 'Processing...';
-
-                if (result.success) {
-                    showAlert(
-                        'Coversheet Added',
-                        `Your EOD coversheet was uploaded as an <strong>after</strong> photo for this store's Kompass ISE shift.<br><br>Job #${result.jobId}`
-                    );
-                } else {
+                if (!result.success || !result.jobId) {
+                    loading.classList.remove('show');
+                    loading.querySelector('span').textContent = 'Processing...';
                     showAlert(
                         'Upload Issue',
-                        `Coversheet was ready but upload had an issue: ${result.error || 'Unknown error'}.<br><br>The job may still be queued for retry.`
+                        `Coversheet was ready but upload had an issue: ${result.error || 'Unknown error'}.`
+                    );
+                    return;
+                }
+
+                const jobId = result.jobId;
+                try { await PhotoDB.trackSasJob(jobId, 'pending'); } catch (_) { /* ignore */ }
+                loading.querySelector('span').textContent = `Queued job #${jobId} — waiting for Kompass…`;
+
+                try {
+                    await pollSasUploadJob(jobId, {
+                        onStatus: (status) => {
+                            loading.querySelector('span').textContent =
+                                status === 'processing'
+                                    ? `Uploading coversheet to Kompass ISE… (job #${jobId})`
+                                    : `Queued coversheet job #${jobId}…`;
+                        },
+                    });
+                    loading.classList.remove('show');
+                    loading.querySelector('span').textContent = 'Processing...';
+                    showAlert(
+                        'Coversheet Added',
+                        `Your EOD coversheet was uploaded as an <strong>after</strong> photo for this store's Kompass ISE shift.<br><br>Job #${jobId} completed.`
+                    );
+                    await maybeCompletePhotoSession();
+                } catch (pollErr) {
+                    loading.classList.remove('show');
+                    loading.querySelector('span').textContent = 'Processing...';
+                    showAlert(
+                        'Upload Issue',
+                        `Coversheet job #${jobId} did not complete: ${pollErr.message || pollErr}. Photos stay on this phone for retry.`
                     );
                 }
             } catch (err) {

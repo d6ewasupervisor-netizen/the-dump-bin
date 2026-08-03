@@ -305,6 +305,7 @@
       }
 
       // Side effects when turning ON Not in store / Not in SI.
+      // T0.12: helpdeskSent only after user confirms Send and the API succeeds.
       let prodCommentOk = null;
       let helpdeskSent = false;
       let visitId = null;
@@ -319,16 +320,23 @@
       if (markType === 'not_in_store' || markType === 'not_in_si') {
         if (label && typeof window.handleNotInSideEffects === 'function') {
           try {
-            await window.handleNotInSideEffects(
+            // Drop overlay so Send/Stand-down confirm is usable (T0.12).
+            if (loading) loading.classList.remove('show');
+            const side = await window.handleNotInSideEffects(
               markType === 'not_in_store' ? 'store' : 'si',
               label,
               { fromOther: false, fromDigitalSheet: true }
             );
-            prodCommentOk = true;
-            if (markType === 'not_in_store') helpdeskSent = true;
+            if (loading) loading.classList.add('show');
+            prodCommentOk = side?.prodCommentOk === true;
+            if (markType === 'not_in_store') {
+              helpdeskSent = side?.helpdeskSent === true;
+            }
           } catch (e) {
             console.warn('NIS side effects', e);
             prodCommentOk = false;
+            helpdeskSent = false;
+            if (loading) loading.classList.add('show');
           }
         } else if (label) {
           const list = markType === 'not_in_store' ? window.notInStoreSelected : window.notInSiSelected;
