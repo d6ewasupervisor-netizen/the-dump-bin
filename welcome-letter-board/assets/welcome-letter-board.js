@@ -99,7 +99,7 @@
 
   function deliveryBadge(delivery) {
     const d = String(delivery || 'unknown').toLowerCase();
-    if (d === 'delivered') return badge('Delivered', 'delivered');
+    if (d === 'delivered') return badge('Delivered (MTA)', 'delivered');
     if (d === 'failed') return badge('Failed', 'failed');
     if (d === 'complained') return badge('Complained', 'complained');
     if (d === 'sent') return badge('In flight', 'sent');
@@ -108,9 +108,22 @@
 
   function openedBadge(item) {
     if (item.openCount > 0) {
-      return badge(`Opened ${item.openCount > 1 ? `×${item.openCount}` : ''}`.trim(), 'opened');
+      const src = item.trackingSource === 'eod-api' ? ' (ours)' : '';
+      return badge(`Opened${item.openCount > 1 ? ` ×${item.openCount}` : ''}${src}`, 'opened');
     }
-    return badge('Not opened', 'not-opened');
+    return badge('—', 'not-opened');
+  }
+
+  function formatEngagementEvents(events) {
+    const list = Array.isArray(events) ? events : [];
+    if (!list.length) return 'No beacon events yet';
+    return list.slice(0, 12).map((ev) => {
+      const when = fmtDate(ev.createdAt);
+      if (ev.eventType === 'click') {
+        return `${when} — click — ${ev.url || '(no url)'}`;
+      }
+      return `${when} — open`;
+    }).join('; ');
   }
 
   function renderRows(items) {
@@ -223,7 +236,7 @@
     const meta = document.getElementById('detailMeta');
 
     const openedLine = item.openCount > 0
-      ? `${item.openCount}× (first ${fmtDate(item.openedAt)})`
+      ? `${item.openCount}× (first ${fmtDate(item.openedAt)})${item.trackingSource === 'eod-api' ? ' — eod-api beacon' : ''}`
       : 'Not opened yet';
     const clickedLine = item.clickCount > 0
       ? `${item.clickCount}× (first ${fmtDate(item.clickedAt)})`
@@ -237,6 +250,7 @@
       ['Last event', item.lastEvent || '—'],
       ['Opened', openedLine],
       ['Clicked', clickedLine],
+      ['Tracking', item.trackingSource === 'eod-api' ? 'eod-api pixel + link wrap' : '—'],
       ['First Name', item.metadata?.firstName || '—'],
       ['From', item.from || '—'],
       ['To', (item.to || []).join(', ') || '—'],
@@ -246,6 +260,7 @@
       ['Resend ID', item.resendId || '—'],
       ['Can resend', item.canResend ? 'Yes' : 'No'],
       ['Can cancel', item.canCancel ? 'Yes' : 'No'],
+      ['Engagement log', formatEngagementEvents(item.events)],
     ];
     if (item.metadata?.cancelledAt) {
       rows.push(['Cancelled at', fmtDate(item.metadata.cancelledAt)]);
@@ -295,7 +310,7 @@
       if (!canCancel) return;
       const to = (item.to || []).join(', ') || 'recipient';
       const openedNote = item.openCount > 0
-        ? '\n\nNote: open tracking shows this may already have been opened. Cancel still marks it cancelled and sends the disregard notice, but we cannot remove the original from their inbox.'
+        ? '\n\nNote: our open beacon shows this may already have been opened. Cancel still marks it cancelled and sends the disregard notice, but we cannot remove the original from their inbox.'
         : '\n\nIf they have not opened it yet, they may still receive/see the original — cancel marks it in our board and sends a polite disregard notice.';
       if (!window.confirm(
         `Cancel this welcome letter to ${to}?\n\n`
@@ -337,17 +352,17 @@
       const result = await api(`${API_PREFIX}/refresh`, { method: 'POST', body: '{}' });
       await loadList();
       if (state.selectedId) await selectEmail(state.selectedId, { pushUrl: false });
-      const opens = result.opensFound != null ? `, ${result.opensFound} with open/click last event` : '';
+      const opens = result.opensFound != null ? ` (${result.opensFound} Resend last_event open/click — use eod-api beacon for opens)` : '';
       showJustSentBanner({
         ok: true,
-        message: `Refreshed from Resend: checked ${result.checked || 0}, updated ${result.updated || 0}${opens}.`,
+        message: `Refreshed delivery from Resend: checked ${result.checked || 0}, updated ${result.updated || 0}${opens}. Opens/clicks on this board come from eod-api beacons.`,
       });
     } catch (e) {
       showJustSentBanner({ ok: false, message: `Refresh failed: ${e.message}` });
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Refresh from Resend';
+        btn.textContent = 'Refresh delivery (Resend)';
       }
     }
   }

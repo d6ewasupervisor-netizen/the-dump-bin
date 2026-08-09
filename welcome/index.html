@@ -664,6 +664,17 @@
     }
   }
 
+  function formatTrackingMeta(item) {
+    const delivery = String(item.deliveryStatus || '').toLowerCase() === 'delivered'
+      ? 'Delivered (MTA)'
+      : (item.deliveryStatus || item.status || '—');
+    if (item.openCount > 0) {
+      const src = item.trackingSource === 'eod-api' ? ' (ours)' : '';
+      return `${delivery} · Opened${src}`;
+    }
+    return `${delivery} · Not opened yet`;
+  }
+
   async function loadRecentSends() {
     if (!recentEmpty || !recentList) return;
     recentEmpty.classList.remove('wl-hidden');
@@ -689,9 +700,13 @@
         const name = item.firstName ? `${item.firstName} · ` : '';
         const by = item.sentByEmail || 'unknown sender';
         const when = formatSentAt(item.sentAt);
+        const tracking = formatTrackingMeta(item);
+        const href = item.id ? `/welcome-letter-board/?id=${encodeURIComponent(item.id)}` : '/welcome-letter-board/';
         return `<li class="wl-recent__item">
-          <div class="wl-recent__to">${escapeHtml(name)}${escapeHtml(to)}</div>
-          <div class="wl-recent__meta">Sent by ${escapeHtml(by)} · ${escapeHtml(when)}</div>
+          <a href="${href}" style="color:inherit;text-decoration:none;display:block;">
+            <div class="wl-recent__to">${escapeHtml(name)}${escapeHtml(to)}</div>
+            <div class="wl-recent__meta">Sent by ${escapeHtml(by)} · ${escapeHtml(when)} · ${escapeHtml(tracking)}</div>
+          </a>
         </li>`;
       }).join('');
       recentEmpty.classList.add('wl-hidden');
