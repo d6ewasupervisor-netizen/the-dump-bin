@@ -155,7 +155,7 @@
 
   function deliveryBadge(delivery) {
     const d = String(delivery || 'unknown').toLowerCase();
-    if (d === 'delivered') return badge('Delivered', 'delivered');
+    if (d === 'delivered') return badge('Delivered (MTA)', 'delivered');
     if (d === 'failed') return badge('Failed', 'failed');
     if (d === 'complained') return badge('Complained', 'complained');
     if (d === 'sent') return badge('In flight', 'sent');
@@ -164,9 +164,22 @@
 
   function openedBadge(item) {
     if (item.openCount > 0) {
-      return badge(`Opened${item.openCount > 1 ? ` ×${item.openCount}` : ''}`, 'delivered');
+      const src = item.trackingSource === 'eod-api' ? ' (ours)' : '';
+      return badge(`Opened${item.openCount > 1 ? ` ×${item.openCount}` : ''}${src}`, 'delivered');
     }
     return badge('—', 'pending');
+  }
+
+  function formatEngagementEvents(events) {
+    const list = Array.isArray(events) ? events : [];
+    if (!list.length) return 'No beacon events yet';
+    return list.slice(0, 12).map((ev) => {
+      const when = fmtDate(ev.createdAt);
+      if (ev.eventType === 'click') {
+        return `${when} — click — ${ev.url || '(no url)'}`;
+      }
+      return `${when} — open`;
+    }).join('; ');
   }
 
   function renderRows(items) {
@@ -346,6 +359,7 @@
       ['Delivery', item.deliveryStatus || item.lastEvent || '—'],
       ['Opened', openedLine],
       ['Clicked', clickedLine],
+      ['Tracking', item.trackingSource === 'eod-api' ? 'eod-api pixel + link wrap' : '—'],
       ['From', item.from || '—'],
       ['To', (item.to || []).join(', ') || '—'],
       ['CC', (item.cc || []).join(', ') || '—'],
@@ -355,6 +369,7 @@
       ['Attachments', String(item.attachmentCount || 0)],
       ['Can resend', item.canResend ? 'Yes' : 'No'],
       ['Can download', item.canDownload ? 'Yes' : 'No'],
+      ['Engagement log', formatEngagementEvents(item.events)],
     ];
     if (item.errorMessage) rows.push(['Error', item.errorMessage]);
     if (item.compacted) rows.push(['Storage', 'Compacted (body/attachments cleared)']);
