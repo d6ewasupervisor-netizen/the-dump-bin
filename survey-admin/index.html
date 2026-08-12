@@ -593,6 +593,26 @@ document.getElementById('prod-panel').addEventListener('toggle', () => {
   }
 });
 
+/** Keep "D6/D8 Supervisor Desk" only when this user's districts are exactly those. */
+function surveyAdminDisplayName(user, scope) {
+  const raw = String(user?.name || '').trim();
+  const m = raw.match(/^(D\d+(?:\/D\d+)*)\s+(Supervisor Desk)$/i);
+  if (!m) return raw || user?.email || '';
+  const labeled = [...new Set(m[1].split('/').map((p) => p.replace(/^D/i, '')).filter(Boolean))]
+    .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
+  const actual = [];
+  if (scope?.level === 'district') {
+    for (const d of (scope.districts || [])) {
+      const s = String(d || '').trim().replace(/^D/i, '');
+      if (s && s.toLowerCase() !== 'unassigned') actual.push(s);
+    }
+  }
+  if (user?.district) actual.push(String(user.district).trim().replace(/^D/i, ''));
+  const uniq = [...new Set(actual)].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
+  const specific = uniq.length === labeled.length && labeled.every((d, i) => d === uniq[i]);
+  return specific ? raw : m[2];
+}
+
 function renderScope() {
   const scope = ACCESS.scope || FILTERS.scope;
   const user = ACCESS.user || FILTERS.user;
@@ -610,7 +630,8 @@ function renderScope() {
   }
   const who = document.getElementById('who');
   if (user) {
-    who.innerHTML = `<strong>${escHtml(user.name || user.email || '')}</strong>${escHtml(user.email || '')}${user.role ? ' · ' + escHtml(user.role) : ''}`;
+    const displayName = surveyAdminDisplayName(user, scope);
+    who.innerHTML = `<strong>${escHtml(displayName || user.email || '')}</strong>${escHtml(user.email || '')}${user.role ? ' · ' + escHtml(user.role) : ''}`;
   }
 }
 
