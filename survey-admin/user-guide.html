@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f5c8c">
+<title>Survey Admin — How to use it · Retail Odyssey</title>
+<link rel="icon" href="/survey/assets/ro-logo.png">
+<link rel="stylesheet" href="/survey/guide.css">
+<script src="/auth-gate.js"></script>
+</head>
+<body>
+<div class="page">
+
+  <div class="guide-header">
+    <img src="/survey/assets/ro-logo.png" alt="The Retail Odyssey Company">
+    <div class="guide-header-text">
+      <h1>Survey Admin</h1>
+      <div class="subtitle">Coverage, assignments, and results for management</div>
+    </div>
+  </div>
+
+  <div class="doc-meta">
+    <span>For supervisors, managers, and directors</span>
+    <span>the-dump-bin.com/survey-admin</span>
+  </div>
+
+  <div class="no-print-bar no-print">
+    <a href="/survey-admin/">Open Survey Admin</a>
+    <a class="secondary" href="/survey/user-guide.html">Survey guide (reps &amp; management)</a>
+  </div>
+
+  <div class="audience">
+    <span>Supervisors — stores you supervise</span>
+    <span>Managers &amp; directors — full division</span>
+  </div>
+
+  <div class="overview-box">
+    <h3>What this is</h3>
+    <p>
+      Survey Admin is the office side of the Division 701 store survey. Use it to see which stores still
+      need someone, assign this week's Kompass ISE leads (or anyone else), read submitted answers, and
+      export spreadsheets and photos. It does <strong>not</strong> replace taking the survey yourself —
+      when you are in a store, use <strong>Store Survey</strong> the same way a rep does.
+    </p>
+  </div>
+
+  <nav class="toc" aria-label="Contents">
+    <h2>Jump to a section</h2>
+    <ol>
+      <li><a href="#who">Who can use this</a></li>
+      <li><a href="#open">Open admin</a></li>
+      <li><a href="#stores">Stores tab — coverage</a></li>
+      <li><a href="#prod">Assign from PROD (weekly)</a></li>
+      <li><a href="#manual">Assign someone else</a></li>
+      <li><a href="#cancel">Cancel an assignment</a></li>
+      <li><a href="#results">Results — read answers</a></li>
+      <li><a href="#export">Export CSV, Excel, photos</a></li>
+      <li><a href="#take">Take the survey yourself</a></li>
+      <li><a href="#fix">If something goes wrong</a></li>
+    </ol>
+  </nav>
+
+  <div class="section" id="who">
+    <h2><span class="section-number">1</span> Who can use this</h2>
+    <table class="info-table">
+      <tr>
+        <th>Role</th>
+        <th>What you see</th>
+      </tr>
+      <tr>
+        <td><strong>Retail supervisor</strong></td>
+        <td>Stores you supervise (and your home district). The blue banner says <em>District view</em>.</td>
+      </tr>
+      <tr>
+        <td><strong>Manager, director, or division admin</strong></td>
+        <td>All Division 701 stores. The banner says <em>Division view</em>.</td>
+      </tr>
+      <tr>
+        <td><strong>Rep / lead without supervisor access</strong></td>
+        <td>This page is blocked. They use Store Survey only. The Dump Bin home card for Survey Admin stays hidden.</td>
+      </tr>
+    </table>
+    <p>You must be on the survey roster with a work email. Same Dump Bin sign-in as everyone else — no second password.</p>
+  </div>
+
+  <div class="section" id="open">
+    <h2><span class="section-number">2</span> Open admin</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Sign in at <strong>https://the-dump-bin.com</strong>.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">On home, under <strong>Office &amp; Admin</strong>, tap <strong>Survey Admin</strong>.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">Or go to <strong>https://the-dump-bin.com/survey-admin/</strong>.</span>
+      </div>
+    </div>
+    <p>Two tabs at the top: <span class="key">Stores</span> (coverage and assigning) and <span class="key">Results</span> (answers and exports).</p>
+  </div>
+
+  <div class="section" id="stores">
+    <h2><span class="section-number">3</span> Stores tab — coverage</h2>
+    <p>Each store has one status. Filter with the chips, the district dropdown, or the search box.</p>
+    <table class="info-table">
+      <tr>
+        <th>Status</th>
+        <th>Meaning</th>
+        <th>What you do</th>
+      </tr>
+      <tr>
+        <td><span class="status-pill needs">Needs assign</span></td>
+        <td>Nobody is covering this store yet, and it is not submitted.</td>
+        <td>Assign from PROD, or tap <strong>Assign</strong> on the row to pick a person.</td>
+      </tr>
+      <tr>
+        <td><span class="status-pill assigned">Assigned</span></td>
+        <td>Someone has an open assignment. They may not have submitted yet.</td>
+        <td>Wait, remind them, or cancel and reassign.</td>
+      </tr>
+      <tr>
+        <td><span class="status-pill done">Done</span></td>
+        <td>At least one submitted survey exists for this cycle.</td>
+        <td>Read it on Results. You can still assign a retake if you need another pass.</td>
+      </tr>
+    </table>
+    <div class="callout tip">
+      <div class="callout-label">Phone vs desktop</div>
+      On a phone you get store cards. On a wider screen you get the table. Same data either way. Tap <strong>Refresh</strong> after assigning.
+    </div>
+  </div>
+
+  <div class="section" id="prod">
+    <h2><span class="section-number">4</span> Assign from PROD (weekly path)</h2>
+    <p>This is the normal way to cover a week. It pulls live Kompass ISE leads from SAS PROD, matches them to the roster, and can email each person a magic-link invite.</p>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">On Stores, tap <span class="key">Assign from PROD</span> (or open that panel).</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">Set <strong>Cycle</strong> to <strong>Current</strong> (this week), <strong>Next</strong>, a named cycle, or a single day.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">Tap <span class="key">Sync with PROD</span>. Wait until the status line shows visit counts and matched leads.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">4</span>
+        <span class="step-text">Skim the list. <strong>Roster</strong> means we found their email. <strong>Needs email</strong> means type one before you assign.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">5</span>
+        <span class="step-text">Optional: filter by district, team, or lead name. Use <strong>Select visible</strong> / <strong>Clear selection</strong>.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">6</span>
+        <span class="step-text">Leave <strong>Email invites when assigning</strong> checked unless you will tell people yourself.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">7</span>
+        <span class="step-text">Tap <span class="key">Assign selected</span>. Coverage chips update. Invites go to the addresses on those rows.</span>
+      </div>
+    </div>
+    <div class="callout note">
+      <div class="callout-label">Unmatched names</div>
+      If a lead is on the PROD schedule but not on the roster, enter their work email on that row. The invite still works. Ask Tyson if a name should be added to the roster for next time.
+    </div>
+    <div class="callout">
+      <div class="callout-label">Invite email override</div>
+      Even matched leads have an <strong>Invite email</strong> box. Change it if the roster email is wrong for this person this week.
+    </div>
+  </div>
+
+  <div class="section" id="manual">
+    <h2><span class="section-number">5</span> Assign someone else</h2>
+    <p>Use this for a fill-in, an extra store, or anyone who is not on this week's PROD pull.</p>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Open <strong>Assign someone else</strong>. (The Assign button on a Needs-assign row opens this with that store already checked.)</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">Search <strong>Who</strong> by name, or type a full email. Pick them from the list. Off-roster emails are allowed — they still get an invite.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">Check the store(s). Filter the list if needed. Turn on <strong>Include stores already done</strong> only if you want a retake or a second response.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">4</span>
+        <span class="step-text">Leave <strong>Email a magic-link invite</strong> checked, then tap <span class="key">Assign</span>.</span>
+      </div>
+    </div>
+    <div class="callout warn">
+      <div class="callout-label">Done stores</div>
+      Assigning a store that is already Done does not wipe the old survey. It lets someone add another response. Confirm the prompt only if that is what you want.
+    </div>
+  </div>
+
+  <div class="section" id="cancel">
+    <h2><span class="section-number">6</span> Cancel an assignment</h2>
+    <p>On the store row (or card), next to the person's name, tap <span class="key">Cancel</span> and confirm. That assignment is dropped. The store goes back to Needs assign if nobody else is covering it and it is not already submitted.</p>
+  </div>
+
+  <div class="section" id="results">
+    <h2><span class="section-number">7</span> Results — read answers</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Tap the <span class="key">Results</span> tab.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">Filter by district, store, and status. Default is <strong>Submitted</strong> only. Choose <strong>Submitted + drafts</strong> if you need in-progress work.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">Tap a store card. You get every answered question, comments, and photo thumbnails. Problem answers (not the “good” value) show in red.</span>
+      </div>
+      <div class="step">
+        <span class="step-num">4</span>
+        <span class="step-text">Use <strong>Prev</strong> / <strong>Next</strong> (or the arrow keys on a keyboard) to walk stores. <strong>← List</strong> goes back. Escape also closes the viewer.</span>
+      </div>
+    </div>
+    <p>You only see responses inside your scope. A D6 supervisor does not see D8 stores.</p>
+  </div>
+
+  <div class="section" id="export">
+    <h2><span class="section-number">8</span> Export CSV, Excel, photos</h2>
+    <p>Exports honor the filters currently set on Results (district, store, status).</p>
+    <table class="info-table">
+      <tr>
+        <th>Button</th>
+        <th>What you get</th>
+      </tr>
+      <tr>
+        <td><strong>Export CSV</strong></td>
+        <td>Spreadsheet of responses, including comment columns and optional photo links.</td>
+      </tr>
+      <tr>
+        <td><strong>Export XLSX</strong></td>
+        <td>Excel workbook built in the browser from the same filtered set.</td>
+      </tr>
+      <tr>
+        <td><strong>Photos ZIP</strong></td>
+        <td>All photos for the filtered responses, in one download.</td>
+      </tr>
+    </table>
+    <div class="callout note">
+      <div class="callout-label">Photo links expire</div>
+      If <strong>Include photo links</strong> is checked, those URLs last about <strong>30 days</strong>. Download the ZIP if you need a lasting copy.
+    </div>
+  </div>
+
+  <div class="section" id="take">
+    <h2><span class="section-number">9</span> Take the survey yourself</h2>
+    <p>Admin does not fill out questions. When you are in a store:</p>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">Open <strong>https://the-dump-bin.com/survey/</strong> (Store Survey on home).</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">Follow the same steps as a rep: pick the store, answer what you know, submit.</span>
+      </div>
+    </div>
+    <p>Full field steps, including skip/save/retake: <a href="/survey/user-guide.html">Store Survey guide</a>.</p>
+    <div class="callout tip">
+      <div class="callout-label">Your submission counts</div>
+      A survey you submit as yourself is a real division response. Use Retake only when you intend a second visit on record.
+    </div>
+  </div>
+
+  <div class="section" id="fix">
+    <h2><span class="section-number">10</span> If something goes wrong</h2>
+    <table class="info-table">
+      <tr>
+        <th>What you see</th>
+        <th>What to do</th>
+      </tr>
+      <tr>
+        <td>Survey admin is for supervisors &amp; managers</td>
+        <td>Your account is not in supervisor/manager scope. Confirm the roster role and that supervisor-store rows exist. Reps cannot open this page.</td>
+      </tr>
+      <tr>
+        <td>Could not load PROD / Sync fails</td>
+        <td>Try Sync with PROD again. If it keeps failing, the SAS PROD session on the API may need a refresh — ping Tyson.</td>
+      </tr>
+      <tr>
+        <td>Lead shows Needs email</td>
+        <td>Type their work email on that row, then assign. Do not leave it blank.</td>
+      </tr>
+      <tr>
+        <td>Invite says failed</td>
+        <td>Assignment can still exist. Copy the survey link and send it yourself, or re-assign with a corrected email.</td>
+      </tr>
+      <tr>
+        <td>No responses on Results</td>
+        <td>Check filters (Submitted vs drafts, district). People may still be in Assigned, not Done.</td>
+      </tr>
+      <tr>
+        <td>Wrong store assigned</td>
+        <td>Cancel that assignment, then assign the correct person/store.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="guide-footer">
+    <span>The Retail Odyssey Company · Division 701 in-store best practices</span>
+    <a href="/survey-admin/">Back to Survey Admin</a>
+  </div>
+</div>
+</body>
+</html>
