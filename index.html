@@ -19,221 +19,207 @@
 
   <main class="page-wrap">
     <section class="hero">
-      <img src="/logo.png" alt="Retail Odyssey Company — District 8" class="hero__logo">
+      <img src="/logo.png" alt="Retail Odyssey Company" class="hero__logo">
       <h1 class="hero__title">Team Resources</h1>
       <p class="hero__sub">Everything you need, all in one place.</p>
     </section>
 
-    <div class="card-grid">
+    <!--
+      Gated cards carry data-card="<id>" and start hidden. Visibility is
+      decided by eod-api's central policy (lib/access-policy.js) and delivered
+      as the `cards` array on /api/me — no allowlists live in this file.
+      Sections that contain only gated cards are hidden until a card in them
+      becomes visible.
+    -->
 
-      <!-- Welcome Letter: Tyson + Wolf only -->
-      <a href="/welcome/" class="card" id="welcome-letter-card" hidden>
-        <span class="card__icon">✉️</span>
-        <span class="card__title">Welcome Letter</span>
-        <span class="card__desc">Send the new-hire welcome letter with a live preview and outbox tracking.</span>
-      </a>
+    <section class="card-section">
+      <h2 class="card-section__title">Daily Tools</h2>
+      <div class="card-grid">
 
-      <a href="/welcome-letter-board/" class="card" id="welcome-letter-board-card" hidden>
-        <span class="card__icon">📊</span>
-        <span class="card__title">Welcome Letter Board</span>
-        <span class="card__desc">See who's been sent a welcome letter, delivery/open status, and resend if needed.</span>
-      </a>
+        <a href="/dump-bin/" class="card">
+          <span class="card__icon">📦</span>
+          <span class="card__title">Dump Bin</span>
+          <span class="card__desc">Weekly Kompass materials, planograms, special projects, and reset resources.</span>
+        </a>
 
-      <a href="/dump-bin/" class="card">
-        <span class="card__icon">📦</span>
-        <span class="card__title">Dump Bin</span>
-        <span class="card__desc">Weekly Kompass materials, planograms, special projects, and reset resources.</span>
-      </a>
+        <a href="/EOD/" class="card">
+          <span class="card__icon">📋</span>
+          <span class="card__title">EOD Cover Sheet</span>
+          <span class="card__desc">Generate and email the Kompass end-of-day cover sheet for your store.</span>
+        </a>
 
-      <a href="/EOD/" class="card">
-        <span class="card__icon">📋</span>
-        <span class="card__title">EOD Cover Sheet</span>
-        <span class="card__desc">Generate and email the Kompass end-of-day cover sheet for your store.</span>
-      </a>
+        <a href="/survey/" class="card">
+          <span class="card__icon">📝</span>
+          <span class="card__title">Store Survey</span>
+          <span class="card__desc">Division 701 in-store best practices survey — one store at a time, saves as you go.</span>
+        </a>
 
-      <a href="/claims/" class="card">
-        <span class="card__icon">🩹</span>
-        <span class="card__title">Injury Claim</span>
-        <span class="card__desc">Report a workplace injury or incident.</span>
-      </a>
+        <a href="/checklanes/" class="card">
+          <span class="card__icon">🛒</span>
+          <span class="card__title">Checklanes</span>
+          <span class="card__desc">Checklane Reset Tool.</span>
+        </a>
 
-      <a href="/shirt-order/" class="card">
-        <span class="card__icon">👕</span>
-        <span class="card__title">Shirt &amp; Name Tag Order</span>
-        <span class="card__desc">Order your Retail Odyssey polo and name tag.</span>
-      </a>
+        <a href="/dc-scan/" class="card">
+          <span class="card__icon">📡</span>
+          <span class="card__title">DC Scan Signup</span>
+          <span class="card__desc">Live board for DC scan volunteer signup — see open slots and claim a shift.</span>
+        </a>
 
-      <a href="/suncare/" class="card">
-        <span class="card__icon">🔍</span>
-        <span class="card__title">Suncare POG Lookup</span>
-        <span class="card__desc">Scan, search, and browse the suncare planogram for your store.</span>
-      </a>
+      </div>
+    </section>
 
-      <a href="/Furniture/" class="card">
-        <span class="card__icon">🔨</span>
-        <span class="card__title">Builds</span>
-        <span class="card__desc">Access build resources and reference materials.</span>
-      </a>
+    <section class="card-section">
+      <h2 class="card-section__title">Reference &amp; Guides</h2>
+      <div class="card-grid">
 
-      <a href="/view.html?url=https%3A%2F%2Fthe-dump-bin.web.app%2F" class="card">
-        <span class="card__icon">📘</span>
-        <span class="card__title">Handbook</span>
-        <span class="card__desc">Current Employee Handbook.</span>
-      </a>
+        <a href="/suncare/" class="card">
+          <span class="card__icon">🔍</span>
+          <span class="card__title">Suncare POG Lookup</span>
+          <span class="card__desc">Scan, search, and browse the suncare planogram for your store.</span>
+        </a>
 
-      <a href="/checklanes/" class="card">
-        <span class="card__icon">🛒</span>
-        <span class="card__title">Checklanes</span>
-        <span class="card__desc">Checklane Reset Tool.</span>
-      </a>
+        <a href="/Furniture/" class="card">
+          <span class="card__icon">🔨</span>
+          <span class="card__title">Builds</span>
+          <span class="card__desc">Access build resources and reference materials.</span>
+        </a>
 
-      <a href="/view.html?url=https%3A%2F%2Fretailodyssey-app.github.io%2FPEGASUS%2F" class="card">
-        <span class="card__icon">🎀</span>
-        <span class="card__title">PEGASUS</span>
-        <span class="card__subtitle">Hair Accessories</span>
-        <span class="card__desc">Planogram Execution Guide and Store User Support.</span>
-      </a>
+        <a href="/view.html?url=https%3A%2F%2Fthe-dump-bin.web.app%2F" class="card">
+          <span class="card__icon">📘</span>
+          <span class="card__title">Handbook</span>
+          <span class="card__desc">Current Employee Handbook.</span>
+        </a>
 
-      <a href="/view.html?url=https%3A%2F%2Fvitamins.retail-odyssey.com" class="card">
-        <span class="card__icon">💊</span>
-        <span class="card__title">Vitamin App</span>
-        <span class="card__desc">Look up and manage p03w3 vitamin planogram details.</span>
-      </a>
+        <a href="/view.html?url=https%3A%2F%2Fretailodyssey-app.github.io%2FPEGASUS%2F" class="card">
+          <span class="card__icon">🎀</span>
+          <span class="card__title">PEGASUS</span>
+          <span class="card__subtitle">Hair Accessories</span>
+          <span class="card__desc">Planogram Execution Guide and Store User Support.</span>
+        </a>
 
-      <!-- Central Pet: only James, Brian, Kim, Wolf, and supervisor accounts -->
-      <a href="/central-pet/?to=dashboard" class="card" id="cp-team-card" hidden>
-        <span class="card__icon">🐾</span>
-        <span class="card__title">Central Pet</span>
-        <span class="card__desc">Your D8 schedule — tap a store to open the visit. Supervisors see the whole team.</span>
-      </a>
+        <a href="/view.html?url=https%3A%2F%2Fvitamins.retail-odyssey.com" class="card">
+          <span class="card__icon">💊</span>
+          <span class="card__title">Vitamin App</span>
+          <span class="card__desc">Look up and manage p03w3 vitamin planogram details.</span>
+        </a>
 
-      <a href="/central-pet/uploads/" class="card" id="cp-uploads-card" hidden>
-        <span class="card__icon">📷</span>
-        <span class="card__title">CP Uploads</span>
-        <span class="card__desc">Dump store photos from your gallery — Before, Load, After, Clip Strips, and more.</span>
-      </a>
+        <a href="/sop/" class="card">
+          <span class="card__icon">📖</span>
+          <span class="card__title">Kompass SOP</span>
+          <span class="card__desc">The full Kompass standard operating procedure — reset steps, safety, photo standards, and quick reference.</span>
+        </a>
 
-      <a href="/central-pet/?to=admin" class="card" id="cp-planning-desk-card" hidden>
-        <span class="card__icon">🗓️</span>
-        <span class="card__title">Central Pet — Planning Desk</span>
-        <span class="card__desc">Admin: all reps, match, dry-run, live tools, photo delivery.</span>
-      </a>
+      </div>
+    </section>
 
-      <a href="/central-pet/updates/" class="card" id="cp-updates-card" hidden>
-        <span class="card__icon">📣</span>
-        <span class="card__title">Central Pet Updates</span>
-        <span class="card__desc">Team callouts and shipper alerts — newest first, with SMS links when posted.</span>
-      </a>
+    <section class="card-section">
+      <h2 class="card-section__title">Forms &amp; Requests</h2>
+      <div class="card-grid">
 
-      <a href="/caf/" class="card" id="caf-card" hidden>
-        <span class="card__icon">📑</span>
-        <span class="card__title">Corrective Action Forms</span>
-        <span class="card__desc">Issue CAFs to associates, deliver by email/text, and track viewed / signed status.</span>
-      </a>
+        <a href="/claims/" class="card">
+          <span class="card__icon">🩹</span>
+          <span class="card__title">Injury Claim</span>
+          <span class="card__desc">Report a workplace injury or incident.</span>
+        </a>
 
-      <a href="/survey/" class="card">
-        <span class="card__icon">📝</span>
-        <span class="card__title">Store Survey</span>
-        <span class="card__desc">Division 701 in-store best practices survey — one store at a time, saves as you go.</span>
-      </a>
+        <a href="/shirt-order/" class="card">
+          <span class="card__icon">👕</span>
+          <span class="card__title">Shirt &amp; Name Tag Order</span>
+          <span class="card__desc">Order your Retail Odyssey polo and name tag.</span>
+        </a>
 
-      <a href="/sop/" class="card">
-        <span class="card__icon">📖</span>
-        <span class="card__title">Kompass SOP</span>
-        <span class="card__desc">The full Kompass standard operating procedure — reset steps, safety, photo standards, and quick reference.</span>
-      </a>
+      </div>
+    </section>
 
-      <a href="/dc-scan/" class="card">
-        <span class="card__icon">📡</span>
-        <span class="card__title">DC Scan Signup</span>
-        <span class="card__desc">Live board for DC scan volunteer signup — see open slots and claim a shift.</span>
-      </a>
+    <section class="card-section" data-gated-section hidden>
+      <h2 class="card-section__title">Central Pet</h2>
+      <div class="card-grid">
 
-      <a href="/survey-admin/" class="card" id="survey-admin-card" hidden>
-        <span class="card__icon">📈</span>
-        <span class="card__title">Survey Admin</span>
-        <span class="card__desc">Trending problem questions, filters, and exports for the office.</span>
-      </a>
+        <a href="/central-pet/?to=dashboard" class="card" data-card="central-pet" hidden>
+          <span class="card__icon">🐾</span>
+          <span class="card__title">Central Pet</span>
+          <span class="card__desc">Your D8 schedule — tap a store to open the visit. Supervisors see the whole team.</span>
+        </a>
 
-      <a href="/email-outbox/" class="card" id="email-outbox-card" hidden>
-        <span class="card__icon">📬</span>
-        <span class="card__title">Email Outbox</span>
-        <span class="card__desc">All outbound Resend emails across tools — delivery status and exact resend.</span>
-      </a>
+        <a href="/central-pet/uploads/" class="card" data-card="cp-uploads" hidden>
+          <span class="card__icon">📷</span>
+          <span class="card__title">CP Uploads</span>
+          <span class="card__desc">Dump store photos from your gallery — Before, Load, After, Clip Strips, and more.</span>
+        </a>
 
-    </div>
+        <a href="/central-pet/updates/" class="card" data-card="cp-updates" hidden>
+          <span class="card__icon">📣</span>
+          <span class="card__title">Central Pet Updates</span>
+          <span class="card__desc">Team callouts and shipper alerts — newest first, with SMS links when posted.</span>
+        </a>
+
+        <a href="/central-pet/?to=admin" class="card" data-card="cp-planning-desk" hidden>
+          <span class="card__icon">🗓️</span>
+          <span class="card__title">Central Pet — Planning Desk</span>
+          <span class="card__desc">Admin: all reps, match, dry-run, live tools, photo delivery.</span>
+        </a>
+
+      </div>
+    </section>
+
+    <section class="card-section" data-gated-section hidden>
+      <h2 class="card-section__title">Office &amp; Admin</h2>
+      <div class="card-grid">
+
+        <a href="/welcome/" class="card" data-card="welcome-letter" hidden>
+          <span class="card__icon">✉️</span>
+          <span class="card__title">Welcome Letter</span>
+          <span class="card__desc">Send the new-hire welcome letter with a live preview and outbox tracking.</span>
+        </a>
+
+        <a href="/welcome-letter-board/" class="card" data-card="welcome-letter-board" hidden>
+          <span class="card__icon">📊</span>
+          <span class="card__title">Welcome Letter Board</span>
+          <span class="card__desc">See who's been sent a welcome letter, delivery/open status, and resend if needed.</span>
+        </a>
+
+        <a href="/caf/" class="card" data-card="caf" hidden>
+          <span class="card__icon">📑</span>
+          <span class="card__title">Corrective Action Forms</span>
+          <span class="card__desc">Issue CAFs to associates, deliver by email/text, and track viewed / signed status.</span>
+        </a>
+
+        <a href="/survey-admin/" class="card" data-card="survey-admin" hidden>
+          <span class="card__icon">📈</span>
+          <span class="card__title">Survey Admin</span>
+          <span class="card__desc">Trending problem questions, filters, and exports for the office.</span>
+        </a>
+
+        <a href="/email-outbox/" class="card" data-card="email-outbox" hidden>
+          <span class="card__icon">📬</span>
+          <span class="card__title">Email Outbox</span>
+          <span class="card__desc">All outbound Resend emails across tools — delivery status and exact resend.</span>
+        </a>
+
+      </div>
+    </section>
   </main>
 
   <script>
     (async function () {
-      // Keep in sync with CP field team + supervisor accounts.
-      var CP_CARD_EMAILS = {
-        'james.duchene@retailodyssey.com': true,
-        'bcampb9565@sbcglobal.net': true,
-        'kimberlyjanellclaf@gmail.com': true,
-        'aiyana.natarisalazar@retailodyssey.com': true, // Wolf
-        'tyson.gauthier@retailodyssey.com': true,
-        'd6ewa.supervisor@gmail.com': true,
-        'tgauthier2011@gmail.com': true
-      };
-
       try {
         if (typeof dumpBinAuthFetch !== 'function') return;
         var res = await dumpBinAuthFetch('/api/me', { noBounceOn401: true });
         if (!res.ok) return;
         var me = await res.json();
-        var email = String((me && me.email) || '').trim().toLowerCase();
-        var roles = (me && me.roles) || [];
-        var isHostAdmin = roles.indexOf('admin') >= 0 || roles.indexOf('supervisor') >= 0;
+        var cards = (me && me.cards) || [];
 
-        if (CP_CARD_EMAILS[email]) {
-          var team = document.getElementById('cp-team-card');
-          if (team) team.hidden = false;
-          var uploads = document.getElementById('cp-uploads-card');
-          if (uploads) uploads.hidden = false;
-        }
-        // Planning Desk stays admin/supervisor only (not field reps).
-        if (isHostAdmin) {
-          var desk = document.getElementById('cp-planning-desk-card');
-          if (desk) desk.hidden = false;
-        }
-        // Single source of truth: eod-api's WELCOME_LETTER_ALLOWED_EMAILS,
-        // via /api/me's hasWelcomeLetterAccess. Don't keep a separate copy
-        // of the allowlist here — that's exactly what caused it to drift.
-        if (me && me.hasWelcomeLetterAccess) {
-          var wl = document.getElementById('welcome-letter-card');
-          var wlb = document.getElementById('welcome-letter-board-card');
-          if (wl) wl.hidden = false;
-          if (wlb) wlb.hidden = false;
-        }
-        if (me && me.hasCentralPetUpdatesAccess) {
-          var cpu = document.getElementById('cp-updates-card');
-          if (cpu) cpu.hidden = false;
-        }
-        if (me && me.hasCafAccess) {
-          var caf = document.getElementById('caf-card');
-          if (caf) caf.hidden = false;
-        }
-        if (isHostAdmin) {
-          var eo = document.getElementById('email-outbox-card');
-          if (eo) eo.hidden = false;
-        }
-        // Survey admin — supervisors/managers (ops ACL) or Kompass admin
-        if (roles.indexOf('admin') >= 0) {
-          var sa = document.getElementById('survey-admin-card');
-          if (sa) sa.hidden = false;
-        } else {
-          fetch((location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-            ? 'http://localhost:3001/api/survey/admin/access'
-            : 'https://eod-api.the-dump-bin.com/api/survey/admin/access', {
-            headers: { 'Authorization': 'Bearer ' + (((window.dumpBinAuth && window.dumpBinAuth.getSession && window.dumpBinAuth.getSession()) || localStorage.getItem('dumpBinSession')) || '') }
-          }).then(function (r) {
-            if (r.ok) {
-              var sa2 = document.getElementById('survey-admin-card');
-              if (sa2) sa2.hidden = false;
-            }
-          }).catch(function () {});
-        }
+        cards.forEach(function (id) {
+          var el = document.querySelector('[data-card="' + id + '"]');
+          if (el) el.hidden = false;
+        });
+
+        // Reveal any gated section that now has at least one visible card.
+        document.querySelectorAll('[data-gated-section]').forEach(function (section) {
+          var anyVisible = section.querySelector('[data-card]:not([hidden])');
+          if (anyVisible) section.hidden = false;
+        });
       } catch (_) {}
     })();
   </script>
