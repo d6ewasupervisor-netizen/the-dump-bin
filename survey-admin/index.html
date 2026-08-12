@@ -81,6 +81,8 @@
   .status.done{background:var(--good-bg);color:var(--good)}
   .status.submitted{background:var(--good-bg);color:var(--good)}
   .status.draft{background:var(--warn-bg);color:#8a5f10}
+  .status.historical{background:var(--accent-soft);color:var(--accent-deep)}
+  .toolbar .check{align-self:flex-end;margin:0 0 2px;flex:1 1 210px;min-height:44px;align-items:center}
 
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
   .search{
@@ -415,6 +417,10 @@
           <option value="all">Submitted + drafts</option>
         </select>
       </div>
+      <label class="check" for="f-historical">
+        <input type="checkbox" id="f-historical">
+        <span>Include historical data<br><span class="hint" style="margin:0;font-weight:400">2025 MS Forms</span></span>
+      </label>
       <button type="button" id="resp-refresh" style="align-self:flex-end">Refresh</button>
     </div>
     <div class="export-actions" style="margin-bottom:14px">
@@ -433,7 +439,7 @@
       <div class="resp-list" id="resp-list"></div>
       <div class="empty" id="resp-empty" hidden>
         <strong>No responses to show</strong>
-        <p class="hint" style="margin:0">Submitted surveys in your scope will appear here.</p>
+        <p class="hint" style="margin:0">Submitted surveys in your scope will appear here. Turn on Include historical data for 2025 MS Forms results.</p>
       </div>
     </div>
 
@@ -1360,6 +1366,14 @@ function isProblem(q, val) {
   return String(val).trim() !== q.good;
 }
 
+function includeHistorical() {
+  return Boolean(document.getElementById('f-historical')?.checked);
+}
+
+function isHistoricalRow(r) {
+  return String(r?.source || '') === 'baseline' || Number(r?.id) < 0;
+}
+
 function filterQS() {
   const p = new URLSearchParams();
   const d = document.getElementById('f-district').value;
@@ -1367,7 +1381,7 @@ function filterQS() {
   const s = document.getElementById('f-store').value;
   if (s) p.set('stores', s);
   p.set('status', document.getElementById('f-status').value);
-  p.set('includeBaseline', '0');
+  p.set('includeBaseline', includeHistorical() ? '1' : '0');
   return p;
 }
 
@@ -1457,7 +1471,13 @@ function renderResponseList() {
   const list = document.getElementById('resp-list');
   const empty = document.getElementById('resp-empty');
   const rows = sortedRows();
-  document.getElementById('resp-status').textContent = `${rows.length} response${rows.length === 1 ? '' : 's'}`;
+  const histN = rows.filter(isHistoricalRow).length;
+  const curN = rows.length - histN;
+  let statusText = `${rows.length} response${rows.length === 1 ? '' : 's'}`;
+  if (includeHistorical() && histN) {
+    statusText += ` · ${curN} current · ${histN} historical`;
+  }
+  document.getElementById('resp-status').textContent = statusText;
   if (!rows.length) {
     list.innerHTML = '';
     empty.hidden = false;
@@ -1469,13 +1489,18 @@ function renderResponseList() {
     const when = r.submitted_at ? new Date(r.submitted_at).toLocaleString() : 'Draft / not submitted';
     const nPhotos = (r.photos || []).length;
     const who = r.respondent_name || r.respondent || '';
+    const hist = isHistoricalRow(r);
+    const year = r.year ? ` · ${escHtml(String(r.year))}` : '';
+    const badge = hist
+      ? `<span class="status historical">Historical${year}</span>`
+      : `<span class="status ${escHtml(r.status || '')}">${escHtml(r.status || '')}</span>`;
     return `<button type="button" class="resp-card" data-idx="${i}">
       <div class="rc-top">
         <div>
           <div class="rc-store">${escHtml(String(r.store_num))} · ${escHtml(name)}</div>
-          <div class="rc-meta">District ${escHtml(r.district || '?')} · ${escHtml(when)}${who ? ' · ' + escHtml(who) : ''}</div>
+          <div class="rc-meta">District ${escHtml(r.district || '?')} · ${escHtml(when)}${who ? ' · ' + escHtml(who) : ''}${hist ? ' · 2025 MS Forms' : ''}</div>
         </div>
-        <span class="status ${escHtml(r.status || '')}">${escHtml(r.status || '')}</span>
+        ${badge}
       </div>
       ${nPhotos ? `<div class="rc-photos">${nPhotos} photo${nPhotos === 1 ? '' : 's'} · tap to review</div>` : '<div class="rc-photos" style="color:var(--ink-soft)">Tap to open</div>'}
     </button>`;
@@ -1498,10 +1523,12 @@ function openResponseAt(idx) {
 
   const name = r.store_name || r.storeName || '—';
   const when = r.submitted_at ? new Date(r.submitted_at).toLocaleString() : '—';
+  const hist = isHistoricalRow(r);
+  const sourceLine = hist ? ' · Historical · 2025 MS Forms' : '';
   document.getElementById('resp-viewer-head').innerHTML = `
     <h3 style="margin:0 0 6px">Store ${escHtml(String(r.store_num))} · ${escHtml(name)}</h3>
     <p class="muted" style="margin:0;font-size:.8125rem">
-      District ${escHtml(r.district || '?')} · ${escHtml(r.status || '')} · Submitted ${escHtml(when)}
+      District ${escHtml(r.district || '?')} · ${escHtml(r.status || '')} · Submitted ${escHtml(when)}${sourceLine}
     </p>`;
 
   const photos = r.photos || [];
@@ -1567,6 +1594,7 @@ document.getElementById('resp-refresh').onclick = () => {
 };
 document.getElementById('f-store').onchange = onResultFilterChange;
 document.getElementById('f-status').onchange = onResultFilterChange;
+document.getElementById('f-historical').onchange = onResultFilterChange;
 
 document.addEventListener('keydown', (e) => {
   if (!document.getElementById('panel-results').classList.contains('active')) return;
@@ -1617,6 +1645,8 @@ function exportXlsx() {
       'Respondent email': r.respondent,
       Team: r.team,
       Status: r.status,
+      Source: isHistoricalRow(r) ? 'historical' : (r.source || 'current'),
+      Year: r.year || '',
       Submitted: r.submitted_at,
     };
     cols.forEach((c) => {
