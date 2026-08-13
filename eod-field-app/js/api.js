@@ -3,22 +3,38 @@
   'use strict';
 
   const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-  const APP_VERSION = '3.0.0-pilot';
+  const APP_VERSION = '3.0.1';
+
+  function toPlainHeaders(h) {
+    if (!h) return {};
+    if (typeof Headers !== 'undefined' && h instanceof Headers) {
+      const o = {};
+      h.forEach((v, k) => { o[k] = v; });
+      return o;
+    }
+    return Object.assign({}, h);
+  }
 
   function applyEodVersionHeader(init) {
     const opts = Object.assign({}, init || {});
-    const headers = new Headers(opts.headers || {});
-    if (!headers.has('X-EOD-Version')) headers.set('X-EOD-Version', APP_VERSION);
+    const headers = toPlainHeaders(opts.headers);
+    if (!headers['X-EOD-Version'] && !headers['x-eod-version']) {
+      headers['X-EOD-Version'] = APP_VERSION;
+    }
+    // Plain object — dumpBinAuthFetch merges with Object.assign (Headers breaks that).
     opts.headers = headers;
     return opts;
   }
 
   async function authFetch(url, init) {
     const opts = applyEodVersionHeader(init);
+    const pass = Object.assign({}, opts);
+    // dumpBinAuthFetch understands noBounceOn401; native fetch must not see it.
     if (typeof global.dumpBinAuthFetch === 'function') {
-      return global.dumpBinAuthFetch(url, opts);
+      return global.dumpBinAuthFetch(url, pass);
     }
-    return fetch(url, opts);
+    delete pass.noBounceOn401;
+    return fetch(url, pass);
   }
 
   function dayConfirmHeaders(extra) {

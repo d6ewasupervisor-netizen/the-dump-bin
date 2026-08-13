@@ -9,7 +9,6 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/materials-browser.css">
-  <!-- On the-dump-bin.com, prefer site auth-gate. Local/pilot uses auth-shim. -->
   <script>
     (function () {
       var host = location.hostname || '';
@@ -22,19 +21,22 @@
   </script>
 </head>
 <body>
+  <div class="eod-test-banner eod-test-banner-top" aria-hidden="true"><span class="eod-test-track">TEST · TEST · TEST · TEST · TEST · TEST · TEST · TEST · </span></div>
+
   <div class="app-shell">
     <div class="pilot-banner">
-      EOD field pilot v<span id="pilotVer">3.0.0-pilot</span> — production Dump Bin EOD is unchanged
+      EOD field pilot — production <a href="/EOD/" style="color:#fde68a;">/EOD/</a> unchanged until cutover
+      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v3.0.1</span>
     </div>
     <div id="updateBanner" class="pilot-banner" hidden style="background:#1e3a5f;color:#bae6fd;"></div>
     <div id="authBanner" class="pilot-banner" hidden style="background:#3f1d1d;color:#fecaca;"></div>
+    <div id="connToast" class="conn-toast" hidden></div>
 
     <div id="pilotSignIn" class="card pilot-signin" hidden>
       <h1>Pilot sign-in</h1>
       <p class="muted">
-        Dump Bin login lives on <code>the-dump-bin.com</code> and does
-        <strong>not</strong> carry over to <code>localhost</code>. Sign in here
-        so this origin gets its own session JWT.
+        On localhost, Dump Bin login does not carry over. Prefer
+        <a href="https://the-dump-bin.com/eod-field-app/" style="color:#93c5fd;">the hosted pilot</a>.
       </p>
       <div id="pilotAuthStatus" class="notice notice-error" hidden></div>
       <div class="field">
@@ -53,25 +55,37 @@
       <hr style="border:0;border-top:1px solid #334155;margin:16px 0;">
       <div class="field">
         <label for="pilotAuthPaste">Or paste session JWT / magic-link URL</label>
-        <textarea id="pilotAuthPaste" rows="3" placeholder="eyJ… from DevTools → Application → Local Storage → dumpBinSession on the-dump-bin.com, or paste the full email link"></textarea>
+        <textarea id="pilotAuthPaste" rows="3" placeholder="eyJ… or full magic-link URL"></textarea>
         <button type="button" class="btn btn-secondary btn-block" id="pilotAuthPasteBtn" style="margin-top:8px;">Use pasted token</button>
       </div>
       <button type="button" class="btn btn-secondary" id="pilotAuthSignOut" style="margin-top:8px;">Sign out</button>
     </div>
 
     <header id="appChrome" hidden>
-      <div>
+      <div class="chrome-main">
         <div class="chrome-store" id="chromeStore">No store</div>
         <div class="chrome-meta" id="chromeMeta"></div>
       </div>
       <span class="pill warn" id="chromeGate">Needs confirm</span>
-      <div class="chrome-dots">
-        <span class="conn-dot" id="dotApi" data-state=""><span class="dot"></span> API</span>
-        <span class="conn-dot" id="dotAuth" data-state=""><span class="dot"></span> Auth</span>
+      <div class="chrome-dots" aria-label="Connection status">
+        <span class="conn-dot" id="sasConnDot" data-state="unknown" title="SAS auth: checking…"><span class="dot"></span>SAS</span>
+        <span class="conn-dot" id="reboticsConnDot" data-state="unknown" title="SI / Rebotics auth: checking…"><span class="dot"></span>SI</span>
       </div>
-      <a href="#/visit" id="chromeVisitLink" class="muted" style="font-size:12px;color:#93c5fd;text-decoration:none;">Visit</a>
-      <a href="#/cover" id="chromeCoverLink" class="muted" style="font-size:12px;color:#93c5fd;text-decoration:none;">Cover</a>
+      <button type="button" class="refresh-connections-btn" id="refreshConnectionsBtn" title="Refresh SAS / SI auth, shifts &amp; dept signatures" aria-label="Refresh connections">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/>
+        </svg>
+      </button>
+      <a href="#/visit" id="chromeVisitLink" class="chrome-link">Visit</a>
+      <a href="#/cover" id="chromeCoverLink" class="chrome-link">Cover</a>
     </header>
+
+    <div id="eodForceLiveRow" class="force-live-row" hidden>
+      <label>
+        <input type="checkbox" id="eodForceLiveCb">
+        Live delivery path (real recipients — test mode only)
+      </label>
+    </div>
 
     <main id="appMount" aria-live="polite"></main>
 
@@ -83,14 +97,17 @@
     </nav>
   </div>
 
-  <!-- Core -->
+  <div class="eod-test-banner eod-test-banner-bottom" aria-hidden="true"><span class="eod-test-track">TEST · TEST · TEST · TEST · TEST · TEST · TEST · TEST · </span></div>
+
   <script src="js/api.js"></script>
   <script src="js/session.js"></script>
   <script src="js/router.js"></script>
   <script src="js/picker.js"></script>
   <script src="js/chrome.js"></script>
+  <script src="js/features/durability.js"></script>
+  <script src="js/features/connections.js"></script>
+  <script src="js/features/version-test.js"></script>
 
-  <!-- Ported modules (live contracts) -->
   <script src="js/features/photo-sessions.js"></script>
   <script src="js/features/clock-picker.js"></script>
   <script src="js/features/sms-optin-qr.js"></script>
@@ -100,7 +117,6 @@
   <script src="js/features/helpdesk-wizard.js"></script>
   <script src="js/features/materials-browser.js"></script>
 
-  <!-- Greenfield views -->
   <script src="js/features/visit.js"></script>
   <script src="js/features/signoff-home.js"></script>
   <script src="js/features/crew.js"></script>

@@ -331,7 +331,9 @@ ${S.state.notes || ''}`;
     };
 
     document.getElementById('previewBtn').onclick = () => {
-      const payload = buildPayload();
+      const payload = global.applyEodTestModeToPayload
+        ? global.applyEodTestModeToPayload(buildPayload())
+        : buildPayload();
       const w = window.open('', '_blank');
       const html = `<!DOCTYPE html><html><head><title>EOD preview</title>
         <style>body{font:15px/1.45 system-ui;padding:16px;max-width:720px;margin:auto;background:#0b1220;color:#f8fafc}
@@ -357,7 +359,21 @@ ${S.state.notes || ''}`;
         alert(msg);
         return;
       }
-      const payload = buildPayload();
+      let payload = buildPayload();
+      if (global.applyEodTestModeToPayload) payload = global.applyEodTestModeToPayload(payload);
+      if (global.EodTestMode?.isForceLive?.()) {
+        const ok = confirm('LIVE delivery override is ON.\n\nSend will use the real path (not tester-only).\n\nContinue?');
+        if (!ok) return;
+      }
+      // Durable save before send — keep local copy even if network dies mid-flight.
+      try { S.saveDraft(); } catch (_) {}
+      if (global.EodDurability?.awaitDurablePhotoSave) {
+        const saved = await global.EodDurability.awaitDurablePhotoSave('send');
+        if (!saved) {
+          alert('Could not save photos locally. Fix device storage, then try Send again. Nothing was emailed.');
+          return;
+        }
+      }
       const headers = global.EodApi.dayConfirmHeaders();
       const btn = document.getElementById('sendBtn');
       btn.disabled = true;

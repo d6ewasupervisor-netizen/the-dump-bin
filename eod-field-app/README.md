@@ -1,11 +1,16 @@
-﻿# EOD Field Pilot
+﻿# eod-field-app (dev workspace)
 
 Greenfield rebuild of the KOMPASS EOD field app.
 
-**Live:** https://the-dump-bin.com/eod-field-app/
+**Hosted pilot:** https://the-dump-bin.com/eod-field-app/  
+(source published under `the-dump-bin/eod-field-app/`)
 
-Production Cover Sheet remains at [/EOD/](https://the-dump-bin.com/EOD/) until cutover is approved (`CUTOVER.md`).
+Production Cover Sheet stays at https://the-dump-bin.com/EOD/ until cutover (`CUTOVER.md`).
 
-Same eod-api backends. Digital signoff sheet is the hard heart of the day.
+After local edits, sync into Dump Bin and push Pages:
 
-Dev workspace (optional): `C:\Users\tgaut\eod-field-app` — sync changes here before publishing.
+```bat
+robocopy C:\Users\tgaut\eod-field-app C:\Users\tgaut\OneDrive\Documents\GitHub\the-dump-bin\eod-field-app /E /XD node_modules .git scripts /XF package.json package-lock.json
+```
+
+Then commit/push `the-dump-bin`.

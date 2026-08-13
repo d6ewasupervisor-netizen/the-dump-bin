@@ -10,8 +10,8 @@ You are **not** checking that every pixel matches the old accordion UI. You are 
 4. Send is safe (especially when a hosted sheet exists).
 
 Live app (leave alone): https://the-dump-bin.com/EOD/  
-Pilot app (hosted): https://the-dump-bin.com/eod-field-app/  
-Pilot version badge: `3.0.0-pilot` (top of the page).
+Pilot app: this folder, served locally (see below).  
+Pilot version badge: `v3.0.1` (tap = test mode; long-press = force Update). SAS/SI green lights + refresh match live EOD (`/sas-auth-status`, `/rebotics-auth-status`, trigger-auth).
 
 When every checklist item below passes on **store 999** and then **one real store**, the rebuild is ready for you to *consider* cutover (`CUTOVER.md`). Until then, production stays on live 2.13.x.
 
@@ -24,13 +24,28 @@ You want **two tabs, same browser profile** (Chrome profile, etc.):
 | Tab | URL | Role |
 |-----|-----|------|
 | A — Live | https://the-dump-bin.com/EOD/ | “What works today” |
-| B — Pilot | https://the-dump-bin.com/eod-field-app/ | “What we’re shipping next” |
+| B — Pilot | http://localhost:5173 | “What we’re shipping next” |
 
-### Auth (hosted pilot)
+### Start the pilot
 
-Same origin as the Dump Bin hub — normal Dump Bin sign-in applies (`auth-gate.js`). Sign in once, then open the pilot.
+```bat
+cd C:\Users\tgaut\eod-field-app
+npx --yes serve -l 5173
+```
 
-Localhost is optional for offline tweaks only; prefer the hosted URL above.
+### Auth (localhost is a different “site”)
+
+APIs need a Dump Bin session JWT in **this page’s** `localStorage.dumpBinSession`.
+
+Signing in on https://the-dump-bin.com does **not** sign you into http://localhost:5173 — browsers keep storage per origin.
+
+On the pilot you’ll see a **Pilot sign-in** card. Use one of:
+
+1. **Text me a PIN** (easiest) — same SMS OTP as Dump Bin sign-in.
+2. **Email me a link** — magic link should return to `localhost:5173` (needs eod-api deploy that allows localhost return URLs).
+3. **Paste JWT** — on Dump Bin while signed in: DevTools → Application → Local Storage → `dumpBinSession` → paste into the pilot.
+
+Auth dot green + sign-in card gone = good. If SMS/email fail with a network/CORS message, eod-api hasn’t allowed localhost origins yet (deploy in progress / needed).
 
 ### Which stores to use
 
