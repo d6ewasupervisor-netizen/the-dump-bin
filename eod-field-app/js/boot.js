@@ -74,6 +74,7 @@
       try { window.EodTestMode?.init?.(); } catch (err) { console.warn('[eod-field-app] version/test init', err); }
       await loadPhotosIntoSession();
       window.EodRouter.init();
+      try { window.EodUsage?.start?.(); } catch (_) {}
 
       if (window.EodSession.isVisitReady() && window.EodSignoffHome?.loadSheet) {
         try {

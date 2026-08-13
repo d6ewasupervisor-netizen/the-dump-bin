@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ops Usage</title>
+  <link rel="icon" type="image/png" href="/favicon.png?v=2">
+  <link rel="apple-touch-icon" href="/favicon.png?v=2">
+  <link rel="stylesheet" href="/usage/assets/usage.css" />
+  <script src="/auth-gate.js"></script>
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <div>
+        <h1>Ops Usage</h1>
+        <p>Every app, tool, and process — most used today at the top. Unused stay on the list with last-used history.</p>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="refreshBtn" class="secondary">Refresh</button>
+        <button type="button" id="digestBtn">Email today’s digest</button>
+      </div>
+    </header>
+
+    <section class="card stats" id="stats">Loading…</section>
+
+    <section class="card filters">
+      <form id="filterForm" class="filter-grid">
+        <label>Search
+          <input id="search" placeholder="name, group, id…" />
+        </label>
+        <label>Group
+          <select id="group">
+            <option value="">All groups</option>
+          </select>
+        </label>
+        <label>Kind
+          <select id="kind">
+            <option value="">All</option>
+            <option value="app">Apps</option>
+            <option value="tool">Tools</option>
+            <option value="process">Processes</option>
+          </select>
+        </label>
+        <label>Today
+          <select id="today">
+            <option value="">All</option>
+            <option value="used">Used today</option>
+            <option value="unused">Unused today</option>
+          </select>
+        </label>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th class="num">Today</th>
+              <th>Last used</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr><td colspan="3" class="muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <p id="status" class="muted" hidden></p>
+  </main>
+  <script src="/usage/assets/usage.js"></script>
+</body>
+</html>
