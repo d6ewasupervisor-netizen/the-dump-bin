@@ -237,35 +237,44 @@
     }
   }
 
+  function ensureBadgeStyles() {
+    if (document.getElementById('__dumpbin_user_badge_css')) return;
+    var s = document.createElement('style');
+    s.id = '__dumpbin_user_badge_css';
+    s.textContent =
+      '#__dumpbin_user_badge{display:flex;align-items:center;justify-content:flex-end;gap:8px;' +
+      'padding:4px 12px;background:#141c27;border-bottom:1px solid #2f4562;' +
+      'font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.3;' +
+      'color:#8fa3b8;position:relative;z-index:1000}' +
+      '#__dumpbin_user_badge .db-badge-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+      '#__dumpbin_user_badge .db-badge-label strong{color:#e8ecf1;font-weight:600}' +
+      '#__dumpbin_user_badge .db-badge-out{flex-shrink:0;padding:3px 10px;border-radius:6px;border:1px solid #2f4562;' +
+      'background:#2a3a4e;color:#e8ecf1;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}' +
+      '@media (max-width:720px){#__dumpbin_user_badge{padding:2px 8px;font-size:11px;gap:6px}' +
+      '#__dumpbin_user_badge .db-badge-label{font-size:0}' +
+      '#__dumpbin_user_badge .db-badge-label strong{font-size:11px}' +
+      '#__dumpbin_user_badge .db-badge-out{padding:2px 8px;font-size:11px}}';
+    (document.head || document.documentElement).appendChild(s);
+  }
+
   function injectUserBadge(email) {
     if (!email || document.getElementById('__dumpbin_user_badge')) return;
+    ensureBadgeStyles();
 
     var bar = document.createElement('div');
     bar.id = '__dumpbin_user_badge';
-    bar.setAttribute('style', [
-      'display:flex', 'align-items:center', 'justify-content:flex-end',
-      'flex-wrap:wrap', 'gap:10px', 'padding:6px 14px',
-      'background:#141c27', 'border-bottom:1px solid #2f4562',
-      'font-family:"Segoe UI",system-ui,-apple-system,sans-serif',
-      'font-size:12px', 'line-height:1.4', 'color:#8fa3b8',
-      'position:relative', 'z-index:1000',
-    ].join(';'));
 
     var label = document.createElement('span');
+    label.className = 'db-badge-label';
     label.appendChild(document.createTextNode('Signed in as '));
     var emailEl = document.createElement('strong');
-    emailEl.setAttribute('style', 'color:#e8ecf1;font-weight:600;word-break:break-all;');
     emailEl.textContent = email;
     label.appendChild(emailEl);
 
     var btn = document.createElement('button');
     btn.type = 'button';
+    btn.className = 'db-badge-out';
     btn.textContent = 'Log out';
-    btn.setAttribute('style', [
-      'padding:4px 12px', 'border-radius:6px', 'border:1px solid #2f4562',
-      'background:#2a3a4e', 'color:#e8ecf1', 'font-size:12px',
-      'font-weight:600', 'font-family:inherit', 'cursor:pointer',
-    ].join(';'));
     btn.addEventListener('click', signOut);
 
     bar.appendChild(label);

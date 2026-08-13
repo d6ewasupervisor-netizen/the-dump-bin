@@ -21,9 +21,6 @@
   if (Number.isFinite(s) && s >= 0.85 && s <= 1.45) {
     document.documentElement.style.setProperty('--text-scale', String(s));
   }
-  var hv = localStorage.getItem('surveyHeaderMin');
-  var min = hv === '1' || (hv !== '0' && window.matchMedia && window.matchMedia('(max-width:720px)').matches);
-  if (min) document.documentElement.setAttribute('data-header', 'min');
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -79,34 +76,28 @@
   header.brand{
     position:sticky;top:0;z-index:40;background:var(--bar-bg);
     border-bottom:2px solid var(--accent);
-    padding:10px 14px 0;
-    padding-top:max(10px, env(safe-area-inset-top, 0px));
+    padding:clamp(4px, 1.2vw, 10px) clamp(8px, 2vw, 14px) 0;
+    padding-top:max(clamp(4px, 1.2vw, 10px), env(safe-area-inset-top, 0px));
   }
-  header.brand .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:8px}
-  header.brand .logo{height:36px;width:auto}
-  header.brand .titles{flex:1;min-width:140px}
-  header.brand .co{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
-  header.brand h1{font-size:16px;margin:0;letter-spacing:.2px}
-  header.brand .who{color:var(--ink-soft);font-size:12px;text-align:right}
-  header.brand .who strong{display:block;color:var(--ink);font-size:13px}
-  header.brand .brand-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
-  .header-extras{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
-  .header-min-btn{flex-shrink:0;margin-left:auto}
-  html[data-header="min"] header.brand .header-extras,
-  html[data-header="min"] header.brand .logo,
-  html[data-header="min"] header.brand .co{display:none}
-  html[data-header="min"] header.brand .top{flex-wrap:nowrap;padding-bottom:4px;gap:8px}
-  html[data-header="min"] header.brand .titles{min-width:0}
+  header.brand .top{display:flex;align-items:center;gap:clamp(6px, 1.5vw, 12px);flex-wrap:nowrap;padding-bottom:clamp(4px, 1vw, 8px);min-width:0}
+  header.brand .logo{height:clamp(20px, 4.5vw, 36px);width:auto;flex-shrink:0}
+  header.brand .titles{flex:1;min-width:0}
+  header.brand .co{font-size:clamp(8px, 1.6vw, 10px);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header.brand h1{font-size:clamp(13px, 2.6vw, 16px);margin:0;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header.brand .who{color:var(--ink-soft);font-size:clamp(10px, 1.8vw, 12px);text-align:right;max-width:min(220px, 28vw);overflow:hidden}
+  header.brand .who strong{display:block;color:var(--ink);font-size:clamp(11px, 2vw, 13px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header.brand .brand-actions{display:flex;align-items:center;gap:clamp(4px, 1vw, 8px);flex-shrink:1;flex-wrap:nowrap;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  header.brand .brand-actions::-webkit-scrollbar{display:none}
   .icon-btn{
-    min-width:40px;min-height:40px;padding:0 10px;border-radius:10px;
+    min-width:clamp(32px, 8vw, 40px);min-height:clamp(32px, 8vw, 40px);padding:0 clamp(6px, 1.4vw, 10px);border-radius:10px;
     border:1.5px solid var(--line);background:var(--card);color:var(--ink);
-    font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation;
+    font-size:clamp(11px, 2.2vw, 13px);font-weight:600;cursor:pointer;touch-action:manipulation;
     display:inline-flex;align-items:center;justify-content:center;gap:4px;
-    text-decoration:none;
+    text-decoration:none;white-space:nowrap;
   }
   a.icon-btn{color:var(--accent)}
-  .a11y-bar{display:flex;gap:4px;align-items:center}
-  .a11y-bar .icon-btn{min-width:36px;padding:0 8px;font-size:12px}
+  .a11y-bar{display:flex;gap:4px;align-items:center;flex-shrink:0}
+  .a11y-bar .icon-btn{min-width:clamp(30px, 7vw, 36px);padding:0 clamp(5px, 1vw, 8px);font-size:clamp(11px, 2vw, 12px)}
   .howto{
     background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:14px;
   }
@@ -127,7 +118,7 @@
   .tabs::-webkit-scrollbar{display:none}
   .tabs button{
     flex:0 0 auto;background:transparent;color:var(--ink-soft);border:0;border-bottom:3px solid transparent;
-    border-radius:0;padding:10px 14px;font-size:13px;font-weight:600;min-height:44px;cursor:pointer;
+    border-radius:0;padding:clamp(6px, 1.4vw, 10px) clamp(10px, 2vw, 14px);font-size:clamp(12px, 2.2vw, 13px);font-weight:600;min-height:clamp(34px, 8vw, 44px);cursor:pointer;
   }
   .tabs button.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent}
 
@@ -186,9 +177,9 @@
   button.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
   button.icon-btn{
     background:var(--card);color:var(--ink);border:1.5px solid var(--line);
-    min-width:40px;min-height:40px;padding:0 10px;font-size:13px;
+    min-width:clamp(32px, 8vw, 40px);min-height:clamp(32px, 8vw, 40px);padding:0 clamp(6px, 1.4vw, 10px);font-size:clamp(11px, 2.2vw, 13px);
   }
-  .a11y-bar button.icon-btn{min-width:36px;padding:0 8px;font-size:12px}
+  .a11y-bar button.icon-btn{min-width:clamp(30px, 7vw, 36px);padding:0 clamp(5px, 1vw, 8px);font-size:clamp(11px, 2vw, 12px)}
   button:disabled{opacity:.55;cursor:not-allowed}
   button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
   .check{display:flex;align-items:flex-start;gap:10px;font-size:.875rem;margin:8px 0}
@@ -345,9 +336,10 @@
     .cov-desktop{display:none}
     .cov-cards{display:grid}
     .toolbar button{flex:1 1 calc(50% - 8px)}
-    header.brand .who{text-align:left}
-    html[data-header="min"] header.brand .brand-actions{width:auto;justify-content:flex-end;flex-wrap:nowrap}
-    header.brand .brand-actions{width:100%;justify-content:flex-end}
+    header.brand .logo{display:none}
+    header.brand .co{display:none}
+    header.brand .who{display:none}
+    header.brand .brand-actions{width:auto;max-width:70%;justify-content:flex-end}
     .chip-row select{margin-left:0!important;width:100%;flex:1 1 100%}
     .store-pick-list,.prod-leads-box{max-height:min(42vh,320px)}
     .export-actions button{flex:1 1 100%}
@@ -374,17 +366,14 @@
       <h1>Survey Admin</h1>
     </div>
     <div class="brand-actions">
-      <div class="header-extras" id="header-extras">
-        <button type="button" class="icon-btn" id="btn-feedback" title="Report a problem, send feedback, or contact the Survey Administrator" aria-label="Contact the Survey Administrator">Contact</button>
-        <a class="icon-btn" href="/survey-admin/user-guide.html" target="_blank" rel="noopener noreferrer" title="How to use Survey Admin" aria-label="How to use Survey Admin">Help</a>
-        <div class="a11y-bar" role="group" aria-label="Display controls">
-          <button type="button" class="icon-btn" id="btn-text-down" title="Smaller text" aria-label="Decrease text size">A−</button>
-          <button type="button" class="icon-btn" id="btn-text-up" title="Larger text" aria-label="Increase text size">A+</button>
-          <button type="button" class="icon-btn" id="btn-theme" title="Cycle light / dark / inverse" aria-label="Cycle theme">Dark</button>
-        </div>
-        <div class="who" id="who"><span class="muted">Signing in…</span></div>
+      <button type="button" class="icon-btn" id="btn-feedback" title="Report a problem, send feedback, or contact the Survey Administrator" aria-label="Contact the Survey Administrator">Contact</button>
+      <a class="icon-btn" href="/survey-admin/user-guide.html" target="_blank" rel="noopener noreferrer" title="How to use Survey Admin" aria-label="How to use Survey Admin">Help</a>
+      <div class="a11y-bar" role="group" aria-label="Display controls">
+        <button type="button" class="icon-btn" id="btn-text-down" title="Smaller text" aria-label="Decrease text size">A−</button>
+        <button type="button" class="icon-btn" id="btn-text-up" title="Larger text" aria-label="Increase text size">A+</button>
+        <button type="button" class="icon-btn" id="btn-theme" title="Cycle light / dark / inverse" aria-label="Cycle theme">Dark</button>
       </div>
-      <button type="button" class="icon-btn header-min-btn" id="btn-header-min" title="Minimize header" aria-expanded="true" aria-controls="header-extras">▴</button>
+      <div class="who" id="who"><span class="muted">Signing in…</span></div>
     </div>
   </div>
   <nav class="tabs" id="tabs" aria-label="Survey admin sections">
@@ -661,27 +650,6 @@ document.getElementById('btn-theme').onclick = () => {
 };
 document.getElementById('btn-text-up').onclick = () => applyTextScale(getTextScale() + 0.1);
 document.getElementById('btn-text-down').onclick = () => applyTextScale(getTextScale() - 0.1);
-
-const HEADER_MIN_KEY = 'surveyHeaderMin';
-function headerIsMin() {
-  return document.documentElement.getAttribute('data-header') === 'min';
-}
-function applyHeaderMin(min, persist) {
-  if (min) document.documentElement.setAttribute('data-header', 'min');
-  else document.documentElement.removeAttribute('data-header');
-  if (persist) {
-    try { localStorage.setItem(HEADER_MIN_KEY, min ? '1' : '0'); } catch (_) {}
-  }
-  const btn = document.getElementById('btn-header-min');
-  if (btn) {
-    btn.textContent = min ? '▾' : '▴';
-    btn.title = min ? 'Show header' : 'Minimize header';
-    btn.setAttribute('aria-expanded', min ? 'false' : 'true');
-    btn.setAttribute('aria-label', min ? 'Show header' : 'Minimize header');
-  }
-}
-applyHeaderMin(headerIsMin(), false);
-document.getElementById('btn-header-min').onclick = () => applyHeaderMin(!headerIsMin(), true);
 
 let SPEC = null;
 let QLIST = [];
