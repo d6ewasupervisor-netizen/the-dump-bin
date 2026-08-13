@@ -57,7 +57,14 @@
     return sheet;
   }
 
-  async function applyMark(rowId, markType) {
+  function isOpenRow(row) {
+    return !markActive(row, 'complete')
+      && !markActive(row, 'not_in_store')
+      && !markActive(row, 'not_in_si');
+  }
+
+  async function applyMark(rowId, markType, opts) {
+    const skipReload = !!(opts && opts.skipReload);
     const S = global.EodSession;
     const headers = global.EodApi.dayConfirmHeaders();
     if (markType === 'clear') {
@@ -102,7 +109,29 @@
         // Soft prompt only; mark already saved.
       }
     }
+    if (!skipReload) await loadSheet();
+  }
+
+  /** Mark every still-open set Complete. Leaves NIS / NISI alone. */
+  async function completeAllOpen(onProgress) {
+    const S = global.EodSession;
+    const open = (S.state.sheet?.rows || []).filter(isOpenRow);
+    if (!open.length) return { ok: 0, fail: 0, total: 0 };
+    let ok = 0;
+    let fail = 0;
+    for (let i = 0; i < open.length; i++) {
+      const row = open[i];
+      try {
+        if (typeof onProgress === 'function') onProgress(i + 1, open.length, row);
+        await applyMark(row.id, 'complete', { skipReload: true });
+        ok += 1;
+      } catch (err) {
+        fail += 1;
+        console.warn('[signoff] complete-all row failed', row.id, err);
+      }
+    }
     await loadSheet();
+    return { ok, fail, total: open.length };
   }
 
   function renderRows(sheet, q) {
@@ -144,7 +173,7 @@
         <div id="sheetSummary" class="muted" style="margin-bottom:10px;">Loading…</div>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="refreshSheetBtn">Refresh sheet</button>
-          <button type="button" class="btn btn-secondary" id="ackAllBtn" hidden>Acknowledge remaining open</button>
+          <button type="button" class="btn btn-success" id="completeAllBtn" hidden>Complete all</button>
           <button type="button" class="btn btn-secondary" id="paperFallbackBtn" hidden>Paper sign-off photos</button>
         </div>
         <div class="field" style="margin-top:12px;">
@@ -157,7 +186,7 @@
 
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
-    const ackBtn = document.getElementById('ackAllBtn');
+    const completeAllBtn = document.getElementById('completeAllBtn');
     const paperBtn = document.getElementById('paperFallbackBtn');
 
     async function paint() {
@@ -174,7 +203,7 @@
         summary.innerHTML = 'No hosted sheet for this store/week yet. Use <strong>paper sign-off photos</strong> in Photos, or wait for weekly digital ingest.';
         rowsEl.innerHTML = '';
         paperBtn.hidden = false;
-        ackBtn.hidden = true;
+        completeAllBtn.hidden = true;
         document.body.classList.add('no-hosted-sheet');
         document.body.classList.remove('has-hosted-sheet');
         return;
@@ -183,12 +212,14 @@
       document.body.classList.remove('no-hosted-sheet');
       paperBtn.hidden = true;
       const s = sheet.summary || {};
-      const open = (sheet.rows || []).filter((r) => !markActive(r, 'complete') && !markActive(r, 'not_in_store') && !markActive(r, 'not_in_si')).length;
+      const open = (sheet.rows || []).filter(isOpenRow).length;
       summary.innerHTML = `<strong>${esc(sheet.fiscalWeek)}</strong> · Store ${esc(sheet.storeNumber)}`
         + (sheet.team ? ` · Team ${esc(sheet.team)}` : '')
         + ` · ${s.marked || 0}/${s.total || 0} marked`
         + ` · <span class="${open ? 'pill warn' : 'pill ok'}">${open} open</span>`;
-      ackBtn.hidden = open === 0;
+      completeAllBtn.hidden = open === 0;
+      completeAllBtn.disabled = false;
+      completeAllBtn.textContent = open ? `Complete all (${open})` : 'Complete all';
       const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
       rowsEl.innerHTML = renderRows(sheet, q);
       rowsEl.querySelectorAll('[data-mark]').forEach((btn) => {
@@ -213,12 +244,34 @@
       await paint();
     };
     document.getElementById('sheetSearch').oninput = () => paint();
-    ackBtn.onclick = () => {
-      if (!confirm('Mark all remaining open sets as acknowledged for send? This sets a local acknowledge flag (does not auto-Complete every row).')) return;
-      const sheet = { ...S.state.sheet, allAcknowledged: true };
-      S.patch({ sheet }, 'ack');
-      paint();
-      global.EodChrome?.refresh();
+    completeAllBtn.onclick = async () => {
+      const open = (S.state.sheet?.rows || []).filter(isOpenRow);
+      if (!open.length) return;
+      if (!confirm(
+        `Mark all ${open.length} open set(s) Complete?\n\n`
+        + 'Already marked Not in store / Not in SI stay as-is.\n'
+        + 'This writes to the hosted sheet (same as tapping Complete on each row).'
+      )) return;
+      try { S.saveDraft(); } catch (_) {}
+      completeAllBtn.disabled = true;
+      const label = completeAllBtn.textContent;
+      try {
+        const result = await completeAllOpen((n, total) => {
+          completeAllBtn.textContent = `Completing ${n}/${total}…`;
+        });
+        await paint();
+        try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+        global.EodChrome?.refresh();
+        const msg = result.fail
+          ? `Completed ${result.ok}/${result.total}. ${result.fail} failed — retry those rows or tap Complete all again.`
+          : `Completed all ${result.ok} open set(s).`;
+        if (global.EodConnections?.toast) global.EodConnections.toast(msg, result.fail ? 'error' : 'ok');
+        else alert(msg);
+      } catch (err) {
+        alert(err.message || String(err));
+        completeAllBtn.textContent = label;
+        completeAllBtn.disabled = false;
+      }
     };
     paperBtn.onclick = () => global.EodRouter.go('photos');
 
@@ -242,6 +295,6 @@
     }
   }
 
-  global.EodSignoffHome = { loadSheet, render };
+  global.EodSignoffHome = { loadSheet, render, completeAllOpen, applyMark };
   global.EodRouter.register('signoff', render);
 })(typeof window !== 'undefined' ? window : globalThis);
