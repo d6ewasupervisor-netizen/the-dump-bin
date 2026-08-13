@@ -287,6 +287,17 @@
     font-weight:600;color:var(--accent-deep);
   }
   .loading-overlay.show{display:flex}
+  .loading-inner{
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+    text-align:center;padding:20px;
+  }
+  .loading-title{font-size:1.2rem;font-weight:700;color:var(--ink);letter-spacing:.02em}
+  .loading-title:empty{display:none}
+  .loading-gif{
+    width:min(260px,72vw);height:auto;display:block;
+    border-radius:16px;
+  }
+  .loading-caption{font-size:.95rem;font-weight:600;color:var(--ink-soft)}
 
   .resp-list{display:flex;flex-direction:column;gap:10px}
   .resp-card{
@@ -337,7 +348,13 @@
 </style>
 </head>
 <body>
-<div class="loading-overlay" id="loading">Loading survey admin…</div>
+<div class="loading-overlay" id="loading" aria-live="polite" aria-busy="true">
+  <div class="loading-inner">
+    <div class="loading-title" id="loading-title"></div>
+    <img class="loading-gif" src="buffering_survey.gif" alt="" width="260" height="260">
+    <div class="loading-caption">Buffering...</div>
+  </div>
+</div>
 <header class="brand">
   <div class="top">
     <img class="logo" src="/survey/assets/ro-logo.png" alt="The Retail Odyssey Company" width="120" height="36">
@@ -709,8 +726,12 @@ function sortDistrictLabels(list) {
   return [...(list || [])].filter((d) => d != null && String(d).trim() !== '').sort(compareDistrictLabels);
 }
 
-function setLoading(on) {
-  document.getElementById('loading').classList.toggle('show', !!on);
+function setLoading(on, title) {
+  const el = document.getElementById('loading');
+  const titleEl = document.getElementById('loading-title');
+  if (titleEl) titleEl.textContent = on ? (title || '') : '';
+  el.classList.toggle('show', !!on);
+  el.setAttribute('aria-busy', on ? 'true' : 'false');
 }
 
 function showForbidden() {
@@ -1413,9 +1434,9 @@ async function loadProdSchedule(refresh) {
     }
   }
 
-  document.getElementById('prod-status').textContent =
-    'Syncing live PROD — one week per login instance in parallel…';
+  document.getElementById('prod-status').textContent = 'Syncing';
   document.getElementById('prod-status').className = 'prod-status';
+  setLoading(true, 'Syncing');
   try {
     if (refresh || !PROD_CYCLES) await loadProdCycles(!!refresh);
     const res = await api('/api/survey/admin/prod-schedule?' + buildProdScheduleQuery(!!refresh).toString());
@@ -1429,6 +1450,8 @@ async function loadProdSchedule(refresh) {
     err.hidden = false;
     err.classList.add('show');
     err.textContent = e.message || 'Failed to load PROD schedule';
+  } finally {
+    setLoading(false);
   }
 }
 
