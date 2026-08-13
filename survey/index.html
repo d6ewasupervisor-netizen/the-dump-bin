@@ -942,10 +942,10 @@ function renderPicker() {
           const label = d === scheduleDate ? 'Today' : formatScheduleDate(d);
           return `<span class="day-chip"><strong>${esc(label)}</strong> ${stores.map((sn) => esc(storeLabel(sn))).join(', ')}</span>`;
         }).join('')}</div>
-        <p class="schedule-source">Schedule source: ${esc(ME.scheduleSource === 'sas-prod' ? 'Live SAS PROD · Kompass ISE' : 'Cached schedule')}${ME.scheduleError ? ' · ' + esc(ME.scheduleError) : ''}</p>
+        <p class="schedule-source">Schedule source: ${esc(ME.scheduleSource === 'sas-prod' ? 'Live SAS PROD · Kompass ISE' : 'Cached schedule')}</p>
       </div>`
     : (ME.scheduleSource
-      ? `<p class="schedule-source">Schedule source: ${esc(ME.scheduleSource === 'sas-prod' ? 'Live SAS PROD · Kompass ISE' : 'Cached schedule')}${ME.scheduleError ? ' · ' + esc(ME.scheduleError) : ''}</p>`
+      ? `<p class="schedule-source">Schedule source: ${esc(ME.scheduleSource === 'sas-prod' ? 'Live SAS PROD · Kompass ISE' : 'Cached schedule')}</p>`
       : '');
 
   const noteHtml = todayPending.length
