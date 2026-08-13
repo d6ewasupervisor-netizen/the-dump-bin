@@ -7,15 +7,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>KOMPASS EOD (field pilot)</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="css/app.css?v=3.0.3">
-  <link rel="stylesheet" href="css/materials-browser.css?v=3.0.3">
+  <link rel="stylesheet" href="css/app.css?v=3.0.4">
+  <link rel="stylesheet" href="css/materials-browser.css?v=3.0.4">
   <script>
     (function () {
       var host = location.hostname || '';
       if (host === 'the-dump-bin.com' || host.endsWith('.the-dump-bin.com')) {
         document.write('<script src="/auth-gate.js"><\/script>');
       } else {
-        document.write('<script src="js/auth-shim.js?v=3.0.3"><\/script>');
+        document.write('<script src="js/auth-shim.js?v=3.0.4"><\/script>');
       }
     })();
   </script>
@@ -24,12 +24,12 @@
   <div class="eod-test-banner eod-test-banner-top" aria-hidden="true"><span class="eod-test-track">TEST · TEST · TEST · TEST · TEST · TEST · TEST · TEST · </span></div>
 
   <div class="app-shell">
-    <div class="pilot-banner">
-      EOD field pilot — production <a href="/EOD/" style="color:#fde68a;">/EOD/</a> unchanged until cutover
-      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v3.0.3</span>
+    <div class="pilot-banner" title="Field pilot — live production remains at /EOD/ until cutover">
+      <a class="pilot-banner-label" href="/EOD/">Pilot</a>
+      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v3.0.4</span>
     </div>
-    <div id="updateBanner" class="pilot-banner eod-update-banner" hidden></div>
-    <div id="authBanner" class="pilot-banner" hidden style="background:#3f1d1d;color:#fecaca;"></div>
+    <div id="updateBanner" class="eod-update-banner" hidden></div>
+    <div id="authBanner" class="auth-banner" hidden></div>
     <div id="connToast" class="conn-toast" hidden></div>
 
     <div id="pilotSignIn" class="card pilot-signin" hidden>
@@ -62,22 +62,26 @@
     </div>
 
     <header id="appChrome" hidden>
-      <div class="chrome-main">
+      <div class="chrome-row chrome-row-top">
         <div class="chrome-store" id="chromeStore">No store</div>
+        <span class="pill warn" id="chromeGate">Needs confirm</span>
+        <div class="chrome-dots" aria-label="Connection status">
+          <span class="conn-dot" id="sasConnDot" data-state="unknown" title="SAS auth: checking…"><span class="dot"></span>SAS</span>
+          <span class="conn-dot" id="reboticsConnDot" data-state="unknown" title="SI / Rebotics auth: checking…"><span class="dot"></span>SI</span>
+        </div>
+        <button type="button" class="refresh-connections-btn" id="refreshConnectionsBtn" title="Refresh SAS / SI auth, shifts &amp; dept signatures" aria-label="Refresh connections">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/>
+          </svg>
+        </button>
+      </div>
+      <div class="chrome-row chrome-row-meta">
         <div class="chrome-meta" id="chromeMeta"></div>
+        <div class="chrome-links">
+          <a href="#/visit" id="chromeVisitLink" class="chrome-link">Visit</a>
+          <a href="#/cover" id="chromeCoverLink" class="chrome-link">Cover</a>
+        </div>
       </div>
-      <span class="pill warn" id="chromeGate">Needs confirm</span>
-      <div class="chrome-dots" aria-label="Connection status">
-        <span class="conn-dot" id="sasConnDot" data-state="unknown" title="SAS auth: checking…"><span class="dot"></span>SAS</span>
-        <span class="conn-dot" id="reboticsConnDot" data-state="unknown" title="SI / Rebotics auth: checking…"><span class="dot"></span>SI</span>
-      </div>
-      <button type="button" class="refresh-connections-btn" id="refreshConnectionsBtn" title="Refresh SAS / SI auth, shifts &amp; dept signatures" aria-label="Refresh connections">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-          <path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/>
-        </svg>
-      </button>
-      <a href="#/visit" id="chromeVisitLink" class="chrome-link">Visit</a>
-      <a href="#/cover" id="chromeCoverLink" class="chrome-link">Cover</a>
     </header>
 
     <div id="eodForceLiveRow" class="force-live-row" hidden>
@@ -99,31 +103,31 @@
 
   <div class="eod-test-banner eod-test-banner-bottom" aria-hidden="true"><span class="eod-test-track">TEST · TEST · TEST · TEST · TEST · TEST · TEST · TEST · </span></div>
 
-  <script src="js/api.js?v=3.0.3"></script>
-  <script src="js/session.js?v=3.0.3"></script>
-  <script src="js/router.js?v=3.0.3"></script>
-  <script src="js/picker.js?v=3.0.3"></script>
-  <script src="js/chrome.js?v=3.0.3"></script>
-  <script src="js/features/durability.js?v=3.0.3"></script>
-  <script src="js/features/connections.js?v=3.0.3"></script>
-  <script src="js/features/version-test.js?v=3.0.3"></script>
+  <script src="js/api.js?v=3.0.4"></script>
+  <script src="js/session.js?v=3.0.4"></script>
+  <script src="js/router.js?v=3.0.4"></script>
+  <script src="js/picker.js?v=3.0.4"></script>
+  <script src="js/chrome.js?v=3.0.4"></script>
+  <script src="js/features/durability.js?v=3.0.4"></script>
+  <script src="js/features/connections.js?v=3.0.4"></script>
+  <script src="js/features/version-test.js?v=3.0.4"></script>
 
-  <script src="js/features/photo-sessions.js?v=3.0.3"></script>
-  <script src="js/features/clock-picker.js?v=3.0.3"></script>
-  <script src="js/features/sms-optin-qr.js?v=3.0.3"></script>
-  <script src="js/features/guest-handoff.js?v=3.0.3"></script>
-  <script src="js/features/timesheet-mgmt.js?v=3.0.3"></script>
-  <script src="js/features/dept-signatures.js?v=3.0.3"></script>
-  <script src="js/features/helpdesk-wizard.js?v=3.0.3"></script>
-  <script src="js/features/materials-browser.js?v=3.0.3"></script>
+  <script src="js/features/photo-sessions.js?v=3.0.4"></script>
+  <script src="js/features/clock-picker.js?v=3.0.4"></script>
+  <script src="js/features/sms-optin-qr.js?v=3.0.4"></script>
+  <script src="js/features/guest-handoff.js?v=3.0.4"></script>
+  <script src="js/features/timesheet-mgmt.js?v=3.0.4"></script>
+  <script src="js/features/dept-signatures.js?v=3.0.4"></script>
+  <script src="js/features/helpdesk-wizard.js?v=3.0.4"></script>
+  <script src="js/features/materials-browser.js?v=3.0.4"></script>
 
-  <script src="js/features/visit.js?v=3.0.3"></script>
-  <script src="js/features/signoff-home.js?v=3.0.3"></script>
-  <script src="js/features/crew.js?v=3.0.3"></script>
-  <script src="js/features/photos.js?v=3.0.3"></script>
-  <script src="js/features/cover.js?v=3.0.3"></script>
-  <script src="js/features/send.js?v=3.0.3"></script>
+  <script src="js/features/visit.js?v=3.0.4"></script>
+  <script src="js/features/signoff-home.js?v=3.0.4"></script>
+  <script src="js/features/crew.js?v=3.0.4"></script>
+  <script src="js/features/photos.js?v=3.0.4"></script>
+  <script src="js/features/cover.js?v=3.0.4"></script>
+  <script src="js/features/send.js?v=3.0.4"></script>
 
-  <script src="js/boot.js?v=3.0.3"></script>
+  <script src="js/boot.js?v=3.0.4"></script>
 </body>
 </html>
