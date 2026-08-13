@@ -10,6 +10,13 @@
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
 
 <script src="/auth-gate.js"></script>
+<script>
+(function () {
+  var v = localStorage.getItem('surveyHeaderMin');
+  var min = v === '1' || (v !== '0' && window.matchMedia && window.matchMedia('(max-width:720px)').matches);
+  if (min) document.documentElement.setAttribute('data-header', 'min');
+})();
+</script>
 <style>
   :root, [data-theme="light"]{
     --ink:#1a2430; --ink-soft:#5c6b7a; --line:#d5dde6; --paper:#e8eef5; --card:#fff;
@@ -60,12 +67,19 @@
     border-bottom:2px solid var(--accent);
     padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top,0px));
   }
-  .brandbar .top{display:flex;align-items:center;gap:8px}
+  .brandbar .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .brand-logo{height:34px;width:auto}
   .brand-titles{flex:1;min-width:0}
   .brand-titles .co{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
   .brand-titles h1{font-size:14px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .header-extras{display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap}
+  .header-min-btn{flex-shrink:0}
+  html[data-header="min"] .brandbar .header-extras,
+  html[data-header="min"] .brandbar .brand-titles .co{display:none}
+  html[data-header="min"] .brandbar{padding-bottom:4px}
+  html[data-header="min"] .brandbar .top{gap:6px;flex-wrap:nowrap}
+  html[data-header="min"] #save-state{max-width:36%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .icon-btn{
     min-width:40px;min-height:40px;padding:0 10px;border-radius:10px;
     border:1.5px solid var(--line);background:var(--card);color:var(--ink);
@@ -262,7 +276,8 @@
       <div class="co">Retail Odyssey</div>
       <h1 id="hdr-title">Store Survey</h1>
     </div>
-    <div class="brand-actions">
+    <span id="save-state" role="status" aria-live="polite"></span>
+    <div class="header-extras" id="header-extras">
       <button type="button" class="icon-btn" id="btn-feedback" title="Report a problem, send feedback, or contact the Survey Administrator" aria-label="Contact the Survey Administrator">Contact</button>
       <a class="icon-btn" id="btn-help" href="/survey/user-guide.html" target="_blank" rel="noopener noreferrer" title="How to use this survey" aria-label="How to use this survey">Help</a>
       <div class="a11y-bar" role="group" aria-label="Display controls">
@@ -270,8 +285,8 @@
         <button type="button" class="icon-btn" id="btn-text-up" title="Larger text" aria-label="Increase text size">A+</button>
         <button type="button" class="icon-btn" id="btn-theme" title="Cycle light / dark / inverse" aria-label="Cycle theme">Dark</button>
       </div>
-      <span id="save-state" role="status" aria-live="polite"></span>
     </div>
+    <button type="button" class="icon-btn header-min-btn" id="btn-header-min" title="Minimize header" aria-expanded="true" aria-controls="header-extras">▴</button>
   </div>
   <div class="progress" aria-hidden="true"><i id="prog"></i></div>
 </header>
@@ -402,8 +417,28 @@ function placeFloatingMenu(anchorEl, panel, preferredMax = 220) {
     panel.style.maxHeight = Math.max(120, Math.min(want, Math.max(spaceBelow, 140))) + 'px';
   }
 }
+const HEADER_MIN_KEY = 'surveyHeaderMin';
+function headerIsMin() {
+  return document.documentElement.getAttribute('data-header') === 'min';
+}
+function applyHeaderMin(min, persist) {
+  if (min) document.documentElement.setAttribute('data-header', 'min');
+  else document.documentElement.removeAttribute('data-header');
+  if (persist) {
+    try { localStorage.setItem(HEADER_MIN_KEY, min ? '1' : '0'); } catch (_) {}
+  }
+  const btn = $('#btn-header-min');
+  if (btn) {
+    btn.textContent = min ? '▾' : '▴';
+    btn.title = min ? 'Show header' : 'Minimize header';
+    btn.setAttribute('aria-expanded', min ? 'false' : 'true');
+    btn.setAttribute('aria-label', min ? 'Show header' : 'Minimize header');
+  }
+}
 applyTheme(getTheme());
 applyTextScale(getTextScale());
+applyHeaderMin(headerIsMin(), false);
+$('#btn-header-min').onclick = () => applyHeaderMin(!headerIsMin(), true);
 $('#btn-theme').onclick = () => {
   const i = THEMES.indexOf(getTheme());
   applyTheme(THEMES[(i + 1) % THEMES.length]);

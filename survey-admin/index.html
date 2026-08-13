@@ -21,6 +21,9 @@
   if (Number.isFinite(s) && s >= 0.85 && s <= 1.45) {
     document.documentElement.style.setProperty('--text-scale', String(s));
   }
+  var hv = localStorage.getItem('surveyHeaderMin');
+  var min = hv === '1' || (hv !== '0' && window.matchMedia && window.matchMedia('(max-width:720px)').matches);
+  if (min) document.documentElement.setAttribute('data-header', 'min');
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -87,6 +90,13 @@
   header.brand .who{color:var(--ink-soft);font-size:12px;text-align:right}
   header.brand .who strong{display:block;color:var(--ink);font-size:13px}
   header.brand .brand-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+  .header-extras{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+  .header-min-btn{flex-shrink:0;margin-left:auto}
+  html[data-header="min"] header.brand .header-extras,
+  html[data-header="min"] header.brand .logo,
+  html[data-header="min"] header.brand .co{display:none}
+  html[data-header="min"] header.brand .top{flex-wrap:nowrap;padding-bottom:4px;gap:8px}
+  html[data-header="min"] header.brand .titles{min-width:0}
   .icon-btn{
     min-width:40px;min-height:40px;padding:0 10px;border-radius:10px;
     border:1.5px solid var(--line);background:var(--card);color:var(--ink);
@@ -335,7 +345,8 @@
     .cov-desktop{display:none}
     .cov-cards{display:grid}
     .toolbar button{flex:1 1 calc(50% - 8px)}
-    header.brand .who{text-align:left;width:100%}
+    header.brand .who{text-align:left}
+    html[data-header="min"] header.brand .brand-actions{width:auto;justify-content:flex-end;flex-wrap:nowrap}
     header.brand .brand-actions{width:100%;justify-content:flex-end}
     .chip-row select{margin-left:0!important;width:100%;flex:1 1 100%}
     .store-pick-list,.prod-leads-box{max-height:min(42vh,320px)}
@@ -363,14 +374,17 @@
       <h1>Survey Admin</h1>
     </div>
     <div class="brand-actions">
-      <button type="button" class="icon-btn" id="btn-feedback" title="Report a problem, send feedback, or contact the Survey Administrator" aria-label="Contact the Survey Administrator">Contact</button>
-      <a class="icon-btn" href="/survey-admin/user-guide.html" target="_blank" rel="noopener noreferrer" title="How to use Survey Admin" aria-label="How to use Survey Admin">Help</a>
-      <div class="a11y-bar" role="group" aria-label="Display controls">
-        <button type="button" class="icon-btn" id="btn-text-down" title="Smaller text" aria-label="Decrease text size">A−</button>
-        <button type="button" class="icon-btn" id="btn-text-up" title="Larger text" aria-label="Increase text size">A+</button>
-        <button type="button" class="icon-btn" id="btn-theme" title="Cycle light / dark / inverse" aria-label="Cycle theme">Dark</button>
+      <div class="header-extras" id="header-extras">
+        <button type="button" class="icon-btn" id="btn-feedback" title="Report a problem, send feedback, or contact the Survey Administrator" aria-label="Contact the Survey Administrator">Contact</button>
+        <a class="icon-btn" href="/survey-admin/user-guide.html" target="_blank" rel="noopener noreferrer" title="How to use Survey Admin" aria-label="How to use Survey Admin">Help</a>
+        <div class="a11y-bar" role="group" aria-label="Display controls">
+          <button type="button" class="icon-btn" id="btn-text-down" title="Smaller text" aria-label="Decrease text size">A−</button>
+          <button type="button" class="icon-btn" id="btn-text-up" title="Larger text" aria-label="Increase text size">A+</button>
+          <button type="button" class="icon-btn" id="btn-theme" title="Cycle light / dark / inverse" aria-label="Cycle theme">Dark</button>
+        </div>
+        <div class="who" id="who"><span class="muted">Signing in…</span></div>
       </div>
-      <div class="who" id="who"><span class="muted">Signing in…</span></div>
+      <button type="button" class="icon-btn header-min-btn" id="btn-header-min" title="Minimize header" aria-expanded="true" aria-controls="header-extras">▴</button>
     </div>
   </div>
   <nav class="tabs" id="tabs" aria-label="Survey admin sections">
@@ -647,6 +661,27 @@ document.getElementById('btn-theme').onclick = () => {
 };
 document.getElementById('btn-text-up').onclick = () => applyTextScale(getTextScale() + 0.1);
 document.getElementById('btn-text-down').onclick = () => applyTextScale(getTextScale() - 0.1);
+
+const HEADER_MIN_KEY = 'surveyHeaderMin';
+function headerIsMin() {
+  return document.documentElement.getAttribute('data-header') === 'min';
+}
+function applyHeaderMin(min, persist) {
+  if (min) document.documentElement.setAttribute('data-header', 'min');
+  else document.documentElement.removeAttribute('data-header');
+  if (persist) {
+    try { localStorage.setItem(HEADER_MIN_KEY, min ? '1' : '0'); } catch (_) {}
+  }
+  const btn = document.getElementById('btn-header-min');
+  if (btn) {
+    btn.textContent = min ? '▾' : '▴';
+    btn.title = min ? 'Show header' : 'Minimize header';
+    btn.setAttribute('aria-expanded', min ? 'false' : 'true');
+    btn.setAttribute('aria-label', min ? 'Show header' : 'Minimize header');
+  }
+}
+applyHeaderMin(headerIsMin(), false);
+document.getElementById('btn-header-min').onclick = () => applyHeaderMin(!headerIsMin(), true);
 
 let SPEC = null;
 let QLIST = [];
