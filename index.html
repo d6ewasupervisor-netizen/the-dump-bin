@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
 
   <link rel="stylesheet" href="/styles.css">
-  <script src="/auth-gate.js"></script>
+  <script src="/auth-gate.js?v=20260813-hub-restrict"></script>
 </head>
 <body>
 
@@ -56,7 +56,7 @@
           <span class="card__desc">Greenfield EOD rebuild — digital signoff heart. Production Cover Sheet stays at EOD until cutover.</span>
         </a>
 
-        <a href="/survey/" class="card">
+        <a href="/survey/" class="card" data-card="survey">
           <span class="card__icon">📝</span>
           <span class="card__title">Store Survey</span>
           <span class="card__desc">Division 701 in-store best practices survey — one store at a time, saves as you go.</span>
@@ -216,6 +216,18 @@
         var res = await dumpBinAuthFetch('/api/me', { noBounceOn401: true });
         if (!res.ok) return;
         var me = await res.json();
+        var restrict = (me && me.hubRestrictTo) || null;
+        if (restrict && restrict.length) {
+          document.querySelectorAll('.card').forEach(function (el) {
+            var id = el.getAttribute('data-card');
+            el.hidden = restrict.indexOf(id) === -1;
+          });
+          document.querySelectorAll('.card-section').forEach(function (section) {
+            var anyVisible = section.querySelector('.card:not([hidden])');
+            section.hidden = !anyVisible;
+          });
+          return;
+        }
         var cards = (me && me.cards) || [];
 
         cards.forEach(function (id) {
