@@ -644,6 +644,42 @@ let VIEW_IDX = -1;
 let PROD_SCHEDULE = null;
 let PROD_CYCLES = null;
 let PROD_DISTRICT_FILTER = new Set();
+const PROD_CACHE_TTL_MS = 20 * 60 * 1000;
+
+function prodCacheKey() {
+  return 'surveyAdminProdSchedule:' + buildProdScheduleQuery(false).toString();
+}
+
+function readProdCache() {
+  try {
+    const raw = sessionStorage.getItem(prodCacheKey());
+    if (!raw) return null;
+    const row = JSON.parse(raw);
+    if (!row || !row.data || !row.at) return null;
+    if (Date.now() - Number(row.at) > PROD_CACHE_TTL_MS) {
+      sessionStorage.removeItem(prodCacheKey());
+      return null;
+    }
+    return row.data;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeProdCache(data) {
+  if (!data || data.ok === false) return;
+  try {
+    sessionStorage.setItem(prodCacheKey(), JSON.stringify({ at: Date.now(), data }));
+  } catch (_) { /* quota / private mode */ }
+}
+
+function applyProdSchedule(res, { fromCache = false } = {}) {
+  PROD_SCHEDULE = res
+    ? { ...res, fromCache: fromCache || !!res.fromCache, _q: buildProdScheduleQuery(false).toString() }
+    : null;
+  PROD_DISTRICT_FILTER = new Set();
+  renderProdLeads();
+}
 
 function todayYmdLocal() {
   const d = new Date();
@@ -1310,11 +1346,14 @@ function renderProdLeads() {
   } else {
     status.className = 'prod-status ok';
     const win = prodWindowLabel(PROD_SCHEDULE);
+    const cached = PROD_SCHEDULE.fromCache
+      ? ` · cached${PROD_SCHEDULE.syncedAt ? ' ' + new Date(PROD_SCHEDULE.syncedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}`
+      : '';
     status.textContent =
       `PROD · ${win} · ${PROD_SCHEDULE.visitCount || 0} visits · ` +
       `${PROD_SCHEDULE.matchedLeadCount ?? allLeads.filter((L) => L.matched).length} matched · ` +
       `${PROD_SCHEDULE.unmatchedLeadCount ?? allLeads.filter((L) => !L.matched).length} need email · ` +
-      `showing ${leads.length}`;
+      `showing ${leads.length}${cached}`;
   }
   if (!leads.length) {
     box.innerHTML = '<div class="muted" style="padding:8px 0">No leads match the current filters.</div>';
@@ -1361,14 +1400,27 @@ async function loadProdSchedule(refresh) {
   err.hidden = true; ok.hidden = true; err.textContent = ''; ok.innerHTML = '';
   err.classList.remove('show');
   ok.classList.remove('show');
-  document.getElementById('prod-status').textContent = 'Syncing live PROD Kompass ISE schedule…';
+
+  if (!refresh) {
+    const cached = readProdCache();
+    if (cached && cached.ok) {
+      applyProdSchedule(cached, { fromCache: true });
+      return;
+    }
+    if (PROD_SCHEDULE && PROD_SCHEDULE.ok && PROD_SCHEDULE._q === buildProdScheduleQuery(false).toString()) {
+      renderProdLeads();
+      return;
+    }
+  }
+
+  document.getElementById('prod-status').textContent =
+    'Syncing live PROD — one week per login instance in parallel…';
   document.getElementById('prod-status').className = 'prod-status';
   try {
     if (refresh || !PROD_CYCLES) await loadProdCycles(!!refresh);
     const res = await api('/api/survey/admin/prod-schedule?' + buildProdScheduleQuery(!!refresh).toString());
-    PROD_SCHEDULE = res;
-    PROD_DISTRICT_FILTER = new Set();
-    renderProdLeads();
+    applyProdSchedule(res, { fromCache: !!res.fromCache });
+    writeProdCache(res);
   } catch (e) {
     PROD_SCHEDULE = null;
     document.getElementById('prod-leads').innerHTML = '';
@@ -1864,6 +1916,16 @@ document.getElementById('exp-photos').onclick = () => {
     ]);
     ACCESS = { scope: access.scope, user: access.user };
     renderScope();
+    try {
+      const cachedProd = readProdCache();
+      if (cachedProd && cachedProd.ok) {
+        PROD_SCHEDULE = {
+          ...cachedProd,
+          fromCache: true,
+          _q: buildProdScheduleQuery(false).toString(),
+        };
+      }
+    } catch (_) { /* ignore */ }
     const howto = document.getElementById('admin-howto');
     if (howto) {
       try {
