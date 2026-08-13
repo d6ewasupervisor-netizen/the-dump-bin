@@ -260,6 +260,7 @@
           || lowered.startsWith('/sop')
           || lowered.startsWith('/email-outbox')
           || lowered.startsWith('/caf')
+          || lowered.startsWith('/eod-field-app')
         ) {
           return location.origin.replace(/\/+$/, '') + path;
         }

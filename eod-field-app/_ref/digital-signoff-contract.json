@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eod-api.the-dump-bin.com/docs/digital-signoff-contract.json",
+  "title": "Digital Kompass Signoff Sheet Package",
+  "description": "Per-store/week package emitted by signoff_builder and ingested by POST /api/digital-signoffs/ingest. Each row supports independent K/L/M marks (e.g. Complete + Not in SI on the same set), like the paper signoff sheet.",
+  "type": "object",
+  "required": ["fiscalWeek", "storeNumber", "rows"],
+  "properties": {
+    "fiscalWeek": {
+      "type": "string",
+      "pattern": "^P\\d{2}W\\d$",
+      "description": "Normalized fiscal week, e.g. P07W2"
+    },
+    "storeNumber": {
+      "type": "string",
+      "description": "Canonical store number without leading zeros"
+    },
+    "period": { "type": "integer", "minimum": 1, "maximum": 13 },
+    "week": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "district": { "type": ["integer", "null"] },
+    "team": { "type": ["string", "null"] },
+    "buildId": { "type": ["string", "null"] },
+    "pdfR2Key": { "type": ["string", "null"] },
+    "pdfFilename": { "type": ["string", "null"] },
+    "requiredRoles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "grocery",
+          "fuel_center",
+          "deli",
+          "meat",
+          "produce",
+          "bakery",
+          "home_manager",
+          "dept_pic"
+        ]
+      },
+      "description": "Department PIC roles required on this store's signoff sheet (from DEPT_SIG_ORDER)"
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/row" }
+    }
+  },
+  "$defs": {
+    "row": {
+      "type": "object",
+      "properties": {
+        "dbkey": { "type": ["string", "null"] },
+        "catId": { "type": ["string", "null"] },
+        "catName": { "type": ["string", "null"] },
+        "size": { "type": ["string", "null"] },
+        "estHrs": { "type": ["string", "null"] },
+        "week": { "type": ["string", "null"] },
+        "pog": { "type": ["string", "null"] },
+        "shiftType": { "type": ["string", "null"] },
+        "dept": { "type": ["string", "null"] },
+        "pageBucket": { "type": ["string", "null"] },
+        "sortIndex": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "markType": {
+      "type": "string",
+      "enum": ["complete", "not_in_store", "not_in_si"],
+      "description": "Independent per row — multiple may be active (e.g. complete + not_in_si). Maps to paper columns K, L, M."
+    },
+    "rowMarks": {
+      "type": "object",
+      "description": "API row.marks payload when sheet is loaded",
+      "properties": {
+        "complete": { "type": "boolean" },
+        "notInStore": { "type": "boolean" },
+        "notInSi": { "type": "boolean" },
+        "active": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/markType" }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "fiscalWeek": "P07W2",
+      "storeNumber": "19",
+      "period": 7,
+      "week": 2,
+      "district": 6,
+      "team": "6A",
+      "buildId": "2026-07-27T12:00:00Z",
+      "pdfFilename": "P07W2_Store_19_Signoff.pdf",
+      "requiredRoles": ["grocery", "produce", "bakery"],
+      "rows": [
+        {
+          "dbkey": "1234567",
+          "catId": "42",
+          "catName": "COFFEE",
+          "size": "12",
+          "estHrs": "0.5",
+          "week": "W2",
+          "shiftType": "ISE",
+          "dept": "Grocery",
+          "pageBucket": "ise",
+          "sortIndex": 0
+        }
+      ]
+    }
+  ]
+}

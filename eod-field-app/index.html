@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>KOMPASS EOD (field pilot)</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/materials-browser.css">
+  <!-- On the-dump-bin.com, prefer site auth-gate. Local/pilot uses auth-shim. -->
+  <script>
+    (function () {
+      var host = location.hostname || '';
+      if (host === 'the-dump-bin.com' || host.endsWith('.the-dump-bin.com')) {
+        document.write('<script src="/auth-gate.js"><\/script>');
+      } else {
+        document.write('<script src="js/auth-shim.js"><\/script>');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="pilot-banner">
+      EOD field pilot v<span id="pilotVer">3.0.0-pilot</span> — production Dump Bin EOD is unchanged
+    </div>
+    <div id="updateBanner" class="pilot-banner" hidden style="background:#1e3a5f;color:#bae6fd;"></div>
+    <div id="authBanner" class="pilot-banner" hidden style="background:#3f1d1d;color:#fecaca;"></div>
+
+    <div id="pilotSignIn" class="card pilot-signin" hidden>
+      <h1>Pilot sign-in</h1>
+      <p class="muted">
+        Dump Bin login lives on <code>the-dump-bin.com</code> and does
+        <strong>not</strong> carry over to <code>localhost</code>. Sign in here
+        so this origin gets its own session JWT.
+      </p>
+      <div id="pilotAuthStatus" class="notice notice-error" hidden></div>
+      <div class="field">
+        <label for="pilotAuthEmail">Email</label>
+        <input type="email" id="pilotAuthEmail" autocomplete="username" placeholder="you@example.com">
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" id="pilotAuthSmsBtn">Text me a PIN</button>
+        <button type="button" class="btn btn-secondary" id="pilotAuthEmailBtn">Email me a link</button>
+      </div>
+      <div class="field" id="pilotAuthPinRow" hidden style="margin-top:12px;">
+        <label for="pilotAuthPin">6-digit PIN</label>
+        <input type="text" id="pilotAuthPin" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
+        <button type="button" class="btn btn-success btn-block" id="pilotAuthVerifyBtn" style="margin-top:8px;">Verify &amp; sign in</button>
+      </div>
+      <hr style="border:0;border-top:1px solid #334155;margin:16px 0;">
+      <div class="field">
+        <label for="pilotAuthPaste">Or paste session JWT / magic-link URL</label>
+        <textarea id="pilotAuthPaste" rows="3" placeholder="eyJ… from DevTools → Application → Local Storage → dumpBinSession on the-dump-bin.com, or paste the full email link"></textarea>
+        <button type="button" class="btn btn-secondary btn-block" id="pilotAuthPasteBtn" style="margin-top:8px;">Use pasted token</button>
+      </div>
+      <button type="button" class="btn btn-secondary" id="pilotAuthSignOut" style="margin-top:8px;">Sign out</button>
+    </div>
+
+    <header id="appChrome" hidden>
+      <div>
+        <div class="chrome-store" id="chromeStore">No store</div>
+        <div class="chrome-meta" id="chromeMeta"></div>
+      </div>
+      <span class="pill warn" id="chromeGate">Needs confirm</span>
+      <div class="chrome-dots">
+        <span class="conn-dot" id="dotApi" data-state=""><span class="dot"></span> API</span>
+        <span class="conn-dot" id="dotAuth" data-state=""><span class="dot"></span> Auth</span>
+      </div>
+      <a href="#/visit" id="chromeVisitLink" class="muted" style="font-size:12px;color:#93c5fd;text-decoration:none;">Visit</a>
+      <a href="#/cover" id="chromeCoverLink" class="muted" style="font-size:12px;color:#93c5fd;text-decoration:none;">Cover</a>
+    </header>
+
+    <main id="appMount" aria-live="polite"></main>
+
+    <nav class="bottom-nav" id="bottomNav" aria-label="Primary">
+      <button type="button" data-nav="signoff"><span class="nav-ico">▣</span>Signoff</button>
+      <button type="button" data-nav="crew"><span class="nav-ico">👥</span>Crew</button>
+      <button type="button" data-nav="photos"><span class="nav-ico">📷</span>Photos</button>
+      <button type="button" data-nav="send"><span class="nav-ico">✉</span>Send</button>
+    </nav>
+  </div>
+
+  <!-- Core -->
+  <script src="js/api.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/picker.js"></script>
+  <script src="js/chrome.js"></script>
+
+  <!-- Ported modules (live contracts) -->
+  <script src="js/features/photo-sessions.js"></script>
+  <script src="js/features/clock-picker.js"></script>
+  <script src="js/features/sms-optin-qr.js"></script>
+  <script src="js/features/guest-handoff.js"></script>
+  <script src="js/features/timesheet-mgmt.js"></script>
+  <script src="js/features/dept-signatures.js"></script>
+  <script src="js/features/helpdesk-wizard.js"></script>
+  <script src="js/features/materials-browser.js"></script>
+
+  <!-- Greenfield views -->
+  <script src="js/features/visit.js"></script>
+  <script src="js/features/signoff-home.js"></script>
+  <script src="js/features/crew.js"></script>
+  <script src="js/features/photos.js"></script>
+  <script src="js/features/cover.js"></script>
+  <script src="js/features/send.js"></script>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
