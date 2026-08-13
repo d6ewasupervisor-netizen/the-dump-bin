@@ -345,6 +345,7 @@ let STORE = null;
 let STORE_NAME = null;
 let FLAT = [];
 let QINDEX = 0;
+let EDIT_RETURN = null; // null | 'answers' | 'review' — jump-to-edit returns here instead of walking the rest of the survey
 let ANSWERS = {};
 let PHOTOS = [];
 let BASELINE = {};
@@ -700,6 +701,7 @@ async function goHome() {
   STORE_NAME = null;
   FLAT = [];
   QINDEX = 0;
+  EDIT_RETURN = null;
   ANSWERS = {};
   PHOTOS = [];
   RESPONSE_META = null;
@@ -842,6 +844,7 @@ function renderPicker() {
   STORE_NAME = null;
   FLAT = [];
   QINDEX = 0;
+  EDIT_RETURN = null;
   clearTimeout(autoAdvanceTimer);
   setProgress();
   $('#stepnav').hidden = true;
@@ -983,7 +986,7 @@ function renderPicker() {
       <div class="howto-body">
         <ol>
           <li>Today’s stores are from your Kompass schedule. Tap one, then <strong>Open store</strong>.</li>
-          <li>Answer what you know. Skip anything you don’t — <strong>Next</strong> is always available.</li>
+          <li>Answer what you know. Try to figure out what you don’t. If you can’t figure it out, move on to the <strong>Next</strong> question — you can always come back and edit your answers if you later figure it out.</li>
           <li>Answers save as you go (look for <strong>Saved ✓</strong> at the top).</li>
           <li>At the end, tap <strong>Submit store</strong>. That visit is locked on record.</li>
           <li>Need another pass later? <strong>Retake survey</strong> — the old one stays.</li>
@@ -1163,6 +1166,7 @@ async function openStore(storeNum, opts = {}) {
   });
 
   if (jumpTo != null && Number.isFinite(jumpTo) && !isLocked()) {
+    EDIT_RETURN = 'answers';
     QINDEX = Math.max(0, Math.min(jumpTo, FLAT.length));
     renderQuestion();
     return;
@@ -1174,6 +1178,7 @@ async function openStore(storeNum, opts = {}) {
   }
 
   // Fresh store — start survey
+  EDIT_RETURN = null;
   QINDEX = 0;
   renderQuestion();
 }
@@ -1185,6 +1190,7 @@ function rebuildFlat() {
 // ─── Answer list (review / edit hub for a store) ─────────────────────────────
 function renderAnswerList() {
   PHASE = 'answers';
+  EDIT_RETURN = null;
   clearTimeout(autoAdvanceTimer);
   rebuildFlat();
   setProgress();
@@ -1231,13 +1237,14 @@ function renderAnswerList() {
       <div class="qtext" style="margin-bottom:6px">${answered} of ${total} answered</div>
       <div class="hint">${statusLabel}. ${isLocked()
         ? 'These answers stay on record. Retake to add a new submission for this store — prior data is not overwritten.'
-        : 'Every question is optional — skip any you don’t know. Tap a question to edit. Use Home to switch stores anytime — progress is saved.'}</div>
+        : 'Tap a question to edit it — you do not have to walk through the whole survey. Use Home anytime; your draft is saved. Answers lock only when you Submit store.'}</div>
       <div class="stack-actions">${actions}</div>
     </div>
     <div class="card" style="padding:10px">${html || '<div class="sel-empty">No questions loaded.</div>'}</div>`;
 
   main.querySelectorAll('[data-jump]').forEach((b) => {
     b.onclick = () => {
+      EDIT_RETURN = 'answers';
       QINDEX = Number(b.dataset.jump);
       renderQuestion();
     };
@@ -1254,6 +1261,7 @@ function renderAnswerList() {
   const btnContinue = $('#btn-continue-survey');
   if (btnContinue) {
     btnContinue.onclick = () => {
+      EDIT_RETURN = null;
       QINDEX = 0;
       for (let i = 0; i < FLAT.length; i++) {
         if (!hasAnswerValue(FLAT[i])) { QINDEX = i; break; }
@@ -1282,7 +1290,6 @@ function renderQuestion(opts = {}) {
   PHASE = 'survey';
   setProgress();
   $('#stepnav').hidden = false;
-  $('#btn-back').textContent = QINDEX <= 0 ? 'Answers' : 'Back';
 
   if (QINDEX >= FLAT.length) {
     renderReview();
@@ -1291,9 +1298,15 @@ function renderQuestion(opts = {}) {
 
   const q = FLAT[QINDEX];
   $('#hdr-title').textContent = `${storeLabel(STORE)} · ${q.section}`;
-  $('#btn-next').textContent = isLocked()
-    ? (QINDEX >= FLAT.length - 1 ? 'Done' : 'Next')
-    : (QINDEX >= FLAT.length - 1 ? 'Review' : 'Next');
+  if (EDIT_RETURN) {
+    $('#btn-back').textContent = EDIT_RETURN === 'review' ? 'Review' : 'Answers';
+    $('#btn-next').textContent = 'Done';
+  } else {
+    $('#btn-back').textContent = QINDEX <= 0 ? 'Answers' : 'Back';
+    $('#btn-next').textContent = isLocked()
+      ? (QINDEX >= FLAT.length - 1 ? 'Done' : 'Next')
+      : (QINDEX >= FLAT.length - 1 ? 'Review' : 'Next');
+  }
   $('#btn-next').className = '';
   $('#btn-next').disabled = false;
 
@@ -1305,9 +1318,13 @@ function renderQuestion(opts = {}) {
   const lockNote = isLocked()
     ? '<div class="note" style="margin-top:8px">Submitted answers are locked. Retake to add a new response for this store.</div>'
     : '';
-  const skipHint = !isLocked() && !hasAnswerValue(q)
-    ? '<p class="skip-hint">Optional — tap Next if you don’t know or prefer not to answer.</p>'
-    : '';
+  const skipHint = isLocked()
+    ? ''
+    : (EDIT_RETURN
+      ? '<p class="skip-hint">Tap Done to save and return. You can edit again anytime until you Submit store.</p>'
+      : (!hasAnswerValue(q)
+        ? '<p class="skip-hint">If you can’t figure it out, tap Next — you can come back and edit later.</p>'
+        : ''));
 
   main.innerHTML = `
     <div class="card" id="q-card" tabindex="-1">
@@ -1366,7 +1383,9 @@ function questionBody(q) {
     if (q.detailOn && ANSWERS[q.id] === q.detailOn) {
       const ph = q.detailPlaceholder || 'Please explain / name';
       html += `<div class="suggest-wrap" style="margin-top:10px"><input type="text" data-tq="${q.id}_d" value="${escAttr(ANSWERS[q.id + '_d'] || '')}" placeholder="${escAttr(ph)} (optional)" autocomplete="off" enterkeyhint="done"></div>`;
-      html += `<p class="skip-hint">Optional — tap Next to continue without explaining.</p>`;
+      html += `<p class="skip-hint">${EDIT_RETURN
+        ? 'Explanation is optional — tap Done to return, or come back later if you figure it out.'
+        : 'If you can’t figure out the explanation, tap Next — you can come back and edit later.'}</p>`;
       html += examplesBlock(q.detailExamples, q.detailExamplesLabel || 'Suggestions');
     }
     return html;
@@ -1381,7 +1400,9 @@ function questionBody(q) {
   const ph = q.placeholder || 'Type your answer';
   return examplesBlock(q.examples, q.examplesLabel || 'Examples') +
     `<div class="suggest-wrap"><input type="text" data-tq="${q.id}" value="${escAttr(ANSWERS[q.id] || '')}" placeholder="${escAttr(ph)} (optional)" autocomplete="off" enterkeyhint="done"></div>` +
-    `<p class="skip-hint">Optional — tap Next to skip this question.</p>`;
+    `<p class="skip-hint">${EDIT_RETURN
+      ? 'If you can’t figure it out, tap Done — you can come back and edit later.'
+      : 'If you can’t figure it out, tap Next — you can come back and edit later.'}</p>`;
 }
 
 function commentBlock(q) {
@@ -1496,6 +1517,21 @@ function wireTypeahead(input, qid) {
   }, 120));
 }
 
+/** After a jump-to-edit, save and return to the answers list or review instead of walking remaining questions. */
+async function finishSingleEdit() {
+  const dest = EDIT_RETURN;
+  if (!dest) return false;
+  EDIT_RETURN = null;
+  if (!isLocked()) await saveDraft(false);
+  if (dest === 'review') {
+    QINDEX = FLAT.length;
+    renderReview();
+  } else {
+    renderAnswerList();
+  }
+  return true;
+}
+
 /** Advance to next question (or review). Auto-save first. */
 async function goNext(fromAuto) {
   if (PHASE === 'pick') {
@@ -1509,6 +1545,7 @@ async function goNext(fromAuto) {
       await retakeSurvey();
       return;
     }
+    EDIT_RETURN = null;
     QINDEX = 0;
     for (let i = 0; i < FLAT.length; i++) {
       if (!hasAnswerValue(FLAT[i])) { QINDEX = i; break; }
@@ -1544,7 +1581,7 @@ async function goNext(fromAuto) {
     return;
   }
   if (PHASE !== 'survey') return;
-  const q = FLAT[QINDEX];
+  if (await finishSingleEdit()) return;
   if (!isLocked()) await saveDraft(false);
   QINDEX++;
   rebuildFlat();
@@ -1687,11 +1724,15 @@ function renderReview() {
   main.innerHTML = `
     <div class="card">
       <div class="qtext">${answered} of ${total} answered</div>
-      <div class="hint">Every question is optional. Tap any question to change it, or submit with blanks. Submit locks this response on record. A later retake adds a new submission — it does not overwrite this one.</div>
+      <div class="hint">Tap any question to change just that answer — you return here when you tap Done. Submit store locks this response on record. A later retake adds a new submission — it does not overwrite this one.</div>
     </div>
     <div class="card" style="padding:10px">${html}</div>`;
   main.querySelectorAll('[data-jump]').forEach((b) => {
-    b.onclick = () => { QINDEX = Number(b.dataset.jump); renderQuestion(); };
+    b.onclick = () => {
+      EDIT_RETURN = 'review';
+      QINDEX = Number(b.dataset.jump);
+      renderQuestion();
+    };
   });
   $('#btn-back').textContent = 'Answers';
   $('#btn-next').textContent = 'Submit store';
@@ -1749,6 +1790,10 @@ $('#btn-back').onclick = async () => {
   }
   if (PHASE === 'answers') {
     await goHome();
+    return;
+  }
+  if (EDIT_RETURN) {
+    await finishSingleEdit();
     return;
   }
   if (!isLocked()) await saveDraft(false);
