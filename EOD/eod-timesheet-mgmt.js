@@ -146,8 +146,21 @@
       }
       .eod-ts-header h2 { margin: 0; font-size: 1.15rem; color: #fde68a; }
       .eod-ts-header p { margin: 4px 0 0; font-size: 13px; color: #94a3b8; line-height: 1.4; }
-      .eod-ts-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #1e293b; }
-      .eod-ts-body { flex: 1; overflow: auto; padding: 12px 16px 24px; -webkit-overflow-scrolling: touch; }
+      .eod-ts-header-tools { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+      .eod-ts-refresh-btn {
+        width: 40px; height: 40px; border-radius: 999px; border: 1px solid #334155;
+        background: #1e293b; color: #93c5fd; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; padding: 0;
+      }
+      .eod-ts-refresh-btn.spinning svg { animation: eod-ts-spin 1s linear infinite; }
+      @keyframes eod-ts-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      .eod-ts-actions {
+        display: flex; flex-wrap: wrap; gap: 8px;
+        padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+        border-top: 1px solid #1e293b; background: #111827; order: 99;
+      }
+      .eod-ts-shell { display: flex; flex-direction: column; }
+      .eod-ts-body { flex: 1; overflow: auto; padding: 12px 16px 16px; -webkit-overflow-scrolling: touch; }
       .eod-ts-table-wrap { overflow-x: auto; border: 1px solid #334155; border-radius: 10px; }
       table.eod-ts-table { width: 100%; border-collapse: collapse; min-width: 1180px; font-size: 13px; }
       .eod-ts-table input[data-field="realName"] { min-width: 110px; }
@@ -237,20 +250,36 @@
             <h2 id="eodTsTitle">Timesheet management</h2>
             <p id="eodTsSubtitle">Live punch times from PROD. Workers scan JOIN QR + enter their PIN.</p>
           </div>
-          <button type="button" class="btn btn-secondary" id="eodTsCloseBtn">Close</button>
+          <div class="eod-ts-header-tools">
+            <button type="button" class="eod-ts-refresh-btn" id="eodTsRefreshBtn" title="Refresh punches" aria-label="Refresh">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+                <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+              </svg>
+            </button>
+            <button type="button" class="btn btn-secondary" id="eodTsCloseBtn">Back</button>
+          </div>
         </div>
-        <div class="eod-ts-actions" id="eodTsActions"></div>
         <div class="eod-ts-statusline" id="eodTsStatus">Loading…</div>
         <div class="eod-ts-body" id="eodTsBody"></div>
+        <div class="eod-ts-actions" id="eodTsActions"></div>
       </div>`;
     document.body.appendChild(el);
-    document.getElementById('eodTsCloseBtn').onclick = close;
+    document.getElementById('eodTsCloseBtn').onclick = () => {
+      close();
+      if (window.EodWorkspace?.go) window.EodWorkspace.go('crew', { skipAutoOpen: true });
+    };
+    document.getElementById('eodTsRefreshBtn').onclick = () => {
+      const btn = document.getElementById('eodTsRefreshBtn');
+      btn?.classList.add('spinning');
+      refresh(true).finally(() => btn?.classList.remove('spinning'));
+    };
 
     if (!document.getElementById('eodTsQrOverlay')) {
       const qr = document.createElement('div');
       qr.id = 'eodTsQrOverlay';
       qr.innerHTML = `<div class="eod-ts-qr-card">
-        <h3>Scan to join today's shift</h3>
+        <h3 id="eodTsQrTitle">Scan to join today's shift</h3>
         <p style="margin:0;color:#64748b;font-size:14px;">Store #<span id="eodTsQrStore"></span> · <span id="eodTsQrDate"></span></p>
         <img id="eodTsQrImg" alt="JOIN QR code" width="280" height="280">
         <div class="eod-ts-qr-url" id="eodTsQrUrl"></div>
@@ -305,7 +334,6 @@
     const canLive = typeof window.canEodForceLive === 'function' && window.canEodForceLive();
     const liveOn = forceLiveChecked();
     bar.innerHTML = `
-      <button type="button" class="btn btn-secondary" id="eodTsRefreshBtn">Refresh</button>
       <button type="button" class="btn btn-primary" id="eodTsShowQrBtn">Show JOIN QR</button>
       <button type="button" class="btn btn-secondary" id="eodTsDownloadBtn">Download PDF</button>
       <button type="button" class="btn btn-secondary" id="eodTsPrintBtn">Print at store</button>
@@ -319,7 +347,6 @@
         <span>Live delivery path</span>
       </label>` : ''}`;
 
-    document.getElementById('eodTsRefreshBtn').onclick = () => refresh(true);
     document.getElementById('eodTsShowQrBtn').onclick = () => showJoinQr();
     document.getElementById('eodTsDownloadBtn').onclick = () => downloadPdf().catch(showErr);
     document.getElementById('eodTsPrintBtn').onclick = () => printAtStore().catch(showErr);
@@ -328,6 +355,10 @@
     document.getElementById('eodTsSubmitSupBtn')?.addEventListener('click', () => submitSupervisor().catch(showErr));
     document.getElementById('eodTsPhotoBtn')?.addEventListener('click', () => {
       close();
+      if (window.EodWorkspace?.go) window.EodWorkspace.go('photos', { skipAutoOpen: true });
+      const iwYes = document.getElementById('instaworkYes');
+      const iwNo = document.getElementById('instaworkNo');
+      if (iwYes) { iwYes.checked = true; if (iwNo) iwNo.checked = false; }
       const panel = document.getElementById('instaworkYesPanel');
       if (panel) panel.style.display = 'block';
       panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -412,9 +443,12 @@
         <td data-label="Actions">
           <div class="eod-ts-row-actions">
             <button type="button" class="btn btn-secondary eod-ts-save" data-idx="${idx}">Save</button>
+            <button type="button" class="btn btn-secondary eod-ts-assign" data-idx="${idx}">Sets / notes / PDFs</button>
             <button type="button" class="btn btn-secondary eod-ts-tablet" data-idx="${idx}">Sign on tablet</button>
             <button type="button" class="btn btn-primary eod-ts-send" data-idx="${idx}">Text / email link</button>
           </div>
+          ${m.assignment?.notes || (m.assignment?.materials || []).length
+            ? `<div class="eod-ts-meta" style="margin-top:6px;">Has shared notes/materials</div>` : ''}
         </td>
       </tr>`;
     }).join('');
@@ -455,6 +489,9 @@
     });
     body.querySelectorAll('.eod-ts-tablet').forEach((btn) => {
       btn.addEventListener('click', () => openTabletSign(Number(btn.dataset.idx)).catch(showErr));
+    });
+    body.querySelectorAll('.eod-ts-assign').forEach((btn) => {
+      btn.addEventListener('click', () => assignMaterials(Number(btn.dataset.idx)).catch(showErr));
     });
 
     if (window.EodClockPicker) {
@@ -678,6 +715,48 @@
     });
   }
 
+  async function assignMaterials(idx) {
+    const row = state.members[idx];
+    if (!row) return;
+    const prev = row.assignment || {};
+    const notes = prompt(
+      `Notes for ${displayName(row)} (shown after PIN login):`,
+      prev.notes || ''
+    );
+    if (notes === null) return;
+    const setsRaw = prompt(
+      'Set names / dbkeys (comma-separated), or leave blank:',
+      Array.isArray(prev.setDbkeys) ? prev.setDbkeys.join(', ') : ''
+    );
+    if (setsRaw === null) return;
+    const matsRaw = prompt(
+      'PDF / material URLs (comma-separated secure-share or Dump Bin links), or leave blank:',
+      Array.isArray(prev.materials) ? prev.materials.map((m) => m.url || '').filter(Boolean).join(', ') : ''
+    );
+    if (matsRaw === null) return;
+    const setDbkeys = String(setsRaw || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const materials = String(matsRaw || '').split(',').map((s) => s.trim()).filter(Boolean)
+      .map((url, i) => ({ name: `Document ${i + 1}`, url }));
+    const resp = await authFetch(`${API}/assignment`, {
+      method: 'PUT',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        sheetKey: state.sheetKey,
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        employeeKey: row.employeeKey,
+        notes,
+        setDbkeys,
+        materials,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) throw new Error(data.error || 'Could not save assignment');
+    row.assignment = data.assignment;
+    render();
+    if (typeof showAlert === 'function') showAlert('Assignment saved', `${displayName(row)} will see these after PIN login.`);
+  }
+
   async function refreshJoinToken(refresh) {
     const resp = await authFetch(`${API}/join-token`, {
       method: 'POST',
@@ -685,6 +764,7 @@
       body: JSON.stringify({
         storeNumber: storeNumber(),
         workDate: workDate(),
+        sheetKey: state.sheetKey || 'kompass',
         refresh: !!refresh,
       }),
     });
@@ -699,6 +779,12 @@
       if (!state.join?.joinUrl) await refreshJoinToken(false);
       const join = state.join;
       if (!join?.joinUrl) throw new Error('JOIN URL missing');
+      const titleEl = document.getElementById('eodTsQrTitle');
+      if (titleEl) {
+        titleEl.textContent = state.sheetKey === 'instawork'
+          ? 'InstaWork — scan to join'
+          : 'Kompass — scan to join';
+      }
       document.getElementById('eodTsQrStore').textContent = join.storeNumber || storeNumber();
       document.getElementById('eodTsQrDate').textContent = join.workDate || workDate();
       document.getElementById('eodTsQrUrl').textContent = join.joinUrl;
@@ -849,6 +935,11 @@
       state.members = Array.isArray(data.members) ? data.members : [];
       state.handoffs = Array.isArray(data.handoffs) ? data.handoffs : [];
       state.join = data.join || state.join;
+      if (state.sheetKey === 'instawork' && state.members.length) {
+        const iwYes = document.getElementById('instaworkYes');
+        const iwNo = document.getElementById('instaworkNo');
+        if (iwYes) { iwYes.checked = true; if (iwNo) iwNo.checked = false; }
+      }
       render();
     } catch (err) {
       const body = document.getElementById('eodTsBody');
@@ -885,7 +976,7 @@
     startPoll();
   }
 
-  function close() {
+  function close(opts) {
     stopPoll();
     document.getElementById('eodTsMgmtOverlay')?.classList.remove('show');
     document.getElementById('eodTsQrOverlay')?.classList.remove('show');
@@ -893,6 +984,12 @@
     const frame = document.getElementById('eodTsTabletFrame');
     if (frame) frame.src = 'about:blank';
     document.body.style.overflow = '';
+    if (!(opts || {}).fromNav && window.EodWorkspace?.currentPage) {
+      const p = window.EodWorkspace.currentPage;
+      if (p === 'instawork' || p === 'kompass') {
+        /* stay on page shell; overlay closed */
+      }
+    }
   }
 
   window.EodTimesheetMgmt = {

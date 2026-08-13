@@ -32,11 +32,13 @@
     <script src="eod-clock-picker.js?v=2.12.0"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
     <script src="eod-guest-handoff.js?v=2.12.6" defer></script>
-    <script src="eod-timesheet-mgmt.js?v=2.13.0" defer></script>
-    <script src="eod-dept-signatures.js?v=2.13.0" defer></script>
-    <script src="eod-digital-signoff.js?v=2.13.0" defer></script>
-    <link rel="stylesheet" href="eod-workspace.css?v=2.13.0">
-    <script src="eod-workspace.js?v=2.13.0" defer></script>
+    <script src="eod-timesheet-mgmt.js?v=2.14.0" defer></script>
+    <script src="eod-dept-signatures.js?v=2.14.0" defer></script>
+    <script src="eod-digital-signoff.js?v=2.14.0" defer></script>
+    <script src="eod-pic-qr.js?v=2.14.0" defer></script>
+    <script src="eod-cover-sync.js?v=2.14.0" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.14.0">
+    <script src="eod-workspace.js?v=2.14.0" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3294,7 +3296,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.13.0</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.14.0</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4082,9 +4084,6 @@
         <div class="button-group">
             <button type="button" class="btn btn-secondary" onclick="previewEodEmail()">Preview Email</button>
             <button class="btn btn-success" onclick="generateEmail()">Send Email</button>
-            <div class="coversheet-action-wrap" data-requires-role="lead supervisor admin">
-                <button type="button" class="btn btn-coversheet" title="Automatically add the complete EOD coversheet to your Kompass shift." onclick="prepareCoversheetPreview()"><span class="btn-coversheet-label">Add EOD Coversheet<br>to your Kompass shift</span></button>
-            </div>
             <button class="btn btn-secondary" onclick="resetForm()">Reset</button>
         </div>
     </div>
@@ -4518,7 +4517,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.13.0';
+        const EOD_APP_VERSION = '2.14.0';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -9596,31 +9595,31 @@
                 flagPhotoSection('afterPhotoSection');
             }
 
-            // 3. Sign-off sheet photos — at least one required.
+            // 3. Paper sign-off photos — optional when digital PIC signatures exist.
             const signoffHas = data.photos.signoff.length > 0 || (eodSelections.signoff && eodSelections.signoff.length > 0);
-            if (!signoffHas) {
-                issues.push('Photograph at least one sign-off sheet.');
+            const hasDigitalPic = !!(
+                document.querySelector('#deptSigSection [data-signed="1"]')
+                || document.querySelector('#deptSigRoleList .dept-sig-signed')
+                || window.EodPicQr?.getState?.()?.checkoutManagerName
+                || (window.EodDeptSignatures && typeof window.EodDeptSignatures.hasSignatures === 'function'
+                  && window.EodDeptSignatures.hasSignatures())
+            );
+            if (!signoffHas && !hasDigitalPic) {
+                issues.push('Collect a digital PIC / manager signature (QR) or photograph at least one paper sign-off sheet.');
                 flagPhotoSection('signoffPhotoSection');
             }
 
             // 4. Each local sign-off photo must have been opened in the
-            //    editor at least once so the lead has actually checked
-            //    orientation + crop. Auto-rotated landscape photos still
-            //    require a confirming pass through the editor.
+            //    editor at least once (only when paper photos are present).
             alignSignoffReviewState();
             const unreviewedCount = signoffNeedsReview.filter(Boolean).length;
-            if (unreviewedCount > 0) {
+            if (signoffHas && unreviewedCount > 0) {
                 issues.push(`Tap each sign-off photo to review orientation, crop, or annotate (${unreviewedCount} still need${unreviewedCount === 1 ? 's' : ''} review).`);
                 flagPhotoSection('signoffPhotoSection');
             }
 
-            // 5. InstaWork — Yes or No required, plus a saved photo if Yes.
+            // 5. InstaWork — if Yes is checked (or management used), require saved photo.
             const instaworkYes = !!document.getElementById('instaworkYes')?.checked;
-            const instaworkNo = !!document.getElementById('instaworkNo')?.checked;
-            if (!instaworkYes && !instaworkNo) {
-                issues.push('Answer "Did you have InstaWork support today?".');
-                flagSection('instaworkSection');
-            }
             if (instaworkYes) {
                 if (photos.instawork.length === 0) {
                     issues.push('Take a photo of the InstaWork sign-out timesheet.');
@@ -10138,6 +10137,13 @@ ${data.Notes || ''}`;
                 const result = await response.json();
                 loading.classList.remove('show');
                 if (result.success) {
+                    // Auto-upload coversheet image to Kompass ISE after successful send.
+                    try {
+                        if (typeof window.EodCoverSync?.syncAll === 'function') window.EodCoverSync.syncAll();
+                        await uploadCoversheetAfterSend(outbound);
+                    } catch (coverErr) {
+                        console.warn('[coversheet] auto-upload after send failed:', coverErr);
+                    }
                     // Batch 7: email alone does not clear photos — mark emailOk, then
                     // session-complete when every tracked SAS job is completed.
                     try { await PhotoDB.markEmailOk(); } catch (e) {
@@ -14280,6 +14286,76 @@ ${data.Notes || ''}`;
                 setSyncState(type, 'error', `${completedCount}/${photoArray.length} completed`);
             } else {
                 setSyncState(type, 'error', lastError || 'Upload failed');
+            }
+        }
+
+        // Auto-upload coversheet after successful Send Email (no second primary button).
+        async function uploadCoversheetAfterSend(outbound) {
+            const storeNumber = String(outbound?.storeNumber
+                || document.getElementById('storeNumber')?.value || '').trim();
+            const date = String(outbound?.workDate || outbound?.date
+                || document.getElementById('workDate')?.value || '').trim();
+            const leadName = String(outbound?.leadName
+                || document.getElementById('leadName')?.value || '').trim();
+            const hasVisitId = selectedShift && selectedShift.visitId;
+            if (!storeNumber || !date || (!leadName && !hasVisitId)) {
+                console.warn('[coversheet] skip auto-upload — missing store/date/lead');
+                return null;
+            }
+
+            const loading = document.getElementById('loadingOverlay');
+            const prevText = loading?.querySelector('span')?.textContent || 'Processing...';
+            if (loading) {
+                loading.querySelector('span').textContent = 'Uploading coversheet to Kompass…';
+                loading.classList.add('show');
+            }
+
+            try {
+                const data = await collectData();
+                const pdfBase64 = await generatePDFBase64(data);
+                if (!pdfBase64) throw new Error('PDF generation failed');
+                const coversheetImage = await pdfToImage(pdfBase64);
+                const storeNumPadded = String(storeNumber).padStart(3, '0');
+                const dateCompact = date.replace(/-/g, '');
+                const filename = `fm${storeNumPadded}_eod_coversheet_${dateCompact}.jpg`;
+                const visitId = selectedShift && selectedShift.visitId ? selectedShift.visitId : undefined;
+
+                const resp = await authFetch(SAS_UPLOAD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        storeNumber,
+                        date,
+                        leadName,
+                        ...(visitId ? { visitId } : {}),
+                        photoBase64: coversheetImage,
+                        slot: 'after',
+                        targetReset: 'MAINTENANCE',
+                        filename,
+                    }),
+                });
+                const result = await resp.json();
+                if (!result.success || !result.jobId) {
+                    throw new Error(result.error || 'Coversheet upload failed');
+                }
+                const jobId = result.jobId;
+                try { await PhotoDB.trackSasJob(jobId, 'pending'); } catch (_) { /* ignore */ }
+                await pollSasUploadJob(jobId, {
+                    onStatus: (status) => {
+                        if (!loading) return;
+                        loading.querySelector('span').textContent =
+                            status === 'processing'
+                                ? `Uploading coversheet to Kompass… (job #${jobId})`
+                                : `Queued coversheet job #${jobId}…`;
+                    },
+                });
+                console.info('[coversheet] auto-upload completed job #' + jobId);
+                return { jobId };
+            } finally {
+                if (loading) {
+                    loading.classList.remove('show');
+                    loading.querySelector('span').textContent = prevText;
+                }
             }
         }
 

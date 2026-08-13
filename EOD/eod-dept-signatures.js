@@ -7,6 +7,7 @@
   const API = 'https://eod-api.the-dump-bin.com/api/dept-signatures';
 
   const ROLE_FALLBACK = [
+    { key: 'store_pic', label: 'Store Manager / PIC' },
     { key: 'grocery', label: 'Grocery PIC' },
     { key: 'fuel_center', label: 'Fuel Center PIC' },
     { key: 'deli', label: 'Deli Dept. PIC' },
@@ -643,12 +644,17 @@
     }));
   }
 
+  function hasSignatures() {
+    return Array.isArray(signatures) && signatures.length > 0;
+  }
+
   window.EodDeptSignatures = {
     refresh,
     ensureUi,
     getCollectedForEmail,
     setRequiredRoles: applyRequiredRoleKeys,
     roles: () => roles.slice(),
+    hasSignatures,
   };
 
   document.addEventListener('DOMContentLoaded', () => {
