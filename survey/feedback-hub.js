@@ -1,5 +1,5 @@
 /* Shared Store Survey / Survey Admin feedback hub.
-   Opens a themed overlay, prompts by type, emails Tyson via eod-api. */
+   Opens a themed overlay, prompts by type, emails the Survey Administrator via eod-api. */
 (function () {
   'use strict';
 
@@ -19,9 +19,9 @@
     },
     question: {
       title: 'Ask a question',
-      blurb: 'Need a how-to, a roster change, or to reach Tyson directly.',
+      blurb: 'Need a how-to, a roster change, or to reach the Survey Administrator.',
       detailsLabel: 'Your question or message',
-      detailsHint: 'Write it the way you would in a text. He will reply to your work email.',
+      detailsHint: 'Write it the way you would in a text. A reply goes to your work email.',
     },
   };
 
@@ -161,8 +161,8 @@
     sheet.innerHTML = `
       <div id="sfh-head">
         <div>
-          <h2 id="sfh-title">Contact Tyson</h2>
-          <p class="sfh-lead">Report a problem, suggest a change, or ask a question. It emails him from this app with your details.</p>
+          <h2 id="sfh-title">Contact the Survey Administrator</h2>
+          <p class="sfh-lead">Report a problem, suggest a change, or ask a question. It emails the Survey Administrator from this app with your details.</p>
         </div>
         <button type="button" id="sfh-close" aria-label="Close">×</button>
       </div>
@@ -171,7 +171,7 @@
         <button type="button" class="sfh-card" data-kind="suggestion"><strong>Suggest an improvement</strong><span>An idea that would make the survey or admin easier.</span></button>
         <button type="button" class="sfh-card" data-kind="question"><strong>Ask a question</strong><span>How-to, roster, coverage, or anything else.</span></button>
       </div>
-      <p class="sfh-lead" style="margin-top:12px">He replies to your work email. Optional screenshots stay with the message.</p>
+      <p class="sfh-lead" style="margin-top:12px">A reply goes to your work email. Optional screenshots stay with the message.</p>
     `;
     sheet.querySelector('#sfh-close').onclick = close;
     sheet.querySelectorAll('[data-kind]').forEach(function (btn) {
@@ -244,7 +244,7 @@
         <div class="hint">Take a photo of the screen, or pick one from your camera roll. Up to ${MAX_SHOTS}.</div>
       </div>
       <div class="sfh-field">
-        <label>How should Tyson reply?</label>
+        <label>How should we reply?</label>
         <div class="sfh-pills">
           <label><input type="radio" name="sfh-reply" value="email" checked> Email</label>
           <label><input type="radio" name="sfh-reply" value="phone"> Phone</label>
@@ -258,7 +258,7 @@
       <div class="sfh-meta">We’ll include: ${esc(metaLine(ctx))}. Reply-To is your work email.</div>
       <div class="sfh-actions">
         <button type="button" class="ghost" id="sfh-back">Back</button>
-        <button type="button" class="primary" id="sfh-send">Send to Tyson</button>
+        <button type="button" class="primary" id="sfh-send">Send</button>
       </div>
     `;
     sheet.querySelector('#sfh-close').onclick = close;
@@ -338,7 +338,7 @@
     if (sending) return;
     const details = val('#sfh-details');
     if (details.length < 12) {
-      showErr('Please add a bit more detail so he knows how to help.');
+      showErr('Please add a bit more detail so we know how to help.');
       const box = document.getElementById('sfh-details');
       if (box) box.focus();
       return;
@@ -385,7 +385,7 @@
       if (msg !== 'auth' && msg !== 'forbidden') showErr(msg);
       if (sendBtn) {
         sendBtn.disabled = false;
-        sendBtn.textContent = 'Send to Tyson';
+        sendBtn.textContent = 'Send';
       }
     } finally {
       sending = false;
@@ -402,7 +402,7 @@
       </div>
       <div class="sfh-ok">
         <h2 id="sfh-title">Sent</h2>
-        <p>Tyson has your note. You should get a confirmation at your work email in a moment — reply to that if you need to add anything.</p>
+        <p>The Survey Administrator has your note. You should get a confirmation at your work email in a moment — reply to that if you need to add anything.</p>
       </div>
       <div class="sfh-actions">
         <button type="button" class="primary" id="sfh-done">Done</button>
