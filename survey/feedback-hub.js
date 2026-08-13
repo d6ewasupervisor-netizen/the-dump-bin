@@ -402,7 +402,7 @@
       </div>
       <div class="sfh-ok">
         <h2 id="sfh-title">Sent</h2>
-        <p>Tyson has your note at his work email. He’ll reply to the address you signed in with.</p>
+        <p>Tyson has your note. You should get a confirmation at your work email in a moment — reply to that if you need to add anything.</p>
       </div>
       <div class="sfh-actions">
         <button type="button" class="primary" id="sfh-done">Done</button>
