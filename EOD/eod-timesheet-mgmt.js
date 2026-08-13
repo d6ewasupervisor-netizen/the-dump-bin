@@ -182,6 +182,22 @@
       .eod-ts-statusline { font-size: 12px; color: #64748b; padding: 0 16px 10px; }
       .eod-ts-row-actions { display: flex; flex-direction: column; gap: 6px; min-width: 110px; }
       .eod-ts-row-actions .btn { padding: 6px 8px; font-size: 12px; width: 100%; }
+      @media (max-width: 720px) {
+        table.eod-ts-table { min-width: 0; }
+        .eod-ts-table thead { display: none; }
+        .eod-ts-table, .eod-ts-table tbody, .eod-ts-table tr, .eod-ts-table td { display: block; width: 100%; }
+        .eod-ts-table tr {
+          border: 1px solid #334155; border-radius: 12px; margin-bottom: 12px;
+          padding: 10px; background: #0f172a;
+        }
+        .eod-ts-table td { border: 0; padding: 6px 0; }
+        .eod-ts-table td[data-label]::before {
+          content: attr(data-label); display: block; font-size: 11px; color: #94a3b8;
+          font-weight: 700; margin-bottom: 4px;
+        }
+        .eod-ts-row-actions { flex-direction: row; flex-wrap: wrap; }
+        .eod-ts-row-actions .btn { width: auto; flex: 1 1 46%; }
+      }
       #eodTsQrOverlay {
         position: fixed; inset: 0; z-index: 10050; background: rgba(2,6,23,.92);
         display: none; align-items: center; justify-content: center; padding: 20px;
@@ -369,10 +385,10 @@
         : '<span class="eod-ts-meta">—</span>';
       const isIw = state.sheetKey === 'instawork';
       const realNameCell = isIw
-        ? `<td><input type="text" data-field="realName" value="${escapeHtml(m.realName || '')}" placeholder="Legal / badge name" aria-label="Real name"></td>`
+        ? `<td data-label="Real name"><input type="text" data-field="realName" value="${escapeHtml(m.realName || '')}" placeholder="Legal / badge name" aria-label="Real name"></td>`
         : '';
       return `<tr data-key="${escapeHtml(m.employeeKey)}" data-idx="${idx}">
-        <td>
+        <td data-label="Teammate">
           <div class="eod-ts-name">${escapeHtml(m.name)}</div>
           <div class="eod-ts-meta">${m.isLead ? 'Lead · ' : ''}${escapeHtml(m.title || '')}${m.workdayId ? ` · WD ${escapeHtml(m.workdayId)}` : ''}</div>
           <div class="eod-ts-meta">Source: ${escapeHtml(m.timeSource || 'sas')}</div>
@@ -380,20 +396,20 @@
           ${note}
         </td>
         ${realNameCell}
-        <td>
+        <td data-label="PIN">
           <div class="eod-ts-pin">${escapeHtml(m.pin || '—')}</div>
           <div class="eod-ts-row-actions" style="margin-top:6px;">
             <button type="button" class="btn btn-secondary eod-ts-copy-pin" data-idx="${idx}">Copy PIN</button>
             <button type="button" class="btn btn-secondary eod-ts-regen" data-idx="${idx}">New PIN</button>
           </div>
         </td>
-        <td><input type="text" data-field="clockIn" value="${escapeHtml(m.clockIn || '')}" aria-label="Clock in"></td>
-        <td><input type="text" data-field="lunchOut" value="${escapeHtml(m.lunchOut || '')}" aria-label="Lunch out"></td>
-        <td><input type="text" data-field="lunchIn" value="${escapeHtml(m.lunchIn || '')}" aria-label="Lunch in"></td>
-        <td><input type="text" data-field="clockOut" value="${escapeHtml(m.clockOut || '')}" aria-label="Clock out"></td>
-        <td>${sig}</td>
-        <td>${statusBadge(conf.status)}${conf.submittedAt ? `<div class="eod-ts-meta">${escapeHtml(new Date(conf.submittedAt).toLocaleString())}</div>` : ''}</td>
-        <td>
+        <td data-label="Clock in"><input type="text" data-field="clockIn" value="${escapeHtml(m.clockIn || '')}" aria-label="Clock in"></td>
+        <td data-label="Lunch out"><input type="text" data-field="lunchOut" value="${escapeHtml(m.lunchOut || '')}" aria-label="Lunch out"></td>
+        <td data-label="Lunch in"><input type="text" data-field="lunchIn" value="${escapeHtml(m.lunchIn || '')}" aria-label="Lunch in"></td>
+        <td data-label="Clock out"><input type="text" data-field="clockOut" value="${escapeHtml(m.clockOut || '')}" aria-label="Clock out"></td>
+        <td data-label="Signature">${sig}</td>
+        <td data-label="Status">${statusBadge(conf.status)}${conf.submittedAt ? `<div class="eod-ts-meta">${escapeHtml(new Date(conf.submittedAt).toLocaleString())}</div>` : ''}</td>
+        <td data-label="Actions">
           <div class="eod-ts-row-actions">
             <button type="button" class="btn btn-secondary eod-ts-save" data-idx="${idx}">Save</button>
             <button type="button" class="btn btn-secondary eod-ts-tablet" data-idx="${idx}">Sign on tablet</button>

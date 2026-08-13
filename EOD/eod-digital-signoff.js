@@ -44,9 +44,10 @@
 
   function ensureUi() {
     if (document.getElementById('digitalSignoffSection')) return;
+    const host = document.getElementById('eodSignoffGroupBody');
     const photoSection = document.getElementById('signoffPhotoSection');
-    const anchor = photoSection?.closest('.section') || document.getElementById('deptSigSection');
-    if (!anchor || !anchor.parentNode) return;
+    const anchor = host || photoSection?.closest('.section') || document.getElementById('deptSigSection');
+    if (!anchor || (!host && !anchor.parentNode)) return;
 
     const section = document.createElement('div');
     section.className = 'section';
@@ -55,23 +56,48 @@
     section.innerHTML = `
       <div class="section-title" style="color:#7dd3fc;">Digital Signoff Sheet</div>
       <p class="sets-help" id="digitalSignoffHelp" style="margin:0 0 10px;">
-        Hosted completion worksheet for this store. Toggle K/L/M independently — a set can be
-        <strong>Complete</strong> and <strong>Not in SI</strong> at the same time, like the paper sheet.
-        Not In Store / Not In SI still update PROD comments and can open the help desk flow.
+        Hosted completion worksheet for this store. Open the sheet to mark Complete / Not in store / Not in SI.
       </p>
       <div id="digitalSignoffSummary" class="sets-help" style="margin-bottom:10px;"></div>
-      <div id="digitalSignoffRows" style="overflow:auto; max-height:420px;"></div>
+      <button type="button" class="eod-picker-trigger" id="digitalSignoffOpenBtn">
+        <span class="eod-picker-label">Open digital signoff sheet</span>
+        <span class="eod-picker-meta" id="digitalSignoffOpenMeta">—</span>
+      </button>
       <div class="button-group" style="margin-top:12px; gap:8px; flex-wrap:wrap;">
         <button type="button" class="btn btn-primary" id="digitalSignoffRefreshBtn">Load / Refresh sheet</button>
         <button type="button" class="btn btn-secondary" id="digitalSignoffPrintBtn" style="display:none;">Open printable PDF</button>
       </div>
     `;
-    // Place above paper sign-off photo section when possible.
-    if (photoSection?.closest('.section')) {
+    if (host) host.prepend(section);
+    else if (photoSection?.closest('.section')) {
       photoSection.closest('.section').parentNode.insertBefore(section, photoSection.closest('.section'));
     } else {
       anchor.parentNode.insertBefore(section, anchor);
     }
+
+    if (!document.getElementById('digitalSignoffOverlay')) {
+      const overlay = document.createElement('div');
+      overlay.id = 'digitalSignoffOverlay';
+      overlay.className = 'eod-picker-overlay';
+      overlay.innerHTML = `
+        <div class="eod-picker-panel sheet" role="dialog" aria-modal="true" style="max-height:92vh;">
+          <div class="eod-picker-head">
+            <h3>Digital signoff sheet</h3>
+            <button type="button" class="btn btn-secondary" id="digitalSignoffOverlayClose">Close</button>
+          </div>
+          <input type="search" id="digitalSignoffSearch" class="eod-picker-search" placeholder="Search sets…" autocomplete="off">
+          <div id="digitalSignoffRows" class="eod-picker-list"></div>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.classList.remove('show');
+      });
+      document.getElementById('digitalSignoffOverlayClose').onclick = () => overlay.classList.remove('show');
+      document.getElementById('digitalSignoffSearch').addEventListener('input', () => render());
+    }
+    document.getElementById('digitalSignoffOpenBtn').onclick = () => {
+      document.getElementById('digitalSignoffOverlay')?.classList.add('show');
+    };
 
     if (!document.getElementById('digitalSignoffStyles')) {
       const style = document.createElement('style');
@@ -91,11 +117,17 @@
         .ds-actions button.ds-mark-on[data-mark="not_in_si"] { background: #78350f; border-color: #fbbf24; }
         .ds-row-marked-complete.ds-row-marked-nisi { background: linear-gradient(90deg, rgba(22,101,52,.25), rgba(120,53,15,.28)); }
         .ds-mark-pill { display:inline-block; font-size:11px; padding:2px 6px; margin:1px 2px 1px 0; border-radius:999px; background:#1e293b; }
+        @media (max-width: 720px) {
+          .ds-table thead { display:none; }
+          .ds-table, .ds-table tbody, .ds-table tr, .ds-table td { display:block; width:100%; }
+          .ds-table tr { border:1px solid #334155; border-radius:10px; margin-bottom:10px; padding:8px; }
+          .ds-table td { border:0; padding:4px 0; }
+        }
       `;
       document.head.appendChild(style);
     }
 
-    document.getElementById('digitalSignoffRefreshBtn').onclick = () => refresh().catch(console.error);
+    document.getElementById('digitalSignoffRefreshBtn')?.addEventListener('click', () => refresh().catch(console.error));
     document.getElementById('digitalSignoffPrintBtn').onclick = () => {
       if (sheet?.pdfR2Key && typeof window.openMaterialsBrowser === 'function') {
         // Best-effort: materials browser uses Dump Bin keys; leave as no-op if unavailable.
@@ -149,20 +181,27 @@
     const summary = document.getElementById('digitalSignoffSummary');
     const host = document.getElementById('digitalSignoffRows');
     const printBtn = document.getElementById('digitalSignoffPrintBtn');
+    const openMeta = document.getElementById('digitalSignoffOpenMeta');
     if (!summary || !host) return;
 
     if (!sheet) {
       summary.textContent = 'No hosted sheet for this store/week yet. After weekly signoffs are built with digital export, it will appear here. You can still collect department signatures and use Not In Store / Not In SI pickers.';
       host.innerHTML = '';
       if (printBtn) printBtn.style.display = 'none';
+      if (openMeta) openMeta.textContent = 'none';
       return;
     }
 
     const s = sheet.summary || {};
-    summary.innerHTML = `<strong>${escapeHtml(sheet.fiscalWeek)}</strong> · Store ${escapeHtml(sheet.storeNumber)}`
+    const line = `<strong>${escapeHtml(sheet.fiscalWeek)}</strong> · Store ${escapeHtml(sheet.storeNumber)}`
       + (sheet.team ? ` · Team ${escapeHtml(sheet.team)}` : '')
       + ` · ${s.marked || 0}/${s.total || 0} marked`
       + ` (Complete ${s.complete || 0}, Not in store ${s.notInStore || 0}, Not in SI ${s.notInSi || 0})`;
+    summary.innerHTML = line;
+    if (openMeta) openMeta.textContent = `${s.marked || 0}/${s.total || 0}`;
+    if (window.EodWorkspace?.openGroup) {
+      window.EodWorkspace.openGroup('signoff', { exclusive: false, scroll: false });
+    }
 
     if (printBtn) printBtn.style.display = 'inline-flex';
 
@@ -178,7 +217,12 @@
           </tr>
         </thead>
         <tbody>
-          ${(sheet.rows || []).map((row) => {
+          ${(sheet.rows || []).filter((row) => {
+            const q = (document.getElementById('digitalSignoffSearch')?.value || '').trim().toLowerCase();
+            if (!q) return true;
+            const hay = `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''}`.toLowerCase();
+            return hay.includes(q);
+          }).map((row) => {
             const cls = rowClassForMarks(row);
             const status = markStatusHtml(row);
             const btn = (type, label) => {

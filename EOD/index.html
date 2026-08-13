@@ -32,9 +32,11 @@
     <script src="eod-clock-picker.js?v=2.12.0"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
     <script src="eod-guest-handoff.js?v=2.12.6" defer></script>
-    <script src="eod-timesheet-mgmt.js?v=2.12.6" defer></script>
-    <script src="eod-dept-signatures.js?v=2.11.2" defer></script>
-    <script src="eod-digital-signoff.js?v=2.12.7" defer></script>
+    <script src="eod-timesheet-mgmt.js?v=2.13.0" defer></script>
+    <script src="eod-dept-signatures.js?v=2.13.0" defer></script>
+    <script src="eod-digital-signoff.js?v=2.13.0" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.13.0">
+    <script src="eod-workspace.js?v=2.13.0" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3292,7 +3294,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.12.8</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.13.0</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3313,121 +3315,18 @@
             </div>
         </div>
 
-        <!--
-            InstaWork Support — placed at the TOP of the form so the lead is
-            reminded BEFORE the day starts (sign-in) AND before EOD submission
-            (sign-out + capture). When "Yes" is selected the lead is required
-            to capture the InstaWork sign-out sheet photo and explicitly
-            confirm-and-save it; the saver routes the JPG into the correct
-            P#W# folder under the InstaWork sign-out root.
-        -->
-        <div class="section" id="instaworkSection" style="border-color:#fbbf24;">
-            <div class="section-title" style="color:#fde68a;">InstaWork Support</div>
+        <div class="eod-workspace" id="eodWorkspace">
 
-            <div class="field">
-                <label>Do you have InstaWork support today?</label>
-                <div class="checkbox-group">
-                    <div class="checkbox-option">
-                        <input type="checkbox" id="instaworkYes" name="instawork" value="Yes" onchange="toggleInstawork(this)">
-                        <label for="instaworkYes">Yes</label>
-                    </div>
-                    <div class="checkbox-option">
-                        <input type="checkbox" id="instaworkNo" name="instawork" value="No" onchange="toggleInstawork(this)">
-                        <label for="instaworkNo">No</label>
-                    </div>
+        <details class="eod-group" id="eodGroupVisit" data-eod-group="visit" open>
+            <summary class="eod-group-summary">
+                <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Today's visit</div>
+                    <div class="eod-group-hint">Store, date, shifts, and your profile</div>
                 </div>
-            </div>
-
-            <button type="button" class="btn btn-primary" id="openInstaworkMgmtBtn" onclick="openInstaworkManagement()" style="width:100%; margin-top:10px;">
-                Open InstaWork Management
-            </button>
-
-            <div id="instaworkYesPanel" style="display:none; margin-top:14px;">
-                <div style="padding:12px 14px; background:#1f2937; border-left:4px solid #fbbf24; color:#fde68a; border-radius:6px;">
-                    <p style="margin:0 0 6px 0; font-weight:700;">InstaWork management is live</p>
-                    <ul style="margin:0; padding-left:18px; line-height:1.55;">
-                        <li>Use <strong>Open InstaWork Management</strong> for the live time sheet (punches, confirmations, signatures).</li>
-                        <li>Show the JOIN QR so teammates can opt into texts, then send each person a secure confirm/edit link.</li>
-                        <li>After the last InstaWork employee leaves, capture the sign-out sheet photo below.</li>
-                    </ul>
-                </div>
-
-                <div style="margin-top:12px; padding:12px 14px; background:#450a0a; border-left:4px solid #ef4444; color:#fecaca; border-radius:6px;">
-                    <p style="margin:0 0 6px 0; font-weight:700; font-size:14px;">As soon as the LAST InstaWork employee signs:</p>
-                    <p style="margin:0; line-height:1.5;">
-                        Immediately take a clear photo of the sign-out sheet. Make sure it is in good order — correct orientation, no glare, all signatures visible. You can rotate, crop, and adjust the image before saving.
-                    </p>
-                </div>
-
-                <div class="photo-section" id="instaworkPhotoSection">
-                    <label class="field label" style="margin-top:14px;">InstaWork Sign-Out Sheet Photo:</label>
-                    <div class="photo-button-group">
-                        <button class="photo-button" type="button" onclick="openInstaworkCamera()">
-                            Take Photo
-                        </button>
-                        <button class="photo-button" type="button" onclick="document.getElementById('photoInstawork').click()">
-                            Upload Image
-                        </button>
-                    </div>
-                    <input type="file" id="photoInstawork" accept="image/*,.heic,.heif" onchange="handlePhoto(this, 'instawork')">
-                    <div id="previewInstawork" class="photo-preview"></div>
-                </div>
-
-                <div id="instaworkSaveStatus" style="display:none; margin-top:10px; padding:10px 12px; background:#064e3b; border-left:4px solid #34d399; color:#a7f3d0; border-radius:6px; font-size:13px;"></div>
-
-                <button class="btn btn-primary" id="instaworkSaveBtn" type="button" onclick="confirmAndSaveInstaworkPhoto()" style="margin-top:12px; width:100%;" disabled>
-                    Confirm &amp; Save InstaWork Sign-Out Sheet
-                </button>
-
-                <div id="instaworkCollapsedRow" class="iw-collapsed-row" style="display:none;">
-                    <div>
-                        <div style="font-weight:700;">&#10003; InstaWork sign-out sheet saved</div>
-                        <div id="instaworkCollapsedDest" style="font-size:12px; color:#6ee7b7; margin-top:2px; word-break:break-word;"></div>
-                    </div>
-                    <button type="button" class="iw-retake-btn" onclick="reopenInstaworkPanel()">Re-take photo</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="section" id="kompassTimesheetSection" style="border-color:#fbbf24;">
-            <div class="section-title" style="color:#fde68a;">Kompass Team Sheet</div>
-            <div class="field">
-                <label>Do you need a Kompass team / time sheet today?</label>
-                <div class="checkbox-group">
-                    <div class="checkbox-option">
-                        <input type="checkbox" id="kompassTimesheetYes" name="kompassTimesheet" value="Yes" onchange="toggleKompassTimesheet(this)">
-                        <label for="kompassTimesheetYes">Yes</label>
-                    </div>
-                    <div class="checkbox-option">
-                        <input type="checkbox" id="kompassTimesheetNo" name="kompassTimesheet" value="No" onchange="toggleKompassTimesheet(this)">
-                        <label for="kompassTimesheetNo">No</label>
-                    </div>
-                </div>
-            </div>
-            <button type="button" class="btn btn-primary" id="openKompassMgmtBtn" onclick="openKompassManagement()" style="width:100%; margin-top:10px;">
-                Open Kompass Team Management
-            </button>
-        </div>
-
-        <div class="section" id="materialsInfoSection" style="border-color:#fbbf24;">
-            <div class="section-title" style="color:#fde68a;">Information</div>
-            <div class="field">
-                <label>Before you begin, have you read all provided material and ensured that each team member is aware of those details?</label>
-                <div class="checkbox-group">
-                    <div class="checkbox-option">
-                        <input type="checkbox" id="materialsReadYes" name="materialsRead" value="Yes" onchange="toggleMaterialsRead(this)">
-                        <label for="materialsReadYes">Yes</label>
-                    </div>
-                    <div class="checkbox-option">
-                        <input type="checkbox" id="materialsReadNo" name="materialsRead" value="No" onchange="toggleMaterialsRead(this)">
-                        <label for="materialsReadNo">Open the Dump Bin</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Store & Date Selection + Find Shifts (unified) — MOVED ABOVE My Profile -->
-        <div class="section" id="storeShiftSection">
+            </summary>
+            <div class="eod-group-body">
+<div class="section" id="storeShiftSection">
             <div class="section-title">Store & Shift Selection</div>
             <div class="sm-controls">
                 <div class="field-group">
@@ -3586,9 +3485,7 @@
                 </select>
             </div>
         </div>
-
-        <!-- My Profile (auto-filled from lead selection) -->
-        <div class="section" id="profileSection">
+<div class="section" id="profileSection">
             <div class="section-title">My Profile</div>
             <div class="field-group">
                 <div class="field profile-readonly-wrapper">
@@ -3604,13 +3501,124 @@
                 Auto-filled from shift lead info. Click (Edit) to override.
             </div>
         </div>
+            </div>
+        </details>
 
-        <!-- Hidden fields for leadName used by collectData / autoSave (kept for compatibility) -->
         <input type="hidden" id="leadName" value="">
         <input type="hidden" id="leadEmail" value="">
 
-        <!-- Employee Management Section (shift members + add/remove) -->
-        <div class="section" id="smSection" data-requires-role="lead supervisor admin" style="display:none;">
+        <details class="eod-group" id="eodGroupCrew" data-eod-group="crew" open>
+            <summary class="eod-group-summary">
+                <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Crew &amp; timesheets</div>
+                    <div class="eod-group-hint">InstaWork, Kompass roster, and shift members</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
+<div class="section" id="instaworkSection" style="border-color:#fbbf24;">
+            <div class="section-title" style="color:#fde68a;">InstaWork Support</div>
+
+            <div class="field">
+                <label>Do you have InstaWork support today?</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="instaworkYes" name="instawork" value="Yes" onchange="toggleInstawork(this)">
+                        <label for="instaworkYes">Yes</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="instaworkNo" name="instawork" value="No" onchange="toggleInstawork(this)">
+                        <label for="instaworkNo">No</label>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-primary" id="openInstaworkMgmtBtn" onclick="openInstaworkManagement()" style="width:100%; margin-top:10px;">
+                Open InstaWork Management
+            </button>
+
+            <div id="instaworkYesPanel" style="display:none; margin-top:14px;">
+                <div style="padding:12px 14px; background:#1f2937; border-left:4px solid #fbbf24; color:#fde68a; border-radius:6px;">
+                    <p style="margin:0 0 6px 0; font-weight:700;">InstaWork management is live</p>
+                    <ul style="margin:0; padding-left:18px; line-height:1.55;">
+                        <li>Use <strong>Open InstaWork Management</strong> for the live time sheet (punches, confirmations, signatures).</li>
+                        <li>Show the JOIN QR so teammates can opt into texts, then send each person a secure confirm/edit link.</li>
+                        <li>After the last InstaWork employee leaves, capture the sign-out sheet photo below.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-top:12px; padding:12px 14px; background:#450a0a; border-left:4px solid #ef4444; color:#fecaca; border-radius:6px;">
+                    <p style="margin:0 0 6px 0; font-weight:700; font-size:14px;">As soon as the LAST InstaWork employee signs:</p>
+                    <p style="margin:0; line-height:1.5;">
+                        Immediately take a clear photo of the sign-out sheet. Make sure it is in good order — correct orientation, no glare, all signatures visible. You can rotate, crop, and adjust the image before saving.
+                    </p>
+                </div>
+
+                <div class="photo-section" id="instaworkPhotoSection">
+                    <label class="field label" style="margin-top:14px;">InstaWork Sign-Out Sheet Photo:</label>
+                    <div class="photo-button-group">
+                        <button class="photo-button" type="button" onclick="openInstaworkCamera()">
+                            Take Photo
+                        </button>
+                        <button class="photo-button" type="button" onclick="document.getElementById('photoInstawork').click()">
+                            Upload Image
+                        </button>
+                    </div>
+                    <input type="file" id="photoInstawork" accept="image/*,.heic,.heif" onchange="handlePhoto(this, 'instawork')">
+                    <div id="previewInstawork" class="photo-preview"></div>
+                </div>
+
+                <div id="instaworkSaveStatus" style="display:none; margin-top:10px; padding:10px 12px; background:#064e3b; border-left:4px solid #34d399; color:#a7f3d0; border-radius:6px; font-size:13px;"></div>
+
+                <button class="btn btn-primary" id="instaworkSaveBtn" type="button" onclick="confirmAndSaveInstaworkPhoto()" style="margin-top:12px; width:100%;" disabled>
+                    Confirm &amp; Save InstaWork Sign-Out Sheet
+                </button>
+
+                <div id="instaworkCollapsedRow" class="iw-collapsed-row" style="display:none;">
+                    <div>
+                        <div style="font-weight:700;">&#10003; InstaWork sign-out sheet saved</div>
+                        <div id="instaworkCollapsedDest" style="font-size:12px; color:#6ee7b7; margin-top:2px; word-break:break-word;"></div>
+                    </div>
+                    <button type="button" class="iw-retake-btn" onclick="reopenInstaworkPanel()">Re-take photo</button>
+                </div>
+            </div>
+        </div>
+<div class="section" id="kompassTimesheetSection" style="border-color:#fbbf24;">
+            <div class="section-title" style="color:#fde68a;">Kompass Team Sheet</div>
+            <div class="field">
+                <label>Do you need a Kompass team / time sheet today?</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="kompassTimesheetYes" name="kompassTimesheet" value="Yes" onchange="toggleKompassTimesheet(this)">
+                        <label for="kompassTimesheetYes">Yes</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="kompassTimesheetNo" name="kompassTimesheet" value="No" onchange="toggleKompassTimesheet(this)">
+                        <label for="kompassTimesheetNo">No</label>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary" id="openKompassMgmtBtn" onclick="openKompassManagement()" style="width:100%; margin-top:10px;">
+                Open Kompass Team Management
+            </button>
+        </div>
+<div class="section" id="materialsInfoSection" style="border-color:#fbbf24;">
+            <div class="section-title" style="color:#fde68a;">Information</div>
+            <div class="field">
+                <label>Before you begin, have you read all provided material and ensured that each team member is aware of those details?</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="materialsReadYes" name="materialsRead" value="Yes" onchange="toggleMaterialsRead(this)">
+                        <label for="materialsReadYes">Yes</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="materialsReadNo" name="materialsRead" value="No" onchange="toggleMaterialsRead(this)">
+                        <label for="materialsReadNo">Open the Dump Bin</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+<div class="section" id="smSection" data-requires-role="lead supervisor admin" style="display:none;">
             <div class="section-title">Employee Management</div>
             <div class="sm-status pending" id="smClosedShiftNotice" style="display:none;">This shift is closed; sync is available, but roster changes are disabled.</div>
 
@@ -3646,9 +3654,9 @@
                 <div class="sm-status" id="smAddStatus"></div>
             </div>
         </div>
+            </div>
+        </details>
 
-        <!-- TODO: future admin-only area. Unhide #adminToolsLegacy for users with admin role.
-             Contains: Weekly Tasks (Rebotics bulk backlog) section + rebotics modals. -->
         <div id="adminToolsLegacy" data-admin-feature="legacy-rebotics-and-auth-trigger" hidden>
 
         <!-- Weekly Tasks (Rebotics bulk backlog) -->
@@ -3709,7 +3717,15 @@
         </div>
 
         </div><!-- /#adminToolsLegacy end of section block (modals are added below) -->
-
+        <details class="eod-group" id="eodGroupPhotos" data-eod-group="photos">
+            <summary class="eod-group-summary">
+                <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Photos</div>
+                    <div class="eod-group-hint">Cart before/after and paper sign-off sheets</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
         <!-- Photos Section -->
         <div class="section">
             <div class="section-title">Photos</div>
@@ -3814,7 +3830,31 @@
             </div>
 
         </div>
+            </div>
+        </details>
 
+        <details class="eod-group" id="eodGroupSignoff" data-eod-group="signoff">
+            <summary class="eod-group-summary">
+                <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Digital signoffs</div>
+                    <div class="eod-group-hint">Hosted worksheet and department PIC signatures</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
+        <div id="eodSignoffGroupBody"></div>
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupCover" data-eod-group="cover">
+            <summary class="eod-group-summary">
+                <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Cover sheet</div>
+                    <div class="eod-group-hint">Managers, help desk, and sets not in store / SI</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
         <!-- EOD Fields -->
         <div class="section">
             <div class="section-title">EOD Cover Sheet</div>
@@ -3976,7 +4016,18 @@
                 <textarea id="notes" placeholder="Any additional notes or observations"></textarea>
             </div>
         </div>
+            </div>
+        </details>
 
+        <details class="eod-group" id="eodGroupSend" data-eod-group="send">
+            <summary class="eod-group-summary">
+                <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Sign &amp; send</div>
+                    <div class="eod-group-hint">Lead signature, recipients, and send</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
         <!-- Signature -->
         <div class="section signature-section">
             <div class="section-title">Signature</div>
@@ -4022,6 +4073,10 @@
                 </div>
             </div>
         </div>
+            </div>
+        </details>
+
+        </div><!-- /#eodWorkspace -->
 
         <!-- Action Buttons -->
         <div class="button-group">
@@ -4463,7 +4518,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.12.9';
+        const EOD_APP_VERSION = '2.13.0';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';

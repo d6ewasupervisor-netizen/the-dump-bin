@@ -86,8 +86,9 @@
 
   function ensureUi() {
     if (document.getElementById('deptSigSection')) return;
+    const host = document.getElementById('eodSignoffGroupBody');
     const sigSection = document.querySelector('.signature-section');
-    if (!sigSection || !sigSection.parentNode) return;
+    if (!host && (!sigSection || !sigSection.parentNode)) return;
 
     const section = document.createElement('div');
     section.className = 'section';
@@ -95,15 +96,20 @@
     section.innerHTML = `
       <div class="section-title">Department Signatures</div>
       <p class="sets-help" style="margin:0 0 12px;">
-        Collect PIC signatures any time during the day. Hand the device to Produce, Bakery, Grocery, etc.
-        Name and email are remembered for this store; they still sign each time. Signers are added to the EOD CC list.
+        Collect PIC signatures any time. Hand the device to the department lead.
+        Name and email are remembered for this store; they still sign each time.
       </p>
-      <div id="deptSigRoleList" class="dept-sig-role-list"></div>
+      <button type="button" class="eod-picker-trigger" id="deptSigPickerBtn">
+        <span class="eod-picker-label">Collect a department signature</span>
+        <span class="eod-picker-meta" id="deptSigPickerMeta">0</span>
+      </button>
+      <div id="deptSigRoleList" class="dept-sig-role-list eod-hidden-list"></div>
       <div class="button-group" style="margin-top:12px; flex-wrap:wrap; gap:8px;">
-        <button type="button" class="btn btn-primary" id="deptSigRefreshBtn">Refresh</button>
+        <button type="button" class="btn btn-secondary" id="deptSigRefreshBtn">Refresh</button>
       </div>
     `;
-    sigSection.parentNode.insertBefore(section, sigSection);
+    if (host) host.appendChild(section);
+    else sigSection.parentNode.insertBefore(section, sigSection);
 
     if (!document.getElementById('deptSigWizardOverlay')) {
       const overlay = document.createElement('div');
@@ -163,6 +169,7 @@
           border:2px dashed #64748b; border-radius:8px; background:#fff; touch-action:none;
         }
         .dept-sig-pad-wrap canvas { width:100%; height:220px; display:block; }
+        #deptSigRoleList.eod-hidden-list { display:none !important; }
       `;
       document.head.appendChild(style);
     }
@@ -219,6 +226,38 @@
     host.querySelectorAll('[data-dept-sig-clear]').forEach((btn) => {
       btn.onclick = () => clearRole(btn.getAttribute('data-dept-sig-clear'));
     });
+
+    const meta = document.getElementById('deptSigPickerMeta');
+    const collectedN = roles.filter((r) => byRole.has(r.key)).length;
+    if (meta) meta.textContent = `${collectedN}/${roles.length}`;
+    const pickerBtn = document.getElementById('deptSigPickerBtn');
+    if (pickerBtn && pickerBtn.dataset.bound !== '1') {
+      pickerBtn.dataset.bound = '1';
+      pickerBtn.addEventListener('click', () => {
+        const latest = new Map(signatures.map((s) => [s.roleKey, s]));
+        const items = roles.map((role) => {
+          const sig = latest.get(role.key);
+          return {
+            id: role.key,
+            label: role.label,
+            sublabel: sig ? `Signed by ${sig.signerName}` : 'Not collected yet',
+            selected: !!sig,
+          };
+        });
+        const open = window.EodPicker?.open || window.EodWorkspace?.openPicker;
+        if (!open) {
+          host.classList.remove('eod-hidden-list');
+          return;
+        }
+        open({
+          anchor: pickerBtn,
+          title: 'Department signatures',
+          items,
+          searchable: items.length > 6,
+          onChoose(item) { openWizard(item.id); },
+        });
+      });
+    }
   }
 
   async function refresh() {
