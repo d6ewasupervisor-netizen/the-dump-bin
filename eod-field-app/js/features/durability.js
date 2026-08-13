@@ -2,15 +2,38 @@
 (function (global) {
   'use strict';
 
-  async function awaitDurablePhotoSave(reason) {
+  const DEFAULT_TIMEOUT_MS = 8000;
+
+  function withTimeout(promise, ms, label) {
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(label || 'timeout')), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
+  }
+
+  async function awaitDurablePhotoSave(reason, opts) {
     const S = global.EodSession;
+    const timeoutMs = (opts && opts.timeoutMs) || DEFAULT_TIMEOUT_MS;
     try { S?.saveDraft(); } catch (_) {}
     if (!global.PhotoDB?.savePhotos || !S?.state?.photos) return true;
     try {
-      await global.PhotoDB.savePhotos(S.state.photos);
+      await withTimeout(
+        global.PhotoDB.savePhotos(S.state.photos),
+        timeoutMs,
+        'photo-save-timeout'
+      );
       return true;
     } catch (err) {
       console.error('[durability] photo save failed', reason, err);
+      // Timeout / IDB flake: still allow Update so the phone is not stuck forever.
+      // Draft was already written above; photos may already be in IndexedDB from prior saves.
+      if (String(err && err.message) === 'photo-save-timeout') {
+        console.warn('[durability] proceeding after photo-save timeout', reason);
+        return true;
+      }
       return false;
     }
   }

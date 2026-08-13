@@ -4,26 +4,33 @@
 
   const EOD_TEST_MODE_KEY = 'eodTestMode';
   const EOD_FORCE_LIVE_KEY = 'eodForceLiveDelivery';
-  const EOD_PENDING_VERSION_KEY = 'eodPendingVersion';
+  const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
   const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
   const EOD_TEST_STORE = '999';
   const EOD_TEST_LEAD_NAME = 'd6ewa.supervisor';
   const EOD_TEST_LEAD_EMAIL = 'd6ewa.supervisor@gmail.com';
-  const UPDATE_AUTO_RELOAD_MS = 8000;
+  const UPDATE_AUTO_RELOAD_MS = 3500;
+  const UPDATE_CHECK_MS = 2 * 60 * 1000;
 
   let eodTestMode = false;
   let eodForceLiveDelivery = false;
   let autoReloadTimer = null;
   let longPressTimer = null;
+  let updating = false;
 
   function version() {
     return global.EOD_APP_VERSION || '0.0.0';
+  }
+
+  function toast(msg, kind) {
+    if (global.EodConnections?.toast) global.EodConnections.toast(msg, kind || 'info');
   }
 
   function applyUi() {
     document.body.classList.toggle('eod-test-mode', eodTestMode);
     document.querySelectorAll('.eod-test-banner').forEach((el) => {
       el.classList.toggle('visible', eodTestMode);
+      el.setAttribute('aria-hidden', eodTestMode ? 'false' : 'true');
     });
     const badge = document.getElementById('eodVersionBadge');
     if (badge) {
@@ -105,21 +112,17 @@
     S.patch({ shifts: [mock], selectedShift: mock }, 'test-shift');
     S.saveDraft();
     global.EodChrome?.refresh?.();
-    global.EodConnections?.toast?.(
-      `Test mode ON — #${EOD_TEST_STORE}, mail → ${EOD_TEST_RECIPIENT} only (unless LIVE).`,
-      'ok'
-    );
+    toast(`Test mode ON — #${EOD_TEST_STORE}, mail → ${EOD_TEST_RECIPIENT} only (unless LIVE).`, 'ok');
     if (global.EodRouter) global.EodRouter.go('visit');
   }
 
   function clearTestScenario() {
-    // Leave drafts alone — only drop test mock shift if present.
     const S = global.EodSession;
     if (!S) return;
     if (S.state.selectedShift?._testMock || String(S.state.selectedShift?.visitId || '').startsWith('test-')) {
       S.patch({ selectedShift: null, shifts: [] }, 'clear-test');
     }
-    global.EodConnections?.toast?.('Test mode OFF — live recipients restored.', 'ok');
+    toast('Test mode OFF — live recipients restored.', 'ok');
   }
 
   function setTestMode(enabled) {
@@ -159,68 +162,177 @@
     };
   }
 
-  async function hardNavigateForUpdate(remoteVersion) {
-    try { global.EodSession?.saveDraft(); } catch (_) {}
-    if (global.EodDurability?.awaitDurablePhotoSave) {
-      const saved = await global.EodDurability.awaitDurablePhotoSave('update');
-      if (!saved) {
-        showUpdateBanner({
-          title: 'Update blocked',
-          detail: 'Photos could not be saved to this device. Free storage, then tap Update again. Your work is still on screen.',
-          remoteVersion,
-          autoReload: false,
-        });
-        return;
-      }
+  function setUpdateBusy(busy, label) {
+    updating = !!busy;
+    const btn = document.getElementById('eodUpdateNowBtn');
+    if (btn) {
+      btn.disabled = updating;
+      if (label) btn.textContent = label;
+      else if (!updating) btn.textContent = 'Update';
     }
-    const ver = remoteVersion || String(Date.now());
+    const badge = document.getElementById('eodVersionBadge');
+    if (badge) badge.classList.toggle('updating', updating);
+  }
+
+  async function hardNavigateForUpdate(remoteVersion) {
+    if (updating) return;
+    if (autoReloadTimer) {
+      clearTimeout(autoReloadTimer);
+      autoReloadTimer = null;
+    }
+    setUpdateBusy(true, 'Saving…');
+    toast('Saving draft & photos, then reloading…', 'ok');
+
+    try { global.EodSession?.saveDraft(); } catch (_) {}
+
+    let saved = true;
+    if (global.EodDurability?.awaitDurablePhotoSave) {
+      saved = await global.EodDurability.awaitDurablePhotoSave('update', { timeoutMs: 8000 });
+    }
+    if (!saved) {
+      setUpdateBusy(false, 'Update');
+      showUpdateBanner({
+        title: 'Update blocked',
+        detail: 'Photos could not be saved to this device. Free storage, then tap Update again. Your work is still on screen.',
+        remoteVersion,
+        autoReload: false,
+      });
+      return;
+    }
+
+    const ver = remoteVersion || ('force-' + Date.now());
     try { sessionStorage.setItem(EOD_PENDING_VERSION_KEY, ver); } catch (_) {}
+
+    // Persist route so we can restore after a hash-less reload (iOS cache bust).
+    try {
+      const hash = (location.hash || '#/visit').replace(/^#/, '');
+      sessionStorage.setItem('eodReturnHash', hash.startsWith('/') ? hash : '/' + hash);
+    } catch (_) {}
+
+    setUpdateBusy(true, 'Reloading…');
     try {
       const u = new URL(window.location.href);
       u.searchParams.set('eodv', ver);
       u.searchParams.set('_', String(Date.now()));
-      u.hash = location.hash || '#/visit';
+      // Critical: drop hash so iOS Safari / GH Pages do not reuse a sticky document.
+      u.hash = '';
       window.location.replace(u.toString());
+      // Fallback if replace is a no-op in a stuck WebView
+      setTimeout(() => {
+        try { window.location.reload(); } catch (_) {}
+      }, 1500);
     } catch (_) {
-      location.reload();
+      window.location.reload();
     }
   }
 
   function showUpdateBanner({ title, detail, remoteVersion, autoReload }) {
     const banner = document.getElementById('updateBanner');
-    if (!banner) return;
+    if (!banner) {
+      // Last resort — still allow force navigate
+      if (autoReload) void hardNavigateForUpdate(remoteVersion);
+      return;
+    }
     banner.hidden = false;
-    banner.innerHTML = `<strong>${title}</strong> <span style="font-weight:500">${detail}</span>
-      <button type="button" class="btn btn-secondary" id="eodUpdateNowBtn" style="margin-left:8px;min-height:32px;padding:4px 10px;">Update</button>
-      <button type="button" class="btn btn-secondary" id="eodUpdateLaterBtn" style="margin-left:4px;min-height:32px;padding:4px 10px;">Later</button>`;
-    document.getElementById('eodUpdateNowBtn').onclick = () => hardNavigateForUpdate(remoteVersion);
-    document.getElementById('eodUpdateLaterBtn').onclick = () => {
-      if (autoReloadTimer) clearTimeout(autoReloadTimer);
-      banner.hidden = true;
+    banner.classList.add('visible');
+    banner.innerHTML =
+      `<div class="eod-update-banner-text"><strong>${title}</strong>`
+      + `<div class="eod-update-banner-detail">${detail}</div></div>`
+      + `<div class="eod-update-banner-actions">`
+      + `<button type="button" class="eod-btn-update" id="eodUpdateNowBtn">Update</button>`
+      + `<button type="button" class="eod-btn-later" id="eodUpdateLaterBtn">Later</button>`
+      + `</div>`;
+
+    const updateBtn = document.getElementById('eodUpdateNowBtn');
+    const laterBtn = document.getElementById('eodUpdateLaterBtn');
+    if (remoteVersion && updateBtn) updateBtn.dataset.remoteVersion = remoteVersion;
+
+    updateBtn.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void hardNavigateForUpdate(updateBtn.dataset.remoteVersion || remoteVersion);
     };
+    laterBtn.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (autoReloadTimer) {
+        clearTimeout(autoReloadTimer);
+        autoReloadTimer = null;
+      }
+      banner.hidden = true;
+      banner.classList.remove('visible');
+    };
+
     if (autoReload) {
       if (autoReloadTimer) clearTimeout(autoReloadTimer);
-      autoReloadTimer = setTimeout(() => hardNavigateForUpdate(remoteVersion), UPDATE_AUTO_RELOAD_MS);
+      autoReloadTimer = setTimeout(() => {
+        void hardNavigateForUpdate(remoteVersion);
+      }, UPDATE_AUTO_RELOAD_MS);
+    }
+  }
+
+  async function fetchLiveVersion() {
+    try {
+      const resp = await fetch(`eod-version.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      return data?.version ? String(data.version).trim() : null;
+    } catch (_) {
+      return null;
     }
   }
 
   async function checkVersion() {
-    try {
-      const resp = await fetch(`eod-version.json?t=${Date.now()}`, { cache: 'no-store' });
-      if (!resp.ok) return;
-      const data = await resp.json();
-      const remote = data?.version ? String(data.version).trim() : null;
-      if (!remote || remote === version()) {
-        const banner = document.getElementById('updateBanner');
-        if (banner && !banner.querySelector('#eodUpdateNowBtn')) banner.hidden = true;
-        return;
+    const remote = await fetchLiveVersion();
+    if (!remote || remote === version()) {
+      try {
+        const pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY);
+        if (pending && (pending === remote || pending === version() || String(pending).startsWith('force-'))) {
+          sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
+        }
+      } catch (_) {}
+      const banner = document.getElementById('updateBanner');
+      if (banner && !updating) {
+        banner.hidden = true;
+        banner.classList.remove('visible');
       }
+      return;
+    }
+
+    let pending = null;
+    try { pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY); } catch (_) {}
+    if (pending === remote) {
+      // Already reloaded once; HTML/JS still stale (CDN/browser cache).
       showUpdateBanner({
-        title: 'App update available',
-        detail: `Server is v${remote} (you are on v${version()}). Drafts & photos stay on this device.`,
+        title: 'Update ready',
+        detail: `This phone is still on v${version()} (server is v${remote}). Drafts & photos stay here. Tap Update, or hard-refresh if it loops.`,
         remoteVersion: remote,
-        autoReload: true,
+        autoReload: false,
       });
+      return;
+    }
+
+    showUpdateBanner({
+      title: 'App update available',
+      detail: `Server is v${remote} (you are on v${version()}). Drafts & photos stay on this device. Reloading automatically — or tap Update now.`,
+      remoteVersion: remote,
+      autoReload: true,
+    });
+  }
+
+  function restoreHashAfterUpdate() {
+    try {
+      const u = new URL(window.location.href);
+      const hadBust = u.searchParams.has('eodv') || u.searchParams.has('_');
+      const retRaw = sessionStorage.getItem('eodReturnHash');
+      if (!hadBust && !retRaw) return;
+      const ret = (retRaw || '/visit').startsWith('/') ? (retRaw || '/visit') : '/' + (retRaw || 'visit');
+      sessionStorage.removeItem('eodReturnHash');
+      u.searchParams.delete('eodv');
+      u.searchParams.delete('_');
+      const qs = u.searchParams.toString();
+      const clean = u.pathname + (qs ? '?' + qs : '') + '#' + ret;
+      history.replaceState(null, '', clean);
     } catch (_) {}
   }
 
@@ -228,6 +340,14 @@
     const badge = document.getElementById('eodVersionBadge');
     if (!badge) return;
     let longPressFired = false;
+
+    const clearLp = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
     badge.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -237,37 +357,52 @@
       }
       toggleTestMode();
     });
-    badge.addEventListener('pointerdown', () => {
+    badge.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
       longPressFired = false;
+      clearLp();
       longPressTimer = setTimeout(() => {
         longPressTimer = null;
         longPressFired = true;
-        hardNavigateForUpdate('force-' + Date.now());
-      }, 700);
+        toast('Force Update — saving then reloading…', 'ok');
+        void hardNavigateForUpdate('force-' + Date.now());
+      }, 650);
+      if (e.cancelable) e.preventDefault();
     });
-    const clearLp = () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    };
     badge.addEventListener('pointerup', clearLp);
     badge.addEventListener('pointerleave', clearLp);
     badge.addEventListener('pointercancel', clearLp);
+    badge.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   function init() {
     eodTestMode = sessionStorage.getItem(EOD_TEST_MODE_KEY) === '1';
     eodForceLiveDelivery = eodTestMode && sessionStorage.getItem(EOD_FORCE_LIVE_KEY) === '1';
+    restoreHashAfterUpdate();
     applyUi();
     bindBadge();
     document.getElementById('eodForceLiveCb')?.addEventListener('change', (e) => {
       setForceLive(e.target.checked);
     });
+
+    try {
+      const pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY);
+      if (pending && pending === version()) sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
+    } catch (_) {}
+
     checkVersion();
-    setInterval(checkVersion, 5 * 60 * 1000);
-    if (eodTestMode) setupTestScenario().catch(console.warn);
+    setInterval(checkVersion, UPDATE_CHECK_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) checkVersion();
+    });
+    if (eodTestMode) {
+      setTimeout(() => setupTestScenario().catch(console.warn), 400);
+    }
   }
+
+  global.forceEodAppUpdate = function forceEodAppUpdate() {
+    void hardNavigateForUpdate('force-' + Date.now());
+  };
 
   global.EodTestMode = {
     init,

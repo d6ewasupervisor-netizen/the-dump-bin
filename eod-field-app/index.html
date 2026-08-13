@@ -7,15 +7,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>KOMPASS EOD (field pilot)</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="css/app.css">
-  <link rel="stylesheet" href="css/materials-browser.css">
+  <link rel="stylesheet" href="css/app.css?v=3.0.3">
+  <link rel="stylesheet" href="css/materials-browser.css?v=3.0.3">
   <script>
     (function () {
       var host = location.hostname || '';
       if (host === 'the-dump-bin.com' || host.endsWith('.the-dump-bin.com')) {
         document.write('<script src="/auth-gate.js"><\/script>');
       } else {
-        document.write('<script src="js/auth-shim.js"><\/script>');
+        document.write('<script src="js/auth-shim.js?v=3.0.3"><\/script>');
       }
     })();
   </script>
@@ -26,9 +26,9 @@
   <div class="app-shell">
     <div class="pilot-banner">
       EOD field pilot — production <a href="/EOD/" style="color:#fde68a;">/EOD/</a> unchanged until cutover
-      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v3.0.2</span>
+      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v3.0.3</span>
     </div>
-    <div id="updateBanner" class="pilot-banner" hidden style="background:#1e3a5f;color:#bae6fd;"></div>
+    <div id="updateBanner" class="pilot-banner eod-update-banner" hidden></div>
     <div id="authBanner" class="pilot-banner" hidden style="background:#3f1d1d;color:#fecaca;"></div>
     <div id="connToast" class="conn-toast" hidden></div>
 
@@ -99,31 +99,31 @@
 
   <div class="eod-test-banner eod-test-banner-bottom" aria-hidden="true"><span class="eod-test-track">TEST · TEST · TEST · TEST · TEST · TEST · TEST · TEST · </span></div>
 
-  <script src="js/api.js"></script>
-  <script src="js/session.js"></script>
-  <script src="js/router.js"></script>
-  <script src="js/picker.js"></script>
-  <script src="js/chrome.js"></script>
-  <script src="js/features/durability.js"></script>
-  <script src="js/features/connections.js"></script>
-  <script src="js/features/version-test.js"></script>
+  <script src="js/api.js?v=3.0.3"></script>
+  <script src="js/session.js?v=3.0.3"></script>
+  <script src="js/router.js?v=3.0.3"></script>
+  <script src="js/picker.js?v=3.0.3"></script>
+  <script src="js/chrome.js?v=3.0.3"></script>
+  <script src="js/features/durability.js?v=3.0.3"></script>
+  <script src="js/features/connections.js?v=3.0.3"></script>
+  <script src="js/features/version-test.js?v=3.0.3"></script>
 
-  <script src="js/features/photo-sessions.js"></script>
-  <script src="js/features/clock-picker.js"></script>
-  <script src="js/features/sms-optin-qr.js"></script>
-  <script src="js/features/guest-handoff.js"></script>
-  <script src="js/features/timesheet-mgmt.js"></script>
-  <script src="js/features/dept-signatures.js"></script>
-  <script src="js/features/helpdesk-wizard.js"></script>
-  <script src="js/features/materials-browser.js"></script>
+  <script src="js/features/photo-sessions.js?v=3.0.3"></script>
+  <script src="js/features/clock-picker.js?v=3.0.3"></script>
+  <script src="js/features/sms-optin-qr.js?v=3.0.3"></script>
+  <script src="js/features/guest-handoff.js?v=3.0.3"></script>
+  <script src="js/features/timesheet-mgmt.js?v=3.0.3"></script>
+  <script src="js/features/dept-signatures.js?v=3.0.3"></script>
+  <script src="js/features/helpdesk-wizard.js?v=3.0.3"></script>
+  <script src="js/features/materials-browser.js?v=3.0.3"></script>
 
-  <script src="js/features/visit.js"></script>
-  <script src="js/features/signoff-home.js"></script>
-  <script src="js/features/crew.js"></script>
-  <script src="js/features/photos.js"></script>
-  <script src="js/features/cover.js"></script>
-  <script src="js/features/send.js"></script>
+  <script src="js/features/visit.js?v=3.0.3"></script>
+  <script src="js/features/signoff-home.js?v=3.0.3"></script>
+  <script src="js/features/crew.js?v=3.0.3"></script>
+  <script src="js/features/photos.js?v=3.0.3"></script>
+  <script src="js/features/cover.js?v=3.0.3"></script>
+  <script src="js/features/send.js?v=3.0.3"></script>
 
-  <script src="js/boot.js"></script>
+  <script src="js/boot.js?v=3.0.3"></script>
 </body>
 </html>

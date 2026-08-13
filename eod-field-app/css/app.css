@@ -137,6 +137,55 @@ body.needs-auth .app-shell {
   color: #fde68a;
   outline: 1px solid #fbbf24;
 }
+.eod-version-badge.updating {
+  opacity: 0.7;
+  outline: 1px dashed #38bdf8;
+}
+
+#updateBanner {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #1e3a5f !important;
+  color: #bae6fd !important;
+  z-index: 40;
+  position: relative;
+}
+#updateBanner.visible,
+#updateBanner:not([hidden]) {
+  display: flex;
+}
+#updateBanner[hidden] { display: none !important; }
+.eod-update-banner-text { flex: 1 1 220px; text-align: left; }
+.eod-update-banner-detail { font-weight: 500; font-size: 12px; margin-top: 2px; opacity: 0.95; }
+.eod-update-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.eod-btn-update,
+.eod-btn-later {
+  appearance: none;
+  border: 0;
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 8px 14px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+.eod-btn-update {
+  background: #22c55e;
+  color: #052e16;
+}
+.eod-btn-update:disabled { opacity: 0.6; cursor: wait; }
+.eod-btn-later {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+}
 
 .refresh-connections-btn {
   appearance: none;
