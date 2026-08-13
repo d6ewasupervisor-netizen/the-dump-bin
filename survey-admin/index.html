@@ -363,6 +363,7 @@
       <h1>Survey Admin</h1>
     </div>
     <div class="brand-actions">
+      <button type="button" class="icon-btn" id="btn-feedback" title="Report a problem, send feedback, or contact Tyson" aria-label="Contact Tyson">Contact</button>
       <a class="icon-btn" href="/survey-admin/user-guide.html" target="_blank" rel="noopener noreferrer" title="How to use Survey Admin" aria-label="How to use Survey Admin">Help</a>
       <div class="a11y-bar" role="group" aria-label="Display controls">
         <button type="button" class="icon-btn" id="btn-text-down" title="Smaller text" aria-label="Decrease text size">A−</button>
@@ -393,6 +394,7 @@
         <li>One-off: <strong>Assign someone else</strong> — search a name or type an email, check stores, Assign.</li>
         <li><strong>Results</strong> is where you read submitted answers, then export CSV / Excel / photos.</li>
         <li>To fill out a store yourself, use <a href="/survey/">Store Survey</a> — same page reps use.</li>
+        <li>Problems or ideas: tap <strong>Contact</strong> in the header — it emails Tyson from this page.</li>
       </ol>
       <p class="hint" style="margin:0">Full management steps:
         <a href="/survey-admin/user-guide.html" target="_blank" rel="noopener noreferrer">Survey Admin guide</a>.
@@ -591,6 +593,7 @@
   <div class="foot-brand">The Retail Odyssey Company · In-store best practices v2</div>
 </main>
 
+<script src="/survey/feedback-hub.js"></script>
 <script>
 const API = (function () {
   const h = (location.hostname || '').toLowerCase();
@@ -754,7 +757,7 @@ async function api(path, opts = {}) {
     location.href = '/signin.html?next=' + encodeURIComponent(location.pathname + location.search + location.hash);
     throw new Error('auth');
   }
-  if (r.status === 403) {
+  if (r.status === 403 && !String(path || '').includes('/feedback')) {
     showForbidden();
     throw new Error('forbidden');
   }
@@ -770,6 +773,23 @@ async function api(path, opts = {}) {
     throw err;
   }
   return body;
+}
+
+if (window.SurveyFeedbackHub) {
+  SurveyFeedbackHub.bind({
+    app: 'admin',
+    endpoint: '/api/survey/admin/feedback',
+    api: api,
+    getContext: () => {
+      const tab = document.querySelector('.tabs button.active');
+      const stores = [...(SELECTED_STORES || [])];
+      return {
+        storeNum: stores.length === 1 ? stores[0] : null,
+        page: (tab && tab.getAttribute('data-tab')) || tabFromHash(),
+        user: (ACCESS && ACCESS.user) || (FILTERS && FILTERS.user) || null,
+      };
+    },
+  });
 }
 
 function tabFromHash() {

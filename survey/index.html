@@ -247,7 +247,7 @@
   @media (max-width:420px){
     .brand-titles .co{display:none}
     #btn-home{padding:0 8px;font-size:12px}
-    #btn-help{padding:0 8px;font-size:12px}
+    #btn-help,#btn-feedback{padding:0 8px;font-size:12px}
     .icon-btn{min-width:36px;min-height:36px}
     main{padding:10px}
     .card{padding:14px;border-radius:14px}
@@ -263,6 +263,7 @@
       <h1 id="hdr-title">Store Survey</h1>
     </div>
     <div class="brand-actions">
+      <button type="button" class="icon-btn" id="btn-feedback" title="Report a problem, send feedback, or contact Tyson" aria-label="Contact Tyson">Contact</button>
       <a class="icon-btn" id="btn-help" href="/survey/user-guide.html" target="_blank" rel="noopener noreferrer" title="How to use this survey" aria-label="How to use this survey">Help</a>
       <div class="a11y-bar" role="group" aria-label="Display controls">
         <button type="button" class="icon-btn" id="btn-text-down" title="Smaller text" aria-label="Decrease text size">A−</button>
@@ -280,6 +281,7 @@
   <button type="button" id="btn-next" disabled>Next</button>
 </nav>
 
+<script src="/survey/feedback-hub.js"></script>
 <script>
 (function () {
 'use strict';
@@ -319,6 +321,20 @@ async function api(path, opts = {}) {
 
 const $ = (s) => document.querySelector(s);
 const main = $('#main');
+
+if (window.SurveyFeedbackHub) {
+  SurveyFeedbackHub.bind({
+    app: 'survey',
+    endpoint: '/api/survey/feedback',
+    api: api,
+    getContext: () => ({
+      storeNum: STORE || SELECTED_STORE || null,
+      storeName: STORE_NAME || '',
+      page: PHASE || 'pick',
+      user: ME && ME.user,
+    }),
+  });
+}
 
 // Phase: 'pick' | 'answers' | 'survey' | 'done'
 let ME = null, SPEC = null, PHASE = 'pick';
@@ -969,6 +985,7 @@ function renderPicker() {
           <li>Answers save as you go (look for <strong>Saved ✓</strong> at the top).</li>
           <li>At the end, tap <strong>Submit store</strong>. That visit is locked on record.</li>
           <li>Need another pass later? <strong>Retake survey</strong> — the old one stays.</li>
+          <li>Stuck or have an idea? Tap <strong>Contact</strong> at the top — it emails Tyson from this app.</li>
         </ol>
         <p class="hint" style="margin:0">Reps and management use this same page. Full steps:
           <a href="/survey/user-guide.html" target="_blank" rel="noopener noreferrer">Store Survey guide</a>.
