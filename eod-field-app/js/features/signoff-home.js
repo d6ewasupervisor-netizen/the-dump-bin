@@ -152,6 +152,7 @@
       return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
         <div><strong>${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
+          ${row.live ? `<div class="muted">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
         </div>
         <div style="margin-top:6px;">${status}</div>
         <div class="ds-actions">
@@ -169,10 +170,11 @@
     mount.innerHTML = `
       <div class="card heart">
         <h1>Digital signoff sheet</h1>
-        <p class="muted">This is the heart of your day. Mark Complete / Not in store / Not in SI for each set. Paper sign-off photos are only used when no hosted sheet exists.</p>
+        <p class="muted">This is the heart of your day. Marks sync from PROD + Store Intelligence when both systems agree (Complete, Not in store, Not in SI). Photos for the store view page are prebuilt as they land — SI preferred over PROD.</p>
         <div id="sheetSummary" class="muted" style="margin-bottom:10px;">Loading…</div>
+        <div id="sheetSyncStatus" class="muted" style="margin-bottom:10px;"></div>
         <div class="btn-row">
-          <button type="button" class="btn btn-primary" id="refreshSheetBtn">Refresh sheet</button>
+          <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
           <button type="button" class="btn btn-success" id="completeAllBtn" hidden>Complete all</button>
           <button type="button" class="btn btn-secondary" id="paperFallbackBtn" hidden>Paper sign-off photos</button>
         </div>
@@ -188,6 +190,65 @@
     const rowsEl = document.getElementById('sheetRows');
     const completeAllBtn = document.getElementById('completeAllBtn');
     const paperBtn = document.getElementById('paperFallbackBtn');
+    const syncBtn = document.getElementById('syncProdSiBtn');
+    const syncStatus = document.getElementById('sheetSyncStatus');
+    let pollTimer = null;
+
+    function pacificHourNow() {
+      try {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Los_Angeles',
+          hour: 'numeric',
+          hour12: false,
+        }).formatToParts(new Date());
+        return Number(parts.find((p) => p.type === 'hour')?.value) % 24;
+      } catch {
+        return new Date().getHours();
+      }
+    }
+
+    function pollMs() {
+      return pacificHourNow() >= 12 ? 5 * 60 * 1000 : 60 * 60 * 1000;
+    }
+
+    async function syncProdSi() {
+      const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+      const body = JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        visitId: S.state.selectedShift?.visitId || null,
+      });
+      if (syncStatus) syncStatus.textContent = 'Syncing PROD and Store Intelligence…';
+      const resp = await global.authFetch(`${API}/sync`, { method: 'POST', headers, body });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
+      if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
+      else {
+        S.patch({ sheetLoaded: false }, 'prod-si-sync');
+        await loadSheet();
+      }
+      const n = data.applied || 0;
+      if (syncStatus) {
+        syncStatus.textContent = n
+          ? `Auto-marked ${n} set(s) from PROD/SI · next check ${pacificHourNow() >= 12 ? 'in 5 min' : 'hourly until noon PT'}`
+          : `PROD/SI checked · no new auto-marks · next ${pacificHourNow() >= 12 ? '5 min' : 'hourly until noon PT'}`;
+      }
+      return data;
+    }
+
+    function startPoll() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        if (global.EodRouter?.current !== 'signoff') return;
+        try {
+          await syncProdSi();
+          await paint();
+          global.EodChrome?.refresh();
+        } catch (err) {
+          if (syncStatus) syncStatus.textContent = err.message || 'Sync failed';
+        }
+      }, pollMs());
+    }
 
     async function paint() {
       let sheet = S.state.sheet;
@@ -239,9 +300,18 @@
       });
     }
 
-    document.getElementById('refreshSheetBtn').onclick = async () => {
-      S.patch({ sheetLoaded: false }, 'reload');
-      await paint();
+    document.getElementById('syncProdSiBtn').onclick = async () => {
+      syncBtn.disabled = true;
+      try {
+        await syncProdSi();
+        await paint();
+        try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+        global.EodChrome?.refresh();
+      } catch (err) {
+        alert(err.message || String(err));
+      } finally {
+        syncBtn.disabled = false;
+      }
     };
     document.getElementById('sheetSearch').oninput = () => paint();
     completeAllBtn.onclick = async () => {
@@ -276,6 +346,13 @@
     paperBtn.onclick = () => global.EodRouter.go('photos');
 
     await paint();
+    try {
+      await syncProdSi();
+      await paint();
+    } catch (err) {
+      if (syncStatus) syncStatus.textContent = err.message || 'PROD/SI sync unavailable';
+    }
+    startPoll();
 
     // Mount dept signatures into orbit card on this page for convenience
     const deptHost = document.getElementById('deptSigMount');
