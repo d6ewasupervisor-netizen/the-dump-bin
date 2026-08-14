@@ -109,20 +109,23 @@
     document.body.classList.add('eod-feedback-capturing');
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     try {
-      const canvas = await html2canvas(document.body, {
+      const target = document.querySelector('.container') || document.body;
+      const canvas = await html2canvas(target, {
         logging: false,
         useCORS: true,
-        allowTaint: true,
-        scale: Math.min(1, 2 / (window.devicePixelRatio || 1)),
-        x: window.scrollX,
-        y: window.scrollY,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        windowWidth: window.innerWidth,
-        windowHeight: document.documentElement.scrollHeight,
-        ignoreElements: (el) => el.id === 'eodFeedbackFab' || el.id === 'eodFeedbackOverlay',
+        allowTaint: false,
+        backgroundColor: '#111827',
+        scale: 0.6,
+        ignoreElements: (el) =>
+          el.id === 'eodFeedbackFab' ||
+          el.id === 'eodFeedbackOverlay' ||
+          el.id === 'eodDrawerOverlay',
       });
-      return canvasToJpeg(canvas);
+      const dataUrl = canvasToJpeg(canvas);
+      if (!dataUrl || !dataUrl.startsWith('data:image')) {
+        throw new Error('empty screenshot');
+      }
+      return dataUrl;
     } finally {
       document.body.classList.remove('eod-feedback-capturing');
     }

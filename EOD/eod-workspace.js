@@ -77,7 +77,7 @@
           <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
         </svg>
       </button>
-      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.15.0</span>
+      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.15.1</span>
     `;
     container.insertBefore(chrome, workspace);
 
@@ -101,7 +101,7 @@
     const badgeChrome = document.getElementById('eodVersionBadgeChrome');
     const badgeLegacy = document.getElementById('eodVersionBadge');
     if (badgeChrome && badgeLegacy) {
-      badgeChrome.textContent = badgeLegacy.textContent || 'v2.15.0';
+      badgeChrome.textContent = badgeLegacy.textContent || 'v2.15.1';
       const syncBadge = () => {
         badgeChrome.textContent = badgeLegacy.textContent;
         badgeChrome.className = badgeLegacy.className.replace('eod-version-badge', 'eod-version-badge eod-chrome-version');
