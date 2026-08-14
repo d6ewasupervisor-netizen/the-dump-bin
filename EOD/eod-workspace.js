@@ -77,7 +77,7 @@
           <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
         </svg>
       </button>
-      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.14.0</span>
+      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.15.0</span>
     `;
     container.insertBefore(chrome, workspace);
 
@@ -101,7 +101,7 @@
     const badgeChrome = document.getElementById('eodVersionBadgeChrome');
     const badgeLegacy = document.getElementById('eodVersionBadge');
     if (badgeChrome && badgeLegacy) {
-      badgeChrome.textContent = badgeLegacy.textContent || 'v2.14.0';
+      badgeChrome.textContent = badgeLegacy.textContent || 'v2.15.0';
       const syncBadge = () => {
         badgeChrome.textContent = badgeLegacy.textContent;
         badgeChrome.className = badgeLegacy.className.replace('eod-version-badge', 'eod-version-badge eod-chrome-version');
@@ -157,6 +157,10 @@
               <span class="eod-drawer-item-hint">${escapeHtml(p.hint)}</span>
             </button>`).join('')}
         </div>
+        <button type="button" class="eod-drawer-item eod-drawer-feedback" id="eodDrawerFeedback">
+          <span class="eod-drawer-item-label">Send app feedback</span>
+          <span class="eod-drawer-item-hint">Screenshot + notes to Tyson</span>
+        </button>
       </nav>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', (e) => {
@@ -168,6 +172,10 @@
       if (!btn) return;
       go(btn.getAttribute('data-eod-page'));
       toggleDrawer(false);
+    });
+    document.getElementById('eodDrawerFeedback')?.addEventListener('click', () => {
+      toggleDrawer(false);
+      window.EodFeedbackHub?.open?.();
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && overlay.classList.contains('show')) toggleDrawer(false);
