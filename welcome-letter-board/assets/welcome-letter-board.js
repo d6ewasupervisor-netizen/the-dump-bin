@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.3';
+  const UI_VERSION = 'v2.4';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -124,6 +124,37 @@
       }
       return `${when} — open`;
     }).join('; ');
+  }
+
+  async function loadHires() {
+    const tbody = document.getElementById('hireRows');
+    if (!tbody) return;
+    try {
+      const data = await api('/api/welcome-letter/hires');
+      const items = data.items || [];
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="wb-muted">No hires ingested yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.map((h) => {
+        const welcome = h.welcomeSentAt ? badge('Sent', 'sent') : badge('Pending', 'pending');
+        const notices = Number(h.noticeCount || 0);
+        const noticeKind = notices >= 7 ? 'failed' : notices >= 4 ? 'cancelled' : notices > 0 ? 'pending' : 'not-opened';
+        const chat = h.chatUrl
+          ? `<a href="${escapeHtml(h.chatUrl)}" target="_blank" rel="noopener">Open</a>`
+          : '—';
+        return `<tr>
+          <td>${escapeHtml(h.fullName || h.firstName || '—')}</td>
+          <td>${escapeHtml(h.hireEmail || '—')}</td>
+          <td>${escapeHtml(h.eid || '—')}</td>
+          <td>${welcome}</td>
+          <td>${badge(String(notices), noticeKind)}</td>
+          <td>${chat}</td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" class="wb-muted">${escapeHtml(err.message)}</td></tr>`;
+    }
   }
 
   function renderRows(items) {
@@ -465,6 +496,7 @@
     }
     updateSortHeaders();
 
+    await loadHires();
     await loadList();
 
     if (idParam) {
