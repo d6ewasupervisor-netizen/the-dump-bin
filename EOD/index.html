@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-08-17T06:05Z eod-v2.17.0-speakap-tabs -->
+<!-- build: 2026-08-17T12:00Z eod-v2.17.1-update-loop-fix -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -37,8 +37,8 @@
     <script src="eod-digital-signoff.js?v=2.14.0" defer></script>
     <script src="eod-pic-qr.js?v=2.16.0" defer></script>
     <script src="eod-cover-sync.js?v=2.14.0" defer></script>
-    <link rel="stylesheet" href="eod-workspace.css?v=2.17.0">
-    <script src="eod-workspace.js?v=2.17.0" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.17.1">
+    <script src="eod-workspace.js?v=2.17.1" defer></script>
     <script src="eod-feedback-hub.js?v=2.15.1" defer></script>
     <style>
         /* Role-based visibility gating */
@@ -3297,7 +3297,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.0</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.1</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4660,7 +4660,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.16.0';
+        const EOD_APP_VERSION = '2.17.1';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -14746,16 +14746,48 @@ ${data.Notes || ''}`;
             const badge = document.getElementById('eodVersionBadge');
             if (badge && !eodTestMode) badge.textContent = 'v' + EOD_APP_VERSION;
 
-            // If we already reloaded once for this remote version and HTML is
-            // still stale (CDN/browser cache), clear the pending flag only when
-            // local matches — otherwise show a hard-refresh prompt instead of
-            // looping reloads forever.
-            try {
-                const pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY);
-                if (pending && pending === EOD_APP_VERSION) {
-                    sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
+            function storageGet(key) {
+                try {
+                    const s = sessionStorage.getItem(key);
+                    if (s != null) return s;
+                } catch (_) { /* private mode */ }
+                try { return localStorage.getItem(key); } catch (_) { return null; }
+            }
+            function storageSet(key, value) {
+                try { sessionStorage.setItem(key, value); } catch (_) { /* private mode */ }
+                try { localStorage.setItem(key, value); } catch (_) { /* private mode */ }
+            }
+            function storageRemove(key) {
+                try { sessionStorage.removeItem(key); } catch (_) { /* private mode */ }
+                try { localStorage.removeItem(key); } catch (_) { /* private mode */ }
+            }
+
+            function urlAlreadyCacheBusted() {
+                try {
+                    const u = new URL(window.location.href);
+                    return u.searchParams.has('eodv') || u.searchParams.has('_');
+                } catch {
+                    return false;
                 }
-            } catch (_) { /* private mode */ }
+            }
+
+            function stripUpdateQuery() {
+                try {
+                    const u = new URL(window.location.href);
+                    if (!u.searchParams.has('eodv') && !u.searchParams.has('_')) return;
+                    u.searchParams.delete('eodv');
+                    u.searchParams.delete('_');
+                    const qs = u.searchParams.toString();
+                    history.replaceState(null, '', u.pathname + (qs ? '?' + qs : '') + u.hash);
+                } catch (_) { /* ignore */ }
+            }
+
+            // Clear pending only when this HTML actually matches the live version.
+            const pendingNow = storageGet(EOD_PENDING_VERSION_KEY);
+            if (pendingNow && (pendingNow === EOD_APP_VERSION || String(pendingNow).startsWith('force-'))) {
+                storageRemove(EOD_PENDING_VERSION_KEY);
+                stripUpdateQuery();
+            }
 
             async function hardNavigateForUpdate(remoteVersion) {
                 // T0.9 — every Update path must await IndexedDB before reload.
@@ -14776,9 +14808,7 @@ ${data.Notes || ''}`;
                     return;
                 }
                 const version = remoteVersion || String(Date.now());
-                try {
-                    sessionStorage.setItem(EOD_PENDING_VERSION_KEY, version);
-                } catch (_) { /* private mode */ }
+                storageSet(EOD_PENDING_VERSION_KEY, version);
                 try {
                     const u = new URL(window.location.href);
                     u.searchParams.set('eodv', version);
@@ -14872,16 +14902,13 @@ ${data.Notes || ''}`;
                     title: 'Update ready',
                     detail:
                         `This phone is still on v${EOD_APP_VERSION} (server is v${escapeHtml(remoteVersion)}). ` +
-                        'Your form data is saved. Tap <strong>Update</strong> to load the new app.',
+                        'Your form data is saved. If Update loops, close this tab and open the EOD app again from the Dump Bin home page.',
                     remoteVersion,
                     autoReload: false,
                 });
             }
 
             function triggerEodHotfixReload(remoteVersion) {
-                try {
-                    sessionStorage.setItem(EOD_PENDING_VERSION_KEY, remoteVersion);
-                } catch (_) { /* private mode */ }
                 renderEodUpdateBanner({
                     title: 'App update available',
                     detail:
@@ -14895,21 +14922,20 @@ ${data.Notes || ''}`;
             async function checkEodVersion() {
                 const remote = await fetchLiveEodVersion();
                 if (!remote || remote === EOD_APP_VERSION) {
-                    try {
-                        if (sessionStorage.getItem(EOD_PENDING_VERSION_KEY) === remote) {
-                            sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
-                        }
-                    } catch (_) { /* private mode */ }
+                    const pending = storageGet(EOD_PENDING_VERSION_KEY);
+                    if (pending && (pending === remote || pending === EOD_APP_VERSION || String(pending).startsWith('force-'))) {
+                        storageRemove(EOD_PENDING_VERSION_KEY);
+                    }
+                    stripUpdateQuery();
                     const banner = document.getElementById('eodUpdateBanner');
                     if (banner) banner.classList.remove('visible');
                     return;
                 }
 
-                // Already tried reloading for this remote version but still mismatched
-                // → HTML is stuck in cache; don't loop.
-                let pending = null;
-                try { pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY); } catch (_) {}
-                if (pending === remote) {
+                // Already tried reloading for this remote version (or this URL
+                // is already cache-busted) but HTML is still stale — do not loop.
+                const pending = storageGet(EOD_PENDING_VERSION_KEY);
+                if (pending === remote || urlAlreadyCacheBusted()) {
                     showStaleCacheBanner(remote);
                     return;
                 }
