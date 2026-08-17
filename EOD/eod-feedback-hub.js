@@ -133,15 +133,6 @@
 
   function ensureUi() {
     if (document.getElementById('eodFeedbackOverlay')) return;
-    const fab = document.createElement('button');
-    fab.type = 'button';
-    fab.id = 'eodFeedbackFab';
-    fab.className = 'eod-feedback-fab';
-    fab.title = 'Send app feedback';
-    fab.setAttribute('aria-label', 'Send app feedback');
-    fab.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
-    fab.addEventListener('click', () => open());
-
     const overlay = document.createElement('div');
     overlay.id = 'eodFeedbackOverlay';
     overlay.className = 'eod-feedback-overlay';
@@ -178,7 +169,6 @@
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) close();
     });
-    document.body.appendChild(fab);
     document.body.appendChild(overlay);
     overlay.querySelector('#eodFbClose').onclick = () => close();
     overlay.querySelector('#eodFbRetake').onclick = () => retake();

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-08-17T12:00Z eod-v2.17.1-update-loop-fix -->
+<!-- build: 2026-08-17T12:15Z eod-v2.17.2-no-feedback-fab -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -37,9 +37,9 @@
     <script src="eod-digital-signoff.js?v=2.14.0" defer></script>
     <script src="eod-pic-qr.js?v=2.16.0" defer></script>
     <script src="eod-cover-sync.js?v=2.14.0" defer></script>
-    <link rel="stylesheet" href="eod-workspace.css?v=2.17.1">
-    <script src="eod-workspace.js?v=2.17.1" defer></script>
-    <script src="eod-feedback-hub.js?v=2.15.1" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.17.2">
+    <script src="eod-workspace.js?v=2.17.2" defer></script>
+    <script src="eod-feedback-hub.js?v=2.17.2" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3297,7 +3297,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.1</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.2</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4660,7 +4660,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.17.1';
+        const EOD_APP_VERSION = '2.17.2';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';

@@ -623,28 +623,9 @@ section.eod-page {
 }
 
 .eod-feedback-fab {
-    position: fixed;
-    right: calc(12px + var(--safe-area-inset-right, 0px));
-    bottom: calc(16px + var(--safe-area-inset-bottom, 0px));
-    z-index: 1400;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    border: 2px solid #38bdf8;
-    background: #0d4f8b;
-    color: #e0f2fe;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    touch-action: manipulation;
+    display: none !important;
 }
 
-.eod-feedback-fab:active { transform: scale(0.96); }
-
-body.eod-feedback-open .eod-feedback-fab,
-body.eod-feedback-capturing .eod-feedback-fab,
 body.eod-feedback-capturing #eodFeedbackOverlay {
     display: none !important;
 }
