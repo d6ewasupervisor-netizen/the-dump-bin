@@ -1,4 +1,4 @@
-/* EOD hamburger pages + compact pickers (phone-first). */
+/* EOD Speakap-style bottom tabs + compact pickers (phone-first). */
 
 .eod-legacy-header[hidden] {
     display: none !important;
@@ -11,10 +11,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 52px;
+    min-height: 56px;
     padding: 8px 4px;
     margin: 0 0 10px;
-    background: #111827;
+    background: #0b1220;
     border-bottom: 1px solid #1e3a5f;
 }
 
@@ -22,9 +22,9 @@
     flex: 0 0 auto;
     width: 44px;
     height: 44px;
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid #1e3a5f;
-    background: #0b1220;
+    background: #111827;
     color: #93c5fd;
     display: flex;
     align-items: center;
@@ -33,7 +33,17 @@
     touch-action: manipulation;
 }
 
+.eod-menu-btn .eod-tab-icon {
+    width: 22px;
+    height: 22px;
+}
+
 .eod-menu-btn:active { transform: scale(0.96); }
+
+.eod-chrome-back[hidden],
+.eod-menu-btn[hidden] {
+    display: none !important;
+}
 
 .eod-chrome-mid {
     flex: 1;
@@ -41,9 +51,9 @@
     cursor: pointer;
 }
 
-.eod-chrome-store {
+.eod-chrome-title {
     font-weight: 800;
-    font-size: 15px;
+    font-size: 16px;
     color: #f8fafc;
     line-height: 1.2;
     white-space: nowrap;
@@ -51,10 +61,27 @@
     text-overflow: ellipsis;
 }
 
+.eod-chrome-sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 1px;
+    min-width: 0;
+}
+
+.eod-chrome-store,
 .eod-chrome-date {
     font-size: 12px;
     color: #94a3b8;
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.eod-chrome-sep {
+    color: #475569;
+    font-size: 12px;
 }
 
 .eod-chrome-dots {
@@ -88,6 +115,99 @@
     padding: 3px 7px !important;
 }
 
+/* Speakap-style bottom tab bar */
+.eod-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 2px;
+    min-height: 58px;
+    padding: 6px 4px calc(6px + var(--safe-area-inset-bottom, 0px));
+    background: rgba(11, 18, 32, 0.96);
+    border-top: 1px solid #1e3a5f;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.eod-tab {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.eod-tab:active {
+    transform: scale(0.96);
+}
+
+.eod-tab.is-active {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.eod-tab-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.eod-tab-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+body.eod-has-tabbar {
+    padding-bottom: calc(72px + var(--safe-area-inset-bottom, 0px)) !important;
+}
+
+.eod-page-enter {
+    animation: eodPageEnter 0.18s ease-out;
+}
+
+@keyframes eodPageEnter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.eod-more-sheet-overlay {
+    align-items: flex-end;
+}
+
+.eod-more-sheet-overlay.show {
+    display: flex;
+}
+
+.eod-more-sheet {
+    position: relative;
+    top: auto;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    border-right: 0;
+    border-radius: 18px 18px 0 0;
+    max-height: min(70vh, 520px);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+}
+
 .eod-drawer-overlay {
     display: none;
     position: fixed;
@@ -111,6 +231,17 @@
     box-shadow: 8px 0 40px rgba(0, 0, 0, 0.45);
     padding-top: var(--safe-area-inset-top, 0px);
     padding-bottom: var(--safe-area-inset-bottom, 0px);
+}
+
+.eod-more-sheet.eod-drawer {
+    position: relative;
+    width: 100%;
+    left: auto;
+    top: auto;
+    bottom: auto;
+    border-right: 0;
+    padding-top: 8px;
+    padding-bottom: calc(12px + var(--safe-area-inset-bottom, 0px));
 }
 
 .eod-drawer-head {

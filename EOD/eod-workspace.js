@@ -1,20 +1,26 @@
-/* EOD hamburger pages + searchable pickers. Pages hide/show; DOM is never destroyed. */
+/* EOD Speakap-style tabs + searchable pickers. Pages hide/show; DOM is never destroyed. */
 (function () {
   'use strict';
 
   const PAGE_KEY = 'eodWorkspacePage';
+  const TAB_MEMORY_KEY = 'eodWorkspaceTabMemory';
   const NARROW = 720;
-  const VERSION = 'v2.16.1';
+  const VERSION = 'v2.17.0';
 
-  /* Top-level drawer tabs only — subpages are reached via hub cards / Back. */
-  const DRAWER_PAGES = [
-    { id: 'visit', label: 'Start', hint: 'Store, date, shifts, profile', next: 'crew', nextLabel: 'Continue to Crew' },
-    { id: 'crew', label: 'Crew', hint: 'Roster, timesheets, JOIN QR', next: 'info', nextLabel: 'Continue to Information', hub: true },
-    { id: 'info', label: 'Information', hint: 'Period materials / Dump Bin', next: 'signoff', nextLabel: 'Go to Sheet' },
-    { id: 'signoff', label: 'Sheet', hint: 'Marks and manager QR', next: 'eod', nextLabel: 'Finish EOD', hub: true },
-    { id: 'helpdesk', label: 'Help desk', hint: 'KOMPASS help desk reports', next: 'signoff', nextLabel: 'Back to Sheet' },
-    { id: 'eod', label: 'EOD', hint: 'Cover, cart photos, sign & send', next: null, nextLabel: null, hub: true },
+  /* Primary bottom tabs (Speakap-style). Help desk lives under More. */
+  const TAB_PAGES = [
+    { id: 'visit', label: 'Start', hint: 'Store, date, shifts', next: 'crew', nextLabel: 'Continue to Crew', icon: 'home' },
+    { id: 'crew', label: 'Crew', hint: 'Roster & timesheets', next: 'info', nextLabel: 'Continue to Information', hub: true, icon: 'people' },
+    { id: 'info', label: 'Info', hint: 'Materials / Dump Bin', next: 'signoff', nextLabel: 'Go to Sheet', icon: 'book' },
+    { id: 'signoff', label: 'Sheet', hint: 'Marks & manager QR', next: 'eod', nextLabel: 'Finish EOD', hub: true, icon: 'sheet' },
+    { id: 'eod', label: 'EOD', hint: 'Cover, photos, send', next: null, nextLabel: null, hub: true, icon: 'send' },
   ];
+
+  const MORE_PAGES = [
+    { id: 'helpdesk', label: 'Help desk', hint: 'KOMPASS help desk reports', next: 'signoff', nextLabel: 'Back to Sheet' },
+  ];
+
+  const DRAWER_PAGES = [...TAB_PAGES, ...MORE_PAGES];
 
   const SUBPAGES = {
     'crew-roster': { parent: 'crew', label: 'Shift roster', hint: 'Add and remove teammates' },
@@ -52,7 +58,6 @@
     eod: 'eodHubEod',
   };
 
-  /* Compat: flat list used by exporters / status helpers */
   const PAGES = DRAWER_PAGES;
 
   const LEGACY_PAGE_MAP = {
@@ -60,6 +65,23 @@
   };
 
   let currentPage = 'visit';
+  let tabMemory = {};
+
+  function tabIcon(name) {
+    const icons = {
+      home: '<path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/>',
+      people: '<path d="M16 11a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 16 11zm-8 0a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 8 11zm0 2c-2.8 0-5.2 1.4-5.2 3.2V19h10.4v-2.8C13.2 14.4 10.8 13 8 13zm8 0c-.4 0-.8 0-1.2.1 1.3.9 2.2 2.1 2.2 3.5V19H21v-2.8c0-1.8-2.4-3.2-5-3.2z"/>',
+      book: '<path d="M6 4h9a3 3 0 0 1 3 3v13H8a2 2 0 0 0-2 2V4zm2 2v12.2A3.8 3.8 0 0 1 8.8 18H16V7a1 1 0 0 0-1-1H8z"/>',
+      sheet: '<path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm7 1.5V9h4.5L14 4.5zM9 12h8v1.5H9V12zm0 3.5h8V17H9v-1.5z"/>',
+      send: '<path d="M4 12l16-8-6.5 16-2.2-5.8L4 12zm9.2 1.1l1.2 3.2 3.6-8.8-8.3 4.1 3.5 1.5z"/>',
+      more: '<circle cx="6" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18" cy="12" r="1.8"/>',
+    };
+    return '<svg class="eod-tab-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + (icons[name] || icons.more) + '</svg>';
+  }
+
+  function isTabRoot(id) {
+    return TAB_PAGES.some((p) => p.id === id);
+  }
 
   function isDrawerPage(id) {
     return DRAWER_PAGES.some((p) => p.id === id);
@@ -76,11 +98,55 @@
     return 'visit';
   }
 
-  function drawerHighlightId(id) {
-    return parentOf(id) || id;
+  function tabRootOf(id) {
+    const page = resolvePage(id);
+    if (isTabRoot(page)) return page;
+    if (MORE_PAGES.some((p) => p.id === page)) return null;
+    return parentOf(page) || 'visit';
   }
 
-  function isNarrow() {
+  function pageTitle(id) {
+    const page = resolvePage(id);
+    if (SUBPAGES[page]) return SUBPAGES[page].label;
+    const root = DRAWER_PAGES.find((p) => p.id === page);
+    return root?.label || 'EOD';
+  }
+
+  function loadTabMemory() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(TAB_MEMORY_KEY) || '{}');
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveTabMemory() {
+    try { localStorage.setItem(TAB_MEMORY_KEY, JSON.stringify(tabMemory)); } catch (_) { /* ignore */ }
+  }
+
+  function rememberTabPage(page) {
+    const root = tabRootOf(page);
+    if (!root) return;
+    tabMemory[root] = page;
+    saveTabMemory();
+  }
+
+  function lastInTab(root) {
+    const remembered = tabMemory[root];
+    if (!remembered) return root;
+    const resolved = resolvePage(remembered);
+    if (tabRootOf(resolved) === root) return resolved;
+    return root;
+  }
+
+  function drawerHighlightId(id) {
+    return tabRootOf(id) || id;
+  }
+
+  tabMemory = loadTabMemory();
+
+function isNarrow() {
     return window.innerWidth < NARROW;
   }
 
@@ -98,12 +164,19 @@
   }
 
   function syncChromeMeta() {
+    const titleEl = document.getElementById('eodChromeTitle');
     const storeEl = document.getElementById('eodChromeStore');
     const dateEl = document.getElementById('eodChromeDate');
     const store = (document.getElementById('storeNumber')?.value || '').trim();
     const date = (document.getElementById('workDate')?.value || '').trim();
-    if (storeEl) storeEl.textContent = store ? `#${store}` : 'No store';
+    if (titleEl) titleEl.textContent = pageTitle(currentPage);
+    if (storeEl) storeEl.textContent = store ? ('#' + store) : 'No store';
     if (dateEl) dateEl.textContent = date || '—';
+    document.body.classList.add('eod-has-tabbar');
+    document.body.classList.toggle(
+      'eod-on-subpage',
+      !!parentOf(currentPage) || MORE_PAGES.some((p) => p.id === currentPage)
+    );
   }
 
   function ensureChrome() {
@@ -121,25 +194,28 @@
     const chrome = document.createElement('header');
     chrome.id = 'eodAppChrome';
     chrome.className = 'eod-app-chrome';
-    chrome.innerHTML = `
-      <button type="button" class="eod-menu-btn" id="eodMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="eodDrawer">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
-          <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
-        </svg>
-      </button>
-      <div class="eod-chrome-mid" id="eodChromeMid" title="Tap for quick view">
-        <div class="eod-chrome-store" id="eodChromeStore">No store</div>
-        <div class="eod-chrome-date" id="eodChromeDate">—</div>
-      </div>
-      <div class="eod-chrome-dots" id="eodChromeDotsHost" aria-label="Connection status"></div>
-      <button type="button" class="refresh-connections-btn eod-chrome-refresh" id="refreshConnectionsBtnChrome" title="Refresh SAS / Rebotics auth" aria-label="Refresh connections">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
-          <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
-        </svg>
-      </button>
-      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">${VERSION}</span>
-    `;
+    chrome.innerHTML = [
+      '<button type="button" class="eod-menu-btn eod-chrome-back" id="eodChromeBackBtn" aria-label="Back" hidden>',
+      '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>',
+      '</button>',
+      '<button type="button" class="eod-menu-btn" id="eodMenuBtn" aria-label="More" aria-expanded="false" aria-controls="eodDrawer">',
+      tabIcon('more'),
+      '</button>',
+      '<div class="eod-chrome-mid" id="eodChromeMid" title="Tap for quick view">',
+      '<div class="eod-chrome-title" id="eodChromeTitle">Start</div>',
+      '<div class="eod-chrome-sub">',
+      '<span class="eod-chrome-store" id="eodChromeStore">No store</span>',
+      '<span class="eod-chrome-sep">·</span>',
+      '<span class="eod-chrome-date" id="eodChromeDate">—</span>',
+      '</div></div>',
+      '<div class="eod-chrome-dots" id="eodChromeDotsHost" aria-label="Connection status"></div>',
+      '<button type="button" class="refresh-connections-btn eod-chrome-refresh" id="refreshConnectionsBtnChrome" title="Refresh SAS / Rebotics auth" aria-label="Refresh connections">',
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">',
+      '<path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>',
+      '<path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>',
+      '</svg></button>',
+      '<span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.17.0</span>',
+    ].join('');
     container.insertBefore(chrome, workspace);
 
     // Move conn dots into chrome (keep same IDs for existing JS)
@@ -193,6 +269,13 @@
       toggleDrawer(true);
     });
 
+    document.getElementById('eodChromeBackBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const parent = parentOf(currentPage);
+      if (parent) go(parent);
+      else if (MORE_PAGES.some((p) => p.id === currentPage)) go('visit');
+    });
+
     ['storeNumber', 'workDate'].forEach((id) => {
       document.getElementById(id)?.addEventListener('input', syncChromeMeta);
       document.getElementById(id)?.addEventListener('change', syncChromeMeta);
@@ -204,25 +287,22 @@
     if (document.getElementById('eodDrawer')) return;
     const overlay = document.createElement('div');
     overlay.id = 'eodDrawerOverlay';
-    overlay.className = 'eod-drawer-overlay';
-    overlay.innerHTML = `
-      <nav class="eod-drawer" id="eodDrawer" role="navigation" aria-label="EOD sections">
-        <div class="eod-drawer-head">
-          <strong>KOMPASS EOD</strong>
-          <button type="button" class="btn btn-secondary" id="eodDrawerClose">Close</button>
-        </div>
-        <div class="eod-drawer-list" id="eodDrawerList">
-          ${DRAWER_PAGES.map((p) => `
-            <button type="button" class="eod-drawer-item" data-eod-page="${p.id}">
-              <span class="eod-drawer-item-label">${escapeHtml(p.label)}</span>
-              <span class="eod-drawer-item-hint">${escapeHtml(p.hint)}</span>
-            </button>`).join('')}
-        </div>
-        <button type="button" class="eod-drawer-item eod-drawer-feedback" id="eodDrawerFeedback">
-          <span class="eod-drawer-item-label">Send app feedback</span>
-          <span class="eod-drawer-item-hint">Screenshot + notes to Tyson</span>
-        </button>
-      </nav>`;
+    overlay.className = 'eod-drawer-overlay eod-more-sheet-overlay';
+    const items = MORE_PAGES.map((p) => (
+      '<button type="button" class="eod-drawer-item" data-eod-page="' + p.id + '">'
+      + '<span class="eod-drawer-item-label">' + escapeHtml(p.label) + '</span>'
+      + '<span class="eod-drawer-item-hint">' + escapeHtml(p.hint) + '</span></button>'
+    )).join('');
+    overlay.innerHTML = [
+      '<nav class="eod-drawer eod-more-sheet" id="eodDrawer" role="navigation" aria-label="More">',
+      '<div class="eod-drawer-head"><strong>More</strong>',
+      '<button type="button" class="btn btn-secondary" id="eodDrawerClose">Close</button></div>',
+      '<div class="eod-drawer-list" id="eodDrawerList">' + items + '</div>',
+      '<button type="button" class="eod-drawer-item eod-drawer-feedback" id="eodDrawerFeedback">',
+      '<span class="eod-drawer-item-label">Send app feedback</span>',
+      '<span class="eod-drawer-item-hint">Screenshot + notes to Tyson</span></button>',
+      '</nav>',
+    ].join('');
     document.body.appendChild(overlay);
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) toggleDrawer(false);
@@ -241,6 +321,44 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && overlay.classList.contains('show')) toggleDrawer(false);
     });
+  }
+
+  function ensureTabBar() {
+    if (document.getElementById('eodTabBar')) return;
+    const bar = document.createElement('nav');
+    bar.id = 'eodTabBar';
+    bar.className = 'eod-tabbar';
+    bar.setAttribute('role', 'tablist');
+    bar.setAttribute('aria-label', 'EOD sections');
+    bar.innerHTML = TAB_PAGES.map((p) => (
+      '<button type="button" class="eod-tab" role="tab" data-eod-tab="' + p.id + '" aria-label="' + escapeHtml(p.label) + '">'
+      + tabIcon(p.icon)
+      + '<span class="eod-tab-label">' + escapeHtml(p.label) + '</span></button>'
+    )).join('');
+    document.body.appendChild(bar);
+    bar.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-eod-tab]');
+      if (!btn) return;
+      const root = btn.getAttribute('data-eod-tab');
+      const activeRoot = tabRootOf(currentPage);
+      if (activeRoot === root) go(root);
+      else go(lastInTab(root));
+    });
+  }
+
+  function refreshTabBar() {
+    const root = tabRootOf(currentPage);
+    document.querySelectorAll('.eod-tab[data-eod-tab]').forEach((btn) => {
+      const id = btn.getAttribute('data-eod-tab');
+      const on = id === root;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    const back = document.getElementById('eodChromeBackBtn');
+    const more = document.getElementById('eodMenuBtn');
+    const deep = !!parentOf(currentPage) || MORE_PAGES.some((p) => p.id === currentPage);
+    if (back) back.hidden = !deep;
+    if (more) more.hidden = !!deep;
   }
 
   function toggleDrawer(open) {
@@ -348,7 +466,7 @@
     if (!mount || !cards) return;
 
     mount.innerHTML = `
-      <p class="eod-hub-intro">Choose one task. Each opens on its own screen — no long scroll of everything at once.</p>
+      <p class="eod-hub-intro">Pick a task. Tap a bottom tab anytime to jump sections — re-tap the active tab to return home.</p>
       <div class="eod-hub-grid">
         ${cards.map((c) => `
           <button type="button" class="eod-hub-card" data-eod-hub-go="${c.id}">
@@ -364,29 +482,9 @@
   }
 
   function ensureBackButton(pageId) {
-    const parent = parentOf(pageId);
-    const pageEl = document.querySelector(`[data-eod-group="${pageId}"]`);
-    if (!pageEl) return;
-    let bar = pageEl.querySelector(':scope > .eod-back-bar, :scope > .eod-page-heading + .eod-back-bar');
-    const heading = pageEl.querySelector(':scope > .eod-page-heading');
-    if (!parent) {
-      pageEl.querySelectorAll('.eod-back-bar').forEach((el) => el.remove());
-      return;
-    }
-    const parentPage = DRAWER_PAGES.find((p) => p.id === parent);
-    const label = parentPage?.label || 'Back';
-    if (!bar) {
-      bar = document.createElement('div');
-      bar.className = 'eod-back-bar';
-      bar.innerHTML = `<button type="button" class="btn btn-secondary eod-back-btn">← Back to ${escapeHtml(label)}</button>`;
-      if (heading && heading.nextSibling) heading.parentNode.insertBefore(bar, heading.nextSibling);
-      else if (heading) heading.after(bar);
-      else pageEl.insertBefore(bar, pageEl.firstChild);
-    } else {
-      const btn = bar.querySelector('.eod-back-btn');
-      if (btn) btn.textContent = `← Back to ${label}`;
-    }
-    bar.querySelector('.eod-back-btn').onclick = () => go(parent);
+    // Top chrome owns Back (Speakap-style). Strip any leftover in-page bars.
+    document.querySelectorAll('.eod-back-bar').forEach((el) => el.remove());
+    void pageId;
   }
 
   function ensureNextStepButtons() {
@@ -481,24 +579,31 @@
 
   function go(id, opts) {
     const page = resolvePage(id);
+    const prev = currentPage;
     currentPage = page;
     savePage(page);
+    rememberTabPage(page);
 
     document.querySelectorAll('[data-eod-group]').forEach((el) => {
       const match = el.getAttribute('data-eod-group') === page;
       el.hidden = !match;
       el.classList.toggle('is-active-page', match);
+      if (match && prev !== page) {
+        el.classList.remove('eod-page-enter');
+        void el.offsetWidth;
+        el.classList.add('eod-page-enter');
+      }
       if (el.tagName === 'DETAILS') el.open = match;
     });
 
-    const drawerId = drawerHighlightId(page);
     document.querySelectorAll('.eod-drawer-item[data-eod-page]').forEach((btn) => {
-      btn.classList.toggle('is-active', btn.getAttribute('data-eod-page') === drawerId);
+      btn.classList.toggle('is-active', btn.getAttribute('data-eod-page') === page);
     });
 
     document.body.dataset.eodPage = page;
     syncChromeMeta();
     refreshDrawerHints();
+    refreshTabBar();
     ensureBackButton(page);
 
     if (HUB_CARDS[page]) paintHub(page);
@@ -507,8 +612,6 @@
       paintCrewJoinQr();
     }
 
-    // Leaving timesheet-related crew pages: leave overlay alone if user opened it;
-    // only auto-close when navigating far away from crew
     if (parentOf(page) !== 'crew' && page !== 'crew') {
       if (window.EodTimesheetMgmt?.close && document.getElementById('eodTsMgmtOverlay')?.classList.contains('show')) {
         window.EodTimesheetMgmt.close({ fromNav: true });
@@ -1008,6 +1111,7 @@
   function init() {
     ensureChrome();
     ensureDrawer();
+    ensureTabBar();
     ensureExtraPages();
     convertDetailsToPages();
     moveSendActionsIntoSendPage();
