@@ -635,3 +635,29 @@ body.eod-feedback-capturing #eodFeedbackOverlay {
 
 .eod-fb-status.error { color: #fca5a5; }
 .eod-fb-status.ok { color: #86efac; }
+
+.eod-next-step {
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #1e3a5f;
+}
+
+.eod-ts-page-mount {
+  min-height: 40px;
+}
+
+.eod-ts-page-mount .eod-ts-shell {
+  position: relative;
+  inset: auto;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  max-height: none;
+  border-radius: 12px;
+  border: 1px solid #334155;
+}
+
+.eod-group[data-eod-group="eod"] .eod-page-heading,
+.eod-group[data-eod-group="eod"] > .eod-page-heading {
+  margin-top: 8px;
+}

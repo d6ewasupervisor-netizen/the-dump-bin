@@ -161,6 +161,57 @@
         else alert(err.message);
       });
     });
+    document.getElementById('eodPicQrSendBtn')?.addEventListener('click', () => {
+      openSendModal();
+    });
+  }
+
+  function openSendModal() {
+    if (window.EodGuestHandoff?.openSendModal) {
+      window.EodGuestHandoff.openSendModal({
+        sessionType: 'store_pic',
+        title: 'Text / email PIC sign-out link',
+        hint: 'Manager opens the link, picks their title, reviews set photos, and signs. They can also text JOIN to (509) 572-9212 for future text links.',
+        recipientName: '',
+        recipientEmail: '',
+        recipientPhone: '',
+        sendStorePic: true,
+      });
+      return;
+    }
+    // Fallback: prompt for email and POST store-pic/send
+    const email = prompt('Manager email for PIC sign-out link:');
+    if (!email) return;
+    sendLink({ recipientEmail: email.trim(), sendEmail: true, sendSms: false }).catch((err) => {
+      if (typeof showAlert === 'function') showAlert('PIC QR', err.message);
+      else alert(err.message);
+    });
+  }
+
+  async function sendLink({ recipientName, recipientEmail, recipientPhone, sendEmail, sendSms }) {
+    await refresh(false);
+    if (!state.picUrl) throw new Error('Confirm today\'s store first to mint a PIC QR.');
+    const live = typeof window.isEodForceLiveDelivery === 'function'
+      && window.isEodForceLiveDelivery();
+    const resp = await authFetch(`${API}/send`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        fiscalWeek: fiscalWeek() || undefined,
+        leadName: leadName(),
+        recipientName,
+        recipientEmail,
+        recipientPhone,
+        sendEmail: !!sendEmail,
+        sendSms: !!sendSms,
+        forceLive: live || undefined,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) throw new Error(data.error || `Send failed (${resp.status})`);
+    return data;
   }
 
   function init() {
@@ -171,6 +222,7 @@
   window.EodPicQr = {
     refresh,
     showFullscreen,
+    sendLink,
     getState: () => state,
   };
 

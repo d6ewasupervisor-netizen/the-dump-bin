@@ -140,6 +140,26 @@
     const loading = document.getElementById('loadingOverlay');
     if (loading) loading.classList.add('show');
     try {
+      if (pending.sendStorePic || pending.sessionType === 'store_pic') {
+        if (window.EodPicQr?.sendLink) {
+          const data = await window.EodPicQr.sendLink({
+            recipientName: name,
+            recipientEmail: email,
+            recipientPhone: phone,
+            sendEmail,
+            sendSms,
+          });
+          closeModal();
+          const channels = [];
+          if (data.delivery?.email?.sent) channels.push('email');
+          if (data.delivery?.sms?.some?.((r) => r.ok)) channels.push('text');
+          const msg = channels.length
+            ? `PIC link sent via ${channels.join(' and ')}.`
+            : `PIC link ready: ${data.picUrl || data.handoffUrl || 'check delivery settings'}`;
+          if (typeof showAlert === 'function') showAlert('Link sent', msg);
+          return;
+        }
+      }
       const body = {
         sessionType: pending.sessionType,
         storeNumber: store,

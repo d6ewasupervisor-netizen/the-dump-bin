@@ -791,6 +791,19 @@
       const img = document.getElementById('eodTsQrImg');
       img.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(join.joinUrl)}`;
       document.getElementById('eodTsQrOverlay').classList.add('show');
+      // Mirror onto Crew page card when present
+      const crewImg = document.getElementById('eodCrewJoinQrImg');
+      const crewUrl = document.getElementById('eodCrewJoinQrUrl');
+      const crewStatus = document.getElementById('eodCrewJoinQrStatus');
+      if (crewImg) {
+        crewImg.hidden = false;
+        crewImg.src = img.src;
+      }
+      if (crewUrl) {
+        crewUrl.hidden = false;
+        crewUrl.textContent = join.joinUrl;
+      }
+      if (crewStatus) crewStatus.hidden = true;
     } catch (err) {
       showErr(err);
     }
@@ -976,6 +989,29 @@
     startPoll();
   }
 
+  async function openInPage(sheetKey, mountEl) {
+    const key = sheetKey === 'instawork' ? 'instawork' : 'kompass';
+    ensureOverlay();
+    state.sheetKey = key;
+    state.pageMode = true;
+    const overlay = document.getElementById('eodTsMgmtOverlay');
+    const shell = overlay?.querySelector('.eod-ts-shell');
+    const host = mountEl || document.getElementById('eodCrewTsMount');
+    if (host && shell) {
+      host.innerHTML = '';
+      host.appendChild(shell);
+      overlay.classList.remove('show');
+      document.body.style.overflow = '';
+      const closeBtn = document.getElementById('eodTsCloseBtn');
+      if (closeBtn) closeBtn.style.display = 'none';
+    } else {
+      return open(key);
+    }
+    renderActions();
+    await refresh(true);
+    startPoll();
+  }
+
   function close(opts) {
     stopPoll();
     document.getElementById('eodTsMgmtOverlay')?.classList.remove('show');
@@ -984,20 +1020,29 @@
     const frame = document.getElementById('eodTsTabletFrame');
     if (frame) frame.src = 'about:blank';
     document.body.style.overflow = '';
-    if (!(opts || {}).fromNav && window.EodWorkspace?.currentPage) {
-      const p = window.EodWorkspace.currentPage;
-      if (p === 'instawork' || p === 'kompass') {
-        /* stay on page shell; overlay closed */
-      }
+    if (state.pageMode) {
+      const overlay = document.getElementById('eodTsMgmtOverlay');
+      const shell = document.querySelector('#eodCrewTsMount .eod-ts-shell');
+      if (overlay && shell) overlay.appendChild(shell);
+      const closeBtn = document.getElementById('eodTsCloseBtn');
+      if (closeBtn) closeBtn.style.display = '';
+      state.pageMode = false;
     }
+  }
+
+  function getJoin() {
+    return state.join || null;
   }
 
   window.EodTimesheetMgmt = {
     open,
+    openInPage,
     close,
     openInstawork: () => open('instawork'),
     openKompass: () => open('kompass'),
     refresh: () => refresh(true),
+    refreshJoinToken,
     showJoinQr,
+    getJoin,
   };
 })();

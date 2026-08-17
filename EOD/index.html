@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-08-14T01:10Z eod-v2.15.1-feedback-images -->
+<!-- build: 2026-08-17T03:30Z eod-v2.16.0-domain-tabs -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -31,14 +31,14 @@
     <script src="eod-photo-sessions.js?v=2.12.7"></script>
     <script src="eod-clock-picker.js?v=2.12.0"></script>
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
-    <script src="eod-guest-handoff.js?v=2.12.6" defer></script>
-    <script src="eod-timesheet-mgmt.js?v=2.14.0" defer></script>
+    <script src="eod-guest-handoff.js?v=2.16.0" defer></script>
+    <script src="eod-timesheet-mgmt.js?v=2.16.0" defer></script>
     <script src="eod-dept-signatures.js?v=2.14.0" defer></script>
     <script src="eod-digital-signoff.js?v=2.14.0" defer></script>
-    <script src="eod-pic-qr.js?v=2.14.0" defer></script>
+    <script src="eod-pic-qr.js?v=2.16.0" defer></script>
     <script src="eod-cover-sync.js?v=2.14.0" defer></script>
-    <link rel="stylesheet" href="eod-workspace.css?v=2.15.1">
-    <script src="eod-workspace.js?v=2.15.1" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.16.0">
+    <script src="eod-workspace.js?v=2.16.0" defer></script>
     <script src="eod-feedback-hub.js?v=2.15.1" defer></script>
     <style>
         /* Role-based visibility gating */
@@ -3297,7 +3297,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.15.1</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.16.0</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3324,7 +3324,7 @@
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
-                    <div class="eod-group-title">Today's visit</div>
+                    <div class="eod-group-title">Start</div>
                     <div class="eod-group-hint">Store, date, shifts, and your profile</div>
                 </div>
             </summary>
@@ -3514,11 +3514,29 @@
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
-                    <div class="eod-group-title">Crew &amp; timesheets</div>
-                    <div class="eod-group-hint">InstaWork, Kompass roster, and shift members</div>
+                    <div class="eod-group-title">Crew</div>
+                    <div class="eod-group-hint">Roster, timesheets, JOIN QR, materials</div>
                 </div>
             </summary>
             <div class="eod-group-body">
+<div class="section" id="eodCrewDayFlow" style="border-color:#38bdf8;">
+            <div class="section-title" style="color:#7dd3fc;">Morning crew</div>
+            <p class="sets-help" style="margin:0 0 10px;">Confirm the roster, show the JOIN QR, adjust times, assign materials, then move to the Sheet.</p>
+            <div class="button-group" style="flex-wrap:wrap;gap:8px;">
+                <button type="button" class="btn btn-primary" id="eodCrewSheetIwBtn" style="flex:1;">InstaWork timesheet</button>
+                <button type="button" class="btn btn-primary" id="eodCrewSheetKpBtn" style="flex:1;">Kompass timesheet</button>
+            </div>
+            <div id="eodCrewJoinQrCard" class="eod-pic-qr-card" style="margin-top:12px;">
+                <div class="sets-help" id="eodCrewJoinQrStatus">Open a timesheet below to mint today's JOIN QR.</div>
+                <img id="eodCrewJoinQrImg" alt="Team JOIN QR" width="280" height="280" hidden>
+                <div id="eodCrewJoinQrUrl" class="eod-pic-qr-url" hidden></div>
+                <div class="button-group" style="margin-top:10px;flex-wrap:wrap;gap:8px;">
+                    <button type="button" class="btn btn-primary" id="eodCrewJoinQrShowBtn" style="flex:1;">Show JOIN QR</button>
+                    <button type="button" class="btn btn-secondary" id="eodCrewJoinQrRefreshBtn">Refresh QR</button>
+                </div>
+            </div>
+            <div id="eodCrewTsMount" class="eod-ts-page-mount" style="margin-top:12px;"></div>
+        </div>
 <div class="section" id="instaworkSection" style="border-color:#fbbf24;">
             <div class="section-title" style="color:#fde68a;">InstaWork Support</div>
 
@@ -3720,12 +3738,12 @@
         </div>
 
         </div><!-- /#adminToolsLegacy end of section block (modals are added below) -->
-        <details class="eod-group" id="eodGroupPhotos" data-eod-group="photos">
+        <details class="eod-group" id="eodGroupPhotos" data-eod-group="eod">
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
-                    <div class="eod-group-title">Photos</div>
-                    <div class="eod-group-hint">Cart before/after and paper sign-off sheets</div>
+                    <div class="eod-group-title">Cart photos</div>
+                    <div class="eod-group-hint">Before / after cart photos for the EOD</div>
                 </div>
             </summary>
             <div class="eod-group-body">
@@ -3840,21 +3858,56 @@
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
-                    <div class="eod-group-title">Digital signoffs</div>
-                    <div class="eod-group-hint">Hosted worksheet and department PIC signatures</div>
+                    <div class="eod-group-title">Sheet</div>
+                    <div class="eod-group-hint">Digital marks, set photos, manager QR</div>
                 </div>
             </summary>
             <div class="eod-group-body">
         <div id="eodSignoffGroupBody"></div>
+        <div class="section" id="eodPicQrSection" style="margin-top:12px;">
+            <div class="section-title">PIC / manager sign-out QR</div>
+            <p class="sets-help" style="margin:0 0 12px;">
+              Show this QR to the Fred Meyer PIC or manager signing you out.
+              They scan with their phone, pick their title, review that department&rsquo;s set photos, and sign.
+              You can also text or email the same link.
+            </p>
+            <div id="eodPicQrCard" class="eod-pic-qr-card">
+              <div id="eodPicQrStatus" class="sets-help">Confirm today&rsquo;s store to generate a QR.</div>
+              <img id="eodPicQrImg" alt="PIC sign-out QR" width="280" height="280" hidden>
+              <div id="eodPicQrUrl" class="eod-pic-qr-url" hidden></div>
+            </div>
+            <div class="button-group" style="margin-top:12px; flex-wrap:wrap; gap:8px;">
+              <button type="button" class="btn btn-primary" id="eodPicQrShowBtn" style="flex:1;">Show fullscreen QR</button>
+              <button type="button" class="btn btn-secondary" id="eodPicQrSendBtn">Text / email link</button>
+              <button type="button" class="btn btn-secondary" id="eodPicQrRefreshBtn">Refresh QR</button>
+            </div>
+        </div>
             </div>
         </details>
 
-        <details class="eod-group" id="eodGroupCover" data-eod-group="cover">
+        <details class="eod-group" id="eodGroupHelpdesk" data-eod-group="helpdesk">
+            <summary class="eod-group-summary">
+                <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Help desk</div>
+                    <div class="eod-group-hint">KOMPASS help desk reports and issue photos</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
+          <div class="section">
+            <p class="sets-help" style="margin:0 0 12px;">Send KOMPASS help desk reports with photos. Completing a report also marks the cover sheet.</p>
+            <button type="button" class="btn btn-primary" id="eodPageHelpdeskBtn" style="width:100%;">Open help desk report</button>
+            <div id="eodHelpdeskPageMount" style="margin-top:12px;"></div>
+          </div>
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupCover" data-eod-group="eod">
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
                     <div class="eod-group-title">Cover sheet</div>
-                    <div class="eod-group-hint">Managers, help desk, and sets not in store / SI</div>
+                    <div class="eod-group-hint">Managers, notes, and sets not in store / SI</div>
                 </div>
             </summary>
             <div class="eod-group-body">
@@ -4022,7 +4075,7 @@
             </div>
         </details>
 
-        <details class="eod-group" id="eodGroupSend" data-eod-group="send">
+        <details class="eod-group" id="eodGroupSend" data-eod-group="eod">
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
@@ -4518,7 +4571,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.15.1';
+        const EOD_APP_VERSION = '2.16.0';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';

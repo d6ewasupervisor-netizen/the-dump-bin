@@ -6,17 +6,21 @@
   const NARROW = 720;
 
   const PAGES = [
-    { id: 'visit', label: "Today's visit", hint: 'Store, date, shifts, profile' },
-    { id: 'instawork', label: 'InstaWork', hint: 'JOIN QR, punches, submit to office' },
-    { id: 'kompass', label: 'Kompass team', hint: 'JOIN QR, punches, submit to supervisor' },
-    { id: 'crew', label: 'Crew', hint: 'Roster, Dump Bin materials' },
-    { id: 'photos', label: 'Photos', hint: 'Cart before/after, optional paper sign-off' },
-    { id: 'signoff', label: 'Digital signoffs', hint: 'Hosted worksheet marks' },
-    { id: 'pic', label: 'PIC / manager QR', hint: 'Show today\'s store QR for sign-out' },
-    { id: 'helpdesk', label: 'Help desk', hint: 'KOMPASS help desk reports' },
-    { id: 'cover', label: 'Cover sheet', hint: 'Auto-filled review + check-in + notes' },
-    { id: 'send', label: 'Sign & send', hint: 'Signature, recipients, send EOD' },
+    { id: 'visit', label: 'Start', hint: 'Store, date, shifts, profile', next: 'crew', nextLabel: 'Continue to Crew' },
+    { id: 'crew', label: 'Crew', hint: 'Roster, timesheets, JOIN QR, materials', next: 'signoff', nextLabel: 'Go to Sheet' },
+    { id: 'signoff', label: 'Sheet', hint: 'Digital marks, set photos, manager QR', next: 'eod', nextLabel: 'Finish EOD' },
+    { id: 'helpdesk', label: 'Help desk', hint: 'KOMPASS help desk reports', next: 'signoff', nextLabel: 'Back to Sheet' },
+    { id: 'eod', label: 'EOD', hint: 'Cover, cart photos, sign & send', next: null, nextLabel: null },
   ];
+
+  const LEGACY_PAGE_MAP = {
+    photos: 'eod',
+    cover: 'eod',
+    send: 'eod',
+    pic: 'signoff',
+    instawork: 'crew',
+    kompass: 'crew',
+  };
 
   let currentPage = 'visit';
 
@@ -27,7 +31,9 @@
   function loadPage() {
     try {
       const raw = localStorage.getItem(PAGE_KEY);
-      if (raw && PAGES.some((p) => p.id === raw)) return raw;
+      if (!raw) return 'visit';
+      if (PAGES.some((p) => p.id === raw)) return raw;
+      if (LEGACY_PAGE_MAP[raw]) return LEGACY_PAGE_MAP[raw];
     } catch (_) { /* ignore */ }
     return 'visit';
   }
@@ -77,7 +83,7 @@
           <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
         </svg>
       </button>
-      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.15.1</span>
+      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.16.0</span>
     `;
     container.insertBefore(chrome, workspace);
 
@@ -101,7 +107,7 @@
     const badgeChrome = document.getElementById('eodVersionBadgeChrome');
     const badgeLegacy = document.getElementById('eodVersionBadge');
     if (badgeChrome && badgeLegacy) {
-      badgeChrome.textContent = badgeLegacy.textContent || 'v2.15.1';
+      badgeChrome.textContent = badgeLegacy.textContent || 'v2.16.0';
       const syncBadge = () => {
         badgeChrome.textContent = badgeLegacy.textContent;
         badgeChrome.className = badgeLegacy.className.replace('eod-version-badge', 'eod-version-badge eod-chrome-version');
@@ -192,91 +198,132 @@
   }
 
   function ensureExtraPages() {
-    const workspace = document.getElementById('eodWorkspace');
-    if (!workspace) return;
-
-    const extras = [
-      {
-        id: 'instawork',
-        title: 'InstaWork management',
-        html: `
-          <div class="section" id="eodPageInstaworkBody">
-            <p class="sets-help" style="margin:0 0 12px;">Live InstaWork roster, JOIN QR, punches, and office submit. Download / print / email / submit live at the bottom.</p>
-            <div id="eodInstaworkPageMount" class="eod-ts-page-mount"></div>
-            <button type="button" class="btn btn-primary" id="eodPageOpenInstawork" style="width:100%;">Open InstaWork management</button>
-          </div>`,
-      },
-      {
-        id: 'kompass',
-        title: 'Kompass team management',
-        html: `
-          <div class="section" id="eodPageKompassBody">
-            <p class="sets-help" style="margin:0 0 12px;">Kompass / ISE roster (Instawork excluded). JOIN QR, punches, and supervisor submit. Actions at the bottom.</p>
-            <div id="eodKompassPageMount" class="eod-ts-page-mount"></div>
-            <button type="button" class="btn btn-primary" id="eodPageOpenKompass" style="width:100%;">Open Kompass management</button>
-          </div>`,
-      },
-      {
-        id: 'pic',
-        title: 'PIC / manager QR',
-        html: `
-          <div class="section" id="eodPicQrSection">
-            <p class="sets-help" style="margin:0 0 12px;">
-              Show this QR to the Fred Meyer PIC or manager signing you out.
-              They scan with their phone, pick their title, review that department&rsquo;s set photos, and sign.
-            </p>
-            <div id="eodPicQrCard" class="eod-pic-qr-card">
-              <div id="eodPicQrStatus" class="sets-help">Confirm today&rsquo;s store to generate a QR.</div>
-              <img id="eodPicQrImg" alt="PIC sign-out QR" width="280" height="280" hidden>
-              <div id="eodPicQrUrl" class="eod-pic-qr-url" hidden></div>
-            </div>
-            <div class="button-group" style="margin-top:12px; flex-wrap:wrap; gap:8px;">
-              <button type="button" class="btn btn-primary" id="eodPicQrShowBtn" style="flex:1;">Show fullscreen QR</button>
-              <button type="button" class="btn btn-secondary" id="eodPicQrRefreshBtn">Refresh QR</button>
-            </div>
-            <p class="sets-help" style="margin-top:12px;">Tablet department signatures remain available under Digital signoffs as a fallback.</p>
-          </div>`,
-      },
-      {
-        id: 'helpdesk',
-        title: 'Help desk',
-        html: `
-          <div class="section">
-            <p class="sets-help" style="margin:0 0 12px;">Send KOMPASS help desk reports with photos. Completing a report also marks the cover sheet.</p>
-            <button type="button" class="btn btn-primary" id="eodPageHelpdeskBtn" style="width:100%;">Open help desk report</button>
-          </div>`,
-      },
-    ];
-
-    extras.forEach((page) => {
-      if (document.querySelector(`[data-eod-group="${page.id}"]`)) return;
-      const el = document.createElement('section');
-      el.className = 'eod-group eod-page';
-      el.id = `eodGroup${page.id.charAt(0).toUpperCase()}${page.id.slice(1)}`;
-      el.setAttribute('data-eod-group', page.id);
-      el.hidden = true;
-      el.innerHTML = `
-        <div class="eod-page-heading">
-          <div class="eod-group-title">${escapeHtml(page.title)}</div>
-        </div>
-        <div class="eod-group-body">${page.html}</div>`;
-      workspace.appendChild(el);
-    });
-
-    document.getElementById('eodPageOpenInstawork')?.addEventListener('click', () => {
-      if (window.EodTimesheetMgmt?.openInstawork) window.EodTimesheetMgmt.openInstawork();
-      else if (typeof window.openInstaworkManagement === 'function') window.openInstaworkManagement();
-    });
-    document.getElementById('eodPageOpenKompass')?.addEventListener('click', () => {
-      if (window.EodTimesheetMgmt?.openKompass) window.EodTimesheetMgmt.openKompass();
-      else if (typeof window.openKompassManagement === 'function') window.openKompassManagement();
-    });
-    document.getElementById('eodPageHelpdeskBtn')?.addEventListener('click', () => {
-      if (typeof window.openHelpdeskWizard === 'function') window.openHelpdeskWizard();
-      else if (typeof window.toggleHelpdeskNeed === 'function') {
-        const yes = document.getElementById('helpdeskNeedYes');
-        if (yes) { yes.checked = true; window.toggleHelpdeskNeed(yes); }
+    // Help desk / PIC / timesheet mounts now live in index.html.
+    // Wire page buttons once.
+    if (!document.getElementById('eodPageHelpdeskBtn')?.dataset.eodWired) {
+      const helpBtn = document.getElementById('eodPageHelpdeskBtn');
+      if (helpBtn) {
+        helpBtn.dataset.eodWired = '1';
+        helpBtn.addEventListener('click', () => {
+          if (typeof window.openHelpdeskWizard === 'function') window.openHelpdeskWizard();
+          else if (typeof window.toggleHelpdeskNeed === 'function') {
+            const yes = document.getElementById('helpdeskNeedYes');
+            if (yes) { yes.checked = true; window.toggleHelpdeskNeed(yes); }
+          }
+        });
       }
+    }
+
+    if (!document.getElementById('eodCrewSheetIwBtn')?.dataset.eodWired) {
+      const iw = document.getElementById('eodCrewSheetIwBtn');
+      const kp = document.getElementById('eodCrewSheetKpBtn');
+      if (iw) {
+        iw.dataset.eodWired = '1';
+        iw.addEventListener('click', () => {
+          if (window.EodTimesheetMgmt?.openInPage) window.EodTimesheetMgmt.openInPage('instawork', document.getElementById('eodCrewTsMount'));
+          else if (window.EodTimesheetMgmt?.openInstawork) window.EodTimesheetMgmt.openInstawork();
+          else if (typeof window.openInstaworkManagement === 'function') window.openInstaworkManagement();
+          paintCrewJoinQr();
+        });
+      }
+      if (kp) {
+        kp.dataset.eodWired = '1';
+        kp.addEventListener('click', () => {
+          if (window.EodTimesheetMgmt?.openInPage) window.EodTimesheetMgmt.openInPage('kompass', document.getElementById('eodCrewTsMount'));
+          else if (window.EodTimesheetMgmt?.openKompass) window.EodTimesheetMgmt.openKompass();
+          else if (typeof window.openKompassManagement === 'function') window.openKompassManagement();
+          paintCrewJoinQr();
+        });
+      }
+      document.getElementById('eodCrewJoinQrShowBtn')?.addEventListener('click', () => {
+        if (window.EodTimesheetMgmt?.showJoinQr) window.EodTimesheetMgmt.showJoinQr();
+        else paintCrewJoinQr(true);
+      });
+      document.getElementById('eodCrewJoinQrRefreshBtn')?.addEventListener('click', async () => {
+        try {
+          if (window.EodTimesheetMgmt?.refreshJoinToken) await window.EodTimesheetMgmt.refreshJoinToken(true);
+          else if (window.EodTimesheetMgmt?.refresh) await window.EodTimesheetMgmt.refresh();
+          paintCrewJoinQr(true);
+        } catch (err) {
+          if (typeof showAlert === 'function') showAlert('JOIN QR', err.message || String(err));
+        }
+      });
+    }
+  }
+
+  function paintCrewJoinQr(forceShow) {
+    const status = document.getElementById('eodCrewJoinQrStatus');
+    const img = document.getElementById('eodCrewJoinQrImg');
+    const urlEl = document.getElementById('eodCrewJoinQrUrl');
+    const join = window.EodTimesheetMgmt?.getJoin?.() || null;
+    if (!join?.joinUrl) {
+      if (status) {
+        status.hidden = false;
+        status.textContent = 'Open InstaWork or Kompass timesheet to mint today\'s JOIN QR.';
+      }
+      if (img) img.hidden = true;
+      if (urlEl) urlEl.hidden = true;
+      return;
+    }
+    if (status) status.hidden = true;
+    if (img) {
+      img.hidden = false;
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(join.joinUrl)}`;
+    }
+    if (urlEl) {
+      urlEl.hidden = false;
+      urlEl.textContent = join.joinUrl;
+    }
+    if (forceShow && window.EodTimesheetMgmt?.showJoinQr) {
+      window.EodTimesheetMgmt.showJoinQr();
+    }
+  }
+
+  function ensureNextStepButtons() {
+    PAGES.forEach((page) => {
+      if (!page.next) return;
+      const hosts = document.querySelectorAll(`[data-eod-group="${page.id}"] .eod-group-body`);
+      hosts.forEach((host) => {
+        if (host.querySelector(`[data-eod-next="${page.id}"]`)) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'eod-next-step';
+        wrap.innerHTML = `<button type="button" class="btn btn-success" data-eod-next="${page.id}" style="width:100%;margin-top:14px;">${escapeHtml(page.nextLabel || 'Continue')}</button>`;
+        host.appendChild(wrap);
+        wrap.querySelector('button').onclick = () => go(page.next);
+      });
+    });
+  }
+
+  function pageStatusHint(id) {
+    try {
+      if (id === 'crew') {
+        const list = document.getElementById('smMembersList');
+        const n = list?.querySelectorAll('.sm-member-row')?.length || 0;
+        return n ? `${n} on roster` : 'roster';
+      }
+      if (id === 'signoff') {
+        const sheet = window.EodDigitalSignoff?.getSheet?.();
+        if (!sheet) return 'sheet';
+        const s = sheet.summary || {};
+        const open = Math.max(0, (s.total || 0) - (s.marked || 0));
+        return open ? `${open} open` : `${s.marked || 0} marked`;
+      }
+      if (id === 'eod') {
+        const before = document.querySelectorAll('#previewBefore .photo-item, #previewBefore img')?.length || 0;
+        return before ? 'photos ready' : 'cover + send';
+      }
+    } catch (_) { /* ignore */ }
+    return '';
+  }
+
+  function refreshDrawerHints() {
+    document.querySelectorAll('.eod-drawer-item[data-eod-page]').forEach((btn) => {
+      const id = btn.getAttribute('data-eod-page');
+      const hint = btn.querySelector('.eod-drawer-item-hint');
+      const page = PAGES.find((p) => p.id === id);
+      if (!hint || !page) return;
+      const status = pageStatusHint(id);
+      hint.textContent = status ? `${page.hint} · ${status}` : page.hint;
     });
   }
 
@@ -306,7 +353,9 @@
   }
 
   function go(id, opts) {
-    const page = PAGES.find((p) => p.id === id) ? id : 'visit';
+    let page = id;
+    if (LEGACY_PAGE_MAP[page]) page = LEGACY_PAGE_MAP[page];
+    page = PAGES.find((p) => p.id === page) ? page : 'visit';
     currentPage = page;
     savePage(page);
 
@@ -323,29 +372,24 @@
 
     document.body.dataset.eodPage = page;
     syncChromeMeta();
+    refreshDrawerHints();
 
-    // Auto-open management overlays when landing on those pages
-    if (page === 'instawork' && !(opts || {}).skipAutoOpen) {
-      if (window.EodTimesheetMgmt?.openInstawork) window.EodTimesheetMgmt.openInstawork();
-    } else if (page === 'kompass' && !(opts || {}).skipAutoOpen) {
-      if (window.EodTimesheetMgmt?.openKompass) window.EodTimesheetMgmt.openKompass();
-    } else if (page !== 'instawork' && page !== 'kompass') {
-      // Leaving timesheet pages — keep overlay open only if user is on those pages
+    if (page === 'crew') {
+      paintCrewJoinQr();
+    } else if (page !== 'crew') {
       if (window.EodTimesheetMgmt?.close && document.getElementById('eodTsMgmtOverlay')?.classList.contains('show')) {
-        // Only auto-close when navigating away from ts pages
         window.EodTimesheetMgmt.close({ fromNav: true });
       }
     }
 
-    if (page === 'pic' && typeof window.EodPicQr?.refresh === 'function') {
+    if (page === 'signoff' && typeof window.EodPicQr?.refresh === 'function') {
       window.EodPicQr.refresh(false).catch(() => {});
     }
 
-    if ((page === 'cover' || page === 'send' || page === 'pic')
+    if ((page === 'eod' || page === 'signoff')
         && typeof window.EodCoverSync?.syncAll === 'function') {
-      // Refresh PIC checkout manager before filling cover fields
       Promise.resolve(
-        page !== 'pic' && typeof window.EodPicQr?.refresh === 'function'
+        page !== 'signoff' && typeof window.EodPicQr?.refresh === 'function'
           ? window.EodPicQr.refresh(false).catch(() => {})
           : null
       ).finally(() => {
@@ -793,7 +837,8 @@
   }
 
   function moveSendActionsIntoSendPage() {
-    const sendGroup = document.querySelector('[data-eod-group="send"] .eod-group-body');
+    const sendGroup = document.querySelector('[data-eod-group="eod"] .eod-group-body')
+      || document.querySelector('#eodGroupSend .eod-group-body');
     const actions = document.querySelector('.container > .button-group');
     if (!sendGroup || !actions || actions.dataset.eodMoved === '1') return;
     actions.dataset.eodMoved = '1';
@@ -843,6 +888,7 @@
     compactManagers();
     compactStorePicker();
     watchInjected();
+    ensureNextStepButtons();
     go(loadPage(), { skipAutoOpen: true, scroll: false });
   }
 
