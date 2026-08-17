@@ -936,6 +936,7 @@ function renderCoverage() {
       <div class="assignee-row">
         <span>${escHtml(a.assigneeName || a.assigneeEmail)}</span>
         ${a.dueAt ? `<span class="due">due ${escHtml(formatDue(a.dueAt))}</span>` : ''}
+        <button type="button" class="ghost btn-xs" data-remind="${a.id}">Remind</button>
         <button type="button" class="ghost btn-xs" data-cancel="${a.id}">Cancel</button>
       </div>`).join('') || '<span class="muted">—</span>';
   }
@@ -992,6 +993,19 @@ document.getElementById('panel-stores').addEventListener('click', async (e) => {
       await loadCoverage();
     } catch (err) {
       alert(err.message || 'Could not cancel assignment');
+    }
+    return;
+  }
+  const remindBtn = e.target.closest('[data-remind]');
+  if (remindBtn) {
+    if (!confirm('Send a reminder email to this assignee and their supervisor?')) return;
+    try {
+      const res = await api('/api/survey/admin/assignments/' + remindBtn.dataset.remind + '/remind', {
+        method: 'POST'
+      });
+      alert(res.message || 'Reminder sent!');
+    } catch (err) {
+      alert(err.message || 'Could not send reminder');
     }
     return;
   }
@@ -1802,9 +1816,11 @@ function openResponseAt(idx) {
   let html = '';
   for (const sec of sections) {
     const qs = sec.questions || [];
-    const branchQs = [];
-    qs.forEach((q) => (q.branches || []).forEach((b) => branchQs.push(b)));
-    const all = qs.concat(branchQs);
+    const all = [];
+    qs.forEach((q) => {
+      all.push(q);
+      if (q.branches) all.push(...q.branches);
+    });
     const answered = all.filter((q) => {
       const v = answers[q.id];
       const has = !(v == null || v === '' || (Array.isArray(v) && !v.length));
