@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-08-17T03:30Z eod-v2.16.0-domain-tabs -->
+<!-- build: 2026-08-17T05:40Z eod-v2.16.1-hub-subpages -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -37,8 +37,8 @@
     <script src="eod-digital-signoff.js?v=2.14.0" defer></script>
     <script src="eod-pic-qr.js?v=2.16.0" defer></script>
     <script src="eod-cover-sync.js?v=2.14.0" defer></script>
-    <link rel="stylesheet" href="eod-workspace.css?v=2.16.0">
-    <script src="eod-workspace.js?v=2.16.0" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.16.1">
+    <script src="eod-workspace.js?v=2.16.1" defer></script>
     <script src="eod-feedback-hub.js?v=2.15.1" defer></script>
     <style>
         /* Role-based visibility gating */
@@ -3297,7 +3297,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.16.0</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.16.1</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -3515,28 +3515,69 @@
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
                     <div class="eod-group-title">Crew</div>
-                    <div class="eod-group-hint">Roster, timesheets, JOIN QR, materials</div>
+                    <div class="eod-group-hint">Pick one task — roster, timesheets, or JOIN QR</div>
                 </div>
             </summary>
             <div class="eod-group-body">
-<div class="section" id="eodCrewDayFlow" style="border-color:#38bdf8;">
-            <div class="section-title" style="color:#7dd3fc;">Morning crew</div>
-            <p class="sets-help" style="margin:0 0 10px;">Confirm the roster, show the JOIN QR, adjust times, assign materials, then move to the Sheet.</p>
-            <div class="button-group" style="flex-wrap:wrap;gap:8px;">
-                <button type="button" class="btn btn-primary" id="eodCrewSheetIwBtn" style="flex:1;">InstaWork timesheet</button>
-                <button type="button" class="btn btn-primary" id="eodCrewSheetKpBtn" style="flex:1;">Kompass timesheet</button>
+                <div id="eodHubCrew" class="eod-hub"></div>
             </div>
-            <div id="eodCrewJoinQrCard" class="eod-pic-qr-card" style="margin-top:12px;">
-                <div class="sets-help" id="eodCrewJoinQrStatus">Open a timesheet below to mint today's JOIN QR.</div>
-                <img id="eodCrewJoinQrImg" alt="Team JOIN QR" width="280" height="280" hidden>
-                <div id="eodCrewJoinQrUrl" class="eod-pic-qr-url" hidden></div>
-                <div class="button-group" style="margin-top:10px;flex-wrap:wrap;gap:8px;">
-                    <button type="button" class="btn btn-primary" id="eodCrewJoinQrShowBtn" style="flex:1;">Show JOIN QR</button>
-                    <button type="button" class="btn btn-secondary" id="eodCrewJoinQrRefreshBtn">Refresh QR</button>
+        </details>
+
+        <details class="eod-group" id="eodGroupCrewRoster" data-eod-group="crew-roster">
+            <summary class="eod-group-summary">
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Shift roster</div>
+                    <div class="eod-group-hint">Add and remove teammates</div>
                 </div>
+            </summary>
+            <div class="eod-group-body">
+<div class="section" id="smSection" data-requires-role="lead supervisor admin" style="display:none;">
+            <div class="section-title">Employee Management</div>
+            <div class="sm-status pending" id="smClosedShiftNotice" style="display:none;">This shift is closed; sync is available, but roster changes are disabled.</div>
+
+            <!-- Current Shift Members -->
+            <div id="smMembersSection" style="display:none;">
+                <div class="sm-members-header">
+                    <span class="sm-members-title">Current Members</span>
+                    <button class="sm-refresh-btn" onclick="smRefreshMembers()">Refresh</button>
+                </div>
+                <div id="smMembersList"></div>
+
+                <!-- Compact Remove Dropdown -->
+                <div id="smRemoveControls" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+                    <select id="smRemoveSelect" style="flex:1; min-width:200px;">
+                        <option value="">-- Remove a member --</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="smRequestRemovalFromDropdown()"
+                        style="background:#ef4444; color:#fff; white-space:nowrap;">Remove</button>
+                </div>
+                <div class="sm-status" id="smRemoveStatus"></div>
             </div>
-            <div id="eodCrewTsMount" class="eod-ts-page-mount" style="margin-top:12px;"></div>
+
+            <!-- Compact Add Dropdown -->
+            <div id="smAddSection" style="display:none;">
+                <div class="sm-add-label">Add Team Members:</div>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <select id="smAddSelect" style="flex:1; min-width:200px;">
+                        <option value="">-- Add a member --</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="smAddFromDropdown()"
+                        style="white-space:nowrap;">Add</button>
+                </div>
+                <div class="sm-status" id="smAddStatus"></div>
+            </div>
         </div>
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupInstawork" data-eod-group="instawork">
+            <summary class="eod-group-summary">
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">InstaWork</div>
+                    <div class="eod-group-hint">Yes/No, live timesheet, sign-out photo</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
 <div class="section" id="instaworkSection" style="border-color:#fbbf24;">
             <div class="section-title" style="color:#fde68a;">InstaWork Support</div>
 
@@ -3604,6 +3645,17 @@
                 </div>
             </div>
         </div>
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupKompass" data-eod-group="kompass">
+            <summary class="eod-group-summary">
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Kompass timesheet</div>
+                    <div class="eod-group-hint">Live punches, PINs, submit to supervisor</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
 <div class="section" id="kompassTimesheetSection" style="border-color:#fbbf24;">
             <div class="section-title" style="color:#fde68a;">Kompass Team Sheet</div>
             <div class="field">
@@ -3623,6 +3675,42 @@
                 Open Kompass Team Management
             </button>
         </div>
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupCrewJoin" data-eod-group="crew-join">
+            <summary class="eod-group-summary">
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Team JOIN QR</div>
+                    <div class="eod-group-hint">Workers scan to log in with their PIN</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
+            <div class="section" id="eodCrewJoinQrCard" class="eod-pic-qr-card" style="border-color:#38bdf8;">
+                <p class="sets-help" style="margin:0 0 10px;">Pick InstaWork or Kompass first, then show the QR for that sheet.</p>
+                <div class="button-group" style="flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                    <button type="button" class="btn btn-primary" id="eodCrewSheetIwBtn" style="flex:1;">InstaWork QR</button>
+                    <button type="button" class="btn btn-primary" id="eodCrewSheetKpBtn" style="flex:1;">Kompass QR</button>
+                </div>
+                <div class="sets-help" id="eodCrewJoinQrStatus">Tap a sheet above to mint today's JOIN QR.</div>
+                <img id="eodCrewJoinQrImg" alt="Team JOIN QR" width="280" height="280" hidden>
+                <div id="eodCrewJoinQrUrl" class="eod-pic-qr-url" hidden></div>
+                <div class="button-group" style="margin-top:10px;flex-wrap:wrap;gap:8px;">
+                    <button type="button" class="btn btn-primary" id="eodCrewJoinQrShowBtn" style="flex:1;">Show fullscreen</button>
+                    <button type="button" class="btn btn-secondary" id="eodCrewJoinQrRefreshBtn">Refresh QR</button>
+                </div>
+            </div>
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupInfo" data-eod-group="info">
+            <summary class="eod-group-summary">
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Information</div>
+                    <div class="eod-group-hint">Period materials / Dump Bin</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
 <div class="section" id="materialsInfoSection" style="border-color:#fbbf24;">
             <div class="section-title" style="color:#fde68a;">Information</div>
             <div class="field">
@@ -3639,45 +3727,11 @@
                 </div>
             </div>
         </div>
-<div class="section" id="smSection" data-requires-role="lead supervisor admin" style="display:none;">
-            <div class="section-title">Employee Management</div>
-            <div class="sm-status pending" id="smClosedShiftNotice" style="display:none;">This shift is closed; sync is available, but roster changes are disabled.</div>
-
-            <!-- Current Shift Members -->
-            <div id="smMembersSection" style="display:none;">
-                <div class="sm-members-header">
-                    <span class="sm-members-title">Current Members</span>
-                    <button class="sm-refresh-btn" onclick="smRefreshMembers()">Refresh</button>
-                </div>
-                <div id="smMembersList"></div>
-
-                <!-- Compact Remove Dropdown -->
-                <div id="smRemoveControls" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
-                    <select id="smRemoveSelect" style="flex:1; min-width:200px;">
-                        <option value="">-- Remove a member --</option>
-                    </select>
-                    <button class="btn btn-secondary" onclick="smRequestRemovalFromDropdown()"
-                        style="background:#ef4444; color:#fff; white-space:nowrap;">Remove</button>
-                </div>
-                <div class="sm-status" id="smRemoveStatus"></div>
-            </div>
-
-            <!-- Compact Add Dropdown -->
-            <div id="smAddSection" style="display:none;">
-                <div class="sm-add-label">Add Team Members:</div>
-                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                    <select id="smAddSelect" style="flex:1; min-width:200px;">
-                        <option value="">-- Add a member --</option>
-                    </select>
-                    <button class="btn btn-primary" onclick="smAddFromDropdown()"
-                        style="white-space:nowrap;">Add</button>
-                </div>
-                <div class="sm-status" id="smAddStatus"></div>
-            </div>
-        </div>
             </div>
         </details>
 
+        <div id="adminToolsLegacyPlaceholder" hidden></div>
+        <!-- roster/instawork/kompass/materials moved above; legacy weekly tools stay below -->
         <div id="adminToolsLegacy" data-admin-feature="legacy-rebotics-and-auth-trigger" hidden>
 
         <!-- Weekly Tasks (Rebotics bulk backlog) -->
@@ -3738,7 +3792,7 @@
         </div>
 
         </div><!-- /#adminToolsLegacy end of section block (modals are added below) -->
-        <details class="eod-group" id="eodGroupPhotos" data-eod-group="eod">
+        <details class="eod-group" id="eodGroupPhotos" data-eod-group="photos">
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
@@ -3859,12 +3913,35 @@
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
                     <div class="eod-group-title">Sheet</div>
-                    <div class="eod-group-hint">Digital marks, set photos, manager QR</div>
+                    <div class="eod-group-hint">Marks, department signatures, or manager QR</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
+                <div id="eodHubSheet" class="eod-hub"></div>
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupSignoffMarks" data-eod-group="signoff-marks">
+            <summary class="eod-group-summary">
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Digital marks</div>
+                    <div class="eod-group-hint">Hosted worksheet and department PIC signatures</div>
                 </div>
             </summary>
             <div class="eod-group-body">
         <div id="eodSignoffGroupBody"></div>
-        <div class="section" id="eodPicQrSection" style="margin-top:12px;">
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupPic" data-eod-group="pic">
+            <summary class="eod-group-summary">
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">Manager QR</div>
+                    <div class="eod-group-hint">PIC / manager sign-out link</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
+        <div class="section" id="eodPicQrSection" style="margin-top:0;">
             <div class="section-title">PIC / manager sign-out QR</div>
             <p class="sets-help" style="margin:0 0 12px;">
               Show this QR to the Fred Meyer PIC or manager signing you out.
@@ -3902,7 +3979,19 @@
             </div>
         </details>
 
-        <details class="eod-group" id="eodGroupCover" data-eod-group="eod">
+        <details class="eod-group" id="eodGroupEodHub" data-eod-group="eod">
+            <summary class="eod-group-summary">
+                <div class="eod-group-heading">
+                    <div class="eod-group-title">EOD</div>
+                    <div class="eod-group-hint">Cover, cart photos, sign &amp; send</div>
+                </div>
+            </summary>
+            <div class="eod-group-body">
+                <div id="eodHubEod" class="eod-hub"></div>
+            </div>
+        </details>
+
+        <details class="eod-group" id="eodGroupCover" data-eod-group="cover">
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">
@@ -4075,7 +4164,7 @@
             </div>
         </details>
 
-        <details class="eod-group" id="eodGroupSend" data-eod-group="eod">
+        <details class="eod-group" id="eodGroupSend" data-eod-group="send">
             <summary class="eod-group-summary">
                 <svg class="eod-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 <div class="eod-group-heading">

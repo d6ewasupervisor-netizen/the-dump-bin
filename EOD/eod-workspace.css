@@ -642,6 +642,74 @@ body.eod-feedback-capturing #eodFeedbackOverlay {
   border-top: 1px solid #1e3a5f;
 }
 
+.eod-back-bar {
+  padding: 0 16px 10px;
+  background: #07111f;
+}
+
+.eod-back-btn {
+  width: 100%;
+}
+
+.eod-hub {
+  padding: 4px 0 8px;
+}
+
+.eod-hub-intro {
+  margin: 0 0 12px;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.eod-hub-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eod-hub-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #1e3a5f;
+  background: linear-gradient(180deg, #0b1220 0%, #071018 100%);
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+
+.eod-hub-card:hover,
+.eod-hub-card:focus-visible {
+  border-color: #38bdf8;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.eod-hub-card-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #7dd3fc;
+}
+
+.eod-hub-card-hint {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.eod-hub-card-go {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
 .eod-ts-page-mount {
   min-height: 40px;
 }
@@ -657,7 +725,8 @@ body.eod-feedback-capturing #eodFeedbackOverlay {
   border: 1px solid #334155;
 }
 
-.eod-group[data-eod-group="eod"] .eod-page-heading,
-.eod-group[data-eod-group="eod"] > .eod-page-heading {
-  margin-top: 8px;
+.eod-page[data-eod-group="eod"] .eod-page-heading,
+.eod-page[data-eod-group="crew"] .eod-page-heading,
+.eod-page[data-eod-group="signoff"] .eod-page-heading {
+  margin-top: 0;
 }

@@ -4,25 +4,81 @@
 
   const PAGE_KEY = 'eodWorkspacePage';
   const NARROW = 720;
+  const VERSION = 'v2.16.1';
 
-  const PAGES = [
+  /* Top-level drawer tabs only — subpages are reached via hub cards / Back. */
+  const DRAWER_PAGES = [
     { id: 'visit', label: 'Start', hint: 'Store, date, shifts, profile', next: 'crew', nextLabel: 'Continue to Crew' },
-    { id: 'crew', label: 'Crew', hint: 'Roster, timesheets, JOIN QR, materials', next: 'signoff', nextLabel: 'Go to Sheet' },
-    { id: 'signoff', label: 'Sheet', hint: 'Digital marks, set photos, manager QR', next: 'eod', nextLabel: 'Finish EOD' },
+    { id: 'crew', label: 'Crew', hint: 'Roster, timesheets, JOIN QR', next: 'info', nextLabel: 'Continue to Information', hub: true },
+    { id: 'info', label: 'Information', hint: 'Period materials / Dump Bin', next: 'signoff', nextLabel: 'Go to Sheet' },
+    { id: 'signoff', label: 'Sheet', hint: 'Marks and manager QR', next: 'eod', nextLabel: 'Finish EOD', hub: true },
     { id: 'helpdesk', label: 'Help desk', hint: 'KOMPASS help desk reports', next: 'signoff', nextLabel: 'Back to Sheet' },
-    { id: 'eod', label: 'EOD', hint: 'Cover, cart photos, sign & send', next: null, nextLabel: null },
+    { id: 'eod', label: 'EOD', hint: 'Cover, cart photos, sign & send', next: null, nextLabel: null, hub: true },
   ];
 
+  const SUBPAGES = {
+    'crew-roster': { parent: 'crew', label: 'Shift roster', hint: 'Add and remove teammates' },
+    instawork: { parent: 'crew', label: 'InstaWork', hint: 'Yes/No, sign-out photo, live sheet' },
+    kompass: { parent: 'crew', label: 'Kompass timesheet', hint: 'Yes/No, open live sheet' },
+    'crew-join': { parent: 'crew', label: 'Team JOIN QR', hint: 'Workers scan to log in' },
+    'signoff-marks': { parent: 'signoff', label: 'Digital marks', hint: 'Worksheet and department PIC signatures' },
+    pic: { parent: 'signoff', label: 'Manager QR', hint: 'PIC / manager sign-out' },
+    cover: { parent: 'eod', label: 'Cover sheet', hint: 'Managers, notes, SI' },
+    photos: { parent: 'eod', label: 'Cart photos', hint: 'Before / after cart photos' },
+    send: { parent: 'eod', label: 'Sign & send', hint: 'Lead signature, recipients, send' },
+  };
+
+  const HUB_CARDS = {
+    crew: [
+      { id: 'crew-roster', title: 'Shift roster', hint: 'Add / remove teammates on today\'s visit' },
+      { id: 'instawork', title: 'InstaWork', hint: 'Yes/No + sign-out photo · open live sheet separately' },
+      { id: 'kompass', title: 'Kompass timesheet', hint: 'Yes/No · open live sheet separately' },
+      { id: 'crew-join', title: 'Team JOIN QR', hint: 'Show QR or text JOIN to (509) 572-9212' },
+    ],
+    signoff: [
+      { id: 'signoff-marks', title: 'Digital marks', hint: 'Hosted worksheet and department signatures' },
+      { id: 'pic', title: 'Manager QR', hint: 'PIC / manager scans to sign out' },
+    ],
+    eod: [
+      { id: 'cover', title: 'Cover sheet', hint: 'Managers, notes, sets not in store / SI' },
+      { id: 'photos', title: 'Cart photos', hint: 'Before / after Kompass cart' },
+      { id: 'send', title: 'Sign & send', hint: 'Lead signature, recipients, and send' },
+    ],
+  };
+
+  const HUB_MOUNT = {
+    crew: 'eodHubCrew',
+    signoff: 'eodHubSheet',
+    eod: 'eodHubEod',
+  };
+
+  /* Compat: flat list used by exporters / status helpers */
+  const PAGES = DRAWER_PAGES;
+
   const LEGACY_PAGE_MAP = {
-    photos: 'eod',
-    cover: 'eod',
-    send: 'eod',
-    pic: 'signoff',
-    instawork: 'crew',
-    kompass: 'crew',
+    materials: 'info',
   };
 
   let currentPage = 'visit';
+
+  function isDrawerPage(id) {
+    return DRAWER_PAGES.some((p) => p.id === id);
+  }
+
+  function parentOf(id) {
+    return SUBPAGES[id]?.parent || null;
+  }
+
+  function resolvePage(id) {
+    let page = id;
+    if (LEGACY_PAGE_MAP[page]) page = LEGACY_PAGE_MAP[page];
+    if (isDrawerPage(page) || SUBPAGES[page]) return page;
+    return 'visit';
+  }
+
+  function drawerHighlightId(id) {
+    return parentOf(id) || id;
+  }
 
   function isNarrow() {
     return window.innerWidth < NARROW;
@@ -32,8 +88,7 @@
     try {
       const raw = localStorage.getItem(PAGE_KEY);
       if (!raw) return 'visit';
-      if (PAGES.some((p) => p.id === raw)) return raw;
-      if (LEGACY_PAGE_MAP[raw]) return LEGACY_PAGE_MAP[raw];
+      return resolvePage(raw);
     } catch (_) { /* ignore */ }
     return 'visit';
   }
@@ -83,7 +138,7 @@
           <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
         </svg>
       </button>
-      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.16.0</span>
+      <span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">${VERSION}</span>
     `;
     container.insertBefore(chrome, workspace);
 
@@ -107,7 +162,7 @@
     const badgeChrome = document.getElementById('eodVersionBadgeChrome');
     const badgeLegacy = document.getElementById('eodVersionBadge');
     if (badgeChrome && badgeLegacy) {
-      badgeChrome.textContent = badgeLegacy.textContent || 'v2.16.0';
+      badgeChrome.textContent = badgeLegacy.textContent || VERSION;
       const syncBadge = () => {
         badgeChrome.textContent = badgeLegacy.textContent;
         badgeChrome.className = badgeLegacy.className.replace('eod-version-badge', 'eod-version-badge eod-chrome-version');
@@ -157,7 +212,7 @@
           <button type="button" class="btn btn-secondary" id="eodDrawerClose">Close</button>
         </div>
         <div class="eod-drawer-list" id="eodDrawerList">
-          ${PAGES.map((p) => `
+          ${DRAWER_PAGES.map((p) => `
             <button type="button" class="eod-drawer-item" data-eod-page="${p.id}">
               <span class="eod-drawer-item-label">${escapeHtml(p.label)}</span>
               <span class="eod-drawer-item-hint">${escapeHtml(p.hint)}</span>
@@ -217,22 +272,29 @@
     if (!document.getElementById('eodCrewSheetIwBtn')?.dataset.eodWired) {
       const iw = document.getElementById('eodCrewSheetIwBtn');
       const kp = document.getElementById('eodCrewSheetKpBtn');
+      // JOIN page: mint QR via overlay sheet open (fullscreen), never inline employee list
       if (iw) {
         iw.dataset.eodWired = '1';
-        iw.addEventListener('click', () => {
-          if (window.EodTimesheetMgmt?.openInPage) window.EodTimesheetMgmt.openInPage('instawork', document.getElementById('eodCrewTsMount'));
-          else if (window.EodTimesheetMgmt?.openInstawork) window.EodTimesheetMgmt.openInstawork();
-          else if (typeof window.openInstaworkManagement === 'function') window.openInstaworkManagement();
-          paintCrewJoinQr();
+        iw.addEventListener('click', async () => {
+          try {
+            if (window.EodTimesheetMgmt?.openInstawork) await window.EodTimesheetMgmt.openInstawork();
+            else if (typeof window.openInstaworkManagement === 'function') window.openInstaworkManagement();
+            paintCrewJoinQr();
+          } catch (err) {
+            if (typeof showAlert === 'function') showAlert('JOIN QR', err.message || String(err));
+          }
         });
       }
       if (kp) {
         kp.dataset.eodWired = '1';
-        kp.addEventListener('click', () => {
-          if (window.EodTimesheetMgmt?.openInPage) window.EodTimesheetMgmt.openInPage('kompass', document.getElementById('eodCrewTsMount'));
-          else if (window.EodTimesheetMgmt?.openKompass) window.EodTimesheetMgmt.openKompass();
-          else if (typeof window.openKompassManagement === 'function') window.openKompassManagement();
-          paintCrewJoinQr();
+        kp.addEventListener('click', async () => {
+          try {
+            if (window.EodTimesheetMgmt?.openKompass) await window.EodTimesheetMgmt.openKompass();
+            else if (typeof window.openKompassManagement === 'function') window.openKompassManagement();
+            paintCrewJoinQr();
+          } catch (err) {
+            if (typeof showAlert === 'function') showAlert('JOIN QR', err.message || String(err));
+          }
         });
       }
       document.getElementById('eodCrewJoinQrShowBtn')?.addEventListener('click', () => {
@@ -259,7 +321,7 @@
     if (!join?.joinUrl) {
       if (status) {
         status.hidden = false;
-        status.textContent = 'Open InstaWork or Kompass timesheet to mint today\'s JOIN QR.';
+        status.textContent = 'Open InstaWork or Kompass (fullscreen) once to mint today\'s JOIN QR, then return here.';
       }
       if (img) img.hidden = true;
       if (urlEl) urlEl.hidden = true;
@@ -279,9 +341,58 @@
     }
   }
 
+  function paintHub(hubId) {
+    const mountId = HUB_MOUNT[hubId];
+    const mount = mountId ? document.getElementById(mountId) : null;
+    const cards = HUB_CARDS[hubId];
+    if (!mount || !cards) return;
+
+    mount.innerHTML = `
+      <p class="eod-hub-intro">Choose one task. Each opens on its own screen — no long scroll of everything at once.</p>
+      <div class="eod-hub-grid">
+        ${cards.map((c) => `
+          <button type="button" class="eod-hub-card" data-eod-hub-go="${c.id}">
+            <span class="eod-hub-card-title">${escapeHtml(c.title)}</span>
+            <span class="eod-hub-card-hint">${escapeHtml(c.hint)}</span>
+            <span class="eod-hub-card-go">Open →</span>
+          </button>`).join('')}
+      </div>`;
+
+    mount.querySelectorAll('[data-eod-hub-go]').forEach((btn) => {
+      btn.addEventListener('click', () => go(btn.getAttribute('data-eod-hub-go')));
+    });
+  }
+
+  function ensureBackButton(pageId) {
+    const parent = parentOf(pageId);
+    const pageEl = document.querySelector(`[data-eod-group="${pageId}"]`);
+    if (!pageEl) return;
+    let bar = pageEl.querySelector(':scope > .eod-back-bar, :scope > .eod-page-heading + .eod-back-bar');
+    const heading = pageEl.querySelector(':scope > .eod-page-heading');
+    if (!parent) {
+      pageEl.querySelectorAll('.eod-back-bar').forEach((el) => el.remove());
+      return;
+    }
+    const parentPage = DRAWER_PAGES.find((p) => p.id === parent);
+    const label = parentPage?.label || 'Back';
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'eod-back-bar';
+      bar.innerHTML = `<button type="button" class="btn btn-secondary eod-back-btn">← Back to ${escapeHtml(label)}</button>`;
+      if (heading && heading.nextSibling) heading.parentNode.insertBefore(bar, heading.nextSibling);
+      else if (heading) heading.after(bar);
+      else pageEl.insertBefore(bar, pageEl.firstChild);
+    } else {
+      const btn = bar.querySelector('.eod-back-btn');
+      if (btn) btn.textContent = `← Back to ${label}`;
+    }
+    bar.querySelector('.eod-back-btn').onclick = () => go(parent);
+  }
+
   function ensureNextStepButtons() {
-    PAGES.forEach((page) => {
+    DRAWER_PAGES.forEach((page) => {
       if (!page.next) return;
+      // Hubs: next button on hub body; leaf drawer pages on their body
       const hosts = document.querySelectorAll(`[data-eod-group="${page.id}"] .eod-group-body`);
       hosts.forEach((host) => {
         if (host.querySelector(`[data-eod-next="${page.id}"]`)) return;
@@ -292,6 +403,24 @@
         wrap.querySelector('button').onclick = () => go(page.next);
       });
     });
+    // Leaf subpages that finish a hub get a light continue
+    const leafNext = {
+      'crew-join': { next: 'info', label: 'Continue to Information' },
+      pic: { next: 'eod', label: 'Continue to EOD' },
+      send: { next: null, label: null },
+    };
+    Object.entries(leafNext).forEach(([id, cfg]) => {
+      if (!cfg.next) return;
+      const hosts = document.querySelectorAll(`[data-eod-group="${id}"] .eod-group-body`);
+      hosts.forEach((host) => {
+        if (host.querySelector(`[data-eod-next="${id}"]`)) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'eod-next-step';
+        wrap.innerHTML = `<button type="button" class="btn btn-success" data-eod-next="${id}" style="width:100%;margin-top:14px;">${escapeHtml(cfg.label)}</button>`;
+        host.appendChild(wrap);
+        wrap.querySelector('button').onclick = () => go(cfg.next);
+      });
+    });
   }
 
   function pageStatusHint(id) {
@@ -299,18 +428,19 @@
       if (id === 'crew') {
         const list = document.getElementById('smMembersList');
         const n = list?.querySelectorAll('.sm-member-row')?.length || 0;
-        return n ? `${n} on roster` : 'roster';
+        return n ? `${n} on roster` : 'pick a task';
       }
+      if (id === 'info') return 'materials';
       if (id === 'signoff') {
         const sheet = window.EodDigitalSignoff?.getSheet?.();
-        if (!sheet) return 'sheet';
+        if (!sheet) return 'pick a task';
         const s = sheet.summary || {};
         const open = Math.max(0, (s.total || 0) - (s.marked || 0));
         return open ? `${open} open` : `${s.marked || 0} marked`;
       }
       if (id === 'eod') {
         const before = document.querySelectorAll('#previewBefore .photo-item, #previewBefore img')?.length || 0;
-        return before ? 'photos ready' : 'cover + send';
+        return before ? 'photos ready' : 'pick a task';
       }
     } catch (_) { /* ignore */ }
     return '';
@@ -320,7 +450,7 @@
     document.querySelectorAll('.eod-drawer-item[data-eod-page]').forEach((btn) => {
       const id = btn.getAttribute('data-eod-page');
       const hint = btn.querySelector('.eod-drawer-item-hint');
-      const page = PAGES.find((p) => p.id === id);
+      const page = DRAWER_PAGES.find((p) => p.id === id);
       if (!hint || !page) return;
       const status = pageStatusHint(id);
       hint.textContent = status ? `${page.hint} · ${status}` : page.hint;
@@ -340,22 +470,17 @@
           ${hint ? `<div class="eod-group-hint">${escapeHtml(hint)}</div>` : ''}`;
         summary.replaceWith(heading);
       }
-      // Convert <details> to <section> by cloning attributes onto a wrapper class
-      el.open = true; // keep body in DOM
+      el.open = true;
       el.classList.add('eod-page');
       el.classList.remove('eod-group');
-      // details without summary still works; force open via open attribute
       try { el.setAttribute('open', ''); } catch (_) { /* ignore */ }
     });
 
-    // Hide chip nav if present
     document.getElementById('eodGroupNav')?.remove();
   }
 
   function go(id, opts) {
-    let page = id;
-    if (LEGACY_PAGE_MAP[page]) page = LEGACY_PAGE_MAP[page];
-    page = PAGES.find((p) => p.id === page) ? page : 'visit';
+    const page = resolvePage(id);
     currentPage = page;
     savePage(page);
 
@@ -366,30 +491,38 @@
       if (el.tagName === 'DETAILS') el.open = match;
     });
 
+    const drawerId = drawerHighlightId(page);
     document.querySelectorAll('.eod-drawer-item[data-eod-page]').forEach((btn) => {
-      btn.classList.toggle('is-active', btn.getAttribute('data-eod-page') === page);
+      btn.classList.toggle('is-active', btn.getAttribute('data-eod-page') === drawerId);
     });
 
     document.body.dataset.eodPage = page;
     syncChromeMeta();
     refreshDrawerHints();
+    ensureBackButton(page);
 
-    if (page === 'crew') {
+    if (HUB_CARDS[page]) paintHub(page);
+
+    if (page === 'crew-join') {
       paintCrewJoinQr();
-    } else if (page !== 'crew') {
+    }
+
+    // Leaving timesheet-related crew pages: leave overlay alone if user opened it;
+    // only auto-close when navigating far away from crew
+    if (parentOf(page) !== 'crew' && page !== 'crew') {
       if (window.EodTimesheetMgmt?.close && document.getElementById('eodTsMgmtOverlay')?.classList.contains('show')) {
         window.EodTimesheetMgmt.close({ fromNav: true });
       }
     }
 
-    if (page === 'signoff' && typeof window.EodPicQr?.refresh === 'function') {
+    if ((page === 'pic' || page === 'signoff') && typeof window.EodPicQr?.refresh === 'function') {
       window.EodPicQr.refresh(false).catch(() => {});
     }
 
-    if ((page === 'eod' || page === 'signoff')
+    if ((page === 'eod' || page === 'cover' || page === 'photos' || page === 'send' || page === 'signoff' || page === 'signoff-marks' || page === 'pic')
         && typeof window.EodCoverSync?.syncAll === 'function') {
       Promise.resolve(
-        page !== 'signoff' && typeof window.EodPicQr?.refresh === 'function'
+        (page === 'pic' || page === 'signoff') && typeof window.EodPicQr?.refresh === 'function'
           ? window.EodPicQr.refresh(false).catch(() => {})
           : null
       ).finally(() => {
@@ -837,7 +970,7 @@
   }
 
   function moveSendActionsIntoSendPage() {
-    const sendGroup = document.querySelector('[data-eod-group="eod"] .eod-group-body')
+    const sendGroup = document.querySelector('[data-eod-group="send"] .eod-group-body')
       || document.querySelector('#eodGroupSend .eod-group-body');
     const actions = document.querySelector('.container > .button-group');
     if (!sendGroup || !actions || actions.dataset.eodMoved === '1') return;
@@ -846,11 +979,9 @@
     sendGroup.appendChild(actions);
   }
 
-  function enrichCrewPage() {
+  function enrichInfoPage() {
     const materials = document.getElementById('materialsInfoSection');
     if (!materials) return;
-    // Replace Yes/No gate with direct Dump Bin opener when Phase 5 runs;
-    // for Phase 1 keep section but add always-visible Dump Bin button.
     if (document.getElementById('eodCrewDumpBinBtn')) return;
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -880,7 +1011,7 @@
     ensureExtraPages();
     convertDetailsToPages();
     moveSendActionsIntoSendPage();
-    enrichCrewPage();
+    enrichInfoPage();
     labelOptionalPaperSignoff();
     enhanceKnownSelects();
     compactRoster();
@@ -889,6 +1020,7 @@
     compactStorePicker();
     watchInjected();
     ensureNextStepButtons();
+    Object.keys(HUB_CARDS).forEach(paintHub);
     go(loadPage(), { skipAutoOpen: true, scroll: false });
   }
 
@@ -902,6 +1034,8 @@
     syncChromeMeta,
     toggleDrawer,
     PAGES,
+    DRAWER_PAGES,
+    SUBPAGES,
   };
   window.EodPicker = { open: openPicker, close: closePicker };
 

@@ -200,7 +200,7 @@
     summary.innerHTML = line;
     if (openMeta) openMeta.textContent = `${s.marked || 0}/${s.total || 0}`;
     if (window.EodWorkspace?.openGroup) {
-      window.EodWorkspace.openGroup('signoff', { exclusive: false, scroll: false });
+      window.EodWorkspace.openGroup('signoff-marks', { exclusive: false, scroll: false });
     }
 
     if (printBtn) printBtn.style.display = 'inline-flex';
