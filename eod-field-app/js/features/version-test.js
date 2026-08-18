@@ -5,6 +5,8 @@
   const EOD_TEST_MODE_KEY = 'eodTestMode';
   const EOD_FORCE_LIVE_KEY = 'eodForceLiveDelivery';
   const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
+  const EOD_SANDBOX_LAST_STORE_KEY = 'eodSandboxLastSourceStore';
+  const EOD_SANDBOX_LAST_DATE_KEY = 'eodSandboxLastSourceDate';
   const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
   const EOD_TEST_STORE = '999';
   const EOD_TEST_LEAD_NAME = 'd6ewa.supervisor';
@@ -17,6 +19,7 @@
   let autoReloadTimer = null;
   let longPressTimer = null;
   let updating = false;
+  let cloningShift = false;
 
   function version() {
     return global.EOD_APP_VERSION || '0.0.0';
@@ -67,6 +70,27 @@
     applyUi();
   }
 
+  /** Pull whatever is currently in the store-999 sandbox (cloned shift, or
+   * nothing yet) into session state — same GET /api/shifts the real Visit
+   * screen uses, so the pilot exercises the real find-shifts path. */
+  async function loadSandboxShiftIntoSession() {
+    const S = global.EodSession;
+    if (!S) return null;
+    try {
+      const resp = await global.authFetch(
+        `${global.EOD_API_BASE}/api/shifts?store=${EOD_TEST_STORE}&date=${encodeURIComponent(S.state.workDate)}`
+      );
+      const data = await resp.json().catch(() => []);
+      const shifts = Array.isArray(data) ? data : (data.shifts || []);
+      S.patch({ shifts, selectedShift: shifts[0] || null }, 'test-shift');
+      S.saveDraft();
+      return shifts[0] || null;
+    } catch (e) {
+      console.warn('[test-mode] load sandbox shift', e);
+      return null;
+    }
+  }
+
   async function setupTestScenario() {
     const S = global.EodSession;
     if (!S) return;
@@ -99,20 +123,13 @@
     } catch (e) {
       console.warn('[test-mode] verify-store', e);
     }
-    const mock = {
-      visitId: 'test-visit-999',
-      storeNumber: '999',
-      projectName: 'Kompass ISE (TEST)',
-      visitLead: EOD_TEST_LEAD_NAME,
-      currentStatus: 'in-progress',
-      totalHours: 8,
-      empCount: 3,
-      _testMock: true,
-    };
-    S.patch({ shifts: [mock], selectedShift: mock }, 'test-shift');
-    S.saveDraft();
+    const shift = await loadSandboxShiftIntoSession();
     global.EodChrome?.refresh?.();
-    toast(`Test mode ON — #${EOD_TEST_STORE}, mail → ${EOD_TEST_RECIPIENT} only (unless LIVE).`, 'ok');
+    if (shift) {
+      toast(`Test mode ON — #${EOD_TEST_STORE}, mail → ${EOD_TEST_RECIPIENT} only (unless LIVE).`, 'ok');
+    } else {
+      toast(`Test mode ON — #${EOD_TEST_STORE} has no cloned shift yet. Tap the version badge to clone one.`, 'info');
+    }
     if (global.EodRouter) global.EodRouter.go('visit');
   }
 
@@ -131,12 +148,143 @@
     else sessionStorage.removeItem(EOD_TEST_MODE_KEY);
     if (!eodTestMode) setForceLive(false);
     applyUi();
-    if (eodTestMode) setupTestScenario().catch(console.warn);
-    else clearTestScenario();
   }
 
+  // Tapping the badge to turn test mode ON now prompts for which real shift
+  // to clone into the store-999 sandbox first (see openCloneModal below).
+  // Tapping it OFF just tears down the local test scenario, same as before.
   function toggleTestMode() {
-    setTestMode(!eodTestMode);
+    if (eodTestMode) {
+      setTestMode(false);
+      clearTestScenario();
+    } else {
+      openCloneModal();
+    }
+  }
+
+  // ─── Clone-shift sandbox prompt (tap badge while test mode is OFF) ────────
+
+  function ensureCloneModal() {
+    if (document.getElementById('eodSandboxCloneModal')) return;
+    const el = document.createElement('div');
+    el.id = 'eodSandboxCloneModal';
+    el.className = 'modal-overlay';
+    el.innerHTML = `
+      <div class="modal-dialog" style="max-width:420px;">
+        <h2 style="color:#93c5fd;">Clone a shift into sandbox #999</h2>
+        <p class="sets-help" style="margin:0 0 12px;">Copies the roster, sets, and signoff sheet from a real, successful shift into store 999 — reset to not-started — so you can walk the whole app end to end.</p>
+        <div class="field"><label for="eodSandboxSourceStore">Source store #</label>
+          <input type="text" id="eodSandboxSourceStore" inputmode="numeric" placeholder="e.g. 19" style="width:100%;"></div>
+        <div class="field"><label for="eodSandboxSourceDate">Source date (the successful shift)</label>
+          <input type="date" id="eodSandboxSourceDate" style="width:100%;"></div>
+        <div id="eodSandboxCloneStatus" class="muted" style="min-height:1.2em;margin:6px 0;"></div>
+        <div class="button-group" style="flex-wrap:wrap; gap:8px; margin-top:10px;">
+          <button type="button" class="btn btn-secondary" id="eodSandboxCancel">Cancel</button>
+          <button type="button" class="btn btn-secondary" id="eodSandboxUseExisting">Skip — use last sandbox</button>
+          <button type="button" class="btn btn-primary" id="eodSandboxCloneBtn">Clone &amp; start test mode</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    el.addEventListener('click', (e) => { if (e.target === el) closeCloneModal(); });
+    document.getElementById('eodSandboxCancel').onclick = closeCloneModal;
+    document.getElementById('eodSandboxUseExisting').onclick = () => useExistingSandbox().catch(console.warn);
+    document.getElementById('eodSandboxCloneBtn').onclick = () => runClone().catch(console.warn);
+  }
+
+  function openCloneModal() {
+    ensureCloneModal();
+    const S = global.EodSession;
+    const storeInput = document.getElementById('eodSandboxSourceStore');
+    const dateInput = document.getElementById('eodSandboxSourceDate');
+    let lastStore = '';
+    let lastDate = '';
+    try {
+      lastStore = localStorage.getItem(EOD_SANDBOX_LAST_STORE_KEY) || '';
+      lastDate = localStorage.getItem(EOD_SANDBOX_LAST_DATE_KEY) || '';
+    } catch (_) {}
+    storeInput.value = lastStore;
+    dateInput.value = lastDate || (S ? S.todayLocalIsoDate() : '');
+    setCloneStatus('');
+    setCloneBusy(false);
+    document.getElementById('eodSandboxCloneModal').classList.add('show');
+    setTimeout(() => storeInput.focus(), 30);
+  }
+
+  function closeCloneModal() {
+    document.getElementById('eodSandboxCloneModal')?.classList.remove('show');
+  }
+
+  function setCloneStatus(msg, isError) {
+    const el = document.getElementById('eodSandboxCloneStatus');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.color = isError ? '#f87171' : '';
+  }
+
+  function setCloneBusy(busy) {
+    cloningShift = busy;
+    ['eodSandboxCloneBtn', 'eodSandboxUseExisting', 'eodSandboxCancel'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = busy;
+    });
+    const cloneBtn = document.getElementById('eodSandboxCloneBtn');
+    if (cloneBtn) cloneBtn.textContent = busy ? 'Cloning…' : 'Clone & start test mode';
+  }
+
+  /** Flip test mode on and load whatever the sandbox currently holds, after
+   * a clone completes (or when the user skips straight to an existing one). */
+  async function activateSandboxTestMode() {
+    eodTestMode = true;
+    sessionStorage.setItem(EOD_TEST_MODE_KEY, '1');
+    applyUi();
+    await setupTestScenario();
+  }
+
+  async function useExistingSandbox() {
+    if (cloningShift) return;
+    closeCloneModal();
+    await activateSandboxTestMode();
+  }
+
+  async function runClone() {
+    if (cloningShift) return;
+    const sourceStore = (document.getElementById('eodSandboxSourceStore')?.value || '').trim();
+    const sourceDate = (document.getElementById('eodSandboxSourceDate')?.value || '').trim();
+    if (!sourceStore) {
+      setCloneStatus('Enter the source store number.', true);
+      return;
+    }
+    if (!sourceDate) {
+      setCloneStatus('Pick the date of the successful shift.', true);
+      return;
+    }
+    setCloneBusy(true);
+    setCloneStatus('Cloning shift into sandbox #999…');
+    try {
+      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/sandbox/clone-shift`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceStore, sourceDate }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok) {
+        throw new Error(data.error || `Clone failed (${resp.status})`);
+      }
+      try {
+        localStorage.setItem(EOD_SANDBOX_LAST_STORE_KEY, sourceStore);
+        localStorage.setItem(EOD_SANDBOX_LAST_DATE_KEY, sourceDate);
+      } catch (_) {}
+      closeCloneModal();
+      await activateSandboxTestMode();
+      toast(
+        `Sandbox ready — store ${sourceStore} (${sourceDate}) → #999: ${data.memberCount} member(s), ${data.setCount} set(s).`,
+        'ok'
+      );
+    } catch (err) {
+      setCloneStatus(err.message || String(err), true);
+    } finally {
+      setCloneBusy(false);
+    }
   }
 
   function isTestStore(store) {

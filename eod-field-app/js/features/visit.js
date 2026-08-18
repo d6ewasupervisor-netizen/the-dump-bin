@@ -30,21 +30,9 @@
   async function findShifts(store, date, listEl) {
     const S = global.EodSession;
     listEl.innerHTML = '<p class="muted">Searching…</p>';
-    if (S.normStoreNumber(store) === '999') {
-      const mock = {
-        visitId: 'test-visit-999',
-        storeNumber: '999',
-        projectName: 'Kompass ISE (TEST)',
-        visitLead: S.state.profileName || 'Test Lead',
-        currentStatus: 'in-progress',
-        totalHours: 8,
-        empCount: 3,
-      };
-      S.patch({ shifts: [mock], selectedShift: mock }, 'shifts');
-      listEl.innerHTML = renderShiftCards([mock], 0);
-      wireShiftCards(listEl);
-      return;
-    }
+    // Store 999 (sandbox pilot) is served by the API from a cloned real shift
+    // (see POST /api/sandbox/clone-shift) — no hardcoded mock here anymore,
+    // so the app exercises the real find-shifts path end to end.
     const resp = await global.authFetch(
       `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`
     );
@@ -61,7 +49,9 @@
     });
     S.patch({ shifts, selectedShift: shifts.length === 1 ? shifts[0] : null }, 'shifts');
     if (!shifts.length) {
-      listEl.innerHTML = '<p class="muted">No shifts found for this store/date.</p>';
+      listEl.innerHTML = S.normStoreNumber(store) === '999'
+        ? '<p class="muted">No sandbox shift cloned yet — ask an admin to run POST /api/sandbox/clone-shift.</p>'
+        : '<p class="muted">No shifts found for this store/date.</p>';
       return;
     }
     const selIdx = shifts.length === 1 ? 0 : -1;
