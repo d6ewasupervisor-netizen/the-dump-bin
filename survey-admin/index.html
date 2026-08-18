@@ -332,6 +332,15 @@
   .panel-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
   .code-pill{background:var(--paper);padding:2px 6px;border-radius:4px;font-size:.75rem;word-break:break-all}
 
+  .bar-chart { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; }
+  .bar-label { flex: 0 0 35%; max-width: 250px; font-size: .8125rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+  .bar-track { flex: 1; background: var(--paper); height: 16px; border-radius: 8px; overflow: hidden; display: flex; align-items: stretch; }
+  .bar-fill { height: 100%; background: var(--bad); }
+  .bar-val { flex: 0 0 45px; font-size: .8125rem; font-weight: 700; color: var(--ink-soft); }
+
+  #cov-bulk-tools { background: var(--warn-bg); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--warn); align-items: center; }
+
   @media (max-width:720px){
     .cov-desktop{display:none}
     .cov-cards{display:grid}
@@ -423,6 +432,11 @@
       <button type="button" id="cov-goto-assign">Assign from PROD</button>
     </div>
 
+    <div class="toolbar" id="cov-bulk-tools" hidden>
+      <span class="muted" style="font-size:.875rem; font-weight:600" id="cov-selected-count">0 selected</span>
+      <button type="button" class="secondary btn-xs" id="cov-bulk-remind" style="margin-left: auto; min-height: 32px">Remind Selected</button>
+    </div>
+
     <details class="assign-box" id="prod-panel">
       <summary>
         <span class="sum-label">
@@ -512,6 +526,7 @@
       <table class="cov-table" id="cov-table">
         <thead>
           <tr>
+            <th style="width:30px;text-align:center"><input type="checkbox" id="cov-check-all" aria-label="Select all visible"></th>
             <th>Store #</th><th>Name</th><th>District</th><th>Status</th><th>Assignees</th><th></th>
           </tr>
         </thead>
@@ -544,6 +559,10 @@
         <label class="field" for="f-district">District</label>
         <select id="f-district"><option value="">All districts</option></select>
       </div>
+      <div class="field-wrap" style="flex:1 1 140px;margin:0">
+        <label class="field" for="f-team">Team</label>
+        <select id="f-team"><option value="">All teams</option></select>
+      </div>
       <div class="field-wrap" style="flex:1 1 180px;margin:0">
         <label class="field" for="f-store">Store</label>
         <select id="f-store"><option value="">All stores</option></select>
@@ -572,6 +591,10 @@
     </div>
     <div class="err-box" id="exp-err"></div>
     <p class="muted" id="resp-status" style="font-size:.8125rem;margin:0 0 10px"></p>
+
+    <div id="resp-summary-charts" style="display:none; margin-bottom: 20px;">
+      <div id="problem-chart-container" class="panel-card"></div>
+    </div>
 
     <div id="resp-list-wrap">
       <div class="resp-list" id="resp-list"></div>
@@ -941,25 +964,34 @@ function renderCoverage() {
       </div>`).join('') || '<span class="muted">—</span>';
   }
 
-  tbody.innerHTML = rows.map((s) => `<tr>
+  tbody.innerHTML = rows.map((s) => {
+    const isAssigned = s.assignees && s.assignees.length > 0;
+    return `<tr>
+      <td style="text-align:center"><input type="checkbox" class="cov-row-check" value="${s.storeNum}" ${isAssigned ? '' : 'disabled'}></td>
       <td><strong>${s.storeNum}</strong></td>
       <td>${escHtml(s.storeName || '—')}</td>
       <td>${escHtml(s.district || '—')}</td>
       <td><span class="status ${s.state}">${statusLabel(s.state)}</span></td>
       <td><div class="assignee-list">${assigneeHtml(s)}</div></td>
       <td>${s.state === 'needs_assign' ? '<button type="button" class="secondary btn-xs" data-assign-store="' + s.storeNum + '">Assign</button>' : ''}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
-  cards.innerHTML = rows.map((s) => `
+  cards.innerHTML = rows.map((s) => {
+    const isAssigned = s.assignees && s.assignees.length > 0;
+    return `
     <div class="store-card">
       <div class="head">
-        <span class="num">${s.storeNum}</span>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="cov-row-check" value="${s.storeNum}" ${isAssigned ? '' : 'disabled'} style="margin:0"> <span class="num">${s.storeNum}</span></label>
         <span class="status ${s.state}">${statusLabel(s.state)}</span>
       </div>
       <div class="name">${escHtml(s.storeName || '—')} · D${escHtml(s.district || '—')}</div>
       <div class="assignee-list">${assigneeHtml(s)}</div>
       ${s.state === 'needs_assign' ? '<div style="margin-top:10px"><button type="button" class="secondary btn-xs" data-assign-store="' + s.storeNum + '">Assign</button></div>' : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
+  
+  updateCovBulkTools();
 }
 
 async function loadCoverage() {
@@ -980,6 +1012,92 @@ document.getElementById('cov-chips').addEventListener('click', (e) => {
 document.getElementById('cov-district').onchange = renderCoverage;
 document.getElementById('cov-search').oninput = renderCoverage;
 document.getElementById('cov-refresh').onclick = () => loadCoverage().catch(console.error);
+
+function getCheckedCovRows() {
+  const cbs = document.querySelectorAll('.cov-row-check:checked');
+  return Array.from(cbs).map(cb => Number(cb.value));
+}
+
+function updateCovBulkTools() {
+  const checked = getCheckedCovRows();
+  const tools = document.getElementById('cov-bulk-tools');
+  const count = document.getElementById('cov-selected-count');
+  const checkAll = document.getElementById('cov-check-all');
+  
+  if (checked.length > 0) {
+    tools.hidden = false;
+    count.textContent = `${checked.length} store${checked.length === 1 ? '' : 's'} selected`;
+  } else {
+    tools.hidden = true;
+  }
+  
+  const allEnabled = document.querySelectorAll('.cov-row-check:not([disabled])');
+  if (checkAll && allEnabled.length > 0) {
+    const allChecked = Array.from(allEnabled).every(cb => cb.checked);
+    const someChecked = Array.from(allEnabled).some(cb => cb.checked);
+    checkAll.checked = allChecked;
+    checkAll.indeterminate = someChecked && !allChecked;
+  }
+}
+
+document.getElementById('panel-stores').addEventListener('change', (e) => {
+  if (e.target.classList.contains('cov-row-check')) {
+    updateCovBulkTools();
+  } else if (e.target.id === 'cov-check-all') {
+    const isChecked = e.target.checked;
+    document.querySelectorAll('.cov-row-check:not([disabled])').forEach(cb => {
+      cb.checked = isChecked;
+    });
+    updateCovBulkTools();
+  }
+});
+
+document.getElementById('cov-bulk-remind').onclick = async () => {
+  const storeNums = getCheckedCovRows();
+  if (!storeNums.length) return;
+  if (!confirm(`Send reminder emails for ${storeNums.length} store(s)?`)) return;
+  
+  const assignIdsToRemind = [];
+  storeNums.forEach(sn => {
+    const store = COVERAGE.stores.find(s => s.storeNum === sn);
+    if (store && store.assignees) {
+      store.assignees.forEach(a => {
+        if (a.id) assignIdsToRemind.push(a.id);
+      });
+    }
+  });
+
+  if (!assignIdsToRemind.length) {
+    alert('No valid assignments found to remind.');
+    return;
+  }
+  
+  setLoading(true, 'Sending reminders');
+  try {
+    let successCount = 0;
+    let failCount = 0;
+    
+    // We could make this parallel or batched, but we'll do sequential for now
+    for (const aid of assignIdsToRemind) {
+      try {
+        await api('/api/survey/admin/assignments/' + aid + '/remind', { method: 'POST' });
+        successCount++;
+      } catch (err) {
+        failCount++;
+      }
+    }
+    
+    alert(`Sent ${successCount} reminders.${failCount > 0 ? ` (${failCount} failed)` : ''}`);
+    
+    // Uncheck everything
+    document.querySelectorAll('.cov-row-check').forEach(cb => cb.checked = false);
+    updateCovBulkTools();
+  } catch (err) {
+    alert('An error occurred while sending bulk reminders.');
+  } finally {
+    setLoading(false);
+  }
+};
 
 document.getElementById('panel-stores').addEventListener('click', async (e) => {
   const cancelBtn = e.target.closest('[data-cancel]');
@@ -1646,6 +1764,8 @@ function filterQS() {
   const p = new URLSearchParams();
   const d = document.getElementById('f-district').value;
   if (d) p.set('districts', d);
+  const t = document.getElementById('f-team').value;
+  if (t) p.set('teams', t);
   const s = document.getElementById('f-store').value;
   if (s) p.set('stores', s);
   p.set('status', document.getElementById('f-status').value);
@@ -1655,9 +1775,16 @@ function filterQS() {
 
 function fillResultStoreSelect() {
   const dist = document.getElementById('f-district').value;
+  const team = document.getElementById('f-team').value;
   const sel = document.getElementById('f-store');
   const prev = sel.value;
-  const stores = (FILTERS.stores || []).filter((s) => !dist || String(s.district) === String(dist));
+  const stores = (FILTERS.stores || []).filter((s) => {
+    if (dist && String(s.district) !== String(dist)) return false;
+    // We don't have store-level teams in `FILTERS.stores` yet,
+    // so we can't easily filter the store dropdown by team here unless we join data.
+    // For now, just filtering by district is fine.
+    return true;
+  });
   sel.innerHTML = '<option value="">All stores</option>' + stores.map((s) => {
     const name = s.store_name || s.storeName;
     const label = name ? `${s.store_num} · ${name}` : String(s.store_num);
@@ -1681,6 +1808,13 @@ async function loadFilters() {
   const dsel = document.getElementById('f-district');
   dsel.innerHTML = '<option value="">All districts</option>';
   sortDistrictLabels(f.districts || []).forEach((d) => dsel.add(new Option('District ' + d, d)));
+  
+  const tsel = document.getElementById('f-team');
+  const prevTeam = tsel.value;
+  tsel.innerHTML = '<option value="">All teams</option>';
+  (f.teams || []).sort((a, b) => String(a).localeCompare(String(b))).forEach((t) => tsel.add(new Option(t, t)));
+  if (prevTeam && [...tsel.options].some(o => o.value === prevTeam)) tsel.value = prevTeam;
+
   fillResultStoreSelect();
   renderScope();
 }
@@ -1706,7 +1840,12 @@ async function loadSpec() {
 }
 
 async function loadData() {
-  const r = await api('/api/survey/admin/responses?' + filterQS().toString());
+  const qs = filterQS().toString();
+  const [r, sum] = await Promise.all([
+    api('/api/survey/admin/responses?' + qs),
+    api('/api/survey/admin/summary?' + qs)
+  ]);
+  
   DATA = (r.responses || []).map((row) => ({
     ...row,
     answers: normalizeAnswers(row.answers),
@@ -1718,6 +1857,49 @@ async function loadData() {
     const ttlEl = document.getElementById('exp-ttl');
     if (ttlEl) ttlEl.textContent = String(PHOTO_TTL_DAYS);
   }
+  
+  renderSummaryCharts(sum);
+}
+
+function renderSummaryCharts(sum) {
+  const container = document.getElementById('resp-summary-charts');
+  const chartBox = document.getElementById('problem-chart-container');
+  if (!sum || !sum.questions || !sum.questions.length) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  // Compute problem rates for all tracked questions
+  const problems = sum.questions
+    .filter(q => q.tracked && q.n > 0 && q.problems > 0)
+    .map(q => ({ ...q, rate: q.problems / q.n }))
+    .sort((a, b) => b.rate - a.rate || b.n - a.n)
+    .slice(0, 10); // top 10
+
+  if (!problems.length) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  
+  const title = sum.trendingSource === 'baseline' ? 'Top Problem Areas (2025 Baseline)' : 'Top Problem Areas';
+
+  let html = `<h4 style="margin: 0 0 12px 0; font-size: .9375rem; color: var(--ink)">${escHtml(title)}</h4><div class="bar-chart">`;
+  for (const p of problems) {
+    const pct = Math.round(p.rate * 100);
+    const label = `${p.id}: ${plainQuestionText(p)}`;
+    html += `
+      <div class="bar-row">
+        <div class="bar-label" title="${escHtml(label)}">${escHtml(label)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width: ${pct}%"></div></div>
+        <div class="bar-val">${pct}%</div>
+      </div>
+    `;
+  }
+  html += `</div>`;
+  
+  chartBox.innerHTML = html;
 }
 
 async function loadResults() {
@@ -1866,6 +2048,7 @@ document.getElementById('resp-refresh').onclick = () => {
     renderResponseList();
   }).catch(console.error);
 };
+document.getElementById('f-team').onchange = onResultFilterChange;
 document.getElementById('f-store').onchange = onResultFilterChange;
 document.getElementById('f-status').onchange = onResultFilterChange;
 document.getElementById('f-historical').onchange = onResultFilterChange;
