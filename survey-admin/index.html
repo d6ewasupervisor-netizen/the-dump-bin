@@ -526,7 +526,7 @@
       <table class="cov-table" id="cov-table">
         <thead>
           <tr>
-            <th style="width:30px;text-align:center"><input type="checkbox" id="cov-check-all" aria-label="Select all visible"></th>
+            <th id="cov-th-check" style="width:30px;text-align:center"><input type="checkbox" id="cov-check-all" aria-label="Select all visible"></th>
             <th>Store #</th><th>Name</th><th>District</th><th>Status</th><th>Assignees</th><th></th>
           </tr>
         </thead>
@@ -959,15 +959,18 @@ function renderCoverage() {
       <div class="assignee-row">
         <span>${escHtml(a.assigneeName || a.assigneeEmail)}</span>
         ${a.dueAt ? `<span class="due">due ${escHtml(formatDue(a.dueAt))}</span>` : ''}
-        <button type="button" class="ghost btn-xs" data-remind="${a.id}">Remind</button>
+        ${s.state !== 'done' ? `<button type="button" class="ghost btn-xs" data-remind="${a.id}">Remind</button>` : ''}
         <button type="button" class="ghost btn-xs" data-cancel="${a.id}">Cancel</button>
       </div>`).join('') || '<span class="muted">—</span>';
   }
 
+  const thCheck = document.getElementById('cov-th-check');
+  if (thCheck) thCheck.style.display = COV_STATE === 'assigned' ? '' : 'none';
+
   tbody.innerHTML = rows.map((s) => {
-    const isAssigned = s.assignees && s.assignees.length > 0;
+    const canCheck = COV_STATE === 'assigned' && s.state === 'assigned';
     return `<tr>
-      <td style="text-align:center"><input type="checkbox" class="cov-row-check" value="${s.storeNum}" ${isAssigned ? '' : 'disabled'}></td>
+      ${COV_STATE === 'assigned' ? `<td style="text-align:center">${canCheck ? `<input type="checkbox" class="cov-row-check" value="${s.storeNum}">` : ''}</td>` : ''}
       <td><strong>${s.storeNum}</strong></td>
       <td>${escHtml(s.storeName || '—')}</td>
       <td>${escHtml(s.district || '—')}</td>
@@ -978,11 +981,14 @@ function renderCoverage() {
   }).join('');
 
   cards.innerHTML = rows.map((s) => {
-    const isAssigned = s.assignees && s.assignees.length > 0;
+    const canCheck = COV_STATE === 'assigned' && s.state === 'assigned';
     return `
     <div class="store-card">
       <div class="head">
-        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="cov-row-check" value="${s.storeNum}" ${isAssigned ? '' : 'disabled'} style="margin:0"> <span class="num">${s.storeNum}</span></label>
+        <label style="display:inline-flex;align-items:center;gap:6px;${canCheck ? 'cursor:pointer' : ''}">
+          ${canCheck ? `<input type="checkbox" class="cov-row-check" value="${s.storeNum}" style="margin:0">` : ''}
+          <span class="num">${s.storeNum}</span>
+        </label>
         <span class="status ${s.state}">${statusLabel(s.state)}</span>
       </div>
       <div class="name">${escHtml(s.storeName || '—')} · D${escHtml(s.district || '—')}</div>
@@ -1024,7 +1030,7 @@ function updateCovBulkTools() {
   const count = document.getElementById('cov-selected-count');
   const checkAll = document.getElementById('cov-check-all');
   
-  if (checked.length > 0) {
+  if (checked.length > 0 && COV_STATE === 'assigned') {
     tools.hidden = false;
     count.textContent = `${checked.length} store${checked.length === 1 ? '' : 's'} selected`;
   } else {
@@ -1037,6 +1043,9 @@ function updateCovBulkTools() {
     const someChecked = Array.from(allEnabled).some(cb => cb.checked);
     checkAll.checked = allChecked;
     checkAll.indeterminate = someChecked && !allChecked;
+  } else if (checkAll) {
+    checkAll.checked = false;
+    checkAll.indeterminate = false;
   }
 }
 
