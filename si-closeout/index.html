@@ -258,7 +258,7 @@
 <div id="access-denied">
   <img src="/survey/assets/ro-logo.png" alt="Retail Odyssey" />
   <h2>Office access required</h2>
-  <p style="color:var(--ink-soft);margin:10px 0 18px">SI Closeout is limited to authorized office / supervisor accounts.</p>
+  <p style="color:var(--ink-soft);margin:10px 0 18px">SI Closeout is available to leads, supervisors, and office accounts.</p>
   <a class="nav-btn" href="/">← Dashboard</a>
 </div>
 
@@ -649,8 +649,9 @@
       var me = await r.json();
       var cards = (me && me.cards) || [];
       var groups = (me && me.groups) || [];
-      var allowed = cards.indexOf('si-closeout') >= 0 || groups.indexOf('office') >= 0
-        || ((me.roles || []).indexOf('admin') >= 0);
+      var allowed = cards.indexOf('si-closeout') >= 0
+        || groups.indexOf('office') >= 0
+        || ((me.roles || []).some(function (r) { return r === 'lead' || r === 'supervisor' || r === 'admin'; }));
       if (!allowed) {
         accessDenied.classList.add('visible');
         return;
