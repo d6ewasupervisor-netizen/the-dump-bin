@@ -66,6 +66,7 @@
       <div class="button-group" style="margin-top:12px; gap:8px; flex-wrap:wrap;">
         <button type="button" class="btn btn-primary" id="digitalSignoffRefreshBtn">Load / Refresh sheet</button>
         <button type="button" class="btn btn-secondary" id="digitalSignoffPrintBtn" style="display:none;">Open printable PDF</button>
+        <button type="button" class="btn btn-secondary" id="digitalSignoffPrintBlitzBtn" style="display:none;">Open BLITZ printable PDF</button>
       </div>
     `;
     if (host) host.prepend(section);
@@ -128,19 +129,32 @@
     }
 
     document.getElementById('digitalSignoffRefreshBtn')?.addEventListener('click', () => refresh().catch(console.error));
-    document.getElementById('digitalSignoffPrintBtn').onclick = () => {
-      if (sheet?.pdfR2Key && typeof window.openMaterialsBrowser === 'function') {
-        // Best-effort: materials browser uses Dump Bin keys; leave as no-op if unavailable.
+    document.getElementById('digitalSignoffPrintBtn').onclick = () => openPrintablePdf('main');
+    document.getElementById('digitalSignoffPrintBlitzBtn').onclick = () => openPrintablePdf('blitz');
+  }
+
+  /** Fetch the live-rendered printable signoff PDF (main or BLITZ bucket) and open it in a new tab. */
+  async function openPrintablePdf(bucket) {
+    if (!sheet) return;
+    const btnId = bucket === 'blitz' ? 'digitalSignoffPrintBlitzBtn' : 'digitalSignoffPrintBtn';
+    const btn = document.getElementById(btnId);
+    if (btn) btn.disabled = true;
+    try {
+      const qs = new URLSearchParams({ store: sheet.storeNumber, week: sheet.fiscalWeek, bucket });
+      const resp = await authFetch(`${API}/pdf?${qs.toString()}`);
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || `PDF failed (${resp.status})`);
       }
-      if (typeof showAlert === 'function') {
-        showAlert(
-          'Printable PDF',
-          sheet?.pdfFilename
-            ? `Look for ${sheet.pdfFilename} in this week’s Dump Bin Signoffs folder (materials browser / print-at-store).`
-            : 'Printable PDF is placed in the Dump Bin Signoffs folder when the weekly build exports PDFs.'
-        );
-      }
-    };
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err) {
+      console.error(err);
+      if (typeof showAlert === 'function') showAlert('Printable PDF', err.message || String(err));
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   function rowMarks(row) {
@@ -181,6 +195,7 @@
     const summary = document.getElementById('digitalSignoffSummary');
     const host = document.getElementById('digitalSignoffRows');
     const printBtn = document.getElementById('digitalSignoffPrintBtn');
+    const printBlitzBtn = document.getElementById('digitalSignoffPrintBlitzBtn');
     const openMeta = document.getElementById('digitalSignoffOpenMeta');
     if (!summary || !host) return;
 
@@ -188,6 +203,7 @@
       summary.textContent = 'No hosted sheet for this store/week yet. After weekly signoffs are built with digital export, it will appear here. You can still collect department signatures and use Not In Store / Not In SI pickers.';
       host.innerHTML = '';
       if (printBtn) printBtn.style.display = 'none';
+      if (printBlitzBtn) printBlitzBtn.style.display = 'none';
       if (openMeta) openMeta.textContent = 'none';
       return;
     }
@@ -203,7 +219,8 @@
       window.EodWorkspace.openGroup('signoff-marks', { exclusive: false, scroll: false });
     }
 
-    if (printBtn) printBtn.style.display = 'inline-flex';
+    if (printBtn) printBtn.style.display = (sheet.rows || []).length ? 'inline-flex' : 'none';
+    if (printBlitzBtn) printBlitzBtn.style.display = sheet.summary?.hasBlitzRows ? 'inline-flex' : 'none';
 
     host.innerHTML = `
       <table class="ds-table">
