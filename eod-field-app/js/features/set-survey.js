@@ -240,9 +240,9 @@
           <button type="button" class="btn btn-secondary" id="refreshStatus">Refresh</button>
         </div>
         <h1>${esc(catName || 'Set capture')}</h1>
-        <p class="muted">DBKEY ${esc(dbkey)} � Store ${esc(S.state.storeNumber)} � ${esc(S.state.workDate)}</p>
-        <div id="setStatusChips" class="muted">Loading PROD / SI?</div>
-        <div id="setSurveyBody">Loading?</div>
+        <p class="muted">DBKEY ${esc(dbkey)} | Store ${esc(S.state.storeNumber)} | PROD date ${esc(S.state.workDate)}</p>
+        <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
+        <div id="setSurveyBody">Loading…</div>
         <div id="setSurveyMsg" class="muted" style="margin-top:10px;"></div>
       </div>`;
 
@@ -350,7 +350,7 @@
       const counts = global.EodPhotoPipeline.pendingCounts();
       const open = counts.compress + counts.upload;
       if (open > 0) {
-        setMsg(`Background: ${counts.compress} compressing · ${counts.upload} uploading`);
+        setMsg(`Background: ${counts.compress} compressing | ${counts.upload} uploading`);
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
         if (detail.job?.slot === 'after') maybeAutoCloseSi();
@@ -472,23 +472,31 @@
       const bayN = status.expectedBayCount || status.bays?.length || 1;
       const width = status.bayWidthFt;
       const feet = status.footageFeet || status.footageDisplay;
-      let footageBit = ` � ${bayN} bay photo${bayN === 1 ? '' : 's'} needed`;
+      let footageBit = ` | ${bayN} bay photo${bayN === 1 ? '' : 's'} needed`;
       if (width && feet) {
-        footageBit = ` � ${bayN} bays � ${esc(width)} ft = ${esc(feet)} ft`;
+        footageBit = ` | ${bayN} bays | ${esc(width)} ft = ${esc(feet)} ft`;
       } else if (feet) {
-        footageBit = ` � ${bayN} bays (${esc(feet)} ft footage)`;
+        footageBit = ` | ${bayN} bays (${esc(feet)} ft footage)`;
+      }
+      const siDate = status.si?.siDate || null;
+      const siSrc = status.si?.siDateSource || null;
+      let siDateBit = '';
+      if (siDate) {
+        const label = siSrc === 'prod_work_date' ? 'SI on PROD date' : 'SI date';
+        siDateBit = ` <span class="muted">${esc(label)} ${esc(siDate)}</span>`;
       }
       chips.innerHTML =
         `PROD ${sidePill(status.prod)}` +
         (status.prod.beforeCount != null
           ? ` <span class="muted">before ${status.prod.beforeCount} / after ${status.prod.afterCount || 0}</span>`
           : '') +
-        ` � SI ${sidePill(status.si)}` +
+        ` | SI ${sidePill(status.si)}` +
         (status.si.sectionCount != null
           ? ` <span class="muted">${status.si.sectionsWithPhoto || 0}/${status.si.sectionCount} sections</span>`
           : '') +
+        siDateBit +
         footageBit +
-        (status.sheetRow?.id ? ` � Sheet row ${esc(status.sheetRow.id)}` : '');
+        (status.sheetRow?.id ? ` | Sheet row ${esc(status.sheetRow.id)}` : '');
     }
 
     function bayProgressHtml(slot) {
@@ -521,7 +529,7 @@
           <div class="set-thumbs set-thumbs-remote">${prod.map((p) =>
             `<div class="set-thumb remote prod" title="PROD bay ${esc(p.bay)}">
               <img src="${esc(p.url)}" alt="PROD bay ${esc(p.bay)}">
-              <span>Bay ${esc(p.bay)} · PROD</span>
+              <span>Bay ${esc(p.bay)} | PROD</span>
             </div>`
           ).join('')}</div>
         </div>` : ''}
@@ -530,7 +538,7 @@
           <div class="set-thumbs set-thumbs-remote">${si.map((p) =>
             `<div class="set-thumb remote si" title="SI bay ${esc(p.bay)}">
               <img src="${esc(p.url)}" alt="SI bay ${esc(p.bay)}">
-              <span>Bay ${esc(p.bay)} · SI</span>
+              <span>Bay ${esc(p.bay)} | SI</span>
             </div>`
           ).join('')}</div>
         </div>` : ''}
@@ -548,7 +556,7 @@
             `<div class="set-thumb device" data-slot="${slot}" data-bay="${esc(p.bay)}" data-job="${esc(p.jobId || '')}">
               <button type="button" class="set-thumb-x" data-clear-slot="${slot}" data-clear-bay="${esc(p.bay)}" data-clear-job="${esc(p.jobId || '')}" aria-label="Remove device photo">×</button>
               <img src="${p.preview}" alt="${slot} bay ${esc(p.bay)}">
-              <span>Bay ${esc(p.bay)} · ${esc(p.uploadStatus || 'queued')}</span>
+              <span>Bay ${esc(p.bay)} | ${esc(p.uploadStatus || 'queued')}</span>
             </div>`
         )
         .join('')}</div>`;
