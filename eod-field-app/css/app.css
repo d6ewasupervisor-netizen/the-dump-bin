@@ -627,3 +627,31 @@ h2 { font-size: 1.15rem; color: #7dd3fc; }
   min-width: 140px;
 }
 .vf-zoom input { flex: 1; }
+
+/* Visit onboarding steps */
+.visit-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.visit-steps li {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+}
+.visit-steps li.current {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(56, 189, 248, 0.08);
+}
+.visit-steps li.done {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.visit-step-panel { margin-top: 12px; }
+.visit-step-panel h3 { margin: 0 0 6px; font-size: 1.05rem; }

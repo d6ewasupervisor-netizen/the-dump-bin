@@ -34,7 +34,11 @@
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Load failed (${resp.status})`);
     const sheet = data.sheet || null;
-    S.patch({ sheet, sheetLoaded: true }, 'sheet');
+    S.patch({
+      sheet,
+      sheetLoaded: true,
+      fiscalWeek: sheet?.fiscalWeek || S.state.fiscalWeek || '',
+    }, 'sheet');
     try {
       global.EodDeptSignatures?.syncFromSheet?.(sheet);
     } catch (_) {
@@ -176,6 +180,7 @@
       return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
         <div><strong>${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
+          <div class="muted">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}</div>
           ${row.live ? `<div class="muted">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
         </div>
         <div style="margin-top:6px;">${status}</div>

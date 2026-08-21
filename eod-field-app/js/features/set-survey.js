@@ -181,6 +181,7 @@
     const dbkey = String(qp.get('dbkey') || '').trim();
     const rowId = qp.get('rowId') || null;
     const catName = qp.get('name') || '';
+    const preferSlot = String(qp.get('slot') || 'after').toLowerCase() === 'before' ? 'before' : 'after';
 
     if (!dbkey) {
       mount.innerHTML = `<div class="card error"><h2>Missing dbkey</h2><p>Open Capture from a signoff sheet row.</p>
@@ -210,6 +211,18 @@
       status: null,
       uploading: false,
     };
+
+    // Multi-day: restore week-scoped before photos from device
+    const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
+    if (week && global.EodSetBeforeStore) {
+      local.before = (global.EodSetBeforeStore.getBefores(S.state.storeNumber, week, dbkey) || []).map((p) => ({
+        bay: p.bay || 1,
+        preview: p.dataUrl || p.preview,
+        photoBase64: p.dataUrl || p.photoBase64 || p.preview,
+        uploadStatus: p.uploadStatus || 'on device',
+        fileName: p.fileName || 'before.jpg',
+      }));
+    }
 
     function setMsg(text, isErr) {
       const el = document.getElementById('setSurveyMsg');
@@ -262,7 +275,8 @@
         </div>
 
         <section class="set-photo-block">
-          <h2>Before</h2>
+          <h2>Before ${preferSlot === 'before' ? '<span class="pill warn">focus</span>' : ''}</h2>
+          <p class="muted">Befores persist for fiscal week ${esc(week || '—')} on this phone and online after upload.</p>
           ${thumbHtml(local.before, 'before')}
           <div class="btn-row">
             <button type="button" class="btn btn-primary" data-cap="before">Take before</button>
@@ -273,7 +287,7 @@
         </section>
 
         <section class="set-photo-block">
-          <h2>After <span class="muted">(${bays.length} bay${bays.length === 1 ? '' : 's'})</span></h2>
+          <h2>After <span class="muted">(${bays.length} bay${bays.length === 1 ? '' : 's'})</span> ${preferSlot === 'after' ? '<span class="pill warn">focus</span>' : ''}</h2>
           ${thumbHtml(local.after, 'after')}
           <div class="field">
             <label for="afterBay">Bay for next after photo</label>
@@ -343,6 +357,20 @@
       };
       local[slot].push(entry);
       paintBody();
+      if (slot === 'before' && week && global.EodSetBeforeStore) {
+        global.EodSetBeforeStore.setBefores(
+          S.state.storeNumber,
+          week,
+          dbkey,
+          local.before.map((p) => ({
+            bay: p.bay,
+            dataUrl: p.photoBase64 || p.preview,
+            uploadStatus: p.uploadStatus,
+            workDate: S.state.workDate,
+            capturedAt: Date.now(),
+          }))
+        );
+      }
       setMsg(`Uploading ${slot} bay ${bay} to PROD + SI…`);
       try {
         const r = await uploadPhoto({
@@ -357,6 +385,20 @@
         });
         entry.uploadStatus = `PROD ${r.prod?.status} / SI ${r.si?.status}`;
         setMsg(`Uploaded ${slot} bay ${bay}: PROD ${r.prod?.status}, SI ${r.si?.status}`);
+        if (slot === 'before' && week && global.EodSetBeforeStore) {
+          global.EodSetBeforeStore.setBefores(
+            S.state.storeNumber,
+            week,
+            dbkey,
+            local.before.map((p) => ({
+              bay: p.bay,
+              dataUrl: p.photoBase64 || p.preview,
+              uploadStatus: p.uploadStatus,
+              workDate: S.state.workDate,
+              capturedAt: Date.now(),
+            }))
+          );
+        }
         local.status = await fetchStatus(dbkey, rowId);
         paintStatus(local.status);
       } catch (err) {

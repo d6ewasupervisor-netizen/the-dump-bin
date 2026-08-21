@@ -25,6 +25,11 @@
     notes: '',
     checkInManager: '',
     checkOutManager: '',
+    fiscalWeek: '',
+    visitStep: 'setup', // setup | cart | checkin | befores | done
+    cartPhotoDone: false,
+    checkInDone: false,
+    beforesStepDone: false,
     signatureDataUrl: '',
     photos: { before: [], after: [], signoff: [], instawork: [] },
     notInStoreSelected: [],
@@ -85,6 +90,57 @@
   function clearDayConfirm() {
     try { localStorage.removeItem(DAY_CONFIRM_KEY); } catch (_) {}
     emit('dayConfirm');
+  }
+
+  /**
+   * Reset like live EOD — clears draft + day confirm + in-memory visit data.
+   * Optional wipePersonal also clears profile/signature.
+   * Week-scoped set before photos are kept unless wipeSetBefores is true.
+   */
+  async function resetVisit({ wipePersonal = false, wipeSetBefores = false } = {}) {
+    const store = state.storeNumber;
+    const week = state.fiscalWeek;
+    try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+    clearDayConfirm();
+    if (wipePersonal) {
+      try { localStorage.removeItem(PROFILE_KEY); } catch (_) {}
+      try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
+      state.profileName = '';
+      state.profileEmail = '';
+      state.signatureDataUrl = '';
+    }
+    if (wipeSetBefores && global.EodSetBeforeStore) {
+      if (week) global.EodSetBeforeStore.clearStoreWeek(store, week);
+      else global.EodSetBeforeStore.clearAllForStore(store);
+    }
+    if (global.PhotoDB?.clearPhotos) {
+      try { await global.PhotoDB.clearPhotos(); } catch (_) {}
+    }
+    state.storeNumber = '';
+    state.workDate = todayLocalIsoDate();
+    state.leadName = '';
+    state.leadEmail = '';
+    state.selectedShift = null;
+    state.shifts = [];
+    state.members = [];
+    state.sheet = null;
+    state.sheetLoaded = false;
+    state.notes = '';
+    state.checkInManager = '';
+    state.checkOutManager = '';
+    state.fiscalWeek = '';
+    state.visitStep = 'setup';
+    state.cartPhotoDone = false;
+    state.checkInDone = false;
+    state.beforesStepDone = false;
+    state.emailRecipients = [];
+    state.notInStoreSelected = [];
+    state.notInSiSelected = [];
+    state.photos = { before: [], after: [], signoff: [], instawork: [] };
+    state.instaworkYes = null;
+    state.kompassTimesheetYes = null;
+    state.materialsReadYes = null;
+    emit('reset');
   }
 
   function isVisitReady() {
@@ -183,6 +239,11 @@
     state.notes = data.notes || '';
     state.checkInManager = data.checkInManager || '';
     state.checkOutManager = data.checkOutManager || '';
+    state.fiscalWeek = data.fiscalWeek || '';
+    state.visitStep = data.visitStep || 'setup';
+    state.cartPhotoDone = !!data.cartPhotoDone;
+    state.checkInDone = !!data.checkInDone;
+    state.beforesStepDone = !!data.beforesStepDone;
     state.emailRecipients = Array.isArray(data.emailRecipients) ? data.emailRecipients.slice() : [];
     state.notInStoreSelected = Array.isArray(data.notInStoreSelected) ? data.notInStoreSelected.slice() : [];
     state.notInSiSelected = Array.isArray(data.notInSiSelected) ? data.notInSiSelected.slice() : [];
@@ -210,6 +271,11 @@
       notes: state.notes,
       checkInManager: state.checkInManager,
       checkOutManager: state.checkOutManager,
+      fiscalWeek: state.fiscalWeek || '',
+      visitStep: state.visitStep || 'setup',
+      cartPhotoDone: !!state.cartPhotoDone,
+      checkInDone: !!state.checkInDone,
+      beforesStepDone: !!state.beforesStepDone,
       emailRecipients: state.emailRecipients.slice(),
       notInStoreSelected: state.notInStoreSelected.slice(),
       notInSiSelected: state.notInSiSelected.slice(),
@@ -264,6 +330,7 @@
     getActiveDayConfirmFor,
     persistDayConfirm,
     clearDayConfirm,
+    resetVisit,
     isVisitReady,
     hasHostedSheet,
     sheetSendReady,
