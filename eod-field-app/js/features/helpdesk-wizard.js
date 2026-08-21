@@ -421,13 +421,16 @@
         for (const file of files) {
             try {
                 let dataUrl;
-                if (typeof window.processImageWithOrientation === 'function') {
+                if (global.EodPhotoCompress?.compressFile) {
+                    const out = await global.EodPhotoCompress.compressFile(file, 'signoff');
+                    dataUrl = out.dataUrl;
+                } else if (typeof window.processImageWithOrientation === 'function') {
                     dataUrl = await window.processImageWithOrientation(file);
+                    if (typeof window.optimizePhotoForStorage === 'function') {
+                        dataUrl = await window.optimizePhotoForStorage(dataUrl, 'signoff');
+                    }
                 } else {
                     dataUrl = await readFileAsDataUrl(file);
-                }
-                if (typeof window.optimizePhotoForStorage === 'function') {
-                    dataUrl = await window.optimizePhotoForStorage(dataUrl, 'signoff');
                 }
                 wizardIssues[idx].photos.push(dataUrl);
             } catch (e) {

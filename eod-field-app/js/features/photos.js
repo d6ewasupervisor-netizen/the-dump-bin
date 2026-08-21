@@ -29,6 +29,14 @@
     });
   }
 
+  async function preparePhoto(file, type) {
+    if (global.EodPhotoCompress?.compressFile) {
+      const out = await global.EodPhotoCompress.compressFile(file, type || 'default');
+      return out.dataUrl;
+    }
+    return readFileAsDataUrl(file);
+  }
+
   async function persistPhotos() {
     const S = global.EodSession;
     if (global.PhotoDB?.savePhotos) {
@@ -113,7 +121,7 @@
         const photos = { ...S.state.photos };
         photos[type] = (photos[type] || []).slice();
         for (const file of files) {
-          const dataUrl = await readFileAsDataUrl(file);
+          const dataUrl = await preparePhoto(file, type);
           photos[type].push(stamp(dataUrl));
         }
         S.patch({ photos }, 'photos');

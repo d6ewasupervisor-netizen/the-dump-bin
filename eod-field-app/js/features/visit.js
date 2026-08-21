@@ -15,6 +15,14 @@
     });
   }
 
+  async function preparePhoto(file, type) {
+    if (global.EodPhotoCompress?.compressFile) {
+      const out = await global.EodPhotoCompress.compressFile(file, type || 'cart');
+      return out.dataUrl;
+    }
+    return readFileAsDataUrl(file);
+  }
+
   async function verifyAndPersist(store, date, statusEl) {
     const S = global.EodSession;
     statusEl.innerHTML = '<span class="muted">Checking SAS roster…</span>';
@@ -333,7 +341,7 @@
     }
 
     async function addCartFile(slot, file) {
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await preparePhoto(file, slot === 'after' ? 'after' : 'before');
       const entry = {
         dataUrl,
         storeNumber: S.state.storeNumber,

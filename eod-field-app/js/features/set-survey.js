@@ -53,6 +53,15 @@
     });
   }
 
+  async function preparePhoto(fileOrBlob, type) {
+    if (global.EodPhotoCompress?.compressFile) {
+      const out = await global.EodPhotoCompress.compressFile(fileOrBlob, type || 'set');
+      return out.dataUrl;
+    }
+    if (fileOrBlob instanceof Blob) return fileToDataUrl(fileOrBlob);
+    return String(fileOrBlob || '');
+  }
+
   async function uploadPhoto({ dbkey, rowId, slot, bay, photoBase64, visitId, resetId, taskId }) {
     const S = global.EodSession;
     const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
@@ -179,7 +188,7 @@
         canvas.height = zh;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, sx, sy, zw, zh, 0, 0, zw, zh);
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
         if (!blob) return;
         const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
         try {
@@ -506,7 +515,7 @@
 
     async function enqueueLocal(slot, file, bayOverride, opts = {}) {
       const bay = Number(bayOverride) || nextEmptyBay(slot) || 1;
-      const preview = await fileToDataUrl(file);
+      const preview = await preparePhoto(file, 'set');
       // Replace existing local entry for this bay if retaking
       local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
       const entry = {
