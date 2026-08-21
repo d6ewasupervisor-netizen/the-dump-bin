@@ -37,17 +37,28 @@
     }
   }
 
+  function syncToggleUi(collapsed) {
+    const title = collapsed ? 'Expand navigation' : 'Collapse navigation';
+    const glyph = collapsed ? '»' : '«';
+    ['navCollapseBtn', 'chromeNavToggle'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      btn.title = title;
+      btn.textContent = glyph;
+    });
+  }
+
   function applyNavCollapsed(collapsed) {
     document.body.classList.toggle('nav-collapsed', !!collapsed);
-    const btn = document.getElementById('navCollapseBtn');
-    if (btn) {
-      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      btn.title = collapsed ? 'Expand navigation' : 'Collapse navigation';
-      btn.textContent = collapsed ? '»' : '«';
-    }
+    syncToggleUi(!!collapsed);
     try {
       localStorage.setItem(NAV_COLLAPSE_KEY, collapsed ? '1' : '0');
     } catch (_) {}
+  }
+
+  function toggleNav() {
+    applyNavCollapsed(!document.body.classList.contains('nav-collapsed'));
   }
 
   function init() {
@@ -56,19 +67,22 @@
         global.EodRouter.go(btn.getAttribute('data-nav'));
       });
     });
-    document.getElementById('chromeVisitLink')?.addEventListener('click', (e) => {
+
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(NAV_COLLAPSE_KEY) === '1'; } catch (_) {}
+    applyNavCollapsed(collapsed);
+
+    document.getElementById('navCollapseBtn')?.addEventListener('click', (e) => {
       e.preventDefault();
-      global.EodRouter.go('visit');
+      e.stopPropagation();
+      toggleNav();
     });
-    const collapseBtn = document.getElementById('navCollapseBtn');
-    if (collapseBtn) {
-      let collapsed = false;
-      try { collapsed = localStorage.getItem(NAV_COLLAPSE_KEY) === '1'; } catch (_) {}
-      applyNavCollapsed(collapsed);
-      collapseBtn.addEventListener('click', () => {
-        applyNavCollapsed(!document.body.classList.contains('nav-collapsed'));
-      });
-    }
+    document.getElementById('chromeNavToggle')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleNav();
+    });
+
     global.EodPhotoPipeline?.onChange?.(() => {
       try { refresh(); } catch (_) {}
     });
@@ -76,5 +90,5 @@
     refresh();
   }
 
-  global.EodChrome = { refresh, init, applyNavCollapsed };
+  global.EodChrome = { refresh, init, applyNavCollapsed, toggleNav };
 })(typeof window !== 'undefined' ? window : globalThis);
