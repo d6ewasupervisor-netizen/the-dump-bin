@@ -263,8 +263,52 @@
         photoBase64: p.dataUrl || p.photoBase64 || p.preview,
         uploadStatus: p.uploadStatus || 'on device',
         fileName: p.fileName || 'before.jpg',
+        jobId: p.jobId || null,
       }));
     }
+
+    function hydrateFromPipeline() {
+      const pipe = global.EodPhotoPipeline;
+      if (!pipe) return;
+      for (const slot of ['before', 'after']) {
+        const byBay = new Map((local[slot] || []).map((p) => [Number(p.bay), p]));
+        for (const job of pipe.jobsForSet(dbkey)) {
+          if (job.slot !== slot || job.error === 'replaced') continue;
+          const bay = Number(job.bay);
+          const prev = byBay.get(bay) || { bay };
+          byBay.set(bay, {
+            ...prev,
+            bay,
+            preview: job.previewUrl || job.dataUrl || prev.preview,
+            photoBase64: job.dataUrl || prev.photoBase64,
+            uploadStatus: pipe.statusLabel(job),
+            jobId: job.id,
+            fileName: prev.fileName || null,
+          });
+        }
+        local[slot] = [...byBay.values()]
+          .filter((p) => p.uploadStatus !== 'replaced')
+          .sort((a, b) => Number(a.bay) - Number(b.bay));
+      }
+    }
+
+    hydrateFromPipeline();
+
+    const unsubPipe = global.EodPhotoPipeline?.onChange?.((detail) => {
+      if (detail?.job?.dbkey && String(detail.job.dbkey) !== String(dbkey)) return;
+      hydrateFromPipeline();
+      if (detail.job?.slot === 'before') persistBefores();
+      const counts = global.EodPhotoPipeline.pendingCounts();
+      const open = counts.compress + counts.upload;
+      if (open > 0) {
+        setMsg(`Background: ${counts.compress} compressing · ${counts.upload} uploading`);
+      } else if (detail.type === 'done') {
+        setMsg(`Bay ${detail.job?.bay} done`);
+      } else if (detail.type === 'failed' && detail.job?.error !== 'replaced') {
+        setMsg(detail.job?.error || 'Upload failed', true);
+      }
+      paintBody();
+    });
 
     function setMsg(text, isErr) {
       const el = document.getElementById('setSurveyMsg');
@@ -294,7 +338,8 @@
     function takenBays(slot) {
       const set = new Set();
       for (const p of local[slot] || []) {
-        if (p.uploadStatus === 'failed') continue;
+        const st = String(p.uploadStatus || '');
+        if (st === 'failed' || st === 'replaced') continue;
         const b = Number(p.bay);
         if (Number.isFinite(b) && b > 0) set.add(b);
       }
@@ -318,10 +363,8 @@
         if (!taken.has(i)) empties.push(i);
       }
       if (!empties.length) {
-        // All filled — retake from bay 1 in order
         return Array.from({ length: fileCount }, (_, i) => Math.min(i + 1, n));
       }
-      // Multi-load into an empty (or mostly empty) set: stretch across remaining empties in order
       if (fileCount >= empties.length && taken.size === 0) {
         return Array.from({ length: Math.min(fileCount, n) }, (_, i) => i + 1);
       }
@@ -342,6 +385,7 @@
           bay: p.bay,
           dataUrl: p.photoBase64 || p.preview,
           uploadStatus: p.uploadStatus,
+          jobId: p.jobId || null,
           workDate: S.state.workDate,
           capturedAt: Date.now(),
         }))
@@ -423,7 +467,6 @@
 
         <section class="set-photo-block">
           <h2>Before ${preferSlot === 'before' ? '<span class="pill warn">focus</span>' : ''}</h2>
-          <p class="muted">${n} bay photo${n === 1 ? '' : 's'} (not feet) — first shot is bay 1, last is bay ${n}. Camera stays open until all bays are done or you Exit.</p>
           ${bayProgressHtml('before')}
           ${thumbHtml(local.before, 'before')}
           <div class="btn-row">
@@ -438,7 +481,6 @@
 
         <section class="set-photo-block">
           <h2>After ${preferSlot === 'after' ? '<span class="pill warn">focus</span>' : ''}</h2>
-          <p class="muted">${n} after photos needed (bays, not feet). Multi-select assigns bay 1 → ${n} in order. Camera stays open until all are done.</p>
           ${bayProgressHtml('after')}
           ${thumbHtml(local.after, 'after')}
           <div class="btn-row">
@@ -490,69 +532,69 @@
           const next = nextEmptyBay(slot);
           const have = takenBays(slot).size;
           if (next == null) {
-            return `${slot === 'after' ? 'After' : 'Before'} · ${have}/${n} bays done · Exit or retake`;
+            return `${slot === 'after' ? 'After' : 'Before'} � ${have}/${n} � Exit`;
           }
-          return `${slot === 'after' ? 'After' : 'Before'} · Bay ${next} of ${n} · ${have}/${n} done · tap Capture`;
+          return `${slot === 'after' ? 'After' : 'Before'} � Bay ${next} of ${n} � ${have}/${n}`;
         },
-        // Stay in camera until every bay has a local photo (failed counts as empty).
         shouldContinue: () => nextEmptyBay(slot) != null,
         onCapture: async (file) => {
           const bay = nextEmptyBay(slot) || 1;
-          await enqueueLocal(slot, file, bay, { skipPaint: true });
-          paintBody();
+          enqueueLocal(slot, file, bay);
         },
       });
     }
 
-    async function enqueueFiles(slot, files) {
+    function enqueueFiles(slot, files) {
       const bays = assignBaysForFiles(slot, files.length);
-      setMsg(`Loading ${files.length} ${slot} photo(s) as bay ${bays[0]}${bays.length > 1 ? `…${bays[bays.length - 1]}` : ''}…`);
       for (let i = 0; i < files.length; i += 1) {
-        await enqueueLocal(slot, files[i], bays[i], { skipPaint: i < files.length - 1 });
+        enqueueLocal(slot, files[i], bays[i]);
       }
-      paintBody();
+      setMsg(`${files.length} queued`);
     }
 
-    async function enqueueLocal(slot, file, bayOverride, opts = {}) {
+    function enqueueLocal(slot, file, bayOverride) {
       const bay = Number(bayOverride) || nextEmptyBay(slot) || 1;
-      const preview = await preparePhoto(file, 'set');
-      // Replace existing local entry for this bay if retaking
-      local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
-      const entry = {
-        bay,
-        preview,
-        photoBase64: preview,
-        uploadStatus: 'uploading',
-        fileName: file.name,
-      };
-      local[slot].push(entry);
-      local[slot].sort((a, b) => Number(a.bay) - Number(b.bay));
-      if (!opts.skipPaint) paintBody();
-      if (slot === 'before') persistBefores();
-      setMsg(`Uploading ${slot} bay ${bay} of ${expectedBayCount()}…`);
-      try {
-        const r = await uploadPhoto({
-          dbkey,
-          rowId,
-          slot,
-          bay,
-          photoBase64: preview,
-          visitId: local.status?.prod?.visitId,
-          resetId: local.status?.prod?.resetId,
-          taskId: local.status?.si?.taskId,
+      const pipe = global.EodPhotoPipeline;
+      if (!pipe?.enqueue) {
+        preparePhoto(file, 'set').then((preview) => {
+          local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
+          local[slot].push({
+            bay,
+            preview,
+            photoBase64: preview,
+            uploadStatus: 'queued',
+            fileName: file.name,
+          });
+          paintBody();
         });
-        entry.uploadStatus = `PROD ${r.prod?.status} / SI ${r.si?.status}`;
-        setMsg(`Uploaded ${slot} bay ${bay}: PROD ${r.prod?.status}, SI ${r.si?.status}`);
-        if (slot === 'before') persistBefores();
-        try {
-          local.status = await fetchStatus(dbkey, rowId);
-          paintStatus(local.status);
-        } catch (_) {}
-      } catch (err) {
-        entry.uploadStatus = 'failed';
-        setMsg(err.message || String(err), true);
+        return;
       }
-      if (!opts.skipPaint) paintBody();
+
+      const job = pipe.enqueue({
+        kind: 'set',
+        compressType: 'set',
+        slot,
+        bay,
+        dbkey,
+        rowId,
+        file,
+        visitId: local.status?.prod?.visitId,
+        resetId: local.status?.prod?.resetId,
+        taskId: local.status?.si?.taskId,
+      });
+
+      local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
+      local[slot].push({
+        bay,
+        preview: job.previewUrl,
+        photoBase64: job.dataUrl || null,
+        uploadStatus: pipe.statusLabel(job),
+        jobId: job.id,
+        fileName: file.name,
+      });
+      local[slot].sort((a, b) => Number(a.bay) - Number(b.bay));
+      if (slot === 'before') persistBefores();
+      paintBody();
     }
 
     async function finishAll() {
@@ -560,42 +602,31 @@
         const n = expectedBayCount();
         const afterHave = takenBays('after').size;
         if (afterHave < n) {
-          const ok = confirm(
-            `Only ${afterHave} of ${n} after bay photos are on this phone. Finish anyway?`
-          );
+          const ok = confirm(`Only ${afterHave} of ${n} after photos on device. Finish anyway?`);
           if (!ok) return;
         }
-        setMsg('Completing set on PROD + SI and marking signoff sheet…');
-        for (const slot of ['before', 'after']) {
-          for (const entry of local[slot]) {
-            if (entry.uploadStatus === 'queued' || entry.uploadStatus === 'failed') {
-              entry.uploadStatus = 'uploading';
-              paintBody();
-              const r = await uploadPhoto({
-                dbkey,
-                rowId,
-                slot,
-                bay: entry.bay,
-                photoBase64: entry.photoBase64,
-                visitId: local.status?.prod?.visitId,
-                resetId: local.status?.prod?.resetId,
-                taskId: local.status?.si?.taskId,
-              });
-              entry.uploadStatus = `PROD ${r.prod?.status} / SI ${r.si?.status}`;
-            }
+        setMsg('Finishing�');
+        if (global.EodPhotoPipeline?.waitForSet) {
+          try {
+            await global.EodPhotoPipeline.waitForSet(dbkey, { allowFailed: false, timeoutMs: 180000 });
+          } catch (err) {
+            setMsg(err.message || String(err), true);
+            hydrateFromPipeline();
+            paintBody();
+            return;
           }
         }
+        hydrateFromPipeline();
         const result = await completeSet(dbkey, rowId, {
           visitId: local.status?.prod?.visitId,
           resetId: local.status?.prod?.resetId,
           taskId: local.status?.si?.taskId,
         });
         setMsg(
-          `Done — PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || ''}`
+          `Done � PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || ''}`
         );
-        if (result.status) {
-          paintStatus(result.status);
-        } else {
+        if (result.status) paintStatus(result.status);
+        else {
           local.status = await fetchStatus(dbkey, rowId);
           paintStatus(local.status);
         }
@@ -612,6 +643,7 @@
       try {
         local.status = await fetchStatus(dbkey, rowId);
         paintStatus(local.status);
+        hydrateFromPipeline();
         paintBody();
         setMsg('');
       } catch (err) {
@@ -621,9 +653,15 @@
     }
 
     document.getElementById('refreshStatus').onclick = reload;
+    const backBtn = document.getElementById('backSignoff');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        try { unsubPipe?.(); } catch (_) {}
+        global.EodRouter.go('signoff');
+      };
+    }
     await reload();
   }
-
   global.EodSetSurvey = { render };
   global.EodRouter.register('survey', render);
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -341,6 +341,38 @@
     }
 
     async function addCartFile(slot, file) {
+      const pipe = global.EodPhotoPipeline;
+      if (pipe?.enqueue) {
+        const job = pipe.enqueue({
+          kind: 'cart',
+          compressType: slot === 'after' ? 'after' : 'before',
+          slot,
+          bay: 1,
+          file,
+          visitId: S.state.selectedShift?.visitId,
+        });
+        const entry = {
+          dataUrl: job.previewUrl,
+          preview: job.previewUrl,
+          storeNumber: S.state.storeNumber,
+          workDate: S.state.workDate,
+          stampedAt: Date.now(),
+          kind: `cart-${slot}`,
+          jobId: job.id,
+        };
+        const existing = (S.state.photos?.[slot] || []).filter((p) => p?.kind && !String(p.kind).startsWith('cart'));
+        const photos = Object.assign({}, S.state.photos, {
+          [slot]: [...existing, entry],
+        });
+        const patch = { photos };
+        if (slot === 'before') patch.cartPhotoDone = true;
+        S.patch(patch, 'cart-photo');
+        if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(photos);
+        S.saveDraft();
+        setCartMsg(`${slot} queued`);
+        paintOnboarding();
+        return;
+      }
       const dataUrl = await preparePhoto(file, slot === 'after' ? 'after' : 'before');
       const entry = {
         dataUrl,

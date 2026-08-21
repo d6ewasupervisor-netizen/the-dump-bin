@@ -20,6 +20,11 @@
         parts.push('no sheet');
       }
       if (global.EodTestMode?.isEnabled?.()) parts.push('TEST');
+      try {
+        const p = global.EodPhotoPipeline?.pendingCounts?.();
+        const open = (p?.compress || 0) + (p?.upload || 0);
+        if (open > 0) parts.push(`${open} syncing`);
+      } catch (_) {}
       metaEl.textContent = parts.filter(Boolean).join(' · ');
       metaEl.title = parts.filter(Boolean).join(' · ');
     }
@@ -40,9 +45,15 @@
       e.preventDefault();
       global.EodRouter.go('cover');
     });
+    global.EodPhotoPipeline?.onChange?.(() => {
+      try { refresh(); } catch (_) {}
+    });
     document.getElementById('chromeVisitLink')?.addEventListener('click', (e) => {
       e.preventDefault();
       global.EodRouter.go('visit');
+    });
+    global.EodPhotoPipeline?.onChange?.(() => {
+      try { refresh(); } catch (_) {}
     });
     global.EodSession?.on(() => refresh());
     refresh();
