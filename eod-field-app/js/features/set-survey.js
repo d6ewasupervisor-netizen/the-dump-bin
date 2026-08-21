@@ -1,4 +1,4 @@
-/* Set survey / dual PROD+SI photo closeout — CP-inspired capture UX. */
+/* Set survey / dual PROD+SI photo closeout — smart bay capture UX. */
 (function (global) {
   'use strict';
 
@@ -110,25 +110,37 @@
     return data.result || data;
   }
 
-  function openLiveCamera({ onCapture }) {
+  /**
+   * Live camera that stays open for sequential bay capture.
+   * Point + click only — each shutter advances to the next bay until done.
+   */
+  function openLiveCamera({ getLabel, onCapture, shouldContinue }) {
     const overlay = document.createElement('div');
     overlay.className = 'vf-live-camera';
     overlay.innerHTML = `
       <div class="vf-live-camera-inner">
+        <div class="vf-live-camera-hud" data-hud>Bay …</div>
         <video playsinline autoplay muted></video>
         <canvas hidden></canvas>
         <div class="vf-live-camera-bar">
           <label class="vf-zoom">Zoom <input type="range" min="${LIVE_ZOOM_MIN}" max="${LIVE_ZOOM_MAX}" step="${LIVE_ZOOM_STEP}" value="1"></label>
           <button type="button" class="btn btn-primary" data-act="shutter">Capture</button>
-          <button type="button" class="btn btn-secondary" data-act="close">Close</button>
+          <button type="button" class="btn btn-secondary" data-act="close">Done</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
     const video = overlay.querySelector('video');
     const canvas = overlay.querySelector('canvas');
     const zoomInput = overlay.querySelector('input[type="range"]');
+    const hud = overlay.querySelector('[data-hud]');
+    const shutterBtn = overlay.querySelector('[data-act="shutter"]');
     let stream = null;
     let zoom = 1;
+    let busy = false;
+
+    function refreshHud() {
+      if (hud) hud.textContent = (typeof getLabel === 'function' ? getLabel() : null) || 'Capture';
+    }
 
     async function start() {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -137,6 +149,7 @@
       });
       video.srcObject = stream;
       await video.play();
+      refreshHud();
     }
 
     function stop() {
@@ -151,28 +164,42 @@
     };
 
     overlay.querySelector('[data-act="close"]').onclick = stop;
-    overlay.querySelector('[data-act="shutter"]').onclick = async () => {
-      const w = video.videoWidth || 1280;
-      const h = video.videoHeight || 720;
-      const zw = Math.max(1, Math.floor(w / zoom));
-      const zh = Math.max(1, Math.floor(h / zoom));
-      const sx = Math.floor((w - zw) / 2);
-      const sy = Math.floor((h - zh) / 2);
-      canvas.width = zw;
-      canvas.height = zh;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, sx, sy, zw, zh, 0, 0, zw, zh);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
-      if (!blob) return;
-      const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      stop();
-      onCapture(file);
+    shutterBtn.onclick = async () => {
+      if (busy) return;
+      busy = true;
+      shutterBtn.disabled = true;
+      try {
+        const w = video.videoWidth || 1280;
+        const h = video.videoHeight || 720;
+        const zw = Math.max(1, Math.floor(w / zoom));
+        const zh = Math.max(1, Math.floor(h / zoom));
+        const sx = Math.floor((w - zw) / 2);
+        const sy = Math.floor((h - zh) / 2);
+        canvas.width = zw;
+        canvas.height = zh;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, sx, sy, zw, zh, 0, 0, zw, zh);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+        if (!blob) return;
+        const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        await onCapture(file);
+        refreshHud();
+        if (typeof shouldContinue === 'function' && !shouldContinue()) {
+          stop();
+          return;
+        }
+      } finally {
+        busy = false;
+        if (document.body.contains(overlay)) shutterBtn.disabled = false;
+      }
     };
 
     start().catch((err) => {
       alert(err.message || 'Camera unavailable');
       stop();
     });
+
+    return { stop, refreshHud };
   }
 
   async function render(mount) {
@@ -212,7 +239,6 @@
       uploading: false,
     };
 
-    // Multi-day: restore week-scoped before photos from device
     const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
     if (week && global.EodSetBeforeStore) {
       local.before = (global.EodSetBeforeStore.getBefores(S.state.storeNumber, week, dbkey) || []).map((p) => ({
@@ -231,10 +257,89 @@
       el.textContent = text || '';
     }
 
+    function expectedBayCount() {
+      const status = local.status || {};
+      if (Number(status.expectedBayCount) > 0) return Number(status.expectedBayCount);
+      if (status.bays?.length) return status.bays.length;
+      return 1;
+    }
+
+    function bayList() {
+      const n = expectedBayCount();
+      const fromStatus = local.status?.bays || [];
+      const byBay = new Map(fromStatus.map((b) => [Number(b.bay), b]));
+      const out = [];
+      for (let i = 1; i <= n; i += 1) {
+        out.push(byBay.get(i) || { bay: i, bayName: String(i), hasPhoto: false });
+      }
+      return out;
+    }
+
+    function takenBays(slot) {
+      const set = new Set();
+      for (const p of local[slot] || []) {
+        if (p.uploadStatus === 'failed') continue;
+        const b = Number(p.bay);
+        if (Number.isFinite(b) && b > 0) set.add(b);
+      }
+      return set;
+    }
+
+    function nextEmptyBay(slot) {
+      const taken = takenBays(slot);
+      for (const b of bayList()) {
+        if (!taken.has(Number(b.bay))) return Number(b.bay);
+      }
+      return null;
+    }
+
+    /** First file → first empty bay (or bay 1); last of a full batch → last bay. */
+    function assignBaysForFiles(slot, fileCount) {
+      const n = expectedBayCount();
+      const taken = takenBays(slot);
+      const empties = [];
+      for (let i = 1; i <= n; i += 1) {
+        if (!taken.has(i)) empties.push(i);
+      }
+      if (!empties.length) {
+        // All filled — retake from bay 1 in order
+        return Array.from({ length: fileCount }, (_, i) => Math.min(i + 1, n));
+      }
+      // Multi-load into an empty (or mostly empty) set: stretch across remaining empties in order
+      if (fileCount >= empties.length && taken.size === 0) {
+        return Array.from({ length: Math.min(fileCount, n) }, (_, i) => i + 1);
+      }
+      const assigned = [];
+      for (let i = 0; i < fileCount; i += 1) {
+        assigned.push(empties[i] != null ? empties[i] : empties[empties.length - 1]);
+      }
+      return assigned;
+    }
+
+    function persistBefores() {
+      if (!(week && global.EodSetBeforeStore)) return;
+      global.EodSetBeforeStore.setBefores(
+        S.state.storeNumber,
+        week,
+        dbkey,
+        local.before.map((p) => ({
+          bay: p.bay,
+          dataUrl: p.photoBase64 || p.preview,
+          uploadStatus: p.uploadStatus,
+          workDate: S.state.workDate,
+          capturedAt: Date.now(),
+        }))
+      );
+    }
+
     function paintStatus(status) {
       local.status = status;
       const chips = document.getElementById('setStatusChips');
       if (!chips) return;
+      const bayN = status.expectedBayCount || status.bays?.length || 1;
+      const footageBit = status.footageDisplay
+        ? ` · Footage ${esc(status.footageDisplay)} → ${bayN} bay photo${bayN === 1 ? '' : 's'}`
+        : ` · ${bayN} bay photo${bayN === 1 ? '' : 's'} needed`;
       chips.innerHTML =
         `PROD ${sidePill(status.prod)}` +
         (status.prod.beforeCount != null
@@ -244,16 +349,37 @@
         (status.si.sectionCount != null
           ? ` <span class="muted">${status.si.sectionsWithPhoto || 0}/${status.si.sectionCount} sections</span>`
           : '') +
+        footageBit +
         (status.sheetRow?.id ? ` · Sheet row ${esc(status.sheetRow.id)}` : '');
     }
 
+    function bayProgressHtml(slot) {
+      const taken = takenBays(slot);
+      const bays = bayList();
+      const have = [...taken].filter((b) => b >= 1 && b <= bays.length).length;
+      return `
+        <div class="set-bay-progress" aria-label="${have} of ${bays.length} bays">
+          <div class="set-bay-progress-label">${have} / ${bays.length} bays</div>
+          <div class="set-bay-dots">
+            ${bays
+              .map((b) => {
+                const filled = taken.has(Number(b.bay));
+                const si = !!b.hasPhoto;
+                return `<span class="set-bay-dot ${filled ? 'filled' : ''} ${si && !filled ? 'si' : ''}" title="Bay ${esc(b.bayName || b.bay)}">${esc(b.bay)}</span>`;
+              })
+              .join('')}
+          </div>
+        </div>`;
+    }
+
     function thumbHtml(list, slot) {
-      if (!list.length) return '<p class="muted">No local photos yet.</p>';
-      return `<div class="set-thumbs">${list
+      if (!list.length) return '<p class="muted">No local photos yet — take or load in bay order (1 → last).</p>';
+      const sorted = [...list].sort((a, b) => Number(a.bay) - Number(b.bay));
+      return `<div class="set-thumbs">${sorted
         .map(
-          (p, i) =>
-            `<button type="button" class="set-thumb" data-slot="${slot}" data-i="${i}">
-              <img src="${p.preview}" alt="${slot} ${i + 1}">
+          (p) =>
+            `<button type="button" class="set-thumb" data-slot="${slot}" data-bay="${esc(p.bay)}">
+              <img src="${p.preview}" alt="${slot} bay ${esc(p.bay)}">
               <span>Bay ${esc(p.bay)} · ${esc(p.uploadStatus || 'queued')}</span>
             </button>`
         )
@@ -262,11 +388,11 @@
 
     function paintBody() {
       const status = local.status || {};
-      const bays = status.bays?.length
-        ? status.bays
-        : [{ bay: 1, bayName: '1', hasPhoto: false }];
+      const n = expectedBayCount();
       const body = document.getElementById('setSurveyBody');
       if (!body) return;
+      const nextAfter = nextEmptyBay('after');
+      const nextBefore = nextEmptyBay('before');
       body.innerHTML = `
         <div class="set-survey-questions">
           ${(status.surveyQuestions || [])
@@ -276,34 +402,30 @@
 
         <section class="set-photo-block">
           <h2>Before ${preferSlot === 'before' ? '<span class="pill warn">focus</span>' : ''}</h2>
-          <p class="muted">Befores persist for fiscal week ${esc(week || '—')} on this phone and online after upload.</p>
+          <p class="muted">${n} bay photo${n === 1 ? '' : 's'} — first shot is bay 1, last is bay ${n}. Load many at once or keep clicking Capture.</p>
+          ${bayProgressHtml('before')}
           ${thumbHtml(local.before, 'before')}
           <div class="btn-row">
-            <button type="button" class="btn btn-primary" data-cap="before">Take before</button>
-            <label class="btn btn-secondary set-file-btn">Gallery
-              <input type="file" accept="image/*" capture="environment" data-gal="before" hidden>
+            <button type="button" class="btn btn-primary" data-cap="before">${
+              nextBefore ? `Take bay ${nextBefore}…` : 'Retake befores'
+            }</button>
+            <label class="btn btn-secondary set-file-btn">Load photos
+              <input type="file" accept="image/*" multiple data-gal="before" hidden>
             </label>
           </div>
         </section>
 
         <section class="set-photo-block">
-          <h2>After <span class="muted">(${bays.length} bay${bays.length === 1 ? '' : 's'})</span> ${preferSlot === 'after' ? '<span class="pill warn">focus</span>' : ''}</h2>
+          <h2>After ${preferSlot === 'after' ? '<span class="pill warn">focus</span>' : ''}</h2>
+          <p class="muted">${n} after photos needed. Multi-select assigns bay 1 → ${n} in order.</p>
+          ${bayProgressHtml('after')}
           ${thumbHtml(local.after, 'after')}
-          <div class="field">
-            <label for="afterBay">Bay for next after photo</label>
-            <select id="afterBay">
-              ${bays
-                .map(
-                  (b) =>
-                    `<option value="${esc(b.bay)}">Bay ${esc(b.bayName || b.bay)}${b.hasPhoto ? ' · has SI photo' : ''}</option>`
-                )
-                .join('')}
-            </select>
-          </div>
           <div class="btn-row">
-            <button type="button" class="btn btn-primary" data-cap="after">Take after</button>
-            <label class="btn btn-secondary set-file-btn">Gallery
-              <input type="file" accept="image/*" capture="environment" data-gal="after" hidden>
+            <button type="button" class="btn btn-primary" data-cap="after">${
+              nextAfter ? `Take bay ${nextAfter} of ${n}` : 'Retake afters'
+            }</button>
+            <label class="btn btn-secondary set-file-btn">Load photos
+              <input type="file" accept="image/*" multiple data-gal="after" hidden>
             </label>
           </div>
         </section>
@@ -314,18 +436,14 @@
         </div>`;
 
       body.querySelectorAll('[data-cap]').forEach((btn) => {
-        btn.onclick = () => {
-          const slot = btn.getAttribute('data-cap');
-          openLiveCamera({
-            onCapture: (file) => enqueueLocal(slot, file),
-          });
-        };
+        btn.onclick = () => startSequentialCapture(btn.getAttribute('data-cap'));
       });
       body.querySelectorAll('[data-gal]').forEach((input) => {
         input.onchange = async () => {
-          const file = input.files?.[0];
+          const files = [...(input.files || [])];
           input.value = '';
-          if (file) await enqueueLocal(input.getAttribute('data-gal'), file);
+          if (!files.length) return;
+          await enqueueFiles(input.getAttribute('data-gal'), files);
         };
       });
       document.getElementById('crossFillBtn').onclick = async () => {
@@ -344,10 +462,38 @@
       document.getElementById('finishSetBtn').onclick = () => finishAll();
     }
 
-    async function enqueueLocal(slot, file) {
-      const bayEl = document.getElementById('afterBay');
-      const bay = slot === 'after' ? Number(bayEl?.value || 1) : 1;
+    function startSequentialCapture(slot) {
+      const n = expectedBayCount();
+      // If nothing local yet, start at bay 1 even if SI already has some photos
+      openLiveCamera({
+        getLabel: () => {
+          const next = nextEmptyBay(slot) || 1;
+          const have = takenBays(slot).size;
+          return `${slot === 'after' ? 'After' : 'Before'} · Bay ${next} of ${n} · ${have}/${n} done · tap Capture`;
+        },
+        shouldContinue: () => nextEmptyBay(slot) != null,
+        onCapture: async (file) => {
+          const bay = nextEmptyBay(slot) || 1;
+          await enqueueLocal(slot, file, bay, { skipPaint: true });
+          paintBody();
+        },
+      });
+    }
+
+    async function enqueueFiles(slot, files) {
+      const bays = assignBaysForFiles(slot, files.length);
+      setMsg(`Loading ${files.length} ${slot} photo(s) as bay ${bays[0]}${bays.length > 1 ? `…${bays[bays.length - 1]}` : ''}…`);
+      for (let i = 0; i < files.length; i += 1) {
+        await enqueueLocal(slot, files[i], bays[i], { skipPaint: i < files.length - 1 });
+      }
+      paintBody();
+    }
+
+    async function enqueueLocal(slot, file, bayOverride, opts = {}) {
+      const bay = Number(bayOverride) || nextEmptyBay(slot) || 1;
       const preview = await fileToDataUrl(file);
+      // Replace existing local entry for this bay if retaking
+      local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
       const entry = {
         bay,
         preview,
@@ -356,22 +502,10 @@
         fileName: file.name,
       };
       local[slot].push(entry);
-      paintBody();
-      if (slot === 'before' && week && global.EodSetBeforeStore) {
-        global.EodSetBeforeStore.setBefores(
-          S.state.storeNumber,
-          week,
-          dbkey,
-          local.before.map((p) => ({
-            bay: p.bay,
-            dataUrl: p.photoBase64 || p.preview,
-            uploadStatus: p.uploadStatus,
-            workDate: S.state.workDate,
-            capturedAt: Date.now(),
-          }))
-        );
-      }
-      setMsg(`Uploading ${slot} bay ${bay} to PROD + SI…`);
+      local[slot].sort((a, b) => Number(a.bay) - Number(b.bay));
+      if (!opts.skipPaint) paintBody();
+      if (slot === 'before') persistBefores();
+      setMsg(`Uploading ${slot} bay ${bay} of ${expectedBayCount()}…`);
       try {
         const r = await uploadPhoto({
           dbkey,
@@ -385,33 +519,29 @@
         });
         entry.uploadStatus = `PROD ${r.prod?.status} / SI ${r.si?.status}`;
         setMsg(`Uploaded ${slot} bay ${bay}: PROD ${r.prod?.status}, SI ${r.si?.status}`);
-        if (slot === 'before' && week && global.EodSetBeforeStore) {
-          global.EodSetBeforeStore.setBefores(
-            S.state.storeNumber,
-            week,
-            dbkey,
-            local.before.map((p) => ({
-              bay: p.bay,
-              dataUrl: p.photoBase64 || p.preview,
-              uploadStatus: p.uploadStatus,
-              workDate: S.state.workDate,
-              capturedAt: Date.now(),
-            }))
-          );
-        }
-        local.status = await fetchStatus(dbkey, rowId);
-        paintStatus(local.status);
+        if (slot === 'before') persistBefores();
+        try {
+          local.status = await fetchStatus(dbkey, rowId);
+          paintStatus(local.status);
+        } catch (_) {}
       } catch (err) {
         entry.uploadStatus = 'failed';
         setMsg(err.message || String(err), true);
       }
-      paintBody();
+      if (!opts.skipPaint) paintBody();
     }
 
     async function finishAll() {
       try {
+        const n = expectedBayCount();
+        const afterHave = takenBays('after').size;
+        if (afterHave < n) {
+          const ok = confirm(
+            `Only ${afterHave} of ${n} after bay photos are on this phone. Finish anyway?`
+          );
+          if (!ok) return;
+        }
         setMsg('Completing set on PROD + SI and marking signoff sheet…');
-        // Upload any still-queued locals first
         for (const slot of ['before', 'after']) {
           for (const entry of local[slot]) {
             if (entry.uploadStatus === 'queued' || entry.uploadStatus === 'failed') {
@@ -445,7 +575,6 @@
           local.status = await fetchStatus(dbkey, rowId);
           paintStatus(local.status);
         }
-        // Refresh sheet in session so signoff shows Complete
         try {
           await global.EodSignoffHome?.loadSheet?.();
         } catch (_) {}
