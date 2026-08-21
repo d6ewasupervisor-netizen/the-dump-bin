@@ -1,4 +1,4 @@
-/* Set survey / dual PROD+SI photo closeout — smart bay capture UX. */
+/* Set survey / dual PROD+SI photo closeout ? smart bay capture UX. */
 (function (global) {
   'use strict';
 
@@ -128,7 +128,7 @@
     overlay.className = 'vf-live-camera';
     overlay.innerHTML = `
       <div class="vf-live-camera-inner">
-        <div class="vf-live-camera-hud" data-hud>Bay …</div>
+        <div class="vf-live-camera-hud" data-hud>Bay ?</div>
         <video playsinline autoplay muted></video>
         <canvas hidden></canvas>
         <div class="vf-live-camera-bar">
@@ -194,7 +194,7 @@
         try {
           await onCapture(file);
         } catch (err) {
-          // Keep camera open on upload errors — user can retry or Exit.
+          // Keep camera open on upload errors ? user can retry or Exit.
           alert(err?.message || String(err) || 'Capture failed');
           refreshHud();
           return;
@@ -236,13 +236,13 @@
     mount.innerHTML = `
       <div class="card set-survey">
         <div class="btn-row" style="justify-content:space-between;">
-          <button type="button" class="btn btn-secondary" id="backSignoff">← Signoff</button>
+          <button type="button" class="btn btn-secondary" id="backSignoff">? Signoff</button>
           <button type="button" class="btn btn-secondary" id="refreshStatus">Refresh</button>
         </div>
         <h1>${esc(catName || 'Set capture')}</h1>
-        <p class="muted">DBKEY ${esc(dbkey)} · Store ${esc(S.state.storeNumber)} · ${esc(S.state.workDate)}</p>
-        <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
-        <div id="setSurveyBody">Loading…</div>
+        <p class="muted">DBKEY ${esc(dbkey)} � Store ${esc(S.state.storeNumber)} � ${esc(S.state.workDate)}</p>
+        <div id="setStatusChips" class="muted">Loading PROD / SI?</div>
+        <div id="setSurveyBody">Loading?</div>
         <div id="setSurveyMsg" class="muted" style="margin-top:10px;"></div>
       </div>`;
 
@@ -294,6 +294,55 @@
 
     hydrateFromPipeline();
 
+    let autoClosePromise = null;
+
+    async function maybeAutoCloseSi() {
+      if (autoClosePromise) return autoClosePromise;
+      const n = expectedBayCount();
+      if (n < 1) return null;
+      const afterJobs = (global.EodPhotoPipeline?.jobsForSet?.(dbkey) || []).filter(
+        (j) => j.slot === 'after' && j.error !== 'replaced'
+      );
+      const doneBays = new Set(
+        afterJobs.filter((j) => j.status === 'done').map((j) => Number(j.bay))
+      );
+      // Prefer remote+local taken count
+      const taken = takenBays('after');
+      for (const b of doneBays) taken.add(b);
+      if (taken.size < n) return null;
+      const open = afterJobs.some((j) => !['done', 'failed'].includes(j.status));
+      if (open) return null;
+      const failed = afterJobs.filter((j) => j.status === 'failed');
+      if (failed.length) return null;
+
+      autoClosePromise = (async () => {
+        try {
+          setMsg('All after photos loaded ? closing SI set (waiting for CV if needed)?');
+          const result = await completeSet(dbkey, rowId, {
+            visitId: local.status?.prod?.visitId,
+            resetId: local.status?.prod?.resetId,
+            taskId: local.status?.si?.taskId,
+          });
+          setMsg(
+            `Closed ? PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || result.si?.detail || ''}`
+          );
+          if (result.status) paintStatus(result.status);
+          else {
+            local.status = await fetchStatus(dbkey, rowId);
+            paintStatus(local.status);
+          }
+          try {
+            await global.EodSignoffHome?.loadSheet?.();
+          } catch (_) {}
+          paintBody();
+        } catch (err) {
+          autoClosePromise = null;
+          setMsg(err.message || String(err), true);
+        }
+      })();
+      return autoClosePromise;
+    }
+
     const unsubPipe = global.EodPhotoPipeline?.onChange?.((detail) => {
       if (detail?.job?.dbkey && String(detail.job.dbkey) !== String(dbkey)) return;
       hydrateFromPipeline();
@@ -304,6 +353,7 @@
         setMsg(`Background: ${counts.compress} compressing · ${counts.upload} uploading`);
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
+        if (detail.job?.slot === 'after') maybeAutoCloseSi();
       } else if (detail.type === 'failed' && detail.job?.error !== 'replaced') {
         setMsg(detail.job?.error || 'Upload failed', true);
       }
@@ -377,7 +427,7 @@
       return null;
     }
 
-    /** First file → first empty bay (or bay 1); last of a full batch → last bay. */
+    /** First file ? first empty bay (or bay 1); last of a full batch ? last bay. */
     function assignBaysForFiles(slot, fileCount) {
       const n = expectedBayCount();
       const taken = takenBays(slot);
@@ -422,23 +472,23 @@
       const bayN = status.expectedBayCount || status.bays?.length || 1;
       const width = status.bayWidthFt;
       const feet = status.footageFeet || status.footageDisplay;
-      let footageBit = ` · ${bayN} bay photo${bayN === 1 ? '' : 's'} needed`;
+      let footageBit = ` � ${bayN} bay photo${bayN === 1 ? '' : 's'} needed`;
       if (width && feet) {
-        footageBit = ` · ${bayN} bays × ${esc(width)} ft = ${esc(feet)} ft`;
+        footageBit = ` � ${bayN} bays � ${esc(width)} ft = ${esc(feet)} ft`;
       } else if (feet) {
-        footageBit = ` · ${bayN} bays (${esc(feet)} ft footage)`;
+        footageBit = ` � ${bayN} bays (${esc(feet)} ft footage)`;
       }
       chips.innerHTML =
         `PROD ${sidePill(status.prod)}` +
         (status.prod.beforeCount != null
           ? ` <span class="muted">before ${status.prod.beforeCount} / after ${status.prod.afterCount || 0}</span>`
           : '') +
-        ` · SI ${sidePill(status.si)}` +
+        ` � SI ${sidePill(status.si)}` +
         (status.si.sectionCount != null
           ? ` <span class="muted">${status.si.sectionsWithPhoto || 0}/${status.si.sectionCount} sections</span>`
           : '') +
         footageBit +
-        (status.sheetRow?.id ? ` · Sheet row ${esc(status.sheetRow.id)}` : '');
+        (status.sheetRow?.id ? ` � Sheet row ${esc(status.sheetRow.id)}` : '');
     }
 
     function bayProgressHtml(slot) {
@@ -461,14 +511,14 @@
     }
 
     function thumbHtml(list, slot) {
-      if (!list.length) return '<p class="muted">No local photos yet — take or load in bay order (1 → last).</p>';
+      if (!list.length) return '<p class="muted">No local photos yet ? take or load in bay order (1 ? last).</p>';
       const sorted = [...list].sort((a, b) => Number(a.bay) - Number(b.bay));
       return `<div class="set-thumbs">${sorted
         .map(
           (p) =>
             `<button type="button" class="set-thumb" data-slot="${slot}" data-bay="${esc(p.bay)}">
               <img src="${p.preview}" alt="${slot} bay ${esc(p.bay)}">
-              <span>Bay ${esc(p.bay)} · ${esc(p.uploadStatus || 'queued')}</span>
+              <span>Bay ${esc(p.bay)} � ${esc(p.uploadStatus || 'queued')}</span>
             </button>`
         )
         .join('')}</div>`;
@@ -484,7 +534,7 @@
       body.innerHTML = `
         <div class="set-survey-questions">
           ${(status.surveyQuestions || [])
-            .map((q) => `<div class="muted">• ${esc(q.text)}</div>`)
+            .map((q) => `<div class="muted">? ${esc(q.text)}</div>`)
             .join('')}
         </div>
 
@@ -494,7 +544,7 @@
           ${thumbHtml(local.before, 'before')}
           <div class="btn-row">
             <button type="button" class="btn btn-primary" data-cap="before">${
-              nextBefore ? `Take bay ${nextBefore}…` : 'Retake befores'
+              nextBefore ? `Take bay ${nextBefore}?` : 'Retake befores'
             }</button>
             <label class="btn btn-secondary set-file-btn">Load photos
               <input type="file" accept="image/*" multiple data-gal="before" hidden>
@@ -536,7 +586,7 @@
       });
       document.getElementById('crossFillBtn').onclick = async () => {
         try {
-          setMsg('Pulling photos across PROD ↔ SI…');
+          setMsg('Pulling photos across PROD ? SI?');
           const r = await crossFill(dbkey, rowId);
           setMsg(
             `Cross-fill (${r.direction}): uploaded ${r.uploaded?.length || 0}, skipped ${r.skipped?.length || 0}, errors ${r.errors?.length || 0}`
@@ -557,9 +607,9 @@
           const next = nextEmptyBay(slot);
           const have = takenBays(slot).size;
           if (next == null) {
-            return `${slot === 'after' ? 'After' : 'Before'} � ${have}/${n} � Exit`;
+            return `${slot === 'after' ? 'After' : 'Before'} ? ${have}/${n} ? Exit`;
           }
-          return `${slot === 'after' ? 'After' : 'Before'} � Bay ${next} of ${n} � ${have}/${n}`;
+          return `${slot === 'after' ? 'After' : 'Before'} ? Bay ${next} of ${n} ? ${have}/${n}`;
         },
         shouldContinue: () => nextEmptyBay(slot) != null,
         onCapture: async (file) => {
@@ -630,7 +680,7 @@
           const ok = confirm(`Only ${afterHave} of ${n} after photos on device. Finish anyway?`);
           if (!ok) return;
         }
-        setMsg('Finishing�');
+        setMsg('Waiting for uploads, then closing SI (CV + survey if needed)…');
         if (global.EodPhotoPipeline?.waitForSet) {
           try {
             await global.EodPhotoPipeline.waitForSet(dbkey, { allowFailed: false, timeoutMs: 180000 });
@@ -648,7 +698,7 @@
           taskId: local.status?.si?.taskId,
         });
         setMsg(
-          `Done � PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || ''}`
+          `Done — PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || result.si?.detail || ''}`
         );
         if (result.status) paintStatus(result.status);
         else {
