@@ -3,7 +3,7 @@
   'use strict';
 
   const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-  const APP_VERSION = '3.1.11';
+  const APP_VERSION = '3.1.12';
 
   function toPlainHeaders(h) {
     if (!h) return {};

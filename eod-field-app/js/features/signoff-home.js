@@ -6,6 +6,13 @@
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
+  function bothLiveComplete(row) {
+    const live = row?.live;
+    if (!live) return false;
+    if (live.bothComplete) return true;
+    return !!(live.prodComplete && live.siComplete);
+  }
+
   function markActive(row, type) {
     const m = row?.marks || row?.mark;
     if (!m) return false;
@@ -14,6 +21,10 @@
     if (type === 'not_in_store') return !!m.notInStore;
     if (type === 'not_in_si') return !!m.notInSi;
     return m.type === type;
+  }
+
+  function rowLooksComplete(row) {
+    return markActive(row, 'complete') || bothLiveComplete(row);
   }
 
   function syncStatusPills(row) {
@@ -33,14 +44,20 @@
     const active = row?.marks?.active || (row?.mark?.type ? [row.mark.type] : []) || [];
     for (const t of active) {
       if (t === 'complete') {
+        // System auto-complete from PROD+SI shows as sheet complete; lead override labeled separately
         const by = row?.marks?.details?.complete?.markedBy;
         if (by && by !== 'prod-si-sync') {
           pills.push('<span class="pill ok">lead complete</span>');
+        } else {
+          pills.push('<span class="pill ok">sheet complete</span>');
         }
         continue;
       }
       if (t === 'not_in_si' && live?.siPresent) continue;
       pills.push(`<span class="pill">${esc(String(t).replace(/_/g, ' '))}</span>`);
+    }
+    if (bothLiveComplete(row) && !active.includes('complete')) {
+      pills.push('<span class="pill ok">sheet complete</span>');
     }
     if (!pills.length) pills.push('<span class="pill">open</span>');
     return pills.join('');
@@ -48,7 +65,7 @@
 
   function rowClass(row) {
     const c = [];
-    if (markActive(row, 'complete')) c.push('marked-complete');
+    if (rowLooksComplete(row)) c.push('marked-complete');
     if (markActive(row, 'not_in_store')) c.push('marked-nis');
     if (markActive(row, 'not_in_si') && !row?.live?.siPresent) c.push('marked-nisi');
     return c.join(' ');
@@ -116,7 +133,7 @@
   }
 
   function isOpenRow(row) {
-    return !markActive(row, 'complete')
+    return !rowLooksComplete(row)
       && !markActive(row, 'not_in_store')
       && !markActive(row, 'not_in_si');
   }
@@ -202,7 +219,7 @@
     return rows.map((row) => {
       const status = syncStatusPills(row);
       const btn = (type, label) => {
-        const on = markActive(row, type);
+        const on = type === 'complete' ? rowLooksComplete(row) : markActive(row, type);
         // Selected state is the .on border only — no checkmark (renders as ? on some devices).
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
