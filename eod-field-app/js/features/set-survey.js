@@ -111,8 +111,8 @@
   }
 
   /**
-   * Live camera that stays open for sequential bay capture.
-   * Point + click only — each shutter advances to the next bay until done.
+   * Live camera stays open for sequential bay capture.
+   * Auto-closes only after every bay is filled; otherwise Exit is manual.
    */
   function openLiveCamera({ getLabel, onCapture, shouldContinue }) {
     const overlay = document.createElement('div');
@@ -125,7 +125,7 @@
         <div class="vf-live-camera-bar">
           <label class="vf-zoom">Zoom <input type="range" min="${LIVE_ZOOM_MIN}" max="${LIVE_ZOOM_MAX}" step="${LIVE_ZOOM_STEP}" value="1"></label>
           <button type="button" class="btn btn-primary" data-act="shutter">Capture</button>
-          <button type="button" class="btn btn-secondary" data-act="close">Done</button>
+          <button type="button" class="btn btn-secondary" data-act="close">Exit</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -182,11 +182,18 @@
         const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
         if (!blob) return;
         const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        await onCapture(file);
+        try {
+          await onCapture(file);
+        } catch (err) {
+          // Keep camera open on upload errors — user can retry or Exit.
+          alert(err?.message || String(err) || 'Capture failed');
+          refreshHud();
+          return;
+        }
         refreshHud();
+        // Only leave camera when every bay has a photo (or caller says stop).
         if (typeof shouldContinue === 'function' && !shouldContinue()) {
           stop();
-          return;
         }
       } finally {
         busy = false;
@@ -337,9 +344,14 @@
       const chips = document.getElementById('setStatusChips');
       if (!chips) return;
       const bayN = status.expectedBayCount || status.bays?.length || 1;
-      const footageBit = status.footageDisplay
-        ? ` · Footage ${esc(status.footageDisplay)} → ${bayN} bay photo${bayN === 1 ? '' : 's'}`
-        : ` · ${bayN} bay photo${bayN === 1 ? '' : 's'} needed`;
+      const width = status.bayWidthFt;
+      const feet = status.footageFeet || status.footageDisplay;
+      let footageBit = ` · ${bayN} bay photo${bayN === 1 ? '' : 's'} needed`;
+      if (width && feet) {
+        footageBit = ` · ${bayN} bays × ${esc(width)} ft = ${esc(feet)} ft`;
+      } else if (feet) {
+        footageBit = ` · ${bayN} bays (${esc(feet)} ft footage)`;
+      }
       chips.innerHTML =
         `PROD ${sidePill(status.prod)}` +
         (status.prod.beforeCount != null
@@ -402,7 +414,7 @@
 
         <section class="set-photo-block">
           <h2>Before ${preferSlot === 'before' ? '<span class="pill warn">focus</span>' : ''}</h2>
-          <p class="muted">${n} bay photo${n === 1 ? '' : 's'} — first shot is bay 1, last is bay ${n}. Load many at once or keep clicking Capture.</p>
+          <p class="muted">${n} bay photo${n === 1 ? '' : 's'} (not feet) — first shot is bay 1, last is bay ${n}. Camera stays open until all bays are done or you Exit.</p>
           ${bayProgressHtml('before')}
           ${thumbHtml(local.before, 'before')}
           <div class="btn-row">
@@ -417,7 +429,7 @@
 
         <section class="set-photo-block">
           <h2>After ${preferSlot === 'after' ? '<span class="pill warn">focus</span>' : ''}</h2>
-          <p class="muted">${n} after photos needed. Multi-select assigns bay 1 → ${n} in order.</p>
+          <p class="muted">${n} after photos needed (bays, not feet). Multi-select assigns bay 1 → ${n} in order. Camera stays open until all are done.</p>
           ${bayProgressHtml('after')}
           ${thumbHtml(local.after, 'after')}
           <div class="btn-row">
@@ -464,13 +476,16 @@
 
     function startSequentialCapture(slot) {
       const n = expectedBayCount();
-      // If nothing local yet, start at bay 1 even if SI already has some photos
       openLiveCamera({
         getLabel: () => {
-          const next = nextEmptyBay(slot) || 1;
+          const next = nextEmptyBay(slot);
           const have = takenBays(slot).size;
+          if (next == null) {
+            return `${slot === 'after' ? 'After' : 'Before'} · ${have}/${n} bays done · Exit or retake`;
+          }
           return `${slot === 'after' ? 'After' : 'Before'} · Bay ${next} of ${n} · ${have}/${n} done · tap Capture`;
         },
+        // Stay in camera until every bay has a local photo (failed counts as empty).
         shouldContinue: () => nextEmptyBay(slot) != null,
         onCapture: async (file) => {
           const bay = nextEmptyBay(slot) || 1;
