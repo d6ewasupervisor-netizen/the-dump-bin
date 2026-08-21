@@ -200,6 +200,16 @@ ${S.state.notes || ''}`;
           <p class="muted">Photos — before ${photoCount('before')}, after ${photoCount('after')}, signoff ${photoCount('signoff')}, instawork ${photoCount('instawork')}</p>
         </div>
         <div class="field">
+          <label>Manager checked out with</label>
+          <input type="text" id="checkOutManager" value="${esc(S.state.checkOutManager || '')}" list="mgrListSend" autocomplete="off">
+          <button type="button" class="btn btn-secondary btn-block" id="pickOutMgr" style="margin-top:6px;">Choose saved name</button>
+        </div>
+        <datalist id="mgrListSend">${(S.state.managerNamePool || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="sendNotes" rows="4">${esc(S.state.notes || '')}</textarea>
+        </div>
+        <div class="field">
           <label>Lead signature</label>
           <div class="sig-preview" id="sigPreview">${S.state.signatureDataUrl
             ? `<img src="${S.state.signatureDataUrl}" alt="Signature">`
@@ -235,6 +245,33 @@ ${S.state.notes || ''}`;
           </div>
         </div>
       </div>`;
+
+    const saveSendFields = () => {
+      S.patch({
+        checkOutManager: document.getElementById('checkOutManager')?.value?.trim() || '',
+        notes: document.getElementById('sendNotes')?.value || '',
+      }, 'send-cover');
+      S.saveDraft();
+    };
+    ['checkOutManager', 'sendNotes'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('change', saveSendFields);
+      el.addEventListener('blur', saveSendFields);
+    });
+    document.getElementById('pickOutMgr')?.addEventListener('click', () => {
+      const items = (S.state.managerNamePool || []).map((n, i) => ({ id: String(i), label: n }));
+      global.EodPicker.open({
+        anchor: document.getElementById('pickOutMgr'),
+        title: 'Saved managers',
+        items: items.length ? items : [{ id: 'x', label: 'No saved names', disabled: true }],
+        searchable: items.length > 6,
+        onChoose(item) {
+          document.getElementById('checkOutManager').value = item.label;
+          saveSendFields();
+        },
+      });
+    });
 
     function paintRecipients() {
       const host = document.getElementById('recipientList');

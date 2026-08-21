@@ -187,16 +187,17 @@
 
   function ensureUi() {
     if (document.getElementById('deptSigSection')) return;
-    const host = document.getElementById('eodSignoffGroupBody');
+    const host = document.getElementById('deptSigMount')
+      || document.getElementById('eodSignoffGroupBody');
     const sigSection = document.querySelector('.signature-section');
     if (!host && (!sigSection || !sigSection.parentNode)) return;
 
     const section = document.createElement('div');
-    section.className = 'section';
+    section.className = 'section dept-sig-section';
     section.id = 'deptSigSection';
     section.innerHTML = `
       <div class="section-title">Department Signatures</div>
-      <p class="sets-help" id="deptSigHelp" style="margin:0 0 12px;">
+      <p class="sets-help muted" id="deptSigHelp">
         Only departments worked on today’s sheet appear here. Mark sets on the
         digital sheet (Complete / Not in store / Not in SI), then hand the device
         to that department’s PIC. Name and email are remembered for this store.
@@ -206,7 +207,7 @@
         <span class="eod-picker-meta" id="deptSigPickerMeta">0</span>
       </button>
       <div id="deptSigRoleList" class="dept-sig-role-list eod-hidden-list"></div>
-      <div class="button-group" style="margin-top:12px; flex-wrap:wrap; gap:8px;">
+      <div class="button-group dept-sig-actions">
         <button type="button" class="btn btn-secondary" id="deptSigRefreshBtn">Refresh</button>
       </div>
     `;
@@ -223,7 +224,7 @@
             <h2 id="deptSigWizardTitle">Department signature</h2>
             <button type="button" class="btn btn-secondary" id="deptSigWizardCancel">Cancel</button>
           </div>
-          <p id="deptSigWizardHint" class="sets-help"></p>
+          <p id="deptSigWizardHint" class="sets-help muted"></p>
           <div id="deptSigWizardBody"></div>
           <div class="button-group dept-sig-wizard-actions">
             <button type="button" class="btn btn-secondary" id="deptSigWizardBack" style="display:none;">Back</button>
@@ -238,42 +239,6 @@
       document.getElementById('deptSigWizardCancel').onclick = closeWizard;
       document.getElementById('deptSigWizardBack').onclick = wizardBack;
       document.getElementById('deptSigWizardNext').onclick = wizardNext;
-    }
-
-    if (!document.getElementById('deptSigStyles')) {
-      const style = document.createElement('style');
-      style.id = 'deptSigStyles';
-      style.textContent = `
-        .dept-sig-role-list { display:flex; flex-direction:column; gap:8px; }
-        .dept-sig-role-row {
-          display:flex; align-items:center; justify-content:space-between; gap:10px;
-          padding:10px 12px; border:1px solid #334155; border-radius:8px; background:#0f172a;
-        }
-        .dept-sig-role-row.collected { border-color:#166534; background:#052e16; }
-        .dept-sig-role-meta { font-size:13px; color:#94a3b8; margin-top:2px; }
-        .dept-sig-wizard-overlay {
-          display:none; position:fixed; inset:0; z-index:1400; background:rgba(2,6,23,.88);
-          align-items:stretch; justify-content:center; padding:0;
-        }
-        .dept-sig-wizard-overlay.show { display:flex; }
-        .dept-sig-wizard-dialog {
-          width:100%; max-width:720px; margin:auto; background:#111827; color:#f8fafc;
-          border-radius:12px; padding:16px; max-height:100vh; overflow:auto;
-        }
-        .dept-sig-wizard-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-        .dept-sig-wizard-header h2 { margin:0; font-size:1.25rem; }
-        .dept-sig-wizard-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
-        .dept-sig-choice {
-          display:block; width:100%; text-align:left; padding:12px; margin:0 0 8px;
-          border-radius:8px; border:1px solid #475569; background:#1e293b; color:#f8fafc;
-        }
-        .dept-sig-pad-wrap {
-          border:2px dashed #64748b; border-radius:8px; background:#fff; touch-action:none;
-        }
-        .dept-sig-pad-wrap canvas { width:100%; height:220px; display:block; }
-        #deptSigRoleList.eod-hidden-list { display:none !important; }
-      `;
-      document.head.appendChild(style);
     }
 
     document.getElementById('deptSigRefreshBtn').onclick = () => refresh().catch(console.error);

@@ -71,13 +71,13 @@
   async function render(mount) {
     const S = global.EodSession;
     await loadPhotos();
-    const hasSheet = S.hasHostedSheet();
+    if (global.EodCover?.loadStoreData) {
+      try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
+    }
     mount.innerHTML = `
       <div class="card">
         <h1>Photos</h1>
-        <p class="muted">Cart before/after photos. ${hasSheet
-          ? 'A hosted digital signoff sheet exists — paper sign-off capture is hidden.'
-          : 'No hosted sheet — capture paper sign-off sheets below.'}</p>
+        <p class="muted">Cart before/after photos${S.state.instaworkYes === 'Yes' ? ' and InstaWork sign-out' : ''}.</p>
       </div>
       ${['before', 'after'].map((type) => `
         <div class="card">
@@ -90,17 +90,6 @@
           </div>
           <div id="grid-${type}" style="margin-top:10px;">${gridHtml(type)}</div>
         </div>`).join('')}
-      <div class="card" id="paperSignoffCard" ${hasSheet ? 'hidden' : ''}>
-        <h2>Paper sign-off sheets</h2>
-        <p class="muted">Only shown when no digital sheet is ingested for this store/week.</p>
-        <div class="btn-row">
-          <label class="btn btn-primary" style="cursor:pointer;">
-            Add sign-off photo
-            <input type="file" accept="image/*,.heic,.heif" data-type="signoff" multiple hidden>
-          </label>
-        </div>
-        <div id="grid-signoff" style="margin-top:10px;">${gridHtml('signoff')}</div>
-      </div>
       ${S.state.instaworkYes === 'Yes' ? `
       <div class="card">
         <h2>InstaWork sign-out sheet</h2>

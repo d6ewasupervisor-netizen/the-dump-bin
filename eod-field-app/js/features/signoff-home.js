@@ -108,15 +108,19 @@
     return sheet;
   }
 
-  /** Fetch the live-rendered printable signoff PDF and open it in a new tab. */
-  async function openSignoffPdf(bucket) {
+  /** Fetch all signoff pages as PDF (preview) or fax via print-at-store. */
+  async function openSignoffPdfPreview() {
     const S = global.EodSession;
     const sheet = S.state.sheet;
     if (!sheet) return;
-    const btn = document.getElementById(bucket === 'blitz' ? 'printBlitzBtn' : 'printSignoffBtn');
+    const btn = document.getElementById('printSignoffBtn');
     if (btn) btn.disabled = true;
     try {
-      const qs = new URLSearchParams({ store: sheet.storeNumber, week: sheet.fiscalWeek, bucket });
+      const qs = new URLSearchParams({
+        store: sheet.storeNumber,
+        week: sheet.fiscalWeek,
+        bucket: 'all',
+      });
       const resp = await global.authFetch(`${API}/pdf?${qs}`);
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
@@ -130,6 +134,80 @@
     } finally {
       if (btn) btn.disabled = false;
     }
+  }
+
+  async function printSignoffAtStore(faxStoreNumber) {
+    const S = global.EodSession;
+    const sheet = S.state.sheet;
+    if (!sheet) throw new Error('No digital sheet loaded');
+    const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+    const body = JSON.stringify({
+      storeNumber: sheet.storeNumber,
+      fiscalWeek: sheet.fiscalWeek,
+      workDate: S.state.workDate,
+      faxStoreNumber: String(faxStoreNumber || sheet.storeNumber).replace(/\D/g, ''),
+    });
+    const resp = await global.authFetch(`${API}/print-at-store`, { method: 'POST', headers, body });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Print at store failed (${resp.status})`);
+    return data;
+  }
+
+  function openPrintAtStoreModal() {
+    const S = global.EodSession;
+    const sheet = S.state.sheet;
+    if (!sheet) return;
+    const existing = document.getElementById('printAtStoreOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'printAtStoreOverlay';
+    overlay.className = 'modal-overlay show';
+    overlay.innerHTML = `
+      <div class="modal-dialog">
+        <h2>Print signoff at store</h2>
+        <p class="muted">Emails the full signoff PDF (all pages, including BLITZ) to the store fax via subject #<em>store</em>.</p>
+        <div class="field">
+          <label for="faxStoreInput">Store number for fax</label>
+          <input type="text" id="faxStoreInput" inputmode="numeric" value="${esc(S.state.storeNumber || sheet.storeNumber || '')}">
+        </div>
+        <div id="printAtStoreMsg" class="muted" style="margin:8px 0;"></div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="printAtStorePreview">Preview PDF</button>
+          <button type="button" class="btn btn-success" id="printAtStoreSend">Send to store fax</button>
+          <button type="button" class="btn btn-secondary" id="printAtStoreCancel">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const msg = () => document.getElementById('printAtStoreMsg');
+    overlay.querySelector('#printAtStoreCancel').onclick = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#printAtStorePreview').onclick = async () => {
+      try {
+        await openSignoffPdfPreview();
+      } catch (err) {
+        if (msg()) msg().textContent = err.message || String(err);
+      }
+    };
+    overlay.querySelector('#printAtStoreSend').onclick = async () => {
+      const faxStore = document.getElementById('faxStoreInput')?.value?.trim();
+      const sendBtn = overlay.querySelector('#printAtStoreSend');
+      sendBtn.disabled = true;
+      if (msg()) msg().textContent = 'Sending…';
+      try {
+        const result = await printSignoffAtStore(faxStore);
+        if (msg()) {
+          msg().textContent = result.testMode
+            ? `TEST send OK — ${result.subject} → ${result.to}`
+            : `Sent ${result.filename || 'PDF'} as ${result.subject}`;
+        }
+        if (global.EodConnections?.toast) {
+          global.EodConnections.toast(result.testMode ? 'Test fax emailed' : `Fax queued ${result.subject}`, 'ok');
+        }
+      } catch (err) {
+        if (msg()) msg().textContent = err.message || String(err);
+        sendBtn.disabled = false;
+      }
+    };
   }
 
   function isOpenRow(row) {
@@ -246,15 +324,11 @@
     mount.innerHTML = `
       <div class="card heart">
         <h1>Digital signoff sheet</h1>
-        <p class="muted">This is the heart of your day. Marks sync from PROD + Store Intelligence across every ISE shift for the store (Kompass, Blitz, Cut-in, DIV, Central Pet). Photos for the store view page are prebuilt as they land — SI preferred over PROD.</p>
-        <div id="sheetSummary" class="muted" style="margin-bottom:10px;">Loading…</div>
-        <div id="sheetSyncStatus" class="muted" style="margin-bottom:10px;"></div>
+        <div id="sheetSummary" class="sheet-summary muted" style="margin-bottom:10px;">Loading…</div>
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
           <button type="button" class="btn btn-success" id="completeAllBtn" hidden>Complete all</button>
           <button type="button" class="btn btn-secondary" id="printSignoffBtn" hidden>Print signoff PDF</button>
-          <button type="button" class="btn btn-secondary" id="printBlitzBtn" hidden>Print BLITZ signoff PDF</button>
-          <button type="button" class="btn btn-secondary" id="paperFallbackBtn" hidden>Paper sign-off photos</button>
         </div>
         <div class="field" style="margin-top:12px;">
           <label>Search sets</label>
@@ -262,16 +336,13 @@
         </div>
         <div id="sheetRows"></div>
       </div>
-      <div class="card" id="deptSigMount"></div>`;
+      <div class="card dept-sig-card" id="deptSigMount"></div>`;
 
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
     const completeAllBtn = document.getElementById('completeAllBtn');
     const printSignoffBtn = document.getElementById('printSignoffBtn');
-    const printBlitzBtn = document.getElementById('printBlitzBtn');
-    const paperBtn = document.getElementById('paperFallbackBtn');
     const syncBtn = document.getElementById('syncProdSiBtn');
-    const syncStatus = document.getElementById('sheetSyncStatus');
     let pollTimer = null;
 
     function pacificHourNow() {
@@ -306,7 +377,6 @@
         visitIds,
         leadName,
       });
-      if (syncStatus) syncStatus.textContent = 'Syncing PROD and Store Intelligence across all ISE shifts…';
       const resp = await global.authFetch(`${API}/sync`, { method: 'POST', headers, body });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
@@ -314,13 +384,6 @@
       else {
         S.patch({ sheetLoaded: false }, 'prod-si-sync');
         await loadSheet();
-      }
-      const n = data.applied || 0;
-      const vCount = data.visitCount || visitIds.length || 0;
-      if (syncStatus) {
-        syncStatus.textContent = n
-          ? `Auto-marked ${n} set(s) from ${vCount} PROD shift(s) · next check ${pacificHourNow() >= 12 ? 'in 5 min' : 'hourly until noon PT'}`
-          : `PROD/SI checked across ${vCount} shift(s) · no new auto-marks · next ${pacificHourNow() >= 12 ? '5 min' : 'hourly until noon PT'}`;
       }
       return data;
     }
@@ -334,7 +397,7 @@
           await paint();
           global.EodChrome?.refresh();
         } catch (err) {
-          if (syncStatus) syncStatus.textContent = err.message || 'Sync failed';
+          console.warn('[signoff] poll sync', err.message || err);
         }
       }, pollMs());
     }
@@ -350,21 +413,17 @@
         }
       }
       if (!sheet) {
-        summary.innerHTML = 'No hosted sheet for this store/week yet. Use <strong>paper sign-off photos</strong> in Photos, or wait for weekly digital ingest.';
+        summary.innerHTML = 'No hosted sheet for this store/week yet.';
         rowsEl.innerHTML = '';
-        paperBtn.hidden = false;
         completeAllBtn.hidden = true;
         printSignoffBtn.hidden = true;
-        printBlitzBtn.hidden = true;
         document.body.classList.add('no-hosted-sheet');
         document.body.classList.remove('has-hosted-sheet');
         return;
       }
       document.body.classList.add('has-hosted-sheet');
       document.body.classList.remove('no-hosted-sheet');
-      paperBtn.hidden = true;
       printSignoffBtn.hidden = !(sheet.rows || []).length;
-      printBlitzBtn.hidden = !sheet.summary?.hasBlitzRows;
       const s = sheet.summary || {};
       const open = (sheet.rows || []).filter(isOpenRow).length;
       summary.innerHTML = `<strong>${esc(sheet.fiscalWeek)}</strong> · Store ${esc(sheet.storeNumber)}`
@@ -449,16 +508,14 @@
         completeAllBtn.disabled = false;
       }
     };
-    paperBtn.onclick = () => global.EodRouter.go('photos');
-    printSignoffBtn.onclick = () => openSignoffPdf('main');
-    printBlitzBtn.onclick = () => openSignoffPdf('blitz');
+    printSignoffBtn.onclick = () => openPrintAtStoreModal();
 
     await paint();
     try {
       await syncProdSi();
       await paint();
     } catch (err) {
-      if (syncStatus) syncStatus.textContent = err.message || 'PROD/SI sync unavailable';
+      console.warn('[signoff] initial sync', err.message || err);
     }
     startPoll();
 
@@ -473,13 +530,19 @@
         <button type="button" class="btn btn-primary btn-block" id="openDeptSigsBtn">Open department signatures</button>`;
       document.getElementById('openDeptSigsBtn').onclick = () => {
         if (global.EodDeptSignatures?.open) global.EodDeptSignatures.open();
-        else global.EodRouter.go('cover');
       };
-      // Ensure module UI exists
       try { global.EodDeptSignatures?.ensureUi?.(); } catch (_) {}
     }
   }
 
-  global.EodSignoffHome = { loadSheet, render, completeAllOpen, applyMark, openSignoffPdf };
+  global.EodSignoffHome = {
+    loadSheet,
+    render,
+    completeAllOpen,
+    applyMark,
+    openSignoffPdfPreview,
+    printSignoffAtStore,
+    openPrintAtStoreModal,
+  };
   global.EodRouter.register('signoff', render);
 })(typeof window !== 'undefined' ? window : globalThis);

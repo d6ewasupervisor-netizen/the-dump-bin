@@ -313,11 +313,13 @@
       </section>
 
       <section class="visit-step-panel" style="margin-top:16px;">
-        <h3>Check-in contact</h3>
+        <h3>Manager checked in with</h3>
         <div class="field">
           <label for="checkInManager">Name / title</label>
-          <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" placeholder="Optional">
+          <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" list="mgrListVisit" autocomplete="off" placeholder="Optional">
+          <button type="button" class="btn btn-secondary btn-block" id="pickInMgr" style="margin-top:6px;">Choose saved name</button>
         </div>
+        <datalist id="mgrListVisit">${(S.state.managerNamePool || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       </section>
 
       <section class="visit-step-panel" style="margin-top:16px;">
@@ -471,6 +473,20 @@
         S.saveDraft();
       };
     }
+    document.getElementById('pickInMgr')?.addEventListener('click', () => {
+      const items = (S.state.managerNamePool || []).map((n, i) => ({ id: String(i), label: n }));
+      global.EodPicker.open({
+        anchor: document.getElementById('pickInMgr'),
+        title: 'Saved managers',
+        items: items.length ? items : [{ id: 'x', label: 'No saved names', disabled: true }],
+        searchable: items.length > 6,
+        onChoose(item) {
+          if (!checkIn) return;
+          checkIn.value = item.label;
+          checkIn.dispatchEvent(new Event('input'));
+        },
+      });
+    });
 
     host.querySelectorAll('[data-before-set]').forEach((btn) => {
       btn.onclick = () => {
@@ -503,6 +519,9 @@
   async function render(mount) {
     const S = global.EodSession;
     const ready = S.isVisitReady();
+    if (ready && global.EodCover?.loadStoreData) {
+      try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
+    }
     if (ready && global.PhotoDB?.switchToDayConfirm) {
       try {
         await global.PhotoDB.switchToDayConfirm(S.state.storeNumber, S.state.workDate, S.state.photos);

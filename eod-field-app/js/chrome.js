@@ -1,6 +1,8 @@
-/* Sticky chrome + bottom nav. SAS/SI dots + version live in connections / version-test. */
+/* Sticky chrome + side / bottom nav. SAS/SI dots + version live in connections / version-test. */
 (function (global) {
   'use strict';
+
+  const NAV_COLLAPSE_KEY = 'eod-nav-collapsed';
 
   function refresh() {
     const S = global.EodSession;
@@ -35,23 +37,38 @@
     }
   }
 
+  function applyNavCollapsed(collapsed) {
+    document.body.classList.toggle('nav-collapsed', !!collapsed);
+    const btn = document.getElementById('navCollapseBtn');
+    if (btn) {
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      btn.title = collapsed ? 'Expand navigation' : 'Collapse navigation';
+      btn.textContent = collapsed ? '»' : '«';
+    }
+    try {
+      localStorage.setItem(NAV_COLLAPSE_KEY, collapsed ? '1' : '0');
+    } catch (_) {}
+  }
+
   function init() {
     document.querySelectorAll('[data-nav]').forEach((btn) => {
       btn.addEventListener('click', () => {
         global.EodRouter.go(btn.getAttribute('data-nav'));
       });
     });
-    document.getElementById('chromeCoverLink')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      global.EodRouter.go('cover');
-    });
-    global.EodPhotoPipeline?.onChange?.(() => {
-      try { refresh(); } catch (_) {}
-    });
     document.getElementById('chromeVisitLink')?.addEventListener('click', (e) => {
       e.preventDefault();
       global.EodRouter.go('visit');
     });
+    const collapseBtn = document.getElementById('navCollapseBtn');
+    if (collapseBtn) {
+      let collapsed = false;
+      try { collapsed = localStorage.getItem(NAV_COLLAPSE_KEY) === '1'; } catch (_) {}
+      applyNavCollapsed(collapsed);
+      collapseBtn.addEventListener('click', () => {
+        applyNavCollapsed(!document.body.classList.contains('nav-collapsed'));
+      });
+    }
     global.EodPhotoPipeline?.onChange?.(() => {
       try { refresh(); } catch (_) {}
     });
@@ -59,5 +76,5 @@
     refresh();
   }
 
-  global.EodChrome = { refresh, init };
+  global.EodChrome = { refresh, init, applyNavCollapsed };
 })(typeof window !== 'undefined' ? window : globalThis);

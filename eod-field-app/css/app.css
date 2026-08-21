@@ -536,16 +536,127 @@ h2 { font-size: 1.15rem; color: #7dd3fc; }
     min-height: 280px;
     padding: 16px;
   }
-  body[data-route="visit"] .bottom-nav { display: none; }
-  body[data-route="visit"] .app-shell { grid-template-columns: 1fr; }
-  body[data-route="visit"] #appMount { grid-column: 1; }
+  body[data-route="visit"] .bottom-nav { display: flex; }
+  body[data-route="visit"] .app-shell { grid-template-columns: 200px 1fr; }
+  body[data-route="visit"] #appMount { grid-column: 2; }
   .bottom-nav button { flex-direction: row; justify-content: flex-start; gap: 10px; font-size: 14px; min-height: 44px; }
+  .nav-collapse-btn {
+    align-self: flex-end;
+    min-height: 36px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  body.nav-collapsed .app-shell { grid-template-columns: 56px 1fr; }
+  body.nav-collapsed .nav-label { display: none; }
+  body.nav-collapsed .bottom-nav button[data-nav] { justify-content: center; padding-left: 8px; padding-right: 8px; }
   .chrome-store { font-size: 1.15rem; }
   #appChrome .pill { font-size: 11px; }
 }
 
 @media (min-width: 1024px) {
   .app-shell { max-width: 1200px; grid-template-columns: 220px 1fr; }
+  body:not(.nav-collapsed)[data-route="visit"] .app-shell,
+  body:not(.nav-collapsed) .app-shell { grid-template-columns: 220px 1fr; }
+}
+
+/* Dept signatures on digital signoff */
+.dept-sig-card .dept-sig-section,
+.dept-sig-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dept-sig-section .section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #93c5fd;
+  margin: 0;
+}
+.dept-sig-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.dept-sig-role-list { display: flex; flex-direction: column; gap: 8px; }
+.dept-sig-role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  background: #0f172a;
+}
+.dept-sig-role-row.collected {
+  border-color: #166534;
+  background: #052e16;
+}
+.dept-sig-role-meta { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+.dept-sig-wizard-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(2, 6, 23, 0.88);
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+}
+.dept-sig-wizard-overlay.show { display: flex; }
+.dept-sig-wizard-dialog {
+  width: 100%;
+  max-width: 720px;
+  margin: auto;
+  background: #111827;
+  color: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  max-height: 100vh;
+  overflow: auto;
+}
+.dept-sig-wizard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dept-sig-wizard-header h2 { margin: 0; font-size: 1.25rem; }
+.dept-sig-wizard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.dept-sig-choice {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  margin: 0 0 8px;
+  border-radius: 8px;
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: #f8fafc;
+  cursor: pointer;
+}
+.dept-sig-pad-wrap {
+  border: 2px dashed #64748b;
+  border-radius: 8px;
+  background: #fff;
+  touch-action: none;
+}
+.dept-sig-pad-wrap canvas { width: 100%; height: 220px; display: block; }
+#deptSigRoleList.eod-hidden-list { display: none !important; }
+.sheet-summary { font-size: 0.95rem; line-height: 1.45; }
+.sheet-summary .pill { margin-left: 2px; }
+
+/* Mobile: collapse control stays usable */
+@media (max-width: 767px) {
+  .nav-collapse-btn { display: none; }
 }
 
 /* Set survey / dual PROD+SI capture */
@@ -743,3 +854,33 @@ h2 { font-size: 1.15rem; color: #7dd3fc; }
 }
 .visit-step-panel { margin-top: 12px; }
 .visit-step-panel h3 { margin: 0 0 6px; font-size: 1.05rem; }
+
+/* Help desk wizard */
+.helpdesk-wizard-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.75);
+  overflow-y: auto;
+  padding: 16px;
+  padding-top: calc(16px + var(--safe-t, 0px));
+  padding-bottom: calc(16px + var(--safe-b, 0px));
+}
+.helpdesk-wizard-overlay.show { display: block; }
+.helpdesk-wizard-dialog {
+  max-width: 720px;
+  margin: 0 auto;
+  background: #111827;
+  border-radius: 12px;
+  padding: 18px;
+  border: 1px solid #374151;
+}
+.hd-issue-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.hd-issue-header { font-weight: 700; color: #93c5fd; margin-bottom: 10px; }
