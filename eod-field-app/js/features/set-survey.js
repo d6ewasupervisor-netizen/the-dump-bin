@@ -526,7 +526,9 @@
       });
       body.querySelectorAll('[data-gal]').forEach((input) => {
         input.onchange = async () => {
-          const files = [...(input.files || [])];
+          // Mobile gallery pickers often return FileList in reverse selection
+          // order (last tapped first). Reverse so first picked ? bay 1.
+          const files = [...(input.files || [])].reverse();
           input.value = '';
           if (!files.length) return;
           await enqueueFiles(input.getAttribute('data-gal'), files);
