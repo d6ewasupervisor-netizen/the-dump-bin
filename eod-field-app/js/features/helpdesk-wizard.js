@@ -119,6 +119,7 @@
             manualCategoryNumber: '',
             manualVersion: '',
             manualDbkey: '',
+            manualFootage: '',
             customIssue: '',
             details: '',
             photos: [],
@@ -147,6 +148,17 @@
         return `${y}-${m}-${dd}`;
     }
 
+    function footageTokenFromValue(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return '';
+        if (/^[FD]\d+/i.test(s)) return s.toUpperCase();
+        const n = s.replace(/[^\d.]/g, '');
+        if (!n) return '';
+        const whole = String(Math.round(Number(n)) || n).replace(/\D/g, '');
+        if (!whole) return '';
+        return `F${whole.padStart(3, '0')}`;
+    }
+
     function resolveIssueSetMeta(issue, map) {
         if (issue.setEntryManual) {
             return {
@@ -157,7 +169,7 @@
                 version: (issue.manualVersion || '').trim().replace(/^V/i, '') || null,
                 dbkey: (issue.manualDbkey || '').trim() || null,
                 planogramId: null,
-                footageToken: null,
+                footageToken: footageTokenFromValue(issue.footageToken || issue.manualFootage) || null,
             };
         }
         const set = findSelectedSet(issue, map);
@@ -171,7 +183,9 @@
             version: set?.version || issue.version || null,
             dbkey: set?.dbkey || issue.dbkey || null,
             planogramId: set?.planogramId || issue.planogramId || null,
-            footageToken: issue.footageToken || null,
+            footageToken: footageTokenFromValue(
+                issue.footageToken || set?.footage || set?.footageDisplay || set?.size
+            ) || null,
         };
     }
 
@@ -234,6 +248,10 @@
                             <label>DB key</label>
                             <input type="text" class="hd-manual-dbkey" data-idx="${idx}" value="${escapeHtml(issue.manualDbkey)}" placeholder="8509659" inputmode="numeric">
                         </div>
+                        <div class="field" style="flex:1; min-width:120px;">
+                            <label>Footage</label>
+                            <input type="text" class="hd-manual-footage" data-idx="${idx}" value="${escapeHtml(issue.manualFootage || '')}" placeholder="4" inputmode="decimal">
+                        </div>
                     </div>
                 </div>
                 <div class="field hd-custom-field" style="${isCustom ? '' : 'display:none'}">
@@ -290,6 +308,8 @@
                     wizardIssues[i].manualCategoryNumber = '';
                     wizardIssues[i].manualVersion = '';
                     wizardIssues[i].manualDbkey = '';
+                    wizardIssues[i].manualFootage = '';
+                    wizardIssues[i].footageToken = '';
                 }
                 renderWizardIssues();
             });
@@ -315,7 +335,9 @@
                 wizardIssues[i].version = opt?.dataset?.version || '';
                 wizardIssues[i].dbkey = opt?.dataset?.dbkey || '';
                 wizardIssues[i].planogramId = opt?.dataset?.planogramId || '';
-                wizardIssues[i].footageToken = '';
+                wizardIssues[i].footageToken = footageTokenFromValue(
+                    opt?.dataset?.footage || opt?.dataset?.setName || ''
+                );
             });
         });
 
@@ -352,6 +374,14 @@
         container.querySelectorAll('.hd-manual-dbkey').forEach((inp) => {
             inp.addEventListener('input', () => {
                 wizardIssues[Number(inp.dataset.idx)].manualDbkey = inp.value;
+            });
+        });
+
+        container.querySelectorAll('.hd-manual-footage').forEach((inp) => {
+            inp.addEventListener('input', () => {
+                const i = Number(inp.dataset.idx);
+                wizardIssues[i].manualFootage = inp.value;
+                wizardIssues[i].footageToken = footageTokenFromValue(inp.value);
             });
         });
 
@@ -497,17 +527,56 @@
         });
     }
 
-    function openHelpdeskWizard() {
-        wizardIssues = [newIssueBlock()];
+    function openHelpdeskWizard(prefill) {
+        wizardIssues = [Object.assign(newIssueBlock(), prefill && typeof prefill === 'object' ? prefill : {})];
         wizardExtraRecipients = [];
-        const storeNumber = document.getElementById('storeNumber')?.value?.trim() || '';
-        const userEmail = document.getElementById('profileEmail')?.value?.trim() || '';
-        const mainRecipients = window.emailRecipients || [];
+        const storeNumber = document.getElementById('storeNumber')?.value?.trim()
+            || window.EodSession?.state?.storeNumber
+            || '';
+        const userEmail = document.getElementById('profileEmail')?.value?.trim()
+            || window.EodSession?.state?.profileEmail
+            || '';
+        const mainRecipients = window.emailRecipients
+            || window.EodSession?.state?.emailRecipients
+            || [];
         wizardExtraRecipients = omitAiyanaForStore(mainRecipients.slice(), storeNumber, userEmail);
         renderWizardIssues();
         renderWizardRecipients();
         const overlay = document.getElementById('helpdeskWizardOverlay');
         if (overlay) overlay.classList.add('show');
+    }
+
+    function openHelpdeskForSheetRow(row) {
+        if (!row) {
+            openHelpdeskWizard({ issueTypeId: 'not_in_store', setEntryManual: true });
+            return;
+        }
+        const S = window.EodSession;
+        const versionRaw = row.versionToken || (row.version != null ? String(row.version) : '');
+        const version = String(versionRaw).replace(/^V/i, '');
+        const footageRaw = row.footageDisplay || row.size || row.footage || '';
+        const catNum = row.catId != null ? String(row.catId).replace(/\D/g, '') : '';
+        const shiftLabel = row.shiftType
+            || S?.state?.selectedShift?.projectName
+            || '';
+        const name = row.catName || row.catId || row.dbkey || 'Unnamed set';
+        openHelpdeskWizard({
+            issueTypeId: 'not_in_store',
+            setEntryManual: true,
+            manualShiftName: String(shiftLabel || ''),
+            manualSetName: String(name),
+            manualCategoryNumber: catNum,
+            manualVersion: version,
+            manualDbkey: String(row.dbkey || ''),
+            manualFootage: String(footageRaw || ''),
+            footageToken: footageTokenFromValue(footageRaw || row.footage),
+            details: [
+                'Marked Not in store on digital signoff sheet.',
+                row.dept ? `Dept: ${row.dept}.` : null,
+                row.week ? `Week: ${row.week}.` : null,
+                row.pog ? `POG: ${row.pog}.` : null,
+            ].filter(Boolean).join(' '),
+        });
     }
 
     function closeHelpdeskWizard() {
@@ -685,6 +754,7 @@
     };
 
     window.openHelpdeskWizard = openHelpdeskWizard;
+    window.openHelpdeskForSheetRow = openHelpdeskForSheetRow;
     window.closeHelpdeskWizard = closeHelpdeskWizard;
     window.submitHelpdeskWizard = submitHelpdeskWizard;
 

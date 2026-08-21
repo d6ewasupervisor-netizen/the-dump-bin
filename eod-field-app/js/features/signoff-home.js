@@ -257,9 +257,16 @@
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Mark failed (${resp.status})`);
-      // Side-effect hooks for NIS (helpdesk) — optional prompt
-      if (markType === 'not_in_store' && typeof global.openHelpdeskWizard === 'function') {
-        // Soft prompt only; mark already saved.
+      // Side-effect: open help desk prefilled from the digital sheet row.
+      if (markType === 'not_in_store') {
+        const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+        try {
+          if (typeof global.openHelpdeskForSheetRow === 'function') {
+            global.openHelpdeskForSheetRow(row || { id: rowId });
+          } else if (typeof global.openHelpdeskWizard === 'function') {
+            global.openHelpdeskWizard({ issueTypeId: 'not_in_store', setEntryManual: true });
+          }
+        } catch (_) {}
       }
     }
     if (!skipReload) await loadSheet();

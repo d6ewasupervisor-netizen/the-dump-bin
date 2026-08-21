@@ -934,3 +934,20 @@ h2 { font-size: 1.15rem; color: #7dd3fc; }
   margin-bottom: 14px;
 }
 .hd-issue-header { font-weight: 700; color: #93c5fd; margin-bottom: 10px; }
+
+/* Section prev / next */
+.section-nav { margin-top: 12px; }
+.section-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.section-nav-current {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+.section-nav-row .btn { min-width: 0; flex: 1; }
+.section-nav-row .btn:disabled { opacity: 0.35; cursor: default; }
