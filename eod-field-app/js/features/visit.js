@@ -1,4 +1,4 @@
-/* Visit setup + day-confirm gate + onboarding (cart → check-in → befores). */
+/* Visit setup + day-confirm gate + optional cart / check-in / befores. */
 (function (global) {
   'use strict';
 
@@ -87,7 +87,7 @@
     listEl.innerHTML = renderShiftCards(shifts, selIdx);
     wireShiftCards(listEl);
     if (shifts.length === 1) {
-      applyLeadFromShift(shifts[0]);
+      await applyLeadFromShift(shifts[0]);
       advanceAfterShiftSelected();
     }
   }
@@ -107,31 +107,48 @@
   function wireShiftCards(listEl) {
     const S = global.EodSession;
     listEl.querySelectorAll('.shift-card').forEach((card) => {
-      card.onclick = () => {
+      card.onclick = async () => {
         const idx = Number(card.getAttribute('data-idx'));
         const shift = S.state.shifts[idx];
         if (!shift) return;
         listEl.querySelectorAll('.shift-card').forEach((c) => c.classList.remove('selected'));
         card.classList.add('selected');
         S.patch({ selectedShift: shift }, 'shift');
-        applyLeadFromShift(shift);
+        await applyLeadFromShift(shift);
         S.saveDraft();
         advanceAfterShiftSelected();
         paintOnboarding();
+        updateContinueBtn();
       };
     });
   }
 
-  function applyLeadFromShift(shift) {
+  async function applyLeadFromShift(shift) {
     const S = global.EodSession;
     const lead = shift.visitLead || shift.leadName || '';
-    if (!lead) return;
-    const patch = { leadName: lead, profileName: lead };
-    S.patch(patch, 'lead');
-    const nameEl = document.getElementById('visitLeadName');
-    if (nameEl) nameEl.value = lead;
-    const profileEl = document.getElementById('visitName');
-    if (profileEl && !profileEl.value.trim()) profileEl.value = lead;
+    if (lead) {
+      S.patch({ leadName: lead, profileName: lead }, 'lead');
+      const nameEl = document.getElementById('visitLeadName');
+      if (nameEl) nameEl.value = lead;
+      const profileEl = document.getElementById('visitName');
+      if (profileEl && !profileEl.value.trim()) profileEl.value = lead;
+    }
+
+    let email = shift.visitLeadEmail || shift.leadEmail || shift.email || '';
+    if (!email && lead) {
+      try {
+        const resp = await global.authFetch(
+          `${global.EOD_API_BASE}/api/lead-info?name=${encodeURIComponent(lead)}`
+        );
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data.email) email = String(data.email).trim();
+      } catch (_) { /* optional */ }
+    }
+    if (email) {
+      S.patch({ profileEmail: email }, 'lead-email');
+      const emailEl = document.getElementById('visitEmail');
+      if (emailEl) emailEl.value = email;
+    }
   }
 
   function advanceAfterShiftSelected() {
@@ -143,137 +160,278 @@
     S.saveDraft();
   }
 
-  function onboardingReady() {
+  /** Store confirmed + a shift selected is enough to continue. Optional steps never block. */
+  function canContinue() {
     const S = global.EodSession;
-    return !!(
-      S.isVisitReady() &&
-      S.state.selectedShift &&
-      S.state.cartPhotoDone &&
-      S.state.checkInDone &&
-      S.state.beforesStepDone
-    );
+    return !!(S.isVisitReady() && S.state.selectedShift);
+  }
+
+  function updateContinueBtn() {
+    const continueBtn = document.getElementById('continueBtn');
+    if (continueBtn) continueBtn.disabled = !canContinue();
+  }
+
+  function cartPhotos(slot) {
+    const S = global.EodSession;
+    const key = slot === 'after' ? 'after' : 'before';
+    return (S.state.photos?.[key] || []).filter((p) => !p?.kind || p.kind === 'cart' || p.kind === `cart-${key}`);
+  }
+
+  function thumbRow(list) {
+    if (!list.length) return '<p class="muted">None yet.</p>';
+    return `<div class="set-thumbs">${list.map((p) => {
+      const src = p.dataUrl || p.preview || p;
+      return `<div class="set-thumb"><img src="${esc(typeof src === 'string' ? src : '')}" alt="cart"></div>`;
+    }).join('')}</div>`;
+  }
+
+  async function pullCartFromProd(slot) {
+    const S = global.EodSession;
+    const visitId = S.state.selectedShift?.visitId;
+    if (!visitId) throw new Error('Select a shift first');
+    const path = slot === 'after'
+      ? `/api/visit-photos/${encodeURIComponent(visitId)}/after-images`
+      : `/api/visit-photos/${encodeURIComponent(visitId)}/before-images`;
+    const resp = await global.authFetch(`${global.EOD_API_BASE}${path}`);
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Pull failed (${resp.status})`);
+    const images = Array.isArray(data.images) ? data.images.filter((i) => i?.url) : [];
+    if (!images.length) throw new Error('No KOMPASS MAINTENANCE photos in PROD for this slot');
+
+    const entries = [];
+    for (const img of images) {
+      entries.push({
+        dataUrl: img.url,
+        preview: img.url,
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        stampedAt: Date.now(),
+        kind: `cart-${slot}`,
+        source: 'prod',
+        prodImageId: img.id || null,
+        categoryResetId: data.categoryResetId || null,
+      });
+    }
+
+    const photos = Object.assign({}, S.state.photos, {
+      [slot]: entries,
+    });
+    const patch = { photos };
+    if (slot === 'before') patch.cartPhotoDone = true;
+    S.patch(patch, 'cart-pull-prod');
+    if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(photos);
+    S.saveDraft();
+    return entries.length;
+  }
+
+  async function uploadCartToProd(slot, dataUrl) {
+    const S = global.EodSession;
+    const visitId = S.state.selectedShift?.visitId;
+    if (!visitId) throw new Error('Select a shift first');
+    const storeNumber = S.state.storeNumber;
+    const date = S.state.workDate;
+    const leadName = S.state.leadName || S.state.profileName || '';
+    const padded = String(storeNumber).padStart(3, '0');
+    const dateCompact = String(date || '').replace(/-/g, '');
+    const filename = `fm${padded}_kompass_cart_${slot}_photo_${dateCompact}.jpg`;
+    const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+    const resp = await global.authFetch(`${global.EOD_API_BASE}/sas-upload`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        storeNumber,
+        date,
+        leadName,
+        visitId,
+        photoBase64: dataUrl,
+        slot,
+        targetReset: 'MAINTENANCE',
+        filename,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Upload failed (${resp.status})`);
+    return data;
   }
 
   function paintOnboarding() {
     const S = global.EodSession;
     const host = document.getElementById('visitOnboarding');
-    const continueBtn = document.getElementById('continueBtn');
     if (!host) return;
 
     if (!S.isVisitReady() || !S.state.selectedShift) {
-      host.innerHTML = '<p class="muted">Select a shift to continue with cart photo, check-in, and before photos.</p>';
-      if (continueBtn) continueBtn.disabled = true;
+      host.innerHTML = '';
+      updateContinueBtn();
       return;
     }
 
-    const step = S.state.visitStep || 'cart';
-    const cartCount = (S.state.photos?.before || []).length;
     const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
     const rows = (S.state.sheet?.rows || []).filter((r) => r.dbkey);
     const beforeCounts = rows.map((r) => {
       const local = global.EodSetBeforeStore?.getBefores?.(S.state.storeNumber, week, r.dbkey) || [];
       return { row: r, count: local.length };
     });
+    const befores = cartPhotos('before');
+    const afters = cartPhotos('after');
 
     host.innerHTML = `
-      <ol class="visit-steps">
-        <li class="${S.state.cartPhotoDone ? 'done' : (step === 'cart' ? 'current' : '')}">1. Kompass cart photo</li>
-        <li class="${S.state.checkInDone ? 'done' : (step === 'checkin' ? 'current' : '')}">2. Check-in contact</li>
-        <li class="${S.state.beforesStepDone ? 'done' : (step === 'befores' ? 'current' : '')}">3. Before photos of sets</li>
-      </ol>
-
-      <section class="visit-step-panel" ${step === 'cart' || !S.state.cartPhotoDone ? '' : 'hidden'}>
-        <h3>Kompass cart photo</h3>
-        <p class="muted">Take a picture of the Kompass cart before you start sets.</p>
-        <div class="btn-row">
-          <label class="btn btn-primary" style="cursor:pointer;">
-            Take / add cart photo
-            <input type="file" accept="image/*,.heic,.heif" capture="environment" id="cartPhotoInput" hidden>
-          </label>
-          <button type="button" class="btn btn-success" id="cartPhotoNext" ${cartCount ? '' : 'disabled'}>Next</button>
+      <section class="visit-step-panel">
+        <h3>Kompass cart</h3>
+        <div class="field">
+          <strong>Before</strong>
+          ${thumbRow(befores)}
+          <div class="btn-row">
+            <label class="btn btn-primary" style="cursor:pointer;">
+              Take / add
+              <input type="file" accept="image/*,.heic,.heif" capture="environment" id="cartBeforeInput" hidden>
+            </label>
+            <button type="button" class="btn btn-secondary" id="cartBeforePull">Pull from PROD</button>
+            <button type="button" class="btn btn-secondary" id="cartBeforePush" ${befores.length ? '' : 'disabled'}>Upload to PROD</button>
+          </div>
         </div>
-        <div id="cartPhotoPreview" style="margin-top:10px;">${cartCount
-          ? `<img src="${esc((S.state.photos.before[0] && (S.state.photos.before[0].dataUrl || S.state.photos.before[0])) || '')}" alt="Cart" style="max-width:180px;border-radius:10px;">`
-          : '<p class="muted">No cart photo yet.</p>'}</div>
+        <div class="field" style="margin-top:12px;">
+          <strong>After</strong>
+          ${thumbRow(afters)}
+          <div class="btn-row">
+            <label class="btn btn-primary" style="cursor:pointer;">
+              Take / add
+              <input type="file" accept="image/*,.heic,.heif" capture="environment" id="cartAfterInput" hidden>
+            </label>
+            <button type="button" class="btn btn-secondary" id="cartAfterPull">Pull from PROD</button>
+            <button type="button" class="btn btn-secondary" id="cartAfterPush" ${afters.length ? '' : 'disabled'}>Upload to PROD</button>
+          </div>
+        </div>
+        <div id="cartMsg" class="muted" style="margin-top:8px;"></div>
       </section>
 
-      <section class="visit-step-panel" ${step === 'checkin' || (S.state.cartPhotoDone && !S.state.checkInDone) ? '' : 'hidden'}>
-        <h3>Who did you check in with?</h3>
+      <section class="visit-step-panel" style="margin-top:16px;">
+        <h3>Check-in contact</h3>
         <div class="field">
           <label for="checkInManager">Name / title</label>
-          <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" placeholder="e.g. Grocery manager — Jordan">
-        </div>
-        <div class="btn-row">
-          <button type="button" class="btn btn-success" id="checkInNext">Next</button>
+          <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" placeholder="Optional">
         </div>
       </section>
 
-      <section class="visit-step-panel" ${step === 'befores' || (S.state.cartPhotoDone && S.state.checkInDone && !S.state.beforesStepDone) ? '' : 'hidden'}>
-        <h3>Before photos of sets</h3>
-        <p class="muted">Befores stay on this phone for the whole fiscal week (${esc(week || 'loading…')}) and online in PROD/SI after upload — even if the set stays backlog until later in the week.</p>
+      <section class="visit-step-panel" style="margin-top:16px;">
+        <h3>Set befores</h3>
         <div id="beforeSetList">${beforeCounts.length
           ? beforeCounts.map(({ row, count }) => `
             <div class="ds-row" style="margin-bottom:8px;">
               <strong>${esc(row.catName || row.dbkey)}</strong>
-              <div class="muted">${esc(row.dbkey || '')}${row.versionToken ? ` · ${esc(row.versionToken)}` : ''}${row.footageDisplay || row.size ? ` · footage ${esc(row.footageDisplay || row.size)}` : ''} · ${count} before photo(s) on device</div>
+              <div class="muted">${esc(row.dbkey || '')}${row.versionToken ? ` · ${esc(row.versionToken)}` : ''}${row.footageDisplay || row.size ? ` · ${esc(row.footageDisplay || row.size)} ft` : ''} · ${count}</div>
               <button type="button" class="btn btn-secondary" data-before-set="${esc(row.dbkey)}" data-row="${row.id}" data-name="${esc(row.catName || '')}">Capture befores</button>
             </div>`).join('')
-          : '<p class="muted">Load the digital sheet (or wait for ingest) to list sets. You can still continue and capture from Signoff.</p>'}</div>
-        <div class="btn-row" style="margin-top:12px;">
-          <button type="button" class="btn btn-success" id="beforesNext">Done with befores — continue</button>
-        </div>
+          : '<p class="muted">No sheet rows yet.</p>'}</div>
       </section>
     `;
 
-    const cartInput = document.getElementById('cartPhotoInput');
-    if (cartInput) {
-      cartInput.onchange = async () => {
-        const file = cartInput.files?.[0];
-        cartInput.value = '';
-        if (!file) return;
-        const dataUrl = await readFileAsDataUrl(file);
-        const entry = {
-          dataUrl,
-          storeNumber: S.state.storeNumber,
-          workDate: S.state.workDate,
-          stampedAt: Date.now(),
-          kind: 'cart',
-        };
-        const photos = Object.assign({}, S.state.photos, {
-          before: [entry, ...(S.state.photos.before || []).filter((p) => p?.kind !== 'cart')],
-        });
-        S.patch({ photos, cartPhotoDone: true, visitStep: 'checkin' }, 'cart-photo');
-        if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(photos);
-        S.saveDraft();
-        paintOnboarding();
+    function setCartMsg(text, isErr) {
+      const el = document.getElementById('cartMsg');
+      if (!el) return;
+      el.style.color = isErr ? 'var(--danger)' : '';
+      el.textContent = text || '';
+    }
+
+    async function addCartFile(slot, file) {
+      const dataUrl = await readFileAsDataUrl(file);
+      const entry = {
+        dataUrl,
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        stampedAt: Date.now(),
+        kind: `cart-${slot}`,
+      };
+      const existing = (S.state.photos?.[slot] || []).filter((p) => p?.kind && !String(p.kind).startsWith('cart'));
+      const photos = Object.assign({}, S.state.photos, {
+        [slot]: [...existing, entry],
+      });
+      const patch = { photos };
+      if (slot === 'before') patch.cartPhotoDone = true;
+      S.patch(patch, 'cart-photo');
+      if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(photos);
+      S.saveDraft();
+      try {
+        setCartMsg(`Uploading ${slot} to PROD…`);
+        await uploadCartToProd(slot, dataUrl);
+        setCartMsg(`${slot} uploaded to PROD (KOMPASS MAINTENANCE).`);
+      } catch (err) {
+        setCartMsg(err.message || String(err), true);
+      }
+      paintOnboarding();
+    }
+
+    const beforeInput = document.getElementById('cartBeforeInput');
+    if (beforeInput) {
+      beforeInput.onchange = async () => {
+        const file = beforeInput.files?.[0];
+        beforeInput.value = '';
+        if (file) await addCartFile('before', file);
       };
     }
-    const cartNext = document.getElementById('cartPhotoNext');
-    if (cartNext) {
-      cartNext.onclick = () => {
-        if (!(S.state.photos?.before || []).length) return;
-        S.patch({ cartPhotoDone: true, visitStep: 'checkin' }, 'cart-next');
-        S.saveDraft();
-        paintOnboarding();
+    const afterInput = document.getElementById('cartAfterInput');
+    if (afterInput) {
+      afterInput.onchange = async () => {
+        const file = afterInput.files?.[0];
+        afterInput.value = '';
+        if (file) await addCartFile('after', file);
       };
     }
-    const checkInNext = document.getElementById('checkInNext');
-    if (checkInNext) {
-      checkInNext.onclick = () => {
-        const name = (document.getElementById('checkInManager')?.value || '').trim();
-        if (!name) {
-          alert('Enter who you checked in with.');
-          return;
+
+    document.getElementById('cartBeforePull').onclick = async () => {
+      try {
+        setCartMsg('Pulling before from PROD…');
+        const n = await pullCartFromProd('before');
+        setCartMsg(`Pulled ${n} before photo(s) from PROD.`);
+        paintOnboarding();
+      } catch (err) {
+        setCartMsg(err.message || String(err), true);
+      }
+    };
+    document.getElementById('cartAfterPull').onclick = async () => {
+      try {
+        setCartMsg('Pulling after from PROD…');
+        const n = await pullCartFromProd('after');
+        setCartMsg(`Pulled ${n} after photo(s) from PROD.`);
+        paintOnboarding();
+      } catch (err) {
+        setCartMsg(err.message || String(err), true);
+      }
+    };
+    document.getElementById('cartBeforePush').onclick = async () => {
+      try {
+        const list = cartPhotos('before');
+        for (const p of list) {
+          await uploadCartToProd('before', p.dataUrl || p);
         }
+        setCartMsg('Before photos uploaded to PROD.');
+      } catch (err) {
+        setCartMsg(err.message || String(err), true);
+      }
+    };
+    document.getElementById('cartAfterPush').onclick = async () => {
+      try {
+        const list = cartPhotos('after');
+        for (const p of list) {
+          await uploadCartToProd('after', p.dataUrl || p);
+        }
+        setCartMsg('After photos uploaded to PROD.');
+      } catch (err) {
+        setCartMsg(err.message || String(err), true);
+      }
+    };
+
+    const checkIn = document.getElementById('checkInManager');
+    if (checkIn) {
+      checkIn.oninput = () => {
+        const name = checkIn.value.trim();
         S.patch({
           checkInManager: name,
-          checkInDone: true,
-          visitStep: 'befores',
+          checkInDone: !!name,
         }, 'checkin');
         S.saveDraft();
-        paintOnboarding();
       };
     }
+
     host.querySelectorAll('[data-before-set]').forEach((btn) => {
       btn.onclick = () => {
         const dbkey = btn.getAttribute('data-before-set');
@@ -283,17 +441,8 @@
         location.hash = `#/survey?${qs.toString()}`;
       };
     });
-    const beforesNext = document.getElementById('beforesNext');
-    if (beforesNext) {
-      beforesNext.onclick = () => {
-        S.patch({ beforesStepDone: true, visitStep: 'done' }, 'befores-done');
-        S.saveDraft();
-        paintOnboarding();
-        if (continueBtn) continueBtn.disabled = !onboardingReady();
-      };
-    }
 
-    if (continueBtn) continueBtn.disabled = !onboardingReady();
+    updateContinueBtn();
   }
 
   async function doReset() {
@@ -320,13 +469,16 @@
       } catch (_) {}
     }
 
+    const selIdx = S.state.shifts.findIndex(
+      (s) => s === S.state.selectedShift || s.visitId === S.state.selectedShift?.visitId
+    );
+
     mount.innerHTML = `
       <div class="card">
         <div class="btn-row" style="justify-content:space-between;align-items:center;">
           <h1 style="margin:0;">Today's visit</h1>
           <button type="button" class="btn btn-secondary" id="resetVisitBtn">Reset</button>
         </div>
-        <p class="muted">Confirm store and date, find your shift, then complete cart photo → check-in → before photos.</p>
         <div class="field-row">
           <div class="field">
             <label>Store #</label>
@@ -339,10 +491,6 @@
             <input type="date" id="visitDate" value="${esc(S.state.workDate || S.todayLocalIsoDate())}">
           </div>
         </div>
-        <div class="field">
-          <label>Your email</label>
-          <input type="email" id="visitEmail" value="${esc(S.state.profileEmail)}" placeholder="you@example.com">
-        </div>
         <div id="visitStatus" class="muted" style="min-height:1.2em;margin-bottom:8px;"></div>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="confirmVisitBtn">${ready ? 'Re-confirm store' : 'Confirm store & date'}</button>
@@ -352,21 +500,24 @@
 
       <div class="card" id="shiftCard">
         <h2>Shifts</h2>
-        <div id="shiftList">${S.state.shifts.length ? renderShiftCards(S.state.shifts, S.state.shifts.findIndex((s) => s === S.state.selectedShift || s.visitId === S.state.selectedShift?.visitId)) : '<p class="muted">Confirm store, then find shifts.</p>'}</div>
+        <div id="shiftList">${S.state.shifts.length ? renderShiftCards(S.state.shifts, selIdx) : '<p class="muted">Confirm store, then find shifts.</p>'}</div>
         <div class="field" style="margin-top:14px;">
           <label>Lead name</label>
-          <input type="text" id="visitLeadName" value="${esc(S.state.leadName || S.state.profileName || '')}" placeholder="Autofills when you select a shift">
-          <p class="muted" style="margin-top:4px;">Shown below the shift list — updates automatically from the selected shift lead.</p>
+          <input type="text" id="visitLeadName" value="${esc(S.state.leadName || S.state.profileName || '')}">
+        </div>
+        <div class="field">
+          <label>Lead email</label>
+          <input type="email" id="visitEmail" value="${esc(S.state.profileEmail)}" placeholder="you@example.com">
         </div>
       </div>
 
       <div class="card">
-        <h2>Next steps</h2>
+        <h2>Optional</h2>
         <div id="visitOnboarding"></div>
       </div>
 
       <div class="btn-row">
-        <button type="button" class="btn btn-success btn-block" id="continueBtn" ${onboardingReady() ? '' : 'disabled'}>
+        <button type="button" class="btn btn-success btn-block" id="continueBtn" ${canContinue() ? '' : 'disabled'}>
           Continue to digital signoff
         </button>
       </div>`;
@@ -379,6 +530,12 @@
     document.getElementById('visitLeadName').oninput = () => {
       const lead = document.getElementById('visitLeadName').value.trim();
       S.patch({ leadName: lead, profileName: lead || S.state.profileName }, 'lead-edit');
+      S.saveDraft();
+    };
+
+    document.getElementById('visitEmail').oninput = () => {
+      const email = document.getElementById('visitEmail').value.trim();
+      S.patch({ profileEmail: email }, 'email-edit');
       S.saveDraft();
     };
 
@@ -421,6 +578,7 @@
           document.getElementById('shiftList').innerHTML = `<p style="color:#ef4444;">${esc(err.message)}</p>`;
         }
         paintOnboarding();
+        updateContinueBtn();
       } catch (err) {
         status.innerHTML = `<span style="color:#ef4444;">${esc(err.message)}</span>`;
       } finally {
@@ -434,6 +592,7 @@
       try {
         await findShifts(store, date, document.getElementById('shiftList'));
         paintOnboarding();
+        updateContinueBtn();
       } catch (err) {
         document.getElementById('shiftList').innerHTML = `<p style="color:#ef4444;">${esc(err.message)}</p>`;
       }
@@ -444,11 +603,7 @@
       const email = document.getElementById('visitEmail').value.trim();
       S.patch({ leadName: lead, profileName: lead || S.state.profileName, profileEmail: email }, 'profile');
       S.saveDraft();
-      if (!onboardingReady()) {
-        document.getElementById('visitStatus').innerHTML =
-          '<span style="color:#ef4444;">Finish cart photo, check-in, and before-photo step first.</span>';
-        return;
-      }
+      if (!canContinue()) return;
       global.EodRouter.go('signoff');
     };
   }
