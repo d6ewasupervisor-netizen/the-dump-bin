@@ -57,6 +57,30 @@
     return sheet;
   }
 
+  /** Fetch the live-rendered printable signoff PDF and open it in a new tab. */
+  async function openSignoffPdf(bucket) {
+    const S = global.EodSession;
+    const sheet = S.state.sheet;
+    if (!sheet) return;
+    const btn = document.getElementById(bucket === 'blitz' ? 'printBlitzBtn' : 'printSignoffBtn');
+    if (btn) btn.disabled = true;
+    try {
+      const qs = new URLSearchParams({ store: sheet.storeNumber, week: sheet.fiscalWeek, bucket });
+      const resp = await global.authFetch(`${API}/pdf?${qs}`);
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || `PDF failed (${resp.status})`);
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err) {
+      alert(err.message || String(err));
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   function isOpenRow(row) {
     return !markActive(row, 'complete')
       && !markActive(row, 'not_in_store')
@@ -156,6 +180,7 @@
         </div>
         <div style="margin-top:6px;">${status}</div>
         <div class="ds-actions">
+          <button type="button" class="btn btn-primary" data-capture="${row.id}" data-dbkey="${esc(row.dbkey || '')}" data-name="${esc(row.catName || row.catId || '')}">Capture</button>
           ${btn('complete', 'Complete')}
           ${btn('not_in_store', 'Not in store')}
           ${btn('not_in_si', 'Not in SI')}
@@ -176,6 +201,8 @@
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
           <button type="button" class="btn btn-success" id="completeAllBtn" hidden>Complete all</button>
+          <button type="button" class="btn btn-secondary" id="printSignoffBtn" hidden>Print signoff PDF</button>
+          <button type="button" class="btn btn-secondary" id="printBlitzBtn" hidden>Print BLITZ signoff PDF</button>
           <button type="button" class="btn btn-secondary" id="paperFallbackBtn" hidden>Paper sign-off photos</button>
         </div>
         <div class="field" style="margin-top:12px;">
@@ -189,6 +216,8 @@
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
     const completeAllBtn = document.getElementById('completeAllBtn');
+    const printSignoffBtn = document.getElementById('printSignoffBtn');
+    const printBlitzBtn = document.getElementById('printBlitzBtn');
     const paperBtn = document.getElementById('paperFallbackBtn');
     const syncBtn = document.getElementById('syncProdSiBtn');
     const syncStatus = document.getElementById('sheetSyncStatus');
@@ -265,6 +294,8 @@
         rowsEl.innerHTML = '';
         paperBtn.hidden = false;
         completeAllBtn.hidden = true;
+        printSignoffBtn.hidden = true;
+        printBlitzBtn.hidden = true;
         document.body.classList.add('no-hosted-sheet');
         document.body.classList.remove('has-hosted-sheet');
         return;
@@ -272,6 +303,8 @@
       document.body.classList.add('has-hosted-sheet');
       document.body.classList.remove('no-hosted-sheet');
       paperBtn.hidden = true;
+      printSignoffBtn.hidden = !(sheet.rows || []).length;
+      printBlitzBtn.hidden = !sheet.summary?.hasBlitzRows;
       const s = sheet.summary || {};
       const open = (sheet.rows || []).filter(isOpenRow).length;
       summary.innerHTML = `<strong>${esc(sheet.fiscalWeek)}</strong> · Store ${esc(sheet.storeNumber)}`
@@ -296,6 +329,19 @@
           } finally {
             btn.disabled = false;
           }
+        };
+      });
+      rowsEl.querySelectorAll('[data-capture]').forEach((btn) => {
+        btn.onclick = () => {
+          const dbkey = btn.getAttribute('data-dbkey') || '';
+          const row = btn.getAttribute('data-capture') || '';
+          const name = btn.getAttribute('data-name') || '';
+          if (!dbkey) {
+            alert('This row has no dbkey — cannot open Capture.');
+            return;
+          }
+          const qs = new URLSearchParams({ dbkey, rowId: row, name });
+          location.hash = `#/survey?${qs.toString()}`;
         };
       });
     }
@@ -344,6 +390,8 @@
       }
     };
     paperBtn.onclick = () => global.EodRouter.go('photos');
+    printSignoffBtn.onclick = () => openSignoffPdf('main');
+    printBlitzBtn.onclick = () => openSignoffPdf('blitz');
 
     await paint();
     try {
@@ -372,6 +420,6 @@
     }
   }
 
-  global.EodSignoffHome = { loadSheet, render, completeAllOpen, applyMark };
+  global.EodSignoffHome = { loadSheet, render, completeAllOpen, applyMark, openSignoffPdf };
   global.EodRouter.register('signoff', render);
 })(typeof window !== 'undefined' ? window : globalThis);

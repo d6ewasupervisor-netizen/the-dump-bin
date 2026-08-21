@@ -547,3 +547,83 @@ h2 { font-size: 1.15rem; color: #7dd3fc; }
 @media (min-width: 1024px) {
   .app-shell { max-width: 1200px; grid-template-columns: 220px 1fr; }
 }
+
+/* Set survey / dual PROD+SI capture */
+.set-survey h1 { margin: 8px 0 4px; font-size: 1.25rem; }
+.set-photo-block {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.set-photo-block h2 { font-size: 1.05rem; margin: 0 0 8px; }
+.set-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.set-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 11px;
+  text-align: left;
+}
+.set-thumb img {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  display: block;
+  background: #000;
+}
+.set-thumb span { padding: 4px 6px; }
+.set-file-btn { display: inline-flex; align-items: center; cursor: pointer; }
+.set-survey-questions { margin: 10px 0; }
+
+.vf-live-camera {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+.vf-live-camera-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.vf-live-camera video {
+  flex: 1;
+  width: 100%;
+  object-fit: cover;
+  background: #000;
+  min-height: 0;
+}
+.vf-live-camera-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  padding-bottom: calc(12px + var(--safe-b));
+  background: rgba(2, 6, 23, 0.92);
+  border-top: 1px solid var(--border);
+}
+.vf-zoom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  flex: 1;
+  min-width: 140px;
+}
+.vf-zoom input { flex: 1; }
