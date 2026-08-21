@@ -16,11 +16,41 @@
     return m.type === type;
   }
 
+  function syncStatusPills(row) {
+    const live = row?.live;
+    const pills = [];
+    if (live) {
+      if (live.prodComplete || String(live.prodStatus || '').toLowerCase() === 'done') {
+        pills.push('<span class="pill ok">PROD complete</span>');
+      }
+      if (live.siComplete) {
+        pills.push('<span class="pill ok">SI complete</span>');
+      } else if (live.siPresent) {
+        const st = String(live.siStatus || 'present').replace(/_/g, ' ');
+        pills.push(`<span class="pill">${esc(st.startsWith('SI ') ? st : `SI ${st}`)}</span>`);
+      }
+    }
+    const active = row?.marks?.active || (row?.mark?.type ? [row.mark.type] : []) || [];
+    for (const t of active) {
+      if (t === 'complete') {
+        const by = row?.marks?.details?.complete?.markedBy;
+        if (by && by !== 'prod-si-sync') {
+          pills.push('<span class="pill ok">lead complete</span>');
+        }
+        continue;
+      }
+      if (t === 'not_in_si' && live?.siPresent) continue;
+      pills.push(`<span class="pill">${esc(String(t).replace(/_/g, ' '))}</span>`);
+    }
+    if (!pills.length) pills.push('<span class="pill">open</span>');
+    return pills.join('');
+  }
+
   function rowClass(row) {
     const c = [];
     if (markActive(row, 'complete')) c.push('marked-complete');
     if (markActive(row, 'not_in_store')) c.push('marked-nis');
-    if (markActive(row, 'not_in_si')) c.push('marked-nisi');
+    if (markActive(row, 'not_in_si') && !row?.live?.siPresent) c.push('marked-nisi');
     return c.join(' ');
   }
 
@@ -170,12 +200,11 @@
     });
     if (!rows.length) return '<p class="muted">No sets match.</p>';
     return rows.map((row) => {
-      const status = (row.marks?.active || (row.mark?.type ? [row.mark.type] : []) || [])
-        .map((t) => `<span class="pill">${esc(t.replace(/_/g, ' '))}</span>`).join('')
-        || '<span class="pill">open</span>';
+      const status = syncStatusPills(row);
       const btn = (type, label) => {
         const on = markActive(row, type);
-        return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${on ? '✓ ' : ''}${label}</button>`;
+        // Selected state is the .on border only — no checkmark (renders as ? on some devices).
+        return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
       return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
         <div><strong>${esc(row.catName || row.catId || '—')}</strong>

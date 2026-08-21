@@ -668,6 +668,35 @@
     return publicJob(job);
   }
 
+  /** Drop a local job (device only). Does not delete remote PROD/SI photos. */
+  function removeJob(id) {
+    const job = jobs.get(id);
+    if (!job) return false;
+    if (job.previewUrl && String(job.previewUrl).startsWith('blob:')) {
+      try { URL.revokeObjectURL(job.previewUrl); } catch (_) {}
+    }
+    jobs.delete(id);
+    idbDelete(id).catch(() => {});
+    persist();
+    emit('removed', job);
+    return true;
+  }
+
+  function removeSetBay(dbkey, slot, bay) {
+    let n = 0;
+    for (const j of [...jobs.values()]) {
+      if (
+        j.kind === 'set'
+        && String(j.dbkey) === String(dbkey)
+        && String(j.slot) === String(slot)
+        && Number(j.bay) === Number(bay)
+      ) {
+        if (removeJob(j.id)) n += 1;
+      }
+    }
+    return n;
+  }
+
   function waitForJob(id, timeoutMs = 120000) {
     return new Promise((resolve, reject) => {
       const start = Date.now();
@@ -755,6 +784,8 @@
     pendingCounts,
     onChange,
     retry,
+    removeJob,
+    removeSetBay,
     waitForJob,
     waitForSet,
     schedulePump,

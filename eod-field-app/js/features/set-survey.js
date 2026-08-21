@@ -510,41 +510,79 @@
         </div>`;
     }
 
+    function remoteStackHtml(slot) {
+      const remote = local.status?.remotePhotos || {};
+      const prod = slot === 'before' ? (remote.prodBefore || []) : (remote.prodAfter || []);
+      const si = slot === 'after' ? (remote.si || []) : [];
+      if (!prod.length && !si.length) return '';
+      return `<div class="set-remote-stack">
+        ${prod.length ? `<div class="set-remote-layer">
+          <div class="set-remote-label">PROD</div>
+          <div class="set-thumbs set-thumbs-remote">${prod.map((p) =>
+            `<div class="set-thumb remote prod" title="PROD bay ${esc(p.bay)}">
+              <img src="${esc(p.url)}" alt="PROD bay ${esc(p.bay)}">
+              <span>Bay ${esc(p.bay)} · PROD</span>
+            </div>`
+          ).join('')}</div>
+        </div>` : ''}
+        ${si.length ? `<div class="set-remote-layer">
+          <div class="set-remote-label">Store Intelligence</div>
+          <div class="set-thumbs set-thumbs-remote">${si.map((p) =>
+            `<div class="set-thumb remote si" title="SI bay ${esc(p.bay)}">
+              <img src="${esc(p.url)}" alt="SI bay ${esc(p.bay)}">
+              <span>Bay ${esc(p.bay)} · SI</span>
+            </div>`
+          ).join('')}</div>
+        </div>` : ''}
+      </div>`;
+    }
+
     function thumbHtml(list, slot) {
-      if (!list.length) return '<p class="muted">No local photos yet ? take or load in bay order (1 ? last).</p>';
+      if (!list.length) {
+        return '<p class="muted">No device photos yet — take or load in bay order (1 → last).</p>';
+      }
       const sorted = [...list].sort((a, b) => Number(a.bay) - Number(b.bay));
-      return `<div class="set-thumbs">${sorted
+      return `<div class="set-thumbs set-thumbs-device">${sorted
         .map(
           (p) =>
-            `<button type="button" class="set-thumb" data-slot="${slot}" data-bay="${esc(p.bay)}">
+            `<div class="set-thumb device" data-slot="${slot}" data-bay="${esc(p.bay)}" data-job="${esc(p.jobId || '')}">
+              <button type="button" class="set-thumb-x" data-clear-slot="${slot}" data-clear-bay="${esc(p.bay)}" data-clear-job="${esc(p.jobId || '')}" aria-label="Remove device photo">×</button>
               <img src="${p.preview}" alt="${slot} bay ${esc(p.bay)}">
-              <span>Bay ${esc(p.bay)} � ${esc(p.uploadStatus || 'queued')}</span>
-            </button>`
+              <span>Bay ${esc(p.bay)} · ${esc(p.uploadStatus || 'queued')}</span>
+            </div>`
         )
         .join('')}</div>`;
     }
 
+    function clearDevicePhoto(slot, bay, jobId) {
+      const bayNum = Number(bay);
+      if (jobId && global.EodPhotoPipeline?.removeJob) {
+        global.EodPhotoPipeline.removeJob(jobId);
+      } else if (global.EodPhotoPipeline?.removeSetBay) {
+        global.EodPhotoPipeline.removeSetBay(dbkey, slot, bayNum);
+      }
+      local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bayNum);
+      if (slot === 'before') persistBefores();
+      setMsg('Removed device bay ' + bayNum);
+      paintBody();
+    }
+
     function paintBody() {
-      const status = local.status || {};
       const n = expectedBayCount();
       const body = document.getElementById('setSurveyBody');
       if (!body) return;
       const nextAfter = nextEmptyBay('after');
       const nextBefore = nextEmptyBay('before');
       body.innerHTML = `
-        <div class="set-survey-questions">
-          ${(status.surveyQuestions || [])
-            .map((q) => `<div class="muted">? ${esc(q.text)}</div>`)
-            .join('')}
-        </div>
-
         <section class="set-photo-block">
           <h2>Before ${preferSlot === 'before' ? '<span class="pill warn">focus</span>' : ''}</h2>
           ${bayProgressHtml('before')}
+          ${remoteStackHtml('before')}
+          <div class="set-device-label muted">On this device</div>
           ${thumbHtml(local.before, 'before')}
           <div class="btn-row">
             <button type="button" class="btn btn-primary" data-cap="before">${
-              nextBefore ? `Take bay ${nextBefore}?` : 'Retake befores'
+              nextBefore ? 'Take bay ' + nextBefore : 'Retake befores'
             }</button>
             <label class="btn btn-secondary set-file-btn">Load photos
               <input type="file" accept="image/*" multiple data-gal="before" hidden>
@@ -555,10 +593,12 @@
         <section class="set-photo-block">
           <h2>After ${preferSlot === 'after' ? '<span class="pill warn">focus</span>' : ''}</h2>
           ${bayProgressHtml('after')}
+          ${remoteStackHtml('after')}
+          <div class="set-device-label muted">On this device</div>
           ${thumbHtml(local.after, 'after')}
           <div class="btn-row">
             <button type="button" class="btn btn-primary" data-cap="after">${
-              nextAfter ? `Take bay ${nextAfter} of ${n}` : 'Retake afters'
+              nextAfter ? 'Take bay ' + nextAfter + ' of ' + n : 'Retake afters'
             }</button>
             <label class="btn btn-secondary set-file-btn">Load photos
               <input type="file" accept="image/*" multiple data-gal="after" hidden>
@@ -576,20 +616,31 @@
       });
       body.querySelectorAll('[data-gal]').forEach((input) => {
         input.onchange = async () => {
-          // Mobile gallery pickers often return FileList in reverse selection
-          // order (last tapped first). Reverse so first picked ? bay 1.
           const files = [...(input.files || [])].reverse();
           input.value = '';
           if (!files.length) return;
           await enqueueFiles(input.getAttribute('data-gal'), files);
         };
       });
+      body.querySelectorAll('[data-clear-bay]').forEach((btn) => {
+        btn.onclick = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          clearDevicePhoto(
+            btn.getAttribute('data-clear-slot'),
+            btn.getAttribute('data-clear-bay'),
+            btn.getAttribute('data-clear-job')
+          );
+        };
+      });
       document.getElementById('crossFillBtn').onclick = async () => {
         try {
-          setMsg('Pulling photos across PROD ? SI?');
+          setMsg('Pulling photos across PROD / SI…');
           const r = await crossFill(dbkey, rowId);
           setMsg(
-            `Cross-fill (${r.direction}): uploaded ${r.uploaded?.length || 0}, skipped ${r.skipped?.length || 0}, errors ${r.errors?.length || 0}`
+            'Cross-fill (' + (r.direction || '') + '): uploaded ' + (r.uploaded?.length || 0)
+            + ', skipped ' + (r.skipped?.length || 0)
+            + ', errors ' + (r.errors?.length || 0)
           );
           if (r.status) paintStatus(r.status);
           paintBody();
