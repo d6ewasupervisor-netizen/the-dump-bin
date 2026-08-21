@@ -482,7 +482,7 @@
       const siSrc = status.si?.siDateSource || null;
       let siDateBit = '';
       if (siDate) {
-        const label = siSrc === 'prod_work_date' ? 'SI on PROD date' : 'SI date';
+        const label = siSrc === 'prod_work_date' ? 'SI on PROD date' : (siSrc === 'week_backwalk' ? 'SI earlier in week' : 'SI date');
         siDateBit = ` <span class="muted">${esc(label)} ${esc(siDate)}</span>`;
       }
       chips.innerHTML =
