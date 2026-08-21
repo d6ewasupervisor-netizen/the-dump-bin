@@ -1,10 +1,20 @@
-/* Background photo pipeline — capture stays instant; compress + upload continue off-UI. */
+/* Background photo pipeline — durable resume; skip bays already on PROD/SI. */
 (function (global) {
   'use strict';
 
-  const STORAGE_KEY = 'eodPhotoPipeline:v1';
+  const META_KEY = 'eodPhotoPipeline:v2';
+  const IDB_NAME = 'eodPhotoPipeline';
+  const IDB_STORE = 'jobs';
+  const IDB_VERSION = 1;
   const MAX_COMPRESS = 1;
   const MAX_UPLOAD = 2;
+  const OK_SIDES = new Set([
+    'ok',
+    'ok_already_complete',
+    'skipped',
+    'already_present',
+    'not_found', // SI missing task is not a hard fail for cart; for set treat carefully below
+  ]);
   const listeners = new Set();
 
   /** @type {Map<string, object>} */
@@ -13,6 +23,9 @@
   let uploadActive = 0;
   let pumpTimer = null;
   let started = false;
+  let idb = null;
+  let reconcileBusy = false;
+  const statusCache = new Map(); // key -> { at, status }
 
   function emit(type, job) {
     const detail = { type, job: job ? publicJob(job) : null, pending: pendingCounts() };
@@ -38,6 +51,8 @@
       error: job.error || null,
       prodStatus: job.prodStatus || null,
       siStatus: job.siStatus || null,
+      skipProd: !!job.skipProd,
+      skipSi: !!job.skipSi,
       bytes: job.bytes || null,
       updatedAt: job.updatedAt,
     };
@@ -50,67 +65,196 @@
     let done = 0;
     for (const j of jobs.values()) {
       if (j.status === 'queued' || j.status === 'compressing') compress += 1;
-      else if (j.status === 'compressed' || j.status === 'uploading') upload += 1;
+      else if (j.status === 'compressed' || j.status === 'uploading' || j.status === 'reconciling') upload += 1;
       else if (j.status === 'failed') failed += 1;
       else if (j.status === 'done') done += 1;
     }
     return { compress, upload, failed, done, total: jobs.size };
   }
 
+  function openIdb() {
+    if (idb) return Promise.resolve(idb);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        idb = req.result;
+        resolve(idb);
+      };
+      req.onupgradeneeded = (ev) => {
+        const db = ev.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+        }
+      };
+    });
+  }
+
+  function idbPut(record) {
+    return openIdb().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+          tx.objectStore(IDB_STORE).put(record);
+        })
+    );
+  }
+
+  function idbGetAll() {
+    return openIdb().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const tx = db.transaction(IDB_STORE, 'readonly');
+          const req = tx.objectStore(IDB_STORE).getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => reject(req.error);
+        })
+    );
+  }
+
+  function idbDelete(id) {
+    return openIdb().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+          tx.objectStore(IDB_STORE).delete(id);
+        })
+    );
+  }
+
+  function metaLean(job) {
+    return {
+      id: job.id,
+      kind: job.kind,
+      slot: job.slot,
+      bay: job.bay,
+      dbkey: job.dbkey,
+      rowId: job.rowId,
+      storeNumber: job.storeNumber,
+      workDate: job.workDate,
+      visitId: job.visitId,
+      resetId: job.resetId,
+      taskId: job.taskId,
+      status:
+        job.status === 'compressing'
+          ? 'queued'
+          : job.status === 'uploading' || job.status === 'reconciling'
+            ? 'compressed'
+            : job.status,
+      error: job.error || null,
+      prodStatus: job.prodStatus || null,
+      siStatus: job.siStatus || null,
+      skipProd: !!job.skipProd,
+      skipSi: !!job.skipSi,
+      bytes: job.bytes || null,
+      updatedAt: job.updatedAt || Date.now(),
+      fileName: job.fileName || null,
+      hasPayload: !!(job.dataUrl || job.file),
+    };
+  }
+
   function persist() {
     try {
       const lean = [];
       for (const j of jobs.values()) {
-        if (j.status === 'done' && Date.now() - (j.updatedAt || 0) > 6 * 60 * 60 * 1000) continue;
-        lean.push({
-          id: j.id,
-          kind: j.kind,
-          slot: j.slot,
-          bay: j.bay,
-          dbkey: j.dbkey,
-          rowId: j.rowId,
-          storeNumber: j.storeNumber,
-          workDate: j.workDate,
-          visitId: j.visitId,
-          resetId: j.resetId,
-          taskId: j.taskId,
-          status: j.status === 'compressing' ? 'queued'
-            : j.status === 'uploading' ? 'compressed'
-              : j.status,
-          dataUrl: j.dataUrl || null,
-          previewUrl: null,
-          error: j.error || null,
-          prodStatus: j.prodStatus || null,
-          siStatus: j.siStatus || null,
-          bytes: j.bytes || null,
-          updatedAt: j.updatedAt || Date.now(),
-          fileName: j.fileName || null,
-        });
+        if (j.status === 'done' && Date.now() - (j.updatedAt || 0) > 6 * 60 * 60 * 1000) {
+          idbDelete(j.id).catch(() => {});
+          continue;
+        }
+        lean.push(metaLean(j));
+        if (j.dataUrl) {
+          idbPut({
+            id: j.id,
+            dataUrl: j.dataUrl,
+            mime: j.mime || null,
+            bytes: j.bytes || null,
+            updatedAt: j.updatedAt || Date.now(),
+          }).catch(() => {});
+        }
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, jobs: lean.slice(-80) }));
-    } catch (_) { /* quota — drop oldest done */ }
+      localStorage.setItem(META_KEY, JSON.stringify({ v: 2, jobs: lean.slice(-120) }));
+    } catch (_) {
+      /* quota */
+    }
   }
 
-  function restore() {
+  async function restore() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      for (const j of parsed.jobs || []) {
-        if (!j?.id || jobs.has(j.id)) continue;
-        if (j.status === 'done') continue;
-        // Need dataUrl to resume upload; otherwise mark failed for re-capture
-        if ((j.status === 'compressed' || j.status === 'uploading' || j.status === 'queued') && !j.dataUrl && !j.file) {
-          if (j.status !== 'queued') {
-            j.status = 'failed';
-            j.error = 'Lost after reload — retake photo';
-          } else {
-            continue;
+      // Migrate v1 localStorage payloads if present
+      try {
+        const v1 = localStorage.getItem('eodPhotoPipeline:v1');
+        if (v1) {
+          const parsed = JSON.parse(v1);
+          for (const j of parsed.jobs || []) {
+            if (!j?.id || jobs.has(j.id)) continue;
+            hydrateJob(j);
+            if (j.dataUrl) {
+              await idbPut({
+                id: j.id,
+                dataUrl: j.dataUrl,
+                bytes: j.bytes || null,
+                updatedAt: j.updatedAt || Date.now(),
+              }).catch(() => {});
+            }
           }
+          localStorage.removeItem('eodPhotoPipeline:v1');
         }
-        jobs.set(j.id, j);
+      } catch (_) {}
+
+      const raw = localStorage.getItem(META_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        for (const j of parsed.jobs || []) {
+          if (!j?.id || jobs.has(j.id)) continue;
+          hydrateJob(j);
+        }
       }
+
+      const rows = await idbGetAll().catch(() => []);
+      for (const row of rows) {
+        const job = jobs.get(row.id);
+        if (job && row.dataUrl) {
+          job.dataUrl = row.dataUrl;
+          job.previewUrl = job.previewUrl || row.dataUrl;
+          job.bytes = row.bytes || job.bytes;
+          if (job.status === 'failed' && /Lost after reload/i.test(job.error || '')) {
+            job.status = 'compressed';
+            job.error = null;
+          }
+        } else if (!job && row.dataUrl) {
+          // Orphan payload — keep until meta returns
+        }
+      }
+
+      for (const j of jobs.values()) {
+        if (['queued', 'compressed', 'uploading', 'reconciling'].includes(j.status) && !j.dataUrl && !j.file) {
+          j.status = 'failed';
+          j.error = 'Lost after reload — retake photo';
+        }
+      }
+      persist();
     } catch (_) {}
+  }
+
+  function hydrateJob(j) {
+    const status =
+      j.status === 'compressing'
+        ? 'queued'
+        : j.status === 'uploading' || j.status === 'reconciling'
+          ? 'compressed'
+          : j.status;
+    jobs.set(j.id, {
+      ...j,
+      status,
+      file: null,
+      dataUrl: j.dataUrl || null,
+      previewUrl: j.previewUrl || j.dataUrl || null,
+      uploader: null,
+    });
   }
 
   function schedulePump() {
@@ -129,6 +273,68 @@
         setTimeout(resolve, 0);
       }
     });
+  }
+
+  function sideOk(status, kind) {
+    if (OK_SIDES.has(status)) {
+      if (kind === 'set' && status === 'not_found') return false;
+      return true;
+    }
+    return false;
+  }
+
+  async function fetchSetStatus(job) {
+    const S = global.EodSession;
+    const store = job.storeNumber || S?.state?.storeNumber;
+    const date = job.workDate || S?.state?.workDate;
+    const dbkey = job.dbkey;
+    if (!store || !date || !dbkey || !global.authFetch) return null;
+    const cacheKey = `${store}|${date}|${dbkey}|${job.rowId || ''}`;
+    const hit = statusCache.get(cacheKey);
+    if (hit && Date.now() - hit.at < 8000) return hit.status;
+    const qs = new URLSearchParams({ store, date, dbkey });
+    if (job.rowId) qs.set('rowId', job.rowId);
+    const visitId = job.visitId || S?.state?.selectedShift?.visitId;
+    if (visitId) qs.set('visitId', visitId);
+    try {
+      const resp = await global.authFetch(
+        `https://eod-api.the-dump-bin.com/api/field-set/status?${qs}`
+      );
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) return null;
+      statusCache.set(cacheKey, { at: Date.now(), status: data.status });
+      return data.status;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * Align job skip flags with remote PROD/SI bay presence.
+   * Returns true if job is fully covered remotely (mark done, no upload).
+   */
+  async function reconcileSetJob(job) {
+    if (job.kind !== 'set' || !job.dbkey) return false;
+    const status = await fetchSetStatus(job);
+    if (!status?.bays?.length) return false;
+    const bay = Number(job.bay) || 1;
+    const slot = String(job.slot || 'after').toLowerCase() === 'before' ? 'before' : 'after';
+    const b = status.bays.find((x) => Number(x.bay) === bay) || {};
+    const prodHas = slot === 'before' ? !!b.hasProdBefore : !!b.hasProdAfter;
+    const siHas = !!(b.hasSiPhoto || b.hasPhoto);
+    job.skipProd = job.skipProd || prodHas;
+    job.skipSi = job.skipSi || siHas;
+    if (prodHas) job.prodStatus = job.prodStatus || 'already_present';
+    if (siHas) job.siStatus = job.siStatus || 'already_present';
+    if (job.skipProd && job.skipSi) {
+      job.status = 'done';
+      job.error = null;
+      job.updatedAt = Date.now();
+      persist();
+      emit('done', job);
+      return true;
+    }
+    return false;
   }
 
   async function runCompress(job) {
@@ -154,7 +360,7 @@
         try { URL.revokeObjectURL(job.previewUrl); } catch (_) {}
       }
       job.previewUrl = job.dataUrl;
-      job.file = null; // free memory
+      job.file = null;
       job.status = 'compressed';
       job.updatedAt = Date.now();
       persist();
@@ -177,6 +383,14 @@
     emit('uploading', job);
     try {
       await yieldToUi();
+      if (job.kind === 'set' && !job.force) {
+        job.status = 'reconciling';
+        emit('reconciling', job);
+        const fullyRemote = await reconcileSetJob(job);
+        if (fullyRemote) return;
+        job.status = 'uploading';
+      }
+
       if (typeof job.uploader === 'function') {
         const result = await job.uploader(job);
         job.prodStatus = result?.prod?.status || result?.prodStatus || null;
@@ -189,11 +403,55 @@
         job.uploadResult = result;
       } else if (job.kind === 'cart' || job.kind === 'before' || job.kind === 'after') {
         const result = await defaultCartUpload(job);
-        job.prodStatus = result?.queued ? 'queued' : (result?.success ? 'ok' : null);
+        job.prodStatus = result?.queued ? 'queued' : result?.success ? 'ok' : null;
         job.uploadResult = result;
       }
-      job.status = 'done';
-      job.error = null;
+
+      if (job.kind === 'set') {
+        const prodOk = sideOk(job.prodStatus, 'set') || job.skipProd;
+        const siOk = sideOk(job.siStatus, 'set') || job.skipSi;
+        // Treat SI not_found as ok only when skipSi; otherwise retry later
+        const prodFine = prodOk || job.prodStatus === 'unavailable';
+        const siFine = siOk || job.siStatus === 'unavailable';
+
+        if (prodOk && siOk) {
+          job.status = 'done';
+          job.error = null;
+          job.skipProd = true;
+          job.skipSi = true;
+        } else if (prodOk && !siOk) {
+          job.skipProd = true;
+          job.status = 'compressed';
+          job.error = job.siStatus === 'error' ? `SI: ${job.uploadResult?.si?.message || 'retry'}` : null;
+          persist();
+          emit('partial', job);
+          return;
+        } else if (!prodOk && siOk) {
+          job.skipSi = true;
+          job.status = 'compressed';
+          job.error = job.prodStatus === 'error' ? `PROD: ${job.uploadResult?.prod?.message || 'retry'}` : null;
+          persist();
+          emit('partial', job);
+          return;
+        } else if (prodFine || siFine) {
+          // One side unavailable (session) — keep retrying
+          job.status = 'compressed';
+          job.error = 'Waiting for connection';
+          persist();
+          emit('partial', job);
+          return;
+        } else {
+          throw new Error(
+            [job.uploadResult?.prod?.message, job.uploadResult?.si?.message]
+              .filter(Boolean)
+              .join(' / ') || 'Upload failed both sides'
+          );
+        }
+      } else {
+        job.status = 'done';
+        job.error = null;
+      }
+
       job.updatedAt = Date.now();
       persist();
       emit('done', job);
@@ -223,6 +481,9 @@
       visitId: job.visitId || S.state.selectedShift?.visitId || null,
       resetId: job.resetId || null,
       taskId: job.taskId || null,
+      skipProd: !!job.skipProd,
+      skipSi: !!job.skipSi,
+      force: !!job.force,
     });
     const resp = await global.authFetch('https://eod-api.the-dump-bin.com/api/field-set/photo', {
       method: 'POST',
@@ -292,10 +553,6 @@
     return parts.filter(Boolean).join(':') + ':' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
-  /**
-   * Instant accept. Returns a job with previewUrl immediately.
-   * Compression + upload continue in background.
-   */
   function enqueue(opts) {
     const S = global.EodSession;
     const file = opts.file || null;
@@ -304,7 +561,6 @@
       try { previewUrl = URL.createObjectURL(file); } catch (_) {}
     }
     const id = opts.id || makeId([opts.kind || 'photo', opts.dbkey, opts.slot, opts.bay]);
-    // Retake: cancel prior open jobs for same set bay
     if (opts.kind === 'set' && opts.dbkey && opts.slot && opts.bay != null) {
       for (const j of jobs.values()) {
         if (
@@ -345,6 +601,9 @@
       error: file || opts.dataUrl ? null : 'No photo data',
       uploader: opts.uploader || null,
       skipUpload: !!opts.skipUpload,
+      skipProd: !!opts.skipProd,
+      skipSi: !!opts.skipSi,
+      force: !!opts.force,
       updatedAt: Date.now(),
     };
     if (job.skipUpload && job.dataUrl) {
@@ -378,7 +637,8 @@
     switch (job.status) {
       case 'queued': return 'queued';
       case 'compressing': return 'compressing';
-      case 'compressed': return 'ready';
+      case 'compressed': return job.error === 'Waiting for connection' ? 'waiting' : 'ready';
+      case 'reconciling': return 'checking';
       case 'uploading': return 'uploading';
       case 'done':
         return job.prodStatus || job.siStatus
@@ -442,14 +702,47 @@
     }
   }
 
+  async function reconcileOpenJobs() {
+    if (reconcileBusy) return;
+    reconcileBusy = true;
+    try {
+      statusCache.clear();
+      for (const job of jobs.values()) {
+        if (job.kind !== 'set') continue;
+        if (!['compressed', 'failed', 'queued'].includes(job.status)) continue;
+        if (job.error === 'replaced') continue;
+        if (!job.dataUrl && !job.file) continue;
+        try {
+          const done = await reconcileSetJob(job);
+          if (!done && job.status === 'failed' && job.dataUrl) {
+            job.status = 'compressed';
+            job.error = null;
+            persist();
+          }
+        } catch (_) {}
+      }
+    } finally {
+      reconcileBusy = false;
+      schedulePump();
+    }
+  }
+
   function start() {
     if (started) return;
     started = true;
-    restore();
-    schedulePump();
-    window.addEventListener('online', () => schedulePump());
+    restore().then(() => {
+      schedulePump();
+      reconcileOpenJobs();
+    });
+    window.addEventListener('online', () => {
+      reconcileOpenJobs();
+      schedulePump();
+    });
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') schedulePump();
+      if (document.visibilityState === 'visible') {
+        reconcileOpenJobs();
+        schedulePump();
+      }
     });
   }
 
@@ -465,9 +758,10 @@
     waitForJob,
     waitForSet,
     schedulePump,
+    reconcileOpenJobs,
+    fetchSetStatus,
   };
 
-  // Auto-start after DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start);
   } else {

@@ -335,6 +335,13 @@
       return out;
     }
 
+    function remoteBayCovered(slot, bayNum) {
+      const b = (local.status?.bays || []).find((x) => Number(x.bay) === Number(bayNum));
+      if (!b) return false;
+      if (String(slot) === 'before') return !!b.hasProdBefore;
+      return !!(b.hasSiPhoto || b.hasProdAfter || b.hasPhoto);
+    }
+
     function takenBays(slot) {
       const set = new Set();
       for (const p of local[slot] || []) {
@@ -343,11 +350,27 @@
         const b = Number(p.bay);
         if (Number.isFinite(b) && b > 0) set.add(b);
       }
+      for (const b of bayList()) {
+        const n = Number(b.bay);
+        if (remoteBayCovered(slot, n)) set.add(n);
+      }
       return set;
     }
 
     function nextEmptyBay(slot) {
       const taken = takenBays(slot);
+      const status = local.status || {};
+      if (String(slot) === 'after' && status.nextMissingSiBay != null && !taken.has(Number(status.nextMissingSiBay))) {
+        return Number(status.nextMissingSiBay);
+      }
+      if (String(slot) === 'after' && status.nextMissingProdAfterBay != null) {
+        const n = Number(status.nextMissingProdAfterBay);
+        if (!taken.has(n)) return n;
+      }
+      if (String(slot) === 'before' && status.nextMissingProdBeforeBay != null) {
+        const n = Number(status.nextMissingProdBeforeBay);
+        if (!taken.has(n)) return n;
+      }
       for (const b of bayList()) {
         if (!taken.has(Number(b.bay))) return Number(b.bay);
       }
