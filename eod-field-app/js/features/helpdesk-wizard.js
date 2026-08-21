@@ -214,7 +214,7 @@
                 </div>
                 <div class="hd-manual-set-fields" style="${showManualFields ? '' : 'display:none'}">
                     <div class="field">
-                        <label>Shift name <span class="hd-photo-hint">(optional — e.g. ISE, Blitz)</span></label>
+                        <label>Shift name</label>
                         <input type="text" class="hd-manual-shift" data-idx="${idx}" value="${escapeHtml(issue.manualShiftName)}" placeholder="Which shift is this for?">
                     </div>
                     <div class="field" style="margin-top:10px;">
@@ -231,7 +231,7 @@
                             <input type="text" class="hd-manual-version" data-idx="${idx}" value="${escapeHtml(issue.manualVersion)}" placeholder="D701">
                         </div>
                         <div class="field" style="flex:1; min-width:140px;">
-                            <label>DB key <span class="hd-photo-hint">(optional)</span></label>
+                            <label>DB key</label>
                             <input type="text" class="hd-manual-dbkey" data-idx="${idx}" value="${escapeHtml(issue.manualDbkey)}" placeholder="8509659" inputmode="numeric">
                         </div>
                     </div>

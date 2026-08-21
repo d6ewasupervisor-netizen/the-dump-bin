@@ -316,7 +316,7 @@
         <h3>Manager checked in with</h3>
         <div class="field">
           <label for="checkInManager">Name / title</label>
-          <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" list="mgrListVisit" autocomplete="off" placeholder="Optional">
+          <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" list="mgrListVisit" autocomplete="off">
           <button type="button" class="btn btn-secondary btn-block" id="pickInMgr" style="margin-top:6px;">Choose saved name</button>
         </div>
         <datalist id="mgrListVisit">${(S.state.managerNamePool || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
@@ -571,7 +571,6 @@
       </div>
 
       <div class="card">
-        <h2>Optional</h2>
         <div id="visitOnboarding"></div>
       </div>
 
