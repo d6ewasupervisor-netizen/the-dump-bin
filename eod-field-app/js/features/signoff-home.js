@@ -200,7 +200,7 @@
     mount.innerHTML = `
       <div class="card heart">
         <h1>Digital signoff sheet</h1>
-        <p class="muted">This is the heart of your day. Marks sync from PROD + Store Intelligence when both systems agree (Complete, Not in store, Not in SI). Photos for the store view page are prebuilt as they land — SI preferred over PROD.</p>
+        <p class="muted">This is the heart of your day. Marks sync from PROD + Store Intelligence across every ISE shift for the store (Kompass, Blitz, Cut-in, DIV, Central Pet). Photos for the store view page are prebuilt as they land — SI preferred over PROD.</p>
         <div id="sheetSummary" class="muted" style="margin-bottom:10px;">Loading…</div>
         <div id="sheetSyncStatus" class="muted" style="margin-bottom:10px;"></div>
         <div class="btn-row">
@@ -247,12 +247,20 @@
 
     async function syncProdSi() {
       const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+      const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
+      const visitIds = shifts.map((s) => s.visitId).filter(Boolean);
+      const leadName = S.state.leadName
+        || S.state.selectedShift?.visitLead
+        || S.state.selectedShift?.leadName
+        || null;
       const body = JSON.stringify({
         storeNumber: S.state.storeNumber,
         workDate: S.state.workDate,
         visitId: S.state.selectedShift?.visitId || null,
+        visitIds,
+        leadName,
       });
-      if (syncStatus) syncStatus.textContent = 'Syncing PROD and Store Intelligence…';
+      if (syncStatus) syncStatus.textContent = 'Syncing PROD and Store Intelligence across all ISE shifts…';
       const resp = await global.authFetch(`${API}/sync`, { method: 'POST', headers, body });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
@@ -262,10 +270,11 @@
         await loadSheet();
       }
       const n = data.applied || 0;
+      const vCount = data.visitCount || visitIds.length || 0;
       if (syncStatus) {
         syncStatus.textContent = n
-          ? `Auto-marked ${n} set(s) from PROD/SI · next check ${pacificHourNow() >= 12 ? 'in 5 min' : 'hourly until noon PT'}`
-          : `PROD/SI checked · no new auto-marks · next ${pacificHourNow() >= 12 ? '5 min' : 'hourly until noon PT'}`;
+          ? `Auto-marked ${n} set(s) from ${vCount} PROD shift(s) · next check ${pacificHourNow() >= 12 ? 'in 5 min' : 'hourly until noon PT'}`
+          : `PROD/SI checked across ${vCount} shift(s) · no new auto-marks · next ${pacificHourNow() >= 12 ? '5 min' : 'hourly until noon PT'}`;
       }
       return data;
     }
