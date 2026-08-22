@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.6';
+  const UI_VERSION = 'v2.7';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -146,7 +146,7 @@
       const data = await api('/api/welcome-letter/hires');
       const items = data.items || [];
       if (!items.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="wb-muted">No hires ingested yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="wb-muted">No hires ingested yet.</td></tr>';
         return;
       }
       tbody.innerHTML = items.map((h) => {
@@ -158,6 +158,12 @@
           ? `<button type="button" class="wb-btn wb-btn-ghost wb-orient-btn" data-id="${escapeHtml(h.id)}" data-complete="0" style="padding:4px 10px;font-size:12px;">Yes — set No</button>`
           : `<button type="button" class="wb-btn wb-btn-primary wb-orient-btn" data-id="${escapeHtml(h.id)}" data-complete="1" style="padding:4px 10px;font-size:12px;">No — set Yes</button>`;
         const orientBadge = orientComplete ? badge('Complete', 'sent') : badge('Incomplete', 'pending');
+        const routeBadge = h.routePreference
+          ? badge(`Route ${h.routePreference}`, 'sent')
+          : badge('—', 'not-opened');
+        const routeDate = h.routeStartDate
+          ? `<div class="wb-muted" style="font-size:12px;margin-top:4px;">${escapeHtml(h.routeStartDate)}</div>`
+          : '';
         const paid = Boolean(h.orientationPaid);
         const paidDate = paid && h.orientationPaidAt
           ? `<div class="wb-muted" style="font-size:12px;margin-top:4px;">${escapeHtml(fmtShortDate(h.orientationPaidAt))}</div>`
@@ -178,6 +184,7 @@
           <td>${escapeHtml(h.eid || '—')}</td>
           <td>${welcome}</td>
           <td>${orientBadge}<div style="margin-top:6px;">${orientBtn}</div></td>
+          <td>${routeBadge}${routeDate}</td>
           <td>${paidBadge}${paidDate}${paidErr}<div style="margin-top:6px;">${paidBtn}</div></td>
           <td>${badge(String(notices), noticeKind)}</td>
           <td>${chat}</td>
@@ -246,7 +253,7 @@
         });
       });
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="8" class="wb-muted">${escapeHtml(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="wb-muted">${escapeHtml(err.message)}</td></tr>`;
     }
   }
 
