@@ -347,6 +347,18 @@
     const bytes = selectionBytes();
     const pages = selectionPageEstimate();
     bar.classList.toggle('show', count > 0);
+    const shell = bar.closest('.mat-shell');
+    if (shell) {
+      shell.classList.toggle('has-selection', count > 0);
+      if (count > 0) {
+        requestAnimationFrame(() => {
+          const h = Math.ceil(bar.getBoundingClientRect().height);
+          shell.style.setProperty('--mat-selection-pad', `${Math.max(h + 24, 120)}px`);
+        });
+      } else {
+        shell.style.removeProperty('--mat-selection-pad');
+      }
+    }
     if (countEl) countEl.textContent = String(count);
     if (sizeEl) {
       sizeEl.textContent = count

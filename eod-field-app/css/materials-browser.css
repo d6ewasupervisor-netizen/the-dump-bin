@@ -109,6 +109,11 @@
   flex: 1;
   overflow: auto;
   padding: 12px 16px 88px;
+  scroll-padding-bottom: 88px;
+}
+.mat-shell.has-selection .mat-browser {
+  padding-bottom: var(--mat-selection-pad, 160px);
+  scroll-padding-bottom: var(--mat-selection-pad, 160px);
 }
 .mat-section { margin-bottom: 16px; }
 .mat-section__header {

@@ -100,6 +100,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireSelectionBar();
   wireModals();
   wirePrintModal();
+  window.addEventListener('resize', () => {
+    if (document.body.classList.contains('has-selection')) syncSelectionScrollPad();
+  });
   await loadIdentity();
   await loadWeeks();
 });
@@ -634,6 +637,21 @@ function wireCopiesSteppers(root, { onChange } = {}) {
   });
 }
 
+function syncSelectionScrollPad() {
+  const bar = document.getElementById('selectionBar');
+  if (!bar || !bar.classList.contains('visible')) {
+    document.body.classList.remove('has-selection');
+    document.documentElement.style.removeProperty('--db-selection-pad');
+    return;
+  }
+  document.body.classList.add('has-selection');
+  // Bar is position:fixed — leave room so the last files scroll clear of it.
+  const rect = bar.getBoundingClientRect();
+  const bottomGap = Math.max(0, window.innerHeight - rect.bottom);
+  const pad = Math.ceil(rect.height + bottomGap + 20);
+  document.documentElement.style.setProperty('--db-selection-pad', `${Math.max(pad, 96)}px`);
+}
+
 function updateSelectionBar() {
   const bar = document.getElementById('selectionBar');
   const count = selection.size;
@@ -648,6 +666,11 @@ function updateSelectionBar() {
     sizeEl.textContent = formatSize(selectionEffectiveBytes());
   }
   bar.classList.toggle('visible', count > 0);
+  requestAnimationFrame(() => {
+    syncSelectionScrollPad();
+    // Remeasure after the slide-in transform settles.
+    setTimeout(syncSelectionScrollPad, 320);
+  });
 }
 
 function renderSelectionList() {

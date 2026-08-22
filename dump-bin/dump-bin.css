@@ -458,6 +458,12 @@
   cursor: pointer;
 }
 
+/* Leave scroll room under the fixed selection bar so last files stay reachable */
+body.has-selection {
+  padding-bottom: var(--db-selection-pad, 160px);
+  scroll-padding-bottom: var(--db-selection-pad, 160px);
+}
+
 /* --- Floating selection bar --- */
 .db-selection-bar {
   position: fixed;
