@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.7';
+  const UI_VERSION = 'v2.8';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -103,6 +103,7 @@
   function kindLabel(item) {
     const st = String(item.sourceType || '');
     if (st === 'orientation-route-offer') return 'Route offer';
+    if (st === 'orientation-route-confirm') return 'Route confirmation';
     if (st === 'orientation-nudge') return 'Orientation nudge';
     if (st === 'orientation-nudge-staff') return 'Orientation nudge (staff)';
     if (item.metadata?.kind === 'disregard') return 'Disregard notice';
@@ -272,6 +273,8 @@
         nameExtra = ' <span class="wb-muted">(disregard)</span>';
       } else if (item.sourceType === 'orientation-route-offer') {
         nameExtra = ' <span class="wb-muted">(route offer)</span>';
+      } else if (item.sourceType === 'orientation-route-confirm') {
+        nameExtra = ' <span class="wb-muted">(route confirm)</span>';
       } else if (String(item.sourceType || '').startsWith('orientation-nudge')) {
         nameExtra = ' <span class="wb-muted">(nudge)</span>';
       }
