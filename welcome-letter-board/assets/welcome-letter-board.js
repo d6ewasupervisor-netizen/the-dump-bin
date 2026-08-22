@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.9';
+  const UI_VERSION = 'v2.10';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
