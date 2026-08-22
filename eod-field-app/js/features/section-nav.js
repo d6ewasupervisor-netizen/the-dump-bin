@@ -4,9 +4,9 @@
 
   const ORDER = [
     { id: 'visit', label: 'Visit' },
-    { id: 'signoff', label: 'Signoff' },
+    { id: 'signoff', label: 'Categories' },
     { id: 'crew', label: 'Crew' },
-    { id: 'photos', label: 'Photos' },
+    { id: 'dumpbin', label: 'Dump Bin' },
     { id: 'send', label: 'Send' },
     { id: 'helpdesk', label: 'Helpdesk' },
   ];
@@ -14,6 +14,7 @@
   function indexOf(route) {
     const id = String(route || '').toLowerCase().split('?')[0];
     if (id === 'survey' || id === 'cover') return ORDER.findIndex((r) => r.id === 'signoff');
+    if (id === 'photos') return ORDER.findIndex((r) => r.id === 'dumpbin');
     return ORDER.findIndex((r) => r.id === id);
   }
 

@@ -227,8 +227,8 @@
     const preferSlot = String(qp.get('slot') || 'after').toLowerCase() === 'before' ? 'before' : 'after';
 
     if (!dbkey) {
-      mount.innerHTML = `<div class="card error"><h2>Missing dbkey</h2><p>Open Capture from a signoff sheet row.</p>
-        <button type="button" class="btn btn-secondary" id="backSignoff">Back to signoff</button></div>`;
+      mount.innerHTML = `<div class="card error"><h2>Missing dbkey</h2><p>Open Capture from a Categories sheet row.</p>
+        <button type="button" class="btn btn-secondary" id="backSignoff">← Categories</button></div>`;
       document.getElementById('backSignoff').onclick = () => global.EodRouter.go('signoff');
       return;
     }
@@ -236,7 +236,7 @@
     mount.innerHTML = `
       <div class="card set-survey">
         <div class="btn-row" style="justify-content:space-between;">
-          <button type="button" class="btn btn-secondary" id="backSignoff">? Signoff</button>
+          <button type="button" class="btn btn-secondary" id="backSignoff">← Categories</button>
           <button type="button" class="btn btn-secondary" id="refreshStatus">Refresh</button>
         </div>
         <h1>${esc(catName || 'Set capture')}</h1>

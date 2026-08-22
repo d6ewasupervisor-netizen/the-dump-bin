@@ -330,7 +330,7 @@
     const S = global.EodSession;
     mount.innerHTML = `
       <div class="card heart">
-        <h1>Digital signoff sheet</h1>
+        <h1>Categories</h1>
         <div id="sheetSummary" class="sheet-summary muted" style="margin-bottom:10px;">Loading…</div>
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
@@ -343,6 +343,7 @@
         </div>
         <div id="sheetRows"></div>
       </div>
+      <div class="card" id="setBeforesMount"></div>
       <div class="card dept-sig-card" id="deptSigMount"></div>`;
 
     const summary = document.getElementById('sheetSummary');
@@ -525,6 +526,35 @@
       console.warn('[signoff] initial sync', err.message || err);
     }
     startPoll();
+
+    const setBeforesHost = document.getElementById('setBeforesMount');
+    if (setBeforesHost) {
+      const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
+      const rows = (S.state.sheet?.rows || []).filter((r) => r.dbkey);
+      const beforeCounts = rows.map((r) => {
+        const local = global.EodSetBeforeStore?.getBefores?.(S.state.storeNumber, week, r.dbkey) || [];
+        return { row: r, count: local.length };
+      });
+      setBeforesHost.innerHTML = `
+        <h2>Set befores</h2>
+        <div id="beforeSetList">${beforeCounts.length
+          ? beforeCounts.map(({ row, count }) => `
+            <div class="ds-row" style="margin-bottom:10px;">
+              <strong>${esc(row.catName || row.dbkey)}</strong>
+              <div class="muted">${esc(row.dbkey || '')}${row.versionToken ? ` · ${esc(row.versionToken)}` : ''}${row.footageDisplay || row.size ? ` · ${esc(row.footageDisplay || row.size)} ft` : ''} · ${count}</div>
+              <button type="button" class="btn btn-secondary" data-before-set="${esc(row.dbkey)}" data-row="${row.id}" data-name="${esc(row.catName || '')}">Capture befores</button>
+            </div>`).join('')
+          : '<p class="muted">No sheet rows yet.</p>'}</div>`;
+      setBeforesHost.querySelectorAll('[data-before-set]').forEach((btn) => {
+        btn.onclick = () => {
+          const dbkey = btn.getAttribute('data-before-set');
+          const rowId = btn.getAttribute('data-row');
+          const name = btn.getAttribute('data-name') || '';
+          const qs = new URLSearchParams({ dbkey, rowId, name, slot: 'before' });
+          location.hash = `#/survey?${qs.toString()}`;
+        };
+      });
+    }
 
     // Mount dept signatures into orbit card on this page for convenience
     const deptHost = document.getElementById('deptSigMount');

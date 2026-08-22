@@ -269,24 +269,15 @@
 
     if (!S.isVisitReady() || !S.state.selectedShift) {
       host.innerHTML = '';
-      updateContinueBtn();
       return;
     }
 
-    const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
-    const rows = (S.state.sheet?.rows || []).filter((r) => r.dbkey);
-    const beforeCounts = rows.map((r) => {
-      const local = global.EodSetBeforeStore?.getBefores?.(S.state.storeNumber, week, r.dbkey) || [];
-      return { row: r, count: local.length };
-    });
     const befores = cartPhotos('before');
-    const afters = cartPhotos('after');
 
     host.innerHTML = `
       <section class="visit-step-panel">
-        <h3>Kompass cart</h3>
+        <h3>Kompass cart — before</h3>
         <div class="field">
-          <strong>Before</strong>
           ${thumbRow(befores)}
           <div class="btn-row">
             <label class="btn btn-primary" style="cursor:pointer;">
@@ -295,18 +286,6 @@
             </label>
             <button type="button" class="btn btn-secondary" id="cartBeforePull">Pull from PROD</button>
             <button type="button" class="btn btn-secondary" id="cartBeforePush" ${befores.length ? '' : 'disabled'}>Upload to PROD</button>
-          </div>
-        </div>
-        <div class="field" style="margin-top:12px;">
-          <strong>After</strong>
-          ${thumbRow(afters)}
-          <div class="btn-row">
-            <label class="btn btn-primary" style="cursor:pointer;">
-              Take / add
-              <input type="file" accept="image/*,.heic,.heif" capture="environment" id="cartAfterInput" hidden>
-            </label>
-            <button type="button" class="btn btn-secondary" id="cartAfterPull">Pull from PROD</button>
-            <button type="button" class="btn btn-secondary" id="cartAfterPush" ${afters.length ? '' : 'disabled'}>Upload to PROD</button>
           </div>
         </div>
         <div id="cartMsg" class="muted" style="margin-top:8px;"></div>
@@ -321,19 +300,7 @@
         </div>
         <datalist id="mgrListVisit">${(S.state.managerNamePool || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       </section>
-
-      <section class="visit-step-panel" style="margin-top:16px;">
-        <h3>Set befores</h3>
-        <div id="beforeSetList">${beforeCounts.length
-          ? beforeCounts.map(({ row, count }) => `
-            <div class="ds-row" style="margin-bottom:8px;">
-              <strong>${esc(row.catName || row.dbkey)}</strong>
-              <div class="muted">${esc(row.dbkey || '')}${row.versionToken ? ` · ${esc(row.versionToken)}` : ''}${row.footageDisplay || row.size ? ` · ${esc(row.footageDisplay || row.size)} ft` : ''} · ${count}</div>
-              <button type="button" class="btn btn-secondary" data-before-set="${esc(row.dbkey)}" data-row="${row.id}" data-name="${esc(row.catName || '')}">Capture befores</button>
-            </div>`).join('')
-          : '<p class="muted">No sheet rows yet.</p>'}</div>
-      </section>
-    `;
+        `;
 
     function setCartMsg(text, isErr) {
       const el = document.getElementById('cartMsg');
@@ -410,30 +377,12 @@
         if (file) await addCartFile('before', file);
       };
     }
-    const afterInput = document.getElementById('cartAfterInput');
-    if (afterInput) {
-      afterInput.onchange = async () => {
-        const file = afterInput.files?.[0];
-        afterInput.value = '';
-        if (file) await addCartFile('after', file);
-      };
-    }
 
     document.getElementById('cartBeforePull').onclick = async () => {
       try {
         setCartMsg('Pulling before from PROD…');
         const n = await pullCartFromProd('before');
         setCartMsg(`Pulled ${n} before photo(s) from PROD.`);
-        paintOnboarding();
-      } catch (err) {
-        setCartMsg(err.message || String(err), true);
-      }
-    };
-    document.getElementById('cartAfterPull').onclick = async () => {
-      try {
-        setCartMsg('Pulling after from PROD…');
-        const n = await pullCartFromProd('after');
-        setCartMsg(`Pulled ${n} after photo(s) from PROD.`);
         paintOnboarding();
       } catch (err) {
         setCartMsg(err.message || String(err), true);
@@ -446,17 +395,6 @@
           await uploadCartToProd('before', p.dataUrl || p);
         }
         setCartMsg('Before photos uploaded to PROD.');
-      } catch (err) {
-        setCartMsg(err.message || String(err), true);
-      }
-    };
-    document.getElementById('cartAfterPush').onclick = async () => {
-      try {
-        const list = cartPhotos('after');
-        for (const p of list) {
-          await uploadCartToProd('after', p.dataUrl || p);
-        }
-        setCartMsg('After photos uploaded to PROD.');
       } catch (err) {
         setCartMsg(err.message || String(err), true);
       }
@@ -488,17 +426,7 @@
       });
     });
 
-    host.querySelectorAll('[data-before-set]').forEach((btn) => {
-      btn.onclick = () => {
-        const dbkey = btn.getAttribute('data-before-set');
-        const rowId = btn.getAttribute('data-row');
-        const name = btn.getAttribute('data-name') || '';
-        const qs = new URLSearchParams({ dbkey, rowId, name, slot: 'before' });
-        location.hash = `#/survey?${qs.toString()}`;
-      };
-    });
 
-    updateContinueBtn();
   }
 
   async function doReset() {
@@ -573,12 +501,7 @@
       <div class="card">
         <div id="visitOnboarding"></div>
       </div>
-
-      <div class="btn-row">
-        <button type="button" class="btn btn-success btn-block" id="continueBtn" ${canContinue() ? '' : 'disabled'}>
-          Continue to digital signoff
-        </button>
-      </div>`;
+`;
 
     if (S.state.shifts.length) wireShiftCards(document.getElementById('shiftList'));
     paintOnboarding();
@@ -656,15 +579,8 @@
       }
     };
 
-    document.getElementById('continueBtn').onclick = () => {
-      const lead = document.getElementById('visitLeadName').value.trim();
-      const email = document.getElementById('visitEmail').value.trim();
-      S.patch({ leadName: lead, profileName: lead || S.state.profileName, profileEmail: email }, 'profile');
-      S.saveDraft();
-      if (!canContinue()) return;
-      global.EodRouter.go('signoff');
-    };
   }
 
+  global.EodVisitCart = { cartPhotos, preparePhoto, pullCartFromProd, uploadCartToProd, thumbRow };
   global.EodRouter.register('visit', render);
 })(typeof window !== 'undefined' ? window : globalThis);

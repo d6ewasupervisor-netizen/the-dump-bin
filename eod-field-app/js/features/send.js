@@ -209,6 +209,19 @@ ${S.state.notes || ''}`;
           <label>Notes</label>
           <textarea id="sendNotes" rows="4">${esc(S.state.notes || '')}</textarea>
         </div>
+        <div class="card" id="cartAfterCard" style="margin:12px 0;">
+          <h2>Kompass cart — after</h2>
+          <div id="cartAfterThumbs" class="set-thumbs" style="margin-bottom:10px;"></div>
+          <div class="btn-row">
+            <label class="btn btn-primary" style="cursor:pointer;">
+              Take / add
+              <input type="file" accept="image/*,.heic,.heif" capture="environment" id="cartAfterInput" hidden>
+            </label>
+            <button type="button" class="btn btn-secondary" id="cartAfterPull">Pull from PROD</button>
+            <button type="button" class="btn btn-secondary" id="cartAfterPush">Upload to PROD</button>
+          </div>
+          <div id="cartAfterMsg" class="muted" style="margin-top:8px;"></div>
+        </div>
         <div class="field">
           <label>Lead signature</label>
           <div class="sig-preview" id="sigPreview">${S.state.signatureDataUrl
@@ -272,6 +285,98 @@ ${S.state.notes || ''}`;
         },
       });
     });
+
+    (function wireCartAfter() {
+      const Cart = global.EodVisitCart;
+      const setMsg = (t, err) => {
+        const el = document.getElementById('cartAfterMsg');
+        if (!el) return;
+        el.style.color = err ? 'var(--danger)' : '';
+        el.textContent = t || '';
+      };
+      function paintThumbs() {
+        const host = document.getElementById('cartAfterThumbs');
+        if (!host || !Cart) return;
+        const list = Cart.cartPhotos('after');
+        host.innerHTML = list.length
+          ? Cart.thumbRow(list)
+          : '<p class="muted" style="margin:0;">No after photos yet.</p>';
+        const pushBtn = document.getElementById('cartAfterPush');
+        if (pushBtn) pushBtn.disabled = !list.length;
+      }
+      paintThumbs();
+      document.getElementById('cartAfterInput')?.addEventListener('change', async (ev) => {
+        const file = ev.target.files?.[0];
+        ev.target.value = '';
+        if (!file || !Cart) return;
+        try {
+          const pipe = global.EodPhotoPipeline;
+          if (pipe?.enqueue) {
+            const job = pipe.enqueue({
+              kind: 'cart',
+              compressType: 'after',
+              slot: 'after',
+              bay: 1,
+              file,
+              visitId: S.state.selectedShift?.visitId,
+            });
+            const entry = {
+              dataUrl: job.previewUrl,
+              preview: job.previewUrl,
+              storeNumber: S.state.storeNumber,
+              workDate: S.state.workDate,
+              stampedAt: Date.now(),
+              kind: 'cart-after',
+              jobId: job.id,
+            };
+            const existing = (S.state.photos?.after || []).filter((p) => p?.kind && !String(p.kind).startsWith('cart'));
+            const photos = Object.assign({}, S.state.photos, { after: [...existing, entry] });
+            S.patch({ photos }, 'cart-after');
+            if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(photos);
+            S.saveDraft();
+            setMsg('After queued');
+          } else {
+            const dataUrl = await Cart.preparePhoto(file, 'after');
+            const entry = {
+              dataUrl,
+              storeNumber: S.state.storeNumber,
+              workDate: S.state.workDate,
+              stampedAt: Date.now(),
+              kind: 'cart-after',
+            };
+            const existing = (S.state.photos?.after || []).filter((p) => p?.kind && !String(p.kind).startsWith('cart'));
+            const photos = Object.assign({}, S.state.photos, { after: [...existing, entry] });
+            S.patch({ photos }, 'cart-after');
+            if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(photos);
+            S.saveDraft();
+          }
+          paintThumbs();
+        } catch (err) {
+          setMsg(err.message || String(err), true);
+        }
+      });
+      document.getElementById('cartAfterPull')?.addEventListener('click', async () => {
+        if (!Cart) return;
+        try {
+          setMsg('Pulling after from PROD…');
+          const n = await Cart.pullCartFromProd('after');
+          setMsg('Pulled ' + n + ' after photo(s) from PROD.');
+          paintThumbs();
+        } catch (err) {
+          setMsg(err.message || String(err), true);
+        }
+      });
+      document.getElementById('cartAfterPush')?.addEventListener('click', async () => {
+        if (!Cart) return;
+        try {
+          const list = Cart.cartPhotos('after');
+          for (const p of list) await Cart.uploadCartToProd('after', p.dataUrl || p);
+          setMsg('After photos uploaded to PROD.');
+        } catch (err) {
+          setMsg(err.message || String(err), true);
+        }
+      });
+    })();
 
     function paintRecipients() {
       const host = document.getElementById('recipientList');
