@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.5';
+  const UI_VERSION = 'v2.6';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -133,13 +133,18 @@
       const data = await api('/api/welcome-letter/hires');
       const items = data.items || [];
       if (!items.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="wb-muted">No hires ingested yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="wb-muted">No hires ingested yet.</td></tr>';
         return;
       }
       tbody.innerHTML = items.map((h) => {
         const welcome = h.welcomeSentAt ? badge('Sent', 'sent') : badge('Pending', 'pending');
         const notices = Number(h.noticeCount || 0);
         const noticeKind = notices >= 7 ? 'failed' : notices >= 4 ? 'cancelled' : notices > 0 ? 'pending' : 'not-opened';
+        const orientComplete = Boolean(h.orientationComplete);
+        const orientBtn = orientComplete
+          ? `<button type="button" class="wb-btn wb-btn-ghost wb-orient-btn" data-id="${escapeHtml(h.id)}" data-complete="0" style="padding:4px 10px;font-size:12px;">Yes — set No</button>`
+          : `<button type="button" class="wb-btn wb-btn-primary wb-orient-btn" data-id="${escapeHtml(h.id)}" data-complete="1" style="padding:4px 10px;font-size:12px;">No — set Yes</button>`;
+        const orientBadge = orientComplete ? badge('Complete', 'sent') : badge('Incomplete', 'pending');
         const chat = h.chatUrl
           ? `<a href="${escapeHtml(h.chatUrl)}" target="_blank" rel="noopener">Open</a>`
           : '—';
@@ -148,12 +153,46 @@
           <td>${escapeHtml(h.hireEmail || '—')}</td>
           <td>${escapeHtml(h.eid || '—')}</td>
           <td>${welcome}</td>
+          <td>${orientBadge}<div style="margin-top:6px;">${orientBtn}</div></td>
           <td>${badge(String(notices), noticeKind)}</td>
           <td>${chat}</td>
         </tr>`;
       }).join('');
+
+      tbody.querySelectorAll('.wb-orient-btn').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const id = btn.dataset.id;
+          const complete = btn.dataset.complete === '1';
+          if (complete) {
+            if (!window.confirm(
+              'Mark orientation complete?\n\nThis will also email the hire Wolf\'s route preference offer (Tyson + Wolf on copy), unless one was already sent.',
+            )) return;
+          }
+          btn.disabled = true;
+          try {
+            await api(`/api/welcome-letter/hires/${encodeURIComponent(id)}`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                orientationComplete: complete,
+                sendRouteOffer: complete,
+              }),
+            });
+            await loadHires();
+            showJustSentBanner({
+              ok: true,
+              message: complete
+                ? 'Orientation marked complete (route offer sent if needed).'
+                : 'Orientation marked incomplete.',
+            });
+          } catch (err) {
+            showJustSentBanner({ ok: false, message: err.message });
+            btn.disabled = false;
+          }
+        });
+      });
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="6" class="wb-muted">${escapeHtml(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="wb-muted">${escapeHtml(err.message)}</td></tr>`;
     }
   }
 
