@@ -91,7 +91,20 @@
     return badge(status || '—', 'pending');
   }
 
+  function fmtShortDate(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleDateString();
+    } catch (_err) {
+      return String(iso).slice(0, 10);
+    }
+  }
+
   function kindLabel(item) {
+    const st = String(item.sourceType || '');
+    if (st === 'orientation-route-offer') return 'Route offer';
+    if (st === 'orientation-nudge') return 'Orientation nudge';
+    if (st === 'orientation-nudge-staff') return 'Orientation nudge (staff)';
     if (item.metadata?.kind === 'disregard') return 'Disregard notice';
     if (item.status === 'cancelled') return 'Welcome letter (cancelled)';
     return 'Welcome letter';
@@ -133,7 +146,7 @@
       const data = await api('/api/welcome-letter/hires');
       const items = data.items || [];
       if (!items.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="wb-muted">No hires ingested yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="wb-muted">No hires ingested yet.</td></tr>';
         return;
       }
       tbody.innerHTML = items.map((h) => {
@@ -145,6 +158,17 @@
           ? `<button type="button" class="wb-btn wb-btn-ghost wb-orient-btn" data-id="${escapeHtml(h.id)}" data-complete="0" style="padding:4px 10px;font-size:12px;">Yes — set No</button>`
           : `<button type="button" class="wb-btn wb-btn-primary wb-orient-btn" data-id="${escapeHtml(h.id)}" data-complete="1" style="padding:4px 10px;font-size:12px;">No — set Yes</button>`;
         const orientBadge = orientComplete ? badge('Complete', 'sent') : badge('Incomplete', 'pending');
+        const paid = Boolean(h.orientationPaid);
+        const paidDate = paid && h.orientationPaidAt
+          ? `<div class="wb-muted" style="font-size:12px;margin-top:4px;">${escapeHtml(fmtShortDate(h.orientationPaidAt))}</div>`
+          : '';
+        const paidErr = h.orientationSasError
+          ? `<div class="wb-muted" style="font-size:11px;color:#b00020;margin-top:4px;">${escapeHtml(h.orientationSasError)}</div>`
+          : '';
+        const paidBtn = paid
+          ? `<button type="button" class="wb-btn wb-btn-ghost wb-paid-btn" data-id="${escapeHtml(h.id)}" data-paid="0" style="padding:4px 10px;font-size:12px;">Yes — set No</button>`
+          : `<button type="button" class="wb-btn wb-btn-primary wb-paid-btn" data-id="${escapeHtml(h.id)}" data-paid="1" style="padding:4px 10px;font-size:12px;">No — set Yes</button>`;
+        const paidBadge = paid ? badge('Yes', 'sent') : badge('No', 'pending');
         const chat = h.chatUrl
           ? `<a href="${escapeHtml(h.chatUrl)}" target="_blank" rel="noopener">Open</a>`
           : '—';
@@ -154,6 +178,7 @@
           <td>${escapeHtml(h.eid || '—')}</td>
           <td>${welcome}</td>
           <td>${orientBadge}<div style="margin-top:6px;">${orientBtn}</div></td>
+          <td>${paidBadge}${paidDate}${paidErr}<div style="margin-top:6px;">${paidBtn}</div></td>
           <td>${badge(String(notices), noticeKind)}</td>
           <td>${chat}</td>
         </tr>`;
@@ -166,7 +191,7 @@
           const complete = btn.dataset.complete === '1';
           if (complete) {
             if (!window.confirm(
-              'Mark orientation complete?\n\nThis will also email the hire Wolf\'s route preference offer (Tyson + Wolf on copy), unless one was already sent.',
+              'Mark orientation complete?\n\nThis will email the route offer (if needed) and build the 1-hour Orientation pay shift at store 999 (project 147) if not already paid.',
             )) return;
           }
           btn.disabled = true;
@@ -176,13 +201,14 @@
               body: JSON.stringify({
                 orientationComplete: complete,
                 sendRouteOffer: complete,
+                buildPayShift: complete,
               }),
             });
             await loadHires();
             showJustSentBanner({
               ok: true,
               message: complete
-                ? 'Orientation marked complete (route offer sent if needed).'
+                ? 'Orientation marked complete (route offer + pay shift if needed).'
                 : 'Orientation marked incomplete.',
             });
           } catch (err) {
@@ -191,15 +217,43 @@
           }
         });
       });
+
+      tbody.querySelectorAll('.wb-paid-btn').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const id = btn.dataset.id;
+          const markPaid = btn.dataset.paid === '1';
+          if (markPaid) {
+            if (!window.confirm(
+              'Mark Paid / build Orientation pay shift?\n\nCreates project 147 admin visit at store 999 (team Orientation), 1 hour, mileage off, then starts and completes the shift if one does not already exist.',
+            )) return;
+          }
+          btn.disabled = true;
+          try {
+            await api(`/api/welcome-letter/hires/${encodeURIComponent(id)}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ orientationPaid: markPaid }),
+            });
+            await loadHires();
+            showJustSentBanner({
+              ok: true,
+              message: markPaid ? 'Paid marked (shift built/completed if needed).' : 'Paid cleared.',
+            });
+          } catch (err) {
+            showJustSentBanner({ ok: false, message: err.message });
+            btn.disabled = false;
+          }
+        });
+      });
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="7" class="wb-muted">${escapeHtml(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="wb-muted">${escapeHtml(err.message)}</td></tr>`;
     }
   }
 
   function renderRows(items) {
     const tbody = document.getElementById('rows');
     if (!items.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="wb-muted">No welcome letters match these filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="wb-muted">No emails match these filters.</td></tr>';
       return;
     }
     tbody.innerHTML = items.map((item) => {
@@ -209,6 +263,10 @@
       let nameExtra = '';
       if (item.metadata?.kind === 'disregard') {
         nameExtra = ' <span class="wb-muted">(disregard)</span>';
+      } else if (item.sourceType === 'orientation-route-offer') {
+        nameExtra = ' <span class="wb-muted">(route offer)</span>';
+      } else if (String(item.sourceType || '').startsWith('orientation-nudge')) {
+        nameExtra = ' <span class="wb-muted">(nudge)</span>';
       }
       return `<tr data-id="${item.id}" class="${selected}">
         <td>${fmtDate(item.createdAt)}</td>
@@ -276,7 +334,7 @@
     if (data.sortDir) state.sortDir = data.sortDir;
     updateSortHeaders();
     state.total = data.total || 0;
-    document.getElementById('listSummary').textContent = `${state.total} welcome letter(s)`;
+    document.getElementById('listSummary').textContent = `${state.total} email(s)`;
     const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
     document.getElementById('pageLabel').textContent = `Page ${state.page} / ${totalPages}`;
     document.getElementById('prevPage').disabled = state.page <= 1;
@@ -355,13 +413,13 @@
         : 'Resend not available for this message');
     resendBtn.onclick = async () => {
       if (!item.canResend) return;
-      if (!window.confirm(`Resend this welcome letter exactly as sent to ${(item.to || []).join(', ')}?`)) return;
+      if (!window.confirm(`Resend this email exactly as sent to ${(item.to || []).join(', ')}?`)) return;
       resendBtn.disabled = true;
       try {
         const result = await api(`${API_PREFIX}/${item.id}/resend`, { method: 'POST', body: '{}' });
         await loadList();
         if (result.recordId) await selectEmail(result.recordId);
-        showJustSentBanner({ ok: true, message: 'Welcome letter resent.' });
+        showJustSentBanner({ ok: true, message: `${kindLabel(item)} resent.` });
       } catch (e) {
         err.hidden = false;
         err.textContent = e.message;
