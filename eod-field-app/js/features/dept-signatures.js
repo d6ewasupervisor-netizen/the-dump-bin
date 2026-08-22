@@ -196,18 +196,19 @@
     section.className = 'section dept-sig-section';
     section.id = 'deptSigSection';
     section.innerHTML = `
-      <div class="section-title">Department Signatures</div>
-      <p class="sets-help muted" id="deptSigHelp">
-        Only departments worked on today’s sheet appear here. Mark sets on the
-        digital sheet (Complete / Not in store / Not in SI), then hand the device
-        to that department’s PIC. Name and email are remembered for this store.
+      <div class="dept-sig-header">
+        <div class="section-title">Department Signatures</div>
+        <span class="dept-sig-progress" id="deptSigPickerMeta">0/0</span>
+      </div>
+      <p class="sets-help muted dept-sig-help" id="deptSigHelp">
+        Only departments worked on today’s sheet appear here. Hand the device to
+        that PIC — name/email are remembered for this store.
       </p>
-      <button type="button" class="eod-picker-trigger" id="deptSigPickerBtn">
-        <span class="eod-picker-label">Collect a department signature</span>
-        <span class="eod-picker-meta" id="deptSigPickerMeta">0</span>
-      </button>
-      <div id="deptSigRoleList" class="dept-sig-role-list eod-hidden-list"></div>
-      <div class="button-group dept-sig-actions">
+      <div id="deptSigRoleList" class="dept-sig-role-list"></div>
+      <div class="dept-sig-actions">
+        <button type="button" class="btn btn-primary dept-sig-collect-btn" id="deptSigPickerBtn">
+          Collect a department signature
+        </button>
         <button type="button" class="btn btn-secondary" id="deptSigRefreshBtn">Refresh</button>
       </div>
     `;
@@ -262,7 +263,9 @@
           : 'Department signatures follow the digital sheet for this store/day.';
       }
       const meta = document.getElementById('deptSigPickerMeta');
-      if (meta) meta.textContent = '0';
+      if (meta) meta.textContent = '0/0';
+      const pickerBtn = document.getElementById('deptSigPickerBtn');
+      if (pickerBtn) pickerBtn.disabled = true;
       return;
     }
     if (help) {
@@ -281,7 +284,7 @@
                 : 'Not collected yet'}
             </div>
           </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <div class="dept-sig-role-actions">
             <button type="button" class="btn btn-primary" data-dept-sig-collect="${escapeHtml(role.key)}">
               ${collected ? 'Re-collect' : 'Hand to signer'}
             </button>
@@ -316,34 +319,41 @@
 
     const meta = document.getElementById('deptSigPickerMeta');
     const collectedN = roles.filter((r) => byRole.has(r.key)).length;
-    if (meta) meta.textContent = `${collectedN}/${roles.length}`;
+    if (meta) {
+      meta.textContent = `${collectedN}/${roles.length}`;
+      meta.classList.toggle('is-complete', collectedN > 0 && collectedN === roles.length);
+      meta.classList.toggle('is-partial', collectedN > 0 && collectedN < roles.length);
+    }
     const pickerBtn = document.getElementById('deptSigPickerBtn');
-    if (pickerBtn && pickerBtn.dataset.bound !== '1') {
-      pickerBtn.dataset.bound = '1';
-      pickerBtn.addEventListener('click', () => {
-        const latest = new Map(signatures.map((s) => [s.roleKey, s]));
-        const items = roles.map((role) => {
-          const sig = latest.get(role.key);
-          return {
-            id: role.key,
-            label: role.label,
-            sublabel: sig ? `Signed by ${sig.signerName}` : 'Not collected yet',
-            selected: !!sig,
-          };
+    if (pickerBtn) {
+      pickerBtn.disabled = false;
+      pickerBtn.textContent = collectedN === roles.length
+        ? 'Re-collect a department signature'
+        : 'Collect a department signature';
+      if (pickerBtn.dataset.bound !== '1') {
+        pickerBtn.dataset.bound = '1';
+        pickerBtn.addEventListener('click', () => {
+          const latest = new Map(signatures.map((s) => [s.roleKey, s]));
+          const items = roles.map((role) => {
+            const sig = latest.get(role.key);
+            return {
+              id: role.key,
+              label: role.label,
+              sublabel: sig ? `Signed by ${sig.signerName}` : 'Not collected yet',
+              selected: !!sig,
+            };
+          });
+          const open = window.EodPicker?.open || window.EodWorkspace?.openPicker;
+          if (!open) return;
+          open({
+            anchor: pickerBtn,
+            title: 'Department signatures',
+            items,
+            searchable: items.length > 6,
+            onChoose(item) { openWizard(item.id); },
+          });
         });
-        const open = window.EodPicker?.open || window.EodWorkspace?.openPicker;
-        if (!open) {
-          host.classList.remove('eod-hidden-list');
-          return;
-        }
-        open({
-          anchor: pickerBtn,
-          title: 'Department signatures',
-          items,
-          searchable: items.length > 6,
-          onChoose(item) { openWizard(item.id); },
-        });
-      });
+      }
     }
   }
 
