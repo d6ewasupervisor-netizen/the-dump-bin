@@ -179,6 +179,39 @@
     #detailPreview { width: 100%; min-height: 360px; height: 46vh; border: 0; background: #fff; }
     .wb-error { color: var(--wb-error); font-size: 13px; margin-top: 10px; }
 
+    .wb-signed-in { font-size: 13px; color: var(--wb-muted); margin-top: 6px; }
+    .wb-chat-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+    .wb-modal-backdrop {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(14, 42, 71, 0.45);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .wb-modal {
+      width: min(640px, 100%);
+      max-height: 90vh;
+      background: var(--wb-white);
+      border-radius: 12px;
+      border: 1px solid var(--wb-line);
+      box-shadow: 0 16px 48px rgba(14, 42, 71, 0.2);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .wb-modal h3 { margin: 0; color: var(--wb-navy); }
+    .wb-chat-log {
+      min-height: 200px; max-height: 320px; overflow-y: auto;
+      border: 1px solid var(--wb-line); border-radius: 8px;
+      padding: 10px; background: #F7FAFC; font-size: 14px;
+    }
+    .wb-chat-msg { margin: 0 0 10px; padding: 8px 10px; border-radius: 6px; }
+    .wb-chat-msg.hire { background: var(--wb-sky-tint); }
+    .wb-chat-msg.staff { background: #e8f4ea; }
+    .wb-chat-msg.system { background: #eee; color: var(--wb-muted); font-size: 13px; }
+    .wb-chat-compose { width: 100%; min-height: 72px; font: inherit; padding: 8px; border: 1px solid var(--wb-line); border-radius: 8px; }
+    .wb-modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
     .wb-hidden { display: none !important; }
   </style>
 </head>
@@ -208,6 +241,7 @@
         <div class="wb-brand">Retail Odyssey</div>
         <h1>Welcome Letter Board</h1>
         <p>Every welcome letter sent to new hires — MTA delivery status, first-party open/click beacons, cancel (disregard), and exact resend.</p>
+        <p class="wb-signed-in" id="signedInAs" hidden></p>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
         <button type="button" id="refreshBtn" class="wb-btn wb-btn-ghost">Refresh delivery (Resend)</button>
@@ -320,12 +354,26 @@
       </section>
     </section>
 
+    <div id="hireChatModal" class="wb-modal-backdrop wb-hidden" hidden>
+      <div class="wb-modal" role="dialog" aria-labelledby="hireChatTitle">
+        <h3 id="hireChatTitle">Staff reply</h3>
+        <p class="wb-muted" id="hireChatHint" style="margin:0;font-size:14px;">Replies here are sent as staff (Tyson/Wolf), not as the new hire.</p>
+        <div class="wb-chat-log" id="hireChatLog"></div>
+        <textarea id="hireChatCompose" class="wb-chat-compose" placeholder="Write a staff reply…"></textarea>
+        <div class="wb-modal-actions">
+          <button type="button" id="hireChatSend" class="wb-btn wb-btn-primary">Send as staff</button>
+          <button type="button" id="hireChatClose" class="wb-btn wb-btn-ghost">Close</button>
+        </div>
+        <p class="wb-muted" id="hireChatStatus" style="margin:0;font-size:13px;"></p>
+      </div>
+    </div>
+
     </div>
 
   </main>
 
   <span class="wb-version" id="wbVersion" title="Welcome Letter Board version">v2.3</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.5"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.9"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.8';
+  const UI_VERSION = 'v2.9';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -10,6 +10,8 @@
     filters: {},
     sortBy: 'createdAt',
     sortDir: 'desc',
+    signedInEmail: null,
+    activeHireChatId: null,
   };
 
   function setVersionBadge(apiVersion) {
@@ -177,7 +179,10 @@
           : `<button type="button" class="wb-btn wb-btn-primary wb-paid-btn" data-id="${escapeHtml(h.id)}" data-paid="1" style="padding:4px 10px;font-size:12px;">No — set Yes</button>`;
         const paidBadge = paid ? badge('Yes', 'sent') : badge('No', 'pending');
         const chat = h.chatUrl
-          ? `<a href="${escapeHtml(h.chatUrl)}" target="_blank" rel="noopener">Open</a>`
+          ? `<div class="wb-chat-actions">
+              <button type="button" class="wb-btn wb-btn-primary wb-reply-btn" data-id="${escapeHtml(h.id)}" data-name="${escapeHtml(h.firstName || h.fullName || 'hire')}" style="padding:4px 10px;font-size:12px;">Reply as staff</button>
+              <a href="${escapeHtml(h.chatUrl)}" target="_blank" rel="noopener" class="wb-muted" style="font-size:12px;">Hire view (read-only)</a>
+            </div>`
           : '—';
         return `<tr>
           <td>${escapeHtml(h.fullName || h.firstName || '—')}</td>
@@ -251,6 +256,13 @@
             showJustSentBanner({ ok: false, message: err.message });
             btn.disabled = false;
           }
+        });
+      });
+
+      tbody.querySelectorAll('.wb-reply-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          openHireChat(btn.dataset.id, btn.dataset.name);
         });
       });
     } catch (err) {
@@ -523,6 +535,83 @@
     el.textContent = message;
   }
 
+  function renderChatMessages(messages) {
+    const list = Array.isArray(messages) ? messages : [];
+    if (!list.length) return '<p class="wb-muted">No messages yet.</p>';
+    return list.map((m) => {
+      const cls = m.sender_role === 'hire' ? 'hire' : (m.sender_role === 'staff' ? 'staff' : 'system');
+      const when = m.created_at ? fmtDate(m.created_at) : '';
+      const who = escapeHtml(m.sender_name || m.sender_role || '—');
+      const body = escapeHtml(m.body || '');
+      return `<div class="wb-chat-msg ${cls}"><div class="wb-muted" style="font-size:12px;margin-bottom:4px;">${who} · ${escapeHtml(when)}</div>${body}</div>`;
+    }).join('');
+  }
+
+  async function openHireChat(hireId, hireName) {
+    state.activeHireChatId = hireId;
+    const modal = document.getElementById('hireChatModal');
+    const title = document.getElementById('hireChatTitle');
+    const log = document.getElementById('hireChatLog');
+    const status = document.getElementById('hireChatStatus');
+    const compose = document.getElementById('hireChatCompose');
+    if (!modal || !log) return;
+    title.textContent = `Staff reply — ${hireName || 'hire'}`;
+    compose.value = '';
+    status.textContent = 'Loading…';
+    modal.hidden = false;
+    modal.classList.remove('wb-hidden');
+    try {
+      const data = await api(`/api/welcome-letter/hires/${encodeURIComponent(hireId)}`);
+      log.innerHTML = renderChatMessages(data.messages);
+      log.scrollTop = log.scrollHeight;
+      status.textContent = state.signedInEmail
+        ? `Signed in as ${state.signedInEmail} — your reply will show as staff, not as ${hireName}.`
+        : '';
+    } catch (err) {
+      log.innerHTML = '';
+      status.textContent = err.message;
+    }
+  }
+
+  function closeHireChat() {
+    const modal = document.getElementById('hireChatModal');
+    if (!modal) return;
+    modal.hidden = true;
+    modal.classList.add('wb-hidden');
+    state.activeHireChatId = null;
+  }
+
+  async function sendHireChatReply() {
+    const hireId = state.activeHireChatId;
+    const compose = document.getElementById('hireChatCompose');
+    const status = document.getElementById('hireChatStatus');
+    const log = document.getElementById('hireChatLog');
+    const btn = document.getElementById('hireChatSend');
+    if (!hireId || !compose) return;
+    const body = compose.value.trim();
+    if (!body) return;
+    btn.disabled = true;
+    status.textContent = 'Sending…';
+    try {
+      const data = await api(`/api/welcome-letter/hires/${encodeURIComponent(hireId)}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      });
+      compose.value = '';
+      const refreshed = await api(`/api/welcome-letter/hires/${encodeURIComponent(hireId)}`);
+      log.innerHTML = renderChatMessages(refreshed.messages);
+      log.scrollTop = log.scrollHeight;
+      status.textContent = 'Sent.';
+      if (data.message) {
+        /* refresh hire table optional */
+      }
+    } catch (err) {
+      status.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   async function ensureWelcomeAccess() {
     try {
       if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
@@ -530,6 +619,12 @@
       const res = await fetchFn('/api/me', { noBounceOn401: true, credentials: 'include' });
       if (!res.ok) return false;
       const me = await res.json();
+      state.signedInEmail = me?.email || null;
+      const signedEl = document.getElementById('signedInAs');
+      if (signedEl && state.signedInEmail) {
+        signedEl.textContent = `Signed in as ${state.signedInEmail}`;
+        signedEl.hidden = false;
+      }
       // Single source of truth: eod-api's WELCOME_LETTER_ALLOWED_EMAILS,
       // via /api/me's hasWelcomeLetterAccess. Don't keep a separate copy of
       // the allowlist here — that's exactly what caused it to drift before.
@@ -601,6 +696,16 @@
         refreshFromResend().catch((e) => {
           showJustSentBanner({ ok: false, message: e.message });
         });
+      });
+    }
+    const hireChatClose = document.getElementById('hireChatClose');
+    const hireChatSend = document.getElementById('hireChatSend');
+    const hireChatModal = document.getElementById('hireChatModal');
+    if (hireChatClose) hireChatClose.addEventListener('click', closeHireChat);
+    if (hireChatSend) hireChatSend.addEventListener('click', () => sendHireChatReply().catch(() => {}));
+    if (hireChatModal) {
+      hireChatModal.addEventListener('click', (e) => {
+        if (e.target === hireChatModal) closeHireChat();
       });
     }
     updateSortHeaders();
