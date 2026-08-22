@@ -429,11 +429,13 @@
     };
 
     const cancelBtn = document.getElementById('cancelBtn');
-    const canCancel = Boolean(item.canCancel);
+    const canCancel = Boolean(item.canCancel) && item.sourceType === 'welcome-letter';
     cancelBtn.disabled = !canCancel;
     cancelBtn.title = canCancel
       ? 'Mark cancelled, block resend of this variant, and email a disregard notice'
-      : 'Already cancelled or not eligible';
+      : (item.sourceType !== 'welcome-letter'
+        ? 'Cancel/disregard is only for welcome letters'
+        : 'Already cancelled or not eligible');
     cancelBtn.onclick = async () => {
       if (!canCancel) return;
       const to = (item.to || []).join(', ') || 'recipient';
