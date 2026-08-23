@@ -294,6 +294,32 @@
     return { ok, fail, total: open.length };
   }
 
+  function sheetWeek() {
+    const S = global.EodSession;
+    return S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
+  }
+
+  function localBeforeCount(row) {
+    const S = global.EodSession;
+    const week = sheetWeek();
+    if (!row?.dbkey || !week) return 0;
+    const list = global.EodSetBeforeStore?.getBefores?.(S.state.storeNumber, week, row.dbkey) || [];
+    return Array.isArray(list) ? list.length : 0;
+  }
+
+  function openSetSurvey(btn, slot) {
+    const dbkey = btn.getAttribute('data-dbkey') || '';
+    const row = btn.getAttribute('data-capture') || btn.getAttribute('data-before') || '';
+    const name = btn.getAttribute('data-name') || '';
+    if (!dbkey) {
+      alert('This row has no dbkey — cannot open Capture.');
+      return;
+    }
+    const qs = new URLSearchParams({ dbkey, rowId: row, name });
+    if (slot) qs.set('slot', slot);
+    location.hash = `#/survey?${qs.toString()}`;
+  }
+
   function renderRows(sheet, q) {
     const rows = (sheet.rows || []).filter((row) => {
       if (!q) return true;
@@ -303,20 +329,29 @@
     if (!rows.length) return '<p class="muted">No sets match.</p>';
     return rows.map((row) => {
       const status = syncStatusPills(row);
+      const beforeCount = localBeforeCount(row);
       const btn = (type, label) => {
         const on = type === 'complete' ? rowLooksComplete(row) : markActive(row, type);
         // Selected state is the .on border only — no checkmark (renders as ? on some devices).
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
+      const beforePill = row.dbkey
+        ? (beforeCount
+          ? `<span class="pill ok">${beforeCount} before${beforeCount === 1 ? '' : 's'}</span>`
+          : '<span class="pill warn">no befores</span>')
+        : '';
       return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
         <div><strong>${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
           <div class="muted">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}</div>
           ${row.live ? `<div class="muted">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
         </div>
-        <div style="margin-top:6px;">${status}</div>
-        <div class="ds-actions">
+        <div style="margin-top:6px;">${status} ${beforePill}</div>
+        <div class="ds-photo-actions">
+          ${row.dbkey ? `<button type="button" class="btn btn-secondary" data-before="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}">Take befores</button>` : ''}
           <button type="button" class="btn btn-primary" data-capture="${row.id}" data-dbkey="${esc(row.dbkey || '')}" data-name="${esc(row.catName || row.catId || '')}">Capture</button>
+        </div>
+        <div class="ds-actions">
           ${btn('complete', 'Complete')}
           ${btn('not_in_store', 'Not in store')}
           ${btn('not_in_si', 'Not in SI')}
@@ -343,7 +378,6 @@
         </div>
         <div id="sheetRows"></div>
       </div>
-      <div class="card" id="setBeforesMount"></div>
       <div class="card dept-sig-card" id="deptSigMount"></div>`;
 
     const summary = document.getElementById('sheetSummary');
@@ -459,17 +493,10 @@
         };
       });
       rowsEl.querySelectorAll('[data-capture]').forEach((btn) => {
-        btn.onclick = () => {
-          const dbkey = btn.getAttribute('data-dbkey') || '';
-          const row = btn.getAttribute('data-capture') || '';
-          const name = btn.getAttribute('data-name') || '';
-          if (!dbkey) {
-            alert('This row has no dbkey — cannot open Capture.');
-            return;
-          }
-          const qs = new URLSearchParams({ dbkey, rowId: row, name });
-          location.hash = `#/survey?${qs.toString()}`;
-        };
+        btn.onclick = () => openSetSurvey(btn);
+      });
+      rowsEl.querySelectorAll('[data-before]').forEach((btn) => {
+        btn.onclick = () => openSetSurvey(btn, 'before');
       });
     }
 
@@ -526,35 +553,6 @@
       console.warn('[signoff] initial sync', err.message || err);
     }
     startPoll();
-
-    const setBeforesHost = document.getElementById('setBeforesMount');
-    if (setBeforesHost) {
-      const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
-      const rows = (S.state.sheet?.rows || []).filter((r) => r.dbkey);
-      const beforeCounts = rows.map((r) => {
-        const local = global.EodSetBeforeStore?.getBefores?.(S.state.storeNumber, week, r.dbkey) || [];
-        return { row: r, count: local.length };
-      });
-      setBeforesHost.innerHTML = `
-        <h2>Set befores</h2>
-        <div id="beforeSetList">${beforeCounts.length
-          ? beforeCounts.map(({ row, count }) => `
-            <div class="ds-row" style="margin-bottom:10px;">
-              <strong>${esc(row.catName || row.dbkey)}</strong>
-              <div class="muted">${esc(row.dbkey || '')}${row.versionToken ? ` · ${esc(row.versionToken)}` : ''}${row.footageDisplay || row.size ? ` · ${esc(row.footageDisplay || row.size)} ft` : ''} · ${count}</div>
-              <button type="button" class="btn btn-secondary" data-before-set="${esc(row.dbkey)}" data-row="${row.id}" data-name="${esc(row.catName || '')}">Capture befores</button>
-            </div>`).join('')
-          : '<p class="muted">No sheet rows yet.</p>'}</div>`;
-      setBeforesHost.querySelectorAll('[data-before-set]').forEach((btn) => {
-        btn.onclick = () => {
-          const dbkey = btn.getAttribute('data-before-set');
-          const rowId = btn.getAttribute('data-row');
-          const name = btn.getAttribute('data-name') || '';
-          const qs = new URLSearchParams({ dbkey, rowId, name, slot: 'before' });
-          location.hash = `#/survey?${qs.toString()}`;
-        };
-      });
-    }
 
     // Mount dept signatures into orbit card on this page for convenience
     const deptHost = document.getElementById('deptSigMount');

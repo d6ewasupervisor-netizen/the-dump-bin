@@ -455,6 +455,8 @@ h2 { font-size: 1.15rem; color: #7dd3fc; }
 .ds-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .ds-actions .btn { min-height: 40px; font-size: 13px; padding: 8px 10px; flex: 1 1 30%; }
 .ds-actions .btn.on { outline: 2px solid var(--accent); }
+.ds-photo-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ds-photo-actions .btn { min-height: 44px; font-size: 13px; padding: 8px 10px; flex: 1 1 40%; }
 .pill {
   display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
   background: #1e293b; color: #cbd5e1; margin: 1px 2px 1px 0;
