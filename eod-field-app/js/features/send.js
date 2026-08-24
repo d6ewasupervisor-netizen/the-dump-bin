@@ -151,7 +151,7 @@ ${S.state.notes || ''}`;
       checkInManager: S.state.checkInManager || '',
       checkOutManager: S.state.checkOutManager || '',
       signoffPhotos: collectSignoffPhotos(),
-      // pdfBase64 omitted in pilot until PDF generator is ported — API accepts text+photos.
+      // pdfBase64 omitted in pilot until PDF generator is ported.
       fieldApp: {
         version: global.EOD_APP_VERSION,
         hasHostedSheet: S.hasHostedSheet(),
@@ -570,14 +570,6 @@ ${S.state.notes || ''}`;
     };
   }
 
-  function filePartFromRaw(raw, fallbackMime) {
-    const s = typeof raw === 'string' ? raw : (raw && (raw.dataUrl || raw.imageBase64 || raw.content)) || '';
-    const str = String(s || '');
-    const m = str.match(/^data:([^;]+);base64,(.*)$/i);
-    if (m) return { mime: m[1], contentBase64: m[2].replace(/\s+/g, '') };
-    return { mime: fallbackMime, contentBase64: str.replace(/\s+/g, '') };
-  }
-
   async function uploadPackageParts(payload, headers) {
     const api = global.EOD_API_BASE;
     let packageId = null;
@@ -611,16 +603,21 @@ ${S.state.notes || ''}`;
     }
     const photos = Array.isArray(payload.signoffPhotos) ? payload.signoffPhotos : [];
     for (let i = 0; i < photos.length; i++) {
-      const parsed = filePartFromRaw(photos[i], 'image/jpeg');
-      if (!parsed.contentBase64) continue;
+      const raw = photos[i];
+      const s = typeof raw === 'string' ? raw : (raw && (raw.dataUrl || raw.imageBase64 || raw.content)) || '';
+      const str = String(s || '');
+      const m = str.match(/^data:([^;]+);base64,(.*)$/i);
+      const mime = m ? m[1] : 'image/jpeg';
+      const contentBase64 = (m ? m[2] : str).replace(/\s+/g, '');
+      if (!contentBase64) continue;
       const part = await postPart({
         packageId: packageId || undefined,
         storeNumber: payload.storeNumber,
         workDate: payload.workDate,
         kind: 'signoff',
         filename: `signoff_${i}.jpg`,
-        mime: parsed.mime || 'image/jpeg',
-        contentBase64: parsed.contentBase64,
+        mime,
+        contentBase64,
       });
       packageId = part.packageId;
     }

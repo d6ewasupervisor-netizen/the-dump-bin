@@ -9861,14 +9861,14 @@
                 ? `<li><strong>PDF:</strong> ${escapeHtml(payload.pdfFilename || '')} — hosted download link in email (valid 30 days, no sign-in)</li>`
                 : `<li style="color:#fbbf24;"><strong>PDF:</strong> not included (generation failed)</li>`;
 
-            const signoff = Array.isArray(payload.signoffPhotos) ? payload.signoffPhotos : [];
-            const inlineLi = signoff.map((photo, i) =>
-                `<li><strong>Sign-off:</strong> ${escapeHtml(signoffPhotoAttachmentFilename(photo, i))} — hosted image link in email</li>`
-            ).join('');
+            const signoff = Array.isArray(data._previewSignoffPhotos) ? data._previewSignoffPhotos : [];
+            const inlineLi = signoff.length
+                ? `<li><strong>Sign-off sheets:</strong> shown in the email</li>`
+                : '';
 
             const thumbs = signoff.length
                 ? `<div style="margin:12px 0 0;">
-                    <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Recipients get <strong>hosted links</strong> (not attachments) so the email stays small and deliverable. Links work from anywhere for 30 days with no sign-in. Preview thumbs below are local only.</p>
+                    <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Recipients get a <strong>hosted PDF link</strong>. Sign-off sheets are shown in the email. Preview thumbs below are local only.</p>
                     <h4 style="margin:0 0 10px;font-size:14px;color:#e5e7eb;">Sign-Off Sheets (preview)</h4>
                     ${signoff.map((src, i) => `
                         <div style="margin-bottom:14px;">
@@ -10140,7 +10140,7 @@ ${data.Notes || ''}`;
             const userName = document.getElementById('profileName').value.trim();
             const subject = `KOMPASS EOD FM${data.StoreNumberPadded} ${data.DateMMDDYYYY}`;
 
-            const signoffPhotos = await collectSignoffPhotosForEmail(data);
+            const previewSignoffPhotos = await collectSignoffPhotosForEmail(data);
 
             const payload = {
                 storeNumber: data.StoreNumber,
@@ -10154,11 +10154,12 @@ ${data.Notes || ''}`;
                 userEmail,
                 checkInManager: document.getElementById('checkInManager').value.trim(),
                 checkOutManager: document.getElementById('checkOutManager').value.trim(),
-                signoffPhotos,
+                signoffPhotos: previewSignoffPhotos,
                 ...(pdfBase64 && { pdfBase64 })
             };
 
             data._instaworkSave = instaworkSave;
+            data._previewSignoffPhotos = previewSignoffPhotos;
             const draftWarnings = draft && validation.issues.length > 0 ? validation.issues.slice() : null;
             return { ok: true, payload, data, draftWarnings };
         }
@@ -10264,16 +10265,6 @@ ${data.Notes || ''}`;
             return msg || 'Unknown error';
         }
 
-        function eodFilePartFromRaw(raw, fallbackMime) {
-            const s = typeof raw === 'string' ? raw : (raw && (raw.dataUrl || raw.imageBase64 || raw.content)) || '';
-            const str = String(s || '');
-            const m = str.match(/^data:([^;]+);base64,(.*)$/i);
-            if (m) {
-                return { mime: m[1], contentBase64: m[2].replace(/\s+/g, '') };
-            }
-            return { mime: fallbackMime, contentBase64: str.replace(/\s+/g, '') };
-        }
-
         async function uploadEodArtifactPart({ packageId, storeNumber, workDate, kind, filename, mime, contentBase64, dayConfirm }) {
             const headers = { 'Content-Type': 'application/json' };
             if (dayConfirm?.token) headers['X-Day-Confirm'] = dayConfirm.token;
@@ -10321,16 +10312,21 @@ ${data.Notes || ''}`;
             }
             const photos = Array.isArray(outbound.signoffPhotos) ? outbound.signoffPhotos : [];
             for (let i = 0; i < photos.length; i++) {
-                const parsed = eodFilePartFromRaw(photos[i], 'image/jpeg');
-                if (!parsed.contentBase64) continue;
+                const raw = photos[i];
+                const s = typeof raw === 'string' ? raw : (raw && (raw.dataUrl || raw.imageBase64 || raw.content)) || '';
+                const str = String(s || '');
+                const m = str.match(/^data:([^;]+);base64,(.*)$/i);
+                const mime = m ? m[1] : 'image/jpeg';
+                const contentBase64 = (m ? m[2] : str).replace(/\s+/g, '');
+                if (!contentBase64) continue;
                 const part = await uploadEodArtifactPart({
                     packageId,
                     storeNumber,
                     workDate,
                     kind: 'signoff',
                     filename: `signoff_${i}.jpg`,
-                    mime: parsed.mime || 'image/jpeg',
-                    contentBase64: parsed.contentBase64,
+                    mime,
+                    contentBase64,
                     dayConfirm,
                 });
                 packageId = part.packageId;
@@ -10421,8 +10417,8 @@ ${data.Notes || ''}`;
                             ? 'Test EOD report sent successfully (tester only).'
                             : 'EOD report sent successfully.');
                     const linkNote = result.linkTtlDays
-                        ? `<br><br><span style="color:#94a3b8;font-size:13px;">PDF and sign-off photos are <strong>hosted links</strong> in the email (valid ${result.linkTtlDays} days, no sign-in). Nothing is attached as a file.</span>`
-                        : `<br><br><span style="color:#94a3b8;font-size:13px;">PDF and sign-off photos are hosted links in the email (valid 30 days, no sign-in).</span>`;
+                        ? `<br><br><span style="color:#94a3b8;font-size:13px;">The EOD PDF is a <strong>hosted download link</strong> (valid ${result.linkTtlDays} days). Sign-off sheets are shown in the email.</span>`
+                        : `<br><br><span style="color:#94a3b8;font-size:13px;">The EOD PDF is a hosted download link (valid 30 days). Sign-off sheets are shown in the email.</span>`;
                     let sessionNote = '';
                     if (sessionDone?.complete && sessionDone.cleared) {
                         sessionNote = `<br><br><span style="color:#94a3b8;font-size:13px;">Photo session complete — local photos cleared.</span>`;
