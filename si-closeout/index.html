@@ -468,7 +468,7 @@
 
     var isSystem = msg.msgType === 'system';
     var isRequest = msg.msgType === 'request';
-    var senderName = isSystem ? '🤖 System' : (msg.senderName || 'Unknown');
+    var senderName = isSystem ? 'SI Task Closeout' : (msg.senderName || 'Unknown');
     var el = document.createElement('div');
     el.className = 'msg' + (isSystem ? ' system' : isRequest ? ' request' : '');
     el.dataset.id = msg.id;
@@ -489,10 +489,13 @@
         esc(msg.storeNumber) + '</div>';
     }
 
+    var avatarHtml = isSystem ? '' :
+      '<div class="msg-avatar' + (isRequest ? ' request' : '') + '">' +
+        esc(avatarInitials(senderName)) +
+      '</div>';
+
     el.innerHTML =
-      '<div class="msg-avatar' + (isSystem ? ' system' : isRequest ? ' request' : '') + '">' +
-        (isSystem ? '⚙' : esc(avatarInitials(senderName))) +
-      '</div>' +
+      avatarHtml +
       '<div class="msg-body">' +
         '<div class="msg-header">' +
           '<span class="msg-name">' + esc(senderName) + '</span>' +
