@@ -188,6 +188,16 @@
     emit(reason || 'patch');
   }
 
+  function appendNote(line) {
+    const text = String(line || '').trim();
+    if (!text) return;
+    const cur = state.notes || '';
+    if (cur.split(/\n/).some((l) => l.trim() === text)) return;
+    state.notes = cur.trim() ? `${cur.trim()}\n${text}` : text;
+    emit('notes');
+    saveDraft();
+  }
+
   function loadProfile() {
     try {
       const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
@@ -247,6 +257,9 @@
     state.emailRecipients = Array.isArray(data.emailRecipients) ? data.emailRecipients.slice() : [];
     state.notInStoreSelected = Array.isArray(data.notInStoreSelected) ? data.notInStoreSelected.slice() : [];
     state.notInSiSelected = Array.isArray(data.notInSiSelected) ? data.notInSiSelected.slice() : [];
+    state.helpdeskSubmittedReports = Array.isArray(data.helpdeskSubmittedReports)
+      ? data.helpdeskSubmittedReports.slice()
+      : [];
     state.instaworkYes = data.instawork ?? data.instaworkYes ?? null;
     state.kompassTimesheetYes = data.kompassTimesheet ?? data.kompassTimesheetYes ?? null;
     state.materialsReadYes = data.materialsRead ?? data.materialsReadYes ?? null;
@@ -279,6 +292,7 @@
       emailRecipients: state.emailRecipients.slice(),
       notInStoreSelected: state.notInStoreSelected.slice(),
       notInSiSelected: state.notInSiSelected.slice(),
+      helpdeskSubmittedReports: (state.helpdeskSubmittedReports || []).slice(),
       instawork: state.instaworkYes,
       kompassTimesheet: state.kompassTimesheetYes,
       materialsRead: state.materialsReadYes,
@@ -337,6 +351,7 @@
     on,
     emit,
     patch,
+    appendNote,
     loadDraft,
     saveDraft,
     loadProfile,

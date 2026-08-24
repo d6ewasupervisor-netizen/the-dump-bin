@@ -216,10 +216,35 @@
       && !markActive(row, 'not_in_si');
   }
 
+  function rowLabel(row) {
+    return row?.catName || row?.dbkey || row?.catId || 'set';
+  }
+
+  function findRowForHelpdeskMeta(meta) {
+    const rows = global.EodSession?.state?.sheet?.rows || [];
+    const rowId = meta?.rowId != null ? String(meta.rowId) : '';
+    const dbkey = String(meta?.dbkey || '').trim();
+    const catNum = String(meta?.categoryNumber || '').replace(/\D/g, '');
+    const name = String(meta?.setLabel || meta?.categoryName || '').trim().toLowerCase();
+    return rows.find((r) => {
+      if (rowId && String(r.id) === rowId) return true;
+      if (dbkey && String(r.dbkey || '').trim() === dbkey) return true;
+      const rNum = String(r.catId || '').replace(/\D/g, '');
+      if (catNum && rNum && catNum === rNum) return true;
+      const rName = String(r.catName || '').trim().toLowerCase();
+      if (name && rName && (rName === name || rName.includes(name) || name.includes(rName))) return true;
+      return false;
+    }) || null;
+  }
+
   async function applyMark(rowId, markType, opts) {
     const skipReload = !!(opts && opts.skipReload);
+    const skipHelpdeskPrompt = !!(opts && opts.skipHelpdeskPrompt);
+    const forceOn = !!(opts && opts.forceOn);
+    const helpdeskSent = !!(opts && opts.helpdeskSent);
     const S = global.EodSession;
     const headers = global.EodApi.dayConfirmHeaders();
+    const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
     if (markType === 'clear') {
       const resp = await global.authFetch(`${API}/rows/${encodeURIComponent(rowId)}/mark`, {
         method: 'DELETE',
@@ -228,7 +253,7 @@
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Clear failed (${resp.status})`);
-    } else if (markActive((S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId)), markType)) {
+    } else if (!forceOn && markActive(current, markType)) {
       const resp = await global.authFetch(
         `${API}/rows/${encodeURIComponent(rowId)}/mark?markType=${encodeURIComponent(markType)}`,
         {
@@ -253,23 +278,50 @@
           workDate: S.state.workDate,
           markType,
           visitId,
+          helpdeskSent,
         }),
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Mark failed (${resp.status})`);
-      // Side-effect: open help desk prefilled from the digital sheet row.
       if (markType === 'not_in_store') {
-        const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
-        try {
-          if (typeof global.openHelpdeskForSheetRow === 'function') {
-            global.openHelpdeskForSheetRow(row || { id: rowId });
-          } else if (typeof global.openHelpdeskWizard === 'function') {
-            global.openHelpdeskWizard({ issueTypeId: 'not_in_store', setEntryManual: true });
-          }
-        } catch (_) {}
+        const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId)) || current;
+        const label = rowLabel(row);
+        S.appendNote?.(`Not in store: ${label}`);
+        if (!skipHelpdeskPrompt) {
+          try {
+            if (typeof global.askToReportNotInStore === 'function') {
+              await global.askToReportNotInStore(row || { id: rowId });
+            } else if (typeof global.openHelpdeskForSheetRow === 'function') {
+              await global.openHelpdeskForSheetRow(row || { id: rowId });
+            }
+          } catch (_) {}
+        }
       }
     }
     if (!skipReload) await loadSheet();
+  }
+
+  async function markNotInStoreFromHelpdesk(meta) {
+    const S = global.EodSession;
+    const label = meta?.setLabel || meta?.categoryName || '';
+    if (label) {
+      const list = (S.state.notInStoreSelected || []).slice();
+      if (!list.includes(label)) {
+        S.patch({ notInStoreSelected: list.concat([label]) }, 'helpdesk-nis');
+      }
+      S.appendNote?.(`Not in store: ${label}`);
+    }
+    const row = findRowForHelpdeskMeta(meta || {});
+    if (!row) {
+      try { S.saveDraft?.(); } catch (_) {}
+      return false;
+    }
+    await applyMark(row.id, 'not_in_store', {
+      skipHelpdeskPrompt: true,
+      forceOn: true,
+      helpdeskSent: true,
+    });
+    return true;
   }
 
   /** Mark every still-open set Complete. Leaves NIS / NISI alone. */
@@ -575,6 +627,7 @@
     render,
     completeAllOpen,
     applyMark,
+    markNotInStoreFromHelpdesk,
     openSignoffPdfPreview,
     printSignoffAtStore,
     openPrintAtStoreModal,

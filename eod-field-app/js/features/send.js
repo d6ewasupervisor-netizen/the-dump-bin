@@ -88,6 +88,13 @@ ${digitalLine}
 ${deptSigLine}
 Not in store: ${notInStoreText}
 Not in SI: ${notInSiText}
+Help desk reports: ${(S.state.helpdeskSubmittedReports || []).length
+      ? (S.state.helpdeskSubmittedReports || []).map((r) => {
+          const kind = r.issueTypeId === 'not_in_store' ? 'Not in store' : (r.issueTypeId || 'issue');
+          const setName = r.setMeta?.setLabel || r.setLabel || r.manualSetName || r.customIssue || '';
+          return setName ? `${kind} — ${setName}` : kind;
+        }).join('; ')
+      : 'None'}
 After picture of KOMPASS cart taken: ${yn(afterDone)}
 Sign-off sheets photographed: ${yn(signoffDone)}
 Number of sign-off photos: ${signoffCount}

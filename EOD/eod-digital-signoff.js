@@ -320,7 +320,20 @@
     if (typeof window.autoSave === 'function') window.autoSave();
   }
 
-  async function applyMark(rowId, markType) {
+  function appendEodNote(line) {
+    const el = document.getElementById('notes');
+    const text = String(line || '').trim();
+    if (!el || !text) return;
+    const cur = el.value || '';
+    if (cur.split(/\n/).some((l) => l.trim() === text)) return;
+    el.value = cur.trim() ? `${cur.trim()}\n${text}` : text;
+    if (typeof window.autoSave === 'function') window.autoSave();
+  }
+
+  async function applyMark(rowId, markType, opts) {
+    const skipSideEffects = !!(opts && opts.skipSideEffects);
+    const forceOn = !!(opts && opts.forceOn);
+    const helpdeskSentOverride = !!(opts && opts.helpdeskSent);
     const store = storeNumber();
     const date = workDate();
     const row = sheet?.rows?.find((r) => String(r.id) === String(rowId));
@@ -345,7 +358,7 @@
         return;
       }
 
-      const togglingOff = markIsActive(row, markType);
+      const togglingOff = !forceOn && markIsActive(row, markType);
       if (togglingOff) {
         const resp = await authFetch(
           `${API}/rows/${encodeURIComponent(rowId)}/mark?markType=${encodeURIComponent(markType)}`,
@@ -378,7 +391,7 @@
         if (match?.set?.id != null) resetId = String(match.set.id);
       }
 
-      if (markType === 'not_in_store' || markType === 'not_in_si') {
+      if ((markType === 'not_in_store' || markType === 'not_in_si') && !skipSideEffects) {
         if (label && typeof window.handleNotInSideEffects === 'function') {
           try {
             // Drop overlay so Send/Stand-down confirm is usable (T0.12).
@@ -403,7 +416,11 @@
           const list = markType === 'not_in_store' ? window.notInStoreSelected : window.notInSiSelected;
           if (Array.isArray(list) && !list.includes(label)) list.push(label);
         }
+      } else if (label && (markType === 'not_in_store' || markType === 'not_in_si')) {
+        const list = markType === 'not_in_store' ? window.notInStoreSelected : window.notInSiSelected;
+        if (Array.isArray(list) && !list.includes(label)) list.push(label);
       }
+      if (helpdeskSentOverride) helpdeskSent = true;
 
       const resp = await authFetch(`${API}/rows/${encodeURIComponent(rowId)}/mark`, {
         method: 'POST',
@@ -425,6 +442,9 @@
         throw new Error('Confirm today\'s store first');
       }
       if (!resp.ok) throw new Error(data.error || 'Mark failed');
+      if (markType === 'not_in_store' && label) {
+        appendEodNote(`Not in store: ${label}`);
+      }
       await refresh();
     } catch (err) {
       console.error(err);
@@ -448,11 +468,45 @@
     };
   }
 
+  function findRowForHelpdeskMeta(meta) {
+    const rows = sheet?.rows || [];
+    const dbkey = String(meta?.dbkey || '').trim();
+    const catNum = String(meta?.categoryNumber || '').replace(/\D/g, '');
+    const name = String(meta?.setLabel || meta?.categoryName || '').trim().toLowerCase();
+    return rows.find((r) => {
+      if (dbkey && String(r.dbkey || '').trim() === dbkey) return true;
+      const rNum = String(r.catId || r.catNumber || '').replace(/\D/g, '');
+      if (catNum && rNum && catNum === rNum) return true;
+      const rName = String(r.catName || '').trim().toLowerCase();
+      if (name && rName && (rName === name || rName.includes(name) || name.includes(rName))) return true;
+      return false;
+    }) || null;
+  }
+
+  async function markNotInStoreFromHelpdesk(meta) {
+    const label = meta?.setLabel || meta?.categoryName || '';
+    if (label) {
+      if (!Array.isArray(window.notInStoreSelected)) window.notInStoreSelected = [];
+      if (!window.notInStoreSelected.includes(label)) window.notInStoreSelected.push(label);
+      appendEodNote(`Not in store: ${label}`);
+    }
+    const row = findRowForHelpdeskMeta(meta || {});
+    if (!row) return false;
+    await applyMark(row.id, 'not_in_store', {
+      skipSideEffects: true,
+      forceOn: true,
+      helpdeskSent: true,
+    });
+    return true;
+  }
+
   window.EodDigitalSignoff = {
     refresh,
     ensureUi,
     getSummaryForEmail,
     getSheet: () => sheet,
+    applyMark,
+    markNotInStoreFromHelpdesk,
   };
 
   document.addEventListener('DOMContentLoaded', () => {

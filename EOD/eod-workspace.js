@@ -5,7 +5,7 @@
   const PAGE_KEY = 'eodWorkspacePage';
   const TAB_MEMORY_KEY = 'eodWorkspaceTabMemory';
   const NARROW = 720;
-  const VERSION = 'v2.17.2';
+  const VERSION = 'v2.17.3';
 
   /* Primary bottom tabs (Speakap-style). Help desk lives under More. */
   const TAB_PAGES = [
@@ -214,7 +214,7 @@ function isNarrow() {
       '<path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>',
       '<path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>',
       '</svg></button>',
-      '<span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.17.2</span>',
+      '<span class="eod-version-badge eod-chrome-version" id="eodVersionBadgeChrome" title="Tap to toggle test mode · long-press to force Update">v2.17.3</span>',
     ].join('');
     container.insertBefore(chrome, workspace);
 

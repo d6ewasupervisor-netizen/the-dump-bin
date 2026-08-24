@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-08-17T12:15Z eod-v2.17.2-no-feedback-fab -->
+<!-- build: 2026-08-17T12:15Z eod-v2.17.3-helpdesk-nis -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -34,12 +34,12 @@
     <script src="eod-guest-handoff.js?v=2.16.0" defer></script>
     <script src="eod-timesheet-mgmt.js?v=2.16.0" defer></script>
     <script src="eod-dept-signatures.js?v=2.14.0" defer></script>
-    <script src="eod-digital-signoff.js?v=2.14.0" defer></script>
+    <script src="eod-digital-signoff.js?v=2.17.3" defer></script>
     <script src="eod-pic-qr.js?v=2.16.0" defer></script>
     <script src="eod-cover-sync.js?v=2.14.0" defer></script>
-    <link rel="stylesheet" href="eod-workspace.css?v=2.17.2">
-    <script src="eod-workspace.js?v=2.17.2" defer></script>
-    <script src="eod-feedback-hub.js?v=2.17.2" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.17.3">
+    <script src="eod-workspace.js?v=2.17.3" defer></script>
+    <script src="eod-feedback-hub.js?v=2.17.3" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3297,7 +3297,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.2</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.3</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4660,7 +4660,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.17.2';
+        const EOD_APP_VERSION = '2.17.3';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -5691,7 +5691,7 @@
                     return;
                 }
 
-                const errMsg = result.detail || result.reason || ('Could not verify the store (HTTP ' + resp.status + ').');
+                const errMsg = result.error || result.detail || result.reason || ('Could not verify the store (HTTP ' + resp.status + ').');
                 statusDiv.innerHTML = '<span style="color:#ef4444;">' + escapeHtml(errMsg) + '</span>';
             } catch (err) {
                 statusDiv.innerHTML = '<span style="color:#ef4444;">Network error: ' + escapeHtml(err.message || String(err)) + '</span>';
@@ -12740,6 +12740,25 @@ ${data.Notes || ''}`;
             autoSave();
         }
 
+        function appendEodNote(line) {
+            const el = document.getElementById('notes');
+            const text = String(line || '').trim();
+            if (!el || !text) return;
+            const cur = el.value || '';
+            if (cur.split(/\n/).some((l) => l.trim() === text)) return;
+            el.value = cur.trim() ? `${cur.trim()}\n${text}` : text;
+        }
+
+        function markDigitalSheetNotInStore(setLabelValue, helpdeskSent, fromDigitalSheet) {
+            if (fromDigitalSheet) return;
+            if (!window.EodDigitalSignoff?.markNotInStoreFromHelpdesk) return;
+            window.EodDigitalSignoff.markNotInStoreFromHelpdesk({
+                setLabel: setLabelValue,
+                categoryName: setLabelValue,
+                helpdeskSent: !!helpdeskSent,
+            }).catch((err) => console.warn('digital signoff NIS from coversheet', err));
+        }
+
         async function sendNotInStoreHelpdeskReport(match, setLabelValue) {
             const storeNumber = document.getElementById('storeNumber')?.value?.trim();
             if (!storeNumber) throw new Error('Store number is required before contacting the help desk.');
@@ -12763,7 +12782,7 @@ ${data.Notes || ''}`;
                     footageToken: set.footage || null,
                     issueTypeId: 'not_in_store',
                     issueTypeLabel: 'Set not in store',
-                    issueDetails: 'Marked Not In Store from the EOD coversheet picker.',
+                    issueDetails: 'Not in store.',
                     customIssue: '',
                     setEntryManual: !match,
                     photos: [],
@@ -12855,6 +12874,9 @@ ${data.Notes || ''}`;
         async function handleNotInSideEffects(kind, setLabelValue, opts) {
             const isStore = kind === 'store';
             const appendText = isStore ? 'Not In Store' : 'Not In SI';
+            if (isStore && setLabelValue) {
+                appendEodNote(`Not in store: ${setLabelValue}`);
+            }
             const match = resolvePickerSetMatch(setLabelValue);
             let commentResult = { skipped: true };
 
@@ -12880,6 +12902,7 @@ ${data.Notes || ''}`;
                 commentResult = { skipped: true, error: err.message || String(err) };
                 if (isStore) {
                     const hd = await confirmNotInStoreHelpdesk(match, setLabelValue, commentResult);
+                    markDigitalSheetNotInStore(setLabelValue, hd?.helpdeskSent, opts?.fromDigitalSheet);
                     return {
                         prodCommentOk: false,
                         helpdeskSent: hd?.helpdeskSent === true,
@@ -12893,6 +12916,7 @@ ${data.Notes || ''}`;
 
             if (isStore) {
                 const hd = await confirmNotInStoreHelpdesk(match, setLabelValue, commentResult);
+                markDigitalSheetNotInStore(setLabelValue, hd?.helpdeskSent, opts?.fromDigitalSheet);
                 return {
                     prodCommentOk: !commentResult.skipped && !commentResult.error,
                     helpdeskSent: hd?.helpdeskSent === true,
@@ -14953,7 +14977,7 @@ ${data.Notes || ''}`;
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=2.6"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.17.3"></script>
     <script src="eod-materials-browser.js?v=3.0.1"></script>
 </body>
 </html>

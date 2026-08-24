@@ -28,6 +28,31 @@
 
     const AIYANA_EMAIL = 'aiyana.natarisalazar@retailodyssey.com';
 
+    function sanitizeNotInStoreDetails(issueTypeId, details) {
+        let text = String(details || '').trim();
+        if (String(issueTypeId || '') !== 'not_in_store') return text;
+        if (!text) return 'Not in store.';
+        if (/marked not in store/i.test(text)
+            && /signoff|sign-off|coversheet|cover sheet|picker|selected|digital sheet|digital signoff/i.test(text)) {
+            const stripped = text
+                .replace(/marked not in store[^.!?\n]*[.!?]?/gi, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            return stripped || 'Not in store.';
+        }
+        return text;
+    }
+
+    function appendEodNote(line) {
+        const el = document.getElementById('notes');
+        const text = String(line || '').trim();
+        if (!el || !text) return;
+        const cur = el.value || '';
+        if (cur.split(/\n/).some((l) => l.trim() === text)) return;
+        el.value = cur.trim() ? `${cur.trim()}\n${text}` : text;
+        if (typeof window.autoSave === 'function') window.autoSave();
+    }
+
     function retailOdysseyTeamForStore(storeNumber) {
         if (typeof window.retailOdysseyTeamEmailsForStore === 'function') {
             return window.retailOdysseyTeamEmailsForStore(storeNumber);
@@ -573,7 +598,7 @@
             for (const issue of issuesToSend) {
                 const opt = EOD_HELPDESK_ISSUE_OPTIONS.find((o) => o.id === issue.issueTypeId);
                 const meta = resolveIssueSetMeta(issue, map);
-                const issueDetails = (issue.details || '').trim();
+                const issueDetails = sanitizeNotInStoreDetails(issue.issueTypeId, issue.details);
 
                 const resp = await window.authFetch(`${window.EOD_API_BASE}/send-eod-helpdesk-report`, {
                     method: 'POST',
@@ -662,6 +687,17 @@
             if (issue.issueTypeId === 'not_in_store' && setName) {
                 if (!window.notInStoreSelected.includes(setName)) {
                     window.notInStoreSelected.push(setName);
+                }
+                appendEodNote(`Not in store: ${setName}`);
+                const meta = resolveIssueSetMeta(issue, window.allShiftsSetsMap || {});
+                if (window.EodDigitalSignoff?.markNotInStoreFromHelpdesk) {
+                    window.EodDigitalSignoff.markNotInStoreFromHelpdesk({
+                        dbkey: meta.dbkey || issue.dbkey || issue.manualDbkey,
+                        categoryNumber: meta.categoryNumber || issue.categoryNumber,
+                        setLabel: setName,
+                        categoryName: meta.categoryName,
+                        helpdeskSent: true,
+                    }).catch((err) => console.warn('digital signoff NIS from helpdesk', err));
                 }
             }
         });
