@@ -38,10 +38,98 @@
       S.saveDraft();
       return { ok: true };
     }
+    if (resp.status === 403 && result.reason === 'not_on_roster') {
+      return {
+        ok: false,
+        needsOverride: true,
+        message: result.error || 'You don’t appear on today’s SAS roster for this store.',
+      };
+    }
     if (result.needsOverride || result.needsSupervisor) {
       return { ok: false, needsOverride: true, message: result.error || result.message || 'Supervisor override required' };
     }
-    return { ok: false, message: result.error || result.message || `Verify failed (${resp.status})` };
+    return { ok: false, message: result.error || result.reason || result.message || `Verify failed (${resp.status})` };
+  }
+
+  let overridePollTimer = null;
+
+  function stopOverridePoll() {
+    if (overridePollTimer) {
+      clearInterval(overridePollTimer);
+      overridePollTimer = null;
+    }
+  }
+
+  async function requestStoreOverride(store, date, reason, statusEl) {
+    const resp = await global.authFetch(`${global.EOD_API_BASE}/api/store-confirm-request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeNumber: store, date, reason: String(reason || '').slice(0, 500) }),
+    });
+    const result = await resp.json().catch(() => ({}));
+    if (!resp.ok || !result.requestId) {
+      throw new Error(result.error || `Request failed (${resp.status})`);
+    }
+    return result;
+  }
+
+  function startOverridePoll(requestId, store, date, statusEl, onApproved) {
+    stopOverridePoll();
+    const url = `${global.EOD_API_BASE}/api/store-confirm-request/${encodeURIComponent(requestId)}/status`;
+    const tick = async () => {
+      try {
+        const resp = await global.authFetch(url);
+        const result = await resp.json().catch(() => ({}));
+        if (result.status === 'approved' && result.token) {
+          stopOverridePoll();
+          const S = global.EodSession;
+          S.persistDayConfirm({ token: result.token, store, date, expiresInMs: result.expiresInMs });
+          S.patch({ storeNumber: S.normStoreNumber(store), workDate: S.normIsoDate(date) }, 'visit');
+          S.saveDraft();
+          if (onApproved) await onApproved();
+          return;
+        }
+        if (result.status === 'denied') {
+          stopOverridePoll();
+          statusEl.innerHTML = '<span style="color:#ef4444;">Override denied.</span>';
+          return;
+        }
+        if (result.status === 'expired') {
+          stopOverridePoll();
+          statusEl.innerHTML = '<span style="color:#ef4444;">Override request expired. Try again.</span>';
+        }
+      } catch (_) { /* keep polling */ }
+    };
+    overridePollTimer = setInterval(tick, 4000);
+    tick();
+  }
+
+  function showOverridePrompt(store, date, statusEl, onApproved) {
+    statusEl.innerHTML =
+      `<div style="color:#fbbf24;">You don’t appear on today’s SAS roster for store ${esc(store)} on ${esc(date)}.</div>` +
+      `<textarea id="visitOverrideReason" rows="2" placeholder="Why are you at this store today?" style="width:100%;margin-top:8px;"></textarea>` +
+      `<div class="btn-row" style="margin-top:8px;">` +
+      `<button type="button" class="btn btn-primary" id="visitOverrideBtn">Request override</button>` +
+      `</div>`;
+    const btn = document.getElementById('visitOverrideBtn');
+    if (!btn) return;
+    btn.onclick = async () => {
+      const reason = (document.getElementById('visitOverrideReason')?.value || '').trim();
+      btn.disabled = true;
+      statusEl.innerHTML = '<span class="muted">Sending override request…</span>';
+      try {
+        const result = await requestStoreOverride(store, date, reason, statusEl);
+        const approver = result.approverEmail || 'your supervisor';
+        const emailWarn = result.emailDelivered === false
+          ? `<div style="color:#fbbf24;font-size:13px;margin-top:6px;">Email delivery failed (${esc(result.emailError || 'unknown')}). Ping ${esc(approver)} directly.</div>`
+          : '';
+        statusEl.innerHTML =
+          `<div style="color:#88c4ed;">Override requested. Waiting for ${esc(approver)}…</div>${emailWarn}`;
+        startOverridePoll(result.requestId, store, date, statusEl, onApproved);
+      } catch (err) {
+        statusEl.innerHTML = `<span style="color:#ef4444;">${esc(err.message || String(err))}</span>`;
+      }
+    };
   }
 
   async function prefetchSheetWeek(store, date) {
@@ -543,6 +631,22 @@
       try {
         const result = await verifyAndPersist(store, date, status);
         if (!result.ok) {
+          if (result.needsOverride) {
+            showOverridePrompt(store, date, status, async () => {
+              status.innerHTML = '<span style="color:#22c55e;">Store confirmed for today.</span>';
+              document.getElementById('findShiftsBtn').disabled = false;
+              global.EodChrome?.refresh();
+              await prefetchSheetWeek(store, date);
+              try {
+                await findShifts(store, date, document.getElementById('shiftList'));
+              } catch (err) {
+                document.getElementById('shiftList').innerHTML = `<p style="color:#ef4444;">${esc(err.message)}</p>`;
+              }
+              paintOnboarding();
+              updateContinueBtn();
+            });
+            return;
+          }
           status.innerHTML = `<span style="color:#ef4444;">${esc(result.message)}</span>`;
           return;
         }

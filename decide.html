@@ -175,7 +175,7 @@
   const params = new URLSearchParams(window.location.search);
   const type = params.get('type');
   const id = params.get('id');
-  const token = params.get('token');
+  const token = String(params.get('token') || '').replace(/\s+/g, '');
 
   const $ = (id) => document.getElementById(id);
 
@@ -228,7 +228,13 @@
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       const err = data.error || ('HTTP ' + r.status);
-      showError(err === 'expired_token' ? 'This review link has expired. Ask the requester to send a new request.' : 'Could not load request (' + err + ').');
+      if (err === 'expired_token') {
+        showError('This review link has expired. Ask the requester to send a new request.');
+      } else if (err === 'malformed_token' || err === 'invalid_token') {
+        showError('This review link is broken or incomplete (email apps sometimes split it). Ask the requester to send a new request.');
+      } else {
+        showError('Could not load request (' + err + ').');
+      }
       return;
     }
     loadingEl.style.display = 'none';

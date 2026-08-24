@@ -124,7 +124,7 @@
   const params = new URLSearchParams(window.location.search);
   const type = params.get('type');
   const id = params.get('id');
-  const token = params.get('token');
+  const token = String(params.get('token') || '').replace(/\s+/g, '');
 
   const $ = (id) => document.getElementById(id);
   const loadingEl = $('loading');
