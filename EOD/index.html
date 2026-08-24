@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-08-17T12:15Z eod-v2.17.3-helpdesk-nis -->
+<!-- build: 2026-08-17T12:15Z eod-v2.17.4-helpdesk-nis -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -34,12 +34,12 @@
     <script src="eod-guest-handoff.js?v=2.16.0" defer></script>
     <script src="eod-timesheet-mgmt.js?v=2.16.0" defer></script>
     <script src="eod-dept-signatures.js?v=2.14.0" defer></script>
-    <script src="eod-digital-signoff.js?v=2.17.3" defer></script>
+    <script src="eod-digital-signoff.js?v=2.17.4" defer></script>
     <script src="eod-pic-qr.js?v=2.16.0" defer></script>
     <script src="eod-cover-sync.js?v=2.14.0" defer></script>
-    <link rel="stylesheet" href="eod-workspace.css?v=2.17.3">
-    <script src="eod-workspace.js?v=2.17.3" defer></script>
-    <script src="eod-feedback-hub.js?v=2.17.3" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.17.4">
+    <script src="eod-workspace.js?v=2.17.4" defer></script>
+    <script src="eod-feedback-hub.js?v=2.17.4" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3297,7 +3297,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.3</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.4</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4660,7 +4660,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.17.3';
+        const EOD_APP_VERSION = '2.17.4';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -7546,6 +7546,16 @@
             label: 'signoff-verify',
         };
 
+        // Letter-page PDF embed only needs ~150–200 DPI. Verification-grade
+        // pixels stay on the hosted photo links, not inside the emailed PDF.
+        const SIGNOFF_PDF_EMBED_POLICY = {
+            maxWidth: 1700,
+            maxHeight: 2200,
+            quality: 0.82,
+            allowUpscale: false,
+            label: 'signoff-pdf',
+        };
+
         async function prepareImageForEmbed(dataUrl, policy = {}) {
             const {
                 minWidth = 0,
@@ -10246,6 +10256,88 @@ ${data.Notes || ''}`;
             });
         }
 
+        function eodNetworkSendMessage(error) {
+            const msg = String((error && error.message) || error || '');
+            if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+                return 'Network dropped while sending. Stay on this screen and tap Send Email again.';
+            }
+            return msg || 'Unknown error';
+        }
+
+        function eodFilePartFromRaw(raw, fallbackMime) {
+            const s = typeof raw === 'string' ? raw : (raw && (raw.dataUrl || raw.imageBase64 || raw.content)) || '';
+            const str = String(s || '');
+            const m = str.match(/^data:([^;]+);base64,(.*)$/i);
+            if (m) {
+                return { mime: m[1], contentBase64: m[2].replace(/\s+/g, '') };
+            }
+            return { mime: fallbackMime, contentBase64: str.replace(/\s+/g, '') };
+        }
+
+        async function uploadEodArtifactPart({ packageId, storeNumber, workDate, kind, filename, mime, contentBase64, dayConfirm }) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (dayConfirm?.token) headers['X-Day-Confirm'] = dayConfirm.token;
+            const response = await authFetch('https://eod-api.the-dump-bin.com/api/eod-artifacts/part', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    packageId: packageId || undefined,
+                    storeNumber,
+                    workDate,
+                    kind,
+                    filename,
+                    mime,
+                    contentBase64,
+                }),
+            });
+            if (response.status === 412) {
+                const err = new Error('day_confirm_required');
+                err.status = 412;
+                throw err;
+            }
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result.ok === false) {
+                throw new Error(result.error || result.message || `Upload failed (${response.status})`);
+            }
+            return result;
+        }
+
+        async function uploadEodPackageParts(outbound, dayConfirm) {
+            const storeNumber = outbound.storeNumber;
+            const workDate = outbound.workDate || outbound.date;
+            let packageId = null;
+            if (outbound.pdfBase64) {
+                const part = await uploadEodArtifactPart({
+                    packageId,
+                    storeNumber,
+                    workDate,
+                    kind: 'pdf',
+                    filename: outbound.pdfFilename || `EOD_Store${storeNumber}.pdf`,
+                    mime: 'application/pdf',
+                    contentBase64: String(outbound.pdfBase64).replace(/\s+/g, ''),
+                    dayConfirm,
+                });
+                packageId = part.packageId;
+            }
+            const photos = Array.isArray(outbound.signoffPhotos) ? outbound.signoffPhotos : [];
+            for (let i = 0; i < photos.length; i++) {
+                const parsed = eodFilePartFromRaw(photos[i], 'image/jpeg');
+                if (!parsed.contentBase64) continue;
+                const part = await uploadEodArtifactPart({
+                    packageId,
+                    storeNumber,
+                    workDate,
+                    kind: 'signoff',
+                    filename: `signoff_${i}.jpg`,
+                    mime: parsed.mime || 'image/jpeg',
+                    contentBase64: parsed.contentBase64,
+                    dayConfirm,
+                });
+                packageId = part.packageId;
+            }
+            return packageId;
+        }
+
         // Actually send the email via fetch
         async function sendEmail(payload) {
             const outbound = applyEodTestModeToPayload(payload);
@@ -10258,10 +10350,35 @@ ${data.Notes || ''}`;
                 const headers = { 'Content-Type': 'application/json' };
                 if (dayConfirm?.token) headers['X-Day-Confirm'] = dayConfirm.token;
 
+                let packageId = null;
+                try {
+                    packageId = await uploadEodPackageParts(outbound, dayConfirm);
+                } catch (upErr) {
+                    if (upErr && upErr.status === 412) {
+                        loading.classList.remove('show');
+                        clearDayConfirm();
+                        pendingEodSendPayload = outbound;
+                        document.getElementById('modal')?.classList.remove('show');
+                        showDayConfirmModal({
+                            store: sendStore,
+                            date: sendDate,
+                            message: '<span style="color:#fbbf24;">Please re-confirm your store for today before sending EOD.</span>',
+                        });
+                        return;
+                    }
+                    throw upErr;
+                }
+
+                const meta = Object.assign({}, outbound, packageId ? { packageId } : {});
+                if (packageId) {
+                    delete meta.pdfBase64;
+                    delete meta.signoffPhotos;
+                }
+
                 const response = await authFetch('https://eod-api.the-dump-bin.com/send-eod', {
                     method: 'POST',
                     headers,
-                    body: JSON.stringify(outbound)
+                    body: JSON.stringify(meta)
                 });
 
                 if (response.status === 412) {
@@ -10322,7 +10439,7 @@ ${data.Notes || ''}`;
             } catch (error) {
                 console.error('Error sending email:', error);
                 loading.classList.remove('show');
-                showAlert('Error', 'Failed to send: ' + error.message);
+                showAlert('Error', 'Failed to send: ' + eodNetworkSendMessage(error));
             }
         }
 
@@ -10806,9 +10923,7 @@ ${data.Notes || ''}`;
                             }
 
                             const portraitData = await ensurePortraitOrientation(photoData);
-                            const compressed = await prepareSignoffForDelivery(portraitData, {
-                                fromProd: photoEntry.source === 'prod' || photoEntry.isUrl,
-                            });
+                            const compressed = await prepareImageForEmbed(portraitData, SIGNOFF_PDF_EMBED_POLICY);
                             const imgBytes = await fetch(compressed).then(r => r.arrayBuffer());
                             const img = await pdfDoc.embedJpg(imgBytes);
 
@@ -14977,7 +15092,7 @@ ${data.Notes || ''}`;
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=2.17.3"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.17.4"></script>
     <script src="eod-materials-browser.js?v=3.0.1"></script>
 </body>
 </html>

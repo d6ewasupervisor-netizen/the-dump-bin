@@ -528,10 +528,17 @@ ${S.state.notes || ''}`;
       btn.disabled = true;
       btn.textContent = 'Sending…';
       try {
+        const packageId = await uploadPackageParts(payload, headers);
+        const meta = Object.assign({}, payload);
+        if (packageId) {
+          meta.packageId = packageId;
+          delete meta.pdfBase64;
+          delete meta.signoffPhotos;
+        }
         const resp = await global.authFetch(`${global.EOD_API_BASE}/send-eod`, {
           method: 'POST',
           headers,
-          body: JSON.stringify(payload),
+          body: JSON.stringify(meta),
         });
         if (resp.status === 412) {
           S.clearDayConfirm();
@@ -549,12 +556,83 @@ ${S.state.notes || ''}`;
         }
       } catch (err) {
         console.error(err);
-        alert(`Send error: ${err.message}`);
+        if (err && err.status === 412) {
+          S.clearDayConfirm();
+          alert('Please re-confirm your store for today (day-confirm expired), then send again.');
+          global.EodRouter.go('visit');
+          return;
+        }
+        alert(`Send error: ${networkSendMessage(err)}`);
       } finally {
         btn.disabled = !!gateMessage();
         btn.textContent = 'Send EOD';
       }
     };
+  }
+
+  function filePartFromRaw(raw, fallbackMime) {
+    const s = typeof raw === 'string' ? raw : (raw && (raw.dataUrl || raw.imageBase64 || raw.content)) || '';
+    const str = String(s || '');
+    const m = str.match(/^data:([^;]+);base64,(.*)$/i);
+    if (m) return { mime: m[1], contentBase64: m[2].replace(/\s+/g, '') };
+    return { mime: fallbackMime, contentBase64: str.replace(/\s+/g, '') };
+  }
+
+  async function uploadPackageParts(payload, headers) {
+    const api = global.EOD_API_BASE;
+    let packageId = null;
+    async function postPart(body) {
+      const resp = await global.authFetch(`${api}/api/eod-artifacts/part`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (resp.status === 412) {
+        const err = new Error('day_confirm_required');
+        err.status = 412;
+        throw err;
+      }
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.ok === false) {
+        throw new Error(data.error || data.message || `Upload failed (${resp.status})`);
+      }
+      return data;
+    }
+    if (payload.pdfBase64) {
+      const part = await postPart({
+        storeNumber: payload.storeNumber,
+        workDate: payload.workDate,
+        kind: 'pdf',
+        filename: payload.pdfFilename || `EOD_Store${payload.storeNumber}.pdf`,
+        mime: 'application/pdf',
+        contentBase64: String(payload.pdfBase64).replace(/\s+/g, ''),
+      });
+      packageId = part.packageId;
+    }
+    const photos = Array.isArray(payload.signoffPhotos) ? payload.signoffPhotos : [];
+    for (let i = 0; i < photos.length; i++) {
+      const parsed = filePartFromRaw(photos[i], 'image/jpeg');
+      if (!parsed.contentBase64) continue;
+      const part = await postPart({
+        packageId: packageId || undefined,
+        storeNumber: payload.storeNumber,
+        workDate: payload.workDate,
+        kind: 'signoff',
+        filename: `signoff_${i}.jpg`,
+        mime: parsed.mime || 'image/jpeg',
+        contentBase64: parsed.contentBase64,
+      });
+      packageId = part.packageId;
+    }
+    return packageId;
+  }
+
+  function networkSendMessage(err) {
+    const msg = String((err && err.message) || err || '');
+    if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+      return 'Network dropped while sending. Stay on this screen and tap Send EOD again.';
+    }
+    return msg || 'Unknown error';
   }
 
   global.EodSend = { buildPayload, gateMessage };
