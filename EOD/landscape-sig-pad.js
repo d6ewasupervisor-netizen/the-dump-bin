@@ -10,16 +10,28 @@
     const css = document.createElement('style');
     css.id = STYLE_ID;
     css.textContent = `
+      html.eod-lsp-open, html.eod-lsp-open body {
+        overflow: hidden !important;
+        overscroll-behavior: none !important;
+        touch-action: none !important;
+        height: 100% !important;
+      }
+      html.eod-lsp-open body {
+        position: fixed !important;
+        left: 0; right: 0; width: 100%;
+      }
       .eod-lsp-overlay {
         display: none; position: fixed; inset: 0; z-index: 30000;
         background: #0b1220; color: #f8fafc; flex-direction: column;
         padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+        touch-action: none; overscroll-behavior: none; overflow: hidden;
       }
       .eod-lsp-overlay.show { display: flex; }
       .eod-lsp-bar {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
         padding: 8px 10px; background: #0d4f8b; min-height: 48px;
+        flex: 0 0 auto;
       }
       .eod-lsp-bar strong { flex: 1; font-size: 15px; }
       .eod-lsp-bar .btn, .eod-lsp-bar button {
@@ -29,9 +41,13 @@
       .eod-lsp-clear { background: #e2e8f0; color: #0f172a; }
       .eod-lsp-cancel { background: #334155; color: #f8fafc; }
       .eod-lsp-accept { background: #22c55e; color: #052e16; }
-      .eod-lsp-stage { position: relative; flex: 1; min-height: 0; background: #111827; }
+      .eod-lsp-stage {
+        position: relative; flex: 1; min-height: 0; background: #111827;
+        touch-action: none; overscroll-behavior: none;
+      }
       .eod-lsp-stage canvas {
-        display: block; width: 100%; height: 100%; background: #fff; touch-action: none;
+        display: block; width: 100%; height: 100%; background: #fff;
+        touch-action: none;
       }
       .eod-lsp-hint {
         position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -42,6 +58,27 @@
       .eod-lsp-hint.show { opacity: 1; }
     `;
     document.head.appendChild(css);
+  }
+
+  function lockPageScroll() {
+    const html = document.documentElement;
+    const body = document.body;
+    const y = window.scrollY || window.pageYOffset || 0;
+    html.dataset.eodLspScroll = String(y);
+    html.classList.add('eod-lsp-open');
+    body.classList.add('eod-lsp-open');
+    body.style.top = `-${y}px`;
+  }
+
+  function unlockPageScroll() {
+    const html = document.documentElement;
+    const body = document.body;
+    const y = Number(html.dataset.eodLspScroll || 0);
+    html.classList.remove('eod-lsp-open');
+    body.classList.remove('eod-lsp-open');
+    body.style.top = '';
+    delete html.dataset.eodLspScroll;
+    window.scrollTo(0, y);
   }
 
   function ensureDom() {
@@ -131,10 +168,13 @@
 
     function pos(e) {
       const rect = canvas.getBoundingClientRect();
-      const t = e.touches ? e.touches[0] : e;
+      const src = e.touches && e.touches[0]
+        ? e.touches[0]
+        : (e.changedTouches && e.changedTouches[0]) || e;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       return {
-        x: (t.clientX - rect.left) * (canvas.width / rect.width) / (Math.min(window.devicePixelRatio || 1, 2)),
-        y: (t.clientY - rect.top) * (canvas.height / rect.height) / (Math.min(window.devicePixelRatio || 1, 2)),
+        x: (src.clientX - rect.left) * (canvas.width / rect.width) / dpr,
+        y: (src.clientY - rect.top) * (canvas.height / rect.height) / dpr,
       };
     }
 
@@ -142,9 +182,13 @@
       drawing = true;
       last = pos(e);
       e.preventDefault();
+      e.stopPropagation();
     }
     function move(e) {
-      if (!drawing) return;
+      if (!drawing) {
+        e.preventDefault();
+        return;
+      }
       const p = pos(e);
       ctx.beginPath();
       ctx.moveTo(last.x, last.y);
@@ -152,8 +196,16 @@
       ctx.stroke();
       last = p;
       e.preventDefault();
+      e.stopPropagation();
     }
-    function stop() { drawing = false; }
+    function stop(e) {
+      drawing = false;
+      if (e) e.preventDefault();
+    }
+
+    function swallow(e) {
+      e.preventDefault();
+    }
 
     function onResize() {
       captureSnapshot();
@@ -164,11 +216,20 @@
       if (closed) return;
       closed = true;
       overlay.classList.remove('show');
-      canvas.onmousedown = canvas.onmousemove = canvas.onmouseup = canvas.onmouseleave = null;
-      canvas.ontouchstart = canvas.ontouchmove = canvas.ontouchend = null;
+      canvas.removeEventListener('mousedown', start);
+      canvas.removeEventListener('mousemove', move);
+      canvas.removeEventListener('mouseup', stop);
+      canvas.removeEventListener('mouseleave', stop);
+      canvas.removeEventListener('touchstart', start);
+      canvas.removeEventListener('touchmove', move);
+      canvas.removeEventListener('touchend', stop);
+      overlay.removeEventListener('touchmove', swallow);
+      overlay.removeEventListener('wheel', swallow);
+      overlay.removeEventListener('gesturestart', swallow);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
       try { screen.orientation.unlock(); } catch (_) {}
+      unlockPageScroll();
       if (accepted) {
         const url = canvas.toDataURL('image/png');
         if (typeof o.onAccept === 'function') o.onAccept(url);
@@ -177,13 +238,16 @@
       }
     }
 
-    canvas.onmousedown = start;
-    canvas.onmousemove = move;
-    canvas.onmouseup = stop;
-    canvas.onmouseleave = stop;
-    canvas.ontouchstart = start;
-    canvas.ontouchmove = move;
-    canvas.ontouchend = stop;
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', stop);
+    canvas.addEventListener('mouseleave', stop);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', stop, { passive: false });
+    overlay.addEventListener('touchmove', swallow, { passive: false });
+    overlay.addEventListener('wheel', swallow, { passive: false });
+    overlay.addEventListener('gesturestart', swallow, { passive: false });
     document.getElementById('eodLspClear').onclick = () => {
       snapshot = null;
       o.existingDataUrl = null;
@@ -198,6 +262,7 @@
       finish(true);
     };
 
+    lockPageScroll();
     overlay.classList.add('show');
     sizeCanvas();
     window.addEventListener('resize', onResize);

@@ -683,6 +683,17 @@ h2 { font-size: 1.15rem; color: #7dd3fc; }
   gap: 8px;
   margin-top: 16px;
 }
+.dept-sig-set-list { display: flex; flex-direction: column; gap: 6px; }
+.dept-sig-set-row {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; text-align: left; padding: 12px; border-radius: 8px;
+  border: 1px solid #334155; background: #0f172a; color: #f8fafc; cursor: pointer;
+}
+.dept-sig-set-row strong { color: #93c5fd; }
+.gh-dept-extra { margin-top: 10px; border: 1px solid #334155; border-radius: 8px; background: #0b1220; }
+.gh-dept-extra summary { cursor: pointer; padding: 10px 12px; font-weight: 700; }
+.gh-dept-extra[open] summary { border-bottom: 1px solid #334155; }
+.gh-dept-extra .dept-sig-set-list { padding: 8px; }
 .dept-sig-choice {
   display: block;
   width: 100%;

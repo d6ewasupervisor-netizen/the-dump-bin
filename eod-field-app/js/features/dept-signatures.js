@@ -5,6 +5,7 @@
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/dept-signatures';
+  const GUEST_API = 'https://eod-api.the-dump-bin.com/api/guest-handoff';
 
   const ROLE_FALLBACK = [
     { key: 'grocery', label: 'Grocery PIC' },
@@ -38,6 +39,50 @@
     dept_pic: [/blitz|dept\.?\s*pic/i],
   };
   const ROLE_ORDER = ROLE_FALLBACK.map((r) => r.key);
+  const GROCERY_EXPAND_KEYS = ['produce', 'meat', 'bakery', 'deli', 'fuel_center', 'dept_pic', 'home_manager'];
+
+  function sheetRows() {
+    return lastSheetRef?.rows
+      || window.EodDigitalSignoff?.getSheet?.()?.rows
+      || window.EodSession?.state?.sheet?.rows
+      || [];
+  }
+
+  function rowsMatchingRole(rows, roleKey) {
+    const list = Array.isArray(rows) ? rows : [];
+    const key = String(roleKey || '').trim().toLowerCase();
+    if (key === 'store_pic' || key === 'home_manager') return list.slice();
+    const patterns = ROW_ROLE_PATTERNS[key];
+    if (!patterns) return [];
+    return list.filter((row) => {
+      const text = haystack(row);
+      if (patterns.some((re) => re.test(text))) return true;
+      if (key === 'dept_pic' && /blitz/i.test(String(row.shiftType || row.shift_type || ''))) return true;
+      return false;
+    });
+  }
+
+  function extraDeptGroups(allRows, primaryKey) {
+    const primaryIds = new Set(rowsMatchingRole(allRows, primaryKey).map((r) => r.id));
+    const catalog = (catalogRoles.length ? catalogRoles : ROLE_FALLBACK);
+    const groups = [];
+    for (const key of GROCERY_EXPAND_KEYS) {
+      if (key === primaryKey) continue;
+      const role = catalog.find((r) => r.key === key) || { key, label: labelForKey(key) };
+      const rows = rowsMatchingRole(allRows, key).filter((r) => !primaryIds.has(r.id));
+      if (rows.length) groups.push({ key: role.key, label: role.label, rows });
+    }
+    return groups;
+  }
+
+  function setRowButtonHtml(row) {
+    const name = row.catName || row.cat_name || 'Set';
+    const dept = row.dept ? ` · ${row.dept}` : '';
+    return `<button type="button" class="dept-sig-set-row" data-set-id="${escapeHtml(row.id)}">
+      <strong>${escapeHtml(name)}</strong>
+      ${dept ? `<span class="muted">${escapeHtml(dept)}</span>` : ''}
+    </button>`;
+  }
 
   function authFetch(url, init) {
     if (typeof window.authFetch === 'function') return window.authFetch(url, init);
@@ -493,7 +538,10 @@
     if (wizard.step === 'email') wizard.step = 'name';
     else if (wizard.step === 'title') wizard.step = 'email';
     else if (wizard.step === 'name' && contacts.length) wizard.step = 'pick';
-    else if (wizard.step === 'sign') {
+    else if (wizard.step === 'setReview') wizard.step = 'sets';
+    else if (wizard.step === 'sets') wizard.step = 'choice';
+    else if (wizard.step === 'sign') wizard.step = 'choice';
+    else if (wizard.step === 'choice') {
       wizard.step = wizard.contactId || wizard.email ? 'confirm' : 'title';
     } else if (wizard.step === 'confirm') {
       wizard.step = contacts.length ? 'pick' : 'name';
@@ -537,6 +585,11 @@
       return;
     }
     if (wizard.step === 'confirm') {
+      wizard.step = 'choice';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'sets') {
       wizard.step = 'sign';
       renderWizard();
       return;
@@ -544,6 +597,126 @@
     if (wizard.step === 'sign') {
       await submitSignature();
     }
+  }
+
+  async function mintPicToken() {
+    if (wizard.picToken) return wizard.picToken;
+    const resp = await authFetch(`${GUEST_API}/store-pic`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        leadName: window.EodSession?.state?.leadName || null,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false || !data.token) {
+      throw new Error(data.error || `Could not load set photos (${resp.status})`);
+    }
+    wizard.picToken = data.token;
+    return wizard.picToken;
+  }
+
+  async function enterSetsStep() {
+    wizard.step = 'sets';
+    wizard.setsError = '';
+    renderWizard();
+    try {
+      await mintPicToken();
+      if (window.EodSetReview?.preloadRole) {
+        window.EodSetReview.preloadRole({
+          api: GUEST_API,
+          token: wizard.picToken,
+          roleKey: wizard.roleKey,
+        });
+      }
+    } catch (err) {
+      wizard.setsError = err.message || 'Set photos could not be preloaded.';
+    }
+    renderWizard();
+  }
+
+  function bindSetRowClicks(root) {
+    root.querySelectorAll('[data-set-id]').forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-set-id');
+        const row = sheetRows().find((r) => String(r.id) === String(id));
+        if (!row) return;
+        wizard.reviewRow = row;
+        wizard.step = 'setReview';
+        renderWizard();
+      };
+    });
+  }
+
+  function renderSetsStep(hint, body, next) {
+    const all = sheetRows();
+    const mine = rowsMatchingRole(all, wizard.roleKey);
+    const extras = wizard.roleKey === 'grocery' ? extraDeptGroups(all, wizard.roleKey) : [];
+    hint.textContent = wizard.roleKey === 'grocery'
+      ? 'Your grocery sets are listed first. Open another department only if you are signing those out too.'
+      : 'Tap a set to view before and after photos.';
+    next.style.display = 'inline-flex';
+    next.textContent = 'Continue to signature';
+    const extraHtml = extras.map((g) => `
+      <details class="gh-dept-extra" data-extra-role="${escapeHtml(g.key)}">
+        <summary>${escapeHtml(g.label)} (${g.rows.length})</summary>
+        <div class="dept-sig-set-list">${g.rows.map(setRowButtonHtml).join('')}</div>
+      </details>`).join('');
+    body.innerHTML = `
+      ${wizard.setsError ? `<p class="muted">${escapeHtml(wizard.setsError)}</p>` : ''}
+      <div class="dept-sig-set-list">
+        ${mine.length ? mine.map(setRowButtonHtml).join('') : '<p class="muted">No sets matched this department on today’s sheet.</p>'}
+      </div>
+      ${extraHtml}`;
+    bindSetRowClicks(body);
+    body.querySelectorAll('details[data-extra-role]').forEach((el) => {
+      el.addEventListener('toggle', () => {
+        if (!el.open || !wizard.picToken || !window.EodSetReview?.preloadRole) return;
+        window.EodSetReview.preloadRole({
+          api: GUEST_API,
+          token: wizard.picToken,
+          roleKey: el.getAttribute('data-extra-role'),
+        });
+      });
+    });
+  }
+
+  function renderSetReviewStep(hint, body, back, next) {
+    hint.textContent = '';
+    next.style.display = 'none';
+    back.style.display = 'inline-flex';
+    const row = wizard.reviewRow;
+    if (!row) {
+      body.innerHTML = '<p class="muted">Set not found.</p>';
+      return;
+    }
+    body.innerHTML = '<div id="deptSigReviewRoot"></div>';
+    if (!window.EodSetReview?.createReview) {
+      body.innerHTML = '<p class="muted">Photo review is not available on this device.</p>';
+      return;
+    }
+    if (!wizard.picToken) {
+      body.innerHTML = '<p class="muted">Set photos need a store PIC session. Go back and try View sets again.</p>';
+      return;
+    }
+    window.EodSetReview.createReview({
+      root: document.getElementById('deptSigReviewRoot'),
+      api: GUEST_API,
+      token: wizard.picToken,
+      row,
+      skipRemoteMark: false,
+      onBack: () => {
+        wizard.step = 'sets';
+        renderWizard();
+      },
+      onMarked: () => {},
+      onConfirmComplete: () => {
+        wizard.step = 'sets';
+        renderWizard();
+      },
+    });
   }
 
   function renderWizard() {
@@ -618,8 +791,35 @@
     }
     if (wizard.step === 'confirm') {
       hint.innerHTML = `You will only need to enter your information once because our system remembers who you are at this store.<br><strong>You will still be asked to sign each time.</strong>`;
-      next.textContent = 'Continue to signature';
+      next.textContent = 'Continue';
       body.innerHTML = `<p style="margin:0;"><strong>${escapeHtml(wizard.fullName)}</strong>${wizard.title ? ` · ${escapeHtml(wizard.title)}` : ''}<br>${escapeHtml(wizard.email)}</p>`;
+      return;
+    }
+    if (wizard.step === 'choice') {
+      hint.textContent = 'Review today’s sets, or skip straight to your signature.';
+      next.style.display = 'none';
+      body.innerHTML = `
+        <button type="button" class="dept-sig-choice" id="deptSigViewSets">
+          <strong>View sets</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">Before and after photos for this department</span>
+        </button>
+        <button type="button" class="dept-sig-choice" id="deptSigJustSign">
+          <strong>Just sign</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">Skip photo review</span>
+        </button>`;
+      document.getElementById('deptSigViewSets').onclick = () => enterSetsStep();
+      document.getElementById('deptSigJustSign').onclick = () => {
+        wizard.step = 'sign';
+        renderWizard();
+      };
+      return;
+    }
+    if (wizard.step === 'sets') {
+      renderSetsStep(hint, body, next);
+      return;
+    }
+    if (wizard.step === 'setReview') {
+      renderSetReviewStep(hint, body, back, next);
       return;
     }
     if (wizard.step === 'sign') {
