@@ -460,16 +460,11 @@
       const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
       const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
       const visitIds = shifts.map((s) => s.visitId).filter(Boolean);
-      const leadName = S.state.leadName
-        || S.state.selectedShift?.visitLead
-        || S.state.selectedShift?.leadName
-        || null;
       const body = JSON.stringify({
         storeNumber: S.state.storeNumber,
         workDate: S.state.workDate,
         visitId: S.state.selectedShift?.visitId || null,
         visitIds,
-        leadName,
       });
       const resp = await global.authFetch(`${API}/sync`, { method: 'POST', headers, body });
       const data = await resp.json().catch(() => ({}));

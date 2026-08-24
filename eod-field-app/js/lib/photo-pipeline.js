@@ -479,6 +479,7 @@
       bay: job.bay,
       photoBase64: job.dataUrl,
       visitId: job.visitId || S.state.selectedShift?.visitId || null,
+      visitIds: (S.state.shifts || []).map((s) => s.visitId).filter(Boolean),
       resetId: job.resetId || null,
       taskId: job.taskId || null,
       skipProd: !!job.skipProd,

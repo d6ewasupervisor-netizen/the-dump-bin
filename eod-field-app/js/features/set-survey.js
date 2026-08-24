@@ -29,6 +29,13 @@
     return `<span class="pill ${cls}">${esc(st.replace(/_/g, ' '))}</span>`;
   }
 
+  function storeDayVisitIds() {
+    const S = global.EodSession;
+    const fromList = (S.state.shifts || []).map((s) => s.visitId).filter(Boolean);
+    const selected = S.state.selectedShift?.visitId;
+    return [...new Set([...fromList, selected].filter(Boolean).map(String))];
+  }
+
   async function fetchStatus(dbkey, rowId) {
     const S = global.EodSession;
     const qs = new URLSearchParams({
@@ -38,6 +45,8 @@
     });
     if (rowId) qs.set('rowId', rowId);
     if (S.state.selectedShift?.visitId) qs.set('visitId', S.state.selectedShift.visitId);
+    const ids = storeDayVisitIds();
+    if (ids.length) qs.set('visitIds', ids.join(','));
     const resp = await global.authFetch(`${API}/status?${qs}`);
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Status failed (${resp.status})`);
@@ -74,6 +83,7 @@
       bay,
       photoBase64,
       visitId: visitId || S.state.selectedShift?.visitId || null,
+      visitIds: storeDayVisitIds(),
       resetId: resetId || null,
       taskId: taskId || null,
     });
@@ -92,6 +102,7 @@
       dbkey,
       rowId,
       visitId: S.state.selectedShift?.visitId || null,
+      visitIds: storeDayVisitIds(),
       direction: 'auto',
     });
     const resp = await global.authFetch(`${API}/cross-fill`, { method: 'POST', headers, body });
@@ -109,6 +120,7 @@
       dbkey,
       rowId,
       visitId: ids?.visitId || S.state.selectedShift?.visitId || null,
+      visitIds: storeDayVisitIds(),
       resetId: ids?.resetId || null,
       taskId: ids?.taskId || null,
       markSheet: true,
