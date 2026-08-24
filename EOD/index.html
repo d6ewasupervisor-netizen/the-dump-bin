@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-08-17T12:15Z eod-v2.17.4-helpdesk-nis -->
+<!-- build: 2026-08-24T20:40Z eod-v2.17.5-auto-update -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -34,12 +34,12 @@
     <script src="eod-guest-handoff.js?v=2.16.0" defer></script>
     <script src="eod-timesheet-mgmt.js?v=2.16.0" defer></script>
     <script src="eod-dept-signatures.js?v=2.14.0" defer></script>
-    <script src="eod-digital-signoff.js?v=2.17.4" defer></script>
+    <script src="eod-digital-signoff.js?v=2.17.5" defer></script>
     <script src="eod-pic-qr.js?v=2.16.0" defer></script>
     <script src="eod-cover-sync.js?v=2.14.0" defer></script>
-    <link rel="stylesheet" href="eod-workspace.css?v=2.17.4">
-    <script src="eod-workspace.js?v=2.17.4" defer></script>
-    <script src="eod-feedback-hub.js?v=2.17.4" defer></script>
+    <link rel="stylesheet" href="eod-workspace.css?v=2.17.5">
+    <script src="eod-workspace.js?v=2.17.5" defer></script>
+    <script src="eod-feedback-hub.js?v=2.17.5" defer></script>
     <style>
         /* Role-based visibility gating */
         [data-requires-role]:not(.role-visible) {
@@ -3297,7 +3297,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.4</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.5</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4660,7 +4660,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.17.4';
+        const EOD_APP_VERSION = '2.17.5';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -4681,6 +4681,7 @@
             { employeeId: 'test-iw-ftrkc17', name: '17 Fast Track C', workdayId: 'Ftrkc17' },
         ];
         const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
+        const EOD_PENDING_AT_KEY = 'eodPendingHotfixAt';
         const EOD_RO_LOGO_URL = 'https://the-dump-bin.com/welcome/assets/retail-odyssey-banner.png';
         let eodTestMode = sessionStorage.getItem(EOD_TEST_MODE_KEY) === '1';
         // sessionStorage only — never localStorage. Cleared when leaving test mode.
@@ -4693,8 +4694,9 @@
         let eodTestScenarioActive = false;
         let eodUpdateActionsBound = false;
         let eodUpdateAutoReloadTimer = null;
-        const EOD_UPDATE_CHECK_MS = 2 * 60 * 1000;
+        const EOD_UPDATE_CHECK_MS = 30 * 1000;
         const EOD_UPDATE_AUTO_RELOAD_MS = 3500;
+        const EOD_UPDATE_RETRY_MS = 12000;
         window.EOD_API_BASE = EOD_API_BASE;
         window.EOD_APP_VERSION = EOD_APP_VERSION;
 
@@ -14897,15 +14899,6 @@ ${data.Notes || ''}`;
                 try { localStorage.removeItem(key); } catch (_) { /* private mode */ }
             }
 
-            function urlAlreadyCacheBusted() {
-                try {
-                    const u = new URL(window.location.href);
-                    return u.searchParams.has('eodv') || u.searchParams.has('_');
-                } catch {
-                    return false;
-                }
-            }
-
             function stripUpdateQuery() {
                 try {
                     const u = new URL(window.location.href);
@@ -14921,6 +14914,7 @@ ${data.Notes || ''}`;
             const pendingNow = storageGet(EOD_PENDING_VERSION_KEY);
             if (pendingNow && (pendingNow === EOD_APP_VERSION || String(pendingNow).startsWith('force-'))) {
                 storageRemove(EOD_PENDING_VERSION_KEY);
+                storageRemove(EOD_PENDING_AT_KEY);
                 stripUpdateQuery();
             }
 
@@ -14944,6 +14938,7 @@ ${data.Notes || ''}`;
                 }
                 const version = remoteVersion || String(Date.now());
                 storageSet(EOD_PENDING_VERSION_KEY, version);
+                storageSet(EOD_PENDING_AT_KEY, String(Date.now()));
                 try {
                     const u = new URL(window.location.href);
                     u.searchParams.set('eodv', version);
@@ -15003,7 +14998,7 @@ ${data.Notes || ''}`;
                 }
             }
 
-            function renderEodUpdateBanner({ title, detail, remoteVersion, autoReload }) {
+            function renderEodUpdateBanner({ title, detail, remoteVersion, autoReload, autoReloadMs }) {
                 const banner = document.getElementById('eodUpdateBanner');
                 const textEl = document.getElementById('eodUpdateBannerText');
                 if (!banner || !textEl) return;
@@ -15016,14 +15011,17 @@ ${data.Notes || ''}`;
                     if (eodUpdateAutoReloadTimer) clearTimeout(eodUpdateAutoReloadTimer);
                     eodUpdateAutoReloadTimer = setTimeout(() => {
                         void hardNavigateForUpdate(remoteVersion);
-                    }, EOD_UPDATE_AUTO_RELOAD_MS);
+                    }, autoReloadMs || EOD_UPDATE_AUTO_RELOAD_MS);
                 }
             }
 
             async function fetchLiveEodVersion() {
                 try {
                     const url = EOD_VERSION_URL + '?t=' + Date.now();
-                    const resp = await fetch(url, { cache: 'no-store' });
+                    const resp = await fetch(url, {
+                        cache: 'no-store',
+                        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+                    });
                     if (!resp.ok) return null;
                     const data = await resp.json();
                     return data && data.version ? String(data.version).trim() : null;
@@ -15032,18 +15030,7 @@ ${data.Notes || ''}`;
                 }
             }
 
-            function showStaleCacheBanner(remoteVersion) {
-                renderEodUpdateBanner({
-                    title: 'Update ready',
-                    detail:
-                        `This phone is still on v${EOD_APP_VERSION} (server is v${escapeHtml(remoteVersion)}). ` +
-                        'Your form data is saved. If Update loops, close this tab and open the EOD app again from the Dump Bin home page.',
-                    remoteVersion,
-                    autoReload: false,
-                });
-            }
-
-            function triggerEodHotfixReload(remoteVersion) {
+            function triggerEodHotfixReload(remoteVersion, delayMs) {
                 renderEodUpdateBanner({
                     title: 'App update available',
                     detail:
@@ -15051,6 +15038,7 @@ ${data.Notes || ''}`;
                         'Reloading automatically — or tap <strong>Update</strong> now.',
                     remoteVersion,
                     autoReload: true,
+                    autoReloadMs: delayMs,
                 });
             }
 
@@ -15060,6 +15048,7 @@ ${data.Notes || ''}`;
                     const pending = storageGet(EOD_PENDING_VERSION_KEY);
                     if (pending && (pending === remote || pending === EOD_APP_VERSION || String(pending).startsWith('force-'))) {
                         storageRemove(EOD_PENDING_VERSION_KEY);
+                        storageRemove(EOD_PENDING_AT_KEY);
                     }
                     stripUpdateQuery();
                     const banner = document.getElementById('eodUpdateBanner');
@@ -15067,11 +15056,15 @@ ${data.Notes || ''}`;
                     return;
                 }
 
-                // Already tried reloading for this remote version (or this URL
-                // is already cache-busted) but HTML is still stale — do not loop.
+                // Keep auto-reloading until this HTML matches eod-version.json.
+                // If we just reloaded and the shell is still stale (CDN/iOS cache),
+                // wait EOD_UPDATE_RETRY_MS then retry with a new cache-buster —
+                // never leave the phone stuck requiring a manual Update tap.
                 const pending = storageGet(EOD_PENDING_VERSION_KEY);
-                if (pending === remote || urlAlreadyCacheBusted()) {
-                    showStaleCacheBanner(remote);
+                const lastAt = Number(storageGet(EOD_PENDING_AT_KEY) || 0);
+                const elapsed = lastAt ? Date.now() - lastAt : EOD_UPDATE_RETRY_MS;
+                if (pending === remote && lastAt && elapsed < EOD_UPDATE_RETRY_MS) {
+                    triggerEodHotfixReload(remote, EOD_UPDATE_RETRY_MS - elapsed);
                     return;
                 }
 
@@ -15083,12 +15076,13 @@ ${data.Notes || ''}`;
             document.addEventListener('visibilitychange', () => {
                 if (!document.hidden) checkEodVersion();
             });
+            window.addEventListener('pageshow', () => checkEodVersion());
         })();
 
         syncEodWizardGlobals();
 
     </script>
-    <script src="eod-helpdesk-wizard.js?v=2.17.4"></script>
+    <script src="eod-helpdesk-wizard.js?v=2.17.5"></script>
     <script src="eod-materials-browser.js?v=3.0.1"></script>
 </body>
 </html>

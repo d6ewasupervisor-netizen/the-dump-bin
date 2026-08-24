@@ -5,6 +5,7 @@
   const EOD_TEST_MODE_KEY = 'eodTestMode';
   const EOD_FORCE_LIVE_KEY = 'eodForceLiveDelivery';
   const EOD_PENDING_VERSION_KEY = 'eodPendingHotfixVersion';
+  const EOD_PENDING_AT_KEY = 'eodPendingHotfixAt';
   const EOD_SANDBOX_LAST_STORE_KEY = 'eodSandboxLastSourceStore';
   const EOD_SANDBOX_LAST_DATE_KEY = 'eodSandboxLastSourceDate';
   const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
@@ -12,7 +13,8 @@
   const EOD_TEST_LEAD_NAME = 'd6ewa.supervisor';
   const EOD_TEST_LEAD_EMAIL = 'd6ewa.supervisor@gmail.com';
   const UPDATE_AUTO_RELOAD_MS = 3500;
-  const UPDATE_CHECK_MS = 2 * 60 * 1000;
+  const UPDATE_CHECK_MS = 30 * 1000;
+  const UPDATE_RETRY_MS = 12000;
 
   let eodTestMode = false;
   let eodForceLiveDelivery = false;
@@ -350,6 +352,7 @@
 
     const ver = remoteVersion || ('force-' + Date.now());
     try { sessionStorage.setItem(EOD_PENDING_VERSION_KEY, ver); } catch (_) {}
+    try { sessionStorage.setItem(EOD_PENDING_AT_KEY, String(Date.now())); } catch (_) {}
 
     // Persist route so we can restore after a hash-less reload (iOS cache bust).
     try {
@@ -374,7 +377,7 @@
     }
   }
 
-  function showUpdateBanner({ title, detail, remoteVersion, autoReload }) {
+  function showUpdateBanner({ title, detail, remoteVersion, autoReload, autoReloadMs }) {
     const banner = document.getElementById('updateBanner');
     if (!banner) {
       // Last resort — still allow force navigate
@@ -415,13 +418,16 @@
       if (autoReloadTimer) clearTimeout(autoReloadTimer);
       autoReloadTimer = setTimeout(() => {
         void hardNavigateForUpdate(remoteVersion);
-      }, UPDATE_AUTO_RELOAD_MS);
+      }, autoReloadMs || UPDATE_AUTO_RELOAD_MS);
     }
   }
 
   async function fetchLiveVersion() {
     try {
-      const resp = await fetch(`eod-version.json?t=${Date.now()}`, { cache: 'no-store' });
+      const resp = await fetch(`eod-version.json?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
       if (!resp.ok) return null;
       const data = await resp.json();
       return data?.version ? String(data.version).trim() : null;
@@ -437,6 +443,7 @@
         const pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY);
         if (pending && (pending === remote || pending === version() || String(pending).startsWith('force-'))) {
           sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
+          sessionStorage.removeItem(EOD_PENDING_AT_KEY);
         }
       } catch (_) {}
       const banner = document.getElementById('updateBanner');
@@ -448,14 +455,19 @@
     }
 
     let pending = null;
-    try { pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY); } catch (_) {}
-    if (pending === remote) {
-      // Already reloaded once; HTML/JS still stale (CDN/browser cache).
+    let lastAt = 0;
+    try {
+      pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY);
+      lastAt = Number(sessionStorage.getItem(EOD_PENDING_AT_KEY) || 0);
+    } catch (_) {}
+    const elapsed = lastAt ? Date.now() - lastAt : UPDATE_RETRY_MS;
+    if (pending === remote && lastAt && elapsed < UPDATE_RETRY_MS) {
       showUpdateBanner({
-        title: 'Update ready',
-        detail: `This phone is still on v${version()} (server is v${remote}). Drafts & photos stay here. Tap Update, or hard-refresh if it loops.`,
+        title: 'App update available',
+        detail: `Server is v${remote} (you are on v${version()}). Drafts & photos stay on this device. Reloading automatically — or tap Update now.`,
         remoteVersion: remote,
-        autoReload: false,
+        autoReload: true,
+        autoReloadMs: UPDATE_RETRY_MS - elapsed,
       });
       return;
     }
@@ -535,7 +547,10 @@
 
     try {
       const pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY);
-      if (pending && pending === version()) sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
+      if (pending && pending === version()) {
+        sessionStorage.removeItem(EOD_PENDING_VERSION_KEY);
+        sessionStorage.removeItem(EOD_PENDING_AT_KEY);
+      }
     } catch (_) {}
 
     checkVersion();
@@ -543,6 +558,7 @@
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) checkVersion();
     });
+    window.addEventListener('pageshow', () => checkVersion());
     if (eodTestMode) {
       setTimeout(() => setupTestScenario().catch(console.warn), 400);
     }
