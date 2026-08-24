@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f5c8c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Strip Verification — Retail Odyssey</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/favicon.png?v=2">
+<script src="/auth-gate.js"></script>
+<style>
+:root {
+  --ink: #1a2430;
+  --ink-soft: #5c6b7a;
+  --line: #d5dde6;
+  --paper: #e8eef5;
+  --card: #fff;
+  --accent: #0f5c8c;
+  --accent-deep: #0a4063;
+  --accent-soft: #e3eef6;
+  --good: #2e7d52;
+  --good-bg: #e8f5ee;
+  --warn: #c98a1b;
+  --warn-bg: #fdf4e4;
+  --danger: #b3402a;
+  --shadow: 0 10px 28px rgba(15,92,140,.08);
+  --tap: 48px;
+  --radius: 16px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background:
+    radial-gradient(1200px 400px at 10% -10%, rgba(15,92,140,.12), transparent 55%),
+    radial-gradient(900px 360px at 100% 0%, rgba(15,92,140,.08), transparent 50%),
+    var(--paper);
+  color: var(--ink);
+  line-height: 1.45;
+  min-height: 100dvh;
+  padding-bottom: calc(80px + var(--safe-bottom));
+}
+header.top {
+  position: sticky; top: 0; z-index: 20;
+  background: linear-gradient(180deg, #fff 0%, #f3f8fc 100%);
+  border-bottom: 2px solid var(--accent);
+  padding: calc(8px + var(--safe-top)) 14px 10px;
+}
+header.top .row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+header.top img { height: 28px; flex-shrink: 0; }
+header.top .titles { flex: 1; min-width: 0; }
+header.top .co { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+header.top h1 { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+header.top .sub { font-size: 12px; color: var(--ink-soft); }
+.btn-back {
+  border: 1.5px solid var(--line); background: var(--card); color: var(--accent);
+  border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700;
+  cursor: pointer; min-height: 40px; touch-action: manipulation;
+}
+.wrap { max-width: 640px; margin: 0 auto; padding: 14px; }
+.progress-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 10px 0 4px; }
+.progress-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #1a8fbf); width: 0; transition: width .25s; }
+.progress-meta { font-size: 12px; color: var(--ink-soft); }
+.store-grid { display: grid; gap: 10px; }
+.store-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px; box-shadow: var(--shadow); cursor: pointer; touch-action: manipulation;
+}
+.store-card:active { transform: scale(.99); }
+.store-card.done { border-color: rgba(46,125,82,.45); background: var(--good-bg); }
+.store-card .num { font-size: 22px; font-weight: 800; }
+.store-card .name { color: var(--ink-soft); font-size: 14px; margin: 2px 0 10px; }
+.store-card .stats { font-size: 13px; font-weight: 600; }
+.badge {
+  display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; padding: 4px 8px; border-radius: 999px; margin-top: 8px;
+}
+.badge.open { background: var(--warn-bg); color: var(--warn); }
+.badge.done { background: var(--good-bg); color: var(--good); }
+.set-list { display: grid; gap: 8px; }
+.set-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px; cursor: pointer; touch-action: manipulation; min-height: var(--tap);
+}
+.set-row.complete { border-color: rgba(46,125,82,.4); }
+.set-row .check {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line);
+  display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+}
+.set-row.complete .check { background: var(--good); border-color: var(--good); color: #fff; }
+.set-row .info { flex: 1; min-width: 0; }
+.set-row .pog-name { font-weight: 700; font-size: 15px; }
+.set-row .pog-id { font-size: 11px; color: var(--ink-soft); word-break: break-all; margin-top: 2px; }
+.set-row .photo-count { font-size: 12px; color: var(--accent); font-weight: 600; flex-shrink: 0; }
+.detail-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow);
+}
+.detail-card h2 { font-size: 18px; margin-bottom: 6px; }
+.detail-card .meta { font-size: 13px; color: var(--ink-soft); }
+.detail-card .meta div { margin-top: 4px; }
+.photo-slots { display: grid; gap: 10px; margin-top: 14px; }
+.photo-slot {
+  border: 1.5px dashed var(--line); border-radius: 14px; padding: 12px;
+  background: #fafcfe;
+}
+.photo-slot.has-photo { border-style: solid; border-color: rgba(46,125,82,.45); background: var(--good-bg); }
+.photo-slot .slot-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.photo-slot .slot-label { font-weight: 700; font-size: 14px; }
+.photo-slot .thumbs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.photo-slot img {
+  width: 72px; height: 72px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line);
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: none; border-radius: 12px; padding: 12px 16px; font-size: 15px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation; min-height: var(--tap); font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: #fff; width: 100%; }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+.btn-secondary { background: var(--card); color: var(--accent); border: 1.5px solid var(--line); }
+.btn-danger { background: transparent; color: var(--danger); border: none; padding: 6px 8px; font-size: 12px; min-height: auto; }
+.btn-add { background: var(--accent-soft); color: var(--accent-deep); border: 1.5px solid var(--accent); font-size: 14px; padding: 10px 14px; }
+.fixed-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: rgba(255,255,255,.97); border-top: 1px solid var(--line);
+  padding: 12px 14px calc(12px + var(--safe-bottom));
+  backdrop-filter: blur(8px);
+}
+.fixed-bar .wrap { padding: 0; }
+.download-box {
+  background: var(--good-bg); border: 1px solid rgba(46,125,82,.35);
+  border-radius: 14px; padding: 14px; margin-top: 12px;
+}
+.download-box a { color: var(--good); font-weight: 700; word-break: break-all; }
+.status { font-size: 13px; color: var(--ink-soft); margin-top: 10px; min-height: 1.2em; }
+.status.err { color: var(--danger); font-weight: 600; }
+.status.ok { color: var(--good); font-weight: 600; }
+.hidden { display: none !important; }
+input[type=file] { display: none; }
+.loading { text-align: center; padding: 40px 20px; color: var(--ink-soft); }
+@media (min-width: 720px) {
+  .store-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="row">
+    <button type="button" class="btn-back hidden" id="btn-back" aria-label="Back">← Back</button>
+    <img src="/logo.png" alt="">
+    <div class="titles">
+      <div class="co">Retail Odyssey</div>
+      <h1 id="page-title">Strip Verification</h1>
+      <div class="sub" id="page-sub">District 8 · P08W2</div>
+    </div>
+  </div>
+  <div class="wrap" id="header-progress" hidden>
+    <div class="progress-bar"><i id="progress-fill"></i></div>
+    <div class="progress-meta" id="progress-meta"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="view-stores">
+    <div class="loading" id="stores-loading">Loading stores…</div>
+    <div class="store-grid hidden" id="store-grid"></div>
+  </div>
+
+  <div id="view-sets" class="hidden">
+    <div class="set-list" id="set-list"></div>
+    <div class="download-box hidden" id="store-download-box">
+      <strong>Store submitted.</strong>
+      <p style="margin-top:6px;font-size:14px;">Download zip:</p>
+      <a href="#" id="store-download-link" target="_blank" rel="noopener">Download photos</a>
+    </div>
+  </div>
+
+  <div id="view-set" class="hidden">
+    <div class="detail-card" id="set-detail"></div>
+    <div class="photo-slots" id="photo-slots"></div>
+  </div>
+
+  <p class="status" id="status" role="status"></p>
+</main>
+
+<div class="fixed-bar hidden" id="fixed-bar">
+  <div class="wrap">
+    <button type="button" class="btn btn-primary" id="btn-submit-store" disabled>Submit store</button>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="image/*,.heic,.heif,image/heic,image/heif" capture="environment">
+
+<script>
+(function () {
+  'use strict';
+
+  const CAMPAIGN = new URLSearchParams(location.search).get('campaign') || 'd8-p08w2';
+  const API = (window.dumpBinAuthFetch && window.dumpBinAuthFetch.toString().includes('API_BASE'))
+    ? null
+    : null;
+  const MAX_EDGE = 1600;
+  const JPEG_QUALITY = 0.85;
+  const HEIC_RE = /\.(hei[cf])$/i;
+  const HEIC_MIME_RE = /^image\/hei[cf]$/i;
+  const HEIC_CONVERTER_URL = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+  const DEFAULT_SLOTS = ['Strip', 'Tag'];
+
+  const state = {
+    view: 'stores',
+    campaign: null,
+    stores: [],
+    store: null,
+    sets: [],
+    activeSet: null,
+    pendingSlot: null,
+    heicPromise: null,
+    photoBlobUrls: new Map(),
+  };
+
+  const els = {
+    btnBack: document.getElementById('btn-back'),
+    pageTitle: document.getElementById('page-title'),
+    pageSub: document.getElementById('page-sub'),
+    headerProgress: document.getElementById('header-progress'),
+    progressFill: document.getElementById('progress-fill'),
+    progressMeta: document.getElementById('progress-meta'),
+    viewStores: document.getElementById('view-stores'),
+    viewSets: document.getElementById('view-sets'),
+    viewSet: document.getElementById('view-set'),
+    storesLoading: document.getElementById('stores-loading'),
+    storeGrid: document.getElementById('store-grid'),
+    setList: document.getElementById('set-list'),
+    setDetail: document.getElementById('set-detail'),
+    photoSlots: document.getElementById('photo-slots'),
+    fixedBar: document.getElementById('fixed-bar'),
+    btnSubmitStore: document.getElementById('btn-submit-store'),
+    storeDownloadBox: document.getElementById('store-download-box'),
+    storeDownloadLink: document.getElementById('store-download-link'),
+    fileInput: document.getElementById('file-input'),
+    status: document.getElementById('status'),
+  };
+
+  function apiBase() {
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+    return 'https://eod-api.the-dump-bin.com';
+  }
+
+  async function api(path, opts) {
+    const url = apiBase() + path;
+    if (window.dumpBinAuthFetch) {
+      return window.dumpBinAuthFetch(url, opts || {});
+    }
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, (opts && opts.headers) || {});
+    const res = await fetch(url, Object.assign({}, opts, { headers }));
+    if (res.status === 401) location.href = '/signin.html?return=' + encodeURIComponent(location.pathname + location.search);
+    return res;
+  }
+
+  function setStatus(msg, type) {
+    els.status.textContent = msg || '';
+    els.status.className = 'status' + (type ? ' ' + type : '');
+  }
+
+  function absDownloadUrl(path) {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    return apiBase() + path;
+  }
+
+  function showView(name) {
+    state.view = name;
+    els.viewStores.classList.toggle('hidden', name !== 'stores');
+    els.viewSets.classList.toggle('hidden', name !== 'sets');
+    els.viewSet.classList.toggle('hidden', name !== 'set');
+    els.btnBack.classList.toggle('hidden', name === 'stores');
+    els.fixedBar.classList.toggle('hidden', name !== 'sets' || !state.store || state.store.submitted);
+    els.headerProgress.classList.toggle('hidden', name === 'stores');
+  }
+
+  function updateProgress(done, total, label) {
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    els.progressFill.style.width = pct + '%';
+    els.progressMeta.textContent = label || (total ? `${done} of ${total} sets photographed` : '');
+  }
+
+  async function loadCampaign() {
+    els.storesLoading.classList.remove('hidden');
+    els.storeGrid.classList.add('hidden');
+    const res = await api('/api/strip-verification/' + encodeURIComponent(CAMPAIGN));
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not load campaign');
+    state.campaign = data.campaign;
+    state.stores = data.stores || [];
+    els.pageSub.textContent = (data.campaign.title || 'Strip Verification') + (data.campaign.periodWeek ? ' · ' + data.campaign.periodWeek : '');
+    renderStores();
+  }
+
+  function renderStores() {
+    els.storesLoading.classList.add('hidden');
+    els.storeGrid.classList.remove('hidden');
+    els.pageTitle.textContent = 'Choose store';
+    showView('stores');
+    els.storeGrid.innerHTML = state.stores.map((s) => {
+      const done = s.submitted;
+      const pct = s.setCount ? Math.round((s.setsWithPhotos / s.setCount) * 100) : 0;
+      return `<article class="store-card${done ? ' done' : ''}" data-store="${s.storeNum}">
+        <div class="num">FM${String(s.storeNum).padStart(3, '0')}</div>
+        <div class="name">${escapeHtml(s.storeName)}</div>
+        <div class="stats">${s.setsWithPhotos}/${s.setCount} sets · ${s.photoCount} photos</div>
+        <span class="badge ${done ? 'done' : 'open'}">${done ? 'Submitted' : pct + '% complete'}</span>
+      </article>`;
+    }).join('');
+    els.storeGrid.querySelectorAll('[data-store]').forEach((el) => {
+      el.addEventListener('click', () => openStore(Number(el.dataset.store)));
+    });
+  }
+
+  async function openStore(storeNum) {
+    setStatus('Loading sets…');
+    const res = await api('/api/strip-verification/' + encodeURIComponent(CAMPAIGN) + '/stores/' + storeNum);
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      setStatus(data.error || 'Could not load store', 'err');
+      return;
+    }
+    state.store = data.store;
+    state.sets = data.sets || [];
+    els.pageTitle.textContent = 'FM' + String(storeNum).padStart(3, '0') + ' ' + data.store.storeName;
+    renderSets();
+    setStatus('');
+  }
+
+  function renderSets() {
+    showView('sets');
+    const done = state.sets.filter((s) => s.complete).length;
+    updateProgress(done, state.sets.length);
+    els.setList.innerHTML = state.sets.map((s) => `<button type="button" class="set-row${s.complete ? ' complete' : ''}" data-set="${s.id}">
+      <div class="check">${s.complete ? '✓' : ''}</div>
+      <div class="info">
+        <div class="pog-name">${escapeHtml(s.pogName)}</div>
+        <div class="pog-id">${escapeHtml(s.pogId)}</div>
+      </div>
+      <div class="photo-count">${s.photos.length} photo${s.photos.length === 1 ? '' : 's'}</div>
+    </button>`).join('');
+    els.setList.querySelectorAll('[data-set]').forEach((el) => {
+      el.addEventListener('click', () => openSet(Number(el.dataset.set)));
+    });
+
+    const allDone = done === state.sets.length && state.sets.length > 0;
+    els.btnSubmitStore.disabled = !allDone || state.store.submitted;
+    els.btnSubmitStore.textContent = state.store.submitted ? 'Store submitted' : 'Submit store';
+
+    if (state.store.submitted && state.store.downloadToken) {
+      els.storeDownloadBox.classList.remove('hidden');
+      els.storeDownloadLink.href = absDownloadUrl('/api/strip-verification/download/' + state.store.downloadToken + '.zip');
+    } else {
+      els.storeDownloadBox.classList.add('hidden');
+    }
+  }
+
+  function openSet(setId) {
+    state.activeSet = state.sets.find((s) => s.id === setId);
+    if (!state.activeSet) return;
+    showView('set');
+    els.pageTitle.textContent = state.activeSet.pogName;
+    els.setDetail.innerHTML = `
+      <h2>${escapeHtml(state.activeSet.pogName)}</h2>
+      <div class="meta">
+        <div><strong>POG ID:</strong> ${escapeHtml(state.activeSet.pogId)}</div>
+        ${state.activeSet.notes ? `<div><strong>Notes:</strong> ${escapeHtml(state.activeSet.notes)}</div>` : ''}
+        ${state.activeSet.sfpNum ? `<div><strong>SFP:</strong> ${escapeHtml(state.activeSet.sfpNum)} · <strong>CAO:</strong> ${escapeHtml(state.activeSet.caoNum || '')}</div>` : ''}
+      </div>`;
+    renderPhotoSlots();
+    updateProgress(state.sets.filter((s) => s.complete).length, state.sets.length);
+  }
+
+  function photosForLabel(label) {
+    return (state.activeSet.photos || []).filter((p) => p.label === label);
+  }
+
+  function slotLabels() {
+    const labels = DEFAULT_SLOTS.slice();
+    const extras = (state.activeSet.photos || [])
+      .map((p) => p.label)
+      .filter((l) => !labels.includes(l));
+    extras.forEach((l) => labels.push(l));
+    if (!state.store.submitted) labels.push('__add__');
+    return labels;
+  }
+
+  function renderPhotoSlots() {
+    revokePhotoBlobs();
+    const locked = state.store.submitted;
+    els.photoSlots.innerHTML = slotLabels().map((label) => {
+      if (label === '__add__') {
+        return `<div class="photo-slot"><button type="button" class="btn btn-add" data-add-slot>Add another photo</button></div>`;
+      }
+      const photos = photosForLabel(label);
+      const thumbs = photos.map((p) =>
+        `<figure><img data-photo-id="${p.id}" alt=""><br>` +
+        (!locked ? `<button type="button" class="btn btn-danger" data-del="${p.id}">Remove</button>` : '') +
+        `</figure>`
+      ).join('');
+      return `<div class="photo-slot${photos.length ? ' has-photo' : ''}">
+        <div class="slot-head">
+          <span class="slot-label">${escapeHtml(label)}</span>
+          ${!locked ? `<button type="button" class="btn btn-secondary" data-capture="${escapeAttr(label)}" style="min-height:40px;padding:8px 12px;font-size:13px;">📷 Add</button>` : ''}
+        </div>
+        <div class="thumbs">${thumbs || '<span style="font-size:13px;color:var(--ink-soft)">No photo yet</span>'}</div>
+      </div>`;
+    }).join('');
+
+    els.photoSlots.querySelectorAll('[data-capture]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.pendingSlot = btn.dataset.capture;
+        els.fileInput.value = '';
+        els.fileInput.click();
+      });
+    });
+    els.photoSlots.querySelectorAll('[data-del]').forEach((btn) => {
+      btn.addEventListener('click', () => deletePhoto(Number(btn.dataset.del)));
+    });
+    els.photoSlots.querySelector('[data-add-slot]')?.addEventListener('click', () => {
+      const n = (state.activeSet.photos || []).filter((p) => /^Photo \d+$/.test(p.label)).length + 3;
+      state.pendingSlot = 'Photo ' + n;
+      els.fileInput.value = '';
+      els.fileInput.click();
+    });
+    hydratePhotoThumbs().catch(() => {});
+  }
+
+  function revokePhotoBlobs() {
+    state.photoBlobUrls.forEach((url) => URL.revokeObjectURL(url));
+    state.photoBlobUrls.clear();
+  }
+
+  async function photoDisplayUrl(id) {
+    if (state.photoBlobUrls.has(id)) return state.photoBlobUrls.get(id);
+    const res = await api('/api/strip-verification/photos/' + id);
+    if (!res.ok) return '';
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    state.photoBlobUrls.set(id, url);
+    return url;
+  }
+
+  async function hydratePhotoThumbs() {
+    const imgs = els.photoSlots.querySelectorAll('img[data-photo-id]');
+    await Promise.all(Array.from(imgs).map(async (img) => {
+      const id = Number(img.dataset.photoId);
+      img.src = await photoDisplayUrl(id);
+    }));
+  }
+
+  function loadHeic() {
+    if (window.heic2any) return Promise.resolve(window.heic2any);
+    if (state.heicPromise) return state.heicPromise;
+    state.heicPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = HEIC_CONVERTER_URL;
+      s.onload = () => (window.heic2any ? resolve(window.heic2any) : reject(new Error('HEIC unavailable')));
+      s.onerror = () => reject(new Error('HEIC converter failed'));
+      document.head.appendChild(s);
+    });
+    return state.heicPromise;
+  }
+
+  async function fileToJpegBase64(file) {
+    let source = file;
+    if (HEIC_MIME_RE.test(file.type || '') || HEIC_RE.test(file.name || '')) {
+      const heic2any = await loadHeic();
+      const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.88 });
+      source = Array.isArray(converted) ? converted[0] : converted;
+    }
+    const url = URL.createObjectURL(source);
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
+    });
+    URL.revokeObjectURL(url);
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(w * scale));
+    canvas.height = Math.max(1, Math.round(h * scale));
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', JPEG_QUALITY).split(',')[1];
+  }
+
+  async function uploadPhoto(file) {
+    if (!state.activeSet || !state.pendingSlot) return;
+    setStatus('Uploading…');
+    try {
+      const data = await fileToJpegBase64(file);
+      const res = await api(
+        '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) +
+        '/stores/' + state.store.storeNum + '/sets/' + state.activeSet.id + '/photos',
+        { method: 'POST', body: JSON.stringify({ label: state.pendingSlot, mime: 'image/jpeg', data }) }
+      );
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Upload failed');
+      await refreshActiveSet();
+      setStatus('Photo saved', 'ok');
+    } catch (err) {
+      setStatus(err.message || 'Upload failed', 'err');
+    } finally {
+      state.pendingSlot = null;
+    }
+  }
+
+  async function deletePhoto(photoId) {
+    if (!confirm('Remove this photo?')) return;
+    setStatus('Removing…');
+    const res = await api('/api/strip-verification/photos/' + photoId, { method: 'DELETE' });
+    const json = await res.json();
+    if (!res.ok || !json.ok) {
+      setStatus(json.error || 'Could not remove photo', 'err');
+      return;
+    }
+    await refreshActiveSet();
+    setStatus('Photo removed');
+  }
+
+  async function refreshActiveSet() {
+    const setId = state.activeSet.id;
+    const res = await api('/api/strip-verification/' + encodeURIComponent(CAMPAIGN) + '/stores/' + state.store.storeNum);
+    const data = await res.json();
+    if (!res.ok || !data.ok) return;
+    state.store = data.store;
+    state.sets = data.sets || [];
+    state.activeSet = state.sets.find((s) => s.id === setId);
+    renderPhotoSlots();
+    updateProgress(state.sets.filter((s) => s.complete).length, state.sets.length);
+  }
+
+  async function submitStore() {
+    if (!state.store || state.store.submitted) return;
+    els.btnSubmitStore.disabled = true;
+    setStatus('Submitting store…');
+    const res = await api(
+      '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) + '/stores/' + state.store.storeNum + '/submit',
+      { method: 'POST', body: '{}' }
+    );
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      setStatus(data.error || 'Submit failed', 'err');
+      els.btnSubmitStore.disabled = false;
+      return;
+    }
+    state.store.submitted = true;
+    state.store.downloadToken = (data.downloadUrl || '').split('/download/')[1]?.replace('.zip', '') || null;
+    renderSets();
+    els.fixedBar.classList.add('hidden');
+    setStatus('Store submitted. Use the download link below.', 'ok');
+  }
+
+  function escapeHtml(v) {
+    return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function escapeAttr(v) { return escapeHtml(v).replace(/'/g, '&#39;'); }
+
+  els.btnBack.addEventListener('click', () => {
+    if (state.view === 'set') {
+      renderSets();
+      els.pageTitle.textContent = 'FM' + String(state.store.storeNum).padStart(3, '0') + ' ' + state.store.storeName;
+      return;
+    }
+    if (state.view === 'sets') {
+      renderStores();
+      return;
+    }
+  });
+
+  els.btnSubmitStore.addEventListener('click', submitStore);
+  els.fileInput.addEventListener('change', () => {
+    const file = els.fileInput.files && els.fileInput.files[0];
+    if (file) uploadPhoto(file);
+  });
+
+  loadCampaign().catch((err) => {
+    els.storesLoading.textContent = err.message || 'Failed to load';
+    setStatus(err.message || 'Failed to load', 'err');
+  });
+})();
+</script>
+</body>
+</html>
