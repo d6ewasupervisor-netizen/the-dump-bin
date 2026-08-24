@@ -212,6 +212,30 @@ input[type=file] { display: none; }
   const HEIC_MIME_RE = /^image\/hei[cf]$/i;
   const HEIC_CONVERTER_URL = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
 
+  function parseFootageFeet(pogId) {
+    const m = String(pogId || '').match(/_F(\d{3})(?:_|$)/i);
+    if (!m) return null;
+    const feet = parseInt(m[1], 10);
+    return Number.isFinite(feet) && feet > 0 ? feet : null;
+  }
+
+  function requiredOverallPhotosForSet(setRow) {
+    if (setRow && setRow.requiredOverallPhotos) return setRow.requiredOverallPhotos;
+    const feet = parseFootageFeet(setRow && setRow.pogId);
+    if (!feet) return 1;
+    return Math.max(1, Math.ceil(feet / 8));
+  }
+
+  function overallHintForSet(setRow) {
+    if (setRow && setRow.overallHint) return setRow.overallHint;
+    const feet = parseFootageFeet(setRow && setRow.pogId);
+    const required = requiredOverallPhotosForSet(setRow);
+    if (!feet) return `${required} overall photo${required === 1 ? '' : 's'} required (8 ft / 2 bays each).`;
+    const bays = feet / 4;
+    const bayLabel = Number.isInteger(bays) ? `${bays} bays` : `${feet} ft (~${bays} bays)`;
+    return `${feet} ft (${bayLabel}) — ${required} overall photo${required === 1 ? '' : 's'} required (8 ft / 2 bays each).`;
+  }
+
   function isOverallLabel(label) {
     return /^(overall(\s+\d+)?|tag)$/i.test(String(label || '').trim());
   }
@@ -375,7 +399,7 @@ input[type=file] { display: none; }
         <div class="pog-name">${escapeHtml(s.pogName)}</div>
         <div class="pog-id">${escapeHtml(s.pogId)}</div>
       </div>
-      <div class="photo-count">${s.photos.length} photo${s.photos.length === 1 ? '' : 's'}</div>
+      <div class="photo-count">${formatSetPhotoProgress(s)}</div>
     </button>`).join('');
     els.setList.querySelectorAll('[data-set]').forEach((el) => {
       el.addEventListener('click', () => openSet(Number(el.dataset.set)));
@@ -393,6 +417,24 @@ input[type=file] { display: none; }
     }
   }
 
+  function formatSetSize(setRow) {
+    const feet = setRow.footageFt || parseFootageFeet(setRow.pogId);
+    if (!feet) return '';
+    const bays = setRow.bayCount != null ? setRow.bayCount : feet / 4;
+    if (Number.isInteger(bays)) return `${feet} ft (${bays} bays)`;
+    return `${feet} ft (~${bays} bays)`;
+  }
+
+  function formatSetPhotoProgress(setRow) {
+    const overallCount = overallPhotos(setRow.photos).length;
+    const required = requiredOverallPhotosForSet(setRow);
+    const hasStrip = stripPhotos(setRow.photos).length > 0;
+    const parts = [];
+    parts.push(hasStrip ? 'Strip ✓' : 'Strip —');
+    parts.push(`Overall ${overallCount}/${required}`);
+    return parts.join(' · ');
+  }
+
   function openSet(setId) {
     state.activeSet = state.sets.find((s) => s.id === setId);
     if (!state.activeSet) return;
@@ -402,6 +444,7 @@ input[type=file] { display: none; }
       <h2>${escapeHtml(state.activeSet.pogName)}</h2>
       <div class="meta">
         <div><strong>POG ID:</strong> ${escapeHtml(state.activeSet.pogId)}</div>
+        ${state.activeSet.footageFt || parseFootageFeet(state.activeSet.pogId) ? `<div><strong>Set size:</strong> ${formatSetSize(state.activeSet)}</div>` : ''}
         ${state.activeSet.notes ? `<div><strong>Notes:</strong> ${escapeHtml(state.activeSet.notes)}</div>` : ''}
         ${state.activeSet.sfpNum ? `<div><strong>SFP:</strong> ${escapeHtml(state.activeSet.sfpNum)} · <strong>CAO:</strong> ${escapeHtml(state.activeSet.caoNum || '')}</div>` : ''}
       </div>`;
@@ -417,10 +460,11 @@ input[type=file] { display: none; }
       `</figure>`
     ).join('');
     const captureLabel = options.captureLabel || label;
-    return `<div class="photo-slot${photos.length ? ' has-photo' : ''}">
+    const canAdd = !locked && options.showAdd !== false;
+    return `<div class="photo-slot${photos.length ? ' has-photo' : ''}${options.complete ? ' has-photo' : ''}">
       <div class="slot-head">
         <span class="slot-label">${escapeHtml(label)}</span>
-        ${!locked ? `<button type="button" class="btn btn-secondary" data-capture="${escapeAttr(captureLabel)}" style="min-height:40px;padding:8px 12px;font-size:13px;">📷 Add</button>` : ''}
+        ${canAdd ? `<button type="button" class="btn btn-secondary" data-capture="${escapeAttr(captureLabel)}" style="min-height:40px;padding:8px 12px;font-size:13px;">📷 Add</button>` : ''}
       </div>
       ${options.hint ? `<div class="slot-hint">${escapeHtml(options.hint)}</div>` : ''}
       <div class="thumbs">${thumbs || '<span style="font-size:13px;color:var(--ink-soft)">No photo yet</span>'}</div>
@@ -433,19 +477,26 @@ input[type=file] { display: none; }
     const photos = state.activeSet.photos || [];
     const strips = stripPhotos(photos);
     const overalls = overallPhotos(photos);
+    const requiredOverall = requiredOverallPhotosForSet(state.activeSet);
+    const overallHint = overallHintForSet(state.activeSet);
+    const stripDone = strips.length > 0;
+    const overallDone = overalls.length >= requiredOverall;
 
     let html = renderPhotoSlot('Strip', strips, locked, {
       captureLabel: 'Strip',
       hint: 'Close-up of the strip.',
+      showAdd: !stripDone,
     });
 
     html += '<div class="overall-group">';
-    html += renderPhotoSlot('Overall', overalls, locked, {
+    html += renderPhotoSlot(`Overall (${overalls.length}/${requiredOverall})`, overalls, locked, {
       captureLabel: nextOverallLabel(photos),
-      hint: 'Full set view — one photo per 2 bays (8 ft max). Add another for longer sets.',
+      hint: overallHint,
+      showAdd: !overallDone,
+      complete: overallDone,
     });
-    if (!locked) {
-      html += `<div class="photo-slot"><button type="button" class="btn btn-add" data-add-overall>Add overall photo</button></div>`;
+    if (!locked && !overallDone) {
+      html += `<div class="photo-slot"><button type="button" class="btn btn-add" data-add-overall>Add overall photo (${overalls.length}/${requiredOverall})</button></div>`;
     }
     html += '</div>';
 
@@ -462,6 +513,7 @@ input[type=file] { display: none; }
       btn.addEventListener('click', () => deletePhoto(Number(btn.dataset.del)));
     });
     els.photoSlots.querySelector('[data-add-overall]')?.addEventListener('click', () => {
+      if (overallPhotos(state.activeSet.photos || []).length >= requiredOverallPhotosForSet(state.activeSet)) return;
       state.pendingSlot = nextOverallLabel(state.activeSet.photos || []);
       els.fileInput.value = '';
       els.fileInput.click();
