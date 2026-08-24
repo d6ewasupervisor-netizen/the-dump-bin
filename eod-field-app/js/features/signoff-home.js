@@ -375,26 +375,38 @@
   function renderRows(sheet, q) {
     const rows = (sheet.rows || []).filter((row) => {
       if (!q) return true;
-      return `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''}`
+      const locSearch = global.EodCategoryCardStatus
+        ? global.EodCategoryCardStatus.siLocationLabel(row)
+        : '';
+      return `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''} ${locSearch}`
         .toLowerCase().includes(q);
     });
     if (!rows.length) return '<p class="muted">No sets match.</p>';
     return rows.map((row) => {
       const status = syncStatusPills(row);
-      const beforeCount = localBeforeCount(row);
+      const localCount = localBeforeCount(row);
+      const beforeState = global.EodCategoryCardStatus
+        ? global.EodCategoryCardStatus.beforePillState(row, localCount)
+        : (localCount ? { kind: 'ok', count: localCount } : { kind: 'warn' });
+      const beforePill = row.dbkey
+        ? (global.EodCategoryCardStatus
+          ? global.EodCategoryCardStatus.beforePillHtml(beforeState, esc)
+          : (beforeState.kind === 'ok'
+            ? `<span class="pill ok">${beforeState.count} before${beforeState.count === 1 ? '' : 's'}</span>`
+            : (beforeState.kind === 'warn' ? '<span class="pill warn">no befores</span>' : '')))
+        : '';
+      const locLabel = global.EodCategoryCardStatus
+        ? global.EodCategoryCardStatus.siLocationLabel(row)
+        : '';
       const btn = (type, label) => {
         const on = type === 'complete' ? rowLooksComplete(row) : markActive(row, type);
         // Selected state is the .on border only — no checkmark (renders as ? on some devices).
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
-      const beforePill = row.dbkey
-        ? (beforeCount
-          ? `<span class="pill ok">${beforeCount} before${beforeCount === 1 ? '' : 's'}</span>`
-          : '<span class="pill warn">no befores</span>')
-        : '';
       return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
         <div><strong>${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
+          ${locLabel ? `<div class="muted">${esc(locLabel)}</div>` : ''}
           <div class="muted">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}</div>
           ${row.live ? `<div class="muted">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
         </div>

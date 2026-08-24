@@ -8,8 +8,11 @@
   const EOD_PENDING_AT_KEY = 'eodPendingHotfixAt';
   const EOD_SANDBOX_LAST_STORE_KEY = 'eodSandboxLastSourceStore';
   const EOD_SANDBOX_LAST_DATE_KEY = 'eodSandboxLastSourceDate';
-  const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
-  const EOD_TEST_STORE = '999';
+  const EOD_TEST_KEEP_CURRENT_KEY = 'eodTestKeepCurrent';
+  const EOD_TEST_SAVED_RECIPIENTS_KEY = 'eodTestSavedRecipients';
+  const logic = global.EodTestModeLogic || {};
+  const EOD_TEST_RECIPIENT = logic.DEFAULT_TEST_RECIPIENT || 'tyson.gauthier@retailodyssey.com';
+  const EOD_TEST_STORE = logic.DEFAULT_TEST_STORE || '999';
   const EOD_TEST_LEAD_NAME = 'd6ewa.supervisor';
   const EOD_TEST_LEAD_EMAIL = 'd6ewa.supervisor@gmail.com';
   const UPDATE_AUTO_RELOAD_MS = 3500;
@@ -135,12 +138,69 @@
     if (global.EodRouter) global.EodRouter.go('visit');
   }
 
+  function hasLoadedShift() {
+    const S = global.EodSession;
+    if (logic.hasLoadedShift) return logic.hasLoadedShift(S?.state || {}, EOD_TEST_STORE);
+    const store = String(S?.state?.storeNumber || '').replace(/\D/g, '').replace(/^0+/, '');
+    if (!store || store === EOD_TEST_STORE) return false;
+    if (S.state.selectedShift?.visitId) return true;
+    if (Array.isArray(S.state.sheet?.rows) && S.state.sheet.rows.length) return true;
+    return false;
+  }
+
+  function stashRecipients() {
+    const S = global.EodSession;
+    try {
+      sessionStorage.setItem(
+        EOD_TEST_SAVED_RECIPIENTS_KEY,
+        JSON.stringify(Array.isArray(S?.state?.emailRecipients) ? S.state.emailRecipients : [])
+      );
+    } catch (_) {}
+  }
+
+  function restoreRecipients() {
+    const S = global.EodSession;
+    if (!S) return;
+    try {
+      const raw = sessionStorage.getItem(EOD_TEST_SAVED_RECIPIENTS_KEY);
+      if (!raw) return;
+      const restored = JSON.parse(raw);
+      if (Array.isArray(restored)) S.patch({ emailRecipients: restored }, 'clear-test');
+    } catch (_) {}
+  }
+
+  function activateKeepCurrentTestMode() {
+    const S = global.EodSession;
+    stashRecipients();
+    try { sessionStorage.setItem(EOD_TEST_KEEP_CURRENT_KEY, '1'); } catch (_) {}
+    if (S) {
+      S.patch({ emailRecipients: [EOD_TEST_RECIPIENT] }, 'test-keep-current');
+      S.saveDraft();
+    }
+    setTestMode(true);
+    toast(`Test mode ON — current shift kept. Mail → ${EOD_TEST_RECIPIENT} only.`, 'ok');
+  }
+
+  function clearKeepCurrentFlags() {
+    try {
+      sessionStorage.removeItem(EOD_TEST_KEEP_CURRENT_KEY);
+      sessionStorage.removeItem(EOD_TEST_SAVED_RECIPIENTS_KEY);
+    } catch (_) {}
+  }
+
+  function isKeepCurrentTest() {
+    try { return sessionStorage.getItem(EOD_TEST_KEEP_CURRENT_KEY) === '1'; }
+    catch (_) { return false; }
+  }
+
   function clearTestScenario() {
     const S = global.EodSession;
     if (!S) return;
+    if (isKeepCurrentTest()) restoreRecipients();
     if (S.state.selectedShift?._testMock || String(S.state.selectedShift?.visitId || '').startsWith('test-')) {
       S.patch({ selectedShift: null, shifts: [] }, 'clear-test');
     }
+    clearKeepCurrentFlags();
     toast('Test mode OFF — live recipients restored.', 'ok');
   }
 
@@ -159,9 +219,47 @@
     if (eodTestMode) {
       setTestMode(false);
       clearTestScenario();
+    } else if (hasLoadedShift()) {
+      openTestModeChoiceModal();
     } else {
       openCloneModal();
     }
+  }
+
+  function ensureChoiceModal() {
+    if (document.getElementById('eodTestModeChoiceModal')) return;
+    const el = document.createElement('div');
+    el.id = 'eodTestModeChoiceModal';
+    el.className = 'modal-overlay';
+    el.innerHTML = `
+      <div class="modal-dialog" style="max-width:420px;">
+        <h2 style="color:#93c5fd;">Test mode</h2>
+        <div class="button-group" style="flex-wrap:wrap; gap:8px; margin-top:10px;">
+          <button type="button" class="btn btn-primary" id="eodTestKeepCurrent">Keep current data</button>
+          <button type="button" class="btn btn-secondary" id="eodTestCloneShift">Clone a new shift</button>
+          <button type="button" class="btn btn-secondary" id="eodTestChoiceCancel">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    el.addEventListener('click', (e) => { if (e.target === el) closeTestModeChoiceModal(); });
+    document.getElementById('eodTestChoiceCancel').onclick = closeTestModeChoiceModal;
+    document.getElementById('eodTestKeepCurrent').onclick = () => {
+      closeTestModeChoiceModal();
+      activateKeepCurrentTestMode();
+    };
+    document.getElementById('eodTestCloneShift').onclick = () => {
+      closeTestModeChoiceModal();
+      openCloneModal();
+    };
+  }
+
+  function openTestModeChoiceModal() {
+    ensureChoiceModal();
+    document.getElementById('eodTestModeChoiceModal').classList.add('show');
+  }
+
+  function closeTestModeChoiceModal() {
+    document.getElementById('eodTestModeChoiceModal')?.classList.remove('show');
   }
 
   // ─── Clone-shift sandbox prompt (tap badge while test mode is OFF) ────────
@@ -236,6 +334,7 @@
   /** Flip test mode on and load whatever the sandbox currently holds, after
    * a clone completes (or when the user skips straight to an existing one). */
   async function activateSandboxTestMode() {
+    clearKeepCurrentFlags();
     eodTestMode = true;
     sessionStorage.setItem(EOD_TEST_MODE_KEY, '1');
     applyUi();
@@ -295,6 +394,14 @@
   }
 
   function applyToPayload(payload) {
+    if (logic.applyToPayload) {
+      return logic.applyToPayload(payload, {
+        testMode: eodTestMode,
+        forceLive: eodForceLiveDelivery,
+        testRecipient: EOD_TEST_RECIPIENT,
+        testStore: EOD_TEST_STORE,
+      });
+    }
     const store = payload?.storeNumber || global.EodSession?.state?.storeNumber;
     if (!isTestStore(store)) return payload;
     if (eodForceLiveDelivery) {
@@ -560,7 +667,14 @@
     });
     window.addEventListener('pageshow', () => checkVersion());
     if (eodTestMode) {
-      setTimeout(() => setupTestScenario().catch(console.warn), 400);
+      if (isKeepCurrentTest()) {
+        const S = global.EodSession;
+        if (S && !(S.state.emailRecipients || []).includes(EOD_TEST_RECIPIENT)) {
+          S.patch({ emailRecipients: [EOD_TEST_RECIPIENT] }, 'test-keep-current');
+        }
+      } else {
+        setTimeout(() => setupTestScenario().catch(console.warn), 400);
+      }
     }
   }
 
@@ -575,6 +689,8 @@
     setTestMode,
     toggleTestMode,
     applyToPayload,
+    hasLoadedShift,
+    activateKeepCurrentTestMode,
     checkVersion,
     hardNavigateForUpdate,
     EOD_TEST_RECIPIENT,
