@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 2026-08-24T20:40Z eod-v2.17.5-auto-update -->
+<!-- build: 2026-08-24T21:50Z eod-v2.17.6-landscape-sig -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -33,7 +33,8 @@
     <script src="eod-sms-optin-qr.js?v=2.11.2" defer></script>
     <script src="eod-guest-handoff.js?v=2.16.0" defer></script>
     <script src="eod-timesheet-mgmt.js?v=2.16.0" defer></script>
-    <script src="eod-dept-signatures.js?v=2.14.0" defer></script>
+    <script src="landscape-sig-pad.js?v=2.17.6"></script>
+    <script src="eod-dept-signatures.js?v=2.17.6" defer></script>
     <script src="eod-digital-signoff.js?v=2.17.5" defer></script>
     <script src="eod-pic-qr.js?v=2.16.0" defer></script>
     <script src="eod-cover-sync.js?v=2.14.0" defer></script>
@@ -1597,6 +1598,13 @@
             width: 100%;
             height: 100%;
         }
+        .sig-rotate-hint {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            background: rgba(15, 23, 42, 0.78); color: #fde68a; font-size: 22px; font-weight: 800;
+            letter-spacing: 0.02em; text-align: center; padding: 24px; pointer-events: none;
+            opacity: 0; transition: opacity 0.25s ease; z-index: 2;
+        }
+        .sig-rotate-hint.show { opacity: 1; }
 
         .camera-fullscreen-overlay {
             position: fixed;
@@ -3297,7 +3305,7 @@
             </button>
             <img src="rologo.png" alt="Retail Odyssey Logo" class="header-logo" onerror="this.style.display='none'">
             <div class="header-logo-row">
-                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.5</span>
+                <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode · long-press to force Update">v2.17.6</span>
             </div>
             <h1>KOMPASS</h1>
             <p>END OF DAY COVER SHEET</p>
@@ -4558,6 +4566,7 @@
             </div>
         </div>
         <canvas id="sigFsCanvas"></canvas>
+        <div id="sigRotateHint" class="sig-rotate-hint">Turn your device sideways</div>
         <input type="file" id="signaturePhotoInput" accept="image/*,.heic,.heif" style="display:none;">
     </div>
 
@@ -4660,7 +4669,7 @@
         const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
         // Keep this in lockstep with eod-version.json — a mismatch triggers an
         // auto-reload. If you bump the badge / version file, bump this too.
-        const EOD_APP_VERSION = '2.17.5';
+        const EOD_APP_VERSION = '2.17.6';
         const EOD_VERSION_URL = 'eod-version.json';
         const EOD_TEST_RECIPIENT = 'tyson.gauthier@retailodyssey.com';
         const EOD_TEST_MODE_KEY = 'eodTestMode';
@@ -8050,6 +8059,15 @@
         function openSignature() {
             fsOverlay.classList.add('show');
             resizeFsCanvas();
+            try {
+                const lock = screen.orientation && screen.orientation.lock;
+                if (lock) lock.call(screen.orientation, 'landscape').catch(() => {});
+            } catch (_) { /* iOS often denies */ }
+            const hint = document.getElementById('sigRotateHint');
+            if (hint) {
+                hint.classList.add('show');
+                setTimeout(() => hint.classList.remove('show'), 1200);
+            }
 
             // Load existing signature from dedicated key
             const sigSaved = localStorage.getItem('kompassSignature');

@@ -33,18 +33,40 @@
     return headers;
   }
 
+  function isoDate(raw) {
+    if (!raw) return '';
+    if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+      const y = raw.getUTCFullYear();
+      const m = String(raw.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(raw.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    const s = String(raw).trim();
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
   function storeNumber() {
-    return (document.getElementById('storeNumber')?.value
+    return String(
+      document.getElementById('storeNumber')?.value
       || document.getElementById('instaworkAckStoreNumber')?.value
       || document.getElementById('kompassAckStoreNumber')?.value
-      || '').trim();
+      || window.EodSession?.state?.storeNumber
+      || window.EodSession?.state?.selectedShift?.storeNumber
+      || ''
+    ).trim();
   }
 
   function workDate() {
-    return (document.getElementById('workDate')?.value
+    return isoDate(
+      document.getElementById('workDate')?.value
       || document.getElementById('shiftDate')?.value
       || document.getElementById('dayConfirmDate')?.value
-      || '').trim();
+      || window.EodSession?.state?.workDate
+      || window.EodSession?.state?.selectedShift?.workDate
+      || window.EodSession?.state?.selectedShift?.scheduledDate
+      || ''
+    );
   }
 
   function leadName() {

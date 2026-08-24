@@ -253,17 +253,6 @@ ${S.state.notes || ''}`;
           <button type="button" class="btn btn-secondary" id="previewBtn">Preview</button>
           <button type="button" class="btn btn-success" id="sendBtn" ${gate ? 'disabled' : ''}>Send EOD</button>
         </div>
-      </div>
-      <div id="sigPadOverlay" class="modal-overlay">
-        <div class="modal-dialog">
-          <h2>Lead signature</h2>
-          <canvas id="sigCanvas" width="360" height="180" style="width:100%;background:#fff;border-radius:8px;touch-action:none;"></canvas>
-          <div class="btn-row">
-            <button type="button" class="btn btn-secondary" id="sigClear">Clear</button>
-            <button type="button" class="btn btn-primary" id="sigAccept">Accept</button>
-            <button type="button" class="btn btn-secondary" id="sigCancel">Cancel</button>
-          </div>
-        </div>
       </div>`;
 
     const saveSendFields = () => {
@@ -433,50 +422,19 @@ ${S.state.notes || ''}`;
       });
     });
 
-    const overlay = document.getElementById('sigPadOverlay');
-    const canvas = document.getElementById('sigCanvas');
-    const ctx = canvas.getContext('2d');
-    let drawing = false;
-    function pos(e) {
-      const r = canvas.getBoundingClientRect();
-      const t = e.touches ? e.touches[0] : e;
-      return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
-    }
-    function start(e) { e.preventDefault(); drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
-    function move(e) {
-      if (!drawing) return;
-      e.preventDefault();
-      const p = pos(e);
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#111';
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-    }
-    function end() { drawing = false; }
-    canvas.onmousedown = start;
-    canvas.onmousemove = move;
-    canvas.onmouseup = end;
-    canvas.onmouseleave = end;
-    canvas.ontouchstart = start;
-    canvas.ontouchmove = move;
-    canvas.ontouchend = end;
-
     document.getElementById('signBtn').onclick = () => {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      overlay.classList.add('show');
-    };
-    document.getElementById('sigClear').onclick = () => {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    };
-    document.getElementById('sigCancel').onclick = () => overlay.classList.remove('show');
-    document.getElementById('sigAccept').onclick = () => {
-      const url = canvas.toDataURL('image/png');
-      S.saveSignature(url);
-      overlay.classList.remove('show');
-      render(mount);
+      if (!global.EodLandscapeSigPad?.open) {
+        alert('Signature pad failed to load. Refresh and try again.');
+        return;
+      }
+      global.EodLandscapeSigPad.open({
+        title: 'Lead signature',
+        existingDataUrl: S.state.signatureDataUrl,
+        onAccept: (url) => {
+          S.saveSignature(url);
+          render(mount);
+        },
+      });
     };
 
     document.getElementById('previewBtn').onclick = () => {

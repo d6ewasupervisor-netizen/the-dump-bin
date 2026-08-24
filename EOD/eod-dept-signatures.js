@@ -41,15 +41,40 @@
     return headers;
   }
 
+  function isoDate(raw) {
+    if (!raw) return '';
+    if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+      const y = raw.getUTCFullYear();
+      const m = String(raw.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(raw.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    const s = String(raw).trim();
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
   function storeNumber() {
-    return (document.getElementById('storeNumber')?.value || '').trim();
+    return String(
+      document.getElementById('storeNumber')?.value
+      || window.EodSession?.state?.storeNumber
+      || ''
+    ).trim();
   }
 
   function workDate() {
-    return (document.getElementById('workDate')?.value
+    return isoDate(
+      document.getElementById('workDate')?.value
       || document.getElementById('shiftDate')?.value
       || document.getElementById('dayConfirmDate')?.value
-      || '').trim();
+      || window.EodSession?.state?.workDate
+      || ''
+    );
+  }
+
+  function notify(title, msg) {
+    if (typeof showAlert === 'function') showAlert(title, msg);
+    else alert(msg || title);
   }
 
   function escapeHtml(s) {
@@ -170,6 +195,11 @@
           border:2px dashed #64748b; border-radius:8px; background:#fff; touch-action:none;
         }
         .dept-sig-pad-wrap canvas { width:100%; height:220px; display:block; }
+        .sig-preview {
+          border:2px dashed #64748b; border-radius:8px; background:#fff; min-height:88px;
+          display:flex; align-items:center; justify-content:center; color:#111; overflow:hidden;
+        }
+        .sig-preview img { max-width:100%; max-height:88px; display:block; }
         #deptSigRoleList.eod-hidden-list { display:none !important; }
       `;
       document.head.appendChild(style);
@@ -334,14 +364,14 @@
     const store = storeNumber();
     const date = workDate();
     if (!store) {
-      if (typeof showAlert === 'function') showAlert('Store required', 'Enter a store number first.');
+      notify('Store required', 'Enter a store number first.');
       return;
     }
     if (!date) {
-      if (typeof showAlert === 'function') showAlert('Date required', 'Select the shift / work date first.');
+      notify('Date required', 'Select the shift / work date first.');
       return;
     }
-    wizard = { roleKey, step: contacts.length ? 'pick' : 'name', contactId: null, fullName: '', email: '', title: '' };
+    wizard = { roleKey, step: contacts.length ? 'pick' : 'name', contactId: null, fullName: '', email: '', title: '', signatureDataUrl: '' };
     renderWizard();
     document.getElementById('deptSigWizardOverlay')?.classList.add('show');
   }
@@ -486,89 +516,48 @@
       return;
     }
     if (wizard.step === 'sign') {
-      hint.textContent = 'Please sign below with your finger or stylus, then tap Save signature.';
+      hint.textContent = 'Sign';
       next.textContent = 'Save signature';
       body.innerHTML = `
-        <div class="dept-sig-pad-wrap"><canvas id="deptSigPad" width="700" height="220"></canvas></div>
-        <div style="margin-top:8px;"><button type="button" class="btn btn-secondary" id="deptSigPadClear">Clear pad</button></div>`;
-      wirePad();
+        <div class="sig-preview" id="deptSigPreview">${wizard.signatureDataUrl
+          ? `<img src="${wizard.signatureDataUrl}" alt="Signature">`
+          : 'No signature yet'}</div>
+        <button type="button" class="btn btn-primary" id="deptSigOpenPad" style="margin-top:8px;width:100%;">Sign</button>`;
+      document.getElementById('deptSigOpenPad').onclick = openDeptSignPad;
     }
   }
 
-  function wirePad() {
-    const canvas = document.getElementById('deptSigPad');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    let drawing = false;
-    let lastX = 0;
-    let lastY = 0;
-    function pos(e) {
-      const rect = canvas.getBoundingClientRect();
-      const t = e.touches ? e.touches[0] : e;
-      return {
-        x: (t.clientX - rect.left) * (canvas.width / rect.width),
-        y: (t.clientY - rect.top) * (canvas.height / rect.height),
-      };
+  function openDeptSignPad() {
+    if (!window.EodLandscapeSigPad?.open) {
+      notify('Signature pad', 'Signature pad failed to load. Refresh and try again.');
+      return;
     }
-    function start(e) {
-      drawing = true;
-      const p = pos(e);
-      lastX = p.x;
-      lastY = p.y;
-      e.preventDefault();
-    }
-    function move(e) {
-      if (!drawing) return;
-      const p = pos(e);
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-      lastX = p.x;
-      lastY = p.y;
-      e.preventDefault();
-    }
-    function stop() { drawing = false; }
-    canvas.onmousedown = start;
-    canvas.onmousemove = move;
-    canvas.onmouseup = stop;
-    canvas.onmouseleave = stop;
-    canvas.ontouchstart = start;
-    canvas.ontouchmove = move;
-    canvas.ontouchend = stop;
-    document.getElementById('deptSigPadClear').onclick = () => {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    };
-  }
-
-  function padIsBlank() {
-    const canvas = document.getElementById('deptSigPad');
-    if (!canvas) return true;
-    const ctx = canvas.getContext('2d');
-    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    // white canvas ~255; any darker pixel counts as ink
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) return false;
-    }
-    return true;
+    window.EodLandscapeSigPad.open({
+      title: 'Sign',
+      existingDataUrl: wizard?.signatureDataUrl || '',
+      onAccept: (url) => {
+        if (!wizard) return;
+        wizard.signatureDataUrl = url;
+        const preview = document.getElementById('deptSigPreview');
+        if (preview) preview.innerHTML = `<img src="${url}" alt="Signature">`;
+      },
+    });
   }
 
   async function submitSignature() {
-    if (padIsBlank()) {
-      if (typeof showAlert === 'function') showAlert('Signature required', 'Please sign before saving.');
+    if (!wizard?.signatureDataUrl) {
+      notify('Signature required', 'Please sign before saving.');
       return;
     }
-    const canvas = document.getElementById('deptSigPad');
-    const dataUrl = canvas.toDataURL('image/png');
+    const dataUrl = wizard.signatureDataUrl;
     const store = storeNumber();
     const date = workDate();
+    if (!store || !date) {
+      notify(store ? 'Date required' : 'Store required', store
+        ? 'Select the shift / work date first.'
+        : 'Enter a store number first.');
+      return;
+    }
     const loading = document.getElementById('loadingOverlay');
     if (loading) loading.classList.add('show');
     try {
