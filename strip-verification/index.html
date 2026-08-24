@@ -126,6 +126,17 @@ header.top .sub { font-size: 12px; color: var(--ink-soft); }
 .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
 .btn-secondary { background: var(--card); color: var(--accent); border: 1.5px solid var(--line); }
 .btn-danger { background: transparent; color: var(--danger); border: none; padding: 6px 8px; font-size: 12px; min-height: auto; }
+.set-row.not-found-set { border-color: rgba(201,138,27,.45); background: var(--warn-bg); }
+.not-found-banner {
+  background: var(--warn-bg); border: 1px solid rgba(201,138,27,.45);
+  border-radius: 14px; padding: 14px; margin-bottom: 12px;
+}
+.not-found-banner strong { display: block; margin-bottom: 6px; }
+.not-found-actions { display: grid; gap: 10px; margin-top: 14px; }
+.btn-not-found {
+  background: var(--card); color: var(--warn); border: 1.5px solid rgba(201,138,27,.55);
+  width: 100%;
+}
 .btn-add { background: var(--accent-soft); color: var(--accent-deep); border: 1.5px solid var(--accent); font-size: 14px; padding: 10px 14px; }
 .fixed-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
@@ -339,7 +350,7 @@ input[type=file] { display: none; }
   function updateProgress(done, total, label) {
     const pct = total ? Math.round((done / total) * 100) : 0;
     els.progressFill.style.width = pct + '%';
-    els.progressMeta.textContent = label || (total ? `${done} of ${total} sets photographed` : '');
+    els.progressMeta.textContent = label || (total ? `${done} of ${total} sets done` : '');
   }
 
   async function loadCampaign() {
@@ -361,11 +372,12 @@ input[type=file] { display: none; }
     showView('stores');
     els.storeGrid.innerHTML = state.stores.map((s) => {
       const done = s.submitted;
-      const pct = s.setCount ? Math.round((s.setsWithPhotos / s.setCount) * 100) : 0;
+      const complete = s.setsComplete != null ? s.setsComplete : s.setsWithPhotos;
+      const pct = s.setCount ? Math.round((complete / s.setCount) * 100) : 0;
       return `<article class="store-card${done ? ' done' : ''}" data-store="${s.storeNum}">
         <div class="num">FM${String(s.storeNum).padStart(3, '0')}</div>
         <div class="name">${escapeHtml(s.storeName)}</div>
-        <div class="stats">${s.setsWithPhotos}/${s.setCount} sets · ${s.photoCount} photos</div>
+        <div class="stats">${complete}/${s.setCount} sets · ${s.photoCount} photos${s.setsNotFound ? ` · ${s.setsNotFound} not found` : ''}</div>
         <span class="badge ${done ? 'done' : 'open'}">${done ? 'Submitted' : pct + '% complete'}</span>
       </article>`;
     }).join('');
@@ -393,7 +405,7 @@ input[type=file] { display: none; }
     showView('sets');
     const done = state.sets.filter((s) => s.complete).length;
     updateProgress(done, state.sets.length);
-    els.setList.innerHTML = state.sets.map((s) => `<button type="button" class="set-row${s.complete ? ' complete' : ''}" data-set="${s.id}">
+    els.setList.innerHTML = state.sets.map((s) => `<button type="button" class="set-row${s.complete ? ' complete' : ''}${s.notFound ? ' not-found-set' : ''}" data-set="${s.id}">
       <div class="check">${s.complete ? '✓' : ''}</div>
       <div class="info">
         <div class="pog-name">${escapeHtml(s.pogName)}</div>
@@ -426,6 +438,7 @@ input[type=file] { display: none; }
   }
 
   function formatSetPhotoProgress(setRow) {
+    if (setRow.notFound) return 'Not found in store';
     const overallCount = overallPhotos(setRow.photos).length;
     const required = requiredOverallPhotosForSet(setRow);
     const hasStrip = stripPhotos(setRow.photos).length > 0;
@@ -474,11 +487,23 @@ input[type=file] { display: none; }
   function renderPhotoSlots() {
     revokePhotoBlobs();
     const locked = state.store.submitted;
-    const photos = state.activeSet.photos || [];
+    const setRow = state.activeSet;
+    if (setRow.notFound) {
+      els.photoSlots.innerHTML = `<div class="not-found-banner">
+        <strong>Set not found in store</strong>
+        <div class="slot-hint">This set counts as done for store submit. The zip will include a SET_NOT_FOUND.txt for this POG.</div>
+        ${setRow.notFoundNote ? `<div class="slot-hint" style="margin-top:8px;">Note: ${escapeHtml(setRow.notFoundNote)}</div>` : ''}
+        ${!locked ? `<div class="not-found-actions"><button type="button" class="btn btn-secondary" id="btn-clear-not-found">Set is present — take photos</button></div>` : ''}
+      </div>`;
+      els.photoSlots.querySelector('#btn-clear-not-found')?.addEventListener('click', clearNotFound);
+      return;
+    }
+
+    const photos = setRow.photos || [];
     const strips = stripPhotos(photos);
     const overalls = overallPhotos(photos);
-    const requiredOverall = requiredOverallPhotosForSet(state.activeSet);
-    const overallHint = overallHintForSet(state.activeSet);
+    const requiredOverall = requiredOverallPhotosForSet(setRow);
+    const overallHint = overallHintForSet(setRow);
     const stripDone = strips.length > 0;
     const overallDone = overalls.length >= requiredOverall;
 
@@ -500,8 +525,13 @@ input[type=file] { display: none; }
     }
     html += '</div>';
 
+    if (!locked) {
+      html += `<div class="not-found-actions"><button type="button" class="btn btn-not-found" id="btn-mark-not-found">Set not found in store</button></div>`;
+    }
+
     els.photoSlots.innerHTML = html;
 
+    els.photoSlots.querySelector('#btn-mark-not-found')?.addEventListener('click', markNotFound);
     els.photoSlots.querySelectorAll('[data-capture]').forEach((btn) => {
       btn.addEventListener('click', () => {
         state.pendingSlot = btn.dataset.capture;
@@ -614,6 +644,44 @@ input[type=file] { display: none; }
     }
     await refreshActiveSet();
     setStatus('Photo removed');
+  }
+
+  async function markNotFound() {
+    if (!state.activeSet || state.store.submitted) return;
+    const note = window.prompt('Optional note (aisle checked, set removed, etc.):');
+    if (note === null) return;
+    setStatus('Saving…');
+    const res = await api(
+      '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) +
+      '/stores/' + state.store.storeNum + '/sets/' + state.activeSet.id + '/not-found',
+      { method: 'POST', body: JSON.stringify({ note: String(note).trim() }) }
+    );
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      setStatus(data.error || 'Could not save not-found report', 'err');
+      return;
+    }
+    await refreshActiveSet();
+    renderSets();
+    setStatus('Set marked not found', 'ok');
+  }
+
+  async function clearNotFound() {
+    if (!state.activeSet || state.store.submitted) return;
+    setStatus('Updating…');
+    const res = await api(
+      '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) +
+      '/stores/' + state.store.storeNum + '/sets/' + state.activeSet.id + '/not-found',
+      { method: 'DELETE' }
+    );
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      setStatus(data.error || 'Could not clear not-found report', 'err');
+      return;
+    }
+    await refreshActiveSet();
+    renderSets();
+    setStatus('');
   }
 
   async function refreshActiveSet() {
