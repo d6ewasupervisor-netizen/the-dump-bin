@@ -364,7 +364,7 @@
     const row = btn.getAttribute('data-capture') || btn.getAttribute('data-before') || '';
     const name = btn.getAttribute('data-name') || '';
     if (!dbkey) {
-      alert('This row has no dbkey — cannot open Capture.');
+      alert('This row has no dbkey — cannot open Capture/View.');
       return;
     }
     const qs = new URLSearchParams({ dbkey, rowId: row, name });
@@ -413,7 +413,7 @@
         <div style="margin-top:6px;">${status} ${beforePill}</div>
         <div class="ds-photo-actions">
           ${row.dbkey ? `<button type="button" class="btn btn-secondary" data-before="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}">Take befores</button>` : ''}
-          <button type="button" class="btn btn-primary" data-capture="${row.id}" data-dbkey="${esc(row.dbkey || '')}" data-name="${esc(row.catName || row.catId || '')}">Capture</button>
+          <button type="button" class="btn btn-primary" data-capture="${row.id}" data-dbkey="${esc(row.dbkey || '')}" data-name="${esc(row.catName || row.catId || '')}">Capture/View</button>
         </div>
         <div class="ds-actions">
           ${btn('complete', 'Complete')}

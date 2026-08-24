@@ -239,7 +239,7 @@
     const preferSlot = String(qp.get('slot') || 'after').toLowerCase() === 'before' ? 'before' : 'after';
 
     if (!dbkey) {
-      mount.innerHTML = `<div class="card error"><h2>Missing dbkey</h2><p>Open Capture from a Categories sheet row.</p>
+      mount.innerHTML = `<div class="card error"><h2>Missing dbkey</h2><p>Open Capture/View from a Categories sheet row.</p>
         <button type="button" class="btn btn-secondary" id="backSignoff">← Categories</button></div>`;
       document.getElementById('backSignoff').onclick = () => global.EodRouter.go('signoff');
       return;
