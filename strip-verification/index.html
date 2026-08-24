@@ -254,12 +254,17 @@ input[type=file] { display: none; }
   }
 
   async function api(path, opts) {
+    opts = opts || {};
     const url = apiBase() + path;
-    if (window.dumpBinAuthFetch) {
-      return window.dumpBinAuthFetch(url, opts || {});
+    const headers = Object.assign({}, opts.headers || {});
+    if (opts.body && !headers['Content-Type'] && !headers['content-type']) {
+      headers['Content-Type'] = 'application/json';
     }
-    const headers = Object.assign({ 'Content-Type': 'application/json' }, (opts && opts.headers) || {});
-    const res = await fetch(url, Object.assign({}, opts, { headers }));
+    const req = Object.assign({}, opts, { headers });
+    if (window.dumpBinAuthFetch) {
+      return window.dumpBinAuthFetch(url, req);
+    }
+    const res = await fetch(url, req);
     if (res.status === 401) location.href = '/signin.html?return=' + encodeURIComponent(location.pathname + location.search);
     return res;
   }
