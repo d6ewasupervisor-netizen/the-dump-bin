@@ -2,8 +2,6 @@
 (function (global) {
   'use strict';
 
-  const NAV_COLLAPSE_KEY = 'eod-nav-collapsed';
-
   function refresh() {
     const S = global.EodSession;
     const storeEl = document.getElementById('chromeStore');
@@ -37,51 +35,14 @@
     }
   }
 
-  function syncToggleUi(collapsed) {
-    const title = collapsed ? 'Expand navigation' : 'Collapse navigation';
-    const glyph = collapsed ? '»' : '«';
-    ['navCollapseBtn', 'chromeNavToggle'].forEach((id) => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      btn.title = title;
-      btn.textContent = glyph;
-    });
-  }
-
-  function applyNavCollapsed(collapsed) {
-    document.body.classList.toggle('nav-collapsed', !!collapsed);
-    syncToggleUi(!!collapsed);
-    try {
-      localStorage.setItem(NAV_COLLAPSE_KEY, collapsed ? '1' : '0');
-    } catch (_) {}
-  }
-
-  function toggleNav() {
-    applyNavCollapsed(!document.body.classList.contains('nav-collapsed'));
-  }
-
   function init() {
     document.querySelectorAll('[data-nav]').forEach((btn) => {
       btn.addEventListener('click', () => {
         global.EodRouter.go(btn.getAttribute('data-nav'));
       });
     });
-
-    let collapsed = false;
-    try { collapsed = localStorage.getItem(NAV_COLLAPSE_KEY) === '1'; } catch (_) {}
-    applyNavCollapsed(collapsed);
-
-    document.getElementById('navCollapseBtn')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleNav();
-    });
-    document.getElementById('chromeNavToggle')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleNav();
-    });
+    document.body.classList.remove('nav-collapsed');
+    try { localStorage.removeItem('eod-nav-collapsed'); } catch (_) {}
 
     global.EodPhotoPipeline?.onChange?.(() => {
       try { refresh(); } catch (_) {}
@@ -90,5 +51,5 @@
     refresh();
   }
 
-  global.EodChrome = { refresh, init, applyNavCollapsed, toggleNav };
+  global.EodChrome = { refresh, init };
 })(typeof window !== 'undefined' ? window : globalThis);
