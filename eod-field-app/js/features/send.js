@@ -139,6 +139,11 @@ ${S.state.notes || ''}`;
     const userEmail = (S.state.profileEmail || '').trim().toLowerCase();
     if (userEmail) recipients = [...new Set([...recipients, userEmail])];
 
+    const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+      S.state.shifts,
+      S.state.selectedShift,
+    ) || null;
+
     return {
       storeNumber: store,
       workDate: S.state.workDate,
@@ -150,6 +155,7 @@ ${S.state.notes || ''}`;
       userEmail,
       checkInManager: S.state.checkInManager || '',
       checkOutManager: S.state.checkOutManager || '',
+      visitId: mainIse?.visitId || null,
       signoffPhotos: collectSignoffPhotos(),
       // pdfBase64 omitted in pilot until PDF generator is ported.
       fieldApp: {
@@ -485,7 +491,22 @@ ${S.state.notes || ''}`;
       const btn = document.getElementById('sendBtn');
       btn.disabled = true;
       btn.textContent = 'Sending…';
+      let generatedSheets = [];
       try {
+        if (global.EodSendSheets?.prepareForEmail) {
+          generatedSheets = await global.EodSendSheets.prepareForEmail({
+            report: payload.report,
+            sheet: S.state.sheet,
+            storeNumber: payload.storeNumber,
+            workDate: payload.workDate,
+            testMode: !!payload.testMode,
+            onStatus: (msg) => { btn.textContent = msg || 'Sending…'; },
+          });
+        }
+        if (generatedSheets.length) {
+          payload.signoffPhotos = generatedSheets.concat(payload.signoffPhotos || []);
+        }
+        btn.textContent = 'Sending…';
         const packageId = await uploadPackageParts(payload, headers);
         const meta = Object.assign({}, payload);
         if (packageId) {
@@ -508,7 +529,25 @@ ${S.state.notes || ''}`;
         if (!resp.ok || data.success === false) {
           throw new Error(data.error || data.message || `Send failed (${resp.status})`);
         }
-        alert('EOD sent.');
+        let sasNote = '';
+        if (generatedSheets.length && global.EodSendSheets?.uploadAfterSend) {
+          btn.textContent = 'Uploading sheets to Kompass…';
+          try {
+            const sas = await global.EodSendSheets.uploadAfterSend(generatedSheets, {
+              storeNumber: payload.storeNumber,
+              workDate: payload.workDate,
+              leadName: payload.userName,
+              onStatus: (msg) => { btn.textContent = msg || 'Uploading sheets to Kompass…'; },
+            });
+            if (sas.failed) {
+              sasNote = `\n\nEmail sent. ${sas.uploaded} sheet image(s) uploaded to maintenance; ${sas.failed} failed.`;
+            }
+          } catch (coverErr) {
+            console.warn('[coversheet] auto-upload after send failed:', coverErr);
+            sasNote = '\n\nEmail sent. Maintenance after-photo upload had an issue — retry from Send if needed.';
+          }
+        }
+        alert('EOD sent.' + sasNote);
         if (global.PhotoDB?.markEmailOk) {
           try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
         }
@@ -573,7 +612,7 @@ ${S.state.notes || ''}`;
         storeNumber: payload.storeNumber,
         workDate: payload.workDate,
         kind: 'signoff',
-        filename: `signoff_${i}.jpg`,
+        filename: (raw && raw.filename) || `signoff_${i}.jpg`,
         mime,
         contentBase64,
       });

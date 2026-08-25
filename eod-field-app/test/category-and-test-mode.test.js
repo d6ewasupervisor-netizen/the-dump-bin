@@ -120,3 +120,12 @@ test('crew sheet no longer includes the materials card', () => {
   assert.doesNotMatch(src, /<h2>Materials<\/h2>/);
   assert.doesNotMatch(src, /openMaterialsBtn/);
 });
+
+test('index.html loads send-sheet rasterizer before send.js', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(html, /js\/lib\/pdf-to-image\.js/);
+  assert.match(html, /js\/lib\/eod-send-sheets\.js/);
+  const sendIdx = html.indexOf('js/features/send.js');
+  const sheetsIdx = html.indexOf('js/lib/eod-send-sheets.js');
+  assert.ok(sheetsIdx > 0 && sheetsIdx < sendIdx);
+});
