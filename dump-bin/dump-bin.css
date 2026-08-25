@@ -1,5 +1,23 @@
 /* ===== Dump Bin — Page-specific styles ===== */
 
+html.db-embedded,
+body.db-embedded {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+body.db-embedded .site-nav { display: none; }
+body.db-embedded .page-wrap {
+  max-width: none;
+  padding: 8px 12px 12px;
+  height: 100%;
+  height: 100dvh;
+  overflow: auto;
+  box-sizing: border-box;
+}
+body.db-embedded .db-hero { display: none; }
+body.db-embedded .db-week-nav { margin-top: 0; }
+
 /* --- Top nav additions --- */
 .db-nav-links {
   display: flex;

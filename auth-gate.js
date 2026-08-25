@@ -33,6 +33,8 @@
   // is gated. The /admin.html flow has its own login UI (admin password,
   // not the user magic-link), so we leave it un-gated here.
   var PUBLIC_PATHS = [SIGNIN_PATH, ADMIN_PATH, OPEN_SIGNIN_PATH];
+  // Tokenized dump-bin PDF bytes still require `t` / session; the viewer shell does not.
+  var PUBLIC_PREFIXES = ['/pdf/'];
 
   // Resolve the API base the same way signin.html / admin.html do.
   // Override locally with #api=http://localhost:3001 for dev.
@@ -78,6 +80,10 @@
     var p = currentPathname();
     for (var i = 0; i < PUBLIC_PATHS.length; i++) {
       if (p === PUBLIC_PATHS[i].toLowerCase()) return true;
+    }
+    if (p === '/pdf' || p === '/pdf/index.html') return true;
+    for (var j = 0; j < PUBLIC_PREFIXES.length; j++) {
+      if (p.indexOf(PUBLIC_PREFIXES[j].toLowerCase()) === 0) return true;
     }
     return false;
   }

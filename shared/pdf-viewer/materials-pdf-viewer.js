@@ -1,6 +1,8 @@
 /**
  * MaterialsPdfViewer — fullscreen PDF.js viewer with page selection, search,
- * zoom/fit/rotate, and share/print/download actions for Dump Bin + EOD.
+ * zoom/fit/rotate, pinch, annotation links, and share/print/download for
+ * Dump Bin + EOD. Works as a page overlay or as /pdf/ standalone, including
+ * inside an iframe (field app embed).
  *
  * window.MaterialsPdfViewer.open(options)
  */
@@ -10,6 +12,7 @@
   const WORKER =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
+  const MSG_SOURCE = 'materials-pdf-viewer';
 
   let host = null;
   let cssReady = false;
@@ -28,8 +31,78 @@
   let searchBusy = false;
   let srcBytesCache = null;
   let touchX = null;
+  let pinchDist0 = 0;
+  let pinchZoom0 = 1;
   let keyHandler = null;
   let resizeTimer = null;
+  let vvHandler = null;
+
+  function inFrame() {
+    try {
+      return global.self !== global.top;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  function notifyHost(open) {
+    const payload = {
+      source: MSG_SOURCE,
+      type: open ? 'open' : 'close',
+      open: !!open,
+      standalone: !!(openOpts && openOpts.standalone),
+    };
+    try {
+      global.postMessage(payload, global.location.origin);
+    } catch (_) { /* ignore */ }
+    try {
+      if (global.parent && global.parent !== global) {
+        global.parent.postMessage(payload, '*');
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  function lockPageScroll(on) {
+    const root = document.documentElement;
+    const body = document.body;
+    if (!root || !body) return;
+    root.classList.toggle('mpv-lock', on);
+    body.classList.toggle('mpv-lock', on);
+  }
+
+  function preferPdfBytesUrl(rawUrl) {
+    if (!rawUrl) return rawUrl;
+    try {
+      const url = new URL(rawUrl, global.location.href);
+      const hostName = (url.hostname || '').toLowerCase();
+      if (hostName === 'github.com') {
+        const m = url.pathname.match(/^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.*)/);
+        if (m) return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}/${m[4]}`;
+      }
+      if (hostName.includes('sharepoint.')) {
+        if (url.searchParams.get('web') === '1') url.searchParams.delete('web');
+        url.searchParams.set('download', '1');
+        return url.toString();
+      }
+      return url.toString();
+    } catch (_) {
+      return rawUrl;
+    }
+  }
+
+  function filenameFromUrl(url) {
+    try {
+      const u = new URL(url, global.location.href);
+      const name = decodeURIComponent(u.pathname.split('/').pop() || '');
+      if (name && /\.pdf$/i.test(name)) return name;
+      const key = u.searchParams.get('key') || '';
+      const fromKey = decodeURIComponent(key.split('/').pop() || '');
+      if (fromKey) return fromKey;
+      return name || 'document.pdf';
+    } catch (_) {
+      return 'document.pdf';
+    }
+  }
 
   function escapeHtml(s) {
     return String(s ?? '')
@@ -180,7 +253,7 @@
     if (hint) {
       hint.textContent = pages
         ? `${pages} page(s) · ~${formatSize(bytes)} — ready to print, download, share, or add`
-        : 'Select pages (click thumb checkmarks or press Space), or Select all';
+        : 'Select pages to print or share a subset — Download uses the whole file if none are selected';
     }
   }
 
@@ -330,6 +403,11 @@
       wrap.style.height = `${Math.floor(viewport.height)}px`;
       wrap.appendChild(canvas);
 
+      const annLayer = document.createElement('div');
+      annLayer.className = 'mpv-ann-layer';
+      wrap.appendChild(annLayer);
+      await renderAnnotationLinks(page, viewport, annLayer);
+
       const textLayerDiv = document.createElement('div');
       textLayerDiv.className = 'mpv-text-layer';
       wrap.appendChild(textLayerDiv);
@@ -435,9 +513,44 @@
     }
   }
 
+  async function renderAnnotationLinks(page, viewport, container) {
+    try {
+      const annotations = await page.getAnnotations({ intent: 'display' });
+      if (!annotations || !annotations.length) return;
+      for (const ann of annotations) {
+        if (ann.subtype !== 'Link' || !ann.rect || ann.rect.length !== 4) continue;
+        const href = ann.url || ann.unsafeUrl;
+        if (!href) continue;
+        const [x1, y1, x2, y2] = viewport.convertToViewportRectangle(ann.rect);
+        const left = Math.min(x1, x2);
+        const top = Math.min(y1, y2);
+        const width = Math.abs(x2 - x1);
+        const height = Math.abs(y2 - y1);
+        if (!Number.isFinite(left) || !Number.isFinite(top) || width <= 0 || height <= 0) continue;
+        const link = document.createElement('a');
+        link.className = 'mpv-ann-link';
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.title = ann.title || href;
+        link.style.left = `${left}px`;
+        link.style.top = `${top}px`;
+        link.style.width = `${width}px`;
+        link.style.height = `${height}px`;
+        container.appendChild(link);
+      }
+    } catch (_) { /* annotations optional */ }
+  }
+
+  function touchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
   async function getSourceBytes() {
     if (srcBytesCache) return srcBytesCache;
-    const url = openOpts?.url;
+    const url = preferPdfBytesUrl(openOpts?.url);
     if (!url) throw new Error('No document URL');
     if (url.startsWith('data:')) {
       const b64 = url.split(',')[1] || '';
@@ -464,24 +577,34 @@
   }
 
   async function extractSelection() {
-    if (!selected.size) throw new Error('Select at least one page first');
+    const srcBytes = await getSourceBytes();
+    const allSelected = !selected.size || selected.size >= pageCount;
+    if (allSelected) {
+      const pages = [];
+      for (let i = 1; i <= pageCount; i += 1) pages.push(i);
+      const outBytes = srcBytes instanceof ArrayBuffer ? new Uint8Array(srcBytes) : srcBytes;
+      const name = String(openOpts?.fileName || 'document.pdf');
+      return {
+        pages,
+        name,
+        size: outBytes.byteLength,
+        contentBase64: bytesToBase64(outBytes),
+        sourceKey: openOpts?.sourceKey || null,
+        fileName: openOpts?.fileName || name,
+      };
+    }
     if (!global.PDFLib?.PDFDocument) throw new Error('PDF tools not loaded yet');
     const pages = Array.from(selected).sort((a, b) => a - b);
-    const srcBytes = await getSourceBytes();
-    const srcDoc = await PDFLib.PDFDocument.load(srcBytes);
-    const outDoc = await PDFLib.PDFDocument.create();
+    const srcDoc = await global.PDFLib.PDFDocument.load(srcBytes);
+    const outDoc = await global.PDFLib.PDFDocument.create();
     const copied = await outDoc.copyPages(srcDoc, pages.map((p) => p - 1));
     copied.forEach((p) => outDoc.addPage(p));
     const outBytes = await outDoc.save();
     const pageLabel = pages.length === 1
       ? `p${pages[0]}`
-      : pages.length === pageCount
-        ? 'all'
-        : `p${pages[0]}-${pages[pages.length - 1]}`;
+      : `p${pages[0]}-${pages[pages.length - 1]}`;
     const base = String(openOpts?.fileName || 'document.pdf').replace(/\.pdf$/i, '');
-    const name = pages.length === pageCount && pages[0] === 1 && pages[pages.length - 1] === pageCount
-      ? `${base}.pdf`
-      : `${base}_${pageLabel}.pdf`;
+    const name = `${base}_${pageLabel}.pdf`;
     const contentBase64 = bytesToBase64(outBytes);
     return {
       pages,
@@ -509,7 +632,7 @@
   }
 
   function wireHost() {
-    document.getElementById('mpvClose')?.addEventListener('click', () => close());
+    document.getElementById('mpvClose')?.addEventListener('click', () => requestClose());
     document.getElementById('mpvPrev')?.addEventListener('click', () => goTo(currentPage - 1));
     document.getElementById('mpvNext')?.addEventListener('click', () => goTo(currentPage + 1));
     document.getElementById('mpvMPrev')?.addEventListener('click', () => goTo(currentPage - 1));
@@ -640,9 +763,38 @@
 
     const stage = document.getElementById('mpvStage');
     stage?.addEventListener('touchstart', (e) => {
+      if (e.touches.length >= 2) {
+        pinchDist0 = touchDistance(e.touches);
+        pinchZoom0 = zoom;
+        fitMode = 'manual';
+        touchX = null;
+        return;
+      }
+      pinchDist0 = 0;
       touchX = e.changedTouches?.[0]?.clientX ?? null;
     }, { passive: true });
+    stage?.addEventListener('touchmove', (e) => {
+      if (e.touches.length < 2 || pinchDist0 <= 0) return;
+      e.preventDefault();
+      const ratio = touchDistance(e.touches) / pinchDist0;
+      const next = Math.min(4, Math.max(0.35, pinchZoom0 * ratio));
+      const wrap = document.querySelector('.mpv-page-wrap');
+      if (wrap) wrap.style.transform = `scale(${next / zoom})`;
+    }, { passive: false });
     stage?.addEventListener('touchend', (e) => {
+      if (pinchDist0 > 0 && e.touches.length < 2) {
+        const wrap = document.querySelector('.mpv-page-wrap');
+        const m = wrap?.style.transform?.match(/scale\((.+?)\)/);
+        wrap && (wrap.style.transform = '');
+        if (m) {
+          zoom = Math.min(4, Math.max(0.35, zoom * parseFloat(m[1])));
+          fitMode = 'manual';
+          renderPage();
+        }
+        pinchDist0 = 0;
+        touchX = null;
+        return;
+      }
       if (touchX == null) return;
       const dx = (e.changedTouches?.[0]?.clientX ?? touchX) - touchX;
       touchX = null;
@@ -667,7 +819,7 @@
       if (e.key === 'Escape') {
         e.preventDefault();
         if (host.classList.contains('is-immersive')) host.classList.remove('is-immersive');
-        else close();
+        else requestClose();
         return;
       }
       if (typing) return;
@@ -717,14 +869,28 @@
     keyHandler = null;
   }
 
+  function requestClose() {
+    if (openOpts?.standalone) {
+      if (inFrame()) {
+        notifyHost(false);
+        return;
+      }
+      if (global.history.length > 1) {
+        global.history.back();
+        return;
+      }
+    }
+    close();
+  }
+
   async function open(options) {
     if (!options?.url) throw new Error('MaterialsPdfViewer.open requires url');
     ensureHost();
-    openOpts = options;
+    openOpts = { ...options, url: preferPdfBytesUrl(options.url) };
     pdfDoc = null;
     srcBytesCache = null;
     pageCount = 0;
-    currentPage = 1;
+    currentPage = Math.max(1, Math.floor(Number(options.page) || 1));
     zoom = 1;
     fitMode = 'width';
     rotation = 0;
@@ -732,15 +898,26 @@
     searchHits = [];
     searchIdx = -1;
     searchQuery = '';
+    const framed = options.embedded || inFrame();
+    host.classList.toggle('is-standalone', !!options.standalone);
+    host.classList.toggle('is-framed', !!framed);
     host.classList.add('is-open');
     host.classList.remove('is-immersive', 'is-thumbs-collapsed');
-    document.getElementById('mpvTitle').textContent = options.title || options.fileName || 'Document';
+    lockPageScroll(true);
+    const closeBtn = document.getElementById('mpvClose');
+    if (closeBtn) {
+      closeBtn.textContent = options.standalone && !framed ? 'Back' : 'Close';
+      closeBtn.style.display = options.standalone && framed ? 'none' : '';
+    }
+    document.getElementById('mpvTitle').textContent =
+      options.title || options.fileName || filenameFromUrl(openOpts.url) || 'Document';
     document.getElementById('mpvSearch').value = '';
     document.getElementById('mpvSearchCount').textContent = '';
     document.getElementById('mpvStageInner').innerHTML = '<div class="mpv-state">Opening…</div>';
     document.getElementById('mpvThumbs').innerHTML = '';
     updateHud();
     attachKeys();
+    notifyHost(true);
 
     // Hide action buttons the host doesn't support
     const map = [
@@ -762,8 +939,9 @@
 
     try {
       const lib = pdfjs();
-      pdfDoc = await lib.getDocument({ url: options.url, withCredentials: false }).promise;
+      pdfDoc = await lib.getDocument({ url: openOpts.url, withCredentials: false }).promise;
       pageCount = pdfDoc.numPages;
+      if (currentPage > pageCount) currentPage = 1;
       if (options.preselectAll) selectAll(true);
       buildThumbs();
       await renderPage();
@@ -775,6 +953,10 @@
 
     clearTimeout(resizeTimer);
     window.addEventListener('resize', onResize);
+    if (global.visualViewport) {
+      vvHandler = () => onResize();
+      global.visualViewport.addEventListener('resize', vvHandler);
+    }
   }
 
   function onResize() {
@@ -785,11 +967,17 @@
   }
 
   function close() {
-    host?.classList.remove('is-open', 'is-immersive');
+    host?.classList.remove('is-open', 'is-immersive', 'is-standalone', 'is-framed');
+    lockPageScroll(false);
     detachKeys();
     window.removeEventListener('resize', onResize);
+    if (vvHandler && global.visualViewport) {
+      global.visualViewport.removeEventListener('resize', vvHandler);
+      vvHandler = null;
+    }
     pdfDoc = null;
     srcBytesCache = null;
+    notifyHost(false);
     const cb = openOpts?.onClose;
     openOpts = null;
     if (typeof cb === 'function') cb();
@@ -799,5 +987,18 @@
     return !!(host && host.classList.contains('is-open'));
   }
 
-  global.MaterialsPdfViewer = { open, close, isOpen, formatSize };
+  global.MaterialsPdfViewer = {
+    open,
+    close,
+    isOpen,
+    formatSize,
+    filenameFromUrl,
+    preferPdfBytesUrl,
+    viewerUrl(fileUrl, name) {
+      const u = new URL('/pdf/', global.location.origin);
+      u.searchParams.set('file', fileUrl);
+      if (name) u.searchParams.set('name', name);
+      return u.toString();
+    },
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

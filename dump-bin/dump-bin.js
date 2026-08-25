@@ -93,7 +93,24 @@ let printModalState = 'picker';
 let cooldownTicker = null;
 
 // --- Boot ---
+function isEmbeddedDumpBin() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('embed') === '1') return true;
+  try {
+    return window.self !== window.top;
+  } catch (_) {
+    return true;
+  }
+}
+
+function applyEmbedMode() {
+  if (!isEmbeddedDumpBin()) return;
+  document.documentElement.classList.add('db-embedded');
+  document.body.classList.add('db-embedded');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  applyEmbedMode();
   wireDropdowns();
   wireWeekDial();
   wireWeekArrows();
@@ -390,7 +407,7 @@ function renderBrowser(data) {
         <div class="db-item${isSel ? ' db-item--selected' : ''}" data-key="${escapeAttr(f.key)}">
           <input type="checkbox" class="db-item__checkbox" ${isSel ? 'checked' : ''} data-key="${escapeAttr(f.key)}">
           <span class="db-item__icon">${fileIcon(f.name)}</span>
-          <a class="db-item__name" href="${escapeAttr(downloadUrlForFile(f))}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>
+          <a class="db-item__name${isPdf ? ' db-item__name--pdf' : ''}" href="${escapeAttr(downloadUrlForFile(f))}" data-file-key="${escapeAttr(f.key)}"${isPdf ? '' : ' target="_blank" rel="noopener"'}>${escapeHtml(f.name)}</a>
           ${isPdf ? `<button type="button" class="btn btn-ghost db-item__pages" data-pages-key="${escapeAttr(f.key)}">Pages</button>` : ''}
           <span class="db-item__meta">${formatSize(f.size)}</span>
         </div>`;
@@ -428,13 +445,24 @@ function renderBrowser(data) {
     });
   });
 
+  function openListedPdf(key) {
+    const fileObj = files.find((f) => f.key === key);
+    if (fileObj) openPdfPagePicker(fileObj).catch((err) => toast(err.message || 'Could not open PDF', 'error'));
+  }
+
+  browser.querySelectorAll('.db-item__name--pdf').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openListedPdf(a.getAttribute('data-file-key'));
+    });
+  });
+
   browser.querySelectorAll('[data-pages-key]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const key = btn.getAttribute('data-pages-key');
-      const fileObj = files.find((f) => f.key === key);
-      if (fileObj) openPdfPagePicker(fileObj).catch((err) => toast(err.message || 'Could not open PDF', 'error'));
+      openListedPdf(btn.getAttribute('data-pages-key'));
     });
   });
 
@@ -510,9 +538,10 @@ function renderDropdownMenu(menu, data) {
     ).join('');
   }
   if (files.length) {
-    html += files.map(f =>
-      `<a class="db-file" href="${escapeAttr(downloadUrlForFile(f))}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>`
-    ).join('');
+    html += files.map((f) => {
+      const isPdf = /\.pdf$/i.test(f.name || '');
+      return `<a class="db-file${isPdf ? ' db-file--pdf' : ''}" href="${escapeAttr(downloadUrlForFile(f))}" data-key="${escapeAttr(f.key)}"${isPdf ? '' : ' target="_blank" rel="noopener"'}>${escapeHtml(f.name)}</a>`;
+    }).join('');
   }
   if (!html) html = '<div class="db-section-header">Empty</div>';
   menu.innerHTML = html;
@@ -521,6 +550,14 @@ function renderDropdownMenu(menu, data) {
       navigate(btn.dataset.prefix);
       document.querySelectorAll('.db-dropdown').forEach(dd => dd.classList.remove('open'));
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+  menu.querySelectorAll('a.db-file--pdf').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const fileObj = files.find((f) => f.key === a.dataset.key);
+      document.querySelectorAll('.db-dropdown').forEach((dd) => dd.classList.remove('open'));
+      if (fileObj) openPdfPagePicker(fileObj).catch((err) => toast(err.message || 'Could not open PDF', 'error'));
     });
   });
 }

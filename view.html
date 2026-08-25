@@ -66,6 +66,19 @@
         return;
       }
 
+      var pdfLike = false;
+      try {
+        var preview = new URL(target, window.location.origin);
+        pdfLike = /\.pdf$/i.test(preview.pathname)
+          || /\/api\/download(?:\?|$)/i.test(preview.pathname);
+      } catch (e) {}
+      if (pdfLike) {
+        var viewer = new URL('/pdf/', window.location.origin);
+        viewer.searchParams.set('file', target);
+        window.location.replace(viewer.toString());
+        return;
+      }
+
       // Allow-list of hosts we know block framing — open in new tab immediately.
       var noFrameHosts = [
         'retailodyssey-app.github.io',
