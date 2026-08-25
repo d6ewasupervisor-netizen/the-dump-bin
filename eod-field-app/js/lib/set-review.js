@@ -101,10 +101,19 @@
     packCache.set(packKey(token, rowId), data);
   }
 
-  function warmupPhotos(photos, api) {
+  function warmupPhotos(photos, api, authFetch) {
     (photos || []).forEach((p) => {
-      const url = resolvePhotoUrl(api, p?.url || '');
+      const url = resolvePhotoUrl(api, p?.thumbUrl || p?.url || '');
       if (!url) return;
+      if (authFetch) {
+        authFetch(url).then((resp) => resp.ok ? resp.blob() : null).then((blob) => {
+          if (!blob) return;
+          const img = new Image();
+          img.decoding = 'async';
+          img.src = URL.createObjectURL(blob);
+        }).catch(() => {});
+        return;
+      }
       const img = new Image();
       img.decoding = 'async';
       img.src = url;
@@ -135,7 +144,12 @@
       row,
       onBack,
       onMarked,
+      authFetch,
+      photosUrl,
+      hideComplete,
+      backLabel,
     } = opts;
+    const objectUrlCache = new Map();
     let photos = [];
     let idx = 0;
     let scale = 1;
@@ -153,9 +167,29 @@
     }
 
     function photoUrl(p, download) {
-      const base = resolvePhotoUrl(api, p?.url || '');
+      const raw = download ? (p?.url || '') : (p?.thumbUrl && arguments[2] === 'thumb' ? p.thumbUrl : p?.url || '');
+      const base = resolvePhotoUrl(api, raw);
       if (!base) return '';
       return download ? `${base}${base.includes('?') ? '&' : '?'}download=1` : base;
+    }
+
+    function displayUrl(p, kind) {
+      const raw = kind === 'thumb' ? (p?.thumbUrl || p?.url || '') : (p?.url || '');
+      return resolvePhotoUrl(api, raw);
+    }
+
+    async function objectUrlFor(p, kind) {
+      const url = displayUrl(p, kind);
+      if (!url) return '';
+      if (!authFetch) return url;
+      const cacheKey = `${kind || 'full'}:${url}`;
+      if (objectUrlCache.has(cacheKey)) return objectUrlCache.get(cacheKey);
+      const resp = await authFetch(url);
+      if (!resp.ok) throw new Error(`Photo failed (${resp.status})`);
+      const blob = await resp.blob();
+      const obj = URL.createObjectURL(blob);
+      objectUrlCache.set(cacheKey, obj);
+      return obj;
     }
 
     function renderShell() {
@@ -164,7 +198,7 @@
       root.innerHTML = `
         <div class="gh-review">
           <div class="gh-review-bar">
-            <button type="button" class="gh-btn gh-btn-secondary" id="ghReviewBack">← Sets</button>
+            <button type="button" class="gh-btn gh-btn-secondary" id="ghReviewBack">${escapeHtml(backLabel || '← Sets')}</button>
             <div class="gh-review-title">
               <strong>${escapeHtml(name)}</strong>
               ${row.pog || row.dbkey ? `<span class="gh-muted">POG ${escapeHtml(row.pog || row.dbkey)}</span>` : ''}
@@ -200,10 +234,10 @@
             </div>
             <p class="gh-muted" id="ghReviewErr" hidden></p>
           </div>
-          <div class="gh-review-footer">
+          ${hideComplete ? '' : `<div class="gh-review-footer">
             ${done ? '<span class="gh-set-done" id="ghCompleteLabel">Complete</span>' : '<span class="gh-muted" id="ghCompleteLabel">Not complete</span>'}
             <button type="button" class="gh-btn gh-btn-primary" id="ghConfirmComplete">Confirm complete</button>
-          </div>
+          </div>`}
         </div>`;
       document.getElementById('ghReviewBack')?.addEventListener('click', () => onBack?.());
     }
@@ -291,11 +325,13 @@
       document.querySelectorAll('.gh-film button').forEach((btn, n) => {
         btn.classList.toggle('is-active', n === idx);
       });
-      if (img) {
-        img.onload = () => fitStage();
-        img.src = photoUrl(p);
-        img.alt = p.label || `Photo ${idx + 1}`;
-      }
+      if (!img) return;
+      img.onload = () => fitStage();
+      img.alt = p.label || `Photo ${idx + 1}`;
+      objectUrlFor(p, 'full').then((src) => {
+        if (photos[idx] !== p) return;
+        img.src = src;
+      }).catch((err) => setStatus(err.message || 'Could not load photo', true));
     }
 
     function renderFilm() {
@@ -304,11 +340,16 @@
       film.hidden = !photos.length;
       film.innerHTML = photos.map((p, i) => `
         <button type="button" class="gh-film-thumb${i === idx ? ' is-active' : ''}" data-idx="${i}" title="${escapeHtml(p.label || '')}">
-          <img src="${escapeHtml(photoUrl(p))}" alt="${escapeHtml(p.label || `Photo ${i + 1}`)}">
+          <img alt="${escapeHtml(p.label || `Photo ${i + 1}`)}">
           <span>${escapeHtml(p.label || String(i + 1))}</span>
         </button>`).join('');
       film.querySelectorAll('button').forEach((btn) => {
-        btn.addEventListener('click', () => showPhoto(Number(btn.dataset.idx)));
+        const i = Number(btn.dataset.idx);
+        btn.addEventListener('click', () => showPhoto(i));
+        const img = btn.querySelector('img');
+        const p = photos[i];
+        if (!img || !p) return;
+        objectUrlFor(p, 'thumb').then((src) => { img.src = src; }).catch(() => {});
       });
     }
 
@@ -444,7 +485,9 @@
       });
       document.getElementById('ghSavePhoto')?.addEventListener('click', () => savePhoto().catch(console.error));
       document.getElementById('ghSharePhoto')?.addEventListener('click', () => sharePhoto().catch(console.error));
-      document.getElementById('ghConfirmComplete')?.addEventListener('click', () => confirmComplete());
+      if (!hideComplete) {
+        document.getElementById('ghConfirmComplete')?.addEventListener('click', () => confirmComplete());
+      }
 
       const canvas = document.getElementById('ghAnnotate');
       const vp = document.getElementById('ghStageVp');
@@ -522,6 +565,11 @@
         let data = Array.isArray(opts.photos)
           ? { photos: opts.photos, warning: opts.warning, photoSource: opts.photoSource }
           : getPack(token, row.id);
+        if (!data && photosUrl) {
+          const resp = await (authFetch || fetch)(photosUrl);
+          data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || `Load failed (${resp.status})`);
+        }
         if (!data) {
           const resp = await fetch(`${api}/${encodeURIComponent(token)}/sets/${encodeURIComponent(row.id)}/photos`);
           data = await resp.json().catch(() => ({}));
@@ -529,7 +577,7 @@
           rememberPack(token, row.id, data);
         }
         photos = Array.isArray(data.photos) ? data.photos : [];
-        warmupPhotos(photos, api);
+        warmupPhotos(photos, api, authFetch);
         const tools = document.getElementById('ghReviewTools');
         const stage = document.getElementById('ghStageWrap');
         if (tools) tools.hidden = false;

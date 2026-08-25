@@ -3,6 +3,8 @@
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
+  const DS_API = 'https://eod-api.the-dump-bin.com/api/digital-signoffs';
+  const API_ORIGIN = 'https://eod-api.the-dump-bin.com';
   const LIVE_ZOOM_MIN = 0.5;
   const LIVE_ZOOM_MAX = 4;
   const LIVE_ZOOM_STEP = 0.25;
@@ -200,7 +202,7 @@
         canvas.height = zh;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, sx, sy, zw, zh, 0, 0, zw, zh);
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
         if (!blob) return;
         const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
         try {
@@ -264,6 +266,7 @@
       before: [],
       after: [],
       status: null,
+      pack: { photos: [] },
       uploading: false,
     };
 
@@ -366,6 +369,8 @@
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
         if (detail.job?.slot === 'after') maybeAutoCloseSi();
+        fetchPack().then(() => paintBody());
+        return;
       } else if (detail.type === 'failed' && detail.job?.error !== 'replaced') {
         setMsg(detail.job?.error || 'Upload failed', true);
       }
@@ -416,6 +421,11 @@
         const n = Number(b.bay);
         if (remoteBayCovered(slot, n)) set.add(n);
       }
+      const cached = String(slot) === 'before' ? beforeCached() : afterCached();
+      for (const p of cached) {
+        const n = Number(p.bayIndex);
+        if (Number.isFinite(n) && n > 0) set.add(n);
+      }
       return set;
     }
 
@@ -458,6 +468,63 @@
         assigned.push(empties[i] != null ? empties[i] : empties[empties.length - 1]);
       }
       return assigned;
+    }
+
+    function afterCached() {
+      return (local.pack?.photos || []).filter((p) => p.slot !== 'before');
+    }
+
+    function beforeCached() {
+      return (local.pack?.photos || []).filter((p) => p.slot === 'before');
+    }
+
+    function siViewReady() {
+      if (afterCached().length && (local.pack?.photoSource === 'si' || local.pack?.prebuilt)) return true;
+      const st = local.status?.si || {};
+      const have = Number(st.sectionsWithPhoto) || 0;
+      const need = Number(st.sectionCount) || 0;
+      return have > 0 && need > 0 && have >= need;
+    }
+
+    async function fetchPack() {
+      if (!rowId) {
+        local.pack = { photos: [] };
+        return;
+      }
+      try {
+        const resp = await global.authFetch(`${DS_API}/rows/${encodeURIComponent(rowId)}/photos`);
+        const data = await resp.json().catch(() => ({}));
+        local.pack = data && Array.isArray(data.photos) ? data : { photos: [] };
+      } catch (_) {
+        local.pack = { photos: [] };
+      }
+    }
+
+    async function fillCachedThumbs(host, photos) {
+      if (!host) return;
+      if (!photos.length) {
+        host.innerHTML = '';
+        return;
+      }
+      host.innerHTML = photos.map((p, i) =>
+        `<div class="set-thumb remote" data-i="${i}">
+          <img alt="${esc(p.label || '')}">
+          <span>${esc(p.label || '')}</span>
+        </div>`
+      ).join('');
+      for (const el of host.querySelectorAll('.set-thumb')) {
+        const p = photos[Number(el.dataset.i)];
+        const path = p?.thumbUrl || p?.url || '';
+        if (!path) continue;
+        const abs = /^https?:/i.test(path) ? path : API_ORIGIN + path;
+        try {
+          const resp = await global.authFetch(abs);
+          if (!resp.ok) continue;
+          const blob = await resp.blob();
+          const img = el.querySelector('img');
+          if (img) img.src = URL.createObjectURL(blob);
+        } catch (_) {}
+      }
     }
 
     function persistBefores() {
@@ -531,30 +598,9 @@
     }
 
     function remoteStackHtml(slot) {
-      const remote = local.status?.remotePhotos || {};
-      const prod = slot === 'before' ? (remote.prodBefore || []) : (remote.prodAfter || []);
-      const si = slot === 'after' ? (remote.si || []) : [];
-      if (!prod.length && !si.length) return '';
-      return `<div class="set-remote-stack">
-        ${prod.length ? `<div class="set-remote-layer">
-          <div class="set-remote-label">PROD</div>
-          <div class="set-thumbs set-thumbs-remote">${prod.map((p) =>
-            `<div class="set-thumb remote prod" title="PROD bay ${esc(p.bay)}">
-              <img src="${esc(p.url)}" alt="PROD bay ${esc(p.bay)}">
-              <span>Bay ${esc(p.bay)} | PROD</span>
-            </div>`
-          ).join('')}</div>
-        </div>` : ''}
-        ${si.length ? `<div class="set-remote-layer">
-          <div class="set-remote-label">Store Intelligence</div>
-          <div class="set-thumbs set-thumbs-remote">${si.map((p) =>
-            `<div class="set-thumb remote si" title="SI bay ${esc(p.bay)}">
-              <img src="${esc(p.url)}" alt="SI bay ${esc(p.bay)}">
-              <span>Bay ${esc(p.bay)} | SI</span>
-            </div>`
-          ).join('')}</div>
-        </div>` : ''}
-      </div>`;
+      const cached = slot === 'before' ? beforeCached() : afterCached();
+      if (!cached.length) return '<div class="set-thumbs set-thumbs-remote" data-cached-slot="' + slot + '"></div>';
+      return `<div class="set-thumbs set-thumbs-remote" data-cached-slot="${slot}"></div>`;
     }
 
     function thumbHtml(list, slot) {
@@ -593,6 +639,43 @@
       if (!body) return;
       const nextAfter = nextEmptyBay('after');
       const nextBefore = nextEmptyBay('before');
+
+      if (siViewReady() && afterCached().length && global.EodSetReview?.createReview) {
+        body.innerHTML = `
+          <section class="set-photo-block">
+            <h2>Before</h2>
+            ${bayProgressHtml('before')}
+            <div class="set-thumbs set-thumbs-remote" data-cached-slot="before"></div>
+            <div class="set-device-label muted">On this device</div>
+            ${thumbHtml(local.before, 'before')}
+            <div class="btn-row">
+              <button type="button" class="btn btn-primary" data-cap="before">${
+                nextBefore ? 'Take bay ' + nextBefore : 'Retake befores'
+              }</button>
+              <label class="btn btn-secondary set-file-btn">Load photos
+                <input type="file" accept="image/*" multiple data-gal="before" hidden>
+              </label>
+            </div>
+          </section>
+          <section class="set-photo-block">
+            <div id="setReviewMount"></div>
+          </section>`;
+        bindCaptureControls(body);
+        fillCachedThumbs(body.querySelector('[data-cached-slot="before"]'), beforeCached());
+        global.EodSetReview.createReview({
+          root: document.getElementById('setReviewMount'),
+          row: { id: rowId, catName, dbkey, pog: dbkey },
+          photos: afterCached(),
+          photoSource: local.pack?.photoSource || 'si',
+          api: API_ORIGIN,
+          authFetch: global.authFetch,
+          hideComplete: true,
+          backLabel: '← Categories',
+          onBack: () => global.EodRouter.go('signoff'),
+        });
+        return;
+      }
+
       body.innerHTML = `
         <section class="set-photo-block">
           <h2>Before ${preferSlot === 'before' ? '<span class="pill warn">focus</span>' : ''}</h2>
@@ -631,6 +714,28 @@
           <button type="button" class="btn btn-success" id="finishSetBtn">Finish set (upload + complete + mark sheet)</button>
         </div>`;
 
+      bindCaptureControls(body);
+      document.getElementById('crossFillBtn').onclick = async () => {
+        try {
+          setMsg('Pulling photos across PROD / SI…');
+          const r = await crossFill(dbkey, rowId);
+          setMsg(
+            'Cross-fill (' + (r.direction || '') + '): uploaded ' + (r.uploaded?.length || 0)
+            + ', skipped ' + (r.skipped?.length || 0)
+            + ', errors ' + (r.errors?.length || 0)
+          );
+          if (r.status) paintStatus(r.status);
+          paintBody();
+        } catch (err) {
+          setMsg(err.message || String(err), true);
+        }
+      };
+      document.getElementById('finishSetBtn').onclick = () => finishAll();
+      fillCachedThumbs(body.querySelector('[data-cached-slot="before"]'), beforeCached());
+      fillCachedThumbs(body.querySelector('[data-cached-slot="after"]'), afterCached());
+    }
+
+    function bindCaptureControls(body) {
       body.querySelectorAll('[data-cap]').forEach((btn) => {
         btn.onclick = () => startSequentialCapture(btn.getAttribute('data-cap'));
       });
@@ -653,22 +758,6 @@
           );
         };
       });
-      document.getElementById('crossFillBtn').onclick = async () => {
-        try {
-          setMsg('Pulling photos across PROD / SI…');
-          const r = await crossFill(dbkey, rowId);
-          setMsg(
-            'Cross-fill (' + (r.direction || '') + '): uploaded ' + (r.uploaded?.length || 0)
-            + ', skipped ' + (r.skipped?.length || 0)
-            + ', errors ' + (r.errors?.length || 0)
-          );
-          if (r.status) paintStatus(r.status);
-          paintBody();
-        } catch (err) {
-          setMsg(err.message || String(err), true);
-        }
-      };
-      document.getElementById('finishSetBtn').onclick = () => finishAll();
     }
 
     function startSequentialCapture(slot) {
@@ -727,6 +816,7 @@
         visitId: local.status?.prod?.visitId,
         resetId: local.status?.prod?.resetId,
         taskId: local.status?.si?.taskId,
+        skipSi: slot === 'before',
       });
 
       local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
@@ -787,9 +877,12 @@
 
     async function reload() {
       try {
+        await fetchPack();
+        paintBody();
         local.status = await fetchStatus(dbkey, rowId);
         paintStatus(local.status);
         hydrateFromPipeline();
+        await fetchPack();
         paintBody();
         setMsg('');
       } catch (err) {

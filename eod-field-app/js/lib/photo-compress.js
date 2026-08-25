@@ -6,10 +6,10 @@
   const HARD_MAX_BYTES = 1024 * 1024;
 
   const POLICIES = {
-    set: { maxEdge: 2048, maxBytes: TARGET_BYTES, startQuality: 0.86, minQuality: 0.52, label: 'set' },
+    set: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6, preferJpeg: true, fast: true, label: 'set' },
     cart: { maxEdge: 1600, maxBytes: TARGET_BYTES, startQuality: 0.82, minQuality: 0.48, label: 'cart' },
-    before: { maxEdge: 1600, maxBytes: TARGET_BYTES, startQuality: 0.82, minQuality: 0.48, label: 'cart-before' },
-    after: { maxEdge: 1600, maxBytes: TARGET_BYTES, startQuality: 0.82, minQuality: 0.48, label: 'cart-after' },
+    before: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6, preferJpeg: true, fast: true, label: 'cart-before' },
+    after: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6, preferJpeg: true, fast: true, label: 'cart-after' },
     signoff: { maxEdge: 2560, maxBytes: 950 * 1024, startQuality: 0.9, minQuality: 0.55, label: 'signoff' },
     instawork: { maxEdge: 2400, maxBytes: 950 * 1024, startQuality: 0.88, minQuality: 0.55, label: 'instawork' },
     default: { maxEdge: 2048, maxBytes: TARGET_BYTES, startQuality: 0.85, minQuality: 0.5, label: 'photo' },
@@ -129,9 +129,9 @@
     };
   }
 
-  async function encodeBest(canvas, { maxBytes, startQuality, minQuality }) {
-    const preferWebp = await supportsWebp();
-    const mimes = preferWebp ? ['image/webp', 'image/jpeg'] : ['image/jpeg'];
+  async function encodeBest(canvas, { maxBytes, startQuality, minQuality, preferJpeg, fast }) {
+    const preferWebp = !preferJpeg && await supportsWebp();
+    const mimes = preferJpeg ? ['image/jpeg'] : (preferWebp ? ['image/webp', 'image/jpeg'] : ['image/jpeg']);
     let best = null;
 
     for (const mime of mimes) {
@@ -148,6 +148,24 @@
         }
         return candidate;
       };
+
+      if (fast) {
+        let c = await tryQ(startQuality);
+        if (c && c.bytes > maxBytes) {
+          c = await tryQ(Math.max(minQuality, startQuality - 0.12)) || c;
+        }
+        const pick = (c && c.bytes <= maxBytes ? c : null) || c || smallest;
+        if (pick && (
+          !best
+          || (pick.bytes <= maxBytes && best.bytes > maxBytes)
+          || (pick.bytes <= maxBytes && pick.bytes <= best.bytes)
+          || (pick.bytes > maxBytes && best.bytes > maxBytes && pick.bytes < best.bytes)
+        )) {
+          best = pick;
+        }
+        if (best && best.bytes <= maxBytes) break;
+        continue;
+      }
 
       await tryQ(startQuality);
       if (!bestUnder) {
