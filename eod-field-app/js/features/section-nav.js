@@ -1,4 +1,4 @@
-/* Prev / next section navigation for primary routes. */
+/* Named prev / next + return-to-top at the bottom of every section. */
 (function (global) {
   'use strict';
 
@@ -12,16 +12,36 @@
     { id: 'helpdesk', label: 'Helpdesk' },
   ];
 
+  const SUB = {
+    survey: { parent: 'signoff', label: 'Survey' },
+    cover: { parent: 'signoff', label: 'Cover' },
+    photos: { parent: 'dumpbin', label: 'Photos' },
+  };
+
+  function routeId(route) {
+    return String(route || '').toLowerCase().split('?')[0];
+  }
+
   function indexOf(route) {
-    const id = String(route || '').toLowerCase().split('?')[0];
-    if (id === 'survey' || id === 'cover') return ORDER.findIndex((r) => r.id === 'signoff');
-    if (id === 'photos') return ORDER.findIndex((r) => r.id === 'dumpbin');
+    const id = routeId(route);
+    const sub = SUB[id];
+    if (sub) return ORDER.findIndex((r) => r.id === sub.parent);
     return ORDER.findIndex((r) => r.id === id);
   }
 
   function neighbors(route) {
-    const i = indexOf(route);
-    if (i < 0) return { prev: null, next: null, current: null };
+    const id = routeId(route);
+    const sub = SUB[id];
+    const i = indexOf(id);
+    if (sub) {
+      const parent = ORDER[i] || { id: sub.parent, label: sub.label };
+      return {
+        prev: parent,
+        next: i >= 0 && i < ORDER.length - 1 ? ORDER[i + 1] : null,
+        current: { id, label: sub.label },
+      };
+    }
+    if (i < 0) return { prev: null, next: null, current: { id: id || 'page', label: '' } };
     return {
       prev: i > 0 ? ORDER[i - 1] : null,
       next: i < ORDER.length - 1 ? ORDER[i + 1] : null,
@@ -29,37 +49,53 @@
     };
   }
 
+  function scrollToTop() {
+    const topEl = document.querySelector('.pilot-banner')
+      || document.getElementById('appChrome')
+      || document.querySelector('.app-shell');
+    try {
+      if (topEl) topEl.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } catch (_) {}
+    try { window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); } catch (_) {}
+    const shell = document.querySelector('.app-shell');
+    if (shell && shell.scrollTop) {
+      try { shell.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { shell.scrollTop = 0; }
+    }
+  }
+
   function append(mount, route) {
     if (!mount) return;
     const existing = mount.querySelector('.section-nav');
     if (existing) existing.remove();
 
-    const { prev, next, current } = neighbors(route);
-    if (!current) return;
+    const { prev, next } = neighbors(route);
 
     const wrap = document.createElement('div');
     wrap.className = 'card section-nav';
     wrap.innerHTML = `
       <div class="section-nav-row">
-        <button type="button" class="btn btn-secondary" id="sectionNavPrev" ${prev ? '' : 'disabled'}>
-          ${prev ? `← ${prev.label}` : '←'}
+        <button type="button" class="btn btn-secondary section-nav-side" id="sectionNavPrev" ${prev ? '' : 'disabled'}>
+          <span class="section-nav-dir" aria-hidden="true">←</span>
+          <span class="section-nav-name">${prev ? prev.label : ''}</span>
         </button>
-        <span class="section-nav-current muted">${current.label}</span>
-        <button type="button" class="btn btn-primary" id="sectionNavNext" ${next ? '' : 'disabled'}>
-          ${next ? `${next.label} →` : '→'}
+        <button type="button" class="section-nav-top" id="sectionNavTop" aria-label="Top">
+          <span class="section-nav-top-arrow" aria-hidden="true">↑</span>
+          <span class="section-nav-top-label">Top</span>
+        </button>
+        <button type="button" class="btn btn-primary section-nav-side" id="sectionNavNext" ${next ? '' : 'disabled'}>
+          <span class="section-nav-name">${next ? next.label : ''}</span>
+          <span class="section-nav-dir" aria-hidden="true">→</span>
         </button>
       </div>`;
     mount.appendChild(wrap);
 
     const prevBtn = wrap.querySelector('#sectionNavPrev');
     const nextBtn = wrap.querySelector('#sectionNavNext');
-    if (prev && prevBtn) {
-      prevBtn.onclick = () => global.EodRouter.go(prev.id);
-    }
-    if (next && nextBtn) {
-      nextBtn.onclick = () => global.EodRouter.go(next.id);
-    }
+    const topBtn = wrap.querySelector('#sectionNavTop');
+    if (prev && prevBtn) prevBtn.onclick = () => global.EodRouter.go(prev.id);
+    if (next && nextBtn) nextBtn.onclick = () => global.EodRouter.go(next.id);
+    if (topBtn) topBtn.onclick = () => scrollToTop();
   }
 
-  global.EodSectionNav = { ORDER, neighbors, append };
+  global.EodSectionNav = { ORDER, neighbors, append, scrollToTop };
 })(typeof window !== 'undefined' ? window : globalThis);

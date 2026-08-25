@@ -82,6 +82,16 @@ test('section nav places signatures between categories and crew', () => {
   assert.equal(ids[i + 2], 'crew');
 });
 
+test('section nav uses section names and a Top control, not Previous/Next', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../js/features/section-nav.js'), 'utf8');
+  assert.match(src, /id="sectionNavTop"/);
+  assert.match(src, />Top</);
+  assert.doesNotMatch(src, />\s*Previous\s*</);
+  assert.doesNotMatch(src, />\s*Next\s*</);
+  assert.match(src, /prev\.label/);
+  assert.match(src, /next\.label/);
+});
+
 test('theme cycle includes dark, inverse, light, gray, holiday', () => {
   const src = fs.readFileSync(path.join(__dirname, '../js/features/theme.js'), 'utf8');
   assert.match(src, /\['dark', 'inverse', 'light', 'gray', 'holiday'\]/);
