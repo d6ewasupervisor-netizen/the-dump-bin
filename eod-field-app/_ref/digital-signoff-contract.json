@@ -58,7 +58,12 @@
         "shiftType": { "type": ["string", "null"] },
         "dept": { "type": ["string", "null"] },
         "pageBucket": { "type": ["string", "null"] },
-        "sortIndex": { "type": "integer", "minimum": 0 }
+        "sortIndex": { "type": "integer", "minimum": 0 },
+        "errorMessage": {
+          "type": ["string", "null"],
+          "description": "Weekly Strip Manifest Error Message (e.g. VIRTUAL POG). When set, the field-app card is shown in red."
+        },
+        "hasError": { "type": "boolean" }
       }
     },
     "markType": {

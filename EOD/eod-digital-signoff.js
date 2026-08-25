@@ -116,7 +116,8 @@
         .ds-actions button.ds-mark-on[data-mark="complete"] { background: #166534; border-color: #22c55e; }
         .ds-actions button.ds-mark-on[data-mark="not_in_store"] { background: #7f1d1d; border-color: #f87171; }
         .ds-actions button.ds-mark-on[data-mark="not_in_si"] { background: #78350f; border-color: #fbbf24; }
-        .ds-row-marked-complete.ds-row-marked-nisi { background: linear-gradient(90deg, rgba(22,101,52,.25), rgba(120,53,15,.28)); }
+        .ds-row-manifest-error { background:rgba(185,28,28,.42); }
+        .ds-row-manifest-error td { color:#fecaca; }
         .ds-mark-pill { display:inline-block; font-size:11px; padding:2px 6px; margin:1px 2px 1px 0; border-radius:999px; background:#1e293b; }
         @media (max-width: 720px) {
           .ds-table thead { display:none; }
@@ -187,6 +188,9 @@
     if (markIsActive(row, 'complete')) classes.push('ds-row-marked-complete');
     if (markIsActive(row, 'not_in_store')) classes.push('ds-row-marked-nis');
     if (markIsActive(row, 'not_in_si')) classes.push('ds-row-marked-nisi');
+    if (row?.hasError || String(row?.errorMessage || row?.error_message || '').trim()) {
+      classes.push('ds-row-manifest-error');
+    }
     return classes.join(' ');
   }
 
@@ -237,7 +241,7 @@
           ${(sheet.rows || []).filter((row) => {
             const q = (document.getElementById('digitalSignoffSearch')?.value || '').trim().toLowerCase();
             if (!q) return true;
-            const hay = `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''}`.toLowerCase();
+            const hay = `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''} ${row.errorMessage || ''}`.toLowerCase();
             return hay.includes(q);
           }).map((row) => {
             const cls = rowClassForMarks(row);
@@ -247,9 +251,11 @@
               return `<button type="button" class="btn ${type === 'complete' ? 'btn-primary' : 'btn-secondary'}${on ? ' ds-mark-on' : ''}" data-mark="${type}">${on ? '✓ ' : ''}${label}</button>`;
             };
             const hasAny = !!(rowMarks(row)?.active?.length || rowMarks(row)?.type);
+            const errMsg = String(row.errorMessage || row.error_message || '').trim();
             return `<tr class="${cls}" data-row-id="${row.id}">
               <td><strong>${escapeHtml(row.catName || row.catId || '—')}</strong>
-                <div style="color:#94a3b8;font-size:12px;">${escapeHtml(row.week || '')} ${escapeHtml(row.shiftType || '')}</div></td>
+                <div style="color:#94a3b8;font-size:12px;">${escapeHtml(row.week || '')} ${escapeHtml(row.shiftType || '')}</div>
+                ${errMsg ? `<div style="color:#fecaca;font-weight:600;margin-top:4px;">${escapeHtml(errMsg)}</div>` : ''}</td>
               <td>${escapeHtml(row.dbkey || '—')}</td>
               <td>${escapeHtml(row.dept || '—')}</td>
               <td>${status}</td>

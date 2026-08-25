@@ -68,6 +68,9 @@
     if (rowLooksComplete(row)) c.push('marked-complete');
     if (markActive(row, 'not_in_store')) c.push('marked-nis');
     if (markActive(row, 'not_in_si') && !row?.live?.siPresent) c.push('marked-nisi');
+    if (row?.hasError || String(row?.errorMessage || row?.error_message || '').trim()) {
+      c.push('manifest-error');
+    }
     return c.join(' ');
   }
 
@@ -378,7 +381,7 @@
       const locSearch = global.EodCategoryCardStatus
         ? global.EodCategoryCardStatus.siLocationLabel(row)
         : '';
-      return `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''} ${locSearch}`
+      return `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''} ${locSearch} ${row.errorMessage || ''}`
         .toLowerCase().includes(q);
     });
     if (!rows.length) return '<p class="muted">No sets match.</p>';
@@ -403,12 +406,14 @@
         // Selected state is the .on border only — no checkmark (renders as ? on some devices).
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
+      const errMsg = String(row.errorMessage || row.error_message || '').trim();
       return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
         <div><strong>${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
           ${locLabel ? `<div class="muted">${esc(locLabel)}</div>` : ''}
           <div class="muted">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}</div>
           ${row.live ? `<div class="muted">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
+          ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
         <div style="margin-top:6px;">${status} ${beforePill}</div>
         <div class="ds-photo-actions">
