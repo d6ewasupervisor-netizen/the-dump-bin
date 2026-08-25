@@ -658,6 +658,7 @@
             </div>
           </section>
           <section class="set-photo-block">
+            <h2>After</h2>
             <div id="setReviewMount"></div>
           </section>`;
         bindCaptureControls(body);
@@ -670,8 +671,7 @@
           api: API_ORIGIN,
           authFetch: global.authFetch,
           hideComplete: true,
-          backLabel: '← Categories',
-          onBack: () => global.EodRouter.go('signoff'),
+          hideBack: true,
         });
         return;
       }

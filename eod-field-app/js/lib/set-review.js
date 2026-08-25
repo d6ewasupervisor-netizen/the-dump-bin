@@ -12,51 +12,104 @@
   const STYLE_ID = 'eod-set-review-css';
 
   function ensureCss() {
-    if (document.getElementById(STYLE_ID)) return;
-    const css = document.createElement('style');
-    css.id = STYLE_ID;
+    let css = document.getElementById(STYLE_ID);
+    if (!css) {
+      css = document.createElement('style');
+      css.id = STYLE_ID;
+      document.head.appendChild(css);
+    }
     css.textContent = `
-      .gh-review { display: flex; flex-direction: column; gap: 10px; padding-bottom: 24px; }
+      .gh-review { display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; color: inherit; }
       .gh-review-bar { display: flex; align-items: flex-start; gap: 10px; }
       .gh-review-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-      .gh-film { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 0 8px; }
-      .gh-film-thumb {
-        flex: 0 0 auto; width: 72px; border: 2px solid #e2e8f0;
-        border-radius: 8px; background: #fff; padding: 0; cursor: pointer; overflow: hidden; color: inherit;
+      .gh-review .gh-btn {
+        appearance: none; -webkit-appearance: none;
+        display: inline-flex; align-items: center; justify-content: center;
+        min-height: var(--touch, 44px); padding: 10px 14px; border-radius: 8px;
+        border: 0; font: inherit; font-weight: 700; font-size: 15px;
+        cursor: pointer; touch-action: manipulation; box-shadow: none;
       }
-      .gh-film-thumb img { display: block; width: 72px; height: 54px; object-fit: cover; }
-      .gh-film-thumb span { display: block; font-size: 10px; padding: 2px 4px; color: #64748b; }
-      .gh-film-thumb.is-active { border-color: #2563eb; }
-      .gh-stage-wrap { border: 1px solid #e2e8f0; border-radius: 12px; background: #0f172a; overflow: hidden; }
-      .gh-stage-vp { overflow: auto; max-height: min(70vh, 640px); touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
-      .gh-stage-vp[data-mode="draw"] { touch-action: none; }
-      .gh-stage { position: relative; display: inline-block; }
-      .gh-stage img, .gh-stage canvas { display: block; max-width: none; }
-      .gh-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-      .gh-stage-vp[data-mode="pan"] canvas { pointer-events: none; }
-      .gh-stage-vp[data-mode="draw"] canvas { pointer-events: auto; }
+      .gh-review .gh-tool {
+        flex-direction: column; gap: 2px; min-height: 52px; padding: 6px 8px;
+      }
+      .gh-review .gh-tool-ico { font-size: 18px; line-height: 1; }
+      .gh-review .gh-tool-lbl { font-size: 10px; font-weight: 700; line-height: 1.1; }
+      .gh-review .gh-film { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 0 8px; }
+      .gh-review .gh-film-thumb {
+        appearance: none; -webkit-appearance: none; box-shadow: none;
+        flex: 0 0 auto; padding: 0; cursor: pointer; overflow: hidden;
+      }
+      .gh-review .gh-stage-wrap { width: 100%; border-radius: 12px; overflow: hidden; }
+      .gh-review .gh-stage-vp {
+        display: flex; justify-content: center;
+        overflow: auto; max-height: min(70vh, 640px);
+        touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch;
+      }
+      .gh-review .gh-stage-vp[data-mode="draw"] { touch-action: none; }
+      .gh-review .gh-stage { position: relative; display: block; }
+      .gh-review .gh-stage img, .gh-review .gh-stage canvas { display: block; max-width: none; }
+      .gh-review .gh-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .gh-review .gh-stage-vp[data-mode="pan"] canvas { pointer-events: none; }
+      .gh-review .gh-stage-vp[data-mode="draw"] canvas { pointer-events: auto; }
       .gh-review-tools { display: flex; flex-direction: column; gap: 8px; }
       .gh-tool-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-      .gh-review-footer {
-        position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px;
-        padding: 12px 0; background: inherit; border-top: 1px solid #334155;
-      }
-      .gh-set-done { color: #4ade80; font-size: 12px; font-weight: 700; }
-      .gh-dept-extra { margin-top: 10px; border: 1px solid #334155; border-radius: 8px; }
-      .gh-dept-extra summary {
-        cursor: pointer; padding: 10px 12px; font-weight: 700; list-style: none;
-      }
+      .gh-tool-row .gh-btn { flex: 1 1 auto; min-width: 44px; }
+      .gh-review-footer { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 12px 0; }
+      .gh-review-footer .gh-btn { flex: 1; }
       .gh-dept-extra summary::-webkit-details-marker { display: none; }
-      .gh-dept-extra[open] summary { border-bottom: 1px solid #334155; }
-      .dept-sig-set-list { display: flex; flex-direction: column; gap: 6px; }
-      .dept-sig-set-row {
+
+      .gh-review--app { color: var(--text, #f8fafc); }
+      .gh-review--app .gh-review-title strong { color: var(--accent, #38bdf8); font-size: 1.05rem; }
+      .gh-review--app .gh-muted { color: var(--muted, #94a3b8); font-size: 13px; }
+      .gh-review--app .gh-error { color: var(--danger, #ef4444); }
+      .gh-review--app .gh-btn { color: #fff; background: #4b5563; }
+      .gh-review--app .gh-btn-primary { background: var(--accent-dim, #0d4f8b); color: #fff; }
+      .gh-review--app .gh-btn-secondary { background: #4b5563; color: #fff; }
+      .gh-review--app .gh-btn.is-active {
+        outline: 2px solid var(--accent, #38bdf8);
+        background: var(--accent-dim, #0d4f8b);
+      }
+      .gh-review--app .gh-film-thumb {
+        flex: 0 0 auto; width: 76px; border: 2px solid var(--border, #1e3a5f);
+        border-radius: 8px; background: #0f172a; padding: 0; cursor: pointer; overflow: hidden; color: inherit;
+      }
+      .gh-review--app .gh-film-thumb img { display: block; width: 76px; height: 56px; object-fit: cover; }
+      .gh-review--app .gh-film-thumb span {
+        display: block; font-size: 10px; font-weight: 700; padding: 4px 4px 5px;
+        color: var(--muted, #94a3b8); background: #111827; text-align: center;
+      }
+      .gh-review--app .gh-film-thumb.is-active { border-color: var(--accent, #38bdf8); }
+      .gh-review--app .gh-film-thumb.is-active span { color: var(--accent, #38bdf8); }
+      .gh-review--app .gh-stage-wrap { border: 1px solid var(--border, #1e3a5f); background: #020617; }
+      .gh-review--app .gh-review-footer {
+        background: var(--card, #020617); border-top: 1px solid var(--border, #1e3a5f);
+      }
+      .gh-review--app .gh-set-done { color: var(--ok, #22c55e); font-size: 12px; font-weight: 700; }
+      .gh-review--app .gh-photo-pos { flex: 1 1 auto; text-align: center; font-weight: 700; color: var(--muted, #94a3b8); }
+      .gh-review--app .gh-dept-extra { margin-top: 10px; border: 1px solid var(--border, #1e3a5f); border-radius: 8px; background: #0b1220; }
+      .gh-review--app .gh-dept-extra summary {
+        cursor: pointer; padding: 10px 12px; font-weight: 700; list-style: none; color: #93c5fd;
+      }
+      .gh-review--app .gh-dept-extra[open] summary { border-bottom: 1px solid var(--border, #1e3a5f); }
+      .gh-review--app .dept-sig-set-list { display: flex; flex-direction: column; gap: 6px; }
+      .gh-review--app .dept-sig-set-row {
         display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
         width: 100%; text-align: left; padding: 12px; border-radius: 8px;
-        border: 1px solid #334155; background: #0f172a; color: #f8fafc; cursor: pointer;
+        border: 1px solid var(--border, #1e3a5f); background: #0f172a; color: var(--text, #f8fafc); cursor: pointer;
       }
-      .dept-sig-set-row strong { color: #93c5fd; }
+      .gh-review--app .dept-sig-set-row strong { color: #93c5fd; }
     `;
-    document.head.appendChild(css);
+  }
+
+  function isFieldAppTheme() {
+    return document.documentElement.getAttribute('data-theme') !== 'light';
+  }
+
+  function toolBtn(id, extraClass, icon, label, attrs = '') {
+    return `<button type="button" class="btn btn-secondary gh-btn gh-btn-secondary gh-tool${extraClass ? ` ${extraClass}` : ''}" id="${id}" ${attrs}>
+      <span class="gh-tool-ico" aria-hidden="true">${icon}</span>
+      <span class="gh-tool-lbl">${label}</span>
+    </button>`;
   }
 
   function resolvePhotoUrl(api, path) {
@@ -147,6 +200,7 @@
       authFetch,
       photosUrl,
       hideComplete,
+      hideBack,
       backLabel,
     } = opts;
     const objectUrlCache = new Map();
@@ -195,16 +249,17 @@
     function renderShell() {
       const name = row.catName || row.cat_name || 'Set';
       const done = rowComplete(row);
+      const themeClass = isFieldAppTheme() ? ' gh-review--app' : '';
       root.innerHTML = `
-        <div class="gh-review">
-          <div class="gh-review-bar">
-            <button type="button" class="gh-btn gh-btn-secondary" id="ghReviewBack">${escapeHtml(backLabel || '← Sets')}</button>
+        <div class="gh-review${themeClass}">
+          ${hideBack ? '' : `<div class="gh-review-bar">
+            <button type="button" class="btn btn-secondary gh-btn gh-btn-secondary" id="ghReviewBack">${escapeHtml(backLabel || '← Sets')}</button>
             <div class="gh-review-title">
               <strong>${escapeHtml(name)}</strong>
               ${row.pog || row.dbkey ? `<span class="gh-muted">POG ${escapeHtml(row.pog || row.dbkey)}</span>` : ''}
               ${done ? '<span class="gh-set-done">Complete</span>' : ''}
             </div>
-          </div>
+          </div>`}
           <p class="gh-muted" id="ghReviewStatus">Loading set photos…</p>
           <div class="gh-film" id="ghFilm" hidden></div>
           <div class="gh-stage-wrap" id="ghStageWrap" hidden>
@@ -217,26 +272,26 @@
           </div>
           <div class="gh-review-tools" id="ghReviewTools" hidden>
             <div class="gh-tool-row">
-              <button type="button" class="gh-btn gh-btn-secondary" id="ghPrev">Prev</button>
-              <span class="gh-muted" id="ghPhotoPos"></span>
-              <button type="button" class="gh-btn gh-btn-secondary" id="ghNext">Next</button>
+              ${toolBtn('ghPrev', '', '‹', 'Prev')}
+              <span class="gh-muted gh-photo-pos" id="ghPhotoPos"></span>
+              ${toolBtn('ghNext', '', '›', 'Next')}
             </div>
             <div class="gh-tool-row">
-              <button type="button" class="gh-btn gh-btn-secondary" data-mode="pan" id="ghModePan">Pan / zoom</button>
-              <button type="button" class="gh-btn gh-btn-secondary" data-mode="draw" id="ghModeDraw">Annotate</button>
-              <button type="button" class="gh-btn gh-btn-secondary" id="ghZoomOut">−</button>
-              <button type="button" class="gh-btn gh-btn-secondary" id="ghZoomIn">+</button>
-              <button type="button" class="gh-btn gh-btn-secondary" id="ghClearMarks">Clear marks</button>
+              ${toolBtn('ghModePan', '', '✥', 'Pan', 'data-mode="pan"')}
+              ${toolBtn('ghModeDraw', '', '✎', 'Mark', 'data-mode="draw"')}
+              ${toolBtn('ghZoomOut', '', '−', 'Out')}
+              ${toolBtn('ghZoomIn', '', '+', 'In')}
+              ${toolBtn('ghClearMarks', '', '✕', 'Clear')}
             </div>
             <div class="gh-tool-row">
-              <button type="button" class="gh-btn gh-btn-secondary" id="ghSavePhoto">Save to device</button>
-              <button type="button" class="gh-btn gh-btn-secondary" id="ghSharePhoto">Share</button>
+              ${toolBtn('ghSavePhoto', '', '⬇', 'Save')}
+              ${toolBtn('ghSharePhoto', '', '↗', 'Share')}
             </div>
             <p class="gh-muted" id="ghReviewErr" hidden></p>
           </div>
           ${hideComplete ? '' : `<div class="gh-review-footer">
             ${done ? '<span class="gh-set-done" id="ghCompleteLabel">Complete</span>' : '<span class="gh-muted" id="ghCompleteLabel">Not complete</span>'}
-            <button type="button" class="gh-btn gh-btn-primary" id="ghConfirmComplete">Confirm complete</button>
+            <button type="button" class="btn btn-primary gh-btn gh-btn-primary" id="ghConfirmComplete">Confirm complete</button>
           </div>`}
         </div>`;
       document.getElementById('ghReviewBack')?.addEventListener('click', () => onBack?.());
@@ -273,7 +328,7 @@
       canvas.width = img.naturalWidth;
       canvas.height = img.naturalHeight;
       const maxW = Math.max(280, vp.clientWidth - 4);
-      const displayW = Math.min(maxW, img.naturalWidth);
+      const displayW = maxW;
       const displayH = displayW * (img.naturalHeight / img.naturalWidth);
       img.style.width = `${displayW}px`;
       img.style.height = `${displayH}px`;

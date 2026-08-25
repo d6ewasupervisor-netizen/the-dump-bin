@@ -430,10 +430,12 @@ h2 { font-size: 1.15rem; color: #7dd3fc; }
 @media (max-width: 560px) { .field-row { grid-template-columns: 1fr; } }
 
 .btn {
+  appearance: none; -webkit-appearance: none;
   display: inline-flex; align-items: center; justify-content: center;
   min-height: var(--touch); padding: 10px 14px; border-radius: 8px;
   border: 0; font-weight: 700; font-size: 15px; cursor: pointer;
-  touch-action: manipulation;
+  touch-action: manipulation; box-shadow: none;
+  background: #4b5563; color: #fff;
 }
 .btn-primary { background: var(--accent-dim); color: #fff; }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
