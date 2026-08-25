@@ -310,6 +310,9 @@
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeWizard();
       });
+      overlay.addEventListener('touchmove', (e) => {
+        if (e.target === overlay) e.preventDefault();
+      }, { passive: false });
       document.getElementById('deptSigWizardCancel').onclick = closeWizard;
       document.getElementById('deptSigWizardBack').onclick = wizardBack;
       document.getElementById('deptSigWizardNext').onclick = wizardNext;
@@ -823,14 +826,16 @@
       return;
     }
     if (wizard.step === 'sign') {
-      hint.textContent = 'Sign';
+      hint.textContent = 'Turn the phone sideways, then sign on the white pad.';
       next.textContent = 'Save signature';
       body.innerHTML = `
-        <div class="sig-preview" id="deptSigPreview">${wizard.signatureDataUrl
+        <button type="button" class="sig-preview" id="deptSigPreview">${wizard.signatureDataUrl
           ? `<img src="${wizard.signatureDataUrl}" alt="Signature">`
-          : 'No signature yet'}</div>
+          : 'Tap to sign'}</button>
         <button type="button" class="btn btn-primary btn-block" id="deptSigOpenPad" style="margin-top:8px;">Sign</button>`;
+      document.getElementById('deptSigPreview').onclick = openDeptSignPad;
       document.getElementById('deptSigOpenPad').onclick = openDeptSignPad;
+      setTimeout(() => { if (wizard?.step === 'sign' && !wizard.signatureDataUrl) openDeptSignPad(); }, 50);
     }
   }
 

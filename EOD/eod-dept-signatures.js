@@ -719,14 +719,16 @@
       return;
     }
     if (wizard.step === 'sign') {
-      hint.textContent = 'Sign';
+      hint.textContent = 'Turn the phone sideways, then sign on the white pad.';
       next.textContent = 'Save signature';
       body.innerHTML = `
-        <div class="sig-preview" id="deptSigPreview">${wizard.signatureDataUrl
+        <button type="button" class="sig-preview" id="deptSigPreview">${wizard.signatureDataUrl
           ? `<img src="${wizard.signatureDataUrl}" alt="Signature">`
-          : 'No signature yet'}</div>
+          : 'Tap to sign'}</button>
         <button type="button" class="btn btn-primary" id="deptSigOpenPad" style="margin-top:8px;width:100%;">Sign</button>`;
+      document.getElementById('deptSigPreview').onclick = openDeptSignPad;
       document.getElementById('deptSigOpenPad').onclick = openDeptSignPad;
+      setTimeout(() => { if (wizard?.step === 'sign' && !wizard.signatureDataUrl) openDeptSignPad(); }, 50);
     }
   }
 

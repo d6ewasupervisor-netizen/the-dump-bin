@@ -3,17 +3,18 @@
   'use strict';
 
   const STYLE_ID = 'eod-landscape-sig-pad-css';
-  const HINT_MS = 1200;
 
   function ensureCss() {
-    if (document.getElementById(STYLE_ID)) return;
-    const css = document.createElement('style');
-    css.id = STYLE_ID;
+    let css = document.getElementById(STYLE_ID);
+    if (!css) {
+      css = document.createElement('style');
+      css.id = STYLE_ID;
+      document.head.appendChild(css);
+    }
     css.textContent = `
       html.eod-lsp-open, html.eod-lsp-open body {
         overflow: hidden !important;
         overscroll-behavior: none !important;
-        touch-action: none !important;
         height: 100% !important;
       }
       html.eod-lsp-open body {
@@ -21,43 +22,53 @@
         left: 0; right: 0; width: 100%;
       }
       .eod-lsp-overlay {
-        display: none; position: fixed; inset: 0; z-index: 30000;
+        display: none; position: fixed; inset: 0; z-index: 40000;
         background: #0b1220; color: #f8fafc; flex-direction: column;
         padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
         touch-action: none; overscroll-behavior: none; overflow: hidden;
+        pointer-events: auto;
       }
       .eod-lsp-overlay.show { display: flex; }
       .eod-lsp-bar {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
         padding: 8px 10px; background: #0d4f8b; min-height: 48px;
-        flex: 0 0 auto;
+        flex: 0 0 auto; z-index: 2;
       }
       .eod-lsp-bar strong { flex: 1; font-size: 15px; }
-      .eod-lsp-bar .btn, .eod-lsp-bar button {
+      .eod-lsp-bar button {
+        appearance: none; -webkit-appearance: none; box-shadow: none;
         min-height: 40px; padding: 8px 12px; border-radius: 8px; border: none;
-        font-weight: 700; font-size: 14px; cursor: pointer;
+        font-weight: 700; font-size: 14px; cursor: pointer; color: #fff;
       }
-      .eod-lsp-clear { background: #e2e8f0; color: #0f172a; }
-      .eod-lsp-cancel { background: #334155; color: #f8fafc; }
-      .eod-lsp-accept { background: #22c55e; color: #052e16; }
+      .eod-lsp-clear { background: #4b5563; }
+      .eod-lsp-cancel { background: #334155; }
+      .eod-lsp-accept { background: #166534; }
       .eod-lsp-stage {
-        position: relative; flex: 1; min-height: 0; background: #111827;
+        position: relative; flex: 1 1 auto; min-height: 0; background: #111827;
         touch-action: none; overscroll-behavior: none;
       }
       .eod-lsp-stage canvas {
         display: block; width: 100%; height: 100%; background: #fff;
-        touch-action: none;
+        touch-action: none; pointer-events: auto;
       }
       .eod-lsp-hint {
-        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-        background: rgba(15, 23, 42, 0.78); color: #fde68a; font-size: 22px; font-weight: 800;
-        letter-spacing: 0.02em; text-align: center; padding: 24px; pointer-events: none;
-        opacity: 0; transition: opacity 0.25s ease; z-index: 2;
+        position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+        flex-direction: column; gap: 12px;
+        background: rgba(2, 6, 23, 0.92); color: #fde68a; font-size: 22px; font-weight: 800;
+        letter-spacing: 0.02em; text-align: center; padding: 24px; z-index: 3;
+        pointer-events: auto; touch-action: none;
       }
-      .eod-lsp-hint.show { opacity: 1; }
+      .eod-lsp-hint.show { display: flex; }
+      .eod-lsp-hint span { font-size: 15px; font-weight: 600; color: #e2e8f0; max-width: 22em; }
     `;
-    document.head.appendChild(css);
+  }
+
+  function isLandscape() {
+    try {
+      if (window.matchMedia('(orientation: landscape)').matches) return true;
+    } catch (_) { /* ignore */ }
+    return window.innerWidth > window.innerHeight;
   }
 
   function lockPageScroll() {
@@ -83,21 +94,25 @@
 
   function ensureDom() {
     let overlay = document.getElementById('eodLandscapeSigOverlay');
-    if (overlay) return overlay;
-    overlay = document.createElement('div');
-    overlay.id = 'eodLandscapeSigOverlay';
-    overlay.className = 'eod-lsp-overlay';
-    overlay.innerHTML = `
-      <div class="eod-lsp-bar">
-        <strong id="eodLspTitle">Sign</strong>
-        <button type="button" class="eod-lsp-clear" id="eodLspClear">Clear</button>
-        <button type="button" class="eod-lsp-cancel" id="eodLspCancel">Cancel</button>
-        <button type="button" class="eod-lsp-accept" id="eodLspAccept">Use signature</button>
-      </div>
-      <div class="eod-lsp-stage">
-        <canvas id="eodLspCanvas"></canvas>
-        <div class="eod-lsp-hint" id="eodLspHint">Turn your device sideways</div>
-      </div>`;
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'eodLandscapeSigOverlay';
+      overlay.className = 'eod-lsp-overlay';
+      overlay.innerHTML = `
+        <div class="eod-lsp-bar">
+          <strong id="eodLspTitle">Sign</strong>
+          <button type="button" class="eod-lsp-clear" id="eodLspClear">Clear</button>
+          <button type="button" class="eod-lsp-cancel" id="eodLspCancel">Cancel</button>
+          <button type="button" class="eod-lsp-accept" id="eodLspAccept">Use signature</button>
+        </div>
+        <div class="eod-lsp-stage" id="eodLspStage">
+          <canvas id="eodLspCanvas"></canvas>
+          <div class="eod-lsp-hint" id="eodLspHint">
+            Turn your device sideways
+            <span>Rotate to landscape, then sign on the white pad.</span>
+          </div>
+        </div>`;
+    }
     document.body.appendChild(overlay);
     return overlay;
   }
@@ -114,24 +129,35 @@
     const o = opts || {};
     ensureCss();
     const overlay = ensureDom();
+    if (typeof overlay._eodLspCleanup === 'function') overlay._eodLspCleanup(false);
+
     const canvas = document.getElementById('eodLspCanvas');
     const ctx = canvas.getContext('2d');
     const hint = document.getElementById('eodLspHint');
     const title = document.getElementById('eodLspTitle');
+    const stage = document.getElementById('eodLspStage') || canvas.parentElement;
     if (title) title.textContent = o.title || 'Sign';
 
     let drawing = false;
     let last = { x: 0, y: 0 };
     let snapshot = null;
     let closed = false;
+    let pointerId = null;
+
+    function syncHint() {
+      const needRotate = !isLandscape();
+      hint.classList.toggle('show', needRotate);
+      canvas.style.pointerEvents = needRotate ? 'none' : 'auto';
+    }
 
     function sizeCanvas() {
-      const stage = canvas.parentElement;
-      const w = Math.max(320, Math.floor(stage.clientWidth || window.innerWidth));
-      const h = Math.max(160, Math.floor(stage.clientHeight || window.innerHeight * 0.7));
+      const w = Math.max(280, Math.floor(stage.clientWidth || window.innerWidth || 320));
+      const h = Math.max(160, Math.floor(stage.clientHeight || window.innerHeight * 0.7 || 200));
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -157,6 +183,7 @@
         };
         img.src = o.existingDataUrl;
       }
+      syncHint();
     }
 
     function captureSnapshot() {
@@ -173,38 +200,55 @@
         : (e.changedTouches && e.changedTouches[0]) || e;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       return {
-        x: (src.clientX - rect.left) * (canvas.width / rect.width) / dpr,
-        y: (src.clientY - rect.top) * (canvas.height / rect.height) / dpr,
+        x: (src.clientX - rect.left) * (canvas.width / Math.max(rect.width, 1)) / dpr,
+        y: (src.clientY - rect.top) * (canvas.height / Math.max(rect.height, 1)) / dpr,
       };
     }
 
     function start(e) {
+      if (hint.classList.contains('show')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       drawing = true;
+      if (e.pointerId != null && canvas.setPointerCapture) {
+        pointerId = e.pointerId;
+        try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      }
       last = pos(e);
       e.preventDefault();
       e.stopPropagation();
     }
     function move(e) {
-      if (!drawing) {
-        e.preventDefault();
-        return;
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      if (!drawing) return;
       const p = pos(e);
       ctx.beginPath();
       ctx.moveTo(last.x, last.y);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
       last = p;
-      e.preventDefault();
-      e.stopPropagation();
     }
     function stop(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (pointerId != null && canvas.releasePointerCapture) {
+          try { canvas.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
+        }
+      }
       drawing = false;
-      if (e) e.preventDefault();
+      pointerId = null;
     }
 
-    function swallow(e) {
+    function swallowPage(e) {
+      const t = e.target;
+      if (t === canvas || canvas.contains(t)) return;
+      if (t && t.closest && t.closest('.eod-lsp-bar')) return;
       e.preventDefault();
+      e.stopPropagation();
     }
 
     function onResize() {
@@ -215,7 +259,12 @@
     function finish(accepted) {
       if (closed) return;
       closed = true;
+      overlay._eodLspCleanup = null;
       overlay.classList.remove('show');
+      canvas.removeEventListener('pointerdown', start);
+      canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerup', stop);
+      canvas.removeEventListener('pointercancel', stop);
       canvas.removeEventListener('mousedown', start);
       canvas.removeEventListener('mousemove', move);
       canvas.removeEventListener('mouseup', stop);
@@ -223,9 +272,9 @@
       canvas.removeEventListener('touchstart', start);
       canvas.removeEventListener('touchmove', move);
       canvas.removeEventListener('touchend', stop);
-      overlay.removeEventListener('touchmove', swallow);
-      overlay.removeEventListener('wheel', swallow);
-      overlay.removeEventListener('gesturestart', swallow);
+      overlay.removeEventListener('touchmove', swallowPage);
+      overlay.removeEventListener('wheel', swallowPage);
+      overlay.removeEventListener('gesturestart', swallowPage);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
       try { screen.orientation.unlock(); } catch (_) {}
@@ -238,23 +287,38 @@
       }
     }
 
-    canvas.addEventListener('mousedown', start);
-    canvas.addEventListener('mousemove', move);
-    canvas.addEventListener('mouseup', stop);
-    canvas.addEventListener('mouseleave', stop);
-    canvas.addEventListener('touchstart', start, { passive: false });
-    canvas.addEventListener('touchmove', move, { passive: false });
-    canvas.addEventListener('touchend', stop, { passive: false });
-    overlay.addEventListener('touchmove', swallow, { passive: false });
-    overlay.addEventListener('wheel', swallow, { passive: false });
-    overlay.addEventListener('gesturestart', swallow, { passive: false });
-    document.getElementById('eodLspClear').onclick = () => {
+    overlay._eodLspCleanup = finish;
+
+    const ptrOpts = { passive: false, capture: true };
+    canvas.addEventListener('pointerdown', start, ptrOpts);
+    canvas.addEventListener('pointermove', move, ptrOpts);
+    canvas.addEventListener('pointerup', stop, ptrOpts);
+    canvas.addEventListener('pointercancel', stop, ptrOpts);
+    canvas.addEventListener('touchstart', start, ptrOpts);
+    canvas.addEventListener('touchmove', move, ptrOpts);
+    canvas.addEventListener('touchend', stop, ptrOpts);
+    overlay.addEventListener('touchmove', swallowPage, { passive: false });
+    overlay.addEventListener('wheel', swallowPage, { passive: false });
+    overlay.addEventListener('gesturestart', swallowPage, { passive: false });
+    document.getElementById('eodLspClear').onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       snapshot = null;
       o.existingDataUrl = null;
       sizeCanvas();
     };
-    document.getElementById('eodLspCancel').onclick = () => finish(false);
-    document.getElementById('eodLspAccept').onclick = () => {
+    document.getElementById('eodLspCancel').onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      finish(false);
+    };
+    document.getElementById('eodLspAccept').onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (hint.classList.contains('show')) {
+        alert('Turn your device sideways, then sign.');
+        return;
+      }
       if (isBlank(canvas, ctx)) {
         alert('Please sign before continuing.');
         return;
@@ -264,16 +328,16 @@
 
     lockPageScroll();
     overlay.classList.add('show');
-    sizeCanvas();
+    requestAnimationFrame(() => {
+      sizeCanvas();
+      requestAnimationFrame(sizeCanvas);
+    });
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
     try {
       const lock = screen.orientation && screen.orientation.lock;
       if (lock) lock.call(screen.orientation, 'landscape').catch(() => {});
     } catch (_) { /* iOS often denies */ }
-
-    hint.classList.add('show');
-    setTimeout(() => hint.classList.remove('show'), o.hintMs || HINT_MS);
   }
 
   const api = { open };
