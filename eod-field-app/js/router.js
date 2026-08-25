@@ -1,4 +1,4 @@
-/* Hash router: #/visit #/signoff #/crew #/photos #/send #/helpdesk */
+/* Hash router: #/visit #/signoff #/signatures #/crew #/photos #/send #/helpdesk */
 (function (global) {
   'use strict';
 
@@ -44,7 +44,10 @@
     if (!mount || !handler) return;
     current = name;
     document.querySelectorAll('[data-nav]').forEach((el) => {
-      el.classList.toggle('is-active', el.getAttribute('data-nav') === name);
+      const nav = el.getAttribute('data-nav');
+      const on = nav === name
+        || (nav === 'signoff' && (name === 'survey' || name === 'cover'));
+      el.classList.toggle('is-active', on);
     });
     // Sidebar + chrome stay reachable once the shell is up (even on Visit).
     if (chrome) chrome.hidden = false;

@@ -69,6 +69,7 @@
 
       patchPortedModules();
       try { window.EodDurability?.startAutosave?.(); } catch (_) {}
+      try { window.EodTheme?.init?.(); } catch (err) { console.warn('[eod-field-app] theme init', err); }
       try { window.EodChrome.init(); } catch (err) { console.warn('[eod-field-app] chrome init', err); }
       try { window.EodConnections?.init?.(); } catch (err) { console.warn('[eod-field-app] connections init', err); }
       try { window.EodTestMode?.init?.(); } catch (err) { console.warn('[eod-field-app] version/test init', err); }

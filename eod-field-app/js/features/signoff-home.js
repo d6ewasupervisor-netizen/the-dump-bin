@@ -445,8 +445,7 @@
           </div>
           <div id="sheetRows"></div>
         </details>
-      </div>
-      <div class="card dept-sig-card" id="deptSigMount"></div>`;
+      </div>`;
 
     const CAT_OPEN_KEY = 'eod-categories-open';
     const catSection = document.getElementById('catSection');
@@ -627,21 +626,6 @@
       console.warn('[signoff] initial sync', err.message || err);
     }
     startPoll();
-
-    // Mount dept signatures into orbit card on this page for convenience
-    const deptHost = document.getElementById('deptSigMount');
-    if (deptHost && global.EodDeptSignatures?.mountInline) {
-      await global.EodDeptSignatures.mountInline(deptHost);
-      try { global.EodDeptSignatures.syncFromSheet?.(S.state.sheet); } catch (_) {}
-    } else if (deptHost) {
-      deptHost.innerHTML = `<h2>Department signatures</h2>
-        <p class="muted">Collect PIC signatures any time. Roles filter from the sheet when available.</p>
-        <button type="button" class="btn btn-primary btn-block" id="openDeptSigsBtn">Open department signatures</button>`;
-      document.getElementById('openDeptSigsBtn').onclick = () => {
-        if (global.EodDeptSignatures?.open) global.EodDeptSignatures.open();
-      };
-      try { global.EodDeptSignatures?.ensureUi?.(); } catch (_) {}
-    }
   }
 
   global.EodSignoffHome = {

@@ -5,6 +5,7 @@
   const ORDER = [
     { id: 'visit', label: 'Visit' },
     { id: 'signoff', label: 'Categories' },
+    { id: 'signatures', label: 'Signatures' },
     { id: 'crew', label: 'Crew' },
     { id: 'dumpbin', label: 'Dump Bin' },
     { id: 'send', label: 'Send' },

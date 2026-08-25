@@ -102,7 +102,8 @@
   }
 
   function isFieldAppTheme() {
-    return document.documentElement.getAttribute('data-theme') !== 'light';
+    const t = document.documentElement.getAttribute('data-theme');
+    return t !== 'light' && t !== 'gray';
   }
 
   function toolBtn(id, extraClass, icon, label, attrs = '') {

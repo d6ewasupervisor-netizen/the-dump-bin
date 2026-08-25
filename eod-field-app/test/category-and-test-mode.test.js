@@ -69,3 +69,31 @@ test('applyToPayload without test mode leaves a live store alone', () => {
   const payload = { storeNumber: '19', recipients: ['wolf@example.com'] };
   assert.equal(applyToPayload(payload, { testMode: false }), payload);
 });
+
+const fs = require('fs');
+const path = require('path');
+
+test('section nav places signatures between categories and crew', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../js/features/section-nav.js'), 'utf8');
+  const ids = [...src.matchAll(/\{\s*id:\s*'([^']+)'/g)].map((m) => m[1]);
+  const i = ids.indexOf('signoff');
+  assert.ok(i >= 0);
+  assert.equal(ids[i + 1], 'signatures');
+  assert.equal(ids[i + 2], 'crew');
+});
+
+test('theme cycle includes dark, inverse, light, gray, holiday', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../js/features/theme.js'), 'utf8');
+  assert.match(src, /\['dark', 'inverse', 'light', 'gray', 'holiday'\]/);
+});
+
+test('bottom nav lists a signatures route and theme cycle control', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(html, /data-nav="signatures"/);
+  assert.match(html, /id="themeCycleBtn"/);
+  assert.match(html, /js\/features\/signatures\.js/);
+  assert.match(html, /js\/features\/theme\.js/);
+  for (const name of ['visit', 'categories', 'signatures', 'crew', 'dumpbin', 'send', 'helpdesk']) {
+    assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
+  }
+});
