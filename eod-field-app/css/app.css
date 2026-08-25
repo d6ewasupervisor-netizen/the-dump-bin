@@ -392,6 +392,29 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(56,189,248,.15);
 }
+.cat-section > .cat-section-summary {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 2px 8px;
+  min-height: 44px;
+}
+.cat-section > .cat-section-summary::-webkit-details-marker { display: none; }
+.cat-section > .cat-section-summary::marker { content: ''; }
+.cat-section > .cat-section-summary::after {
+  content: '▾';
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.45rem;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.cat-section:not([open]) > .cat-section-summary::after { content: '▸'; }
+.cat-section > .cat-section-summary h1 { margin: 0; grid-column: 1; }
+.cat-section > .cat-section-summary .sheet-summary { margin: 0; grid-column: 1; }
 h1, h2, h3 { margin: 0 0 8px; }
 h1 { font-size: 1.45rem; color: #7dd3fc; }
 h2 { font-size: 1.15rem; color: #7dd3fc; }

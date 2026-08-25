@@ -429,20 +429,35 @@
     const S = global.EodSession;
     mount.innerHTML = `
       <div class="card heart">
-        <h1>Categories</h1>
-        <div id="sheetSummary" class="sheet-summary muted" style="margin-bottom:10px;">Loading…</div>
-        <div class="btn-row">
-          <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
-          <button type="button" class="btn btn-success" id="completeAllBtn" hidden>Complete all</button>
-          <button type="button" class="btn btn-secondary" id="printSignoffBtn" hidden>Print signoff PDF</button>
-        </div>
-        <div class="field" style="margin-top:12px;">
-          <label>Search sets</label>
-          <input type="search" id="sheetSearch" placeholder="Category, DBKEY, dept…">
-        </div>
-        <div id="sheetRows"></div>
+        <details class="cat-section" id="catSection">
+          <summary class="cat-section-summary">
+            <h1>Categories</h1>
+            <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
+          </summary>
+          <div class="btn-row">
+            <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
+            <button type="button" class="btn btn-success" id="completeAllBtn" hidden>Complete all</button>
+            <button type="button" class="btn btn-secondary" id="printSignoffBtn" hidden>Print signoff PDF</button>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Search sets</label>
+            <input type="search" id="sheetSearch" placeholder="Category, DBKEY, dept…">
+          </div>
+          <div id="sheetRows"></div>
+        </details>
       </div>
       <div class="card dept-sig-card" id="deptSigMount"></div>`;
+
+    const CAT_OPEN_KEY = 'eod-categories-open';
+    const catSection = document.getElementById('catSection');
+    if (catSection) {
+      let saved = null;
+      try { saved = localStorage.getItem(CAT_OPEN_KEY); } catch (_) {}
+      catSection.open = saved !== '0';
+      catSection.addEventListener('toggle', () => {
+        try { localStorage.setItem(CAT_OPEN_KEY, catSection.open ? '1' : '0'); } catch (_) {}
+      });
+    }
 
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
