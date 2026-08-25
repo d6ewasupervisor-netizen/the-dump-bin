@@ -188,6 +188,17 @@
     }
   }
 
+  function photoSlotOf(p) {
+    if (p?.slot === 'before' || p?.slot === 'after') return p.slot;
+    if (/^before/i.test(String(p?.label || ''))) return 'before';
+    return 'after';
+  }
+
+  function firstAfterIndex(photos) {
+    const i = (photos || []).findIndex((p) => photoSlotOf(p) !== 'before');
+    return i >= 0 ? i : 0;
+  }
+
   function createReview(opts) {
     ensureCss();
     const {
@@ -646,9 +657,10 @@
           : '';
         setStatus(data.warning || src);
         if (stage) stage.hidden = false;
+        idx = firstAfterIndex(photos);
         renderFilm();
         bindTools();
-        showPhoto(0);
+        showPhoto(idx);
       } catch (err) {
         setStatus(err.message || 'Could not load photos', true);
         const tools = document.getElementById('ghReviewTools');
