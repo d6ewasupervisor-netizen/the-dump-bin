@@ -113,10 +113,41 @@ header.top .sub { font-size: 12px; color: var(--ink-soft); }
 .photo-slot .slot-label { font-weight: 700; font-size: 14px; }
 .photo-slot .slot-hint { font-size: 12px; color: var(--ink-soft); margin: -2px 0 8px; }
 .overall-group { display: grid; gap: 10px; }
-.photo-slot .thumbs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.photo-slot img {
+.photo-slot .thumbs { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.photo-slot figure { margin: 0; text-align: center; }
+.photo-slot img.thumb-img {
   width: 72px; height: 72px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line);
+  cursor: pointer; touch-action: manipulation;
 }
+.photo-slot img.thumb-img.loaded { border-color: rgba(15,92,140,.35); }
+.photo-slot img.thumb-img.loading { opacity: .35; }
+.lightbox {
+  position: fixed; inset: 0; z-index: 100;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(10,16,24,.92); padding: 16px;
+  padding-top: calc(16px + var(--safe-top));
+  padding-bottom: calc(16px + var(--safe-bottom));
+}
+.lightbox.open { display: flex; }
+.lightbox img {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+}
+.lightbox-close {
+  position: absolute; top: calc(12px + var(--safe-top)); right: 12px;
+  width: 44px; height: 44px; border: none; border-radius: 50%;
+  background: rgba(255,255,255,.15); color: #fff; font-size: 28px; line-height: 1;
+  cursor: pointer;
+}
+.lightbox-label {
+  position: absolute; left: 16px; right: 70px; top: calc(14px + var(--safe-top));
+  color: #fff; font-size: 13px; font-weight: 600;
+}
+.admin-export {
+  background: var(--accent-soft); border: 1px solid rgba(15,92,140,.25);
+  border-radius: 14px; padding: 14px; margin-bottom: 12px;
+}
+.admin-export p { font-size: 13px; color: var(--ink-soft); margin: 6px 0 10px; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   border: none; border-radius: 12px; padding: 12px 16px; font-size: 15px; font-weight: 700;
@@ -185,6 +216,11 @@ input[type=file] { display: none; }
   </div>
 
   <div id="view-sets" class="hidden">
+    <div class="admin-export hidden" id="admin-export-box">
+      <strong>Admin partial export</strong>
+      <p>Download a zip of whatever has been photographed so far — store does not need to be submitted.</p>
+      <button type="button" class="btn btn-secondary" id="btn-partial-export" style="width:100%">Download partial zip</button>
+    </div>
     <div class="set-list" id="set-list"></div>
     <div class="download-box hidden" id="store-download-box">
       <strong>Store submitted.</strong>
@@ -208,6 +244,12 @@ input[type=file] { display: none; }
 </div>
 
 <input type="file" id="file-input" accept="image/*,.heic,.heif,image/heic,image/heif" capture="environment">
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo preview">
+  <div class="lightbox-label" id="lightbox-label"></div>
+  <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+  <img id="lightbox-img" alt="">
+</div>
 
 <script>
 (function () {
@@ -278,6 +320,8 @@ input[type=file] { display: none; }
     pendingSlot: null,
     heicPromise: null,
     photoBlobUrls: new Map(),
+    photoBlobLoading: new Map(),
+    isAdmin: false,
   };
 
   const els = {
@@ -299,6 +343,12 @@ input[type=file] { display: none; }
     btnSubmitStore: document.getElementById('btn-submit-store'),
     storeDownloadBox: document.getElementById('store-download-box'),
     storeDownloadLink: document.getElementById('store-download-link'),
+    adminExportBox: document.getElementById('admin-export-box'),
+    btnPartialExport: document.getElementById('btn-partial-export'),
+    lightbox: document.getElementById('lightbox'),
+    lightboxImg: document.getElementById('lightbox-img'),
+    lightboxLabel: document.getElementById('lightbox-label'),
+    lightboxClose: document.getElementById('lightbox-close'),
     fileInput: document.getElementById('file-input'),
     status: document.getElementById('status'),
   };
@@ -351,6 +401,19 @@ input[type=file] { display: none; }
     const pct = total ? Math.round((done / total) * 100) : 0;
     els.progressFill.style.width = pct + '%';
     els.progressMeta.textContent = label || (total ? `${done} of ${total} sets done` : '');
+  }
+
+  async function loadMe() {
+    try {
+      const opts = { noBounceOn401: true };
+      const res = window.dumpBinAuthFetch
+        ? await window.dumpBinAuthFetch(apiBase() + '/api/me', opts)
+        : await fetch(apiBase() + '/api/me', opts);
+      if (!res.ok) return;
+      const me = await res.json();
+      const roles = me.roles || [];
+      state.isAdmin = roles.includes('admin') || roles.includes('supervisor');
+    } catch (_) {}
   }
 
   async function loadCampaign() {
@@ -427,6 +490,13 @@ input[type=file] { display: none; }
     } else {
       els.storeDownloadBox.classList.add('hidden');
     }
+
+    const hasExportable = state.sets.some((s) => s.photos.length || s.notFound);
+    if (state.isAdmin && hasExportable && !state.store.submitted) {
+      els.adminExportBox.classList.remove('hidden');
+    } else {
+      els.adminExportBox.classList.add('hidden');
+    }
   }
 
   function formatSetSize(setRow) {
@@ -468,7 +538,7 @@ input[type=file] { display: none; }
   function renderPhotoSlot(label, photos, locked, options) {
     options = options || {};
     const thumbs = photos.map((p) =>
-      `<figure><img data-photo-id="${p.id}" alt=""><br>` +
+      `<figure><img class="thumb-img" data-photo-id="${p.id}" data-photo-label="${escapeAttr(p.label || 'Photo')}" alt="${escapeAttr(p.label || 'Photo')}"><br>` +
       (!locked ? `<button type="button" class="btn btn-danger" data-del="${p.id}">Remove</button>` : '') +
       `</figure>`
     ).join('');
@@ -485,7 +555,6 @@ input[type=file] { display: none; }
   }
 
   function renderPhotoSlots() {
-    revokePhotoBlobs();
     const locked = state.store.submitted;
     const setRow = state.activeSet;
     if (setRow.notFound) {
@@ -540,7 +609,13 @@ input[type=file] { display: none; }
       });
     });
     els.photoSlots.querySelectorAll('[data-del]').forEach((btn) => {
-      btn.addEventListener('click', () => deletePhoto(Number(btn.dataset.del)));
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deletePhoto(Number(btn.dataset.del));
+      });
+    });
+    els.photoSlots.querySelectorAll('img.thumb-img').forEach((img) => {
+      img.addEventListener('click', () => openLightbox(Number(img.dataset.photoId), img.dataset.photoLabel));
     });
     els.photoSlots.querySelector('[data-add-overall]')?.addEventListener('click', () => {
       if (overallPhotos(state.activeSet.photos || []).length >= requiredOverallPhotosForSet(state.activeSet)) return;
@@ -551,27 +626,109 @@ input[type=file] { display: none; }
     hydratePhotoThumbs().catch(() => {});
   }
 
-  function revokePhotoBlobs() {
-    state.photoBlobUrls.forEach((url) => URL.revokeObjectURL(url));
-    state.photoBlobUrls.clear();
+  function prunePhotoCache(activePhotoIds) {
+    const keep = new Set(activePhotoIds);
+    for (const [id, url] of state.photoBlobUrls.entries()) {
+      if (!keep.has(id)) {
+        URL.revokeObjectURL(url);
+        state.photoBlobUrls.delete(id);
+      }
+    }
+  }
+
+  function revokePhotoBlob(photoId) {
+    const url = state.photoBlobUrls.get(photoId);
+    if (url) {
+      URL.revokeObjectURL(url);
+      state.photoBlobUrls.delete(photoId);
+    }
+    state.photoBlobLoading.delete(photoId);
   }
 
   async function photoDisplayUrl(id) {
     if (state.photoBlobUrls.has(id)) return state.photoBlobUrls.get(id);
-    const res = await api('/api/strip-verification/photos/' + id);
-    if (!res.ok) return '';
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    state.photoBlobUrls.set(id, url);
-    return url;
+    if (state.photoBlobLoading.has(id)) return state.photoBlobLoading.get(id);
+
+    const promise = (async () => {
+      const res = await api('/api/strip-verification/photos/' + id);
+      if (!res.ok) return '';
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      state.photoBlobUrls.set(id, url);
+      state.photoBlobLoading.delete(id);
+      return url;
+    })();
+
+    state.photoBlobLoading.set(id, promise);
+    return promise;
   }
 
   async function hydratePhotoThumbs() {
-    const imgs = els.photoSlots.querySelectorAll('img[data-photo-id]');
+    const imgs = els.photoSlots.querySelectorAll('img.thumb-img[data-photo-id]');
+    const ids = Array.from(imgs).map((img) => Number(img.dataset.photoId));
+    prunePhotoCache(ids);
+
     await Promise.all(Array.from(imgs).map(async (img) => {
       const id = Number(img.dataset.photoId);
-      img.src = await photoDisplayUrl(id);
+      const cached = state.photoBlobUrls.get(id);
+      if (cached) {
+        img.src = cached;
+        img.classList.add('loaded');
+        return;
+      }
+      img.classList.add('loading');
+      const url = await photoDisplayUrl(id);
+      if (url && img.isConnected) {
+        img.src = url;
+        img.classList.remove('loading');
+        img.classList.add('loaded');
+      }
     }));
+  }
+
+  function openLightbox(photoId, label) {
+    photoDisplayUrl(photoId).then((url) => {
+      if (!url) return;
+      els.lightboxImg.src = url;
+      els.lightboxLabel.textContent = label || '';
+      els.lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    });
+  }
+
+  function closeLightbox() {
+    els.lightbox.classList.remove('open');
+    els.lightboxImg.removeAttribute('src');
+    document.body.style.overflow = '';
+  }
+
+  async function downloadPartialExport() {
+    if (!state.store) return;
+    els.btnPartialExport.disabled = true;
+    setStatus('Building partial zip…');
+    try {
+      const path = '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) +
+        '/stores/' + state.store.storeNum + '/export.zip';
+      const res = await api(path);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Export failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `FM${String(state.store.storeNum).padStart(3, '0')}_strip_partial.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus('Partial zip downloaded', 'ok');
+    } catch (err) {
+      setStatus(err.message || 'Export failed', 'err');
+    } finally {
+      els.btnPartialExport.disabled = false;
+    }
   }
 
   function loadHeic() {
@@ -642,6 +799,7 @@ input[type=file] { display: none; }
       setStatus(json.error || 'Could not remove photo', 'err');
       return;
     }
+    revokePhotoBlob(photoId);
     await refreshActiveSet();
     setStatus('Photo removed');
   }
@@ -735,12 +893,16 @@ input[type=file] { display: none; }
   });
 
   els.btnSubmitStore.addEventListener('click', submitStore);
+  els.btnPartialExport.addEventListener('click', downloadPartialExport);
+  els.lightboxClose.addEventListener('click', closeLightbox);
+  els.lightbox.addEventListener('click', (e) => { if (e.target === els.lightbox) closeLightbox(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
   els.fileInput.addEventListener('change', () => {
     const file = els.fileInput.files && els.fileInput.files[0];
     if (file) uploadPhoto(file);
   });
 
-  loadCampaign().catch((err) => {
+  Promise.all([loadMe(), loadCampaign()]).catch((err) => {
     els.storesLoading.textContent = err.message || 'Failed to load';
     setStatus(err.message || 'Failed to load', 'err');
   });
