@@ -50,6 +50,10 @@
   }
 
   function scrollToTop() {
+    const mount = document.getElementById('appMount');
+    if (mount) {
+      try { mount.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { mount.scrollTop = 0; }
+    }
     const topEl = document.querySelector('.pilot-banner')
       || document.getElementById('appChrome')
       || document.querySelector('.app-shell');
@@ -63,9 +67,16 @@
     }
   }
 
-  function append(mount, route) {
-    if (!mount) return;
-    const existing = mount.querySelector('.section-nav');
+  function hostEl() {
+    return document.getElementById('sectionNavHost');
+  }
+
+  function append(mountOrRoute, maybeRoute) {
+    const route = typeof mountOrRoute === 'string' ? mountOrRoute : maybeRoute;
+    const host = hostEl() || (mountOrRoute && mountOrRoute.nodeType ? mountOrRoute : null);
+    if (!host) return;
+
+    const existing = host.querySelector('.section-nav');
     if (existing) existing.remove();
 
     const { prev, next } = neighbors(route);
@@ -87,7 +98,7 @@
           <span class="section-nav-dir" aria-hidden="true">→</span>
         </button>
       </div>`;
-    mount.appendChild(wrap);
+    host.appendChild(wrap);
 
     const prevBtn = wrap.querySelector('#sectionNavPrev');
     const nextBtn = wrap.querySelector('#sectionNavNext');

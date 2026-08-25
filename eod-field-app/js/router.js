@@ -53,13 +53,13 @@
     if (chrome) chrome.hidden = false;
     if (bottomNav) bottomNav.hidden = false;
     document.body.dataset.route = name;
+    try { global.EodSectionNav?.append?.(name); } catch (_) {}
     try {
       await handler(mount, { route: name });
     } catch (err) {
       console.error(err);
       mount.innerHTML = `<div class="card error"><h2>Something went wrong</h2><p>${global.EodApi.escapeHtml(err.message || String(err))}</p></div>`;
     }
-    try { global.EodSectionNav?.append?.(mount, name); } catch (_) {}
     session?.syncDomBridges();
   }
 

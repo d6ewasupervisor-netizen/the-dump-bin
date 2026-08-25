@@ -107,3 +107,16 @@ test('bottom nav lists a signatures route and theme cycle control', () => {
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
   }
 });
+
+test('section nav host is pinned outside page content', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(html, /id="sectionNavHost"/);
+  const src = fs.readFileSync(path.join(__dirname, '../js/features/section-nav.js'), 'utf8');
+  assert.match(src, /sectionNavHost/);
+});
+
+test('crew sheet no longer includes the materials card', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../js/features/crew.js'), 'utf8');
+  assert.doesNotMatch(src, /<h2>Materials<\/h2>/);
+  assert.doesNotMatch(src, /openMaterialsBtn/);
+});

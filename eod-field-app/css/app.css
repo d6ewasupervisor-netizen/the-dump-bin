@@ -254,6 +254,7 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
 .notice-error { background: #7f1d1d; color: #fecaca; }
 .notice-ok { background: #065f46; color: #a7f3d0; }
 body.needs-auth #appMount,
+body.needs-auth #sectionNavHost,
 body.needs-auth #appChrome,
 body.needs-auth .bottom-nav { display: none !important; }
 body.needs-auth .app-shell {
@@ -497,7 +498,14 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
 }
 .force-live-row label { display: flex; gap: 8px; align-items: center; }
 
-#appMount { flex: 1; padding: 10px 10px 20px; min-width: 0; }
+#appMount { flex: 1; padding: 10px 10px 20px; min-width: 0; min-height: 0; overflow-y: auto; }
+#sectionNavHost {
+  flex: 0 0 auto;
+  padding: 0 10px 8px;
+  background: var(--surface);
+  z-index: 25;
+}
+#sectionNavHost .section-nav { margin: 0; }
 
 .bottom-nav {
   position: fixed;
@@ -620,6 +628,15 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .ds-row.marked-complete { background: rgba(22,101,52,.25); }
 .ds-row.marked-nis { background: rgba(127,29,29,.28); }
 .ds-row.marked-nisi { background: rgba(120,53,15,.28); }
+.ds-row.manifest-error {
+  background: rgba(185, 28, 28, 0.42);
+  border-color: #ef4444;
+}
+.ds-row .manifest-error-msg {
+  color: #fecaca;
+  font-weight: 600;
+  margin-top: 6px;
+}
 .ds-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .ds-actions .btn { min-height: 40px; font-size: 13px; padding: 8px 10px; flex: 1 1 30%; }
 .ds-actions .btn.on { outline: 2px solid var(--accent); }
@@ -710,7 +727,7 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   .app-shell {
     display: grid;
     grid-template-columns: 200px 1fr;
-    grid-template-rows: auto auto auto auto auto 1fr;
+    grid-template-rows: auto auto auto auto auto 1fr auto;
     max-width: 1100px;
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0,0,0,.35);
@@ -729,7 +746,7 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   .bottom-nav {
     position: static;
     grid-column: 1;
-    grid-row: 6;
+    grid-row: 6 / 8;
     display: flex; flex-direction: column; gap: 4px;
     overflow-x: visible;
     overflow-y: auto;
@@ -743,6 +760,12 @@ h2 { font-size: 1.15rem; color: var(--heading); }
     grid-row: 6;
     min-height: 280px;
     padding: 16px;
+    overflow-y: auto;
+  }
+  #sectionNavHost {
+    grid-column: 2;
+    grid-row: 7;
+    padding: 0 16px 16px;
   }
   body[data-route="visit"] .bottom-nav { display: flex; }
   body[data-route="visit"] .app-shell { grid-template-columns: 200px 1fr; }
@@ -1204,7 +1227,7 @@ body[data-route="visit"] {
   padding-bottom: calc(var(--safe-b) + var(--nav-h) + 12px);
 }
 #appMount {
-  padding: 14px 14px 28px;
+  padding: 14px 14px 16px;
 }
 .card {
   padding: 14px;

@@ -58,35 +58,32 @@
           <button type="button" class="btn btn-secondary" id="viewRosterBtn">View roster</button>
         </div>
         <div id="rosterList" style="margin-top:10px;"></div>
-      </div>
-      <div class="card">
-        <h2>Materials</h2>
-        <p class="muted">Have you read provided materials with the team?</p>
-        <div class="btn-row">
-          <button type="button" class="btn ${S.state.materialsReadYes === 'Yes' ? 'btn-primary' : 'btn-secondary'}" data-mat="Yes">Yes</button>
-          <button type="button" class="btn btn-secondary" id="openMaterialsBtn">Open the Dump Bin</button>
-        </div>
       </div>`;
 
     mount.querySelectorAll('[data-iw]').forEach((btn) => {
       btn.onclick = () => {
-        S.patch({ instaworkYes: btn.getAttribute('data-iw') }, 'iw');
+        const v = btn.getAttribute('data-iw');
+        S.patch({ instaworkYes: v }, 'iw');
         S.saveDraft();
-        render(mount);
+        mount.querySelectorAll('[data-iw]').forEach((b) => {
+          const on = b.getAttribute('data-iw') === v;
+          b.classList.toggle('btn-primary', on);
+          b.classList.toggle('btn-secondary', !on);
+        });
       };
     });
     mount.querySelectorAll('[data-kt]').forEach((btn) => {
       btn.onclick = () => {
-        S.patch({ kompassTimesheetYes: btn.getAttribute('data-kt') }, 'kt');
+        const v = btn.getAttribute('data-kt');
+        S.patch({ kompassTimesheetYes: v }, 'kt');
         S.saveDraft();
-        render(mount);
+        mount.querySelectorAll('[data-kt]').forEach((b) => {
+          const on = b.getAttribute('data-kt') === v;
+          b.classList.toggle('btn-primary', on);
+          b.classList.toggle('btn-secondary', !on);
+        });
       };
     });
-    mount.querySelector('[data-mat="Yes"]').onclick = () => {
-      S.patch({ materialsReadYes: 'Yes' }, 'mat');
-      S.saveDraft();
-      render(mount);
-    };
 
     document.getElementById('openIwBtn').onclick = () => {
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('instawork');
@@ -97,11 +94,6 @@
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('kompass');
       else if (typeof global.openKompassManagement === 'function') global.openKompassManagement();
       else alert('Timesheet module not loaded');
-    };
-    document.getElementById('openMaterialsBtn').onclick = () => {
-      if (global.EodMaterialsBrowser?.open) global.EodMaterialsBrowser.open();
-      else if (typeof global.openMaterialsBrowser === 'function') global.openMaterialsBrowser();
-      else alert('Materials browser not loaded');
     };
 
     const list = document.getElementById('rosterList');
