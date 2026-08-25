@@ -445,9 +445,9 @@ function renderBrowser(data) {
     });
   });
 
-  function openListedPdf(key) {
+  function openListedPdf(key, tools) {
     const fileObj = files.find((f) => f.key === key);
-    if (fileObj) openPdfPagePicker(fileObj).catch((err) => toast(err.message || 'Could not open PDF', 'error'));
+    if (fileObj) openPdfPagePicker(fileObj, { tools: !!tools }).catch((err) => toast(err.message || 'Could not open PDF', 'error'));
   }
 
   browser.querySelectorAll('.db-item__name--pdf').forEach((a) => {
@@ -462,7 +462,7 @@ function renderBrowser(data) {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openListedPdf(btn.getAttribute('data-pages-key'));
+      openListedPdf(btn.getAttribute('data-pages-key'), true);
     });
   });
 
@@ -1381,7 +1381,7 @@ function putExtractInSelection(payload) {
   return id;
 }
 
-async function openPdfPagePicker(fileObj) {
+async function openPdfPagePicker(fileObj, opts) {
   if (!window.MaterialsPdfViewer) {
     toast('Document viewer failed to load — refresh and try again', 'error');
     return;
@@ -1396,6 +1396,7 @@ async function openPdfPagePicker(fileObj) {
     url,
     fileSize: Number(fileObj.size) || 0,
     sourceKey: fileObj.key,
+    tools: !!(opts && opts.tools),
     onToast: toast,
     getGlobalSelection: () => ({
       count: selection.size,

@@ -152,25 +152,25 @@
           <span class="mpv-page-total" id="mpvPageTotal">/ 1</span>
           <button type="button" class="mpv-btn" id="mpvNext" aria-label="Next page">›</button>
         </div>
-        <div class="mpv-group" aria-label="Zoom">
+        <div class="mpv-group mpv-toolbar__extras" aria-label="Zoom">
           <button type="button" class="mpv-btn" id="mpvZoomOut" aria-label="Zoom out">−</button>
           <span class="mpv-zoom-label" id="mpvZoomLabel">Fit</span>
           <button type="button" class="mpv-btn" id="mpvZoomIn" aria-label="Zoom in">+</button>
           <button type="button" class="mpv-btn" id="mpvFitWidth" title="Fit width">Fit</button>
           <button type="button" class="mpv-btn" id="mpvFitPage" title="Fit page">Page</button>
         </div>
-        <div class="mpv-group" aria-label="Rotate">
+        <div class="mpv-group mpv-toolbar__extras" aria-label="Rotate">
           <button type="button" class="mpv-btn" id="mpvRotL" aria-label="Rotate left" title="Rotate left">↶</button>
           <button type="button" class="mpv-btn" id="mpvRotR" aria-label="Rotate right" title="Rotate right">↷</button>
         </div>
-        <div class="mpv-search">
+        <div class="mpv-search mpv-toolbar__extras">
           <input type="search" id="mpvSearch" placeholder="Search in document…" enterkeyhint="search" autocomplete="off">
           <span class="mpv-search__count" id="mpvSearchCount"></span>
           <button type="button" class="mpv-btn" id="mpvFindPrev" aria-label="Previous match" title="Previous match">▴</button>
           <button type="button" class="mpv-btn" id="mpvFindNext" aria-label="Next match" title="Next match">▾</button>
         </div>
-        <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvThumbsToggle" title="Toggle thumbnails">Thumbs</button>
-        <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvImmersive" title="Reading mode">Focus</button>
+        <button type="button" class="mpv-btn mpv-btn--ghost mpv-toolbar__extras" id="mpvThumbsToggle" title="Toggle thumbnails">Thumbs</button>
+        <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvImmersive" title="More tools">Tools</button>
         <div class="mpv-toolbar__spacer"></div>
         <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvClose" aria-label="Close">Close</button>
       </div>
@@ -661,7 +661,7 @@
       host.classList.toggle('is-thumbs-collapsed');
     });
     document.getElementById('mpvImmersive')?.addEventListener('click', () => {
-      host.classList.toggle('is-immersive');
+      setReadingMode(!host.classList.contains('is-immersive'));
     });
     document.getElementById('mpvSelectAll')?.addEventListener('click', () => selectAll(true));
     document.getElementById('mpvSelectNone')?.addEventListener('click', () => selectAll(false));
@@ -818,13 +818,17 @@
       const typing = tag === 'INPUT' || tag === 'TEXTAREA';
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (host.classList.contains('is-immersive')) host.classList.remove('is-immersive');
-        else requestClose();
+        if (!host.classList.contains('is-immersive')) {
+          setReadingMode(true);
+          return;
+        }
+        requestClose();
         return;
       }
       if (typing) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
         e.preventDefault();
+        setReadingMode(false);
         document.getElementById('mpvSearch')?.focus();
         return;
       }
@@ -869,6 +873,18 @@
     keyHandler = null;
   }
 
+  function setReadingMode(on) {
+    if (!host) return;
+    host.classList.toggle('is-immersive', !!on);
+    host.classList.toggle('is-thumbs-collapsed', !!on);
+    const btn = document.getElementById('mpvImmersive');
+    if (btn) {
+      btn.textContent = on ? 'Tools' : 'View';
+      btn.title = on ? 'Page select, print, share, search' : 'Full document view';
+      btn.classList.toggle('is-active', !on);
+    }
+  }
+
   function requestClose() {
     if (openOpts?.standalone) {
       if (inFrame()) {
@@ -902,7 +918,9 @@
     host.classList.toggle('is-standalone', !!options.standalone);
     host.classList.toggle('is-framed', !!framed);
     host.classList.add('is-open');
-    host.classList.remove('is-immersive', 'is-thumbs-collapsed');
+    const startInTools = options.tools === true || options.immersive === false;
+    host.classList.toggle('is-thumbs-collapsed', !startInTools);
+    setReadingMode(!startInTools);
     lockPageScroll(true);
     const closeBtn = document.getElementById('mpvClose');
     if (closeBtn) {
