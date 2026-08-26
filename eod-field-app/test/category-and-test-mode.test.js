@@ -180,9 +180,17 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
 test('compass buffering overlay ships and wraps slow authFetch', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const busy = fs.readFileSync(path.join(__dirname, '../js/lib/eod-buffering.js'), 'utf8');
+  const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
   assert.match(html, /js\/lib\/eod-buffering\.js/);
   assert.match(html, /id="eodBuffering"/);
   assert.match(html, /assets\/buffering\.gif/);
   assert.match(busy, /assets\/buffering\.gif/);
   assert.match(busy, /wrapAuthFetch/);
+  assert.match(busy, /digital-signoffs/);
+  assert.match(busy, /\(\?:sync\|heartbeat\)/);
+  assert.match(busy, /MAX_VISIBLE_MS = 12000/);
+  assert.match(busy, /dismissBusy/);
+  assert.match(signoff, /skipBusy: true/);
+  assert.match(survey, /skipBusy: true/);
 });

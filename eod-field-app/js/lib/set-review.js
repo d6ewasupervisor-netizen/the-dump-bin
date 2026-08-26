@@ -160,7 +160,7 @@
       const url = resolvePhotoUrl(api, p?.thumbUrl || p?.url || '');
       if (!url) return;
       if (authFetch) {
-        authFetch(url).then((resp) => resp.ok ? resp.blob() : null).then((blob) => {
+        authFetch(url, { skipBusy: true }).then((resp) => resp.ok ? resp.blob() : null).then((blob) => {
           if (!blob) return;
           const img = new Image();
           img.decoding = 'async';
@@ -250,7 +250,7 @@
       if (!authFetch) return url;
       const cacheKey = `${kind || 'full'}:${url}`;
       if (objectUrlCache.has(cacheKey)) return objectUrlCache.get(cacheKey);
-      const resp = await authFetch(url);
+      const resp = await authFetch(url, { skipBusy: true });
       if (!resp.ok) throw new Error(`Photo failed (${resp.status})`);
       const blob = await resp.blob();
       const obj = URL.createObjectURL(blob);

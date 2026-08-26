@@ -518,7 +518,7 @@
         if (!path) return;
         const abs = /^https?:/i.test(path) ? path : API_ORIGIN + path;
         try {
-          const resp = await global.authFetch(abs);
+          const resp = await global.authFetch(abs, { skipBusy: true });
           if (!resp.ok) return;
           const blob = await resp.blob();
           const img = el.querySelector('img');

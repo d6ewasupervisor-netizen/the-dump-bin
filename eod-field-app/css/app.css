@@ -1351,6 +1351,7 @@ body.dump-bin-viewer-open .eod-test-banner {
   background: rgba(2, 6, 23, 0.82);
   z-index: 20000;
   padding: 24px;
+  cursor: pointer;
 }
 .eod-buffering.show,
 .eod-buffering:not([hidden]) {

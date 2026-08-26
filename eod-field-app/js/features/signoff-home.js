@@ -489,25 +489,39 @@
       return pacificHourNow() >= 12 ? 5 * 60 * 1000 : 60 * 60 * 1000;
     }
 
+    let syncPromise = null;
     async function syncProdSi() {
-      const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
-      const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
-      const visitIds = shifts.map((s) => s.visitId).filter(Boolean);
-      const body = JSON.stringify({
-        storeNumber: S.state.storeNumber,
-        workDate: S.state.workDate,
-        visitId: S.state.selectedShift?.visitId || null,
-        visitIds,
-      });
-      const resp = await global.authFetch(`${API}/sync`, { method: 'POST', headers, body });
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
-      if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
-      else {
-        S.patch({ sheetLoaded: false }, 'prod-si-sync');
-        await loadSheet();
+      if (syncPromise) return syncPromise;
+      syncPromise = (async () => {
+        const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+        const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
+        const visitIds = shifts.map((s) => s.visitId).filter(Boolean);
+        const body = JSON.stringify({
+          storeNumber: S.state.storeNumber,
+          workDate: S.state.workDate,
+          visitId: S.state.selectedShift?.visitId || null,
+          visitIds,
+        });
+        const resp = await global.authFetch(`${API}/sync`, {
+          method: 'POST',
+          headers,
+          body,
+          skipBusy: true,
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
+        if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
+        else {
+          S.patch({ sheetLoaded: false }, 'prod-si-sync');
+          await loadSheet();
+        }
+        return data;
+      })();
+      try {
+        return await syncPromise;
+      } finally {
+        syncPromise = null;
       }
-      return data;
     }
 
     function startPoll() {
@@ -644,12 +658,17 @@
     printSignoffBtn.onclick = () => openPrintAtStoreModal();
 
     await paint();
-    try {
-      await syncProdSi();
-      await paint();
-    } catch (err) {
-      console.warn('[signoff] initial sync', err.message || err);
-    }
+    void (async () => {
+      try {
+        await syncProdSi();
+        if (global.EodRouter?.current && global.EodRouter.current !== 'signoff') return;
+        await paint();
+        try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+        global.EodChrome?.refresh();
+      } catch (err) {
+        console.warn('[signoff] initial sync', err.message || err);
+      }
+    })();
     startPoll();
   }
 
