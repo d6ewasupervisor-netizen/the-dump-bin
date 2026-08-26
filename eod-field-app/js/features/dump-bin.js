@@ -35,7 +35,4 @@
 
   global.EodDumpBin = { render, DUMP_BIN_URL };
   global.EodRouter.register('dumpbin', render);
-  global.EodRouter.register('photos', async () => {
-    global.EodRouter.go('dumpbin', { replace: true });
-  });
 })(typeof window !== 'undefined' ? window : globalThis);

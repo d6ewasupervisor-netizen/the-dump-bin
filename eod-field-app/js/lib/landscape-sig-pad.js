@@ -102,6 +102,7 @@
         <div class="eod-lsp-bar">
           <strong id="eodLspTitle">Sign</strong>
           <button type="button" class="eod-lsp-clear" id="eodLspClear">Clear</button>
+          <button type="button" class="eod-lsp-clear" id="eodLspLoad">Load photo</button>
           <button type="button" class="eod-lsp-cancel" id="eodLspCancel">Cancel</button>
           <button type="button" class="eod-lsp-accept" id="eodLspAccept">Use signature</button>
         </div>
@@ -307,6 +308,31 @@
       o.existingDataUrl = null;
       sizeCanvas();
     };
+    document.getElementById('eodLspLoad')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*,.heic,.heif';
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        try {
+          const converted = global.EodHeic?.prepareFile ? await global.EodHeic.prepareFile(file) : file;
+          const url = URL.createObjectURL(converted);
+          const img = new Image();
+          img.onload = () => {
+            snapshot = null;
+            o.existingDataUrl = url;
+            sizeCanvas();
+          };
+          img.src = url;
+        } catch (err) {
+          if (global.showAlert) global.showAlert('Photo', err.message || String(err));
+        }
+      };
+      input.click();
+    });
     document.getElementById('eodLspCancel').onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();

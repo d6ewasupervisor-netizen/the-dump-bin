@@ -1,47 +1,45 @@
-/* Cart photos + conditional paper sign-off. */
+/* Cart / paper / InstaWork photos — reachable #/photos route. */
 (function (global) {
   'use strict';
 
+  const IW_SAVE_URL = 'https://eod-api.the-dump-bin.com/instawork/save-image';
+
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
-  function stamp(dataUrl) {
+  function stamp(dataUrl, extra) {
     const S = global.EodSession;
-    return {
+    return Object.assign({
       dataUrl,
       storeNumber: S.state.storeNumber,
       workDate: S.state.workDate,
       stampedAt: Date.now(),
-    };
+    }, extra || {});
   }
 
   function src(entry) {
     if (!entry) return '';
     if (typeof entry === 'string') return entry;
-    return entry.dataUrl || '';
+    return entry.dataUrl || entry.preview || '';
   }
 
-  function readFileAsDataUrl(file) {
+  async function preparePhoto(file, type) {
+    const converted = global.EodHeic?.prepareFile ? await global.EodHeic.prepareFile(file) : file;
+    if (global.EodPhotoCompress?.compressFile) {
+      const out = await global.EodPhotoCompress.compressFile(converted, type || 'default');
+      return out.dataUrl;
+    }
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
       reader.onerror = reject;
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(converted);
     });
-  }
-
-  async function preparePhoto(file, type) {
-    if (global.EodPhotoCompress?.compressFile) {
-      const out = await global.EodPhotoCompress.compressFile(file, type || 'default');
-      return out.dataUrl;
-    }
-    return readFileAsDataUrl(file);
   }
 
   async function persistPhotos() {
     const S = global.EodSession;
-    if (global.PhotoDB?.savePhotos) {
-      await global.PhotoDB.savePhotos(S.state.photos);
-    }
+    if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(S.state.photos);
+    S.saveDraft();
   }
 
   async function loadPhotos() {
@@ -57,73 +55,178 @@
   function gridHtml(type) {
     const S = global.EodSession;
     const arr = S.state.photos[type] || [];
-    if (!arr.length) return '<p class="muted">No photos yet.</p>';
+    if (!arr.length) return '<p class="muted">None yet.</p>';
     return `<div class="photo-grid">${arr.map((p, i) => {
       const url = src(p);
       if (!url) return '';
       return `<div>
         <img src="${url}" alt="${esc(type)} ${i + 1}">
-        <button type="button" class="btn btn-danger btn-block" data-remove="${type}" data-idx="${i}" style="margin-top:4px;min-height:36px;font-size:12px;">Remove</button>
+        <div class="btn-row" style="margin-top:4px;">
+          <button type="button" class="btn btn-secondary" data-edit="${type}" data-idx="${i}" style="min-height:36px;font-size:12px;flex:1;">Edit</button>
+          <button type="button" class="btn btn-danger" data-remove="${type}" data-idx="${i}" style="min-height:36px;font-size:12px;flex:1;">Remove</button>
+        </div>
       </div>`;
     }).join('')}</div>`;
+  }
+
+  async function addFiles(type, files, extraKind) {
+    const S = global.EodSession;
+    const photos = Object.assign({}, S.state.photos);
+    photos[type] = (photos[type] || []).slice();
+    for (const file of files) {
+      const dataUrl = await preparePhoto(file, type);
+      const entry = stamp(dataUrl, extraKind ? { kind: extraKind } : null);
+      if (type === 'instawork') photos[type] = [entry];
+      else photos[type].push(entry);
+    }
+    const patch = { photos };
+    if (type === 'before') patch.cartPhotoDone = true;
+    S.patch(patch, 'photos');
+    await persistPhotos();
+  }
+
+  async function captureType(type, extraKind) {
+    if (!global.EodCamera?.open) return;
+    await global.EodCamera.open({
+      label: type === 'signoff' ? 'Paper sign-off' : type === 'instawork' ? 'InstaWork sheet' : `Cart ${type}`,
+      onCapture: async (file) => {
+        await addFiles(type, [file], extraKind);
+      },
+      shouldContinue: () => type !== 'instawork',
+    });
+  }
+
+  async function saveInstawork() {
+    const S = global.EodSession;
+    const photo = (S.state.photos.instawork || [])[0];
+    const dataUrl = src(photo);
+    if (!dataUrl) throw new Error('Take an InstaWork photo first.');
+    const imageBase64 = String(dataUrl).replace(/^data:[^;]+;base64,/, '');
+    const headers = global.EodApi.dayConfirmHeaders();
+    const resp = await global.authFetch(IW_SAVE_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        imageBase64,
+        forceLive: global.EodTestMode?.isForceLive?.() || undefined,
+        testMode: global.EodTestMode?.isEnabled?.() || undefined,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.success === false) throw new Error(data.error || `InstaWork save failed (${resp.status})`);
+    return data;
+  }
+
+  async function paintUnsent(host) {
+    if (!host || !global.PhotoDB?.unsentSessions) return;
+    try {
+      const unsent = await global.PhotoDB.unsentSessions();
+      if (!unsent.length) {
+        host.innerHTML = '';
+        host.hidden = true;
+        return;
+      }
+      host.hidden = false;
+      host.innerHTML = `<div class="notice notice-error" style="margin:0;">
+        ${unsent.length} unsent photo session(s) on this phone.
+        <button type="button" class="btn btn-secondary" id="compressOldBtn" style="margin-top:8px;">Compress old photos</button>
+      </div>`;
+      host.querySelector('#compressOldBtn')?.addEventListener('click', async () => {
+        try {
+          const r = await global.PhotoDB.compressOldPhotos();
+          host.querySelector('.notice').append(` Compressed ${r.compressed} photo(s) in ${r.sessions} session(s).`);
+        } catch (err) {
+          if (global.showAlert) global.showAlert('Storage', err.message || String(err));
+        }
+      });
+    } catch (_) {
+      host.hidden = true;
+    }
   }
 
   async function render(mount) {
     const S = global.EodSession;
     await loadPhotos();
-    if (global.EodCover?.loadStoreData) {
-      try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
-    }
+    const showPaper = !S.hasHostedSheet();
+    const showIw = S.state.instaworkYes === 'Yes' || (S.state.photos.instawork || []).length > 0;
     mount.innerHTML = `
       <div class="card">
         <h1>Photos</h1>
-        <p class="muted">Cart before/after photos${S.state.instaworkYes === 'Yes' ? ' and InstaWork sign-out' : ''}.</p>
+        <div id="photosUnsent"></div>
       </div>
       ${['before', 'after'].map((type) => `
         <div class="card">
           <h2>Kompass cart — ${type}</h2>
           <div class="btn-row">
-            <label class="btn btn-primary" style="cursor:pointer;">
-              Add photo
+            <button type="button" class="btn btn-primary" data-cam="${type}">Camera</button>
+            <label class="btn btn-secondary" style="cursor:pointer;">
+              Add file
               <input type="file" accept="image/*,.heic,.heif" data-type="${type}" hidden>
             </label>
+            <button type="button" class="btn btn-secondary" data-pull="${type}">Pull PROD</button>
+            <button type="button" class="btn btn-secondary" data-push="${type}">Upload PROD</button>
           </div>
           <div id="grid-${type}" style="margin-top:10px;">${gridHtml(type)}</div>
         </div>`).join('')}
-      ${S.state.instaworkYes === 'Yes' ? `
-      <div class="card">
-        <h2>InstaWork sign-out sheet</h2>
+      ${showPaper ? `
+      <div class="card" id="paperSignoffCard">
+        <h2>Paper sign-off</h2>
         <div class="btn-row">
-          <label class="btn btn-primary" style="cursor:pointer;">
-            Add photo
-            <input type="file" accept="image/*,.heic,.heif" data-type="instawork" hidden>
+          <button type="button" class="btn btn-primary" data-cam="signoff">Camera</button>
+          <label class="btn btn-secondary" style="cursor:pointer;">
+            Add file
+            <input type="file" accept="image/*,.heic,.heif" data-type="signoff" hidden>
           </label>
         </div>
+        <div id="grid-signoff" style="margin-top:10px;">${gridHtml('signoff')}</div>
+      </div>` : ''}
+      ${showIw ? `
+      <div class="card">
+        <h2>InstaWork sign-out</h2>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" data-cam="instawork">Camera</button>
+          <label class="btn btn-secondary" style="cursor:pointer;">
+            Add file
+            <input type="file" accept="image/*,.heic,.heif" data-type="instawork" hidden>
+          </label>
+          <button type="button" class="btn btn-success" id="iwSaveBtn">Confirm &amp; Save</button>
+        </div>
+        <div id="iwSaveMsg" class="muted" style="margin-top:8px;"></div>
         <div id="grid-instawork" style="margin-top:10px;">${gridHtml('instawork')}</div>
-      </div>` : ''}`;
+      </div>` : ''}
+      <div class="card">
+        <button type="button" class="btn btn-secondary btn-block" id="photosStorageBtn">Storage / compress old photos</button>
+        <div id="photosStorageMsg" class="muted" style="margin-top:8px;"></div>
+      </div>`;
+
+    await paintUnsent(document.getElementById('photosUnsent'));
 
     mount.querySelectorAll('input[type="file"][data-type]').forEach((input) => {
       input.onchange = async () => {
         const type = input.getAttribute('data-type');
         const files = Array.from(input.files || []);
+        input.value = '';
         if (!files.length) return;
-        const photos = { ...S.state.photos };
-        photos[type] = (photos[type] || []).slice();
-        for (const file of files) {
-          const dataUrl = await preparePhoto(file, type);
-          photos[type].push(stamp(dataUrl));
-        }
-        S.patch({ photos }, 'photos');
-        await persistPhotos();
+        const kind = type === 'before' || type === 'after' ? `cart-${type}` : null;
+        await addFiles(type, files, kind);
         render(mount);
       };
     });
-
+    mount.querySelectorAll('[data-cam]').forEach((btn) => {
+      btn.onclick = async () => {
+        const type = btn.getAttribute('data-cam');
+        const kind = type === 'before' || type === 'after' ? `cart-${type}` : null;
+        await captureType(type, kind);
+        render(mount);
+      };
+    });
     mount.querySelectorAll('[data-remove]').forEach((btn) => {
       btn.onclick = async () => {
         const type = btn.getAttribute('data-remove');
         const idx = Number(btn.getAttribute('data-idx'));
-        const photos = { ...S.state.photos };
+        const photos = Object.assign({}, S.state.photos);
         photos[type] = (photos[type] || []).slice();
         photos[type].splice(idx, 1);
         S.patch({ photos }, 'photos');
@@ -131,7 +234,73 @@
         render(mount);
       };
     });
+    mount.querySelectorAll('[data-edit]').forEach((btn) => {
+      btn.onclick = async () => {
+        const type = btn.getAttribute('data-edit');
+        const idx = Number(btn.getAttribute('data-idx'));
+        const entry = (S.state.photos[type] || [])[idx];
+        const dataUrl = src(entry);
+        if (!dataUrl || !global.EodPhotoEditor?.open) return;
+        const out = await global.EodPhotoEditor.open({ dataUrl });
+        if (!out) return;
+        const photos = Object.assign({}, S.state.photos);
+        photos[type] = (photos[type] || []).slice();
+        if (typeof photos[type][idx] === 'string') photos[type][idx] = out;
+        else photos[type][idx] = Object.assign({}, photos[type][idx], { dataUrl: out });
+        S.patch({ photos }, 'photos');
+        await persistPhotos();
+        render(mount);
+      };
+    });
+    mount.querySelectorAll('[data-pull]').forEach((btn) => {
+      btn.onclick = async () => {
+        const type = btn.getAttribute('data-pull');
+        try {
+          const n = await global.EodVisitCart.pullCartFromProd(type);
+          if (global.showAlert) global.showAlert('PROD', `Pulled ${n} ${type} photo(s).`);
+          render(mount);
+        } catch (err) {
+          if (global.showAlert) global.showAlert('PROD', err.message || String(err));
+        }
+      };
+    });
+    mount.querySelectorAll('[data-push]').forEach((btn) => {
+      btn.onclick = async () => {
+        const type = btn.getAttribute('data-push');
+        try {
+          const list = global.EodVisitCart.cartPhotos(type);
+          for (const p of list) await global.EodVisitCart.uploadCartToProd(type, p.dataUrl || p);
+          if (global.showAlert) global.showAlert('PROD', `Uploaded ${type} photos.`);
+        } catch (err) {
+          if (global.showAlert) global.showAlert('PROD', err.message || String(err));
+        }
+      };
+    });
+    document.getElementById('iwSaveBtn')?.addEventListener('click', async () => {
+      const msg = document.getElementById('iwSaveMsg');
+      try {
+        if (msg) msg.textContent = 'Saving InstaWork sheet…';
+        await saveInstawork();
+        if (msg) msg.textContent = 'InstaWork sheet saved.';
+      } catch (err) {
+        if (msg) msg.textContent = err.message || String(err);
+      }
+    });
+    document.getElementById('photosStorageBtn')?.addEventListener('click', async () => {
+      const msg = document.getElementById('photosStorageMsg');
+      try {
+        const pressure = await global.PhotoDB?.storagePressure?.();
+        const r = await global.PhotoDB?.compressOldPhotos?.();
+        const mb = pressure ? (pressure.totalBytes / (1024 * 1024)).toFixed(1) : '?';
+        if (msg) {
+          msg.textContent = `Photos ${mb} MB. Compressed ${r?.compressed || 0} in ${r?.sessions || 0} session(s).`;
+        }
+      } catch (err) {
+        if (msg) msg.textContent = err.message || String(err);
+      }
+    });
   }
 
+  global.EodPhotos = { render, preparePhoto, saveInstawork, addFiles };
   global.EodRouter.register('photos', render);
 })(typeof window !== 'undefined' ? window : globalThis);

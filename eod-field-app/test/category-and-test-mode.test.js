@@ -129,3 +129,36 @@ test('index.html loads send-sheet rasterizer before send.js', () => {
   const sheetsIdx = html.indexOf('js/lib/eod-send-sheets.js');
   assert.ok(sheetsIdx > 0 && sheetsIdx < sendIdx);
 });
+
+test('dump-bin does not steal the photos route', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../js/features/dump-bin.js'), 'utf8');
+  assert.doesNotMatch(src, /register\('photos'/);
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(html, /js\/features\/photos\.js/);
+  const dumpIdx = html.indexOf('js/features/dump-bin.js');
+  const photosIdx = html.indexOf('js/features/photos.js');
+  assert.ok(photosIdx > dumpIdx);
+});
+
+test('pilot ships overlay alerts, roles, camera, and PIC QR', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  for (const file of [
+    'js/lib/eod-alerts.js',
+    'js/lib/eod-roles.js',
+    'js/lib/heic.js',
+    'js/lib/eod-camera.js',
+    'js/features/pic-qr.js',
+    'js/features/feedback-hub.js',
+  ]) {
+    assert.match(html, new RegExp(file.replace(/\./g, '\\.')));
+  }
+});
+
+test('InstaWork save URL is the hosted eod-api, never localhost', () => {
+  const photos = fs.readFileSync(path.join(__dirname, '../js/features/photos.js'), 'utf8');
+  const crew = fs.readFileSync(path.join(__dirname, '../js/features/crew.js'), 'utf8');
+  assert.match(photos, /https:\/\/eod-api\.the-dump-bin\.com\/instawork\/save-image/);
+  assert.match(crew, /https:\/\/eod-api\.the-dump-bin\.com\/instawork\/save-image/);
+  assert.doesNotMatch(photos, /127\.0\.0\.1/);
+  assert.doesNotMatch(crew, /127\.0\.0\.1/);
+});

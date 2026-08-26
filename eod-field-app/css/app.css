@@ -291,6 +291,7 @@ body.needs-auth .app-shell {
   white-space: nowrap;
   flex: 0 0 auto;
   letter-spacing: 0.01em;
+  cursor: pointer;
 }
 .chrome-meta {
   color: var(--muted);
@@ -1321,3 +1322,22 @@ body.dump-bin-viewer-open .eod-test-banner {
   border: 0;
   border-radius: 0;
 }
+
+.eod-unsent-banner {
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #7f1d1d;
+  color: #fecaca;
+  font-size: 13px;
+}
+.shift-also {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.chrome-meta { cursor: pointer; }
+.eod-pic-qr-fs { z-index: 10050; }

@@ -17,6 +17,8 @@
     leadName: '',
     leadEmail: '',
     selectedShift: null,
+    extraVisitIds: [],
+    profileLocked: false,
     shifts: [],
     members: [],
     sheet: null,
@@ -37,6 +39,7 @@
     helpdeskSubmittedReports: [],
     fredmeyerEmailPool: [],
     managerNamePool: [],
+    sheetAcknowledged: false,
     instaworkYes: null,
     kompassTimesheetYes: null,
     materialsReadYes: null,
@@ -121,6 +124,8 @@
     state.leadName = '';
     state.leadEmail = '';
     state.selectedShift = null;
+    state.extraVisitIds = [];
+    state.profileLocked = false;
     state.shifts = [];
     state.members = [];
     state.sheet = null;
@@ -137,6 +142,7 @@
     state.notInStoreSelected = [];
     state.notInSiSelected = [];
     state.photos = { before: [], after: [], signoff: [], instawork: [] };
+    state.sheetAcknowledged = false;
     state.instaworkYes = null;
     state.kompassTimesheetYes = null;
     state.materialsReadYes = null;
@@ -164,8 +170,7 @@
 
   function sheetSendReady() {
     if (!hasHostedSheet()) return true;
-    // Hard heart: every row must have at least one mark, OR user used acknowledge-all.
-    if (state.sheet.allAcknowledged) return true;
+    if (state.sheetAcknowledged || state.sheet.allAcknowledged) return true;
     const rows = state.sheet.rows || [];
     if (!rows.length) return true;
     return rows.every(rowHasMark);
@@ -260,10 +265,13 @@
     state.helpdeskSubmittedReports = Array.isArray(data.helpdeskSubmittedReports)
       ? data.helpdeskSubmittedReports.slice()
       : [];
+    state.sheetAcknowledged = !!data.sheetAcknowledged;
     state.instaworkYes = data.instawork ?? data.instaworkYes ?? null;
     state.kompassTimesheetYes = data.kompassTimesheet ?? data.kompassTimesheetYes ?? null;
     state.materialsReadYes = data.materialsRead ?? data.materialsReadYes ?? null;
     if (data.selectedShift) state.selectedShift = data.selectedShift;
+    state.extraVisitIds = Array.isArray(data.extraVisitIds) ? data.extraVisitIds.map(String) : [];
+    state.profileLocked = !!data.profileLocked;
     // Prefer day-confirm store/date when present and matching draft keys.
     const dc = getActiveDayConfirm();
     if (dc) {
@@ -293,9 +301,12 @@
       notInStoreSelected: state.notInStoreSelected.slice(),
       notInSiSelected: state.notInSiSelected.slice(),
       helpdeskSubmittedReports: (state.helpdeskSubmittedReports || []).slice(),
+      sheetAcknowledged: !!state.sheetAcknowledged,
       instawork: state.instaworkYes,
       kompassTimesheet: state.kompassTimesheetYes,
       materialsRead: state.materialsReadYes,
+      extraVisitIds: (state.extraVisitIds || []).slice(),
+      profileLocked: !!state.profileLocked,
       selectedShift: state.selectedShift
         ? {
             visitId: state.selectedShift.visitId,

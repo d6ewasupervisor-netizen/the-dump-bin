@@ -61,11 +61,17 @@
 
       try {
         if (window.EodPhotoSessions?.createPhotoDB) {
-          window.PhotoDB = window.EodPhotoSessions.createPhotoDB({});
+          window.PhotoDB = window.EodPhotoSessions.createPhotoDB({
+            getActiveDayConfirm: () => window.EodSession?.getActiveDayConfirm?.() || null,
+          });
         }
       } catch (err) {
         console.warn('[eod-field-app] PhotoDB init failed', err);
       }
+
+      try { await window.EodApi?.ensurePersistentStorage?.(); } catch (_) {}
+      try { await window.EodRoles?.load?.(); } catch (_) {}
+      try { window.EodFeedbackHub?.init?.(); } catch (_) {}
 
       patchPortedModules();
       try { window.EodDurability?.startAutosave?.(); } catch (_) {}

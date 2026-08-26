@@ -33,7 +33,7 @@
   function yn(v) { return v ? 'Yes' : 'No'; }
 
   function collectSignoffPhotos() {
-    return photosOf('signoff').map((p) => {
+    const out = photosOf('signoff').map((p) => {
       if (typeof p === 'string') return { dataUrl: p, source: 'local' };
       return {
         dataUrl: p.dataUrl,
@@ -41,6 +41,15 @@
         filename: p.filename || null,
       };
     }).filter((p) => p.dataUrl);
+    photosOf('before').forEach((p, i) => {
+      const dataUrl = typeof p === 'string' ? p : p?.dataUrl;
+      if (dataUrl) out.push({ dataUrl, filename: `cart_before_${i}.jpg`, source: 'cart-before' });
+    });
+    photosOf('after').forEach((p, i) => {
+      const dataUrl = typeof p === 'string' ? p : p?.dataUrl;
+      if (dataUrl) out.push({ dataUrl, filename: `cart_after_${i}.jpg`, source: 'cart-after' });
+    });
+    return out;
   }
 
   function buildBodyAndReport() {
@@ -157,6 +166,10 @@ ${S.state.notes || ''}`;
       checkOutManager: S.state.checkOutManager || '',
       visitId: mainIse?.visitId || null,
       signoffPhotos: collectSignoffPhotos(),
+      cartPhotos: {
+        before: photosOf('before').map(photoSrc).filter(Boolean),
+        after: photosOf('after').map(photoSrc).filter(Boolean),
+      },
       // pdfBase64 omitted in pilot until PDF generator is ported.
       fieldApp: {
         version: global.EOD_APP_VERSION,
@@ -172,6 +185,12 @@ ${S.state.notes || ''}`;
     };
   }
 
+  function photoSrc(p) {
+    if (!p) return '';
+    if (typeof p === 'string') return p;
+    return p.dataUrl || '';
+  }
+
   function gateMessage() {
     const S = global.EodSession;
     if (!S.isVisitReady()) return 'Confirm store and date first.';
@@ -180,11 +199,18 @@ ${S.state.notes || ''}`;
     if (!S.state.emailRecipients.length && !(S.state.profileEmail || '').trim()) {
       return 'Add at least one email recipient.';
     }
+    if (!(S.state.checkInManager || '').trim()) return 'Enter the check-in manager on Visit.';
+    if (!(S.state.checkOutManager || '').trim()) return 'Enter the check-out manager (or complete PIC QR).';
+    if (photoCount('before') < 1) return 'Add a Kompass cart before photo.';
+    if (photoCount('after') < 1) return 'Add a Kompass cart after photo.';
     if (S.hasHostedSheet() && !S.sheetSendReady()) {
       return 'Digital signoff: mark every open set (or Acknowledge remaining) before sending.';
     }
-    if (!S.hasHostedSheet() && photoCount('signoff') < 1) {
-      return 'No hosted sheet — add at least one paper sign-off photo.';
+    if (!S.hasHostedSheet() && photoCount('signoff') < 1 && !(S.state.checkOutManager || '').trim()) {
+      return 'No hosted sheet — add a paper sign-off photo or complete PIC checkout.';
+    }
+    if (S.state.instaworkYes === 'Yes' && photoCount('instawork') < 1) {
+      return 'InstaWork is in use — add the sign-out photo and Confirm & Save.';
     }
     return null;
   }
@@ -195,13 +221,15 @@ ${S.state.notes || ''}`;
     if (global.EodCover?.loadStoreData) {
       try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
     }
+    try { await global.EodPicQr?.refresh?.(false); } catch (_) {}
 
     const gate = gateMessage();
     const sheet = S.state.sheet;
     mount.innerHTML = `
       <div class="card">
         <h1>Sign & send</h1>
-        <p class="muted">Review recipients and signature. Digital marks gate send when a hosted sheet exists.</p>
+        <p class="muted">Store <strong>${esc(S.state.storeNumber)}</strong> · ${esc(S.state.workDate)}</p>
+        <button type="button" class="btn btn-secondary btn-block" id="sendPhotosLink">Photos</button>
         <div class="card" style="border-style:dashed;">
           <h2>Day summary</h2>
           <p>Store <strong>${esc(S.state.storeNumber)}</strong> · ${esc(S.state.workDate)}</p>
@@ -216,6 +244,7 @@ ${S.state.notes || ''}`;
           <label>Manager checked out with</label>
           <input type="text" id="checkOutManager" value="${esc(S.state.checkOutManager || '')}" list="mgrListSend" autocomplete="off">
           <button type="button" class="btn btn-secondary btn-block" id="pickOutMgr" style="margin-top:6px;">Choose saved name</button>
+          <button type="button" class="btn btn-secondary btn-block" id="saveOutMgr" style="margin-top:6px;">Save name to store</button>
         </div>
         <datalist id="mgrListSend">${(S.state.managerNamePool || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
         <div class="field">
@@ -226,8 +255,9 @@ ${S.state.notes || ''}`;
           <h2>Kompass cart — after</h2>
           <div id="cartAfterThumbs" class="set-thumbs" style="margin-bottom:10px;"></div>
           <div class="btn-row">
-            <label class="btn btn-primary" style="cursor:pointer;">
-              Take / add
+            <button type="button" class="btn btn-primary" id="cartAfterCam">Camera</button>
+            <label class="btn btn-secondary" style="cursor:pointer;">
+              Add file
               <input type="file" accept="image/*,.heic,.heif" capture="environment" id="cartAfterInput" hidden>
             </label>
             <button type="button" class="btn btn-secondary" id="cartAfterPull">Pull from PROD</button>
@@ -261,6 +291,19 @@ ${S.state.notes || ''}`;
         </div>
       </div>`;
 
+    document.getElementById('sendPhotosLink')?.addEventListener('click', () => global.EodRouter.go('photos'));
+
+    const notesEl = document.getElementById('sendNotes');
+    if (notesEl && !(S.state.notes || '').trim()) {
+      const sheet = S.state.sheet;
+      const summary = `In: ${S.state.checkInManager || '—'} · Out: ${S.state.checkOutManager || '—'} · cart ${photoCount('before')}/${photoCount('after')} · ${
+        sheet ? `${sheet.summary?.marked || 0}/${sheet.summary?.total || 0} marked` : 'no hosted sheet'
+      }`;
+      notesEl.value = summary;
+      S.patch({ notes: summary }, 'day-summary');
+      S.saveDraft();
+    }
+
     const saveSendFields = () => {
       S.patch({
         checkOutManager: document.getElementById('checkOutManager')?.value?.trim() || '',
@@ -273,6 +316,16 @@ ${S.state.notes || ''}`;
       if (!el) return;
       el.addEventListener('change', saveSendFields);
       el.addEventListener('blur', saveSendFields);
+    });
+    document.getElementById('saveOutMgr')?.addEventListener('click', async () => {
+      const name = document.getElementById('checkOutManager')?.value?.trim();
+      if (!name) return;
+      try {
+        await global.EodCover?.addManagerName?.(name);
+        if (global.showAlert) global.showAlert('Saved', 'Manager name saved for this store.');
+      } catch (err) {
+        if (global.showAlert) global.showAlert('Save', err.message || String(err));
+      }
     });
     document.getElementById('pickOutMgr')?.addEventListener('click', () => {
       const items = (S.state.managerNamePool || []).map((n, i) => ({ id: String(i), label: n }));
@@ -307,6 +360,21 @@ ${S.state.notes || ''}`;
         if (pushBtn) pushBtn.disabled = !list.length;
       }
       paintThumbs();
+      document.getElementById('cartAfterCam')?.addEventListener('click', async () => {
+        if (!global.EodCamera?.open) return;
+        await global.EodCamera.open({
+          label: 'Kompass cart — after',
+          onCapture: async (file) => {
+            const input = document.getElementById('cartAfterInput');
+            if (!input) return;
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+          },
+          shouldContinue: () => true,
+        });
+      });
       document.getElementById('cartAfterInput')?.addEventListener('change', async (ev) => {
         const file = ev.target.files?.[0];
         ev.target.value = '';
@@ -513,6 +581,7 @@ ${S.state.notes || ''}`;
           meta.packageId = packageId;
           delete meta.pdfBase64;
           delete meta.signoffPhotos;
+          delete meta.cartPhotos;
         }
         const resp = await global.authFetch(`${global.EOD_API_BASE}/send-eod`, {
           method: 'POST',
@@ -547,10 +616,12 @@ ${S.state.notes || ''}`;
             sasNote = '\n\nEmail sent. Maintenance after-photo upload had an issue — retry from Send if needed.';
           }
         }
-        alert('EOD sent.' + sasNote);
+        if (global.showAlert) await global.showAlert('Sent', 'EOD sent.' + sasNote);
+        else alert('EOD sent.' + sasNote);
         if (global.PhotoDB?.markEmailOk) {
           try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
         }
+        await maybeClearAfterSend(S);
       } catch (err) {
         console.error(err);
         if (err && err.status === 412) {
@@ -565,6 +636,39 @@ ${S.state.notes || ''}`;
         btn.textContent = 'Send EOD';
       }
     };
+  }
+
+  async function maybeClearAfterSend(S) {
+    let pref = 'ask';
+    try { pref = localStorage.getItem('eodPostSendClearPref') || 'ask'; } catch (_) {}
+    let wipe = pref === 'always';
+    if (pref === 'never') return;
+    if (pref === 'ask' && global.EodAlerts?.showDialog) {
+      const id = await global.EodAlerts.showDialog({
+        title: 'Clear this visit?',
+        message: 'Profile and signature stay on this phone.',
+        buttons: [
+          { id: 'never', label: 'Never' },
+          { id: 'no', label: 'Keep' },
+          { id: 'yes', label: 'Clear', primary: true },
+          { id: 'always', label: 'Always' },
+        ],
+      });
+      if (id === 'always') {
+        try { localStorage.setItem('eodPostSendClearPref', 'always'); } catch (_) {}
+        wipe = true;
+      } else if (id === 'never') {
+        try { localStorage.setItem('eodPostSendClearPref', 'never'); } catch (_) {}
+        wipe = false;
+      } else {
+        wipe = id === 'yes';
+      }
+    }
+    if (wipe) {
+      await S.resetVisit({ wipePersonal: false, wipeSetBefores: false });
+      global.EodChrome?.refresh();
+      global.EodRouter.go('visit');
+    }
   }
 
   async function uploadPackageParts(payload, headers) {

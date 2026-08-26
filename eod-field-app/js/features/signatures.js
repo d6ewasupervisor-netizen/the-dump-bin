@@ -1,10 +1,15 @@
-/* Department PIC signatures — own nav section. */
+/* Department PIC signatures + daily PIC QR. */
 (function (global) {
   'use strict';
 
   async function render(mount) {
     const S = global.EodSession;
-    mount.innerHTML = `<div class="card heart dept-sig-card" id="deptSigMount"></div>`;
+    mount.innerHTML = `
+      <div id="eodPicQrMount"></div>
+      <div class="card heart dept-sig-card" id="deptSigMount"></div>`;
+    if (global.EodPicQr?.mount) {
+      try { await global.EodPicQr.mount(document.getElementById('eodPicQrMount')); } catch (_) {}
+    }
     const deptHost = document.getElementById('deptSigMount');
     if (deptHost && global.EodDeptSignatures?.mountInline) {
       await global.EodDeptSignatures.mountInline(deptHost);

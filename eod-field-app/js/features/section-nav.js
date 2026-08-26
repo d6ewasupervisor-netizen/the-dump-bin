@@ -8,14 +8,14 @@
     { id: 'signatures', label: 'Signatures' },
     { id: 'crew', label: 'Crew' },
     { id: 'dumpbin', label: 'Dump Bin' },
+    { id: 'photos', label: 'Photos' },
     { id: 'send', label: 'Send' },
     { id: 'helpdesk', label: 'Helpdesk' },
   ];
 
   const SUB = {
+    cover: { parent: 'visit', label: 'Cover' },
     survey: { parent: 'signoff', label: 'Survey' },
-    cover: { parent: 'signoff', label: 'Cover' },
-    photos: { parent: 'dumpbin', label: 'Photos' },
   };
 
   function routeId(route) {

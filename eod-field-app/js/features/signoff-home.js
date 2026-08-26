@@ -442,6 +442,7 @@
           <div class="btn-row">
             <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
             <button type="button" class="btn btn-success" id="completeAllBtn" hidden>Complete all</button>
+            <button type="button" class="btn btn-secondary" id="ackRemainingBtn" hidden>Acknowledge remaining</button>
             <button type="button" class="btn btn-secondary" id="printSignoffBtn" hidden>Print signoff PDF</button>
           </div>
           <div class="field" style="margin-top:12px;">
@@ -466,6 +467,7 @@
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
     const completeAllBtn = document.getElementById('completeAllBtn');
+    const ackRemainingBtn = document.getElementById('ackRemainingBtn');
     const printSignoffBtn = document.getElementById('printSignoffBtn');
     const syncBtn = document.getElementById('syncProdSiBtn');
     let pollTimer = null;
@@ -536,6 +538,7 @@
         summary.innerHTML = 'No hosted sheet for this store/week yet.';
         rowsEl.innerHTML = '';
         completeAllBtn.hidden = true;
+        if (ackRemainingBtn) ackRemainingBtn.hidden = true;
         printSignoffBtn.hidden = true;
         document.body.classList.add('no-hosted-sheet');
         document.body.classList.remove('has-hosted-sheet');
@@ -553,6 +556,9 @@
       completeAllBtn.hidden = open === 0;
       completeAllBtn.disabled = false;
       completeAllBtn.textContent = open ? `Complete all (${open})` : 'Complete all';
+      if (ackRemainingBtn) {
+        ackRemainingBtn.hidden = open === 0 || S.state.sheetAcknowledged || sheet.allAcknowledged;
+      }
       const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
       rowsEl.innerHTML = renderRows(sheet, q);
       rowsEl.querySelectorAll('[data-mark]').forEach((btn) => {
@@ -592,6 +598,20 @@
       }
     };
     document.getElementById('sheetSearch').oninput = () => paint();
+    if (ackRemainingBtn) {
+      ackRemainingBtn.onclick = async () => {
+        const open = (S.state.sheet?.rows || []).filter(isOpenRow).length;
+        const ok = global.showConfirm
+          ? await global.showConfirm('Acknowledge remaining', `Mark ${open} open set(s) acknowledged for send? Sets stay unmarked on the sheet.`)
+          : confirm(`Acknowledge ${open} remaining set(s) for send?`);
+        if (!ok) return;
+        if (S.state.sheet) S.state.sheet.allAcknowledged = true;
+        S.patch({ sheetAcknowledged: true }, 'ack-remaining');
+        S.saveDraft();
+        global.EodChrome?.refresh();
+        await paint();
+      };
+    }
     completeAllBtn.onclick = async () => {
       const open = (S.state.sheet?.rows || []).filter(isOpenRow);
       if (!open.length) return;

@@ -1,6 +1,8 @@
-/* Crew orbit: timesheets + roster management. */
+/* Crew orbit: timesheets, JOIN QR, SMS opt-in, roster add/remove, InstaWork photo. */
 (function (global) {
   'use strict';
+
+  const IW_SAVE_URL = 'https://eod-api.the-dump-bin.com/instawork/save-image';
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
@@ -24,115 +26,277 @@
     return members;
   }
 
+  async function loadEmployees() {
+    const resp = await global.authFetch(`${global.EOD_API_BASE}/api/employees`);
+    if (!resp.ok) return [];
+    const data = await resp.json().catch(() => []);
+    return Array.isArray(data) ? data : (data.employees || []);
+  }
+
+  async function addMember(emp) {
+    const S = global.EodSession;
+    const visitId = S.state.selectedShift?.visitId;
+    if (!visitId) throw new Error('Select a shift first');
+    const requestedBy = S.state.leadName || S.state.profileName || S.state.profileEmail || 'Unknown';
+    const resp = await global.authFetch(
+      `${global.EOD_API_BASE}/api/shifts/${encodeURIComponent(visitId)}/add`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employees: [{ employeeId: emp.employeeId || emp.id, name: emp.name, isLead: false }],
+          requestedBy,
+        }),
+      }
+    );
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Add failed (${resp.status})`);
+    if (data.requestId) {
+      pollShiftRequest(data.requestId, emp.name);
+      return { pending: true, name: emp.name };
+    }
+    return { pending: false, name: emp.name, data };
+  }
+
+  async function requestRemoval(emp) {
+    const S = global.EodSession;
+    const shift = S.state.selectedShift;
+    if (!shift?.visitId) throw new Error('Select a shift first');
+    const requestedBy = S.state.leadName || S.state.profileName || S.state.profileEmail || 'Unknown';
+    const resp = await global.authFetch(`${global.EOD_API_BASE}/api/shift-request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        visitId: shift.visitId,
+        cycleId: shift.cycleId || shift.cycle || null,
+        storeNumber: parseInt(S.state.storeNumber, 10),
+        teamName: shift.teamName || shift.projectName || '',
+        date: S.state.workDate,
+        remove: [{ shiftId: emp.shiftId, employeeId: emp.employeeId, name: emp.name }],
+        requestedBy,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Removal request failed (${resp.status})`);
+    if (data.requestId) pollShiftRequest(data.requestId, emp.name);
+    return data;
+  }
+
+  function pollShiftRequest(requestId, name) {
+    const started = Date.now();
+    const tick = async () => {
+      if (Date.now() - started > 15 * 60 * 1000) return;
+      try {
+        const resp = await global.authFetch(
+          `${global.EOD_API_BASE}/api/shift-request/${encodeURIComponent(requestId)}/status`
+        );
+        const data = await resp.json().catch(() => ({}));
+        const status = String(data.status || '').toLowerCase();
+        if (status === 'approved' || status === 'completed') {
+          const el = document.getElementById('rosterStatus');
+          if (el) el.textContent = `Approved — ${name}`;
+          return;
+        }
+        if (status === 'denied' || status === 'rejected') {
+          const el = document.getElementById('rosterStatus');
+          if (el) el.textContent = `Denied — ${name}`;
+          return;
+        }
+      } catch (_) { /* keep polling */ }
+      setTimeout(tick, 15000);
+    };
+    setTimeout(tick, 8000);
+  }
+
+  async function saveInstaworkPhoto() {
+    if (global.EodPhotos?.saveInstawork) return global.EodPhotos.saveInstawork();
+    const S = global.EodSession;
+    const photo = (S.state.photos.instawork || [])[0];
+    const dataUrl = typeof photo === 'string' ? photo : photo?.dataUrl;
+    if (!dataUrl) throw new Error('Take an InstaWork photo first.');
+    const headers = global.EodApi.dayConfirmHeaders();
+    const resp = await global.authFetch(IW_SAVE_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        imageBase64: String(dataUrl).replace(/^data:[^;]+;base64,/, ''),
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `InstaWork save failed (${resp.status})`);
+    return data;
+  }
+
   async function render(mount) {
     const S = global.EodSession;
     S.syncDomBridges();
+    const canRoster = global.EodRoles?.canManageRoster?.() !== false;
     mount.innerHTML = `
       <div class="card">
         <h1>Crew & timesheets</h1>
-        <p class="muted">InstaWork and Kompass team sheets open in a full-screen manager. Roster changes use the selected shift from Visit.</p>
-        <div class="field">
-          <label>InstaWork support today?</label>
-          <div class="btn-row">
-            <button type="button" class="btn ${S.state.instaworkYes === 'Yes' ? 'btn-primary' : 'btn-secondary'}" data-iw="Yes">Yes</button>
-            <button type="button" class="btn ${S.state.instaworkYes === 'No' ? 'btn-primary' : 'btn-secondary'}" data-iw="No">No</button>
-          </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="crewJoinQrBtn">JOIN QR</button>
+          <button type="button" class="btn btn-secondary" id="openIwBtn">InstaWork sheet</button>
+          <button type="button" class="btn btn-secondary" id="openKtBtn">Kompass sheet</button>
         </div>
-        <button type="button" class="btn btn-primary btn-block" id="openIwBtn">Open InstaWork management</button>
-        <div class="field" style="margin-top:16px;">
-          <label>Kompass team sheet today?</label>
-          <div class="btn-row">
-            <button type="button" class="btn ${S.state.kompassTimesheetYes === 'Yes' ? 'btn-primary' : 'btn-secondary'}" data-kt="Yes">Yes</button>
-            <button type="button" class="btn ${S.state.kompassTimesheetYes === 'No' ? 'btn-primary' : 'btn-secondary'}" data-kt="No">No</button>
-          </div>
+        <div id="crewSmsHost"></div>
+      </div>
+      <div class="card">
+        <h2>InstaWork sign-out photo</h2>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="iwCamBtn">Camera</button>
+          <button type="button" class="btn btn-success" id="iwSaveBtn">Confirm &amp; Save</button>
         </div>
-        <button type="button" class="btn btn-primary btn-block" id="openKtBtn">Open Kompass team management</button>
+        <div id="iwCrewMsg" class="muted" style="margin-top:8px;"></div>
       </div>
       <div class="card">
         <h2>Shift roster</h2>
         <p class="muted" id="rosterShiftMeta">${S.state.selectedShift
           ? esc(S.state.selectedShift.projectName || 'Selected shift')
           : 'No shift selected — go to Visit and Find shifts.'}</p>
+        <div id="rosterStatus" class="muted"></div>
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="refreshRosterBtn">Refresh roster</button>
-          <button type="button" class="btn btn-secondary" id="viewRosterBtn">View roster</button>
         </div>
         <div id="rosterList" style="margin-top:10px;"></div>
+        <div id="rosterEdit" ${canRoster ? '' : 'hidden'} style="margin-top:12px;">
+          <div class="field">
+            <label>Add member</label>
+            <select id="smAddSelect"><option value="">—</option></select>
+            <button type="button" class="btn btn-primary btn-block" id="rosterAddBtn" style="margin-top:6px;">Add to shift</button>
+          </div>
+          <div class="field">
+            <label>Request removal</label>
+            <select id="smRemoveSelect"><option value="">—</option></select>
+            <button type="button" class="btn btn-secondary btn-block" id="rosterRemoveBtn" style="margin-top:6px;">Request removal</button>
+          </div>
+        </div>
       </div>`;
 
-    mount.querySelectorAll('[data-iw]').forEach((btn) => {
-      btn.onclick = () => {
-        const v = btn.getAttribute('data-iw');
-        S.patch({ instaworkYes: v }, 'iw');
-        S.saveDraft();
-        mount.querySelectorAll('[data-iw]').forEach((b) => {
-          const on = b.getAttribute('data-iw') === v;
-          b.classList.toggle('btn-primary', on);
-          b.classList.toggle('btn-secondary', !on);
-        });
-      };
-    });
-    mount.querySelectorAll('[data-kt]').forEach((btn) => {
-      btn.onclick = () => {
-        const v = btn.getAttribute('data-kt');
-        S.patch({ kompassTimesheetYes: v }, 'kt');
-        S.saveDraft();
-        mount.querySelectorAll('[data-kt]').forEach((b) => {
-          const on = b.getAttribute('data-kt') === v;
-          b.classList.toggle('btn-primary', on);
-          b.classList.toggle('btn-secondary', !on);
-        });
-      };
-    });
+    try { global.EodSmsOptinQr?.ensureUi?.(); } catch (_) {}
+    const smsHost = document.getElementById('crewSmsHost');
+    const existingQr = document.getElementById('eodSmsOptinQrBlock');
+    if (smsHost && existingQr && existingQr.parentElement !== smsHost) {
+      smsHost.appendChild(existingQr);
+    }
 
+    document.getElementById('crewJoinQrBtn').onclick = async () => {
+      try {
+        if (global.EodTimesheetMgmt?.showJoinQr) await global.EodTimesheetMgmt.showJoinQr();
+        else if (global.showAlert) global.showAlert('JOIN QR', 'Timesheet module not loaded');
+      } catch (err) {
+        if (global.showAlert) global.showAlert('JOIN QR', err.message || String(err));
+      }
+    };
     document.getElementById('openIwBtn').onclick = () => {
+      S.patch({ instaworkYes: 'Yes' }, 'iw');
+      S.saveDraft();
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('instawork');
-      else if (typeof global.openInstaworkManagement === 'function') global.openInstaworkManagement();
-      else alert('Timesheet module not loaded');
     };
     document.getElementById('openKtBtn').onclick = () => {
+      S.patch({ kompassTimesheetYes: 'Yes' }, 'kt');
+      S.saveDraft();
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('kompass');
-      else if (typeof global.openKompassManagement === 'function') global.openKompassManagement();
-      else alert('Timesheet module not loaded');
+    };
+    document.getElementById('iwCamBtn').onclick = async () => {
+      if (global.EodCamera?.open) {
+        await global.EodCamera.open({
+          label: 'InstaWork sign-out',
+          onCapture: async (file) => {
+            if (global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('instawork', [file]);
+          },
+          shouldContinue: () => false,
+        });
+      } else {
+        global.EodRouter.go('photos');
+      }
+    };
+    document.getElementById('iwSaveBtn').onclick = async () => {
+      const msg = document.getElementById('iwCrewMsg');
+      try {
+        if (msg) msg.textContent = 'Saving…';
+        await saveInstaworkPhoto();
+        if (msg) msg.textContent = 'InstaWork sheet saved.';
+      } catch (err) {
+        if (msg) msg.textContent = err.message || String(err);
+      }
     };
 
     const list = document.getElementById('rosterList');
+    const addSel = document.getElementById('smAddSelect');
+    const rmSel = document.getElementById('smRemoveSelect');
+
     async function paintRoster() {
       try {
         const members = await loadMembers();
         if (!members.length) {
           list.innerHTML = '<p class="muted">No members loaded.</p>';
-          return;
+        } else {
+          list.innerHTML = members.map((m) => `
+            <div class="member-row">
+              <strong>${esc(m.name || 'Unknown')}${m.isLead ? ' (Lead)' : ''}</strong>
+              <div class="muted">${esc(m.shiftTime || m.title || '')}</div>
+            </div>`).join('');
         }
-        list.innerHTML = members.map((m) => `
-          <div class="member-row">
-            <strong>${esc(m.name || 'Unknown')}${m.isLead ? ' (Lead)' : ''}</strong>
-            <div class="muted">${esc(m.shiftTime || m.title || '')}</div>
-          </div>`).join('');
+        if (rmSel) {
+          rmSel.innerHTML = '<option value="">—</option>' + members.map((m, i) =>
+            `<option value="${i}">${esc(m.name || 'Unknown')}</option>`
+          ).join('');
+        }
+        if (canRoster && addSel) {
+          const employees = await loadEmployees();
+          const memberIds = new Set(members.map((m) => String(m.employeeId || m.id || '')));
+          addSel.innerHTML = '<option value="">—</option>' + employees
+            .filter((e) => !memberIds.has(String(e.employeeId || e.id || '')))
+            .map((e) => `<option value="${esc(String(e.employeeId || e.id))}">${esc(e.name || 'Unknown')}</option>`)
+            .join('');
+          addSel._employees = employees;
+        }
       } catch (err) {
         list.innerHTML = `<p style="color:#ef4444;">${esc(err.message)}</p>`;
       }
     }
 
     document.getElementById('refreshRosterBtn').onclick = () => paintRoster();
-    document.getElementById('viewRosterBtn').onclick = () => {
-      const members = S.state.members || [];
-      global.EodPicker.open({
-        title: 'Current roster',
-        items: members.length
-          ? members.map((m, i) => ({
-              id: String(m.employeeId || i),
-              label: m.name || 'Unknown',
-              sublabel: m.isLead ? 'Lead' : (m.title || ''),
-            }))
-          : [{ id: 'empty', label: 'No members', disabled: true }],
-        searchable: members.length > 6,
-      });
-    };
+    document.getElementById('rosterAddBtn')?.addEventListener('click', async () => {
+      const empId = addSel?.value;
+      const employees = addSel?._employees || [];
+      const emp = employees.find((e) => String(e.employeeId || e.id) === String(empId));
+      if (!emp) return;
+      const ok = await (global.showConfirm
+        ? global.showConfirm('Add to shift', `Add ${emp.name}?`)
+        : Promise.resolve(confirm(`Add ${emp.name}?`)));
+      if (!ok) return;
+      try {
+        const r = await addMember(emp);
+        document.getElementById('rosterStatus').textContent = r.pending
+          ? `Pending addition: ${r.name}`
+          : `Added ${r.name}`;
+        await paintRoster();
+      } catch (err) {
+        document.getElementById('rosterStatus').textContent = err.message || String(err);
+      }
+    });
+    document.getElementById('rosterRemoveBtn')?.addEventListener('click', async () => {
+      const idx = Number(rmSel?.value);
+      const emp = (S.state.members || [])[idx];
+      if (!emp) return;
+      const ok = await (global.showConfirm
+        ? global.showConfirm('Request removal', `Request removal of ${emp.name}?`)
+        : Promise.resolve(confirm(`Request removal of ${emp.name}?`)));
+      if (!ok) return;
+      try {
+        await requestRemoval(emp);
+        document.getElementById('rosterStatus').textContent = `Removal requested — ${emp.name}`;
+      } catch (err) {
+        document.getElementById('rosterStatus').textContent = err.message || String(err);
+      }
+    });
     await paintRoster();
   }
 
-  // Bridge names used by live timesheet module entry points
   global.openInstaworkManagement = function () {
     if (global.EodTimesheetMgmt?.open) return global.EodTimesheetMgmt.open('instawork');
   };

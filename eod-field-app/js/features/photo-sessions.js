@@ -701,6 +701,62 @@
         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     }
 
+    async function estimatePhotoBytes() {
+      const sessions = await listSessionSummaries();
+      return sessions.reduce((a, s) => a + (s.bytes || 0), 0);
+    }
+
+    async function compressOldPhotos({ skipActive = true, minBytes = 350 * 1024 } = {}) {
+      const compress = global.EodPhotoCompress?.compressDataUrl;
+      if (!compress) return { compressed: 0, sessions: 0 };
+      const activeId = skipActive ? resolveActiveKey()?.id : null;
+      const sessions = await listSessionSummaries();
+      let compressed = 0;
+      let touched = 0;
+      for (const s of sessions) {
+        if (activeId && s.id === activeId) continue;
+        const rec = await getRecord(s.id);
+        if (!rec) continue;
+        let changed = false;
+        for (const type of PHOTO_TYPES) {
+          const arr = Array.isArray(rec[type]) ? rec[type] : [];
+          const next = [];
+          for (const p of arr) {
+            const dataUrl = typeof p === 'string' ? p : (p && p.dataUrl);
+            if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+              next.push(p);
+              continue;
+            }
+            const approx = Math.floor(((dataUrl.split(',')[1] || '').length * 3) / 4);
+            if (approx < minBytes) {
+              next.push(p);
+              continue;
+            }
+            try {
+              const out = await compress(dataUrl, type === 'signoff' || type === 'instawork' ? type : 'default');
+              if (out?.dataUrl && out.dataUrl !== dataUrl) {
+                compressed += 1;
+                changed = true;
+                if (typeof p === 'string') next.push(out.dataUrl);
+                else next.push(Object.assign({}, p, { dataUrl: out.dataUrl }));
+              } else {
+                next.push(p);
+              }
+            } catch (_) {
+              next.push(p);
+            }
+          }
+          rec[type] = next;
+        }
+        if (changed) {
+          rec.timestamp = Date.now();
+          await putRecord(rec);
+          touched += 1;
+        }
+      }
+      return { compressed, sessions: touched };
+    }
+
     async function quarantineSummary() {
       const q = await getRecord(QUARANTINE_ID);
       if (!q) return null;
@@ -903,6 +959,8 @@
       migrateFromLegacyIfNeeded,
       switchToDayConfirm,
       unsentSessions,
+      estimatePhotoBytes,
+      compressOldPhotos,
       quarantineSummary,
       readStorageEstimate,
       storagePressure,

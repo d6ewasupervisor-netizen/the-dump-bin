@@ -30,7 +30,9 @@
       document.getElementById('eodSmsOptinQrStyles')?.remove();
     }
 
-    const container = document.querySelector('.container');
+    const container = document.querySelector('.container')
+      || document.getElementById('crewSmsHost');
+    if (!container) return;
     if (!container) return;
 
     const block = document.createElement('div');

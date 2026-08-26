@@ -486,12 +486,13 @@
     input.value = '';
     for (const file of files) {
       try {
+        const converted = global.EodHeic?.prepareFile ? await global.EodHeic.prepareFile(file) : file;
         let dataUrl;
         if (global.EodPhotoCompress?.compressFile) {
-          const out = await global.EodPhotoCompress.compressFile(file, 'signoff');
+          const out = await global.EodPhotoCompress.compressFile(converted, 'signoff');
           dataUrl = out.dataUrl;
         } else {
-          dataUrl = await fileToDataUrl(file);
+          dataUrl = await fileToDataUrl(converted);
         }
         issues[idx].photos.push(dataUrl);
       } catch (e) {
@@ -511,6 +512,29 @@
   }
 
   function takePhoto(issueIdx) {
+    if (global.EodCamera?.open) {
+      global.EodCamera.open({
+        label: 'Helpdesk photo',
+        onCapture: async (file) => {
+          try {
+            const converted = global.EodHeic?.prepareFile ? await global.EodHeic.prepareFile(file) : file;
+            let dataUrl;
+            if (global.EodPhotoCompress?.compressFile) {
+              const out = await global.EodPhotoCompress.compressFile(converted, 'signoff');
+              dataUrl = out.dataUrl;
+            } else {
+              dataUrl = await fileToDataUrl(converted);
+            }
+            issues[issueIdx].photos.push(dataUrl);
+            paintThumbs(issueIdx);
+          } catch (e) {
+            console.warn('Helpdesk camera failed:', e);
+          }
+        },
+        shouldContinue: () => true,
+      });
+      return;
+    }
     const input = document.querySelector(`.hd-photo-input[data-idx="${issueIdx}"]`);
     if (!input) return;
     input.setAttribute('capture', 'environment');
@@ -520,9 +544,17 @@
 
   function annotatePhoto(issueIdx, photoIdx) {
     const dataUrl = issues[issueIdx]?.photos?.[photoIdx];
-    const editor = global.openImageEditor;
-    if (!dataUrl || typeof editor !== 'function') return;
+    if (!dataUrl) return;
     photoEdit = { issueIdx, photoIdx };
+    if (global.EodPhotoEditor?.open) {
+      global.EodPhotoEditor.open({
+        dataUrl,
+        onSave: (url) => global.saveHelpdeskAnnotatedPhoto(url),
+      });
+      return;
+    }
+    const editor = global.openImageEditor;
+    if (typeof editor !== 'function') return;
     if (!global.photos) global.photos = {};
     global.photos.helpdesk = [dataUrl];
     editor(0, 'helpdesk');

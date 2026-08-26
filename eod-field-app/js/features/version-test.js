@@ -60,8 +60,9 @@
 
   function canForceLive() {
     try {
-      const email = (global.EodSession?.state?.profileEmail || '').toLowerCase();
-      return email.includes('gauthier') || email.includes('d6ewa.supervisor');
+      if (global.EodRoles?.canForceLive) return !!global.EodRoles.canForceLive();
+      const roles = global.EodRoles?.roles?.() || [];
+      return roles.includes('admin') || roles.includes('supervisor');
     } catch (_) {
       return false;
     }

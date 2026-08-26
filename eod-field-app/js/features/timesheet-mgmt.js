@@ -717,6 +717,7 @@
   }
 
   async function showJoinQr() {
+    ensureOverlay();
     try {
       if (!state.join?.joinUrl) await refreshJoinToken(false);
       const join = state.join;
