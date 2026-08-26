@@ -258,7 +258,7 @@
     const map = setsMap();
     const keys = Object.keys(map);
     const norm = visitKey(selectedVisitId);
-    if (!keys.length) return '<option value="">Find shifts on Visit first</option>';
+    if (!keys.length) return '<option value="">Confirm store on Visit first</option>';
     return '<option value="">Select shift…</option>' + keys.map((vid) =>
       `<option value="${htmlEsc(vid)}"${norm === visitKey(vid) ? ' selected' : ''}>${htmlEsc(map[vid]?.label || vid)}</option>`
     ).join('');

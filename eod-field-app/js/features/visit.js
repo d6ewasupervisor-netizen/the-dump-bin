@@ -160,7 +160,8 @@
     const S = global.EodSession;
     listEl.innerHTML = '<p class="muted">Searching…</p>';
     const resp = await global.authFetch(
-      `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`
+      `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`,
+      { busyForce: true }
     );
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -709,13 +710,12 @@
         <div id="visitStatus" class="muted" style="min-height:1.2em;margin-bottom:8px;"></div>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="confirmVisitBtn">${ready ? 'Re-confirm store' : 'Confirm store & date'}</button>
-          <button type="button" class="btn btn-secondary" id="findShiftsBtn" ${ready ? '' : 'disabled'}>Find shifts</button>
         </div>
       </div>
 
       <div class="card" id="shiftCard">
         <h2>Shifts</h2>
-        <div id="shiftList">${S.state.shifts.length ? renderShiftCards(S.state.shifts, selIdx) : '<p class="muted">Confirm store, then find shifts.</p>'}</div>
+        <div id="shiftList">${S.state.shifts.length ? renderShiftCards(S.state.shifts, selIdx) : '<p class="muted">Confirm store to load shifts.</p>'}</div>
         <div class="field" style="margin-top:14px;">
           <label>Lead name</label>
           <input type="text" id="visitLeadName" value="${esc(S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked ? 'readonly' : ''}>
@@ -778,13 +778,13 @@
       S.patch({ profileEmail: email, storeNumber: store, workDate: date }, 'profile');
       const btn = document.getElementById('confirmVisitBtn');
       btn.disabled = true;
+      if (global.EodBusy?.beginBusy) global.EodBusy.beginBusy({ force: true });
       try {
         const result = await verifyAndPersist(store, date, status);
         if (!result.ok) {
           if (result.needsOverride) {
             showOverridePrompt(store, date, status, async () => {
               status.innerHTML = '<span style="color:#22c55e;">Store confirmed for today.</span>';
-              document.getElementById('findShiftsBtn').disabled = false;
               global.EodChrome?.refresh();
               await prefetchSheetWeek(store, date);
               try {
@@ -801,7 +801,6 @@
           return;
         }
         status.innerHTML = '<span style="color:#22c55e;">Store confirmed for today.</span>';
-        document.getElementById('findShiftsBtn').disabled = false;
         global.EodChrome?.refresh();
         await prefetchSheetWeek(store, date);
         if (global.PhotoDB?.switchToDayConfirm) {
@@ -818,18 +817,7 @@
         status.innerHTML = `<span style="color:#ef4444;">${esc(err.message)}</span>`;
       } finally {
         btn.disabled = false;
-      }
-    };
-
-    document.getElementById('findShiftsBtn').onclick = async () => {
-      const store = document.getElementById('visitStore').value.trim();
-      const date = document.getElementById('visitDate').value.trim();
-      try {
-        await findShifts(store, date, document.getElementById('shiftList'));
-        paintOnboarding();
-        updateContinueBtn();
-      } catch (err) {
-        document.getElementById('shiftList').innerHTML = `<p style="color:#ef4444;">${esc(err.message)}</p>`;
+        if (global.EodBusy?.endBusy) global.EodBusy.endBusy();
       }
     };
 

@@ -151,7 +151,7 @@
         <h2>Shift roster</h2>
         <p class="muted" id="rosterShiftMeta">${S.state.selectedShift
           ? esc(S.state.selectedShift.projectName || 'Selected shift')
-          : 'No shift selected — go to Visit and Find shifts.'}</p>
+          : 'No shift selected — confirm store on Visit.'}</p>
         <div id="rosterStatus" class="muted"></div>
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="refreshRosterBtn">Refresh roster</button>

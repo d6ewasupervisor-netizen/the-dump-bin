@@ -70,6 +70,7 @@
       }
 
       try { await window.EodApi?.ensurePersistentStorage?.(); } catch (_) {}
+      try { window.EodBusy?.init?.(); } catch (_) {}
       try { await window.EodRoles?.load?.(); } catch (_) {}
       try { window.EodFeedbackHub?.init?.(); } catch (_) {}
 

@@ -47,7 +47,7 @@ Localhost needs its own Dump Bin JWT (Pilot sign-in card).
 ## Smoke checklist
 
 1. Confirm store + date (999 first, then a real store).
-2. Find shifts — one visit auto-selects; two+ pick ISE and optionally Also this visit.
+2. Confirm store — visits load automatically; one visit auto-selects; two+ pick ISE and optionally Also this visit.
 3. Cart before (camera or No Kompass Cart) → Categories marks → Signatures PIC QR → Crew JOIN/IW → Send.
 4. Hosted sheet: marks or Acknowledge remaining gate Send. No sheet: paper photo path on Photos.
 5. Send includes coversheet + signoff + cart photos; after send, choose Clear / Keep.

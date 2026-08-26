@@ -512,19 +512,19 @@
           <span>${esc(p.label || '')}</span>
         </div>`
       ).join('');
-      for (const el of host.querySelectorAll('.set-thumb')) {
+      await Promise.all([...host.querySelectorAll('.set-thumb')].map(async (el) => {
         const p = photos[Number(el.dataset.i)];
         const path = p?.thumbUrl || p?.url || '';
-        if (!path) continue;
+        if (!path) return;
         const abs = /^https?:/i.test(path) ? path : API_ORIGIN + path;
         try {
           const resp = await global.authFetch(abs);
-          if (!resp.ok) continue;
+          if (!resp.ok) return;
           const blob = await resp.blob();
           const img = el.querySelector('img');
           if (img) img.src = URL.createObjectURL(blob);
         } catch (_) {}
-      }
+      }));
     }
 
     function persistBefores() {

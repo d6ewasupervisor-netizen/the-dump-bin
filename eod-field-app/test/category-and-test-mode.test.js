@@ -169,3 +169,20 @@ test('InstaWork save URL is the hosted eod-api, never localhost', () => {
   assert.doesNotMatch(crew, /127\.0\.0\.1/);
   assert.doesNotMatch(saver, /localhost:\d+/);
 });
+
+test('Visit confirm loads shifts; Find shifts button is gone', () => {
+  const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
+  assert.doesNotMatch(visit, /findShiftsBtn/);
+  assert.match(visit, /Confirm store to load shifts/);
+  assert.match(visit, /busyForce: true/);
+});
+
+test('compass buffering overlay ships and wraps slow authFetch', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const busy = fs.readFileSync(path.join(__dirname, '../js/lib/eod-buffering.js'), 'utf8');
+  assert.match(html, /js\/lib\/eod-buffering\.js/);
+  assert.match(html, /id="eodBuffering"/);
+  assert.match(html, /assets\/buffering\.gif/);
+  assert.match(busy, /assets\/buffering\.gif/);
+  assert.match(busy, /wrapAuthFetch/);
+});
