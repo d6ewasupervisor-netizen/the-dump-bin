@@ -517,19 +517,102 @@
 
   }
 
-  async function doReset() {
-    const S = global.EodSession;
-    const wipePersonal = confirm(
-      'Reset visit?\n\nOK = clear store, shift, day-confirm, cart photos, and check-in.\n\nCancel = abort.\n\n(You will be asked separately about personal name/email and week before photos.)'
-    );
-    if (!wipePersonal) return;
-    const wipeProfile = confirm('Also remove saved name / email / signature on this phone?');
-    const wipeBefores = confirm(
-      'Also erase week-scoped SET BEFORE photos on this phone?\n\nChoose Cancel to keep Monday befores for later backlog days.'
-    );
-    await S.resetVisit({ wipePersonal: wipeProfile, wipeSetBefores: wipeBefores });
-    global.EodChrome?.refresh();
-    global.EodRouter.render();
+  const RESET_OPTS_KEY = 'eodVisitResetOpts';
+
+  function loadResetOpts() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(RESET_OPTS_KEY) || '{}');
+      return {
+        wipePersonal: !!raw.wipePersonal,
+        wipeSetBefores: !!raw.wipeSetBefores,
+      };
+    } catch (_) {
+      return { wipePersonal: false, wipeSetBefores: false };
+    }
+  }
+
+  function saveResetOpts(opts) {
+    try {
+      localStorage.setItem(RESET_OPTS_KEY, JSON.stringify({
+        wipePersonal: !!opts.wipePersonal,
+        wipeSetBefores: !!opts.wipeSetBefores,
+      }));
+    } catch (_) {}
+  }
+
+  function closeResetOverlay() {
+    document.getElementById('visitResetOverlay')?.remove();
+  }
+
+  function openResetOverlay() {
+    closeResetOverlay();
+    const opts = loadResetOpts();
+    const overlay = document.createElement('div');
+    overlay.id = 'visitResetOverlay';
+    overlay.className = 'modal-overlay show';
+    overlay.innerHTML = `
+      <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="visitResetTitle">
+        <h2 id="visitResetTitle">Reset</h2>
+        <div class="reset-level">
+          <div class="reset-level-copy">
+            <strong>This visit</strong>
+            <span>Store, shift, day-confirm, cart, check-in</span>
+          </div>
+          <label class="toggle-switch-wrapper">
+            <input type="checkbox" id="resetWipeVisit" checked disabled>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="reset-level">
+          <div class="reset-level-copy">
+            <strong>Personal</strong>
+            <span>Name, email, signature on this phone</span>
+          </div>
+          <label class="toggle-switch-wrapper">
+            <input type="checkbox" id="resetWipePersonal" ${opts.wipePersonal ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="reset-level">
+          <div class="reset-level-copy">
+            <strong>Week befores</strong>
+            <span>Set-before photos for this store this week</span>
+          </div>
+          <label class="toggle-switch-wrapper">
+            <input type="checkbox" id="resetWipeBefores" ${opts.wipeSetBefores ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button type="button" class="btn btn-secondary" id="visitResetCancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="visitResetConfirm">Reset</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    function currentOpts() {
+      return {
+        wipePersonal: !!overlay.querySelector('#resetWipePersonal')?.checked,
+        wipeSetBefores: !!overlay.querySelector('#resetWipeBefores')?.checked,
+      };
+    }
+
+    overlay.querySelector('#resetWipePersonal').onchange = () => saveResetOpts(currentOpts());
+    overlay.querySelector('#resetWipeBefores').onchange = () => saveResetOpts(currentOpts());
+    overlay.querySelector('#visitResetCancel').onclick = closeResetOverlay;
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeResetOverlay(); });
+    overlay.querySelector('#visitResetConfirm').onclick = async () => {
+      const chosen = currentOpts();
+      saveResetOpts(chosen);
+      closeResetOverlay();
+      await global.EodSession.resetVisit(chosen);
+      global.EodChrome?.refresh();
+      global.EodRouter.render();
+    };
+  }
+
+  function doReset() {
+    openResetOverlay();
   }
 
   async function render(mount) {
