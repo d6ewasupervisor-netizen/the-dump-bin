@@ -42,14 +42,11 @@
   }
 
   function ask(title, message) {
-    return new Promise((resolve) => {
-      if (typeof global.showConfirm === 'function') {
-        global.showConfirm(title, message, () => resolve(true), () => resolve(false));
-        return;
-      }
-      const text = String(message || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      resolve(window.confirm(title ? `${title}\n\n${text}` : text));
-    });
+    if (typeof global.showConfirm === 'function') {
+      return Promise.resolve(global.showConfirm(title, message)).then(Boolean);
+    }
+    const text = String(message || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return Promise.resolve(window.confirm(title ? `${title}\n\n${text}` : text));
   }
 
   function st() { return global.EodSession?.state || {}; }
@@ -649,13 +646,22 @@
 
   async function askNisReport(row) {
     const name = row?.catName || row?.dbkey || 'this set';
-    const ok = await ask(
-      'Report this to the help desk?',
-      `This set is not in store:\n\n${name}\n\nSend a KOMPASS help desk report with the full set details?`
-    );
-    if (!ok) return false;
-    await openFromRow(row);
-    return true;
+    const show = global.EodAlerts?.showDialog;
+    const choice = show
+      ? await show({
+          title: 'Report this to the help desk?',
+          message: `This set is not in store:\n\n${name}\n\nSend a KOMPASS help desk report with the full set details?`,
+          buttons: [
+            { id: 'skip', label: "Don't Report" },
+            { id: 'report', label: 'Please Report', primary: true },
+            { id: 'cancel', label: 'Cancel' },
+          ],
+        })
+      : ((await ask(
+          'Report this to the help desk?',
+          `This set is not in store:\n\n${name}\n\nSend a KOMPASS help desk report with the full set details?`
+        )) ? 'report' : 'cancel');
+    return choice;
   }
 
   function closeWizard() {

@@ -242,7 +242,6 @@
 
   async function applyMark(rowId, markType, opts) {
     const skipReload = !!(opts && opts.skipReload);
-    const skipHelpdeskPrompt = !!(opts && opts.skipHelpdeskPrompt);
     const forceOn = !!(opts && opts.forceOn);
     const helpdeskSent = !!(opts && opts.helpdeskSent);
     const S = global.EodSession;
@@ -290,15 +289,6 @@
         const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId)) || current;
         const label = rowLabel(row);
         S.appendNote?.(`Not in store: ${label}`);
-        if (!skipHelpdeskPrompt) {
-          try {
-            if (typeof global.askToReportNotInStore === 'function') {
-              await global.askToReportNotInStore(row || { id: rowId });
-            } else if (typeof global.openHelpdeskForSheetRow === 'function') {
-              await global.openHelpdeskForSheetRow(row || { id: rowId });
-            }
-          } catch (_) {}
-        }
       }
     }
     if (!skipReload) await loadSheet();
@@ -320,7 +310,6 @@
       return false;
     }
     await applyMark(row.id, 'not_in_store', {
-      skipHelpdeskPrompt: true,
       forceOn: true,
       helpdeskSent: true,
     });
@@ -375,8 +364,12 @@
     location.hash = `#/survey?${qs.toString()}`;
   }
 
-  function renderRows(sheet, q) {
+  function renderRows(sheet, q, filters) {
     const rows = (sheet.rows || []).filter((row) => {
+      if (global.EodCategoryCardStatus?.matchesSheetFilters
+        && !global.EodCategoryCardStatus.matchesSheetFilters(row, filters)) {
+        return false;
+      }
       if (!q) return true;
       const locSearch = global.EodCategoryCardStatus
         ? global.EodCategoryCardStatus.siLocationLabel(row)
@@ -445,6 +438,25 @@
             <button type="button" class="btn btn-secondary" id="ackRemainingBtn" hidden>Acknowledge remaining</button>
             <button type="button" class="btn btn-secondary" id="printSignoffBtn" hidden>Print signoff PDF</button>
           </div>
+          <div class="ds-filters" id="sheetFilters">
+            <div class="ds-filter-row">
+              <span class="ds-filter-label">PROD</span>
+              <button type="button" class="btn btn-secondary on" data-filter="prod" data-value="all">All</button>
+              <button type="button" class="btn btn-secondary" data-filter="prod" data-value="done">Done</button>
+              <button type="button" class="btn btn-secondary" data-filter="prod" data-value="not_done">Not done</button>
+            </div>
+            <div class="ds-filter-row">
+              <span class="ds-filter-label">SI</span>
+              <button type="button" class="btn btn-secondary on" data-filter="si" data-value="all">All</button>
+              <button type="button" class="btn btn-secondary" data-filter="si" data-value="done">Done</button>
+              <button type="button" class="btn btn-secondary" data-filter="si" data-value="not_done">Not done</button>
+            </div>
+            <div class="ds-filter-row">
+              <span class="ds-filter-label">Sheet</span>
+              <button type="button" class="btn btn-secondary" data-filter="notInStore">Not in store</button>
+              <button type="button" class="btn btn-secondary" data-filter="notInSi">Not in SI</button>
+            </div>
+          </div>
           <div class="field" style="margin-top:12px;">
             <label>Search sets</label>
             <input type="search" id="sheetSearch" placeholder="Category, DBKEY, dept…">
@@ -470,7 +482,21 @@
     const ackRemainingBtn = document.getElementById('ackRemainingBtn');
     const printSignoffBtn = document.getElementById('printSignoffBtn');
     const syncBtn = document.getElementById('syncProdSiBtn');
+    const filters = { prod: 'all', si: 'all', notInStore: false, notInSi: false };
     let pollTimer = null;
+
+    function paintFilterChips() {
+      const host = document.getElementById('sheetFilters');
+      if (!host) return;
+      host.querySelectorAll('[data-filter]').forEach((btn) => {
+        const key = btn.getAttribute('data-filter');
+        if (key === 'prod' || key === 'si') {
+          btn.classList.toggle('on', filters[key] === btn.getAttribute('data-value'));
+        } else {
+          btn.classList.toggle('on', !!filters[key]);
+        }
+      });
+    }
 
     function pacificHourNow() {
       try {
@@ -574,12 +600,27 @@
         ackRemainingBtn.hidden = open === 0 || S.state.sheetAcknowledged || sheet.allAcknowledged;
       }
       const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
-      rowsEl.innerHTML = renderRows(sheet, q);
+      paintFilterChips();
+      rowsEl.innerHTML = renderRows(sheet, q, filters);
       rowsEl.querySelectorAll('[data-mark]').forEach((btn) => {
         btn.onclick = async () => {
+          const rowId = btn.getAttribute('data-row');
+          const markType = btn.getAttribute('data-mark');
+          const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+          const turningOnNis = markType === 'not_in_store' && current && !markActive(current, 'not_in_store');
+          let nisChoice = null;
+          if (turningOnNis && typeof global.askToReportNotInStore === 'function') {
+            nisChoice = await global.askToReportNotInStore(current);
+            if (!nisChoice || nisChoice === 'cancel') return;
+          }
           btn.disabled = true;
           try {
-            await applyMark(btn.getAttribute('data-row'), btn.getAttribute('data-mark'));
+            await applyMark(rowId, markType, turningOnNis
+              ? { helpdeskSent: nisChoice === 'report' }
+              : undefined);
+            if (turningOnNis && nisChoice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
+              await global.openHelpdeskForSheetRow(current);
+            }
             await paint();
             try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
             global.EodChrome?.refresh();
@@ -612,6 +653,17 @@
       }
     };
     document.getElementById('sheetSearch').oninput = () => paint();
+    document.getElementById('sheetFilters')?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-filter]');
+      if (!btn) return;
+      const key = btn.getAttribute('data-filter');
+      if (key === 'prod' || key === 'si') {
+        filters[key] = btn.getAttribute('data-value') || 'all';
+      } else {
+        filters[key] = !filters[key];
+      }
+      paint();
+    });
     if (ackRemainingBtn) {
       ackRemainingBtn.onclick = async () => {
         const open = (S.state.sheet?.rows || []).filter(isOpenRow).length;

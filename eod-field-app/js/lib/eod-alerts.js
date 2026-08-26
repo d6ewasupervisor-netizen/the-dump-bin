@@ -22,6 +22,7 @@
       .eod-alert-dialog h2 { margin: 0 0 8px; font-size: 18px; }
       .eod-alert-dialog .eod-alert-body { margin: 0 0 14px; white-space: pre-wrap; color: var(--muted, #cbd5e1); font-size: 15px; line-height: 1.4; }
       .eod-alert-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+      .eod-alert-actions .btn { min-height: 44px; flex: 1 1 auto; }
     `;
     document.head.appendChild(css);
   }

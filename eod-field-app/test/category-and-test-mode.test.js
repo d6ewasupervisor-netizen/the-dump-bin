@@ -6,6 +6,7 @@ const {
   beforePillState,
   beforePillHtml,
   siLocationLabel,
+  matchesSheetFilters,
 } = require('../js/lib/category-card-status');
 const {
   hasLoadedShift,
@@ -40,6 +41,26 @@ test('SI location label uses live.siLocation.label', () => {
     'Aisle 12 · 01-GROCERY · 6 bays'
   );
   assert.equal(siLocationLabel({ live: {} }), '');
+});
+
+test('sheet filters: PROD/SI done and not-in-store / not-in-SI marks', () => {
+  const done = {
+    live: { prodComplete: true, prodStatus: 'done', siComplete: true, siStatus: 'completed' },
+    marks: { active: ['complete'] },
+  };
+  const open = {
+    live: { prodStatus: 'open', siPresent: true, siStatus: 'in_progress' },
+    marks: { active: [] },
+  };
+  const nis = { live: { prodStatus: 'absent' }, marks: { notInStore: true, active: ['not_in_store'] } };
+  const nisi = { live: { siPresent: false }, marks: { notInSi: true, active: ['not_in_si'] } };
+  assert.equal(matchesSheetFilters(done, { prod: 'done', si: 'done' }), true);
+  assert.equal(matchesSheetFilters(open, { prod: 'done' }), false);
+  assert.equal(matchesSheetFilters(open, { prod: 'not_done', si: 'not_done' }), true);
+  assert.equal(matchesSheetFilters(nis, { notInStore: true }), true);
+  assert.equal(matchesSheetFilters(open, { notInStore: true }), false);
+  assert.equal(matchesSheetFilters(nisi, { notInSi: true }), true);
+  assert.equal(matchesSheetFilters(nis, { notInStore: true, notInSi: true }), true);
 });
 
 test('hasLoadedShift is true for a real store with a visit or sheet', () => {
@@ -193,4 +214,26 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.match(busy, /dismissBusy/);
   assert.match(signoff, /skipBusy: true/);
   assert.match(survey, /skipBusy: true/);
+});
+
+test('Not in store prompt uses Don\'t Report / Please Report / Cancel before marking', () => {
+  const wizard = fs.readFileSync(path.join(__dirname, '../js/features/helpdesk-wizard.js'), 'utf8');
+  const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  assert.match(wizard, /Don't Report/);
+  assert.match(wizard, /Please Report/);
+  assert.match(wizard, /id: 'cancel', label: 'Cancel'/);
+  assert.match(signoff, /askToReportNotInStore/);
+  assert.match(signoff, /nisChoice === 'cancel'/);
+  assert.match(signoff, /openHelpdeskForSheetRow/);
+  assert.doesNotMatch(signoff, /skipHelpdeskPrompt/);
+});
+
+test('Categories sheet has PROD/SI and not-in-store filters', () => {
+  const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  assert.match(signoff, /id="sheetFilters"/);
+  assert.match(signoff, /data-filter="prod"/);
+  assert.match(signoff, /data-filter="si"/);
+  assert.match(signoff, /data-filter="notInStore"/);
+  assert.match(signoff, /data-filter="notInSi"/);
+  assert.match(signoff, /matchesSheetFilters/);
 });

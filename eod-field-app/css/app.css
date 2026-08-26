@@ -641,6 +641,13 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .ds-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .ds-actions .btn { min-height: 40px; font-size: 13px; padding: 8px 10px; flex: 1 1 30%; }
 .ds-actions .btn.on { outline: 2px solid var(--accent); }
+.ds-filters { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ds-filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ds-filter-label {
+  font-size: 12px; font-weight: 700; color: var(--muted); min-width: 44px;
+}
+.ds-filters .btn { min-height: 36px; font-size: 13px; padding: 6px 10px; flex: 1 1 auto; }
+.ds-filters .btn.on { outline: 2px solid var(--accent); }
 .ds-photo-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .ds-photo-actions .btn { min-height: 44px; font-size: 13px; padding: 8px 10px; flex: 1 1 40%; }
 .pill {
