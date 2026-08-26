@@ -401,11 +401,12 @@
       };
       const errMsg = String(row.errorMessage || row.error_message || '').trim();
       return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
-        <div><strong>${esc(row.catName || row.catId || '—')}</strong>
-          <div class="muted">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
-          ${locLabel ? `<div class="muted">${esc(locLabel)}</div>` : ''}
-          <div class="muted">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}</div>
-          ${row.live ? `<div class="muted">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
+        <div class="ds-row-copy">
+          <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
+          <div class="muted ds-row-meta">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
+          ${locLabel ? `<div class="muted ds-row-meta">${esc(locLabel)}</div>` : ''}
+          <div class="muted ds-row-meta">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}</div>
+          ${row.live ? `<div class="muted ds-row-meta">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
           ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
         <div style="margin-top:6px;">${status} ${beforePill}</div>
@@ -484,6 +485,12 @@
     const syncBtn = document.getElementById('syncProdSiBtn');
     const filters = { prod: 'all', si: 'all', notInStore: false, notInSi: false };
     let pollTimer = null;
+    if (rowsEl && typeof ResizeObserver === 'function' && !rowsEl._dsFitObs) {
+      rowsEl._dsFitObs = new ResizeObserver(() => {
+        try { global.EodFitText?.fitSheetCards?.(rowsEl); } catch (_) {}
+      });
+      rowsEl._dsFitObs.observe(rowsEl);
+    }
 
     function paintFilterChips() {
       const host = document.getElementById('sheetFilters');
@@ -636,6 +643,9 @@
       });
       rowsEl.querySelectorAll('[data-before]').forEach((btn) => {
         btn.onclick = () => openSetSurvey(btn, 'before');
+      });
+      requestAnimationFrame(() => {
+        try { global.EodFitText?.fitSheetCards?.(rowsEl); } catch (_) {}
       });
     }
 

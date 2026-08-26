@@ -237,3 +237,14 @@ test('Categories sheet has PROD/SI and not-in-store filters', () => {
   assert.match(signoff, /data-filter="notInSi"/);
   assert.match(signoff, /matchesSheetFilters/);
 });
+
+test('category cards shrink text to fit the card width', () => {
+  const fit = require('../js/lib/fit-text');
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  assert.equal(fit.TITLE_MIN, 11);
+  assert.equal(fit.META_MIN, 9);
+  assert.match(html, /js\/lib\/fit-text\.js/);
+  assert.match(signoff, /ds-row-title/);
+  assert.match(signoff, /EodFitText\?\.fitSheetCards/);
+});
