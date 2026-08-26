@@ -84,6 +84,12 @@
       }
     } catch (_) {}
 
+    const iwSave = S.state.instaworkSavedInfo;
+    const iwSaveTail = iwSave ? (iwSave.filePath || '').split(/[\\/]/).pop() : '';
+    const iwSupportLine = S.state.instaworkYes === 'Yes'
+      ? (iwSave ? `Yes (sign-out sheet photo saved → ${iwSave.folder}\\${iwSaveTail})` : 'Yes')
+      : (S.state.instaworkYes || '—');
+
     const body = `KOMPASS End of Day Report
 Store: FM${padStore(store)}
 Date: ${dateDisp}
@@ -91,7 +97,7 @@ Lead: ${lead}
 
 Before picture of KOMPASS cart taken: ${yn(beforeDone)}
 Check-in manager: ${S.state.checkInManager || '—'}
-InstaWork support: ${S.state.instaworkYes || '—'}
+InstaWork support: ${iwSupportLine}
 Check-out manager: ${S.state.checkOutManager || '—'}
 ${digitalLine}
 ${deptSigLine}
@@ -116,7 +122,11 @@ ${S.state.notes || ''}`;
       storeNumber: store,
       beforeTaken: yn(beforeDone),
       checkInManager: S.state.checkInManager || '',
-      instaworkSupport: S.state.instaworkYes || 'No',
+      instaworkSupport: S.state.instaworkYes === 'Yes'
+        ? (iwSave
+          ? `Yes (sign-out sheet saved → ${iwSave.folder}\\${iwSaveTail})`
+          : 'Yes')
+        : (S.state.instaworkYes || 'No'),
       calledHelpDesk: (S.state.helpdeskSubmittedReports || []).length ? 'Yes' : 'No',
       commodities: 'N/A',
       issue: 'N/A',
@@ -181,6 +191,7 @@ ${S.state.notes || ''}`;
           signoff: photoCount('signoff'),
           instawork: photoCount('instawork'),
         },
+        instaworkSave: S.state.instaworkSavedInfo || null,
       },
     };
   }
@@ -210,7 +221,10 @@ ${S.state.notes || ''}`;
       return 'No hosted sheet — add a paper sign-off photo or complete PIC checkout.';
     }
     if (S.state.instaworkYes === 'Yes' && photoCount('instawork') < 1) {
-      return 'InstaWork is in use — add the sign-out photo and Confirm & Save.';
+      return 'InstaWork is in use — take a photo of the sign-out timesheet.';
+    }
+    if (S.state.instaworkYes === 'Yes' && !S.state.instaworkSavedInfo) {
+      return 'Tap Confirm & Save so the InstaWork sign-out sheet is routed to the period folder.';
     }
     return null;
   }

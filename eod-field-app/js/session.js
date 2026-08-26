@@ -41,6 +41,7 @@
     managerNamePool: [],
     sheetAcknowledged: false,
     instaworkYes: null,
+    instaworkSavedInfo: null,
     kompassTimesheetYes: null,
     materialsReadYes: null,
     visitReady: false,
@@ -144,6 +145,7 @@
     state.photos = { before: [], after: [], signoff: [], instawork: [] };
     state.sheetAcknowledged = false;
     state.instaworkYes = null;
+    state.instaworkSavedInfo = null;
     state.kompassTimesheetYes = null;
     state.materialsReadYes = null;
     emit('reset');
@@ -267,6 +269,7 @@
       : [];
     state.sheetAcknowledged = !!data.sheetAcknowledged;
     state.instaworkYes = data.instawork ?? data.instaworkYes ?? null;
+    state.instaworkSavedInfo = data.instaworkSavedInfo || null;
     state.kompassTimesheetYes = data.kompassTimesheet ?? data.kompassTimesheetYes ?? null;
     state.materialsReadYes = data.materialsRead ?? data.materialsReadYes ?? null;
     if (data.selectedShift) state.selectedShift = data.selectedShift;
@@ -303,6 +306,7 @@
       helpdeskSubmittedReports: (state.helpdeskSubmittedReports || []).slice(),
       sheetAcknowledged: !!state.sheetAcknowledged,
       instawork: state.instaworkYes,
+      instaworkSavedInfo: state.instaworkSavedInfo || null,
       kompassTimesheet: state.kompassTimesheetYes,
       materialsRead: state.materialsReadYes,
       extraVisitIds: (state.extraVisitIds || []).slice(),

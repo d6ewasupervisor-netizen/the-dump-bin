@@ -305,18 +305,19 @@
   function isTestContext() {
     const store = String(storeNumber() || '').replace(/\D/g, '').replace(/^0+/, '') || '';
     return store === '999'
-      || (typeof window !== 'undefined' && sessionStorage.getItem('eodTestMode') === '1');
+      || (typeof window !== 'undefined' && (
+        window.EodTestMode?.isEnabled?.()
+        || sessionStorage.getItem('eodTestMode') === '1'
+      ));
   }
 
   function forceLiveChecked() {
-    const can = typeof window.canEodForceLive === 'function'
-      ? window.canEodForceLive()
-      : false;
-    if (!can) return false;
-    return typeof window.isEodForceLiveDelivery === 'function'
-      ? window.isEodForceLiveDelivery()
-      : (sessionStorage.getItem('eodTestMode') === '1'
-        && sessionStorage.getItem('eodForceLiveDelivery') === '1');
+    if (typeof window.canEodForceLive === 'function' && !window.canEodForceLive()) return false;
+    if (typeof window.EodRoles?.canForceLive === 'function' && !window.EodRoles.canForceLive()) return false;
+    if (typeof window.isEodForceLiveDelivery === 'function') return !!window.isEodForceLiveDelivery();
+    if (typeof window.EodTestMode?.isForceLive === 'function') return !!window.EodTestMode.isForceLive();
+    return sessionStorage.getItem('eodTestMode') === '1'
+      && sessionStorage.getItem('eodForceLiveDelivery') === '1';
   }
 
   function renderActions() {
@@ -324,7 +325,8 @@
     if (!bar) return;
     const isIw = state.sheetKey === 'instawork';
     const testCtx = isTestContext();
-    const canLive = typeof window.canEodForceLive === 'function' && window.canEodForceLive();
+    const canLive = (typeof window.canEodForceLive === 'function' && window.canEodForceLive())
+      || (typeof window.EodRoles?.canForceLive === 'function' && window.EodRoles.canForceLive());
     const liveOn = forceLiveChecked();
     bar.innerHTML = `
       <button type="button" class="btn btn-secondary" id="eodTsRefreshBtn">Refresh</button>
@@ -350,9 +352,12 @@
     document.getElementById('eodTsSubmitSupBtn')?.addEventListener('click', () => submitSupervisor().catch(showErr));
     document.getElementById('eodTsPhotoBtn')?.addEventListener('click', () => {
       close();
-      const panel = document.getElementById('instaworkYesPanel');
-      if (panel) panel.style.display = 'block';
-      panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const S = window.EodSession;
+      if (S) {
+        S.patch({ instaworkYes: 'Yes' }, 'iw');
+        try { S.saveDraft(); } catch (_) {}
+      }
+      if (window.EodRouter?.go) window.EodRouter.go('crew');
     });
     const liveToggle = document.getElementById('eodTsForceLive');
     if (liveToggle) {

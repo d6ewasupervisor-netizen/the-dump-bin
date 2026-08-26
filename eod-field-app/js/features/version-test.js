@@ -698,4 +698,19 @@
     EOD_TEST_STORE,
   };
   global.applyEodTestModeToPayload = applyToPayload;
+  global.canEodForceLive = canForceLive;
+  global.isEodForceLiveDelivery = () => eodForceLiveDelivery;
+  global.confirmForceLiveIfNeeded = async function confirmForceLiveIfNeeded(label) {
+    if (!eodForceLiveDelivery) return true;
+    if (global.EodAlerts?.confirm) {
+      return global.EodAlerts.confirm('Live delivery', `LIVE delivery override is ON for "${label}". Continue?`);
+    }
+    return confirm(`LIVE delivery override is ON for "${label}". Continue?`);
+  };
+  global.showDayConfirmModal = function showDayConfirmModal() {
+    if (global.showAlert) {
+      global.showAlert('Confirm store', 'Confirm today\'s store on Visit first.');
+    }
+    if (global.EodRouter?.go) global.EodRouter.go('visit');
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

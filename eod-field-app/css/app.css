@@ -1341,3 +1341,87 @@ body.dump-bin-viewer-open .eod-test-banner {
 }
 .chrome-meta { cursor: pointer; }
 .eod-pic-qr-fs { z-index: 10050; }
+
+.iw-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.92);
+  z-index: 10001;
+  padding: 24px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.iw-overlay.show { display: flex; }
+.iw-overlay-card {
+  background: #0b1220;
+  border: 2px solid #0d4f8b;
+  border-radius: 14px;
+  padding: 32px 28px;
+  max-width: 460px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+}
+.iw-spinner {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  border: 6px solid rgba(96, 165, 250, 0.25);
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: iw-spin 1s linear infinite;
+}
+@keyframes iw-spin { to { transform: rotate(360deg); } }
+.iw-check {
+  display: none;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: #065f46;
+  color: #d1fae5;
+  font-size: 56px;
+  line-height: 96px;
+  font-weight: 700;
+  box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.25);
+}
+.iw-overlay-title {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: #e5e7eb;
+  margin-bottom: 8px;
+}
+.iw-overlay-subtitle {
+  font-size: 0.95em;
+  color: #94a3b8;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.iw-overlay[data-state="success"] .iw-spinner { display: none; }
+.iw-overlay[data-state="success"] .iw-check { display: block; }
+.iw-overlay[data-state="success"] .iw-overlay-card {
+  border-color: #10b981;
+  box-shadow: 0 18px 50px rgba(16, 185, 129, 0.25);
+}
+.iw-overlay[data-state="success"] .iw-overlay-title { color: #a7f3d0; }
+.iw-yn { display: flex; gap: 8px; margin-top: 8px; }
+.iw-yn .btn { flex: 1; }
+.iw-yn .btn.is-on { outline: 2px solid var(--accent, #38bdf8); }
+.iw-saved-dest {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #064e3b;
+  border-left: 4px solid #34d399;
+  color: #a7f3d0;
+  border-radius: 6px;
+  font-size: 13px;
+  word-break: break-word;
+}
+.iw-save-failed {
+  background: #450a0a;
+  border-left-color: #ef4444;
+  color: #fecaca;
+}

@@ -2,8 +2,6 @@
 (function (global) {
   'use strict';
 
-  const IW_SAVE_URL = 'https://eod-api.the-dump-bin.com/instawork/save-image';
-
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
   function stamp(dataUrl, extra) {
@@ -81,6 +79,10 @@
     }
     const patch = { photos };
     if (type === 'before') patch.cartPhotoDone = true;
+    if (type === 'instawork') {
+      patch.instaworkSavedInfo = null;
+      patch.instaworkYes = 'Yes';
+    }
     S.patch(patch, 'photos');
     await persistPhotos();
   }
@@ -97,26 +99,8 @@
   }
 
   async function saveInstawork() {
-    const S = global.EodSession;
-    const photo = (S.state.photos.instawork || [])[0];
-    const dataUrl = src(photo);
-    if (!dataUrl) throw new Error('Take an InstaWork photo first.');
-    const imageBase64 = String(dataUrl).replace(/^data:[^;]+;base64,/, '');
-    const headers = global.EodApi.dayConfirmHeaders();
-    const resp = await global.authFetch(IW_SAVE_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        storeNumber: S.state.storeNumber,
-        workDate: S.state.workDate,
-        imageBase64,
-        forceLive: global.EodTestMode?.isForceLive?.() || undefined,
-        testMode: global.EodTestMode?.isEnabled?.() || undefined,
-      }),
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok || data.success === false) throw new Error(data.error || `InstaWork save failed (${resp.status})`);
-    return data;
+    if (global.EodInstaworkSave?.confirmAndSave) return global.EodInstaworkSave.confirmAndSave();
+    throw new Error('InstaWork save module not loaded');
   }
 
   async function paintUnsent(host) {
@@ -191,9 +175,13 @@
             Add file
             <input type="file" accept="image/*,.heic,.heif" data-type="instawork" hidden>
           </label>
-          <button type="button" class="btn btn-success" id="iwSaveBtn">Confirm &amp; Save</button>
+          <button type="button" class="btn btn-success" id="iwSaveBtn">${S.state.instaworkSavedInfo ? 'Re-save InstaWork Sign-Out Sheet' : 'Confirm &amp; Save InstaWork Sign-Out Sheet'}</button>
         </div>
-        <div id="iwSaveMsg" class="muted" style="margin-top:8px;"></div>
+        <div id="iwSaveMsg" class="${S.state.instaworkSavedInfo ? 'iw-saved-dest' : 'muted'}" style="margin-top:8px;">${
+          S.state.instaworkSavedInfo
+            ? `<strong>Saved.</strong> ${esc(global.EodInstaworkSave?.destLine?.(S.state.instaworkSavedInfo) || '')}`
+            : ''
+        }</div>
         <div id="grid-instawork" style="margin-top:10px;">${gridHtml('instawork')}</div>
       </div>` : ''}
       <div class="card">
@@ -279,11 +267,23 @@
     document.getElementById('iwSaveBtn')?.addEventListener('click', async () => {
       const msg = document.getElementById('iwSaveMsg');
       try {
-        if (msg) msg.textContent = 'Saving InstaWork sheet…';
-        await saveInstawork();
-        if (msg) msg.textContent = 'InstaWork sheet saved.';
+        if (msg) {
+          msg.className = 'muted';
+          msg.textContent = 'Saving…';
+        }
+        const result = await saveInstawork();
+        if (msg) {
+          msg.className = 'iw-saved-dest';
+          msg.innerHTML = `<strong>Saved.</strong> ${esc(global.EodInstaworkSave?.destLine?.(result) || '')}`;
+        }
       } catch (err) {
-        if (msg) msg.textContent = err.message || String(err);
+        if (msg) {
+          msg.className = 'iw-saved-dest iw-save-failed';
+          msg.innerHTML = `<strong>Save failed.</strong> ${esc(err.message || String(err))}`;
+        }
+        if (global.showAlert) {
+          global.showAlert('InstaWork Sign-Out Sheet Save Failed', err.message || String(err));
+        }
       }
     });
     document.getElementById('photosStorageBtn')?.addEventListener('click', async () => {

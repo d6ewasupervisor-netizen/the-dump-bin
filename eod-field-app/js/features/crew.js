@@ -2,8 +2,6 @@
 (function (global) {
   'use strict';
 
-  const IW_SAVE_URL = 'https://eod-api.the-dump-bin.com/instawork/save-image';
-
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
   async function loadMembers() {
@@ -109,30 +107,18 @@
   }
 
   async function saveInstaworkPhoto() {
+    if (global.EodInstaworkSave?.confirmAndSave) return global.EodInstaworkSave.confirmAndSave();
     if (global.EodPhotos?.saveInstawork) return global.EodPhotos.saveInstawork();
-    const S = global.EodSession;
-    const photo = (S.state.photos.instawork || [])[0];
-    const dataUrl = typeof photo === 'string' ? photo : photo?.dataUrl;
-    if (!dataUrl) throw new Error('Take an InstaWork photo first.');
-    const headers = global.EodApi.dayConfirmHeaders();
-    const resp = await global.authFetch(IW_SAVE_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        storeNumber: S.state.storeNumber,
-        workDate: S.state.workDate,
-        imageBase64: String(dataUrl).replace(/^data:[^;]+;base64,/, ''),
-      }),
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(data.error || `InstaWork save failed (${resp.status})`);
-    return data;
+    throw new Error('InstaWork save module not loaded');
   }
 
   async function render(mount) {
     const S = global.EodSession;
     S.syncDomBridges();
     const canRoster = global.EodRoles?.canManageRoster?.() !== false;
+    const iwYes = S.state.instaworkYes === 'Yes';
+    const saved = S.state.instaworkSavedInfo;
+    const dest = saved && global.EodInstaworkSave?.destLine ? global.EodInstaworkSave.destLine(saved) : '';
     mount.innerHTML = `
       <div class="card">
         <h1>Crew & timesheets</h1>
@@ -144,13 +130,23 @@
         <div id="crewSmsHost"></div>
       </div>
       <div class="card">
+        <h2>InstaWork support today</h2>
+        <div class="iw-yn">
+          <button type="button" class="btn btn-secondary${iwYes ? ' is-on' : ''}" id="iwYesBtn">Yes</button>
+          <button type="button" class="btn btn-secondary${S.state.instaworkYes === 'No' ? ' is-on' : ''}" id="iwNoBtn">No</button>
+        </div>
+      </div>
+      ${iwYes ? `
+      <div class="card" id="instaworkYesPanel">
         <h2>InstaWork sign-out photo</h2>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="iwCamBtn">Camera</button>
-          <button type="button" class="btn btn-success" id="iwSaveBtn">Confirm &amp; Save</button>
+          <button type="button" class="btn btn-success" id="iwSaveBtn">${saved ? 'Re-save InstaWork Sign-Out Sheet' : 'Confirm &amp; Save InstaWork Sign-Out Sheet'}</button>
         </div>
-        <div id="iwCrewMsg" class="muted" style="margin-top:8px;"></div>
-      </div>
+        <div id="iwCrewMsg" class="${saved ? 'iw-saved-dest' : 'muted'}" style="margin-top:8px;">${
+          saved ? `<strong>Saved.</strong> ${esc(dest)}` : ''
+        }</div>
+      </div>` : ''}
       <div class="card">
         <h2>Shift roster</h2>
         <p class="muted" id="rosterShiftMeta">${S.state.selectedShift
@@ -191,16 +187,22 @@
       }
     };
     document.getElementById('openIwBtn').onclick = () => {
-      S.patch({ instaworkYes: 'Yes' }, 'iw');
-      S.saveDraft();
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('instawork');
     };
     document.getElementById('openKtBtn').onclick = () => {
-      S.patch({ kompassTimesheetYes: 'Yes' }, 'kt');
-      S.saveDraft();
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('kompass');
     };
-    document.getElementById('iwCamBtn').onclick = async () => {
+    document.getElementById('iwYesBtn').onclick = () => {
+      S.patch({ instaworkYes: 'Yes' }, 'iw');
+      S.saveDraft();
+      render(mount);
+    };
+    document.getElementById('iwNoBtn').onclick = () => {
+      S.patch({ instaworkYes: 'No' }, 'iw');
+      S.saveDraft();
+      render(mount);
+    };
+    document.getElementById('iwCamBtn')?.addEventListener('click', async () => {
       if (global.EodCamera?.open) {
         await global.EodCamera.open({
           label: 'InstaWork sign-out',
@@ -212,17 +214,31 @@
       } else {
         global.EodRouter.go('photos');
       }
-    };
-    document.getElementById('iwSaveBtn').onclick = async () => {
+    });
+    document.getElementById('iwSaveBtn')?.addEventListener('click', async () => {
       const msg = document.getElementById('iwCrewMsg');
       try {
-        if (msg) msg.textContent = 'Saving…';
-        await saveInstaworkPhoto();
-        if (msg) msg.textContent = 'InstaWork sheet saved.';
+        if (msg) {
+          msg.className = 'muted';
+          msg.textContent = 'Saving…';
+        }
+        const result = await saveInstaworkPhoto();
+        if (msg) {
+          msg.className = 'iw-saved-dest';
+          msg.innerHTML = `<strong>Saved.</strong> ${esc(global.EodInstaworkSave?.destLine?.(result) || '')}`;
+        }
+        const btn = document.getElementById('iwSaveBtn');
+        if (btn) btn.textContent = 'Re-save InstaWork Sign-Out Sheet';
       } catch (err) {
-        if (msg) msg.textContent = err.message || String(err);
+        if (msg) {
+          msg.className = 'iw-saved-dest iw-save-failed';
+          msg.innerHTML = `<strong>Save failed.</strong> ${esc(err.message || String(err))}`;
+        }
+        if (global.showAlert) {
+          global.showAlert('InstaWork Sign-Out Sheet Save Failed', err.message || String(err));
+        }
       }
-    };
+    });
 
     const list = document.getElementById('rosterList');
     const addSel = document.getElementById('smAddSelect');

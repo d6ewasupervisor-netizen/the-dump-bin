@@ -155,10 +155,17 @@ test('pilot ships overlay alerts, roles, camera, and PIC QR', () => {
 });
 
 test('InstaWork save URL is the hosted eod-api, never localhost', () => {
+  const saver = fs.readFileSync(path.join(__dirname, '../js/lib/eod-instawork-save.js'), 'utf8');
   const photos = fs.readFileSync(path.join(__dirname, '../js/features/photos.js'), 'utf8');
   const crew = fs.readFileSync(path.join(__dirname, '../js/features/crew.js'), 'utf8');
-  assert.match(photos, /https:\/\/eod-api\.the-dump-bin\.com\/instawork\/save-image/);
-  assert.match(crew, /https:\/\/eod-api\.the-dump-bin\.com\/instawork\/save-image/);
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(html, /js\/lib\/eod-instawork-save\.js/);
+  assert.match(html, /id="instaworkBufferOverlay"/);
+  assert.match(saver, /https:\/\/eod-api\.the-dump-bin\.com\/instawork\/save-image/);
+  assert.match(saver, /OVERLAY_MIN_MS = 4000/);
+  assert.match(saver, /ensurePortraitOrientation/);
+  assert.doesNotMatch(saver, /127\.0\.0\.1/);
   assert.doesNotMatch(photos, /127\.0\.0\.1/);
   assert.doesNotMatch(crew, /127\.0\.0\.1/);
+  assert.doesNotMatch(saver, /localhost:\d+/);
 });

@@ -19,12 +19,11 @@ Port / mix from the live walk — not a pixel clone:
 - `#/photos` restored (Dump Bin keeps its own tab)
 - Camera + torch for cart / paper / InstaWork / helpdesk; HEIC via heic2any
 - Paper sign-off when no hosted sheet; hide paper when a sheet exists
-- InstaWork Confirm & Save → `POST https://eod-api.the-dump-bin.com/instawork/save-image` (never localhost)
 - Unsent-session banner + compress old photos
 - PIC QR on Signatures; checkout auto-fill
-- JOIN QR + SMS opt-in on Crew; hide Yes/No timesheet questions
+- JOIN QR + SMS opt-in on Crew; InstaWork Yes/No; Confirm & Save uses live portrait JPEG + 4s overlay + hosted `/instawork/save-image` (never localhost); Send requires a successful folder save when Yes
 - SAS roster add (immediate) and removal request (poll if pending)
-- Send gates: check-in/out, cart before/after, digital marks (or Acknowledge remaining), IW photo if InstaWork opened
+- Send gates: check-in/out, cart before/after, digital marks (or Acknowledge remaining), IW photo + Confirm & Save (folder path) if InstaWork is Yes
 - EOD coversheet JPEG in the send package + MAINTENANCE afters on the main ISE visit (skip store 999)
 - Post-send clear: ask / always / never (`eodPostSendClearPref`)
 - Helpdesk Aiyana CC only on District 8 stores
