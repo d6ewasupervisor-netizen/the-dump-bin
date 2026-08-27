@@ -7,6 +7,7 @@ const {
   beforePillHtml,
   siLocationLabel,
   matchesSheetFilters,
+  formatEstHrs,
 } = require('../js/lib/category-card-status');
 const {
   hasLoadedShift,
@@ -43,7 +44,7 @@ test('SI location label uses live.siLocation.label', () => {
   assert.equal(siLocationLabel({ live: {} }), '');
 });
 
-test('sheet filters: PROD/SI done and not-in-store / not-in-SI marks', () => {
+test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {
   const done = {
     live: { prodComplete: true, prodStatus: 'done', siComplete: true, siStatus: 'completed' },
     marks: { active: ['complete'] },
@@ -54,6 +55,12 @@ test('sheet filters: PROD/SI done and not-in-store / not-in-SI marks', () => {
   };
   const nis = { live: { prodStatus: 'absent' }, marks: { notInStore: true, active: ['not_in_store'] } };
   const nisi = { live: { siPresent: false }, marks: { notInSi: true, active: ['not_in_si'] } };
+  assert.equal(matchesSheetFilters(done, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(open, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(open, { status: 'not_done' }), true);
+  assert.equal(matchesSheetFilters(done, { status: 'not_done' }), false);
+  assert.equal(matchesSheetFilters(nis, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(nisi, { status: 'done' }), true);
   assert.equal(matchesSheetFilters(done, { prod: 'done', si: 'done' }), true);
   assert.equal(matchesSheetFilters(open, { prod: 'done' }), false);
   assert.equal(matchesSheetFilters(open, { prod: 'not_done', si: 'not_done' }), true);
@@ -61,6 +68,12 @@ test('sheet filters: PROD/SI done and not-in-store / not-in-SI marks', () => {
   assert.equal(matchesSheetFilters(open, { notInStore: true }), false);
   assert.equal(matchesSheetFilters(nisi, { notInSi: true }), true);
   assert.equal(matchesSheetFilters(nis, { notInStore: true, notInSi: true }), true);
+});
+
+test('formatEstHrs shows minutes under an hour', () => {
+  assert.equal(formatEstHrs(0.5), 'Est 30 min');
+  assert.equal(formatEstHrs(1), 'Est 1 hr');
+  assert.equal(formatEstHrs(''), '');
 });
 
 test('hasLoadedShift is true for a real store with a visit or sheet', () => {
@@ -228,14 +241,26 @@ test('Not in store prompt uses Don\'t Report / Please Report / Cancel before mar
   assert.doesNotMatch(signoff, /skipHelpdeskPrompt/);
 });
 
-test('Categories sheet has PROD/SI and not-in-store filters', () => {
+test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and print are gone', () => {
   const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
+  const session = fs.readFileSync(path.join(__dirname, '../js/session.js'), 'utf8');
   assert.match(signoff, /id="sheetFilters"/);
-  assert.match(signoff, /data-filter="prod"/);
-  assert.match(signoff, /data-filter="si"/);
-  assert.match(signoff, /data-filter="notInStore"/);
-  assert.match(signoff, /data-filter="notInSi"/);
-  assert.match(signoff, /matchesSheetFilters/);
+  assert.match(signoff, /data-filter="status"/);
+  assert.match(signoff, /data-value="done">Done/);
+  assert.match(signoff, /data-value="not_done">Not Done/);
+  assert.doesNotMatch(signoff, /data-filter="prod"/);
+  assert.doesNotMatch(signoff, /data-filter="si"/);
+  assert.doesNotMatch(signoff, /data-filter="notInStore"/);
+  assert.doesNotMatch(signoff, /data-filter="notInSi"/);
+  assert.doesNotMatch(signoff, /data-mark="clear"/);
+  assert.doesNotMatch(signoff, /id="completeAllBtn"/);
+  assert.doesNotMatch(signoff, /id="ackRemainingBtn"/);
+  assert.doesNotMatch(signoff, /id="printSignoffBtn"/);
+  assert.match(signoff, /formatEstHrs/);
+  assert.match(send, /id="sendPrintSignoffBtn"/);
+  assert.match(send, /openPrintAtStoreModal/);
+  assert.doesNotMatch(session, /sheetAcknowledged \|\| state\.sheet\.allAcknowledged/);
 });
 
 test('category cards shrink text to fit the card width', () => {

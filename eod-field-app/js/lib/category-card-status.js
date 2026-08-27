@@ -56,8 +56,27 @@
     return st === 'completed' || st === 'complete' || st === 'done';
   }
 
+  function sheetRowDone(row) {
+    if (markActive(row, 'complete')) return true;
+    if (markActive(row, 'not_in_store')) return true;
+    if (markActive(row, 'not_in_si')) return true;
+    return prodDone(row) && siDone(row);
+  }
+
+  function formatEstHrs(raw) {
+    if (raw == null || raw === '') return '';
+    const text = String(raw).trim();
+    const n = Number(text.replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(n) || n <= 0) return text ? `Est ${text}` : '';
+    if (n < 1) return `Est ${Math.round(n * 60)} min`;
+    const shown = Number.isInteger(n) ? String(n) : String(n);
+    return `Est ${shown} hr`;
+  }
+
   function matchesSheetFilters(row, filters) {
     const f = filters || {};
+    if (f.status === 'done' && !sheetRowDone(row)) return false;
+    if (f.status === 'not_done' && sheetRowDone(row)) return false;
     if (f.prod === 'done' && !prodDone(row)) return false;
     if (f.prod === 'not_done' && prodDone(row)) return false;
     if (f.si === 'done' && !siDone(row)) return false;
@@ -82,6 +101,8 @@
     markActive,
     prodDone,
     siDone,
+    sheetRowDone,
+    formatEstHrs,
     matchesSheetFilters,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

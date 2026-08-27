@@ -69,8 +69,7 @@
     if (sheet) {
       const s = sheet.summary || {};
       digitalLine = `Digital signoff: ${sheet.fiscalWeek || ''} ${s.marked || 0}/${s.total || 0} marked`
-        + (S.sheetSendReady() ? ' (send ready)' : ' (open sets)')
-        + (sheet.allAcknowledged ? ' [remaining acknowledged]' : '');
+        + (S.sheetSendReady() ? ' (send ready)' : ' (open sets)');
     }
     let deptSigLine = 'Department signatures: (see app)';
     try {
@@ -215,7 +214,7 @@ ${S.state.notes || ''}`;
     if (photoCount('before') < 1) return 'Add a Kompass cart before photo.';
     if (photoCount('after') < 1) return 'Add a Kompass cart after photo.';
     if (S.hasHostedSheet() && !S.sheetSendReady()) {
-      return 'Digital signoff: mark every open set (or Acknowledge remaining) before sending.';
+      return 'Digital signoff: mark every open set before sending.';
     }
     if (!S.hasHostedSheet() && photoCount('signoff') < 1 && !(S.state.checkOutManager || '').trim()) {
       return 'No hosted sheet — add a paper sign-off photo or complete PIC checkout.';
@@ -302,6 +301,9 @@ ${S.state.notes || ''}`;
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="previewBtn">Preview</button>
           <button type="button" class="btn btn-success" id="sendBtn" ${gate ? 'disabled' : ''}>Send EOD</button>
+        </div>
+        <div class="btn-row" id="sendPrintSignoffRow" ${S.hasHostedSheet() ? '' : 'hidden'}>
+          <button type="button" class="btn btn-secondary btn-block" id="sendPrintSignoffBtn">Print signoff PDF</button>
         </div>
       </div>`;
 
@@ -547,6 +549,16 @@ ${S.state.notes || ''}`;
       w.document.write(html);
       w.document.close();
     };
+
+    document.getElementById('sendPrintSignoffBtn')?.addEventListener('click', () => {
+      if (global.EodSignoffHome?.openPrintAtStoreModal) {
+        global.EodSignoffHome.openPrintAtStoreModal();
+        return;
+      }
+      if (global.EodSignoffHome?.openSignoffPdfPreview) {
+        global.EodSignoffHome.openSignoffPdfPreview();
+      }
+    });
 
     document.getElementById('sendBtn').onclick = async () => {
       const msg = gateMessage();

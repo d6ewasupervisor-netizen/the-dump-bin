@@ -172,7 +172,6 @@
 
   function sheetSendReady() {
     if (!hasHostedSheet()) return true;
-    if (state.sheetAcknowledged || state.sheet.allAcknowledged) return true;
     const rows = state.sheet.rows || [];
     if (!rows.length) return true;
     return rows.every(rowHasMark);

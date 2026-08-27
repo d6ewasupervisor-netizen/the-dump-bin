@@ -116,7 +116,7 @@
     const S = global.EodSession;
     const sheet = S.state.sheet;
     if (!sheet) return;
-    const btn = document.getElementById('printSignoffBtn');
+    const btn = document.getElementById('sendPrintSignoffBtn');
     if (btn) btn.disabled = true;
     try {
       const qs = new URLSearchParams({
@@ -405,7 +405,7 @@
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted ds-row-meta">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
           ${locLabel ? `<div class="muted ds-row-meta">${esc(locLabel)}</div>` : ''}
-          <div class="muted ds-row-meta">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}</div>
+          <div class="muted ds-row-meta">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}${global.EodCategoryCardStatus?.formatEstHrs?.(row.estHrs) ? ` · ${esc(global.EodCategoryCardStatus.formatEstHrs(row.estHrs))}` : ''}</div>
           ${row.live ? `<div class="muted ds-row-meta">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
           ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
@@ -418,7 +418,6 @@
           ${btn('complete', 'Complete')}
           ${btn('not_in_store', 'Not in store')}
           ${btn('not_in_si', 'Not in SI')}
-          <button type="button" class="btn btn-secondary" data-row="${row.id}" data-mark="clear">Clear</button>
         </div>
       </div>`;
     }).join('');
@@ -435,27 +434,11 @@
           </summary>
           <div class="btn-row">
             <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
-            <button type="button" class="btn btn-success" id="completeAllBtn" hidden>Complete all</button>
-            <button type="button" class="btn btn-secondary" id="ackRemainingBtn" hidden>Acknowledge remaining</button>
-            <button type="button" class="btn btn-secondary" id="printSignoffBtn" hidden>Print signoff PDF</button>
           </div>
           <div class="ds-filters" id="sheetFilters">
             <div class="ds-filter-row">
-              <span class="ds-filter-label">PROD</span>
-              <button type="button" class="btn btn-secondary on" data-filter="prod" data-value="all">All</button>
-              <button type="button" class="btn btn-secondary" data-filter="prod" data-value="done">Done</button>
-              <button type="button" class="btn btn-secondary" data-filter="prod" data-value="not_done">Not done</button>
-            </div>
-            <div class="ds-filter-row">
-              <span class="ds-filter-label">SI</span>
-              <button type="button" class="btn btn-secondary on" data-filter="si" data-value="all">All</button>
-              <button type="button" class="btn btn-secondary" data-filter="si" data-value="done">Done</button>
-              <button type="button" class="btn btn-secondary" data-filter="si" data-value="not_done">Not done</button>
-            </div>
-            <div class="ds-filter-row">
-              <span class="ds-filter-label">Sheet</span>
-              <button type="button" class="btn btn-secondary" data-filter="notInStore">Not in store</button>
-              <button type="button" class="btn btn-secondary" data-filter="notInSi">Not in SI</button>
+              <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Done</button>
+              <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_done">Not Done</button>
             </div>
           </div>
           <div class="field" style="margin-top:12px;">
@@ -479,11 +462,8 @@
 
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
-    const completeAllBtn = document.getElementById('completeAllBtn');
-    const ackRemainingBtn = document.getElementById('ackRemainingBtn');
-    const printSignoffBtn = document.getElementById('printSignoffBtn');
     const syncBtn = document.getElementById('syncProdSiBtn');
-    const filters = { prod: 'all', si: 'all', notInStore: false, notInSi: false };
+    const filters = { status: 'all' };
     let pollTimer = null;
     if (rowsEl && typeof ResizeObserver === 'function' && !rowsEl._dsFitObs) {
       rowsEl._dsFitObs = new ResizeObserver(() => {
@@ -495,13 +475,8 @@
     function paintFilterChips() {
       const host = document.getElementById('sheetFilters');
       if (!host) return;
-      host.querySelectorAll('[data-filter]').forEach((btn) => {
-        const key = btn.getAttribute('data-filter');
-        if (key === 'prod' || key === 'si') {
-          btn.classList.toggle('on', filters[key] === btn.getAttribute('data-value'));
-        } else {
-          btn.classList.toggle('on', !!filters[key]);
-        }
+      host.querySelectorAll('[data-filter="status"]').forEach((btn) => {
+        btn.classList.toggle('on', filters.status === btn.getAttribute('data-value'));
       });
     }
 
@@ -584,28 +559,18 @@
       if (!sheet) {
         summary.innerHTML = 'No hosted sheet for this store/week yet.';
         rowsEl.innerHTML = '';
-        completeAllBtn.hidden = true;
-        if (ackRemainingBtn) ackRemainingBtn.hidden = true;
-        printSignoffBtn.hidden = true;
         document.body.classList.add('no-hosted-sheet');
         document.body.classList.remove('has-hosted-sheet');
         return;
       }
       document.body.classList.add('has-hosted-sheet');
       document.body.classList.remove('no-hosted-sheet');
-      printSignoffBtn.hidden = !(sheet.rows || []).length;
       const s = sheet.summary || {};
       const open = (sheet.rows || []).filter(isOpenRow).length;
       summary.innerHTML = `<strong>${esc(sheet.fiscalWeek)}</strong> · Store ${esc(sheet.storeNumber)}`
         + (sheet.team ? ` · Team ${esc(sheet.team)}` : '')
         + ` · ${s.marked || 0}/${s.total || 0} marked`
         + ` · <span class="${open ? 'pill warn' : 'pill ok'}">${open} open</span>`;
-      completeAllBtn.hidden = open === 0;
-      completeAllBtn.disabled = false;
-      completeAllBtn.textContent = open ? `Complete all (${open})` : 'Complete all';
-      if (ackRemainingBtn) {
-        ackRemainingBtn.hidden = open === 0 || S.state.sheetAcknowledged || sheet.allAcknowledged;
-      }
       const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
       paintFilterChips();
       rowsEl.innerHTML = renderRows(sheet, q, filters);
@@ -664,60 +629,12 @@
     };
     document.getElementById('sheetSearch').oninput = () => paint();
     document.getElementById('sheetFilters')?.addEventListener('click', (ev) => {
-      const btn = ev.target.closest('[data-filter]');
+      const btn = ev.target.closest('[data-filter="status"]');
       if (!btn) return;
-      const key = btn.getAttribute('data-filter');
-      if (key === 'prod' || key === 'si') {
-        filters[key] = btn.getAttribute('data-value') || 'all';
-      } else {
-        filters[key] = !filters[key];
-      }
+      const value = btn.getAttribute('data-value') || 'all';
+      filters.status = filters.status === value ? 'all' : value;
       paint();
     });
-    if (ackRemainingBtn) {
-      ackRemainingBtn.onclick = async () => {
-        const open = (S.state.sheet?.rows || []).filter(isOpenRow).length;
-        const ok = global.showConfirm
-          ? await global.showConfirm('Acknowledge remaining', `Mark ${open} open set(s) acknowledged for send? Sets stay unmarked on the sheet.`)
-          : confirm(`Acknowledge ${open} remaining set(s) for send?`);
-        if (!ok) return;
-        if (S.state.sheet) S.state.sheet.allAcknowledged = true;
-        S.patch({ sheetAcknowledged: true }, 'ack-remaining');
-        S.saveDraft();
-        global.EodChrome?.refresh();
-        await paint();
-      };
-    }
-    completeAllBtn.onclick = async () => {
-      const open = (S.state.sheet?.rows || []).filter(isOpenRow);
-      if (!open.length) return;
-      if (!confirm(
-        `Mark all ${open.length} open set(s) Complete?\n\n`
-        + 'Already marked Not in store / Not in SI stay as-is.\n'
-        + 'This writes to the hosted sheet (same as tapping Complete on each row).'
-      )) return;
-      try { S.saveDraft(); } catch (_) {}
-      completeAllBtn.disabled = true;
-      const label = completeAllBtn.textContent;
-      try {
-        const result = await completeAllOpen((n, total) => {
-          completeAllBtn.textContent = `Completing ${n}/${total}…`;
-        });
-        await paint();
-        try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
-        global.EodChrome?.refresh();
-        const msg = result.fail
-          ? `Completed ${result.ok}/${result.total}. ${result.fail} failed — retry those rows or tap Complete all again.`
-          : `Completed all ${result.ok} open set(s).`;
-        if (global.EodConnections?.toast) global.EodConnections.toast(msg, result.fail ? 'error' : 'ok');
-        else alert(msg);
-      } catch (err) {
-        alert(err.message || String(err));
-        completeAllBtn.textContent = label;
-        completeAllBtn.disabled = false;
-      }
-    };
-    printSignoffBtn.onclick = () => openPrintAtStoreModal();
 
     await paint();
     void (async () => {
