@@ -9,6 +9,8 @@ description: Maintains the EOD app PROD photo sync flow for Kompass cart before/
 
 This skill applies to `EOD/index.html` in `the-dump-bin`. The EOD app pulls existing SAS PROD maintenance photos from `eod-api.the-dump-bin.com`, lets the lead assign each pulled image, and then imports selected images into the visible EOD photo sections.
 
+Do **not** apply field-app / pilot changes here. Pilot is `eod-field-app-publish`. Hosted view-board compression is `eod-hosted-image-boards`.
+
 ## Required behavior
 
 - Keep `before`, `after`, and `signoff` PROD imports consistent: pull images, assign them, render assigned previews, then let `Use` append the image to the matching section.
