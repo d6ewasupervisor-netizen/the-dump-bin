@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/auth-gate.js"></script>
+<title>Central Pet — Labor Day Schedule</title>
+<style>
+  :root{--ink:#141b24;--muted:#5a6673;--line:#c9d2dc;--accent:#2e6fa8;--accent-soft:#e8f1f9;
+    --change:#c47a00;--change-soft:#fff4d6;--ok:#1f7a4d;--ok-soft:#e6f4ec;
+    --nrm:#2f7d5b;--nrm-soft:#eaf4ee;--nrm-head:#d7ebdf;
+    --pri:#2e6fa8;--pri-soft:#eef4fb;--pri-head:#d9e6f2;
+    --hol:#6b4a9e;--hol-soft:#f4f0fb;--hol-head:#e7def2;}
+  *{box-sizing:border-box} html,body{margin:0;background:#fff;color:var(--ink);
+    font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 30px 60px}
+  header.brand{border-top:6px solid var(--accent);padding-top:16px;margin-bottom:6px}
+  .brandrow{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .mark{display:flex;align-items:center;gap:12px} .compass{width:34px;height:34px;flex:0 0 34px}
+  h1{font-size:22px;margin:2px 0 0;letter-spacing:.2px} .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .meta{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+  .lede{margin:18px 0 10px;font-size:14.5px}
+  .rules{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:#fafcff;margin:14px 0 6px}
+  .rules b{color:var(--accent)} .rules ul{margin:8px 0 0;padding-left:18px} .rules li{margin:6px 0}
+  .crunch{margin:14px 0;border:1px solid var(--change);background:var(--change-soft);border-radius:8px;padding:12px 15px;font-weight:600}
+  .crunch .day{color:var(--change);text-transform:uppercase;letter-spacing:.5px;font-size:12px}
+  h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:2px solid var(--line);padding-bottom:6px;margin:30px 0 14px}
+  .card{border:1px solid var(--line);border-radius:10px;margin:0 0 16px;overflow:hidden;break-inside:avoid}
+  .card.changed{border-left:6px solid var(--change)} .card.normal{border-left:6px solid var(--ok)}
+  .card .head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:11px 15px;background:#f5f8fc;border-bottom:1px solid var(--line)}
+  .head .name{font-weight:700;font-size:15px} .hmeta{display:flex;gap:12px;align-items:center}
+  .head .rep{font-size:12px;color:var(--muted)} .head .rep b{color:var(--ink)}
+  .tag{font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:20px;text-transform:uppercase;border:1.5px solid}
+  .tag.change{color:var(--change);border-color:var(--change);background:var(--change-soft)}
+  .tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+  .card .body{padding:12px 15px}
+  .normalline{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  .wkcap{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin:12px 0 3px}
+  .wkcap.wk-normal{color:var(--nrm)} .wkcap.wk-prior{color:var(--pri)} .wkcap.wk-holiday{color:var(--hol)}
+  table.wk{width:100%;border-collapse:collapse;margin:2px 0 4px;font-size:12px}
+  table.wk th{font-weight:700;text-transform:uppercase;letter-spacing:.3px;font-size:10.5px;padding:5px 6px;border:1px solid var(--line);width:20%;color:var(--ink)}
+  table.wk th .dt{display:block;font-weight:600;font-size:10px;color:var(--muted);margin-top:1px}
+  table.wk.wk-normal th{background:var(--nrm-head)} table.wk.wk-prior th{background:var(--pri-head)} table.wk.wk-holiday th{background:var(--hol-head)}
+  table.wk td{border:1px solid var(--line);padding:6px;vertical-align:top;height:50px;text-align:center}
+  table.wk.wk-normal td.svc{background:var(--nrm-soft)} table.wk.wk-prior td.svc{background:var(--pri-soft)} table.wk.wk-holiday td.svc{background:var(--hol-soft)}
+  td.hit{background:var(--change-soft);outline:2px solid var(--change);outline-offset:-2px}
+  td.empty{background:#fbfcfe;color:#b7c1cc} td.holi{background:#f0eef4;color:var(--hol)}
+  .cellact{font-weight:700;font-size:11px;display:block;line-height:1.25}
+  .cellmeta{font-size:9.5px;color:var(--muted);display:block;margin-top:2px}
+  .cellchg{display:inline-block;margin-top:3px;font-size:9px;font-weight:800;letter-spacing:.4px;color:var(--change);border:1px solid var(--change);border-radius:3px;padding:0 3px}
+  .action{margin-top:11px;padding:10px 12px;background:var(--accent-soft);border-radius:7px;font-size:13px}
+  .action b{color:var(--accent)}
+  .warn{margin-top:8px;padding:9px 12px;border:1px dashed var(--change);border-radius:7px;background:#fffaf0;font-size:12.5px}
+  .warn b{color:var(--change)}
+  table.nc{width:100%;border-collapse:collapse;font-size:13px}
+  table.nc th{background:var(--ok-soft);text-align:left;padding:7px 12px;border:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ok)}
+  table.nc td{border:1px solid var(--line);padding:7px 12px} table.nc td.ncstore{font-weight:600}
+  .reset .grid2{display:flex;flex-wrap:wrap;gap:6px 22px;margin:8px 0}
+  .reset .grid2 div{font-size:12.5px;min-width:220px}
+  .reset .grid2 .down::before{content:"▾ ";color:var(--change)}
+  .reset .grid2 .up::before{content:"▴ ";color:var(--ok)}
+  .reset .grid2 .gone::before{content:"✕ ";color:var(--change)}
+  table.dltab{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+  table.dltab th{background:#eef3f8;text-align:left;padding:4px 7px;border:1px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  table.dltab td{border:1px solid var(--line);padding:3px 7px} table.dltab td.upc{font-variant-numeric:tabular-nums;color:var(--muted);width:130px}
+  .foot{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;font-size:12px;color:var(--muted)}
+  @media print{.wrap{max-width:none;padding:0 14px} .card,.crunch,.rules{box-shadow:none}
+    h2.sec{page-break-after:avoid} .card{page-break-inside:avoid} a{color:inherit;text-decoration:none}}
+</style></head><body><div class="wrap">
+
+<header class="brand"><div class="brandrow">
+  <div class="mark">
+    <svg class="compass" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="46" fill="none" stroke="#2e6fa8" stroke-width="5"/>
+      <polygon points="50,16 60,50 50,84 40,50" fill="#2e6fa8"/>
+      <polygon points="50,16 50,50 40,50" fill="#6ba3d4"/>
+      <circle cx="50" cy="50" r="4" fill="#141b24"/></svg>
+    <div><h1>Central Pet — Labor Day Schedule</h1>
+      <div class="sub">Normal week, week before, and holiday week · Aug 24 – Sep 11, 2026</div></div>
+  </div>
+  <div class="meta">Retail Odyssey<br>Holiday: Mon Sep 7</div>
+</div></header>
+
+<p class="lede"><b>Team</b> — Labor Day moves things around the week of September 7, and a few stores shift the week before too. Find your store below and read the action line. Each store shows your normal week first, then the two weeks that change. If your store isn't listed under changes, your week runs on the usual schedule.</p>
+
+<div class="rules"><b>The rules driving all of it:</b>
+  <ul>
+    <li>Monday, <b>September 7</b> is the holiday — all deliveries, visits, and service are cancelled that day.</li>
+    <li>Some stores that normally write their order later in the week will write it <b>Tuesday, September 8</b> instead. If that's your store, write the order <u>only</u> on Tuesday 9/8 — do not write it on the visit before. Writing it twice double-orders the store.</li>
+    <li>Changes begin <b>Wednesday, September 2</b>, not the holiday week — watch the dates.</li>
+    <li>Two stores — <b>Federal Way</b> and <b>Auburn</b> — are losing shelf space. This is a separate matter from the holiday schedule, but it lands the same weeks, so it's included here. The remodel team completes these resets — you don't work them; your part is to make sure you're not ordering the deleted items, and the store should have UA tags up. Both delete lists are at the end of this document, organized by store.</li>
+  </ul></div>
+
+<div class="crunch"><span class="day">Heads up — Tuesday, September 8 is heavy.</span><br>
+  Seven stores need a Tuesday 9/8 visit: <b>19, 23, 111, 215, 391, 658, 682</b>. That's a heavy Tuesday — I need each of you to confirm your September 8 coverage with me before the week starts.</div>
+
+<h2 class="sec">Stores with changes</h2>
+
+<div class="card changed">
+  <div class="head"><span class="name">19 · Auburn</span>
+    <span class="hmeta"><span class="rep">Rep: <b>Brian</b></span><span class="tag change">Change + Reset</span></span></div>
+  <div class="body">
+    <div class="normalline">Normal: <b>Mon</b> work load + write order · <b>Thu</b> work load + write order</div>
+    <div class="wkcap wk-normal">Normal week · Aug 24–28</div><table class="wk wk-normal"><tr><th>Mon<span class="dt">8/24</span></th><th>Tue<span class="dt">8/25</span></th><th>Wed<span class="dt">8/26</span></th><th>Thu<span class="dt">8/27</span></th><th>Fri<span class="dt">8/28</span></th></tr><tr><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">deliv Mon · pick Wed</span></td><td class="empty">—</td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">deliv Thu · pick Fri</span></td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-prior">Week before the holiday · Aug 31–Sep 4</div><table class="wk wk-prior"><tr><th>Mon<span class="dt">8/31</span></th><th>Tue<span class="dt">9/1</span></th><th>Wed<span class="dt">9/2</span></th><th>Thu<span class="dt">9/3</span></th><th>Fri<span class="dt">9/4</span></th></tr><tr><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">pick Wed · deliv Thu</span></td><td class="empty">—</td><td class="empty">—</td><td class="hit"><span class="cellact">Work Load</span><span class="cellmeta">throw the load · no write</span><span class="cellchg">No write</span></td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-holiday">Holiday week · Sep 7–11</div><table class="wk wk-holiday"><tr><th>Mon<span class="dt">9/7</span></th><th>Tue<span class="dt">9/8</span></th><th>Wed<span class="dt">9/9</span></th><th>Thu<span class="dt">9/10</span></th><th>Fri<span class="dt">9/11</span></th></tr><tr><td class="holi">Holiday<span class="cellmeta">closed</span></td><td class="hit"><span class="cellact">Write Order</span><span class="cellmeta">pick Wed · deliv Thu</span><span class="cellchg">Write moved here</span></td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">pick Fri · deliv Mon</span></td><td class="empty">—</td></tr></table>
+    <div class="action"><b>What to do:</b> Throw the load Thursday, September 3, but don't write the order — you'll write it Tuesday, September 8. Auburn's Pet Project reset also lands that week; the remodel team completes it — you don't work it. Your part is to make sure you're not ordering the deleted items (list at the end, under Auburn).</div>
+    <div class="warn"><b>Heads up:</b> Do not write the order early — write it Tuesday, September 8, not Thursday, September 3. Writing it both days double-orders the store.</div>
+  </div>
+</div>
+<div class="card changed">
+  <div class="head"><span class="name">23 · Bellevue</span>
+    <span class="hmeta"><span class="rep">Rep: <b>Kimberly</b></span><span class="tag change">Change</span></span></div>
+  <div class="body">
+    <div class="normalline">Normal: <b>Mon</b> write order · <b>Thu</b> work load</div>
+    <div class="wkcap wk-normal">Normal week · Aug 24–28</div><table class="wk wk-normal"><tr><th>Mon<span class="dt">8/24</span></th><th>Tue<span class="dt">8/25</span></th><th>Wed<span class="dt">8/26</span></th><th>Thu<span class="dt">8/27</span></th><th>Fri<span class="dt">8/28</span></th></tr><tr><td class="svc"><span class="cellact">Write Order</span><span class="cellmeta">pick Wed</span></td><td class="empty">—</td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load</span><span class="cellmeta">deliv Thu · throw the load</span></td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-prior">Week before the holiday · Aug 31–Sep 4</div><table class="wk wk-prior"><tr><th>Mon<span class="dt">8/31</span></th><th>Tue<span class="dt">9/1</span></th><th>Wed<span class="dt">9/2</span></th><th>Thu<span class="dt">9/3</span></th><th>Fri<span class="dt">9/4</span></th></tr><tr><td class="svc"><span class="cellact">Write Order</span><span class="cellmeta">pick Wed · deliv Thu</span></td><td class="empty">—</td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load</span></td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-holiday">Holiday week · Sep 7–11</div><table class="wk wk-holiday"><tr><th>Mon<span class="dt">9/7</span></th><th>Tue<span class="dt">9/8</span></th><th>Wed<span class="dt">9/9</span></th><th>Thu<span class="dt">9/10</span></th><th>Fri<span class="dt">9/11</span></th></tr><tr><td class="holi">Holiday<span class="cellmeta">closed</span></td><td class="hit"><span class="cellact">Write Order</span><span class="cellmeta">pick Wed · deliv Thu</span><span class="cellchg">Moved from Mon</span></td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load</span></td><td class="empty">—</td></tr></table>
+    <div class="action"><b>What to do:</b> Your Monday write moves to Tuesday, September 8. Thursday, September 10 throw-the-load stays put.</div>
+    
+  </div>
+</div>
+<div class="card changed">
+  <div class="head"><span class="name">31 · Benson Plaza</span>
+    <span class="hmeta"><span class="rep">Rep: <b>Kimberly</b></span><span class="tag change">Change · one visit</span></span></div>
+  <div class="body">
+    <div class="normalline">Normal: <b>Tue</b> work load · <b>Thu</b> write order</div>
+    <div class="wkcap wk-normal">Normal week · Aug 24–28</div><table class="wk wk-normal"><tr><th>Mon<span class="dt">8/24</span></th><th>Tue<span class="dt">8/25</span></th><th>Wed<span class="dt">8/26</span></th><th>Thu<span class="dt">8/27</span></th><th>Fri<span class="dt">8/28</span></th></tr><tr><td class="empty">—</td><td class="svc"><span class="cellact">Work Load</span><span class="cellmeta">deliv Mon · throw the load</span></td><td class="empty">—</td><td class="svc"><span class="cellact">Write Order</span><span class="cellmeta">pick Fri</span></td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-prior">Week before the holiday · Aug 31–Sep 4</div><table class="wk wk-prior"><tr><th>Mon<span class="dt">8/31</span></th><th>Tue<span class="dt">9/1</span></th><th>Wed<span class="dt">9/2</span></th><th>Thu<span class="dt">9/3</span></th><th>Fri<span class="dt">9/4</span></th></tr><tr><td class="empty">—</td><td class="svc"><span class="cellact">Work Load</span></td><td class="empty">—</td><td class="hit"><span class="cellact">Write Order</span><span class="cellmeta">pick Tue 9/8 · deliv Wed 9/9</span><span class="cellchg">Pick → Tue 9/8</span></td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-holiday">Holiday week · Sep 7–11</div><table class="wk wk-holiday"><tr><th>Mon<span class="dt">9/7</span></th><th>Tue<span class="dt">9/8</span></th><th>Wed<span class="dt">9/9</span></th><th>Thu<span class="dt">9/10</span></th><th>Fri<span class="dt">9/11</span></th></tr><tr><td class="holi">Holiday<span class="cellmeta">closed</span></td><td class="empty">—</td><td class="empty">—</td><td class="hit"><span class="cellact">Work Load + Write Order</span><span class="cellmeta">pick Fri · deliv Mon</span><span class="cellchg">One visit only</span></td><td class="empty">—</td></tr></table>
+    <div class="action"><b>What to do:</b> The week before, throw the load Tuesday, September 1 and write Thursday, September 3 — that order now picks Tuesday, September 8. Benson's holiday week is a single Thursday, September 10 visit: throw the load and write the order in the same stop. The usual second visit is absorbed that week.</div>
+    
+  </div>
+</div>
+<div class="card changed">
+  <div class="head"><span class="name">111 · Federal Way</span>
+    <span class="hmeta"><span class="rep">Rep: <b>Brian</b></span><span class="tag change">Change + Reset</span></span></div>
+  <div class="body">
+    <div class="normalline">Normal: <b>Mon</b> work load + write order · <b>Thu</b> work load + write order</div>
+    <div class="wkcap wk-normal">Normal week · Aug 24–28</div><table class="wk wk-normal"><tr><th>Mon<span class="dt">8/24</span></th><th>Tue<span class="dt">8/25</span></th><th>Wed<span class="dt">8/26</span></th><th>Thu<span class="dt">8/27</span></th><th>Fri<span class="dt">8/28</span></th></tr><tr><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">deliv Mon · pick Wed</span></td><td class="empty">—</td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">deliv Thu · pick Fri</span></td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-prior">Week before the holiday · Aug 31–Sep 4</div><table class="wk wk-prior"><tr><th>Mon<span class="dt">8/31</span></th><th>Tue<span class="dt">9/1</span></th><th>Wed<span class="dt">9/2</span></th><th>Thu<span class="dt">9/3</span></th><th>Fri<span class="dt">9/4</span></th></tr><tr><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">pick Wed · deliv Thu</span></td><td class="empty">—</td><td class="empty">—</td><td class="hit"><span class="cellact">Work Load</span><span class="cellmeta">throw the load · no write</span><span class="cellchg">No write</span></td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-holiday">Holiday week · Sep 7–11</div><table class="wk wk-holiday"><tr><th>Mon<span class="dt">9/7</span></th><th>Tue<span class="dt">9/8</span></th><th>Wed<span class="dt">9/9</span></th><th>Thu<span class="dt">9/10</span></th><th>Fri<span class="dt">9/11</span></th></tr><tr><td class="holi">Holiday<span class="cellmeta">closed</span></td><td class="hit"><span class="cellact">Write Order</span><span class="cellmeta">pick Wed · deliv Thu</span><span class="cellchg">Write moved here</span></td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">pick Fri · deliv Mon</span></td><td class="empty">—</td></tr></table>
+    <div class="action"><b>What to do:</b> Federal Way's space reset lands Tuesday, September 2 — separate from the holiday. The remodel team completes it — you don't work it; just make sure you're not ordering the deleted items (list at the end, under Federal Way). For the holiday: throw the load Thursday, September 3, but don't write the order — you'll write it Tuesday, September 8.</div>
+    <div class="warn"><b>Heads up:</b> Do not write the order early — write it Tuesday, September 8, not Thursday, September 3.</div>
+  </div>
+</div>
+<div class="card changed">
+  <div class="head"><span class="name">215 · Redondo</span>
+    <span class="hmeta"><span class="rep">Rep: <b>Brian</b></span><span class="tag change">Change</span></span></div>
+  <div class="body">
+    <div class="normalline">Normal: <b>Tue</b> work load + write order · <b>Fri</b> work load + write order</div>
+    <div class="wkcap wk-normal">Normal week · Aug 24–28</div><table class="wk wk-normal"><tr><th>Mon<span class="dt">8/24</span></th><th>Tue<span class="dt">8/25</span></th><th>Wed<span class="dt">8/26</span></th><th>Thu<span class="dt">8/27</span></th><th>Fri<span class="dt">8/28</span></th></tr><tr><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">deliv Mon · pick Tue</span></td><td class="empty">—</td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">deliv Wed · pick Fri</span></td></tr></table>
+    <div class="wkcap wk-prior">Week before the holiday · Aug 31–Sep 4</div><table class="wk wk-prior"><tr><th>Mon<span class="dt">8/31</span></th><th>Tue<span class="dt">9/1</span></th><th>Wed<span class="dt">9/2</span></th><th>Thu<span class="dt">9/3</span></th><th>Fri<span class="dt">9/4</span></th></tr><tr><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">pick Tue · deliv Wed</span></td><td class="empty">—</td><td class="empty">—</td><td class="hit"><span class="cellact">Work Load</span><span class="cellmeta">throw the load · no write</span><span class="cellchg">No write</span></td></tr></table>
+    <div class="wkcap wk-holiday">Holiday week · Sep 7–11</div><table class="wk wk-holiday"><tr><th>Mon<span class="dt">9/7</span></th><th>Tue<span class="dt">9/8</span></th><th>Wed<span class="dt">9/9</span></th><th>Thu<span class="dt">9/10</span></th><th>Fri<span class="dt">9/11</span></th></tr><tr><td class="holi">Holiday<span class="cellmeta">closed</span></td><td class="hit"><span class="cellact">Write Order</span><span class="cellmeta">pick Tue · deliv Wed</span><span class="cellchg">Write moved here</span></td><td class="empty">—</td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">pick Fri · deliv Mon</span></td></tr></table>
+    <div class="action"><b>What to do:</b> Throw Friday, September 4's load, but don't write the order — you'll write it Tuesday, September 8. Friday, September 11 is back to normal.</div>
+    <div class="warn"><b>Heads up:</b> Do not write the order early — write it Tuesday, September 8, not Friday, September 4.</div>
+  </div>
+</div>
+<div class="card changed">
+  <div class="head"><span class="name">391 · Totem Lake</span>
+    <span class="hmeta"><span class="rep">Rep: <b>Kimberly</b></span><span class="tag change">Change</span></span></div>
+  <div class="body">
+    <div class="normalline">Normal: <b>Mon</b> work load + write order · <b>Wed</b> work load + write order</div>
+    <div class="wkcap wk-normal">Normal week · Aug 24–28</div><table class="wk wk-normal"><tr><th>Mon<span class="dt">8/24</span></th><th>Tue<span class="dt">8/25</span></th><th>Wed<span class="dt">8/26</span></th><th>Thu<span class="dt">8/27</span></th><th>Fri<span class="dt">8/28</span></th></tr><tr><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">deliv Mon · pick Tue</span></td><td class="empty">—</td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">deliv Wed · pick Thu</span></td><td class="empty">—</td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-prior">Week before the holiday · Aug 31–Sep 4</div><table class="wk wk-prior"><tr><th>Mon<span class="dt">8/31</span></th><th>Tue<span class="dt">9/1</span></th><th>Wed<span class="dt">9/2</span></th><th>Thu<span class="dt">9/3</span></th><th>Fri<span class="dt">9/4</span></th></tr><tr><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">pick Tue · deliv Wed</span></td><td class="empty">—</td><td class="hit"><span class="cellact">Work Load</span><span class="cellmeta">throw the load · no write</span><span class="cellchg">No write</span></td><td class="empty">—</td><td class="empty">—</td></tr></table>
+    <div class="wkcap wk-holiday">Holiday week · Sep 7–11</div><table class="wk wk-holiday"><tr><th>Mon<span class="dt">9/7</span></th><th>Tue<span class="dt">9/8</span></th><th>Wed<span class="dt">9/9</span></th><th>Thu<span class="dt">9/10</span></th><th>Fri<span class="dt">9/11</span></th></tr><tr><td class="holi">Holiday<span class="cellmeta">closed</span></td><td class="hit"><span class="cellact">Write Order</span><span class="cellmeta">pick Tue · deliv Wed</span><span class="cellchg">Write moved here</span></td><td class="svc"><span class="cellact">Work Load / Write Order</span><span class="cellmeta">pick Fri · deliv Mon</span></td><td class="empty">—</td><td class="empty">—</td></tr></table>
+    <div class="action"><b>What to do:</b> Throw Wednesday, September 2's load, but don't write the order — you'll write it Tuesday, September 8. Your second holiday-week visit is Wednesday, September 9, back on its normal day.</div>
+    <div class="warn"><b>Heads up:</b> Do not write the order early — write it Tuesday, September 8, not Wednesday, September 2.</div>
+  </div>
+</div>
+
+<h2 class="sec">Stores running normal — no change</h2>
+<table class="nc"><tr><th>Store</th><th>Rep</th></tr><tr><td class="ncstore">28 · Burien</td><td>Kimberly</td></tr><tr><td class="ncstore">53 · Covington</td><td>James</td></tr><tr><td class="ncstore">459 · Renton</td><td>Brian</td></tr><tr><td class="ncstore">658 · Issaquah</td><td>Kimberly</td></tr><tr><td class="ncstore">682 · Maple Valley</td><td>Brian</td></tr></table>
+
+<h2 class="sec">Space resets — separate from the holiday</h2>
+<div class="card changed reset"><div class="head">
+  <span class="name">111 · Federal Way</span><span class="hmeta"><span class="rep">Rep: <b>Brian</b></span><span class="tag change">Tue, Sep 2</span></span></div>
+  <div class="body"><div class="normalline">Covered by your team, though not on the regular schedule sheet. Losing space September 2. The remodel team completes this reset — you don't work it; just make sure you're not ordering the deleted items, UA tags should be up.</div>
+    <div class="grid2"><div class="gone">4′ Wild Bird — gone</div><div class="down">8′ Dog Beds → 4′</div>
+      <div class="gone">4′ Kennel Crates — gone</div><div class="down">12′ Cat Furniture → 4′ (scratcher set gone)</div>
+      <div class="down">7′ Cat Pans → 4′</div><div class="up">4′ Wee Pads → 8′</div></div>
+    <div class="action">The full delete list is at the end of this document, under Federal Way.</div></div></div>
+
+<div class="card changed reset"><div class="head">
+  <span class="name">19 · Auburn — Pet Project</span><span class="hmeta"><span class="rep">Rep: <b>Brian</b></span><span class="tag change">Tue, Sep 8</span></span></div>
+  <div class="body"><div class="normalline">Losing 14′ total. The remodel team completes this reset that week — you don't work it; just make sure you're not ordering the deleted items, UA tags should be up.</div>
+    <div class="grid2"><div class="down">10′ Dog Beds → 8′</div><div class="gone">8′ Wild Bird — gone</div>
+      <div class="down">20′ Rawhide → 12′</div><div class="up">16′ Dog Toys → 20′ (double facings, no new items)</div></div>
+    <div class="action">The full delete list is at the end of this document, under Auburn.</div></div></div>
+
+<h2 class="sec">Delete lists — by store</h2>
+
+<div class="card changed dl">
+  <div class="head"><span class="name">Federal Way (111) — delete list</span><span class="hmeta"><span class="rep">Rep: <b>Brian</b></span><span class="tag change">Do not order</span></span></div>
+  <div class="body">
+    <div class="normalline">Space reset, Tuesday, September 2. These items are being deleted — make sure you're not ordering them. UA tags should be up.</div>
+    <table class="dltab"><tr><th>UPC</th><th>Item</th></tr><tr><td class="upc">07185901012</td><td>KT WASTE FREE 8/5LB</td></tr><tr><td class="upc">07185902012</td><td>KAYTEE WILD BIRD SEED</td></tr><tr><td class="upc">07185902013</td><td>KAYTEE WILD BIRD SEED</td></tr><tr><td class="upc">07185902023</td><td>KAYTEE SUNFLOWER SEED</td></tr><tr><td class="upc">07185902711</td><td>KAYTEE BIRDRS BLND BRD SD</td></tr><tr><td class="upc">07185902811</td><td>KT SONGBIRD WILD BIRD 6/7LB</td></tr><tr><td class="upc">07185913412</td><td>KAYTEE BYARD WLDLF BRD SD</td></tr><tr><td class="upc">07185913515</td><td>KAYTEE SQRRL & CRITTER FD</td></tr><tr><td class="upc">07185915825</td><td>KT WASTE FREE NUT AND RAISIN BLEND 6/5LB</td></tr><tr><td class="upc">07185915835</td><td>KT NUT AND FRUIT BLEND 6/5LB</td></tr><tr><td class="upc">07185916511</td><td>KAYTEE SNFLWR HRT & CHIPS</td></tr><tr><td class="upc">07185993045</td><td>KAYTEE NYGER THISTLE SEED</td></tr><tr><td class="upc">07185993058</td><td>KAYTEE WR WILD BIRD BLEND</td></tr><tr><td class="upc">07185994011</td><td>KAYTEE CRACKED CORN</td></tr><tr><td class="upc">07185994569</td><td>KT MEALWORM POUCH WB 4/17.6OZ</td></tr><tr><td class="upc">07185994589</td><td>KT HUMMBIRD ELECTRONECTAR WB RTU 4/64OZ</td></tr><tr><td class="upc">07579210016</td><td>HMRS GLR HMMNGBRD NECTAR</td></tr><tr><td class="upc">06638000273</td><td>HPET CRTTR CARE NATURAL</td></tr><tr><td class="upc">06638000941</td><td>HPET CRITTER CARE NATURAL</td></tr><tr><td class="upc">07185900155</td><td>KAYTEE CLN CMF EXTREME</td></tr><tr><td class="upc">07185999872</td><td>KAYTEE TMTHY HY PLS MNT</td></tr><tr><td class="upc">07185999873</td><td>KAYTEE TMTHY HY PLS CRRT</td></tr><tr><td class="upc">02777301915</td><td>QT CUDDLE BED BLUE MEDIUM</td></tr><tr><td class="upc">02777302576</td><td>QT DELUXE HUDSON PET BED GRAY XS</td></tr><tr><td class="upc">02777302803</td><td>QT REVERSIBLE BED SPOTTED GRAY 36 IN</td></tr><tr><td class="upc">02777302827</td><td>QT WHITE FLEECE BOLSTER BED 30 IN</td></tr><tr><td class="upc">02777302828</td><td>QT WHITE FLEECE BOLSTER BED 36 IN</td></tr><tr><td class="upc">02969581257</td><td>PETMATE 21X25 STRIPE CUDDLER</td></tr><tr><td class="upc">02969581261</td><td>PETMATE 30X24 CORD BOX BED</td></tr><tr><td class="upc">02969581283</td><td>PETMATE 26X22 LAVENDER PLUSH CUDDLER</td></tr><tr><td class="upc">02969581304</td><td>PETMATE 27X26 LAVENDER PILLOW</td></tr><tr><td class="upc">81016207030</td><td>CAT CRAFT 3 STEP CAT CLIMBING ACTIVITY TREE</td></tr><tr><td class="upc">81016207032</td><td>CAT CRAFT FOLDING PET STAIRS</td></tr><tr><td class="upc">81016207033</td><td>CAT CRAFT 46IN CAT LOUNGING ACTIVITY TREE</td></tr><tr><td class="upc">81016207034</td><td>CAT CRAFT 5 LEVEL CAT CLIMBING ACTIVITY TREE</td></tr><tr><td class="upc">81016207037</td><td>CAT CRAFT 3 LEVEL CAT CONDO ACTIVITY TREE</td></tr><tr><td class="upc">81016207039</td><td>CAT CRAFT CAT PERCH CONDO</td></tr><tr><td class="upc">81016207041</td><td>CAT CRAFT ROUND CAT CONDO STOOL</td></tr><tr><td class="upc">81016207045</td><td>CAT CRAFT MULTI LEVEL CAT TREE</td></tr><tr><td class="upc">81016207046</td><td>CAT CRAFT 3 TIER CAT TREE WITH PLUSH BED</td></tr><tr><td class="upc">02777302098</td><td>QT ORTHO NESTING BED GRAY 20 IN</td></tr><tr><td class="upc">02777302568</td><td>QT DELUXE TULIP BED TAUPE XS</td></tr><tr><td class="upc">02969521314</td><td>PTMT SOFT KENNEL CAB</td></tr><tr><td class="upc">02969521329</td><td>PTMT SFT BLCK CARRIER MED</td></tr><tr><td class="upc">02969527459</td><td>PETMATE 18 IN PUFFY ROUND</td></tr><tr><td class="upc">07648454901</td><td>COASTAL BOOSTER SEAT CARRIER</td></tr><tr><td class="upc">07648488866</td><td>COASTAL BENCH SEAT PROTECTOR</td></tr><tr><td class="upc">78630609928</td><td>SMTKAT SCRTH N SPN POST</td></tr><tr><td class="upc">87921300115</td><td>COASTAL FRONT SEAT BARRIER</td></tr><tr><td class="upc">87921300919</td><td>COASTAL COMFORT CARRIER GRAY</td></tr><tr><td class="upc">02969522194</td><td>AHMR SMALL LITTER PAN</td></tr><tr><td class="upc">02969529212</td><td>AHMR UNIVERSAL FILTER</td></tr><tr><td class="upc">04566397686</td><td>WEE CAT LITTER SYSTEM PADS 10CT</td></tr><tr><td class="upc">04566397687</td><td>WEE CAT LITTER SYSTEM PADS 30CT</td></tr><tr><td class="upc">04566397688</td><td>XL CAT PADS UNSCENTED 10CT</td></tr><tr><td class="upc">07944100425</td><td>VNSS SIFTING CAT PAN</td></tr><tr><td class="upc">07944100441</td><td>VNSS TRACKLESS LITTER MAT</td></tr><tr><td class="upc">07944100493</td><td>VNSS GIANT HI SIDE CT PAN</td></tr></table>
+  </div>
+</div>
+
+<div class="card changed dl">
+  <div class="head"><span class="name">Auburn (19) — delete list</span><span class="hmeta"><span class="rep">Rep: <b>Brian</b></span><span class="tag change">Do not order</span></span></div>
+  <div class="body">
+    <div class="normalline">Pet Project reset, Tuesday, September 8. Losing 14′ total. These items are being deleted — make sure you're not ordering them. UA tags should be up.</div>
+    <table class="dltab"><tr><th>UPC</th><th>Item</th></tr><tr><td class="upc">07185900042</td><td>KT MEALWORM CAKE 6/1.4LB</td></tr><tr><td class="upc">07185900150</td><td>KT WOODPECKER SUET NUGGETS 6/27OZ</td></tr><tr><td class="upc">07185900151</td><td>KT PEANUT SUET NUGGETS 6/27OZ</td></tr><tr><td class="upc">07185900153</td><td>KT WILD FINCH BAR 12/14.5OZ</td></tr><tr><td class="upc">07185900154</td><td>KT ENERGY BAR 12/15OZ</td></tr><tr><td class="upc">07185900156</td><td>KT PEANUT CAKE 6/2.68LB</td></tr><tr><td class="upc">07185900157</td><td>KT MIXED NUT CAKE 6/2.13LB</td></tr><tr><td class="upc">07185901012</td><td>KT WASTE FREE 8/5LB</td></tr><tr><td class="upc">07185902012</td><td>KAYTEE WILD BIRD SEED</td></tr><tr><td class="upc">07185902013</td><td>KAYTEE WILD BIRD SEED</td></tr><tr><td class="upc">07185902014</td><td>KAYTEE WILD BIRD FOOD</td></tr><tr><td class="upc">07185902023</td><td>KAYTEE SUNFLOWER SEED</td></tr><tr><td class="upc">07185902711</td><td>KAYTEE BIRDRS BLND BRD SD</td></tr><tr><td class="upc">07185902811</td><td>KT SONGBIRD WILD BIRD 6/7LB</td></tr><tr><td class="upc">07185903014</td><td>KAYTEE WDLND WILD BIRD SD</td></tr><tr><td class="upc">07185913412</td><td>KAYTEE BYARD WLDLF BRD SD</td></tr><tr><td class="upc">07185913515</td><td>KAYTEE SQRRL & CRITTER FD</td></tr><tr><td class="upc">07185915825</td><td>KT WASTE FREE NUT AND RAISIN BLEND 6/5LB</td></tr><tr><td class="upc">07185915835</td><td>KT NUT AND FRUIT BLEND 6/5LB</td></tr><tr><td class="upc">07185915836</td><td>KT NUT AND FRUIT BLEND 4/10LB</td></tr><tr><td class="upc">07185916511</td><td>KAYTEE SNFLWR HRT & CHIPS</td></tr><tr><td class="upc">07185919625</td><td>KAYTEE WDPECKER CAKE</td></tr><tr><td class="upc">07185919633</td><td>KAYTEE CORN A PLENTY CAKE</td></tr><tr><td class="upc">07185951518</td><td>KAYTEE FINCH FOOD</td></tr><tr><td class="upc">07185993045</td><td>KAYTEE NYGER THISTLE SEED</td></tr><tr><td class="upc">07185993058</td><td>KAYTEE WR WILD BIRD BLEND</td></tr><tr><td class="upc">07185994011</td><td>KAYTEE CRACKED CORN</td></tr><tr><td class="upc">07185994569</td><td>KT MEALWORM POUCH WB 4/17.6OZ</td></tr><tr><td class="upc">07185994589</td><td>KT HUMMBIRD ELECTRONECTAR WB RTU 4/64OZ</td></tr><tr><td class="upc">07185994770</td><td>KAYTEE AMCN WLD BRDFOOD</td></tr><tr><td class="upc">07579210016</td><td>HMRS GLR HMMNGBRD NECTAR</td></tr><tr><td class="upc">01595896441</td><td>PRK CHMP RSTD TWST RH DT</td></tr><tr><td class="upc">01595897885</td><td>PRK CHMP BCN FLV DOG TRTS</td></tr><tr><td class="upc">01595898387</td><td>SCOTT PET TWIST STICKS</td></tr><tr><td class="upc">01595898801</td><td>NTRI CHMPS CHKN TWST</td></tr><tr><td class="upc">01595898815</td><td>NTRI CHMPS ASST FLVR BRDS</td></tr><tr><td class="upc">01595898822</td><td>NUTRICHOMPS CHICKEN AND PORKSKIN ROLLS</td></tr><tr><td class="upc">01595898889</td><td>NUTRICHOMPS CHICKEN AND PORKSKIN TWISTS</td></tr><tr><td class="upc">01595899195</td><td>PORK CHOMPS ASSORTED CHUNCHY BONES</td></tr><tr><td class="upc">01821483304</td><td>NYLA NUBZ LRG DG CHW 12CT</td></tr><tr><td class="upc">01821484450</td><td>NYLABONE NUBZ BEEF EX LARGE</td></tr><tr><td class="upc">01821484779</td><td>NUBZ EDIBLE DOG CHEWS BEEF</td></tr><tr><td class="upc">01821485132</td><td>NUBZ BACON DOG CHEWS</td></tr><tr><td class="upc">01821485133</td><td>NYLABONE PUPPY NUBZ 16PK</td></tr><tr><td class="upc">07856525051</td><td>SMKH CHICKEN CHIPS BAG</td></tr><tr><td class="upc">07856525053</td><td>SMKH CHICKEN CHIPS</td></tr><tr><td class="upc">07856525092</td><td>SMKH CHICKEN POPPERS</td></tr><tr><td class="upc">07856525105</td><td>SMKH CHICKEN KABOBS BAG</td></tr><tr><td class="upc">07856580625</td><td>SMKH MAMMOTH BONE</td></tr><tr><td class="upc">07856583038</td><td>SMKH PZZLE STCKS DOG CHW</td></tr><tr><td class="upc">07856584056</td><td>SMKH KNEE BONES</td></tr><tr><td class="upc">07856584067</td><td>SMKH BEEF ROLLS</td></tr><tr><td class="upc">07856585431</td><td>SMKH CHCKN SWT PTO COMBO</td></tr><tr><td class="upc">09109394129</td><td>GOOD N FUN TRIPLE FLAVOR RIBS</td></tr><tr><td class="upc">09109394188</td><td>GOOD N FUN TRIPLE FLAVOR TWISTS 70PK</td></tr><tr><td class="upc">09109394244</td><td>HH GNF ROLLS PRK BF CKN</td></tr><tr><td class="upc">09109394269</td><td>GOOD N FUN CHIPS TRIPLEFLAVOR 4OZ</td></tr><tr><td class="upc">09109394468</td><td>GOOD N TASTY SOFT & CRUNCHY TREATS</td></tr><tr><td class="upc">74217400800</td><td>RWHD EX BEEFHEAD CHEW CHP</td></tr><tr><td class="upc">74217404800</td><td>RWHD EX BFHD HCK SMK CHPS</td></tr><tr><td class="upc">74217405800</td><td>RWHD EX BFHD PBTR CHW CHP</td></tr><tr><td class="upc">74217420623</td><td>RWHD EX RWHD BEEF CHEW LG</td></tr><tr><td class="upc">74217482558</td><td>LENNOX TENDER BULLY STICKS 4.5 IN</td></tr><tr><td class="upc">74217499516</td><td>LENX PRM PIG EARS LRG</td></tr><tr><td class="upc">76830301362</td><td>CADET TRPL FLVR KABOBS</td></tr><tr><td class="upc">76830307220</td><td>CADET RAWHIDE AND CHICKEN TWISTS</td></tr><tr><td class="upc">76830307222</td><td>CADET RAWHIDE AND DUCK TWISTS</td></tr><tr><td class="upc">76830370404</td><td>CADET PORK HIDE SHISH KABOBS</td></tr><tr><td class="upc">78518400088</td><td>RED BARN BULLY SLIMS</td></tr><tr><td class="upc">78518425105</td><td>RDBRN BULLY STICKS DG TRT</td></tr><tr><td class="upc">78518431009</td><td>RDBRN CHOPPERS</td></tr><tr><td class="upc">81035900017</td><td>SVRY PRM TWIST STICKS WHT</td></tr><tr><td class="upc">81035900355</td><td>SMPF BGR BN PORK SKIN</td></tr><tr><td class="upc">81035900383</td><td>SP SWEET POTATO AND CHICKEN JERKY</td></tr><tr><td class="upc">81035900459</td><td>SVRY PRM NAT RAWHIDE CHPS</td></tr><tr><td class="upc">81035900466</td><td>SVRY PRM BF BSTD CHP VLPK</td></tr><tr><td class="upc">81035900991</td><td>SVRY PRM WHT RETRVR ROLL</td></tr><tr><td class="upc">81035900997</td><td>SVRY PRM RWHD BONE LRG VP</td></tr><tr><td class="upc">81035900999</td><td>SVRY PRM RWHD AST FLVRD</td></tr><tr><td class="upc">81035930008</td><td>SVRY PRM NATL CHKN JERKY</td></tr><tr><td class="upc">81035942016</td><td>SVRY PRM DCK&SWT PT</td></tr><tr><td class="upc">84013913162</td><td>PAW LOVE HIMALAYAN YAK CHEW</td></tr><tr><td class="upc">84298205563</td><td>LVPT GRMT SWT PTO CKN WRP</td></tr><tr><td class="upc">89238300727</td><td>DREAMBONE TRIPLE FLAVOR BRAIDZ 5PK</td></tr><tr><td class="upc">89238300872</td><td>DREAMBONE SPEARMINT DENTAL STICKS 10PK</td></tr><tr><td class="upc">89238300876</td><td>DREAMBONE SPEARMINT CHARCOAL STICKS 10PK</td></tr><tr><td class="upc">02777302680</td><td>QT GRAY DIAMOND BOLSTER BED 22 IN</td></tr><tr><td class="upc">02777302681</td><td>QT GRAY DIAMOND BOLSTER BED 24 IN</td></tr><tr><td class="upc">02969581160</td><td>PETMATE 32 DONUT LOUNGER</td></tr><tr><td class="upc">02969581258</td><td>PETMATE 34X28 OVAL BOLSTER</td></tr><tr><td class="upc">02969581260</td><td>PETMATE 32 DOUBLE BOLSTER COUCH</td></tr><tr><td class="upc">01111088236</td><td>PTPR DRWSTR CAT LTTR LNRS</td></tr></table>
+  </div>
+</div>
+
+<div class="foot">Central Pet · Retail Odyssey</div>
+</div></body></html>
