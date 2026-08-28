@@ -504,6 +504,48 @@
       <button type="button" class="secondary btn-xs" id="cov-bulk-remind" style="margin-left: auto; min-height: 32px">Remind / Schedule…</button>
     </div>
 
+    <details class="assign-box" id="store-assign-panel" hidden>
+      <summary>
+        <span class="sum-label">
+          Assign store leads
+          <span class="sum-sub" id="store-assign-sum">PROD leads scheduled at this store</span>
+        </span>
+      </summary>
+      <div class="assign-body">
+        <div class="prod-status" id="store-assign-status"></div>
+        <div class="toolbar" id="store-assign-tools" hidden style="margin:6px 0">
+          <button type="button" class="ghost btn-xs" id="store-assign-select-all">Select visible</button>
+          <button type="button" class="ghost btn-xs" id="store-assign-select-none">Clear selection</button>
+        </div>
+        <div class="prod-leads-box" id="store-assign-leads"></div>
+        <div class="prod-filters" style="align-items:flex-end">
+          <div class="field-wrap" style="flex:1 1 240px">
+            <label class="field" for="store-invite-mode">Invite email</label>
+            <select id="store-invite-mode">
+              <option value="now">Send now</option>
+              <option value="visit_day" selected>On each store’s visit day</option>
+              <option value="date">On a specific date…</option>
+              <option value="none">Don’t email</option>
+            </select>
+          </div>
+          <div class="field-wrap" style="flex:0 0 150px" id="store-invite-date-wrap" hidden>
+            <label class="field" for="store-invite-date">Send date</label>
+            <input id="store-invite-date" type="date">
+          </div>
+          <div class="field-wrap" style="flex:0 0 148px" id="store-invite-time-wrap">
+            <label class="field" for="store-invite-time">Time</label>
+            <input id="store-invite-time" type="time" value="04:00">
+          </div>
+        </div>
+        <div class="prod-filters">
+          <button type="button" id="store-assign-submit">Assign selected</button>
+          <button type="button" class="ghost" id="store-assign-someone-else">Someone else…</button>
+        </div>
+        <div class="err-box" id="store-assign-err"></div>
+        <div class="success-box" id="store-assign-ok"></div>
+      </div>
+    </details>
+
     <details class="assign-box" id="prod-panel">
       <summary>
         <span class="sum-label">
@@ -823,6 +865,8 @@ let COV_STATE = 'all';
 let rosterTimer = null;
 let VIEW_IDX = -1;
 let PROD_SCHEDULE = null;
+let STORE_ASSIGN = null;
+let STORE_ASSIGN_STORE = null;
 let PROD_CYCLES = null;
 let PROD_DISTRICT_FILTER = new Set();
 const PROD_CACHE_TTL_MS = 20 * 60 * 1000;
@@ -979,6 +1023,7 @@ document.getElementById('tabs').addEventListener('click', (e) => {
 
 function openProdAssign() {
   document.getElementById('manual-panel').open = false;
+  document.getElementById('store-assign-panel').open = false;
   document.getElementById('prod-panel').open = true;
   document.getElementById('prod-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   if (!PROD_SCHEDULE) loadProdSchedule(false).catch(console.error);
@@ -1373,11 +1418,224 @@ document.getElementById('panel-stores').addEventListener('click', async (e) => {
     return;
   }
   const assignBtn = e.target.closest('[data-assign-store]');
-  if (assignBtn) openManualAssign(Number(assignBtn.dataset.assignStore));
+  if (assignBtn) openStoreAssign(Number(assignBtn.dataset.assignStore));
 });
+
+function storeLeadKey(L) {
+  return L.leadKey || (L.email ? `email:${L.email}` : `name:${(L.name || '').toLowerCase()}`);
+}
+
+function syncStoreInviteUi() {
+  const mode = document.getElementById('store-invite-mode').value;
+  const showWhen = mode === 'date' || mode === 'visit_day';
+  document.getElementById('store-invite-date-wrap').hidden = mode !== 'date';
+  document.getElementById('store-invite-time-wrap').hidden = !showWhen;
+}
+
+function formatStoreVisitDay(ymd) {
+  if (!ymd) return '';
+  const [y, m, d] = String(ymd).slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return ymd;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' });
+}
+
+function renderStoreAssignLeads() {
+  const box = document.getElementById('store-assign-leads');
+  const status = document.getElementById('store-assign-status');
+  const tools = document.getElementById('store-assign-tools');
+  if (!STORE_ASSIGN) {
+    box.innerHTML = '';
+    tools.hidden = true;
+    return;
+  }
+  const leads = STORE_ASSIGN.leads || [];
+  tools.hidden = !leads.length;
+  if (!STORE_ASSIGN.ok) {
+    status.className = 'prod-status bad';
+    status.textContent = STORE_ASSIGN.error || 'Could not load store schedule';
+  } else {
+    status.className = 'prod-status ok';
+    const weeks = STORE_ASSIGN.remainingWeeks || [];
+    const weekLabel = weeks.length > 1
+      ? `W${weeks[0]}–W${weeks[weeks.length - 1]}`
+      : (weeks.length ? `W${weeks[0]}` : '');
+    const periodNum = STORE_ASSIGN.periodWeek
+      ? String(STORE_ASSIGN.periodWeek).replace(/W\d+$/, '')
+      : '';
+    const period = [periodNum, weekLabel].filter(Boolean).join(' · ')
+      || `${STORE_ASSIGN.startDate}–${STORE_ASSIGN.endDate}`;
+    status.textContent =
+      `${period} · ${STORE_ASSIGN.visitCount || 0} visit${STORE_ASSIGN.visitCount === 1 ? '' : 's'} · ` +
+      `${leads.length} lead${leads.length === 1 ? '' : 's'}`;
+  }
+  if (!leads.length) {
+    box.innerHTML = '<div class="muted" style="padding:8px 0">No PROD leads scheduled at this store in the remaining period.</div>';
+    return;
+  }
+  box.innerHTML = leads.map((L) => {
+    const key = storeLeadKey(L);
+    const days = (L.stores || []).map((s) => formatStoreVisitDay(s.date)).filter(Boolean).join(', ');
+    const badge = L.matched
+      ? '<span class="badge good">Roster</span>'
+      : '<span class="badge warn">Needs email</span>';
+    const emailLine = L.email
+      ? `<span class="muted" style="font-size:.75rem">${escHtml(L.email)}${L.team ? ' · ' + escHtml(L.team) : ''}</span>`
+      : `<span class="muted" style="font-size:.75rem">Not on roster — enter an email to assign</span>`;
+    const override = L.matched
+      ? `<div class="email-override">
+           <label class="field" style="margin:0;flex:0 0 auto">Invite email</label>
+           <input type="email" data-store-email-input="${escHtml(key)}" value="${escHtml(L.email || '')}" placeholder="Override email (optional)">
+         </div>`
+      : `<div class="email-override">
+           <label class="field" style="margin:0;flex:0 0 auto">Email required</label>
+           <input type="email" data-store-email-input="${escHtml(key)}" value="" placeholder="name@example.com" required>
+         </div>`;
+    return `<label class="prod-lead ${L.matched ? '' : 'unmatched'}">
+      <input type="checkbox" data-store-lead-key="${escHtml(key)}" ${L.matched ? 'checked' : ''}>
+      <span class="meta">
+        <strong>${escHtml(L.name || L.email || 'Lead')}${badge}</strong>
+        ${emailLine}
+        <div class="stores">${days ? escHtml(days) : 'Visit day TBD'}</div>
+        ${override}
+      </span>
+    </label>`;
+  }).join('');
+}
+
+async function openStoreAssign(storeNum) {
+  const n = Number(storeNum);
+  if (!Number.isFinite(n)) return;
+  STORE_ASSIGN_STORE = n;
+  document.getElementById('prod-panel').open = false;
+  document.getElementById('manual-panel').open = false;
+  const panel = document.getElementById('store-assign-panel');
+  panel.hidden = false;
+  panel.open = true;
+  const store = (COVERAGE.stores || []).find((s) => Number(s.storeNum) === n);
+  const label = store
+    ? `Store ${store.storeNum}${store.storeName ? ' · ' + store.storeName : ''}`
+    : `Store ${n}`;
+  document.getElementById('store-assign-sum').textContent = label;
+  document.getElementById('store-assign-err').classList.remove('show');
+  document.getElementById('store-assign-ok').classList.remove('show');
+  document.getElementById('store-assign-status').className = 'prod-status';
+  document.getElementById('store-assign-status').textContent = 'Pulling PROD schedule…';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  await loadStoreAssignLeads(n);
+}
+
+async function loadStoreAssignLeads(storeNum) {
+  const err = document.getElementById('store-assign-err');
+  err.classList.remove('show');
+  err.textContent = '';
+  setLoading(true, 'Pulling schedule');
+  try {
+    const res = await api('/api/survey/admin/prod-store-leads?storeNum=' + encodeURIComponent(storeNum));
+    STORE_ASSIGN = res;
+    renderStoreAssignLeads();
+  } catch (e) {
+    STORE_ASSIGN = { ok: false, error: e.message || 'Failed to load store schedule', leads: [] };
+    renderStoreAssignLeads();
+    err.textContent = e.message || 'Failed to load store schedule';
+    err.classList.add('show');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function collectStoreAssignSelections() {
+  const rows = [...document.querySelectorAll('#store-assign-leads input[data-store-lead-key]:checked')];
+  const selections = [];
+  const errors = [];
+  for (const cb of rows) {
+    const key = cb.dataset.storeLeadKey;
+    const lead = (STORE_ASSIGN?.leads || []).find((L) => storeLeadKey(L) === key);
+    const row = cb.closest('.prod-lead');
+    const input = row?.querySelector('input[data-store-email-input]');
+    const email = String(input?.value || lead?.email || '').trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      errors.push(lead?.name || key);
+      continue;
+    }
+    const stores = (lead?.stores || []).map((s) => ({
+      storeNum: Number(s.storeNum),
+      date: s.date || null,
+    }));
+    selections.push({
+      leadKey: key,
+      email,
+      name: lead?.name || null,
+      storeNums: stores.map((s) => s.storeNum),
+      stores,
+    });
+  }
+  return { selections, errors };
+}
+
+async function assignStoreLeads() {
+  const err = document.getElementById('store-assign-err');
+  const ok = document.getElementById('store-assign-ok');
+  err.classList.remove('show');
+  ok.classList.remove('show');
+  err.textContent = '';
+  ok.innerHTML = '';
+  if (!STORE_ASSIGN?.ok) {
+    err.textContent = 'Pull the store schedule first.';
+    err.classList.add('show');
+    return;
+  }
+  const { selections, errors } = collectStoreAssignSelections();
+  if (errors.length) {
+    err.textContent = `Enter a valid email for: ${errors.join(', ')}`;
+    err.classList.add('show');
+    return;
+  }
+  if (!selections.length) {
+    err.textContent = 'Select at least one lead.';
+    err.classList.add('show');
+    return;
+  }
+  const inviteMode = document.getElementById('store-invite-mode').value;
+  const inviteTime = parseTimeParts(document.getElementById('store-invite-time').value);
+  const body = {
+    startDate: STORE_ASSIGN.startDate,
+    endDate: STORE_ASSIGN.endDate,
+    storeNums: [STORE_ASSIGN.storeNum || STORE_ASSIGN_STORE],
+    selections,
+    dueAt: STORE_ASSIGN.endDate || null,
+    remindDaysBefore: 1,
+    sendInvites: inviteMode !== 'none',
+    inviteMode,
+    inviteHour: inviteTime.hour,
+    inviteMinute: inviteTime.minute,
+    scopeLabel: `Store ${STORE_ASSIGN.storeNum || STORE_ASSIGN_STORE}`,
+  };
+  if (inviteMode === 'date') {
+    body.inviteAt = inviteAtFromDateTime(
+      document.getElementById('store-invite-date'),
+      document.getElementById('store-invite-time')
+    );
+  }
+  setLoading(true, 'Assigning');
+  try {
+    const res = await api('/api/survey/admin/assignments/from-prod', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    ok.innerHTML = `<strong>Created ${res.created} assignment${res.created === 1 ? '' : 's'}.</strong><br>${escHtml(inviteSummary(res.inviteResults))}`;
+    ok.classList.add('show');
+    await loadCoverage();
+  } catch (e) {
+    err.textContent = e.message || 'Assignment failed';
+    err.classList.add('show');
+  } finally {
+    setLoading(false);
+  }
+}
 
 function openManualAssign(storeNum) {
   document.getElementById('prod-panel').open = false;
+  document.getElementById('store-assign-panel').open = false;
   document.getElementById('manual-panel').open = true;
   SELECTED_STORES = new Set([Number(storeNum)]);
   const store = (COVERAGE.stores || []).find((s) => Number(s.storeNum) === Number(storeNum));
@@ -2120,6 +2378,19 @@ document.getElementById('prod-select-all').onclick = () => {
 document.getElementById('prod-select-none').onclick = () => {
   document.querySelectorAll('#prod-leads input[data-prod-key]').forEach((cb) => { cb.checked = false; });
 };
+document.getElementById('store-invite-mode').onchange = syncStoreInviteUi;
+document.getElementById('store-invite-date').value = todayYmdLocal();
+document.getElementById('store-assign-submit').onclick = () => assignStoreLeads();
+document.getElementById('store-assign-someone-else').onclick = () => {
+  if (STORE_ASSIGN_STORE) openManualAssign(STORE_ASSIGN_STORE);
+};
+document.getElementById('store-assign-select-all').onclick = () => {
+  document.querySelectorAll('#store-assign-leads input[data-store-lead-key]').forEach((cb) => { cb.checked = true; });
+};
+document.getElementById('store-assign-select-none').onclick = () => {
+  document.querySelectorAll('#store-assign-leads input[data-store-lead-key]').forEach((cb) => { cb.checked = false; });
+};
+syncStoreInviteUi();
 
 function flatQuestions(spec) {
   const out = [];
