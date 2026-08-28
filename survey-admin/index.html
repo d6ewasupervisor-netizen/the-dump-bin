@@ -501,10 +501,25 @@
           <button type="button" class="ghost btn-xs" id="prod-select-none">Clear selection</button>
         </div>
         <div class="prod-leads-box" id="prod-leads"></div>
-        <label class="check">
-          <input type="checkbox" id="prod-send-invites" checked>
-          <span>Email invites when assigning</span>
-        </label>
+        <div class="prod-filters" style="align-items:flex-end">
+          <div class="field-wrap" style="flex:1 1 240px">
+            <label class="field" for="prod-invite-mode">Invite email</label>
+            <select id="prod-invite-mode">
+              <option value="now">Send now</option>
+              <option value="visit_day" selected>On each store’s visit day</option>
+              <option value="date">On a specific date…</option>
+              <option value="none">Don’t email</option>
+            </select>
+          </div>
+          <div class="field-wrap" style="flex:0 0 150px" id="prod-invite-date-wrap" hidden>
+            <label class="field" for="prod-invite-date">Send date</label>
+            <input id="prod-invite-date" type="date">
+          </div>
+          <div class="field-wrap" style="flex:0 0 120px" id="prod-invite-time-wrap" hidden>
+            <label class="field" for="prod-invite-time">Time</label>
+            <input id="prod-invite-time" type="time" value="07:00">
+          </div>
+        </div>
         <div class="err-box" id="prod-err"></div>
         <div class="success-box" id="prod-ok"></div>
       </div>
@@ -535,10 +550,24 @@
           <div class="store-pick-list" id="store-picks"></div>
           <p class="muted" style="font-size:.75rem;margin:8px 0 0" id="store-count">0 stores selected</p>
         </div>
-        <label class="check">
-          <input type="checkbox" id="send-invites" checked>
-          <span>Email a magic-link invite</span>
-        </label>
+        <div class="field-wrap">
+          <label class="field" for="manual-invite-mode">Invite email</label>
+          <select id="manual-invite-mode">
+            <option value="now" selected>Send now</option>
+            <option value="date">Schedule for a date…</option>
+            <option value="none">Don’t email</option>
+          </select>
+        </div>
+        <div class="prod-filters" id="manual-invite-when" hidden>
+          <div class="field-wrap" style="flex:1 1 160px">
+            <label class="field" for="manual-invite-date">Send date</label>
+            <input id="manual-invite-date" type="date">
+          </div>
+          <div class="field-wrap" style="flex:0 0 120px">
+            <label class="field" for="manual-invite-time">Time</label>
+            <input id="manual-invite-time" type="time" value="07:00">
+          </div>
+        </div>
         <button type="button" id="assign-submit">Assign</button>
         <div class="err-box" id="assign-err"></div>
         <div class="success-box" id="assign-ok"></div>
@@ -1113,7 +1142,7 @@ function renderCoverage() {
       <div class="assignee-row">
         <span>${escHtml(a.assigneeName || a.assigneeEmail)}</span>
         ${a.dueAt ? `<span class="due">due ${escHtml(formatDue(a.dueAt))}</span>` : ''}
-        ${a.nextRemindAt ? `<span class="scheduled">remind ${escHtml(formatRemindAt(a.nextRemindAt))}</span>` : ''}
+        ${a.nextRemindAt ? `<span class="scheduled">${a.nextRemindKind === 'invite' ? 'invite' : 'remind'} ${escHtml(formatRemindAt(a.nextRemindAt))}</span>` : ''}
         ${s.state !== 'done' ? `<button type="button" class="ghost btn-xs" data-remind="${a.id}">Remind</button>` : ''}
         ${a.nextRemindAt ? `<button type="button" class="ghost btn-xs" data-cancel-remind="${a.id}">Unschedule</button>` : ''}
         <button type="button" class="ghost btn-xs" data-cancel="${a.id}">Cancel</button>
@@ -1495,9 +1524,40 @@ document.getElementById('manual-show-done').onchange = renderManualStores;
 
 function inviteSummary(results) {
   if (!results || !results.length) return 'No invite emails sent.';
-  const ok = results.filter((r) => r.ok !== false && !r.error).length;
-  const fail = results.length - ok;
-  return `${results.length} invite attempt${results.length === 1 ? '' : 's'}: ${ok} sent${fail ? `, ${fail} failed` : ''}.`;
+  const scheduled = results.filter((r) => r.ok !== false && !r.error && r.scheduled).length;
+  const sent = results.filter((r) => r.ok !== false && !r.error && !r.scheduled).length;
+  const fail = results.length - scheduled - sent;
+  const parts = [];
+  if (sent) parts.push(`${sent} sent now`);
+  if (scheduled) parts.push(`${scheduled} scheduled`);
+  if (fail) parts.push(`${fail} failed`);
+  return parts.join(', ') + '.';
+}
+
+function parseTimeParts(value, fallbackHour = 7, fallbackMinute = 0) {
+  const m = String(value || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return { hour: fallbackHour, minute: fallbackMinute };
+  return { hour: Number(m[1]), minute: Number(m[2]) };
+}
+
+function inviteAtFromDateTime(dateEl, timeEl) {
+  const day = (dateEl && dateEl.value) || todayYmdLocal();
+  if (dateEl) dateEl.value = day;
+  const { hour, minute } = parseTimeParts(timeEl && timeEl.value);
+  const local = `${day}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  return localDatetimeToIso(local);
+}
+
+function syncProdInviteUi() {
+  const mode = document.getElementById('prod-invite-mode').value;
+  const showWhen = mode === 'date' || mode === 'visit_day';
+  document.getElementById('prod-invite-date-wrap').hidden = mode !== 'date';
+  document.getElementById('prod-invite-time-wrap').hidden = !showWhen;
+}
+
+function syncManualInviteUi() {
+  const mode = document.getElementById('manual-invite-mode').value;
+  document.getElementById('manual-invite-when').hidden = mode !== 'date';
 }
 
 document.getElementById('assign-submit').onclick = async () => {
@@ -1518,15 +1578,27 @@ document.getElementById('assign-submit').onclick = async () => {
   }
   try {
     setLoading(true);
+    const inviteMode = document.getElementById('manual-invite-mode').value;
+    const time = parseTimeParts(document.getElementById('manual-invite-time').value);
+    const body = {
+      assignees: [{ email: MANUAL_PERSON.email, name: MANUAL_PERSON.name, role: MANUAL_PERSON.role || 'lead' }],
+      assigneeEmails: [MANUAL_PERSON.email],
+      storeNums,
+      sendInvites: inviteMode !== 'none',
+      inviteMode,
+      inviteHour: time.hour,
+      inviteMinute: time.minute,
+      scopeLabel: 'Survey admin assign',
+    };
+    if (inviteMode === 'date') {
+      body.inviteAt = inviteAtFromDateTime(
+        document.getElementById('manual-invite-date'),
+        document.getElementById('manual-invite-time')
+      );
+    }
     const res = await api('/api/survey/admin/assignments', {
       method: 'POST',
-      body: JSON.stringify({
-        assignees: [{ email: MANUAL_PERSON.email, name: MANUAL_PERSON.name, role: MANUAL_PERSON.role || 'lead' }],
-        assigneeEmails: [MANUAL_PERSON.email],
-        storeNums,
-        sendInvites: document.getElementById('send-invites').checked,
-        scopeLabel: 'Survey admin assign',
-      }),
+      body: JSON.stringify(body),
     });
     ok.innerHTML = `<strong>Created ${res.created} assignment${res.created === 1 ? '' : 's'}.</strong><br>${escHtml(inviteSummary(res.inviteResults))}`;
     ok.classList.add('show');
@@ -1785,13 +1857,18 @@ function collectProdSelections() {
       errors.push(lead?.name || key);
       continue;
     }
-    let storeNums = (lead?.stores || []).map((s) => Number(s.storeNum));
+    let stores = lead?.stores || [];
     if (PROD_DISTRICT_FILTER.size) {
-      storeNums = (lead?.stores || [])
-        .filter((s) => PROD_DISTRICT_FILTER.has(String(s.district)))
-        .map((s) => Number(s.storeNum));
+      stores = stores.filter((s) => PROD_DISTRICT_FILTER.has(String(s.district)));
     }
-    selections.push({ leadKey: key, email, name: lead?.name || null, storeNums });
+    const storeNums = stores.map((s) => Number(s.storeNum));
+    selections.push({
+      leadKey: key,
+      email,
+      name: lead?.name || null,
+      storeNums,
+      stores: stores.map((s) => ({ storeNum: Number(s.storeNum), date: s.date || null })),
+    });
   }
   return { selections, errors };
 }
@@ -1822,12 +1899,23 @@ async function assignFromProd() {
     return;
   }
   const mode = document.getElementById('prod-cycle').value;
+  const inviteMode = document.getElementById('prod-invite-mode').value;
+  const inviteTime = parseTimeParts(document.getElementById('prod-invite-time').value);
   const body = {
     selections,
     dueAt: PROD_SCHEDULE.endDate || PROD_SCHEDULE.cycle?.endDate || null,
     remindDaysBefore: 1,
-    sendInvites: document.getElementById('prod-send-invites')?.checked !== false,
+    sendInvites: inviteMode !== 'none',
+    inviteMode,
+    inviteHour: inviteTime.hour,
+    inviteMinute: inviteTime.minute,
   };
+  if (inviteMode === 'date') {
+    body.inviteAt = inviteAtFromDateTime(
+      document.getElementById('prod-invite-date'),
+      document.getElementById('prod-invite-time')
+    );
+  }
   if (mode === 'current') body.range = 'current';
   else if (mode === 'next') body.range = 'next';
   else if (mode.startsWith('cycle:')) body.cycleId = Number(mode.slice(6));
@@ -1853,7 +1941,13 @@ async function assignFromProd() {
 }
 
 document.getElementById('prod-date').value = todayYmdLocal();
+document.getElementById('prod-invite-date').value = todayYmdLocal();
+document.getElementById('manual-invite-date').value = todayYmdLocal();
 document.getElementById('prod-cycle').onchange = updateProdCycleUi;
+document.getElementById('prod-invite-mode').onchange = syncProdInviteUi;
+document.getElementById('manual-invite-mode').onchange = syncManualInviteUi;
+syncProdInviteUi();
+syncManualInviteUi();
 document.getElementById('prod-refresh').onclick = () => loadProdSchedule(true);
 document.getElementById('prod-assign').onclick = () => assignFromProd();
 document.getElementById('prod-name-q').addEventListener('input', () => {
