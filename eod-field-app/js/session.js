@@ -166,7 +166,7 @@
     if (!m) return false;
     if (Array.isArray(m.active) && m.active.length) return true;
     if (m.type) return true;
-    if (m.complete || m.notInStore || m.notInSi) return true;
+    if (m.complete || m.notInStore || m.notInSi || m.backlog) return true;
     return false;
   }
 
@@ -189,9 +189,28 @@
     });
   }
 
+  function resolvedLeadName() {
+    return String(
+      state.leadName
+      || state.profileName
+      || state.selectedShift?.visitLead
+      || ''
+    ).trim();
+  }
+
+  let saveDraftTimer = null;
+  function scheduleSaveDraft() {
+    if (saveDraftTimer) clearTimeout(saveDraftTimer);
+    saveDraftTimer = setTimeout(() => {
+      saveDraftTimer = null;
+      try { saveDraft(); } catch (_) {}
+    }, 250);
+  }
+
   function patch(partial, reason) {
     Object.assign(state, partial || {});
     emit(reason || 'patch');
+    scheduleSaveDraft();
   }
 
   function appendNote(line) {
@@ -365,6 +384,7 @@
     on,
     emit,
     patch,
+    resolvedLeadName,
     appendNote,
     loadDraft,
     saveDraft,

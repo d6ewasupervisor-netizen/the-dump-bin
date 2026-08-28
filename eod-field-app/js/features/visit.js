@@ -2,7 +2,34 @@
 (function (global) {
   'use strict';
 
-  const STORES = [5,11,13,17,18,19,21,23,24,25,28,30,31,35,40,41,49,50,53,60,63,70,71,75,90,93,111,122,125,126,127,135,140,143,150,153,156,158,163,165,171,180,185,186,195,196,198,208,209,210,214,215,218,220,224,225,226,227,236,240,242,253,255,260,265,281,285,286,325,328,351,355,360,372,375,377,383,390,391,393,417,424,439,449,457,458,459,460,462,464,482,485,486,516,600,603,604,605,608,613,614,615,649,650,651,652,653,654,655,656,657,658,659,660,661,662,663,665,667,668,681,682,683,685,688,691,694,999];
+  const FALLBACK_STORES = [5,11,13,17,18,19,21,23,24,25,28,30,31,35,40,41,49,50,53,60,63,70,71,75,90,93,111,122,125,126,127,135,140,143,150,153,156,158,163,165,171,180,185,186,195,196,198,208,209,210,214,215,218,220,224,225,226,227,236,240,242,253,255,260,265,281,285,286,325,328,351,355,360,372,375,377,383,390,391,393,417,424,439,449,457,458,459,460,462,464,482,485,486,516,600,603,604,605,608,613,614,615,649,650,651,652,653,654,655,656,657,658,659,660,661,662,663,665,667,668,681,682,683,685,688,691,694,999];
+  const STORE_CACHE_KEY = 'eodCatalogStores';
+  let catalogStores = null;
+
+  function storeNumbers() {
+    const src = Array.isArray(catalogStores) && catalogStores.length ? catalogStores : FALLBACK_STORES;
+    const nums = src.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0);
+    if (!nums.includes(999)) nums.push(999);
+    return [...new Set(nums)].sort((a, b) => a - b);
+  }
+
+  async function ensureStoreCatalog() {
+    if (catalogStores && catalogStores.length) return storeNumbers();
+    try {
+      const cached = JSON.parse(localStorage.getItem(STORE_CACHE_KEY) || 'null');
+      if (Array.isArray(cached) && cached.length) catalogStores = cached;
+    } catch (_) {}
+    try {
+      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/digital-signoffs/catalog-stores`);
+      const data = await resp.json().catch(() => ({}));
+      const nums = (data.stores || []).map((s) => Number(s.storeNum || s.storeNumber || s)).filter((n) => Number.isFinite(n) && n > 0);
+      if (nums.length) {
+        catalogStores = nums;
+        try { localStorage.setItem(STORE_CACHE_KEY, JSON.stringify(nums)); } catch (_) {}
+      }
+    } catch (_) {}
+    return storeNumbers();
+  }
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
@@ -675,6 +702,11 @@
 
   async function render(mount) {
     const S = global.EodSession;
+    const stores = await ensureStoreCatalog();
+    const authName = String(global.EodRoles?.getMe?.()?.name || '').trim();
+    if (authName && !(S.state.profileName || '').trim() && !(S.state.leadName || '').trim()) {
+      S.patch({ profileName: authName, leadName: authName }, 'auth-lead');
+    }
     const ready = S.isVisitReady();
     if (ready && global.EodCover?.loadStoreData) {
       try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
@@ -699,7 +731,7 @@
           <div class="field">
             <label>Store #</label>
             <input type="text" id="visitStore" list="storeList" placeholder="Store number" value="${esc(S.state.storeNumber)}">
-            <datalist id="storeList">${STORES.map((n) => `<option value="${n}">`).join('')}</datalist>
+            <datalist id="storeList">${stores.map((n) => `<option value="${n}">`).join('')}</datalist>
             <button type="button" class="btn btn-secondary btn-block" id="pickStoreBtn" style="margin-top:6px;">Pick from list</button>
           </div>
           <div class="field">
@@ -718,7 +750,7 @@
         <div id="shiftList">${S.state.shifts.length ? renderShiftCards(S.state.shifts, selIdx) : '<p class="muted">Confirm store to load shifts.</p>'}</div>
         <div class="field" style="margin-top:14px;">
           <label>Lead name</label>
-          <input type="text" id="visitLeadName" value="${esc(S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked ? 'readonly' : ''}>
+          <input type="text" id="visitLeadName" value="${esc(S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked ? 'readonly' : ''}>
         </div>
         <div class="field">
           <label>Lead email</label>
@@ -762,7 +794,7 @@
       global.EodPicker.open({
         anchor: document.getElementById('pickStoreBtn'),
         title: 'Store number',
-        items: STORES.map((n) => ({ id: String(n), label: `Store ${n}` })),
+        items: stores.map((n) => ({ id: String(n), label: `Store ${n}` })),
         searchable: true,
         onChoose(item) {
           document.getElementById('visitStore').value = item.id;

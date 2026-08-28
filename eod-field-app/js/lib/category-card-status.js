@@ -38,6 +38,7 @@
     if (type === 'complete') return !!m.complete;
     if (type === 'not_in_store') return !!m.notInStore;
     if (type === 'not_in_si') return !!m.notInSi;
+    if (type === 'backlog') return !!m.backlog;
     return m.type === type;
   }
 
@@ -60,7 +61,7 @@
     if (markActive(row, 'complete')) return true;
     if (markActive(row, 'not_in_store')) return true;
     if (markActive(row, 'not_in_si')) return true;
-    return prodDone(row) && siDone(row);
+    return false;
   }
 
   function formatEstHrs(raw) {

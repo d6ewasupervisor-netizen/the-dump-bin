@@ -652,7 +652,9 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   margin-top: 6px;
 }
 .ds-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.ds-actions .btn { min-height: 40px; font-size: 13px; padding: 8px 10px; flex: 1 1 30%; min-width: 0; }
+.ds-row.marked-backlog { background: rgba(30,64,175,.22); }
+.ds-row-copy.ds-row-open { cursor: pointer; }
+.ds-actions .btn { min-height: 40px; font-size: 13px; padding: 8px 10px; flex: 1 1 22%; min-width: 0; }
 .ds-actions .btn.on { outline: 2px solid var(--accent); }
 .ds-filters { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .ds-filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -1343,7 +1345,8 @@ body.dump-bin-viewer-open .eod-test-banner {
   border-radius: 0;
 }
 
-.eod-unsent-banner {
+.eod-unsent-banner,
+.eod-photo-fail-banner {
   margin: 8px 12px 0;
   padding: 8px 12px;
   border-radius: 8px;
@@ -1351,6 +1354,7 @@ body.dump-bin-viewer-open .eod-test-banner {
   color: #fecaca;
   font-size: 13px;
 }
+.eod-send-gates { margin: 8px 0 12px; display: flex; flex-direction: column; gap: 6px; }
 .shift-also {
   display: flex;
   align-items: center;

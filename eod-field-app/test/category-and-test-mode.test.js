@@ -7,6 +7,7 @@ const {
   beforePillHtml,
   siLocationLabel,
   matchesSheetFilters,
+  sheetRowDone,
   formatEstHrs,
 } = require('../js/lib/category-card-status');
 const {
@@ -68,6 +69,23 @@ test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {
   assert.equal(matchesSheetFilters(open, { notInStore: true }), false);
   assert.equal(matchesSheetFilters(nisi, { notInSi: true }), true);
   assert.equal(matchesSheetFilters(nis, { notInStore: true, notInSi: true }), true);
+});
+
+test('sheet filters: Done is marks only; backlog is Not Done', () => {
+  const liveBoth = {
+    live: { prodComplete: true, prodStatus: 'done', siComplete: true, siStatus: 'completed' },
+    marks: { active: [] },
+  };
+  const backlog = { marks: { backlog: true, active: ['backlog'] } };
+  const complete = { marks: { complete: true, active: ['complete'] } };
+  assert.equal(sheetRowDone(liveBoth), false);
+  assert.equal(matchesSheetFilters(liveBoth, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(liveBoth, { status: 'not_done' }), true);
+  assert.equal(sheetRowDone(backlog), false);
+  assert.equal(matchesSheetFilters(backlog, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), true);
+  assert.equal(sheetRowDone(complete), true);
+  assert.equal(matchesSheetFilters(complete, { status: 'done' }), true);
 });
 
 test('formatEstHrs shows minutes under an hour', () => {
@@ -242,6 +260,7 @@ test('Not in store prompt uses Don\'t Report / Please Report / Cancel before mar
 });
 
 test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and print are gone', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
   const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
   const session = fs.readFileSync(path.join(__dirname, '../js/session.js'), 'utf8');
@@ -260,6 +279,14 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /formatEstHrs/);
   assert.match(send, /id="sendPrintSignoffBtn"/);
   assert.match(send, /openPrintAtStoreModal/);
+  assert.match(signoff, /btn\('backlog'/);
+  assert.match(signoff, /data-open-set/);
+  assert.match(session, /m\.backlog/);
+  const gates = fs.readFileSync(path.join(__dirname, '../js/lib/send-gates.js'), 'utf8');
+  assert.match(gates, /function missing/);
+  assert.match(html, /js\/lib\/send-gates\.js/);
+  assert.match(html, /js\/lib\/eod-garden\.js/);
+  assert.match(send, /EodSendGates/);
   assert.doesNotMatch(session, /sheetAcknowledged \|\| state\.sheet\.allAcknowledged/);
 });
 
@@ -272,4 +299,29 @@ test('category cards shrink text to fit the card width', () => {
   assert.match(html, /js\/lib\/fit-text\.js/);
   assert.match(signoff, /ds-row-title/);
   assert.match(signoff, /EodFitText\?\.fitSheetCards/);
+});
+
+const sendGates = require('../js/lib/send-gates');
+
+test('send gates list missing visit confirm and jump metadata', () => {
+  const S = {
+    state: {
+      profileName: '',
+      leadName: '',
+      signatureDataUrl: '',
+      emailRecipients: [],
+      profileEmail: '',
+      checkInManager: '',
+      checkOutManager: '',
+      photos: { before: [], after: [], signoff: [], instawork: [] },
+      instaworkYes: null,
+    },
+    isVisitReady: () => false,
+    hasHostedSheet: () => false,
+    sheetSendReady: () => false,
+  };
+  const miss = sendGates.missing(S);
+  assert.ok(miss.some((g) => g.id === 'visit' && g.page === 'visit'));
+  assert.ok(miss.some((g) => g.id === 'name' && g.page === 'visit'));
+  assert.equal(sendGates.firstMessage(S), 'Confirm store and date');
 });

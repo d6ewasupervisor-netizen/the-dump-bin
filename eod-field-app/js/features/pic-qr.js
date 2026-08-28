@@ -22,12 +22,12 @@
   function applyCheckout(name) {
     if (!name) return;
     const S = global.EodSession;
-    if (S && !(S.state.checkOutManager || '').trim()) {
+    if (S) {
       S.patch({ checkOutManager: name }, 'pic-checkout');
       S.saveDraft();
     }
     const out = document.getElementById('checkOutManager');
-    if (out && !out.value.trim()) {
+    if (out) {
       out.value = name;
       out.dispatchEvent(new Event('change', { bubbles: true }));
     }

@@ -2,6 +2,8 @@
 (function (global) {
   'use strict';
 
+  let sendPicPoll = null;
+
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
   function padStore(n) {
@@ -20,10 +22,17 @@
     return (S.state.photos[type] || []).filter((p) => {
       if (!p) return false;
       if (typeof p === 'string') return true;
-      return S.normStoreNumber(p.storeNumber) === S.state.storeNumber
-        && S.normIsoDate(p.workDate) === S.state.workDate
-        && p.dataUrl;
+      const sameVisit = S.normStoreNumber(p.storeNumber) === S.state.storeNumber
+        && S.normIsoDate(p.workDate) === S.state.workDate;
+      if (p.storeNumber && p.workDate && !sameVisit) return false;
+      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl);
     });
+  }
+
+  function photoSrc(p) {
+    if (!p) return '';
+    if (typeof p === 'string') return p;
+    return p.previewUrl || p.objectUrl || p.dataUrl || '';
   }
 
   function photoCount(type) {
@@ -57,7 +66,8 @@
     const store = S.state.storeNumber;
     const dateIso = S.state.workDate;
     const dateDisp = mmddyyyy(dateIso);
-    const lead = S.state.leadName || S.state.profileName || '';
+    const lead = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : null)
+      || S.state.leadName || S.state.profileName || '';
     const beforeDone = photoCount('before') > 0;
     const afterDone = photoCount('after') > 0;
     const signoffCount = photoCount('signoff');
@@ -169,7 +179,8 @@ ${S.state.notes || ''}`;
       body,
       report,
       recipients,
-      userName: S.state.profileName || S.state.leadName || '',
+      userName: (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : null)
+        || S.state.profileName || S.state.leadName || '',
       userEmail,
       checkInManager: S.state.checkInManager || '',
       checkOutManager: S.state.checkOutManager || '',
@@ -195,46 +206,32 @@ ${S.state.notes || ''}`;
     };
   }
 
-  function photoSrc(p) {
-    if (!p) return '';
-    if (typeof p === 'string') return p;
-    return p.dataUrl || '';
-  }
-
   function gateMessage() {
     const S = global.EodSession;
-    if (!S.isVisitReady()) return 'Confirm store and date first.';
-    if (!S.state.profileName) return 'Enter your name on Visit.';
-    if (!S.state.signatureDataUrl) return 'Add your lead signature.';
-    if (!S.state.emailRecipients.length && !(S.state.profileEmail || '').trim()) {
-      return 'Add at least one email recipient.';
-    }
-    if (!(S.state.checkInManager || '').trim()) return 'Enter the check-in manager on Visit.';
-    if (!(S.state.checkOutManager || '').trim()) return 'Enter the check-out manager (or complete PIC QR).';
-    if (photoCount('before') < 1) return 'Add a Kompass cart before photo.';
-    if (photoCount('after') < 1) return 'Add a Kompass cart after photo.';
-    if (S.hasHostedSheet() && !S.sheetSendReady()) {
-      return 'Digital signoff: mark every open set before sending.';
-    }
-    if (!S.hasHostedSheet() && photoCount('signoff') < 1 && !(S.state.checkOutManager || '').trim()) {
-      return 'No hosted sheet — add a paper sign-off photo or complete PIC checkout.';
-    }
-    if (S.state.instaworkYes === 'Yes' && photoCount('instawork') < 1) {
-      return 'InstaWork is in use — take a photo of the sign-out timesheet.';
-    }
-    if (S.state.instaworkYes === 'Yes' && !S.state.instaworkSavedInfo) {
-      return 'Tap Confirm & Save so the InstaWork sign-out sheet is routed to the period folder.';
-    }
-    return null;
+    if (global.EodSendGates?.firstMessage) return global.EodSendGates.firstMessage(S);
+    const miss = global.EodSendGates?.missing?.(S) || [];
+    return miss[0] ? miss[0].label : null;
   }
 
   async function render(mount) {
     const S = global.EodSession;
+    const leadFill = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : '') || '';
+    if (leadFill && !(S.state.profileName || '').trim()) {
+      S.patch({ profileName: leadFill, leadName: S.state.leadName || leadFill }, 'cover-lead');
+    }
     S.syncDomBridges();
     if (global.EodCover?.loadStoreData) {
       try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
     }
     try { await global.EodPicQr?.refresh?.(false); } catch (_) {}
+    if (sendPicPoll) clearInterval(sendPicPoll);
+    sendPicPoll = setInterval(() => {
+      if (global.EodRouter?.current && global.EodRouter.current !== 'send') return;
+      global.EodPicQr?.refresh?.(false).then(() => {
+        const out = document.getElementById('checkOutManager');
+        if (out && S.state.checkOutManager && !out.value.trim()) out.value = S.state.checkOutManager;
+      }).catch(() => {});
+    }, 12000);
 
     const gate = gateMessage();
     const sheet = S.state.sheet;
@@ -298,6 +295,7 @@ ${S.state.notes || ''}`;
           <button type="button" class="btn btn-secondary btn-block" id="fmPickerBtn">Choose addresses</button>
         </div>
         <div id="gateMsg" style="margin:10px 0;color:${gate ? '#fbbf24' : '#22c55e'};">${esc(gate || 'Ready to send.')}</div>
+        ${global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : ''}
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="previewBtn">Preview</button>
           <button type="button" class="btn btn-success" id="sendBtn" ${gate ? 'disabled' : ''}>Send EOD</button>
@@ -308,6 +306,7 @@ ${S.state.notes || ''}`;
       </div>`;
 
     document.getElementById('sendPhotosLink')?.addEventListener('click', () => global.EodRouter.go('photos'));
+    try { global.EodSendGates?.bindList?.(document.getElementById('eodSendGates'), S); } catch (_) {}
 
     const notesEl = document.getElementById('sendNotes');
     if (notesEl && !(S.state.notes || '').trim()) {
@@ -563,8 +562,13 @@ ${S.state.notes || ''}`;
     document.getElementById('sendBtn').onclick = async () => {
       const msg = gateMessage();
       if (msg) {
-        alert(msg);
+        const first = global.EodSendGates?.missing?.(S)?.[0];
+        if (first && global.EodSendGates.go) global.EodSendGates.go(first);
+        else alert(msg);
         return;
+      }
+      if (global.PhotoDB?.hydrateDataUrls) {
+        try { await global.PhotoDB.hydrateDataUrls(S.state.photos); } catch (_) {}
       }
       let payload = buildPayload();
       if (global.applyEodTestModeToPayload) payload = global.applyEodTestModeToPayload(payload);

@@ -17,7 +17,7 @@
   function src(entry) {
     if (!entry) return '';
     if (typeof entry === 'string') return entry;
-    return entry.dataUrl || entry.preview || '';
+    return entry.dataUrl || entry.previewUrl || entry.objectUrl || entry.preview || '';
   }
 
   async function preparePhoto(file, type) {

@@ -157,6 +157,29 @@
     };
   }
 
+  function dataUrlToBlobForPipeline(dataUrl) {
+    const s = String(dataUrl || '');
+    const m = s.match(/^data:([^;]+);base64,(.+)$/);
+    if (!m) return null;
+    try {
+      const bin = atob(m[2]);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new Blob([arr], { type: m[1] || 'image/jpeg' });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function blobToDataUrlForPipeline(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  }
+
   function persist() {
     try {
       const lean = [];
@@ -167,11 +190,13 @@
         }
         lean.push(metaLean(j));
         if (j.dataUrl) {
+          const blob = dataUrlToBlobForPipeline(j.dataUrl);
           idbPut({
             id: j.id,
-            dataUrl: j.dataUrl,
-            mime: j.mime || null,
-            bytes: j.bytes || null,
+            dataUrl: blob ? undefined : j.dataUrl,
+            blob: blob || undefined,
+            mime: j.mime || (blob && blob.type) || null,
+            bytes: j.bytes || (blob && blob.size) || null,
             updatedAt: j.updatedAt || Date.now(),
           }).catch(() => {});
         }
@@ -217,16 +242,18 @@
       const rows = await idbGetAll().catch(() => []);
       for (const row of rows) {
         const job = jobs.get(row.id);
-        if (job && row.dataUrl) {
-          job.dataUrl = row.dataUrl;
-          job.previewUrl = job.previewUrl || row.dataUrl;
+        let dataUrl = row.dataUrl || null;
+        if (!dataUrl && row.blob) {
+          try { dataUrl = await blobToDataUrlForPipeline(row.blob); } catch (_) { dataUrl = null; }
+        }
+        if (job && dataUrl) {
+          job.dataUrl = dataUrl;
+          job.previewUrl = job.previewUrl || dataUrl;
           job.bytes = row.bytes || job.bytes;
           if (job.status === 'failed' && /Lost after reload/i.test(job.error || '')) {
             job.status = 'compressed';
             job.error = null;
           }
-        } else if (!job && row.dataUrl) {
-          // Orphan payload — keep until meta returns
         }
       }
 
@@ -655,6 +682,16 @@
     return () => listeners.delete(fn);
   }
 
+  function retryFailed() {
+    let n = 0;
+    for (const j of jobs.values()) {
+      if (j.status === 'failed' && j.error !== 'replaced') {
+        if (retry(j.id)) n += 1;
+      }
+    }
+    return n;
+  }
+
   function retry(id) {
     const job = jobs.get(id);
     if (!job) return null;
@@ -785,6 +822,7 @@
     pendingCounts,
     onChange,
     retry,
+    retryFailed,
     removeJob,
     removeSetBay,
     waitForJob,

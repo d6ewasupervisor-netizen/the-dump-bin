@@ -45,11 +45,15 @@
     window.addEventListener('online', () => {
       global.EodConnections?.toast?.('Back online — local draft kept; tap refresh if SAS/SI was red.', 'ok');
       global.EodConnections?.pollConnections?.();
+      try { global.EodGarden?.flushMarks?.(); } catch (_) {}
     });
     window.addEventListener('offline', () => {
-      try { global.EodSession?.saveDraft(); } catch (_) {}
+      try { global.EodGarden?.persistAll?.('offline'); } catch (_) {
+        try { global.EodSession?.saveDraft(); } catch (_) {}
+      }
       global.EodConnections?.toast?.('Offline — edits stay on this device until connection returns.', 'error');
     });
+    try { global.EodGarden?.start?.(); } catch (_) {}
   }
 
   global.EodDurability = { awaitDurablePhotoSave, startAutosave };

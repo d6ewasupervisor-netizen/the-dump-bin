@@ -86,12 +86,41 @@
   function photoSrc(entry) {
     if (!entry) return '';
     if (typeof entry === 'string') return entry;
-    return entry.dataUrl || '';
+    return entry.previewUrl || entry.objectUrl || entry.dataUrl || '';
   }
 
   function entryBytes(entry) {
+    if (!entry) return 0;
+    if (typeof entry === 'object' && Number.isFinite(entry.bytes) && entry.bytes > 0) return entry.bytes;
     const src = photoSrc(entry);
     return src ? Math.floor(src.length * 0.75) : 0;
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const s = String(dataUrl || '');
+    const m = s.match(/^data:([^;]+);base64,(.+)$/);
+    if (!m) return null;
+    try {
+      const bin = atob(m[2]);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new Blob([arr], { type: m[1] || 'image/jpeg' });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error('blob read'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function newBlobId() {
+    return `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   }
 
   function arraysBytes(arrs) {
@@ -120,7 +149,8 @@
     if (!Array.isArray(arr)) return [];
     const seen = new Set();
     return arr.filter((photo) => {
-      const prefix = photoSrc(photo).substring(0, 1000);
+      const id = photo && typeof photo === 'object' ? (photo.blobId || '') : '';
+      const prefix = id || photoSrc(photo).substring(0, 1000);
       if (!prefix || seen.has(prefix)) return false;
       seen.add(prefix);
       return true;
@@ -140,6 +170,7 @@
     opts = opts || {};
     const dbName = opts.dbName || 'kompassEODPhotos';
     const storeName = opts.storeName || 'photos';
+    const blobStoreName = 'photoBlobs';
     let db = null;
     let activeKey = null; // { store, date, id }
     let migrationDone = false;
@@ -147,7 +178,7 @@
     async function init() {
       if (db) return db;
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, opts.dbVersion || 1);
+        const request = indexedDB.open(dbName, opts.dbVersion || 2);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           db = request.result;
@@ -157,6 +188,9 @@
           const d = event.target.result;
           if (!d.objectStoreNames.contains(storeName)) {
             d.createObjectStore(storeName, { keyPath: 'id' });
+          }
+          if (!d.objectStoreNames.contains(blobStoreName)) {
+            d.createObjectStore(blobStoreName, { keyPath: 'id' });
           }
         };
       });
@@ -178,6 +212,108 @@
           request.onerror = () => reject(request.error || new Error('IndexedDB request failed'));
         }
       });
+    }
+
+    async function putBlob(id, blob) {
+      const d = await init();
+      if (!d.objectStoreNames.contains(blobStoreName)) return false;
+      const tx = d.transaction([blobStoreName], 'readwrite');
+      tx.objectStore(blobStoreName).put({
+        id,
+        blob,
+        bytes: blob.size,
+        mime: blob.type || 'image/jpeg',
+        at: Date.now(),
+      });
+      await awaitTx(tx);
+      return true;
+    }
+
+    async function getBlob(id) {
+      if (!id) return null;
+      const d = await init();
+      if (!d.objectStoreNames.contains(blobStoreName)) return null;
+      return new Promise((resolve, reject) => {
+        const req = d.transaction([blobStoreName], 'readonly').objectStore(blobStoreName).get(id);
+        req.onsuccess = () => resolve(req.result?.blob || null);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function slimEntry(entry) {
+      if (!entry) return entry;
+      if (typeof entry === 'string') {
+        const blob = dataUrlToBlob(entry);
+        if (!blob) return entry;
+        const id = newBlobId();
+        await putBlob(id, blob);
+        return {
+          blobId: id,
+          previewUrl: URL.createObjectURL(blob),
+          mime: blob.type,
+          bytes: blob.size,
+          stampedAt: Date.now(),
+        };
+      }
+      if (entry.blobId && !entry.dataUrl) {
+        if (!entry.previewUrl) {
+          const blob = await getBlob(entry.blobId);
+          if (blob) entry.previewUrl = URL.createObjectURL(blob);
+        }
+        return entry;
+      }
+      if (entry.dataUrl) {
+        const blob = dataUrlToBlob(entry.dataUrl);
+        if (!blob) return entry;
+        const id = entry.blobId || newBlobId();
+        await putBlob(id, blob);
+        const copy = Object.assign({}, entry);
+        delete copy.dataUrl;
+        copy.blobId = id;
+        copy.previewUrl = URL.createObjectURL(blob);
+        copy.mime = blob.type;
+        copy.bytes = blob.size;
+        return copy;
+      }
+      return entry;
+    }
+
+    async function slimArrays(arrs) {
+      const out = emptyArrays();
+      for (const t of PHOTO_TYPES) {
+        out[t] = [];
+        for (const p of arrs[t] || []) out[t].push(await slimEntry(p));
+      }
+      return out;
+    }
+
+    async function hydrateArrays(arrs) {
+      for (const t of PHOTO_TYPES) {
+        for (const p of arrs[t] || []) {
+          if (p && typeof p === 'object' && p.blobId && !p.previewUrl && !p.dataUrl) {
+            const blob = await getBlob(p.blobId);
+            if (blob) p.previewUrl = URL.createObjectURL(blob);
+          }
+        }
+      }
+      return arrs;
+    }
+
+    async function hydrateDataUrls(photosObj) {
+      if (!photosObj) return photosObj;
+      for (const t of PHOTO_TYPES) {
+        const list = photosObj[t] || [];
+        for (let i = 0; i < list.length; i++) {
+          const p = list[i];
+          if (!p || typeof p === 'string') continue;
+          if (p.dataUrl) continue;
+          if (p.blobId) {
+            const blob = await getBlob(p.blobId);
+            if (blob) p.dataUrl = await blobToDataUrl(blob);
+          }
+        }
+      }
+      return photosObj;
     }
 
     async function getRecord(id) {
@@ -588,6 +724,7 @@
       photosObj.signoff = dedupe(rec?.signoff || []);
       photosObj.after = dedupe(rec?.after || []);
       photosObj.instawork = dedupe(rec?.instawork || []).slice(-1);
+      await hydrateArrays(photosObj);
       return {
         key: activeKey,
         before: photosObj.before,
@@ -599,12 +736,19 @@
 
     async function savePhotos(photosObj) {
       activeKey = resolveActiveKey();
-      const arrs = {
+      const slimmed = await slimArrays({
         before: photosObj.before || [],
         signoff: photosObj.signoff || [],
         after: photosObj.after || [],
         instawork: (photosObj.instawork || []).slice(-1),
-      };
+      });
+      if (photosObj) {
+        photosObj.before = slimmed.before;
+        photosObj.signoff = slimmed.signoff;
+        photosObj.after = slimmed.after;
+        photosObj.instawork = slimmed.instawork;
+      }
+      const arrs = slimmed;
 
       // Dual-write allPhotos mirror of active (or empty) for ≤2.11.8 rollback.
       const legacyMirror = {
@@ -943,11 +1087,14 @@
     // Compatibility aliases used by existing index.html call sites
     return {
       dbName,
-      dbVersion: 1,
+      dbVersion: 2,
       storeName,
       get db() { return db; },
       init,
       savePhotos,
+      hydrateDataUrls,
+      photoSrc,
+      getBlob,
       loadPhotos: async () => {
         // Deprecated path — callers should use loadActiveInto. Return active only.
         const tmp = emptyArrays();

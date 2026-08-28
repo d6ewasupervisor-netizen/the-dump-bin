@@ -14,17 +14,26 @@
   }
 
   function markActive(row, type) {
+    if (global.EodCategoryCardStatus?.markActive) {
+      return global.EodCategoryCardStatus.markActive(row, type);
+    }
     const m = row?.marks || row?.mark;
     if (!m) return false;
     if (Array.isArray(m.active)) return m.active.includes(type);
     if (type === 'complete') return !!m.complete;
     if (type === 'not_in_store') return !!m.notInStore;
     if (type === 'not_in_si') return !!m.notInSi;
+    if (type === 'backlog') return !!m.backlog;
     return m.type === type;
   }
 
   function rowLooksComplete(row) {
-    return markActive(row, 'complete') || bothLiveComplete(row);
+    if (global.EodCategoryCardStatus?.sheetRowDone) {
+      return global.EodCategoryCardStatus.sheetRowDone(row);
+    }
+    return markActive(row, 'complete')
+      || markActive(row, 'not_in_store')
+      || markActive(row, 'not_in_si');
   }
 
   function syncStatusPills(row) {
@@ -54,10 +63,11 @@
         continue;
       }
       if (t === 'not_in_si' && live?.siPresent) continue;
+      if (t === 'backlog') {
+        pills.push('<span class="pill warn">backlog</span>');
+        continue;
+      }
       pills.push(`<span class="pill">${esc(String(t).replace(/_/g, ' '))}</span>`);
-    }
-    if (bothLiveComplete(row) && !active.includes('complete')) {
-      pills.push('<span class="pill ok">sheet complete</span>');
     }
     if (!pills.length) pills.push('<span class="pill">open</span>');
     return pills.join('');
@@ -68,6 +78,7 @@
     if (rowLooksComplete(row)) c.push('marked-complete');
     if (markActive(row, 'not_in_store')) c.push('marked-nis');
     if (markActive(row, 'not_in_si') && !row?.live?.siPresent) c.push('marked-nisi');
+    if (markActive(row, 'backlog') && !rowLooksComplete(row)) c.push('marked-backlog');
     if (row?.hasError || String(row?.errorMessage || row?.error_message || '').trim()) {
       c.push('manifest-error');
     }
@@ -78,6 +89,15 @@
     const S = global.EodSession;
     const store = S.state.storeNumber;
     const date = S.state.workDate;
+    const weekHint = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
+    if (!S.state.sheet && store && weekHint && global.EodGarden?.loadSheetSnapshot) {
+      try {
+        const snap = await global.EodGarden.loadSheetSnapshot(store, weekHint);
+        if (snap && Array.isArray(snap.rows)) {
+          S.patch({ sheet: snap, sheetLoaded: true, fiscalWeek: snap.fiscalWeek || weekHint }, 'sheet-garden');
+        }
+      } catch (_) {}
+    }
     const qs = new URLSearchParams({ store });
     if (date) qs.set('date', date);
     const resp = await global.authFetch(`${API}/sheet?${qs}`);
@@ -89,6 +109,8 @@
       sheetLoaded: true,
       fiscalWeek: sheet?.fiscalWeek || S.state.fiscalWeek || '',
     }, 'sheet');
+    try { await global.EodGarden?.saveSheetSnapshot?.(sheet); } catch (_) {}
+    try { await global.EodGarden?.flushMarks?.(); } catch (_) {}
     try {
       global.EodDeptSignatures?.syncFromSheet?.(sheet);
     } catch (_) {
@@ -247,51 +269,71 @@
     const S = global.EodSession;
     const headers = global.EodApi.dayConfirmHeaders();
     const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
-    if (markType === 'clear') {
-      const resp = await global.authFetch(`${API}/rows/${encodeURIComponent(rowId)}/mark`, {
-        method: 'DELETE',
-        headers,
-        body: JSON.stringify({ storeNumber: S.state.storeNumber, workDate: S.state.workDate }),
-      });
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(data.error || `Clear failed (${resp.status})`);
-    } else if (!forceOn && markActive(current, markType)) {
-      const resp = await global.authFetch(
-        `${API}/rows/${encodeURIComponent(rowId)}/mark?markType=${encodeURIComponent(markType)}`,
-        {
-          method: 'DELETE',
-          headers,
-          body: JSON.stringify({
-            storeNumber: S.state.storeNumber,
-            workDate: S.state.workDate,
-            markType,
-          }),
-        }
-      );
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(data.error || `Unmark failed (${resp.status})`);
-    } else {
-      const visitId = S.state.selectedShift?.visitId || null;
-      const resp = await global.authFetch(`${API}/rows/${encodeURIComponent(rowId)}/mark`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+    const turningOn = markType !== 'clear' && (forceOn || !markActive(current, markType));
+    const method = markType === 'clear' || (!forceOn && markActive(current, markType)) ? 'DELETE' : 'POST';
+    const visitId = S.state.selectedShift?.visitId || null;
+    const body = method === 'POST'
+      ? {
           storeNumber: S.state.storeNumber,
           workDate: S.state.workDate,
           markType,
           visitId,
           helpdeskSent,
-        }),
+        }
+      : {
+          storeNumber: S.state.storeNumber,
+          workDate: S.state.workDate,
+          markType: markType === 'clear' ? undefined : markType,
+        };
+
+    if (S.state.sheet && global.EodGarden?.applyOptimisticMark) {
+      global.EodGarden.applyOptimisticMark(
+        S.state.sheet,
+        rowId,
+        markType,
+        markType === 'clear' ? false : turningOn
+      );
+      S.emit?.('sheet-mark');
+      try { await global.EodGarden.saveSheetSnapshot(S.state.sheet); } catch (_) {}
+    }
+
+    const url = method === 'DELETE'
+      ? `${API}/rows/${encodeURIComponent(rowId)}/mark${markType !== 'clear'
+        ? `?markType=${encodeURIComponent(markType)}`
+        : ''}`
+      : `${API}/rows/${encodeURIComponent(rowId)}/mark`;
+
+    try {
+      const resp = await global.authFetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(body),
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Mark failed (${resp.status})`);
-      if (markType === 'not_in_store') {
-        const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId)) || current;
-        const label = rowLabel(row);
-        S.appendNote?.(`Not in store: ${label}`);
+      if (!skipReload) await loadSheet();
+    } catch (err) {
+      const msg = String(err && err.message || err || '');
+      const network = /fetch|network|offline/i.test(msg)
+        || (typeof navigator !== 'undefined' && navigator.onLine === false);
+      const retryable = network || /\(5\d\d\)/.test(msg);
+      if (retryable) {
+        try {
+          await global.EodGarden?.enqueueMark?.({ rowId, markType, method, body });
+        } catch (_) {}
+      } else if (!skipReload) {
+        try { await loadSheet(); } catch (_) {}
+        throw err;
+      } else {
+        throw err;
       }
     }
-    if (!skipReload) await loadSheet();
+
+    if (markType === 'not_in_store' && turningOn) {
+      const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId)) || current;
+      const label = rowLabel(row);
+      S.appendNote?.(`Not in store: ${label}`);
+    }
   }
 
   async function markNotInStoreFromHelpdesk(meta) {
@@ -395,13 +437,13 @@
         ? global.EodCategoryCardStatus.siLocationLabel(row)
         : '';
       const btn = (type, label) => {
-        const on = type === 'complete' ? rowLooksComplete(row) : markActive(row, type);
-        // Selected state is the .on border only — no checkmark (renders as ? on some devices).
+        const on = markActive(row, type);
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
       const errMsg = String(row.errorMessage || row.error_message || '').trim();
+      const canOpen = !!row.dbkey && !rowLooksComplete(row);
       return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
-        <div class="ds-row-copy">
+        <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted ds-row-meta">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
           ${locLabel ? `<div class="muted ds-row-meta">${esc(locLabel)}</div>` : ''}
@@ -418,6 +460,7 @@
           ${btn('complete', 'Complete')}
           ${btn('not_in_store', 'Not in store')}
           ${btn('not_in_si', 'Not in SI')}
+          ${btn('backlog', 'Backlog')}
         </div>
       </div>`;
     }).join('');
@@ -608,6 +651,12 @@
       });
       rowsEl.querySelectorAll('[data-before]').forEach((btn) => {
         btn.onclick = () => openSetSurvey(btn, 'before');
+      });
+      rowsEl.querySelectorAll('[data-open-set]').forEach((el) => {
+        el.addEventListener('click', (ev) => {
+          if (ev.target.closest('button')) return;
+          openSetSurvey(el);
+        });
       });
       requestAnimationFrame(() => {
         try { global.EodFitText?.fitSheetCards?.(rowsEl); } catch (_) {}

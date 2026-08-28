@@ -72,6 +72,14 @@
       try { await window.EodApi?.ensurePersistentStorage?.(); } catch (_) {}
       try { window.EodBusy?.init?.(); } catch (_) {}
       try { await window.EodRoles?.load?.(); } catch (_) {}
+      try {
+        const me = window.EodRoles?.getMe?.();
+        const authName = String(me?.name || '').trim();
+        const S = window.EodSession;
+        if (authName && S && !(S.state.profileName || '').trim()) {
+          S.patch({ profileName: authName, leadName: S.state.leadName || authName }, 'auth-lead');
+        }
+      } catch (_) {}
       try { window.EodFeedbackHub?.init?.(); } catch (_) {}
 
       patchPortedModules();
@@ -86,6 +94,11 @@
 
       if (window.EodSession.isVisitReady() && window.EodSignoffHome?.loadSheet) {
         try {
+          const S = window.EodSession;
+          if (!S.state.sheet && window.EodGarden?.loadSheetSnapshot) {
+            const snap = await window.EodGarden.loadSheetSnapshot(S.state.storeNumber, S.state.fiscalWeek);
+            if (snap) S.patch({ sheet: snap, sheetLoaded: true, fiscalWeek: snap.fiscalWeek || S.state.fiscalWeek }, 'sheet-garden');
+          }
           await window.EodSignoffHome.loadSheet();
           window.EodChrome.refresh();
         } catch (_) {}
