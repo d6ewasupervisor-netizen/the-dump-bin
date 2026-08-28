@@ -86,6 +86,9 @@
       try { window.EodDurability?.startAutosave?.(); } catch (_) {}
       try { window.EodTheme?.init?.(); } catch (err) { console.warn('[eod-field-app] theme init', err); }
       try { window.EodChrome.init(); } catch (err) { console.warn('[eod-field-app] chrome init', err); }
+      try { window.EodCoverNotes?.init?.(window.EodSession); } catch (err) { console.warn('[eod-field-app] cover notes', err); }
+      try { window.EodSwipeNav?.init?.(); } catch (err) { console.warn('[eod-field-app] swipe nav', err); }
+      try { window.EodShiftPhotoSync?.init?.(); } catch (err) { console.warn('[eod-field-app] photo sync', err); }
       try { window.EodConnections?.init?.(); } catch (err) { console.warn('[eod-field-app] connections init', err); }
       try { window.EodTestMode?.init?.(); } catch (err) { console.warn('[eod-field-app] version/test init', err); }
       await loadPhotosIntoSession();
@@ -93,7 +96,7 @@
       try { window.EodVisit?.enforceDayConfirmGate?.(); } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.3.8').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.3.9').catch(() => {});
         }
       } catch (_) {}
       try { window.EodUsage?.start?.(); } catch (_) {}

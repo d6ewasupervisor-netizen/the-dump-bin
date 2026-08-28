@@ -245,7 +245,7 @@ ${S.state.notes || ''}`;
       <div class="card">
         <h1>Sign & send</h1>
         <p class="muted">Store <strong>${esc(S.state.storeNumber)}</strong> · ${esc(S.state.workDate)}</p>
-        <button type="button" class="btn btn-secondary btn-block" id="sendPhotosLink">Photos</button>
+        <button type="button" class="btn btn-secondary btn-block" id="sendRefreshBtn">Refresh this page</button>
         <div class="card" style="border-style:dashed;">
           <h2>Day summary</h2>
           <p>Store <strong>${esc(S.state.storeNumber)}</strong> · ${esc(S.state.workDate)}</p>
@@ -257,6 +257,17 @@ ${S.state.notes || ''}`;
           <p class="muted">Photos — before ${photoCount('before')}, after ${photoCount('after')}, signoff ${photoCount('signoff')}, instawork ${photoCount('instawork')}</p>
         </div>
         <div id="eodPicQrMount"></div>
+        ${S.hasHostedSheet() ? '' : `
+        <div class="field" id="sendPaperField">
+          <label>Paper sign-off photo</label>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="sendPaperCam">Camera</button>
+            <label class="btn btn-secondary" style="cursor:pointer;">Add file
+              <input type="file" accept="image/*,.heic,.heif" id="sendPaperInput" hidden>
+            </label>
+          </div>
+          <p class="muted" id="sendPaperCount">${photoCount('signoff')} photo(s)</p>
+        </div>`}
         <div class="field">
           <label>Manager checked out with</label>
           <input type="text" id="checkOutManager" value="${esc(S.state.checkOutManager || '')}" list="mgrListSend" autocomplete="off">
@@ -317,20 +328,45 @@ ${S.state.notes || ''}`;
         </div>
       </div>`;
 
-    document.getElementById('sendPhotosLink')?.addEventListener('click', () => global.EodRouter.go('photos'));
+    document.getElementById('sendRefreshBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('sendRefreshBtn');
+      if (btn) btn.disabled = true;
+      try {
+        if (global.EodSignoffHome?.syncProdSi) await global.EodSignoffHome.syncProdSi();
+        else if (global.EodSignoffHome?.loadSheet) await global.EodSignoffHome.loadSheet();
+        try { global.EodCoverNotes?.apply?.(S, 'send-refresh'); } catch (_) {}
+        await render(mount);
+      } catch (err) {
+        if (global.showAlert) global.showAlert('Refresh', err.message || String(err));
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
     try { await global.EodPicQr?.mount?.(document.getElementById('eodPicQrMount')); } catch (_) {}
+    document.getElementById('sendPaperCam')?.addEventListener('click', async () => {
+      if (!global.EodCamera?.open) return;
+      await global.EodCamera.open({
+        label: 'Paper sign-off',
+        onCapture: async (file) => {
+          if (global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('signoff', [file]);
+        },
+        shouldContinue: () => true,
+      });
+      const count = document.getElementById('sendPaperCount');
+      if (count) count.textContent = `${photoCount('signoff')} photo(s)`;
+    });
+    document.getElementById('sendPaperInput')?.addEventListener('change', async (ev) => {
+      const files = [...(ev.target.files || [])];
+      ev.target.value = '';
+      if (files.length && global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('signoff', files);
+      const count = document.getElementById('sendPaperCount');
+      if (count) count.textContent = `${photoCount('signoff')} photo(s)`;
+    });
     try { global.EodSendGates?.bindList?.(document.getElementById('eodSendGates'), S); } catch (_) {}
 
+    try { global.EodCoverNotes?.apply?.(S, 'send-open'); } catch (_) {}
     const notesEl = document.getElementById('sendNotes');
-    if (notesEl && !(S.state.notes || '').trim()) {
-      const sheet = S.state.sheet;
-      const summary = `In: ${S.state.checkInManager || '—'} · Out: ${S.state.checkOutManager || '—'} · cart ${photoCount('before')}/${photoCount('after')} · ${
-        sheet ? `${sheet.summary?.marked || 0}/${sheet.summary?.total || 0} marked` : 'no hosted sheet'
-      }`;
-      notesEl.value = summary;
-      S.patch({ notes: summary }, 'day-summary');
-      S.saveDraft();
-    }
+    if (notesEl && S.state.notes) notesEl.value = S.state.notes;
 
     const saveSendFields = () => {
       S.patch({
@@ -344,6 +380,11 @@ ${S.state.notes || ''}`;
       if (!el) return;
       el.addEventListener('change', saveSendFields);
       el.addEventListener('blur', saveSendFields);
+    });
+    document.getElementById('checkOutManager')?.addEventListener('input', () => {
+      S.patch({
+        checkOutManager: document.getElementById('checkOutManager')?.value?.trim() || '',
+      }, 'checkout');
     });
     document.getElementById('saveOutMgr')?.addEventListener('click', async () => {
       const name = document.getElementById('checkOutManager')?.value?.trim();
@@ -364,6 +405,7 @@ ${S.state.notes || ''}`;
         searchable: items.length > 6,
         onChoose(item) {
           document.getElementById('checkOutManager').value = item.label;
+          S.patch({ checkOutManager: item.label }, 'checkout');
           saveSendFields();
         },
       });
@@ -456,10 +498,11 @@ ${S.state.notes || ''}`;
       document.getElementById('cartAfterPull')?.addEventListener('click', async () => {
         if (!Cart) return;
         try {
-          setMsg('Pulling after from PROD…');
+          setMsg('Pulling after (SI first, then PROD)…');
           const n = await Cart.pullCartFromProd('after');
-          setMsg('Pulled ' + n + ' after photo(s) from PROD.');
+          setMsg('Pulled ' + n + ' after photo(s).');
           paintThumbs();
+          try { global.EodCoverNotes?.apply?.(S, 'cart-after'); } catch (_) {}
         } catch (err) {
           setMsg(err.message || String(err), true);
         }
@@ -520,6 +563,7 @@ ${S.state.notes || ''}`;
         if (el) el.value = name;
         S.patch({ checkOutManager: name }, 'checkout');
         S.saveDraft();
+        try { global.EodCoverNotes?.apply?.(S, 'checkout'); } catch (_) {}
       };
     });
 

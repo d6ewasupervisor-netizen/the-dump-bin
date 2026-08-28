@@ -57,8 +57,8 @@
         return;
       }
       bar.hidden = false;
-      bar.innerHTML = `${unsent.length} unsent photo session(s) · <button type="button" class="btn btn-secondary" id="unsentOpenPhotos">Photos</button>`;
-      bar.querySelector('#unsentOpenPhotos')?.addEventListener('click', () => global.EodRouter.go('photos'));
+      bar.innerHTML = `${unsent.length} unsent photo session(s) · <button type="button" class="btn btn-secondary" id="unsentOpenPhotos">Send</button>`;
+      bar.querySelector('#unsentOpenPhotos')?.addEventListener('click', () => global.EodRouter.go('send'));
     } catch (_) {
       bar.hidden = true;
     }
@@ -163,7 +163,6 @@
       <h2>More</h2>
       <button type="button" class="btn btn-secondary btn-block" data-more="signatures">Signatures</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
-      <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
       <button type="button" class="btn btn-primary btn-block" id="eodMoreClose">Close</button>
     </div>`;

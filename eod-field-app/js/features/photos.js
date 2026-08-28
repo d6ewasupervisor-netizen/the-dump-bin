@@ -1,4 +1,4 @@
-/* Cart / paper / InstaWork photos — reachable #/photos route. */
+/* Photos live on Visit (cart before) and Send (cart after). */
 (function (global) {
   'use strict';
 
@@ -302,5 +302,7 @@
   }
 
   global.EodPhotos = { render, preparePhoto, saveInstawork, addFiles };
-  global.EodRouter.register('photos', render);
+  global.EodRouter.register('photos', () => {
+    global.EodRouter.go('send', { replace: true });
+  });
 })(typeof window !== 'undefined' ? window : globalThis);

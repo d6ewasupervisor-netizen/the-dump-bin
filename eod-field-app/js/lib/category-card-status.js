@@ -61,6 +61,7 @@
     if (markActive(row, 'complete')) return true;
     if (markActive(row, 'not_in_store')) return true;
     if (markActive(row, 'not_in_si')) return true;
+    if (prodDone(row) && siDone(row)) return true;
     return false;
   }
 

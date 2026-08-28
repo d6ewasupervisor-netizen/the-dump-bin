@@ -169,6 +169,9 @@
     if (Array.isArray(m.active) && m.active.length) return true;
     if (m.type) return true;
     if (m.complete || m.notInStore || m.notInSi || m.backlog) return true;
+    const live = row?.live;
+    if (live?.bothComplete) return true;
+    if (live?.prodComplete && live?.siComplete) return true;
     return false;
   }
 

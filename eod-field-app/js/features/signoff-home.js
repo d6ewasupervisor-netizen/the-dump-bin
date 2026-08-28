@@ -133,6 +133,43 @@
     return sheet;
   }
 
+  let syncPromise = null;
+  async function syncProdSi() {
+    const S = global.EodSession;
+    if (syncPromise) return syncPromise;
+    syncPromise = (async () => {
+      const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+      const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
+      const visitIds = shifts.map((s) => s.visitId).filter(Boolean);
+      const body = JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        visitId: S.state.selectedShift?.visitId || null,
+        visitIds,
+      });
+      const resp = await global.authFetch(`${API}/sync`, {
+        method: 'POST',
+        headers,
+        body,
+        skipBusy: true,
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
+      if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
+      else {
+        S.patch({ sheetLoaded: false }, 'prod-si-sync');
+        await loadSheet();
+      }
+      try { global.EodCoverNotes?.apply?.(S, 'prod-si-sync'); } catch (_) {}
+      return data;
+    })();
+    try {
+      return await syncPromise;
+    } finally {
+      syncPromise = null;
+    }
+  }
+
   /** Fetch all signoff pages as PDF (preview) or fax via print-at-store. */
   async function openSignoffPdfPreview() {
     const S = global.EodSession;
@@ -271,15 +308,17 @@
     const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
     const turningOn = markType !== 'clear' && (forceOn || !markActive(current, markType));
     const method = markType === 'clear' || (!forceOn && markActive(current, markType)) ? 'DELETE' : 'POST';
-    const visitId = S.state.selectedShift?.visitId || null;
-    const body = method === 'POST'
-      ? {
-          storeNumber: S.state.storeNumber,
-          workDate: S.state.workDate,
-          markType,
-          visitId,
-          helpdeskSent,
-        }
+      const visitId = S.state.selectedShift?.visitId || current?.live?.prodVisitId || null;
+      const resetId = current?.live?.prodResetId || null;
+      const body = method === 'POST'
+        ? {
+            storeNumber: S.state.storeNumber,
+            workDate: S.state.workDate,
+            markType,
+            visitId,
+            resetId,
+            helpdeskSent,
+          }
       : {
           storeNumber: S.state.storeNumber,
           workDate: S.state.workDate,
@@ -478,21 +517,18 @@
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
       const errMsg = String(row.errorMessage || row.error_message || '').trim();
-      const canOpen = !!row.dbkey && !rowLooksComplete(row);
+      const canOpen = !!row.dbkey;
       const metaBits = [
         row.dbkey ? `DBKEY ${row.dbkey}` : '',
         locLabel,
         footage ? String(footage) : '',
         est,
       ].filter(Boolean);
-      return `<div class="ds-row ds-row-compact ${rowClass(row)}" data-row-id="${row.id}">
-        <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
+      return `<div class="ds-row ds-row-compact ${rowClass(row)}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
+        <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted ds-row-meta">${esc(metaBits.join(' · '))}</div>
           ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
-        </div>
-        <div class="ds-photo-actions">
-          <button type="button" class="btn btn-primary" data-capture="${row.id}" data-dbkey="${esc(row.dbkey || '')}" data-name="${esc(row.catName || row.catId || '')}">Capture</button>
         </div>
         <div class="ds-actions">
           ${btn('not_in_store', 'NIS')}
@@ -511,7 +547,7 @@
         <div class="cat-head">
           <h1>Categories</h1>
           <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
-          <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
+          <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
         </div>
         <div class="ds-next" id="sheetNext" hidden></div>
         <div class="ds-filters" id="sheetFilters">
@@ -563,41 +599,6 @@
 
     function pollMs() {
       return pacificHourNow() >= 12 ? 5 * 60 * 1000 : 60 * 60 * 1000;
-    }
-
-    let syncPromise = null;
-    async function syncProdSi() {
-      if (syncPromise) return syncPromise;
-      syncPromise = (async () => {
-        const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
-        const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
-        const visitIds = shifts.map((s) => s.visitId).filter(Boolean);
-        const body = JSON.stringify({
-          storeNumber: S.state.storeNumber,
-          workDate: S.state.workDate,
-          visitId: S.state.selectedShift?.visitId || null,
-          visitIds,
-        });
-        const resp = await global.authFetch(`${API}/sync`, {
-          method: 'POST',
-          headers,
-          body,
-          skipBusy: true,
-        });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
-        if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
-        else {
-          S.patch({ sheetLoaded: false }, 'prod-si-sync');
-          await loadSheet();
-        }
-        return data;
-      })();
-      try {
-        return await syncPromise;
-      } finally {
-        syncPromise = null;
-      }
     }
 
     function startPoll() {
@@ -687,12 +688,6 @@
           }
         };
       });
-      rowsEl.querySelectorAll('[data-capture]').forEach((btn) => {
-        btn.onclick = () => openSetSurvey(btn);
-      });
-      rowsEl.querySelectorAll('[data-before]').forEach((btn) => {
-        btn.onclick = () => openSetSurvey(btn, 'before');
-      });
       rowsEl.querySelectorAll('[data-open-set]').forEach((el) => {
         el.addEventListener('click', (ev) => {
           if (ev.target.closest('button')) return;
@@ -752,6 +747,7 @@
     openPrintAtStoreModal,
     nextWalkRow,
     openSurveyForRow,
+    syncProdSi,
   };
   global.EodRouter.register('signoff', render);
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -38,13 +38,13 @@
         'paper',
         photoCount(S, 'signoff') >= 1 || !!(S.state.checkOutManager || '').trim(),
         'No hosted sheet — add a paper sign-off photo or complete PIC checkout',
-        'photos',
-        null
+        'send',
+        'sendPaperCam'
       );
     }
     if (S.state.instaworkYes === 'Yes') {
-      push('instaworkPhoto', photoCount(S, 'instawork') >= 1, 'InstaWork is in use — take a photo of the sign-out timesheet', 'photos', null);
-      push('instaworkSave', !!S.state.instaworkSavedInfo, 'Tap Confirm & Save so the InstaWork sign-out sheet is routed', 'photos', null);
+      push('instaworkPhoto', photoCount(S, 'instawork') >= 1, 'InstaWork is in use — take a photo of the sign-out timesheet', 'crew', 'iwCamBtn');
+      push('instaworkSave', !!S.state.instaworkSavedInfo, 'Tap Confirm & Save so the InstaWork sign-out sheet is routed', 'crew', 'iwSaveBtn');
     }
     return out;
   }

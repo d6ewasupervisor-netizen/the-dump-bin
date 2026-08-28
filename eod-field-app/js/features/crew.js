@@ -171,12 +171,8 @@
         </div>
       </div>`;
 
-    try { global.EodSmsOptinQr?.ensureUi?.(); } catch (_) {}
     const smsHost = document.getElementById('crewSmsHost');
-    const existingQr = document.getElementById('eodSmsOptinQrBlock');
-    if (smsHost && existingQr && existingQr.parentElement !== smsHost) {
-      smsHost.appendChild(existingQr);
-    }
+    if (smsHost) smsHost.innerHTML = '';
 
     document.getElementById('crewJoinQrBtn').onclick = async () => {
       try {

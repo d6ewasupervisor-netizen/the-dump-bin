@@ -233,6 +233,9 @@
         <strong>${esc(shift.projectName || shift.teamName || 'Shift')}</strong>
         <div class="muted">${esc(status)} · ${esc(String(shift.totalHours ?? ''))} hrs · ${esc(String(shift.empCount ?? shift.employeeCount ?? ''))} people</div>
         <div class="muted">${esc(shift.visitLead || shift.leadName || '')}</div>
+        ${/closed|transmitted|complete/i.test(String(status))
+          ? '<div class="muted">Closed — still usable for EOD / reports</div>'
+          : ''}
         ${extra}
       </div>`;
     }).join('');
@@ -253,6 +256,7 @@
         await applyLeadFromShift(shift);
         S.saveDraft();
         advanceAfterShiftSelected();
+        try { global.EodShiftPhotoSync?.run?.('shift'); } catch (_) {}
         paintOnboarding();
         updateContinueBtn();
         listEl.innerHTML = renderShiftCards(S.state.shifts, idx);
@@ -444,7 +448,7 @@
             <button type="button" class="btn btn-secondary" id="cartBeforePush" ${befores.length ? '' : 'disabled'}>Upload to PROD</button>
           </div>
           <button type="button" class="btn btn-secondary btn-block" id="noCartBtn" style="margin-top:8px;">No Kompass Cart</button>
-          <button type="button" class="btn btn-secondary btn-block" id="visitPhotosLink" style="margin-top:8px;">All photos</button>
+          <button type="button" class="btn btn-secondary btn-block" id="visitCartRefresh" style="margin-top:8px;">Refresh cart</button>
         </div>
         <div id="cartMsg" class="muted" style="margin-top:8px;"></div>
       </section>
@@ -587,8 +591,16 @@
         shouldContinue: () => false,
       });
     });
-    document.getElementById('visitPhotosLink')?.addEventListener('click', () => {
-      global.EodRouter.go('photos');
+    document.getElementById('visitCartRefresh')?.addEventListener('click', async () => {
+      try {
+        setCartMsg('Refreshing cart from PROD…');
+        const n = await pullCartFromProd('before');
+        setCartMsg(`Pulled ${n} before photo(s) from PROD.`);
+        paintOnboarding();
+        try { global.EodCoverNotes?.apply?.(S, 'cart-before'); } catch (_) {}
+      } catch (err) {
+        setCartMsg(err.message || String(err), true);
+      }
     });
     document.getElementById('saveInMgr')?.addEventListener('click', async () => {
       const name = document.getElementById('checkInManager')?.value?.trim();

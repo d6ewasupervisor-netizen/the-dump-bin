@@ -71,16 +71,16 @@ test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {
   assert.equal(matchesSheetFilters(nis, { notInStore: true, notInSi: true }), true);
 });
 
-test('sheet filters: Done is marks only; backlog is Not Done', () => {
+test('sheet filters: Done includes live PROD+SI even without a lead mark', () => {
   const liveBoth = {
     live: { prodComplete: true, prodStatus: 'done', siComplete: true, siStatus: 'completed' },
     marks: { active: [] },
   };
   const backlog = { marks: { backlog: true, active: ['backlog'] } };
   const complete = { marks: { complete: true, active: ['complete'] } };
-  assert.equal(sheetRowDone(liveBoth), false);
-  assert.equal(matchesSheetFilters(liveBoth, { status: 'done' }), false);
-  assert.equal(matchesSheetFilters(liveBoth, { status: 'not_done' }), true);
+  assert.equal(sheetRowDone(liveBoth), true);
+  assert.equal(matchesSheetFilters(liveBoth, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(liveBoth, { status: 'not_done' }), false);
   assert.equal(sheetRowDone(backlog), false);
   assert.equal(matchesSheetFilters(backlog, { status: 'done' }), false);
   assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), true);
@@ -150,12 +150,12 @@ test('applyToPayload without test mode leaves a live store alone', () => {
 const fs = require('fs');
 const path = require('path');
 
-test('section nav places photos between categories and send', () => {
+test('section nav places dump bin between categories and send', () => {
   const src = fs.readFileSync(path.join(__dirname, '../js/features/section-nav.js'), 'utf8');
   const ids = [...src.matchAll(/\{\s*id:\s*'([^']+)'/g)].map((m) => m[1]);
   const i = ids.indexOf('signoff');
   assert.ok(i >= 0);
-  assert.equal(ids[i + 1], 'photos');
+  assert.equal(ids[i + 1], 'dumpbin');
   assert.equal(ids[i + 2], 'send');
 });
 
@@ -174,14 +174,15 @@ test('theme cycle includes dark, inverse, light, gray, holiday', () => {
   assert.match(src, /\['dark', 'inverse', 'light', 'gray', 'holiday'\]/);
 });
 
-test('bottom nav is Visit, Categories, Photos, Send, More', () => {
+test('bottom nav is Visit, Categories, Dump Bin, Send, More', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /data-nav="photos"/);
+  assert.doesNotMatch(html, /id="bottomNav"[\s\S]*data-nav="photos"/);
+  assert.match(html, /data-nav="dumpbin"/);
   assert.match(html, /data-nav="more"/);
   assert.match(html, /id="themeCycleBtn"/);
   assert.match(html, /js\/features\/signatures\.js/);
   assert.match(html, /js\/features\/theme\.js/);
-  for (const name of ['visit', 'categories', 'photos', 'send']) {
+  for (const name of ['visit', 'categories', 'dumpbin', 'send']) {
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
   }
   assert.doesNotMatch(html, /id="bottomNav"[\s\S]*data-nav="signatures"/);
@@ -358,3 +359,49 @@ test('send gates list missing visit confirm and jump metadata', () => {
   assert.ok(miss.some((g) => g.id === 'name' && g.page === 'visit'));
   assert.equal(sendGates.firstMessage(S), 'Confirm store and date');
 });
+
+test('cover notes rewrite the In/Out/cart line and keep extra notes', () => {
+  const { mergeNotes, summaryLine } = require('../js/lib/cover-notes');
+  const S = {
+    state: {
+      checkInManager: 'Bryce',
+      checkOutManager: 'Bryce',
+      photos: { before: [{ dataUrl: 'x' }], after: [{ dataUrl: 'y' }] },
+      sheet: { summary: { marked: 4, total: 30 }, rows: [] },
+      notes: 'In: Bryce · Out: — · cart 1/0 · 0/30 marked\nLead leftover',
+    },
+  };
+  assert.equal(summaryLine(S), 'In: Bryce · Out: Bryce · cart 1/1 · 4/30 marked');
+  assert.equal(
+    mergeNotes(S.state.notes, S),
+    'In: Bryce · Out: Bryce · cart 1/1 · 4/30 marked\nLead leftover'
+  );
+});
+
+test('cover notes add Not in store lines from sheet marks', () => {
+  const { mergeNotes } = require('../js/lib/cover-notes');
+  const S = {
+    state: {
+      checkInManager: 'Bryce',
+      checkOutManager: '',
+      photos: { before: [], after: [] },
+      sheet: {
+        summary: { marked: 1, total: 2 },
+        rows: [{ catName: 'Isotonic', marks: { active: ['not_in_store'], notInStore: true } }],
+      },
+      notes: '',
+    },
+  };
+  assert.match(mergeNotes('', S), /Not in store: Isotonic/);
+});
+
+test('category cards do not include a Capture button', () => {
+  const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  assert.doesNotMatch(signoff, />Capture</);
+});
+
+test('double-swipe nav order is visit, categories, dump bin, send', () => {
+  const swipe = require('../js/lib/swipe-nav');
+  assert.deepEqual(swipe.PRIMARY, ['visit', 'signoff', 'dumpbin', 'send']);
+});
+

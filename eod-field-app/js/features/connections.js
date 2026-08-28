@@ -162,14 +162,40 @@
     try { await global.EodRouter?.render?.(); } catch (_) {}
   }
 
+  function bothLightsGreen() {
+    const sas = document.getElementById('sasConnDot');
+    const si = document.getElementById('reboticsConnDot');
+    return sas?.dataset.state === 'green' && si?.dataset.state === 'green';
+  }
+
   async function refreshConnections() {
     const btn = document.getElementById('refreshConnectionsBtn');
     if (!btn) return;
     const remaining = getRefreshCooldownRemainingMs();
+    if (bothLightsGreen()) {
+      if (global.showAlert) {
+        await global.showAlert(
+          'Auth already connected',
+          'The green lights mean SAS and Store Intelligence are signed in. A background worker keeps that connection and refreshes it as needed.\n\nThis is not a page refresh. You only need this when a light is red.'
+        );
+      } else {
+        toast('Auth is already green — no refresh needed.', 'ok');
+      }
+      return;
+    }
     if (remaining > 0) {
       toast(`Auth refresh available in ${formatCooldownLabel(remaining)}`, 'error');
       return;
     }
+
+    let proceed = true;
+    if (global.showConfirm) {
+      proceed = await global.showConfirm(
+        'Refresh SAS / SI auth',
+        'This refreshes the SAS and Store Intelligence logins. It is not a page refresh, and you can only do it once every 10 minutes.'
+      );
+    }
+    if (!proceed) return;
 
     // Durable save before network churn
     try { global.EodSession?.saveDraft(); } catch (_) {}

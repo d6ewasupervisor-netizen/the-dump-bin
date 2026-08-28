@@ -47,7 +47,8 @@
       const nav = el.getAttribute('data-nav');
       const on = nav === name
         || (nav === 'signoff' && (name === 'survey' || name === 'cover'))
-        || (nav === 'more' && ['signatures', 'crew', 'dumpbin', 'helpdesk'].includes(name));
+        || (nav === 'dumpbin' && name === 'dumpbin')
+        || (nav === 'more' && ['signatures', 'crew', 'helpdesk', 'photos'].includes(name));
       el.classList.toggle('is-active', on);
     });
     // Sidebar + chrome stay reachable once the shell is up (even on Visit).
@@ -57,6 +58,7 @@
     try { global.EodSectionNav?.append?.(name); } catch (_) {}
     try {
       await handler(mount, { route: name });
+      try { global.EodSectionCollapse?.enhance?.(mount); } catch (_) {}
     } catch (err) {
       console.error(err);
       mount.innerHTML = `<div class="card error"><h2>Something went wrong</h2><p>${global.EodApi.escapeHtml(err.message || String(err))}</p></div>`;
