@@ -20,8 +20,8 @@
   function ignoreTarget(el) {
     if (!el || !el.closest) return false;
     if (el.closest('input, textarea, select, [contenteditable="true"]')) return true;
-    if (el.closest('.vf-live-camera, .eod-alert-overlay, .modal-overlay, .picker-overlay, .helpdesk-wizard-overlay, .eod-pic-qr-fs')) return true;
-    if (el.closest('.landscape-sig, canvas, .si-pog-scroll')) return true;
+    if (el.closest('.vf-live-camera, .eod-alert-overlay, .modal-overlay, .picker-overlay, .helpdesk-wizard-overlay, .eod-pic-qr-fs, .eod-lsp-overlay, .dept-sig-wizard-overlay')) return true;
+    if (el.closest('.landscape-sig, canvas, .si-pog-scroll, .dept-sig-pad-wrap')) return true;
     return false;
   }
 

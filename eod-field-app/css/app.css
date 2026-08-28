@@ -178,31 +178,6 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
   flex-direction: column;
 }
 
-/* Phone: pin the shell to the viewport so #appMount is the only vertical scroller.
-   Otherwise overflow:hidden on a growing shell swallows touch pans. */
-@media (max-width: 767px) {
-  html, body {
-    height: 100%;
-    height: 100dvh;
-    height: -webkit-fill-available;
-    overflow: hidden;
-  }
-  body {
-    display: flex;
-    flex-direction: column;
-  }
-  .app-shell {
-    flex: 1 1 auto;
-    min-height: 0;
-    height: auto;
-  }
-  #appMount {
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-    overflow-y: auto;
-  }
-}
-
 /* Slim 28px strip — not a paragraph banner */
 .pilot-banner {
   display: flex;
