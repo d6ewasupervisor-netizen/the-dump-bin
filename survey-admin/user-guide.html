@@ -53,8 +53,8 @@
       <li><a href="#who">Who can use this</a></li>
       <li><a href="#open">Open admin</a></li>
       <li><a href="#stores">Stores tab — coverage</a></li>
-      <li><a href="#prod">Assign from PROD (weekly)</a></li>
-      <li><a href="#manual">Assign someone else</a></li>
+      <li><a href="#prod">Assign</a></li>
+      <li><a href="#manual">Someone else</a></li>
       <li><a href="#cancel">Cancel an assignment</a></li>
       <li><a href="#results">Results — read answers</a></li>
       <li><a href="#export">Export CSV, Excel, photos</a></li>
@@ -118,7 +118,7 @@
       <tr>
         <td><span class="status-pill needs">Needs assign</span></td>
         <td>Nobody is covering this store yet, and it is not submitted.</td>
-        <td>Assign from PROD, or tap <strong>Assign</strong> on the row to pick a person.</td>
+        <td>Open <strong>Assign</strong>, or tap <strong>Assign</strong> / <strong>Someone else</strong> on the row.</td>
       </tr>
       <tr>
         <td><span class="status-pill assigned">Assigned</span></td>
@@ -138,36 +138,28 @@
   </div>
 
   <div class="section" id="prod">
-    <h2><span class="section-number">4</span> Assign from PROD (weekly path)</h2>
-    <p>This is the normal way to cover a week. It pulls live Kompass ISE leads from SAS PROD, matches them to the roster, and can email each person a magic-link invite.</p>
+    <h2><span class="section-number">4</span> Assign</h2>
+    <p>One panel. It pulls live Kompass ISE leads from SAS PROD for this week through the rest of the period, matches them to the roster, and can email each person a magic-link invite.</p>
     <div class="steps">
       <div class="step">
         <span class="step-num">1</span>
-        <span class="step-text">On Stores, tap <span class="key">Assign from PROD</span> (or open that panel).</span>
+        <span class="step-text">On Stores, tap <span class="key">Assign</span> (or open that panel). A store-row <strong>Assign</strong> opens the same list filtered to that store.</span>
       </div>
       <div class="step">
         <span class="step-num">2</span>
-        <span class="step-text">Set <strong>Cycle</strong> to <strong>Current</strong> (this week), <strong>Next</strong>, a named cycle, or a single day.</span>
+        <span class="step-text">Wait until the status line shows the period and matched leads. Tap <span class="key">Refresh</span> if you need a live pull.</span>
       </div>
       <div class="step">
         <span class="step-num">3</span>
-        <span class="step-text">Tap <span class="key">Sync with PROD</span>. Wait until the status line shows visit counts and matched leads.</span>
-      </div>
-      <div class="step">
-        <span class="step-num">4</span>
         <span class="step-text">Skim the list. <strong>Roster</strong> means we found their email. <strong>Needs email</strong> means type one before you assign.</span>
       </div>
       <div class="step">
-        <span class="step-num">5</span>
+        <span class="step-num">4</span>
         <span class="step-text">Optional: filter by district, team, or lead name. Use <strong>Select visible</strong> / <strong>Clear selection</strong>.</span>
       </div>
       <div class="step">
-        <span class="step-num">6</span>
-        <span class="step-text">Leave <strong>Email invites when assigning</strong> checked unless you will tell people yourself.</span>
-      </div>
-      <div class="step">
-        <span class="step-num">7</span>
-        <span class="step-text">Tap <span class="key">Assign selected</span>. Coverage chips update. Invites go to the addresses on those rows.</span>
+        <span class="step-num">5</span>
+        <span class="step-text">Set invite timing (visit morning is the default), then tap <span class="key">Assign selected</span>.</span>
       </div>
     </div>
     <div class="callout note">
@@ -181,12 +173,12 @@
   </div>
 
   <div class="section" id="manual">
-    <h2><span class="section-number">5</span> Assign someone else</h2>
-    <p>Use this for a fill-in, an extra store, or anyone who is not on this week's PROD pull.</p>
+    <h2><span class="section-number">5</span> Someone else</h2>
+    <p>Use this for a fill-in, an extra store, or anyone who is not the PROD lead on that row.</p>
     <div class="steps">
       <div class="step">
         <span class="step-num">1</span>
-        <span class="step-text">Open <strong>Assign someone else</strong>. (The Assign button on a Needs-assign row opens this with that store already checked.)</span>
+        <span class="step-text">On a PROD lead row, or on a Needs-assign store row, tap <strong>Someone else</strong>. That store (or those stores) stay checked.</span>
       </div>
       <div class="step">
         <span class="step-num">2</span>

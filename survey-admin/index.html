@@ -310,6 +310,8 @@
   .prod-lead .meta{flex:1;min-width:0}
   .prod-lead .meta strong{display:block}
   .prod-lead .stores{font-size:.75rem;color:var(--ink-soft);margin-top:4px}
+  .prod-lead .row-actions{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+  .prod-lead .row-actions button{min-height:32px}
   .prod-lead .email-override{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .prod-lead .email-override input{flex:1 1 200px;min-height:36px;font-size:.875rem;margin:0}
   .prod-status{font-size:.75rem;color:var(--ink-soft);margin:8px 0}
@@ -469,8 +471,7 @@
     <div class="howto-body">
       <ol>
         <li><strong>Stores</strong> shows coverage. <em>Needs assign</em> = nobody covering that store yet.</li>
-        <li>Weekly path: open <strong>Assign from PROD</strong> → pick the cycle → <strong>Sync with PROD</strong> → check names and emails → <strong>Assign selected</strong>.</li>
-        <li>One-off: <strong>Assign someone else</strong> — search a name or type an email, check stores, Assign.</li>
+        <li>Open <strong>Assign</strong> for this week’s PROD leads through the rest of the period. Check names, or tap <em>Someone else</em> on a row.</li>
         <li><strong>Results</strong> is where you read submitted answers, then export CSV / Excel / photos.</li>
         <li>To fill out a store yourself, use <a href="/survey/">Store Survey</a> — same page reps use.</li>
         <li>Problems or ideas: tap <strong>Contact</strong> in the header — it emails the Survey Administrator from this page.</li>
@@ -496,7 +497,7 @@
     <div class="toolbar">
       <input class="search" id="cov-search" type="search" placeholder="Search store # or name…" autocomplete="off">
       <button type="button" class="secondary" id="cov-refresh">Refresh</button>
-      <button type="button" id="cov-goto-assign">Assign from PROD</button>
+      <button type="button" id="cov-goto-assign">Assign</button>
     </div>
 
     <div class="toolbar" id="cov-bulk-tools" hidden>
@@ -504,171 +505,112 @@
       <button type="button" class="secondary btn-xs" id="cov-bulk-remind" style="margin-left: auto; min-height: 32px">Remind / Schedule…</button>
     </div>
 
-    <details class="assign-box" id="store-assign-panel" hidden>
-      <summary>
-        <span class="sum-label">
-          Assign store leads
-          <span class="sum-sub" id="store-assign-sum">PROD leads scheduled at this store</span>
-        </span>
-      </summary>
-      <div class="assign-body">
-        <div class="prod-status" id="store-assign-status"></div>
-        <div class="toolbar" id="store-assign-tools" hidden style="margin:6px 0">
-          <button type="button" class="ghost btn-xs" id="store-assign-select-all">Select visible</button>
-          <button type="button" class="ghost btn-xs" id="store-assign-select-none">Clear selection</button>
-        </div>
-        <div class="prod-leads-box" id="store-assign-leads"></div>
-        <div class="prod-filters" style="align-items:flex-end">
-          <div class="field-wrap" style="flex:1 1 240px">
-            <label class="field" for="store-invite-mode">Invite email</label>
-            <select id="store-invite-mode">
-              <option value="now">Send now</option>
-              <option value="visit_day" selected>On each store’s visit day</option>
-              <option value="date">On a specific date…</option>
-              <option value="none">Don’t email</option>
-            </select>
-          </div>
-          <div class="field-wrap" style="flex:0 0 150px" id="store-invite-date-wrap" hidden>
-            <label class="field" for="store-invite-date">Send date</label>
-            <input id="store-invite-date" type="date">
-          </div>
-          <div class="field-wrap" style="flex:0 0 148px" id="store-invite-time-wrap">
-            <label class="field" for="store-invite-time">Time</label>
-            <input id="store-invite-time" type="time" value="04:00">
-          </div>
-        </div>
-        <div class="prod-filters">
-          <button type="button" id="store-assign-submit">Assign selected</button>
-          <button type="button" class="ghost" id="store-assign-someone-else">Someone else…</button>
-        </div>
-        <div class="err-box" id="store-assign-err"></div>
-        <div class="success-box" id="store-assign-ok"></div>
-      </div>
-    </details>
-
     <details class="assign-box" id="prod-panel">
       <summary>
         <span class="sum-label">
-          Assign from PROD
-          <span class="sum-sub">Sync this week’s Kompass ISE leads, check names, send invites</span>
+          Assign
+          <span class="sum-sub" id="assign-sum">PROD leads this week through the rest of the period</span>
         </span>
       </summary>
       <div class="assign-body">
-        <div class="prod-filters">
-          <div class="field-wrap" style="flex:1 1 220px">
-            <label class="field" for="prod-cycle">Cycle</label>
-            <select id="prod-cycle">
-              <option value="current">Current cycle / week</option>
-              <option value="next">Next cycle / week</option>
-              <option value="date">Single day…</option>
-            </select>
+        <div id="assign-prod-view">
+          <div class="prod-filters">
+            <button type="button" class="secondary" id="prod-refresh" style="align-self:flex-end">Refresh</button>
+            <button type="button" id="prod-assign" style="align-self:flex-end">Assign selected</button>
           </div>
-          <div class="field-wrap" style="flex:0 0 150px" id="prod-date-wrap" hidden>
-            <label class="field" for="prod-date">Schedule date</label>
-            <input id="prod-date" type="date">
+          <div class="prod-filters" id="prod-filter-row" hidden>
+            <div class="field-wrap" style="flex:1 1 180px">
+              <label class="field" for="prod-name-q">Find lead by name</label>
+              <input id="prod-name-q" type="search" placeholder="Type a lead name…" autocomplete="off">
+            </div>
+            <div class="field-wrap" style="flex:1 1 160px">
+              <label class="field" for="prod-team-f">Team</label>
+              <select id="prod-team-f"><option value="">All teams</option></select>
+            </div>
           </div>
-          <button type="button" class="secondary" id="prod-refresh" style="align-self:flex-end">Sync with PROD</button>
-          <button type="button" id="prod-assign" style="align-self:flex-end">Assign selected</button>
+          <div class="dist-picks" id="prod-dist-picks" aria-label="Filter PROD by district"></div>
+          <div class="prod-status" id="prod-status"></div>
+          <div class="toolbar" id="prod-select-tools" hidden style="margin:6px 0">
+            <button type="button" class="ghost btn-xs" id="prod-select-all">Select visible</button>
+            <button type="button" class="ghost btn-xs" id="prod-select-none">Clear selection</button>
+          </div>
+          <div class="prod-leads-box" id="prod-leads"></div>
+          <div class="prod-filters" style="align-items:flex-end">
+            <div class="field-wrap" style="flex:1 1 240px">
+              <label class="field" for="prod-invite-mode">Invite email</label>
+              <select id="prod-invite-mode">
+                <option value="now">Send now</option>
+                <option value="visit_day" selected>On each store’s visit day</option>
+                <option value="date">On a specific date…</option>
+                <option value="none">Don’t email</option>
+              </select>
+            </div>
+            <div class="field-wrap" style="flex:0 0 150px" id="prod-invite-date-wrap" hidden>
+              <label class="field" for="prod-invite-date">Send date</label>
+              <input id="prod-invite-date" type="date">
+            </div>
+            <div class="field-wrap" style="flex:0 0 148px" id="prod-invite-time-wrap" hidden>
+              <label class="field" for="prod-invite-time">Time</label>
+              <input id="prod-invite-time" type="time" value="04:00">
+            </div>
+          </div>
+          <div class="err-box" id="prod-err"></div>
+          <div class="success-box" id="prod-ok"></div>
         </div>
-        <div class="prod-filters" id="prod-filter-row" hidden>
-          <div class="field-wrap" style="flex:1 1 180px">
-            <label class="field" for="prod-name-q">Find lead by name</label>
-            <input id="prod-name-q" type="search" placeholder="Type a lead name…" autocomplete="off">
+
+        <div id="assign-else-view" hidden>
+          <button type="button" class="ghost btn-xs" id="assign-else-back" style="margin:8px 0">Back</button>
+          <p class="muted" id="manual-sum-sub" style="font-size:.75rem;margin:0 0 10px">One person, the stores they should cover</p>
+          <div class="field-wrap typeahead">
+            <label class="field" for="roster-q">Who</label>
+            <input id="roster-q" type="search" placeholder="Name or email…" autocomplete="off">
+            <div class="typeahead-results" id="roster-results"></div>
+            <div id="assignee-chip"></div>
           </div>
-          <div class="field-wrap" style="flex:1 1 160px">
-            <label class="field" for="prod-team-f">Team</label>
-            <select id="prod-team-f"><option value="">All teams</option></select>
+          <div class="field-wrap">
+            <label class="field" for="manual-store-q">Stores</label>
+            <input id="manual-store-q" class="search" type="search" placeholder="Filter by store # or name…" autocomplete="off" style="margin-bottom:8px">
+            <label class="check" style="margin:0 0 8px">
+              <input type="checkbox" id="manual-show-done">
+              <span>Include stores already done</span>
+            </label>
+            <div class="store-pick-list" id="store-picks"></div>
+            <p class="muted" style="font-size:.75rem;margin:8px 0 0" id="store-count">0 stores selected</p>
           </div>
-        </div>
-        <div class="dist-picks" id="prod-dist-picks" aria-label="Filter PROD by district"></div>
-        <div class="prod-status" id="prod-status">Choose a cycle, then Sync with PROD.</div>
-        <div class="toolbar" id="prod-select-tools" hidden style="margin:6px 0">
-          <button type="button" class="ghost btn-xs" id="prod-select-all">Select visible</button>
-          <button type="button" class="ghost btn-xs" id="prod-select-none">Clear selection</button>
-        </div>
-        <div class="prod-leads-box" id="prod-leads"></div>
-        <div class="prod-filters" style="align-items:flex-end">
-          <div class="field-wrap" style="flex:1 1 240px">
-            <label class="field" for="prod-invite-mode">Invite email</label>
-            <select id="prod-invite-mode">
-              <option value="now">Send now</option>
-              <option value="visit_day" selected>On each store’s visit day</option>
-              <option value="date">On a specific date…</option>
+          <div class="field-wrap">
+            <label class="field" for="manual-invite-mode">Invite email</label>
+            <select id="manual-invite-mode">
+              <option value="now" selected>Send now</option>
+              <option value="visit_day">On PROD visit days</option>
+              <option value="date">Schedule for a date…</option>
               <option value="none">Don’t email</option>
             </select>
           </div>
-          <div class="field-wrap" style="flex:0 0 150px" id="prod-invite-date-wrap" hidden>
-            <label class="field" for="prod-invite-date">Send date</label>
-            <input id="prod-invite-date" type="date">
-          </div>
-          <div class="field-wrap" style="flex:0 0 148px" id="prod-invite-time-wrap" hidden>
-            <label class="field" for="prod-invite-time">Time</label>
-            <input id="prod-invite-time" type="time" value="04:00">
-          </div>
-        </div>
-        <div class="err-box" id="prod-err"></div>
-        <div class="success-box" id="prod-ok"></div>
-      </div>
-    </details>
-
-    <details class="assign-box" id="manual-panel">
-      <summary>
-        <span class="sum-label">
-          Assign someone else
-          <span class="sum-sub" id="manual-sum-sub">One person, the stores they should cover, send a link</span>
-        </span>
-      </summary>
-      <div class="assign-body">
-        <p class="hint">Search the roster by name, or type an email. Then check the store(s).</p>
-        <div class="field-wrap typeahead">
-          <label class="field" for="roster-q">Who</label>
-          <input id="roster-q" type="search" placeholder="Name or email…" autocomplete="off">
-          <div class="typeahead-results" id="roster-results"></div>
-          <div id="assignee-chip"></div>
-        </div>
-        <div class="field-wrap">
-          <label class="field" for="manual-store-q">Stores</label>
-          <input id="manual-store-q" class="search" type="search" placeholder="Filter by store # or name…" autocomplete="off" style="margin-bottom:8px">
-          <label class="check" style="margin:0 0 8px">
-            <input type="checkbox" id="manual-show-done">
-            <span>Include stores already done</span>
-          </label>
-          <div class="store-pick-list" id="store-picks"></div>
-          <p class="muted" style="font-size:.75rem;margin:8px 0 0" id="store-count">0 stores selected</p>
-        </div>
-        <div class="field-wrap">
-          <label class="field" for="manual-invite-mode">Invite email</label>
-          <select id="manual-invite-mode">
-            <option value="now" selected>Send now</option>
-            <option value="visit_day">On PROD visit days</option>
-            <option value="date">Schedule for a date…</option>
-            <option value="none">Don’t email</option>
-          </select>
-        </div>
-        <div class="prod-filters" id="manual-invite-when" hidden>
-          <div class="field-wrap" style="flex:1 1 160px">
-            <label class="field" for="manual-invite-date">Send date</label>
-            <input id="manual-invite-date" type="date">
-          </div>
-          <div class="field-wrap" style="flex:0 0 148px">
-            <label class="field" for="manual-invite-time">Time</label>
-            <input id="manual-invite-time" type="time" value="04:00">
-          </div>
-        </div>
-        <div id="manual-visit-day-tools" hidden>
-          <div class="prod-filters" style="align-items:flex-end">
-            <button type="button" class="secondary" id="manual-pull-schedule" style="align-self:flex-end">Pull schedule</button>
+          <div class="prod-filters" id="manual-invite-when" hidden>
+            <div class="field-wrap" style="flex:1 1 160px">
+              <label class="field" for="manual-invite-date">Send date</label>
+              <input id="manual-invite-date" type="date">
+            </div>
             <div class="field-wrap" style="flex:0 0 148px">
-              <label class="field" for="manual-invite-time-visit">Time</label>
-              <input id="manual-invite-time-visit" type="time" value="04:00">
+              <label class="field" for="manual-invite-time">Time</label>
+              <input id="manual-invite-time" type="time" value="04:00">
             </div>
           </div>
-          <p class="muted" style="font-size:.75rem;margin:8px 0" id="manual-prod-status">Select a lead, then pull their current and future PROD visits.</p>
-          <div class="store-pick-list" id="manual-prod-visits" hidden></div>
+          <div id="manual-visit-day-tools" hidden>
+            <div class="prod-filters" style="align-items:flex-end">
+              <button type="button" class="secondary" id="manual-pull-schedule" style="align-self:flex-end">Pull schedule</button>
+              <div class="field-wrap" style="flex:0 0 148px">
+                <label class="field" for="manual-invite-time-visit">Time</label>
+                <input id="manual-invite-time-visit" type="time" value="04:00">
+              </div>
+            </div>
+            <p class="muted" style="font-size:.75rem;margin:8px 0" id="manual-prod-status">Select a lead, then pull their current and future PROD visits.</p>
+            <div class="store-pick-list" id="manual-prod-visits" hidden></div>
+          </div>
+          <button type="button" id="assign-submit">Assign</button>
+          <div class="err-box" id="assign-err"></div>
+          <div class="success-box" id="assign-ok"></div>
         </div>
-        <button type="button" id="assign-submit">Assign</button>
-        <div class="err-box" id="assign-err"></div>
-        <div class="success-box" id="assign-ok"></div>
       </div>
     </details>
 
@@ -686,8 +628,8 @@
     <div class="cov-cards" id="cov-cards"></div>
     <div class="empty" id="cov-empty" hidden>
       <strong>No stores match these filters</strong>
-      <p class="hint" style="margin:0 0 12px">Clear search, or assign from PROD.</p>
-      <button type="button" id="cov-empty-assign">Assign from PROD</button>
+      <p class="hint" style="margin:0 0 12px">Clear search, or open Assign.</p>
+      <button type="button" id="cov-empty-assign">Assign</button>
     </div>
   </section>
 
@@ -865,9 +807,7 @@ let COV_STATE = 'all';
 let rosterTimer = null;
 let VIEW_IDX = -1;
 let PROD_SCHEDULE = null;
-let STORE_ASSIGN = null;
-let STORE_ASSIGN_STORE = null;
-let PROD_CYCLES = null;
+let PROD_STORE_FILTER = null;
 let PROD_DISTRICT_FILTER = new Set();
 const PROD_CACHE_TTL_MS = 20 * 60 * 1000;
 
@@ -1021,11 +961,27 @@ document.getElementById('tabs').addEventListener('click', (e) => {
   if (btn) switchTab(btn.dataset.tab);
 });
 
-function openProdAssign() {
-  document.getElementById('manual-panel').open = false;
-  document.getElementById('store-assign-panel').open = false;
-  document.getElementById('prod-panel').open = true;
-  document.getElementById('prod-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+function showAssignProdView() {
+  document.getElementById('assign-prod-view').hidden = false;
+  document.getElementById('assign-else-view').hidden = true;
+}
+
+function showAssignElseView() {
+  document.getElementById('assign-prod-view').hidden = true;
+  document.getElementById('assign-else-view').hidden = false;
+}
+
+function openProdAssign(storeNum) {
+  const panel = document.getElementById('prod-panel');
+  panel.open = true;
+  showAssignProdView();
+  if (storeNum != null && Number.isFinite(Number(storeNum))) {
+    PROD_STORE_FILTER = Number(storeNum);
+  } else {
+    PROD_STORE_FILTER = null;
+  }
+  renderProdLeads();
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   if (!PROD_SCHEDULE) loadProdSchedule(false).catch(console.error);
 }
 
@@ -1239,6 +1195,13 @@ function renderCoverage() {
   }
   empty.hidden = true;
 
+  function covAssignButtons(storeNum) {
+    return `<div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button type="button" class="secondary btn-xs" data-assign-store="${storeNum}">Assign</button>
+      <button type="button" class="ghost btn-xs" data-else-store="${storeNum}">Someone else</button>
+    </div>`;
+  }
+
   function assigneeHtml(s) {
     return (s.assignees || []).map((a) => `
       <div class="assignee-row">
@@ -1263,7 +1226,7 @@ function renderCoverage() {
       <td>${escHtml(s.district || '—')}</td>
       <td><span class="status ${s.state}">${statusLabel(s.state)}</span></td>
       <td><div class="assignee-list">${assigneeHtml(s)}</div></td>
-      <td>${s.state === 'needs_assign' ? '<button type="button" class="secondary btn-xs" data-assign-store="' + s.storeNum + '">Assign</button>' : ''}</td>
+      <td>${s.state === 'needs_assign' ? covAssignButtons(s.storeNum) : ''}</td>
     </tr>`;
   }).join('');
 
@@ -1280,7 +1243,7 @@ function renderCoverage() {
       </div>
       <div class="name">${escHtml(s.storeName || '—')} · D${escHtml(s.district || '—')}</div>
       <div class="assignee-list">${assigneeHtml(s)}</div>
-      ${s.state === 'needs_assign' ? '<div style="margin-top:10px"><button type="button" class="secondary btn-xs" data-assign-store="' + s.storeNum + '">Assign</button></div>' : ''}
+      ${s.state === 'needs_assign' ? '<div style="margin-top:10px">' + covAssignButtons(s.storeNum) + '</div>' : ''}
     </div>`;
   }).join('');
   
@@ -1418,234 +1381,49 @@ document.getElementById('panel-stores').addEventListener('click', async (e) => {
     return;
   }
   const assignBtn = e.target.closest('[data-assign-store]');
-  if (assignBtn) openStoreAssign(Number(assignBtn.dataset.assignStore));
+  if (assignBtn) {
+    openProdAssign(Number(assignBtn.dataset.assignStore));
+    return;
+  }
+  const elseBtn = e.target.closest('[data-else-store]');
+  if (elseBtn) openAssignElse({ storeNums: [Number(elseBtn.dataset.elseStore)] });
 });
 
-function storeLeadKey(L) {
+function prodLeadKey(L) {
   return L.leadKey || (L.email ? `email:${L.email}` : `name:${(L.name || '').toLowerCase()}`);
 }
 
-function syncStoreInviteUi() {
-  const mode = document.getElementById('store-invite-mode').value;
-  const showWhen = mode === 'date' || mode === 'visit_day';
-  document.getElementById('store-invite-date-wrap').hidden = mode !== 'date';
-  document.getElementById('store-invite-time-wrap').hidden = !showWhen;
-}
-
-function formatStoreVisitDay(ymd) {
-  if (!ymd) return '';
-  const [y, m, d] = String(ymd).slice(0, 10).split('-').map(Number);
-  if (!y || !m || !d) return ymd;
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' });
-}
-
-function renderStoreAssignLeads() {
-  const box = document.getElementById('store-assign-leads');
-  const status = document.getElementById('store-assign-status');
-  const tools = document.getElementById('store-assign-tools');
-  if (!STORE_ASSIGN) {
-    box.innerHTML = '';
-    tools.hidden = true;
-    return;
-  }
-  const leads = STORE_ASSIGN.leads || [];
-  tools.hidden = !leads.length;
-  if (!STORE_ASSIGN.ok) {
-    status.className = 'prod-status bad';
-    status.textContent = STORE_ASSIGN.error || 'Could not load store schedule';
-  } else {
-    status.className = 'prod-status ok';
-    const weeks = STORE_ASSIGN.remainingWeeks || [];
-    const weekLabel = weeks.length > 1
-      ? `W${weeks[0]}–W${weeks[weeks.length - 1]}`
-      : (weeks.length ? `W${weeks[0]}` : '');
-    const periodNum = STORE_ASSIGN.periodWeek
-      ? String(STORE_ASSIGN.periodWeek).replace(/W\d+$/, '')
-      : '';
-    const period = [periodNum, weekLabel].filter(Boolean).join(' · ')
-      || `${STORE_ASSIGN.startDate}–${STORE_ASSIGN.endDate}`;
-    status.textContent =
-      `${period} · ${STORE_ASSIGN.visitCount || 0} visit${STORE_ASSIGN.visitCount === 1 ? '' : 's'} · ` +
-      `${leads.length} lead${leads.length === 1 ? '' : 's'}`;
-  }
-  if (!leads.length) {
-    box.innerHTML = '<div class="muted" style="padding:8px 0">No PROD leads scheduled at this store in the remaining period.</div>';
-    return;
-  }
-  box.innerHTML = leads.map((L) => {
-    const key = storeLeadKey(L);
-    const days = (L.stores || []).map((s) => formatStoreVisitDay(s.date)).filter(Boolean).join(', ');
-    const badge = L.matched
-      ? '<span class="badge good">Roster</span>'
-      : '<span class="badge warn">Needs email</span>';
-    const emailLine = L.email
-      ? `<span class="muted" style="font-size:.75rem">${escHtml(L.email)}${L.team ? ' · ' + escHtml(L.team) : ''}</span>`
-      : `<span class="muted" style="font-size:.75rem">Not on roster — enter an email to assign</span>`;
-    const override = L.matched
-      ? `<div class="email-override">
-           <label class="field" style="margin:0;flex:0 0 auto">Invite email</label>
-           <input type="email" data-store-email-input="${escHtml(key)}" value="${escHtml(L.email || '')}" placeholder="Override email (optional)">
-         </div>`
-      : `<div class="email-override">
-           <label class="field" style="margin:0;flex:0 0 auto">Email required</label>
-           <input type="email" data-store-email-input="${escHtml(key)}" value="" placeholder="name@example.com" required>
-         </div>`;
-    return `<label class="prod-lead ${L.matched ? '' : 'unmatched'}">
-      <input type="checkbox" data-store-lead-key="${escHtml(key)}" ${L.matched ? 'checked' : ''}>
-      <span class="meta">
-        <strong>${escHtml(L.name || L.email || 'Lead')}${badge}</strong>
-        ${emailLine}
-        <div class="stores">${days ? escHtml(days) : 'Visit day TBD'}</div>
-        ${override}
-      </span>
-    </label>`;
-  }).join('');
-}
-
-async function openStoreAssign(storeNum) {
-  const n = Number(storeNum);
-  if (!Number.isFinite(n)) return;
-  STORE_ASSIGN_STORE = n;
-  document.getElementById('prod-panel').open = false;
-  document.getElementById('manual-panel').open = false;
-  const panel = document.getElementById('store-assign-panel');
-  panel.hidden = false;
+function openAssignElse({ storeNums, stores, label } = {}) {
+  const panel = document.getElementById('prod-panel');
   panel.open = true;
-  const store = (COVERAGE.stores || []).find((s) => Number(s.storeNum) === n);
-  const label = store
-    ? `Store ${store.storeNum}${store.storeName ? ' · ' + store.storeName : ''}`
-    : `Store ${n}`;
-  document.getElementById('store-assign-sum').textContent = label;
-  document.getElementById('store-assign-err').classList.remove('show');
-  document.getElementById('store-assign-ok').classList.remove('show');
-  document.getElementById('store-assign-status').className = 'prod-status';
-  document.getElementById('store-assign-status').textContent = 'Pulling PROD schedule…';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  await loadStoreAssignLeads(n);
-}
-
-async function loadStoreAssignLeads(storeNum) {
-  const err = document.getElementById('store-assign-err');
-  err.classList.remove('show');
-  err.textContent = '';
-  setLoading(true, 'Pulling schedule');
-  try {
-    const res = await api('/api/survey/admin/prod-store-leads?storeNum=' + encodeURIComponent(storeNum));
-    STORE_ASSIGN = res;
-    renderStoreAssignLeads();
-  } catch (e) {
-    STORE_ASSIGN = { ok: false, error: e.message || 'Failed to load store schedule', leads: [] };
-    renderStoreAssignLeads();
-    err.textContent = e.message || 'Failed to load store schedule';
-    err.classList.add('show');
-  } finally {
-    setLoading(false);
-  }
-}
-
-function collectStoreAssignSelections() {
-  const rows = [...document.querySelectorAll('#store-assign-leads input[data-store-lead-key]:checked')];
-  const selections = [];
-  const errors = [];
-  for (const cb of rows) {
-    const key = cb.dataset.storeLeadKey;
-    const lead = (STORE_ASSIGN?.leads || []).find((L) => storeLeadKey(L) === key);
-    const row = cb.closest('.prod-lead');
-    const input = row?.querySelector('input[data-store-email-input]');
-    const email = String(input?.value || lead?.email || '').trim().toLowerCase();
-    if (!isValidEmail(email)) {
-      errors.push(lead?.name || key);
-      continue;
-    }
-    const stores = (lead?.stores || []).map((s) => ({
+  showAssignElseView();
+  const nums = (storeNums || (stores || []).map((s) => Number(s.storeNum)))
+    .map(Number)
+    .filter(Number.isFinite);
+  SELECTED_STORES = new Set(nums);
+  if (Array.isArray(stores) && stores.length) {
+    MANUAL_PROD_VISITS = stores.map((s) => ({
       storeNum: Number(s.storeNum),
       date: s.date || null,
+      storeName: s.storeName || null,
+      selected: true,
     }));
-    selections.push({
-      leadKey: key,
-      email,
-      name: lead?.name || null,
-      storeNums: stores.map((s) => s.storeNum),
-      stores,
-    });
+  } else {
+    MANUAL_PROD_VISITS = [];
   }
-  return { selections, errors };
-}
-
-async function assignStoreLeads() {
-  const err = document.getElementById('store-assign-err');
-  const ok = document.getElementById('store-assign-ok');
-  err.classList.remove('show');
-  ok.classList.remove('show');
-  err.textContent = '';
-  ok.innerHTML = '';
-  if (!STORE_ASSIGN?.ok) {
-    err.textContent = 'Pull the store schedule first.';
-    err.classList.add('show');
-    return;
-  }
-  const { selections, errors } = collectStoreAssignSelections();
-  if (errors.length) {
-    err.textContent = `Enter a valid email for: ${errors.join(', ')}`;
-    err.classList.add('show');
-    return;
-  }
-  if (!selections.length) {
-    err.textContent = 'Select at least one lead.';
-    err.classList.add('show');
-    return;
-  }
-  const inviteMode = document.getElementById('store-invite-mode').value;
-  const inviteTime = parseTimeParts(document.getElementById('store-invite-time').value);
-  const body = {
-    startDate: STORE_ASSIGN.startDate,
-    endDate: STORE_ASSIGN.endDate,
-    storeNums: [STORE_ASSIGN.storeNum || STORE_ASSIGN_STORE],
-    selections,
-    dueAt: STORE_ASSIGN.endDate || null,
-    remindDaysBefore: 1,
-    sendInvites: inviteMode !== 'none',
-    inviteMode,
-    inviteHour: inviteTime.hour,
-    inviteMinute: inviteTime.minute,
-    scopeLabel: `Store ${STORE_ASSIGN.storeNum || STORE_ASSIGN_STORE}`,
-  };
-  if (inviteMode === 'date') {
-    body.inviteAt = inviteAtFromDateTime(
-      document.getElementById('store-invite-date'),
-      document.getElementById('store-invite-time')
-    );
-  }
-  setLoading(true, 'Assigning');
-  try {
-    const res = await api('/api/survey/admin/assignments/from-prod', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    ok.innerHTML = `<strong>Created ${res.created} assignment${res.created === 1 ? '' : 's'}.</strong><br>${escHtml(inviteSummary(res.inviteResults))}`;
-    ok.classList.add('show');
-    await loadCoverage();
-  } catch (e) {
-    err.textContent = e.message || 'Assignment failed';
-    err.classList.add('show');
-  } finally {
-    setLoading(false);
-  }
-}
-
-function openManualAssign(storeNum) {
-  document.getElementById('prod-panel').open = false;
-  document.getElementById('store-assign-panel').open = false;
-  document.getElementById('manual-panel').open = true;
-  SELECTED_STORES = new Set([Number(storeNum)]);
-  const store = (COVERAGE.stores || []).find((s) => Number(s.storeNum) === Number(storeNum));
-  const label = store
-    ? `Store ${store.storeNum}${store.storeName ? ' · ' + store.storeName : ''}`
-    : `Store ${storeNum}`;
-  document.getElementById('manual-sum-sub').textContent = label;
+  const store = nums.length === 1
+    ? (COVERAGE.stores || []).find((s) => Number(s.storeNum) === nums[0])
+    : null;
+  document.getElementById('manual-sum-sub').textContent = label
+    || (store
+      ? `Store ${store.storeNum}${store.storeName ? ' · ' + store.storeName : ''}`
+      : (nums.length ? `${nums.length} store${nums.length === 1 ? '' : 's'}` : 'One person, the stores they should cover'));
   document.getElementById('manual-store-q').value = '';
+  document.getElementById('assign-err').classList.remove('show');
+  document.getElementById('assign-ok').classList.remove('show');
   renderManualStores();
-  document.getElementById('manual-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  renderManualProdVisits();
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   document.getElementById('roster-q').focus();
 }
 
@@ -2033,6 +1811,13 @@ document.getElementById('assign-submit').onclick = async () => {
 
 function prodWindowLabel(sched) {
   if (!sched) return '';
+  const weeks = sched.remainingWeeks || [];
+  const weekLabel = weeks.length > 1
+    ? `W${weeks[0]}–W${weeks[weeks.length - 1]}`
+    : (weeks.length ? `W${weeks[0]}` : '');
+  const periodNum = sched.periodWeek ? String(sched.periodWeek).replace(/W\d+$/, '') : '';
+  const period = [periodNum, weekLabel].filter(Boolean).join(' · ');
+  if (period) return period;
   if (sched.cycle?.name) return sched.cycle.name;
   if (sched.startDate && sched.endDate && sched.startDate !== sched.endDate) {
     return `${sched.startDate} → ${sched.endDate}`;
@@ -2040,51 +1825,10 @@ function prodWindowLabel(sched) {
   return sched.date || sched.startDate || '';
 }
 
-function updateProdCycleUi() {
-  document.getElementById('prod-date-wrap').hidden = document.getElementById('prod-cycle').value !== 'date';
-}
-
-async function loadProdCycles(refresh) {
-  try {
-    const res = await api('/api/survey/admin/prod-cycles' + (refresh ? '?refresh=1' : ''));
-    PROD_CYCLES = res;
-    const sel = document.getElementById('prod-cycle');
-    const prev = sel.value;
-    const opts = [];
-    opts.push({ value: 'current', label: res.current
-      ? `Current · ${res.current.name} (${res.current.startDate}–${res.current.endDate})`
-      : 'Current cycle / week' });
-    opts.push({ value: 'next', label: res.next
-      ? `Next · ${res.next.name} (${res.next.startDate}–${res.next.endDate})`
-      : 'Next cycle / week' });
-    for (const c of (res.cycles || [])) {
-      opts.push({
-        value: 'cycle:' + c.id,
-        label: `${c.name} (${c.startDate}–${c.endDate})${c.isCurrent ? ' · current' : ''}`,
-      });
-    }
-    opts.push({ value: 'date', label: 'Single day…' });
-    sel.innerHTML = opts.map((o) => `<option value="${escHtml(o.value)}">${escHtml(o.label)}</option>`).join('');
-    if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
-    else sel.value = 'current';
-    updateProdCycleUi();
-  } catch (e) {
-    console.warn('prod-cycles', e);
-  }
-}
-
 function buildProdScheduleQuery(refresh) {
-  const mode = document.getElementById('prod-cycle').value;
   const q = new URLSearchParams();
   if (refresh) q.set('refresh', '1');
-  if (mode === 'current') q.set('range', 'current');
-  else if (mode === 'next') q.set('range', 'next');
-  else if (mode.startsWith('cycle:')) q.set('cycleId', mode.slice(6));
-  else {
-    const date = document.getElementById('prod-date').value || todayYmdLocal();
-    document.getElementById('prod-date').value = date;
-    q.set('date', date);
-  }
+  q.set('range', 'period');
   return q;
 }
 
@@ -2105,10 +1849,15 @@ function filteredProdLeads() {
       const dists = L.districts || [...new Set((L.stores || []).map((s) => s.district).filter(Boolean))];
       if (!dists.some((d) => PROD_DISTRICT_FILTER.has(String(d)))) return false;
     }
+    if (PROD_STORE_FILTER != null) {
+      if (!(L.stores || []).some((s) => Number(s.storeNum) === Number(PROD_STORE_FILTER))) return false;
+    }
     return true;
   }).map((L) => {
-    if (!PROD_DISTRICT_FILTER.size) return L;
-    return { ...L, stores: (L.stores || []).filter((s) => PROD_DISTRICT_FILTER.has(String(s.district))) };
+    let stores = L.stores || [];
+    if (PROD_DISTRICT_FILTER.size) stores = stores.filter((s) => PROD_DISTRICT_FILTER.has(String(s.district)));
+    if (PROD_STORE_FILTER != null) stores = stores.filter((s) => Number(s.storeNum) === Number(PROD_STORE_FILTER));
+    return stores === L.stores ? L : { ...L, stores };
   }).filter((L) => (L.stores || []).length);
 }
 
@@ -2172,8 +1921,9 @@ function renderProdLeads() {
     const cached = PROD_SCHEDULE.fromCache
       ? ` · cached${PROD_SCHEDULE.syncedAt ? ' ' + new Date(PROD_SCHEDULE.syncedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}`
       : '';
+    const storeBit = PROD_STORE_FILTER != null ? ` · store ${PROD_STORE_FILTER}` : '';
     status.textContent =
-      `PROD · ${win} · ${PROD_SCHEDULE.visitCount || 0} visits · ` +
+      `${win}${storeBit} · ${PROD_SCHEDULE.visitCount || 0} visits · ` +
       `${PROD_SCHEDULE.matchedLeadCount ?? allLeads.filter((L) => L.matched).length} matched · ` +
       `${PROD_SCHEDULE.unmatchedLeadCount ?? allLeads.filter((L) => !L.matched).length} need email · ` +
       `showing ${leads.length}${cached}`;
@@ -2205,15 +1955,18 @@ function renderProdLeads() {
            <label class="field" style="margin:0;flex:0 0 auto">Email required</label>
            <input type="email" data-prod-email-input="${escHtml(key)}" value="" placeholder="name@example.com" required>
          </div>`;
-    return `<label class="prod-lead ${L.matched ? '' : 'unmatched'}">
+    return `<div class="prod-lead ${L.matched ? '' : 'unmatched'}">
       <input type="checkbox" data-prod-key="${escHtml(key)}" ${L.matched ? 'checked' : ''}>
       <span class="meta">
         <strong>${escHtml(L.name || L.email || 'Lead')}${badge}</strong>
         ${emailLine}
         <div class="stores">${stores || 'No stores'}</div>
         ${override}
+        <div class="row-actions">
+          <button type="button" class="ghost btn-xs" data-else-lead="${escHtml(key)}">Someone else</button>
+        </div>
       </span>
-    </label>`;
+    </div>`;
   }).join('');
 }
 
@@ -2240,7 +1993,6 @@ async function loadProdSchedule(refresh) {
   document.getElementById('prod-status').className = 'prod-status';
   setLoading(true, 'Syncing');
   try {
-    if (refresh || !PROD_CYCLES) await loadProdCycles(!!refresh);
     const res = await api('/api/survey/admin/prod-schedule?' + buildProdScheduleQuery(!!refresh).toString());
     applyProdSchedule(res, { fromCache: !!res.fromCache });
     writeProdCache(res);
@@ -2276,6 +2028,9 @@ function collectProdSelections() {
     let stores = lead?.stores || [];
     if (PROD_DISTRICT_FILTER.size) {
       stores = stores.filter((s) => PROD_DISTRICT_FILTER.has(String(s.district)));
+    }
+    if (PROD_STORE_FILTER != null) {
+      stores = stores.filter((s) => Number(s.storeNum) === Number(PROD_STORE_FILTER));
     }
     const storeNums = stores.map((s) => Number(s.storeNum));
     selections.push({
@@ -2314,11 +2069,13 @@ async function assignFromProd() {
     err.textContent = 'Select at least one lead from the PROD schedule.';
     return;
   }
-  const mode = document.getElementById('prod-cycle').value;
   const inviteMode = document.getElementById('prod-invite-mode').value;
   const inviteTime = parseTimeParts(document.getElementById('prod-invite-time').value);
   const body = {
     selections,
+    range: 'period',
+    startDate: PROD_SCHEDULE.startDate,
+    endDate: PROD_SCHEDULE.endDate,
     dueAt: PROD_SCHEDULE.endDate || PROD_SCHEDULE.cycle?.endDate || null,
     remindDaysBefore: 1,
     sendInvites: inviteMode !== 'none',
@@ -2326,16 +2083,13 @@ async function assignFromProd() {
     inviteHour: inviteTime.hour,
     inviteMinute: inviteTime.minute,
   };
+  if (PROD_STORE_FILTER != null) body.storeNums = [PROD_STORE_FILTER];
   if (inviteMode === 'date') {
     body.inviteAt = inviteAtFromDateTime(
       document.getElementById('prod-invite-date'),
       document.getElementById('prod-invite-time')
     );
   }
-  if (mode === 'current') body.range = 'current';
-  else if (mode === 'next') body.range = 'next';
-  else if (mode.startsWith('cycle:')) body.cycleId = Number(mode.slice(6));
-  else body.date = document.getElementById('prod-date').value || todayYmdLocal();
 
   try {
     const res = await api('/api/survey/admin/assignments/from-prod', {
@@ -2356,10 +2110,8 @@ async function assignFromProd() {
   }
 }
 
-document.getElementById('prod-date').value = todayYmdLocal();
 document.getElementById('prod-invite-date').value = todayYmdLocal();
 document.getElementById('manual-invite-date').value = todayYmdLocal();
-document.getElementById('prod-cycle').onchange = updateProdCycleUi;
 document.getElementById('prod-invite-mode').onchange = syncProdInviteUi;
 document.getElementById('manual-invite-mode').onchange = syncManualInviteUi;
 document.getElementById('manual-pull-schedule').onclick = () => pullManualLeadSchedule().catch(console.error);
@@ -2378,19 +2130,22 @@ document.getElementById('prod-select-all').onclick = () => {
 document.getElementById('prod-select-none').onclick = () => {
   document.querySelectorAll('#prod-leads input[data-prod-key]').forEach((cb) => { cb.checked = false; });
 };
-document.getElementById('store-invite-mode').onchange = syncStoreInviteUi;
-document.getElementById('store-invite-date').value = todayYmdLocal();
-document.getElementById('store-assign-submit').onclick = () => assignStoreLeads();
-document.getElementById('store-assign-someone-else').onclick = () => {
-  if (STORE_ASSIGN_STORE) openManualAssign(STORE_ASSIGN_STORE);
+document.getElementById('assign-else-back').onclick = () => {
+  showAssignProdView();
+  document.getElementById('prod-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
-document.getElementById('store-assign-select-all').onclick = () => {
-  document.querySelectorAll('#store-assign-leads input[data-store-lead-key]').forEach((cb) => { cb.checked = true; });
-};
-document.getElementById('store-assign-select-none').onclick = () => {
-  document.querySelectorAll('#store-assign-leads input[data-store-lead-key]').forEach((cb) => { cb.checked = false; });
-};
-syncStoreInviteUi();
+document.getElementById('prod-leads').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-else-lead]');
+  if (!btn) return;
+  const key = btn.dataset.elseLead;
+  const lead = (PROD_SCHEDULE?.leads || []).find((L) => prodLeadKey(L) === key);
+  const stores = lead?.stores || [];
+  openAssignElse({
+    stores,
+    storeNums: stores.map((s) => Number(s.storeNum)),
+    label: lead?.name || lead?.email || 'Someone else',
+  });
+});
 
 function flatQuestions(spec) {
   const out = [];
@@ -2866,7 +2621,6 @@ document.getElementById('exp-photos').onclick = () => {
         } catch (_) { /* ignore */ }
       });
     }
-    loadProdCycles(false).catch(() => {});
     switchTab(tabFromHash());
   } catch (e) {
     if (e.message !== 'forbidden' && e.message !== 'auth') {
