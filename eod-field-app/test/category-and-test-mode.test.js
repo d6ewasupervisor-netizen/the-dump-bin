@@ -84,8 +84,33 @@ test('sheet filters: Done is marks only; backlog is Not Done', () => {
   assert.equal(sheetRowDone(backlog), false);
   assert.equal(matchesSheetFilters(backlog, { status: 'done' }), false);
   assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), true);
+  assert.equal(matchesSheetFilters(backlog, { status: 'backlog' }), true);
+  assert.equal(matchesSheetFilters(complete, { status: 'backlog' }), false);
   assert.equal(sheetRowDone(complete), true);
   assert.equal(matchesSheetFilters(complete, { status: 'done' }), true);
+});
+
+test('walk sort: aisle order, backlog after open, complete at bottom, next skips done', () => {
+  const {
+    sortWalkRows,
+    nextWalkRow,
+    walkRank,
+    aisleNumber,
+  } = require('../js/lib/category-card-status');
+  const a12 = { id: 1, dbkey: 'a', catName: 'Frozen', live: { siLocation: { label: 'Aisle 12' } }, marks: { active: [] } };
+  const a3 = { id: 2, dbkey: 'b', catName: 'Dairy', live: { siLocation: { label: 'Aisle 3' } }, marks: { active: [] } };
+  const done = { id: 3, dbkey: 'c', catName: 'Done set', live: { siLocation: { label: 'Aisle 1' } }, marks: { active: ['complete'], complete: true } };
+  const back = { id: 4, dbkey: 'd', catName: 'Later', live: { siLocation: { label: 'Aisle 2' } }, marks: { active: ['backlog'], backlog: true } };
+  const sorted = sortWalkRows([done, a12, back, a3]);
+  assert.equal(sorted[0].id, 2);
+  assert.equal(sorted[1].id, 1);
+  assert.equal(sorted[2].id, 4);
+  assert.equal(sorted[3].id, 3);
+  assert.equal(walkRank(done), 2);
+  assert.equal(aisleNumber(a12), 12);
+  assert.equal(nextWalkRow(sorted).id, 2);
+  assert.equal(nextWalkRow(sorted, 2).id, 1);
+  assert.equal(nextWalkRow(sorted, 1), null);
 });
 
 test('formatEstHrs shows minutes under an hour', () => {
@@ -125,13 +150,13 @@ test('applyToPayload without test mode leaves a live store alone', () => {
 const fs = require('fs');
 const path = require('path');
 
-test('section nav places signatures between categories and crew', () => {
+test('section nav places photos between categories and send', () => {
   const src = fs.readFileSync(path.join(__dirname, '../js/features/section-nav.js'), 'utf8');
   const ids = [...src.matchAll(/\{\s*id:\s*'([^']+)'/g)].map((m) => m[1]);
   const i = ids.indexOf('signoff');
   assert.ok(i >= 0);
-  assert.equal(ids[i + 1], 'signatures');
-  assert.equal(ids[i + 2], 'crew');
+  assert.equal(ids[i + 1], 'photos');
+  assert.equal(ids[i + 2], 'send');
 });
 
 test('section nav uses section names and a Top control, not Previous/Next', () => {
@@ -149,15 +174,17 @@ test('theme cycle includes dark, inverse, light, gray, holiday', () => {
   assert.match(src, /\['dark', 'inverse', 'light', 'gray', 'holiday'\]/);
 });
 
-test('bottom nav lists a signatures route and theme cycle control', () => {
+test('bottom nav is Visit, Categories, Photos, Send, More', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /data-nav="signatures"/);
+  assert.match(html, /data-nav="photos"/);
+  assert.match(html, /data-nav="more"/);
   assert.match(html, /id="themeCycleBtn"/);
   assert.match(html, /js\/features\/signatures\.js/);
   assert.match(html, /js\/features\/theme\.js/);
-  for (const name of ['visit', 'categories', 'signatures', 'crew', 'dumpbin', 'send', 'helpdesk']) {
+  for (const name of ['visit', 'categories', 'photos', 'send']) {
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
   }
+  assert.doesNotMatch(html, /id="bottomNav"[\s\S]*data-nav="signatures"/);
 });
 
 test('section nav host is pinned outside page content', () => {
@@ -227,6 +254,9 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.doesNotMatch(visit, /findShiftsBtn/);
   assert.match(visit, /Confirm store to load shifts/);
   assert.match(visit, /busyForce: true/);
+  assert.match(visit, /dayConfirmModal/);
+  assert.match(visit, /dayConfirmStoreBtn/);
+  assert.match(visit, /showPicker/);
 });
 
 test('compass buffering overlay ships and wraps slow authFetch', () => {
@@ -268,6 +298,9 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /data-filter="status"/);
   assert.match(signoff, /data-value="done">Done/);
   assert.match(signoff, /data-value="not_done">Not Done/);
+  assert.match(signoff, /data-value="backlog">Backlog/);
+  assert.match(signoff, /id="sheetNext"/);
+  assert.match(signoff, /btn\('complete', 'Complete'\)/);
   assert.doesNotMatch(signoff, /data-filter="prod"/);
   assert.doesNotMatch(signoff, /data-filter="si"/);
   assert.doesNotMatch(signoff, /data-filter="notInStore"/);

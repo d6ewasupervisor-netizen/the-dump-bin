@@ -395,7 +395,7 @@
 
   function openSetSurvey(btn, slot) {
     const dbkey = btn.getAttribute('data-dbkey') || '';
-    const row = btn.getAttribute('data-capture') || btn.getAttribute('data-before') || '';
+    const row = btn.getAttribute('data-capture') || btn.getAttribute('data-before') || btn.getAttribute('data-open-set') || '';
     const name = btn.getAttribute('data-name') || '';
     if (!dbkey) {
       alert('This row has no dbkey — cannot open Capture/View.');
@@ -406,8 +406,52 @@
     location.hash = `#/survey?${qs.toString()}`;
   }
 
+  function openSurveyForRow(row, slot) {
+    if (!row?.dbkey) return;
+    const qs = new URLSearchParams({
+      dbkey: row.dbkey,
+      rowId: String(row.id || ''),
+      name: row.catName || row.catId || '',
+    });
+    if (slot) qs.set('slot', slot);
+    location.hash = `#/survey?${qs.toString()}`;
+  }
+
+  function nextWalkRow(afterId) {
+    const rows = global.EodSession?.state?.sheet?.rows || [];
+    if (global.EodCategoryCardStatus?.nextWalkRow) {
+      return global.EodCategoryCardStatus.nextWalkRow(rows, afterId);
+    }
+    return rows.find((r) => !rowLooksComplete(r) && r.dbkey && String(r.id) !== String(afterId)) || null;
+  }
+
+  function showMarkUndo(rowId, markType, turningOn) {
+    let bar = document.getElementById('eodMarkUndo');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'eodMarkUndo';
+      bar.className = 'eod-mark-undo';
+      document.body.appendChild(bar);
+    }
+    bar.hidden = false;
+    bar.innerHTML = `<span>Marked</span> <button type="button" class="btn btn-secondary" id="eodMarkUndoBtn">Undo</button>`;
+    const btn = document.getElementById('eodMarkUndoBtn');
+    const t = setTimeout(() => { bar.hidden = true; }, 5000);
+    if (btn) {
+      btn.onclick = async () => {
+        clearTimeout(t);
+        bar.hidden = true;
+        try {
+          if (turningOn) await applyMark(rowId, markType);
+          else await applyMark(rowId, markType, { forceOn: true });
+        } catch (_) {}
+        global.EodRouter?.render?.();
+      };
+    }
+  }
+
   function renderRows(sheet, q, filters) {
-    const rows = (sheet.rows || []).filter((row) => {
+    let rows = (sheet.rows || []).filter((row) => {
       if (global.EodCategoryCardStatus?.matchesSheetFilters
         && !global.EodCategoryCardStatus.matchesSheetFilters(row, filters)) {
         return false;
@@ -419,48 +463,42 @@
       return `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''} ${locSearch} ${row.errorMessage || ''}`
         .toLowerCase().includes(q);
     });
+    if (global.EodCategoryCardStatus?.sortWalkRows) {
+      rows = global.EodCategoryCardStatus.sortWalkRows(rows);
+    }
     if (!rows.length) return '<p class="muted">No sets match.</p>';
     return rows.map((row) => {
-      const status = syncStatusPills(row);
-      const localCount = localBeforeCount(row);
-      const beforeState = global.EodCategoryCardStatus
-        ? global.EodCategoryCardStatus.beforePillState(row, localCount)
-        : (localCount ? { kind: 'ok', count: localCount } : { kind: 'warn' });
-      const beforePill = row.dbkey
-        ? (global.EodCategoryCardStatus
-          ? global.EodCategoryCardStatus.beforePillHtml(beforeState, esc)
-          : (beforeState.kind === 'ok'
-            ? `<span class="pill ok">${beforeState.count} before${beforeState.count === 1 ? '' : 's'}</span>`
-            : (beforeState.kind === 'warn' ? '<span class="pill warn">no befores</span>' : '')))
-        : '';
       const locLabel = global.EodCategoryCardStatus
         ? global.EodCategoryCardStatus.siLocationLabel(row)
         : '';
+      const footage = row.footageDisplay || row.size || row.footage || '';
+      const est = global.EodCategoryCardStatus?.formatEstHrs?.(row.estHrs) || '';
       const btn = (type, label) => {
         const on = markActive(row, type);
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
       const errMsg = String(row.errorMessage || row.error_message || '').trim();
       const canOpen = !!row.dbkey && !rowLooksComplete(row);
-      return `<div class="ds-row ${rowClass(row)}" data-row-id="${row.id}">
+      const metaBits = [
+        row.dbkey ? `DBKEY ${row.dbkey}` : '',
+        locLabel,
+        footage ? String(footage) : '',
+        est,
+      ].filter(Boolean);
+      return `<div class="ds-row ds-row-compact ${rowClass(row)}" data-row-id="${row.id}">
         <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
-          <div class="muted ds-row-meta">${esc(row.week || '')} ${esc(row.shiftType || '')} · ${esc(row.dbkey || '—')} · ${esc(row.dept || '')}</div>
-          ${locLabel ? `<div class="muted ds-row-meta">${esc(locLabel)}</div>` : ''}
-          <div class="muted ds-row-meta">${row.versionToken || row.version ? `Version ${esc(row.versionToken || ('V' + row.version))}` : 'Version —'}${row.footageDisplay || row.size || row.footage ? ` · Footage ${esc(row.footageDisplay || row.size || row.footage)}` : ' · Footage —'}${global.EodCategoryCardStatus?.formatEstHrs?.(row.estHrs) ? ` · ${esc(global.EodCategoryCardStatus.formatEstHrs(row.estHrs))}` : ''}</div>
-          ${row.live ? `<div class="muted ds-row-meta">PROD ${esc(row.live.prodStatus || '—')} · SI ${esc(row.live.siPresent ? (row.live.siStatus || 'present') : 'not found')}${row.live.photoCount ? ` · ${row.live.photoCount} ${esc(row.live.photoSource || '')} photo(s)` : ''}</div>` : ''}
+          <div class="muted ds-row-meta">${esc(metaBits.join(' · '))}</div>
           ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
-        <div style="margin-top:6px;">${status} ${beforePill}</div>
         <div class="ds-photo-actions">
-          ${row.dbkey ? `<button type="button" class="btn btn-secondary" data-before="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}">Take befores</button>` : ''}
-          <button type="button" class="btn btn-primary" data-capture="${row.id}" data-dbkey="${esc(row.dbkey || '')}" data-name="${esc(row.catName || row.catId || '')}">Capture/View</button>
+          <button type="button" class="btn btn-primary" data-capture="${row.id}" data-dbkey="${esc(row.dbkey || '')}" data-name="${esc(row.catName || row.catId || '')}">Capture</button>
         </div>
         <div class="ds-actions">
-          ${btn('complete', 'Complete')}
-          ${btn('not_in_store', 'Not in store')}
-          ${btn('not_in_si', 'Not in SI')}
+          ${btn('not_in_store', 'NIS')}
+          ${btn('not_in_si', 'NISI')}
           ${btn('backlog', 'Backlog')}
+          ${btn('complete', 'Complete')}
         </div>
       </div>`;
     }).join('');
@@ -470,43 +508,30 @@
     const S = global.EodSession;
     mount.innerHTML = `
       <div class="card heart">
-        <details class="cat-section" id="catSection">
-          <summary class="cat-section-summary">
-            <h1>Categories</h1>
-            <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
-          </summary>
-          <div class="btn-row">
-            <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
+        <div class="cat-head">
+          <h1>Categories</h1>
+          <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
+          <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Sync PROD / SI</button>
+        </div>
+        <div class="ds-next" id="sheetNext" hidden></div>
+        <div class="ds-filters" id="sheetFilters">
+          <div class="ds-filter-row">
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_done">Not Done</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="backlog">Backlog</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Done</button>
           </div>
-          <div class="ds-filters" id="sheetFilters">
-            <div class="ds-filter-row">
-              <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Done</button>
-              <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_done">Not Done</button>
-            </div>
-          </div>
-          <div class="field" style="margin-top:12px;">
-            <label>Search sets</label>
-            <input type="search" id="sheetSearch" placeholder="Category, DBKEY, dept…">
-          </div>
-          <div id="sheetRows"></div>
-        </details>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Search sets</label>
+          <input type="search" id="sheetSearch" placeholder="Category, DBKEY, aisle…">
+        </div>
+        <div id="sheetRows"></div>
       </div>`;
-
-    const CAT_OPEN_KEY = 'eod-categories-open';
-    const catSection = document.getElementById('catSection');
-    if (catSection) {
-      let saved = null;
-      try { saved = localStorage.getItem(CAT_OPEN_KEY); } catch (_) {}
-      catSection.open = saved !== '0';
-      catSection.addEventListener('toggle', () => {
-        try { localStorage.setItem(CAT_OPEN_KEY, catSection.open ? '1' : '0'); } catch (_) {}
-      });
-    }
 
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
     const syncBtn = document.getElementById('syncProdSiBtn');
-    const filters = { status: 'all' };
+    const filters = { status: 'not_done' };
     let pollTimer = null;
     if (rowsEl && typeof ResizeObserver === 'function' && !rowsEl._dsFitObs) {
       rowsEl._dsFitObs = new ResizeObserver(() => {
@@ -617,12 +642,27 @@
       const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
       paintFilterChips();
       rowsEl.innerHTML = renderRows(sheet, q, filters);
+      const next = nextWalkRow();
+      const nextEl = document.getElementById('sheetNext');
+      if (nextEl) {
+        if (next) {
+          const loc = global.EodCategoryCardStatus?.siLocationLabel?.(next) || '';
+          const label = [loc, next.catName || next.dbkey].filter(Boolean).join(' · ');
+          nextEl.hidden = false;
+          nextEl.innerHTML = `<button type="button" class="btn btn-primary btn-block" id="sheetNextBtn">${esc(label)}</button>`;
+          nextEl.querySelector('#sheetNextBtn')?.addEventListener('click', () => openSurveyForRow(next));
+        } else {
+          nextEl.hidden = true;
+          nextEl.innerHTML = '';
+        }
+      }
       rowsEl.querySelectorAll('[data-mark]').forEach((btn) => {
         btn.onclick = async () => {
           const rowId = btn.getAttribute('data-row');
           const markType = btn.getAttribute('data-mark');
           const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
-          const turningOnNis = markType === 'not_in_store' && current && !markActive(current, 'not_in_store');
+          const turningOn = current && !markActive(current, markType);
+          const turningOnNis = markType === 'not_in_store' && turningOn;
           let nisChoice = null;
           if (turningOnNis && typeof global.askToReportNotInStore === 'function') {
             nisChoice = await global.askToReportNotInStore(current);
@@ -633,6 +673,7 @@
             await applyMark(rowId, markType, turningOnNis
               ? { helpdeskSent: nisChoice === 'report' }
               : undefined);
+            showMarkUndo(rowId, markType, turningOn);
             if (turningOnNis && nisChoice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
               await global.openHelpdeskForSheetRow(current);
             }
@@ -709,6 +750,8 @@
     openSignoffPdfPreview,
     printSignoffAtStore,
     openPrintAtStoreModal,
+    nextWalkRow,
+    openSurveyForRow,
   };
   global.EodRouter.register('signoff', render);
 })(typeof window !== 'undefined' ? window : globalThis);

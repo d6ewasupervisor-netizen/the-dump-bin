@@ -869,6 +869,12 @@
         try {
           await global.EodSignoffHome?.loadSheet?.();
         } catch (_) {}
+        const next = global.EodSignoffHome?.nextWalkRow?.(rowId);
+        if (next?.dbkey) {
+          try { unsubPipe?.(); } catch (_) {}
+          global.EodSignoffHome.openSurveyForRow(next);
+          return;
+        }
         paintBody();
       } catch (err) {
         setMsg(err.message || String(err), true);

@@ -45,6 +45,7 @@
     kompassTimesheetYes: null,
     materialsReadYes: null,
     visitReady: false,
+    addRetailOdysseyTeam: false,
   };
 
   function normStoreNumber(s) {
@@ -148,6 +149,7 @@
     state.instaworkSavedInfo = null;
     state.kompassTimesheetYes = null;
     state.materialsReadYes = null;
+    state.addRetailOdysseyTeam = false;
     emit('reset');
   }
 
@@ -293,11 +295,34 @@
     if (data.selectedShift) state.selectedShift = data.selectedShift;
     state.extraVisitIds = Array.isArray(data.extraVisitIds) ? data.extraVisitIds.map(String) : [];
     state.profileLocked = !!data.profileLocked;
+    state.addRetailOdysseyTeam = !!data.addRetailOdysseyTeam;
     // Prefer day-confirm store/date when present and matching draft keys.
     const dc = getActiveDayConfirm();
     if (dc) {
       state.storeNumber = dc.store;
       state.workDate = dc.date;
+    }
+    const today = todayLocalIsoDate();
+    if (state.workDate && state.workDate !== today) {
+      state.storeNumber = '';
+      state.workDate = today;
+      state.selectedShift = null;
+      state.extraVisitIds = [];
+      state.shifts = [];
+      state.members = [];
+      state.sheet = null;
+      state.sheetLoaded = false;
+      state.fiscalWeek = '';
+      state.visitStep = 'setup';
+      state.cartPhotoDone = false;
+      state.checkInDone = false;
+      state.beforesStepDone = false;
+      state.checkInManager = '';
+      state.checkOutManager = '';
+      state.photos = { before: [], after: [], signoff: [], instawork: [] };
+      state.instaworkSavedInfo = null;
+      clearDayConfirm();
+      try { saveDraft(); } catch (_) {}
     }
     emit('load');
   }
@@ -329,6 +354,7 @@
       materialsRead: state.materialsReadYes,
       extraVisitIds: (state.extraVisitIds || []).slice(),
       profileLocked: !!state.profileLocked,
+      addRetailOdysseyTeam: !!state.addRetailOdysseyTeam,
       selectedShift: state.selectedShift
         ? {
             visitId: state.selectedShift.visitId,
@@ -342,6 +368,7 @@
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
     saveProfile();
+    try { global.EodVisitMemory?.captureFromSession?.({ state, resolvedLeadName }); } catch (_) {}
   }
 
   // Bridge for ported modules that still read DOM / window arrays.

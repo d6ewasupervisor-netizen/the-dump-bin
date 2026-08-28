@@ -454,6 +454,7 @@
         <div class="field">
           <label for="checkInManager">Name / title</label>
           <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" list="mgrListVisit" autocomplete="off">
+          ${global.EodVisitMemory?.chipsHtml?.(S.state.managerNamePool, S.state.checkInManager, esc) || ''}
           <button type="button" class="btn btn-secondary btn-block" id="pickInMgr" style="margin-top:6px;">Choose saved name</button>
           <button type="button" class="btn btn-secondary btn-block" id="saveInMgr" style="margin-top:6px;">Save name to store</button>
         </div>
@@ -595,9 +596,35 @@
       try {
         await global.EodCover?.addManagerName?.(name);
         setCartMsg('Saved manager name for this store.');
+        paintOnboarding();
       } catch (err) {
         setCartMsg(err.message || String(err), true);
       }
+    });
+    document.getElementById('pickInMgr')?.addEventListener('click', () => {
+      const items = (S.state.managerNamePool || []).map((n, i) => ({ id: String(i), label: n }));
+      global.EodPicker.open({
+        anchor: document.getElementById('pickInMgr'),
+        title: 'Saved managers',
+        items: items.length ? items : [{ id: 'x', label: 'No saved names', disabled: true }],
+        searchable: items.length > 6,
+        onChoose(item) {
+          const el = document.getElementById('checkInManager');
+          if (el) el.value = item.label;
+          S.patch({ checkInManager: item.label, checkInDone: true }, 'checkin');
+          S.saveDraft();
+        },
+      });
+    });
+    document.querySelectorAll('#visitOnboarding .manager-chip').forEach((chip) => {
+      chip.onclick = () => {
+        const name = chip.getAttribute('data-mgr') || '';
+        const el = document.getElementById('checkInManager');
+        if (el) el.value = name;
+        S.patch({ checkInManager: name, checkInDone: !!name }, 'checkin');
+        S.saveDraft();
+        paintOnboarding();
+      };
     });
 
   }
@@ -700,6 +727,122 @@
     openResetOverlay();
   }
 
+  function closeDayConfirmModal() {
+    document.getElementById('dayConfirmModal')?.remove();
+  }
+
+  async function finishConfirmedVisit(store, date) {
+    const S = global.EodSession;
+    global.EodVisitMemory?.rememberLastStore?.(store);
+    try { await global.EodCover?.loadStoreData?.(store); } catch (_) {}
+    try { global.EodVisitMemory?.applyToSession?.(S, store); } catch (_) {}
+    global.EodChrome?.refresh();
+    await prefetchSheetWeek(store, date);
+    if (global.PhotoDB?.switchToDayConfirm) {
+      try { await global.PhotoDB.switchToDayConfirm(store, date, S.state.photos); } catch (_) {}
+    }
+    try {
+      const holder = document.createElement('div');
+      await findShifts(store, date, holder);
+    } catch (_) {}
+    closeDayConfirmModal();
+    global.EodChrome?.refresh();
+    if (global.EodRouter?.current === 'visit') {
+      try { await global.EodRouter.render(); } catch (_) {}
+    }
+  }
+
+  async function openDayConfirmModal() {
+    const S = global.EodSession;
+    if (document.getElementById('dayConfirmModal')) return;
+    const stores = await ensureStoreCatalog();
+    const last = global.EodVisitMemory?.lastStore?.() || S.state.storeNumber || '';
+    const date = S.todayLocalIsoDate();
+    const overlay = document.createElement('div');
+    overlay.id = 'dayConfirmModal';
+    overlay.className = 'modal-overlay show day-confirm-modal';
+    overlay.innerHTML = `
+      <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="dayConfirmTitle">
+        <h2 id="dayConfirmTitle">Confirm today's store</h2>
+        <div class="field">
+          <label>Store</label>
+          <input type="hidden" id="dayConfirmStore" value="${esc(last)}">
+          <button type="button" class="btn btn-secondary btn-block" id="dayConfirmStoreBtn">${last ? `Store ${esc(last)}` : 'Choose store'}</button>
+        </div>
+        <div class="field">
+          <label for="dayConfirmDate">Date</label>
+          <input type="date" id="dayConfirmDate" value="${esc(date)}">
+        </div>
+        <div id="dayConfirmStatus" class="muted" style="min-height:1.2em;margin:8px 0;"></div>
+        <button type="button" class="btn btn-primary btn-block" id="dayConfirmSubmit">Confirm</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    const storeBtn = overlay.querySelector('#dayConfirmStoreBtn');
+    const storeHidden = overlay.querySelector('#dayConfirmStore');
+    const dateEl = overlay.querySelector('#dayConfirmDate');
+    const statusEl = overlay.querySelector('#dayConfirmStatus');
+    storeBtn.onclick = () => {
+      global.EodPicker.open({
+        anchor: storeBtn,
+        title: 'Store number',
+        items: stores.map((n) => ({ id: String(n), label: `Store ${n}` })),
+        searchable: true,
+        onChoose(item) {
+          storeHidden.value = item.id;
+          storeBtn.textContent = `Store ${item.id}`;
+        },
+      });
+    };
+    dateEl.addEventListener('click', () => {
+      try { dateEl.showPicker?.(); } catch (_) {}
+    });
+    dateEl.addEventListener('focus', () => {
+      try { dateEl.showPicker?.(); } catch (_) {}
+    });
+    overlay.querySelector('#dayConfirmSubmit').onclick = async () => {
+      const store = (storeHidden.value || '').trim();
+      const workDate = (dateEl.value || '').trim();
+      if (!store || !stores.map(String).includes(String(store))) {
+        statusEl.innerHTML = '<span style="color:#ef4444;">Choose a store from the list.</span>';
+        return;
+      }
+      if (!workDate) {
+        statusEl.innerHTML = '<span style="color:#ef4444;">Pick a date.</span>';
+        return;
+      }
+      const btn = overlay.querySelector('#dayConfirmSubmit');
+      btn.disabled = true;
+      try {
+        const result = await verifyAndPersist(store, workDate, statusEl);
+        if (!result.ok) {
+          btn.disabled = false;
+          if (result.needsOverride) {
+            showOverridePrompt(store, workDate, statusEl, async () => {
+              await finishConfirmedVisit(store, workDate);
+            });
+            return;
+          }
+          statusEl.innerHTML = `<span style="color:#ef4444;">${esc(result.message)}</span>`;
+          return;
+        }
+        await finishConfirmedVisit(store, workDate);
+      } catch (err) {
+        btn.disabled = false;
+        statusEl.innerHTML = `<span style="color:#ef4444;">${esc(err.message || String(err))}</span>`;
+      }
+    };
+  }
+
+  function enforceDayConfirmGate() {
+    const S = global.EodSession;
+    if (!S) return;
+    if (S.isVisitReady()) {
+      closeDayConfirmModal();
+      return;
+    }
+    openDayConfirmModal();
+  }
+
   async function render(mount) {
     const S = global.EodSession;
     const stores = await ensureStoreCatalog();
@@ -729,19 +872,17 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label>Store #</label>
-            <input type="text" id="visitStore" list="storeList" placeholder="Store number" value="${esc(S.state.storeNumber)}">
-            <datalist id="storeList">${stores.map((n) => `<option value="${n}">`).join('')}</datalist>
-            <button type="button" class="btn btn-secondary btn-block" id="pickStoreBtn" style="margin-top:6px;">Pick from list</button>
+            <label>Store</label>
+            <div class="visit-confirmed">${ready && S.state.storeNumber ? `Store ${esc(S.state.storeNumber)}` : 'Not confirmed'}</div>
           </div>
           <div class="field">
             <label>Work date</label>
-            <input type="date" id="visitDate" value="${esc(S.state.workDate || S.todayLocalIsoDate())}">
+            <div class="visit-confirmed">${esc(S.state.workDate || S.todayLocalIsoDate())}</div>
           </div>
         </div>
         <div id="visitStatus" class="muted" style="min-height:1.2em;margin-bottom:8px;"></div>
         <div class="btn-row">
-          <button type="button" class="btn btn-primary" id="confirmVisitBtn">${ready ? 'Re-confirm store' : 'Confirm store & date'}</button>
+          <button type="button" class="btn btn-primary" id="confirmVisitBtn">${ready ? 'Change store & date' : 'Confirm store & date'}</button>
         </div>
       </div>
 
@@ -790,71 +931,22 @@
       document.getElementById('unlockProfileBtn').hidden = true;
     });
 
-    document.getElementById('pickStoreBtn').onclick = () => {
-      global.EodPicker.open({
-        anchor: document.getElementById('pickStoreBtn'),
-        title: 'Store number',
-        items: stores.map((n) => ({ id: String(n), label: `Store ${n}` })),
-        searchable: true,
-        onChoose(item) {
-          document.getElementById('visitStore').value = item.id;
-        },
-      });
+    document.getElementById('confirmVisitBtn').onclick = () => {
+      if (S.isVisitReady()) S.clearDayConfirm();
+      openDayConfirmModal();
     };
 
-    document.getElementById('confirmVisitBtn').onclick = async () => {
-      const store = document.getElementById('visitStore').value.trim();
-      const date = document.getElementById('visitDate').value.trim();
-      const status = document.getElementById('visitStatus');
-      const email = document.getElementById('visitEmail').value.trim();
-      S.patch({ profileEmail: email, storeNumber: store, workDate: date }, 'profile');
-      const btn = document.getElementById('confirmVisitBtn');
-      btn.disabled = true;
-      if (global.EodBusy?.beginBusy) global.EodBusy.beginBusy({ force: true });
-      try {
-        const result = await verifyAndPersist(store, date, status);
-        if (!result.ok) {
-          if (result.needsOverride) {
-            showOverridePrompt(store, date, status, async () => {
-              status.innerHTML = '<span style="color:#22c55e;">Store confirmed for today.</span>';
-              global.EodChrome?.refresh();
-              await prefetchSheetWeek(store, date);
-              try {
-                await findShifts(store, date, document.getElementById('shiftList'));
-              } catch (err) {
-                document.getElementById('shiftList').innerHTML = `<p style="color:#ef4444;">${esc(err.message)}</p>`;
-              }
-              paintOnboarding();
-              updateContinueBtn();
-            });
-            return;
-          }
-          status.innerHTML = `<span style="color:#ef4444;">${esc(result.message)}</span>`;
-          return;
-        }
-        status.innerHTML = '<span style="color:#22c55e;">Store confirmed for today.</span>';
-        global.EodChrome?.refresh();
-        await prefetchSheetWeek(store, date);
-        if (global.PhotoDB?.switchToDayConfirm) {
-          await global.PhotoDB.switchToDayConfirm(store, date, S.state.photos);
-        }
-        try {
-          await findShifts(store, date, document.getElementById('shiftList'));
-        } catch (err) {
-          document.getElementById('shiftList').innerHTML = `<p style="color:#ef4444;">${esc(err.message)}</p>`;
-        }
-        paintOnboarding();
-        updateContinueBtn();
-      } catch (err) {
-        status.innerHTML = `<span style="color:#ef4444;">${esc(err.message)}</span>`;
-      } finally {
-        btn.disabled = false;
-        if (global.EodBusy?.endBusy) global.EodBusy.endBusy();
+    if (!ready) enforceDayConfirmGate();
+    else {
+      try { global.EodVisitMemory?.applyToSession?.(S, S.state.storeNumber); } catch (_) {}
+      if (!S.state.shifts.length) {
+        try { await findShifts(S.state.storeNumber, S.state.workDate, document.getElementById('shiftList')); } catch (_) {}
       }
-    };
+    }
 
   }
 
   global.EodVisitCart = { cartPhotos, preparePhoto, pullCartFromProd, uploadCartToProd, thumbRow };
+  global.EodVisit = { enforceDayConfirmGate, openDayConfirmModal, closeDayConfirmModal, ensureStoreCatalog };
   global.EodRouter.register('visit', render);
 })(typeof window !== 'undefined' ? window : globalThis);

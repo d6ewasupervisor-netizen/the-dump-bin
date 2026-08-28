@@ -147,10 +147,45 @@
     host.querySelector('#eodChromeGatesClose')?.addEventListener('click', () => host.remove());
   }
 
+  function openMoreMenu() {
+    let host = document.getElementById('eodMoreMenu');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'eodMoreMenu';
+      host.className = 'modal-overlay show';
+      document.body.appendChild(host);
+      host.addEventListener('click', (e) => { if (e.target === host) host.remove(); });
+    } else {
+      host.classList.add('show');
+      host.style.display = '';
+    }
+    host.innerHTML = `<div class="modal-dialog">
+      <h2>More</h2>
+      <button type="button" class="btn btn-secondary btn-block" data-more="signatures">Signatures</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
+      <button type="button" class="btn btn-primary btn-block" id="eodMoreClose">Close</button>
+    </div>`;
+    host.querySelectorAll('[data-more]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dest = btn.getAttribute('data-more');
+        host.remove();
+        global.EodRouter.go(dest);
+      });
+    });
+    host.querySelector('#eodMoreClose')?.addEventListener('click', () => host.remove());
+  }
+
   function init() {
     document.querySelectorAll('[data-nav]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        global.EodRouter.go(btn.getAttribute('data-nav'));
+        const nav = btn.getAttribute('data-nav');
+        if (nav === 'more') {
+          openMoreMenu();
+          return;
+        }
+        global.EodRouter.go(nav);
       });
     });
     document.body.classList.remove('nav-collapsed');

@@ -17,7 +17,7 @@
     const push = (id, ok, label, page, focus) => {
       out.push({ id, ok: !!ok, label, page, focus: focus || null });
     };
-    push('visit', S.isVisitReady?.(), 'Confirm store and date', 'visit', 'visitStore');
+    push('visit', S.isVisitReady?.(), 'Confirm store and date', 'visit', 'confirmVisitBtn');
     push('name', !!(S.state.profileName || S.state.leadName), 'Enter your name on Visit', 'visit', 'visitLeadName');
     push('signature', !!S.state.signatureDataUrl, 'Add your lead signature', 'send', 'signBtn');
     push(

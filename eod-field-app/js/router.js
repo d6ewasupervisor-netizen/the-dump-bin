@@ -46,7 +46,8 @@
     document.querySelectorAll('[data-nav]').forEach((el) => {
       const nav = el.getAttribute('data-nav');
       const on = nav === name
-        || (nav === 'signoff' && (name === 'survey' || name === 'cover'));
+        || (nav === 'signoff' && (name === 'survey' || name === 'cover'))
+        || (nav === 'more' && ['signatures', 'crew', 'dumpbin', 'helpdesk'].includes(name));
       el.classList.toggle('is-active', on);
     });
     // Sidebar + chrome stay reachable once the shell is up (even on Visit).

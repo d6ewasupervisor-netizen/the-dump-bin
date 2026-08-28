@@ -74,8 +74,57 @@
     return `Est ${shown} hr`;
   }
 
+  function aisleNumber(row) {
+    const loc = siLocationLabel(row);
+    const m = loc.match(/aisle\s*(\d+)/i) || loc.match(/\b(\d{1,3})\b/);
+    if (!m) return 9999;
+    const n = Number(m[1]);
+    return Number.isFinite(n) ? n : 9999;
+  }
+
+  function aisleSortKey(row) {
+    const loc = siLocationLabel(row).toLowerCase();
+    const name = String((row && (row.catName || row.dbkey || row.catId)) || '').toLowerCase();
+    return [aisleNumber(row), loc, name];
+  }
+
+  function walkRank(row) {
+    if (sheetRowDone(row)) return 2;
+    if (markActive(row, 'backlog')) return 1;
+    return 0;
+  }
+
+  function cmpWalk(a, b) {
+    const ra = walkRank(a);
+    const rb = walkRank(b);
+    if (ra !== rb) return ra - rb;
+    const ka = aisleSortKey(a);
+    const kb = aisleSortKey(b);
+    for (let i = 0; i < ka.length; i++) {
+      if (ka[i] < kb[i]) return -1;
+      if (ka[i] > kb[i]) return 1;
+    }
+    return 0;
+  }
+
+  function sortWalkRows(rows) {
+    return (rows || []).slice().sort(cmpWalk);
+  }
+
+  function nextWalkRow(rows, afterId) {
+    const open = sortWalkRows(rows).filter((r) => walkRank(r) === 0 && r && r.dbkey);
+    if (!open.length) return null;
+    if (afterId == null || afterId === '') return open[0];
+    const i = open.findIndex((r) => String(r.id) === String(afterId));
+    if (i >= 0) return open[i + 1] || null;
+    return open[0];
+  }
+
   function matchesSheetFilters(row, filters) {
     const f = filters || {};
+    if (f.status === 'backlog') {
+      if (!markActive(row, 'backlog') || sheetRowDone(row)) return false;
+    }
     if (f.status === 'done' && !sheetRowDone(row)) return false;
     if (f.status === 'not_done' && sheetRowDone(row)) return false;
     if (f.prod === 'done' && !prodDone(row)) return false;
@@ -105,6 +154,11 @@
     sheetRowDone,
     formatEstHrs,
     matchesSheetFilters,
+    aisleNumber,
+    aisleSortKey,
+    walkRank,
+    sortWalkRows,
+    nextWalkRow,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodCategoryCardStatus = api;

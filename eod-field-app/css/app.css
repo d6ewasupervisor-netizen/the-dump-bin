@@ -656,6 +656,25 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .ds-row-copy.ds-row-open { cursor: pointer; }
 .ds-actions .btn { min-height: 40px; font-size: 13px; padding: 8px 10px; flex: 1 1 22%; min-width: 0; }
 .ds-actions .btn.on { outline: 2px solid var(--accent); }
+.ds-row-compact .ds-actions .btn { flex: 1 1 22%; font-size: 12px; padding: 8px 6px; }
+.ds-next { margin: 8px 0 12px; }
+.cat-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.cat-head h1 { margin: 0; flex: 1 1 auto; }
+.manager-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.manager-chip {
+  appearance: none; border: 1px solid var(--border); background: var(--surface);
+  color: inherit; border-radius: 999px; padding: 6px 10px; font-size: 13px; cursor: pointer;
+}
+.manager-chip.on { outline: 2px solid var(--accent); }
+.visit-confirmed { min-height: 44px; display: flex; align-items: center; font-weight: 700; }
+.day-confirm-modal { z-index: 2000; }
+.eod-mark-undo {
+  position: fixed; left: 12px; right: 12px; bottom: calc(64px + var(--safe-b, 0px));
+  z-index: 80; display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.eod-mark-undo[hidden] { display: none !important; }
 .ds-filters { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .ds-filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ds-filter-label {

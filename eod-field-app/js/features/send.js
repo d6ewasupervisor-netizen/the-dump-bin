@@ -166,6 +166,11 @@ ${S.state.notes || ''}`;
     let recipients = (S.state.emailRecipients || []).slice();
     const userEmail = (S.state.profileEmail || '').trim().toLowerCase();
     if (userEmail) recipients = [...new Set([...recipients, userEmail])];
+    if (S.state.addRetailOdysseyTeam) {
+      const team = (global.retailOdysseyTeamEmailsForStore || global.EodRoles?.retailOdysseyTeamEmailsForStore)?.(store) || [];
+      recipients = [...new Set([...recipients, ...team.map((e) => String(e).toLowerCase())])];
+      recipients = (global.omitAiyanaForNonDistrict8 || global.EodRoles?.omitAiyanaForNonDistrict8)?.(recipients, store, userEmail) || recipients;
+    }
 
     const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
       S.state.shifts,
@@ -223,6 +228,7 @@ ${S.state.notes || ''}`;
     if (global.EodCover?.loadStoreData) {
       try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
     }
+    try { global.EodVisitMemory?.applyToSession?.(S, S.state.storeNumber); } catch (_) {}
     try { await global.EodPicQr?.refresh?.(false); } catch (_) {}
     if (sendPicPoll) clearInterval(sendPicPoll);
     sendPicPoll = setInterval(() => {
@@ -250,9 +256,11 @@ ${S.state.notes || ''}`;
             : '<p><span class="pill warn">No hosted sheet</span> — paper sign-off required</p>'}
           <p class="muted">Photos — before ${photoCount('before')}, after ${photoCount('after')}, signoff ${photoCount('signoff')}, instawork ${photoCount('instawork')}</p>
         </div>
+        <div id="eodPicQrMount"></div>
         <div class="field">
           <label>Manager checked out with</label>
           <input type="text" id="checkOutManager" value="${esc(S.state.checkOutManager || '')}" list="mgrListSend" autocomplete="off">
+          ${global.EodVisitMemory?.chipsHtml?.(S.state.managerNamePool, S.state.checkOutManager, esc) || ''}
           <button type="button" class="btn btn-secondary btn-block" id="pickOutMgr" style="margin-top:6px;">Choose saved name</button>
           <button type="button" class="btn btn-secondary btn-block" id="saveOutMgr" style="margin-top:6px;">Save name to store</button>
         </div>
@@ -294,6 +302,10 @@ ${S.state.notes || ''}`;
           <label>Saved Fred Meyer addresses</label>
           <button type="button" class="btn btn-secondary btn-block" id="fmPickerBtn">Choose addresses</button>
         </div>
+        <div class="checkbox-option" style="margin:8px 0;">
+          <input type="checkbox" id="addRetailOdysseyTeam" ${S.state.addRetailOdysseyTeam ? 'checked' : ''}>
+          <label for="addRetailOdysseyTeam">Add Retail Odyssey Team</label>
+        </div>
         <div id="gateMsg" style="margin:10px 0;color:${gate ? '#fbbf24' : '#22c55e'};">${esc(gate || 'Ready to send.')}</div>
         ${global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : ''}
         <div class="btn-row">
@@ -306,6 +318,7 @@ ${S.state.notes || ''}`;
       </div>`;
 
     document.getElementById('sendPhotosLink')?.addEventListener('click', () => global.EodRouter.go('photos'));
+    try { await global.EodPicQr?.mount?.(document.getElementById('eodPicQrMount')); } catch (_) {}
     try { global.EodSendGates?.bindList?.(document.getElementById('eodSendGates'), S); } catch (_) {}
 
     const notesEl = document.getElementById('sendNotes');
@@ -488,8 +501,27 @@ ${S.state.notes || ''}`;
       S.patch({ emailRecipients: arr }, 'recipients');
       document.getElementById('emailInput').value = '';
       S.saveDraft();
+      if (v.endsWith('@stores.fredmeyer.com')) {
+        global.EodCover?.addFredmeyerEmail?.(v).catch(() => {});
+      }
       render(mount);
     };
+
+    document.getElementById('addRetailOdysseyTeam')?.addEventListener('change', (ev) => {
+      S.patch({ addRetailOdysseyTeam: !!ev.target.checked }, 'team-cc');
+      S.saveDraft();
+    });
+
+    document.querySelectorAll('#checkOutManager ~ .manager-chips .manager-chip, .manager-chip').forEach((chip) => {
+      if (chip.closest('#eodPicQrMount')) return;
+      chip.onclick = () => {
+        const name = chip.getAttribute('data-mgr') || '';
+        const el = document.getElementById('checkOutManager');
+        if (el) el.value = name;
+        S.patch({ checkOutManager: name }, 'checkout');
+        S.saveDraft();
+      };
+    });
 
     document.getElementById('fmPickerBtn')?.addEventListener('click', () => {
       const pool = S.state.fredmeyerEmailPool || [];

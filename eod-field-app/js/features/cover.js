@@ -72,6 +72,24 @@
     return savePool({ fredmeyerEmails: pool });
   }
 
+  async function removeFredmeyerEmail(email) {
+    const S = global.EodSession;
+    const store = S.normStoreNumber(S.state.storeNumber);
+    if (!store) throw new Error('Confirm store first');
+    const resp = await global.authFetch(
+      `${global.EOD_API_BASE}/store-data/${encodeURIComponent(store)}/fredmeyer-email`,
+      {
+        method: 'DELETE',
+        headers: headers(),
+        body: JSON.stringify({ email, storeNumber: store }),
+      }
+    );
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Remove failed (${resp.status})`);
+    await loadStoreData(store);
+    return data;
+  }
+
   async function removeManagerName(name) {
     const S = global.EodSession;
     const store = S.normStoreNumber(S.state.storeNumber);
@@ -100,6 +118,7 @@
     addManagerName,
     addFredmeyerEmail,
     removeManagerName,
+    removeFredmeyerEmail,
   };
   global.EodRouter.register('cover', render);
 })(typeof window !== 'undefined' ? window : globalThis);

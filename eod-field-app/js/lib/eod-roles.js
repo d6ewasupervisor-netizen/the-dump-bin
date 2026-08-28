@@ -3,6 +3,20 @@
   'use strict';
 
   const D8_STORES = new Set(['19', '23', '28', '31', '53', '215', '391', '459', '658', '682']);
+  const AIYANA_EMAIL = 'aiyana.natarisalazar@retailodyssey.com';
+  const RETAIL_ODYSSEY_TEAM_EMAILS = [
+    'mashabranner@retailodyssey.com',
+    'seth.newman@retailodyssey.com',
+    'tyson.gauthier@retailodyssey.com',
+    'aiyana.natarisalazar@retailodyssey.com',
+    'amanda.mathews@retailodyssey.com',
+    'april.gauthier@retailodyssey.com',
+  ];
+
+  function retailOdysseyTeamEmailsForStore(storeNumber) {
+    if (isDistrict8Store(storeNumber)) return RETAIL_ODYSSEY_TEAM_EMAILS.slice();
+    return RETAIL_ODYSSEY_TEAM_EMAILS.filter((e) => e.toLowerCase() !== AIYANA_EMAIL);
+  }
 
   let me = null;
   let loadPromise = null;
@@ -80,8 +94,11 @@
     canForceLive,
     isDistrict8Store,
     omitAiyanaForNonDistrict8,
+    retailOdysseyTeamEmailsForStore,
     D8_STORES,
+    RETAIL_ODYSSEY_TEAM_EMAILS,
   };
   global.isDistrict8Store = isDistrict8Store;
   global.omitAiyanaForNonDistrict8 = omitAiyanaForNonDistrict8;
+  global.retailOdysseyTeamEmailsForStore = retailOdysseyTeamEmailsForStore;
 })(typeof window !== 'undefined' ? window : globalThis);

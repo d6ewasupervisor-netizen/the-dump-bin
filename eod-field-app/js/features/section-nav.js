@@ -5,11 +5,11 @@
   const ORDER = [
     { id: 'visit', label: 'Visit' },
     { id: 'signoff', label: 'Categories' },
+    { id: 'photos', label: 'Photos' },
+    { id: 'send', label: 'Send' },
     { id: 'signatures', label: 'Signatures' },
     { id: 'crew', label: 'Crew' },
     { id: 'dumpbin', label: 'Dump Bin' },
-    { id: 'photos', label: 'Photos' },
-    { id: 'send', label: 'Send' },
     { id: 'helpdesk', label: 'Helpdesk' },
   ];
 
