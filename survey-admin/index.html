@@ -2321,7 +2321,7 @@ function renderSummaryCharts(sum) {
 
   container.style.display = 'block';
   
-  const title = sum.trendingSource === 'baseline' ? 'Top Problem Areas (2025 Baseline)' : 'Top Problem Areas';
+  const title = sum.trendingSource === 'baseline' ? 'Trends (2025 Baseline)' : 'Trends';
 
   let html = `<h4 style="margin: 0 0 12px 0; font-size: .9375rem; color: var(--ink)">${escHtml(title)}</h4><div class="bar-chart">`;
   for (const p of problems) {
