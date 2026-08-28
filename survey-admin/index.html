@@ -517,7 +517,7 @@
           </div>
           <div class="field-wrap" style="flex:0 0 120px" id="prod-invite-time-wrap" hidden>
             <label class="field" for="prod-invite-time">Time</label>
-            <input id="prod-invite-time" type="time" value="07:00">
+            <input id="prod-invite-time" type="time" value="04:00">
           </div>
         </div>
         <div class="err-box" id="prod-err"></div>
@@ -565,7 +565,7 @@
           </div>
           <div class="field-wrap" style="flex:0 0 120px">
             <label class="field" for="manual-invite-time">Time</label>
-            <input id="manual-invite-time" type="time" value="07:00">
+            <input id="manual-invite-time" type="time" value="04:00">
           </div>
         </div>
         <button type="button" id="assign-submit">Assign</button>
@@ -1004,7 +1004,7 @@ function formatRemindAt(d) {
 function defaultRemindAtLocal() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  d.setHours(9, 0, 0, 0);
+  d.setHours(4, 0, 0, 0);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -1534,7 +1534,7 @@ function inviteSummary(results) {
   return parts.join(', ') + '.';
 }
 
-function parseTimeParts(value, fallbackHour = 7, fallbackMinute = 0) {
+function parseTimeParts(value, fallbackHour = 4, fallbackMinute = 0) {
   const m = String(value || '').match(/^(\d{1,2}):(\d{2})/);
   if (!m) return { hour: fallbackHour, minute: fallbackMinute };
   return { hour: Number(m[1]), minute: Number(m[2]) };
