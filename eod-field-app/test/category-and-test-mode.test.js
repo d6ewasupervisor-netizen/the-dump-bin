@@ -409,3 +409,12 @@ test('double-swipe nav order is visit, categories, dump bin, send', () => {
   assert.deepEqual(swipe.PRIMARY, ['visit', 'signoff', 'dumpbin', 'send']);
 });
 
+test('phone shell scrolls in #appMount; planogram does not trap the page', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  const swipe = fs.readFileSync(path.join(__dirname, '../js/lib/swipe-nav.js'), 'utf8');
+  assert.match(css, /@media \(max-width: 767px\)/);
+  assert.match(css, /#appMount \{[\s\S]*touch-action: pan-y/);
+  assert.match(css, /\.si-pog-scroll \{[\s\S]*max-height:/);
+  assert.match(swipe, /si-pog-scroll/);
+});
+
