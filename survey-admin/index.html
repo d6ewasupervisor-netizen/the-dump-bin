@@ -554,6 +554,7 @@
           <label class="field" for="manual-invite-mode">Invite email</label>
           <select id="manual-invite-mode">
             <option value="now" selected>Send now</option>
+            <option value="visit_day">On PROD visit days</option>
             <option value="date">Schedule for a date…</option>
             <option value="none">Don’t email</option>
           </select>
@@ -567,6 +568,17 @@
             <label class="field" for="manual-invite-time">Time</label>
             <input id="manual-invite-time" type="time" value="04:00">
           </div>
+        </div>
+        <div id="manual-visit-day-tools" hidden>
+          <div class="prod-filters" style="align-items:flex-end">
+            <button type="button" class="secondary" id="manual-pull-schedule" style="align-self:flex-end">Pull schedule</button>
+            <div class="field-wrap" style="flex:0 0 120px">
+              <label class="field" for="manual-invite-time-visit">Time</label>
+              <input id="manual-invite-time-visit" type="time" value="04:00">
+            </div>
+          </div>
+          <p class="muted" style="font-size:.75rem;margin:8px 0" id="manual-prod-status">Select a lead, then pull their current and future PROD visits.</p>
+          <div class="store-pick-list" id="manual-prod-visits" hidden></div>
         </div>
         <button type="button" id="assign-submit">Assign</button>
         <div class="err-box" id="assign-err"></div>
@@ -762,6 +774,7 @@ let FILTERS = { districts: [], stores: [], teams: [], scope: null, user: null };
 let ACCESS = { scope: null, user: null };
 let MANUAL_PERSON = null;
 let SELECTED_STORES = new Set();
+let MANUAL_PROD_VISITS = [];
 let COV_STATE = 'all';
 let rosterTimer = null;
 let VIEW_IDX = -1;
@@ -1338,6 +1351,8 @@ function renderManualPerson() {
   const wrap = document.getElementById('assignee-chip');
   if (!MANUAL_PERSON) {
     wrap.innerHTML = '';
+    MANUAL_PROD_VISITS = [];
+    renderManualProdVisits();
     return;
   }
   wrap.innerHTML = `<span class="sel-chip">${escHtml(MANUAL_PERSON.name || MANUAL_PERSON.email)}
@@ -1346,7 +1361,9 @@ function renderManualPerson() {
   </span>`;
   document.getElementById('manual-person-clear').onclick = () => {
     MANUAL_PERSON = null;
+    MANUAL_PROD_VISITS = [];
     renderManualPerson();
+    renderManualProdVisits();
   };
 }
 
@@ -1363,7 +1380,9 @@ function setManualPerson(person) {
     role: person.role || 'lead',
     manual: !!person.manual,
   };
+  MANUAL_PROD_VISITS = [];
   renderManualPerson();
+  renderManualProdVisits();
 }
 
 function placeFloatingMenu(anchorEl, panel, preferredMax = 240) {
@@ -1558,6 +1577,92 @@ function syncProdInviteUi() {
 function syncManualInviteUi() {
   const mode = document.getElementById('manual-invite-mode').value;
   document.getElementById('manual-invite-when').hidden = mode !== 'date';
+  document.getElementById('manual-visit-day-tools').hidden = mode !== 'visit_day';
+}
+
+function renderManualProdVisits() {
+  const box = document.getElementById('manual-prod-visits');
+  const status = document.getElementById('manual-prod-status');
+  if (!MANUAL_PROD_VISITS.length) {
+    box.hidden = true;
+    box.innerHTML = '';
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML = MANUAL_PROD_VISITS.map((v, i) => {
+    const checked = v.selected ? 'checked' : '';
+    const week = v.isCurrentWeek ? 'This week' : (v.cycleName || 'Upcoming');
+    const name = v.storeName ? ` · ${escHtml(v.storeName)}` : '';
+    const dist = v.district ? ` · D${escHtml(v.district)}` : '';
+    return `<label>
+      <input type="checkbox" data-visit-idx="${i}" ${checked}>
+      <span><strong>${v.storeNum}</strong>${name}${dist}
+        <span class="due"> · ${escHtml(v.date)} · ${escHtml(week)}</span>
+      </span>
+    </label>`;
+  }).join('');
+  box.querySelectorAll('input[data-visit-idx]').forEach((cb) => {
+    cb.onchange = () => {
+      const v = MANUAL_PROD_VISITS[Number(cb.dataset.visitIdx)];
+      if (!v) return;
+      v.selected = cb.checked;
+      applyManualVisitSelection();
+    };
+  });
+  if (status) {
+    status.textContent = `${MANUAL_PROD_VISITS.length} visit${MANUAL_PROD_VISITS.length === 1 ? '' : 's'} from PROD. Checked stores are assigned; invite goes out on that visit day.`;
+  }
+}
+
+function applyManualVisitSelection() {
+  const selected = MANUAL_PROD_VISITS.filter((v) => v.selected);
+  SELECTED_STORES = new Set(selected.map((v) => Number(v.storeNum)));
+  renderManualStores();
+  updateStoreCount();
+}
+
+function manualStoreInviteDates() {
+  const byStore = {};
+  for (const v of MANUAL_PROD_VISITS) {
+    if (!v.selected || !v.date) continue;
+    const sn = String(v.storeNum);
+    if (!byStore[sn] || v.date < byStore[sn]) byStore[sn] = v.date;
+  }
+  return byStore;
+}
+
+async function pullManualLeadSchedule() {
+  const status = document.getElementById('manual-prod-status');
+  const err = document.getElementById('assign-err');
+  err.classList.remove('show');
+  if (!MANUAL_PERSON) {
+    err.textContent = 'Pick a person first.';
+    err.classList.add('show');
+    return;
+  }
+  const q = new URLSearchParams();
+  if (MANUAL_PERSON.email) q.set('email', MANUAL_PERSON.email);
+  if (MANUAL_PERSON.name) q.set('name', MANUAL_PERSON.name);
+  q.set('refresh', '1');
+  setLoading(true, 'Pulling schedule');
+  try {
+    const res = await api('/api/survey/admin/prod-lead-schedule?' + q.toString());
+    MANUAL_PROD_VISITS = (res.visits || []).map((v) => ({ ...v, selected: true }));
+    if (!MANUAL_PROD_VISITS.length) {
+      status.textContent = 'No current or future PROD visits found for this lead.';
+      renderManualProdVisits();
+      return;
+    }
+    const win = res.startDate && res.endDate ? `${res.startDate} → ${res.endDate}` : '';
+    status.textContent = `PROD ${win} · ${MANUAL_PROD_VISITS.length} visit${MANUAL_PROD_VISITS.length === 1 ? '' : 's'}.`;
+    applyManualVisitSelection();
+    renderManualProdVisits();
+  } catch (e) {
+    err.textContent = e.message || 'Could not pull PROD schedule';
+    err.classList.add('show');
+  } finally {
+    setLoading(false);
+  }
 }
 
 document.getElementById('assign-submit').onclick = async () => {
@@ -1579,7 +1684,10 @@ document.getElementById('assign-submit').onclick = async () => {
   try {
     setLoading(true);
     const inviteMode = document.getElementById('manual-invite-mode').value;
-    const time = parseTimeParts(document.getElementById('manual-invite-time').value);
+    const timeEl = inviteMode === 'visit_day'
+      ? document.getElementById('manual-invite-time-visit')
+      : document.getElementById('manual-invite-time');
+    const time = parseTimeParts(timeEl && timeEl.value);
     const body = {
       assignees: [{ email: MANUAL_PERSON.email, name: MANUAL_PERSON.name, role: MANUAL_PERSON.role || 'lead' }],
       assigneeEmails: [MANUAL_PERSON.email],
@@ -1590,6 +1698,10 @@ document.getElementById('assign-submit').onclick = async () => {
       inviteMinute: time.minute,
       scopeLabel: 'Survey admin assign',
     };
+    if (inviteMode === 'visit_day') {
+      const dates = manualStoreInviteDates();
+      if (Object.keys(dates).length) body.storeInviteDates = dates;
+    }
     if (inviteMode === 'date') {
       body.inviteAt = inviteAtFromDateTime(
         document.getElementById('manual-invite-date'),
@@ -1604,8 +1716,10 @@ document.getElementById('assign-submit').onclick = async () => {
     ok.classList.add('show');
     MANUAL_PERSON = null;
     SELECTED_STORES = new Set();
+    MANUAL_PROD_VISITS = [];
     renderManualPerson();
     renderManualStores();
+    renderManualProdVisits();
     await loadCoverage();
   } catch (e) {
     err.textContent = e.message || 'Assignment failed';
@@ -1946,6 +2060,7 @@ document.getElementById('manual-invite-date').value = todayYmdLocal();
 document.getElementById('prod-cycle').onchange = updateProdCycleUi;
 document.getElementById('prod-invite-mode').onchange = syncProdInviteUi;
 document.getElementById('manual-invite-mode').onchange = syncManualInviteUi;
+document.getElementById('manual-pull-schedule').onclick = () => pullManualLeadSchedule().catch(console.error);
 syncProdInviteUi();
 syncManualInviteUi();
 document.getElementById('prod-refresh').onclick = () => loadProdSchedule(true);
