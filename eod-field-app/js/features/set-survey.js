@@ -256,6 +256,7 @@
         <h1>${esc(catName || 'Set capture')}</h1>
         <p class="muted">DBKEY ${esc(dbkey)} | Store ${esc(S.state.storeNumber)} | PROD date ${esc(S.state.workDate)}</p>
         <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
+        <div id="setPlanogramMount"></div>
         <div id="setSurveyBody">Loading…</div>
         <div id="setSurveyMsg" class="muted" style="margin-top:10px;"></div>
       </div>`;
@@ -881,8 +882,19 @@
       }
     }
 
+    function loadPlanogram() {
+      const mount = document.getElementById('setPlanogramMount');
+      if (!mount || !global.EodSiPlanogram?.loadAndRender) return Promise.resolve();
+      return global.EodSiPlanogram.loadAndRender(mount, {
+        store: S.state.storeNumber,
+        date: S.state.workDate,
+        dbkey,
+      });
+    }
+
     async function reload() {
       try {
+        loadPlanogram();
         await fetchPack();
         paintBody();
         local.status = await fetchStatus(dbkey, rowId);

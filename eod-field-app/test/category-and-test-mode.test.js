@@ -276,6 +276,10 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.match(busy, /dismissBusy/);
   assert.match(signoff, /skipBusy: true/);
   assert.match(survey, /skipBusy: true/);
+  assert.match(survey, /setPlanogramMount/);
+  assert.match(survey, /EodSiPlanogram/);
+  assert.match(busy, /planogram/);
+  assert.match(html, /si-planogram-board/);
 });
 
 test('Not in store prompt uses Don\'t Report / Please Report / Cancel before marking', () => {
