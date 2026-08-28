@@ -36,6 +36,7 @@
     --input-bg:#fff; --chip-bg:#fff; --overlay:rgba(238,242,246,.78);
     --good-line:#b7dfc7; --bad-line:#f0c2ba;
     --glow:rgba(15,92,140,.12); --radius:16px;
+    color-scheme: light;
   }
   [data-theme="dark"]{
     --ink:#e8eef4; --ink-soft:#9aabba; --line:#2f4052; --paper:#0c1218; --card:#172231;
@@ -48,6 +49,7 @@
     --input-bg:#121a22; --chip-bg:#1e2a38; --overlay:rgba(15,20,25,.82);
     --good-line:#2a5a40; --bad-line:#6a3a32;
     --glow:rgba(74,163,217,.18);
+    color-scheme: dark;
   }
   [data-theme="inverse"]{
     --ink:#f4f8fc; --ink-soft:#b7c6d4; --line:#3d556c; --paper:#062033; --card:#0b3a55;
@@ -60,6 +62,7 @@
     --input-bg:#08324a; --chip-bg:#0e4666; --overlay:rgba(6,32,51,.85);
     --good-line:#1a5a48; --bad-line:#7a3a30;
     --glow:rgba(127,208,255,.22);
+    color-scheme: dark;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html{overscroll-behavior:none;font-size:calc(16px * var(--text-scale, 1))}
@@ -163,8 +166,49 @@
     flex:1 1 200px;min-width:160px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
     background:var(--input-bg);color:var(--ink);font-size:max(16px,1rem);min-height:44px;
   }
-  select,input[type="text"],input[type="date"],input[type="email"],input[type="search"]{
+  select,input[type="text"],input[type="date"],input[type="time"],input[type="datetime-local"],input[type="email"],input[type="search"]{
     width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--input-bg);color:var(--ink);font-size:max(16px,1rem);min-height:44px;font-family:inherit;
+  }
+  input[type="time"],input[type="datetime-local"],input[type="date"]{
+    appearance:none;-webkit-appearance:none;
+    display:block;min-width:0;
+  }
+  input[type="time"]::-webkit-datetime-edit,
+  input[type="datetime-local"]::-webkit-datetime-edit,
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="time"]::-webkit-datetime-edit-text,
+  input[type="datetime-local"]::-webkit-datetime-edit-text,
+  input[type="date"]::-webkit-datetime-edit-text,
+  input[type="time"]::-webkit-datetime-edit-hour-field,
+  input[type="time"]::-webkit-datetime-edit-minute-field,
+  input[type="time"]::-webkit-datetime-edit-ampm-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-minute-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-ampm-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+  input[type="date"]::-webkit-datetime-edit-year-field,
+  input[type="date"]::-webkit-datetime-edit-month-field,
+  input[type="date"]::-webkit-datetime-edit-day-field{
+    font-family:inherit;font-size:inherit;color:var(--ink);letter-spacing:normal;padding:0;
+  }
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  input[type="date"]::-webkit-calendar-picker-indicator{
+    cursor:pointer;opacity:.72;margin:0 0 0 6px;
+    filter:none;
+  }
+  [data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+  [data-theme="inverse"] input[type="time"]::-webkit-calendar-picker-indicator,
+  [data-theme="inverse"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  [data-theme="inverse"] input[type="date"]::-webkit-calendar-picker-indicator{
+    filter:invert(.78);
   }
   label.field{display:block;font-size:.75rem;color:var(--ink-soft);margin-bottom:4px;font-weight:600}
   .field-wrap{margin-bottom:12px}
@@ -515,7 +559,7 @@
             <label class="field" for="prod-invite-date">Send date</label>
             <input id="prod-invite-date" type="date">
           </div>
-          <div class="field-wrap" style="flex:0 0 120px" id="prod-invite-time-wrap" hidden>
+          <div class="field-wrap" style="flex:0 0 148px" id="prod-invite-time-wrap" hidden>
             <label class="field" for="prod-invite-time">Time</label>
             <input id="prod-invite-time" type="time" value="04:00">
           </div>
@@ -564,7 +608,7 @@
             <label class="field" for="manual-invite-date">Send date</label>
             <input id="manual-invite-date" type="date">
           </div>
-          <div class="field-wrap" style="flex:0 0 120px">
+          <div class="field-wrap" style="flex:0 0 148px">
             <label class="field" for="manual-invite-time">Time</label>
             <input id="manual-invite-time" type="time" value="04:00">
           </div>
@@ -572,7 +616,7 @@
         <div id="manual-visit-day-tools" hidden>
           <div class="prod-filters" style="align-items:flex-end">
             <button type="button" class="secondary" id="manual-pull-schedule" style="align-self:flex-end">Pull schedule</button>
-            <div class="field-wrap" style="flex:0 0 120px">
+            <div class="field-wrap" style="flex:0 0 148px">
               <label class="field" for="manual-invite-time-visit">Time</label>
               <input id="manual-invite-time-visit" type="time" value="04:00">
             </div>
