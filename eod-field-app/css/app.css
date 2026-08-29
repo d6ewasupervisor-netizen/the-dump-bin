@@ -146,6 +146,34 @@
   --theme-meta: #7f1d1d;
 }
 
+[data-theme="blackout"] {
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --card: #111111;
+  --border: #2e2e2e;
+  --accent: #f5f5f5;
+  --accent-dim: #d4d4d4;
+  --accent-soft: rgba(255, 255, 255, 0.08);
+  --heading: #ffffff;
+  --text: #f0f0f0;
+  --muted: #8a8a8a;
+  --ok: #c8c8c8;
+  --warn: #b0b0b0;
+  --danger: #e8e8e8;
+  --chrome-bg: #000000;
+  --nav-bg: #000000;
+  --input-bg: #161616;
+  --input-border: #3a3a3a;
+  --btn-secondary: #2a2a2a;
+  --btn-fg: #f5f5f5;
+  --row-bg: #141414;
+  --pill-bg: #222222;
+  --pill-fg: #d4d4d4;
+  --letterbox: #1c1c1c;
+  --glow: rgba(255, 255, 255, 0.05);
+  --theme-meta: #000000;
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { height: -webkit-fill-available; overscroll-behavior-y: none; }
 body {
@@ -224,6 +252,57 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
 [data-theme="holiday"] .theme-cycle-btn {
   background: #7f1d1d;
   color: #fde68a;
+}
+[data-theme="blackout"] .pilot-banner {
+  background: #000000;
+  color: #d4d4d4;
+  border-bottom-color: #2e2e2e;
+}
+[data-theme="blackout"] .pilot-banner-label {
+  color: #f5f5f5;
+}
+[data-theme="blackout"] .theme-cycle-btn,
+[data-theme="blackout"] .eod-version-badge {
+  background: #1a1a1a;
+  color: #e5e5e5;
+}
+[data-theme="blackout"] .auth-banner {
+  background: #1a1a1a;
+  color: #f5f5f5;
+  border-bottom-color: #3a3a3a;
+}
+[data-theme="blackout"] .notice-error,
+[data-theme="blackout"] .conn-toast.is-error {
+  background: #1a1a1a;
+  color: #f5f5f5;
+}
+[data-theme="blackout"] .btn-primary {
+  background: #f5f5f5;
+  color: #0a0a0a;
+}
+[data-theme="blackout"] .btn-success {
+  background: #d4d4d4;
+  color: #0a0a0a;
+}
+[data-theme="blackout"] .btn-danger {
+  background: #2a2a2a;
+  color: #f5f5f5;
+  outline: 1px solid #6a6a6a;
+}
+[data-theme="blackout"] .card.heart {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+[data-theme="blackout"] .pill.ok {
+  background: #1f1f1f;
+  color: #d4d4d4;
+}
+[data-theme="blackout"] .pill.warn {
+  background: #2a2a2a;
+  color: #c8c8c8;
+}
+[data-theme="blackout"] .pill.bad {
+  background: #3a3a3a;
+  color: #f5f5f5;
 }
 .pilot-hosted-link { color: var(--accent); }
 .auth-banner {
@@ -907,6 +986,10 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 [data-theme="gray"] .dept-sig-role-row.collected {
   background: #ecfdf3;
   border-color: #86efac;
+}
+[data-theme="blackout"] .dept-sig-role-row.collected {
+  background: #1a1a1a;
+  border-color: #6a6a6a;
 }
 .dept-sig-role-meta { font-size: 13px; color: #94a3b8; margin-top: 2px; }
 .dept-sig-wizard-overlay {

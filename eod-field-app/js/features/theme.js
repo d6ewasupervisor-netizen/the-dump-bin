@@ -1,15 +1,16 @@
-/* Display themes: dark / inverse / light / gray / holiday. */
+/* Display themes: dark / inverse / light / gray / holiday / blackout. */
 (function (global) {
   'use strict';
 
   const KEY = 'eodFieldTheme';
-  const THEMES = ['dark', 'inverse', 'light', 'gray', 'holiday'];
+  const THEMES = ['dark', 'inverse', 'light', 'gray', 'holiday', 'blackout'];
   const NEXT_LABEL = {
     dark: 'Inverse',
     inverse: 'Light',
     light: 'Gray',
     gray: 'Holiday',
-    holiday: 'Dark',
+    holiday: 'Blackout',
+    blackout: 'Dark',
   };
   const META = {
     dark: '#0b1220',
@@ -17,6 +18,7 @@
     light: '#0f5c8c',
     gray: '#4b5563',
     holiday: '#7f1d1d',
+    blackout: '#000000',
   };
 
   function getTheme() {

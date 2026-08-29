@@ -168,9 +168,9 @@ test('section nav uses section names and a Top control, not Previous/Next', () =
   assert.match(src, /next\.label/);
 });
 
-test('theme cycle includes dark, inverse, light, gray, holiday', () => {
+test('theme cycle includes dark, inverse, light, gray, holiday, blackout', () => {
   const src = fs.readFileSync(path.join(__dirname, '../js/features/theme.js'), 'utf8');
-  assert.match(src, /\['dark', 'inverse', 'light', 'gray', 'holiday'\]/);
+  assert.match(src, /\['dark', 'inverse', 'light', 'gray', 'holiday', 'blackout'\]/);
 });
 
 test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones', () => {
