@@ -72,6 +72,7 @@
       try { await window.EodApi?.ensurePersistentStorage?.(); } catch (_) {}
       try { window.EodBusy?.init?.(); } catch (_) {}
       try { await window.EodRoles?.load?.(); } catch (_) {}
+      try { window.EodShiftDay?.prefetchToday?.(); } catch (_) {}
       try {
         const me = window.EodRoles?.getMe?.();
         const authName = String(me?.name || '').trim();
@@ -96,7 +97,7 @@
       try { window.EodVisit?.enforceDayConfirmGate?.(); } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.3.12').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.3.13').catch(() => {});
         }
       } catch (_) {}
       try { window.EodUsage?.start?.(); } catch (_) {}

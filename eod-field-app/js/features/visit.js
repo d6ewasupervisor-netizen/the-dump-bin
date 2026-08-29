@@ -183,12 +183,28 @@
     return null;
   }
 
+  function paintCachedShifts(store, date, listEl) {
+    const cached = global.EodShiftDay?.shiftsForStore?.(store, date);
+    if (!cached || !cached.length || !listEl) return false;
+    const S = global.EodSession;
+    const input = S.normStoreNumber(store);
+    const shifts = cached.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
+    if (!shifts.length) return false;
+    S.patch({ shifts, selectedShift: shifts.length === 1 ? shifts[0] : S.state.selectedShift, extraVisitIds: [] }, 'shifts-cache');
+    const selIdx = shifts.length === 1 ? 0 : shifts.findIndex((s) => String(s.visitId) === String(S.state.selectedShift?.visitId));
+    listEl.innerHTML = renderShiftCards(shifts, selIdx >= 0 ? selIdx : -1);
+    wireShiftCards(listEl);
+    return true;
+  }
+
   async function findShifts(store, date, listEl) {
     const S = global.EodSession;
-    listEl.innerHTML = '<p class="muted">Searching…</p>';
+    try { await global.EodShiftDay?.load?.(date); } catch (_) {}
+    const hadCache = paintCachedShifts(store, date, listEl);
+    if (!hadCache && listEl) listEl.innerHTML = '<p class="muted">Searching…</p>';
     const resp = await global.authFetch(
       `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`,
-      { busyForce: true }
+      hadCache ? { skipBusy: true } : { busyForce: true }
     );
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -793,11 +809,18 @@
     const storeHidden = overlay.querySelector('#dayConfirmStore');
     const dateEl = overlay.querySelector('#dayConfirmDate');
     const statusEl = overlay.querySelector('#dayConfirmStatus');
+    try { await global.EodShiftDay?.load?.(date); } catch (_) {}
     storeBtn.onclick = () => {
+      const scheduled = new Set(global.EodShiftDay?.scheduledStoreNumbers?.(dateEl.value || date) || []);
+      const ordered = [...stores].sort((a, b) => {
+        const aS = scheduled.has(Number(a)) ? 0 : 1;
+        const bS = scheduled.has(Number(b)) ? 0 : 1;
+        return aS - bS || Number(a) - Number(b);
+      });
       global.EodPicker.open({
         anchor: storeBtn,
         title: 'Store number',
-        items: stores.map((n) => ({ id: String(n), label: `Store ${n}` })),
+        items: ordered.map((n) => ({ id: String(n), label: `Store ${n}` })),
         searchable: true,
         onChoose(item) {
           storeHidden.value = item.id;
@@ -810,6 +833,9 @@
     });
     dateEl.addEventListener('focus', () => {
       try { dateEl.showPicker?.(); } catch (_) {}
+    });
+    dateEl.addEventListener('change', () => {
+      try { global.EodShiftDay?.load?.(dateEl.value); } catch (_) {}
     });
     overlay.querySelector('#dayConfirmSubmit').onclick = async () => {
       const store = (storeHidden.value || '').trim();
