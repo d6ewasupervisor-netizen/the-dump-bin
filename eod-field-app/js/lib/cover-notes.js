@@ -4,6 +4,7 @@
 
   const COVER_RE = /^In:\s/i;
   const NIS_RE = /^Not in store:/i;
+  const NISI_RE = /^Not in SI:/i;
   const SKIP = new Set(['cover-sync', 'reset', 'notes']);
 
   function cartCount(S, slot) {
@@ -50,6 +51,30 @@
     return out;
   }
 
+  function nisiLines(S) {
+    const rows = S?.state?.sheet?.rows || [];
+    const out = [];
+    const seen = new Set();
+    for (const row of rows) {
+      if (!markActive(row, 'not_in_si')) continue;
+      const label = String(row.catName || row.dbkey || '').trim();
+      if (!label) continue;
+      const line = `Not in SI: ${label}`;
+      if (seen.has(line.toLowerCase())) continue;
+      seen.add(line.toLowerCase());
+      out.push(line);
+    }
+    const extra = Array.isArray(S?.state?.notInSiSelected) ? S.state.notInSiSelected : [];
+    for (const name of extra) {
+      const line = `Not in SI: ${String(name || '').trim()}`;
+      if (!line.slice(11).trim()) continue;
+      if (seen.has(line.toLowerCase())) continue;
+      seen.add(line.toLowerCase());
+      out.push(line);
+    }
+    return out;
+  }
+
   function summaryLine(S) {
     const sheet = S?.state?.sheet;
     const marked = sheet
@@ -63,9 +88,11 @@
   function mergeNotes(existing, S) {
     const summary = summaryLine(S);
     const nis = nisLines(S);
+    const nisi = nisiLines(S);
     const lines = String(existing || '').split(/\r?\n/);
     const rest = [];
     const haveNis = new Set(nis.map((l) => l.toLowerCase()));
+    const haveNisi = new Set(nisi.map((l) => l.toLowerCase()));
     for (const raw of lines) {
       const line = String(raw || '');
       const t = line.trim();
@@ -75,9 +102,13 @@
         if (!haveNis.has(t.toLowerCase())) rest.push(line);
         continue;
       }
+      if (NISI_RE.test(t)) {
+        if (!haveNisi.has(t.toLowerCase())) rest.push(line);
+        continue;
+      }
       rest.push(line);
     }
-    return [summary, ...nis, ...rest].join('\n');
+    return [summary, ...nis, ...nisi, ...rest].join('\n');
   }
 
   function applyToDom(next) {
@@ -108,7 +139,7 @@
     });
   }
 
-  const api = { summaryLine, mergeNotes, nisLines, apply, init, cartCount };
+  const api = { summaryLine, mergeNotes, nisLines, nisiLines, apply, init, cartCount };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodCoverNotes = api;
 })(typeof window !== 'undefined' ? window : globalThis);

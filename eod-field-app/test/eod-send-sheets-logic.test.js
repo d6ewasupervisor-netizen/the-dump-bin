@@ -28,7 +28,25 @@ test('pickMainKompassIseVisit prefers ISE even when Cut In is selected', () => {
 test('sheet filenames classify coversheet vs digital vs paper', () => {
   assert.equal(classifySheetFilename('fm019_eod_coversheet_20260824.jpg'), 'coversheet');
   assert.equal(classifySheetFilename('fm019_digital_signoff_p1_20260824.jpg'), 'digital');
+  assert.equal(classifySheetFilename('cart_before_0.jpg'), 'cart-before');
+  assert.equal(classifySheetFilename('cart_after_0.jpg'), 'cart-after');
   assert.equal(classifySheetFilename('signoff_0.jpg'), 'photo');
+});
+
+test('department signatures become one bullet per name', () => {
+  const { formatDeptSignatureLines, signedOutFromSheet, hasDigitalSignoff } = require('../js/lib/eod-send-sheets-logic');
+  assert.deepEqual(
+    formatDeptSignatureLines([
+      { signerName: 'Gauthier, Tyson A', roleLabel: 'Bakery Dept. PIC' },
+      { signerName: 'Gauthier, Tyson A', roleLabel: 'Deli Dept. PIC' },
+    ]),
+    ['• Gauthier, Tyson A (Bakery Dept. PIC)', '• Gauthier, Tyson A (Deli Dept. PIC)']
+  );
+  assert.deepEqual(
+    signedOutFromSheet({ hasHostedSheet: () => true, sheetSendReady: () => true, state: { sheet: { rows: [{}] } } }),
+    { prod: 'Yes', si: 'Yes' }
+  );
+  assert.equal(hasDigitalSignoff({ digitalSignoff: 'P08W2 30/30 marked' }, { rows: [1] }), true);
 });
 
 test('coversheet and digital filenames match live EOD naming', () => {

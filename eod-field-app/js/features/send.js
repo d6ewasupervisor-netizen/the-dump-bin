@@ -31,8 +31,9 @@
 
   function photoSrc(p) {
     if (!p) return '';
-    if (typeof p === 'string') return p;
-    return p.previewUrl || p.objectUrl || p.dataUrl || '';
+    if (typeof p === 'string') return /^blob:/i.test(p) ? '' : p;
+    const raw = p.dataUrl || p.previewUrl || p.objectUrl || '';
+    return /^blob:/i.test(raw) ? '' : raw;
   }
 
   function photoCount(type) {
@@ -42,23 +43,32 @@
   function yn(v) { return v ? 'Yes' : 'No'; }
 
   function collectSignoffPhotos() {
+    const L = global.EodSendSheetsLogic || {};
     const out = photosOf('signoff').map((p) => {
-      if (typeof p === 'string') return { dataUrl: p, source: 'local' };
+      const dataUrl = photoSrc(p);
+      if (!dataUrl) return null;
+      if (typeof p === 'string') return { dataUrl, source: 'local' };
       return {
-        dataUrl: p.dataUrl,
+        dataUrl,
         source: p.source || 'local',
         filename: p.filename || null,
       };
-    }).filter((p) => p.dataUrl);
+    }).filter(Boolean);
     photosOf('before').forEach((p, i) => {
-      const dataUrl = typeof p === 'string' ? p : p?.dataUrl;
+      const dataUrl = photoSrc(p);
       if (dataUrl) out.push({ dataUrl, filename: `cart_before_${i}.jpg`, source: 'cart-before' });
     });
     photosOf('after').forEach((p, i) => {
-      const dataUrl = typeof p === 'string' ? p : p?.dataUrl;
+      const dataUrl = photoSrc(p);
       if (dataUrl) out.push({ dataUrl, filename: `cart_after_${i}.jpg`, source: 'cart-after' });
     });
-    return out;
+    const seenCover = { n: 0 };
+    return out.filter((item) => {
+      const kind = L.classifySheetFilename?.(item.filename) || 'photo';
+      if (kind !== 'coversheet') return true;
+      seenCover.n += 1;
+      return seenCover.n === 1;
+    });
   }
 
   function buildBodyAndReport() {
@@ -72,8 +82,15 @@
     const afterDone = photoCount('after') > 0;
     const signoffCount = photoCount('signoff');
     const signoffDone = signoffCount > 0 || S.hasHostedSheet();
-    const notInStoreText = (S.state.notInStoreSelected || []).join(', ') || 'None';
-    const notInSiText = (S.state.notInSiSelected || []).join(', ') || 'None';
+    const Notes = global.EodCoverNotes;
+    const notInStoreLines = Notes?.nisLines?.(S) || [];
+    const notInSiLines = Notes?.nisiLines?.(S) || [];
+    const notInStoreText = notInStoreLines.length
+      ? notInStoreLines.join('\n')
+      : ((S.state.notInStoreSelected || []).join('\n') || 'None');
+    const notInSiText = notInSiLines.length
+      ? notInSiLines.join('\n')
+      : ((S.state.notInSiSelected || []).join('\n') || 'None');
     const sheet = S.state.sheet;
     let digitalLine = 'Digital signoff: none (no hosted sheet)';
     if (sheet) {
@@ -81,17 +98,17 @@
       digitalLine = `Digital signoff: ${sheet.fiscalWeek || ''} ${s.marked || 0}/${s.total || 0} marked`
         + (S.sheetSendReady() ? ' (send ready)' : ' (open sets)');
     }
-    let deptSigLine = 'Department signatures: (see app)';
+    const signedOut = global.EodSendSheetsLogic?.signedOutFromSheet?.(S) || { prod: '—', si: '—' };
+    const digitalReady = !!global.EodSendSheetsLogic?.hasDigitalSignoff?.(
+      { digitalSignoff: digitalLine },
+      sheet
+    );
+    let deptSigLines = [];
     try {
       const collected = global.EodDeptSignatures?.getCollectedForEmail?.() || [];
-      if (collected.length) {
-        deptSigLine = 'Department signatures: ' + collected.map((c) =>
-          `${c.roleKey || c.role || '?'}=${c.signerName || 'signed'}`
-        ).join('; ');
-      } else {
-        deptSigLine = 'Department signatures: none yet';
-      }
+      deptSigLines = global.EodSendSheetsLogic?.formatDeptSignatureLines?.(collected) || [];
     } catch (_) {}
+    const deptSigText = deptSigLines.length ? deptSigLines.join('\n') : 'None';
 
     const iwSave = S.state.instaworkSavedInfo;
     const iwSaveTail = iwSave ? (iwSave.filePath || '').split(/[\\/]/).pop() : '';
@@ -109,9 +126,10 @@ Check-in manager: ${S.state.checkInManager || '—'}
 InstaWork support: ${iwSupportLine}
 Check-out manager: ${S.state.checkOutManager || '—'}
 ${digitalLine}
-${deptSigLine}
-Not in store: ${notInStoreText}
-Not in SI: ${notInSiText}
+Department signatures:
+${deptSigText}
+${notInStoreText === 'None' ? 'Not in store: None' : notInStoreText}
+${notInSiText === 'None' ? 'Not in SI: None' : notInSiText}
 Help desk reports: ${(S.state.helpdeskSubmittedReports || []).length
       ? (S.state.helpdeskSubmittedReports || []).map((r) => {
           const kind = r.issueTypeId === 'not_in_store' ? 'Not in store' : (r.issueTypeId || 'issue');
@@ -121,8 +139,7 @@ Help desk reports: ${(S.state.helpdeskSubmittedReports || []).length
       : 'None'}
 After picture of KOMPASS cart taken: ${yn(afterDone)}
 Sign-off sheets photographed: ${yn(signoffDone)}
-Number of sign-off photos: ${signoffCount}
-Notes:
+${digitalReady ? '' : `Number of sign-off photos: ${signoffCount}\n`}Notes:
 ${S.state.notes || ''}`;
 
     const report = {
@@ -142,15 +159,16 @@ ${S.state.notes || ''}`;
       issueResolved: 'N/A',
       tempSolution: 'N/A',
       checkOutManager: S.state.checkOutManager || '',
-      signedOutProd: '—',
-      signedOutSi: '—',
+      signedOutProd: signedOut.prod,
+      signedOutSi: signedOut.si,
       notInStore: notInStoreText,
       notInSi: notInSiText,
       digitalSignoff: digitalLine.replace(/^Digital signoff:\s*/, ''),
-      deptSignatures: deptSigLine.replace(/^Department signatures:\s*/, ''),
+      deptSignatures: deptSigText,
       afterTaken: yn(afterDone),
       signoffDone: yn(signoffDone),
-      signoffCount,
+      signoffCount: digitalReady ? '' : signoffCount,
+      omitSignoffPhotoCount: digitalReady,
       notes: S.state.notes || '',
       app: 'eod-field-app',
       version: global.EOD_APP_VERSION,

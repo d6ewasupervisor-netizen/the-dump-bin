@@ -48,8 +48,8 @@
     const color = ynColor(value);
     const display = String(value ?? '').trim() || '—';
     return `<tr>
-      <td style="background:${bg};border:1px solid #BFD6EC;padding:10px 12px;font-family:Calibri,Arial,sans-serif;font-size:14px;color:#0E2A47;font-weight:600;width:38%;">${esc(label)}</td>
-      <td style="background:${bg};border:1px solid #BFD6EC;padding:10px 12px;font-family:Calibri,Arial,sans-serif;font-size:14px;color:${color};">${esc(display)}</td>
+      <td style="background:${bg};border:1px solid #BFD6EC;padding:10px 12px;font-family:Calibri,Arial,sans-serif;font-size:14px;color:#0E2A47;font-weight:600;width:38%;vertical-align:top;">${esc(label)}</td>
+      <td style="background:${bg};border:1px solid #BFD6EC;padding:10px 12px;font-family:Calibri,Arial,sans-serif;font-size:14px;color:${color};white-space:pre-wrap;word-break:break-word;vertical-align:top;">${esc(display)}</td>
     </tr>`;
   }
 

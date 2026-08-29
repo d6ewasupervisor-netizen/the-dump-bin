@@ -401,12 +401,18 @@ test('cover notes add Not in store lines from sheet marks', () => {
       photos: { before: [], after: [] },
       sheet: {
         summary: { marked: 1, total: 2 },
-        rows: [{ catName: 'Isotonic', marks: { active: ['not_in_store'], notInStore: true } }],
+        rows: [
+          { catName: 'Isotonic', marks: { active: ['not_in_store'], notInStore: true } },
+          { catName: 'Soft Drinks', marks: { active: ['not_in_si'], notInSi: true } },
+        ],
       },
       notes: '',
     },
   };
-  assert.match(mergeNotes('', S), /Not in store: Isotonic/);
+  const notes = mergeNotes('', S);
+  assert.match(notes, /Not in store: Isotonic/);
+  assert.match(notes, /Not in SI: Soft Drinks/);
+  assert.ok(notes.indexOf('Not in store: Isotonic') < notes.indexOf('Not in SI: Soft Drinks'));
 });
 
 test('category cards do not include a Capture button', () => {
@@ -464,6 +470,12 @@ test('checkout manager gate clears when a name is set', () => {
   ready.state.checkOutManager = 'April';
   assert.ok(!sendGates.missing(ready).some((g) => g.id === 'checkout'));
   assert.notEqual(sendGates.firstMessage(ready), 'Enter the check-out manager (or complete PIC QR)');
+});
+
+test('digital signoff rasterizer loads standard PDF fonts', () => {
+  const pdf = fs.readFileSync(path.join(__dirname, '../js/lib/pdf-to-image.js'), 'utf8');
+  assert.match(pdf, /standardFontDataUrl/);
+  assert.match(pdf, /cMapUrl/);
 });
 
 test('send page live-refreshes gates after checkout is chosen', () => {

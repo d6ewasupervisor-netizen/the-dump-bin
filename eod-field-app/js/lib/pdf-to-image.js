@@ -2,8 +2,12 @@
 (function (global) {
   'use strict';
 
-  const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-  const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const PDFJS_VER = '3.11.174';
+  const PDFJS_BASE = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VER}`;
+  const PDFJS_SRC = `${PDFJS_BASE}/build/pdf.min.js`;
+  const PDFJS_WORKER = `${PDFJS_BASE}/build/pdf.worker.min.js`;
+  const PDFJS_CMAPS = `${PDFJS_BASE}/cmaps/`;
+  const PDFJS_FONTS = `${PDFJS_BASE}/standard_fonts/`;
 
   let pdfjsReady = null;
 
@@ -50,7 +54,12 @@
     if (!bytes && typeof Blob !== 'undefined' && input instanceof Blob) {
       bytes = new Uint8Array(await input.arrayBuffer());
     }
-    const loadingTask = pdfjs.getDocument({ data: bytes });
+    const loadingTask = pdfjs.getDocument({
+      data: bytes,
+      cMapUrl: PDFJS_CMAPS,
+      cMapPacked: true,
+      standardFontDataUrl: PDFJS_FONTS,
+    });
     const pdf = await loadingTask.promise;
     const pages = [];
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
