@@ -231,7 +231,7 @@ test('device storage is in the app: More, Send, boot purge of submitted packages
   assert.match(store, /purgeInBackground/);
   assert.match(photos, /purgeOnBoot/);
   assert.match(photos, /purgeSubmitted/);
-  assert.match(photos, /const SENT_PRUNE_MS = 6 \* 60 \* 60 \* 1000/);
+  assert.match(photos, /const SENT_PRUNE_MS = 36 \* 60 \* 60 \* 1000/);
   assert.match(send, /sendDeviceBtn/);
   assert.match(send, /purgeSubmitted/);
   assert.match(boot, /EodDeviceStorage\?\.purgeInBackground/);

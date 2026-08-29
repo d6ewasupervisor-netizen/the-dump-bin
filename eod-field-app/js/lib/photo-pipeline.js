@@ -184,7 +184,7 @@
     try {
       const lean = [];
       for (const j of jobs.values()) {
-        if (j.status === 'done' && Date.now() - (j.updatedAt || 0) > 6 * 60 * 60 * 1000) {
+        if (j.status === 'done' && Date.now() - (j.updatedAt || 0) > 36 * 60 * 60 * 1000) {
           idbDelete(j.id).catch(() => {});
           continue;
         }
@@ -720,12 +720,17 @@
     return true;
   }
 
-  function purgeSettledJobs() {
+  function purgeSettledJobs({ maxAgeMs = 36 * 60 * 60 * 1000 } = {}) {
     let n = 0;
+    const now = Date.now();
     for (const j of [...jobs.values()]) {
-      if (j.status === 'done' || j.error === 'replaced') {
+      if (j.error === 'replaced') {
         if (removeJob(j.id)) n += 1;
+        continue;
       }
+      if (j.status !== 'done') continue;
+      if (maxAgeMs > 0 && now - (j.updatedAt || 0) < maxAgeMs) continue;
+      if (removeJob(j.id)) n += 1;
     }
     return n;
   }

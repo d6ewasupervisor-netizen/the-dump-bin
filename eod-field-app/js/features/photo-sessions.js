@@ -24,7 +24,7 @@
   /** Fractions of reported origin quota. */
   const SOFT_QUOTA_FRAC = 0.30;
   const HARD_QUOTA_FRAC = 0.50;
-  const SENT_PRUNE_MS = 6 * 60 * 60 * 1000;
+  const SENT_PRUNE_MS = 36 * 60 * 60 * 1000;
   /** Email ok + only failed jobs (no open) → eligible for sentAt after this window. */
   const FAILED_AFTER_EMAIL_ELIGIBLE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -614,7 +614,7 @@
       return { ok: true, id, clearedActive: isActive };
     }
 
-    async function purgeSubmitted({ keepActive = true, maxAgeMs = 0 } = {}) {
+    async function purgeSubmitted({ keepActive = true, maxAgeMs = SENT_PRUNE_MS } = {}) {
       const now = Date.now();
       const sessions = await listSessionSummaries();
       const activeId = keepActive ? resolveActiveKey()?.id : null;

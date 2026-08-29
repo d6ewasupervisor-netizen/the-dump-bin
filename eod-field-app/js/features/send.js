@@ -793,7 +793,7 @@ ${S.state.notes || ''}`;
           try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
         }
         try { await global.PhotoDB?.tryCompleteSession?.(); } catch (_) {}
-        try { await global.PhotoDB?.purgeSubmitted?.({ keepActive: true, maxAgeMs: 0 }); } catch (_) {}
+        try { await global.PhotoDB?.purgeSubmitted?.({ keepActive: true }); } catch (_) {}
         try { global.EodPhotoPipeline?.purgeSettledJobs?.(); } catch (_) {}
         await maybeClearAfterSend(S);
       } catch (err) {

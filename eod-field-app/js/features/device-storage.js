@@ -152,7 +152,7 @@
           return;
         }
         if (act === 'pipeline') {
-          global.EodPhotoPipeline.purgeSettledJobs();
+          global.EodPhotoPipeline.purgeSettledJobs({ maxAgeMs: 0 });
           await afterChange();
         }
       });
@@ -161,7 +161,7 @@
     document.getElementById('devPurgeSent')?.addEventListener('click', async () => {
       if (!(await confirmRemove('Remove all sent packages?'))) return;
       const r = await global.PhotoDB.purgeSubmitted({ keepActive: true, maxAgeMs: 0 });
-      const done = global.EodPhotoPipeline?.purgeSettledJobs?.() || 0;
+      const done = global.EodPhotoPipeline?.purgeSettledJobs?.({ maxAgeMs: 0 }) || 0;
       setMsg(`Removed ${r?.removed || 0} package(s), ${done} finished upload(s).`);
       await afterChange();
     });
