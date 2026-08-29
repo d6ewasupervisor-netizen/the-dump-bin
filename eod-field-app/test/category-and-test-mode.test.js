@@ -419,6 +419,8 @@ test('PIC can sign on the wizard pad without rotating the phone', () => {
   assert.match(dept, /bindInlinePad/);
   assert.doesNotMatch(dept, /Turn the phone sideways/);
   assert.match(lsp, /z-index:\s*50000/);
+  assert.match(lsp, /forceClose/);
+  assert.doesNotMatch(lsp, /html\.eod-lsp-open, html\.eod-lsp-open body/);
   assert.match(css, /\.dept-sig-wizard-overlay \{[\s\S]*z-index:\s*45000/);
 });
 
@@ -426,8 +428,10 @@ test('planogram is boxed so it does not steal page scroll or signatures', () => 
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
   const swipe = fs.readFileSync(path.join(__dirname, '../js/lib/swipe-nav.js'), 'utf8');
   assert.doesNotMatch(css, /#appMount \{[^}]*touch-action:\s*pan-y/);
+  assert.match(css, /\.app-shell \{[\s\S]*?overflow:\s*visible/);
   assert.match(css, /\.si-pog-scroll \{[\s\S]*max-height:/);
   assert.match(swipe, /si-pog-scroll/);
-  assert.match(swipe, /eod-lsp-overlay/);
+  assert.match(swipe, /eod-lsp-overlay\.show/);
+  assert.doesNotMatch(swipe, /closest\('\.landscape-sig, canvas/);
 });
 

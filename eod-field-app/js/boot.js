@@ -88,6 +88,7 @@
       try { window.EodTheme?.init?.(); } catch (err) { console.warn('[eod-field-app] theme init', err); }
       try { window.EodChrome.init(); } catch (err) { console.warn('[eod-field-app] chrome init', err); }
       try { window.EodCoverNotes?.init?.(window.EodSession); } catch (err) { console.warn('[eod-field-app] cover notes', err); }
+      try { window.EodLandscapeSigPad?.forceClose?.(); } catch (_) {}
       try { window.EodSwipeNav?.init?.(); } catch (err) { console.warn('[eod-field-app] swipe nav', err); }
       try { window.EodShiftPhotoSync?.init?.(); } catch (err) { console.warn('[eod-field-app] photo sync', err); }
       try { window.EodConnections?.init?.(); } catch (err) { console.warn('[eod-field-app] connections init', err); }
@@ -97,7 +98,7 @@
       try { window.EodVisit?.enforceDayConfirmGate?.(); } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.3.15').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.3.16').catch(() => {});
         }
       } catch (_) {}
       try { window.EodUsage?.start?.(); } catch (_) {}

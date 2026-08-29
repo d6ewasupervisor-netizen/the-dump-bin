@@ -12,24 +12,15 @@
       document.head.appendChild(css);
     }
     css.textContent = `
-      html.eod-lsp-open, html.eod-lsp-open body {
-        overflow: hidden !important;
-        overscroll-behavior: none !important;
-        height: 100% !important;
-      }
-      html.eod-lsp-open body {
-        position: fixed !important;
-        left: 0; right: 0; width: 100%;
-      }
       .eod-lsp-overlay {
         display: none; position: fixed; inset: 0; z-index: 50000;
         background: #0b1220; color: #f8fafc; flex-direction: column;
         padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
-        touch-action: none; overscroll-behavior: none; overflow: hidden;
-        pointer-events: auto;
+        touch-action: none; overflow: hidden;
+        pointer-events: none;
       }
-      .eod-lsp-overlay.show { display: flex; }
+      .eod-lsp-overlay.show { display: flex; pointer-events: auto; }
       .eod-lsp-bar {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
         padding: 8px 10px; background: #0d4f8b; min-height: 48px;
@@ -56,25 +47,27 @@
     `;
   }
 
-  function lockPageScroll() {
-    const html = document.documentElement;
-    const body = document.body;
-    const y = window.scrollY || window.pageYOffset || 0;
-    html.dataset.eodLspScroll = String(y);
-    html.classList.add('eod-lsp-open');
-    body.classList.add('eod-lsp-open');
-    body.style.top = `-${y}px`;
-  }
-
   function unlockPageScroll() {
     const html = document.documentElement;
     const body = document.body;
-    const y = Number(html.dataset.eodLspScroll || 0);
     html.classList.remove('eod-lsp-open');
     body.classList.remove('eod-lsp-open');
     body.style.top = '';
+    body.style.position = '';
+    body.style.left = '';
+    body.style.right = '';
+    body.style.width = '';
     delete html.dataset.eodLspScroll;
-    window.scrollTo(0, y);
+  }
+
+  function forceClose() {
+    const overlay = document.getElementById('eodLandscapeSigOverlay');
+    if (overlay && typeof overlay._eodLspCleanup === 'function') {
+      overlay._eodLspCleanup(false);
+      return;
+    }
+    overlay?.classList.remove('show');
+    unlockPageScroll();
   }
 
   function ensureDom() {
@@ -316,7 +309,6 @@
       finish(true);
     };
 
-    lockPageScroll();
     overlay.classList.add('show');
     requestAnimationFrame(() => {
       sizeCanvas();
@@ -326,7 +318,7 @@
     window.addEventListener('orientationchange', onResize);
   }
 
-  const api = { open };
+  const api = { open, forceClose };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodLandscapeSigPad = api;
 })(typeof window !== 'undefined' ? window : globalThis);

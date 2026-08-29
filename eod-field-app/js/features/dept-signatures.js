@@ -534,6 +534,7 @@
   function closeWizard() {
     wizard = null;
     document.getElementById('deptSigWizardOverlay')?.classList.remove('show');
+    try { window.EodLandscapeSigPad?.forceClose?.(); } catch (_) {}
   }
 
   function wizardBack() {
