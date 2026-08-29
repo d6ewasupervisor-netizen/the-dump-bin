@@ -161,8 +161,8 @@
     }
     host.innerHTML = `<div class="modal-dialog">
       <h2>More</h2>
-      <button type="button" class="btn btn-secondary btn-block" data-more="signatures">Signatures</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
       <button type="button" class="btn btn-primary btn-block" id="eodMoreClose">Close</button>
     </div>`;

@@ -548,6 +548,7 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
   box-shadow: 0 0 0 2px var(--accent);
 }
 .bottom-nav .nav-label { line-height: 1.1; }
+.bottom-nav [data-slot="extra"] { display: none; }
 
 @media (max-width: 420px) {
   .bottom-nav .nav-label { display: none; }
@@ -856,6 +857,8 @@ h2 { font-size: 1.15rem; color: var(--heading); }
     width: 100%;
     flex: 0 0 auto;
   }
+  .bottom-nav [data-slot="extra"] { display: flex; }
+  .bottom-nav [data-slot="phone-more"] { display: none !important; }
   .chrome-store { font-size: 1.15rem; }
   #appChrome .pill { font-size: 11px; }
 }

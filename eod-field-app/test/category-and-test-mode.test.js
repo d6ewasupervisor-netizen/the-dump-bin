@@ -150,13 +150,12 @@ test('applyToPayload without test mode leaves a live store alone', () => {
 const fs = require('fs');
 const path = require('path');
 
-test('section nav places dump bin between categories and send', () => {
+test('section nav is visit, categories, signatures, send, then more pages', () => {
   const src = fs.readFileSync(path.join(__dirname, '../js/features/section-nav.js'), 'utf8');
   const ids = [...src.matchAll(/\{\s*id:\s*'([^']+)'/g)].map((m) => m[1]);
-  const i = ids.indexOf('signoff');
-  assert.ok(i >= 0);
-  assert.equal(ids[i + 1], 'dumpbin');
-  assert.equal(ids[i + 2], 'send');
+  assert.deepEqual(ids.slice(0, 7), [
+    'visit', 'signoff', 'signatures', 'send', 'crew', 'dumpbin', 'helpdesk',
+  ]);
 });
 
 test('section nav uses section names and a Top control, not Previous/Next', () => {
@@ -174,18 +173,27 @@ test('theme cycle includes dark, inverse, light, gray, holiday', () => {
   assert.match(src, /\['dark', 'inverse', 'light', 'gray', 'holiday'\]/);
 });
 
-test('bottom nav is Visit, Categories, Dump Bin, Send, More', () => {
+test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.doesNotMatch(html, /id="bottomNav"[\s\S]*data-nav="photos"/);
-  assert.match(html, /data-nav="dumpbin"/);
-  assert.match(html, /data-nav="more"/);
-  assert.match(html, /id="themeCycleBtn"/);
-  assert.match(html, /js\/features\/signatures\.js/);
-  assert.match(html, /js\/features\/theme\.js/);
-  for (const name of ['visit', 'categories', 'dumpbin', 'send']) {
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  const chrome = fs.readFileSync(path.join(__dirname, '../js/chrome.js'), 'utf8');
+  const nav = html.match(/id="bottomNav"[\s\S]*?<\/nav>/)[0];
+  assert.match(nav, /data-nav="visit"[\s\S]*data-nav="signoff"[\s\S]*data-nav="signatures"[\s\S]*data-nav="send"/);
+  assert.match(nav, /data-nav="crew"/);
+  assert.match(nav, /data-nav="dumpbin"/);
+  assert.match(nav, /data-nav="helpdesk"/);
+  assert.match(nav, /data-nav="more"/);
+  assert.doesNotMatch(nav, /data-nav="photos"/);
+  assert.match(css, /\[data-slot="extra"\] \{ display: none/);
+  assert.match(css, /\[data-slot="extra"\] \{ display: flex/);
+  assert.match(css, /\[data-slot="phone-more"\] \{ display: none/);
+  assert.match(chrome, /data-more="crew"/);
+  assert.match(chrome, /data-more="dumpbin"/);
+  assert.match(chrome, /data-more="helpdesk"/);
+  assert.doesNotMatch(chrome, /data-more="signatures"/);
+  for (const name of ['visit', 'categories', 'signatures', 'send', 'crew', 'dumpbin', 'helpdesk']) {
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
   }
-  assert.doesNotMatch(html, /id="bottomNav"[\s\S]*data-nav="signatures"/);
 });
 
 test('section nav host is pinned outside page content', () => {
@@ -406,9 +414,9 @@ test('category cards do not include a Capture button', () => {
   assert.doesNotMatch(signoff, />Capture</);
 });
 
-test('double-swipe nav order is visit, categories, dump bin, send', () => {
+test('double-swipe nav order is visit, categories, signatures, send', () => {
   const swipe = require('../js/lib/swipe-nav');
-  assert.deepEqual(swipe.PRIMARY, ['visit', 'signoff', 'dumpbin', 'send']);
+  assert.deepEqual(swipe.PRIMARY, ['visit', 'signoff', 'signatures', 'send']);
 });
 
 test('PIC can sign on the wizard pad without rotating the phone', () => {

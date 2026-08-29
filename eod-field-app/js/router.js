@@ -48,7 +48,7 @@
       const on = nav === name
         || (nav === 'signoff' && (name === 'survey' || name === 'cover'))
         || (nav === 'dumpbin' && name === 'dumpbin')
-        || (nav === 'more' && ['signatures', 'crew', 'helpdesk', 'photos'].includes(name));
+        || (nav === 'more' && ['crew', 'dumpbin', 'helpdesk', 'photos'].includes(name));
       el.classList.toggle('is-active', on);
     });
     // Sidebar + chrome stay reachable once the shell is up (even on Visit).

@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
 
-  const PRIMARY = ['visit', 'signoff', 'dumpbin', 'send'];
+  const PRIMARY = ['visit', 'signoff', 'signatures', 'send'];
   const MIN_DX = 72;
   const MAX_DY_RATIO = 0.75;
   const WINDOW_MS = 700;
