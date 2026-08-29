@@ -183,6 +183,13 @@
     return null;
   }
 
+  function siblingExtraIds(shifts, selected) {
+    const primary = String(selected?.visitId || '');
+    return (shifts || [])
+      .map((s) => String(s.visitId || ''))
+      .filter((id) => id && id !== primary);
+  }
+
   function paintCachedShifts(store, date, listEl) {
     const cached = global.EodShiftDay?.shiftsForStore?.(store, date);
     if (!cached || !cached.length || !listEl) return false;
@@ -190,7 +197,12 @@
     const input = S.normStoreNumber(store);
     const shifts = cached.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
     if (!shifts.length) return false;
-    S.patch({ shifts, selectedShift: shifts.length === 1 ? shifts[0] : S.state.selectedShift, extraVisitIds: [] }, 'shifts-cache');
+    const selected = shifts.length === 1 ? shifts[0] : S.state.selectedShift;
+    S.patch({
+      shifts,
+      selectedShift: selected,
+      extraVisitIds: selected ? siblingExtraIds(shifts, selected) : [],
+    }, 'shifts-cache');
     const selIdx = shifts.length === 1 ? 0 : shifts.findIndex((s) => String(s.visitId) === String(S.state.selectedShift?.visitId));
     listEl.innerHTML = renderShiftCards(shifts, selIdx >= 0 ? selIdx : -1);
     wireShiftCards(listEl);
@@ -217,7 +229,12 @@
       const sStore = S.normStoreNumber(s.storeNumber || s.store_number || s.store);
       return sStore === input;
     });
-    S.patch({ shifts, selectedShift: shifts.length === 1 ? shifts[0] : null, extraVisitIds: [] }, 'shifts');
+    const selected = shifts.length === 1 ? shifts[0] : null;
+    S.patch({
+      shifts,
+      selectedShift: selected,
+      extraVisitIds: selected ? siblingExtraIds(shifts, selected) : [],
+    }, 'shifts');
     if (!shifts.length) {
       listEl.innerHTML = S.normStoreNumber(store) === '999'
         ? '<p class="muted">No sandbox shift cloned yet — ask an admin to run POST /api/sandbox/clone-shift.</p>'
@@ -267,8 +284,7 @@
         if (!shift) return;
         listEl.querySelectorAll('.shift-card').forEach((c) => c.classList.remove('selected'));
         card.classList.add('selected');
-        const extras = (S.state.extraVisitIds || []).filter((id) => String(id) !== String(shift.visitId));
-        S.patch({ selectedShift: shift, extraVisitIds: extras }, 'shift');
+        S.patch({ selectedShift: shift, extraVisitIds: siblingExtraIds(S.state.shifts, shift) }, 'shift');
         await applyLeadFromShift(shift);
         S.saveDraft();
         advanceAfterShiftSelected();
@@ -341,6 +357,7 @@
     if (step === 'setup') step = 'cart';
     S.patch({ visitStep: step }, 'visit-step');
     S.saveDraft();
+    try { global.EodShiftPhotoSync?.run?.('shift'); } catch (_) {}
   }
 
   /** Store confirmed + a shift selected is enough to continue. Optional steps never block. */

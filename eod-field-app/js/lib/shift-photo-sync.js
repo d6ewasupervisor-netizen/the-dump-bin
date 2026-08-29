@@ -1,4 +1,4 @@
-/* On shift connect: sync counts first, then load cart + set photos in the background. */
+/* After the lead picks a shift: warm crew, sheet, cart, and set photos in the background. */
 (function (global) {
   'use strict';
 
@@ -61,6 +61,9 @@
     lastKey = key;
     running = true;
     try {
+      try { await global.EodCrew?.loadMembers?.({ skipBusy: true }); } catch (err) {
+        console.warn('[shift-warm] members', err.message || err);
+      }
       if (global.EodSignoffHome?.syncProdSi) {
         try { await global.EodSignoffHome.syncProdSi(); } catch (err) {
           console.warn('[photo-sync] counts', err.message || err);
@@ -86,7 +89,7 @@
     const S = global.EodSession;
     if (!S?.on) return;
     S.on((_state, reason) => {
-      if (reason !== 'shift' && reason !== 'shifts' && reason !== 'extra-visits') return;
+      if (reason !== 'shift' && reason !== 'shifts' && reason !== 'shifts-cache' && reason !== 'extra-visits') return;
       if (!S.state.selectedShift) return;
       run(reason).catch(() => {});
     });

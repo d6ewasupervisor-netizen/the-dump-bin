@@ -4,7 +4,7 @@
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
-  async function loadMembers() {
+  async function loadMembers(opts = {}) {
     const S = global.EodSession;
     const shift = S.state.selectedShift;
     if (!shift?.visitId || String(shift.visitId).startsWith('test-')) {
@@ -12,7 +12,8 @@
       return [];
     }
     const resp = await global.authFetch(
-      `${global.EOD_API_BASE}/api/shifts/${encodeURIComponent(shift.visitId)}/members`
+      `${global.EOD_API_BASE}/api/shifts/${encodeURIComponent(shift.visitId)}/members`,
+      { skipBusy: opts.skipBusy !== false }
     );
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -316,5 +317,6 @@
     if (global.EodTimesheetMgmt?.open) return global.EodTimesheetMgmt.open('kompass');
   };
 
+  global.EodCrew = { loadMembers, render };
   global.EodRouter.register('crew', render);
 })(typeof window !== 'undefined' ? window : globalThis);
