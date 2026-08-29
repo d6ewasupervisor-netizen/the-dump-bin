@@ -327,6 +327,11 @@
       clearDayConfirm();
       try { saveDraft(); } catch (_) {}
     }
+    try {
+      if (state.storeNumber && global.EodVisitMemory?.applyToSession) {
+        global.EodVisitMemory.applyToSession({ state, patch, saveDraft, resolvedLeadName }, state.storeNumber);
+      }
+    } catch (_) {}
     emit('load');
   }
 

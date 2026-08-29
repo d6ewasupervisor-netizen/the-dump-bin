@@ -22,7 +22,9 @@
   function applyCheckout(name) {
     if (!name) return;
     const S = global.EodSession;
-    if (S) {
+    if (S && global.EodVisitMemory?.setManagers) {
+      global.EodVisitMemory.setManagers(S, { checkOutManager: name }, 'pic-checkout');
+    } else if (S) {
       S.patch({ checkOutManager: name }, 'pic-checkout');
       S.saveDraft();
     }
@@ -31,6 +33,7 @@
       out.value = name;
       out.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    try { global.EodSend?.refreshGates?.(); } catch (_) {}
   }
 
   function paintCard() {

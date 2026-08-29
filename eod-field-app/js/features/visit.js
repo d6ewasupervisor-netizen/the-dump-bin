@@ -488,7 +488,7 @@
 
       <section class="visit-step-panel" style="margin-top:16px;">
         <h3>Manager checked in with</h3>
-        <div class="field">
+        <div class="field" id="checkInField">
           <label for="checkInManager">Name / title</label>
           <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" list="mgrListVisit" autocomplete="off">
           ${global.EodVisitMemory?.chipsHtml?.(S.state.managerNamePool, S.state.checkInManager, esc) || ''}
@@ -601,13 +601,18 @@
     if (checkIn) {
       checkIn.oninput = () => {
         const name = checkIn.value.trim();
-        S.patch({
-          checkInManager: name,
-          checkInDone: !!name,
-        }, 'checkin');
-        S.saveDraft();
+        if (global.EodVisitMemory?.setManagers) {
+          global.EodVisitMemory.setManagers(S, { checkInManager: name }, 'checkin');
+        } else {
+          S.patch({
+            checkInManager: name,
+            checkInDone: !!name,
+          }, 'checkin');
+          S.saveDraft();
+        }
       };
     }
+    try { global.EodVisitMemory?.bindChipField?.('checkInField', 'in'); } catch (_) {}
     document.getElementById('cartBeforeCam')?.addEventListener('click', async () => {
       if (!global.EodCamera?.open) return;
       await global.EodCamera.open({
@@ -656,20 +661,14 @@
         onChoose(item) {
           const el = document.getElementById('checkInManager');
           if (el) el.value = item.label;
-          S.patch({ checkInManager: item.label, checkInDone: true }, 'checkin');
-          S.saveDraft();
+          if (global.EodVisitMemory?.setManagers) {
+            global.EodVisitMemory.setManagers(S, { checkInManager: item.label }, 'checkin');
+          } else {
+            S.patch({ checkInManager: item.label, checkInDone: true }, 'checkin');
+            S.saveDraft();
+          }
         },
       });
-    });
-    document.querySelectorAll('#visitOnboarding .manager-chip').forEach((chip) => {
-      chip.onclick = () => {
-        const name = chip.getAttribute('data-mgr') || '';
-        const el = document.getElementById('checkInManager');
-        if (el) el.value = name;
-        S.patch({ checkInManager: name, checkInDone: !!name }, 'checkin');
-        S.saveDraft();
-        paintOnboarding();
-      };
     });
 
   }

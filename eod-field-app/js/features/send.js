@@ -218,6 +218,44 @@ ${S.state.notes || ''}`;
     return miss[0] ? miss[0].label : null;
   }
 
+  function refreshGates() {
+    const S = global.EodSession;
+    if (!S || typeof document === 'undefined') return gateMessage();
+    const gate = gateMessage();
+    const msg = document.getElementById('gateMsg');
+    if (msg) {
+      msg.style.color = gate ? '#fbbf24' : '#22c55e';
+      msg.textContent = gate || 'Ready to send.';
+    }
+    const btn = document.getElementById('sendBtn');
+    if (btn && btn.textContent === 'Send EOD') btn.disabled = !!gate;
+    const html = global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : '';
+    const existing = document.getElementById('eodSendGates');
+    if (existing) {
+      if (!html) existing.remove();
+      else {
+        existing.outerHTML = html;
+        try { global.EodSendGates.bindList(document.getElementById('eodSendGates'), S); } catch (_) {}
+      }
+    } else if (html) {
+      const anchor = document.getElementById('gateMsg');
+      if (anchor) anchor.insertAdjacentHTML('afterend', html);
+      try { global.EodSendGates.bindList(document.getElementById('eodSendGates'), S); } catch (_) {}
+    }
+    return gate;
+  }
+
+  let liveGatesBound = false;
+  function ensureLiveGates(S) {
+    if (liveGatesBound || !S?.on) return;
+    liveGatesBound = true;
+    S.on((_state, reason) => {
+      if (!document.getElementById('gateMsg') && !document.getElementById('sendBtn')) return;
+      if (reason === 'cover-sync' || reason === 'notes') return;
+      refreshGates();
+    });
+  }
+
   async function render(mount) {
     const S = global.EodSession;
     const leadFill = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : '') || '';
@@ -236,6 +274,8 @@ ${S.state.notes || ''}`;
       global.EodPicQr?.refresh?.(false).then(() => {
         const out = document.getElementById('checkOutManager');
         if (out && S.state.checkOutManager && !out.value.trim()) out.value = S.state.checkOutManager;
+        try { global.EodVisitMemory?.paintFields?.(S); } catch (_) {}
+        refreshGates();
       }).catch(() => {});
     }, 12000);
 
@@ -268,7 +308,7 @@ ${S.state.notes || ''}`;
           </div>
           <p class="muted" id="sendPaperCount">${photoCount('signoff')} photo(s)</p>
         </div>`}
-        <div class="field">
+        <div class="field" id="checkOutField">
           <label>Manager checked out with</label>
           <input type="text" id="checkOutManager" value="${esc(S.state.checkOutManager || '')}" list="mgrListSend" autocomplete="off">
           ${global.EodVisitMemory?.chipsHtml?.(S.state.managerNamePool, S.state.checkOutManager, esc) || ''}
@@ -363,29 +403,38 @@ ${S.state.notes || ''}`;
       if (count) count.textContent = `${photoCount('signoff')} photo(s)`;
     });
     try { global.EodSendGates?.bindList?.(document.getElementById('eodSendGates'), S); } catch (_) {}
+    ensureLiveGates(S);
 
     try { global.EodCoverNotes?.apply?.(S, 'send-open'); } catch (_) {}
     const notesEl = document.getElementById('sendNotes');
     if (notesEl && S.state.notes) notesEl.value = S.state.notes;
 
     const saveSendFields = () => {
-      S.patch({
-        checkOutManager: document.getElementById('checkOutManager')?.value?.trim() || '',
-        notes: document.getElementById('sendNotes')?.value || '',
-      }, 'send-cover');
+      const name = document.getElementById('checkOutManager')?.value?.trim() || '';
+      if (global.EodVisitMemory?.setManagers) {
+        global.EodVisitMemory.setManagers(S, { checkOutManager: name }, 'checkout');
+      } else {
+        S.patch({ checkOutManager: name }, 'checkout');
+      }
+      S.patch({ notes: document.getElementById('sendNotes')?.value || '' }, 'send-cover');
       S.saveDraft();
+      refreshGates();
     };
-    ['checkOutManager', 'sendNotes'].forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('change', saveSendFields);
-      el.addEventListener('blur', saveSendFields);
-    });
+    document.getElementById('sendNotes')?.addEventListener('change', saveSendFields);
+    document.getElementById('sendNotes')?.addEventListener('blur', saveSendFields);
+    document.getElementById('checkOutManager')?.addEventListener('change', saveSendFields);
+    document.getElementById('checkOutManager')?.addEventListener('blur', saveSendFields);
     document.getElementById('checkOutManager')?.addEventListener('input', () => {
-      S.patch({
-        checkOutManager: document.getElementById('checkOutManager')?.value?.trim() || '',
-      }, 'checkout');
+      const name = document.getElementById('checkOutManager')?.value?.trim() || '';
+      if (global.EodVisitMemory?.setManagers) {
+        global.EodVisitMemory.setManagers(S, { checkOutManager: name }, 'checkout');
+      } else {
+        S.patch({ checkOutManager: name }, 'checkout');
+        S.saveDraft();
+      }
+      refreshGates();
     });
+    try { global.EodVisitMemory?.bindChipField?.('checkOutField', 'out'); } catch (_) {}
     document.getElementById('saveOutMgr')?.addEventListener('click', async () => {
       const name = document.getElementById('checkOutManager')?.value?.trim();
       if (!name) return;
@@ -405,7 +454,11 @@ ${S.state.notes || ''}`;
         searchable: items.length > 6,
         onChoose(item) {
           document.getElementById('checkOutManager').value = item.label;
-          S.patch({ checkOutManager: item.label }, 'checkout');
+          if (global.EodVisitMemory?.setManagers) {
+            global.EodVisitMemory.setManagers(S, { checkOutManager: item.label }, 'checkout');
+          } else {
+            S.patch({ checkOutManager: item.label }, 'checkout');
+          }
           saveSendFields();
         },
       });
@@ -553,18 +606,6 @@ ${S.state.notes || ''}`;
     document.getElementById('addRetailOdysseyTeam')?.addEventListener('change', (ev) => {
       S.patch({ addRetailOdysseyTeam: !!ev.target.checked }, 'team-cc');
       S.saveDraft();
-    });
-
-    document.querySelectorAll('#checkOutManager ~ .manager-chips .manager-chip, .manager-chip').forEach((chip) => {
-      if (chip.closest('#eodPicQrMount')) return;
-      chip.onclick = () => {
-        const name = chip.getAttribute('data-mgr') || '';
-        const el = document.getElementById('checkOutManager');
-        if (el) el.value = name;
-        S.patch({ checkOutManager: name }, 'checkout');
-        S.saveDraft();
-        try { global.EodCoverNotes?.apply?.(S, 'checkout'); } catch (_) {}
-      };
     });
 
     document.getElementById('fmPickerBtn')?.addEventListener('click', () => {
@@ -839,6 +880,6 @@ ${S.state.notes || ''}`;
     return msg || 'Unknown error';
   }
 
-  global.EodSend = { buildPayload, gateMessage };
+  global.EodSend = { buildPayload, gateMessage, refreshGates };
   global.EodRouter.register('send', render);
 })(typeof window !== 'undefined' ? window : globalThis);

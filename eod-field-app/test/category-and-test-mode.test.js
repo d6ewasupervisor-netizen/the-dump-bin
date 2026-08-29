@@ -443,3 +443,36 @@ test('planogram is boxed so it does not steal page scroll or signatures', () => 
   assert.doesNotMatch(swipe, /closest\('\.landscape-sig, canvas/);
 });
 
+test('checkout manager gate clears when a name is set', () => {
+  const ready = {
+    state: {
+      profileName: 'Tyson',
+      leadName: 'Tyson',
+      signatureDataUrl: 'data:image/png;base64,xx',
+      emailRecipients: ['a@b.com'],
+      profileEmail: 'a@b.com',
+      checkInManager: 'April',
+      checkOutManager: '',
+      photos: { before: [{ dataUrl: 'x' }], after: [{ dataUrl: 'y' }], signoff: [], instawork: [] },
+      instaworkYes: null,
+    },
+    isVisitReady: () => true,
+    hasHostedSheet: () => true,
+    sheetSendReady: () => true,
+  };
+  assert.ok(sendGates.missing(ready).some((g) => g.id === 'checkout'));
+  ready.state.checkOutManager = 'April';
+  assert.ok(!sendGates.missing(ready).some((g) => g.id === 'checkout'));
+  assert.notEqual(sendGates.firstMessage(ready), 'Enter the check-out manager (or complete PIC QR)');
+});
+
+test('send page live-refreshes gates after checkout is chosen', () => {
+  const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
+  const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
+  assert.match(send, /function refreshGates/);
+  assert.match(send, /EodVisitMemory\?\.setManagers/);
+  assert.match(send, /checkOutField/);
+  assert.match(visit, /EodVisitMemory\?\.setManagers/);
+  assert.match(visit, /checkInField/);
+});
+
