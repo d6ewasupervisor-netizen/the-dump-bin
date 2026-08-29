@@ -1656,3 +1656,16 @@ details.eod-collapse > .visit-step-panel {
   margin: 0;
   border-radius: 0;
 }
+
+.device-pkg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.device-pkg-row:last-child { border-bottom: 0; }
+.device-pkg-copy { min-width: 0; }
+.device-pkg-copy strong { display: block; }
+.device-pkg-row .btn { flex: 0 0 auto; min-height: 40px; }

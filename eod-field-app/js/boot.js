@@ -70,6 +70,7 @@
       }
 
       try { await window.EodApi?.ensurePersistentStorage?.(); } catch (_) {}
+      try { await window.EodDeviceStorage?.purgeInBackground?.(); } catch (_) {}
       try { window.EodBusy?.init?.(); } catch (_) {}
       try { await window.EodRoles?.load?.(); } catch (_) {}
       try { window.EodShiftDay?.prefetchToday?.(); } catch (_) {}
@@ -98,7 +99,7 @@
       try { window.EodVisit?.enforceDayConfirmGate?.(); } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.3.20').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.3.21').catch(() => {});
         }
       } catch (_) {}
       try { window.EodUsage?.start?.(); } catch (_) {}
@@ -118,6 +119,8 @@
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
           try { window.EodSession.saveDraft(); } catch (_) {}
+        } else {
+          try { window.EodDeviceStorage?.purgeInBackground?.(); } catch (_) {}
         }
       });
       window.addEventListener('beforeunload', () => {

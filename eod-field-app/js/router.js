@@ -27,7 +27,7 @@
   async function render() {
     let name = normalize(location.hash);
     const session = global.EodSession;
-    if (session && !session.isVisitReady() && name !== 'visit') {
+    if (session && !session.isVisitReady() && name !== 'visit' && name !== 'storage') {
       name = 'visit';
       if (normalize(location.hash) !== 'visit') {
         location.replace('#/visit');
@@ -48,7 +48,7 @@
       const on = nav === name
         || (nav === 'signoff' && (name === 'survey' || name === 'cover'))
         || (nav === 'dumpbin' && name === 'dumpbin')
-        || (nav === 'more' && ['crew', 'dumpbin', 'helpdesk', 'photos'].includes(name));
+        || (nav === 'more' && ['crew', 'dumpbin', 'helpdesk', 'photos', 'storage'].includes(name));
       el.classList.toggle('is-active', on);
     });
     // Sidebar + chrome stay reachable once the shell is up (even on Visit).

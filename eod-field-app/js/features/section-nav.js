@@ -15,6 +15,7 @@
   const SUB = {
     cover: { parent: 'visit', label: 'Cover' },
     survey: { parent: 'signoff', label: 'Survey' },
+    storage: { parent: 'send', label: 'Device' },
   };
 
   function routeId(route) {

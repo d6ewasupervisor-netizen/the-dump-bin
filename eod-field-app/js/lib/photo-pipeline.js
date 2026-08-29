@@ -720,6 +720,16 @@
     return true;
   }
 
+  function purgeSettledJobs() {
+    let n = 0;
+    for (const j of [...jobs.values()]) {
+      if (j.status === 'done' || j.error === 'replaced') {
+        if (removeJob(j.id)) n += 1;
+      }
+    }
+    return n;
+  }
+
   function removeSetBay(dbkey, slot, bay) {
     let n = 0;
     for (const j of [...jobs.values()]) {
@@ -830,6 +840,7 @@
     schedulePump,
     reconcileOpenJobs,
     fetchSetStatus,
+    purgeSettledJobs,
   };
 
   if (document.readyState === 'loading') {

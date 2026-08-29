@@ -190,6 +190,7 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.match(chrome, /data-more="crew"/);
   assert.match(chrome, /data-more="dumpbin"/);
   assert.match(chrome, /data-more="helpdesk"/);
+  assert.match(chrome, /data-more="storage"/);
   assert.doesNotMatch(chrome, /data-more="signatures"/);
   for (const name of ['visit', 'categories', 'signatures', 'send', 'crew', 'dumpbin', 'helpdesk']) {
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
@@ -216,6 +217,25 @@ test('index.html loads send-sheet rasterizer before send.js', () => {
   const sendIdx = html.indexOf('js/features/send.js');
   const sheetsIdx = html.indexOf('js/lib/eod-send-sheets.js');
   assert.ok(sheetsIdx > 0 && sheetsIdx < sendIdx);
+});
+
+test('device storage is in the app: More, Send, boot purge of submitted packages', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const store = fs.readFileSync(path.join(__dirname, '../js/features/device-storage.js'), 'utf8');
+  const photos = fs.readFileSync(path.join(__dirname, '../js/features/photo-sessions.js'), 'utf8');
+  const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
+  const boot = fs.readFileSync(path.join(__dirname, '../js/boot.js'), 'utf8');
+  const router = fs.readFileSync(path.join(__dirname, '../js/router.js'), 'utf8');
+  assert.match(html, /js\/features\/device-storage\.js/);
+  assert.match(store, /register\('storage'/);
+  assert.match(store, /purgeInBackground/);
+  assert.match(photos, /purgeOnBoot/);
+  assert.match(photos, /purgeSubmitted/);
+  assert.match(photos, /const SENT_PRUNE_MS = 6 \* 60 \* 60 \* 1000/);
+  assert.match(send, /sendDeviceBtn/);
+  assert.match(send, /purgeSubmitted/);
+  assert.match(boot, /EodDeviceStorage\?\.purgeInBackground/);
+  assert.match(router, /name !== 'storage'/);
 });
 
 test('dump-bin does not steal the photos route', () => {

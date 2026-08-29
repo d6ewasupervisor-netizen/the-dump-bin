@@ -67,6 +67,52 @@
     }
   }
 
+  async function listSheetSnapshots() {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(KV, 'readonly').objectStore(KV).getAll();
+      req.onsuccess = () => {
+        const rows = Array.isArray(req.result) ? req.result : [];
+        resolve(rows.filter((r) => String(r.id || '').startsWith(SHEET_PREFIX)).map((r) => {
+          const rest = String(r.id).slice(SHEET_PREFIX.length);
+          const colon = rest.lastIndexOf(':');
+          const raw = JSON.stringify(r.value || '');
+          return {
+            id: r.id,
+            store: colon >= 0 ? rest.slice(0, colon) : rest,
+            week: colon >= 0 ? rest.slice(colon + 1) : '',
+            savedAt: r.savedAt || 0,
+            bytes: raw.length,
+          };
+        }));
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function deleteSheetSnapshot(id) {
+    if (!id || !String(id).startsWith(SHEET_PREFIX)) return false;
+    const db = await openDb();
+    const tx = db.transaction(KV, 'readwrite');
+    tx.objectStore(KV).delete(id);
+    await txDone(tx);
+    return true;
+  }
+
+  async function purgeOldSheets({ keepStore, keepWeek, maxAgeMs = 3 * 24 * 60 * 60 * 1000 } = {}) {
+    const keepKey = sheetKey(keepStore, keepWeek);
+    const now = Date.now();
+    const rows = await listSheetSnapshots();
+    let removed = 0;
+    for (const row of rows) {
+      if (keepKey && row.id === keepKey) continue;
+      if (maxAgeMs > 0 && row.savedAt && now - row.savedAt < maxAgeMs) continue;
+      await deleteSheetSnapshot(row.id);
+      removed += 1;
+    }
+    return { removed };
+  }
+
   async function loadSheetSnapshot(store, week) {
     const key = sheetKey(store, week);
     if (!key) return null;
@@ -211,6 +257,9 @@
   global.EodGarden = {
     saveSheetSnapshot,
     loadSheetSnapshot,
+    listSheetSnapshots,
+    deleteSheetSnapshot,
+    purgeOldSheets,
     applyOptimisticMark,
     enqueueMark,
     flushMarks,

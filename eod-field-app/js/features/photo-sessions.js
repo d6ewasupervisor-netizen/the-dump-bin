@@ -24,7 +24,7 @@
   /** Fractions of reported origin quota. */
   const SOFT_QUOTA_FRAC = 0.30;
   const HARD_QUOTA_FRAC = 0.50;
-  const SENT_PRUNE_MS = 7 * 24 * 60 * 60 * 1000;
+  const SENT_PRUNE_MS = 6 * 60 * 60 * 1000;
   /** Email ok + only failed jobs (no open) → eligible for sentAt after this window. */
   const FAILED_AFTER_EMAIL_ELIGIBLE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -240,6 +240,47 @@
       });
     }
 
+    async function deleteBlob(id) {
+      if (!id) return false;
+      const d = await init();
+      if (!d.objectStoreNames.contains(blobStoreName)) return false;
+      const tx = d.transaction([blobStoreName], 'readwrite');
+      tx.objectStore(blobStoreName).delete(id);
+      await awaitTx(tx);
+      return true;
+    }
+
+    function collectBlobIds(arrs) {
+      const ids = [];
+      for (const t of PHOTO_TYPES) {
+        for (const p of arrs[t] || []) {
+          if (p && typeof p === 'object' && p.blobId) ids.push(p.blobId);
+          if (p && typeof p === 'object' && p.previewUrl && String(p.previewUrl).startsWith('blob:')) {
+            try { URL.revokeObjectURL(p.previewUrl); } catch (_) {}
+          }
+        }
+      }
+      return ids;
+    }
+
+    async function deleteBlobsForRecord(rec) {
+      if (!rec) return 0;
+      const ids = collectBlobIds({
+        before: rec.before || [],
+        signoff: rec.signoff || [],
+        after: rec.after || [],
+        instawork: rec.instawork || [],
+      });
+      let n = 0;
+      for (const bid of ids) {
+        try {
+          await deleteBlob(bid);
+          n += 1;
+        } catch (_) {}
+      }
+      return n;
+    }
+
     async function slimEntry(entry) {
       if (!entry) return entry;
       if (typeof entry === 'string') {
@@ -332,7 +373,11 @@
       return true;
     }
 
-    async function deleteRecord(id) {
+    async function deleteRecord(id, { wipeBlobs = true } = {}) {
+      if (wipeBlobs) {
+        const rec = await getRecord(id);
+        await deleteBlobsForRecord(rec);
+      }
       const { tx, store } = await txStore('readwrite');
       const req = store.delete(id);
       await awaitTx(tx, req);
@@ -533,14 +578,138 @@
     async function pruneSentOlderThan7Days() {
       const now = Date.now();
       const sessions = await listSessionSummaries();
+      let removed = 0;
       for (const s of sessions) {
         if (!s.sentAt) continue;
         const t = new Date(s.sentAt).getTime();
         if (!Number.isFinite(t) || now - t < SENT_PRUNE_MS) continue;
-        // Never prune active
         if (activeKey && s.id === activeKey.id) continue;
         await deleteRecord(s.id);
+        removed += 1;
       }
+      return { removed };
+    }
+
+    function isSubmittedSession(s) {
+      if (!s) return false;
+      if (s.sentAt) return true;
+      return !!(s.emailOk && !s.hasOpenJobs);
+    }
+
+    async function deleteSessionById(id, { allowActive = false } = {}) {
+      if (id === QUARANTINE_ID) {
+        await deleteRecord(id, { wipeBlobs: true });
+        return { ok: true, id };
+      }
+      if (id === LEGACY_ID) {
+        return clearLegacyAllPhotos();
+      }
+      const parsed = parseSessionId(id);
+      if (!parsed) return { ok: false, reason: 'bad-id' };
+      const active = resolveActiveKey();
+      const isActive = !!(active && active.id === id);
+      if (isActive && !allowActive) return { ok: false, reason: 'active' };
+      await deleteRecord(id);
+      if (isActive) activeKey = resolveActiveKey();
+      return { ok: true, id, clearedActive: isActive };
+    }
+
+    async function purgeSubmitted({ keepActive = true, maxAgeMs = 0 } = {}) {
+      const now = Date.now();
+      const sessions = await listSessionSummaries();
+      const activeId = keepActive ? resolveActiveKey()?.id : null;
+      let removed = 0;
+      for (const s of sessions) {
+        if (!isSubmittedSession(s)) continue;
+        if (activeId && s.id === activeId) continue;
+        const stamp = s.sentAt || s.emailOkAt || s.timestamp;
+        const t = stamp ? new Date(stamp).getTime() : 0;
+        if (maxAgeMs > 0 && Number.isFinite(t) && now - t < maxAgeMs) continue;
+        await deleteRecord(s.id);
+        removed += 1;
+      }
+      return { removed };
+    }
+
+    async function slimLegacyMirror() {
+      const legacy = await getRecord(LEGACY_ID);
+      if (!legacy) return { slimmed: false };
+      const sessions = await listSessionSummaries();
+      if (!sessions.length) return { slimmed: false, reason: 'only-copy' };
+      const before = arraysCount(arraysFromRecord(legacy));
+      const active = resolveActiveKey();
+      const rec = active ? await getRecord(active.id) : null;
+      await putRecord({
+        id: LEGACY_ID,
+        before: rec?.before || [],
+        signoff: rec?.signoff || [],
+        after: rec?.after || [],
+        instawork: rec?.instawork || [],
+        timestamp: Date.now(),
+      });
+      const after = arraysCount(arraysFromRecord(rec || {}));
+      return { slimmed: true, before, after };
+    }
+
+    async function legacyAllPhotosSummary() {
+      const rec = await getRecord(LEGACY_ID);
+      if (!rec) return null;
+      const arrs = arraysFromRecord(rec);
+      const count = arraysCount(arrs);
+      if (!count) return null;
+      return { id: LEGACY_ID, count, bytes: arraysBytes(arrs), label: 'Old photo copy' };
+    }
+
+    async function clearLegacyAllPhotos() {
+      const rec = await getRecord(LEGACY_ID);
+      if (!rec) return { ok: true, already: true };
+      const sessions = await listSessionSummaries();
+      if (!sessions.length) {
+        await deleteRecord(LEGACY_ID);
+        return { ok: true, wipedBlobs: true };
+      }
+      await putRecord({
+        id: LEGACY_ID,
+        before: [],
+        signoff: [],
+        after: [],
+        instawork: [],
+        timestamp: Date.now(),
+      });
+      return { ok: true, wipedBlobs: false };
+    }
+
+    async function deviceInventory() {
+      const sessions = await listSessionSummaries();
+      const pressure = await storagePressure();
+      const legacy = await legacyAllPhotosSummary();
+      const quarantine = await quarantineSummary();
+      const active = resolveActiveKey();
+      sessions.sort((a, b) => {
+        if (active && a.id === active.id) return -1;
+        if (active && b.id === active.id) return 1;
+        return (b.timestamp || 0) - (a.timestamp || 0);
+      });
+      return {
+        pressure,
+        activeId: active?.id || null,
+        sessions,
+        legacy,
+        quarantine,
+      };
+    }
+
+    async function purgeOnBoot() {
+      await migrateFromLegacyIfNeeded().catch(() => {});
+      await settleAgedFailedSessions().catch(() => {});
+      const pruned = await pruneSentOlderThan7Days().catch(() => ({ removed: 0 }));
+      const submitted = await purgeSubmitted({ keepActive: true, maxAgeMs: SENT_PRUNE_MS }).catch(() => ({ removed: 0 }));
+      await slimLegacyMirror().catch(() => {});
+      await enforceHardCap().catch(() => {});
+      return {
+        pruned: (pruned && pruned.removed) || 0,
+        submitted: (submitted && submitted.removed) || 0,
+      };
     }
 
     async function enforceHardCap() {
@@ -1112,6 +1281,13 @@
       readStorageEstimate,
       storagePressure,
       listSessionSummaries,
+      deviceInventory,
+      deleteSessionById,
+      purgeSubmitted,
+      purgeOnBoot,
+      slimLegacyMirror,
+      legacyAllPhotosSummary,
+      clearLegacyAllPhotos,
       resolveActiveKey,
       sessionId,
       trackSasJob,
@@ -1125,6 +1301,7 @@
       settleAgedFailedSessions,
       getSessionOutboundState,
       FAILED_AFTER_EMAIL_ELIGIBLE_MS,
+      SENT_PRUNE_MS,
       FALLBACK_SOFT_BYTES,
       FALLBACK_HARD_BYTES,
       SOFT_QUOTA_FRAC,
@@ -1139,6 +1316,7 @@
     sessionId,
     parseSessionId,
     SCHEMA_VERSION,
+    SENT_PRUNE_MS,
     FALLBACK_SOFT_BYTES,
     FALLBACK_HARD_BYTES,
     SOFT_QUOTA_FRAC,

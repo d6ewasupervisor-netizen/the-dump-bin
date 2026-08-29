@@ -384,8 +384,14 @@ ${S.state.notes || ''}`;
         <div class="btn-row" id="sendPrintSignoffRow" ${S.hasHostedSheet() ? '' : 'hidden'}>
           <button type="button" class="btn btn-secondary btn-block" id="sendPrintSignoffBtn">Print signoff PDF</button>
         </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary btn-block" id="sendDeviceBtn">On this device</button>
+        </div>
       </div>`;
 
+    document.getElementById('sendDeviceBtn')?.addEventListener('click', () => {
+      global.EodRouter.go('storage');
+    });
     document.getElementById('sendRefreshBtn')?.addEventListener('click', async () => {
       const btn = document.getElementById('sendRefreshBtn');
       if (btn) btn.disabled = true;
@@ -786,6 +792,9 @@ ${S.state.notes || ''}`;
         if (global.PhotoDB?.markEmailOk) {
           try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
         }
+        try { await global.PhotoDB?.tryCompleteSession?.(); } catch (_) {}
+        try { await global.PhotoDB?.purgeSubmitted?.({ keepActive: true, maxAgeMs: 0 }); } catch (_) {}
+        try { global.EodPhotoPipeline?.purgeSettledJobs?.(); } catch (_) {}
         await maybeClearAfterSend(S);
       } catch (err) {
         console.error(err);
