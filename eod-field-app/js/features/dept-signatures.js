@@ -826,34 +826,123 @@
       return;
     }
     if (wizard.step === 'sign') {
-      hint.textContent = 'Turn the phone sideways, then sign on the white pad.';
+      hint.textContent = '';
       next.textContent = 'Save signature';
       body.innerHTML = `
-        <button type="button" class="sig-preview" id="deptSigPreview">${wizard.signatureDataUrl
-          ? `<img src="${wizard.signatureDataUrl}" alt="Signature">`
-          : 'Tap to sign'}</button>
-        <button type="button" class="btn btn-primary btn-block" id="deptSigOpenPad" style="margin-top:8px;">Sign</button>`;
-      document.getElementById('deptSigPreview').onclick = openDeptSignPad;
-      document.getElementById('deptSigOpenPad').onclick = openDeptSignPad;
-      setTimeout(() => { if (wizard?.step === 'sign' && !wizard.signatureDataUrl) openDeptSignPad(); }, 50);
+        <div class="dept-sig-pad-wrap">
+          <canvas id="deptSigCanvas"></canvas>
+        </div>
+        <button type="button" class="btn btn-secondary btn-block" id="deptSigClearPad" style="margin-top:8px;">Clear</button>`;
+      const pad = bindInlinePad(document.getElementById('deptSigCanvas'), {
+        existingDataUrl: wizard.signatureDataUrl || '',
+        onChange: (url) => { if (wizard) wizard.signatureDataUrl = url; },
+      });
+      document.getElementById('deptSigClearPad').onclick = () => {
+        pad.clear();
+        if (wizard) wizard.signatureDataUrl = '';
+      };
     }
   }
 
-  function openDeptSignPad() {
-    if (!window.EodLandscapeSigPad?.open) {
-      notify('Signature pad', 'Signature pad failed to load. Refresh and try again.');
-      return;
+  function bindInlinePad(canvas, opts) {
+    const o = opts || {};
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let last = { x: 0, y: 0 };
+    let pointerId = null;
+
+    function size() {
+      const wrap = canvas.parentElement;
+      const w = Math.max(240, Math.floor(wrap?.clientWidth || canvas.clientWidth || 280));
+      const h = Math.max(160, Math.floor(canvas.clientHeight || 200));
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (o.existingDataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          const scale = Math.min(canvas.width / img.width, canvas.height / img.height, 1);
+          const dw = img.width * scale;
+          const dh = img.height * scale;
+          ctx.drawImage(img, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+        };
+        img.src = o.existingDataUrl;
+      }
     }
-    window.EodLandscapeSigPad.open({
-      title: 'Sign',
-      existingDataUrl: wizard?.signatureDataUrl || '',
-      onAccept: (url) => {
-        if (!wizard) return;
-        wizard.signatureDataUrl = url;
-        const preview = document.getElementById('deptSigPreview');
-        if (preview) preview.innerHTML = `<img src="${url}" alt="Signature">`;
+
+    function pos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const src = e.touches?.[0] || e.changedTouches?.[0] || e;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      return {
+        x: (src.clientX - rect.left) * (canvas.width / Math.max(rect.width, 1)) / dpr,
+        y: (src.clientY - rect.top) * (canvas.height / Math.max(rect.height, 1)) / dpr,
+      };
+    }
+    function start(e) {
+      drawing = true;
+      if (e.pointerId != null && canvas.setPointerCapture) {
+        pointerId = e.pointerId;
+        try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      }
+      last = pos(e);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    function move(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!drawing) return;
+      const p = pos(e);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+    }
+    function stop(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (pointerId != null && canvas.releasePointerCapture) {
+          try { canvas.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
+        }
+      }
+      if (drawing && typeof o.onChange === 'function') o.onChange(canvas.toDataURL('image/png'));
+      drawing = false;
+      pointerId = null;
+    }
+
+    const ptr = { passive: false, capture: true };
+    canvas.addEventListener('pointerdown', start, ptr);
+    canvas.addEventListener('pointermove', move, ptr);
+    canvas.addEventListener('pointerup', stop, ptr);
+    canvas.addEventListener('pointercancel', stop, ptr);
+    canvas.addEventListener('touchstart', start, ptr);
+    canvas.addEventListener('touchmove', move, ptr);
+    canvas.addEventListener('touchend', stop, ptr);
+    requestAnimationFrame(size);
+    return {
+      clear() {
+        o.existingDataUrl = '';
+        size();
       },
-    });
+    };
   }
 
   async function submitSignature() {

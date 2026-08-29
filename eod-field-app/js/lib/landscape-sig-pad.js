@@ -22,7 +22,7 @@
         left: 0; right: 0; width: 100%;
       }
       .eod-lsp-overlay {
-        display: none; position: fixed; inset: 0; z-index: 40000;
+        display: none; position: fixed; inset: 0; z-index: 50000;
         background: #0b1220; color: #f8fafc; flex-direction: column;
         padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
@@ -52,23 +52,8 @@
         display: block; width: 100%; height: 100%; background: #fff;
         touch-action: none; pointer-events: auto;
       }
-      .eod-lsp-hint {
-        position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
-        flex-direction: column; gap: 12px;
-        background: rgba(2, 6, 23, 0.92); color: #fde68a; font-size: 22px; font-weight: 800;
-        letter-spacing: 0.02em; text-align: center; padding: 24px; z-index: 3;
-        pointer-events: auto; touch-action: none;
-      }
-      .eod-lsp-hint.show { display: flex; }
-      .eod-lsp-hint span { font-size: 15px; font-weight: 600; color: #e2e8f0; max-width: 22em; }
+      .eod-lsp-hint { display: none !important; }
     `;
-  }
-
-  function isLandscape() {
-    try {
-      if (window.matchMedia('(orientation: landscape)').matches) return true;
-    } catch (_) { /* ignore */ }
-    return window.innerWidth > window.innerHeight;
   }
 
   function lockPageScroll() {
@@ -108,10 +93,6 @@
         </div>
         <div class="eod-lsp-stage" id="eodLspStage">
           <canvas id="eodLspCanvas"></canvas>
-          <div class="eod-lsp-hint" id="eodLspHint">
-            Turn your device sideways
-            <span>Rotate to landscape, then sign on the white pad.</span>
-          </div>
         </div>`;
     }
     document.body.appendChild(overlay);
@@ -134,7 +115,6 @@
 
     const canvas = document.getElementById('eodLspCanvas');
     const ctx = canvas.getContext('2d');
-    const hint = document.getElementById('eodLspHint');
     const title = document.getElementById('eodLspTitle');
     const stage = document.getElementById('eodLspStage') || canvas.parentElement;
     if (title) title.textContent = o.title || 'Sign';
@@ -144,12 +124,6 @@
     let snapshot = null;
     let closed = false;
     let pointerId = null;
-
-    function syncHint() {
-      const needRotate = !isLandscape();
-      hint.classList.toggle('show', needRotate);
-      canvas.style.pointerEvents = needRotate ? 'none' : 'auto';
-    }
 
     function sizeCanvas() {
       const w = Math.max(280, Math.floor(stage.clientWidth || window.innerWidth || 320));
@@ -184,7 +158,6 @@
         };
         img.src = o.existingDataUrl;
       }
-      syncHint();
     }
 
     function captureSnapshot() {
@@ -207,11 +180,6 @@
     }
 
     function start(e) {
-      if (hint.classList.contains('show')) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
       drawing = true;
       if (e.pointerId != null && canvas.setPointerCapture) {
         pointerId = e.pointerId;
@@ -341,10 +309,6 @@
     document.getElementById('eodLspAccept').onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (hint.classList.contains('show')) {
-        alert('Turn your device sideways, then sign.');
-        return;
-      }
       if (isBlank(canvas, ctx)) {
         alert('Please sign before continuing.');
         return;
@@ -360,10 +324,6 @@
     });
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
-    try {
-      const lock = screen.orientation && screen.orientation.lock;
-      if (lock) lock.call(screen.orientation, 'landscape').catch(() => {});
-    } catch (_) { /* iOS often denies */ }
   }
 
   const api = { open };

@@ -411,6 +411,17 @@ test('double-swipe nav order is visit, categories, dump bin, send', () => {
   assert.deepEqual(swipe.PRIMARY, ['visit', 'signoff', 'dumpbin', 'send']);
 });
 
+test('PIC can sign on the wizard pad without rotating the phone', () => {
+  const dept = fs.readFileSync(path.join(__dirname, '../js/features/dept-signatures.js'), 'utf8');
+  const lsp = fs.readFileSync(path.join(__dirname, '../js/lib/landscape-sig-pad.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  assert.match(dept, /deptSigCanvas/);
+  assert.match(dept, /bindInlinePad/);
+  assert.doesNotMatch(dept, /Turn the phone sideways/);
+  assert.match(lsp, /z-index:\s*50000/);
+  assert.match(css, /\.dept-sig-wizard-overlay \{[\s\S]*z-index:\s*45000/);
+});
+
 test('planogram is boxed so it does not steal page scroll or signatures', () => {
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
   const swipe = fs.readFileSync(path.join(__dirname, '../js/lib/swipe-nav.js'), 'utf8');

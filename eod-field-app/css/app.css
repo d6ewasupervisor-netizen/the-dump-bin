@@ -916,7 +916,7 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   align-items: stretch;
   justify-content: center;
   padding: 0;
-  touch-action: none;
+  touch-action: pan-y;
   overscroll-behavior: none;
 }
 .dept-sig-wizard-overlay.show { display: flex; }
@@ -968,12 +968,20 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   cursor: pointer;
 }
 .dept-sig-pad-wrap {
-  border: 2px dashed #64748b;
+  border: 2px solid var(--accent-dim, #0d4f8b);
   border-radius: 8px;
   background: #fff;
   touch-action: none;
+  overscroll-behavior: none;
 }
-.dept-sig-pad-wrap canvas { width: 100%; height: 220px; display: block; }
+.dept-sig-pad-wrap canvas {
+  width: 100%;
+  height: min(42vh, 280px);
+  min-height: 180px;
+  display: block;
+  touch-action: none;
+  pointer-events: auto;
+}
 #deptSigRoleList.eod-hidden-list { display: none !important; }
 .sheet-summary { font-size: 0.95rem; line-height: 1.45; }
 .sheet-summary .pill { margin-left: 2px; }
