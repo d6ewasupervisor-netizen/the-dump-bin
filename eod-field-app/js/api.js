@@ -1,9 +1,9 @@
-﻿/* Single authFetch + day-confirm headers + storage telemetry for eod-field-app. */
+/* Single authFetch + day-confirm headers + storage telemetry for eod-field-app. */
 (function (global) {
   'use strict';
 
   const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-  const APP_VERSION = '3.3.22';
+  const APP_VERSION = '3.3.23';
 
   let eodStorageTelemetry = {
     quota: null,

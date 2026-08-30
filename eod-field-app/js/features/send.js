@@ -31,9 +31,13 @@
 
   function photoSrc(p) {
     if (!p) return '';
-    if (typeof p === 'string') return /^blob:/i.test(p) ? '' : p;
-    const raw = p.dataUrl || p.previewUrl || p.objectUrl || '';
-    return /^blob:/i.test(raw) ? '' : raw;
+    const L = global.EodSendSheetsLogic || {};
+    const raw = typeof p === 'string'
+      ? p
+      : (p.dataUrl || p.previewUrl || p.objectUrl || '');
+    if (L.isSendableImageSrc) return L.isSendableImageSrc(raw) ? raw : '';
+    if (!raw || /^blob:/i.test(raw) || /^https?:\/\//i.test(raw)) return '';
+    return raw;
   }
 
   function photoCount(type) {
@@ -54,12 +58,17 @@
         filename: p.filename || null,
       };
     }).filter(Boolean);
+    function cartSrc(p) {
+      if (!p) return '';
+      if (typeof p === 'string') return p;
+      return p.dataUrl || p.previewUrl || p.objectUrl || '';
+    }
     photosOf('before').forEach((p, i) => {
-      const dataUrl = photoSrc(p);
+      const dataUrl = photoSrc(p) || cartSrc(p);
       if (dataUrl) out.push({ dataUrl, filename: `cart_before_${i}.jpg`, source: 'cart-before' });
     });
     photosOf('after').forEach((p, i) => {
-      const dataUrl = photoSrc(p);
+      const dataUrl = photoSrc(p) || cartSrc(p);
       if (dataUrl) out.push({ dataUrl, filename: `cart_after_${i}.jpg`, source: 'cart-after' });
     });
     const seenCover = { n: 0 };
@@ -746,7 +755,9 @@ ${S.state.notes || ''}`;
           payload.signoffPhotos = generatedSheets.concat(payload.signoffPhotos || []);
         }
         btn.textContent = 'Sending…';
-        const packageId = await uploadPackageParts(payload, headers);
+        const uploaded = await uploadPackageParts(payload, headers);
+        const packageId = uploaded && uploaded.packageId;
+        const skippedPhotos = (uploaded && uploaded.skipped) || [];
         const meta = Object.assign({}, payload);
         if (packageId) {
           meta.packageId = packageId;
@@ -770,6 +781,9 @@ ${S.state.notes || ''}`;
           throw new Error(data.error || data.message || `Send failed (${resp.status})`);
         }
         let sasNote = '';
+        if (skippedPhotos.length && global.EodSendSheetsLogic?.skippedPhotoMessage) {
+          sasNote += `\n\n${global.EodSendSheetsLogic.skippedPhotoMessage(skippedPhotos)}`;
+        }
         if (generatedSheets.length && global.EodSendSheets?.uploadAfterSend) {
           btn.textContent = 'Uploading sheets to Kompass…';
           try {
@@ -847,7 +861,9 @@ ${S.state.notes || ''}`;
 
   async function uploadPackageParts(payload, headers) {
     const api = global.EOD_API_BASE;
+    const L = global.EodSendSheetsLogic || {};
     let packageId = null;
+    const skipped = [];
     async function postPart(body) {
       const resp = await global.authFetch(`${api}/api/eod-artifacts/part`, {
         method: 'POST',
@@ -861,7 +877,10 @@ ${S.state.notes || ''}`;
       }
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || data.ok === false) {
-        throw new Error(data.error || data.message || `Upload failed (${resp.status})`);
+        const err = new Error(data.error || data.message || `Upload failed (${resp.status})`);
+        err.status = resp.status;
+        err.code = data.code;
+        throw err;
       }
       return data;
     }
@@ -881,22 +900,38 @@ ${S.state.notes || ''}`;
       const raw = photos[i];
       const s = typeof raw === 'string' ? raw : (raw && (raw.dataUrl || raw.imageBase64 || raw.content)) || '';
       const str = String(s || '');
+      const filename = (raw && raw.filename) || `signoff_${i}.jpg`;
+      const source = (raw && raw.source) || '';
+      const label = L.cartSlotLabel ? L.cartSlotLabel(filename, source) : filename;
+      if (L.isRemotePhotoSrc?.(str) || (L.isSendableImageSrc && !L.isSendableImageSrc(str))) {
+        skipped.push({ filename, source, label });
+        continue;
+      }
       const m = str.match(/^data:([^;]+);base64,(.*)$/i);
       const mime = m ? m[1] : 'image/jpeg';
       const contentBase64 = (m ? m[2] : str).replace(/\s+/g, '');
       if (!contentBase64) continue;
-      const part = await postPart({
-        packageId: packageId || undefined,
-        storeNumber: payload.storeNumber,
-        workDate: payload.workDate,
-        kind: 'signoff',
-        filename: (raw && raw.filename) || `signoff_${i}.jpg`,
-        mime,
-        contentBase64,
-      });
-      packageId = part.packageId;
+      try {
+        const part = await postPart({
+          packageId: packageId || undefined,
+          storeNumber: payload.storeNumber,
+          workDate: payload.workDate,
+          kind: 'signoff',
+          filename,
+          mime,
+          contentBase64,
+        });
+        packageId = part.packageId;
+      } catch (err) {
+        if (err && err.status === 412) throw err;
+        if (err && (err.code === 'INVALID_IMAGE' || err.status === 400)) {
+          skipped.push({ filename, source, label });
+          continue;
+        }
+        throw err;
+      }
     }
-    return packageId;
+    return { packageId, skipped };
   }
 
   function networkSendMessage(err) {

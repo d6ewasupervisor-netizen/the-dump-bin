@@ -379,9 +379,18 @@
 
   function thumbRow(list) {
     if (!list.length) return '<p class="muted">None yet.</p>';
+    const L = global.EodSendSheetsLogic || {};
     return `<div class="set-thumbs">${list.map((p) => {
       const src = p.dataUrl || p.preview || p;
-      return `<div class="set-thumb"><img src="${esc(typeof src === 'string' ? src : '')}" alt="cart"></div>`;
+      const raw = typeof src === 'string' ? src : '';
+      const unsaved = L.isRemotePhotoSrc ? L.isRemotePhotoSrc(raw) : /^https?:\/\//i.test(raw);
+      const img = unsaved
+        ? ''
+        : `<img src="${esc(raw)}" alt="cart">`;
+      const warn = unsaved
+        ? '<span class="muted">Didn\'t save. Retake or Pull from PROD.</span>'
+        : '';
+      return `<div class="set-thumb">${img}${warn}</div>`;
     }).join('')}</div>`;
   }
 
@@ -395,14 +404,14 @@
     const resp = await global.authFetch(`${global.EOD_API_BASE}${path}`);
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Pull failed (${resp.status})`);
-    const images = Array.isArray(data.images) ? data.images.filter((i) => i?.url) : [];
-    if (!images.length) throw new Error('No KOMPASS MAINTENANCE photos in PROD for this slot');
-
+    const images = Array.isArray(data.images) ? data.images : [];
     const entries = [];
     for (const img of images) {
+      const dataUrl = String(img?.dataUrl || '');
+      if (!/^data:image\//i.test(dataUrl)) continue;
       entries.push({
-        dataUrl: img.url,
-        preview: img.url,
+        dataUrl,
+        preview: dataUrl,
         storeNumber: S.state.storeNumber,
         workDate: S.state.workDate,
         stampedAt: Date.now(),
@@ -410,7 +419,15 @@
         source: 'prod',
         prodImageId: img.id || null,
         categoryResetId: data.categoryResetId || null,
+        mime: img.mime || null,
+        bytes: img.bytes || null,
       });
+    }
+    if (!entries.length) {
+      const failed = Array.isArray(data.failed) ? data.failed.length : 0;
+      throw new Error(failed
+        ? 'PROD cart photo(s) did not save. Retake or Pull from PROD again.'
+        : 'No KOMPASS MAINTENANCE photos in PROD for this slot');
     }
 
     const photos = Object.assign({}, S.state.photos, {
@@ -583,6 +600,7 @@
         paintOnboarding();
       } catch (err) {
         setCartMsg(err.message || String(err), true);
+        paintOnboarding();
       }
     };
     document.getElementById('cartBeforePush').onclick = async () => {

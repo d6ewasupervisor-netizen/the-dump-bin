@@ -30,6 +30,32 @@
     return list.find(isMainKompassIse) || null;
   }
 
+  function isRemotePhotoSrc(src) {
+    const s = String(src || '').trim();
+    return /^https?:\/\//i.test(s) || /^blob:/i.test(s);
+  }
+
+  function isSendableImageSrc(src) {
+    const s = String(src || '').trim();
+    if (!s || isRemotePhotoSrc(s)) return false;
+    return /^data:image\//i.test(s);
+  }
+
+  function cartSlotLabel(filename, source) {
+    const kind = classifySheetFilename(filename);
+    if (kind === 'cart-before' || source === 'cart-before') return 'Kompass cart — before';
+    if (kind === 'cart-after' || source === 'cart-after') return 'Kompass cart — after';
+    return 'Photo';
+  }
+
+  function skippedPhotoMessage(skipped) {
+    const list = Array.isArray(skipped) ? skipped.filter(Boolean) : [];
+    if (!list.length) return '';
+    const labels = [...new Set(list.map((s) => s.label || cartSlotLabel(s.filename, s.source)))];
+    const which = labels.join(' and ');
+    return `${which} didn't save. Retake it or tap Pull from PROD, then Send again. The rest of this EOD still went out.`;
+  }
+
   function classifySheetFilename(filename) {
     const name = String(filename || '').toLowerCase();
     if (name.includes('coversheet')) return 'coversheet';
@@ -100,6 +126,10 @@
     dateCompact,
     isMainKompassIse,
     pickMainKompassIseVisit,
+    isRemotePhotoSrc,
+    isSendableImageSrc,
+    cartSlotLabel,
+    skippedPhotoMessage,
     classifySheetFilename,
     coversheetFilename,
     digitalSignoffFilename,

@@ -49,6 +49,29 @@ test('department signatures become one bullet per name', () => {
   assert.equal(hasDigitalSignoff({ digitalSignoff: 'P08W2 30/30 marked' }, { rows: [1] }), true);
 });
 
+test('sendable photo src rejects CloudFront URLs and accepts data URLs', () => {
+  const {
+    isRemotePhotoSrc,
+    isSendableImageSrc,
+    skippedPhotoMessage,
+    cartSlotLabel,
+  } = require('../js/lib/eod-send-sheets-logic');
+  const url = 'https://d3jttbrw0ufia8.cloudfront.net/media/11193/MDjixww.jpg';
+  assert.equal(isRemotePhotoSrc(url), true);
+  assert.equal(isSendableImageSrc(url), false);
+  assert.equal(isSendableImageSrc('data:image/jpeg;base64,/9j/4AAQ'), true);
+  assert.equal(isSendableImageSrc('blob:https://the-dump-bin.com/abc'), false);
+  assert.equal(cartSlotLabel('cart_before_0.jpg', 'cart-before'), 'Kompass cart — before');
+  assert.match(
+    skippedPhotoMessage([{ filename: 'cart_before_0.jpg', source: 'cart-before' }]),
+    /Kompass cart — before didn't save/
+  );
+  assert.match(
+    skippedPhotoMessage([{ filename: 'cart_before_0.jpg', source: 'cart-before' }]),
+    /The rest of this EOD still went out/
+  );
+});
+
 test('coversheet and digital filenames match live EOD naming', () => {
   assert.equal(coversheetFilename(19, '2026-08-24'), 'fm019_eod_coversheet_20260824.jpg');
   assert.equal(digitalSignoffFilename('19', '2026-08-24', 2), 'fm019_digital_signoff_p2_20260824.jpg');
