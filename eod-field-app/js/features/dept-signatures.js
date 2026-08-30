@@ -446,7 +446,7 @@
       if (rolesResp.ok) {
         const data = await rolesResp.json();
         if (Array.isArray(data.roles) && data.roles.length) {
-          catalogRoles = data.roles;
+          catalogRoles = data.roles.filter((r) => String(r?.key || '').toLowerCase() !== 'lead');
         }
       }
     } catch (_) { /* keep fallback catalog */ }
@@ -468,7 +468,7 @@
           const data = await sResp.json();
           signatures = Array.isArray(data.signatures) ? data.signatures : [];
           if (Array.isArray(data.roles) && data.roles.length) {
-            catalogRoles = data.roles;
+            catalogRoles = data.roles.filter((r) => String(r?.key || '').toLowerCase() !== 'lead');
           }
         }
       } catch (_) { signatures = []; }
@@ -492,6 +492,7 @@
     if (!Array.isArray(window.emailRecipients)) return;
     let changed = false;
     for (const sig of signatures) {
+      if (String(sig.roleKey || '').toLowerCase() === 'lead') continue;
       const em = String(sig.signerEmail || '').toLowerCase();
       if (em && !window.emailRecipients.includes(em)) {
         window.emailRecipients.push(em);
@@ -1024,15 +1025,58 @@
   }
 
   function getCollectedForEmail() {
-    return signatures.map((s) => ({
-      roleKey: s.roleKey,
-      roleLabel: roleLabel(s.roleKey),
-      signerName: s.signerName,
-      signerTitle: s.signerTitle,
-      signerEmail: s.signerEmail,
-      signatureUrl: s.signatureUrl,
-      createdAt: s.createdAt,
-    }));
+    return signatures
+      .filter((s) => String(s.roleKey || '').toLowerCase() !== 'lead')
+      .map((s) => ({
+        roleKey: s.roleKey,
+        roleLabel: roleLabel(s.roleKey),
+        signerName: s.signerName,
+        signerTitle: s.signerTitle,
+        signerEmail: s.signerEmail,
+        signatureUrl: s.signatureUrl,
+        createdAt: s.createdAt,
+      }));
+  }
+
+  function leadContactEmail() {
+    const S = window.EodSession;
+    const fromState = String(S?.state?.leadEmail || S?.state?.profileEmail || '').trim();
+    if (fromState) return fromState;
+    try {
+      const u = window.dumpBinAuth?.user || window.DumpBinAuth?.user;
+      if (u?.email) return String(u.email).trim();
+    } catch (_) { /* ignore */ }
+    return '';
+  }
+
+  async function persistLeadSignature() {
+    const S = window.EodSession;
+    const url = String(S?.state?.signatureDataUrl || '');
+    if (!/^data:image\//i.test(url)) return false;
+    const store = storeNumber();
+    const date = workDate();
+    const name = S.resolvedLeadName?.() || S.state.leadName || S.state.profileName;
+    const email = leadContactEmail();
+    if (!store || !date || !name || !email) return false;
+    try {
+      const resp = await authFetch(`${API}/${encodeURIComponent(store)}/signatures`, {
+        method: 'POST',
+        headers: dayConfirmHeaders(),
+        body: JSON.stringify({
+          storeNumber: store,
+          workDate: date,
+          date,
+          roleKey: 'lead',
+          fullName: name,
+          email,
+          signerTitle: 'KOMPASS Lead',
+          signatureDataUrl: url,
+        }),
+      });
+      return resp.ok;
+    } catch (_) {
+      return false;
+    }
   }
 
   function mountInline(host) {
@@ -1054,6 +1098,7 @@
     ensureUi,
     mountInline,
     getCollectedForEmail,
+    persistLeadSignature,
     setRequiredRoles: applyRequiredRoleKeys,
     syncFromSheet,
     roles: () => roles.slice(),
@@ -1065,6 +1110,12 @@
     const dateEl = document.getElementById('workDate') || document.getElementById('shiftDate');
     if (storeEl) storeEl.addEventListener('change', () => refresh().catch(console.error));
     if (dateEl) dateEl.addEventListener('change', () => refresh().catch(console.error));
-    setTimeout(() => refresh().catch(console.error), 800);
+    window.EodSession?.on?.((_state, reason) => {
+      if (reason === 'signature') persistLeadSignature().catch(() => {});
+    });
+    setTimeout(() => {
+      refresh().catch(console.error);
+      persistLeadSignature().catch(() => {});
+    }, 800);
   });
 })();

@@ -101,15 +101,12 @@
       ? notInSiLines.join('\n')
       : ((S.state.notInSiSelected || []).join('\n') || 'None');
     const sheet = S.state.sheet;
-    let digitalLine = 'Digital signoff: none (no hosted sheet)';
-    if (sheet) {
-      const s = sheet.summary || {};
-      digitalLine = `Digital signoff: ${sheet.fiscalWeek || ''} ${s.marked || 0}/${s.total || 0} marked`
-        + (S.sheetSendReady() ? ' (send ready)' : ' (open sets)');
-    }
+    const digitalValue = global.EodSendSheetsLogic?.digitalSignoffCoverValue?.(sheet)
+      || (sheet && Array.isArray(sheet.rows) && sheet.rows.length ? 'attached' : 'none (no hosted sheet)');
+    const digitalLine = `Digital signoff: ${digitalValue}`;
     const signedOut = global.EodSendSheetsLogic?.signedOutFromSheet?.(S) || { prod: '—', si: '—' };
     const digitalReady = !!global.EodSendSheetsLogic?.hasDigitalSignoff?.(
-      { digitalSignoff: digitalLine },
+      { digitalSignoff: digitalValue },
       sheet
     );
     let deptSigLines = [];
@@ -172,7 +169,7 @@ ${S.state.notes || ''}`;
       signedOutSi: signedOut.si,
       notInStore: notInStoreText,
       notInSi: notInSiText,
-      digitalSignoff: digitalLine.replace(/^Digital signoff:\s*/, ''),
+      digitalSignoff: digitalValue,
       deptSignatures: deptSigText,
       afterTaken: yn(afterDone),
       signoffDone: yn(signoffDone),

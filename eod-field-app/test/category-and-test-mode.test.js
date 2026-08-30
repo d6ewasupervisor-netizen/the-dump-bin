@@ -183,6 +183,8 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.match(nav, /data-nav="dumpbin"/);
   assert.match(nav, /data-nav="helpdesk"/);
   assert.match(nav, /data-nav="more"/);
+  assert.match(nav, /nav-hamburger/);
+  assert.doesNotMatch(nav, /···|⋯|&#x22EF;/);
   assert.doesNotMatch(nav, /data-nav="photos"/);
   assert.match(css, /\[data-slot="extra"\] \{ display: none/);
   assert.match(css, /\[data-slot="extra"\] \{ display: flex/);
@@ -190,6 +192,7 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.match(chrome, /data-more="crew"/);
   assert.match(chrome, /data-more="dumpbin"/);
   assert.match(chrome, /data-more="helpdesk"/);
+  assert.match(chrome, /data-more="photos"/);
   assert.match(chrome, /data-more="storage"/);
   assert.doesNotMatch(chrome, /data-more="signatures"/);
   for (const name of ['visit', 'categories', 'signatures', 'send', 'crew', 'dumpbin', 'helpdesk']) {

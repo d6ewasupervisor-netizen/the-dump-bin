@@ -164,6 +164,7 @@
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="photos">Photos</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="storage">Device</button>
       <button type="button" class="btn btn-primary btn-block" id="eodMoreClose">Close</button>
     </div>`;

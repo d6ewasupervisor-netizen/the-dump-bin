@@ -626,6 +626,9 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
 .bottom-nav button.is-active .nav-ico-img {
   box-shadow: 0 0 0 2px var(--accent);
 }
+.bottom-nav .nav-hamburger {
+  object-fit: contain;
+}
 .bottom-nav .nav-label { line-height: 1.1; }
 .bottom-nav [data-slot="extra"] { display: none; }
 

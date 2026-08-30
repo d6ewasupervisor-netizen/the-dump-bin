@@ -34,7 +34,7 @@ test('sheet filenames classify coversheet vs digital vs paper', () => {
 });
 
 test('department signatures become one bullet per name', () => {
-  const { formatDeptSignatureLines, signedOutFromSheet, hasDigitalSignoff } = require('../js/lib/eod-send-sheets-logic');
+  const { formatDeptSignatureLines, signedOutFromSheet, hasDigitalSignoff, digitalSignoffCoverValue } = require('../js/lib/eod-send-sheets-logic');
   assert.deepEqual(
     formatDeptSignatureLines([
       { signerName: 'Gauthier, Tyson A', roleLabel: 'Bakery Dept. PIC' },
@@ -47,6 +47,13 @@ test('department signatures become one bullet per name', () => {
     { prod: 'Yes', si: 'Yes' }
   );
   assert.equal(hasDigitalSignoff({ digitalSignoff: 'P08W2 30/30 marked' }, { rows: [1] }), true);
+  assert.equal(hasDigitalSignoff({ digitalSignoff: 'attached' }, { rows: [{ id: 1 }] }), true);
+  assert.equal(digitalSignoffCoverValue({ rows: [{ id: 1 }] }), 'attached');
+  assert.equal(digitalSignoffCoverValue(null), 'none (no hosted sheet)');
+  assert.deepEqual(
+    formatDeptSignatureLines([{ signerName: 'Lead', roleKey: 'lead', roleLabel: 'KOMPASS Lead' }]),
+    []
+  );
 });
 
 test('sendable photo src rejects CloudFront URLs and accepts data URLs', () => {

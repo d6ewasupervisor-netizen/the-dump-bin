@@ -71,6 +71,8 @@
     const seen = new Set();
     for (const item of list) {
       if (!item) continue;
+      const roleKey = String(item.roleKey || '').trim().toLowerCase();
+      if (roleKey === 'lead') continue;
       const name = String(item.signerName || item.name || item.label || '').trim();
       if (!name || /^none/i.test(name)) continue;
       const role = String(item.roleLabel || item.role || item.roleKey || '').trim();
@@ -81,6 +83,11 @@
       lines.push(line);
     }
     return lines;
+  }
+
+  function digitalSignoffCoverValue(sheet) {
+    if (sheet && Array.isArray(sheet.rows) && sheet.rows.length) return 'attached';
+    return 'none (no hosted sheet)';
   }
 
   function signedOutFromSheet(S) {
@@ -134,6 +141,7 @@
     coversheetFilename,
     digitalSignoffFilename,
     formatDeptSignatureLines,
+    digitalSignoffCoverValue,
     signedOutFromSheet,
     hasDigitalSignoff,
   };

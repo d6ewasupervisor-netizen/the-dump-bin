@@ -119,6 +119,7 @@
     const Pdf = global.EodPdfToImage;
     if (!Pdf?.pdfToJpegPages) throw new Error('PDF rasterizer not loaded');
     if (!storeNumber || !fiscalWeek) return [];
+    try { await global.EodDeptSignatures?.persistLeadSignature?.(); } catch (_) { /* PDF still builds */ }
     const qs = new URLSearchParams({
       store: storeNumber,
       week: fiscalWeek,

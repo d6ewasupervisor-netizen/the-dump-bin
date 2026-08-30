@@ -178,6 +178,7 @@
     const btn = document.getElementById('sendPrintSignoffBtn');
     if (btn) btn.disabled = true;
     try {
+      try { await global.EodDeptSignatures?.persistLeadSignature?.(); } catch (_) { /* PDF still builds */ }
       const qs = new URLSearchParams({
         store: sheet.storeNumber,
         week: sheet.fiscalWeek,
