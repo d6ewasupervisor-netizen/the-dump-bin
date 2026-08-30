@@ -1,10 +1,10 @@
 /* Field-app shell cache so a Chrome kill / airplane reopen still loads. */
-const CACHE = 'eod-field-3.3.24';
+const CACHE = 'eod-field-3.3.25';
 const PRECACHE = [
   './',
   './index.html',
   './eod-version.json',
-  './css/app.css?v=3.3.24',
+  './css/app.css?v=3.3.25',
   './manifest.webmanifest',
 ];
 
@@ -20,6 +20,12 @@ self.addEventListener('activate', (event) => {
       keys.filter((k) => k.startsWith('eod-field-') && k !== CACHE).map((k) => caches.delete(k))
     )).then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', (event) => {
+  const msg = event.data || {};
+  if (msg.type !== 'media-cached' || !msg.url) return;
+  /* Page already wrote Cache Storage `eod-set-media`; this keeps the worker alive for that build. */
 });
 
 self.addEventListener('fetch', (event) => {

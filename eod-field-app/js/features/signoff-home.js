@@ -130,6 +130,7 @@
       }
       S.patch({ notInStoreSelected: nis, notInSiSelected: nisi }, 'marks-sync');
     }
+    try { global.EodSetMediaPrefetch?.start(sheet); } catch (_) {}
     return sheet;
   }
 
@@ -161,6 +162,7 @@
         await loadSheet();
       }
       try { global.EodCoverNotes?.apply?.(S, 'prod-si-sync'); } catch (_) {}
+      try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
       return data;
     })();
     try {

@@ -309,8 +309,13 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.match(busy, /dismissBusy/);
   assert.match(signoff, /skipBusy: true/);
   assert.match(survey, /skipBusy: true/);
-  assert.match(survey, /setPlanogramMount/);
+  assert.match(survey, /data-open-media="planogram"/);
+  assert.match(survey, /data-open-media="before"/);
+  assert.match(survey, /data-open-media="after"/);
+  assert.doesNotMatch(survey, /setPlanogramMount/);
   assert.match(survey, /EodSiPlanogram/);
+  assert.match(survey, /openOverlay/);
+  assert.match(html, /set-media-prefetch/);
   assert.match(busy, /planogram/);
   assert.match(html, /si-planogram-board/);
 });
@@ -469,6 +474,7 @@ test('planogram is boxed so it does not steal page scroll or signatures', () => 
   assert.match(css, /\.si-pog-scroll \{[\s\S]*max-height:/);
   assert.match(swipe, /si-pog-scroll/);
   assert.match(swipe, /eod-lsp-overlay\.show/);
+  assert.match(swipe, /set-media-overlay/);
   assert.doesNotMatch(swipe, /closest\('\.landscape-sig, canvas/);
 });
 

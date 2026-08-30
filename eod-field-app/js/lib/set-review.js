@@ -200,6 +200,44 @@
     return i >= 0 ? i : 0;
   }
 
+  function firstSlotIndex(photos, slot) {
+    const want = String(slot || '').toLowerCase();
+    if (want !== 'before' && want !== 'after') return firstAfterIndex(photos);
+    const i = (photos || []).findIndex((p) => photoSlotOf(p) === want);
+    return i >= 0 ? i : 0;
+  }
+
+  function filterBySlot(photos, slot) {
+    const want = String(slot || '').toLowerCase();
+    if (want !== 'before' && want !== 'after') return photos || [];
+    return (photos || []).filter((p) => photoSlotOf(p) === want);
+  }
+
+  function closeOverlay() {
+    document.getElementById('eodSetMediaOverlay')?.remove();
+    document.body.classList.remove('set-media-open');
+  }
+
+  function openOverlay(opts) {
+    closeOverlay();
+    const host = document.createElement('div');
+    host.id = 'eodSetMediaOverlay';
+    host.className = 'set-media-overlay';
+    document.body.appendChild(host);
+    document.body.classList.add('set-media-open');
+    return createReview({
+      ...opts,
+      root: host,
+      hideBack: false,
+      hideComplete: opts.hideComplete !== false,
+      backLabel: opts.backLabel || 'Close',
+      onBack: () => {
+        closeOverlay();
+        opts.onBack?.();
+      },
+    });
+  }
+
   function createReview(opts) {
     ensureCss();
     const {
@@ -214,6 +252,8 @@
       hideComplete,
       hideBack,
       backLabel,
+      slotFilter,
+      heading,
     } = opts;
     const objectUrlCache = new Map();
     let photos = [];
@@ -247,6 +287,7 @@
     async function objectUrlFor(p, kind) {
       const url = displayUrl(p, kind);
       if (!url) return '';
+      if (/^data:|^blob:/i.test(url)) return url;
       if (!authFetch) return url;
       const cacheKey = `${kind || 'full'}:${url}`;
       if (objectUrlCache.has(cacheKey)) return objectUrlCache.get(cacheKey);
@@ -259,7 +300,7 @@
     }
 
     function renderShell() {
-      const name = row.catName || row.cat_name || 'Set';
+      const name = heading || row.catName || row.cat_name || 'Set';
       const done = rowComplete(row);
       const themeClass = isFieldAppTheme() ? ' gh-review--app' : '';
       root.innerHTML = `
@@ -643,7 +684,7 @@
           if (!resp.ok) throw new Error(data.error || `Load failed (${resp.status})`);
           rememberPack(token, row.id, data);
         }
-        photos = Array.isArray(data.photos) ? data.photos : [];
+        photos = filterBySlot(Array.isArray(data.photos) ? data.photos : [], slotFilter);
         warmupPhotos(photos, api, authFetch);
         const tools = document.getElementById('ghReviewTools');
         const stage = document.getElementById('ghStageWrap');
@@ -653,12 +694,14 @@
           bindTools();
           return;
         }
-        const src = data.photoSource === 'prod' ? 'PROD after photos (SI preferred when available)'
-          : data.photoSource === 'si' ? 'Store Intelligence photos'
-          : '';
+        const src = slotFilter === 'before'
+          ? (photos.length ? 'Before photos' : '')
+          : data.photoSource === 'prod' ? 'PROD after photos'
+            : data.photoSource === 'si' ? 'Store Intelligence after photos'
+              : '';
         setStatus(data.warning || src);
         if (stage) stage.hidden = false;
-        idx = firstAfterIndex(photos);
+        idx = firstSlotIndex(photos, slotFilter);
         renderFilm();
         bindTools();
         showPhoto(idx);
@@ -674,5 +717,5 @@
     return { reload: load };
   }
 
-  global.EodSetReview = { createReview, rowComplete, preloadRole };
+  global.EodSetReview = { createReview, rowComplete, preloadRole, openOverlay, closeOverlay, filterBySlot };
 })(typeof window !== 'undefined' ? window : globalThis);

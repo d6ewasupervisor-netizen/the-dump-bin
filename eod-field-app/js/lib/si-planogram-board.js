@@ -1,13 +1,35 @@
-/* Live SI planogram board on the set page (no CSV). */
+/* Live SI planogram board — dedicated viewer + background prefetch (no CSV). */
 (function (global) {
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const API_ORIGIN = 'https://eod-api.the-dump-bin.com';
   const IMAGE_CONCURRENCY = 6;
+  const MEDIA_CACHE = 'eod-set-media';
+  const boardMem = new Map();
 
   function esc(s) {
     return global.EodApi.escapeHtml(s);
+  }
+
+  function boardKey({ store, date, dbkey }) {
+    return `${store || ''}|${date || ''}|${dbkey || ''}`;
+  }
+
+  async function mediaCache() {
+    try { return await caches.open(MEDIA_CACHE); } catch (_) { return null; }
+  }
+
+  async function cacheMatch(url) {
+    const cache = await mediaCache();
+    if (!cache) return null;
+    try { return await cache.match(url); } catch (_) { return null; }
+  }
+
+  async function cachePut(url, resp) {
+    const cache = await mediaCache();
+    if (!cache || !resp) return;
+    try { await cache.put(url, resp.clone()); } catch (_) { /* quota */ }
   }
 
   async function mapPool(items, limit, fn) {
@@ -69,11 +91,15 @@
       s.facings != null ? `${s.facings} facings` : '',
       s.products != null ? `${s.products} products` : '',
     ].filter(Boolean);
-    return `<section class="si-pog">
-      <h2>Planogram</h2>
+    return `<section class="si-pog si-pog-overlay-board">
       <p class="muted">${esc(bits.join(' · '))}${pog.date ? ` · ${esc(pog.date)}` : ''}</p>
       <div class="si-pog-scroll">${(pog.bays || []).map(bayHtml).join('')}</div>
     </section>`;
+  }
+
+  function absUrl(path) {
+    if (!path) return '';
+    return /^https?:/i.test(path) ? path : API_ORIGIN + path;
   }
 
   async function hydrateImages(root) {
@@ -81,10 +107,18 @@
     await mapPool(imgs, IMAGE_CONCURRENCY, async (img) => {
       const path = img.getAttribute('data-pog-src') || '';
       if (!path) return;
-      const abs = /^https?:/i.test(path) ? path : API_ORIGIN + path;
+      const abs = absUrl(path);
       try {
+        const cached = await cacheMatch(abs);
+        if (cached && cached.ok) {
+          const blob = await cached.blob();
+          img.src = URL.createObjectURL(blob);
+          img.removeAttribute('data-pog-src');
+          return;
+        }
         const resp = await global.authFetch(abs, { skipBusy: true });
         if (!resp.ok) return;
+        await cachePut(abs, resp);
         const blob = await resp.blob();
         img.src = URL.createObjectURL(blob);
         img.removeAttribute('data-pog-src');
@@ -92,25 +126,83 @@
     });
   }
 
+  async function fetchBoard({ store, date, dbkey }) {
+    const key = boardKey({ store, date, dbkey });
+    if (boardMem.has(key)) return boardMem.get(key);
+    const qs = new URLSearchParams({ store, date, dbkey });
+    const url = `${API}/planogram?${qs}`;
+    const resp = await global.authFetch(url, { skipBusy: true });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Planogram failed (${resp.status})`);
+    const pog = data.planogram || null;
+    boardMem.set(key, pog);
+    return pog;
+  }
+
+  async function prefetch(opts) {
+    const pog = await fetchBoard(opts);
+    if (!pog?.bays?.length) return pog;
+    const urls = [];
+    for (const bay of pog.bays || []) {
+      for (const shelf of bay.shelves || []) {
+        for (const it of shelf.items || []) {
+          if (it.imageUrl) urls.push(absUrl(it.imageUrl));
+        }
+      }
+    }
+    await mapPool(urls, IMAGE_CONCURRENCY, async (url) => {
+      if (await cacheMatch(url)) return;
+      try {
+        const resp = await global.authFetch(url, { skipBusy: true });
+        if (resp.ok) await cachePut(url, resp);
+      } catch (_) { /* best-effort */ }
+    });
+    return pog;
+  }
+
   async function loadAndRender(mount, { store, date, dbkey }) {
     if (!mount) return;
-    mount.innerHTML = `<section class="si-pog"><h2>Planogram</h2><p class="muted">Loading…</p></section>`;
+    mount.innerHTML = `<section class="si-pog"><p class="muted">Loading…</p></section>`;
     try {
-      const qs = new URLSearchParams({ store, date, dbkey });
-      const resp = await global.authFetch(`${API}/planogram?${qs}`, { skipBusy: true });
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(data.error || `Planogram failed (${resp.status})`);
-      const pog = data.planogram;
+      const pog = await fetchBoard({ store, date, dbkey });
       if (!pog?.bays?.length) {
-        mount.innerHTML = `<section class="si-pog"><h2>Planogram</h2><p class="muted">None for this set.</p></section>`;
+        mount.innerHTML = `<section class="si-pog"><p class="muted">None for this set.</p></section>`;
         return;
       }
       mount.innerHTML = boardHtml(pog);
       await hydrateImages(mount);
     } catch (err) {
-      mount.innerHTML = `<section class="si-pog"><h2>Planogram</h2><p class="muted">${esc(err.message || String(err))}</p></section>`;
+      mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
     }
   }
 
-  global.EodSiPlanogram = { loadAndRender };
+  function closeOverlay() {
+    document.getElementById('eodSetMediaOverlay')?.remove();
+    document.body.classList.remove('set-media-open');
+  }
+
+  function openOverlay({ store, date, dbkey, title }) {
+    closeOverlay();
+    const host = document.createElement('div');
+    host.id = 'eodSetMediaOverlay';
+    host.className = 'set-media-overlay';
+    host.innerHTML = `<div class="set-media-overlay-bar">
+      <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
+      <strong>${esc(title || 'Planogram')}</strong>
+    </div>
+    <div id="setMediaOverlayBody"></div>`;
+    document.body.appendChild(host);
+    document.body.classList.add('set-media-open');
+    host.querySelector('#setMediaClose').onclick = closeOverlay;
+    loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey });
+    return host;
+  }
+
+  global.EodSiPlanogram = {
+    loadAndRender,
+    prefetch,
+    fetchBoard,
+    openOverlay,
+    closeOverlay,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

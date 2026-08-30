@@ -256,7 +256,11 @@
         <h1>${esc(catName || 'Set capture')}</h1>
         <p class="muted">DBKEY ${esc(dbkey)} | Store ${esc(S.state.storeNumber)} | PROD date ${esc(S.state.workDate)}</p>
         <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
-        <div id="setPlanogramMount"></div>
+        <div class="set-media-btns" id="setMediaBtns">
+          <button type="button" class="btn btn-primary" data-open-media="planogram">Planogram</button>
+          <button type="button" class="btn btn-primary" data-open-media="before">Before</button>
+          <button type="button" class="btn btn-primary" data-open-media="after">After</button>
+        </div>
         <div id="setSurveyBody">Loading…</div>
         <div id="setSurveyMsg" class="muted" style="margin-top:10px;"></div>
       </div>`;
@@ -598,10 +602,48 @@
         </div>`;
     }
 
-    function remoteStackHtml(slot) {
-      const cached = slot === 'before' ? beforeCached() : afterCached();
-      if (!cached.length) return '<div class="set-thumbs set-thumbs-remote" data-cached-slot="' + slot + '"></div>';
-      return `<div class="set-thumbs set-thumbs-remote" data-cached-slot="${slot}"></div>`;
+    function deviceAsPhotos(list, slot) {
+      return (list || []).map((p) => ({
+        slot,
+        source: 'device',
+        id: `device-${slot}-${p.bay}`,
+        label: `Bay ${p.bay}`,
+        url: p.preview || p.photoBase64 || '',
+        bayIndex: Number(p.bay) || null,
+      })).filter((p) => p.url);
+    }
+
+    function viewerPhotos(slot) {
+      const remote = slot === 'before' ? beforeCached() : afterCached();
+      const device = deviceAsPhotos(local[slot], slot);
+      const seen = new Set(remote.map((p) => `${p.slot}|${p.bayIndex || p.id}`));
+      const extra = device.filter((p) => !seen.has(`${p.slot}|${p.bayIndex || p.id}`));
+      return [...remote, ...extra];
+    }
+
+    function openMedia(kind) {
+      const S = global.EodSession;
+      if (kind === 'planogram') {
+        global.EodSiPlanogram?.openOverlay?.({
+          store: S.state.storeNumber,
+          date: S.state.workDate,
+          dbkey,
+          title: catName ? `${catName} · Planogram` : 'Planogram',
+        });
+        return;
+      }
+      if (kind !== 'before' && kind !== 'after') return;
+      const photos = viewerPhotos(kind);
+      global.EodSetReview?.openOverlay?.({
+        row: { id: rowId, catName, dbkey, pog: dbkey },
+        photos,
+        photoSource: kind === 'after' ? (local.pack?.photoSource || '') : 'prod',
+        slotFilter: kind,
+        heading: `${catName || 'Set'} · ${kind === 'before' ? 'Before' : 'After'}`,
+        api: API_ORIGIN,
+        authFetch: global.authFetch,
+        hideComplete: true,
+      });
     }
 
     function thumbHtml(list, slot) {
@@ -641,49 +683,10 @@
       const nextAfter = nextEmptyBay('after');
       const nextBefore = nextEmptyBay('before');
 
-      if (siViewReady() && afterCached().length && global.EodSetReview?.createReview) {
-        body.innerHTML = `
-          <section class="set-photo-block">
-            <h2>Before</h2>
-            ${bayProgressHtml('before')}
-            <div class="set-thumbs set-thumbs-remote" data-cached-slot="before"></div>
-            <div class="set-device-label muted">On this device</div>
-            ${thumbHtml(local.before, 'before')}
-            <div class="btn-row">
-              <button type="button" class="btn btn-primary" data-cap="before">${
-                nextBefore ? 'Take bay ' + nextBefore : 'Retake befores'
-              }</button>
-              <label class="btn btn-secondary set-file-btn">Load photos
-                <input type="file" accept="image/*" multiple data-gal="before" hidden>
-              </label>
-            </div>
-          </section>
-          <section class="set-photo-block">
-            <h2>After</h2>
-            <div id="setReviewMount"></div>
-          </section>`;
-        bindCaptureControls(body);
-        fillCachedThumbs(body.querySelector('[data-cached-slot="before"]'), beforeCached());
-        global.EodSetReview.createReview({
-          root: document.getElementById('setReviewMount'),
-          row: { id: rowId, catName, dbkey, pog: dbkey },
-          photos: afterCached(),
-          photoSource: local.pack?.photoSource || 'si',
-          api: API_ORIGIN,
-          authFetch: global.authFetch,
-          hideComplete: true,
-          hideBack: true,
-        });
-        return;
-      }
-
       body.innerHTML = `
         <section class="set-photo-block">
           <h2>Before ${preferSlot === 'before' ? '<span class="pill warn">focus</span>' : ''}</h2>
           ${bayProgressHtml('before')}
-          ${remoteStackHtml('before')}
-          <div class="set-device-label muted">On this device</div>
-          ${thumbHtml(local.before, 'before')}
           <div class="btn-row">
             <button type="button" class="btn btn-primary" data-cap="before">${
               nextBefore ? 'Take bay ' + nextBefore : 'Retake befores'
@@ -697,9 +700,6 @@
         <section class="set-photo-block">
           <h2>After ${preferSlot === 'after' ? '<span class="pill warn">focus</span>' : ''}</h2>
           ${bayProgressHtml('after')}
-          ${remoteStackHtml('after')}
-          <div class="set-device-label muted">On this device</div>
-          ${thumbHtml(local.after, 'after')}
           <div class="btn-row">
             <button type="button" class="btn btn-primary" data-cap="after">${
               nextAfter ? 'Take bay ' + nextAfter + ' of ' + n : 'Retake afters'
@@ -732,8 +732,6 @@
         }
       };
       document.getElementById('finishSetBtn').onclick = () => finishAll();
-      fillCachedThumbs(body.querySelector('[data-cached-slot="before"]'), beforeCached());
-      fillCachedThumbs(body.querySelector('[data-cached-slot="after"]'), afterCached());
     }
 
     function bindCaptureControls(body) {
@@ -883,13 +881,12 @@
     }
 
     function loadPlanogram() {
-      const mount = document.getElementById('setPlanogramMount');
-      if (!mount || !global.EodSiPlanogram?.loadAndRender) return Promise.resolve();
-      return global.EodSiPlanogram.loadAndRender(mount, {
+      if (!global.EodSiPlanogram?.prefetch) return Promise.resolve();
+      return global.EodSiPlanogram.prefetch({
         store: S.state.storeNumber,
         date: S.state.workDate,
         dbkey,
-      });
+      }).catch(() => {});
     }
 
     async function reload() {
@@ -910,6 +907,11 @@
     }
 
     document.getElementById('refreshStatus').onclick = reload;
+    document.getElementById('setMediaBtns')?.addEventListener('click', (ev) => {
+      const btn = ev.target?.closest?.('[data-open-media]');
+      if (!btn) return;
+      openMedia(btn.getAttribute('data-open-media'));
+    });
     const backBtn = document.getElementById('backSignoff');
     if (backBtn) {
       backBtn.onclick = () => {
