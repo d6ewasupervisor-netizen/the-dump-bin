@@ -3,12 +3,13 @@
   'use strict';
 
   const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-  const APP_VERSION = '3.3.25';
+  const APP_VERSION = '3.3.26';
 
   let eodStorageTelemetry = {
     quota: null,
     usage: null,
     photoBytes: null,
+    cacheBytes: null,
     displayMode: null,
     persisted: null,
     at: 0,
@@ -81,6 +82,13 @@
         const est = await global.PhotoDB.readStorageEstimate(!!force);
         if (est && Number.isFinite(est.usage)) eodStorageTelemetry.photoBytes = est.usage;
       }
+      if (global.EodSetMediaCache?.measureBytes) {
+        const cache = await global.EodSetMediaCache.measureBytes();
+        if (cache && Number.isFinite(cache.bytes)) eodStorageTelemetry.cacheBytes = cache.bytes;
+      } else if (global.PhotoDB?.storagePressure) {
+        const p = await global.PhotoDB.storagePressure();
+        if (p && Number.isFinite(p.cacheBytes)) eodStorageTelemetry.cacheBytes = p.cacheBytes;
+      }
     } catch (_) { /* ignore */ }
     eodStorageTelemetry.at = now;
     return eodStorageTelemetry;
@@ -96,6 +104,9 @@
     }
     if (t.photoBytes != null && !headers['X-EOD-Photo-Bytes'] && !headers['x-eod-photo-bytes']) {
       headers['X-EOD-Photo-Bytes'] = String(t.photoBytes);
+    }
+    if (t.cacheBytes != null && !headers['X-EOD-Cache-Bytes'] && !headers['x-eod-cache-bytes']) {
+      headers['X-EOD-Cache-Bytes'] = String(t.cacheBytes);
     }
     if (t.displayMode && !headers['X-EOD-Display-Mode'] && !headers['x-eod-display-mode']) {
       headers['X-EOD-Display-Mode'] = t.displayMode;

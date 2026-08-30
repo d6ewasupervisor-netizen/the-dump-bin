@@ -3,9 +3,7 @@
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
-  const API_ORIGIN = 'https://eod-api.the-dump-bin.com';
   const IMAGE_CONCURRENCY = 6;
-  const MEDIA_CACHE = 'eod-set-media';
   const boardMem = new Map();
 
   function esc(s) {
@@ -16,20 +14,16 @@
     return `${store || ''}|${date || ''}|${dbkey || ''}`;
   }
 
-  async function mediaCache() {
-    try { return await caches.open(MEDIA_CACHE); } catch (_) { return null; }
+  function Media() {
+    return global.EodSetMediaCache;
   }
 
   async function cacheMatch(url) {
-    const cache = await mediaCache();
-    if (!cache) return null;
-    try { return await cache.match(url); } catch (_) { return null; }
+    try { return await Media()?.match?.(url) || null; } catch (_) { return null; }
   }
 
   async function cachePut(url, resp) {
-    const cache = await mediaCache();
-    if (!cache || !resp) return;
-    try { await cache.put(url, resp.clone()); } catch (_) { /* quota */ }
+    try { await Media()?.put?.(url, resp); } catch (_) { /* quota */ }
   }
 
   async function mapPool(items, limit, fn) {
@@ -98,8 +92,7 @@
   }
 
   function absUrl(path) {
-    if (!path) return '';
-    return /^https?:/i.test(path) ? path : API_ORIGIN + path;
+    return Media()?.absApiUrl?.(path) || '';
   }
 
   async function hydrateImages(root) {
@@ -108,6 +101,7 @@
       const path = img.getAttribute('data-pog-src') || '';
       if (!path) return;
       const abs = absUrl(path);
+      if (!abs) return;
       try {
         const cached = await cacheMatch(abs);
         if (cached && cached.ok) {
@@ -142,15 +136,21 @@
   async function prefetch(opts) {
     const pog = await fetchBoard(opts);
     if (!pog?.bays?.length) return pog;
+    if (opts && opts.images === false) return pog;
+    const gate = await Media()?.allowPrefetch?.();
+    if (gate && !gate.ok) return pog;
     const urls = [];
     for (const bay of pog.bays || []) {
       for (const shelf of bay.shelves || []) {
         for (const it of shelf.items || []) {
-          if (it.imageUrl) urls.push(absUrl(it.imageUrl));
+          const abs = absUrl(it.imageUrl);
+          if (abs) urls.push(abs);
         }
       }
     }
     await mapPool(urls, IMAGE_CONCURRENCY, async (url) => {
+      const again = await Media()?.allowPrefetch?.();
+      if (again && !again.ok) return;
       if (await cacheMatch(url)) return;
       try {
         const resp = await global.authFetch(url, { skipBusy: true });

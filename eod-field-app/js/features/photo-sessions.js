@@ -30,6 +30,26 @@
 
   let cachedEstimate = { quota: null, usage: null, at: 0 };
   const ESTIMATE_TTL_MS = 60 * 1000;
+  const NEAR_SOFT_FRAC = 0.85;
+
+  function isQuotaError(err) {
+    const n = String(err?.name || '');
+    const m = String(err?.message || '');
+    return n === 'QuotaExceededError' || n === 'NS_ERROR_DOM_QUOTA_REACHED' || /quota/i.test(m);
+  }
+
+  async function yieldSetMediaToPhotos() {
+    try { await global.EodSetMediaCache?.purgeAll?.(); } catch (_) { /* ignore */ }
+  }
+
+  async function setMediaBytes() {
+    try {
+      const m = await global.EodSetMediaCache?.measureBytes?.();
+      return Number(m?.bytes) || 0;
+    } catch (_) {
+      return 0;
+    }
+  }
 
   async function readStorageEstimate(force) {
     const now = Date.now();
@@ -214,7 +234,7 @@
       });
     }
 
-    async function putBlob(id, blob) {
+    async function putBlobOnce(id, blob) {
       const d = await init();
       if (!d.objectStoreNames.contains(blobStoreName)) return false;
       const tx = d.transaction([blobStoreName], 'readwrite');
@@ -227,6 +247,16 @@
       });
       await awaitTx(tx);
       return true;
+    }
+
+    async function putBlob(id, blob) {
+      try {
+        return await putBlobOnce(id, blob);
+      } catch (err) {
+        if (!isQuotaError(err)) throw err;
+        await yieldSetMediaToPhotos();
+        return putBlobOnce(id, blob);
+      }
     }
 
     async function getBlob(id) {
@@ -366,11 +396,21 @@
       });
     }
 
-    async function putRecord(record) {
+    async function putRecordOnce(record) {
       const { tx, store } = await txStore('readwrite');
       const req = store.put(record);
       await awaitTx(tx, req);
       return true;
+    }
+
+    async function putRecord(record) {
+      try {
+        return await putRecordOnce(record);
+      } catch (err) {
+        if (!isQuotaError(err)) throw err;
+        await yieldSetMediaToPhotos();
+        return putRecordOnce(record);
+      }
     }
 
     async function deleteRecord(id, { wipeBlobs = true } = {}) {
@@ -715,6 +755,9 @@
     async function enforceHardCap() {
       const est = await readStorageEstimate(false);
       const caps = capsFromQuota(est.quota);
+      if (est.quota && est.usage != null && est.usage / est.quota >= HARD_QUOTA_FRAC) {
+        await yieldSetMediaToPhotos();
+      }
       let sessions = await listSessionSummaries();
       let total = sessions.reduce((a, s) => a + s.bytes, 0);
       while (total > caps.hardBytes) {
@@ -754,14 +797,26 @@
       const unsent = sessions.filter((s) => !s.sentAt && s.count > 0);
       const est = await readStorageEstimate(false);
       const caps = capsFromQuota(est.quota);
+      const cacheBytes = await setMediaBytes();
+      const usageNetCache = (est.usage != null)
+        ? Math.max(0, est.usage - cacheBytes)
+        : null;
       const originUsageFrac = (est.quota && est.usage != null)
         ? est.usage / est.quota
         : null;
+      const photoOriginFrac = (est.quota && usageNetCache != null)
+        ? usageNetCache / est.quota
+        : null;
+      const nearSoft = totalBytes >= Math.floor(caps.softBytes * NEAR_SOFT_FRAC);
+      const cacheEatsSoft = (totalBytes + cacheBytes) >= caps.softBytes;
       return {
         totalBytes,
         sessionCount: sessions.length,
         soft: totalBytes >= caps.softBytes,
         hard: totalBytes >= caps.hardBytes,
+        nearSoft,
+        prefetchBlocked: nearSoft || cacheEatsSoft
+          || (originUsageFrac != null && originUsageFrac >= HARD_QUOTA_FRAC),
         unsentCount: unsent.length,
         softBytes: caps.softBytes,
         hardBytes: caps.hardBytes,
@@ -770,8 +825,11 @@
         hardFrac: HARD_QUOTA_FRAC,
         quotaBytes: est.quota,
         usageBytes: est.usage,
+        cacheBytes,
+        usageNetCache,
         originUsageFrac,
-        // Browser already using most of origin quota — warn even if photo soft not hit.
+        photoOriginFrac,
+        // Raw origin (photos + Cache Storage). Eviction risk if persist() was not granted.
         originPressure: originUsageFrac != null && originUsageFrac >= HARD_QUOTA_FRAC,
       };
     }
@@ -937,10 +995,19 @@
           arrs,
           sessionMetaFrom(existing)
         );
-        const { tx, store } = await txStore('readwrite');
-        store.put(rec);
-        store.put(legacyMirror);
-        await awaitTx(tx);
+        const writeActive = async () => {
+          const { tx, store } = await txStore('readwrite');
+          store.put(rec);
+          store.put(legacyMirror);
+          await awaitTx(tx);
+        };
+        try {
+          await writeActive();
+        } catch (err) {
+          if (!isQuotaError(err)) throw err;
+          await yieldSetMediaToPhotos();
+          await writeActive();
+        }
       } else {
         // No active session — still mirror memory to allPhotos for rollback,
         // but do not invent a session key (would bypass day-confirm).
@@ -988,6 +1055,7 @@
       }
 
       activeKey = { store: String(store), date: String(date).slice(0, 10), id: nextId };
+      try { await global.EodSetMediaCache?.bindShift?.(activeKey.store, activeKey.date); } catch (_) {}
       const rec = await getRecord(nextId);
       photosObj.before = dedupe(rec?.before || []);
       photosObj.signoff = dedupe(rec?.signoff || []);

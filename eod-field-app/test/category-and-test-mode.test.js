@@ -316,6 +316,7 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.match(survey, /EodSiPlanogram/);
   assert.match(survey, /openOverlay/);
   assert.match(html, /set-media-prefetch/);
+  assert.match(html, /set-media-cache/);
   assert.match(busy, /planogram/);
   assert.match(html, /si-planogram-board/);
 });

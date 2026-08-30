@@ -115,14 +115,17 @@
 
   function resolvePhotoUrl(api, path) {
     if (!path) return '';
-    if (/^https?:\/\//i.test(path)) return path;
+    if (/^data:|^blob:/i.test(path)) return path;
+    const viaCache = global.EodSetMediaCache?.absApiUrl?.(path);
+    if (viaCache) return viaCache;
     const origin = String(api || '').replace(/\/api\/guest-handoff.*$/i, '');
-    if (origin && path.startsWith('/')) return origin + path;
-    try {
-      return new URL(path, api || window.location.href).href;
-    } catch (_) {
-      return path;
+    if (origin && path.startsWith('/api/')) {
+      try {
+        const u = new URL(path, origin);
+        if (global.EodSetMediaCache?.isEodApiUrl?.(u.href)) return u.href;
+      } catch (_) { /* drop */ }
     }
+    return '';
   }
 
   function escapeHtml(s) {
@@ -157,7 +160,7 @@
 
   function warmupPhotos(photos, api, authFetch) {
     (photos || []).forEach((p) => {
-      const url = resolvePhotoUrl(api, p?.thumbUrl || p?.url || '');
+      const url = resolvePhotoUrl(api, p?.thumbUrl || '');
       if (!url) return;
       if (authFetch) {
         authFetch(url, { skipBusy: true }).then((resp) => resp.ok ? resp.blob() : null).then((blob) => {
@@ -288,11 +291,21 @@
       const url = displayUrl(p, kind);
       if (!url) return '';
       if (/^data:|^blob:/i.test(url)) return url;
-      if (!authFetch) return url;
       const cacheKey = `${kind || 'full'}:${url}`;
       if (objectUrlCache.has(cacheKey)) return objectUrlCache.get(cacheKey);
+      try {
+        const cached = await global.EodSetMediaCache?.match?.(url);
+        if (cached && cached.ok) {
+          const blob = await cached.blob();
+          const obj = URL.createObjectURL(blob);
+          objectUrlCache.set(cacheKey, obj);
+          return obj;
+        }
+      } catch (_) { /* fetch */ }
+      if (!authFetch) return url;
       const resp = await authFetch(url, { skipBusy: true });
       if (!resp.ok) throw new Error(`Photo failed (${resp.status})`);
+      try { await global.EodSetMediaCache?.put?.(url, resp); } catch (_) {}
       const blob = await resp.blob();
       const obj = URL.createObjectURL(blob);
       objectUrlCache.set(cacheKey, obj);
