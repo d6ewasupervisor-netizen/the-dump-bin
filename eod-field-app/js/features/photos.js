@@ -115,15 +115,11 @@
       host.hidden = false;
       host.innerHTML = `<div class="notice notice-error" style="margin:0;">
         ${unsent.length} unsent photo session(s) on this phone.
-        <button type="button" class="btn btn-secondary" id="compressOldBtn" style="margin-top:8px;">Compress old photos</button>
+        <button type="button" class="btn btn-secondary" id="unsentReviewBtn" style="margin-top:8px;">Review</button>
       </div>`;
-      host.querySelector('#compressOldBtn')?.addEventListener('click', async () => {
-        try {
-          const r = await global.PhotoDB.compressOldPhotos();
-          host.querySelector('.notice').append(` Compressed ${r.compressed} photo(s) in ${r.sessions} session(s).`);
-        } catch (err) {
-          if (global.showAlert) global.showAlert('Storage', err.message || String(err));
-        }
+      host.querySelector('#unsentReviewBtn')?.addEventListener('click', () => {
+        if (global.EodDeviceStorage?.openUnsentReview) global.EodDeviceStorage.openUnsentReview();
+        else global.EodRouter.go('storage');
       });
     } catch (_) {
       host.hidden = true;

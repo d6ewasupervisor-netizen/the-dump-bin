@@ -596,6 +596,12 @@
           instawork: rec.instawork || [],
         };
         const meta = sessionMetaFrom(rec);
+        const types = {
+          before: (arrs.before || []).length,
+          signoff: (arrs.signoff || []).length,
+          after: (arrs.after || []).length,
+          instawork: (arrs.instawork || []).length,
+        };
         out.push({
           id: rec.id,
           store: parsed.store,
@@ -609,6 +615,7 @@
           hasFailedJobs: jobsHaveFailed(meta.sasJobs),
           bytes: arraysBytes(arrs),
           count: arraysCount(arrs),
+          types,
           timestamp: rec.timestamp || 0,
         });
       }
@@ -1020,9 +1027,10 @@
 
     /** Clear only the active session (+ allPhotos mirror). Other sessions stay. */
     async function clearPhotos() {
-      activeKey = resolveActiveKey();
+      const resolved = resolveActiveKey();
+      const key = resolved || activeKey;
       const { tx, store } = await txStore('readwrite');
-      if (activeKey) store.delete(activeKey.id);
+      if (key) store.delete(key.id);
       store.put({
         id: LEGACY_ID,
         before: [],
@@ -1032,6 +1040,7 @@
         timestamp: Date.now(),
       });
       await awaitTx(tx);
+      activeKey = resolved || null;
       return true;
     }
 
@@ -1080,6 +1089,40 @@
       return sessions
         .filter((s) => !s.sentAt && s.count > 0 && s.id !== activeId)
         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    }
+
+    async function loadSessionForView(id) {
+      const rec = await getRecord(id);
+      if (!rec) return null;
+      const parsed = parseSessionId(id) || { store: rec.store, date: rec.date };
+      const arrs = arraysFromRecord(rec);
+      await hydrateArrays(arrs);
+      return {
+        id: rec.id,
+        store: String(parsed.store || rec.store || ''),
+        date: String(parsed.date || rec.date || ''),
+        photos: arrs,
+        count: arraysCount(arrs),
+        bytes: arraysBytes(arrs),
+        types: {
+          before: (arrs.before || []).length,
+          signoff: (arrs.signoff || []).length,
+          after: (arrs.after || []).length,
+          instawork: (arrs.instawork || []).length,
+        },
+        timestamp: rec.timestamp || 0,
+        ...sessionMetaFrom(rec),
+      };
+    }
+
+    async function purgeUnsentLeftovers() {
+      const sessions = await unsentSessions();
+      let removed = 0;
+      for (const s of sessions) {
+        await deleteRecord(s.id);
+        removed += 1;
+      }
+      return { removed };
     }
 
     async function estimatePhotoBytes() {
@@ -1343,6 +1386,8 @@
       migrateFromLegacyIfNeeded,
       switchToDayConfirm,
       unsentSessions,
+      loadSessionForView,
+      purgeUnsentLeftovers,
       estimatePhotoBytes,
       compressOldPhotos,
       quarantineSummary,

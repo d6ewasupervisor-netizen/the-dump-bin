@@ -1544,6 +1544,34 @@ body.dump-bin-viewer-open .eod-test-banner {
   background: #7f1d1d;
   color: #fecaca;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+}
+.eod-photo-fail-banner { cursor: default; }
+.unsent-type {
+  margin: 12px 0 6px;
+  font-size: 14px;
+}
+.unsent-thumb {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.unsent-lightbox {
+  align-items: center;
+  z-index: 46000;
+}
+.unsent-lightbox img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
 }
 .eod-send-gates { margin: 8px 0 12px; display: flex; flex-direction: column; gap: 6px; }
 .shift-also {
@@ -1703,6 +1731,19 @@ details.eod-collapse > .visit-step-panel {
   border-bottom: 1px solid var(--border);
 }
 .device-pkg-row:last-child { border-bottom: 0; }
-.device-pkg-copy { min-width: 0; }
+.device-pkg-copy {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+button.device-pkg-copy:disabled,
+div.device-pkg-copy { cursor: default; }
 .device-pkg-copy strong { display: block; }
 .device-pkg-row .btn { flex: 0 0 auto; min-height: 40px; }

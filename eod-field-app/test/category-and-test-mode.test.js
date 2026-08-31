@@ -241,6 +241,30 @@ test('device storage is in the app: More, Send, boot purge of submitted packages
   assert.match(router, /name !== 'storage'/);
 });
 
+test('unsent leftovers can be reviewed, discarded, and wiped on reset', () => {
+  const chrome = fs.readFileSync(path.join(__dirname, '../js/chrome.js'), 'utf8');
+  const store = fs.readFileSync(path.join(__dirname, '../js/features/device-storage.js'), 'utf8');
+  const photosUi = fs.readFileSync(path.join(__dirname, '../js/features/photos.js'), 'utf8');
+  const photos = fs.readFileSync(path.join(__dirname, '../js/features/photo-sessions.js'), 'utf8');
+  const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
+  const session = fs.readFileSync(path.join(__dirname, '../js/session.js'), 'utf8');
+  assert.match(chrome, /id="unsentOpenPhotos">Review/);
+  assert.match(chrome, /openUnsentReview/);
+  assert.doesNotMatch(chrome, /unsentOpenPhotos[\s\S]{0,80}go\('send'\)/);
+  assert.match(store, /function openUnsentReview/);
+  assert.match(store, /function openSessionReview/);
+  assert.match(store, /loadSessionForView/);
+  assert.match(store, /purgeUnsentLeftovers/);
+  assert.match(photosUi, /id="unsentReviewBtn"/);
+  assert.match(photos, /async function loadSessionForView/);
+  assert.match(photos, /async function purgeUnsentLeftovers/);
+  assert.match(photos, /resolved \|\| activeKey/);
+  assert.match(visit, /id="resetWipeUnsent"/);
+  assert.match(visit, /wipeUnsent/);
+  assert.match(session, /wipeUnsent = false/);
+  assert.match(session, /purgeUnsentLeftovers/);
+});
+
 test('dump-bin does not steal the photos route', () => {
   const src = fs.readFileSync(path.join(__dirname, '../js/features/dump-bin.js'), 'utf8');
   assert.doesNotMatch(src, /register\('photos'/);

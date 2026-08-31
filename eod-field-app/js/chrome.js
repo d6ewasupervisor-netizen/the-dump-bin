@@ -57,8 +57,14 @@
         return;
       }
       bar.hidden = false;
-      bar.innerHTML = `${unsent.length} unsent photo session(s) · <button type="button" class="btn btn-secondary" id="unsentOpenPhotos">Send</button>`;
-      bar.querySelector('#unsentOpenPhotos')?.addEventListener('click', () => global.EodRouter.go('send'));
+      bar.innerHTML = `<span>${unsent.length} unsent photo session(s)</span><button type="button" class="btn btn-secondary" id="unsentOpenPhotos">Review</button>`;
+      const openReview = (e) => {
+        e?.stopPropagation?.();
+        if (global.EodDeviceStorage?.openUnsentReview) global.EodDeviceStorage.openUnsentReview();
+        else global.EodRouter.go('storage');
+      };
+      bar.querySelector('#unsentOpenPhotos')?.addEventListener('click', openReview);
+      bar.onclick = openReview;
     } catch (_) {
       bar.hidden = true;
     }

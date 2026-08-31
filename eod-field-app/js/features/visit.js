@@ -699,9 +699,10 @@
       return {
         wipePersonal: !!raw.wipePersonal,
         wipeSetBefores: !!raw.wipeSetBefores,
+        wipeUnsent: !!raw.wipeUnsent,
       };
     } catch (_) {
-      return { wipePersonal: false, wipeSetBefores: false };
+      return { wipePersonal: false, wipeSetBefores: false, wipeUnsent: false };
     }
   }
 
@@ -710,6 +711,7 @@
       localStorage.setItem(RESET_OPTS_KEY, JSON.stringify({
         wipePersonal: !!opts.wipePersonal,
         wipeSetBefores: !!opts.wipeSetBefores,
+        wipeUnsent: !!opts.wipeUnsent,
       }));
     } catch (_) {}
   }
@@ -718,9 +720,14 @@
     document.getElementById('visitResetOverlay')?.remove();
   }
 
-  function openResetOverlay() {
+  async function openResetOverlay() {
     closeResetOverlay();
     const opts = loadResetOpts();
+    let unsentCount = 0;
+    try { unsentCount = (await global.PhotoDB?.unsentSessions?.() || []).length; } catch (_) {}
+    const unsentHint = unsentCount
+      ? `${unsentCount} other visit${unsentCount === 1 ? '' : 's'} on this phone`
+      : 'None on this phone';
     const overlay = document.createElement('div');
     overlay.id = 'visitResetOverlay';
     overlay.className = 'modal-overlay show';
@@ -757,6 +764,16 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div class="reset-level">
+          <div class="reset-level-copy">
+            <strong>Unsent leftovers</strong>
+            <span>${esc(unsentHint)}</span>
+          </div>
+          <label class="toggle-switch-wrapper">
+            <input type="checkbox" id="resetWipeUnsent" ${opts.wipeUnsent ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
         <div class="btn-row" style="margin-top:14px;">
           <button type="button" class="btn btn-secondary" id="visitResetCancel">Cancel</button>
           <button type="button" class="btn btn-primary" id="visitResetConfirm">Reset</button>
@@ -768,11 +785,13 @@
       return {
         wipePersonal: !!overlay.querySelector('#resetWipePersonal')?.checked,
         wipeSetBefores: !!overlay.querySelector('#resetWipeBefores')?.checked,
+        wipeUnsent: !!overlay.querySelector('#resetWipeUnsent')?.checked,
       };
     }
 
     overlay.querySelector('#resetWipePersonal').onchange = () => saveResetOpts(currentOpts());
     overlay.querySelector('#resetWipeBefores').onchange = () => saveResetOpts(currentOpts());
+    overlay.querySelector('#resetWipeUnsent').onchange = () => saveResetOpts(currentOpts());
     overlay.querySelector('#visitResetCancel').onclick = closeResetOverlay;
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeResetOverlay(); });
     overlay.querySelector('#visitResetConfirm').onclick = async () => {
@@ -786,7 +805,7 @@
   }
 
   function doReset() {
-    openResetOverlay();
+    void openResetOverlay();
   }
 
   function closeDayConfirmModal() {

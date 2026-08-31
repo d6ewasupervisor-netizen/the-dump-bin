@@ -101,8 +101,9 @@
    * Reset like live EOD — clears draft + day confirm + in-memory visit data.
    * Optional wipePersonal also clears profile/signature.
    * Week-scoped set before photos are kept unless wipeSetBefores is true.
+   * Leftover unsent photo sessions on this phone are kept unless wipeUnsent is true.
    */
-  async function resetVisit({ wipePersonal = false, wipeSetBefores = false } = {}) {
+  async function resetVisit({ wipePersonal = false, wipeSetBefores = false, wipeUnsent = false } = {}) {
     const store = state.storeNumber;
     const week = state.fiscalWeek;
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
@@ -120,6 +121,9 @@
     }
     if (global.PhotoDB?.clearPhotos) {
       try { await global.PhotoDB.clearPhotos(); } catch (_) {}
+    }
+    if (wipeUnsent && global.PhotoDB?.purgeUnsentLeftovers) {
+      try { await global.PhotoDB.purgeUnsentLeftovers(); } catch (_) {}
     }
     state.storeNumber = '';
     state.workDate = todayLocalIsoDate();
