@@ -24,6 +24,7 @@
     if (type === 'not_in_store') return !!m.notInStore;
     if (type === 'not_in_si') return !!m.notInSi;
     if (type === 'backlog') return !!m.backlog;
+    if (type === 'out_of_scope') return !!m.outOfScope;
     return m.type === type;
   }
 
@@ -33,7 +34,8 @@
     }
     return markActive(row, 'complete')
       || markActive(row, 'not_in_store')
-      || markActive(row, 'not_in_si');
+      || markActive(row, 'out_of_scope')
+      || bothLiveComplete(row);
   }
 
   function syncStatusPills(row) {
@@ -276,9 +278,10 @@
   }
 
   function isOpenRow(row) {
+    if (markActive(row, 'out_of_scope')) return false;
     return !rowLooksComplete(row)
       && !markActive(row, 'not_in_store')
-      && !markActive(row, 'not_in_si');
+      && !markActive(row, 'backlog');
   }
 
   function rowLabel(row) {
@@ -300,6 +303,23 @@
       if (name && rName && (rName === name || rName.includes(name) || name.includes(rName))) return true;
       return false;
     }) || null;
+  }
+
+  async function confirmOutOfScope(count) {
+    const n = Number(count) || 1;
+    const id = await (global.EodAlerts?.showDialog
+      ? global.EodAlerts.showDialog({
+        title: 'Out of Scope',
+        message: n === 1
+          ? 'Remove this set from the sign-off sheet? It is another project.'
+          : `Remove ${n} sets from the sign-off sheet? They are another project.`,
+        buttons: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'ok', label: 'Remove', primary: true },
+        ],
+      })
+      : Promise.resolve(window.confirm('Remove from the sign-off sheet?') ? 'ok' : 'cancel'));
+    return id === 'ok';
   }
 
   async function applyMark(rowId, markType, opts) {
@@ -492,7 +512,8 @@
     }
   }
 
-  function renderRows(sheet, q, filters) {
+  function renderRows(sheet, q, filters, selectedIds) {
+    const selected = selectedIds instanceof Set ? selectedIds : new Set();
     let rows = (sheet.rows || []).filter((row) => {
       if (global.EodCategoryCardStatus?.matchesSheetFilters
         && !global.EodCategoryCardStatus.matchesSheetFilters(row, filters)) {
@@ -527,7 +548,9 @@
         footage ? String(footage) : '',
         est,
       ].filter(Boolean);
-      return `<div class="ds-row ds-row-compact ${rowClass(row)}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
+      const selectedOn = selected.has(String(row.id));
+      return `<div class="ds-row ds-row-compact ${rowClass(row)}${selectedOn ? ' is-selected' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
+        <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
         <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted ds-row-meta">${esc(metaBits.join(' · '))}</div>
@@ -538,6 +561,7 @@
           ${btn('not_in_si', 'NISI')}
           ${btn('backlog', 'Backlog')}
           ${btn('complete', 'Complete')}
+          ${btn('out_of_scope', 'Out of Scope')}
         </div>
       </div>`;
     }).join('');
@@ -552,7 +576,7 @@
           <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
         </div>
-        <div class="ds-next" id="sheetNext" hidden></div>
+        <div class="ds-bulk" id="sheetBulk"></div>
         <div class="ds-filters" id="sheetFilters">
           <div class="ds-filter-row">
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_done">Not Done</button>
@@ -571,6 +595,7 @@
     const rowsEl = document.getElementById('sheetRows');
     const syncBtn = document.getElementById('syncProdSiBtn');
     const filters = { status: 'not_done' };
+    const selectedIds = new Set();
     let pollTimer = null;
     if (rowsEl && typeof ResizeObserver === 'function' && !rowsEl._dsFitObs) {
       rowsEl._dsFitObs = new ResizeObserver(() => {
@@ -618,6 +643,86 @@
       }, pollMs());
     }
 
+    function paintBulkBar() {
+      const bulk = document.getElementById('sheetBulk');
+      if (!bulk) return;
+      const n = selectedIds.size;
+      if (!n) {
+        bulk.classList.remove('is-on');
+        bulk.innerHTML = '';
+        return;
+      }
+      bulk.classList.add('is-on');
+      bulk.innerHTML = `
+        <div class="ds-bulk-count">${n} selected</div>
+        <div class="ds-actions">
+          <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">NIS</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">NISI</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="backlog">Backlog</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="complete">Complete</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="out_of_scope">Out of Scope</button>
+        </div>`;
+      bulk.querySelectorAll('[data-bulk-mark]').forEach((btn) => {
+        btn.onclick = () => runBulkMark(btn.getAttribute('data-bulk-mark'));
+      });
+    }
+
+    async function markOneRow(rowId, markType, opts) {
+      const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+      const turningOn = current && !markActive(current, markType);
+      const turningOnNis = markType === 'not_in_store' && turningOn;
+      let nisChoice = opts && Object.prototype.hasOwnProperty.call(opts, 'nisChoice')
+        ? opts.nisChoice
+        : null;
+      if (turningOnNis && nisChoice == null && typeof global.askToReportNotInStore === 'function') {
+        nisChoice = await global.askToReportNotInStore(current);
+        if (!nisChoice || nisChoice === 'cancel') return false;
+      }
+      if (markType === 'out_of_scope' && turningOn && !opts?.skipOosConfirm) {
+        const ok = await confirmOutOfScope(1);
+        if (!ok) return false;
+      }
+      await applyMark(rowId, markType, turningOnNis
+        ? { helpdeskSent: nisChoice === 'report', skipReload: !!opts?.skipReload }
+        : { skipReload: !!opts?.skipReload });
+      if (!opts?.skipUndo) showMarkUndo(rowId, markType, turningOn);
+      if (turningOnNis && nisChoice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
+        await global.openHelpdeskForSheetRow(current);
+      }
+      return true;
+    }
+
+    async function runBulkMark(markType) {
+      const ids = [...selectedIds];
+      if (!ids.length) return;
+      if (markType === 'out_of_scope') {
+        const ok = await confirmOutOfScope(ids.length);
+        if (!ok) return;
+      }
+      let nisChoice = null;
+      if (markType === 'not_in_store' && typeof global.askToReportNotInStore === 'function') {
+        nisChoice = await global.askToReportNotInStore({ catName: `${ids.length} sets` });
+        if (!nisChoice || nisChoice === 'cancel') return;
+      }
+      for (const rowId of ids) {
+        try {
+          await markOneRow(rowId, markType, {
+            skipReload: true,
+            skipUndo: true,
+            skipOosConfirm: true,
+            nisChoice,
+          });
+        } catch (err) {
+          console.warn('[signoff] bulk mark failed', rowId, err);
+        }
+      }
+      selectedIds.clear();
+      try { await loadSheet(); } catch (_) {}
+      await paint();
+      try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+      global.EodChrome?.refresh();
+    }
+
     async function paint() {
       let sheet = S.state.sheet;
       if (!S.state.sheetLoaded) {
@@ -638,49 +743,43 @@
       document.body.classList.add('has-hosted-sheet');
       document.body.classList.remove('no-hosted-sheet');
       const s = sheet.summary || {};
-      const open = (sheet.rows || []).filter(isOpenRow).length;
+      const visibleRows = (sheet.rows || []).filter((r) => !markActive(r, 'out_of_scope'));
+      const open = visibleRows.filter(isOpenRow).length;
       summary.innerHTML = `<strong>${esc(sheet.fiscalWeek)}</strong> · Store ${esc(sheet.storeNumber)}`
         + (sheet.team ? ` · Team ${esc(sheet.team)}` : '')
-        + ` · ${s.marked || 0}/${s.total || 0} marked`
+        + ` · ${s.marked || 0}/${visibleRows.length} marked`
         + ` · <span class="${open ? 'pill warn' : 'pill ok'}">${open} open</span>`;
       const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
       paintFilterChips();
-      rowsEl.innerHTML = renderRows(sheet, q, filters);
-      const next = nextWalkRow();
-      const nextEl = document.getElementById('sheetNext');
-      if (nextEl) {
-        if (next) {
-          const loc = global.EodCategoryCardStatus?.siLocationLabel?.(next) || '';
-          const label = [loc, next.catName || next.dbkey].filter(Boolean).join(' · ');
-          nextEl.hidden = false;
-          nextEl.innerHTML = `<button type="button" class="btn btn-primary btn-block" id="sheetNextBtn">${esc(label)}</button>`;
-          nextEl.querySelector('#sheetNextBtn')?.addEventListener('click', () => openSurveyForRow(next));
-        } else {
-          nextEl.hidden = true;
-          nextEl.innerHTML = '';
-        }
+      const liveIds = new Set((sheet.rows || []).map((r) => String(r.id)));
+      for (const id of [...selectedIds]) {
+        if (!liveIds.has(id) || markActive(
+          (sheet.rows || []).find((r) => String(r.id) === id),
+          'out_of_scope'
+        )) selectedIds.delete(id);
       }
+      rowsEl.innerHTML = renderRows(sheet, q, filters, selectedIds);
+      paintBulkBar();
+      rowsEl.querySelectorAll('[data-select-row]').forEach((box) => {
+        box.addEventListener('click', (ev) => ev.stopPropagation());
+        box.addEventListener('change', () => {
+          const id = String(box.getAttribute('data-select-row') || '');
+          if (!id) return;
+          if (box.checked) selectedIds.add(id);
+          else selectedIds.delete(id);
+          const card = box.closest('.ds-row');
+          if (card) card.classList.toggle('is-selected', box.checked);
+          paintBulkBar();
+        });
+      });
       rowsEl.querySelectorAll('[data-mark]').forEach((btn) => {
         btn.onclick = async () => {
           const rowId = btn.getAttribute('data-row');
           const markType = btn.getAttribute('data-mark');
-          const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
-          const turningOn = current && !markActive(current, markType);
-          const turningOnNis = markType === 'not_in_store' && turningOn;
-          let nisChoice = null;
-          if (turningOnNis && typeof global.askToReportNotInStore === 'function') {
-            nisChoice = await global.askToReportNotInStore(current);
-            if (!nisChoice || nisChoice === 'cancel') return;
-          }
           btn.disabled = true;
           try {
-            await applyMark(rowId, markType, turningOnNis
-              ? { helpdeskSent: nisChoice === 'report' }
-              : undefined);
-            showMarkUndo(rowId, markType, turningOn);
-            if (turningOnNis && nisChoice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
-              await global.openHelpdeskForSheetRow(current);
-            }
+            const ok = await markOneRow(rowId, markType);
+            if (!ok) return;
             await paint();
             try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
             global.EodChrome?.refresh();
@@ -693,7 +792,7 @@
       });
       rowsEl.querySelectorAll('[data-open-set]').forEach((el) => {
         el.addEventListener('click', (ev) => {
-          if (ev.target.closest('button')) return;
+          if (ev.target.closest('button, input, .ds-row-check')) return;
           openSetSurvey(el);
         });
       });

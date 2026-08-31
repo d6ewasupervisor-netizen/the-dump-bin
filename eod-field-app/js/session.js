@@ -168,11 +168,20 @@
   }
 
   function rowHasMark(row) {
+    if (global.EodCategoryCardStatus?.rowSendReady) {
+      return global.EodCategoryCardStatus.rowSendReady(row);
+    }
     const m = row?.marks || row?.mark;
-    if (!m) return false;
-    if (Array.isArray(m.active) && m.active.length) return true;
-    if (m.type) return true;
-    if (m.complete || m.notInStore || m.notInSi || m.backlog) return true;
+    if (!m) {
+      const live = row?.live;
+      if (live?.bothComplete) return true;
+      if (live?.prodComplete && live?.siComplete) return true;
+      return false;
+    }
+    if (Array.isArray(m.active) && m.active.includes('not_in_si') && m.active.length === 1) return false;
+    if (m.outOfScope || m.complete || m.notInStore || m.backlog) return true;
+    if (Array.isArray(m.active) && m.active.some((t) => t !== 'not_in_si')) return true;
+    if (m.type && m.type !== 'not_in_si') return true;
     const live = row?.live;
     if (live?.bothComplete) return true;
     if (live?.prodComplete && live?.siComplete) return true;

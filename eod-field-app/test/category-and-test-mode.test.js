@@ -8,6 +8,7 @@ const {
   siLocationLabel,
   matchesSheetFilters,
   sheetRowDone,
+  rowSendReady,
   formatEstHrs,
 } = require('../js/lib/category-card-status');
 const {
@@ -61,7 +62,8 @@ test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {
   assert.equal(matchesSheetFilters(open, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(done, { status: 'not_done' }), false);
   assert.equal(matchesSheetFilters(nis, { status: 'done' }), true);
-  assert.equal(matchesSheetFilters(nisi, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(nisi, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(nisi, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(done, { prod: 'done', si: 'done' }), true);
   assert.equal(matchesSheetFilters(open, { prod: 'done' }), false);
   assert.equal(matchesSheetFilters(open, { prod: 'not_done', si: 'not_done' }), true);
@@ -88,6 +90,23 @@ test('sheet filters: Done includes live PROD+SI even without a lead mark', () =>
   assert.equal(matchesSheetFilters(complete, { status: 'backlog' }), false);
   assert.equal(sheetRowDone(complete), true);
   assert.equal(matchesSheetFilters(complete, { status: 'done' }), true);
+});
+
+test('NISI is not done; only NIS / Complete / Out of Scope / both-live clear a set', () => {
+  const nisi = { marks: { notInSi: true, active: ['not_in_si'] } };
+  const nis = { marks: { notInStore: true, active: ['not_in_store'] } };
+  const oos = { marks: { outOfScope: true, active: ['out_of_scope'] } };
+  const nisiBacklog = { marks: { notInSi: true, backlog: true, active: ['not_in_si', 'backlog'] } };
+  assert.equal(sheetRowDone(nisi), false);
+  assert.equal(rowSendReady(nisi), false);
+  assert.equal(sheetRowDone(nis), true);
+  assert.equal(rowSendReady(nis), true);
+  assert.equal(sheetRowDone(oos), true);
+  assert.equal(rowSendReady(oos), true);
+  assert.equal(rowSendReady(nisiBacklog), true);
+  assert.equal(matchesSheetFilters(oos, { status: 'not_done' }), false);
+  assert.equal(matchesSheetFilters(oos, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(oos, { status: 'backlog' }), false);
 });
 
 test('walk sort: aisle order, backlog after open, complete at bottom, next skips done', () => {
@@ -313,6 +332,9 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.match(visit, /dayConfirmModal/);
   assert.match(visit, /dayConfirmStoreBtn/);
   assert.match(visit, /showPicker/);
+  assert.doesNotMatch(visit, /visitCartRefresh/);
+  assert.doesNotMatch(visit, /saveInMgr/);
+  assert.match(visit, /visibleLeadShifts/);
 });
 
 test('compass buffering overlay ships and wraps slow authFetch', () => {
@@ -367,8 +389,12 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /data-value="done">Done/);
   assert.match(signoff, /data-value="not_done">Not Done/);
   assert.match(signoff, /data-value="backlog">Backlog/);
-  assert.match(signoff, /id="sheetNext"/);
+  assert.match(signoff, /id="sheetBulk"/);
+  assert.doesNotMatch(signoff, /id="sheetNext"/);
   assert.match(signoff, /btn\('complete', 'Complete'\)/);
+  assert.match(signoff, /btn\('out_of_scope', 'Out of Scope'\)/);
+  assert.match(signoff, /data-select-row/);
+  assert.match(signoff, /data-bulk-mark/);
   assert.doesNotMatch(signoff, /data-filter="prod"/);
   assert.doesNotMatch(signoff, /data-filter="si"/);
   assert.doesNotMatch(signoff, /data-filter="notInStore"/);

@@ -8,6 +8,10 @@ const {
   classifySheetFilename,
   coversheetFilename,
   digitalSignoffFilename,
+  eodPdfFilename,
+  isCentralPetReset,
+  visibleLeadShifts,
+  pickVisibleLeadShift,
 } = require('../js/lib/eod-send-sheets-logic');
 
 test('main Kompass ISE is project 1, not Cut In / Blitz / DIV', () => {
@@ -82,4 +86,37 @@ test('sendable photo src rejects CloudFront URLs and accepts data URLs', () => {
 test('coversheet and digital filenames match live EOD naming', () => {
   assert.equal(coversheetFilename(19, '2026-08-24'), 'fm019_eod_coversheet_20260824.jpg');
   assert.equal(digitalSignoffFilename('19', '2026-08-24', 2), 'fm019_digital_signoff_p2_20260824.jpg');
+});
+
+test('EOD PDF filename is EOD_FM###_MM-DD-YY', () => {
+  assert.equal(eodPdfFilename(19, '2026-08-31'), 'EOD_FM019_08-31-26.pdf');
+  assert.equal(eodPdfFilename('FM19', '08/31/2026'), 'EOD_FM019_08-31-26.pdf');
+});
+
+test('visible lead shifts are Central Pet reset assigned to the lead only', () => {
+  const ise = {
+    visitId: '1',
+    projectId: 1,
+    projectName: 'Fred Meyer Kompass ISE',
+    visitLead: 'James Duchene Ryan',
+  };
+  const cpJames = {
+    visitId: '2',
+    projectName: 'Fred Meyer Central Pet Service Surge',
+    visitLead: 'James Duchene Ryan',
+  };
+  const cpEldin = {
+    visitId: '3',
+    projectName: 'Fred Meyer Central Pet Service Surge',
+    visitLead: 'Eldin Dedakovic',
+  };
+  assert.equal(isCentralPetReset(cpJames), true);
+  assert.equal(isCentralPetReset(ise), false);
+  const vis = visibleLeadShifts([ise, cpJames, cpEldin], 'James Duchene Ryan');
+  assert.deepEqual(vis.map((s) => s.visitId), ['2']);
+  const picked = pickVisibleLeadShift([ise, cpJames, cpEldin], 'James Duchene Ryan', ise);
+  assert.equal(picked.selected.visitId, '2');
+  const none = pickVisibleLeadShift([ise, cpEldin], 'James Duchene Ryan', null);
+  assert.equal(none.visible.length, 0);
+  assert.equal(none.selected.visitId, '1');
 });

@@ -87,13 +87,19 @@
     list.innerHTML = items.map((it) => {
       const id = String(it.id);
       const on = selected.has(id);
-      return `<button type="button" class="picker-item${on ? ' is-selected' : ''}${it.disabled ? ' is-disabled' : ''}" data-id="${escapeHtml(id)}">
-        <div class="picker-item-text">
-          <div class="picker-item-label">${escapeHtml(it.label || id)}</div>
-          ${it.sublabel ? `<div class="picker-item-sub">${escapeHtml(it.sublabel)}</div>` : ''}
-        </div>
-        ${on ? '<span>✓</span>' : ''}
-      </button>`;
+      const remove = it.removable && !it.disabled
+        ? `<button type="button" class="picker-item-x" data-remove="${escapeHtml(id)}" aria-label="Remove">×</button>`
+        : '';
+      return `<div class="picker-item-row">
+        <button type="button" class="picker-item${on ? ' is-selected' : ''}${it.disabled ? ' is-disabled' : ''}" data-id="${escapeHtml(id)}">
+          <div class="picker-item-text">
+            <div class="picker-item-label">${escapeHtml(it.label || id)}</div>
+            ${it.sublabel ? `<div class="picker-item-sub">${escapeHtml(it.sublabel)}</div>` : ''}
+          </div>
+          ${on ? '<span>✓</span>' : ''}
+        </button>
+        ${remove}
+      </div>`;
     }).join('');
     list.querySelectorAll('.picker-item').forEach((btn) => {
       btn.onclick = () => {
@@ -112,6 +118,39 @@
         }
       };
     });
+    list.querySelectorAll('.picker-item-x').forEach((btn) => {
+      btn.onclick = async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const id = btn.getAttribute('data-remove');
+        const item = pickerState.items.find((x) => String(x.id) === id);
+        if (!item || typeof pickerState.onRemove !== 'function') return;
+        const ok = await (global.EodAlerts?.showDialog
+          ? global.EodAlerts.showDialog({
+            title: 'Remove?',
+            message: item.label || 'Remove this saved entry?',
+            buttons: [
+              { id: 'cancel', label: 'Cancel' },
+              { id: 'ok', label: 'Remove', primary: true },
+            ],
+          }).then((r) => r === 'ok')
+          : Promise.resolve(window.confirm(`Remove ${item.label}?`)));
+        if (!ok || !pickerState) return;
+        try {
+          await pickerState.onRemove(item);
+        } catch (_) {
+          return;
+        }
+        if (!pickerState) return;
+        pickerState.items = pickerState.items.filter((x) => String(x.id) !== id);
+        pickerState.selected = pickerState.selected.filter((x) => String(x) !== id);
+        if (!pickerState.items.length) {
+          close();
+          return;
+        }
+        renderList();
+      };
+    });
   }
 
   function open(opts) {
@@ -124,6 +163,7 @@
       onChoose: options.onChoose,
       onChange: options.onChange,
       onToggle: options.onToggle,
+      onRemove: options.onRemove,
       anchor: options.anchor || null,
     };
     document.getElementById('eodPickerTitle').textContent = options.title || 'Choose';

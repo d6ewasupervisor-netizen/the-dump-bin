@@ -738,10 +738,19 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .ds-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .ds-row.marked-backlog { background: rgba(30,64,175,.22); }
 .ds-row-copy.ds-row-open { cursor: pointer; }
-.ds-actions .btn { min-height: 40px; font-size: 13px; padding: 8px 10px; flex: 1 1 22%; min-width: 0; }
+.ds-actions .btn { min-height: 40px; font-size: 13px; padding: 8px 10px; flex: 1 1 18%; min-width: 0; }
 .ds-actions .btn.on { outline: 2px solid var(--accent); }
-.ds-row-compact .ds-actions .btn { flex: 1 1 22%; font-size: 12px; padding: 8px 6px; }
-.ds-next { margin: 8px 0 12px; }
+.ds-row-compact .ds-actions .btn { flex: 1 1 18%; font-size: 12px; padding: 8px 6px; }
+.ds-bulk { display: none; margin: 8px 0 12px; }
+.ds-bulk.is-on { display: block; }
+.ds-bulk-count { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.ds-row-compact { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.ds-row-check {
+  flex: 0 0 22px; width: 22px; height: 22px; margin-top: 4px; accent-color: var(--accent);
+}
+.ds-row-compact .ds-row-copy { flex: 1 1 60%; min-width: 0; }
+.ds-row-compact .ds-actions { flex: 1 1 100%; }
+.ds-row.is-selected { outline: 2px solid var(--accent); }
 .cat-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
 .cat-head h1 { margin: 0; flex: 1 1 auto; }
 .manager-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -848,7 +857,17 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   display: flex; width: 100%; text-align: left; gap: 10px; align-items: center;
   padding: 12px 10px; min-height: 48px; border: 0; border-radius: 10px;
   background: transparent; color: var(--text); cursor: pointer;
+  flex: 1; min-width: 0;
 }
+.picker-item-row {
+  display: flex; align-items: stretch; gap: 4px;
+}
+.picker-item-x {
+  flex: 0 0 44px; min-height: 48px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--muted); font-size: 22px; line-height: 1;
+  cursor: pointer;
+}
+.picker-item-x:hover { background: var(--accent-soft); color: var(--text); }
 .picker-item:hover, .picker-item.is-selected { background: var(--accent-soft); }
 .picker-item.is-selected { outline: 1px solid var(--accent); }
 .picker-item-label { font-weight: 700; }

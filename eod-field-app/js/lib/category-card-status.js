@@ -39,6 +39,7 @@
     if (type === 'not_in_store') return !!m.notInStore;
     if (type === 'not_in_si') return !!m.notInSi;
     if (type === 'backlog') return !!m.backlog;
+    if (type === 'out_of_scope') return !!m.outOfScope;
     return m.type === type;
   }
 
@@ -58,9 +59,18 @@
   }
 
   function sheetRowDone(row) {
+    if (markActive(row, 'out_of_scope')) return true;
     if (markActive(row, 'complete')) return true;
     if (markActive(row, 'not_in_store')) return true;
-    if (markActive(row, 'not_in_si')) return true;
+    if (prodDone(row) && siDone(row)) return true;
+    return false;
+  }
+
+  function rowSendReady(row) {
+    if (markActive(row, 'out_of_scope')) return true;
+    if (markActive(row, 'not_in_store')) return true;
+    if (markActive(row, 'complete')) return true;
+    if (markActive(row, 'backlog')) return true;
     if (prodDone(row) && siDone(row)) return true;
     return false;
   }
@@ -123,6 +133,7 @@
 
   function matchesSheetFilters(row, filters) {
     const f = filters || {};
+    if (markActive(row, 'out_of_scope')) return false;
     if (f.status === 'backlog') {
       if (!markActive(row, 'backlog') || sheetRowDone(row)) return false;
     }
@@ -153,6 +164,7 @@
     prodDone,
     siDone,
     sheetRowDone,
+    rowSendReady,
     formatEstHrs,
     matchesSheetFilters,
     aisleNumber,

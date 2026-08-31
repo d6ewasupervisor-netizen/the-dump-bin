@@ -214,6 +214,8 @@ ${S.state.notes || ''}`;
       checkInManager: S.state.checkInManager || '',
       checkOutManager: S.state.checkOutManager || '',
       visitId: mainIse?.visitId || null,
+      pdfFilename: (global.EodSendSheetsLogic?.eodPdfFilename
+        || ((n, d) => `EOD_FM${padStore(n)}_${String(d || '').slice(5, 7)}-${String(d || '').slice(8, 10)}-${String(d || '').slice(2, 4)}.pdf`))(store, S.state.workDate),
       signoffPhotos: collectSignoffPhotos(),
       cartPhotos: {
         before: photosOf('before').map(photoSrc).filter(Boolean),
@@ -337,7 +339,6 @@ ${S.state.notes || ''}`;
           <input type="text" id="checkOutManager" value="${esc(S.state.checkOutManager || '')}" list="mgrListSend" autocomplete="off">
           ${global.EodVisitMemory?.chipsHtml?.(S.state.managerNamePool, S.state.checkOutManager, esc) || ''}
           <button type="button" class="btn btn-secondary btn-block" id="pickOutMgr" style="margin-top:6px;">Choose saved name</button>
-          <button type="button" class="btn btn-secondary btn-block" id="saveOutMgr" style="margin-top:6px;">Save name to store</button>
         </div>
         <datalist id="mgrListSend">${(S.state.managerNamePool || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
         <div class="field">
@@ -492,21 +493,15 @@ ${S.state.notes || ''}`;
       refreshGates();
     });
     try { global.EodVisitMemory?.bindChipField?.('checkOutField', 'out'); } catch (_) {}
-    document.getElementById('saveOutMgr')?.addEventListener('click', async () => {
-      const name = document.getElementById('checkOutManager')?.value?.trim();
-      if (!name) return;
-      try {
-        await global.EodCover?.addManagerName?.(name);
-        if (global.showAlert) global.showAlert('Saved', 'Manager name saved for this store.');
-      } catch (err) {
-        if (global.showAlert) global.showAlert('Save', err.message || String(err));
-      }
-    });
     document.getElementById('pickOutMgr')?.addEventListener('click', () => {
-      const items = (S.state.managerNamePool || []).map((n, i) => ({ id: String(i), label: n }));
+      const items = (S.state.managerNamePool || []).map((n, i) => ({
+        id: String(i),
+        label: n,
+        removable: true,
+      }));
       global.EodPicker.open({
         anchor: document.getElementById('pickOutMgr'),
-        title: 'Saved managers',
+        title: 'Saved names',
         items: items.length ? items : [{ id: 'x', label: 'No saved names', disabled: true }],
         searchable: items.length > 6,
         onChoose(item) {
@@ -517,6 +512,13 @@ ${S.state.notes || ''}`;
             S.patch({ checkOutManager: item.label }, 'checkout');
           }
           saveSendFields();
+        },
+        async onRemove(item) {
+          try {
+            await global.EodCover?.removeManagerName?.(item.label);
+          } catch (err) {
+            if (global.showAlert) global.showAlert('Remove', err.message || String(err));
+          }
         },
       });
     });
@@ -665,7 +667,7 @@ ${S.state.notes || ''}`;
         anchor: document.getElementById('fmPickerBtn'),
         title: 'Fred Meyer addresses',
         multiple: true,
-        items: pool.map((e, i) => ({ id: String(i), label: e, selected: selected.includes(e) })),
+        items: pool.map((e, i) => ({ id: String(i), label: e, removable: true })),
         selected: pool.map((e, i) => selected.includes(e) ? String(i) : null).filter(Boolean),
         searchable: pool.length > 8,
         onChange(ids) {
@@ -674,6 +676,14 @@ ${S.state.notes || ''}`;
           S.patch({ emailRecipients: [...new Set([...others, ...picked])] }, 'fm');
           S.saveDraft();
           render(mount);
+        },
+        async onRemove(item) {
+          try {
+            await global.EodCover?.removeFredmeyerEmail?.(item.label);
+            global.EodPicker.close();
+          } catch (err) {
+            if (global.showAlert) global.showAlert('Remove', err.message || String(err));
+          }
         },
       });
     });
@@ -745,6 +755,14 @@ ${S.state.notes || ''}`;
       }
       // Durable save before send — keep local copy even if network dies mid-flight.
       try { S.saveDraft(); } catch (_) {}
+      try {
+        const inn = String(S.state.checkInManager || '').trim();
+        const out = String(S.state.checkOutManager || '').trim();
+        if (inn) await global.EodCover?.addManagerName?.(inn);
+        if (out && out.toLowerCase() !== inn.toLowerCase()) {
+          await global.EodCover?.addManagerName?.(out);
+        }
+      } catch (_) {}
       if (global.EodDurability?.awaitDurablePhotoSave) {
         const saved = await global.EodDurability.awaitDurablePhotoSave('send');
         if (!saved) {
@@ -906,7 +924,10 @@ ${S.state.notes || ''}`;
         storeNumber: payload.storeNumber,
         workDate: payload.workDate,
         kind: 'pdf',
-        filename: payload.pdfFilename || `EOD_Store${payload.storeNumber}.pdf`,
+        filename: payload.pdfFilename
+          || (global.EodSendSheetsLogic?.eodPdfFilename
+            ? global.EodSendSheetsLogic.eodPdfFilename(payload.storeNumber, payload.workDate)
+            : `EOD_FM${padStore(payload.storeNumber)}_${String(payload.workDate || '').slice(5, 7)}-${String(payload.workDate || '').slice(8, 10)}-${String(payload.workDate || '').slice(2, 4)}.pdf`),
         mime: 'application/pdf',
         contentBase64: String(payload.pdfBase64).replace(/\s+/g, ''),
       });

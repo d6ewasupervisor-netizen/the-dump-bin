@@ -30,6 +30,79 @@
     return list.find(isMainKompassIse) || null;
   }
 
+  function isCentralPetReset(shift) {
+    if (!shift) return false;
+    const blob = [
+      shift.projectName,
+      shift.teamName,
+      shift.kompassType,
+      shift.projectType,
+      shift.shiftType,
+    ].map((s) => String(s || '').toLowerCase()).join(' ');
+    return /central\s*pet/.test(blob)
+      || /pet\s*service\s*surge/.test(blob)
+      || /pet\s*reset/.test(blob);
+  }
+
+  function leadNamesMatch(a, b) {
+    const na = String(a || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const nb = String(b || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    const aParts = na.split(' ');
+    const bParts = nb.split(' ');
+    if (aParts[0] === bParts[0] && aParts[aParts.length - 1] === bParts[bParts.length - 1]) return true;
+    return na.includes(nb) || nb.includes(na);
+  }
+
+  function shiftLeadName(shift) {
+    return String(shift?.visitLead || shift?.leadName || '').trim();
+  }
+
+  function visibleLeadShifts(shifts, leadName) {
+    return (Array.isArray(shifts) ? shifts : []).filter((s) => (
+      isCentralPetReset(s) && leadNamesMatch(shiftLeadName(s), leadName)
+    ));
+  }
+
+  function pickVisibleLeadShift(shifts, leadName, current) {
+    const list = Array.isArray(shifts) ? shifts : [];
+    const visible = visibleLeadShifts(list, leadName);
+    const ise = pickMainKompassIseVisit(list, null);
+    const curId = current?.visitId != null ? String(current.visitId) : '';
+    let selected = null;
+    if (curId && visible.some((s) => String(s.visitId) === curId)) {
+      selected = visible.find((s) => String(s.visitId) === curId) || current;
+    } else if (visible.length === 1) {
+      selected = visible[0];
+    } else if (curId && list.some((s) => String(s.visitId) === curId)) {
+      selected = current;
+    } else {
+      selected = ise || visible[0] || null;
+    }
+    return { visible, selected, ise };
+  }
+
+  function eodPdfFilename(storeNumber, workDate) {
+    const pad = padStore(storeNumber);
+    const s = String(workDate || '').trim();
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const md = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+    let mm = '00';
+    let dd = '00';
+    let yy = '00';
+    if (iso) {
+      mm = iso[2];
+      dd = iso[3];
+      yy = iso[1].slice(-2);
+    } else if (md) {
+      mm = String(md[1]).padStart(2, '0');
+      dd = String(md[2]).padStart(2, '0');
+      yy = String(md[3]).slice(-2);
+    }
+    return `EOD_FM${pad}_${mm}-${dd}-${yy}.pdf`;
+  }
+
   function isRemotePhotoSrc(src) {
     const s = String(src || '').trim();
     return /^https?:\/\//i.test(s) || /^blob:/i.test(s);
@@ -133,6 +206,11 @@
     dateCompact,
     isMainKompassIse,
     pickMainKompassIseVisit,
+    isCentralPetReset,
+    leadNamesMatch,
+    visibleLeadShifts,
+    pickVisibleLeadShift,
+    eodPdfFilename,
     isRemotePhotoSrc,
     isSendableImageSrc,
     cartSlotLabel,

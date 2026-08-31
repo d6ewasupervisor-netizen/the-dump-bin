@@ -190,6 +190,56 @@
       .filter((id) => id && id !== primary);
   }
 
+  function leadNameNow() {
+    const S = global.EodSession;
+    return String(
+      S.resolvedLeadName?.()
+      || S.state.leadName
+      || S.state.profileName
+      || ''
+    ).trim();
+  }
+
+  function applyShiftsToSession(shifts, listEl, reason) {
+    const S = global.EodSession;
+    const L = global.EodSendSheetsLogic || {};
+    const picked = L.pickVisibleLeadShift
+      ? L.pickVisibleLeadShift(shifts, leadNameNow(), S.state.selectedShift)
+      : {
+        visible: shifts,
+        selected: shifts.length === 1 ? shifts[0] : S.state.selectedShift,
+      };
+    const selected = picked.selected || null;
+    S.patch({
+      shifts,
+      selectedShift: selected,
+      extraVisitIds: selected ? siblingExtraIds(shifts, selected) : [],
+    }, reason);
+    paintShiftList(listEl);
+    return picked;
+  }
+
+  function paintShiftList(listEl) {
+    if (!listEl) return;
+    const S = global.EodSession;
+    const L = global.EodSendSheetsLogic || {};
+    const all = S.state.shifts || [];
+    const visible = L.visibleLeadShifts
+      ? L.visibleLeadShifts(all, leadNameNow())
+      : all;
+    const selId = String(S.state.selectedShift?.visitId || '');
+    if (!all.length) {
+      listEl.innerHTML = '<p class="muted">Confirm store to load shifts.</p>';
+      return;
+    }
+    if (!visible.length) {
+      listEl.innerHTML = '<p class="muted">No Central Pet reset assigned.</p>';
+      return;
+    }
+    listEl.innerHTML = renderShiftCards(visible, selId);
+    wireShiftCards(listEl, visible);
+  }
+
   function paintCachedShifts(store, date, listEl) {
     const cached = global.EodShiftDay?.shiftsForStore?.(store, date);
     if (!cached || !cached.length || !listEl) return false;
@@ -197,15 +247,7 @@
     const input = S.normStoreNumber(store);
     const shifts = cached.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
     if (!shifts.length) return false;
-    const selected = shifts.length === 1 ? shifts[0] : S.state.selectedShift;
-    S.patch({
-      shifts,
-      selectedShift: selected,
-      extraVisitIds: selected ? siblingExtraIds(shifts, selected) : [],
-    }, 'shifts-cache');
-    const selIdx = shifts.length === 1 ? 0 : shifts.findIndex((s) => String(s.visitId) === String(S.state.selectedShift?.visitId));
-    listEl.innerHTML = renderShiftCards(shifts, selIdx >= 0 ? selIdx : -1);
-    wireShiftCards(listEl);
+    applyShiftsToSession(shifts, listEl, 'shifts-cache');
     return true;
   }
 
@@ -229,88 +271,60 @@
       const sStore = S.normStoreNumber(s.storeNumber || s.store_number || s.store);
       return sStore === input;
     });
-    const selected = shifts.length === 1 ? shifts[0] : null;
-    S.patch({
-      shifts,
-      selectedShift: selected,
-      extraVisitIds: selected ? siblingExtraIds(shifts, selected) : [],
-    }, 'shifts');
     if (!shifts.length) {
+      S.patch({ shifts: [], selectedShift: null, extraVisitIds: [] }, 'shifts');
       listEl.innerHTML = S.normStoreNumber(store) === '999'
         ? '<p class="muted">No sandbox shift cloned yet — ask an admin to run POST /api/sandbox/clone-shift.</p>'
         : '<p class="muted">No shifts found for this store/date.</p>';
       return;
     }
-    const selIdx = shifts.length === 1 ? 0 : -1;
-    listEl.innerHTML = renderShiftCards(shifts, selIdx);
-    wireShiftCards(listEl);
-    if (shifts.length === 1) {
-      await applyLeadFromShift(shifts[0]);
+    const picked = applyShiftsToSession(shifts, listEl, 'shifts');
+    if (picked.selected) {
+      await applyLeadFromShift(picked.selected);
+      applyShiftsToSession(shifts, listEl, 'shifts-lead');
       advanceAfterShiftSelected();
     }
   }
 
-  function renderShiftCards(shifts, selectedIndex) {
-    const extras = new Set((global.EodSession.state.extraVisitIds || []).map(String));
-    const multi = shifts.length > 1;
-    return shifts.map((shift, i) => {
+  function renderShiftCards(shifts, selectedVisitId) {
+    const sel = String(selectedVisitId || '');
+    return shifts.map((shift) => {
       const status = shift.currentStatus || shift.status || 'unknown';
-      const sel = i === selectedIndex ? ' selected' : '';
       const vid = String(shift.visitId || '');
-      const extraOn = extras.has(vid) && i !== selectedIndex;
-      const extra = multi ? `<label class="shift-also" data-extra="${i}">
-        <input type="checkbox" ${extraOn ? 'checked' : ''} ${i === selectedIndex ? 'disabled' : ''}>
-        Also this visit
-      </label>` : '';
-      return `<div class="shift-card${sel}" data-idx="${i}">
+      const on = vid && vid === sel ? ' selected' : '';
+      return `<div class="shift-card${on}" data-visit="${esc(vid)}">
         <strong>${esc(shift.projectName || shift.teamName || 'Shift')}</strong>
         <div class="muted">${esc(status)} · ${esc(String(shift.totalHours ?? ''))} hrs · ${esc(String(shift.empCount ?? shift.employeeCount ?? ''))} people</div>
         <div class="muted">${esc(shift.visitLead || shift.leadName || '')}</div>
         ${/closed|transmitted|complete/i.test(String(status))
           ? '<div class="muted">Closed — still usable for EOD / reports</div>'
           : ''}
-        ${extra}
       </div>`;
     }).join('');
   }
 
-  function wireShiftCards(listEl) {
+  function wireShiftCards(listEl, visible) {
     const S = global.EodSession;
+    const cards = visible || [];
     listEl.querySelectorAll('.shift-card').forEach((card) => {
-      card.onclick = async (ev) => {
-        if (ev.target.closest('.shift-also')) return;
-        const idx = Number(card.getAttribute('data-idx'));
-        const shift = S.state.shifts[idx];
+      card.onclick = async () => {
+        const vid = card.getAttribute('data-visit');
+        const shift = cards.find((s) => String(s.visitId) === vid)
+          || (S.state.shifts || []).find((s) => String(s.visitId) === vid);
         if (!shift) return;
         listEl.querySelectorAll('.shift-card').forEach((c) => c.classList.remove('selected'));
         card.classList.add('selected');
-        S.patch({ selectedShift: shift, extraVisitIds: siblingExtraIds(S.state.shifts, shift) }, 'shift');
+        S.patch({
+          selectedShift: shift,
+          extraVisitIds: siblingExtraIds(S.state.shifts, shift),
+        }, 'shift');
         await applyLeadFromShift(shift);
         S.saveDraft();
         advanceAfterShiftSelected();
         try { global.EodShiftPhotoSync?.run?.('shift'); } catch (_) {}
         paintOnboarding();
         updateContinueBtn();
-        listEl.innerHTML = renderShiftCards(S.state.shifts, idx);
-        wireShiftCards(listEl);
-      };
-    });
-    listEl.querySelectorAll('.shift-also input').forEach((cb) => {
-      cb.onclick = (ev) => ev.stopPropagation();
-      cb.onchange = () => {
-        const idx = Number(cb.closest('[data-extra]')?.getAttribute('data-extra'));
-        const shift = S.state.shifts[idx];
-        if (!shift?.visitId) return;
-        const id = String(shift.visitId);
-        const primary = String(S.state.selectedShift?.visitId || '');
-        let extras = (S.state.extraVisitIds || []).map(String).filter((x) => x !== primary);
-        if (cb.checked) {
-          if (!extras.includes(id) && id !== primary) extras.push(id);
-        } else {
-          extras = extras.filter((x) => x !== id);
-        }
-        S.patch({ extraVisitIds: extras }, 'extra-visits');
-        S.saveDraft();
+        paintShiftList(listEl);
       };
     });
   }
@@ -498,7 +512,6 @@
             <button type="button" class="btn btn-secondary" id="cartBeforePush" ${befores.length ? '' : 'disabled'}>Upload to PROD</button>
           </div>
           <button type="button" class="btn btn-secondary btn-block" id="noCartBtn" style="margin-top:8px;">No Kompass Cart</button>
-          <button type="button" class="btn btn-secondary btn-block" id="visitCartRefresh" style="margin-top:8px;">Refresh cart</button>
         </div>
         <div id="cartMsg" class="muted" style="margin-top:8px;"></div>
       </section>
@@ -510,7 +523,6 @@
           <input type="text" id="checkInManager" value="${esc(S.state.checkInManager || '')}" list="mgrListVisit" autocomplete="off">
           ${global.EodVisitMemory?.chipsHtml?.(S.state.managerNamePool, S.state.checkInManager, esc) || ''}
           <button type="button" class="btn btn-secondary btn-block" id="pickInMgr" style="margin-top:6px;">Choose saved name</button>
-          <button type="button" class="btn btn-secondary btn-block" id="saveInMgr" style="margin-top:6px;">Save name to store</button>
         </div>
         <datalist id="mgrListVisit">${(S.state.managerNamePool || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       </section>
@@ -647,33 +659,15 @@
         shouldContinue: () => false,
       });
     });
-    document.getElementById('visitCartRefresh')?.addEventListener('click', async () => {
-      try {
-        setCartMsg('Refreshing cart from PROD…');
-        const n = await pullCartFromProd('before');
-        setCartMsg(`Pulled ${n} before photo(s) from PROD.`);
-        paintOnboarding();
-        try { global.EodCoverNotes?.apply?.(S, 'cart-before'); } catch (_) {}
-      } catch (err) {
-        setCartMsg(err.message || String(err), true);
-      }
-    });
-    document.getElementById('saveInMgr')?.addEventListener('click', async () => {
-      const name = document.getElementById('checkInManager')?.value?.trim();
-      if (!name) return;
-      try {
-        await global.EodCover?.addManagerName?.(name);
-        setCartMsg('Saved manager name for this store.');
-        paintOnboarding();
-      } catch (err) {
-        setCartMsg(err.message || String(err), true);
-      }
-    });
     document.getElementById('pickInMgr')?.addEventListener('click', () => {
-      const items = (S.state.managerNamePool || []).map((n, i) => ({ id: String(i), label: n }));
+      const items = (S.state.managerNamePool || []).map((n, i) => ({
+        id: String(i),
+        label: n,
+        removable: true,
+      }));
       global.EodPicker.open({
         anchor: document.getElementById('pickInMgr'),
-        title: 'Saved managers',
+        title: 'Saved names',
         items: items.length ? items : [{ id: 'x', label: 'No saved names', disabled: true }],
         searchable: items.length > 6,
         onChoose(item) {
@@ -684,6 +678,14 @@
           } else {
             S.patch({ checkInManager: item.label, checkInDone: true }, 'checkin');
             S.saveDraft();
+          }
+        },
+        async onRemove(item) {
+          try {
+            await global.EodCover?.removeManagerName?.(item.label);
+            paintOnboarding();
+          } catch (err) {
+            setCartMsg(err.message || String(err), true);
           }
         },
       });
@@ -951,10 +953,6 @@
       } catch (_) {}
     }
 
-    const selIdx = S.state.shifts.findIndex(
-      (s) => s === S.state.selectedShift || s.visitId === S.state.selectedShift?.visitId
-    );
-
     mount.innerHTML = `
       <div class="card">
         <div class="btn-row" style="justify-content:space-between;align-items:center;">
@@ -979,7 +977,7 @@
 
       <div class="card" id="shiftCard">
         <h2>Shifts</h2>
-        <div id="shiftList">${S.state.shifts.length ? renderShiftCards(S.state.shifts, selIdx) : '<p class="muted">Confirm store to load shifts.</p>'}</div>
+        <div id="shiftList"></div>
         <div class="field" style="margin-top:14px;">
           <label>Lead name</label>
           <input type="text" id="visitLeadName" value="${esc(S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked ? 'readonly' : ''}>
@@ -996,7 +994,7 @@
       </div>
 `;
 
-    if (S.state.shifts.length) wireShiftCards(document.getElementById('shiftList'));
+    paintShiftList(document.getElementById('shiftList'));
     paintOnboarding();
 
     document.getElementById('resetVisitBtn').onclick = () => doReset();
@@ -1005,6 +1003,10 @@
       const lead = document.getElementById('visitLeadName').value.trim();
       S.patch({ leadName: lead, profileName: lead || S.state.profileName }, 'lead-edit');
       S.saveDraft();
+      if (S.state.shifts.length) {
+        applyShiftsToSession(S.state.shifts, document.getElementById('shiftList'), 'lead-filter');
+        updateContinueBtn();
+      }
     };
 
     document.getElementById('visitEmail').oninput = () => {
