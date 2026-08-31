@@ -58,13 +58,68 @@
       const url = src(p);
       if (!url) return '';
       return `<div>
-        <img src="${url}" alt="${esc(type)} ${i + 1}">
+        <img src="${esc(url)}" alt="${esc(type)} ${i + 1}">
         <div class="btn-row" style="margin-top:4px;">
-          <button type="button" class="btn btn-secondary" data-edit="${type}" data-idx="${i}" style="min-height:36px;font-size:12px;flex:1;">Edit</button>
-          <button type="button" class="btn btn-danger" data-remove="${type}" data-idx="${i}" style="min-height:36px;font-size:12px;flex:1;">Remove</button>
+          <button type="button" class="btn btn-secondary" data-edit="${esc(type)}" data-idx="${i}" style="min-height:36px;font-size:12px;flex:1;">Edit</button>
+          <button type="button" class="btn btn-danger" data-remove="${esc(type)}" data-idx="${i}" style="min-height:36px;font-size:12px;flex:1;">Remove</button>
         </div>
       </div>`;
     }).join('')}</div>`;
+  }
+
+  async function removeAt(type, idx) {
+    const S = global.EodSession;
+    const photos = Object.assign({}, S.state.photos);
+    photos[type] = (photos[type] || []).slice();
+    if (idx < 0 || idx >= photos[type].length) return false;
+    photos[type].splice(idx, 1);
+    const patch = { photos };
+    if (type === 'before' && !photos[type].length) patch.cartPhotoDone = false;
+    S.patch(patch, 'photos');
+    await persistPhotos();
+    return true;
+  }
+
+  async function editAt(type, idx) {
+    const S = global.EodSession;
+    let entry = (S.state.photos[type] || [])[idx];
+    if (entry == null) return false;
+    let dataUrl = src(entry);
+    if ((!dataUrl || /^blob:/i.test(dataUrl)) && global.PhotoDB?.hydrateDataUrls) {
+      try { await global.PhotoDB.hydrateDataUrls(S.state.photos); } catch (_) {}
+      entry = (S.state.photos[type] || [])[idx];
+      dataUrl = src(entry);
+    }
+    if (!dataUrl || !global.EodPhotoEditor?.open) return false;
+    const out = await global.EodPhotoEditor.open({ dataUrl });
+    if (!out) return false;
+    const photos = Object.assign({}, S.state.photos);
+    photos[type] = (photos[type] || []).slice();
+    if (typeof photos[type][idx] === 'string') photos[type][idx] = out;
+    else photos[type][idx] = Object.assign({}, photos[type][idx], {
+      dataUrl: out,
+      previewUrl: out,
+      preview: out,
+    });
+    S.patch({ photos }, 'photos');
+    await persistPhotos();
+    return true;
+  }
+
+  function bindGrid(root, { afterChange } = {}) {
+    if (!root) return;
+    root.querySelectorAll('[data-remove]').forEach((btn) => {
+      btn.onclick = async () => {
+        await removeAt(btn.getAttribute('data-remove'), Number(btn.getAttribute('data-idx')));
+        if (afterChange) await afterChange();
+      };
+    });
+    root.querySelectorAll('[data-edit]').forEach((btn) => {
+      btn.onclick = async () => {
+        const changed = await editAt(btn.getAttribute('data-edit'), Number(btn.getAttribute('data-idx')));
+        if (changed && afterChange) await afterChange();
+      };
+    });
   }
 
   async function addFiles(type, files, extraKind) {
@@ -206,36 +261,7 @@
         render(mount);
       };
     });
-    mount.querySelectorAll('[data-remove]').forEach((btn) => {
-      btn.onclick = async () => {
-        const type = btn.getAttribute('data-remove');
-        const idx = Number(btn.getAttribute('data-idx'));
-        const photos = Object.assign({}, S.state.photos);
-        photos[type] = (photos[type] || []).slice();
-        photos[type].splice(idx, 1);
-        S.patch({ photos }, 'photos');
-        await persistPhotos();
-        render(mount);
-      };
-    });
-    mount.querySelectorAll('[data-edit]').forEach((btn) => {
-      btn.onclick = async () => {
-        const type = btn.getAttribute('data-edit');
-        const idx = Number(btn.getAttribute('data-idx'));
-        const entry = (S.state.photos[type] || [])[idx];
-        const dataUrl = src(entry);
-        if (!dataUrl || !global.EodPhotoEditor?.open) return;
-        const out = await global.EodPhotoEditor.open({ dataUrl });
-        if (!out) return;
-        const photos = Object.assign({}, S.state.photos);
-        photos[type] = (photos[type] || []).slice();
-        if (typeof photos[type][idx] === 'string') photos[type][idx] = out;
-        else photos[type][idx] = Object.assign({}, photos[type][idx], { dataUrl: out });
-        S.patch({ photos }, 'photos');
-        await persistPhotos();
-        render(mount);
-      };
-    });
+    bindGrid(mount, { afterChange: () => render(mount) });
     mount.querySelectorAll('[data-pull]').forEach((btn) => {
       btn.onclick = async () => {
         const type = btn.getAttribute('data-pull');
@@ -297,7 +323,17 @@
     });
   }
 
-  global.EodPhotos = { render, preparePhoto, saveInstawork, addFiles };
+  global.EodPhotos = {
+    render,
+    preparePhoto,
+    saveInstawork,
+    addFiles,
+    gridHtml,
+    bindGrid,
+    editAt,
+    removeAt,
+    src,
+  };
   global.EodRouter.register('photos', () => {
     global.EodRouter.go('send', { replace: true });
   });

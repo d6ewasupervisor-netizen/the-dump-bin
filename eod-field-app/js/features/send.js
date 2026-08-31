@@ -330,7 +330,7 @@ ${S.state.notes || ''}`;
               <input type="file" accept="image/*,.heic,.heif" id="sendPaperInput" hidden>
             </label>
           </div>
-          <p class="muted" id="sendPaperCount">${photoCount('signoff')} photo(s)</p>
+          <div id="sendPaperGrid" style="margin-top:10px;"></div>
         </div>`}
         <div class="field" id="checkOutField">
           <label>Manager checked out with</label>
@@ -344,9 +344,13 @@ ${S.state.notes || ''}`;
           <label>Notes</label>
           <textarea id="sendNotes" rows="4">${esc(S.state.notes || '')}</textarea>
         </div>
+        <div class="card" id="cartBeforeCard" style="margin:12px 0;">
+          <h2>Kompass cart — before</h2>
+          <div id="sendBeforeGrid"></div>
+        </div>
         <div class="card" id="cartAfterCard" style="margin:12px 0;">
           <h2>Kompass cart — after</h2>
-          <div id="cartAfterThumbs" class="set-thumbs" style="margin-bottom:10px;"></div>
+          <div id="cartAfterThumbs" style="margin-bottom:10px;"></div>
           <div class="btn-row">
             <button type="button" class="btn btn-primary" id="cartAfterCam">Camera</button>
             <label class="btn btn-secondary" style="cursor:pointer;">
@@ -413,6 +417,29 @@ ${S.state.notes || ''}`;
       }
     });
     try { await global.EodPicQr?.mount?.(document.getElementById('eodPicQrMount')); } catch (_) {}
+
+    function paintSendablePhotos() {
+      const Photos = global.EodPhotos;
+      const slots = [
+        { type: 'before', id: 'sendBeforeGrid' },
+        { type: 'after', id: 'cartAfterThumbs' },
+        { type: 'signoff', id: 'sendPaperGrid' },
+      ];
+      slots.forEach(({ type, id }) => {
+        const host = document.getElementById(id);
+        if (!host || !Photos?.gridHtml) return;
+        host.innerHTML = Photos.gridHtml(type);
+        Photos.bindGrid(host, { afterChange: async () => {
+          paintSendablePhotos();
+          refreshGates();
+        } });
+      });
+      const afterList = global.EodVisitCart?.cartPhotos?.('after') || photosOf('after');
+      const pushBtn = document.getElementById('cartAfterPush');
+      if (pushBtn) pushBtn.disabled = !afterList.length;
+    }
+    paintSendablePhotos();
+
     document.getElementById('sendPaperCam')?.addEventListener('click', async () => {
       if (!global.EodCamera?.open) return;
       await global.EodCamera.open({
@@ -422,15 +449,15 @@ ${S.state.notes || ''}`;
         },
         shouldContinue: () => true,
       });
-      const count = document.getElementById('sendPaperCount');
-      if (count) count.textContent = `${photoCount('signoff')} photo(s)`;
+      paintSendablePhotos();
+      refreshGates();
     });
     document.getElementById('sendPaperInput')?.addEventListener('change', async (ev) => {
       const files = [...(ev.target.files || [])];
       ev.target.value = '';
       if (files.length && global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('signoff', files);
-      const count = document.getElementById('sendPaperCount');
-      if (count) count.textContent = `${photoCount('signoff')} photo(s)`;
+      paintSendablePhotos();
+      refreshGates();
     });
     try { global.EodSendGates?.bindList?.(document.getElementById('eodSendGates'), S); } catch (_) {}
     ensureLiveGates(S);
@@ -503,14 +530,7 @@ ${S.state.notes || ''}`;
         el.textContent = t || '';
       };
       function paintThumbs() {
-        const host = document.getElementById('cartAfterThumbs');
-        if (!host || !Cart) return;
-        const list = Cart.cartPhotos('after');
-        host.innerHTML = list.length
-          ? Cart.thumbRow(list)
-          : '<p class="muted" style="margin:0;">No after photos yet.</p>';
-        const pushBtn = document.getElementById('cartAfterPush');
-        if (pushBtn) pushBtn.disabled = !list.length;
+        paintSendablePhotos();
       }
       paintThumbs();
       document.getElementById('cartAfterCam')?.addEventListener('click', async () => {

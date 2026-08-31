@@ -542,3 +542,17 @@ test('send page live-refreshes gates after checkout is chosen', () => {
   assert.match(visit, /checkInField/);
 });
 
+test('send page can edit or remove individual photos that go out', () => {
+  const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
+  const photos = fs.readFileSync(path.join(__dirname, '../js/features/photos.js'), 'utf8');
+  assert.match(photos, /function bindGrid/);
+  assert.match(photos, /async function editAt/);
+  assert.match(photos, /async function removeAt/);
+  assert.match(photos, /EodPhotoEditor\?\.open/);
+  assert.match(send, /id="sendBeforeGrid"/);
+  assert.match(send, /id="sendPaperGrid"/);
+  assert.match(send, /paintSendablePhotos/);
+  assert.match(send, /Photos\.gridHtml/);
+  assert.match(send, /Photos\.bindGrid/);
+});
+
