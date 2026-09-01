@@ -1,10 +1,11 @@
-/* Live SI planogram board — click details, shelf spread, Kroger thumbs. */
+/* Live SI planogram board — click details, scale-to-fill shelves, Kroger thumbs. */
 (function (global) {
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const IMAGE_CONCURRENCY = 6;
   const UNIT_W = 72;
+  const UNIT_H = 88;
   const boardMem = new Map();
 
   function esc(s) {
@@ -70,11 +71,22 @@
     ].filter(Boolean).join(' · ');
   }
 
-  function itemHtml(it, bay, highlightUpc) {
+  function scaleShelf(items, maxW) {
+    const used = shelfSpan(items) || UNIT_W;
+    const scale = maxW / used;
+    let left = maxW;
+    return (items || []).map((it, i) => {
+      const last = i === items.length - 1;
+      const w = last ? Math.max(1, left) : Math.max(1, Math.round(facingW(it) * scale));
+      left -= w;
+      return { it, w, h: Math.max(1, Math.round(UNIT_H * scale)), scale };
+    });
+  }
+
+  function itemHtml(it, bay, highlightUpc, box) {
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
-    const w = facingW(it);
-    return `<article class="si-pog-item${st}${hit}" style="width:${w}px" role="button" tabindex="0"
+    return `<article class="si-pog-item${st}${hit}" style="width:${box.w}px;height:${box.h}px" role="button" tabindex="0"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
       data-brand="${esc(it.brand || '')}"
@@ -91,13 +103,11 @@
   }
 
   function shelfHtml(shelf, bay, maxW, highlightUpc) {
-    const items = shelf.items || [];
-    const used = shelfSpan(items);
-    const mode = items.length > 1 && used < maxW ? 'spread' : (items.length === 1 ? 'center' : 'pack');
-    const cells = items.map((it) => itemHtml(it, bay, highlightUpc)).join('');
+    const boxes = scaleShelf(shelf.items || [], maxW);
+    const cells = boxes.map((box) => itemHtml(box.it, bay, highlightUpc, box)).join('');
     return `<div class="si-pog-shelf">
       <div class="si-pog-shelf-label">${esc(shelf.shelf)}</div>
-      <div class="si-pog-slots si-pog-${mode}" style="width:${maxW}px">${cells}</div>
+      <div class="si-pog-slots" style="width:${maxW}px">${cells}</div>
     </div>`;
   }
 

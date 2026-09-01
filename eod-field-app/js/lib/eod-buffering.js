@@ -5,7 +5,7 @@
   const DEBOUNCE_MS = 280;
   const MIN_VISIBLE_MS = 480;
   const MAX_VISIBLE_MS = 12000;
-  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.31')}`;
+  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.32')}`;
   const SKIP_RE = /sas-auth-status|rebotics-auth-status|\/usage\b|eod-version\.json|\/api\/me(?:\?|$)|digital-signoffs\/(?:sync|heartbeat)|\/photos\/|\/image(?:\?|$)|field-set\/(?:status|planogram)|\/api\/shifts\/day/i;
 
   let depth = 0;
