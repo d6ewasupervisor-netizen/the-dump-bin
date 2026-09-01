@@ -33,6 +33,33 @@
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
+  const VERIFY_MS = 15000;
+  const SHIFT_MS = 20000;
+  const HYDRATE_MS = 12000;
+
+  function withTimeout(promise, ms, label) {
+    if (!promise) return Promise.resolve(null);
+    let timer;
+    return Promise.race([
+      Promise.resolve(promise).finally(() => { if (timer) clearTimeout(timer); }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label || `Timed out after ${Math.round(ms / 1000)}s`)), ms);
+      }),
+    ]);
+  }
+
+  function authFetchTimeout(url, init, ms, label) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    const opts = Object.assign({}, init || {}, { signal: ctrl.signal });
+    return global.authFetch(url, opts).finally(() => clearTimeout(timer)).catch((err) => {
+      if (err && (err.name === 'AbortError' || /aborted/i.test(String(err.message || '')))) {
+        throw new Error(label || `Timed out after ${Math.round(ms / 1000)}s`);
+      }
+      throw err;
+    });
+  }
+
   function readFileAsDataUrl(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -53,12 +80,18 @@
 
   async function verifyAndPersist(store, date, statusEl) {
     const S = global.EodSession;
-    statusEl.innerHTML = '<span class="muted">Checking SAS roster…</span>';
-    const resp = await global.authFetch(`${global.EOD_API_BASE}/api/verify-store`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storeNumber: store, date }),
-    });
+    statusEl.innerHTML = '<span class="muted">Confirming store…</span>';
+    const resp = await authFetchTimeout(
+      `${global.EOD_API_BASE}/api/verify-store`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeNumber: store, date }),
+        skipBusy: true,
+      },
+      VERIFY_MS,
+      'Store check timed out. Try again.'
+    );
     const result = await resp.json().catch(() => ({}));
     if (resp.ok && result.ok && result.token) {
       S.persistDayConfirm({ token: result.token, store, date, expiresInMs: result.expiresInMs });
@@ -256,9 +289,11 @@
     try { await global.EodShiftDay?.load?.(date); } catch (_) {}
     const hadCache = paintCachedShifts(store, date, listEl);
     if (!hadCache && listEl) listEl.innerHTML = '<p class="muted">Searching…</p>';
-    const resp = await global.authFetch(
+    const resp = await authFetchTimeout(
       `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`,
-      hadCache ? { skipBusy: true } : { busyForce: true }
+      hadCache ? { skipBusy: true } : { busyForce: true },
+      SHIFT_MS,
+      'Shift search timed out. Pull to refresh or tap Confirm again.'
     );
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -341,10 +376,13 @@
     }
 
     let email = shift.visitLeadEmail || shift.leadEmail || shift.email || '';
-    if (!email && lead) {
+    if (!email && lead && !(S.state.profileEmail || '').trim()) {
       try {
-        const resp = await global.authFetch(
-          `${global.EOD_API_BASE}/api/lead-info?name=${encodeURIComponent(lead)}`
+        const resp = await authFetchTimeout(
+          `${global.EOD_API_BASE}/api/lead-info?name=${encodeURIComponent(lead)}`,
+          { skipBusy: true },
+          8000,
+          'Lead lookup timed out'
         );
         const data = await resp.json().catch(() => ({}));
         if (resp.ok && data.email) email = String(data.email).trim();
@@ -828,17 +866,7 @@
   async function finishConfirmedVisit(store, date) {
     const S = global.EodSession;
     global.EodVisitMemory?.rememberLastStore?.(store);
-    try { await global.EodCover?.loadStoreData?.(store); } catch (_) {}
     try { global.EodVisitMemory?.applyToSession?.(S, store); } catch (_) {}
-    global.EodChrome?.refresh();
-    await prefetchSheetWeek(store, date);
-    if (global.PhotoDB?.switchToDayConfirm) {
-      try { await global.PhotoDB.switchToDayConfirm(store, date, S.state.photos); } catch (_) {}
-    }
-    try {
-      const holder = document.createElement('div');
-      await findShifts(store, date, holder);
-    } catch (_) {}
     closeDayConfirmModal();
     global.EodChrome?.refresh();
     if (global.EodRouter?.current === 'visit') {
@@ -933,6 +961,7 @@
           statusEl.innerHTML = `<span style="color:#ef4444;">${esc(result.message)}</span>`;
           return;
         }
+        statusEl.innerHTML = '<span class="muted">Store confirmed.</span>';
         await finishConfirmedVisit(store, workDate);
       } catch (err) {
         btn.disabled = false;
@@ -959,14 +988,6 @@
       S.patch({ profileName: authName, leadName: authName }, 'auth-lead');
     }
     const ready = S.isVisitReady();
-    if (ready && global.EodCover?.loadStoreData) {
-      try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
-    }
-    if (ready && global.PhotoDB?.switchToDayConfirm) {
-      try {
-        await global.PhotoDB.switchToDayConfirm(S.state.storeNumber, S.state.workDate, S.state.photos);
-      } catch (_) {}
-    }
 
     mount.innerHTML = `
       <div class="card">
@@ -1047,11 +1068,35 @@
     if (!ready) enforceDayConfirmGate();
     else {
       try { global.EodVisitMemory?.applyToSession?.(S, S.state.storeNumber); } catch (_) {}
-      if (!S.state.shifts.length) {
-        try { await findShifts(S.state.storeNumber, S.state.workDate, document.getElementById('shiftList')); } catch (_) {}
-      }
+      void hydrateReadyVisit();
     }
 
+  }
+
+  async function hydrateReadyVisit() {
+    const S = global.EodSession;
+    const store = S.state.storeNumber;
+    const date = S.state.workDate;
+    const statusEl = document.getElementById('visitStatus');
+    const listEl = document.getElementById('shiftList');
+    if (statusEl && !S.state.shifts.length) {
+      statusEl.textContent = 'Loading shifts…';
+    }
+    try { await withTimeout(global.EodCover?.loadStoreData?.(store), HYDRATE_MS); } catch (_) {}
+    try { await withTimeout(prefetchSheetWeek(store, date), HYDRATE_MS); } catch (_) {}
+    if (global.PhotoDB?.switchToDayConfirm) {
+      try {
+        await withTimeout(global.PhotoDB.switchToDayConfirm(store, date, S.state.photos), 8000);
+      } catch (_) {}
+    }
+    if (!S.state.shifts.length && listEl) {
+      try {
+        await findShifts(store, date, listEl);
+      } catch (err) {
+        listEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load shifts.')}</p>`;
+      }
+    }
+    if (statusEl) statusEl.textContent = '';
   }
 
   global.EodVisitCart = { cartPhotos, preparePhoto, pullCartFromProd, uploadCartToProd, thumbRow };

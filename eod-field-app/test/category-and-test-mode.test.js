@@ -336,6 +336,10 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.match(visit, /dayConfirmModal/);
   assert.match(visit, /dayConfirmStoreBtn/);
   assert.match(visit, /showPicker/);
+  assert.match(visit, /authFetchTimeout/);
+  assert.match(visit, /closeDayConfirmModal\(\);/);
+  assert.match(visit, /hydrateReadyVisit/);
+  assert.doesNotMatch(visit, /Checking SAS roster/);
   assert.doesNotMatch(visit, /visitCartRefresh/);
   assert.doesNotMatch(visit, /saveInMgr/);
   assert.match(visit, /visibleLeadShifts/);
