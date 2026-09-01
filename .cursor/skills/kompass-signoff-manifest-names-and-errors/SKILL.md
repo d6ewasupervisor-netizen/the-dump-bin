@@ -173,4 +173,5 @@ Sunday start), or you are looking at a sheet from before the rebuild.
 
 - `kompass-full-scope-signoff-build` — weekly / district build + ingest.
 - `kompass-one-off-signoff-email` — single-store; **must still overlay**.
+- `kompass-signoff-both-complete-exclude` — both-complete → Yes and off the sheets.
 - `district-tracker-prod-si-reconcile` — tracker Complete; does not set CatName.
