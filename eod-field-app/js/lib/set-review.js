@@ -39,9 +39,25 @@
         appearance: none; -webkit-appearance: none; box-shadow: none;
         flex: 0 0 auto; padding: 0; cursor: pointer; overflow: hidden;
       }
-      .gh-review .gh-stage-wrap { width: 100%; border-radius: 12px; overflow: hidden; }
+      .gh-review .gh-stage-wrap { width: 100%; border-radius: 12px; overflow: hidden; min-height: min(50vh, 420px); }
+      .gh-review .gh-stage-track {
+        display: flex; gap: 0; width: 100%;
+        height: min(70vh, 640px); min-height: min(50vh, 420px);
+        overflow-x: auto; overflow-y: hidden;
+        scroll-snap-type: x mandatory; scroll-snap-stop: always;
+        touch-action: pan-x; -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain; scrollbar-width: none;
+      }
+      .gh-review .gh-stage-track::-webkit-scrollbar { display: none; }
+      .gh-review .gh-stage-track.is-locked { overflow-x: hidden; touch-action: none; }
+      .gh-review .gh-stage-frame {
+        flex: 0 0 100%; width: 100%; min-width: 100%; max-width: 100%;
+        height: 100%; scroll-snap-align: start; scroll-snap-stop: always;
+        overflow: hidden; box-sizing: border-box;
+      }
       .gh-review .gh-stage-vp {
         display: flex; justify-content: center;
+        width: 100%; height: 100%;
         overflow: auto; max-height: min(70vh, 640px);
         touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch;
       }
@@ -347,12 +363,7 @@
           <p class="gh-muted" id="ghReviewStatus">Loading set photos…</p>
           <div class="gh-film" id="ghFilm" hidden></div>
           <div class="gh-stage-wrap" id="ghStageWrap" hidden>
-            <div class="gh-stage-vp" id="ghStageVp">
-              <div class="gh-stage" id="ghStage">
-                <img id="ghReviewImg" alt="Set photo" draggable="false">
-                <canvas id="ghAnnotate"></canvas>
-              </div>
-            </div>
+            <div class="gh-stage-track" id="ghStageTrack"></div>
           </div>
           <div class="gh-review-tools" id="ghReviewTools" hidden>
             <div class="gh-tool-row">
@@ -389,24 +400,42 @@
       el.hidden = !text;
     }
 
+    function activeEls() {
+      const track = document.getElementById('ghStageTrack');
+      const frame = track?.querySelector(`.gh-stage-frame[data-idx="${idx}"]`) || null;
+      return {
+        track,
+        frame,
+        vp: frame?.querySelector('.gh-stage-vp') || null,
+        stage: frame?.querySelector('.gh-stage') || null,
+        img: frame?.querySelector('img') || null,
+        canvas: frame?.querySelector('canvas') || null,
+      };
+    }
+
+    function setTrackLocked(locked) {
+      const track = document.getElementById('ghStageTrack');
+      if (track) track.classList.toggle('is-locked', !!locked);
+    }
+
     function syncModeButtons() {
       document.getElementById('ghModePan')?.classList.toggle('is-active', mode === 'pan');
       document.getElementById('ghModeDraw')?.classList.toggle('is-active', mode === 'draw');
-      const vp = document.getElementById('ghStageVp');
+      const { vp } = activeEls();
       if (vp) vp.dataset.mode = mode;
+      setTrackLocked(mode === 'draw' || scale > 1.05);
     }
 
     function applyScale() {
-      const stage = document.getElementById('ghStage');
+      const { stage } = activeEls();
       if (!stage) return;
       stage.style.transform = `scale(${scale})`;
       stage.style.transformOrigin = '0 0';
+      setTrackLocked(mode === 'draw' || scale > 1.05);
     }
 
     function fitStage() {
-      const img = document.getElementById('ghReviewImg');
-      const canvas = document.getElementById('ghAnnotate');
-      const vp = document.getElementById('ghStageVp');
+      const { img, canvas, vp, stage } = activeEls();
       if (!img || !canvas || !vp || !img.naturalWidth) return;
       imgNatural = { w: img.naturalWidth, h: img.naturalHeight };
       canvas.width = img.naturalWidth;
@@ -418,7 +447,6 @@
       img.style.height = `${displayH}px`;
       canvas.style.width = `${displayW}px`;
       canvas.style.height = `${displayH}px`;
-      const stage = document.getElementById('ghStage');
       if (stage) {
         stage.style.width = `${displayW}px`;
         stage.style.height = `${displayH}px`;
@@ -429,7 +457,7 @@
     }
 
     function redrawCanvas() {
-      const canvas = document.getElementById('ghAnnotate');
+      const { canvas } = activeEls();
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -454,23 +482,140 @@
       return { x, y };
     }
 
-    function showPhoto(i) {
-      if (!photos.length) return;
-      idx = Math.max(0, Math.min(photos.length - 1, i));
+    function paintChrome() {
       const p = photos[idx];
-      const img = document.getElementById('ghReviewImg');
+      if (!p) return;
       const pos = document.getElementById('ghPhotoPos');
       if (pos) pos.textContent = `${p.label || `Photo ${idx + 1}`} · ${idx + 1} of ${photos.length}`;
       document.querySelectorAll('.gh-film button').forEach((btn, n) => {
         btn.classList.toggle('is-active', n === idx);
       });
-      if (!img) return;
-      img.onload = () => fitStage();
-      img.alt = p.label || `Photo ${idx + 1}`;
+    }
+
+    function loadFull(i) {
+      const p = photos[i];
+      const frame = document.querySelector(`#ghStageTrack .gh-stage-frame[data-idx="${i}"]`);
+      const img = frame?.querySelector('img');
+      if (!p || !img) return;
+      img.onload = () => {
+        if (idx === i) fitStage();
+      };
+      img.alt = p.label || `Photo ${i + 1}`;
       objectUrlFor(p, 'full').then((src) => {
-        if (photos[idx] !== p) return;
+        img.dataset.full = '1';
         img.src = src;
-      }).catch((err) => setStatus(err.message || 'Could not load photo', true));
+      }).catch((err) => {
+        if (idx === i) setStatus(err.message || 'Could not load photo', true);
+      });
+      [i - 1, i + 1].forEach((n) => {
+        const neighbor = photos[n];
+        if (neighbor) objectUrlFor(neighbor, 'full').catch(() => {});
+      });
+    }
+
+    function commitIndex(i) {
+      idx = Math.max(0, Math.min(photos.length - 1, i));
+      scale = 1;
+      paintChrome();
+      loadFull(idx);
+      applyScale();
+      syncModeButtons();
+      const { img } = activeEls();
+      if (img?.naturalWidth) fitStage();
+    }
+
+    let syncingScroll = false;
+
+    function showPhoto(i, instant) {
+      if (!photos.length) return;
+      commitIndex(i);
+      const { track, frame } = activeEls();
+      if (!track || !frame) return;
+      syncingScroll = true;
+      track.scrollTo({ left: frame.offsetLeft, behavior: instant ? 'auto' : 'smooth' });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { syncingScroll = false; });
+      });
+    }
+
+    function sizeFrames() {
+      const track = document.getElementById('ghStageTrack');
+      if (!track) return;
+      const w = Math.max(1, track.clientWidth);
+      const h = Math.max(1, track.clientHeight || Math.min(window.innerHeight * 0.7, 640));
+      track.querySelectorAll('.gh-stage-frame').forEach((frame) => {
+        frame.style.flexBasis = `${w}px`;
+        frame.style.width = `${w}px`;
+        frame.style.minWidth = `${w}px`;
+        frame.style.maxWidth = `${w}px`;
+        frame.style.height = `${h}px`;
+      });
+    }
+
+    function activeIndexFromScroll(track) {
+      const frames = [...(track?.querySelectorAll('.gh-stage-frame') || [])];
+      if (!frames.length) return 0;
+      const mid = (track.scrollLeft || 0) + track.clientWidth / 2;
+      let best = 0;
+      let bestDist = Infinity;
+      frames.forEach((frame) => {
+        const i = Number(frame.dataset.idx);
+        const center = frame.offsetLeft + frame.offsetWidth / 2;
+        const dist = Math.abs(center - mid);
+        if (dist < bestDist) {
+          best = i;
+          bestDist = dist;
+        }
+      });
+      return best;
+    }
+
+    function renderTrack() {
+      const track = document.getElementById('ghStageTrack');
+      if (!track) return;
+      track.innerHTML = photos.map((p, i) => `
+        <div class="gh-stage-frame" data-idx="${i}">
+          <div class="gh-stage-vp" data-mode="pan">
+            <div class="gh-stage">
+              <img alt="${escapeHtml(p.label || `Photo ${i + 1}`)}" draggable="false">
+              <canvas></canvas>
+            </div>
+          </div>
+        </div>`).join('');
+      sizeFrames();
+      photos.forEach((p, i) => {
+        const img = track.querySelector(`.gh-stage-frame[data-idx="${i}"] img`);
+        if (!img) return;
+        objectUrlFor(p, 'thumb').then((src) => {
+          if (img.dataset.full === '1') return;
+          img.src = src;
+        }).catch(() => {});
+      });
+    }
+
+    function bindBaySwipe() {
+      const track = document.getElementById('ghStageTrack');
+      if (!track || track._baySwipeBound) return;
+      track._baySwipeBound = true;
+      sizeFrames();
+      if (typeof ResizeObserver === 'function') {
+        const obs = new ResizeObserver(() => {
+          sizeFrames();
+          const frame = track.querySelector(`.gh-stage-frame[data-idx="${idx}"]`);
+          if (frame) {
+            syncingScroll = true;
+            track.scrollTo({ left: frame.offsetLeft, behavior: 'auto' });
+            requestAnimationFrame(() => { syncingScroll = false; });
+          }
+          if (activeEls().img?.naturalWidth) fitStage();
+        });
+        obs.observe(track);
+      }
+      track.addEventListener('scroll', () => {
+        if (syncingScroll) return;
+        const i = activeIndexFromScroll(track);
+        if (i !== idx) commitIndex(i);
+      }, { passive: true });
     }
 
     function renderFilm() {
@@ -493,8 +638,7 @@
     }
 
     async function compositeBlob() {
-      const img = document.getElementById('ghReviewImg');
-      const overlay = document.getElementById('ghAnnotate');
+      const { img, canvas: overlay } = activeEls();
       if (!img?.naturalWidth) throw new Error('Photo is still loading');
       const out = document.createElement('canvas');
       out.width = img.naturalWidth;
@@ -628,12 +772,16 @@
         document.getElementById('ghConfirmComplete')?.addEventListener('click', () => confirmComplete());
       }
 
-      const canvas = document.getElementById('ghAnnotate');
-      const vp = document.getElementById('ghStageVp');
-      if (!canvas || !vp) return;
+      const track = document.getElementById('ghStageTrack');
+      if (!track) {
+        syncModeButtons();
+        return;
+      }
 
       function startDraw(e) {
         if (mode !== 'draw') return;
+        const { canvas } = activeEls();
+        if (!canvas) return;
         drawing = true;
         lastPt = canvasPoint(e, canvas);
         currentStrokes().push([lastPt]);
@@ -641,6 +789,8 @@
       }
       function moveDraw(e) {
         if (!drawing || mode !== 'draw') return;
+        const { canvas } = activeEls();
+        if (!canvas) return;
         const pt = canvasPoint(e, canvas);
         const stroke = currentStrokes()[currentStrokes().length - 1];
         if (stroke) stroke.push(pt);
@@ -650,17 +800,18 @@
       }
       function endDraw() { drawing = false; }
 
-      canvas.addEventListener('mousedown', startDraw);
-      canvas.addEventListener('mousemove', moveDraw);
-      canvas.addEventListener('mouseup', endDraw);
-      canvas.addEventListener('mouseleave', endDraw);
-      canvas.addEventListener('touchstart', startDraw, { passive: false });
-      canvas.addEventListener('touchmove', moveDraw, { passive: false });
-      canvas.addEventListener('touchend', endDraw);
+      track.addEventListener('mousedown', startDraw);
+      track.addEventListener('mousemove', moveDraw);
+      track.addEventListener('mouseup', endDraw);
+      track.addEventListener('mouseleave', endDraw);
 
       let pinchStart = 0;
       let pinchScale = 1;
-      vp.addEventListener('touchstart', (e) => {
+      track.addEventListener('touchstart', (e) => {
+        if (mode === 'draw') {
+          startDraw(e);
+          return;
+        }
         if (mode !== 'pan') return;
         if (e.touches.length === 2) {
           pinchStart = Math.hypot(
@@ -671,7 +822,11 @@
           e.preventDefault();
         }
       }, { passive: false });
-      vp.addEventListener('touchmove', (e) => {
+      track.addEventListener('touchmove', (e) => {
+        if (mode === 'draw') {
+          moveDraw(e);
+          return;
+        }
         if (mode !== 'pan' || e.touches.length < 2) return;
         e.preventDefault();
         const dist = Math.hypot(
@@ -681,13 +836,14 @@
         scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchScale * (dist / pinchStart)));
         applyScale();
       }, { passive: false });
-      vp.addEventListener('dblclick', (e) => {
+      track.addEventListener('touchend', endDraw);
+      track.addEventListener('dblclick', (e) => {
         if (mode !== 'pan') return;
         scale = scale > 1.4 ? 1 : 2.5;
         applyScale();
         e.preventDefault();
       });
-      vp.addEventListener('wheel', (e) => {
+      track.addEventListener('wheel', (e) => {
         if (mode !== 'pan') return;
         e.preventDefault();
         const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
@@ -733,9 +889,11 @@
         setStatus(data.warning || src);
         if (stage) stage.hidden = false;
         idx = indexForBay(photos, slotFilter, startBay);
+        renderTrack();
         renderFilm();
+        bindBaySwipe();
         bindTools();
-        showPhoto(idx);
+        showPhoto(idx, true);
       } catch (err) {
         setStatus(err.message || 'Could not load photos', true);
         const tools = document.getElementById('ghReviewTools');
