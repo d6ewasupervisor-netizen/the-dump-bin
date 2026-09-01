@@ -4,8 +4,6 @@
 
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const IMAGE_CONCURRENCY = 6;
-  const UNIT_W = 72;
-  const UNIT_H = 136;
   const boardMem = new Map();
 
   function esc(s) {
@@ -54,12 +52,8 @@
     return sa === sb || da.endsWith(sb) || db.endsWith(sa);
   }
 
-  function facingW(it) {
-    return Math.max(1, Number(it.h) || 1) * UNIT_W;
-  }
-
-  function shelfSpan(items) {
-    return (items || []).reduce((sum, it) => sum + facingW(it), 0);
+  function facingUnits(it) {
+    return Math.max(1, Number(it.h) || 1);
   }
 
   function locLine(it, bay) {
@@ -71,23 +65,12 @@
     ].filter(Boolean).join(' · ');
   }
 
-  function scaleShelf(items, maxW) {
-    const used = shelfSpan(items) || UNIT_W;
-    const scale = maxW / used;
-    let left = maxW;
-    return (items || []).map((it, i) => {
-      const last = i === items.length - 1;
-      const w = last ? Math.max(1, left) : Math.max(1, Math.round(facingW(it) * scale));
-      left -= w;
-      return { it, w, h: Math.max(1, Math.round(UNIT_H * scale)), scale };
-    });
-  }
-
-  function itemHtml(it, bay, highlightUpc, box) {
+  function itemHtml(it, bay, highlightUpc) {
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
     const loc = locLine(it, bay);
-    return `<article class="si-pog-item${st}${hit}" style="width:${box.w}px;height:${box.h}px" role="button" tabindex="0"
+    const grow = facingUnits(it);
+    return `<article class="si-pog-item${st}${hit}" style="flex:${grow} 1 0" role="button" tabindex="0"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
       data-brand="${esc(it.brand || '')}"
@@ -108,12 +91,11 @@
     </article>`;
   }
 
-  function shelfHtml(shelf, bay, maxW, highlightUpc) {
-    const boxes = scaleShelf(shelf.items || [], maxW);
-    const cells = boxes.map((box) => itemHtml(box.it, bay, highlightUpc, box)).join('');
+  function shelfHtml(shelf, bay, highlightUpc) {
+    const cells = (shelf.items || []).map((it) => itemHtml(it, bay, highlightUpc)).join('');
     return `<div class="si-pog-shelf">
       <div class="si-pog-shelf-label">${esc(shelf.shelf)}</div>
-      <div class="si-pog-slots" style="width:${maxW}px">${cells}</div>
+      <div class="si-pog-slots">${cells}</div>
     </div>`;
   }
 
@@ -122,10 +104,9 @@
       ...sh,
       items: (sh.items || []).map((it) => ({ ...it, aisle: it.aisle || aisle || '' })),
     }));
-    const maxW = Math.max(UNIT_W, ...shelves.map((sh) => shelfSpan(sh.items)));
     return `<section class="si-pog-bay">
       <div class="si-pog-bay-h">Bay ${esc(bay.bay)}</div>
-      ${shelves.map((sh) => shelfHtml(sh, bay.bay, maxW, highlightUpc)).join('')}
+      <div class="si-pog-bay-shelves">${shelves.map((sh) => shelfHtml(sh, bay.bay, highlightUpc)).join('')}</div>
     </section>`;
   }
 
@@ -282,32 +263,6 @@
     if (!liveSrc) hydrateImages(host);
   }
 
-  function fitBays(root) {
-    const scroll = root.querySelector('.si-pog-scroll');
-    if (!scroll) return;
-    const overlay = root.closest('.set-media-overlay');
-    const bar = overlay?.querySelector('.set-media-overlay-bar');
-    const pad = 24;
-    const availW = Math.max(160, (overlay || scroll).clientWidth - pad * 2);
-    const availH = Math.max(160, overlay
-      ? overlay.clientHeight - (bar?.offsetHeight || 52) - pad * 2
-      : scroll.clientHeight || 360);
-    scroll.querySelectorAll('.si-pog-bay-frame').forEach((frame) => {
-      const bay = frame.querySelector('.si-pog-bay');
-      if (!bay) return;
-      bay.style.transform = 'none';
-      bay.style.width = '';
-      const nw = Math.max(1, bay.scrollWidth);
-      const nh = Math.max(1, bay.scrollHeight);
-      const scale = Math.max(0.32, Math.min(availW / nw, availH / nh, 2.6));
-      frame.style.width = `${Math.round(nw * scale)}px`;
-      frame.style.height = `${Math.round(nh * scale)}px`;
-      bay.style.transformOrigin = 'top left';
-      bay.style.transform = `scale(${scale})`;
-      bay.style.width = `${nw}px`;
-    });
-  }
-
   function bindItems(root, pog) {
     const title = pog?.title || '';
     const openFrom = (el) => {
@@ -346,14 +301,7 @@
       }
       mount.innerHTML = boardHtml(pog, highlightUpc);
       bindItems(mount, pog);
-      fitBays(mount);
-      const overlay = mount.closest('.set-media-overlay');
-      if (overlay && typeof ResizeObserver === 'function' && !overlay._pogFitObs) {
-        overlay._pogFitObs = new ResizeObserver(() => fitBays(mount));
-        overlay._pogFitObs.observe(overlay);
-      }
       await hydrateImages(mount);
-      fitBays(mount);
     } catch (err) {
       mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
     }
@@ -369,12 +317,12 @@
     closeOverlay();
     const host = document.createElement('div');
     host.id = 'eodSetMediaOverlay';
-    host.className = 'set-media-overlay';
+    host.className = 'set-media-overlay si-pog-live';
     host.innerHTML = `<div class="set-media-overlay-bar">
       <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
       <strong>${esc(title || 'Planogram')}</strong>
     </div>
-    <div id="setMediaOverlayBody"></div>`;
+    <div id="setMediaOverlayBody" class="si-pog-live-body"></div>`;
     document.body.appendChild(host);
     document.body.classList.add('set-media-open');
     host.querySelector('#setMediaClose').onclick = closeOverlay;

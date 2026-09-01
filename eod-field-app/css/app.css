@@ -1204,10 +1204,48 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 }
 body.set-media-open .bottom-nav { display: none !important; }
 .set-media-overlay .si-pog { margin-top: 0; padding-top: 0; border-top: 0; }
-.set-media-overlay .si-pog-scroll {
+.set-media-overlay .gh-review { min-height: 70vh; }
+
+.set-media-overlay.si-pog-live {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  box-sizing: border-box;
+  padding: clamp(12px, 2.8vw, 22px);
+  padding-bottom: calc(clamp(12px, 2.8vw, 22px) + var(--safe-b));
+}
+.set-media-overlay.si-pog-live .set-media-overlay-bar { flex: 0 0 auto; margin-bottom: 8px; }
+.si-pog-live-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.si-pog-live-body .si-pog {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.si-pog-live-body .si-pog > .muted { flex: 0 0 auto; margin: 0 0 8px; }
+.si-pog-live-body .si-pog-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  gap: 0;
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
   max-height: none;
 }
-.set-media-overlay .gh-review { min-height: 70vh; }
 
 .si-pog { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 .si-pog h2 { font-size: 1.05rem; margin: 0 0 6px; }
@@ -1218,21 +1256,38 @@ body.set-media-open .bottom-nav { display: none !important; }
   touch-action: pan-x pan-y;
   padding-bottom: 8px;
 }
-.set-media-overlay .si-pog-scroll {
-  max-height: none;
-  display: flex;
-  gap: clamp(16px, 3vw, 28px);
-  padding: clamp(8px, 2vw, 18px);
-  scroll-snap-type: x mandatory;
-}
 .si-pog-bay-frame {
-  flex: 0 0 auto;
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
   scroll-snap-align: start;
   overflow: hidden;
+  box-sizing: border-box;
 }
-.si-pog-bay { min-width: min-content; }
-.si-pog-bay-h { font-size: 13px; font-weight: 700; margin: 0 0 8px 32px; }
-.si-pog-shelf { display: grid; grid-template-columns: 28px 1fr; gap: 4px; margin: 0 0 4px; }
+.si-pog-bay {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.si-pog-bay-h { font-size: 13px; font-weight: 700; margin: 0 0 8px 32px; flex: 0 0 auto; }
+.si-pog-bay-shelves {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.si-pog-shelf {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 4px;
+  margin: 0;
+}
 .si-pog-shelf-label {
   display: flex; align-items: center; justify-content: center;
   background: #4b5563; color: #fff; font-weight: 700; font-size: 11px;
@@ -1241,14 +1296,19 @@ body.set-media-open .bottom-nav { display: none !important; }
   display: flex;
   align-items: stretch;
   gap: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
   background: #6b5a45;
   padding: 0;
-  box-sizing: content-box;
+  box-sizing: border-box;
 }
 .si-pog-item {
-  background: #fff; min-height: 0; display: flex; flex-direction: column;
-  border: 1px solid #d0d5dd; color: #1a1f26; flex: 0 0 auto; cursor: pointer;
+  background: #fff; min-width: 0; min-height: 0; height: 100%;
+  display: flex; flex-direction: column;
+  border: 1px solid #d0d5dd; color: #1a1f26; cursor: pointer;
   box-sizing: border-box; overflow: hidden;
+  container-type: size;
 }
 .si-pog-item.st-ok { border-color: #16a34a; }
 .si-pog-item.st-oos { border-color: #b42318; }
@@ -1266,7 +1326,7 @@ body.set-media-open .bottom-nav { display: none !important; }
   min-height: 0;
 }
 .si-pog-name {
-  font-size: clamp(8px, 1.7vw, 12px);
+  font-size: clamp(7px, 9cqw, 13px);
   font-weight: 700;
   line-height: 1.2;
   display: -webkit-box;
@@ -1275,13 +1335,13 @@ body.set-media-open .bottom-nav { display: none !important; }
   overflow: hidden;
 }
 .si-pog-loc {
-  font-size: clamp(7px, 1.4vw, 11px);
+  font-size: clamp(6px, 7.5cqw, 11px);
   color: #344054;
   line-height: 1.2;
   margin-top: 2px;
 }
 .si-pog-cap {
-  font-size: clamp(7px, 1.3vw, 10px); color: #475467;
+  font-size: clamp(6px, 7cqw, 10px); color: #475467;
   padding-top: 1px; word-break: break-all;
 }
 
