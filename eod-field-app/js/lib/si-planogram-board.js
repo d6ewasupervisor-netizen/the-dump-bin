@@ -1,9 +1,10 @@
-/* Live SI planogram board — dedicated viewer + background prefetch (no CSV). */
+/* Live SI planogram board — click details, shelf spread, Kroger thumbs. */
 (function (global) {
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const IMAGE_CONCURRENCY = 6;
+  const UNIT_W = 72;
   const boardMem = new Map();
 
   function esc(s) {
@@ -38,48 +39,81 @@
     }));
   }
 
-  function itemTitle(it) {
-    return [
-      it.name || '',
-      it.upc ? `UPC ${it.upc}` : '',
-      it.onShelfPosition || '',
-      it.brand || '',
-      it.size || '',
-    ].filter(Boolean).join('\n');
+  function digits(raw) {
+    return String(raw || '').replace(/\D/g, '');
   }
 
-  function itemHtml(it) {
+  function upcMatch(a, b) {
+    const da = digits(a);
+    const db = digits(b);
+    if (!da || !db) return false;
+    if (da === db) return true;
+    const sa = da.replace(/^0+/, '') || '0';
+    const sb = db.replace(/^0+/, '') || '0';
+    return sa === sb || da.endsWith(sb) || db.endsWith(sa);
+  }
+
+  function facingW(it) {
+    return Math.max(1, Number(it.h) || 1) * UNIT_W;
+  }
+
+  function shelfSpan(items) {
+    return (items || []).reduce((sum, it) => sum + facingW(it), 0);
+  }
+
+  function locLine(it, bay) {
+    return [
+      it.aisle ? `Aisle ${it.aisle}` : '',
+      bay != null ? `Bay ${bay}` : '',
+      it.shelf != null && it.shelf !== '' ? `Shelf ${it.shelf}` : '',
+      it.position != null && it.position !== '' ? `Position ${it.position}` : '',
+    ].filter(Boolean).join(' · ');
+  }
+
+  function itemHtml(it, bay, highlightUpc) {
     const st = it.status ? ` st-${esc(it.status)}` : '';
-    const col = Number.isFinite(Number(it.position)) ? ` style="grid-column:${Number(it.position)}"` : '';
-    return `<article class="si-pog-item${st}"${col} title="${esc(itemTitle(it))}">
+    const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
+    const w = facingW(it);
+    return `<article class="si-pog-item${st}${hit}" style="width:${w}px" role="button" tabindex="0"
+      data-name="${esc(it.name || '')}"
+      data-upc="${esc(it.upc || '')}"
+      data-brand="${esc(it.brand || '')}"
+      data-size="${esc(it.size || '')}"
+      data-status="${esc(it.status || '')}"
+      data-shelf="${esc(it.shelf)}"
+      data-position="${esc(it.position)}"
+      data-bay="${esc(bay)}"
+      data-aisle="${esc(it.aisle || '')}"
+      data-image="${esc(it.imageUrl || '')}">
       <div class="si-pog-thumb">${it.imageUrl ? `<img alt="" data-pog-src="${esc(it.imageUrl)}">` : ''}</div>
       <div class="si-pog-cap">${esc(it.upc || it.name || '')}</div>
     </article>`;
   }
 
-  function shelfHtml(shelf) {
-    const cols = Math.max(1, Number(shelf.columns) || (shelf.items || []).length || 1);
-    const cells = (shelf.items || []).map(itemHtml).join('');
+  function shelfHtml(shelf, bay, maxW, highlightUpc) {
+    const items = shelf.items || [];
+    const used = shelfSpan(items);
+    const mode = items.length > 1 && used < maxW ? 'spread' : (items.length === 1 ? 'center' : 'pack');
+    const cells = items.map((it) => itemHtml(it, bay, highlightUpc)).join('');
     return `<div class="si-pog-shelf">
       <div class="si-pog-shelf-label">${esc(shelf.shelf)}</div>
-      <div class="si-pog-slots" style="grid-template-columns:repeat(${cols}, minmax(56px,1fr))">${cells}</div>
+      <div class="si-pog-slots si-pog-${mode}" style="width:${maxW}px">${cells}</div>
     </div>`;
   }
 
-  function bayHtml(bay) {
-    const cols = Math.max(1, Number(bay.columns) || 1);
-    const heads = Array.from({ length: cols }, (_, i) => `<div class="si-pog-colh">${i + 1}</div>`).join('');
+  function bayHtml(bay, highlightUpc, aisle) {
+    const shelves = (bay.shelves || []).map((sh) => ({
+      ...sh,
+      items: (sh.items || []).map((it) => ({ ...it, aisle: it.aisle || aisle || '' })),
+    }));
+    const maxW = Math.max(UNIT_W, ...shelves.map((sh) => shelfSpan(sh.items)));
     return `<section class="si-pog-bay">
       <div class="si-pog-bay-h">Bay ${esc(bay.bay)}</div>
-      <div class="si-pog-shelf si-pog-head">
-        <div class="si-pog-shelf-label"></div>
-        <div class="si-pog-slots si-pog-cols" style="grid-template-columns:repeat(${cols}, minmax(56px,1fr))">${heads}</div>
-      </div>
-      ${(bay.shelves || []).map(shelfHtml).join('')}
+      ${shelves.map((sh) => shelfHtml(sh, bay.bay, maxW, highlightUpc)).join('')}
     </section>`;
   }
 
-  function boardHtml(pog) {
+  function boardHtml(pog, highlightUpc) {
     const s = pog.stats || {};
     const bits = [
       s.facings != null ? `${s.facings} facings` : '',
@@ -87,7 +121,7 @@
     ].filter(Boolean);
     return `<section class="si-pog si-pog-overlay-board">
       <p class="muted">${esc(bits.join(' · '))}${pog.date ? ` · ${esc(pog.date)}` : ''}</p>
-      <div class="si-pog-scroll">${(pog.bays || []).map(bayHtml).join('')}</div>
+      <div class="si-pog-scroll">${(pog.bays || []).map((bay) => bayHtml(bay, highlightUpc, pog.aisle)).join('')}</div>
     </section>`;
   }
 
@@ -104,6 +138,7 @@
   }
 
   async function hydrateImages(root) {
+    if (!root) return;
     const imgs = [...root.querySelectorAll('img[data-pog-src]')];
     await mapPool(imgs, IMAGE_CONCURRENCY, async (img) => {
       const path = img.getAttribute('data-pog-src') || '';
@@ -181,7 +216,68 @@
     return pog;
   }
 
-  async function loadAndRender(mount, { store, date, dbkey }) {
+  function closeItemDetail() {
+    document.getElementById('eodPogItemOverlay')?.remove();
+  }
+
+  function openItemDetail(el, setTitle) {
+    closeItemDetail();
+    const name = el.getAttribute('data-name') || '';
+    const upc = el.getAttribute('data-upc') || '';
+    const brand = el.getAttribute('data-brand') || '';
+    const size = el.getAttribute('data-size') || '';
+    const status = el.getAttribute('data-status') || '';
+    const image = el.getAttribute('data-image') || '';
+    const loc = locLine({
+      aisle: el.getAttribute('data-aisle') || '',
+      shelf: el.getAttribute('data-shelf'),
+      position: el.getAttribute('data-position'),
+    }, el.getAttribute('data-bay'));
+    const imgEl = el.querySelector('img');
+    const liveSrc = imgEl && imgEl.src && !imgEl.hasAttribute('data-pog-src') ? imgEl.src : '';
+    const host = document.createElement('div');
+    host.id = 'eodPogItemOverlay';
+    host.className = 'eod-pog-item-overlay';
+    host.innerHTML = `<div class="eod-pog-item-sheet">
+      <div class="eod-pog-item-bar">
+        <button type="button" class="btn btn-secondary" id="eodPogItemClose">Close</button>
+      </div>
+      <div class="eod-pog-item-hero">${image || liveSrc ? `<img alt="" ${liveSrc ? `src="${esc(liveSrc)}"` : `data-pog-src="${esc(image)}"`}>` : ''}</div>
+      <div class="eod-pog-item-copy">
+        <div class="eod-pog-item-set">${esc(setTitle || '')}</div>
+        <strong>${esc(name)}</strong>
+        <div>UPC ${esc(upc)}</div>
+        <div>${esc(loc)}</div>
+        ${brand ? `<div>${esc(brand)}</div>` : ''}
+        ${size ? `<div>${esc(size)}</div>` : ''}
+        ${status ? `<div>${esc(status)}</div>` : ''}
+      </div>
+    </div>`;
+    document.body.appendChild(host);
+    host.querySelector('#eodPogItemClose').onclick = closeItemDetail;
+    host.addEventListener('click', (ev) => {
+      if (ev.target === host) closeItemDetail();
+    });
+    if (!liveSrc) hydrateImages(host);
+  }
+
+  function bindItems(root, pog) {
+    const title = pog?.title || '';
+    root.querySelectorAll('.si-pog-item').forEach((el) => {
+      const open = () => openItemDetail(el, title);
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          open();
+        }
+      });
+    });
+    const hit = root.querySelector('.si-pog-item.is-hit');
+    if (hit) hit.scrollIntoView({ block: 'center', inline: 'center' });
+  }
+
+  async function loadAndRender(mount, { store, date, dbkey, highlightUpc }) {
     if (!mount) return;
     mount.innerHTML = `<section class="si-pog"><p class="muted">Loading…</p></section>`;
     try {
@@ -190,7 +286,8 @@
         mount.innerHTML = `<section class="si-pog"><p class="muted">None for this set.</p></section>`;
         return;
       }
-      mount.innerHTML = boardHtml(pog);
+      mount.innerHTML = boardHtml(pog, highlightUpc);
+      bindItems(mount, pog);
       await hydrateImages(mount);
     } catch (err) {
       mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
@@ -198,11 +295,12 @@
   }
 
   function closeOverlay() {
+    closeItemDetail();
     document.getElementById('eodSetMediaOverlay')?.remove();
     document.body.classList.remove('set-media-open');
   }
 
-  function openOverlay({ store, date, dbkey, title }) {
+  function openOverlay({ store, date, dbkey, title, highlightUpc }) {
     closeOverlay();
     const host = document.createElement('div');
     host.id = 'eodSetMediaOverlay';
@@ -215,7 +313,7 @@
     document.body.appendChild(host);
     document.body.classList.add('set-media-open');
     host.querySelector('#setMediaClose').onclick = closeOverlay;
-    loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey });
+    loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey, highlightUpc });
     return host;
   }
 
@@ -225,5 +323,7 @@
     fetchBoard,
     openOverlay,
     closeOverlay,
+    hydrateImages,
+    openItemDetail,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

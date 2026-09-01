@@ -7,8 +7,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>KOMPASS EOD (field pilot)</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="css/app.css?v=3.3.30">
-  <link rel="stylesheet" href="css/materials-browser.css?v=3.3.30">
+  <link rel="stylesheet" href="css/app.css?v=3.3.31">
+  <link rel="stylesheet" href="css/materials-browser.css?v=3.3.31">
   <link rel="stylesheet" href="https://the-dump-bin.com/shared/pdf-viewer/materials-pdf-viewer.css?v=1.1.1">
   <script>
     (function () {
@@ -24,7 +24,7 @@
       if (host === 'the-dump-bin.com' || host.endsWith('.the-dump-bin.com')) {
         document.write('<script src="/auth-gate.js"><\/script>');
       } else {
-        document.write('<script src="js/auth-shim.js?v=3.3.30"><\/script>');
+        document.write('<script src="js/auth-shim.js?v=3.3.31"><\/script>');
       }
     })();
   </script>
@@ -36,7 +36,7 @@
     <div class="pilot-banner" title="Field pilot ? live production remains at /EOD/ until cutover">
       <a class="pilot-banner-label" href="/EOD/">Pilot</a>
       <button type="button" class="theme-cycle-btn" id="themeCycleBtn" title="Theme: dark ? tap to cycle">Inverse</button>
-      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode ? long-press to force Update">v3.3.30</span>
+      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode ? long-press to force Update">v3.3.31</span>
     </div>
     <div id="updateBanner" class="eod-update-banner" hidden></div>
     <div id="authBanner" class="auth-banner" hidden></div>
@@ -101,13 +101,13 @@
     <div id="sectionNavHost"></div>
 
     <nav class="bottom-nav" id="bottomNav" aria-label="Primary">
-      <button type="button" data-nav="visit"><img class="nav-ico-img" src="icons/nav/visit.png?v=3.3.30" alt="" width="28" height="28"><span class="nav-label">Visit</span></button>
-      <button type="button" data-nav="signoff"><img class="nav-ico-img" src="icons/nav/categories.png?v=3.3.30" alt="" width="28" height="28"><span class="nav-label">Categories</span></button>
-      <button type="button" data-nav="signatures"><img class="nav-ico-img" src="icons/nav/signatures.png?v=3.3.30" alt="" width="28" height="28"><span class="nav-label">Signatures</span></button>
-      <button type="button" data-nav="send"><img class="nav-ico-img" src="icons/nav/send.png?v=3.3.30" alt="" width="28" height="28"><span class="nav-label">Send</span></button>
-      <button type="button" data-nav="crew" data-slot="extra"><img class="nav-ico-img" src="icons/nav/crew.png?v=3.3.30" alt="" width="28" height="28"><span class="nav-label">Crew</span></button>
-      <button type="button" data-nav="dumpbin" data-slot="extra"><img class="nav-ico-img" src="icons/nav/dumpbin.png?v=3.3.30" alt="" width="28" height="28"><span class="nav-label">Dump Bin</span></button>
-      <button type="button" data-nav="helpdesk" data-slot="extra"><img class="nav-ico-img" src="icons/nav/helpdesk.png?v=3.3.30" alt="" width="28" height="28"><span class="nav-label">Helpdesk</span></button>
+      <button type="button" data-nav="visit"><img class="nav-ico-img" src="icons/nav/visit.png?v=3.3.31" alt="" width="28" height="28"><span class="nav-label">Visit</span></button>
+      <button type="button" data-nav="signoff"><img class="nav-ico-img" src="icons/nav/categories.png?v=3.3.31" alt="" width="28" height="28"><span class="nav-label">Categories</span></button>
+      <button type="button" data-nav="signatures"><img class="nav-ico-img" src="icons/nav/signatures.png?v=3.3.31" alt="" width="28" height="28"><span class="nav-label">Signatures</span></button>
+      <button type="button" data-nav="send"><img class="nav-ico-img" src="icons/nav/send.png?v=3.3.31" alt="" width="28" height="28"><span class="nav-label">Send</span></button>
+      <button type="button" data-nav="crew" data-slot="extra"><img class="nav-ico-img" src="icons/nav/crew.png?v=3.3.31" alt="" width="28" height="28"><span class="nav-label">Crew</span></button>
+      <button type="button" data-nav="dumpbin" data-slot="extra"><img class="nav-ico-img" src="icons/nav/dumpbin.png?v=3.3.31" alt="" width="28" height="28"><span class="nav-label">Dump Bin</span></button>
+      <button type="button" data-nav="helpdesk" data-slot="extra"><img class="nav-ico-img" src="icons/nav/helpdesk.png?v=3.3.31" alt="" width="28" height="28"><span class="nav-label">Helpdesk</span></button>
       <button type="button" data-nav="more" data-slot="phone-more" aria-label="More">
         <svg class="nav-ico-img nav-hamburger" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
           <rect width="28" height="28" rx="7" fill="#2563eb"/>
@@ -153,7 +153,7 @@
   </div>
 
   <div id="eodBuffering" class="eod-buffering" hidden role="status" aria-live="polite" aria-busy="false">
-    <img class="eod-buffering-gif" src="assets/buffering.gif?v=3.3.30" alt="" width="260" height="260" decoding="async">
+    <img class="eod-buffering-gif" src="assets/buffering.gif?v=3.3.31" alt="" width="260" height="260" decoding="async">
   </div>
 
   <div id="instaworkBufferOverlay" class="iw-overlay" data-state="saving">
@@ -165,73 +165,76 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=3.3.30"></script>
-  <script src="js/lib/eod-buffering.js?v=3.3.30"></script>
-  <script src="js/lib/eod-alerts.js?v=3.3.30"></script>
-  <script src="js/lib/eod-roles.js?v=3.3.30"></script>
-  <script src="js/lib/heic.js?v=3.3.30"></script>
-  <script src="js/lib/eod-camera.js?v=3.3.30"></script>
-  <script src="js/lib/eod-photo-editor.js?v=3.3.30"></script>
-  <script src="js/usage.js?v=3.3.30"></script>
-  <script src="js/session.js?v=3.3.30"></script>
-  <script src="js/lib/cover-notes.js?v=3.3.30"></script>
-  <script src="js/lib/visit-memory.js?v=3.3.30"></script>
-  <script src="js/features/section-nav.js?v=3.3.30"></script>
-  <script src="js/router.js?v=3.3.30"></script>
-  <script src="js/lib/swipe-nav.js?v=3.3.30"></script>
-  <script src="js/lib/section-collapse.js?v=3.3.30"></script>
-  <script src="js/picker.js?v=3.3.30"></script>
-  <script src="js/features/theme.js?v=3.3.30"></script>
-  <script src="js/chrome.js?v=3.3.30"></script>
-  <script src="js/lib/photo-compress.js?v=3.3.30"></script>
-  <script src="js/lib/eod-instawork-save.js?v=3.3.30"></script>
-  <script src="js/lib/photo-pipeline.js?v=3.3.30"></script>
-  <script src="js/lib/category-card-status.js?v=3.3.30"></script>
-  <script src="js/lib/send-gates.js?v=3.3.30"></script>
-  <script src="js/lib/eod-garden.js?v=3.3.30"></script>
-  <script src="js/lib/fit-text.js?v=3.3.30"></script>
-  <script src="js/lib/eod-test-mode-logic.js?v=3.3.30"></script>
-  <script src="js/lib/landscape-sig-pad.js?v=3.3.30"></script>
-  <script src="js/lib/set-review.js?v=3.3.30"></script>
-  <script src="js/lib/eod-send-sheets-logic.js?v=3.3.30"></script>
-  <script src="js/lib/pdf-to-image.js?v=3.3.30"></script>
-  <script src="js/lib/eod-send-sheets.js?v=3.3.30"></script>
-  <script src="js/features/durability.js?v=3.3.30"></script>
-  <script src="js/features/connections.js?v=3.3.30"></script>
-  <script src="js/features/version-test.js?v=3.3.30"></script>
+  <script src="js/api.js?v=3.3.31"></script>
+  <script src="js/lib/eod-buffering.js?v=3.3.31"></script>
+  <script src="js/lib/eod-alerts.js?v=3.3.31"></script>
+  <script src="js/lib/eod-roles.js?v=3.3.31"></script>
+  <script src="js/lib/heic.js?v=3.3.31"></script>
+  <script src="js/lib/eod-camera.js?v=3.3.31"></script>
+  <script src="js/lib/eod-photo-editor.js?v=3.3.31"></script>
+  <script src="js/usage.js?v=3.3.31"></script>
+  <script src="js/session.js?v=3.3.31"></script>
+  <script src="js/lib/cover-notes.js?v=3.3.31"></script>
+  <script src="js/lib/visit-memory.js?v=3.3.31"></script>
+  <script src="js/features/section-nav.js?v=3.3.31"></script>
+  <script src="js/router.js?v=3.3.31"></script>
+  <script src="js/lib/swipe-nav.js?v=3.3.31"></script>
+  <script src="js/lib/section-collapse.js?v=3.3.31"></script>
+  <script src="js/picker.js?v=3.3.31"></script>
+  <script src="js/features/theme.js?v=3.3.31"></script>
+  <script src="js/chrome.js?v=3.3.31"></script>
+  <script src="js/lib/photo-compress.js?v=3.3.31"></script>
+  <script src="js/lib/eod-instawork-save.js?v=3.3.31"></script>
+  <script src="js/lib/photo-pipeline.js?v=3.3.31"></script>
+  <script src="js/lib/category-card-status.js?v=3.3.31"></script>
+  <script src="js/lib/send-gates.js?v=3.3.31"></script>
+  <script src="js/lib/eod-garden.js?v=3.3.31"></script>
+  <script src="js/lib/fit-text.js?v=3.3.31"></script>
+  <script src="js/lib/eod-test-mode-logic.js?v=3.3.31"></script>
+  <script src="js/lib/landscape-sig-pad.js?v=3.3.31"></script>
+  <script src="js/lib/set-review.js?v=3.3.31"></script>
+  <script src="js/lib/eod-send-sheets-logic.js?v=3.3.31"></script>
+  <script src="js/lib/pdf-to-image.js?v=3.3.31"></script>
+  <script src="js/lib/eod-send-sheets.js?v=3.3.31"></script>
+  <script src="js/features/durability.js?v=3.3.31"></script>
+  <script src="js/features/connections.js?v=3.3.31"></script>
+  <script src="js/features/version-test.js?v=3.3.31"></script>
 
-  <script src="js/lib/set-media-cache.js?v=3.3.30"></script>
-  <script src="js/features/photo-sessions.js?v=3.3.30"></script>
-  <script src="js/features/set-before-store.js?v=3.3.30"></script>
-  <script src="js/features/clock-picker.js?v=3.3.30"></script>
-  <script src="js/features/sms-optin-qr.js?v=3.3.30"></script>
-  <script src="js/features/guest-handoff.js?v=3.3.30"></script>
-  <script src="js/features/timesheet-mgmt.js?v=3.3.30"></script>
-  <script src="js/features/dept-signatures.js?v=3.3.30"></script>
-  <script src="js/features/helpdesk-wizard.js?v=3.3.30"></script>
-  <script src="js/features/helpdesk.js?v=3.3.30"></script>
+  <script src="js/lib/set-media-cache.js?v=3.3.31"></script>
+  <script src="js/features/photo-sessions.js?v=3.3.31"></script>
+  <script src="js/features/set-before-store.js?v=3.3.31"></script>
+  <script src="js/features/clock-picker.js?v=3.3.31"></script>
+  <script src="js/features/sms-optin-qr.js?v=3.3.31"></script>
+  <script src="js/features/guest-handoff.js?v=3.3.31"></script>
+  <script src="js/features/timesheet-mgmt.js?v=3.3.31"></script>
+  <script src="js/features/dept-signatures.js?v=3.3.31"></script>
+  <script src="js/features/helpdesk-wizard.js?v=3.3.31"></script>
+  <script src="js/features/helpdesk.js?v=3.3.31"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
   <script src="https://the-dump-bin.com/shared/pdf-viewer/materials-pdf-viewer.js?v=1.1.1"></script>
-  <script src="js/features/materials-browser.js?v=3.3.30"></script>
+  <script src="js/features/materials-browser.js?v=3.3.31"></script>
 
-  <script src="js/lib/shift-day-cache.js?v=3.3.30"></script>
-  <script src="js/features/visit.js?v=3.3.30"></script>
-  <script src="js/features/signoff-home.js?v=3.3.30"></script>
-  <script src="js/lib/shift-photo-sync.js?v=3.3.30"></script>
-  <script src="js/features/signatures.js?v=3.3.30"></script>
-  <script src="js/lib/set-media-prefetch.js?v=3.3.30"></script>
-  <script src="js/lib/si-planogram-board.js?v=3.3.30"></script>
-  <script src="js/features/set-survey.js?v=3.3.30"></script>
-  <script src="js/features/crew.js?v=3.3.30"></script>
-  <script src="js/features/dump-bin.js?v=3.3.30"></script>
-  <script src="js/features/photos.js?v=3.3.30"></script>
-  <script src="js/features/device-storage.js?v=3.3.30"></script>
-  <script src="js/features/pic-qr.js?v=3.3.30"></script>
-  <script src="js/features/cover.js?v=3.3.30"></script>
-  <script src="js/features/send.js?v=3.3.30"></script>
-  <script src="js/features/feedback-hub.js?v=3.3.30"></script>
+  <script src="js/lib/shift-day-cache.js?v=3.3.31"></script>
+  <script src="js/features/visit.js?v=3.3.31"></script>
+  <script src="js/features/signoff-home.js?v=3.3.31"></script>
+  <script src="js/lib/shift-photo-sync.js?v=3.3.31"></script>
+  <script src="js/features/signatures.js?v=3.3.31"></script>
+  <script src="js/lib/set-media-prefetch.js?v=3.3.31"></script>
+  <script src="js/lib/si-planogram-board.js?v=3.3.31"></script>
+  <script src="js/vendor/html5-qrcode.min.js?v=3.3.31"></script>
+  <script src="js/lib/barcode-scanner.js?v=3.3.31"></script>
+  <script src="js/lib/cart-upc-locate.js?v=3.3.31"></script>
+  <script src="js/features/set-survey.js?v=3.3.31"></script>
+  <script src="js/features/crew.js?v=3.3.31"></script>
+  <script src="js/features/dump-bin.js?v=3.3.31"></script>
+  <script src="js/features/photos.js?v=3.3.31"></script>
+  <script src="js/features/device-storage.js?v=3.3.31"></script>
+  <script src="js/features/pic-qr.js?v=3.3.31"></script>
+  <script src="js/features/cover.js?v=3.3.31"></script>
+  <script src="js/features/send.js?v=3.3.31"></script>
+  <script src="js/features/feedback-hub.js?v=3.3.31"></script>
 
-  <script src="js/boot.js?v=3.3.30"></script>
+  <script src="js/boot.js?v=3.3.31"></script>
 </body>
 </html>
