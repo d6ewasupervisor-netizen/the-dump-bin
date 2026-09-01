@@ -49,6 +49,25 @@ textarea{min-height:72px;resize:vertical}
 pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;padding:12px;overflow:auto;max-height:400px;font-size:12px;white-space:pre-wrap}
 .roster-row{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);align-items:center}
 .roster-row:last-child{border-bottom:none}
+.hint{font-size:12px;color:var(--muted);margin:0 0 8px}
+.typeahead{position:relative}
+.typeahead-results{position:absolute;left:0;right:0;top:100%;z-index:40;background:#111820;border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:240px;overflow:auto;-webkit-overflow-scrolling:touch;display:none}
+.typeahead-results.open{display:block}
+.typeahead-results button{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;border-bottom:1px solid var(--border);border-radius:0;padding:10px 12px;font:inherit;font-size:13px;min-height:44px;cursor:pointer}
+.typeahead-results button:last-child{border-bottom:0}
+.typeahead-results button:hover:not(:disabled){background:#1c2634}
+.typeahead-results button:disabled{opacity:.6;cursor:default}
+.typeahead-results .sub{display:block;font-size:11px;color:var(--muted);font-weight:400}
+.sel-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(77,166,255,.15);color:var(--accent);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;margin-top:8px}
+.sel-chip button{all:unset;cursor:pointer;color:var(--accent);font-weight:700;padding:0 2px;font-size:14px}
+.roster-list{margin-top:10px}
+.emp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.emp-row:last-child{border-bottom:none}
+.emp-row .er-name{font-weight:700;font-size:13px}
+.emp-row .er-meta{color:var(--muted);font-size:11px}
+.emp-row .er-lead{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sec);white-space:nowrap;cursor:pointer}
+.emp-row .er-lead input{width:auto;min-height:auto}
+.emp-row .er-remove{background:none;border:0;color:var(--red);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
 .reset-card{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:#111820}
 .reset-card h4{font-size:14px;margin-bottom:6px}
 .leg-row{display:grid;grid-template-columns:repeat(6,1fr) auto;gap:6px;margin-bottom:6px;align-items:center}
@@ -157,13 +176,29 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       <!-- append -->
       <div class="build-form" id="build-append" hidden>
         <div class="card">
+          <div class="row">
+            <label>Employee</label>
+            <p class="hint">Search by name to add this person to the team's remaining visits.</p>
+            <div class="typeahead">
+              <input id="ap-name-q" type="search" placeholder="Search employee by name…" autocomplete="off">
+              <div class="typeahead-results" id="ap-name-results"></div>
+            </div>
+            <div id="ap-name-chip"></div>
+          </div>
           <div class="grid">
-            <div class="row"><label>Employee name</label><input id="ap-name" placeholder="Luca Imbesi" autocomplete="off"></div>
             <div class="row"><label>Team (exact)</label><input id="ap-team" placeholder="Kompass 8B"></div>
             <div class="row"><label>Project</label><input id="ap-project" value="1"></div>
             <div class="row"><label>Weeks (comma-separated)</label><input id="ap-weeks" placeholder="P7W3,P7W4"></div>
-            <div class="row"><label>Lead check (optional)</label><input id="ap-lead" placeholder="Alexandra Wright"></div>
             <div class="row"><label>From date (optional)</label><input type="date" id="ap-from-date"></div>
+          </div>
+          <div class="row">
+            <label>Current lead (optional check)</label>
+            <p class="hint">Search to confirm the current lead's name before adding — the write is skipped if it doesn't match.</p>
+            <div class="typeahead">
+              <input id="ap-lead-q" type="search" placeholder="Search employee by name…" autocomplete="off">
+              <div class="typeahead-results" id="ap-lead-results"></div>
+            </div>
+            <div id="ap-lead-chip"></div>
           </div>
           <div class="actions">
             <button class="btn" id="ap-preview">Preview</button>
@@ -178,9 +213,25 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
         <div class="card">
           <div class="grid">
             <div class="row"><label>Date</label><input type="date" id="rl-date"></div>
-            <div class="row"><label>From lead (name)</label><input id="rl-from" placeholder="Alexandra Wright"></div>
-            <div class="row"><label>To lead (name)</label><input id="rl-to" placeholder="Aiyana Natarisalazar"></div>
             <div class="row"><label>Store # (optional)</label><input id="rl-store" placeholder="28"></div>
+          </div>
+          <div class="row">
+            <label>From lead</label>
+            <p class="hint">Search by name for the current lead being replaced.</p>
+            <div class="typeahead">
+              <input id="rl-from-q" type="search" placeholder="Search employee by name…" autocomplete="off">
+              <div class="typeahead-results" id="rl-from-results"></div>
+            </div>
+            <div id="rl-from-chip"></div>
+          </div>
+          <div class="row">
+            <label>To lead</label>
+            <p class="hint">Search by name for the new lead.</p>
+            <div class="typeahead">
+              <input id="rl-to-q" type="search" placeholder="Search employee by name…" autocomplete="off">
+              <div class="typeahead-results" id="rl-to-results"></div>
+            </div>
+            <div id="rl-to-chip"></div>
           </div>
           <div class="actions">
             <button class="btn" id="rl-preview">Preview</button>
@@ -193,7 +244,7 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       <!-- holiday -->
       <div class="build-form" id="build-holiday" hidden>
         <div class="card">
-          <p class="muted" style="margin-bottom:10px">Project 147, store 999, team Holiday. Mileage stays off. One roster row must be the lead.</p>
+          <p class="muted" style="margin-bottom:10px">Project 147, store 999, team Holiday. Mileage stays off. Exactly one person must be Lead.</p>
           <div class="grid">
             <div class="row"><label>Date</label><input type="date" id="ah-date"></div>
             <div class="row"><label>Shift start</label><input id="ah-start" value="09:00 AM"></div>
@@ -201,10 +252,13 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
             <div class="row"><label>Hours</label><input type="number" id="ah-hours" value="8"></div>
           </div>
           <div class="row">
-            <label>Roster (one per line: employee id, lead? — e.g. "390965, lead" or "123477")</label>
-            <textarea id="ah-roster" placeholder="390965, lead
-123477
-4354"></textarea>
+            <label>Roster</label>
+            <p class="hint">Search and add each employee working this holiday shift. Check Lead for exactly one person.</p>
+            <div class="typeahead">
+              <input id="ah-emp-q" type="search" placeholder="Search employee by name…" autocomplete="off">
+              <div class="typeahead-results" id="ah-emp-results"></div>
+            </div>
+            <div class="roster-list" id="ah-roster-list"></div>
           </div>
           <div class="actions">
             <button class="btn" id="ah-preview">Preview</button>
@@ -218,8 +272,16 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       <div class="build-form" id="build-pto" hidden>
         <div class="card">
           <p class="muted" style="margin-bottom:10px">Project 147, store 999, team PTO. Single employee, mileage off. Building with "complete" checked also starts/completes the visit immediately (matches the PTO CLI).</p>
+          <div class="row">
+            <label>Employee</label>
+            <p class="hint">Search by name for the person taking PTO.</p>
+            <div class="typeahead">
+              <input id="pt-name-q" type="search" placeholder="Search employee by name…" autocomplete="off">
+              <div class="typeahead-results" id="pt-name-results"></div>
+            </div>
+            <div id="pt-name-chip"></div>
+          </div>
           <div class="grid">
-            <div class="row"><label>Employee name</label><input id="pt-name" placeholder="Alexandra Wright"></div>
             <div class="row"><label>Date</label><input type="date" id="pt-date"></div>
             <div class="row">
               <label>Exception</label>
@@ -333,6 +395,171 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
     return pd.getFullYear() + '-' + String(pd.getMonth() + 1).padStart(2, '0') + '-' + String(pd.getDate()).padStart(2, '0');
   }
 
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ─── employee picker (typeahead, same pattern as Survey Admin) ──────────
+
+  var empSearchTimers = {};
+
+  async function searchEmployees(q) {
+    if (!q || q.trim().length < 2) return [];
+    var data = await api('/api/prod-shifts/employees/search?q=' + encodeURIComponent(q.trim()));
+    return data.employees || [];
+  }
+
+  function empMeta(p) {
+    var bits = [];
+    if (p.title) bits.push(p.title);
+    if (p.email) bits.push(p.email);
+    return bits.join(' · ');
+  }
+
+  function closeTypeahead(resultsEl) {
+    resultsEl.classList.remove('open');
+    resultsEl.innerHTML = '';
+  }
+
+  // Single-select: search box + chip. Returns { get, clear }.
+  function wireSingleEmployeePicker(opts) {
+    var input = $(opts.inputId);
+    var resultsEl = $(opts.resultsId);
+    var chipEl = $(opts.chipId);
+    var selected = null;
+
+    function renderChip() {
+      if (!selected) { chipEl.innerHTML = ''; return; }
+      chipEl.innerHTML = '<span class="sel-chip">' + escHtml(selected.name || ('id ' + selected.id)) +
+        '<button type="button" data-clear>&times;</button></span>';
+      chipEl.querySelector('[data-clear]').addEventListener('click', function () {
+        selected = null;
+        renderChip();
+        if (opts.onChange) opts.onChange(null);
+      });
+    }
+
+    function showResults(people) {
+      if (!people.length) {
+        resultsEl.innerHTML = '<button type="button" disabled>No matches</button>';
+      } else {
+        resultsEl.innerHTML = people.map(function (p) {
+          return '<button type="button" data-id="' + p.id + '">' + escHtml(p.name) +
+            '<span class="sub">' + escHtml(empMeta(p)) + '</span></button>';
+        }).join('');
+      }
+      resultsEl.classList.add('open');
+      resultsEl.querySelectorAll('button[data-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var person = people.find(function (p) { return String(p.id) === btn.dataset.id; });
+          selected = person || null;
+          renderChip();
+          input.value = '';
+          closeTypeahead(resultsEl);
+          if (opts.onChange) opts.onChange(selected);
+        });
+      });
+    }
+
+    input.addEventListener('input', function () {
+      clearTimeout(empSearchTimers[opts.inputId]);
+      var q = input.value.trim();
+      if (q.length < 2) { closeTypeahead(resultsEl); return; }
+      empSearchTimers[opts.inputId] = setTimeout(async function () {
+        try { showResults(await searchEmployees(q)); } catch (err) { console.error(err); }
+      }, 280);
+    });
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('#' + opts.inputId) && !e.target.closest('#' + opts.resultsId)) closeTypeahead(resultsEl);
+    });
+
+    return {
+      get: function () { return selected; },
+      clear: function () { selected = null; renderChip(); },
+    };
+  }
+
+  // Multi-select roster: search box + list of rows, each with a Lead checkbox
+  // (checking one unchecks the rest — the API requires exactly one lead) and
+  // a remove button. Returns { getRoster, clear }.
+  function wireRosterPicker(opts) {
+    var input = $(opts.inputId);
+    var resultsEl = $(opts.resultsId);
+    var listEl = $(opts.listId);
+    var roster = [];
+
+    function renderList() {
+      if (!roster.length) {
+        listEl.innerHTML = '<p class="muted">No one added yet.</p>';
+        return;
+      }
+      listEl.innerHTML = roster.map(function (p, idx) {
+        return '<div class="emp-row">' +
+          '<div><div class="er-name">' + escHtml(p.name) + '</div>' +
+          (p.meta ? '<div class="er-meta">' + escHtml(p.meta) + '</div>' : '') + '</div>' +
+          '<label class="er-lead"><input type="checkbox" data-lead="' + idx + '"' + (p.lead ? ' checked' : '') + '> Lead</label>' +
+          '<button type="button" class="er-remove" data-remove="' + idx + '" aria-label="Remove">&times;</button>' +
+          '</div>';
+      }).join('');
+      listEl.querySelectorAll('[data-lead]').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+          var idx = Number(cb.getAttribute('data-lead'));
+          if (cb.checked) roster.forEach(function (p, i) { p.lead = i === idx; });
+          else roster[idx].lead = false;
+          renderList();
+        });
+      });
+      listEl.querySelectorAll('[data-remove]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          roster.splice(Number(btn.getAttribute('data-remove')), 1);
+          renderList();
+        });
+      });
+    }
+
+    function showResults(people) {
+      var items = people.filter(function (p) { return !roster.some(function (r) { return r.id === p.id; }); });
+      if (!items.length) {
+        resultsEl.innerHTML = '<button type="button" disabled>' + (people.length ? 'Already added' : 'No matches') + '</button>';
+      } else {
+        resultsEl.innerHTML = items.map(function (p) {
+          return '<button type="button" data-id="' + p.id + '">' + escHtml(p.name) +
+            '<span class="sub">' + escHtml(empMeta(p)) + '</span></button>';
+        }).join('');
+      }
+      resultsEl.classList.add('open');
+      resultsEl.querySelectorAll('button[data-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var person = items.find(function (p) { return String(p.id) === btn.dataset.id; });
+          if (person) {
+            roster.push({ id: person.id, name: person.name, meta: empMeta(person), lead: roster.length === 0 });
+            renderList();
+          }
+          input.value = '';
+          closeTypeahead(resultsEl);
+        });
+      });
+    }
+
+    input.addEventListener('input', function () {
+      clearTimeout(empSearchTimers[opts.inputId]);
+      var q = input.value.trim();
+      if (q.length < 2) { closeTypeahead(resultsEl); return; }
+      empSearchTimers[opts.inputId] = setTimeout(async function () {
+        try { showResults(await searchEmployees(q)); } catch (err) { console.error(err); }
+      }, 280);
+    });
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('#' + opts.inputId) && !e.target.closest('#' + opts.resultsId)) closeTypeahead(resultsEl);
+    });
+
+    renderList();
+    return {
+      getRoster: function () { return roster.map(function (p) { return { id: p.id, lead: !!p.lead }; }); },
+      clear: function () { roster = []; renderList(); },
+    };
+  }
+
   // ─── tabs ───────────────────────────────────────────────────────────────
 
   document.querySelectorAll('.tabs > .tab').forEach(function (btn) {
@@ -422,45 +649,57 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
   });
 
   // append
+  var apNamePicker = wireSingleEmployeePicker({ inputId: 'ap-name-q', resultsId: 'ap-name-results', chipId: 'ap-name-chip' });
+  var apLeadPicker = wireSingleEmployeePicker({ inputId: 'ap-lead-q', resultsId: 'ap-lead-results', chipId: 'ap-lead-chip' });
   wirePreviewConfirm({
     previewId: 'ap-preview', confirmId: 'ap-confirm', resultCardId: 'ap-result-card', resultId: 'ap-result',
     path: '/api/prod-shifts/build/append-person',
     buildBody: function () {
+      var emp = apNamePicker.get();
+      var lead = apLeadPicker.get();
+      if (!emp) throw new Error('Search and select the employee to add.');
       return {
-        employeeName: $('ap-name').value.trim(),
+        employeeId: emp.id,
+        employeeName: emp.name,
         team: $('ap-team').value.trim(),
         projectId: Number($('ap-project').value || 1),
         weeks: $('ap-weeks').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
-        leadName: $('ap-lead').value.trim() || undefined,
+        leadName: lead ? lead.name : undefined,
         fromDate: $('ap-from-date').value || undefined,
       };
     },
   });
 
   // reassign
+  var rlFromPicker = wireSingleEmployeePicker({ inputId: 'rl-from-q', resultsId: 'rl-from-results', chipId: 'rl-from-chip' });
+  var rlToPicker = wireSingleEmployeePicker({ inputId: 'rl-to-q', resultsId: 'rl-to-results', chipId: 'rl-to-chip' });
   wirePreviewConfirm({
     previewId: 'rl-preview', confirmId: 'rl-confirm', resultCardId: 'rl-result-card', resultId: 'rl-result',
     path: '/api/prod-shifts/build/reassign-lead',
     buildBody: function () {
+      var from = rlFromPicker.get();
+      var to = rlToPicker.get();
+      if (!from || !to) throw new Error('Search and select both the from lead and the to lead.');
       return {
         date: $('rl-date').value,
-        fromName: $('rl-from').value.trim(),
-        toName: $('rl-to').value.trim(),
+        fromId: from.id,
+        fromName: from.name,
+        toId: to.id,
+        toName: to.name,
         storeNumber: $('rl-store').value.trim() || undefined,
       };
     },
   });
 
   // holiday
+  var ahRosterPicker = wireRosterPicker({ inputId: 'ah-emp-q', resultsId: 'ah-emp-results', listId: 'ah-roster-list' });
   wirePreviewConfirm({
     previewId: 'ah-preview', confirmId: 'ah-confirm', resultCardId: 'ah-result-card', resultId: 'ah-result',
     path: '/api/prod-shifts/build/holiday',
     buildBody: function () {
-      var lines = $('ah-roster').value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
-      var roster = lines.map(function (l) {
-        var parts = l.split(',').map(function (p) { return p.trim(); });
-        return { id: Number(parts[0]), lead: /lead/i.test(parts[1] || '') };
-      });
+      var roster = ahRosterPicker.getRoster();
+      if (!roster.length) throw new Error('Add at least one employee to the roster.');
+      if (roster.filter(function (r) { return r.lead; }).length !== 1) throw new Error('Exactly one person must be checked as Lead.');
       return {
         date: $('ah-date').value,
         shiftStart: $('ah-start').value,
@@ -472,12 +711,16 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
   });
 
   // pto
+  var ptNamePicker = wireSingleEmployeePicker({ inputId: 'pt-name-q', resultsId: 'pt-name-results', chipId: 'pt-name-chip' });
   wirePreviewConfirm({
     previewId: 'pt-preview', confirmId: 'pt-confirm', resultCardId: 'pt-result-card', resultId: 'pt-result',
     path: '/api/prod-shifts/build/pto',
     buildBody: function () {
+      var emp = ptNamePicker.get();
+      if (!emp) throw new Error('Search and select the employee taking PTO.');
       return {
-        employeeName: $('pt-name').value.trim(),
+        employeeId: emp.id,
+        employeeName: emp.name,
         date: $('pt-date').value,
         exception: $('pt-exception').value,
         hours: Number($('pt-hours').value || 8),
