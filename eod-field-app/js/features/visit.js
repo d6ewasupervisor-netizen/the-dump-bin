@@ -266,7 +266,7 @@
       return;
     }
     if (!visible.length) {
-      listEl.innerHTML = '<p class="muted">No Central Pet reset assigned.</p>';
+      listEl.innerHTML = '<p class="muted">No ISE, Cut In, Blitz, DIV, or Central Pet shift for this store.</p>';
       return;
     }
     listEl.innerHTML = renderShiftCards(visible, selId);

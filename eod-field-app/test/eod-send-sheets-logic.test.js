@@ -93,30 +93,42 @@ test('EOD PDF filename is EOD_FM###_MM-DD-YY', () => {
   assert.equal(eodPdfFilename('FM19', '08/31/2026'), 'EOD_FM019_08-31-26.pdf');
 });
 
-test('visible lead shifts are Central Pet reset assigned to the lead only', () => {
+test('visible lead shifts list ISE-family and Central Pet for that lead', () => {
   const ise = {
     visitId: '1',
     projectId: 1,
     projectName: 'Fred Meyer Kompass ISE',
     visitLead: 'James Duchene Ryan',
   };
+  const cutIn = {
+    visitId: '4',
+    projectId: 1668,
+    projectName: 'Fred Meyer Cut In Kompass ISE',
+    visitLead: 'James Duchene Ryan',
+  };
   const cpJames = {
     visitId: '2',
-    projectName: 'Fred Meyer Central Pet Service Surge',
+    projectId: 9295,
+    projectName: 'Fred Meyer Central Pet Reset',
     visitLead: 'James Duchene Ryan',
   };
   const cpEldin = {
     visitId: '3',
-    projectName: 'Fred Meyer Central Pet Service Surge',
+    projectId: 9295,
+    projectName: 'Fred Meyer Central Pet Reset',
     visitLead: 'Eldin Dedakovic',
   };
   assert.equal(isCentralPetReset(cpJames), true);
   assert.equal(isCentralPetReset(ise), false);
-  const vis = visibleLeadShifts([ise, cpJames, cpEldin], 'James Duchene Ryan');
-  assert.deepEqual(vis.map((s) => s.visitId), ['2']);
-  const picked = pickVisibleLeadShift([ise, cpJames, cpEldin], 'James Duchene Ryan', ise);
-  assert.equal(picked.selected.visitId, '2');
-  const none = pickVisibleLeadShift([ise, cpEldin], 'James Duchene Ryan', null);
-  assert.equal(none.visible.length, 0);
-  assert.equal(none.selected.visitId, '1');
+  const vis = visibleLeadShifts([ise, cutIn, cpJames, cpEldin], 'James Duchene Ryan');
+  assert.deepEqual(vis.map((s) => s.visitId), ['1', '4', '2']);
+  const picked = pickVisibleLeadShift([ise, cutIn, cpJames, cpEldin], 'James Duchene Ryan', null);
+  assert.equal(picked.selected.visitId, '4');
+  const keep = pickVisibleLeadShift([ise, cutIn, cpJames], 'James Duchene Ryan', ise);
+  assert.equal(keep.selected.visitId, '1');
+  const cpOnly = pickVisibleLeadShift([ise, cpJames], 'James Duchene Ryan', null);
+  assert.equal(cpOnly.selected.visitId, '2');
+  const otherLead = pickVisibleLeadShift([ise, cpEldin], 'James Duchene Ryan', null);
+  assert.deepEqual(otherLead.visible.map((s) => s.visitId), ['1']);
+  assert.equal(otherLead.selected.visitId, '1');
 });
