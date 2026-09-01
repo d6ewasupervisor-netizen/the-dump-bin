@@ -112,7 +112,7 @@
         <div class="si-pog-name">${esc(it.name || '')}</div>
         ${it.size ? `<div class="si-pog-size">${esc(it.size)}</div>` : ''}
         <div class="si-pog-loc">${esc(loc)}</div>
-        <div class="si-pog-cap">${it.upc ? `UPC ${esc(it.upc)}` : ''}</div>
+        <div class="si-pog-cap">${it.upc ? `<span class="si-pog-upc-label">UPC </span>${esc(it.upc)}` : ''}</div>
       </div>
     </article>`;
   }
