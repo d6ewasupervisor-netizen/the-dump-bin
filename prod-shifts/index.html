@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PROD Shift Console</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/favicon.png?v=2">
+
+<script src="/auth-gate.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0e13; --card:#151d28; --border:#243044; --text:#f0f4f8;
+  --muted:#6b7d94; --sec:#a8b8cc; --accent:#4da6ff; --green:#00e87a;
+  --amber:#ffcc00; --red:#ff4757; --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding:18px 14px 80px}
+.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:clamp(1.35rem,4vw,1.7rem);font-weight:800}
+.sub{color:var(--sec);font-size:13px;margin-top:4px}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab,.btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer;min-height:44px;flex:0 0 auto}
+.tab.active,.btn.primary{background:#1f4e79;border-color:#2d6aa8}
+.btn.danger{background:rgba(255,71,87,.12);border-color:rgba(255,71,87,.45);color:#ff8a96}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
+input,select,textarea{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:#111820;color:var(--text);font:inherit}
+input[type="date"],input[type="file"]{color-scheme:dark;cursor:pointer}
+textarea{min-height:72px;resize:vertical}
+.row{margin-bottom:12px}
+.muted{color:var(--muted);font-size:13px}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(77,166,255,.15);color:var(--accent)}
+.badge.ok{background:rgba(0,232,122,.15);color:var(--green)}
+.badge.warn{background:rgba(255,204,0,.14);color:var(--amber)}
+.badge.err{background:rgba(255,71,87,.14);color:var(--red)}
+.err{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.4);color:#ffb4bb;padding:12px;border-radius:10px;margin-bottom:12px}
+.ok-msg{background:rgba(0,232,122,.1);border:1px solid rgba(0,232,122,.35);color:#b6ffd7;padding:12px;border-radius:10px;margin-bottom:12px}
+.access{padding:24px;text-align:center}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.sub-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.sub-actions .tab{padding:8px 12px;font-size:13px}
+pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;padding:12px;overflow:auto;max-height:400px;font-size:12px;white-space:pre-wrap}
+.roster-row{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);align-items:center}
+.roster-row:last-child{border-bottom:none}
+.reset-card{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:#111820}
+.reset-card h4{font-size:14px;margin-bottom:6px}
+.leg-row{display:grid;grid-template-columns:repeat(6,1fr) auto;gap:6px;margin-bottom:6px;align-items:center}
+.leg-row select,.leg-row input{padding:8px}
+@media (max-width:720px){
+  .leg-row{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .wrap{padding:12px 10px 72px}
+  .top{flex-direction:column;align-items:flex-start}
+  .tabs{flex-wrap:nowrap;padding-bottom:4px}
+  .actions .btn{flex:1 1 calc(50% - 4px);min-width:140px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>PROD Shift Console</h1>
+      <p class="sub" id="actorLine">Loading…</p>
+    </div>
+    <a class="btn" href="/">← Hub</a>
+  </div>
+
+  <div id="accessDenied" class="card access" hidden>
+    <h2>PROD Shift Console access required</h2>
+    <p class="muted" style="margin-top:8px">This tool is limited to Tyson and Wolf.</p>
+  </div>
+
+  <div id="app" hidden>
+    <div id="sessionWarning" class="err" hidden>SAS session is down (morning auth). Builds and runs will fail until it's back.</div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="build">Build</button>
+      <button class="tab" data-tab="run">Run</button>
+    </div>
+
+    <div id="msg"></div>
+
+    <!-- ───────────────── BUILD ───────────────── -->
+    <section class="panel active" id="panel-build">
+      <div class="sub-actions">
+        <button class="tab active" data-build="copy-date">Copy roster → date</button>
+        <button class="tab" data-build="copy-project">Copy ISE week → project</button>
+        <button class="tab" data-build="append">Append person</button>
+        <button class="tab" data-build="reassign">Reassign lead</button>
+        <button class="tab" data-build="holiday">Admin Holiday</button>
+        <button class="tab" data-build="pto">PTO</button>
+      </div>
+
+      <!-- copy-date -->
+      <div class="build-form" id="build-copy-date">
+        <div class="card">
+          <div class="grid">
+            <div class="row">
+              <label>Project</label>
+              <select id="cd-project">
+                <option value="1">Fred Meyer Kompass ISE (1)</option>
+                <option value="1668">Cut In (1668)</option>
+                <option value="1715">Blitz (1715)</option>
+                <option value="3568">DIV Special (3568)</option>
+              </select>
+            </div>
+            <div class="row"><label>Store #</label><input id="cd-store" placeholder="e.g. 28"></div>
+            <div class="row"><label>Source date</label><input type="date" id="cd-source-date"></div>
+            <div class="row"><label>Dest date</label><input type="date" id="cd-dest-date"></div>
+            <div class="row"><label>Cycle name (optional)</label><input id="cd-cycle" placeholder="P06W3"></div>
+            <div class="row"><label>Start offset (min)</label><input type="number" id="cd-offset" value="3"></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="cd-preview">Preview</button>
+            <button class="btn primary" id="cd-confirm" disabled>Write to PROD</button>
+          </div>
+        </div>
+        <div class="card" id="cd-result-card" hidden><pre class="plan" id="cd-result"></pre></div>
+      </div>
+
+      <!-- copy-project -->
+      <div class="build-form" id="build-copy-project" hidden>
+        <div class="card">
+          <div class="grid">
+            <div class="row">
+              <label>Destination project</label>
+              <select id="cp-project">
+                <option value="1715">Blitz (1715)</option>
+                <option value="9295">Central Pet Reset (9295)</option>
+                <option value="9293">Central Pet Service (9293) — build only</option>
+              </select>
+            </div>
+            <div class="row"><label>Stores (comma-separated)</label><input id="cp-stores" placeholder="49,163,214"></div>
+            <div class="row"><label>Date from</label><input type="date" id="cp-date-from"></div>
+            <div class="row"><label>Date to</label><input type="date" id="cp-date-to"></div>
+            <div class="row"><label>Cycle name (optional)</label><input id="cp-cycle" placeholder="P06W3"></div>
+            <div class="row"><label>Min offset (min)</label><input type="number" id="cp-min-offset" value="3"></div>
+            <div class="row"><label>Max offset (min)</label><input type="number" id="cp-max-offset" value="7"></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="cp-preview">Preview</button>
+            <button class="btn primary" id="cp-confirm" disabled>Write to PROD</button>
+          </div>
+        </div>
+        <div class="card" id="cp-result-card" hidden><pre class="plan" id="cp-result"></pre></div>
+      </div>
+
+      <!-- append -->
+      <div class="build-form" id="build-append" hidden>
+        <div class="card">
+          <div class="grid">
+            <div class="row"><label>Employee name</label><input id="ap-name" placeholder="Luca Imbesi" autocomplete="off"></div>
+            <div class="row"><label>Team (exact)</label><input id="ap-team" placeholder="Kompass 8B"></div>
+            <div class="row"><label>Project</label><input id="ap-project" value="1"></div>
+            <div class="row"><label>Weeks (comma-separated)</label><input id="ap-weeks" placeholder="P7W3,P7W4"></div>
+            <div class="row"><label>Lead check (optional)</label><input id="ap-lead" placeholder="Alexandra Wright"></div>
+            <div class="row"><label>From date (optional)</label><input type="date" id="ap-from-date"></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="ap-preview">Preview</button>
+            <button class="btn primary" id="ap-confirm" disabled>Write to PROD</button>
+          </div>
+        </div>
+        <div class="card" id="ap-result-card" hidden><pre class="plan" id="ap-result"></pre></div>
+      </div>
+
+      <!-- reassign -->
+      <div class="build-form" id="build-reassign" hidden>
+        <div class="card">
+          <div class="grid">
+            <div class="row"><label>Date</label><input type="date" id="rl-date"></div>
+            <div class="row"><label>From lead (name)</label><input id="rl-from" placeholder="Alexandra Wright"></div>
+            <div class="row"><label>To lead (name)</label><input id="rl-to" placeholder="Aiyana Natarisalazar"></div>
+            <div class="row"><label>Store # (optional)</label><input id="rl-store" placeholder="28"></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="rl-preview">Preview</button>
+            <button class="btn primary" id="rl-confirm" disabled>Write to PROD</button>
+          </div>
+        </div>
+        <div class="card" id="rl-result-card" hidden><pre class="plan" id="rl-result"></pre></div>
+      </div>
+
+      <!-- holiday -->
+      <div class="build-form" id="build-holiday" hidden>
+        <div class="card">
+          <p class="muted" style="margin-bottom:10px">Project 147, store 999, team Holiday. Mileage stays off. One roster row must be the lead.</p>
+          <div class="grid">
+            <div class="row"><label>Date</label><input type="date" id="ah-date"></div>
+            <div class="row"><label>Shift start</label><input id="ah-start" value="09:00 AM"></div>
+            <div class="row"><label>Shift end</label><input id="ah-end" value="05:00 PM"></div>
+            <div class="row"><label>Hours</label><input type="number" id="ah-hours" value="8"></div>
+          </div>
+          <div class="row">
+            <label>Roster (one per line: employee id, lead? — e.g. "390965, lead" or "123477")</label>
+            <textarea id="ah-roster" placeholder="390965, lead
+123477
+4354"></textarea>
+          </div>
+          <div class="actions">
+            <button class="btn" id="ah-preview">Preview</button>
+            <button class="btn primary" id="ah-confirm" disabled>Write to PROD</button>
+          </div>
+        </div>
+        <div class="card" id="ah-result-card" hidden><pre class="plan" id="ah-result"></pre></div>
+      </div>
+
+      <!-- pto -->
+      <div class="build-form" id="build-pto" hidden>
+        <div class="card">
+          <p class="muted" style="margin-bottom:10px">Project 147, store 999, team PTO. Single employee, mileage off. Building with "complete" checked also starts/completes the visit immediately (matches the PTO CLI).</p>
+          <div class="grid">
+            <div class="row"><label>Employee name</label><input id="pt-name" placeholder="Alexandra Wright"></div>
+            <div class="row"><label>Date</label><input type="date" id="pt-date"></div>
+            <div class="row">
+              <label>Exception</label>
+              <select id="pt-exception">
+                <option value="sick">Sick</option>
+                <option value="holiday">Holiday</option>
+                <option value="vacation">Vacation</option>
+                <option value="bereavement">Bereavement</option>
+                <option value="jury_duty">Jury duty</option>
+              </select>
+            </div>
+            <div class="row"><label>Hours</label><input type="number" id="pt-hours" value="8"></div>
+            <div class="row"><label>Shift start</label><input id="pt-start" value="07:00 AM"></div>
+          </div>
+          <div class="row">
+            <label><input type="checkbox" id="pt-complete" checked style="width:auto;display:inline-block;margin-right:6px"> Complete immediately (Field Data start + complete)</label>
+          </div>
+          <div class="actions">
+            <button class="btn" id="pt-preview">Preview</button>
+            <button class="btn primary" id="pt-confirm" disabled>Write to PROD</button>
+          </div>
+        </div>
+        <div class="card" id="pt-result-card" hidden><pre class="plan" id="pt-result"></pre></div>
+      </div>
+    </section>
+
+    <!-- ───────────────── RUN ───────────────── -->
+    <section class="panel" id="panel-run">
+      <div class="card">
+        <div class="grid">
+          <div class="row"><label>Visit ID</label><input id="run-visit-id" placeholder="27019920"></div>
+        </div>
+        <div class="actions"><button class="btn primary" id="run-load">Load visit</button></div>
+      </div>
+
+      <div id="run-body" hidden>
+        <div class="card">
+          <h3 id="run-visit-title">Visit</h3>
+          <p class="muted" id="run-visit-sub"></p>
+          <div id="run-roster"></div>
+          <div class="actions">
+            <input id="run-start-time" placeholder="e.g. 08:05 AM" style="max-width:160px">
+            <button class="btn" id="run-start-visit">Start visit</button>
+          </div>
+        </div>
+
+        <div class="card" id="run-categories-card" hidden>
+          <h3>Category resets</h3>
+          <div id="run-categories"></div>
+        </div>
+
+        <div class="card">
+          <h3>Punch time + mileage</h3>
+          <div class="grid">
+            <div class="row"><label>Shift ID</label><input id="run-shift-id"></div>
+            <div class="row"><label>Actual start</label><input id="run-actual-start" placeholder="09:03 AM"></div>
+            <div class="row"><label>Actual end</label><input id="run-actual-end" placeholder="05:12 PM"></div>
+            <div class="row"><label>Time change reason id</label><input id="run-tcr" value="5"></div>
+            <div class="row"><label>Time change comment</label><input id="run-tcc" placeholder="…"></div>
+          </div>
+          <div id="run-legs"></div>
+          <div class="actions">
+            <button class="btn" id="run-add-leg">+ Mileage leg</button>
+            <button class="btn primary" id="run-allocate">Allocate time</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Complete shift</h3>
+          <div class="row"><label>Team lead feedback</label><input id="run-feedback" placeholder="this is for store 28"></div>
+          <div class="actions"><button class="btn danger" id="run-complete">Complete shift</button></div>
+        </div>
+
+        <div class="card" id="run-result-card" hidden><pre class="plan" id="run-result"></pre></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+
+  async function api(path, opts) {
+    var res = await dumpBinAuthFetch(path, Object.assign({
+      headers: { 'Content-Type': 'application/json' }
+    }, opts || {}));
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+  function apiPost(path, body) {
+    return api(path, { method: 'POST', body: JSON.stringify(body || {}) });
+  }
+
+  function showMsg(text, ok) {
+    var el = $('msg');
+    el.innerHTML = '';
+    if (!text) return;
+    var div = document.createElement('div');
+    div.className = ok ? 'ok-msg' : 'err';
+    div.textContent = text;
+    el.appendChild(div);
+  }
+
+  function todayIso() {
+    var d = new Date();
+    var tz = d.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
+    var pd = new Date(tz);
+    return pd.getFullYear() + '-' + String(pd.getMonth() + 1).padStart(2, '0') + '-' + String(pd.getDate()).padStart(2, '0');
+  }
+
+  // ─── tabs ───────────────────────────────────────────────────────────────
+
+  document.querySelectorAll('.tabs > .tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tabs > .tab').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      $('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.sub-actions .tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.sub-actions .tab').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.build-form').forEach(function (f) { f.hidden = true; });
+      btn.classList.add('active');
+      $('build-' + btn.dataset.build).hidden = false;
+    });
+  });
+
+  function renderPlan(el, cardEl, data) {
+    cardEl.hidden = false;
+    el.textContent = JSON.stringify(data, null, 2);
+  }
+
+  function wirePreviewConfirm(opts) {
+    var previewBtn = $(opts.previewId);
+    var confirmBtn = $(opts.confirmId);
+    var resultCard = $(opts.resultCardId);
+    var resultEl = $(opts.resultId);
+    var lastBody = null;
+
+    async function run(confirm) {
+      try {
+        showMsg('');
+        var body = opts.buildBody();
+        body.confirm = !!confirm;
+        lastBody = body;
+        var data = await apiPost(opts.path, body);
+        renderPlan(resultEl, resultCard, data);
+        confirmBtn.disabled = confirm ? true : false;
+        if (confirm) showMsg('Written to PROD.', true);
+      } catch (err) {
+        showMsg(err.message || 'Request failed.', false);
+      }
+    }
+
+    previewBtn.addEventListener('click', function () { run(false); });
+    confirmBtn.addEventListener('click', function () {
+      if (!lastBody) return;
+      if (!confirm('Write this to PROD?')) return;
+      run(true);
+    });
+  }
+
+  // copy-date
+  wirePreviewConfirm({
+    previewId: 'cd-preview', confirmId: 'cd-confirm', resultCardId: 'cd-result-card', resultId: 'cd-result',
+    path: '/api/prod-shifts/build/copy-roster-to-date',
+    buildBody: function () {
+      return {
+        projectId: Number($('cd-project').value),
+        storeNumber: $('cd-store').value.trim(),
+        sourceDate: $('cd-source-date').value || todayIso(),
+        destDate: $('cd-dest-date').value,
+        cycleName: $('cd-cycle').value.trim() || undefined,
+        startOffsetMinutes: Number($('cd-offset').value || 3),
+      };
+    },
+  });
+
+  // copy-project
+  wirePreviewConfirm({
+    previewId: 'cp-preview', confirmId: 'cp-confirm', resultCardId: 'cp-result-card', resultId: 'cp-result',
+    path: '/api/prod-shifts/build/copy-to-project-week',
+    buildBody: function () {
+      return {
+        destProjectId: Number($('cp-project').value),
+        stores: $('cp-stores').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+        dateFrom: $('cp-date-from').value,
+        dateTo: $('cp-date-to').value,
+        cycleName: $('cp-cycle').value.trim() || undefined,
+        minOffset: Number($('cp-min-offset').value || 3),
+        maxOffset: Number($('cp-max-offset').value || 7),
+      };
+    },
+  });
+
+  // append
+  wirePreviewConfirm({
+    previewId: 'ap-preview', confirmId: 'ap-confirm', resultCardId: 'ap-result-card', resultId: 'ap-result',
+    path: '/api/prod-shifts/build/append-person',
+    buildBody: function () {
+      return {
+        employeeName: $('ap-name').value.trim(),
+        team: $('ap-team').value.trim(),
+        projectId: Number($('ap-project').value || 1),
+        weeks: $('ap-weeks').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+        leadName: $('ap-lead').value.trim() || undefined,
+        fromDate: $('ap-from-date').value || undefined,
+      };
+    },
+  });
+
+  // reassign
+  wirePreviewConfirm({
+    previewId: 'rl-preview', confirmId: 'rl-confirm', resultCardId: 'rl-result-card', resultId: 'rl-result',
+    path: '/api/prod-shifts/build/reassign-lead',
+    buildBody: function () {
+      return {
+        date: $('rl-date').value,
+        fromName: $('rl-from').value.trim(),
+        toName: $('rl-to').value.trim(),
+        storeNumber: $('rl-store').value.trim() || undefined,
+      };
+    },
+  });
+
+  // holiday
+  wirePreviewConfirm({
+    previewId: 'ah-preview', confirmId: 'ah-confirm', resultCardId: 'ah-result-card', resultId: 'ah-result',
+    path: '/api/prod-shifts/build/holiday',
+    buildBody: function () {
+      var lines = $('ah-roster').value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+      var roster = lines.map(function (l) {
+        var parts = l.split(',').map(function (p) { return p.trim(); });
+        return { id: Number(parts[0]), lead: /lead/i.test(parts[1] || '') };
+      });
+      return {
+        date: $('ah-date').value,
+        shiftStart: $('ah-start').value,
+        shiftEnd: $('ah-end').value,
+        hours: Number($('ah-hours').value || 8),
+        roster: roster,
+      };
+    },
+  });
+
+  // pto
+  wirePreviewConfirm({
+    previewId: 'pt-preview', confirmId: 'pt-confirm', resultCardId: 'pt-result-card', resultId: 'pt-result',
+    path: '/api/prod-shifts/build/pto',
+    buildBody: function () {
+      return {
+        employeeName: $('pt-name').value.trim(),
+        date: $('pt-date').value,
+        exception: $('pt-exception').value,
+        hours: Number($('pt-hours').value || 8),
+        shiftStart: $('pt-start').value,
+        complete: $('pt-complete').checked,
+      };
+    },
+  });
+
+  // ─── Run tab ────────────────────────────────────────────────────────────
+
+  var currentVisit = null;
+  var currentRoster = [];
+
+  function renderRoster() {
+    var el = $('run-roster');
+    el.innerHTML = '';
+    currentRoster.forEach(function (m) {
+      var row = document.createElement('div');
+      row.className = 'roster-row';
+      row.innerHTML = '<span>' + m.name + (m.lead ? ' <span class="badge">lead</span>' : '') + '</span>' +
+        '<span class="muted">shift ' + m.shiftId + ' · emp ' + m.employeeId + '</span>';
+      el.appendChild(row);
+    });
+  }
+
+  async function renderCategories(visitId) {
+    var card = $('run-categories-card');
+    var el = $('run-categories');
+    try {
+      var data = await api('/api/prod-shifts/run/' + visitId + '/category-resets');
+      if (!data.resets || !data.resets.length) { card.hidden = true; return; }
+      card.hidden = false;
+      el.innerHTML = '';
+      data.resets.forEach(function (r) {
+        var div = document.createElement('div');
+        div.className = 'reset-card';
+        var empOptions = currentRoster.map(function (m) { return '<option value="' + m.employeeId + '">' + m.name + '</option>'; }).join('');
+        div.innerHTML =
+          '<h4>' + r.name + ' <span class="muted">(#' + r.id + ')</span> ' +
+          (r.categoryCompletion ? '<span class="badge ok">complete</span>' : '<span class="badge warn">open</span>') + '</h4>' +
+          '<div class="grid">' +
+          '<div class="row"><label>Assign</label><select data-assign="' + r.id + '"><option value="">— choose —</option>' + empOptions + '</select></div>' +
+          '<div class="row"><label>Before photo</label><input type="file" accept="image/*" data-photo="' + r.id + '" data-slot="before"></div>' +
+          '<div class="row"><label>After photo</label><input type="file" accept="image/*" data-photo="' + r.id + '" data-slot="after"></div>' +
+          '<div class="row"><label>Spent time (e.g. 1h 53m)</label><input data-spent="' + r.id + '" placeholder="1h 53m"></div>' +
+          '</div>' +
+          '<div class="actions">' +
+          '<button class="btn" data-do-assign="' + r.id + '">Assign</button>' +
+          '<button class="btn" data-do-spent="' + r.id + '">Set spent time</button>' +
+          '<button class="btn primary" data-do-complete="' + r.id + '">Mark complete</button>' +
+          '</div>';
+        el.appendChild(div);
+      });
+
+      el.querySelectorAll('[data-do-assign]').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var resetId = btn.getAttribute('data-do-assign');
+          var sel = el.querySelector('[data-assign="' + resetId + '"]');
+          try {
+            await apiPost('/api/prod-shifts/run/' + visitId + '/category-resets/' + resetId + '/assign', { employeeId: Number(sel.value) });
+            showMsg('Assigned.', true);
+          } catch (err) { showMsg(err.message, false); }
+        });
+      });
+      el.querySelectorAll('[data-photo]').forEach(function (input) {
+        input.addEventListener('change', function () {
+          var file = input.files[0];
+          if (!file) return;
+          var resetId = input.getAttribute('data-photo');
+          var slot = input.getAttribute('data-slot');
+          var reader = new FileReader();
+          reader.onload = async function () {
+            try {
+              await apiPost('/api/prod-shifts/run/' + visitId + '/category-resets/' + resetId + '/photo', {
+                slot: slot, photoBase64: String(reader.result || ''), filename: file.name, filetype: file.type,
+              });
+              showMsg(slot + ' photo uploaded.', true);
+            } catch (err) { showMsg(err.message, false); }
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+      el.querySelectorAll('[data-do-spent]').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var resetId = btn.getAttribute('data-do-spent');
+          var input = el.querySelector('[data-spent="' + resetId + '"]');
+          var shiftIdInput = $('run-shift-id');
+          try {
+            await apiPost('/api/prod-shifts/run/' + visitId + '/category-resets/' + resetId + '/spent-time', {
+              shiftId: Number(shiftIdInput.value), spentTime: input.value,
+            });
+            showMsg('Spent time set.', true);
+          } catch (err) { showMsg(err.message, false); }
+        });
+      });
+      el.querySelectorAll('[data-do-complete]').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var resetId = btn.getAttribute('data-do-complete');
+          try {
+            await apiPost('/api/prod-shifts/run/' + visitId + '/category-resets/' + resetId + '/complete', {});
+            showMsg('Category reset marked complete.', true);
+            renderCategories(visitId);
+          } catch (err) { showMsg(err.message, false); }
+        });
+      });
+    } catch (err) {
+      card.hidden = true;
+    }
+  }
+
+  $('run-load').addEventListener('click', async function () {
+    var visitId = $('run-visit-id').value.trim();
+    if (!visitId) return;
+    try {
+      showMsg('');
+      var data = await api('/api/prod-shifts/visits/' + visitId);
+      currentVisit = data.visit;
+      currentRoster = data.roster || [];
+      $('run-body').hidden = false;
+      $('run-visit-title').textContent = 'Visit ' + visitId + ' — store ' + (currentVisit.store?.store?.number || currentVisit.store?.number || '?');
+      $('run-visit-sub').textContent = (currentVisit.team?.name || '') + ' · ' + currentVisit.scheduled_date + ' · ' + currentVisit.shift_start_time + '-' + currentVisit.shift_end_time + ' · ' + currentVisit.current_status;
+      renderRoster();
+      var lead = currentRoster.find(function (m) { return m.lead; });
+      if (lead) $('run-shift-id').value = lead.shiftId;
+      $('run-feedback').value = 'this is for store ' + (currentVisit.store?.store?.number || currentVisit.store?.number || '');
+      await renderCategories(visitId);
+    } catch (err) {
+      showMsg(err.message, false);
+    }
+  });
+
+  $('run-start-visit').addEventListener('click', async function () {
+    var visitId = $('run-visit-id').value.trim();
+    try {
+      var data = await apiPost('/api/prod-shifts/run/' + visitId + '/start', {
+        date: currentVisit ? currentVisit.scheduled_date : todayIso(),
+        startTime: $('run-start-time').value.trim() || undefined,
+      });
+      showMsg(data.skipped ? ('Skipped — ' + data.reason) : 'Visit started.', true);
+    } catch (err) { showMsg(err.message, false); }
+  });
+
+  var legCount = 0;
+  $('run-add-leg').addEventListener('click', function () {
+    legCount += 1;
+    var el = $('run-legs');
+    var row = document.createElement('div');
+    row.className = 'leg-row';
+    row.innerHTML =
+      '<select class="leg-start-type"><option value="H">H (home)</option><option value="S" selected>S (store)</option></select>' +
+      '<select class="leg-end-type"><option value="S" selected>S (store)</option><option value="H">H (home)</option></select>' +
+      '<input class="leg-distance" placeholder="distance mi">' +
+      '<input class="leg-duration" placeholder="duration (0.1667=10min)">' +
+      '<input class="leg-start-time" placeholder="UTC start ISO">' +
+      '<input class="leg-end-time" placeholder="UTC end ISO">' +
+      '<button class="btn danger leg-remove">×</button>';
+    row.querySelector('.leg-remove').addEventListener('click', function () { row.remove(); });
+    el.appendChild(row);
+  });
+
+  $('run-allocate').addEventListener('click', async function () {
+    var shiftId = $('run-shift-id').value.trim();
+    var legs = [];
+    document.querySelectorAll('#run-legs .leg-row').forEach(function (row) {
+      legs.push({
+        startLocationType: row.querySelector('.leg-start-type').value,
+        endLocationType: row.querySelector('.leg-end-type').value,
+        distance: row.querySelector('.leg-distance').value,
+        duration: row.querySelector('.leg-duration').value,
+        startTimeUtcIso: row.querySelector('.leg-start-time').value,
+        endTimeUtcIso: row.querySelector('.leg-end-time').value,
+      });
+    });
+    var flags = legs.length
+      ? {
+          home_to_store: legs.some(function (l) { return l.startLocationType === 'H'; }),
+          store_to_store: legs.some(function (l) { return l.startLocationType === 'S' && l.endLocationType === 'S'; }),
+          store_to_home: legs.some(function (l) { return l.endLocationType === 'H'; }),
+          calculate_mileage: true,
+        }
+      : { home_to_store: false, store_to_store: false, store_to_home: false, calculate_mileage: false };
+    try {
+      var data = await apiPost('/api/prod-shifts/run/shifts/' + shiftId + '/allocate-time', {
+        date: currentVisit ? currentVisit.scheduled_date : todayIso(),
+        actualStartTime: $('run-actual-start').value.trim(),
+        actualEndTime: $('run-actual-end').value.trim(),
+        timeChangeReason: Number($('run-tcr').value || 5),
+        timeChangeComment: $('run-tcc').value.trim(),
+        mileageLegs: legs,
+        mileageFlags: flags,
+      });
+      $('run-result-card').hidden = false;
+      $('run-result').textContent = JSON.stringify(data, null, 2);
+      showMsg('Punch time allocated.', true);
+    } catch (err) { showMsg(err.message, false); }
+  });
+
+  $('run-complete').addEventListener('click', async function () {
+    var visitId = $('run-visit-id').value.trim();
+    if (!confirm('Complete this shift in PROD?')) return;
+    try {
+      var data = await apiPost('/api/prod-shifts/run/' + visitId + '/complete', {
+        teamLeadFeedback: $('run-feedback').value.trim(),
+      });
+      $('run-result-card').hidden = false;
+      $('run-result').textContent = JSON.stringify(data, null, 2);
+      showMsg('Shift completed.', true);
+    } catch (err) { showMsg(err.message, false); }
+  });
+
+  // ─── boot ───────────────────────────────────────────────────────────────
+
+  async function boot() {
+    try {
+      var me = await api('/api/me');
+      if (!me.cards || me.cards.indexOf('prod-shifts') === -1) {
+        $('accessDenied').hidden = false;
+        return;
+      }
+      $('actorLine').textContent = (me.name ? me.name + ' — ' : '') + (me.email || '');
+      $('app').hidden = false;
+      try {
+        var types = await api('/api/prod-shifts/shift-types');
+        if (types && types.ok === false) $('sessionWarning').hidden = false;
+      } catch (_) {
+        $('sessionWarning').hidden = false;
+      }
+    } catch (err) {
+      $('accessDenied').hidden = false;
+      $('accessDenied').querySelector('p').textContent = err.message || 'Unable to load PROD Shift Console.';
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
