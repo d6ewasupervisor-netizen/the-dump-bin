@@ -4,6 +4,7 @@
 
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const IMAGE_CONCURRENCY = 6;
+  const TEXT_KEY = 'eod-pog-text-only';
   const boardMem = new Map();
 
   function esc(s) {
@@ -65,26 +66,51 @@
     ].filter(Boolean).join(' · ');
   }
 
+  function readTextPref() {
+    try { return localStorage.getItem(TEXT_KEY) === '1'; } catch (_) { return false; }
+  }
+
+  function writeTextPref(on) {
+    try { localStorage.setItem(TEXT_KEY, on ? '1' : '0'); } catch (_) { /* ignore */ }
+  }
+
+  function paintTextBtn(host) {
+    const btn = host?.querySelector('#pogTextBtn');
+    if (btn) btn.textContent = host.classList.contains('is-text') ? 'Photos' : 'Text';
+  }
+
+  function applyTextMode(host, on, persist) {
+    if (!host) return;
+    host.classList.toggle('is-text', Boolean(on));
+    if (persist) writeTextPref(Boolean(on));
+    paintTextBtn(host);
+  }
+
   function itemHtml(it, bay, highlightUpc) {
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
     const loc = locLine(it, bay);
     const grow = facingUnits(it);
-    return `<article class="si-pog-item${st}${hit}" style="flex:${grow} 1 0" role="button" tabindex="0"
+    const noImg = it.imageUrl ? '' : ' no-img';
+    const label = it.name || it.brand || it.upc || '';
+    return `<article class="si-pog-item${st}${hit}${noImg}" style="flex:${grow} 1 0" role="button" tabindex="0"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
       data-brand="${esc(it.brand || '')}"
       data-size="${esc(it.size || '')}"
-      data-status="${esc(it.status || '')}"
       data-shelf="${esc(it.shelf)}"
       data-position="${esc(it.position)}"
       data-bay="${esc(bay)}"
       data-aisle="${esc(it.aisle || '')}"
       data-loc="${esc(loc)}"
       data-image="${esc(it.imageUrl || '')}">
-      <div class="si-pog-thumb">${it.imageUrl ? `<img alt="" data-pog-src="${esc(it.imageUrl)}">` : ''}</div>
+      <div class="si-pog-thumb">
+        ${it.imageUrl ? `<img alt="" data-pog-src="${esc(it.imageUrl)}">` : ''}
+        <div class="si-pog-fallback">${esc(label)}</div>
+      </div>
       <div class="si-pog-meta">
         <div class="si-pog-name">${esc(it.name || '')}</div>
+        ${it.size ? `<div class="si-pog-size">${esc(it.size)}</div>` : ''}
         <div class="si-pog-loc">${esc(loc)}</div>
         <div class="si-pog-cap">${it.upc ? `UPC ${esc(it.upc)}` : ''}</div>
       </div>
@@ -137,14 +163,24 @@
     return '';
   }
 
+  function failImage(img) {
+    const item = img.closest('.si-pog-item');
+    item?.classList.add('no-img');
+    img.removeAttribute('data-pog-src');
+    img.removeAttribute('src');
+  }
+
   async function hydrateImages(root) {
-    if (!root) return;
+    if (!root) return { wanted: 0, loaded: 0 };
     const imgs = [...root.querySelectorAll('img[data-pog-src]')];
+    let loaded = 0;
     await mapPool(imgs, IMAGE_CONCURRENCY, async (img) => {
       const path = img.getAttribute('data-pog-src') || '';
-      if (!path) return;
       const abs = absUrl(path);
-      if (!abs) return;
+      if (!path || !abs) {
+        failImage(img);
+        return;
+      }
       try {
         const cached = await cacheMatch(abs);
         if (cached && cached.ok) {
@@ -152,19 +188,30 @@
           if (blob && blob.size) {
             img.src = URL.createObjectURL(blob);
             img.removeAttribute('data-pog-src');
+            loaded += 1;
             return;
           }
         }
         const resp = await global.authFetch(abs, { skipBusy: true });
-        if (!resp.ok) return;
+        if (!resp.ok) {
+          failImage(img);
+          return;
+        }
         const copy = resp.clone();
         await cachePut(abs, copy);
         const blob = await resp.blob();
-        if (!blob || !blob.size) return;
+        if (!blob || !blob.size) {
+          failImage(img);
+          return;
+        }
         img.src = URL.createObjectURL(blob);
         img.removeAttribute('data-pog-src');
-      } catch (_) { /* leave empty cell */ }
+        loaded += 1;
+      } catch (_) {
+        failImage(img);
+      }
     });
+    return { wanted: imgs.length, loaded };
   }
 
   async function fetchBoard({ store, date, dbkey }) {
@@ -193,6 +240,7 @@
     const pog = await fetchBoard(opts);
     if (!pog?.bays?.length) return pog;
     if (opts && opts.images === false) return pog;
+    if (readTextPref()) return pog;
     const gate = await Media()?.allowPrefetch?.();
     if (gate && !gate.ok) return pog;
     const urls = [];
@@ -226,15 +274,15 @@
     const upc = el.getAttribute('data-upc') || '';
     const brand = el.getAttribute('data-brand') || '';
     const size = el.getAttribute('data-size') || '';
-    const status = el.getAttribute('data-status') || '';
     const image = el.getAttribute('data-image') || '';
     const loc = el.getAttribute('data-loc') || locLine({
       aisle: el.getAttribute('data-aisle') || '',
       shelf: el.getAttribute('data-shelf'),
       position: el.getAttribute('data-position'),
     }, el.getAttribute('data-bay'));
-    const imgEl = el.querySelector('img');
+    const imgEl = el.querySelector('.si-pog-thumb img');
     const liveSrc = imgEl && imgEl.src && !imgEl.hasAttribute('data-pog-src') ? imgEl.src : '';
+    const showHero = Boolean(liveSrc) || (Boolean(image) && !el.classList.contains('no-img'));
     const host = document.createElement('div');
     host.id = 'eodPogItemOverlay';
     host.className = 'eod-pog-item-overlay';
@@ -242,7 +290,7 @@
       <div class="eod-pog-item-bar">
         <button type="button" class="btn btn-secondary" id="eodPogItemClose">Close</button>
       </div>
-      <div class="eod-pog-item-hero">${image || liveSrc ? `<img alt="" ${liveSrc ? `src="${esc(liveSrc)}"` : `data-pog-src="${esc(image)}"`}>` : ''}</div>
+      ${showHero ? `<div class="eod-pog-item-hero"><img alt="" ${liveSrc ? `src="${esc(liveSrc)}"` : `data-pog-src="${esc(image)}"`}></div>` : ''}
       <div class="eod-pog-item-copy">
         <div class="eod-pog-item-set">${esc(setTitle || '')}</div>
         <strong>${esc(name)}</strong>
@@ -250,7 +298,6 @@
         <div>${esc(loc)}</div>
         ${brand ? `<div>${esc(brand)}</div>` : ''}
         ${size ? `<div>${esc(size)}</div>` : ''}
-        ${status ? `<div>${esc(status)}</div>` : ''}
       </div>
     </div>`;
     const layer = el.closest('.set-media-overlay') || document.body;
@@ -263,7 +310,7 @@
     host.addEventListener('click', (ev) => {
       if (ev.target === host) closeItemDetail();
     });
-    if (!liveSrc) hydrateImages(host);
+    if (showHero && !liveSrc) hydrateImages(host);
   }
 
   function sizeBaySlides(scroll) {
@@ -411,7 +458,10 @@
         const hit = applyHighlight(mount, highlightUpc);
         if (hit) goToBay(scroll, hit.getAttribute('data-bay'));
       }
-      await hydrateImages(mount);
+      if (!overlay?.classList.contains('is-text')) {
+        const pics = await hydrateImages(mount);
+        if (pics.wanted && !pics.loaded) applyTextMode(overlay, true, false);
+      }
     } catch (err) {
       mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
     }
@@ -487,6 +537,7 @@
     host.innerHTML = `<div class="set-media-overlay-bar">
       <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
       <button type="button" class="btn btn-primary" id="pogScanBtn">Scan</button>
+      <button type="button" class="btn btn-secondary" id="pogTextBtn">Text</button>
       <strong>${esc(title || 'Planogram')}</strong>
     </div>
     <div id="setMediaOverlayBody" class="si-pog-live-body"></div>
@@ -496,6 +547,12 @@
     const ctx = { store, date, dbkey, title };
     host.querySelector('#setMediaClose').onclick = closeOverlay;
     host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
+    applyTextMode(host, readTextPref(), false);
+    host.querySelector('#pogTextBtn').onclick = () => {
+      const next = !host.classList.contains('is-text');
+      applyTextMode(host, next, true);
+      if (!next) void hydrateImages(host.querySelector('#setMediaOverlayBody'));
+    };
     loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey, highlightUpc });
     return host;
   }
