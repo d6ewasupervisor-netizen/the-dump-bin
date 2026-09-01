@@ -1,4 +1,5 @@
-/* Background thumbs for planogram + before/after once the shift sheet is on.
+/* Background thumbs for before/after once the shift sheet is on.
+ * Planogram boards load on tap (and when that set's survey opens).
  * Full-res stays on tap. Photos win origin quota over this cache. */
 (function (global) {
   'use strict';
@@ -42,17 +43,6 @@
       runToken += 1;
       return;
     }
-    const dbkey = String(row.dbkey || '').trim();
-    if (dbkey && global.EodSiPlanogram?.prefetch) {
-      try {
-        await global.EodSiPlanogram.prefetch({
-          store,
-          date,
-          dbkey,
-          images: !!(policy && policy.prefetchPlanogramImages),
-        });
-      } catch (_) { /* board JSON still useful */ }
-    }
     if (token !== runToken) return;
     if (!(policy && policy.prefetchThumbs)) return;
     const rowId = row.id;
@@ -75,10 +65,7 @@
 
   async function start(sheet) {
     pendingSheet = sheet || global.EodSession?.state?.sheet || pendingSheet;
-    if (running) {
-      runToken += 1;
-      return;
-    }
+    if (running) return;
     running = true;
     try {
       while (pendingSheet) {

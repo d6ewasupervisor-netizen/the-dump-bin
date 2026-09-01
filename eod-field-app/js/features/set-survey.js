@@ -624,7 +624,11 @@
     function openMedia(kind) {
       const S = global.EodSession;
       if (kind === 'planogram') {
-        global.EodSiPlanogram?.openOverlay?.({
+        if (typeof global.EodSiPlanogram?.openOverlay !== 'function') {
+          setMsg('Planogram viewer failed to load.', true);
+          return;
+        }
+        global.EodSiPlanogram.openOverlay({
           store: S.state.storeNumber,
           date: S.state.workDate,
           dbkey,

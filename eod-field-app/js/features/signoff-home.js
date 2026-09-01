@@ -512,8 +512,7 @@
     }
   }
 
-  function renderRows(sheet, q, filters, selectedIds) {
-    const selected = selectedIds instanceof Set ? selectedIds : new Set();
+  function filteredSheetRows(sheet, q, filters) {
     let rows = (sheet.rows || []).filter((row) => {
       if (global.EodCategoryCardStatus?.matchesSheetFilters
         && !global.EodCategoryCardStatus.matchesSheetFilters(row, filters)) {
@@ -529,6 +528,12 @@
     if (global.EodCategoryCardStatus?.sortWalkRows) {
       rows = global.EodCategoryCardStatus.sortWalkRows(rows);
     }
+    return rows;
+  }
+
+  function renderRows(sheet, q, filters, selectedIds) {
+    const selected = selectedIds instanceof Set ? selectedIds : new Set();
+    const rows = filteredSheetRows(sheet, q, filters);
     if (!rows.length) return '<p class="muted">No sets match.</p>';
     return rows.map((row) => {
       const locLabel = global.EodCategoryCardStatus
@@ -587,6 +592,9 @@
         <div class="field" style="margin-top:12px;">
           <label>Search sets</label>
           <input type="search" id="sheetSearch" placeholder="Category, DBKEY, aisle…">
+        </div>
+        <div class="ds-select-all-row">
+          <input type="checkbox" class="ds-row-check" id="sheetSelectAll" aria-label="Select all visible">
         </div>
         <div id="sheetRows"></div>
       </div>`;
@@ -667,6 +675,33 @@
       });
     }
 
+    function visibleRowIds() {
+      const sheet = S.state.sheet;
+      if (!sheet) return [];
+      const q = (document.getElementById('sheetSearch')?.value || '').trim().toLowerCase();
+      return filteredSheetRows(sheet, q, filters).map((r) => String(r.id));
+    }
+
+    function paintSelectAll() {
+      const box = document.getElementById('sheetSelectAll');
+      if (!box) return;
+      const ids = visibleRowIds();
+      const n = ids.filter((id) => selectedIds.has(id)).length;
+      box.disabled = !ids.length;
+      box.indeterminate = n > 0 && n < ids.length;
+      box.checked = ids.length > 0 && n === ids.length;
+    }
+
+    function applyRowSelect(id, on) {
+      if (on) selectedIds.add(id);
+      else selectedIds.delete(id);
+      rowsEl.querySelectorAll('[data-select-row]').forEach((box) => {
+        if (String(box.getAttribute('data-select-row') || '') !== id) return;
+        box.checked = on;
+        box.closest('.ds-row')?.classList.toggle('is-selected', on);
+      });
+    }
+
     async function markOneRow(rowId, markType, opts) {
       const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
       const turningOn = current && !markActive(current, markType);
@@ -738,6 +773,8 @@
         rowsEl.innerHTML = '';
         document.body.classList.add('no-hosted-sheet');
         document.body.classList.remove('has-hosted-sheet');
+        paintSelectAll();
+        paintBulkBar();
         return;
       }
       document.body.classList.add('has-hosted-sheet');
@@ -760,6 +797,7 @@
       }
       rowsEl.innerHTML = renderRows(sheet, q, filters, selectedIds);
       paintBulkBar();
+      paintSelectAll();
       rowsEl.querySelectorAll('[data-select-row]').forEach((box) => {
         box.addEventListener('click', (ev) => ev.stopPropagation());
         box.addEventListener('change', () => {
@@ -770,6 +808,7 @@
           const card = box.closest('.ds-row');
           if (card) card.classList.toggle('is-selected', box.checked);
           paintBulkBar();
+          paintSelectAll();
         });
       });
       rowsEl.querySelectorAll('[data-mark]').forEach((btn) => {
@@ -815,6 +854,16 @@
       }
     };
     document.getElementById('sheetSearch').oninput = () => paint();
+    document.getElementById('sheetSelectAll')?.addEventListener('click', (ev) => ev.stopPropagation());
+    document.getElementById('sheetSelectAll')?.addEventListener('change', () => {
+      const box = document.getElementById('sheetSelectAll');
+      if (!box) return;
+      const ids = visibleRowIds();
+      const on = !!box.checked;
+      ids.forEach((id) => applyRowSelect(id, on));
+      paintBulkBar();
+      paintSelectAll();
+    });
     document.getElementById('sheetFilters')?.addEventListener('click', (ev) => {
       const btn = ev.target.closest('[data-filter="status"]');
       if (!btn) return;

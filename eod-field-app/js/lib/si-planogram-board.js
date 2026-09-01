@@ -92,7 +92,15 @@
   }
 
   function absUrl(path) {
-    return Media()?.absApiUrl?.(path) || '';
+    const fromCache = Media()?.absApiUrl?.(path);
+    if (fromCache) return fromCache;
+    const s = String(path || '').trim();
+    if (!s || /^data:|^blob:/i.test(s)) return '';
+    if (s.startsWith('/api/')) {
+      const base = String(global.EOD_API_BASE || 'https://eod-api.the-dump-bin.com').replace(/\/+$/, '');
+      return base + s;
+    }
+    return '';
   }
 
   async function hydrateImages(root) {
@@ -106,14 +114,18 @@
         const cached = await cacheMatch(abs);
         if (cached && cached.ok) {
           const blob = await cached.blob();
-          img.src = URL.createObjectURL(blob);
-          img.removeAttribute('data-pog-src');
-          return;
+          if (blob && blob.size) {
+            img.src = URL.createObjectURL(blob);
+            img.removeAttribute('data-pog-src');
+            return;
+          }
         }
         const resp = await global.authFetch(abs, { skipBusy: true });
         if (!resp.ok) return;
-        await cachePut(abs, resp);
+        const copy = resp.clone();
+        await cachePut(abs, copy);
         const blob = await resp.blob();
+        if (!blob || !blob.size) return;
         img.src = URL.createObjectURL(blob);
         img.removeAttribute('data-pog-src');
       } catch (_) { /* leave empty cell */ }
@@ -123,14 +135,23 @@
   async function fetchBoard({ store, date, dbkey }) {
     const key = boardKey({ store, date, dbkey });
     if (boardMem.has(key)) return boardMem.get(key);
-    const qs = new URLSearchParams({ store, date, dbkey });
-    const url = `${API}/planogram?${qs}`;
-    const resp = await global.authFetch(url, { skipBusy: true });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(data.error || `Planogram failed (${resp.status})`);
-    const pog = data.planogram || null;
-    boardMem.set(key, pog);
-    return pog;
+    const pending = (async () => {
+      const qs = new URLSearchParams({ store, date, dbkey });
+      const url = `${API}/planogram?${qs}`;
+      const resp = await global.authFetch(url, { skipBusy: true });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `Planogram failed (${resp.status})`);
+      return data.planogram || null;
+    })();
+    boardMem.set(key, pending);
+    try {
+      const pog = await pending;
+      boardMem.set(key, pog);
+      return pog;
+    } catch (err) {
+      boardMem.delete(key);
+      throw err;
+    }
   }
 
   async function prefetch(opts) {

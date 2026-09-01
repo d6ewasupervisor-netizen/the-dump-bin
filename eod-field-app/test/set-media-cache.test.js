@@ -105,9 +105,10 @@ describe('set-media wiring', () => {
     const pog = fs.readFileSync(path.join(__dirname, '../js/lib/si-planogram-board.js'), 'utf8');
     assert.match(prefetch, /thumbUrl/);
     assert.doesNotMatch(prefetch, /p\.thumbUrl \|\| p\.url/);
-    assert.match(prefetch, /prefetchPlanogramImages/);
+    assert.doesNotMatch(prefetch, /EodSiPlanogram/);
     assert.match(review, /absApiUrl/);
     assert.match(pog, /absApiUrl/);
+    assert.match(pog, /boardMem\.delete/);
     assert.match(review, /EodSetMediaCache\?\.match/);
   });
 

@@ -748,6 +748,11 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .ds-row-check {
   flex: 0 0 22px; width: 22px; height: 22px; margin-top: 4px; accent-color: var(--accent);
 }
+.ds-select-all-row {
+  display: flex; align-items: center; padding: 4px 12px 6px;
+}
+.ds-select-all-row .ds-row-check { margin-top: 0; }
+.ds-select-all-row .ds-row-check:disabled { opacity: .4; }
 .ds-row-compact .ds-row-copy { flex: 1 1 60%; min-width: 0; }
 .ds-row-compact .ds-actions { flex: 1 1 100%; }
 .ds-row.is-selected { outline: 2px solid var(--accent); }

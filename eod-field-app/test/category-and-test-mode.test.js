@@ -390,6 +390,8 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /data-value="not_done">Not Done/);
   assert.match(signoff, /data-value="backlog">Backlog/);
   assert.match(signoff, /id="sheetBulk"/);
+  assert.match(signoff, /id="sheetSelectAll"/);
+  assert.match(signoff, /filteredSheetRows/);
   assert.doesNotMatch(signoff, /id="sheetNext"/);
   assert.match(signoff, /btn\('complete', 'Complete'\)/);
   assert.match(signoff, /btn\('out_of_scope', 'Out of Scope'\)/);
