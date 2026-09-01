@@ -68,6 +68,12 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
 .emp-row .er-lead{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sec);white-space:nowrap;cursor:pointer}
 .emp-row .er-lead input{width:auto;min-height:auto}
 .emp-row .er-remove{background:none;border:0;color:var(--red);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+.search-results{margin-top:10px;max-height:420px;overflow:auto}
+.sr-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);border-radius:8px;cursor:pointer;background:none;width:100%;text-align:left;font:inherit;color:var(--text)}
+.sr-row:last-child{border-bottom:none}
+.sr-row:hover{background:#1c2634}
+.sr-row .sr-main{font-weight:700;font-size:13px}
+.sr-row .sr-sub{color:var(--muted);font-size:11px;margin-top:2px}
 .reset-card{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:#111820}
 .reset-card h4{font-size:14px;margin-bottom:6px}
 .leg-row{display:grid;grid-template-columns:repeat(6,1fr) auto;gap:6px;margin-bottom:6px;align-items:center}
@@ -310,6 +316,32 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
 
     <!-- ───────────────── RUN ───────────────── -->
     <section class="panel" id="panel-run">
+      <div class="card">
+        <h3>Find a shift</h3>
+        <p class="hint">Filter by project, date, and lead — like Project Management in PROD. Click a result below to open it.</p>
+        <div class="grid">
+          <div class="row">
+            <label>Project</label>
+            <select id="rs-project">
+              <option value="">All projects</option>
+              <option value="1">Fred Meyer Kompass ISE (1)</option>
+              <option value="1668">Cut In (1668)</option>
+              <option value="1715">Blitz (1715)</option>
+              <option value="3568">DIV Special (3568)</option>
+              <option value="9293">Central Pet Service (9293)</option>
+              <option value="9295">Central Pet Reset (9295)</option>
+              <option value="147">Admin Holiday / PTO (147)</option>
+            </select>
+          </div>
+          <div class="row"><label>Date</label><input type="date" id="rs-date"></div>
+          <div class="row"><label>Date to (optional)</label><input type="date" id="rs-date-to"></div>
+          <div class="row"><label>Lead (optional)</label><input id="rs-lead" placeholder="Alexandra Wright"></div>
+          <div class="row"><label>Store # (optional)</label><input id="rs-store" placeholder="28"></div>
+        </div>
+        <div class="actions"><button class="btn primary" id="rs-search">Search</button></div>
+        <div id="rs-results"></div>
+      </div>
+
       <div class="card">
         <div class="grid">
           <div class="row"><label>Visit ID</label><input id="run-visit-id" placeholder="27019920"></div>
@@ -832,14 +864,14 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
     }
   }
 
-  $('run-load').addEventListener('click', async function () {
-    var visitId = $('run-visit-id').value.trim();
+  async function loadVisit(visitId) {
     if (!visitId) return;
     try {
       showMsg('');
       var data = await api('/api/prod-shifts/visits/' + visitId);
       currentVisit = data.visit;
       currentRoster = data.roster || [];
+      $('run-visit-id').value = visitId;
       $('run-body').hidden = false;
       $('run-visit-title').textContent = 'Visit ' + visitId + ' — store ' + (currentVisit.store?.store?.number || currentVisit.store?.number || '?');
       $('run-visit-sub').textContent = (currentVisit.team?.name || '') + ' · ' + currentVisit.scheduled_date + ' · ' + currentVisit.shift_start_time + '-' + currentVisit.shift_end_time + ' · ' + currentVisit.current_status;
@@ -848,7 +880,62 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       if (lead) $('run-shift-id').value = lead.shiftId;
       $('run-feedback').value = 'this is for store ' + (currentVisit.store?.store?.number || currentVisit.store?.number || '');
       await renderCategories(visitId);
+      $('run-body').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
+      showMsg(err.message, false);
+    }
+  }
+
+  $('run-load').addEventListener('click', function () {
+    loadVisit($('run-visit-id').value.trim());
+  });
+
+  // ─── Find a shift (search/filter, then select a result to run) ──────────
+
+  function fmtHm(v) {
+    return v || '—';
+  }
+
+  function renderSearchResults(visits) {
+    var el = $('rs-results');
+    if (!visits.length) {
+      el.innerHTML = '<p class="muted" style="margin-top:10px">No visits matched.</p>';
+      return;
+    }
+    el.innerHTML = '<div class="search-results">' + visits.map(function (v) {
+      var statusClass = v.currentStatus === 'in-progress' ? 'warn' : (v.currentStatus === 'active' ? '' : 'ok');
+      return '<button type="button" class="sr-row" data-visit-id="' + v.visitId + '">' +
+        '<span>' +
+        '<span class="sr-main">' + escHtml(v.scheduledDate || '') + ' · store ' + escHtml(v.storeNumber || '?') + ' · ' + escHtml(v.projectName || '') + '</span>' +
+        '<span class="sr-sub">' + escHtml(v.visitLead || 'no lead') + ' · ' + escHtml(fmtHm(v.shiftStartTime)) + '–' + escHtml(fmtHm(v.shiftEndTime)) + ' · visit ' + v.visitId + '</span>' +
+        '</span>' +
+        '<span class="badge' + (statusClass ? ' ' + statusClass : '') + '">' + escHtml(v.currentStatus || '?') + '</span>' +
+        '</button>';
+    }).join('') + '</div>';
+    el.querySelectorAll('.sr-row').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        loadVisit(btn.getAttribute('data-visit-id'));
+      });
+    });
+  }
+
+  if (!$('rs-date').value) $('rs-date').value = todayIso();
+
+  $('rs-search').addEventListener('click', async function () {
+    var date = $('rs-date').value || todayIso();
+    try {
+      showMsg('');
+      $('rs-results').innerHTML = '<p class="muted" style="margin-top:10px">Searching…</p>';
+      var params = new URLSearchParams();
+      params.set('date', date);
+      if ($('rs-date-to').value) params.set('dateTo', $('rs-date-to').value);
+      if ($('rs-project').value) params.set('projectId', $('rs-project').value);
+      if ($('rs-lead').value.trim()) params.set('leadName', $('rs-lead').value.trim());
+      if ($('rs-store').value.trim()) params.set('storeNumber', $('rs-store').value.trim());
+      var data = await api('/api/prod-shifts/visits/search?' + params.toString());
+      renderSearchResults(data.visits || []);
+    } catch (err) {
+      $('rs-results').innerHTML = '';
       showMsg(err.message, false);
     }
   });
