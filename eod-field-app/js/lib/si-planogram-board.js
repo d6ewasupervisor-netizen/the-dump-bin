@@ -540,6 +540,13 @@
       <button type="button" class="btn btn-secondary" id="pogTextBtn">Text</button>
       <strong>${esc(title || 'Planogram')}</strong>
     </div>
+    <div class="si-pog-legend" id="pogLegend">
+      <span><i class="si-pog-swatch ok"></i>On shelf</span>
+      <span><i class="si-pog-swatch oos"></i>Out of stock</span>
+      <span><i class="si-pog-swatch wandering"></i>Wandering</span>
+      <span><i class="si-pog-swatch unidentified"></i>Unidentified</span>
+      <span><i class="si-pog-swatch shelf"></i>Shelf</span>
+    </div>
     <div id="setMediaOverlayBody" class="si-pog-live-body"></div>
     <nav class="si-pog-bay-nav" id="pogBayNav" hidden></nav>`;
     document.body.appendChild(host);
