@@ -116,9 +116,12 @@
       s.facings != null ? `${s.facings} facings` : '',
       s.products != null ? `${s.products} products` : '',
     ].filter(Boolean);
+    const frames = (pog.bays || []).map((bay) => (
+      `<div class="si-pog-bay-frame" data-bay="${esc(bay.bay)}">${bayHtml(bay, highlightUpc, pog.aisle)}</div>`
+    )).join('');
     return `<section class="si-pog si-pog-overlay-board">
       <p class="muted">${esc(bits.join(' · '))}${pog.date ? ` · ${esc(pog.date)}` : ''}</p>
-      <div class="si-pog-scroll">${(pog.bays || []).map((bay) => `<div class="si-pog-bay-frame">${bayHtml(bay, highlightUpc, pog.aisle)}</div>`).join('')}</div>
+      <div class="si-pog-scroll">${frames}</div>
     </section>`;
   }
 
@@ -263,6 +266,100 @@
     if (!liveSrc) hydrateImages(host);
   }
 
+  function sizeBaySlides(scroll) {
+    if (!scroll) return;
+    const w = Math.max(1, scroll.clientWidth);
+    const h = Math.max(1, scroll.clientHeight);
+    scroll.querySelectorAll('.si-pog-bay-frame').forEach((frame) => {
+      frame.style.flexBasis = `${w}px`;
+      frame.style.width = `${w}px`;
+      frame.style.minWidth = `${w}px`;
+      frame.style.maxWidth = `${w}px`;
+      frame.style.height = `${h}px`;
+    });
+  }
+
+  function goToBay(scroll, bay, instant) {
+    if (!scroll) return;
+    const frame = [...scroll.querySelectorAll('.si-pog-bay-frame')]
+      .find((el) => String(el.getAttribute('data-bay')) === String(bay));
+    if (!frame) return;
+    scroll._pogBay = String(bay);
+    scroll.scrollTo({ left: frame.offsetLeft, behavior: instant ? 'auto' : 'smooth' });
+  }
+
+  function activeBay(scroll) {
+    const frames = [...(scroll?.querySelectorAll('.si-pog-bay-frame') || [])];
+    if (!frames.length) return '';
+    const mid = (scroll.scrollLeft || 0) + scroll.clientWidth / 2;
+    let best = frames[0];
+    let bestDist = Infinity;
+    frames.forEach((frame) => {
+      const center = frame.offsetLeft + frame.offsetWidth / 2;
+      const dist = Math.abs(center - mid);
+      if (dist < bestDist) {
+        best = frame;
+        bestDist = dist;
+      }
+    });
+    return best.getAttribute('data-bay') || '';
+  }
+
+  function paintBayNav(nav, scroll) {
+    if (!nav || !scroll) return;
+    const on = activeBay(scroll);
+    nav.querySelectorAll('[data-go-bay]').forEach((btn) => {
+      btn.classList.toggle('on', String(btn.getAttribute('data-go-bay')) === String(on));
+    });
+  }
+
+  function bindBaySwipe(scroll, nav) {
+    if (!scroll) return;
+    sizeBaySlides(scroll);
+    paintBayNav(nav, scroll);
+    if (scroll._pogSlideObs) scroll._pogSlideObs.disconnect();
+    if (typeof ResizeObserver === 'function') {
+      scroll._pogSlideObs = new ResizeObserver(() => {
+        const bay = scroll._pogBay || activeBay(scroll);
+        sizeBaySlides(scroll);
+        if (bay) goToBay(scroll, bay, true);
+        paintBayNav(nav, scroll);
+      });
+      scroll._pogSlideObs.observe(scroll);
+    }
+    scroll.addEventListener('scroll', () => {
+      scroll._pogBay = activeBay(scroll);
+      paintBayNav(nav, scroll);
+    }, { passive: true });
+    nav?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-go-bay]');
+      if (!btn) return;
+      goToBay(scroll, btn.getAttribute('data-go-bay'));
+    });
+  }
+
+  function applyHighlight(root, upc) {
+    let first = null;
+    root.querySelectorAll('.si-pog-item').forEach((el) => {
+      const on = upcMatch(el.getAttribute('data-upc'), upc);
+      el.classList.toggle('is-hit', on);
+      if (on && !first) first = el;
+    });
+    return first;
+  }
+
+  function showPogNotice(host, html) {
+    host.querySelector('#eodPogNotice')?.remove();
+    const el = document.createElement('div');
+    el.id = 'eodPogNotice';
+    el.className = 'eod-pog-notice';
+    el.innerHTML = `<div class="eod-pog-notice-sheet">${html}<div class="eod-pog-notice-bar"><button type="button" class="btn btn-secondary" id="eodPogNoticeClose">Close</button></div></div>`;
+    host.appendChild(el);
+    el.querySelector('#eodPogNoticeClose').onclick = () => el.remove();
+    el.addEventListener('click', (ev) => { if (ev.target === el) el.remove(); });
+    return el;
+  }
+
   function bindItems(root, pog) {
     const title = pog?.title || '';
     const openFrom = (el) => {
@@ -286,8 +383,6 @@
         }
       });
     });
-    const hit = root.querySelector('.si-pog-item.is-hit');
-    if (hit) hit.scrollIntoView({ block: 'center', inline: 'nearest' });
   }
 
   async function loadAndRender(mount, { store, date, dbkey, highlightUpc }) {
@@ -301,6 +396,21 @@
       }
       mount.innerHTML = boardHtml(pog, highlightUpc);
       bindItems(mount, pog);
+      const overlay = mount.closest('.si-pog-live');
+      const scroll = mount.querySelector('.si-pog-scroll');
+      const nav = overlay?.querySelector('#pogBayNav');
+      if (nav) {
+        const bays = pog.bays || [];
+        nav.hidden = bays.length < 2;
+        nav.innerHTML = bays.map((b) => (
+          `<button type="button" class="si-pog-bay-dot" data-go-bay="${esc(b.bay)}">${esc(b.bay)}</button>`
+        )).join('');
+      }
+      bindBaySwipe(scroll, nav);
+      if (highlightUpc) {
+        const hit = applyHighlight(mount, highlightUpc);
+        if (hit) goToBay(scroll, hit.getAttribute('data-bay'));
+      }
       await hydrateImages(mount);
     } catch (err) {
       mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
@@ -309,8 +419,64 @@
 
   function closeOverlay() {
     closeItemDetail();
+    document.getElementById('eodPogNotice')?.remove();
+    void global.EodBarcodeScanner?.close?.();
     document.getElementById('eodSetMediaOverlay')?.remove();
     document.body.classList.remove('set-media-open');
+  }
+
+  async function scanInOverlay(host, ctx) {
+    if (!global.EodBarcodeScanner?.start) return;
+    host.querySelector('#eodPogNotice')?.remove();
+    global.EodBarcodeScanner.start(async (upc) => {
+      const mount = host.querySelector('#setMediaOverlayBody');
+      const scroll = mount?.querySelector('.si-pog-scroll');
+      let data = { found: false, matches: [] };
+      try {
+        if (global.EodCartLocate?.locate) data = await global.EodCartLocate.locate(upc);
+      } catch (_) { /* treat as miss */ }
+      const matches = data.matches || [];
+      const here = matches.filter((m) => String(m.dbkey || '') === String(ctx.dbkey || ''));
+      if (here.length) {
+        const hit = applyHighlight(mount, upc);
+        goToBay(scroll, here[0].bay);
+        if (hit) openItemDetail(hit, ctx.title || '');
+        return;
+      }
+      if (!matches.length) {
+        showPogNotice(host, `<p class="eod-locate-miss">${esc(global.EodCartLocate?.NOT_FOUND || 'This item cannot be located at this time.')}</p>`);
+        return;
+      }
+      const notice = showPogNotice(host, matches.map((m) => (
+        `<article class="eod-locate-hit" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || '')}">
+          <div class="eod-locate-copy">
+            <strong>${esc(m.setName || m.categoryName || '')}</strong>
+            <div>${esc(m.name || '')}</div>
+            <div class="muted">UPC ${esc(m.upc || '')}</div>
+            <div>${esc([
+              m.aisle ? `Aisle ${m.aisle}` : '',
+              m.bay != null ? `Bay ${m.bay}` : '',
+              m.shelf != null ? `Shelf ${m.shelf}` : '',
+              m.position != null ? `Position ${m.position}` : '',
+            ].filter(Boolean).join(' · '))}</div>
+          </div>
+        </article>`
+      )).join(''));
+      notice.querySelectorAll('.eod-locate-hit').forEach((el) => {
+        el.addEventListener('click', () => {
+          const next = el.getAttribute('data-dbkey') || '';
+          const name = el.getAttribute('data-name') || '';
+          if (!next) return;
+          openOverlay({
+            store: ctx.store,
+            date: ctx.date,
+            dbkey: next,
+            title: name,
+            highlightUpc: upc,
+          });
+        });
+      });
+    });
   }
 
   function openOverlay({ store, date, dbkey, title, highlightUpc }) {
@@ -320,12 +486,16 @@
     host.className = 'set-media-overlay si-pog-live';
     host.innerHTML = `<div class="set-media-overlay-bar">
       <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
+      <button type="button" class="btn btn-primary" id="pogScanBtn">Scan</button>
       <strong>${esc(title || 'Planogram')}</strong>
     </div>
-    <div id="setMediaOverlayBody" class="si-pog-live-body"></div>`;
+    <div id="setMediaOverlayBody" class="si-pog-live-body"></div>
+    <nav class="si-pog-bay-nav" id="pogBayNav" hidden></nav>`;
     document.body.appendChild(host);
     document.body.classList.add('set-media-open');
+    const ctx = { store, date, dbkey, title };
     host.querySelector('#setMediaClose').onclick = closeOverlay;
+    host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
     loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey, highlightUpc });
     return host;
   }
@@ -338,5 +508,6 @@
     closeOverlay,
     hydrateImages,
     openItemDetail,
+    goToBay,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
