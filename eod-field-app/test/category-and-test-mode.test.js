@@ -146,18 +146,22 @@ test('hasLoadedShift is true for a real store with a visit or sheet', () => {
   assert.equal(hasLoadedShift({ storeNumber: '', selectedShift: { visitId: 'x' } }), false);
 });
 
-test('applyToPayload in test mode keeps the current store and routes mail to tester', () => {
+test('applyToPayload in test mode keeps extras and strips store mailboxes', () => {
   const out = applyToPayload(
     {
       storeNumber: '19',
-      recipients: ['wolf@example.com'],
+      recipients: ['wolf@example.com', 'mgr@stores.fredmeyer.com', 'extra@gmail.com'],
       subject: 'KOMPASS EOD FM019',
     },
     { testMode: true }
   );
   assert.equal(out.storeNumber, '19');
   assert.equal(out.testMode, true);
-  assert.deepEqual(out.recipients, ['tyson.gauthier@retailodyssey.com']);
+  assert.deepEqual(out.recipients, [
+    'tyson.gauthier@retailodyssey.com',
+    'wolf@example.com',
+    'extra@gmail.com',
+  ]);
   assert.equal(out.subject, '[TEST] KOMPASS EOD FM019');
 });
 

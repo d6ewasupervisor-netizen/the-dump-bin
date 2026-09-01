@@ -132,7 +132,7 @@
     const shift = await loadSandboxShiftIntoSession();
     global.EodChrome?.refresh?.();
     if (shift) {
-      toast(`Test mode ON — #${EOD_TEST_STORE}, mail → ${EOD_TEST_RECIPIENT} only (unless LIVE).`, 'ok');
+      toast(`Test mode ON — #${EOD_TEST_STORE}, mail → testers plus extras you add (unless LIVE).`, 'ok');
     } else {
       toast(`Test mode ON — #${EOD_TEST_STORE} has no cloned shift yet. Tap the version badge to clone one.`, 'info');
     }
@@ -179,7 +179,7 @@
       S.saveDraft();
     }
     setTestMode(true);
-    toast(`Test mode ON — current shift kept. Mail → ${EOD_TEST_RECIPIENT} only.`, 'ok');
+    toast(`Test mode ON — current shift kept. Mail → testers plus extras you add.`, 'ok');
   }
 
   function clearKeepCurrentFlags() {
@@ -408,12 +408,15 @@
     if (eodForceLiveDelivery) {
       return { ...payload, forceLive: true, testMode: true, storeNumber: payload.storeNumber || EOD_TEST_STORE };
     }
+    const extras = (Array.isArray(payload.recipients) ? payload.recipients : [])
+      .map((e) => String(e || '').trim().toLowerCase())
+      .filter((e) => e && !e.endsWith('@stores.fredmeyer.com'));
     return {
       ...payload,
       testMode: true,
       forceLive: false,
       storeNumber: payload.storeNumber || EOD_TEST_STORE,
-      recipients: [EOD_TEST_RECIPIENT],
+      recipients: [...new Set([EOD_TEST_RECIPIENT, ...extras])],
       subject: payload.subject && !/^\[TEST\]/i.test(payload.subject)
         ? `[TEST] ${payload.subject}`
         : payload.subject,

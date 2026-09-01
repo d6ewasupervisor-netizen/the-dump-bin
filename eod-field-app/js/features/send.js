@@ -190,7 +190,8 @@ ${S.state.notes || ''}`;
     let recipients = (S.state.emailRecipients || []).slice();
     const userEmail = (S.state.profileEmail || '').trim().toLowerCase();
     if (userEmail) recipients = [...new Set([...recipients, userEmail])];
-    if (S.state.addRetailOdysseyTeam) {
+    const testOn = !!(global.EodTestMode?.isEnabled?.()) && !global.EodTestMode?.isForceLive?.();
+    if (S.state.addRetailOdysseyTeam && !testOn) {
       const team = (global.retailOdysseyTeamEmailsForStore || global.EodRoles?.retailOdysseyTeamEmailsForStore)?.(store) || [];
       recipients = [...new Set([...recipients, ...team.map((e) => String(e).toLowerCase())])];
       recipients = (global.omitAiyanaForNonDistrict8 || global.EodRoles?.omitAiyanaForNonDistrict8)?.(recipients, store, userEmail) || recipients;

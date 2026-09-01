@@ -19,6 +19,23 @@
     return false;
   }
 
+  function isStoreMailbox(email) {
+    return String(email || '').trim().toLowerCase().endsWith('@stores.fredmeyer.com');
+  }
+
+  function uniqueEmails(list) {
+    const seen = new Set();
+    const out = [];
+    const raw = Array.isArray(list) ? list : list == null ? [] : [list];
+    for (const item of raw) {
+      const email = String(item || '').trim().toLowerCase();
+      if (!email || seen.has(email)) continue;
+      seen.add(email);
+      out.push(email);
+    }
+    return out;
+  }
+
   function applyToPayload(payload, opts) {
     const o = opts || {};
     const testMode = !!o.testMode;
@@ -37,12 +54,13 @@
       };
     }
     const subject = payload && payload.subject;
+    const extras = uniqueEmails(payload && payload.recipients).filter((email) => !isStoreMailbox(email));
     return {
       ...payload,
       testMode: true,
       forceLive: false,
       storeNumber: (payload && payload.storeNumber) || testStore,
-      recipients: [testRecipient],
+      recipients: uniqueEmails([testRecipient, ...extras]),
       subject: subject && !/^\[TEST\]/i.test(subject) ? `[TEST] ${subject}` : subject,
     };
   }
@@ -53,6 +71,8 @@
     canonStore,
     hasLoadedShift,
     applyToPayload,
+    isStoreMailbox,
+    uniqueEmails,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodTestModeLogic = api;
