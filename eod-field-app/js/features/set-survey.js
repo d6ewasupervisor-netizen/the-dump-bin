@@ -258,9 +258,9 @@
         <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
         <p class="set-survey-view-hint">Select one of the options below to view:</p>
         <div class="set-media-btns" id="setMediaBtns">
-          <button type="button" class="btn btn-primary" data-open-media="planogram">Planogram</button>
-          <button type="button" class="btn btn-primary" data-open-media="before">Before</button>
-          <button type="button" class="btn btn-primary" data-open-media="after">After</button>
+          <button type="button" class="btn btn-primary" data-open-media="planogram" disabled aria-busy="true">Planogram</button>
+          <button type="button" class="btn btn-primary" data-open-media="before" disabled aria-busy="true">Before</button>
+          <button type="button" class="btn btn-primary" data-open-media="after" disabled aria-busy="true">After</button>
         </div>
         <div id="setSurveyBody">Loading…</div>
         <div id="setSurveyMsg" class="muted" style="margin-top:10px;"></div>
@@ -275,6 +275,22 @@
       pack: { photos: [] },
       uploading: false,
     };
+
+    const mediaReady = { planogram: false, before: false, after: false };
+
+    function setMediaReady(kind, ready) {
+      mediaReady[kind] = !!ready;
+      const btn = document.querySelector(`#setMediaBtns [data-open-media="${kind}"]`);
+      if (!btn) return;
+      btn.disabled = !mediaReady[kind];
+      btn.setAttribute('aria-busy', mediaReady[kind] ? 'false' : 'true');
+    }
+
+    function resetMediaReady() {
+      setMediaReady('planogram', false);
+      setMediaReady('before', false);
+      setMediaReady('after', false);
+    }
 
     const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
     if (week && global.EodSetBeforeStore) {
@@ -625,6 +641,7 @@
 
     function openMedia(kind, startBay) {
       const S = global.EodSession;
+      if (!mediaReady[kind]) return;
       if (kind === 'planogram') {
         if (typeof global.EodSiPlanogram?.openOverlay !== 'function') {
           setMsg('Planogram viewer failed to load.', true);
@@ -905,21 +922,41 @@
     }
 
     function loadPlanogram() {
-      if (!global.EodSiPlanogram?.prefetch) return Promise.resolve();
-      return global.EodSiPlanogram.prefetch({
+      const opts = {
         store: S.state.storeNumber,
         date: S.state.workDate,
         dbkey,
-      }).catch(() => {});
+      };
+      const fetchBoard = global.EodSiPlanogram?.fetchBoard;
+      if (typeof fetchBoard !== 'function') {
+        setMediaReady('planogram', true);
+        return Promise.resolve();
+      }
+      return fetchBoard(opts)
+        .catch(() => null)
+        .then(() => {
+          setMediaReady('planogram', true);
+          if (typeof global.EodSiPlanogram?.prefetch === 'function') {
+            void global.EodSiPlanogram.prefetch(opts).catch(() => {});
+          }
+        });
     }
 
     async function reload() {
       try {
-        loadPlanogram();
-        await fetchPack();
-        paintBody();
-        local.status = await fetchStatus(dbkey, rowId);
-        paintStatus(local.status);
+        resetMediaReady();
+        const pogP = loadPlanogram();
+        const packP = fetchPack().then(() => {
+          setMediaReady('before', true);
+          setMediaReady('after', true);
+          paintBody();
+        });
+        const statusP = fetchStatus(dbkey, rowId).then((st) => {
+          paintStatus(st);
+          hydrateFromPipeline();
+          paintBody();
+        });
+        await Promise.allSettled([pogP, packP, statusP]);
         hydrateFromPipeline();
         await fetchPack();
         paintBody();
@@ -933,7 +970,7 @@
     document.getElementById('refreshStatus').onclick = reload;
     document.getElementById('setMediaBtns')?.addEventListener('click', (ev) => {
       const btn = ev.target?.closest?.('[data-open-media]');
-      if (!btn) return;
+      if (!btn || btn.disabled) return;
       openMedia(btn.getAttribute('data-open-media'));
     });
     const backBtn = document.getElementById('backSignoff');

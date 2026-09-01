@@ -1188,6 +1188,12 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   margin: 12px 0 4px;
 }
 .set-media-btns .btn { flex: 1 1 28%; min-height: 48px; }
+.set-media-btns .btn:disabled {
+  opacity: 0.38;
+  filter: grayscale(0.35);
+  cursor: wait;
+  pointer-events: none;
+}
 .set-media-overlay {
   position: fixed;
   inset: 0;
