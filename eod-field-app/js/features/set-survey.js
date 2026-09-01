@@ -256,6 +256,7 @@
         <h1>${esc(catName || 'Set capture')}</h1>
         <p class="muted">DBKEY ${esc(dbkey)} | Store ${esc(S.state.storeNumber)} | PROD date ${esc(S.state.workDate)}</p>
         <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
+        <p class="set-survey-view-hint">Select one of the options below to view:</p>
         <div class="set-media-btns" id="setMediaBtns">
           <button type="button" class="btn btn-primary" data-open-media="planogram">Planogram</button>
           <button type="button" class="btn btn-primary" data-open-media="before">Before</button>
@@ -595,7 +596,8 @@
               .map((b) => {
                 const filled = taken.has(Number(b.bay));
                 const si = !!b.hasPhoto;
-                return `<span class="set-bay-dot ${filled ? 'filled' : ''} ${si && !filled ? 'si' : ''}" title="Bay ${esc(b.bayName || b.bay)}">${esc(b.bay)}</span>`;
+                const cls = `set-bay-dot${filled ? ' filled is-viewable' : ''}${si && !filled ? ' si' : ''}`;
+                return `<button type="button" class="${cls}" data-view-slot="${slot}" data-view-bay="${esc(b.bay)}" ${filled ? '' : 'disabled'} title="${filled ? 'View bay ' : 'No photo for bay '}${esc(b.bayName || b.bay)}">${esc(b.bay)}</button>`;
               })
               .join('')}
           </div>
@@ -621,7 +623,7 @@
       return [...remote, ...extra];
     }
 
-    function openMedia(kind) {
+    function openMedia(kind, startBay) {
       const S = global.EodSession;
       if (kind === 'planogram') {
         if (typeof global.EodSiPlanogram?.openOverlay !== 'function') {
@@ -638,6 +640,17 @@
       }
       if (kind !== 'before' && kind !== 'after') return;
       const photos = viewerPhotos(kind);
+      const bayNum = Number(startBay);
+      if (Number.isFinite(bayNum) && bayNum > 0) {
+        const hasBay = photos.some((p) => Number(p.bayIndex) === bayNum);
+        if (!hasBay && !photos.length) {
+          setMsg(`No ${kind} photo for bay ${bayNum} yet.`);
+          return;
+        }
+      } else if (!photos.length) {
+        setMsg(`No ${kind} photos to view yet.`);
+        return;
+      }
       global.EodSetReview?.openOverlay?.({
         row: { id: rowId, catName, dbkey, pog: dbkey },
         photos,
@@ -647,6 +660,7 @@
         api: API_ORIGIN,
         authFetch: global.authFetch,
         hideComplete: true,
+        startBay: Number.isFinite(bayNum) && bayNum > 0 ? bayNum : undefined,
       });
     }
 
@@ -759,6 +773,12 @@
             btn.getAttribute('data-clear-bay'),
             btn.getAttribute('data-clear-job')
           );
+        };
+      });
+      body.querySelectorAll('[data-view-bay]').forEach((btn) => {
+        btn.onclick = () => {
+          if (btn.disabled) return;
+          openMedia(btn.getAttribute('data-view-slot'), Number(btn.getAttribute('data-view-bay')));
         };
       });
     }

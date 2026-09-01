@@ -210,6 +210,23 @@
     return i >= 0 ? i : 0;
   }
 
+  function bayNumberOf(p) {
+    const n = Number(p?.bayIndex);
+    if (Number.isFinite(n) && n > 0) return n;
+    const m = String(p?.label || '').match(/(?:bay|after|before)\s*(\d+)/i)
+      || String(p?.label || '').match(/\b(\d+)\b/);
+    return m ? Number(m[1]) : null;
+  }
+
+  function indexForBay(photos, slot, bay) {
+    const n = Number(bay);
+    if (!Number.isFinite(n) || n < 1) return firstSlotIndex(photos, slot);
+    const exact = (photos || []).findIndex((p) => bayNumberOf(p) === n);
+    if (exact >= 0) return exact;
+    if (n <= (photos || []).length) return n - 1;
+    return firstSlotIndex(photos, slot);
+  }
+
   function filterBySlot(photos, slot) {
     const want = String(slot || '').toLowerCase();
     if (want !== 'before' && want !== 'after') return photos || [];
@@ -257,6 +274,7 @@
       backLabel,
       slotFilter,
       heading,
+      startBay,
     } = opts;
     const objectUrlCache = new Map();
     let photos = [];
@@ -714,7 +732,7 @@
               : '';
         setStatus(data.warning || src);
         if (stage) stage.hidden = false;
-        idx = firstSlotIndex(photos, slotFilter);
+        idx = indexForBay(photos, slotFilter, startBay);
         renderFilm();
         bindTools();
         showPhoto(idx);
