@@ -625,6 +625,13 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
     var lastBody = null;
 
     async function run(confirm) {
+      // A PROD write can take several seconds (multiple sequential SAS
+      // calls) with no visible spinner; disable the button that was just
+      // pressed for the duration so an impatient second tap can't fire a
+      // concurrent duplicate request (confirmed cause of a live "Team
+      // already have scheduled Visit" collision, 2026-09-01).
+      previewBtn.disabled = true;
+      if (confirm) confirmBtn.disabled = true;
       try {
         showMsg('');
         var body = opts.buildBody();
@@ -636,6 +643,9 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
         if (confirm) showMsg('Written to PROD.', true);
       } catch (err) {
         showMsg(err.message || 'Request failed.', false);
+        if (confirm) confirmBtn.disabled = false;
+      } finally {
+        previewBtn.disabled = false;
       }
     }
 
