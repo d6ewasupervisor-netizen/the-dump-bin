@@ -40,6 +40,10 @@
     try { localStorage.setItem(LAST_STORE_KEY, n); } catch (_) {}
   }
 
+  function forgetLastStore() {
+    try { localStorage.removeItem(LAST_STORE_KEY); } catch (_) {}
+  }
+
   function remember(store, partial) {
     const n = normStore(store);
     if (!n) return;
@@ -211,6 +215,7 @@
     forStore,
     lastStore,
     rememberLastStore,
+    forgetLastStore,
     remember,
     applyToSession,
     captureFromSession,

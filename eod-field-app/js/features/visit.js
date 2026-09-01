@@ -814,6 +814,17 @@
     document.getElementById('dayConfirmModal')?.remove();
   }
 
+  async function cancelDayConfirm() {
+    const cancelBtn = document.getElementById('dayConfirmCancel');
+    const confirmBtn = document.getElementById('dayConfirmSubmit');
+    if (cancelBtn) cancelBtn.disabled = true;
+    if (confirmBtn) confirmBtn.disabled = true;
+    try { global.EodVisitMemory?.forgetLastStore?.(); } catch (_) {}
+    try { await global.EodSession?.resetVisit?.({}); } catch (_) {}
+    closeDayConfirmModal();
+    location.reload();
+  }
+
   async function finishConfirmedVisit(store, date) {
     const S = global.EodSession;
     global.EodVisitMemory?.rememberLastStore?.(store);
@@ -857,7 +868,10 @@
           <input type="date" id="dayConfirmDate" value="${esc(date)}">
         </div>
         <div id="dayConfirmStatus" class="muted" style="min-height:1.2em;margin:8px 0;"></div>
-        <button type="button" class="btn btn-primary btn-block" id="dayConfirmSubmit">Confirm</button>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="dayConfirmCancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="dayConfirmSubmit">Confirm</button>
+        </div>
       </div>`;
     document.body.appendChild(overlay);
     const storeBtn = overlay.querySelector('#dayConfirmStoreBtn');
@@ -892,6 +906,7 @@
     dateEl.addEventListener('change', () => {
       try { global.EodShiftDay?.load?.(dateEl.value); } catch (_) {}
     });
+    overlay.querySelector('#dayConfirmCancel').onclick = () => { void cancelDayConfirm(); };
     overlay.querySelector('#dayConfirmSubmit').onclick = async () => {
       const store = (storeHidden.value || '').trim();
       const workDate = (dateEl.value || '').trim();
