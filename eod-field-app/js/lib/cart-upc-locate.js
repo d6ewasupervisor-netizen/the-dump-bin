@@ -37,6 +37,7 @@
       <div class="eod-locate-copy">
         <strong>${esc(m.setName || m.categoryName || '')}</strong>
         <div>${esc(m.name || '')}</div>
+        ${m.brand || m.size ? `<div>${esc([m.brand, m.size].filter(Boolean).join(' · '))}</div>` : ''}
         <div class="muted">UPC ${esc(m.upc || '')}</div>
         <div>${esc(locLine(m))}</div>
       </div>

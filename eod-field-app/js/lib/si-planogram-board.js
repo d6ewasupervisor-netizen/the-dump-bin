@@ -5,7 +5,7 @@
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const IMAGE_CONCURRENCY = 6;
   const UNIT_W = 72;
-  const UNIT_H = 88;
+  const UNIT_H = 136;
   const boardMem = new Map();
 
   function esc(s) {
@@ -86,6 +86,7 @@
   function itemHtml(it, bay, highlightUpc, box) {
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
+    const loc = locLine(it, bay);
     return `<article class="si-pog-item${st}${hit}" style="width:${box.w}px;height:${box.h}px" role="button" tabindex="0"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
@@ -96,9 +97,14 @@
       data-position="${esc(it.position)}"
       data-bay="${esc(bay)}"
       data-aisle="${esc(it.aisle || '')}"
+      data-loc="${esc(loc)}"
       data-image="${esc(it.imageUrl || '')}">
       <div class="si-pog-thumb">${it.imageUrl ? `<img alt="" data-pog-src="${esc(it.imageUrl)}">` : ''}</div>
-      <div class="si-pog-cap">${esc(it.upc || it.name || '')}</div>
+      <div class="si-pog-meta">
+        <div class="si-pog-name">${esc(it.name || '')}</div>
+        <div class="si-pog-loc">${esc(loc)}</div>
+        <div class="si-pog-cap">${it.upc ? `UPC ${esc(it.upc)}` : ''}</div>
+      </div>
     </article>`;
   }
 
@@ -131,7 +137,7 @@
     ].filter(Boolean);
     return `<section class="si-pog si-pog-overlay-board">
       <p class="muted">${esc(bits.join(' · '))}${pog.date ? ` · ${esc(pog.date)}` : ''}</p>
-      <div class="si-pog-scroll">${(pog.bays || []).map((bay) => bayHtml(bay, highlightUpc, pog.aisle)).join('')}</div>
+      <div class="si-pog-scroll">${(pog.bays || []).map((bay) => `<div class="si-pog-bay-frame">${bayHtml(bay, highlightUpc, pog.aisle)}</div>`).join('')}</div>
     </section>`;
   }
 
@@ -238,7 +244,7 @@
     const size = el.getAttribute('data-size') || '';
     const status = el.getAttribute('data-status') || '';
     const image = el.getAttribute('data-image') || '';
-    const loc = locLine({
+    const loc = el.getAttribute('data-loc') || locLine({
       aisle: el.getAttribute('data-aisle') || '',
       shelf: el.getAttribute('data-shelf'),
       position: el.getAttribute('data-position'),
@@ -256,35 +262,77 @@
       <div class="eod-pog-item-copy">
         <div class="eod-pog-item-set">${esc(setTitle || '')}</div>
         <strong>${esc(name)}</strong>
-        <div>UPC ${esc(upc)}</div>
+        ${upc ? `<div>UPC ${esc(upc)}</div>` : ''}
         <div>${esc(loc)}</div>
         ${brand ? `<div>${esc(brand)}</div>` : ''}
         ${size ? `<div>${esc(size)}</div>` : ''}
         ${status ? `<div>${esc(status)}</div>` : ''}
       </div>
     </div>`;
-    document.body.appendChild(host);
-    host.querySelector('#eodPogItemClose').onclick = closeItemDetail;
+    const layer = el.closest('.set-media-overlay') || document.body;
+    layer.appendChild(host);
+    host.querySelector('#eodPogItemClose').onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      closeItemDetail();
+    };
     host.addEventListener('click', (ev) => {
       if (ev.target === host) closeItemDetail();
     });
     if (!liveSrc) hydrateImages(host);
   }
 
+  function fitBays(root) {
+    const scroll = root.querySelector('.si-pog-scroll');
+    if (!scroll) return;
+    const overlay = root.closest('.set-media-overlay');
+    const bar = overlay?.querySelector('.set-media-overlay-bar');
+    const pad = 24;
+    const availW = Math.max(160, (overlay || scroll).clientWidth - pad * 2);
+    const availH = Math.max(160, overlay
+      ? overlay.clientHeight - (bar?.offsetHeight || 52) - pad * 2
+      : scroll.clientHeight || 360);
+    scroll.querySelectorAll('.si-pog-bay-frame').forEach((frame) => {
+      const bay = frame.querySelector('.si-pog-bay');
+      if (!bay) return;
+      bay.style.transform = 'none';
+      bay.style.width = '';
+      const nw = Math.max(1, bay.scrollWidth);
+      const nh = Math.max(1, bay.scrollHeight);
+      const scale = Math.max(0.32, Math.min(availW / nw, availH / nh, 2.6));
+      frame.style.width = `${Math.round(nw * scale)}px`;
+      frame.style.height = `${Math.round(nh * scale)}px`;
+      bay.style.transformOrigin = 'top left';
+      bay.style.transform = `scale(${scale})`;
+      bay.style.width = `${nw}px`;
+    });
+  }
+
   function bindItems(root, pog) {
     const title = pog?.title || '';
+    const openFrom = (el) => {
+      if (!el) return;
+      openItemDetail(el, title);
+    };
+    if (root._pogClick) root.removeEventListener('click', root._pogClick);
+    root._pogClick = (ev) => {
+      const el = ev.target.closest('.si-pog-item');
+      if (!el || !root.contains(el)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      openFrom(el);
+    };
+    root.addEventListener('click', root._pogClick);
     root.querySelectorAll('.si-pog-item').forEach((el) => {
-      const open = () => openItemDetail(el, title);
-      el.addEventListener('click', open);
       el.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter' || ev.key === ' ') {
           ev.preventDefault();
-          open();
+          openFrom(el);
         }
       });
     });
     const hit = root.querySelector('.si-pog-item.is-hit');
-    if (hit) hit.scrollIntoView({ block: 'center', inline: 'center' });
+    if (hit) hit.scrollIntoView({ block: 'center', inline: 'nearest' });
   }
 
   async function loadAndRender(mount, { store, date, dbkey, highlightUpc }) {
@@ -298,7 +346,14 @@
       }
       mount.innerHTML = boardHtml(pog, highlightUpc);
       bindItems(mount, pog);
+      fitBays(mount);
+      const overlay = mount.closest('.set-media-overlay');
+      if (overlay && typeof ResizeObserver === 'function' && !overlay._pogFitObs) {
+        overlay._pogFitObs = new ResizeObserver(() => fitBays(mount));
+        overlay._pogFitObs.observe(overlay);
+      }
       await hydrateImages(mount);
+      fitBays(mount);
     } catch (err) {
       mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
     }
