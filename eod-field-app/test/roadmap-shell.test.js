@@ -221,7 +221,12 @@ test('router and shell accessibility contracts are present', () => {
 test('Gray Matter theme and mobile wrap primitives are defined', () => {
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
   const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(css, /\[data-theme="gray-matter"\][\s\S]*--bg:\s*#1A1C1F/);
+  assert.match(css, /\[data-theme="gray-matter"\][\s\S]*--bg:\s*#12151a/);
+  assert.match(css, /\[data-theme="gray-matter"\][\s\S]*--accent:\s*#d7b07a/);
+  assert.match(css, /\[data-theme="gray"\][\s\S]*--bg:\s*#2a3038/);
+  assert.match(css, /\[data-theme="holiday"\][\s\S]*--accent:\s*#e2b84a/);
+  assert.match(css, /\[data-theme="holiday"\][\s\S]*--bg:\s*#0e1a12/);
+  assert.doesNotMatch(css, /\[data-theme="gray"\][\s\S]{0,80}--bg:\s*#eceff2/);
   assert.match(css, /--touch:\s*44px/);
   assert.match(css, /\.button-group \{[\s\S]*flex-wrap:\s*wrap/);
   assert.match(css, /\.dept-sig-role-actions \{[\s\S]*flex-wrap:\s*wrap/);

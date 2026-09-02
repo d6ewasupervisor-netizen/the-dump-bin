@@ -17,9 +17,9 @@
     dark: '#0b1220',
     inverse: '#062033',
     light: '#0f5c8c',
-    gray: '#4b5563',
-    'gray-matter': '#1A1C1F',
-    holiday: '#7f1d1d',
+    gray: '#2a3038',
+    'gray-matter': '#12151a',
+    holiday: '#8b1e2d',
     blackout: '#000000',
   };
 
