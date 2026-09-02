@@ -30,6 +30,7 @@ h1{font-size:clamp(1.35rem,4vw,1.7rem);font-weight:800}
 .panel{display:none}.panel.active{display:block}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.row-full{grid-column:1/-1}
 label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
 input,select,textarea{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:#111820;color:var(--text);font:inherit}
 input[type="date"],input[type="file"]{color-scheme:dark;cursor:pointer}
@@ -377,7 +378,17 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
           </div>
           <div class="row"><label>Date</label><input type="date" id="rs-date"></div>
           <div class="row"><label>Date to (optional)</label><input type="date" id="rs-date-to"></div>
-          <div class="row"><label>Lead (optional)</label><input id="rs-lead" placeholder="Alexandra Wright"></div>
+          <div class="row row-full">
+            <label>Lead</label>
+            <div class="grid" style="margin:0">
+              <input id="rs-lead-first" type="search" placeholder="First name" autocomplete="off">
+              <div class="typeahead">
+                <input id="rs-lead-last" type="search" placeholder="Last name" autocomplete="off">
+                <div class="typeahead-results" id="rs-lead-results"></div>
+              </div>
+            </div>
+            <div id="rs-lead-chip"></div>
+          </div>
           <div class="row"><label>Store # (optional)</label><input id="rs-store" placeholder="28"></div>
           <div class="row"><label>Cycle ID (optional)</label><input id="rs-cycle" placeholder="245312"></div>
         </div>
@@ -551,6 +562,78 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
     return {
       get: function () { return selected; },
       clear: function () { selected = null; renderChip(); },
+    };
+  }
+
+  // First name + last name → workforce dropdown (same /employees/search as
+  // Cycle Management). Both names required before the list opens; picking a
+  // row is what makes Lead set — typing alone is not enough.
+  function wireLeadNamePicker(opts) {
+    var first = $(opts.firstId);
+    var last = $(opts.lastId);
+    var resultsEl = $(opts.resultsId);
+    var chipEl = $(opts.chipId);
+    var selected = null;
+    var timerKey = opts.firstId + '+' + opts.lastId;
+
+    function query() {
+      return (first.value.trim() + ' ' + last.value.trim()).trim();
+    }
+
+    function hasFirstAndLast() {
+      return !!(first.value.trim() && last.value.trim());
+    }
+
+    function renderChip() {
+      if (!selected) { chipEl.innerHTML = ''; return; }
+      chipEl.innerHTML = '<span class="sel-chip">' + escHtml(selected.name || ('id ' + selected.id)) +
+        '<button type="button" data-clear>&times;</button></span>';
+      chipEl.querySelector('[data-clear]').addEventListener('click', function () {
+        selected = null;
+        renderChip();
+      });
+    }
+
+    function showResults(people) {
+      if (!people.length) {
+        resultsEl.innerHTML = '<button type="button" disabled>No matches</button>';
+      } else {
+        resultsEl.innerHTML = people.map(function (p) {
+          return '<button type="button" data-id="' + p.id + '">' + escHtml(p.name) + '</button>';
+        }).join('');
+      }
+      resultsEl.classList.add('open');
+      resultsEl.querySelectorAll('button[data-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var person = people.find(function (p) { return String(p.id) === btn.dataset.id; });
+          selected = person || null;
+          renderChip();
+          closeTypeahead(resultsEl);
+        });
+      });
+    }
+
+    function onNameInput() {
+      selected = null;
+      renderChip();
+      clearTimeout(empSearchTimers[timerKey]);
+      if (!hasFirstAndLast()) { closeTypeahead(resultsEl); return; }
+      empSearchTimers[timerKey] = setTimeout(async function () {
+        try { showResults(await searchEmployees(query())); } catch (err) { console.error(err); }
+      }, 280);
+    }
+
+    first.addEventListener('input', onNameInput);
+    last.addEventListener('input', onNameInput);
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('#' + opts.firstId) && !e.target.closest('#' + opts.lastId) && !e.target.closest('#' + opts.resultsId)) {
+        closeTypeahead(resultsEl);
+      }
+    });
+
+    return {
+      get: function () { return selected; },
+      clear: function () { selected = null; first.value = ''; last.value = ''; renderChip(); },
     };
   }
 
@@ -1076,17 +1159,24 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
 
   if (!$('rs-date').value) $('rs-date').value = todayIso();
 
+  var rsLeadPicker = wireLeadNamePicker({
+    firstId: 'rs-lead-first', lastId: 'rs-lead-last',
+    resultsId: 'rs-lead-results', chipId: 'rs-lead-chip',
+  });
+
   $('rs-search').addEventListener('click', async function () {
     var date = $('rs-date').value || todayIso();
     try {
       showMsg('');
+      var lead = rsLeadPicker.get();
+      if (!lead) throw new Error('Select a lead from the list.');
       $('rs-results').innerHTML = '<p class="muted" style="margin-top:10px">Searching…</p>';
       var params = new URLSearchParams();
       params.set('date', date);
+      params.set('leadName', lead.name);
       if ($('rs-date-to').value) params.set('dateTo', $('rs-date-to').value);
       if ($('rs-project').value) params.set('projectId', $('rs-project').value);
       if ($('rs-status').value) params.set('status', $('rs-status').value);
-      if ($('rs-lead').value.trim()) params.set('leadName', $('rs-lead').value.trim());
       if ($('rs-store').value.trim()) params.set('storeNumber', $('rs-store').value.trim());
       if ($('rs-cycle').value.trim()) params.set('cycleId', $('rs-cycle').value.trim());
       var data = await api('/api/prod-shifts/visits/search?' + params.toString());
