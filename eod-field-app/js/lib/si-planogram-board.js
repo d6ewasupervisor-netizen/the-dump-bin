@@ -58,6 +58,21 @@
     return Math.max(1, Number(it.h) || 1);
   }
 
+  function bayScale(shelves) {
+    const rows = (shelves || []).map((shelf) => {
+      const units = Math.max(1, (shelf.items || []).reduce((sum, item) => sum + facingUnits(item), 0));
+      return { shelf, units };
+    });
+    const widestUnits = Math.max(1, ...rows.map((row) => row.units));
+    return {
+      widestUnits,
+      rows: rows.map((row) => ({
+        ...row,
+        scale: widestUnits / row.units,
+      })),
+    };
+  }
+
   function locLine(it, bay) {
     return [
       it.aisle ? `Aisle ${it.aisle}` : '',
@@ -91,15 +106,14 @@
     paintTextBtn(host);
   }
 
-  function itemHtml(it, bay, highlightUpc) {
+  function itemHtml(it, bay, highlightUpc, widthScale) {
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
     const loc = locLine(it, bay);
-    const grow = facingUnits(it);
+    const grow = Math.max(0.0001, facingUnits(it) * (Number(widthScale) || 1));
     const noImg = it.imageUrl ? '' : ' no-img';
     const label = it.name || it.brand || it.upc || '';
-    const mobileWidth = Math.min(280, 80 * grow);
-    return `<article class="si-pog-item${st}${hit}${noImg}" style="--pog-mobile-width:${mobileWidth}px;flex:${grow} 1 0" role="button" tabindex="0"
+    return `<article class="si-pog-item${st}${hit}${noImg}" style="flex:${grow} 1 0" role="button" tabindex="0"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
       data-brand="${esc(it.brand || '')}"
@@ -123,11 +137,11 @@
     </article>`;
   }
 
-  function shelfHtml(shelf, bay, highlightUpc) {
-    const cells = (shelf.items || []).map((it) => itemHtml(it, bay, highlightUpc)).join('');
+  function shelfHtml(shelf, bay, highlightUpc, widthScale, widestUnits) {
+    const cells = (shelf.items || []).map((it) => itemHtml(it, bay, highlightUpc, widthScale)).join('');
     return `<div class="si-pog-shelf">
       <div class="si-pog-shelf-label">${esc(shelf.shelf)}</div>
-      <div class="si-pog-slots">${cells}</div>
+      <div class="si-pog-slots" style="--pog-columns:${widestUnits}">${cells}</div>
     </div>`;
   }
 
@@ -136,9 +150,12 @@
       ...sh,
       items: (sh.items || []).map((it) => ({ ...it, aisle: it.aisle || aisle || '' })),
     }));
-    return `<section class="si-pog-bay">
+    const layout = bayScale(shelves);
+    return `<section class="si-pog-bay" style="--pog-columns:${layout.widestUnits};--pog-shelf-count:${Math.max(1, shelves.length)}">
       <div class="si-pog-bay-h">Bay ${esc(bay.bay)}</div>
-      <div class="si-pog-bay-shelves">${shelves.map((sh) => shelfHtml(sh, bay.bay, highlightUpc)).join('')}</div>
+      <div class="si-pog-bay-shelves">${layout.rows.map((row) => (
+        shelfHtml(row.shelf, bay.bay, highlightUpc, row.scale, layout.widestUnits)
+      )).join('')}</div>
     </section>`;
   }
 
@@ -389,49 +406,52 @@
       if (!btn) return;
       goToBay(scroll, btn.getAttribute('data-go-bay'));
     });
-    scroll.querySelectorAll('.si-pog-bay-frame').forEach(bindGrabPan);
+    bindGrabPan(scroll, nav);
   }
 
-  function bindGrabPan(frame) {
-    if (!frame || frame._pogGrabBound) return;
-    frame._pogGrabBound = true;
+  function bindGrabPan(scroll, nav) {
+    if (!scroll || scroll._pogGrabBound) return;
+    scroll._pogGrabBound = true;
     let drag = null;
 
     const finish = (ev) => {
       if (!drag || (ev && ev.pointerId !== drag.pointerId)) return;
-      if (drag.moved) frame._pogSuppressClickUntil = Date.now() + 400;
-      frame.classList.remove('is-grabbing');
+      if (drag.moved) {
+        scroll._pogSuppressClickUntil = Date.now() + 400;
+        const bay = activeBay(scroll);
+        if (bay) goToBay(scroll, bay);
+        paintBayNav(nav, scroll);
+      }
+      scroll.classList.remove('is-grabbing');
       try {
-        if (frame.hasPointerCapture?.(drag.pointerId)) frame.releasePointerCapture(drag.pointerId);
+        if (scroll.hasPointerCapture?.(drag.pointerId)) scroll.releasePointerCapture(drag.pointerId);
       } catch (_) { /* pointer already released */ }
       drag = null;
     };
 
-    frame.addEventListener('pointerdown', (ev) => {
+    scroll.addEventListener('pointerdown', (ev) => {
       if (!compactPhotoMode() || ev.isPrimary === false || (ev.button != null && ev.button !== 0)) return;
       drag = {
         pointerId: ev.pointerId,
         x: ev.clientX,
         y: ev.clientY,
-        left: frame.scrollLeft,
-        top: frame.scrollTop,
+        left: scroll.scrollLeft,
         moved: false,
       };
-      try { frame.setPointerCapture?.(ev.pointerId); } catch (_) { /* best effort */ }
+      try { scroll.setPointerCapture?.(ev.pointerId); } catch (_) { /* best effort */ }
     });
-    frame.addEventListener('pointermove', (ev) => {
+    scroll.addEventListener('pointermove', (ev) => {
       if (!drag || ev.pointerId !== drag.pointerId) return;
       const dx = ev.clientX - drag.x;
       const dy = ev.clientY - drag.y;
       if (!drag.moved && Math.hypot(dx, dy) < 6) return;
       drag.moved = true;
-      frame.classList.add('is-grabbing');
-      frame.scrollLeft = drag.left - dx;
-      frame.scrollTop = drag.top - dy;
+      scroll.classList.add('is-grabbing');
+      scroll.scrollLeft = drag.left - dx;
       ev.preventDefault();
     });
-    frame.addEventListener('pointerup', finish);
-    frame.addEventListener('pointercancel', finish);
+    scroll.addEventListener('pointerup', finish);
+    scroll.addEventListener('pointercancel', finish);
   }
 
   function applyHighlight(root, upc) {
@@ -466,8 +486,8 @@
     root._pogClick = (ev) => {
       const el = ev.target.closest('.si-pog-item');
       if (!el || !root.contains(el)) return;
-      const frame = el.closest('.si-pog-bay-frame');
-      if (frame && Date.now() < Number(frame._pogSuppressClickUntil || 0)) {
+      const scroll = el.closest('.si-pog-scroll');
+      if (scroll && Date.now() < Number(scroll._pogSuppressClickUntil || 0)) {
         ev.preventDefault();
         ev.stopPropagation();
         return;
@@ -619,7 +639,7 @@
     return host;
   }
 
-  global.EodSiPlanogram = {
+  const api = {
     loadAndRender,
     prefetch,
     fetchBoard,
@@ -628,5 +648,8 @@
     hydrateImages,
     openItemDetail,
     goToBay,
+    bayScale,
   };
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  global.EodSiPlanogram = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -8,6 +8,7 @@ const path = require('node:path');
 const { createLoader } = require('../js/lib/script-loader');
 const workflow = require('../js/lib/workflow-progress');
 const { createClient } = require('../js/lib/field-set-job-client');
+const { bayScale } = require('../js/lib/si-planogram-board');
 
 function fakeDocument() {
   const appended = [];
@@ -113,16 +114,30 @@ test('feedback hub exposes persisted report history and review status', () => {
   assert.match(feedback, /id="eodFbHistoryBtn"/);
 });
 
-test('compact planogram stays image-first and supports grab panning', () => {
+test('planogram normalizes every shelf to the widest shelf without gaps', () => {
+  const layout = bayScale([
+    { shelf: 1, items: [{ h: 1 }, { h: 2 }, { h: 1 }] },
+    { shelf: 2, items: [{ h: 1 }, { h: 1 }] },
+  ]);
+  assert.equal(layout.widestUnits, 4);
+  assert.equal(layout.rows[0].scale, 1);
+  assert.equal(layout.rows[1].scale, 2);
+  assert.equal(layout.rows[1].units * layout.rows[1].scale, layout.widestUnits);
+});
+
+test('compact planogram stays image-first and grab-swipes between bays', () => {
   const board = fs.readFileSync(path.join(__dirname, '../js/lib/si-planogram-board.js'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
   assert.match(board, /COMPACT_QUERY = '\(max-width: 560px\)'/);
   assert.match(board, /addEventListener\('pointerdown'/);
   assert.match(board, /addEventListener\('pointermove'/);
   assert.match(board, /_pogSuppressClickUntil/);
+  assert.match(board, /scroll\.scrollLeft = drag\.left - dx/);
+  assert.match(board, /goToBay\(scroll, bay\)/);
   assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.si-pog-live \.si-pog-meta[\s\S]*display: none/);
-  assert.match(css, /\.si-pog-live-body \.si-pog-bay-frame \{[\s\S]*overflow: auto;[\s\S]*touch-action: none/);
-  assert.match(css, /flex: 0 0 var\(--pog-mobile-width, 80px\) !important/);
+  assert.match(css, /\.si-pog-bay \{[\s\S]*width: min\(100%, 72dvh\)/);
+  assert.match(css, /\.si-pog-slots \{[\s\S]*gap: 0;[\s\S]*padding: 0/);
+  assert.match(css, /scroll-snap-type: x mandatory/);
 });
 
 test('router and shell accessibility contracts are present', () => {

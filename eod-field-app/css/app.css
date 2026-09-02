@@ -1437,25 +1437,25 @@ body.set-media-open .bottom-nav { display: none !important; }
 .si-pog-bay {
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: min(100%, 72dvh);
   height: 100%;
   min-width: 0;
   min-height: 0;
+  margin: 0 auto;
 }
 .si-pog-bay-h { font-size: 13px; font-weight: 700; margin: 0 0 8px 32px; flex: 0 0 auto; }
 .si-pog-bay-shelves {
   flex: 1 1 auto;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-rows: repeat(var(--pog-shelf-count, 1), minmax(0, 1fr));
+  gap: 0;
 }
 .si-pog-shelf {
-  flex: 1 1 0;
   min-height: 0;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
-  gap: 4px;
+  gap: 0;
   margin: 0;
 }
 .si-pog-shelf-label {
@@ -1465,12 +1465,12 @@ body.set-media-open .bottom-nav { display: none !important; }
 .si-pog-slots {
   display: flex;
   align-items: stretch;
-  gap: 2px;
+  gap: 0;
   width: 100%;
   height: 100%;
   min-width: 0;
   background: #6b5a45;
-  padding: 2px;
+  padding: 0;
   box-sizing: border-box;
 }
 .si-pog-item {
@@ -1579,42 +1579,16 @@ body.set-media-open .bottom-nav { display: none !important; }
   }
   .si-pog-live-body .si-pog-scroll {
     touch-action: none;
-    scroll-snap-type: none;
-    overscroll-behavior: contain;
-  }
-  .si-pog-live-body .si-pog-bay-frame {
-    overflow: auto;
-    touch-action: none;
+    scroll-snap-type: x mandatory;
     overscroll-behavior: contain;
     cursor: grab;
-    scrollbar-width: none;
   }
-  .si-pog-live-body .si-pog-bay-frame::-webkit-scrollbar { display: none; }
-  .si-pog-live-body .si-pog-bay-frame.is-grabbing {
+  .si-pog-live-body .si-pog-scroll.is-grabbing {
     cursor: grabbing;
     user-select: none;
     -webkit-user-select: none;
   }
-  .si-pog-live-body .si-pog-bay {
-    width: max-content;
-    min-width: 100%;
-  }
-  .si-pog-live-body .si-pog-bay-shelves {
-    width: max-content;
-    min-width: 100%;
-  }
-  .si-pog-live-body .si-pog-shelf {
-    width: max-content;
-    min-width: 100%;
-    grid-template-columns: 28px max-content;
-  }
-  .si-pog-live-body .si-pog-slots {
-    width: max-content;
-    min-width: calc(100vw - 52px);
-  }
   .si-pog-live-body .si-pog-item {
-    flex: 0 0 var(--pog-mobile-width, 80px) !important;
-    min-width: var(--pog-mobile-width, 80px);
     touch-action: none;
   }
   .si-pog-live-body .si-pog-thumb {
