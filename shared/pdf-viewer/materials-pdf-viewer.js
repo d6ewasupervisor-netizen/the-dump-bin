@@ -11,6 +11,7 @@
 
   const WORKER =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const ASSET_VER = '1.1.2';
   const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
   const MSG_SOURCE = 'materials-pdf-viewer';
 
@@ -128,8 +129,8 @@
     link.id = 'materialsPdfViewerCss';
     link.rel = 'stylesheet';
     const base = document.currentScript?.src
-      ? document.currentScript.src.replace(/[^/]+$/, 'materials-pdf-viewer.css')
-      : '/shared/pdf-viewer/materials-pdf-viewer.css';
+      ? document.currentScript.src.replace(/[^/]+$/, `materials-pdf-viewer.css?v=${ASSET_VER}`)
+      : `/shared/pdf-viewer/materials-pdf-viewer.css?v=${ASSET_VER}`;
     link.href = base;
     document.head.appendChild(link);
     cssReady = true;
@@ -193,7 +194,7 @@
           <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvSelectAll">Select all</button>
           <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvSelectNone">Clear pages</button>
           <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvTogglePage" title="Space">Toggle page</button>
-          <span class="mpv-hint" id="mpvHint">Select pages, then print, download, share, or add to basket</span>
+          <span class="mpv-hint" id="mpvHint"></span>
         </div>
         <div class="mpv-actionbar__right">
           <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvAddBtn">Add to selection</button>
@@ -252,8 +253,8 @@
     const hint = document.getElementById('mpvHint');
     if (hint) {
       hint.textContent = pages
-        ? `${pages} page(s) · ~${formatSize(bytes)} — ready to print, download, share, or add`
-        : 'Select pages to print or share a subset — Download uses the whole file if none are selected';
+        ? `${pages} page${pages === 1 ? '' : 's'} · ${formatSize(bytes)}`
+        : '';
     }
   }
 
@@ -873,15 +874,24 @@
     keyHandler = null;
   }
 
+  function isNarrowScreen() {
+    try {
+      return !!(global.matchMedia && global.matchMedia('(max-width: 720px)').matches);
+    } catch (_) {
+      return false;
+    }
+  }
+
   function setReadingMode(on) {
     if (!host) return;
-    host.classList.toggle('is-immersive', !!on);
-    host.classList.toggle('is-thumbs-collapsed', !!on);
+    const reading = !!on;
+    host.classList.toggle('is-immersive', reading);
+    host.classList.toggle('is-thumbs-collapsed', reading || isNarrowScreen());
     const btn = document.getElementById('mpvImmersive');
     if (btn) {
-      btn.textContent = on ? 'Tools' : 'View';
-      btn.title = on ? 'Page select, print, share, search' : 'Full document view';
-      btn.classList.toggle('is-active', !on);
+      btn.textContent = reading ? 'Tools' : 'View';
+      btn.title = reading ? 'Page select, print, share, search' : 'Full document view';
+      btn.classList.toggle('is-active', !reading);
     }
   }
 
@@ -918,7 +928,8 @@
     host.classList.toggle('is-standalone', !!options.standalone);
     host.classList.toggle('is-framed', !!framed);
     host.classList.add('is-open');
-    const startInTools = options.tools === true || options.immersive === false;
+    const startInTools = (options.tools === true || options.immersive === false)
+      && !isNarrowScreen();
     host.classList.toggle('is-thumbs-collapsed', !startInTools);
     setReadingMode(!startInTools);
     lockPageScroll(true);

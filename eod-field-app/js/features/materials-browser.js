@@ -7,8 +7,8 @@
   const PRINT_COOLDOWN_MS = 2 * 60 * 1000;
   const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
   const PDFLIB_SRC = 'https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js';
-  const VIEWER_CSS = 'https://the-dump-bin.com/shared/pdf-viewer/materials-pdf-viewer.css?v=1.1.1';
-  const VIEWER_SRC = 'https://the-dump-bin.com/shared/pdf-viewer/materials-pdf-viewer.js?v=1.1.1';
+  const VIEWER_CSS = 'https://the-dump-bin.com/shared/pdf-viewer/materials-pdf-viewer.css?v=1.1.2';
+  const VIEWER_SRC = 'https://the-dump-bin.com/shared/pdf-viewer/materials-pdf-viewer.js?v=1.1.2';
 
   let weeks = [];
   let currentWeekIdx = 0;
