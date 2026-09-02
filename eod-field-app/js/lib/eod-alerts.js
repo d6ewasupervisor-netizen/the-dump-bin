@@ -11,7 +11,7 @@
     css.textContent = `
       .eod-alert-overlay {
         display: none; position: fixed; inset: 0; z-index: 50000;
-        background: rgba(2,6,23,.78); align-items: center; justify-content: center;
+        background: var(--scrim, rgba(2,6,23,.78)); align-items: center; justify-content: center;
         padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
       }
       .eod-alert-overlay.show { display: flex; }

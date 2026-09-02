@@ -160,11 +160,11 @@
       #eodTsMgmtOverlay .eod-ts-shell {
         width: 100%; max-width: 100%; height: 100%; max-height: 100%;
         margin: 0; border-radius: 0; display: flex; flex-direction: column;
-        background: #0b1220; color: #e2e8f0; overflow: hidden;
+        background: var(--bg, #0b1220); color: var(--text, #e2e8f0); overflow: hidden;
       }
       .eod-ts-header {
-        display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-        padding: 14px 16px; border-bottom: 1px solid #1e293b; background: #111827;
+        display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px;
+        padding: 14px 16px; border-bottom: 1px solid var(--border, #1e293b); background: var(--surface, #111827);
       }
       .eod-ts-header h2 { margin: 0; font-size: 1.15rem; color: #fde68a; }
       .eod-ts-header p { margin: 4px 0 0; font-size: 13px; color: #94a3b8; line-height: 1.4; }
@@ -179,7 +179,7 @@
       .eod-ts-table th { background: #1e293b; color: #cbd5e1; font-weight: 600; position: sticky; top: 0; z-index: 1; }
       .eod-ts-table input[type="text"] {
         width: 100%; min-width: 72px; box-sizing: border-box; padding: 6px 8px;
-        border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-size: 13px;
+        border-radius: 6px; border: 1px solid var(--input-border, #475569); background: var(--input-bg, #0f172a); color: var(--text, #f8fafc); font-size: 13px;
       }
       .eod-ts-table .eod-clock-wrap { min-width: 96px; }
       .eod-ts-table .eod-clock-btn { width: 34px; min-width: 34px; background: #1e293b; }
@@ -210,7 +210,7 @@
         .eod-ts-table, .eod-ts-table tbody, .eod-ts-table tr, .eod-ts-table td { display: block; width: 100%; }
         .eod-ts-table tr {
           border: 1px solid #334155; border-radius: 12px; margin-bottom: 12px;
-          padding: 10px; background: #0f172a;
+          padding: 10px; background: var(--row-bg, #0f172a);
         }
         .eod-ts-table td { border: 0; padding: 6px 0; }
         .eod-ts-table td[data-label]::before {
@@ -226,20 +226,20 @@
       }
       #eodTsQrOverlay.show { display: flex; }
       .eod-ts-qr-card {
-        background: #fff; color: #0f172a; border-radius: 16px; padding: 24px; max-width: 420px; width: 100%;
+        background: #fff; color: #0f172a; border-radius: 16px; padding: 24px; max-width: min(420px, 100%); width: 100%;
         text-align: center;
       }
-      .eod-ts-qr-card img { width: 280px; height: 280px; background: #fff; }
+      .eod-ts-qr-card img { width: min(280px, 100%); height: auto; aspect-ratio: 1; background: #fff; }
       .eod-ts-qr-card h3 { margin: 0 0 8px; font-size: 1.2rem; }
       .eod-ts-qr-url { font-size: 12px; word-break: break-all; color: #475569; margin: 10px 0 16px; }
       #eodTsTabletOverlay {
-        position: fixed; inset: 0; z-index: 10060; background: #0b1220;
+        position: fixed; inset: 0; z-index: 10060; background: var(--bg, #0b1220);
         display: none; flex-direction: column;
       }
       #eodTsTabletOverlay.show { display: flex; }
       #eodTsTabletBar {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 10px 14px; background: #111827; border-bottom: 1px solid #334155;
+        padding: 10px 14px; background: var(--surface, #111827); border-bottom: 1px solid var(--border, #334155);
       }
       #eodTsTabletFrame { flex: 1; border: none; width: 100%; background: #fff; }
     `;

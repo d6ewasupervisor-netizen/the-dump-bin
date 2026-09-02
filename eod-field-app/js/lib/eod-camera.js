@@ -17,7 +17,7 @@
       .eod-cam-bar {
         display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center;
         padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
-        background: #0b1220;
+        background: var(--bg, #0b1220);
       }
       .eod-cam-bar .eod-cam-label { flex: 1 1 100%; text-align: center; font-size: 14px; color: #cbd5e1; }
     `;

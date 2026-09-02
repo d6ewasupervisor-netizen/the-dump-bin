@@ -112,7 +112,7 @@
         logging: false,
         useCORS: true,
         allowTaint: false,
-        backgroundColor: '#111827',
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#111827',
         scale: 0.6,
         ignoreElements: (el) =>
           el.id === 'eodFeedbackFab' ||
@@ -131,15 +131,15 @@
     const css = document.createElement('style');
     css.id = 'eodFeedbackCss';
     css.textContent = `
-      .eod-feedback-overlay { display:none; position:fixed; inset:0; z-index:1800; background:rgba(0,0,0,.72); overflow-y:auto; padding:12px; }
+      .eod-feedback-overlay { display:none; position:fixed; inset:0; z-index:1800; background:var(--scrim, rgba(0,0,0,.72)); overflow-y:auto; padding:max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px)); }
       .eod-feedback-overlay.show { display:block; }
-      .eod-feedback-dialog { max-width:560px; margin:0 auto; background:#111827; border:1px solid #334155; border-radius:14px; padding:16px; color:#f9fafb; }
+      .eod-feedback-dialog { max-width:min(560px, 100%); margin:0 auto; background:var(--surface, #111827); border:1px solid var(--border, #334155); border-radius:14px; padding:16px; color:var(--text, #f9fafb); }
       .eod-feedback-dialog h2 { margin:0 0 8px; }
       .eod-fb-lead, .eod-fb-context, .eod-fb-status { color:#94a3b8; font-size:13px; margin:0 0 10px; }
       .eod-fb-kinds { display:flex; flex-wrap:wrap; gap:10px; margin:8px 0 12px; }
       .eod-feedback-dialog textarea { width:100%; min-height:90px; margin:6px 0 12px; }
       .eod-fb-shot img, .eod-fb-extras img { max-width:100%; border-radius:8px; margin-top:8px; }
-      .eod-feedback-dialog .button-group { display:flex; }
+      .eod-feedback-dialog .button-group { display:flex; flex-wrap:wrap; gap:8px; }
       .eod-fb-history { margin-top:10px; display:grid; gap:8px; }
       .eod-fb-history-row { padding:8px 10px; border:1px solid #334155; border-radius:8px; }
       .eod-fb-history-row strong { display:block; }

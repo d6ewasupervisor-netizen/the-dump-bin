@@ -84,11 +84,11 @@
           <input type="email" id="ghRecipientEmail" autocomplete="email" style="width:100%;"></div>
         <div class="field"><label for="ghRecipientPhone">Mobile (for text)</label>
           <input type="tel" id="ghRecipientPhone" inputmode="tel" placeholder="10-digit US number" style="width:100%;"></div>
-        <div class="toggle-switch" style="margin:10px 0; justify-content:flex-start; background:#1e293b;">
+        <div class="toggle-switch" style="margin:10px 0; justify-content:flex-start; background:var(--row-bg);">
           <label class="toggle-switch-wrapper"><input type="checkbox" id="ghSendEmail" checked><span class="toggle-slider"></span></label>
           <label class="toggle-switch-label" for="ghSendEmail">Send email</label>
         </div>
-        <div class="toggle-switch" style="margin:10px 0; justify-content:flex-start; background:#1e293b;">
+        <div class="toggle-switch" style="margin:10px 0; justify-content:flex-start; background:var(--row-bg);">
           <label class="toggle-switch-wrapper"><input type="checkbox" id="ghSendSms"><span class="toggle-slider"></span></label>
           <label class="toggle-switch-label" for="ghSendSms">Send text (secure link)</label>
         </div>

@@ -87,22 +87,22 @@
       }
       .gh-review--app .gh-film-thumb {
         flex: 0 0 auto; width: 76px; border: 2px solid var(--border, #1e3a5f);
-        border-radius: 8px; background: #0f172a; padding: 0; cursor: pointer; overflow: hidden; color: inherit;
+        border-radius: 8px; background: var(--row-bg, #0f172a); padding: 0; cursor: pointer; overflow: hidden; color: inherit;
       }
       .gh-review--app .gh-film-thumb img { display: block; width: 76px; height: 56px; object-fit: cover; }
       .gh-review--app .gh-film-thumb span {
         display: block; font-size: 10px; font-weight: 700; padding: 4px 4px 5px;
-        color: var(--muted, #94a3b8); background: #111827; text-align: center;
+        color: var(--muted, #94a3b8); background: var(--surface, #111827); text-align: center;
       }
       .gh-review--app .gh-film-thumb.is-active { border-color: var(--accent, #38bdf8); }
       .gh-review--app .gh-film-thumb.is-active span { color: var(--accent, #38bdf8); }
-      .gh-review--app .gh-stage-wrap { border: 1px solid var(--border, #1e3a5f); background: #020617; }
+      .gh-review--app .gh-stage-wrap { border: 1px solid var(--border, #1e3a5f); background: var(--card, #020617); }
       .gh-review--app .gh-review-footer {
         background: var(--card, #020617); border-top: 1px solid var(--border, #1e3a5f);
       }
       .gh-review--app .gh-set-done { color: var(--ok, #22c55e); font-size: 12px; font-weight: 700; }
       .gh-review--app .gh-photo-pos { flex: 1 1 auto; text-align: center; font-weight: 700; color: var(--muted, #94a3b8); }
-      .gh-review--app .gh-dept-extra { margin-top: 10px; border: 1px solid var(--border, #1e3a5f); border-radius: 8px; background: #0b1220; }
+      .gh-review--app .gh-dept-extra { margin-top: 10px; border: 1px solid var(--border, #1e3a5f); border-radius: 8px; background: var(--bg, #0b1220); }
       .gh-review--app .gh-dept-extra summary {
         cursor: pointer; padding: 10px 12px; font-weight: 700; list-style: none; color: #93c5fd;
       }
@@ -111,7 +111,7 @@
       .gh-review--app .dept-sig-set-row {
         display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
         width: 100%; text-align: left; padding: 12px; border-radius: 8px;
-        border: 1px solid var(--border, #1e3a5f); background: #0f172a; color: var(--text, #f8fafc); cursor: pointer;
+        border: 1px solid var(--border, #1e3a5f); background: var(--row-bg, #0f172a); color: var(--text, #f8fafc); cursor: pointer;
       }
       .gh-review--app .dept-sig-set-row strong { color: #93c5fd; }
     `;

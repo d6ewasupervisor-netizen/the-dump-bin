@@ -62,7 +62,7 @@
           margin-bottom: 12px;
           border: 1px solid #334155;
           border-radius: 8px;
-          background: #0f172a;
+          background: var(--row-bg, #0f172a);
           overflow: hidden;
         }
         .eod-sms-optin-qr__toggle {

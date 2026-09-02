@@ -218,6 +218,16 @@ test('router and shell accessibility contracts are present', () => {
   assert.doesNotMatch(css, /@media \(max-width: 420px\)[\s\S]{0,180}\.nav-label \{ display: none/);
 });
 
+test('Gray Matter theme and mobile wrap primitives are defined', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(css, /\[data-theme="gray-matter"\][\s\S]*--bg:\s*#1A1C1F/);
+  assert.match(css, /--touch:\s*44px/);
+  assert.match(css, /\.button-group \{[\s\S]*flex-wrap:\s*wrap/);
+  assert.match(css, /\.dept-sig-role-actions \{[\s\S]*flex-wrap:\s*wrap/);
+  assert.match(index, /t !== 'gray-matter'/);
+});
+
 test('service worker discovers the full local shell and keeps APIs network-only', () => {
   const sw = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
   assert.match(sw, /shellAssetsFromHtml/);

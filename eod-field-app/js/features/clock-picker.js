@@ -75,8 +75,8 @@
         flex: 1; min-width: 0;
       }
       .eod-clock-btn {
-        flex: 0 0 auto; width: 36px; min-width: 36px; padding: 0;
-        border-radius: 6px; border: 1px solid #475569; background: #1e293b;
+        flex: 0 0 auto; width: var(--touch, 44px); min-width: var(--touch, 44px); padding: 0;
+        border-radius: 6px; border: 1px solid var(--border, #475569); background: var(--row-bg, #1e293b);
         color: #fde68a; cursor: pointer; display: inline-flex;
         align-items: center; justify-content: center; line-height: 0;
       }
@@ -86,26 +86,26 @@
       .eod-clock-btn svg { width: 20px; height: 20px; display: block; }
       #${OVERLAY_ID} {
         position: fixed; inset: 0; z-index: 12000;
-        background: rgba(2,6,23,.78);
+        background: var(--scrim, rgba(2,6,23,.78));
         display: none; align-items: center; justify-content: center;
         padding: 16px; -webkit-tap-highlight-color: transparent;
       }
       #${OVERLAY_ID}.show { display: flex; }
       .eod-clock-sheet {
-        width: min(360px, 100%); background: #0f172a; color: #e2e8f0;
-        border: 1px solid #334155; border-radius: 16px; padding: 16px 16px 14px;
+        width: min(360px, 100%); background: var(--surface, #0f172a); color: var(--text, #e2e8f0);
+        border: 1px solid var(--border, #334155); border-radius: 16px; padding: 16px 16px 14px;
         box-shadow: 0 20px 50px rgba(0,0,0,.45);
       }
       .eod-clock-sheet h3 {
         margin: 0 0 4px; font-size: 1.05rem; color: #fde68a; font-weight: 700;
       }
       .eod-clock-sheet .eod-clock-hint {
-        margin: 0 0 12px; font-size: 12px; color: #94a3b8; line-height: 1.35;
+        margin: 0 0 12px; font-size: 12px; color: var(--muted, #94a3b8); line-height: 1.35;
       }
       .eod-clock-readout {
         text-align: center; font-size: 1.75rem; font-weight: 700;
         font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
-        color: #f8fafc; margin: 0 0 10px;
+        color: var(--text, #f8fafc); margin: 0 0 10px;
       }
       .eod-clock-face-wrap {
         position: relative; width: min(280px, 72vw); aspect-ratio: 1;
@@ -119,7 +119,7 @@
         display: flex; gap: 8px; justify-content: center; margin-bottom: 10px;
       }
       .eod-clock-mode button, .eod-clock-period button, .eod-clock-actions button {
-        border: 1px solid #475569; background: #1e293b; color: #e2e8f0;
+        border: 1px solid var(--border, #475569); background: var(--row-bg, #1e293b); color: var(--text, #e2e8f0);
         border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 600;
         cursor: pointer; min-height: 44px;
       }
@@ -198,8 +198,8 @@
     }
     return `
       <svg viewBox="0 0 200 200" role="img" aria-label="Clock face">
-        <circle cx="100" cy="100" r="98" fill="#111827" stroke="#334155" stroke-width="2"/>
-        <circle cx="100" cy="100" r="96" fill="#0b1220"/>
+        <circle cx="100" cy="100" r="98" fill="var(--surface, #111827)" stroke="var(--border, #334155)" stroke-width="2"/>
+        <circle cx="100" cy="100" r="96" fill="var(--bg, #0b1220)"/>
         ${ticks.join('')}
         ${nums.join('')}
         <g class="eod-clock-hand eod-clock-hour" data-hand="hour">

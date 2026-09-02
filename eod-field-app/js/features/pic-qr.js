@@ -104,7 +104,7 @@
     el.innerHTML = `<div class="modal-dialog">
       <h2>PIC / manager sign-out</h2>
       <p class="muted">Store #<span id="eodPicQrFsStore"></span> · <span id="eodPicQrFsDate"></span></p>
-      <img id="eodPicQrFsImg" alt="PIC QR" width="280" height="280" style="width:280px;height:280px;background:#fff;margin:16px auto;display:block;">
+      <img id="eodPicQrFsImg" alt="PIC QR" width="280" height="280" class="eod-qr" style="background:#fff;margin:16px auto;display:block;">
       <div id="eodPicQrFsUrl" class="muted" style="word-break:break-all;"></div>
       <button type="button" class="btn btn-primary btn-block" id="eodPicQrFsClose">Done</button>
     </div>`;
@@ -136,7 +136,7 @@
     return `<div class="card" id="eodPicQrCard">
       <h2>Daily PIC QR</h2>
       <p class="muted" id="eodPicQrStatus"></p>
-      <img id="eodPicQrImg" alt="PIC QR" hidden width="200" height="200" style="width:200px;height:200px;background:#fff;display:block;margin:8px auto;">
+      <img id="eodPicQrImg" alt="PIC QR" hidden width="200" height="200" class="eod-qr" style="background:#fff;display:block;margin:8px auto;">
       <div id="eodPicQrUrl" class="muted" hidden style="word-break:break-all;font-size:12px;"></div>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="eodPicQrShowBtn">Show QR</button>

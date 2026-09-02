@@ -14,7 +14,7 @@
     css.textContent = `
       .eod-lsp-overlay {
         display: none; position: fixed; inset: 0; z-index: 50000;
-        background: #0b1220; color: #f8fafc; flex-direction: column;
+        background: var(--bg, #0b1220); color: var(--text, #f8fafc); flex-direction: column;
         padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
         touch-action: none; overflow: hidden;
@@ -23,20 +23,20 @@
       .eod-lsp-overlay.show { display: flex; pointer-events: auto; }
       .eod-lsp-bar {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        padding: 8px 10px; background: #0d4f8b; min-height: 48px;
+        padding: 8px 10px; background: var(--accent-dim, #0d4f8b); min-height: var(--touch, 44px);
         flex: 0 0 auto; z-index: 2;
       }
       .eod-lsp-bar strong { flex: 1; font-size: 15px; }
       .eod-lsp-bar button {
         appearance: none; -webkit-appearance: none; box-shadow: none;
-        min-height: 40px; padding: 8px 12px; border-radius: 8px; border: none;
+        min-height: var(--touch, 44px); padding: 8px 12px; border-radius: 8px; border: none;
         font-weight: 700; font-size: 14px; cursor: pointer; color: #fff;
       }
       .eod-lsp-clear { background: #4b5563; }
       .eod-lsp-cancel { background: #334155; }
       .eod-lsp-accept { background: #166534; }
       .eod-lsp-stage {
-        position: relative; flex: 1 1 auto; min-height: 0; background: #111827;
+        position: relative; flex: 1 1 auto; min-height: 0; background: var(--surface, #111827);
         touch-action: none; overscroll-behavior: none;
       }
       .eod-lsp-stage canvas {
