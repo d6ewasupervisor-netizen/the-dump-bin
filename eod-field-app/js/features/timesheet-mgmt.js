@@ -338,7 +338,7 @@
         ? '<button type="button" class="btn btn-primary" id="eodTsSubmitOfficeBtn">Submit to office</button>'
         : '<button type="button" class="btn btn-primary" id="eodTsSubmitSupBtn">Submit to supervisor</button>'}
       ${isIw ? '<button type="button" class="btn btn-secondary" id="eodTsPhotoBtn">Sign-out photo</button>' : ''}
-      ${testCtx && canLive ? `<label class="eod-ts-live-toggle" title="Supervisor/admin only. Store 999 fax stays blocked." style="display:flex;align-items:center;gap:8px;margin-left:auto;padding:6px 10px;border-radius:8px;background:${liveOn ? 'rgba(180,83,9,.25)' : 'rgba(15,23,42,.55)'};border:1px solid ${liveOn ? '#fbbf24' : '#334155'};font-size:13px;cursor:pointer;">
+      ${testCtx && canLive ? `<label class="eod-ts-live-toggle" title="Supervisor/admin only. Store 999 cannot force a live store fax." style="display:flex;align-items:center;gap:8px;margin-left:auto;padding:6px 10px;border-radius:8px;background:${liveOn ? 'rgba(180,83,9,.25)' : 'rgba(15,23,42,.55)'};border:1px solid ${liveOn ? '#fbbf24' : '#334155'};font-size:13px;cursor:pointer;">
         <input type="checkbox" data-eod-force-live id="eodTsForceLive"${liveOn ? ' checked' : ''} style="width:16px;height:16px;">
         <span>Live delivery path</span>
       </label>` : ''}`;
@@ -796,7 +796,7 @@
       showAlert(
         data.forceLive || (forceLiveChecked() && !data.testMode) ? 'Print at store (LIVE)' : 'Print at store',
         data.testMode
-          ? `TEST — emailed to tester only (not store fax) for #${storeNumber()}.`
+          ? `TEST fax queued to ${data.testFaxLabel || 'test fax'} (requested #${storeNumber()}, not the store machine).`
           : `Fax job queued for store #${storeNumber()}.`
       );
     }

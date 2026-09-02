@@ -96,6 +96,21 @@
     return Number.isFinite(n) && n > 0 ? String(n) : '';
   }
 
+  function isTestContext() {
+    const store = String(getStoreNumber() || '').replace(/^0+/, '') || '';
+    return store === '999'
+      || !!(typeof window !== 'undefined' && window.EodTestMode?.isEnabled?.())
+      || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('eodTestMode') === '1');
+  }
+
+  function isForceLiveDelivery() {
+    if (typeof window.isEodForceLiveDelivery === 'function') return !!window.isEodForceLiveDelivery();
+    if (typeof window.EodTestMode?.isForceLive === 'function') return !!window.EodTestMode.isForceLive();
+    return typeof sessionStorage !== 'undefined'
+      && sessionStorage.getItem('eodTestMode') === '1'
+      && sessionStorage.getItem('eodForceLiveDelivery') === '1';
+  }
+
   function toast(msg, kind) {
     const el = document.getElementById('matToast');
     if (!el) {
@@ -540,7 +555,11 @@
     printCcRecipients.clear();
     renderPrintCcChips();
     const hint = document.getElementById('matPrintStoreHint');
-    if (hint) hint.textContent = `Fax to store #${storeNumber}`;
+    if (hint) {
+      hint.textContent = isTestContext()
+        ? `TEST fax (not store #${storeNumber})`
+        : `Fax to store #${storeNumber}`;
+    }
     const search = document.getElementById('matPrintCcSearch');
     if (search) search.value = '';
     document.getElementById('matPrintCcModal')?.classList.add('show');
@@ -602,6 +621,8 @@
           attachments,
           storeNumber,
           extraRecipients: [...printCcRecipients.keys()],
+          testMode: isTestContext() || undefined,
+          forceLive: isForceLiveDelivery() || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -611,7 +632,12 @@
       updateSelectionBar();
       renderBrowser(lastListData);
       document.getElementById('matPrintCcModal')?.classList.remove('show');
-      toast(`Sent to store #${storeNumber} fax — check customer service in a couple minutes`, 'success');
+      toast(
+        data.testMode
+          ? `TEST fax queued to ${data.testFaxLabel || 'test fax'} (not store #${storeNumber})`
+          : `Sent to store #${storeNumber} fax — check customer service in a couple minutes`,
+        'success'
+      );
     } catch (err) {
       toast(err.message || 'Print failed', 'error');
     } finally {

@@ -213,6 +213,10 @@
       fiscalWeek: sheet.fiscalWeek,
       workDate: S.state.workDate,
       faxStoreNumber: String(faxStoreNumber || sheet.storeNumber).replace(/\D/g, ''),
+      testMode: !!(global.EodTestMode?.isEnabled?.() || sessionStorage.getItem('eodTestMode') === '1'),
+      forceLive: (typeof global.isEodForceLiveDelivery === 'function' && global.isEodForceLiveDelivery())
+        || (typeof global.EodTestMode?.isForceLive === 'function' && global.EodTestMode.isForceLive())
+        || undefined,
     });
     const resp = await global.authFetch(`${API}/print-at-store`, { method: 'POST', headers, body });
     const data = await resp.json().catch(() => ({}));
@@ -264,11 +268,11 @@
         const result = await printSignoffAtStore(faxStore);
         if (msg()) {
           msg().textContent = result.testMode
-            ? `TEST send OK — ${result.subject} → ${result.to}`
+            ? `TEST fax queued — ${result.subject} → ${result.testFaxLabel || result.to}`
             : `Sent ${result.filename || 'PDF'} as ${result.subject}`;
         }
         if (global.EodConnections?.toast) {
-          global.EodConnections.toast(result.testMode ? 'Test fax emailed' : `Fax queued ${result.subject}`, 'ok');
+          global.EodConnections.toast(result.testMode ? `TEST fax queued ${result.testFaxLabel || result.subject}` : `Fax queued ${result.subject}`, 'ok');
         }
       } catch (err) {
         if (msg()) msg().textContent = err.message || String(err);
