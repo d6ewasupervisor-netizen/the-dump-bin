@@ -1143,11 +1143,13 @@
         await withTimeout(global.PhotoDB.switchToDayConfirm(store, date, S.state.photos), 8000);
       } catch (_) {}
     }
-    if (!S.state.shifts.length && listEl) {
+    if (listEl) {
       try {
         await findShifts(store, date, listEl);
       } catch (err) {
-        listEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load shifts.')}</p>`;
+        if (!S.state.shifts.length) {
+          listEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load shifts.')}</p>`;
+        }
       }
     }
     if (statusEl) statusEl.textContent = '';

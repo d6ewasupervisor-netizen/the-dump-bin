@@ -101,23 +101,46 @@
     return String(shift?.visitLead || shift?.leadName || '').trim();
   }
 
+  function uniqueShifts(list) {
+    const seen = new Set();
+    const out = [];
+    for (const s of list || []) {
+      const id = String(s?.visitId ?? s?.id ?? '');
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(s);
+    }
+    return out;
+  }
+
   function visibleLeadShifts(shifts, leadName) {
     const list = (Array.isArray(shifts) ? shifts : []).filter(isSelectableVisitShift);
     const lead = String(leadName || '').trim();
     if (!lead) return list;
     const mine = list.filter((s) => leadNamesMatch(shiftLeadName(s), lead));
-    return mine.length ? mine : list;
+    if (!mine.length) return list;
+    const iseFamily = list.filter((s) => !isCentralPetReset(s));
+    const myCp = mine.filter(isCentralPetReset);
+    return uniqueShifts([...iseFamily, ...myCp]);
   }
 
   function autoSelectLeadShift(visible, leadName) {
     const lead = String(leadName || '').trim();
     const mine = lead
       ? visible.filter((s) => leadNamesMatch(shiftLeadName(s), lead))
-      : visible;
-    const pool = mine.length ? mine : visible;
+      : [];
+    const sameLead = mine.length > 0;
+    const pool = sameLead ? mine : visible;
+    if (sameLead) {
+      return pool.find(isCutInBlitzDiv)
+        || pool.find(isCentralPetResetProject)
+        || pool.find(isCentralPetReset)
+        || pool[0]
+        || null;
+    }
     return pool.find(isCutInBlitzDiv)
-      || pool.find(isCentralPetResetProject)
-      || pool.find(isCentralPetReset)
+      || pool.find(isMainKompassIse)
+      || pool.find((s) => !isCentralPetReset(s))
       || pool[0]
       || null;
   }

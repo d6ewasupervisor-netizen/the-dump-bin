@@ -132,3 +132,24 @@ test('visible lead shifts list ISE-family and Central Pet for that lead', () => 
   assert.deepEqual(otherLead.visible.map((s) => s.visitId), ['1']);
   assert.equal(otherLead.selected.visitId, '1');
 });
+
+test('CP lead name still lists the store-day ISE visit', () => {
+  const ise = {
+    visitId: '27182537',
+    projectId: 1,
+    projectName: 'Fred Meyer Kompass ISE',
+    visitLead: 'Alexandra Wright Jamsyn',
+  };
+  const cp = {
+    visitId: '27184822',
+    projectId: 9293,
+    projectName: 'Fred Meyer Central Pet Service Surge',
+    visitLead: 'Kimberly Claflin Janell',
+  };
+  const asKimberly = pickVisibleLeadShift([ise, cp], 'Kimberly Claflin Janell', cp);
+  assert.deepEqual(asKimberly.visible.map((s) => s.visitId), ['27182537', '27184822']);
+  assert.equal(asKimberly.selected.visitId, '27184822');
+  const asTyson = pickVisibleLeadShift([ise, cp], 'Tyson Gauthier', null);
+  assert.deepEqual(asTyson.visible.map((s) => s.visitId), ['27182537', '27184822']);
+  assert.equal(asTyson.selected.visitId, '27182537');
+});

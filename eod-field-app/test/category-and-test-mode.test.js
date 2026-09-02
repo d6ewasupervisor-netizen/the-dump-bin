@@ -346,6 +346,11 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.doesNotMatch(visit, /visitCartRefresh/);
   assert.doesNotMatch(visit, /saveInMgr/);
   assert.match(visit, /visibleLeadShifts/);
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  assert.match(css, /\.picker-overlay \{ z-index: 46000; \}/);
+  assert.match(css, /\.day-confirm-modal \{ z-index: 45000; \}/);
+  const picker = fs.readFileSync(path.join(__dirname, '../js/picker.js'), 'utf8');
+  assert.match(picker, /document\.body\.appendChild\(overlay\)/);
 });
 
 test('compass buffering overlay ships and wraps slow authFetch', () => {

@@ -29,6 +29,7 @@
       </div>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.addEventListener('eod-dialog-escape', () => close());
     document.getElementById('eodPickerClose').onclick = close;
     document.getElementById('eodPickerSearch').addEventListener('input', renderList);
     document.getElementById('eodPickerDone').onclick = () => {
@@ -172,13 +173,18 @@
     search.hidden = options.searchable === false;
     document.getElementById('eodPickerFoot').hidden = !pickerState.multiple;
     renderList();
-    document.getElementById('eodPickerOverlay').classList.add('show');
+    const overlay = document.getElementById('eodPickerOverlay');
+    if (overlay) document.body.appendChild(overlay);
+    overlay.classList.add('show');
+    global.EodA11y?.activate?.(overlay, '#eodPickerSearch');
     positionPanel(pickerState.anchor);
     if (options.searchable !== false) setTimeout(() => search.focus(), 30);
   }
 
   function close() {
-    document.getElementById('eodPickerOverlay')?.classList.remove('show');
+    const overlay = document.getElementById('eodPickerOverlay');
+    global.EodA11y?.deactivate?.(overlay);
+    overlay?.classList.remove('show');
     pickerState = null;
   }
 

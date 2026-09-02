@@ -945,11 +945,13 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 }
 
 .modal-overlay, .picker-overlay {
-  display: none; position: fixed; inset: 0; z-index: 45000;
+  display: none; position: fixed; inset: 0;
   background: var(--scrim); align-items: flex-start; justify-content: center;
   padding: max(16px, var(--safe-t)) max(16px, var(--safe-r)) max(16px, var(--safe-b)) max(16px, var(--safe-l));
   overflow: auto;
 }
+.modal-overlay { z-index: 45000; }
+.picker-overlay { z-index: 46000; }
 .modal-overlay.show, .picker-overlay.show { display: flex; }
 .modal-dialog {
   width: min(480px, 100%); background: var(--surface); border-radius: 12px; padding: 16px;
