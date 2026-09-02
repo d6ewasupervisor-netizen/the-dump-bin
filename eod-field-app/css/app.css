@@ -1478,6 +1478,34 @@ body.set-media-open .bottom-nav { display: none !important; }
   background: #fff;
   box-shadow: 0 1px 3px rgba(30, 24, 15, 0.28);
 }
+.si-pog-live.is-setting-peg-rows .si-pog-peg-item {
+  cursor: crosshair;
+  outline: 1px dashed rgba(27, 108, 168, 0.72);
+  outline-offset: -3px;
+}
+.si-pog-item.si-pog-peg-item.is-row-end {
+  border-color: #16804b;
+  box-shadow: 0 0 0 2px rgba(22, 128, 75, 0.25), 0 1px 3px rgba(30, 24, 15, 0.28);
+}
+.si-pog-item.si-pog-peg-item.is-row-end::after {
+  content: "↵";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 4;
+  width: 17px;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #16804b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+}
 .si-pog-peg-item .si-pog-thumb { background: #fff; }
 .si-pog-peg-item .si-pog-thumb img { object-position: top center; }
 .si-pog-bay.is-peg .si-pog-meta { display: none; }

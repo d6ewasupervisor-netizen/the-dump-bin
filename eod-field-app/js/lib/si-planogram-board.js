@@ -5,8 +5,10 @@
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const IMAGE_CONCURRENCY = 6;
   const TEXT_KEY = 'eod-pog-text-only';
+  const PEG_BREAKS_KEY = 'eod-pog-peg-row-breaks-v1';
   const COMPACT_QUERY = '(max-width: 560px)';
   const boardMem = new Map();
+  const pegBreaksMem = new Map();
 
   function esc(s) {
     return global.EodApi.escapeHtml(s);
@@ -79,40 +81,68 @@
     return Math.min(units, Math.max(4, Math.min(10, fitted)));
   }
 
-  function packPegItems(items, columnCount) {
+  function pegItemNumber(item) {
+    return String(item?.itemPosition || item?.position || '');
+  }
+
+  function pegBreakKey({ store, dbkey }, bay) {
+    return `${store || ''}|${dbkey || ''}|${bay || ''}`;
+  }
+
+  function readPegBreaks(ctx, bay) {
+    const key = pegBreakKey(ctx || {}, bay);
+    try {
+      const all = JSON.parse(global.localStorage?.getItem(PEG_BREAKS_KEY) || '{}');
+      const values = new Set(Array.isArray(all[key]) ? all[key].map(String) : []);
+      pegBreaksMem.set(key, values);
+      return new Set(values);
+    } catch (_) {
+      return new Set(pegBreaksMem.get(key) || []);
+    }
+  }
+
+  function togglePegBreak(ctx, bay, itemNumber) {
+    const value = String(itemNumber || '');
+    if (!value) return new Set();
+    const key = pegBreakKey(ctx || {}, bay);
+    const values = readPegBreaks(ctx, bay);
+    if (values.has(value)) values.delete(value);
+    else values.add(value);
+    pegBreaksMem.set(key, values);
+    try {
+      const all = JSON.parse(global.localStorage?.getItem(PEG_BREAKS_KEY) || '{}');
+      all[key] = [...values].sort((a, b) => Number(a) - Number(b));
+      global.localStorage?.setItem(PEG_BREAKS_KEY, JSON.stringify(all));
+    } catch (_) { /* keep the in-memory edit for this session */ }
+    return new Set(values);
+  }
+
+  function packPegItems(items, columnCount, rowBreaks) {
     const source = (items || []).slice().sort((a, b) => (
       (Number(a.itemPosition) || Number(a.position) || 0)
       - (Number(b.itemPosition) || Number(b.position) || 0)
     ));
     const columns = Math.max(1, Math.floor(Number(columnCount) || pegColumns(source)));
-    const occupied = [];
+    const breaks = rowBreaks instanceof Set ? rowBreaks : new Set(rowBreaks || []);
     const placements = [];
+    let row = 1;
+    let col = 1;
     source.forEach((item) => {
       const span = Math.min(columns, facingUnits(item));
-      let row = 0;
-      let col = 0;
-      let found = false;
-      while (!found) {
-        if (!occupied[row]) occupied[row] = Array(columns).fill(false);
-        for (col = 0; col <= columns - span; col += 1) {
-          let open = true;
-          for (let x = col; x < col + span; x += 1) {
-            if (occupied[row][x]) {
-              open = false;
-              break;
-            }
-          }
-          if (open) {
-            for (let x = col; x < col + span; x += 1) occupied[row][x] = true;
-            found = true;
-            break;
-          }
-        }
-        if (!found) row += 1;
+      if (col + span - 1 > columns) {
+        row += 1;
+        col = 1;
       }
-      placements.push({ item, row: row + 1, col: col + 1, span });
+      const isRowEnd = breaks.has(pegItemNumber(item));
+      placements.push({ item, row, col, span, isRowEnd });
+      col += span;
+      if (isRowEnd || col > columns) {
+        row += 1;
+        col = 1;
+      }
     });
-    return { columns, rows: Math.max(1, occupied.length), placements };
+    const rows = placements.reduce((max, placement) => Math.max(max, placement.row), 1);
+    return { columns, rows, placements };
   }
 
   function isPegBay(bay) {
@@ -159,6 +189,7 @@
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
     const peg = pegPlacement ? ' si-pog-peg-item' : '';
+    const rowEnd = pegPlacement?.isRowEnd ? ' is-row-end' : '';
     const loc = locLine(it, bay);
     const grow = Math.max(0.0001, facingUnits(it) * (Number(widthScale) || 1));
     const noImg = it.imageUrl ? '' : ' no-img';
@@ -167,7 +198,7 @@
       ? `grid-column:${pegPlacement.col}/span ${pegPlacement.span};grid-row:${pegPlacement.row}`
       : `flex:${grow} 1 0`;
     const position = it.itemPosition || it.position || '';
-    return `<article class="si-pog-item${peg}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
+    return `<article class="si-pog-item${peg}${rowEnd}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
       aria-label="${esc(`${label}${position ? `, position ${position}` : ''}`)}"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
@@ -175,6 +206,7 @@
       data-size="${esc(it.size || '')}"
       data-shelf="${esc(it.shelf)}"
       data-position="${esc(it.position)}"
+      data-item-position="${esc(position)}"
       data-bay="${esc(bay)}"
       data-aisle="${esc(it.aisle || '')}"
       data-loc="${esc(loc)}"
@@ -202,13 +234,17 @@
     </div>`;
   }
 
-  function bayHtml(bay, highlightUpc, aisle) {
+  function bayHtml(bay, highlightUpc, aisle, ctx) {
     const shelves = (bay.shelves || []).map((sh) => ({
       ...sh,
       items: (sh.items || []).map((it) => ({ ...it, aisle: it.aisle || aisle || '' })),
     }));
     if (isPegBay({ ...bay, shelves })) {
-      const packed = packPegItems(shelves.flatMap((shelf) => shelf.items || []));
+      const packed = packPegItems(
+        shelves.flatMap((shelf) => shelf.items || []),
+        null,
+        readPegBreaks(ctx, bay.bay)
+      );
       return `<section class="si-pog-bay is-peg" style="--pog-peg-columns:${packed.columns};--pog-peg-rows:${packed.rows}">
         <div class="si-pog-bay-h">Bay ${esc(bay.bay)} · Pegs</div>
         <div class="si-pog-peg-board">${packed.placements.map((placement) => (
@@ -225,14 +261,14 @@
     </section>`;
   }
 
-  function boardHtml(pog, highlightUpc) {
+  function boardHtml(pog, highlightUpc, ctx) {
     const s = pog.stats || {};
     const bits = [
       s.facings != null ? `${s.facings} facings` : '',
       s.products != null ? `${s.products} products` : '',
     ].filter(Boolean);
     const frames = (pog.bays || []).map((bay) => (
-      `<div class="si-pog-bay-frame" data-bay="${esc(bay.bay)}">${bayHtml(bay, highlightUpc, pog.aisle)}</div>`
+      `<div class="si-pog-bay-frame" data-bay="${esc(bay.bay)}">${bayHtml(bay, highlightUpc, pog.aisle, ctx)}</div>`
     )).join('');
     return `<section class="si-pog si-pog-overlay-board">
       <p class="muted">${esc(bits.join(' · '))}${pog.date ? ` · ${esc(pog.date)}` : ''}</p>
@@ -441,41 +477,57 @@
     return best.getAttribute('data-bay') || '';
   }
 
-  function paintBayNav(nav, scroll) {
-    if (!nav || !scroll) return;
-    const on = activeBay(scroll);
-    nav.querySelectorAll('[data-go-bay]').forEach((btn) => {
-      btn.classList.toggle('on', String(btn.getAttribute('data-go-bay')) === String(on));
-    });
+  function syncRowsBtn(btn, scroll) {
+    if (!btn || !scroll) return;
+    const bay = activeBay(scroll);
+    const frame = [...scroll.querySelectorAll('.si-pog-bay-frame')]
+      .find((el) => String(el.getAttribute('data-bay')) === String(bay));
+    const available = Boolean(frame?.querySelector('.si-pog-bay.is-peg'));
+    btn.hidden = !available;
+    if (!available) {
+      const host = btn.closest('.si-pog-live');
+      host?.classList.remove('is-setting-peg-rows');
+      btn.setAttribute('aria-pressed', 'false');
+      btn.textContent = 'Set rows';
+    }
   }
 
-  function bindBaySwipe(scroll, nav) {
+  function paintBayNav(nav, scroll, rowsBtn) {
+    if (!scroll) return;
+    const on = activeBay(scroll);
+    nav?.querySelectorAll('[data-go-bay]').forEach((btn) => {
+      btn.classList.toggle('on', String(btn.getAttribute('data-go-bay')) === String(on));
+    });
+    syncRowsBtn(rowsBtn, scroll);
+  }
+
+  function bindBaySwipe(scroll, nav, rowsBtn) {
     if (!scroll) return;
     sizeBaySlides(scroll);
-    paintBayNav(nav, scroll);
+    paintBayNav(nav, scroll, rowsBtn);
     if (scroll._pogSlideObs) scroll._pogSlideObs.disconnect();
     if (typeof ResizeObserver === 'function') {
       scroll._pogSlideObs = new ResizeObserver(() => {
         const bay = scroll._pogBay || activeBay(scroll);
         sizeBaySlides(scroll);
         if (bay) goToBay(scroll, bay, true);
-        paintBayNav(nav, scroll);
+        paintBayNav(nav, scroll, rowsBtn);
       });
       scroll._pogSlideObs.observe(scroll);
     }
     scroll.addEventListener('scroll', () => {
       scroll._pogBay = activeBay(scroll);
-      paintBayNav(nav, scroll);
+      paintBayNav(nav, scroll, rowsBtn);
     }, { passive: true });
     nav?.addEventListener('click', (ev) => {
       const btn = ev.target.closest('[data-go-bay]');
       if (!btn) return;
       goToBay(scroll, btn.getAttribute('data-go-bay'));
     });
-    bindGrabPan(scroll, nav);
+    bindGrabPan(scroll, nav, rowsBtn);
   }
 
-  function bindGrabPan(scroll, nav) {
+  function bindGrabPan(scroll, nav, rowsBtn) {
     if (!scroll || scroll._pogGrabBound) return;
     scroll._pogGrabBound = true;
     let drag = null;
@@ -486,7 +538,7 @@
         scroll._pogSuppressClickUntil = Date.now() + 400;
         const bay = activeBay(scroll);
         if (bay) goToBay(scroll, bay);
-        paintBayNav(nav, scroll);
+        paintBayNav(nav, scroll, rowsBtn);
       }
       scroll.classList.remove('is-grabbing');
       try {
@@ -542,11 +594,23 @@
     return el;
   }
 
-  function bindItems(root, pog) {
+  function bindItems(root, pog, ctx) {
     const title = pog?.title || '';
     const openFrom = (el) => {
       if (!el) return;
       openItemDetail(el, title);
+    };
+    const setRowEnd = (el) => {
+      if (!el?.classList.contains('si-pog-peg-item')) return false;
+      const overlay = root.closest('.si-pog-live');
+      if (!overlay?.classList.contains('is-setting-peg-rows')) return false;
+      const bay = el.getAttribute('data-bay') || '';
+      const itemNumber = el.getAttribute('data-item-position') || el.getAttribute('data-position') || '';
+      const scroll = root.querySelector('.si-pog-scroll');
+      const initialBay = activeBay(scroll) || bay;
+      togglePegBreak(ctx, bay, itemNumber);
+      void loadAndRender(root, { ...ctx, initialBay });
+      return true;
     };
     if (root._pogClick) root.removeEventListener('click', root._pogClick);
     root._pogClick = (ev) => {
@@ -560,6 +624,7 @@
       }
       ev.preventDefault();
       ev.stopPropagation();
+      if (setRowEnd(el)) return;
       openFrom(el);
     };
     root.addEventListener('click', root._pogClick);
@@ -567,13 +632,14 @@
       el.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter' || ev.key === ' ') {
           ev.preventDefault();
+          if (setRowEnd(el)) return;
           openFrom(el);
         }
       });
     });
   }
 
-  async function loadAndRender(mount, { store, date, dbkey, highlightUpc }) {
+  async function loadAndRender(mount, { store, date, dbkey, highlightUpc, initialBay }) {
     if (!mount) return;
     mount.innerHTML = `<section class="si-pog"><p class="muted">Loading…</p></section>`;
     try {
@@ -582,11 +648,13 @@
         mount.innerHTML = `<section class="si-pog"><p class="muted">None for this set.</p></section>`;
         return;
       }
-      mount.innerHTML = boardHtml(pog, highlightUpc);
-      bindItems(mount, pog);
+      const ctx = { store, date, dbkey, highlightUpc };
+      mount.innerHTML = boardHtml(pog, highlightUpc, ctx);
+      bindItems(mount, pog, ctx);
       const overlay = mount.closest('.si-pog-live');
       const scroll = mount.querySelector('.si-pog-scroll');
       const nav = overlay?.querySelector('#pogBayNav');
+      const rowsBtn = overlay?.querySelector('#pogRowsBtn');
       if (nav) {
         const bays = pog.bays || [];
         nav.hidden = bays.length < 2;
@@ -594,7 +662,9 @@
           `<button type="button" class="si-pog-bay-dot" data-go-bay="${esc(b.bay)}">${esc(b.bay)}</button>`
         )).join('');
       }
-      bindBaySwipe(scroll, nav);
+      bindBaySwipe(scroll, nav, rowsBtn);
+      if (initialBay) goToBay(scroll, initialBay, true);
+      paintBayNav(nav, scroll, rowsBtn);
       if (highlightUpc) {
         const hit = applyHighlight(mount, highlightUpc);
         if (hit) goToBay(scroll, hit.getAttribute('data-bay'));
@@ -678,6 +748,7 @@
     host.innerHTML = `<div class="set-media-overlay-bar">
       <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
       <button type="button" class="btn btn-primary" id="pogScanBtn">Scan</button>
+      <button type="button" class="btn btn-secondary" id="pogRowsBtn" aria-pressed="false" hidden>Set rows</button>
       <button type="button" class="btn btn-secondary" id="pogTextBtn">Text</button>
       <strong>${esc(title || 'Planogram')}</strong>
     </div>
@@ -695,6 +766,12 @@
     const ctx = { store, date, dbkey, title };
     host.querySelector('#setMediaClose').onclick = closeOverlay;
     host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
+    host.querySelector('#pogRowsBtn').onclick = (ev) => {
+      const on = !host.classList.contains('is-setting-peg-rows');
+      host.classList.toggle('is-setting-peg-rows', on);
+      ev.currentTarget.setAttribute('aria-pressed', on ? 'true' : 'false');
+      ev.currentTarget.textContent = on ? 'Done' : 'Set rows';
+    };
     applyTextMode(host, compactPhotoMode() ? false : readTextPref(), false);
     host.querySelector('#pogTextBtn').onclick = () => {
       const next = !host.classList.contains('is-text');
@@ -716,8 +793,11 @@
     goToBay,
     bayScale,
     pegColumns,
+    pegItemNumber,
     packPegItems,
     isPegBay,
+    readPegBreaks,
+    togglePegBreak,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodSiPlanogram = api;
