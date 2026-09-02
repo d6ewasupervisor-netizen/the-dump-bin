@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
 
-<script src="/auth-gate.js"></script>
+<script src="/auth-gate.js?v=20260902-prod-shifts"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -452,8 +452,28 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
   'use strict';
   function $(id) { return document.getElementById(id); }
 
+  function authFetchFn() {
+    return window.dumpBinAuthFetch || (window.dumpBinAuth && window.dumpBinAuth.fetch) || null;
+  }
+
+  async function ensureAuthFetch() {
+    var fn = authFetchFn();
+    if (fn) return fn;
+    await new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = '/auth-gate.js?v=20260902-prod-shifts';
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error('Could not load sign-in helper. Close the tab and open the link again.')); };
+      document.head.appendChild(s);
+    });
+    fn = authFetchFn();
+    if (!fn) throw new Error('Sign-in helper did not load. Close the tab and open the link again.');
+    return fn;
+  }
+
   async function api(path, opts) {
-    var res = await dumpBinAuthFetch(path, Object.assign({
+    var fetchFn = await ensureAuthFetch();
+    var res = await fetchFn(path, Object.assign({
       headers: { 'Content-Type': 'application/json' }
     }, opts || {}));
     var data = await res.json().catch(function () { return {}; });
@@ -1270,6 +1290,7 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
 
   async function boot() {
     try {
+      if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
       var me = await api('/api/me');
       if (!me.cards || me.cards.indexOf('prod-shifts') === -1) {
         $('accessDenied').hidden = false;
