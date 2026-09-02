@@ -6,12 +6,16 @@
     'upc_a', 'upc_e', 'ean_13', 'ean_8',
     'code_128', 'code_39', 'codabar', 'itf', 'qr_code',
   ];
-  const HTML5_SRC = `js/vendor/html5-qrcode.min.js?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.55')}`;
+  const HTML5_SRC = `js/vendor/html5-qrcode.min.js?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.56')}`;
+
+  const CAMERA_MIN = 6;
+  const MANUAL_MIN = 4;
 
   let html5Scanner = null;
   let stream = null;
   let loopId = null;
   let onScan = null;
+  let manualTimer = null;
 
   function digits(raw) {
     return String(raw || '').replace(/\D/g, '');
@@ -53,6 +57,10 @@
   }
 
   async function close() {
+    if (manualTimer) {
+      clearTimeout(manualTimer);
+      manualTimer = null;
+    }
     await stopHtml5();
     await stopNative();
     const host = overlay();
@@ -67,15 +75,16 @@
   function pickBest(codes) {
     const rows = (codes || [])
       .map((c) => ({ raw: c.rawValue || c, n: digits(c.rawValue || c).length }))
-      .filter((r) => r.n >= 6);
+      .filter((r) => r.n >= CAMERA_MIN);
     if (!rows.length) return null;
     rows.sort((a, b) => b.n - a.n);
     return rows[0].raw;
   }
 
-  function deliver(raw) {
+  function deliver(raw, minDigits) {
     const n = digits(raw);
-    if (n.length < 6 || !onScan) return false;
+    const min = minDigits == null ? CAMERA_MIN : minDigits;
+    if (n.length < min || !onScan) return false;
     const cb = onScan;
     onScan = null;
     void close().then(() => cb(n));
@@ -197,20 +206,33 @@
         </div>
         <div id="eodBarcodeReader" class="eod-barcode-reader"></div>
         <div class="eod-barcode-manual">
-          <input type="text" id="eodBarcodeManual" inputmode="numeric" autocomplete="off">
+          <input type="text" id="eodBarcodeManual" inputmode="numeric" autocomplete="off" placeholder="Last 4 or full UPC">
           <button type="button" class="btn btn-primary" id="eodBarcodeLookup">Look up</button>
         </div>
       </div>`;
       document.body.appendChild(host);
       host.querySelector('#eodBarcodeClose').onclick = () => { void close(); };
-      host.querySelector('#eodBarcodeLookup').onclick = () => {
-        const v = host.querySelector('#eodBarcodeManual')?.value || '';
-        deliver(v);
+      const manual = host.querySelector('#eodBarcodeManual');
+      const lookupManual = () => {
+        if (manualTimer) {
+          clearTimeout(manualTimer);
+          manualTimer = null;
+        }
+        deliver(manual?.value || '', MANUAL_MIN);
       };
-      host.querySelector('#eodBarcodeManual').addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') deliver(ev.target.value);
+      host.querySelector('#eodBarcodeLookup').onclick = lookupManual;
+      manual.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') lookupManual();
+      });
+      manual.addEventListener('input', () => {
+        if (manualTimer) clearTimeout(manualTimer);
+        const n = digits(manual.value);
+        if (n.length < MANUAL_MIN) return;
+        manualTimer = setTimeout(() => deliver(manual.value, MANUAL_MIN), 350);
       });
     }
+    const manualField = host.querySelector('#eodBarcodeManual');
+    if (manualField) manualField.value = '';
     host.classList.add('visible');
     host.setAttribute('aria-hidden', 'false');
     document.body.classList.add('barcode-scan-open');

@@ -32,7 +32,7 @@
     const img = m.imageUrl
       ? `<img alt="" data-pog-src="${esc(m.imageUrl)}">`
       : '';
-    return `<article class="eod-locate-hit" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || '')}">
+    return `<article class="eod-locate-hit" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || '')}" data-upc="${esc(m.upc || '')}">
       <div class="eod-locate-thumb">${img}</div>
       <div class="eod-locate-copy">
         <strong>${esc(m.setName || m.categoryName || '')}</strong>
@@ -83,10 +83,11 @@
       el.addEventListener('click', () => {
         const dbkey = el.getAttribute('data-dbkey') || '';
         const title = el.getAttribute('data-name') || '';
+        const hitUpc = el.getAttribute('data-upc') || upc;
         const { store, date } = sessionStore();
         if (!dbkey || !global.EodSiPlanogram?.openOverlay) return;
         closeResult();
-        global.EodSiPlanogram.openOverlay({ store, date, dbkey, title, highlightUpc: upc });
+        global.EodSiPlanogram.openOverlay({ store, date, dbkey, title, highlightUpc: hitUpc });
       });
     });
     if (global.EodSiPlanogram?.hydrateImages) {

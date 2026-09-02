@@ -53,7 +53,9 @@
     if (da === db) return true;
     const sa = da.replace(/^0+/, '') || '0';
     const sb = db.replace(/^0+/, '') || '0';
-    return sa === sb || da.endsWith(sb) || db.endsWith(sa);
+    if (sa === sb) return true;
+    if (Math.min(da.length, db.length) < 4) return false;
+    return da.endsWith(db) || db.endsWith(da);
   }
 
   function facingUnits(it) {
@@ -699,7 +701,7 @@
       const matches = data.matches || [];
       const here = matches.filter((m) => String(m.dbkey || '') === String(ctx.dbkey || ''));
       if (here.length) {
-        const hit = applyHighlight(mount, upc);
+        const hit = applyHighlight(mount, here.length === 1 ? (here[0].upc || upc) : upc);
         goToBay(scroll, here[0].bay);
         if (hit) openItemDetail(hit, ctx.title || '');
         return;
@@ -709,7 +711,7 @@
         return;
       }
       const notice = showPogNotice(host, matches.map((m) => (
-        `<article class="eod-locate-hit" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || '')}">
+        `<article class="eod-locate-hit" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || '')}" data-upc="${esc(m.upc || '')}">
           <div class="eod-locate-copy">
             <strong>${esc(m.setName || m.categoryName || '')}</strong>
             <div>${esc(m.name || '')}</div>
@@ -727,13 +729,14 @@
         el.addEventListener('click', () => {
           const next = el.getAttribute('data-dbkey') || '';
           const name = el.getAttribute('data-name') || '';
+          const hitUpc = el.getAttribute('data-upc') || upc;
           if (!next) return;
           openOverlay({
             store: ctx.store,
             date: ctx.date,
             dbkey: next,
             title: name,
-            highlightUpc: upc,
+            highlightUpc: hitUpc,
           });
         });
       });
