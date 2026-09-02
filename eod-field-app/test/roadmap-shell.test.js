@@ -113,6 +113,18 @@ test('feedback hub exposes persisted report history and review status', () => {
   assert.match(feedback, /id="eodFbHistoryBtn"/);
 });
 
+test('compact planogram stays image-first and supports grab panning', () => {
+  const board = fs.readFileSync(path.join(__dirname, '../js/lib/si-planogram-board.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  assert.match(board, /COMPACT_QUERY = '\(max-width: 560px\)'/);
+  assert.match(board, /addEventListener\('pointerdown'/);
+  assert.match(board, /addEventListener\('pointermove'/);
+  assert.match(board, /_pogSuppressClickUntil/);
+  assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.si-pog-live \.si-pog-meta[\s\S]*display: none/);
+  assert.match(css, /\.si-pog-live-body \.si-pog-bay-frame \{[\s\S]*overflow: auto;[\s\S]*touch-action: none/);
+  assert.match(css, /flex: 0 0 var\(--pog-mobile-width, 80px\) !important/);
+});
+
 test('router and shell accessibility contracts are present', () => {
   const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const router = fs.readFileSync(path.join(__dirname, '../js/router.js'), 'utf8');

@@ -1570,6 +1570,58 @@ body.set-media-open .bottom-nav { display: none !important; }
   padding-top: 1px; word-break: break-all;
 }
 
+@media (max-width: 560px) {
+  .set-media-overlay.si-pog-live #pogTextBtn,
+  .set-media-overlay.si-pog-live .si-pog-legend,
+  .si-pog-live-body .si-pog > .muted,
+  .si-pog-live .si-pog-meta {
+    display: none;
+  }
+  .si-pog-live-body .si-pog-scroll {
+    touch-action: none;
+    scroll-snap-type: none;
+    overscroll-behavior: contain;
+  }
+  .si-pog-live-body .si-pog-bay-frame {
+    overflow: auto;
+    touch-action: none;
+    overscroll-behavior: contain;
+    cursor: grab;
+    scrollbar-width: none;
+  }
+  .si-pog-live-body .si-pog-bay-frame::-webkit-scrollbar { display: none; }
+  .si-pog-live-body .si-pog-bay-frame.is-grabbing {
+    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .si-pog-live-body .si-pog-bay {
+    width: max-content;
+    min-width: 100%;
+  }
+  .si-pog-live-body .si-pog-bay-shelves {
+    width: max-content;
+    min-width: 100%;
+  }
+  .si-pog-live-body .si-pog-shelf {
+    width: max-content;
+    min-width: 100%;
+    grid-template-columns: 28px max-content;
+  }
+  .si-pog-live-body .si-pog-slots {
+    width: max-content;
+    min-width: calc(100vw - 52px);
+  }
+  .si-pog-live-body .si-pog-item {
+    flex: 0 0 var(--pog-mobile-width, 80px) !important;
+    min-width: var(--pog-mobile-width, 80px);
+    touch-action: none;
+  }
+  .si-pog-live-body .si-pog-thumb {
+    flex: 1 1 100%;
+  }
+}
+
 #eodBarcodeOverlay {
   position: fixed; inset: 0; z-index: 50000;
   background: #0b1220; display: none; flex-direction: column;

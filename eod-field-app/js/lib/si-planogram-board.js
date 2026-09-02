@@ -5,6 +5,7 @@
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const IMAGE_CONCURRENCY = 6;
   const TEXT_KEY = 'eod-pog-text-only';
+  const COMPACT_QUERY = '(max-width: 560px)';
   const boardMem = new Map();
 
   function esc(s) {
@@ -74,6 +75,10 @@
     try { localStorage.setItem(TEXT_KEY, on ? '1' : '0'); } catch (_) { /* ignore */ }
   }
 
+  function compactPhotoMode() {
+    try { return Boolean(global.matchMedia?.(COMPACT_QUERY).matches); } catch (_) { return false; }
+  }
+
   function paintTextBtn(host) {
     const btn = host?.querySelector('#pogTextBtn');
     if (btn) btn.textContent = host.classList.contains('is-text') ? 'Photos' : 'Text';
@@ -93,7 +98,8 @@
     const grow = facingUnits(it);
     const noImg = it.imageUrl ? '' : ' no-img';
     const label = it.name || it.brand || it.upc || '';
-    return `<article class="si-pog-item${st}${hit}${noImg}" style="flex:${grow} 1 0" role="button" tabindex="0"
+    const mobileWidth = Math.min(280, 80 * grow);
+    return `<article class="si-pog-item${st}${hit}${noImg}" style="--pog-mobile-width:${mobileWidth}px;flex:${grow} 1 0" role="button" tabindex="0"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
       data-brand="${esc(it.brand || '')}"
@@ -240,7 +246,7 @@
     const pog = await fetchBoard(opts);
     if (!pog?.bays?.length) return pog;
     if (opts && opts.images === false) return pog;
-    if (readTextPref()) return pog;
+    if (readTextPref() && !compactPhotoMode()) return pog;
     const gate = await Media()?.allowPrefetch?.();
     if (gate && !gate.ok) return pog;
     const urls = [];
@@ -383,6 +389,49 @@
       if (!btn) return;
       goToBay(scroll, btn.getAttribute('data-go-bay'));
     });
+    scroll.querySelectorAll('.si-pog-bay-frame').forEach(bindGrabPan);
+  }
+
+  function bindGrabPan(frame) {
+    if (!frame || frame._pogGrabBound) return;
+    frame._pogGrabBound = true;
+    let drag = null;
+
+    const finish = (ev) => {
+      if (!drag || (ev && ev.pointerId !== drag.pointerId)) return;
+      if (drag.moved) frame._pogSuppressClickUntil = Date.now() + 400;
+      frame.classList.remove('is-grabbing');
+      try {
+        if (frame.hasPointerCapture?.(drag.pointerId)) frame.releasePointerCapture(drag.pointerId);
+      } catch (_) { /* pointer already released */ }
+      drag = null;
+    };
+
+    frame.addEventListener('pointerdown', (ev) => {
+      if (!compactPhotoMode() || ev.isPrimary === false || (ev.button != null && ev.button !== 0)) return;
+      drag = {
+        pointerId: ev.pointerId,
+        x: ev.clientX,
+        y: ev.clientY,
+        left: frame.scrollLeft,
+        top: frame.scrollTop,
+        moved: false,
+      };
+      try { frame.setPointerCapture?.(ev.pointerId); } catch (_) { /* best effort */ }
+    });
+    frame.addEventListener('pointermove', (ev) => {
+      if (!drag || ev.pointerId !== drag.pointerId) return;
+      const dx = ev.clientX - drag.x;
+      const dy = ev.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+      drag.moved = true;
+      frame.classList.add('is-grabbing');
+      frame.scrollLeft = drag.left - dx;
+      frame.scrollTop = drag.top - dy;
+      ev.preventDefault();
+    });
+    frame.addEventListener('pointerup', finish);
+    frame.addEventListener('pointercancel', finish);
   }
 
   function applyHighlight(root, upc) {
@@ -417,6 +466,12 @@
     root._pogClick = (ev) => {
       const el = ev.target.closest('.si-pog-item');
       if (!el || !root.contains(el)) return;
+      const frame = el.closest('.si-pog-bay-frame');
+      if (frame && Date.now() < Number(frame._pogSuppressClickUntil || 0)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
       ev.preventDefault();
       ev.stopPropagation();
       openFrom(el);
@@ -460,7 +515,7 @@
       }
       if (!overlay?.classList.contains('is-text')) {
         const pics = await hydrateImages(mount);
-        if (pics.wanted && !pics.loaded) applyTextMode(overlay, true, false);
+        if (pics.wanted && !pics.loaded && !compactPhotoMode()) applyTextMode(overlay, true, false);
       }
     } catch (err) {
       mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
@@ -554,7 +609,7 @@
     const ctx = { store, date, dbkey, title };
     host.querySelector('#setMediaClose').onclick = closeOverlay;
     host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
-    applyTextMode(host, readTextPref(), false);
+    applyTextMode(host, compactPhotoMode() ? false : readTextPref(), false);
     host.querySelector('#pogTextBtn').onclick = () => {
       const next = !host.classList.contains('is-text');
       applyTextMode(host, next, true);
