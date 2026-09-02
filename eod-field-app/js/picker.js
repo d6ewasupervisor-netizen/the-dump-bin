@@ -154,11 +154,23 @@
     });
   }
 
+  function uniqueItems(items) {
+    const seen = new Set();
+    const out = [];
+    for (const it of items || []) {
+      const id = String(it?.id ?? '');
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(it);
+    }
+    return out;
+  }
+
   function open(opts) {
     ensureDom();
     const options = opts || {};
     pickerState = {
-      items: Array.isArray(options.items) ? options.items : [],
+      items: uniqueItems(Array.isArray(options.items) ? options.items : []),
       multiple: !!options.multiple,
       selected: Array.isArray(options.selected) ? options.selected.map(String) : [],
       onChoose: options.onChoose,

@@ -346,6 +346,8 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.doesNotMatch(visit, /visitCartRefresh/);
   assert.doesNotMatch(visit, /saveInMgr/);
   assert.match(visit, /visibleLeadShifts/);
+  assert.match(visit, /pickerItemsForStores/);
+  assert.doesNotMatch(visit, /scheduled\.has\(Number\(a\)\)/);
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
   assert.match(css, /\.picker-overlay \{ z-index: 46000; \}/);
   assert.match(css, /\.day-confirm-modal \{ z-index: 45000; \}/);
