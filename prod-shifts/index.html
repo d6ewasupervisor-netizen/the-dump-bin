@@ -108,14 +108,45 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
     <div id="sessionWarning" class="err" hidden>SAS session is down (morning auth). Builds and runs will fail until it's back.</div>
 
     <div class="tabs">
-      <button class="tab active" data-tab="build">Build</button>
-      <button class="tab" data-tab="run">Run</button>
+      <button class="tab active" data-tab="build">Cycle Management</button>
+      <button class="tab" data-tab="run">Field Data Management</button>
     </div>
 
     <div id="msg"></div>
 
-    <!-- ───────────────── BUILD ───────────────── -->
+    <!-- ───────────────── CYCLE MANAGEMENT (Cycles > Cycle Management in SAS) ───────────────── -->
     <section class="panel active" id="panel-build">
+      <div class="card">
+        <h3>Cycles</h3>
+        <div class="grid">
+          <div class="row">
+            <label>Project</label>
+            <select id="cyc-project">
+              <option value="1">Fred Meyer Kompass ISE (1)</option>
+              <option value="1668">Cut In (1668)</option>
+              <option value="1715">Blitz (1715)</option>
+              <option value="3568">DIV Special (3568)</option>
+              <option value="9293">Central Pet Service (9293)</option>
+              <option value="9295">Central Pet Reset (9295)</option>
+              <option value="147">Admin Holiday / PTO (147)</option>
+            </select>
+          </div>
+          <div class="row">
+            <label>Showing</label>
+            <select id="cyc-status">
+              <option value="active" selected>Active cycles</option>
+              <option value="inactive">Inactive</option>
+              <option value="paused">Paused</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions"><button class="btn primary" id="cyc-load">Load cycles</button></div>
+        <div id="cyc-results"></div>
+        <div id="cyc-selected"></div>
+      </div>
+
       <div class="sub-actions">
         <button class="tab active" data-build="copy-date">Copy roster → date</button>
         <button class="tab" data-build="copy-project">Copy ISE week → project</button>
@@ -277,7 +308,7 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       <!-- pto -->
       <div class="build-form" id="build-pto" hidden>
         <div class="card">
-          <p class="muted" style="margin-bottom:10px">Project 147, store 999, team PTO. Single employee, mileage off. Building with "complete" checked also starts/completes the visit immediately (matches the PTO CLI).</p>
+          <p class="muted" style="margin-bottom:10px">Project 147, store 999, team PTO. Single employee, mileage off. Building with "complete" checked also starts/completes the visit immediately (matches the PTO CLI). Today or later only — past days are already closed in SAS, so put the full requested hours on the earliest buildable day instead of splitting across days.</p>
           <div class="row">
             <label>Employee</label>
             <p class="hint">Search by name for the person taking PTO.</p>
@@ -314,11 +345,11 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       </div>
     </section>
 
-    <!-- ───────────────── RUN ───────────────── -->
+    <!-- ───────────────── FIELD DATA MANAGEMENT (Operations > Field Data Management in SAS) ───────────────── -->
     <section class="panel" id="panel-run">
       <div class="card">
-        <h3>Find a shift</h3>
-        <p class="hint">Filter by project, date, and lead — like Project Management in PROD. Click a result below to open it.</p>
+        <h3>Field Data Management</h3>
+        <p class="hint">Same filters as Field Data Management in PROD — project, date, status, lead, store, cycle. Click a result below to open it.</p>
         <div class="grid">
           <div class="row">
             <label>Project</label>
@@ -333,10 +364,22 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
               <option value="147">Admin Holiday / PTO (147)</option>
             </select>
           </div>
+          <div class="row">
+            <label>Status</label>
+            <select id="rs-status">
+              <option value="">All</option>
+              <option value="active">Not started</option>
+              <option value="in-progress">In progress</option>
+              <option value="completed">Completed</option>
+              <option value="exceptions_only">Exceptions only</option>
+              <option value="deleted">Deleted</option>
+            </select>
+          </div>
           <div class="row"><label>Date</label><input type="date" id="rs-date"></div>
           <div class="row"><label>Date to (optional)</label><input type="date" id="rs-date-to"></div>
           <div class="row"><label>Lead (optional)</label><input id="rs-lead" placeholder="Alexandra Wright"></div>
           <div class="row"><label>Store # (optional)</label><input id="rs-store" placeholder="28"></div>
+          <div class="row"><label>Cycle ID (optional)</label><input id="rs-cycle" placeholder="245312"></div>
         </div>
         <div class="actions"><button class="btn primary" id="rs-search">Search</button></div>
         <div id="rs-results"></div>
@@ -617,6 +660,93 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
     el.textContent = JSON.stringify(data, null, 2);
   }
 
+  // ─── Cycle Management (Cycles > Cycle Management in SAS) ────────────────
+
+  function trySetSelect(id, value) {
+    var el = $(id);
+    if (!el) return;
+    var opt = Array.prototype.find.call(el.options, function (o) { return String(o.value) === String(value); });
+    if (opt) el.value = String(value);
+  }
+
+  function clampDateToRange(dateIso, start, end) {
+    if (start && dateIso < start) return start;
+    if (end && dateIso > end) return end;
+    return dateIso;
+  }
+
+  function fmtCycleDate(c) {
+    return (c.start_date || '?') + ' – ' + (c.end_date || '?');
+  }
+
+  function renderCycles(cycles) {
+    var el = $('cyc-results');
+    if (!cycles.length) {
+      el.innerHTML = '<p class="muted" style="margin-top:10px">No cycles found.</p>';
+      return;
+    }
+    el.innerHTML = '<div class="search-results">' + cycles.map(function (c) {
+      var name = c.name || c.cycle_name || ('Cycle ' + c.id);
+      var status = c.current_status || c.status || '?';
+      return '<button type="button" class="sr-row" data-cycle-id="' + c.id + '">' +
+        '<span>' +
+        '<span class="sr-main">' + escHtml(name) + '</span>' +
+        '<span class="sr-sub">' + escHtml(fmtCycleDate(c)) + '</span>' +
+        '</span>' +
+        '<span class="badge' + (status === 'active' ? ' ok' : '') + '">' + escHtml(status) + '</span>' +
+        '</button>';
+    }).join('') + '</div>';
+    el.querySelectorAll('.sr-row').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var cycle = cycles.find(function (c) { return String(c.id) === btn.getAttribute('data-cycle-id'); });
+        selectCycle(cycle);
+      });
+    });
+  }
+
+  function selectCycle(cycle) {
+    if (!cycle) return;
+    var projectId = Number($('cyc-project').value);
+    var start = cycle.start_date || '';
+    var end = cycle.end_date || '';
+    var name = cycle.name || cycle.cycle_name || ('Cycle ' + cycle.id);
+    $('cyc-selected').innerHTML = '<p class="hint" style="margin-top:10px">Selected <strong>' + escHtml(name) +
+      '</strong> (' + escHtml(start) + ' – ' + escHtml(end) + ') — filled into the action below. Pick an action tab.</p>';
+
+    // Convenience-fill whichever sub-forms use this project/date window;
+    // every build action still works standalone without picking a cycle
+    // first (SAS itself doesn't require it either — Cycle Management just
+    // narrows the picker).
+    trySetSelect('cd-project', projectId);
+    if ($('cd-cycle')) $('cd-cycle').value = name;
+    if ($('cd-dest-date')) $('cd-dest-date').value = clampDateToRange(todayIso(), start, end);
+    trySetSelect('cp-project', projectId);
+    if ($('cp-cycle')) $('cp-cycle').value = name;
+    if ($('cp-date-from')) $('cp-date-from').value = start;
+    if ($('cp-date-to')) $('cp-date-to').value = end;
+    if ($('ap-project')) $('ap-project').value = String(projectId);
+    if ($('ah-date')) $('ah-date').value = clampDateToRange(todayIso(), start, end);
+    // PTO can never go in the past (SAS T&E lock) even if the picked cycle
+    // already ended — floor at today regardless of the cycle's own end date.
+    if ($('pt-date')) $('pt-date').value = start > todayIso() ? start : todayIso();
+    if ($('rl-date')) $('rl-date').value = clampDateToRange(todayIso(), start, end);
+  }
+
+  $('cyc-load').addEventListener('click', async function () {
+    var projectId = $('cyc-project').value;
+    var status = $('cyc-status').value;
+    try {
+      showMsg('');
+      $('cyc-selected').innerHTML = '';
+      $('cyc-results').innerHTML = '<p class="muted" style="margin-top:10px">Loading…</p>';
+      var data = await api('/api/prod-shifts/cycles?projectId=' + encodeURIComponent(projectId) + '&status=' + encodeURIComponent(status));
+      renderCycles(data.cycles || []);
+    } catch (err) {
+      $('cyc-results').innerHTML = '';
+      showMsg(err.message, false);
+    }
+  });
+
   function wirePreviewConfirm(opts) {
     var previewBtn = $(opts.previewId);
     var confirmBtn = $(opts.confirmId);
@@ -753,6 +883,16 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
   });
 
   // pto
+  (function () {
+    // PTO can't be built for a past day (SAS locks T&E same-day/next-day —
+    // see prod-shifts-build.js buildPtoShift's date guard). Default + floor
+    // the picker at today so this is caught before Preview instead of after
+    // a live 400.
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var dateInput = $('pt-date');
+    dateInput.min = todayStr;
+    if (!dateInput.value) dateInput.value = todayStr;
+  })();
   var ptNamePicker = wireSingleEmployeePicker({ inputId: 'pt-name-q', resultsId: 'pt-name-results', chipId: 'pt-name-chip' });
   wirePreviewConfirm({
     previewId: 'pt-preview', confirmId: 'pt-confirm', resultCardId: 'pt-result-card', resultId: 'pt-result',
@@ -914,10 +1054,15 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
     }
     el.innerHTML = '<div class="search-results">' + visits.map(function (v) {
       var statusClass = v.currentStatus === 'in-progress' ? 'warn' : (v.currentStatus === 'active' ? '' : 'ok');
+      var extras = [];
+      if (v.totalHours != null && v.totalHours !== '' && v.totalHours !== '0') extras.push(v.totalHours + 'h');
+      if (v.callBackRequired === 'Yes') extras.push('call back required');
+      if (v.rating != null) extras.push('rating ' + v.rating);
       return '<button type="button" class="sr-row" data-visit-id="' + v.visitId + '">' +
         '<span>' +
         '<span class="sr-main">' + escHtml(v.scheduledDate || '') + ' · store ' + escHtml(v.storeNumber || '?') + ' · ' + escHtml(v.projectName || '') + '</span>' +
-        '<span class="sr-sub">' + escHtml(v.visitLead || 'no lead') + ' · ' + escHtml(fmtHm(v.shiftStartTime)) + '–' + escHtml(fmtHm(v.shiftEndTime)) + ' · visit ' + v.visitId + '</span>' +
+        '<span class="sr-sub">' + escHtml(v.visitLead || 'no lead') + ' · ' + escHtml(fmtHm(v.shiftStartTime)) + '–' + escHtml(fmtHm(v.shiftEndTime)) + ' · visit ' + v.visitId +
+        (extras.length ? ' · ' + escHtml(extras.join(' · ')) : '') + '</span>' +
         '</span>' +
         '<span class="badge' + (statusClass ? ' ' + statusClass : '') + '">' + escHtml(v.currentStatus || '?') + '</span>' +
         '</button>';
@@ -940,8 +1085,10 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       params.set('date', date);
       if ($('rs-date-to').value) params.set('dateTo', $('rs-date-to').value);
       if ($('rs-project').value) params.set('projectId', $('rs-project').value);
+      if ($('rs-status').value) params.set('status', $('rs-status').value);
       if ($('rs-lead').value.trim()) params.set('leadName', $('rs-lead').value.trim());
       if ($('rs-store').value.trim()) params.set('storeNumber', $('rs-store').value.trim());
+      if ($('rs-cycle').value.trim()) params.set('cycleId', $('rs-cycle').value.trim());
       var data = await api('/api/prod-shifts/visits/search?' + params.toString());
       renderSearchResults(data.visits || []);
     } catch (err) {
