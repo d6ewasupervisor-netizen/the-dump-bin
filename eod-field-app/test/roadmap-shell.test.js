@@ -8,7 +8,12 @@ const path = require('node:path');
 const { createLoader } = require('../js/lib/script-loader');
 const workflow = require('../js/lib/workflow-progress');
 const { createClient } = require('../js/lib/field-set-job-client');
-const { bayScale } = require('../js/lib/si-planogram-board');
+const {
+  bayScale,
+  isPegBay,
+  packPegItems,
+  pegColumns,
+} = require('../js/lib/si-planogram-board');
 
 function fakeDocument() {
   const appended = [];
@@ -125,6 +130,30 @@ test('planogram normalizes every shelf to the widest shelf without gaps', () => 
   assert.equal(layout.rows[1].units * layout.rows[1].scale, layout.widestUnits);
 });
 
+test('dense one-fixture planograms pack as a portrait peg grid without collisions', () => {
+  const items = Array.from({ length: 60 }, (_, i) => ({
+    id: i + 1,
+    itemPosition: i + 1,
+    position: i + 1,
+    h: i < 5 ? 2 : 1,
+  }));
+  assert.equal(isPegBay({ shelves: [{ shelf: 1, items }] }), true);
+  assert.equal(isPegBay({ layoutMode: 'peg', shelves: [] }), true);
+  assert.equal(pegColumns(items), 7);
+  const packed = packPegItems(items);
+  assert.equal(packed.columns, 7);
+  assert.equal(packed.rows, 10);
+  const occupied = new Set();
+  packed.placements.forEach((placement) => {
+    for (let col = placement.col; col < placement.col + placement.span; col += 1) {
+      const key = `${placement.row}:${col}`;
+      assert.equal(occupied.has(key), false);
+      occupied.add(key);
+    }
+  });
+  assert.equal(occupied.size, 65);
+});
+
 test('compact planogram stays image-first and grab-swipes between bays', () => {
   const board = fs.readFileSync(path.join(__dirname, '../js/lib/si-planogram-board.js'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
@@ -134,9 +163,11 @@ test('compact planogram stays image-first and grab-swipes between bays', () => {
   assert.match(board, /_pogSuppressClickUntil/);
   assert.match(board, /scroll\.scrollLeft = drag\.left - dx/);
   assert.match(board, /goToBay\(scroll, bay\)/);
+  assert.match(board, /class="si-pog-bay is-peg"/);
   assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.si-pog-live \.si-pog-meta[\s\S]*display: none/);
   assert.match(css, /\.si-pog-bay \{[\s\S]*width: min\(100%, 72dvh\)/);
   assert.match(css, /\.si-pog-slots \{[\s\S]*gap: 0;[\s\S]*padding: 0/);
+  assert.match(css, /\.si-pog-peg-board \{[\s\S]*radial-gradient/);
   assert.match(css, /scroll-snap-type: x mandatory/);
 });
 

@@ -73,6 +73,55 @@
     };
   }
 
+  function pegColumns(items) {
+    const units = Math.max(1, (items || []).reduce((sum, item) => sum + facingUnits(item), 0));
+    const fitted = Math.round(Math.sqrt(units * 0.75));
+    return Math.min(units, Math.max(4, Math.min(10, fitted)));
+  }
+
+  function packPegItems(items, columnCount) {
+    const source = (items || []).slice().sort((a, b) => (
+      (Number(a.itemPosition) || Number(a.position) || 0)
+      - (Number(b.itemPosition) || Number(b.position) || 0)
+    ));
+    const columns = Math.max(1, Math.floor(Number(columnCount) || pegColumns(source)));
+    const occupied = [];
+    const placements = [];
+    source.forEach((item) => {
+      const span = Math.min(columns, facingUnits(item));
+      let row = 0;
+      let col = 0;
+      let found = false;
+      while (!found) {
+        if (!occupied[row]) occupied[row] = Array(columns).fill(false);
+        for (col = 0; col <= columns - span; col += 1) {
+          let open = true;
+          for (let x = col; x < col + span; x += 1) {
+            if (occupied[row][x]) {
+              open = false;
+              break;
+            }
+          }
+          if (open) {
+            for (let x = col; x < col + span; x += 1) occupied[row][x] = true;
+            found = true;
+            break;
+          }
+        }
+        if (!found) row += 1;
+      }
+      placements.push({ item, row: row + 1, col: col + 1, span });
+    });
+    return { columns, rows: Math.max(1, occupied.length), placements };
+  }
+
+  function isPegBay(bay) {
+    if (bay?.layoutMode === 'peg') return true;
+    const shelves = bay?.shelves || [];
+    const count = shelves.reduce((sum, shelf) => sum + (shelf.items || []).length, 0);
+    return shelves.length === 1 && count >= 24;
+  }
+
   function locLine(it, bay) {
     return [
       it.aisle ? `Aisle ${it.aisle}` : '',
@@ -106,14 +155,20 @@
     paintTextBtn(host);
   }
 
-  function itemHtml(it, bay, highlightUpc, widthScale) {
+  function itemHtml(it, bay, highlightUpc, widthScale, pegPlacement) {
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
+    const peg = pegPlacement ? ' si-pog-peg-item' : '';
     const loc = locLine(it, bay);
     const grow = Math.max(0.0001, facingUnits(it) * (Number(widthScale) || 1));
     const noImg = it.imageUrl ? '' : ' no-img';
     const label = it.name || it.brand || it.upc || '';
-    return `<article class="si-pog-item${st}${hit}${noImg}" style="flex:${grow} 1 0" role="button" tabindex="0"
+    const style = pegPlacement
+      ? `grid-column:${pegPlacement.col}/span ${pegPlacement.span};grid-row:${pegPlacement.row}`
+      : `flex:${grow} 1 0`;
+    const position = it.itemPosition || it.position || '';
+    return `<article class="si-pog-item${peg}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
+      aria-label="${esc(`${label}${position ? `, position ${position}` : ''}`)}"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
       data-brand="${esc(it.brand || '')}"
@@ -124,6 +179,8 @@
       data-aisle="${esc(it.aisle || '')}"
       data-loc="${esc(loc)}"
       data-image="${esc(it.imageUrl || '')}">
+      ${pegPlacement ? `<span class="si-pog-peg-pos">${esc(position)}</span>` : ''}
+      ${pegPlacement && facingUnits(it) > 1 ? `<span class="si-pog-facing-badge">×${facingUnits(it)}</span>` : ''}
       <div class="si-pog-thumb">
         ${it.imageUrl ? `<img alt="" data-pog-src="${esc(it.imageUrl)}">` : ''}
         <div class="si-pog-fallback">${esc(label)}</div>
@@ -150,6 +207,15 @@
       ...sh,
       items: (sh.items || []).map((it) => ({ ...it, aisle: it.aisle || aisle || '' })),
     }));
+    if (isPegBay({ ...bay, shelves })) {
+      const packed = packPegItems(shelves.flatMap((shelf) => shelf.items || []));
+      return `<section class="si-pog-bay is-peg" style="--pog-peg-columns:${packed.columns};--pog-peg-rows:${packed.rows}">
+        <div class="si-pog-bay-h">Bay ${esc(bay.bay)} · Pegs</div>
+        <div class="si-pog-peg-board">${packed.placements.map((placement) => (
+          itemHtml(placement.item, bay.bay, highlightUpc, 1, placement)
+        )).join('')}</div>
+      </section>`;
+    }
     const layout = bayScale(shelves);
     return `<section class="si-pog-bay" style="--pog-columns:${layout.widestUnits};--pog-shelf-count:${Math.max(1, shelves.length)}">
       <div class="si-pog-bay-h">Bay ${esc(bay.bay)}</div>
@@ -649,6 +715,9 @@
     openItemDetail,
     goToBay,
     bayScale,
+    pegColumns,
+    packPegItems,
+    isPegBay,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodSiPlanogram = api;
