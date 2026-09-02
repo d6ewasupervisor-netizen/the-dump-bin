@@ -28,6 +28,7 @@
   }
 
   function closeOverlay(el) {
+    global.EodA11y?.deactivate?.(el);
     el?.classList.remove('show');
     el?.remove();
   }
@@ -38,8 +39,8 @@
       const overlay = document.createElement('div');
       overlay.className = 'eod-alert-overlay show';
       overlay.innerHTML = `
-        <div class="eod-alert-dialog" role="dialog" aria-modal="true">
-          <h2>${global.EodApi?.escapeHtml?.(title) || String(title || 'Notice')}</h2>
+        <div class="eod-alert-dialog" role="dialog" aria-modal="true" aria-labelledby="eodAlertTitle">
+          <h2 id="eodAlertTitle">${global.EodApi?.escapeHtml?.(title) || String(title || 'Notice')}</h2>
           <p class="eod-alert-body">${global.EodApi?.escapeHtml?.(message) || String(message || '')}</p>
           <div class="eod-alert-actions"></div>
         </div>`;
@@ -61,8 +62,12 @@
           resolve('cancel');
         }
       });
+      overlay.addEventListener('eod-dialog-escape', () => {
+        closeOverlay(overlay);
+        resolve('cancel');
+      });
       document.body.appendChild(overlay);
-      actions.querySelector('button')?.focus();
+      global.EodA11y?.activate?.(overlay, actions.querySelector('button'));
     });
   }
 

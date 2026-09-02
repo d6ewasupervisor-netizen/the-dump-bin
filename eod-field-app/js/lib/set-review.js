@@ -672,7 +672,7 @@
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 2000);
       } catch (err) {
-        alert(err.message || 'Save failed');
+        await global.EodAlerts?.alert?.('Save failed', err.message || 'Save failed');
       }
     }
 
@@ -694,7 +694,11 @@
         await savePhoto();
       } catch (err) {
         if (err?.name === 'AbortError') return;
-        try { await savePhoto(); } catch { alert(err.message || 'Share failed'); }
+        try {
+          await savePhoto();
+        } catch (saveErr) {
+          await global.EodAlerts?.alert?.('Share failed', saveErr.message || err.message || 'Share failed');
+        }
       }
     }
 

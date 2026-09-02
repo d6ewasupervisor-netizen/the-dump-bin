@@ -34,8 +34,25 @@
       gateEl.title = S.isVisitReady() ? 'Day confirmed' : 'Needs day confirm';
       gateEl.className = 'pill ' + (S.isVisitReady() ? 'ok' : 'warn');
     }
+    paintWorkflow();
     paintUnsentBanner();
     paintFailedPhotoBanner();
+  }
+
+  function paintWorkflow() {
+    const S = global.EodSession;
+    const host = document.getElementById('chromeStages');
+    const nextBtn = document.getElementById('chromeNextAction');
+    const progress = global.EodWorkflowProgress?.derive?.(S, global.EodSendGates);
+    if (!host || !nextBtn || !progress) return;
+    host.innerHTML = progress.stages.map((stage) => {
+      const symbol = stage.status === 'complete' ? '✓' : stage.status === 'current' ? '•' : '○';
+      const state = stage.status === 'complete' ? 'complete' : stage.status === 'current' ? 'current' : 'upcoming';
+      return `<li data-state="${state}"><span aria-hidden="true">${symbol}</span><span>${stage.label}</span><span class="sr-only"> ${state}</span></li>`;
+    }).join('');
+    nextBtn.hidden = !progress.next;
+    nextBtn.textContent = progress.next ? `Next: ${progress.next.label}` : '';
+    nextBtn.dataset.gate = progress.next?.id || '';
   }
 
   async function paintUnsentBanner() {
@@ -124,6 +141,11 @@
     ].join('\n');
   }
 
+  function closeModal(host) {
+    global.EodA11y?.deactivate?.(host);
+    host?.remove?.();
+  }
+
   function openQuickView() {
     const S = global.EodSession;
     if (!S) return;
@@ -135,7 +157,7 @@
       host.id = 'eodChromeGates';
       host.className = 'modal-overlay show';
       document.body.appendChild(host);
-      host.addEventListener('click', (e) => { if (e.target === host) host.remove(); });
+      host.addEventListener('click', (e) => { if (e.target === host) closeModal(host); });
     } else {
       host.classList.add('show');
       host.style.display = '';
@@ -148,9 +170,15 @@
     </div>`;
     try { global.EodSendGates?.bindList?.(host, S); } catch (_) {}
     host.querySelectorAll('[data-gate]').forEach((btn) => {
-      btn.addEventListener('click', () => host.remove());
+      btn.addEventListener('click', () => closeModal(host));
     });
-    host.querySelector('#eodChromeGatesClose')?.addEventListener('click', () => host.remove());
+    host.querySelector('#eodChromeGatesClose')?.addEventListener('click', () => closeModal(host));
+    host.querySelector('.modal-dialog')?.setAttribute('role', 'dialog');
+    host.querySelector('.modal-dialog')?.setAttribute('aria-modal', 'true');
+    global.EodA11y?.activate?.(host);
+    host.addEventListener('eod-dialog-escape', () => {
+      closeModal(host);
+    }, { once: true });
   }
 
   function openMoreMenu() {
@@ -160,12 +188,12 @@
       host.id = 'eodMoreMenu';
       host.className = 'modal-overlay show';
       document.body.appendChild(host);
-      host.addEventListener('click', (e) => { if (e.target === host) host.remove(); });
+      host.addEventListener('click', (e) => { if (e.target === host) closeModal(host); });
     } else {
       host.classList.add('show');
       host.style.display = '';
     }
-    host.innerHTML = `<div class="modal-dialog">
+    host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>More</h2>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
@@ -177,11 +205,15 @@
     host.querySelectorAll('[data-more]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const dest = btn.getAttribute('data-more');
-        host.remove();
+        closeModal(host);
         global.EodRouter.go(dest);
       });
     });
-    host.querySelector('#eodMoreClose')?.addEventListener('click', () => host.remove());
+    host.querySelector('#eodMoreClose')?.addEventListener('click', () => closeModal(host));
+    global.EodA11y?.activate?.(host);
+    host.addEventListener('eod-dialog-escape', () => {
+      closeModal(host);
+    }, { once: true });
   }
 
   function init() {
@@ -200,6 +232,11 @@
 
     document.getElementById('chromeStore')?.addEventListener('click', openQuickView);
     document.getElementById('chromeMeta')?.addEventListener('click', openQuickView);
+    document.getElementById('chromeNextAction')?.addEventListener('click', () => {
+      const id = document.getElementById('chromeNextAction')?.dataset?.gate;
+      const item = global.EodSendGates?.items?.(global.EodSession)?.find((gate) => gate.id === id);
+      global.EodSendGates?.go?.(item);
+    });
     const storeEl = document.getElementById('chromeStore');
     if (storeEl) storeEl.title = 'Tap for visit snapshot';
     document.getElementById('pilotBannerLabel')?.addEventListener('click', (e) => {

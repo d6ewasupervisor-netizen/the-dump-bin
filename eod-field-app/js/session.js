@@ -8,6 +8,7 @@
   const SIGNATURE_KEY = 'kompassSignature';
 
   const listeners = new Set();
+  let priorDayDraft = null;
 
   const state = {
     storeNumber: '',
@@ -106,6 +107,7 @@
   async function resetVisit({ wipePersonal = false, wipeSetBefores = false, wipeUnsent = false } = {}) {
     const store = state.storeNumber;
     const week = state.fiscalWeek;
+    priorDayDraft = null;
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
     clearDayConfirm();
     if (wipePersonal) {
@@ -312,33 +314,20 @@
     state.extraVisitIds = Array.isArray(data.extraVisitIds) ? data.extraVisitIds.map(String) : [];
     state.profileLocked = !!data.profileLocked;
     state.addRetailOdysseyTeam = !!data.addRetailOdysseyTeam;
-    // Prefer day-confirm store/date when present and matching draft keys.
+    // A day-confirm may only hydrate the same draft visit; never cross store/date.
     const dc = getActiveDayConfirm();
-    if (dc) {
+    if (dc && (!state.storeNumber
+      || (dc.store === state.storeNumber && dc.date === state.workDate))) {
       state.storeNumber = dc.store;
       state.workDate = dc.date;
     }
     const today = todayLocalIsoDate();
     if (state.workDate && state.workDate !== today) {
-      state.storeNumber = '';
-      state.workDate = today;
-      state.selectedShift = null;
-      state.extraVisitIds = [];
-      state.shifts = [];
-      state.members = [];
-      state.sheet = null;
-      state.sheetLoaded = false;
-      state.fiscalWeek = '';
-      state.visitStep = 'setup';
-      state.cartPhotoDone = false;
-      state.checkInDone = false;
-      state.beforesStepDone = false;
-      state.checkInManager = '';
-      state.checkOutManager = '';
-      state.photos = { before: [], after: [], signoff: [], instawork: [] };
-      state.instaworkSavedInfo = null;
-      clearDayConfirm();
-      try { saveDraft(); } catch (_) {}
+      priorDayDraft = {
+        storeNumber: state.storeNumber,
+        workDate: state.workDate,
+        savedAt: Number(data.savedAt) || 0,
+      };
     }
     try {
       if (state.storeNumber && global.EodVisitMemory?.applyToSession) {
@@ -346,6 +335,18 @@
       }
     } catch (_) {}
     emit('load');
+  }
+
+  function getPriorDayDraft() {
+    return priorDayDraft ? Object.assign({}, priorDayDraft) : null;
+  }
+
+  function resolvePriorDayDraft(action) {
+    if (!priorDayDraft) return null;
+    const selected = Object.assign({}, priorDayDraft);
+    priorDayDraft = null;
+    emit(action === 'resume' ? 'resume-prior-day' : 'dismiss-prior-day');
+    return selected;
   }
 
   function saveDraft() {
@@ -435,6 +436,8 @@
     resolvedLeadName,
     appendNote,
     loadDraft,
+    getPriorDayDraft,
+    resolvePriorDayDraft,
     saveDraft,
     loadProfile,
     saveProfile,

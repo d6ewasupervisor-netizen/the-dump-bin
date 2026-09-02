@@ -636,7 +636,10 @@
     paintIssues();
     paintCc();
     const overlay = document.getElementById('helpdeskWizardOverlay');
-    if (overlay) overlay.classList.add('show');
+    if (overlay) {
+      overlay.classList.add('show');
+      global.EodA11y?.activate?.(overlay);
+    }
   }
 
   async function openFromRow(row) {
@@ -666,7 +669,10 @@
 
   function closeWizard() {
     const overlay = document.getElementById('helpdeskWizardOverlay');
-    if (overlay) overlay.classList.remove('show');
+    if (overlay) {
+      global.EodA11y?.deactivate?.(overlay);
+      overlay.classList.remove('show');
+    }
   }
 
   function checkIssues() {
@@ -831,7 +837,14 @@
   document.addEventListener('DOMContentLoaded', () => {
     const addBtn = document.getElementById('helpdeskWizardAddRecipient');
     const input = document.getElementById('helpdeskWizardEmailInput');
+    const overlay = document.getElementById('helpdeskWizardOverlay');
     if (addBtn) addBtn.addEventListener('click', addCc);
+    document.getElementById('helpdeskWizardCancel')?.addEventListener('click', closeWizard);
+    document.getElementById('helpdeskWizardSubmit')?.addEventListener('click', submitWizard);
+    overlay?.addEventListener('click', (event) => {
+      if (event.target === overlay) closeWizard();
+    });
+    overlay?.addEventListener('eod-dialog-escape', closeWizard);
     if (input) {
       input.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') {

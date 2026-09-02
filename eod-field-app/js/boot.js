@@ -96,10 +96,13 @@
       try { window.EodTestMode?.init?.(); } catch (err) { console.warn('[eod-field-app] version/test init', err); }
       await loadPhotosIntoSession();
       window.EodRouter.init();
-      try { window.EodVisit?.enforceDayConfirmGate?.(); } catch (_) {}
+      try {
+        const choosingPriorDay = window.EodVisit?.presentPriorDayChoice?.();
+        if (!choosingPriorDay) window.EodVisit?.enforceDayConfirmGate?.();
+      } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.3.45').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.3.46').catch(() => {});
         }
       } catch (_) {}
       try { window.EodUsage?.start?.(); } catch (_) {}
@@ -131,7 +134,11 @@
       const mount = document.getElementById('appMount');
       if (mount) {
         mount.innerHTML = `<div class="card error"><h2>App failed to start</h2><p>${window.EodApi?.escapeHtml?.(err.message) || String(err)}</p>
-          <button type="button" class="btn btn-primary" onclick="location.hash='#/visit';location.reload()">Reload</button></div>`;
+          <button type="button" class="btn btn-primary" id="bootReloadBtn">Reload</button></div>`;
+        document.getElementById('bootReloadBtn')?.addEventListener('click', () => {
+          location.hash = '#/visit';
+          location.reload();
+        });
       }
     }
   }

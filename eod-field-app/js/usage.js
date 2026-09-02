@@ -3,7 +3,22 @@
   'use strict';
 
   const TOOL_ID = 'eod-field-app';
+  const PAYLOAD_KEYS = new Set([
+    'route', 'path', 'from', 'to', 'stage', 'status', 'kind', 'slot',
+    'reason', 'count', 'online',
+  ]);
   let timer = null;
+
+  function lowPiiPayload(payload) {
+    const out = {};
+    Object.entries(payload || {}).forEach(([key, value]) => {
+      if (!PAYLOAD_KEYS.has(key)) return;
+      if (!['string', 'number', 'boolean'].includes(typeof value)) return;
+      out[key] = typeof value === 'string' ? value.slice(0, 80) : value;
+    });
+    out.online = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
+    return out;
+  }
 
   function track(event, payload) {
     const fetchFn = global.authFetch || fetch;
@@ -13,7 +28,7 @@
       body: JSON.stringify({
         toolId: TOOL_ID,
         event: event || 'heartbeat',
-        payload: payload || { path: location.hash || '#/' },
+        payload: lowPiiPayload(payload || { path: location.hash || '#/' }),
       }),
       keepalive: true,
     }).catch(() => {});
@@ -32,5 +47,5 @@
     });
   }
 
-  global.EodUsage = { track, start };
+  global.EodUsage = { track, start, lowPiiPayload };
 })(typeof window !== 'undefined' ? window : globalThis);

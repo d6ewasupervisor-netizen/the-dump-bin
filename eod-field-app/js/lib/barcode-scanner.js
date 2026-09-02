@@ -6,6 +6,7 @@
     'upc_a', 'upc_e', 'ean_13', 'ean_8',
     'code_128', 'code_39', 'codabar', 'itf', 'qr_code',
   ];
+  const HTML5_SRC = `js/vendor/html5-qrcode.min.js?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.46')}`;
 
   let html5Scanner = null;
   let stream = null;
@@ -135,7 +136,16 @@
     return F;
   }
 
+  async function ensureHtml5Library() {
+    if (html5Ctor()) return html5Ctor();
+    const loader = global.EodAssetLoader;
+    if (!loader) return null;
+    await loader.loadScript(HTML5_SRC, { test: () => !!html5Ctor(), value: html5Ctor });
+    return html5Ctor();
+  }
+
   async function startHtml5() {
+    await ensureHtml5Library();
     const Ctor = html5Ctor();
     if (!Ctor) return false;
     const el = reader();

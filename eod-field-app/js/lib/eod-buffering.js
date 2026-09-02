@@ -5,7 +5,7 @@
   const DEBOUNCE_MS = 280;
   const MIN_VISIBLE_MS = 480;
   const MAX_VISIBLE_MS = 12000;
-  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.45')}`;
+  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.46')}`;
   const SKIP_RE = /sas-auth-status|rebotics-auth-status|\/usage\b|eod-version\.json|\/api\/me(?:\?|$)|digital-signoffs\/(?:sync|heartbeat)|\/photos\/|\/image(?:\?|$)|field-set\/(?:status|planogram)|\/api\/shifts\/day/i;
 
   let depth = 0;
@@ -33,7 +33,7 @@
       overlayEl.setAttribute('role', 'status');
       overlayEl.setAttribute('aria-live', 'polite');
       overlayEl.setAttribute('aria-busy', 'false');
-      overlayEl.innerHTML = `<img class="eod-buffering-gif" src="${ASSET}" alt="" width="260" height="260" decoding="async">`;
+      overlayEl.innerHTML = `<img class="eod-buffering-gif" src="${ASSET}" alt="" width="104" height="104" decoding="async">`;
       document.body.appendChild(overlayEl);
     }
     bindDismiss(overlayEl);

@@ -691,7 +691,7 @@ ${S.state.notes || ''}`;
 
     document.getElementById('signBtn').onclick = () => {
       if (!global.EodLandscapeSigPad?.open) {
-        alert('Signature pad failed to load. Refresh and try again.');
+        global.showAlert?.('Signature', 'Signature pad failed to load. Refresh and try again.');
         return;
       }
       global.EodLandscapeSigPad.open({
@@ -720,7 +720,7 @@ ${S.state.notes || ''}`;
         <pre>${esc(JSON.stringify(payload, null, 2))}</pre>
         </body></html>`;
       if (!w) {
-        alert(payload.body);
+        global.showAlert?.('EOD preview', payload.body);
         return;
       }
       w.document.write(html);
@@ -740,9 +740,14 @@ ${S.state.notes || ''}`;
     document.getElementById('sendBtn').onclick = async () => {
       const msg = gateMessage();
       if (msg) {
+        global.EodUsage?.track?.('gate_failure', {
+          stage: 'send',
+          reason: global.EodSendGates?.missing?.(S)?.[0]?.id || 'unknown',
+          status: 'blocked',
+        });
         const first = global.EodSendGates?.missing?.(S)?.[0];
         if (first && global.EodSendGates.go) global.EodSendGates.go(first);
-        else alert(msg);
+        else await global.EodAlerts?.alert?.('Still needed', msg);
         return;
       }
       if (global.PhotoDB?.hydrateDataUrls) {
@@ -751,7 +756,10 @@ ${S.state.notes || ''}`;
       let payload = buildPayload();
       if (global.applyEodTestModeToPayload) payload = global.applyEodTestModeToPayload(payload);
       if (global.EodTestMode?.isForceLive?.()) {
-        const ok = confirm('LIVE delivery override is ON.\n\nSend will use the real path (not tester-only).\n\nContinue?');
+        const ok = await global.EodAlerts?.confirm?.(
+          'Live delivery',
+          'LIVE delivery override is ON.\n\nSend will use the real path (not tester-only).\n\nContinue?'
+        );
         if (!ok) return;
       }
       // Durable save before send — keep local copy even if network dies mid-flight.
@@ -767,7 +775,10 @@ ${S.state.notes || ''}`;
       if (global.EodDurability?.awaitDurablePhotoSave) {
         const saved = await global.EodDurability.awaitDurablePhotoSave('send');
         if (!saved) {
-          alert('Could not save photos locally. Fix device storage, then try Send again. Nothing was emailed.');
+          await global.EodAlerts?.alert?.(
+            'Photos not saved',
+            'Could not save photos locally. Fix device storage, then try Send again. Nothing was emailed.'
+          );
           return;
         }
       }
@@ -808,7 +819,10 @@ ${S.state.notes || ''}`;
         });
         if (resp.status === 412) {
           S.clearDayConfirm();
-          alert('Please re-confirm your store for today (day-confirm expired), then send again.');
+          await global.EodAlerts?.alert?.(
+            'Confirm visit',
+            'Please re-confirm your store for today (day-confirm expired), then send again.'
+          );
           global.EodRouter.go('visit');
           return;
         }
@@ -838,7 +852,7 @@ ${S.state.notes || ''}`;
           }
         }
         if (global.showAlert) await global.showAlert('Sent', 'EOD sent.' + sasNote);
-        else alert('EOD sent.' + sasNote);
+        global.EodUsage?.track?.('send_success', { stage: 'send', status: 'complete' });
         if (global.PhotoDB?.markEmailOk) {
           try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
         }
@@ -850,11 +864,14 @@ ${S.state.notes || ''}`;
         console.error(err);
         if (err && err.status === 412) {
           S.clearDayConfirm();
-          alert('Please re-confirm your store for today (day-confirm expired), then send again.');
+          await global.EodAlerts?.alert?.(
+            'Confirm visit',
+            'Please re-confirm your store for today (day-confirm expired), then send again.'
+          );
           global.EodRouter.go('visit');
           return;
         }
-        alert(`Send error: ${networkSendMessage(err)}`);
+        await global.EodAlerts?.alert?.('Send error', networkSendMessage(err));
       } finally {
         btn.disabled = !!gateMessage();
         btn.textContent = 'Send EOD';

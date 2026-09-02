@@ -14,16 +14,19 @@
   function ensurePdfJs() {
     if (global.pdfjsLib) return Promise.resolve(global.pdfjsLib);
     if (pdfjsReady) return pdfjsReady;
-    pdfjsReady = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = PDFJS_SRC;
-      script.onload = () => {
+    const loader = global.EodAssetLoader;
+    pdfjsReady = (loader
+      ? loader.loadScript(PDFJS_SRC, { test: () => !!global.pdfjsLib, value: () => global.pdfjsLib })
+      : Promise.reject(new Error('Dependency loader unavailable')))
+      .then(() => {
+        if (!global.pdfjsLib) throw new Error('PDF.js did not initialize');
         global.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
-        resolve(global.pdfjsLib);
-      };
-      script.onerror = () => reject(new Error('Failed to load PDF.js'));
-      document.head.appendChild(script);
-    });
+        return global.pdfjsLib;
+      })
+      .catch((err) => {
+        pdfjsReady = null;
+        throw err;
+      });
     return pdfjsReady;
   }
 

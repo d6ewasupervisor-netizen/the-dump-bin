@@ -197,7 +197,7 @@
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (err) {
-      alert(err.message || String(err));
+      await global.EodAlerts?.alert?.('PDF', err.message || String(err));
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -460,7 +460,7 @@
     const row = btn.getAttribute('data-capture') || btn.getAttribute('data-before') || btn.getAttribute('data-open-set') || '';
     const name = btn.getAttribute('data-name') || '';
     if (!dbkey) {
-      alert('This row has no dbkey — cannot open Capture/View.');
+      global.showAlert?.('Set unavailable', 'This row has no dbkey — cannot open Capture/View.');
       return;
     }
     const qs = new URLSearchParams({ dbkey, rowId: row, name });
@@ -824,7 +824,7 @@
             try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
             global.EodChrome?.refresh();
           } catch (err) {
-            alert(err.message || String(err));
+            await global.EodAlerts?.alert?.('Update failed', err.message || String(err));
           } finally {
             btn.disabled = false;
           }
@@ -853,7 +853,7 @@
         try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
         global.EodChrome?.refresh();
       } catch (err) {
-        alert(err.message || String(err));
+        await global.EodAlerts?.alert?.('Sync failed', err.message || String(err));
       } finally {
         syncBtn.disabled = false;
       }

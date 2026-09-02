@@ -175,6 +175,21 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
 html { height: -webkit-fill-available; overscroll-behavior-y: none; }
 body {
   margin: 0;
@@ -364,6 +379,51 @@ body.needs-auth .app-shell {
 }
 .chrome-row-top { min-height: 32px; }
 .chrome-row-meta { min-height: 18px; }
+.chrome-workflow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.chrome-stages {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.chrome-stages li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.chrome-stages li[data-state="complete"] { color: var(--ok); }
+.chrome-stages li[data-state="current"] {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.chrome-next {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 3px 0;
+  max-width: 48%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
 .chrome-store {
   font-weight: 800;
   color: var(--accent);
@@ -633,8 +693,12 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
 .bottom-nav [data-slot="extra"] { display: none; }
 
 @media (max-width: 420px) {
-  .bottom-nav .nav-label { display: none; }
+  .bottom-nav .nav-label { display: block; font-size: 9px; }
+  .bottom-nav .nav-ico-img { width: 24px; height: 24px; }
   .bottom-nav button { min-width: 44px; padding: 4px 2px; }
+  .chrome-stages { gap: 4px; font-size: 9px; }
+  .chrome-workflow { flex-wrap: wrap; gap: 2px 8px; }
+  .chrome-next { max-width: 100%; flex: 1 0 100%; text-align: left; }
 }
 
 .card {
@@ -1956,9 +2020,18 @@ body.dump-bin-viewer-open .eod-test-banner {
 }
 .eod-buffering[hidden] { display: none !important; }
 .eod-buffering-gif {
-  width: min(260px, 72vw);
+  width: clamp(96px, 26vw, 112px);
   height: auto;
   display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .iw-overlay {

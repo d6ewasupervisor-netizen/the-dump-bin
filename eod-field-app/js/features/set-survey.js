@@ -127,6 +127,16 @@
       taskId: ids?.taskId || null,
       markSheet: true,
     });
+    const durable = global.EodFieldSetJobs;
+    if (durable?.submit) {
+      const key = durable.operationKey('complete', durable.hashText(body));
+      return durable.submit('complete', {
+        headers,
+        body,
+        idempotencyKey: key,
+        timeoutMs: 8 * 60 * 1000,
+      });
+    }
     const resp = await global.authFetch(`${API}/complete`, { method: 'POST', headers, body });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok && !data.result) throw new Error(data.error || `Complete failed (${resp.status})`);
@@ -209,7 +219,7 @@
           await onCapture(file);
         } catch (err) {
           // Keep camera open on upload errors ? user can retry or Exit.
-          alert(err?.message || String(err) || 'Capture failed');
+          await global.EodAlerts?.alert?.('Capture failed', err?.message || String(err) || 'Capture failed');
           refreshHud();
           return;
         }
@@ -225,7 +235,7 @@
     };
 
     start().catch((err) => {
-      alert(err.message || 'Camera unavailable');
+      global.showAlert?.('Camera unavailable', err.message || 'Camera unavailable');
       stop();
     });
 
@@ -878,7 +888,10 @@
         const n = expectedBayCount();
         const afterHave = takenBays('after').size;
         if (afterHave < n) {
-          const ok = confirm(`Only ${afterHave} of ${n} after photos on device. Finish anyway?`);
+          const ok = await global.EodAlerts?.confirm?.(
+            'Finish set?',
+            `Only ${afterHave} of ${n} after photos on device. Finish anyway?`
+          );
           if (!ok) return;
         }
         setMsg('Waiting for uploads, then closing SI (CV + survey if needed)…');

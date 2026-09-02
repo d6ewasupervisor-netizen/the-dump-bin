@@ -36,7 +36,28 @@
     } catch (_) { /* best-effort */ }
   }
 
-  async function prefetchRow(row, { store, date, token, policy }) {
+  async function loadPhotoPacks(rows) {
+    const ids = (rows || []).map((row) => Number(row?.id)).filter((id) => Number.isSafeInteger(id) && id > 0);
+    if (!ids.length) return new Map();
+    const packs = new Map();
+    for (let offset = 0; offset < ids.length; offset += 50) {
+      const rowIds = ids.slice(offset, offset + 50);
+      const resp = await global.authFetch(`${DS_API}/photos/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowIds }),
+        skipBusy: true,
+      });
+      if (!resp.ok) throw new Error(`Photo batch failed (${resp.status})`);
+      const data = await resp.json().catch(() => ({}));
+      for (const rowId of rowIds) {
+        packs.set(String(rowId), data.rows?.[String(rowId)] || { photos: [] });
+      }
+    }
+    return packs;
+  }
+
+  async function prefetchRow(row, { store, date, token, policy, packs }) {
     if (token !== runToken) return;
     const gate = await Media()?.allowPrefetch?.();
     if (gate && !gate.ok) {
@@ -48,8 +69,11 @@
     const rowId = row.id;
     if (!rowId) return;
     try {
-      const resp = await global.authFetch(`${DS_API}/rows/${encodeURIComponent(rowId)}/photos`, { skipBusy: true });
-      const data = await resp.json().catch(() => ({}));
+      let data = packs?.get?.(String(rowId));
+      if (!data) {
+        const resp = await global.authFetch(`${DS_API}/rows/${encodeURIComponent(rowId)}/photos`, { skipBusy: true });
+        data = await resp.json().catch(() => ({}));
+      }
       const photos = Array.isArray(data.photos) ? data.photos : [];
       for (const p of photos) {
         if (token !== runToken) return;
@@ -83,9 +107,11 @@
         if (gate && !gate.ok) continue;
         runToken += 1;
         const token = runToken;
+        let packs = null;
+        try { packs = await loadPhotoPacks(rows); } catch (_) { /* older API: per-row fallback */ }
         for (const row of rows) {
           if (token !== runToken) break;
-          await prefetchRow(row, { store, date, token, policy });
+          await prefetchRow(row, { store, date, token, policy, packs });
         }
       }
     } finally {

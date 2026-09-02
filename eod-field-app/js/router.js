@@ -3,6 +3,8 @@
   'use strict';
 
   const routes = new Map();
+  const routeState = new Map();
+  const completedRoutes = new Set();
   let current = null;
 
   function normalize(hash) {
@@ -26,6 +28,15 @@
 
   async function render() {
     let name = normalize(location.hash);
+    const from = current;
+    if (from) {
+      const focused = document.activeElement;
+      routeState.set(from, {
+        x: global.scrollX || 0,
+        y: global.scrollY || 0,
+        focusId: focused?.id && document.getElementById('appMount')?.contains(focused) ? focused.id : '',
+      });
+    }
     const session = global.EodSession;
     if (session && !session.isVisitReady() && name !== 'visit' && name !== 'storage') {
       name = 'visit';
@@ -50,6 +61,8 @@
         || (nav === 'dumpbin' && name === 'dumpbin')
         || (nav === 'more' && ['crew', 'dumpbin', 'helpdesk', 'photos', 'storage'].includes(name));
       el.classList.toggle('is-active', on);
+      if (on) el.setAttribute('aria-current', 'page');
+      else el.removeAttribute('aria-current');
     });
     // Sidebar + chrome stay reachable once the shell is up (even on Visit).
     if (chrome) chrome.hidden = false;
@@ -64,6 +77,26 @@
       mount.innerHTML = `<div class="card error"><h2>Something went wrong</h2><p>${global.EodApi.escapeHtml(err.message || String(err))}</p></div>`;
     }
     session?.syncDomBridges();
+    const saved = routeState.get(name);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      global.scrollTo?.(saved?.x || 0, saved?.y || 0);
+      if (saved?.focusId) {
+        document.getElementById(saved.focusId)?.focus?.({ preventScroll: true });
+      } else {
+        mount.focus?.({ preventScroll: true });
+      }
+    }));
+    if (from !== name) {
+      global.EodUsage?.track?.('route_navigation', { from: from || 'boot', to: name });
+      global.EodA11y?.announce?.(`${name === 'signoff' ? 'Categories' : name} page`);
+    }
+    const stageId = name === 'signoff' || name === 'survey' ? 'categories' : name;
+    const progress = global.EodWorkflowProgress?.derive?.(session, global.EodSendGates);
+    const stage = progress?.stages?.find?.((item) => item.id === stageId);
+    if (stage?.complete && !completedRoutes.has(stageId)) {
+      completedRoutes.add(stageId);
+      global.EodUsage?.track?.('route_completion', { route: stageId, status: 'complete' });
+    }
   }
 
   function init() {

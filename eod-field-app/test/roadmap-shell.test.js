@@ -1,0 +1,147 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const { createLoader } = require('../js/lib/script-loader');
+const workflow = require('../js/lib/workflow-progress');
+const { createClient } = require('../js/lib/field-set-job-client');
+
+function fakeDocument() {
+  const appended = [];
+  const elements = [];
+  return {
+    appended,
+    head: {
+      appendChild(el) {
+        elements.push(el);
+        appended.push(el.src || el.href);
+        queueMicrotask(() => el.onload());
+      },
+    },
+    createElement(tag) {
+      return { tagName: tag.toUpperCase(), dataset: {}, set async(value) { this._async = value; } };
+    },
+    querySelector(selector) {
+      const match = selector.match(/data-eod-asset="([^"]+)"\]\[(?:src|href)="([^"]+)"/);
+      if (!match) return null;
+      return elements.find((el) => el.dataset.eodAsset === match[1] && (el.src === match[2] || el.href === match[2])) || null;
+    },
+  };
+}
+
+test('route dependency loader preserves order and deduplicates requests', async () => {
+  const doc = fakeDocument();
+  const loader = createLoader(doc);
+  await loader.loadSequential(['/pdf.js', '/pdf-lib.js', '/viewer.js']);
+  assert.deepEqual(doc.appended, ['/pdf.js', '/pdf-lib.js', '/viewer.js']);
+  const one = loader.loadScript('/scanner.js');
+  const two = loader.loadScript('/scanner.js');
+  assert.equal(one, two);
+  await Promise.all([one, two]);
+  assert.equal(doc.appended.filter((url) => url === '/scanner.js').length, 1);
+});
+
+test('durable field-set client submits once and polls to completion', async () => {
+  const calls = [];
+  const replies = [
+    { status: 202, body: { accepted: true, statusUrl: '/api/field-set/jobs/job-1' } },
+    { status: 200, body: { job: { status: 'pending' } } },
+    { status: 200, body: { job: { status: 'completed', result: { prod: { status: 'ok' } } } } },
+  ];
+  const client = createClient({
+    async authFetch(url, init) {
+      calls.push({ url, init });
+      const next = replies.shift();
+      return {
+        ok: next.status >= 200 && next.status < 300,
+        status: next.status,
+        async json() { return next.body; },
+      };
+    },
+  }, { sleep: async () => {} });
+  const result = await client.submit('photo', {
+    body: '{}',
+    headers: { 'Content-Type': 'application/json' },
+    idempotencyKey: 'eod-photo:one',
+  });
+  assert.equal(result.prod.status, 'ok');
+  assert.equal(calls.length, 3);
+  assert.equal(calls[0].init.headers.Prefer, 'respond-async');
+  assert.equal(calls[0].init.headers['Idempotency-Key'], 'eod-photo:one');
+  assert.match(calls[1].url, /\/api\/field-set\/jobs\/job-1$/);
+});
+
+test('workflow progress exposes four stages and one next gate', () => {
+  const gates = [
+    { id: 'visit', ok: true, label: 'Confirm', page: 'visit' },
+    { id: 'name', ok: true, label: 'Name', page: 'visit' },
+    { id: 'checkin', ok: false, label: 'Check in', page: 'visit' },
+    { id: 'sheet', ok: false, label: 'Mark sets', page: 'signoff' },
+    { id: 'signature', ok: false, label: 'Sign', page: 'send' },
+  ];
+  const result = workflow.derive({}, { items: () => gates });
+  assert.deepEqual(result.stages.map((stage) => stage.label), ['Visit', 'Categories', 'Signatures', 'Send']);
+  assert.equal(result.stages[0].status, 'current');
+  assert.equal(result.next.label, 'Check in');
+  assert.equal(result.next.page, 'visit');
+});
+
+test('heavy scanner and materials dependencies are lazy and ordered', () => {
+  const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const scanner = fs.readFileSync(path.join(__dirname, '../js/lib/barcode-scanner.js'), 'utf8');
+  const materials = fs.readFileSync(path.join(__dirname, '../js/features/materials-browser.js'), 'utf8');
+  assert.doesNotMatch(index, /<script[^>]+html5-qrcode/);
+  assert.doesNotMatch(index, /<script[^>]+(?:pdf-lib|pdf\.min|materials-pdf-viewer)/);
+  assert.match(scanner, /loadScript\(HTML5_SRC/);
+  assert.match(materials, /await ensurePdfJs\(\);[\s\S]*loadSequential\(\[[\s\S]*PDFLIB_SRC[\s\S]*VIEWER_SRC/);
+});
+
+test('photo metadata prefetch uses the batch route with legacy fallback', () => {
+  const prefetch = fs.readFileSync(path.join(__dirname, '../js/lib/set-media-prefetch.js'), 'utf8');
+  assert.match(prefetch, /\/photos\/batch/);
+  assert.match(prefetch, /offset \+= 50/);
+  assert.match(prefetch, /older API: per-row fallback/);
+});
+
+test('feedback hub exposes persisted report history and review status', () => {
+  const feedback = fs.readFileSync(path.join(__dirname, '../js/features/feedback-hub.js'), 'utf8');
+  assert.match(feedback, /\/api\/app-feedback\/mine\?limit=10/);
+  assert.match(feedback, /item\.reviewStatus/);
+  assert.match(feedback, /id="eodFbHistoryBtn"/);
+});
+
+test('router and shell accessibility contracts are present', () => {
+  const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const router = fs.readFileSync(path.join(__dirname, '../js/router.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  assert.doesNotMatch(index, /id="appMount"[^>]+aria-live/);
+  assert.match(index, /id="eodStatusLive"[^>]+aria-live="polite"/);
+  assert.match(router, /aria-current/);
+  assert.match(router, /routeState/);
+  assert.match(css, /:focus-visible/);
+  assert.match(css, /prefers-reduced-motion/);
+  assert.doesNotMatch(css, /@media \(max-width: 420px\)[\s\S]{0,180}\.nav-label \{ display: none/);
+});
+
+test('service worker discovers the full local shell and keeps APIs network-only', () => {
+  const sw = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
+  assert.match(sw, /shellAssetsFromHtml/);
+  assert.match(sw, /Promise\.all\(shellAssetsFromHtml\(html\)/);
+  assert.match(sw, /function isNetworkOnly/);
+  assert.match(sw, /\\\/api\\\//);
+  assert.match(sw, /optionalRemote/);
+  assert.match(sw, /keys\.filter\(\(k\) => k\.startsWith\('eod-field-'\) && k !== CACHE\)/);
+});
+
+test('prior-day draft requires an explicit resume or start-today choice', () => {
+  const session = fs.readFileSync(path.join(__dirname, '../js/session.js'), 'utf8');
+  const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
+  assert.match(session, /priorDayDraft = \{/);
+  assert.doesNotMatch(session, /if \(state\.workDate && state\.workDate !== today\) \{[\s\S]{0,500}clearDayConfirm\(\)/);
+  assert.match(visit, /id="priorDayResume"/);
+  assert.match(visit, /id="priorDayStart"/);
+  assert.match(visit, /initialStore: prior\.storeNumber, initialDate: prior\.workDate/);
+});

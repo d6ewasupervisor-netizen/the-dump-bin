@@ -5,6 +5,10 @@
   const API = 'https://eod-api.the-dump-bin.com/api';
   const MAX_COPIES = 5;
   const PRINT_COOLDOWN_MS = 2 * 60 * 1000;
+  const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  const PDFLIB_SRC = 'https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js';
+  const VIEWER_CSS = 'https://the-dump-bin.com/shared/pdf-viewer/materials-pdf-viewer.css?v=1.1.1';
+  const VIEWER_SRC = 'https://the-dump-bin.com/shared/pdf-viewer/materials-pdf-viewer.js?v=1.1.1';
 
   let weeks = [];
   let currentWeekIdx = 0;
@@ -108,18 +112,34 @@
   function ensurePdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
     if (pdfjsReady) return pdfjsReady;
-    pdfjsReady = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-      script.onload = () => {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        resolve(window.pdfjsLib);
-      };
-      script.onerror = () => reject(new Error('Failed to load PDF.js'));
-      document.head.appendChild(script);
+    const loader = window.EodAssetLoader;
+    pdfjsReady = loader
+      ? loader.loadScript(PDFJS_SRC, { test: () => !!window.pdfjsLib, value: () => window.pdfjsLib })
+      : Promise.reject(new Error('Dependency loader unavailable'));
+    pdfjsReady = pdfjsReady.then(() => {
+      if (!window.pdfjsLib) throw new Error('PDF.js did not initialize');
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      return window.pdfjsLib;
+    }).catch((err) => {
+      pdfjsReady = null;
+      throw err;
     });
     return pdfjsReady;
+  }
+
+  async function ensureMaterialDependencies() {
+    const loader = window.EodAssetLoader;
+    if (!loader) throw new Error('Dependency loader unavailable');
+    await loader.loadStyle(VIEWER_CSS);
+    await ensurePdfJs();
+    await loader.loadSequential([
+      { url: PDFLIB_SRC, test: () => !!window.PDFLib, value: () => window.PDFLib },
+      { url: VIEWER_SRC, test: () => !!window.MaterialsPdfViewer, value: () => window.MaterialsPdfViewer },
+    ]);
+    if (!window.PDFLib || !window.MaterialsPdfViewer) {
+      throw new Error('Document viewer failed to initialize');
+    }
   }
 
   async function loadWeeks() {
@@ -907,6 +927,7 @@
   }
 
   async function open() {
+    await ensureMaterialDependencies();
     wireOnce();
     const overlay = document.getElementById('materialsBrowserOverlay');
     if (!overlay) return;

@@ -757,7 +757,9 @@
   }
 
   function closeResetOverlay() {
-    document.getElementById('visitResetOverlay')?.remove();
+    const overlay = document.getElementById('visitResetOverlay');
+    global.EodA11y?.deactivate?.(overlay);
+    overlay?.remove();
   }
 
   async function openResetOverlay() {
@@ -820,6 +822,8 @@
         </div>
       </div>`;
     document.body.appendChild(overlay);
+    global.EodA11y?.activate?.(overlay);
+    overlay.addEventListener('eod-dialog-escape', closeResetOverlay);
 
     function currentOpts() {
       return {
@@ -849,7 +853,9 @@
   }
 
   function closeDayConfirmModal() {
-    document.getElementById('dayConfirmModal')?.remove();
+    const overlay = document.getElementById('dayConfirmModal');
+    global.EodA11y?.deactivate?.(overlay);
+    overlay?.remove();
   }
 
   async function cancelDayConfirm() {
@@ -868,24 +874,27 @@
     global.EodVisitMemory?.rememberLastStore?.(store);
     try { global.EodVisitMemory?.applyToSession?.(S, store); } catch (_) {}
     closeDayConfirmModal();
+    global.EodUsage?.track?.('visit_confirm_success', { status: 'confirmed' });
+    global.EodA11y?.announce?.('Visit confirmed');
     global.EodChrome?.refresh();
     if (global.EodRouter?.current === 'visit') {
       try { await global.EodRouter.render(); } catch (_) {}
     }
   }
 
-  async function openDayConfirmModal() {
+  async function openDayConfirmModal(options) {
     const S = global.EodSession;
     if (document.getElementById('dayConfirmModal')) return;
     const stores = await ensureStoreCatalog();
-    const last = global.EodVisitMemory?.lastStore?.() || S.state.storeNumber || '';
-    const date = S.todayLocalIsoDate();
+    const opts = options || {};
+    const last = opts.initialStore || global.EodVisitMemory?.lastStore?.() || S.state.storeNumber || '';
+    const date = opts.initialDate || S.todayLocalIsoDate();
     const overlay = document.createElement('div');
     overlay.id = 'dayConfirmModal';
     overlay.className = 'modal-overlay show day-confirm-modal';
     overlay.innerHTML = `
       <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="dayConfirmTitle">
-        <h2 id="dayConfirmTitle">Confirm today's store</h2>
+        <h2 id="dayConfirmTitle">Confirm store and date</h2>
         <div class="field">
           <label>Store</label>
           <input type="hidden" id="dayConfirmStore" value="${esc(last)}">
@@ -902,6 +911,8 @@
         </div>
       </div>`;
     document.body.appendChild(overlay);
+    global.EodA11y?.activate?.(overlay, '#dayConfirmStoreBtn');
+    overlay.addEventListener('eod-dialog-escape', () => { void cancelDayConfirm(); });
     const storeBtn = overlay.querySelector('#dayConfirmStoreBtn');
     const storeHidden = overlay.querySelector('#dayConfirmStore');
     const dateEl = overlay.querySelector('#dayConfirmDate');
@@ -978,6 +989,49 @@
       return;
     }
     openDayConfirmModal();
+  }
+
+  function closePriorDayChoice() {
+    const overlay = document.getElementById('priorDayChoice');
+    global.EodA11y?.deactivate?.(overlay);
+    overlay?.remove();
+  }
+
+  function presentPriorDayChoice() {
+    const S = global.EodSession;
+    const prior = S?.getPriorDayDraft?.();
+    if (!prior || document.getElementById('priorDayChoice')) return false;
+    const overlay = document.createElement('div');
+    overlay.id = 'priorDayChoice';
+    overlay.className = 'modal-overlay show';
+    overlay.innerHTML = `
+      <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="priorDayTitle">
+        <h2 id="priorDayTitle">Unfinished visit</h2>
+        <p>Store ${esc(prior.storeNumber || '—')} · ${esc(prior.workDate || '')}</p>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="priorDayStart">Start today</button>
+          <button type="button" class="btn btn-primary" id="priorDayResume">Resume</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    global.EodA11y?.activate?.(overlay, '#priorDayResume');
+    overlay.querySelector('#priorDayResume')?.addEventListener('click', async () => {
+      S.resolvePriorDayDraft?.('resume');
+      closePriorDayChoice();
+      if (!S.isVisitReady()) {
+        await openDayConfirmModal({ initialStore: prior.storeNumber, initialDate: prior.workDate });
+      } else {
+        await global.EodRouter?.render?.();
+      }
+    });
+    overlay.querySelector('#priorDayStart')?.addEventListener('click', async () => {
+      S.resolvePriorDayDraft?.('start');
+      closePriorDayChoice();
+      await S.resetVisit({});
+      await global.EodRouter?.render?.();
+      await openDayConfirmModal();
+    });
+    return true;
   }
 
   async function render(mount) {
@@ -1065,7 +1119,7 @@
       openDayConfirmModal();
     };
 
-    if (!ready) enforceDayConfirmGate();
+    if (!ready && !S.getPriorDayDraft?.()) enforceDayConfirmGate();
     else {
       try { global.EodVisitMemory?.applyToSession?.(S, S.state.storeNumber); } catch (_) {}
       void hydrateReadyVisit();
@@ -1100,6 +1154,12 @@
   }
 
   global.EodVisitCart = { cartPhotos, preparePhoto, pullCartFromProd, uploadCartToProd, thumbRow };
-  global.EodVisit = { enforceDayConfirmGate, openDayConfirmModal, closeDayConfirmModal, ensureStoreCatalog };
+  global.EodVisit = {
+    enforceDayConfirmGate,
+    openDayConfirmModal,
+    closeDayConfirmModal,
+    ensureStoreCatalog,
+    presentPriorDayChoice,
+  };
   global.EodRouter.register('visit', render);
 })(typeof window !== 'undefined' ? window : globalThis);

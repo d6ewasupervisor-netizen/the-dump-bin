@@ -29,6 +29,13 @@
 
   function emit(type, job) {
     const detail = { type, job: job ? publicJob(job) : null, pending: pendingCounts() };
+    if (type === 'failed' && job) {
+      global.EodUsage?.track?.('upload_failure', {
+        kind: job.kind || 'photo',
+        slot: job.slot || '',
+        status: 'failed',
+      });
+    }
     listeners.forEach((fn) => {
       try { fn(detail); } catch (_) {}
     });
@@ -513,6 +520,16 @@
       skipSi: !!job.skipSi,
       force: !!job.force,
     });
+    const durable = global.EodFieldSetJobs;
+    if (durable?.submit) {
+      return durable.submit('photo', {
+        headers,
+        body,
+        idempotencyKey: durable.operationKey('photo', job.id),
+        timeoutMs: 3 * 60 * 1000,
+        allowAsync: !job.force,
+      });
+    }
     const resp = await global.authFetch('https://eod-api.the-dump-bin.com/api/field-set/photo', {
       method: 'POST',
       headers,
@@ -700,6 +717,11 @@
     else return null;
     job.error = null;
     job.updatedAt = Date.now();
+    global.EodUsage?.track?.('upload_retry', {
+      kind: job.kind || 'photo',
+      slot: job.slot || '',
+      status: 'retry',
+    });
     persist();
     emit('queued', job);
     schedulePump();

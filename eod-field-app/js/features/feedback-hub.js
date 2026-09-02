@@ -13,6 +13,14 @@
   let extras = [];
   let screenshot = '';
   let html2canvasPromise = null;
+  let feedbackId = '';
+
+  function createFeedbackId() {
+    try {
+      if (crypto?.randomUUID) return crypto.randomUUID();
+    } catch (_) {}
+    return `fb-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
 
   function collectContext() {
     const S = window.EodSession?.state || {};
@@ -132,6 +140,9 @@
       .eod-feedback-dialog textarea { width:100%; min-height:90px; margin:6px 0 12px; }
       .eod-fb-shot img, .eod-fb-extras img { max-width:100%; border-radius:8px; margin-top:8px; }
       .eod-feedback-dialog .button-group { display:flex; }
+      .eod-fb-history { margin-top:10px; display:grid; gap:8px; }
+      .eod-fb-history-row { padding:8px 10px; border:1px solid #334155; border-radius:8px; }
+      .eod-fb-history-row strong { display:block; }
       body.eod-feedback-capturing #eodFeedbackOverlay { display:none !important; }
     `;
     document.head.appendChild(css);
@@ -144,7 +155,7 @@
     overlay.id = 'eodFeedbackOverlay';
     overlay.className = 'eod-feedback-overlay';
     overlay.innerHTML = `
-      <div class="eod-feedback-dialog" role="dialog" aria-labelledby="eodFbTitle">
+      <div class="eod-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="eodFbTitle">
         <h2 id="eodFbTitle">App feedback</h2>
         <p class="eod-fb-lead">Tell Tyson what to fix or build next. We attach this screen automatically.</p>
         <div class="eod-fb-context" id="eodFbContext"></div>
@@ -170,14 +181,18 @@
         <p class="eod-fb-status" id="eodFbStatus"></p>
         <div class="button-group" style="margin-top:8px;gap:8px;flex-wrap:wrap;">
           <button type="button" class="btn btn-primary" id="eodFbSend">Send to Tyson</button>
+          <button type="button" class="btn btn-secondary" id="eodFbHistoryBtn">My reports</button>
           <button type="button" class="btn btn-secondary" id="eodFbClose">Close</button>
         </div>
+        <div class="eod-fb-history" id="eodFbHistory" hidden></div>
       </div>`;
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.addEventListener('eod-dialog-escape', close);
     document.body.appendChild(overlay);
     overlay.querySelector('#eodFbClose').onclick = () => close();
     overlay.querySelector('#eodFbRetake').onclick = () => retake();
     overlay.querySelector('#eodFbSend').onclick = () => send();
+    overlay.querySelector('#eodFbHistoryBtn').onclick = () => loadHistory();
     overlay.querySelector('#eodFbFiles').addEventListener('change', onFiles);
   }
 
@@ -219,11 +234,11 @@
     try {
       screenshot = await captureViewport();
       renderShot();
-      setStatus('Screenshot attached.');
+      setStatus(`Screenshot attached · ID ${feedbackId}`);
     } catch (err) {
       screenshot = '';
       renderShot();
-      setStatus('Could not capture the screen. You can still add photos and send.', 'error');
+      setStatus(`Could not capture the screen · ID ${feedbackId}`, 'error');
     }
   }
 
@@ -243,19 +258,67 @@
     ensureUi();
     extras = [];
     screenshot = '';
+    feedbackId = createFeedbackId();
     const overlay = document.getElementById('eodFeedbackOverlay');
     const comment = document.getElementById('eodFbComment');
     if (comment) comment.value = '';
     renderExtras();
     renderShot();
     renderContext(collectContext());
+    setStatus(`Feedback ID: ${feedbackId}`);
+    const history = document.getElementById('eodFbHistory');
+    if (history) {
+      history.hidden = true;
+      history.innerHTML = '';
+    }
     overlay.classList.add('show');
+    window.EodA11y?.activate?.(overlay, '#eodFbComment');
     await retake();
     comment?.focus();
   }
 
   function close() {
-    document.getElementById('eodFeedbackOverlay')?.classList.remove('show');
+    const overlay = document.getElementById('eodFeedbackOverlay');
+    window.EodA11y?.deactivate?.(overlay);
+    overlay?.classList.remove('show');
+  }
+
+  async function loadHistory() {
+    const host = document.getElementById('eodFbHistory');
+    const btn = document.getElementById('eodFbHistoryBtn');
+    if (!host) return;
+    if (!host.hidden) {
+      host.hidden = true;
+      return;
+    }
+    if (btn) btn.disabled = true;
+    try {
+      const api = window.EOD_API_BASE || 'https://eod-api.the-dump-bin.com';
+      const resp = await (window.authFetch || fetch)(`${api}/api/app-feedback/mine?limit=10`, { skipBusy: true });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `History failed (${resp.status})`);
+      const rows = Array.isArray(data.feedback) ? data.feedback : [];
+      host.innerHTML = rows.length
+        ? rows.map((item) => {
+          const status = String(item.reviewStatus || item.status || 'submitted').replace(/_/g, ' ');
+          const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '';
+          return `<div class="eod-fb-history-row"><strong>${escapeHtml(status)}</strong><span>${escapeHtml(date)} · ${escapeHtml(item.kind || 'feedback')} · ${escapeHtml(String(item.comment || '').slice(0, 120))}</span></div>`;
+        }).join('')
+        : '<div class="eod-fb-history-row">No reports yet.</div>';
+      host.hidden = false;
+    } catch (err) {
+      setStatus(err.message || 'Could not load reports', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   async function send() {
@@ -276,6 +339,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kind, comment, screenshot, images: extras,
+          feedbackId,
+          correlationId: feedbackId,
+          clientStatus: 'submitted',
           storeNumber: ctx.storeNumber, workDate: ctx.workDate,
           screenLabel: ctx.screenLabel, appVersion: ctx.appVersion,
           userName: ctx.userName, context: ctx,
@@ -283,7 +349,8 @@
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.success) throw new Error(data.error || `Send failed (${resp.status})`);
-      setStatus('Sent.', 'ok');
+      const supportId = data.feedbackId || data.correlationId || feedbackId;
+      setStatus(`Sent · ID ${supportId}`, 'ok');
       setTimeout(() => close(), 1200);
     } catch (err) {
       setStatus(err.message || 'Send failed', 'error');
