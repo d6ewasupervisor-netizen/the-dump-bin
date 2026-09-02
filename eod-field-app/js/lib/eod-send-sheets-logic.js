@@ -192,6 +192,31 @@
     return /^data:image\//i.test(s);
   }
 
+  function photoEntrySrc(entry) {
+    if (!entry) return '';
+    if (typeof entry === 'string') return entry;
+    return entry.dataUrl || entry.previewUrl || entry.objectUrl || entry.preview || '';
+  }
+
+  function isDisplayablePhotoSrc(src, liveBlobUrls) {
+    const s = String(src || '').trim();
+    if (/^data:image\//i.test(s)) return true;
+    if (/^blob:/i.test(s) && liveBlobUrls && typeof liveBlobUrls.has === 'function') {
+      return liveBlobUrls.has(s);
+    }
+    return false;
+  }
+
+  function cartSlotHasLoadedPhotos(entries, liveBlobUrls) {
+    return (Array.isArray(entries) ? entries : []).some((p) => (
+      isDisplayablePhotoSrc(photoEntrySrc(p), liveBlobUrls)
+    ));
+  }
+
+  function cartSlotNeedsProdPull(entries, liveBlobUrls) {
+    return !cartSlotHasLoadedPhotos(entries, liveBlobUrls);
+  }
+
   function cartSlotLabel(filename, source) {
     const kind = classifySheetFilename(filename);
     if (kind === 'cart-before' || source === 'cart-before') return 'Kompass cart — before';
@@ -293,6 +318,10 @@
     eodPdfFilename,
     isRemotePhotoSrc,
     isSendableImageSrc,
+    photoEntrySrc,
+    isDisplayablePhotoSrc,
+    cartSlotHasLoadedPhotos,
+    cartSlotNeedsProdPull,
     cartSlotLabel,
     skippedPhotoMessage,
     classifySheetFilename,

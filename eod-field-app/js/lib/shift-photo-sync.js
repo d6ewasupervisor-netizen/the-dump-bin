@@ -4,11 +4,19 @@
 
   let lastKey = '';
   let running = false;
+  let ensuring = null;
 
   function cartHas(slot) {
+    const Photos = global.EodPhotos;
+    if (Photos?.slotHasDisplayable) return Photos.slotHasDisplayable(slot);
+    const L = global.EodSendSheetsLogic || {};
     const Cart = global.EodVisitCart;
-    if (Cart?.cartPhotos) return Cart.cartPhotos(slot).length > 0;
-    const arr = (global.EodSession?.state?.photos && global.EodSession.state.photos[slot]) || [];
+    const arr = Cart?.cartPhotos
+      ? Cart.cartPhotos(slot)
+      : ((global.EodSession?.state?.photos && global.EodSession.state.photos[slot]) || []);
+    if (L.cartSlotHasLoadedPhotos) {
+      return L.cartSlotHasLoadedPhotos(arr, global.PhotoDB?.liveObjectUrls);
+    }
     return arr.length > 0;
   }
 
@@ -20,6 +28,24 @@
       await Cart.pullCartFromProd(slot);
     } catch (err) {
       console.warn(`[photo-sync] cart ${slot}`, err.message || err);
+    }
+  }
+
+  async function ensureCartPhotos() {
+    if (ensuring) return ensuring;
+    ensuring = (async () => {
+      const S = global.EodSession;
+      if (!S?.isVisitReady?.() || !S.state.selectedShift) return;
+      if (global.PhotoDB?.hydrateArrays && S.state.photos) {
+        try { await global.PhotoDB.hydrateArrays(S.state.photos); } catch (_) {}
+      }
+      await pullCartSlot('before');
+      await pullCartSlot('after');
+    })();
+    try {
+      return await ensuring;
+    } finally {
+      ensuring = null;
     }
   }
 
@@ -71,8 +97,7 @@
       } else if (global.EodSignoffHome?.loadSheet) {
         try { await global.EodSignoffHome.loadSheet(); } catch (_) {}
       }
-      await pullCartSlot('before');
-      await pullCartSlot('after');
+      await ensureCartPhotos();
       const sheet = S.state.sheet;
       if (sheet?.rows?.length) {
         prefetchSetPhotos(sheet).catch(() => {});
@@ -95,5 +120,5 @@
     });
   }
 
-  global.EodShiftPhotoSync = { run, init };
+  global.EodShiftPhotoSync = { run, init, ensureCartPhotos, cartHas };
 })(typeof window !== 'undefined' ? window : globalThis);

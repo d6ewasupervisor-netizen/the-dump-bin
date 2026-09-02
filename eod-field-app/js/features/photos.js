@@ -16,8 +16,35 @@
 
   function src(entry) {
     if (!entry) return '';
-    if (typeof entry === 'string') return entry;
-    return entry.dataUrl || entry.previewUrl || entry.objectUrl || entry.preview || '';
+    const L = global.EodSendSheetsLogic || {};
+    const raw = L.photoEntrySrc ? L.photoEntrySrc(entry) : (
+      typeof entry === 'string'
+        ? entry
+        : (entry.dataUrl || entry.previewUrl || entry.objectUrl || entry.preview || '')
+    );
+    if (L.isDisplayablePhotoSrc) {
+      return L.isDisplayablePhotoSrc(raw, global.PhotoDB?.liveObjectUrls) ? raw : '';
+    }
+    if (/^data:image\//i.test(raw)) return raw;
+    if (/^blob:/i.test(raw) && global.PhotoDB?.isLiveObjectUrl?.(raw)) return raw;
+    return '';
+  }
+
+  function slotHasDisplayable(type) {
+    const S = global.EodSession;
+    const L = global.EodSendSheetsLogic || {};
+    const arr = S.state.photos[type] || [];
+    if (L.cartSlotHasLoadedPhotos) {
+      return L.cartSlotHasLoadedPhotos(arr, global.PhotoDB?.liveObjectUrls);
+    }
+    return arr.some((p) => !!src(p));
+  }
+
+  async function ensureHydrated() {
+    const S = global.EodSession;
+    if (global.PhotoDB?.hydrateArrays && S?.state?.photos) {
+      try { await global.PhotoDB.hydrateArrays(S.state.photos); } catch (_) {}
+    }
   }
 
   async function preparePhoto(file, type) {
@@ -53,8 +80,7 @@
   function gridHtml(type) {
     const S = global.EodSession;
     const arr = S.state.photos[type] || [];
-    if (!arr.length) return '<p class="muted">None yet.</p>';
-    return `<div class="photo-grid">${arr.map((p, i) => {
+    const cards = arr.map((p, i) => {
       const url = src(p);
       if (!url) return '';
       return `<div>
@@ -64,7 +90,9 @@
           <button type="button" class="btn btn-danger" data-remove="${esc(type)}" data-idx="${i}" style="min-height:36px;font-size:12px;flex:1;">Remove</button>
         </div>
       </div>`;
-    }).join('')}</div>`;
+    }).filter(Boolean);
+    if (!cards.length) return '<p class="muted">None yet.</p>';
+    return `<div class="photo-grid">${cards.join('')}</div>`;
   }
 
   async function removeAt(type, idx) {
@@ -184,6 +212,7 @@
   async function render(mount) {
     const S = global.EodSession;
     await loadPhotos();
+    await ensureHydrated();
     const showPaper = !S.hasHostedSheet();
     const showIw = S.state.instaworkYes === 'Yes' || (S.state.photos.instawork || []).length > 0;
     mount.innerHTML = `
@@ -333,6 +362,8 @@
     editAt,
     removeAt,
     src,
+    slotHasDisplayable,
+    ensureHydrated,
   };
   global.EodRouter.register('photos', () => {
     global.EodRouter.go('send', { replace: true });

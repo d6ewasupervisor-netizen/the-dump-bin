@@ -191,6 +191,59 @@
     const dbName = opts.dbName || 'kompassEODPhotos';
     const storeName = opts.storeName || 'photos';
     const blobStoreName = 'photoBlobs';
+    const liveObjectUrls = new Set();
+
+    function isLiveObjectUrl(url) {
+      return liveObjectUrls.has(String(url || ''));
+    }
+
+    function noteLiveObjectUrl(url) {
+      const s = String(url || '');
+      if (/^blob:/i.test(s)) liveObjectUrls.add(s);
+      return s;
+    }
+
+    function attachObjectUrl(blob, previousUrl) {
+      const prev = String(previousUrl || '');
+      if (prev && liveObjectUrls.has(prev)) return prev;
+      if (prev.startsWith('blob:')) {
+        try { URL.revokeObjectURL(prev); } catch (_) {}
+        liveObjectUrls.delete(prev);
+      }
+      const url = URL.createObjectURL(blob);
+      liveObjectUrls.add(url);
+      return url;
+    }
+
+    function srcNeedsRefresh(url) {
+      const s = String(url || '');
+      if (/^data:image\//i.test(s)) return false;
+      if (/^blob:/i.test(s) && liveObjectUrls.has(s)) return false;
+      return true;
+    }
+
+    async function blobUrlStillWorks(url) {
+      const s = String(url || '');
+      if (!/^blob:/i.test(s)) return false;
+      if (liveObjectUrls.has(s)) return true;
+      try {
+        const resp = await fetch(s);
+        const blob = await resp.blob();
+        if (blob && blob.size > 32) {
+          liveObjectUrls.add(s);
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    function clearStaleSrcFields(entry) {
+      ['dataUrl', 'previewUrl', 'objectUrl', 'preview'].forEach((key) => {
+        const v = String(entry[key] || '');
+        if (/^blob:/i.test(v) || /^https?:\/\//i.test(v)) entry[key] = '';
+      });
+    }
+
     let db = null;
     let activeKey = null; // { store, date, id }
     let migrationDone = false;
@@ -287,6 +340,7 @@
           if (p && typeof p === 'object' && p.blobId) ids.push(p.blobId);
           if (p && typeof p === 'object' && p.previewUrl && String(p.previewUrl).startsWith('blob:')) {
             try { URL.revokeObjectURL(p.previewUrl); } catch (_) {}
+            liveObjectUrls.delete(p.previewUrl);
           }
         }
       }
@@ -320,28 +374,40 @@
         await putBlob(id, blob);
         return {
           blobId: id,
-          previewUrl: URL.createObjectURL(blob),
+          previewUrl: attachObjectUrl(blob, ''),
           mime: blob.type,
           bytes: blob.size,
           stampedAt: Date.now(),
         };
       }
       if (entry.blobId && !entry.dataUrl) {
-        if (!entry.previewUrl) {
+        if (srcNeedsRefresh(entry.previewUrl || entry.objectUrl || entry.preview || '')) {
           const blob = await getBlob(entry.blobId);
-          if (blob) entry.previewUrl = URL.createObjectURL(blob);
+          if (blob) {
+            entry.previewUrl = attachObjectUrl(blob, entry.previewUrl);
+            entry.preview = entry.previewUrl;
+            entry.objectUrl = entry.previewUrl;
+          }
+        } else {
+          noteLiveObjectUrl(entry.previewUrl || entry.objectUrl || entry.preview);
         }
         return entry;
       }
       if (entry.dataUrl) {
         const blob = dataUrlToBlob(entry.dataUrl);
-        if (!blob) return entry;
+        if (!blob) {
+          noteLiveObjectUrl(entry.dataUrl);
+          noteLiveObjectUrl(entry.previewUrl);
+          return entry;
+        }
         const id = entry.blobId || newBlobId();
         await putBlob(id, blob);
         const copy = Object.assign({}, entry);
         delete copy.dataUrl;
         copy.blobId = id;
-        copy.previewUrl = URL.createObjectURL(blob);
+        copy.previewUrl = attachObjectUrl(blob, entry.previewUrl);
+        copy.preview = copy.previewUrl;
+        copy.objectUrl = copy.previewUrl;
         copy.mime = blob.type;
         copy.bytes = blob.size;
         return copy;
@@ -359,12 +425,29 @@
     }
 
     async function hydrateArrays(arrs) {
+      if (!arrs) return arrs;
       for (const t of PHOTO_TYPES) {
         for (const p of arrs[t] || []) {
-          if (p && typeof p === 'object' && p.blobId && !p.previewUrl && !p.dataUrl) {
-            const blob = await getBlob(p.blobId);
-            if (blob) p.previewUrl = URL.createObjectURL(blob);
+          if (!p || typeof p !== 'object') continue;
+          const current = p.previewUrl || p.objectUrl || p.preview || p.dataUrl || '';
+          if (!srcNeedsRefresh(current)) {
+            noteLiveObjectUrl(current);
+            continue;
           }
+          if (p.blobId) {
+            const blob = await getBlob(p.blobId);
+            if (blob) {
+              p.previewUrl = attachObjectUrl(blob, /^blob:/i.test(current) ? current : '');
+              p.preview = p.previewUrl;
+              p.objectUrl = p.previewUrl;
+              continue;
+            }
+          }
+          if (await blobUrlStillWorks(current)) {
+            p.previewUrl = current;
+            continue;
+          }
+          clearStaleSrcFields(p);
         }
       }
       return arrs;
@@ -1070,6 +1153,7 @@
       photosObj.signoff = dedupe(rec?.signoff || []);
       photosObj.after = dedupe(rec?.after || []);
       photosObj.instawork = dedupe(rec?.instawork || []).slice(-1);
+      await hydrateArrays(photosObj);
 
       // Mirror active to allPhotos
       await putRecord({
@@ -1373,6 +1457,10 @@
       init,
       savePhotos,
       hydrateDataUrls,
+      hydrateArrays,
+      isLiveObjectUrl,
+      noteLiveObjectUrl,
+      liveObjectUrls,
       photoSrc,
       getBlob,
       loadPhotos: async () => {

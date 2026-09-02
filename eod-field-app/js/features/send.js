@@ -420,8 +420,15 @@ ${S.state.notes || ''}`;
     });
     try { await global.EodPicQr?.mount?.(document.getElementById('eodPicQrMount')); } catch (_) {}
 
-    function paintSendablePhotos() {
+    async function paintSendablePhotos(opts) {
+      const syncFromProd = !!(opts && opts.syncFromProd);
       const Photos = global.EodPhotos;
+      if (Photos?.ensureHydrated) {
+        try { await Photos.ensureHydrated(); } catch (_) {}
+      }
+      if (syncFromProd && global.EodShiftPhotoSync?.ensureCartPhotos) {
+        try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
+      }
       const slots = [
         { type: 'before', id: 'sendBeforeGrid' },
         { type: 'after', id: 'cartAfterThumbs' },
@@ -432,7 +439,7 @@ ${S.state.notes || ''}`;
         if (!host || !Photos?.gridHtml) return;
         host.innerHTML = Photos.gridHtml(type);
         Photos.bindGrid(host, { afterChange: async () => {
-          paintSendablePhotos();
+          await paintSendablePhotos();
           refreshGates();
         } });
       });
@@ -440,7 +447,7 @@ ${S.state.notes || ''}`;
       const pushBtn = document.getElementById('cartAfterPush');
       if (pushBtn) pushBtn.disabled = !afterList.length;
     }
-    paintSendablePhotos();
+    await paintSendablePhotos({ syncFromProd: true });
 
     document.getElementById('sendPaperCam')?.addEventListener('click', async () => {
       if (!global.EodCamera?.open) return;
@@ -569,12 +576,14 @@ ${S.state.notes || ''}`;
             const entry = {
               dataUrl: job.previewUrl,
               preview: job.previewUrl,
+              previewUrl: job.previewUrl,
               storeNumber: S.state.storeNumber,
               workDate: S.state.workDate,
               stampedAt: Date.now(),
               kind: 'cart-after',
               jobId: job.id,
             };
+            try { global.PhotoDB?.noteLiveObjectUrl?.(job.previewUrl); } catch (_) {}
             const existing = (S.state.photos?.after || []).filter((p) => p?.kind && !String(p.kind).startsWith('cart'));
             const photos = Object.assign({}, S.state.photos, { after: [...existing, entry] });
             S.patch({ photos }, 'cart-after');

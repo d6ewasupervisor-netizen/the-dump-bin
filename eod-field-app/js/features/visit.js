@@ -2,36 +2,33 @@
 (function (global) {
   'use strict';
 
-  const Catalog = global.EodStoreCatalog;
+  const FALLBACK_STORES = [5,11,13,17,18,19,21,23,24,25,28,30,31,35,40,41,49,50,53,60,63,70,71,75,90,93,111,122,125,126,127,135,140,143,150,153,156,158,163,165,171,180,185,186,195,196,198,208,209,210,214,215,218,220,224,225,226,227,236,240,242,253,255,260,265,281,285,286,325,328,351,355,360,372,375,377,383,390,391,393,417,424,439,449,457,458,459,460,462,464,482,485,486,516,600,603,604,605,608,613,614,615,649,650,651,652,653,654,655,656,657,658,659,660,661,662,663,665,667,668,681,682,683,685,688,691,694,999];
   const STORE_CACHE_KEY = 'eodCatalogStores';
   let catalogStores = null;
-  let catalogFetched = false;
 
   function storeNumbers() {
-    return Catalog.mergeStoreCatalog(catalogStores);
+    const src = Array.isArray(catalogStores) && catalogStores.length ? catalogStores : FALLBACK_STORES;
+    const nums = src.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0);
+    if (!nums.includes(999)) nums.push(999);
+    return [...new Set(nums)].sort((a, b) => a - b);
   }
 
   async function ensureStoreCatalog() {
-    catalogStores = Catalog.mergeStoreCatalog(catalogStores);
-    if (catalogFetched) return catalogStores;
+    if (catalogStores && catalogStores.length) return storeNumbers();
     try {
       const cached = JSON.parse(localStorage.getItem(STORE_CACHE_KEY) || 'null');
-      if (Array.isArray(cached) && cached.length) {
-        catalogStores = Catalog.mergeStoreCatalog(catalogStores, cached);
-      }
+      if (Array.isArray(cached) && cached.length) catalogStores = cached;
     } catch (_) {}
     try {
       const resp = await global.authFetch(`${global.EOD_API_BASE}/api/digital-signoffs/catalog-stores`);
       const data = await resp.json().catch(() => ({}));
-      const nums = (data.stores || []).map((s) => Catalog.toStoreNum(s)).filter((n) => n != null);
+      const nums = (data.stores || []).map((s) => Number(s.storeNum || s.storeNumber || s)).filter((n) => Number.isFinite(n) && n > 0);
       if (nums.length) {
-        catalogStores = Catalog.mergeStoreCatalog(catalogStores, nums);
-        catalogFetched = true;
-        try { localStorage.setItem(STORE_CACHE_KEY, JSON.stringify(catalogStores)); } catch (_) {}
+        catalogStores = nums;
+        try { localStorage.setItem(STORE_CACHE_KEY, JSON.stringify(nums)); } catch (_) {}
       }
     } catch (_) {}
-    catalogStores = Catalog.mergeStoreCatalog(catalogStores);
-    return catalogStores;
+    return storeNumbers();
   }
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
@@ -435,16 +432,16 @@
   function thumbRow(list) {
     if (!list.length) return '<p class="muted">None yet.</p>';
     const L = global.EodSendSheetsLogic || {};
+    const live = global.PhotoDB?.liveObjectUrls;
     return `<div class="set-thumbs">${list.map((p) => {
-      const src = p.dataUrl || p.preview || p;
-      const raw = typeof src === 'string' ? src : '';
-      const unsaved = L.isRemotePhotoSrc ? L.isRemotePhotoSrc(raw) : /^https?:\/\//i.test(raw);
-      const img = unsaved
-        ? ''
-        : `<img src="${esc(raw)}" alt="cart">`;
-      const warn = unsaved
-        ? '<span class="muted">Didn\'t save. Retake or Pull from PROD.</span>'
-        : '';
+      const raw = L.photoEntrySrc ? L.photoEntrySrc(p) : (
+        typeof p === 'string' ? p : (p.dataUrl || p.previewUrl || p.preview || '')
+      );
+      const ok = L.isDisplayablePhotoSrc
+        ? L.isDisplayablePhotoSrc(raw, live)
+        : /^data:image\//i.test(raw);
+      const img = ok ? `<img src="${esc(raw)}" alt="cart">` : '';
+      const warn = ok ? '' : '<span class="muted">Didn\'t save. Retake or Pull from PROD.</span>';
       return `<div class="set-thumb">${img}${warn}</div>`;
     }).join('')}</div>`;
   }
@@ -526,7 +523,7 @@
     return data;
   }
 
-  function paintOnboarding() {
+  async function paintOnboarding() {
     const S = global.EodSession;
     const host = document.getElementById('visitOnboarding');
     if (!host) return;
@@ -534,6 +531,10 @@
     if (!S.isVisitReady() || !S.state.selectedShift) {
       host.innerHTML = '';
       return;
+    }
+
+    if (global.PhotoDB?.hydrateArrays) {
+      try { await global.PhotoDB.hydrateArrays(S.state.photos); } catch (_) {}
     }
 
     const befores = cartPhotos('before');
@@ -590,12 +591,14 @@
         const entry = {
           dataUrl: job.previewUrl,
           preview: job.previewUrl,
+          previewUrl: job.previewUrl,
           storeNumber: S.state.storeNumber,
           workDate: S.state.workDate,
           stampedAt: Date.now(),
           kind: `cart-${slot}`,
           jobId: job.id,
         };
+        try { global.PhotoDB?.noteLiveObjectUrl?.(job.previewUrl); } catch (_) {}
         const existing = (S.state.photos?.[slot] || []).filter((p) => p?.kind && !String(p.kind).startsWith('cart'));
         const photos = Object.assign({}, S.state.photos, {
           [slot]: [...existing, entry],
@@ -922,11 +925,16 @@
     const statusEl = overlay.querySelector('#dayConfirmStatus');
     try { await global.EodShiftDay?.load?.(date); } catch (_) {}
     storeBtn.onclick = () => {
-      const scheduled = global.EodShiftDay?.scheduledStoreNumbers?.(dateEl.value || date) || [];
+      const scheduled = new Set(global.EodShiftDay?.scheduledStoreNumbers?.(dateEl.value || date) || []);
+      const ordered = [...stores].sort((a, b) => {
+        const aS = scheduled.has(Number(a)) ? 0 : 1;
+        const bS = scheduled.has(Number(b)) ? 0 : 1;
+        return aS - bS || Number(a) - Number(b);
+      });
       global.EodPicker.open({
         anchor: storeBtn,
         title: 'Store number',
-        items: Catalog.pickerItemsForStores(stores, scheduled),
+        items: ordered.map((n) => ({ id: String(n), label: `Store ${n}` })),
         searchable: true,
         onChoose(item) {
           storeHidden.value = item.id;
@@ -1083,7 +1091,10 @@
 `;
 
     paintShiftList(document.getElementById('shiftList'));
-    paintOnboarding();
+    if (global.EodShiftPhotoSync?.ensureCartPhotos) {
+      try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
+    }
+    await paintOnboarding();
 
     document.getElementById('resetVisitBtn').onclick = () => doReset();
 
@@ -1141,13 +1152,11 @@
         await withTimeout(global.PhotoDB.switchToDayConfirm(store, date, S.state.photos), 8000);
       } catch (_) {}
     }
-    if (listEl) {
+    if (!S.state.shifts.length && listEl) {
       try {
         await findShifts(store, date, listEl);
       } catch (err) {
-        if (!S.state.shifts.length) {
-          listEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load shifts.')}</p>`;
-        }
+        listEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load shifts.')}</p>`;
       }
     }
     if (statusEl) statusEl.textContent = '';

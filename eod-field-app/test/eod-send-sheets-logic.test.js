@@ -66,6 +66,10 @@ test('sendable photo src rejects CloudFront URLs and accepts data URLs', () => {
     isSendableImageSrc,
     skippedPhotoMessage,
     cartSlotLabel,
+    photoEntrySrc,
+    isDisplayablePhotoSrc,
+    cartSlotHasLoadedPhotos,
+    cartSlotNeedsProdPull,
   } = require('../js/lib/eod-send-sheets-logic');
   const url = 'https://d3jttbrw0ufia8.cloudfront.net/media/11193/MDjixww.jpg';
   assert.equal(isRemotePhotoSrc(url), true);
@@ -81,6 +85,23 @@ test('sendable photo src rejects CloudFront URLs and accepts data URLs', () => {
     skippedPhotoMessage([{ filename: 'cart_before_0.jpg', source: 'cart-before' }]),
     /The rest of this EOD still went out/
   );
+
+  const dataUrl = 'data:image/jpeg;base64,/9j/4AAQ';
+  const deadBlob = 'blob:https://the-dump-bin.com/stale';
+  const liveBlob = 'blob:https://the-dump-bin.com/live';
+  const live = new Set([liveBlob]);
+  assert.equal(photoEntrySrc({ previewUrl: deadBlob, blobId: 'b1' }), deadBlob);
+  assert.equal(isDisplayablePhotoSrc(dataUrl), true);
+  assert.equal(isDisplayablePhotoSrc(url), false);
+  assert.equal(isDisplayablePhotoSrc(deadBlob), false);
+  assert.equal(isDisplayablePhotoSrc(deadBlob, live), false);
+  assert.equal(isDisplayablePhotoSrc(liveBlob, live), true);
+  assert.equal(cartSlotNeedsProdPull([]), true);
+  assert.equal(cartSlotNeedsProdPull([{ previewUrl: deadBlob }]), true);
+  assert.equal(cartSlotNeedsProdPull([{ previewUrl: url }]), true);
+  assert.equal(cartSlotNeedsProdPull([{ dataUrl }]), false);
+  assert.equal(cartSlotHasLoadedPhotos([{ previewUrl: liveBlob }], live), true);
+  assert.equal(cartSlotNeedsProdPull([{ previewUrl: liveBlob }], live), false);
 });
 
 test('coversheet and digital filenames match live EOD naming', () => {
