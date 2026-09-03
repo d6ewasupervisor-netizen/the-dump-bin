@@ -11,7 +11,7 @@
 
   const WORKER =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const ASSET_VER = '1.1.2';
+  const ASSET_VER = '1.1.3';
   const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
   const MSG_SOURCE = 'materials-pdf-viewer';
 
@@ -153,24 +153,26 @@
           <span class="mpv-page-total" id="mpvPageTotal">/ 1</span>
           <button type="button" class="mpv-btn" id="mpvNext" aria-label="Next page">›</button>
         </div>
-        <div class="mpv-group mpv-toolbar__extras" aria-label="Zoom">
-          <button type="button" class="mpv-btn" id="mpvZoomOut" aria-label="Zoom out">−</button>
-          <span class="mpv-zoom-label" id="mpvZoomLabel">Fit</span>
-          <button type="button" class="mpv-btn" id="mpvZoomIn" aria-label="Zoom in">+</button>
-          <button type="button" class="mpv-btn" id="mpvFitWidth" title="Fit width">Fit</button>
-          <button type="button" class="mpv-btn" id="mpvFitPage" title="Fit page">Page</button>
+        <div class="mpv-toolbar__scroll">
+          <div class="mpv-group mpv-toolbar__extras" aria-label="Zoom">
+            <button type="button" class="mpv-btn" id="mpvZoomOut" aria-label="Zoom out">−</button>
+            <span class="mpv-zoom-label" id="mpvZoomLabel">Fit</span>
+            <button type="button" class="mpv-btn" id="mpvZoomIn" aria-label="Zoom in">+</button>
+            <button type="button" class="mpv-btn" id="mpvFitWidth" title="Fit width">Fit</button>
+            <button type="button" class="mpv-btn" id="mpvFitPage" title="Fit page">Page</button>
+          </div>
+          <div class="mpv-group mpv-toolbar__extras" aria-label="Rotate">
+            <button type="button" class="mpv-btn" id="mpvRotL" aria-label="Rotate left" title="Rotate left">↶</button>
+            <button type="button" class="mpv-btn" id="mpvRotR" aria-label="Rotate right" title="Rotate right">↷</button>
+          </div>
+          <div class="mpv-search mpv-toolbar__extras">
+            <input type="search" id="mpvSearch" placeholder="Search" enterkeyhint="search" autocomplete="off">
+            <span class="mpv-search__count" id="mpvSearchCount"></span>
+            <button type="button" class="mpv-btn" id="mpvFindPrev" aria-label="Previous match" title="Previous match">▴</button>
+            <button type="button" class="mpv-btn" id="mpvFindNext" aria-label="Next match" title="Next match">▾</button>
+          </div>
+          <button type="button" class="mpv-btn mpv-btn--ghost mpv-toolbar__extras" id="mpvThumbsToggle" title="Toggle thumbnails">Thumbs</button>
         </div>
-        <div class="mpv-group mpv-toolbar__extras" aria-label="Rotate">
-          <button type="button" class="mpv-btn" id="mpvRotL" aria-label="Rotate left" title="Rotate left">↶</button>
-          <button type="button" class="mpv-btn" id="mpvRotR" aria-label="Rotate right" title="Rotate right">↷</button>
-        </div>
-        <div class="mpv-search mpv-toolbar__extras">
-          <input type="search" id="mpvSearch" placeholder="Search in document…" enterkeyhint="search" autocomplete="off">
-          <span class="mpv-search__count" id="mpvSearchCount"></span>
-          <button type="button" class="mpv-btn" id="mpvFindPrev" aria-label="Previous match" title="Previous match">▴</button>
-          <button type="button" class="mpv-btn" id="mpvFindNext" aria-label="Next match" title="Next match">▾</button>
-        </div>
-        <button type="button" class="mpv-btn mpv-btn--ghost mpv-toolbar__extras" id="mpvThumbsToggle" title="Toggle thumbnails">Thumbs</button>
         <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvImmersive" title="More tools">Tools</button>
         <div class="mpv-toolbar__spacer"></div>
         <button type="button" class="mpv-btn mpv-btn--ghost" id="mpvClose" aria-label="Close">Close</button>
@@ -882,6 +884,15 @@
     }
   }
 
+  function syncUiScale() {
+    if (!host) return;
+    const w = host.clientWidth || global.innerWidth || 360;
+    const t = Math.max(0, Math.min(1, (w - 320) / 400));
+    const fs = 10.5 + t * 2.5;
+    host.style.setProperty('--mpv-fs', `${fs.toFixed(2)}px`);
+    host.style.setProperty('--mpv-fs-sm', `${(fs - 1).toFixed(2)}px`);
+  }
+
   function setReadingMode(on) {
     if (!host) return;
     const reading = !!on;
@@ -928,6 +939,7 @@
     host.classList.toggle('is-standalone', !!options.standalone);
     host.classList.toggle('is-framed', !!framed);
     host.classList.add('is-open');
+    syncUiScale();
     const startInTools = (options.tools === true || options.immersive === false)
       && !isNarrowScreen();
     host.classList.toggle('is-thumbs-collapsed', !startInTools);
@@ -989,6 +1001,7 @@
   }
 
   function onResize() {
+    syncUiScale();
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       if (fitMode !== 'manual' && host?.classList.contains('is-open')) renderPage();
