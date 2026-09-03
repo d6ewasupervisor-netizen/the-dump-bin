@@ -19,6 +19,7 @@
     --note-bg:#f0f6fa; --note-line:#d0e0ec;
     --opt-bg:#fff; --input-bg:#fff; --chip-bg:#fff;
     --glow:rgba(15,92,140,.12);
+    --overlay:rgba(238,242,246,.78);
     --tap:48px;
     --radius:16px;
   }
@@ -30,6 +31,7 @@
     --note-bg:#152636; --note-line:#2a4258;
     --opt-bg:#1e2a38; --input-bg:#121a22; --chip-bg:#1e2a38;
     --glow:rgba(74,163,217,.18);
+    --overlay:rgba(15,20,25,.82);
   }
   [data-theme="inverse"]{
     --ink:#f4f8fc; --ink-soft:#b7c6d4; --line:#3d556c; --paper:#062033; --card:#0b3a55;
@@ -39,6 +41,7 @@
     --note-bg:#0a3a55; --note-line:#2a6284;
     --opt-bg:#0e4666; --input-bg:#08324a; --chip-bg:#0e4666;
     --glow:rgba(127,208,255,.22);
+    --overlay:rgba(6,32,51,.85);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   /* A+/A− scales rem-based content; chrome UI keeps px so the header stays compact */
@@ -254,9 +257,32 @@
     main{padding:10px}
     .card{padding:14px;border-radius:14px}
   }
+  .loading-overlay{
+    position:fixed;inset:0;background:var(--overlay);z-index:50;display:none;align-items:center;justify-content:center;
+    font-weight:600;color:var(--accent-deep);
+  }
+  .loading-overlay.show{display:flex}
+  .loading-inner{
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+    text-align:center;padding:20px;
+  }
+  .loading-title{font-size:1.2rem;font-weight:700;color:var(--ink);letter-spacing:.02em}
+  .loading-title:empty{display:none}
+  .loading-gif{
+    width:min(220px,56vw);height:auto;display:block;
+    background:#000;border-radius:16px;
+  }
+  .loading-caption{font-size:.95rem;font-weight:600;color:var(--ink-soft)}
 </style>
 </head>
 <body>
+<div class="loading-overlay" id="loading" aria-live="polite" aria-busy="true">
+  <div class="loading-inner">
+    <div class="loading-title" id="loading-title"></div>
+    <img class="loading-gif" src="/survey/assets/buffering_v2.gif?v=2" alt="" width="260" height="260">
+    <div class="loading-caption">Buffering...</div>
+  </div>
+</div>
 <header class="brandbar">
   <div class="top">
     <button type="button" class="icon-btn" id="btn-home" title="Home — store selection" aria-label="Home">⌂ Home</button>
@@ -562,6 +588,16 @@ function setProgress() {
   }
   const pct = Math.round(((QINDEX) / Math.max(FLAT.length, 1)) * 100);
   $('#prog').style.width = Math.min(100, pct) + '%';
+}
+
+function setLoading(on, title) {
+  const el = document.getElementById('loading');
+  const titleEl = document.getElementById('loading-title');
+  if (titleEl) titleEl.textContent = on ? (title || '') : '';
+  if (el) {
+    el.classList.toggle('show', !!on);
+    el.setAttribute('aria-busy', on ? 'true' : 'false');
+  }
 }
 
 function setSave(msg, cls) {
@@ -1116,6 +1152,8 @@ function updatePickerNext() {
 }
 
 async function openStore(storeNum, opts = {}) {
+  setLoading(true);
+  try {
   const preferAnswers = !!opts.preferAnswers;
   const jumpTo = opts.jumpTo != null ? Number(opts.jumpTo) : null;
   STORE = Number(storeNum);
@@ -1181,6 +1219,9 @@ async function openStore(storeNum, opts = {}) {
   EDIT_RETURN = null;
   QINDEX = 0;
   renderQuestion();
+  } finally {
+    setLoading(false);
+  }
 }
 
 function rebuildFlat() {
@@ -1849,6 +1890,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 (async function init() {
+  setLoading(true);
   try {
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
     const [me, q] = await Promise.all([api('/api/survey/me'), api('/api/survey/questions')]);
@@ -1870,6 +1912,8 @@ window.addEventListener('beforeunload', (e) => {
   } catch (e) {
     console.error(e);
     main.innerHTML = `<div class="card">Could not load the survey. Check your connection.</div>`;
+  } finally {
+    setLoading(false);
   }
 })();
 })();
