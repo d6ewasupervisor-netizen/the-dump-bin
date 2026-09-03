@@ -319,19 +319,21 @@ test('dump-bin does not steal the photos route', () => {
 });
 
 test('dump-bin open-in-tab is a compact icon, not a stretched button', () => {
-  const src = fs.readFileSync(path.join(__dirname, '../js/features/dump-bin.js'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
-  const sw = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
-  assert.match(src, /assets\/new_window\.png/);
+  const src = fs.readFileSync(path.join(__dirname, '../js/features/dump-bin.js'), 'utf8');
+  assert.match(src, /<svg class="dump-bin-open-tab-ico"/);
+  assert.match(src, /stroke="currentColor"/);
   assert.match(src, /aria-label="Open in new tab"/);
   assert.match(src, /class="dump-bin-open-tab"/);
+  assert.match(src, /dump-bin-open-tab-ico/);
   assert.doesNotMatch(src, />Open in tab</);
   assert.doesNotMatch(src, /class="btn btn-secondary"/);
-  assert.ok(fs.existsSync(path.join(__dirname, '../assets/new_window.png')));
+  assert.match(css, /\.dump-bin-embed-bar\s*\{[^}]*justify-content:\s*space-between/);
   assert.match(css, /\.dump-bin-open-tab\s*\{/);
   assert.match(css, /\.dump-bin-open-tab\s*\{[^}]*flex:\s*0\s+0\s+auto/);
+  assert.match(css, /\.dump-bin-open-tab\s*\{[^}]*margin-left:\s*auto/);
+  assert.match(css, /\.dump-bin-open-tab\s*\{[^}]*color:\s*var\(--heading\)/);
   assert.doesNotMatch(css, /\.dump-bin-embed-bar\s+\.btn\s*\{/);
-  assert.match(sw, /assets\/new_window\.png\?v=/);
 });
 
 test('pilot ships overlay alerts, roles, camera, and PIC QR', () => {
