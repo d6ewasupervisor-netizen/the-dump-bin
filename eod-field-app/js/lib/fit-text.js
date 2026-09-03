@@ -54,8 +54,7 @@
 
   function fitSheetCard(card) {
     if (!card) return;
-    fitWrapped(card.querySelector('.ds-row-title'), TITLE_MIN, TITLE_MAX, 2);
-    card.querySelectorAll('.ds-row-meta').forEach((el) => fitOneLine(el, META_MIN, META_MAX));
+    fitWrapped(card.querySelector('.ds-row-title'), TITLE_MIN, TITLE_MAX, 3);
     card.querySelectorAll('.manifest-error-msg').forEach((el) => fitWrapped(el, META_MIN, META_MAX, 3));
   }
 

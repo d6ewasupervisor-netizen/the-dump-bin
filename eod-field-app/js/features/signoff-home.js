@@ -562,7 +562,7 @@
         <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
         <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
-          <div class="muted ds-row-meta">${esc(metaBits.join(' · '))}</div>
+          <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
           ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
         <div class="ds-actions">

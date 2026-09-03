@@ -890,7 +890,7 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .shift-card.selected { outline: 2px solid var(--accent); border-color: var(--accent); }
 .shift-card.completed { opacity: .75; }
 .ds-row { cursor: default; min-width: 0; }
-.ds-row-copy { min-width: 0; max-width: 100%; }
+.ds-row-copy { min-width: 0; max-width: 100%; overflow: hidden; }
 .ds-row-title {
   display: block;
   line-height: 1.25;
@@ -898,7 +898,17 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   word-break: break-word;
   font-size: clamp(12px, 4.2vw, 17px);
 }
-.ds-row-meta,
+.ds-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.4em;
+  row-gap: 2px;
+  max-width: 100%;
+  min-width: 0;
+  font-size: clamp(10px, 3.1vw, 13px);
+}
+.ds-row-meta > span { white-space: nowrap; }
+.ds-row-meta > span + span::before { content: "· "; }
 .ds-row .manifest-error-msg {
   overflow-wrap: anywhere;
   word-break: break-word;
