@@ -801,9 +801,11 @@
       paintBulkBar();
       paintSelectAll();
       if (html === lastRowsHtml) return;
-      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const pane = document.getElementById('appMount');
+      const y = (pane && pane.scrollTop) || window.scrollY || document.documentElement.scrollTop || 0;
       lastRowsHtml = html;
       rowsEl.innerHTML = html;
+      if (pane) pane.scrollTop = y;
       window.scrollTo(0, y);
       rowsEl.querySelectorAll('[data-select-row]').forEach((box) => {
         box.addEventListener('click', (ev) => ev.stopPropagation());

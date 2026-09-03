@@ -278,6 +278,7 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
   display: flex;
   flex-direction: column;
 }
+.app-pane { display: contents; }
 
 /* Slim 28px strip — not a paragraph banner */
 .pilot-banner {
@@ -807,6 +808,17 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
 }
 .bottom-nav .nav-label { line-height: 1.1; }
 .bottom-nav [data-slot="extra"] { display: none; }
+.bottom-nav .nav-collapse-btn {
+  display: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
 
 @media (max-width: 420px) {
   .bottom-nav .nav-label { display: block; font-size: 11px; }
@@ -1112,56 +1124,94 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 }
 
 @media (min-width: 768px) {
-  body {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+  body,
+  body[data-route="visit"] {
     background: var(--letterbox);
     padding: calc(12px + var(--safe-t)) 12px calc(12px + var(--safe-b)) 12px;
   }
   .app-shell {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-    grid-template-rows: auto auto auto auto auto 1fr auto;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
     max-width: 1100px;
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0,0,0,.35);
-    overflow: auto;
-    min-height: calc(100vh - 24px - var(--safe-t) - var(--safe-b));
+    overflow: hidden;
+    height: calc(100vh - 24px - var(--safe-t) - var(--safe-b));
+    height: calc(100dvh - 24px - var(--safe-t) - var(--safe-b));
+    max-height: calc(100vh - 24px - var(--safe-t) - var(--safe-b));
+    max-height: calc(100dvh - 24px - var(--safe-t) - var(--safe-b));
+    min-height: 0;
+  }
+  .app-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    order: 2;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
   }
   .pilot-banner,
-  #updateBanner,
-  #authBanner,
-  #connToast,
-  #pilotSignIn,
   #appChrome,
-  #eodForceLiveRow {
-    grid-column: 1 / -1;
+  #sectionNavHost {
+    flex: 0 0 auto;
   }
   .bottom-nav {
-    position: static;
-    grid-column: 1;
-    grid-row: 6 / 8;
-    display: flex; flex-direction: column; gap: 4px;
-    overflow-x: visible;
+    position: relative;
+    order: 1;
+    flex: 0 0 200px;
+    width: 200px;
+    min-width: 200px;
+    max-width: 200px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-x: hidden;
     overflow-y: auto;
-    min-height: 420px;
-    border-top: 0; border-right: 1px solid var(--border);
-    padding: 12px; align-self: stretch;
+    min-height: 0;
+    align-self: stretch;
+    border-top: 0;
+    border-right: 1px solid var(--border);
+    padding: 12px;
+    z-index: 40;
   }
   .bottom-nav .nav-ico-img { width: 32px; height: 32px; border-radius: 8px; }
+  .bottom-nav .nav-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;
+    width: 36px;
+    min-height: 36px;
+    min-width: 36px;
+    margin-bottom: 4px;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+  .bottom-nav .nav-collapse-btn:hover {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
   #appMount {
-    grid-column: 2;
-    grid-row: 6;
-    min-height: 280px;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 16px;
+    overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   #sectionNavHost {
-    grid-column: 2;
-    grid-row: 7;
+    flex: 0 0 auto;
     padding: 0 16px 16px;
   }
   body[data-route="visit"] .bottom-nav { display: flex; }
-  body[data-route="visit"] .app-shell { grid-template-columns: 200px 1fr; }
-  body[data-route="visit"] #appMount { grid-column: 2; }
   .bottom-nav button {
     flex-direction: column;
     justify-content: center;
@@ -1175,14 +1225,35 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   }
   .bottom-nav [data-slot="extra"] { display: flex; }
   .bottom-nav [data-slot="phone-more"] { display: none !important; }
+  body.nav-collapsed .bottom-nav {
+    flex: 0 0 72px;
+    flex-shrink: 0;
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
+  }
+  body.nav-collapsed .nav-label { display: none; }
+  body.nav-collapsed .bottom-nav button[data-nav] {
+    justify-content: center;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  body.nav-collapsed .bottom-nav .nav-collapse-btn {
+    align-self: center;
+    color: var(--accent);
+  }
   .chrome-store { font-size: 1.15rem; }
   #appChrome .pill { font-size: 11px; }
 }
 
 @media (min-width: 1024px) {
-  .app-shell { max-width: 1200px; grid-template-columns: 220px 1fr; }
-  body[data-route="visit"] .app-shell,
-  .app-shell { grid-template-columns: 220px 1fr; }
+  .app-shell { max-width: 1200px; }
+  body:not(.nav-collapsed) .bottom-nav {
+    flex-basis: 220px;
+    width: 220px;
+    min-width: 220px;
+    max-width: 220px;
+  }
 }
 
 /* Dept signatures on digital signoff */
@@ -2190,6 +2261,14 @@ body[data-route="visit"] {
   margin-bottom: 8px;
 }
 @media (min-width: 768px) {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+  body,
+  body[data-route="visit"] {
+    padding: calc(12px + var(--safe-t)) 12px calc(12px + var(--safe-b)) 12px;
+  }
   #appMount { padding: 20px 20px 32px; }
   .card { padding: 16px; margin-bottom: 16px; }
 }
@@ -2253,6 +2332,12 @@ body.dump-bin-viewer-open .eod-test-banner {
   justify-content: space-between;
   gap: 8px;
   cursor: pointer;
+}
+.eod-unsent-banner[hidden],
+.eod-photo-fail-banner[hidden],
+#pilotSignIn[hidden],
+#authBanner[hidden] {
+  display: none !important;
 }
 .eod-photo-fail-banner { cursor: default; }
 .unsent-type {

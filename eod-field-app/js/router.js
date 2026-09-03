@@ -31,10 +31,12 @@
     const from = current;
     if (from) {
       const focused = document.activeElement;
+      const pane = document.getElementById('appMount');
       routeState.set(from, {
         x: global.scrollX || 0,
         y: global.scrollY || 0,
-        focusId: focused?.id && document.getElementById('appMount')?.contains(focused) ? focused.id : '',
+        mountY: pane ? pane.scrollTop : 0,
+        focusId: focused?.id && pane?.contains(focused) ? focused.id : '',
       });
     }
     const session = global.EodSession;
@@ -80,6 +82,7 @@
     const saved = routeState.get(name);
     requestAnimationFrame(() => requestAnimationFrame(() => {
       global.scrollTo?.(saved?.x || 0, saved?.y || 0);
+      mount.scrollTop = saved?.mountY || 0;
       if (saved?.focusId) {
         document.getElementById(saved.focusId)?.focus?.({ preventScroll: true });
       } else {

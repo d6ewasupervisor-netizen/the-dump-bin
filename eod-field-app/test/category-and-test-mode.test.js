@@ -228,6 +228,21 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   }
 });
 
+test('desktop keeps the side nav static while the page pane scrolls', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  const chrome = fs.readFileSync(path.join(__dirname, '../js/chrome.js'), 'utf8');
+  const router = fs.readFileSync(path.join(__dirname, '../js/router.js'), 'utf8');
+  assert.match(html, /id="navCollapseBtn"/);
+  assert.match(html, /class="app-pane"/);
+  assert.match(css, /body\.nav-collapsed \.bottom-nav/);
+  assert.match(css, /#appMount \{[\s\S]*overflow-y: auto/);
+  assert.match(chrome, /function toggleNav/);
+  assert.match(chrome, /NAV_COLLAPSE_KEY/);
+  assert.match(router, /mountY/);
+  assert.match(router, /mount\.scrollTop/);
+});
+
 test('section nav host is pinned outside page content', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   assert.match(html, /id="sectionNavHost"/);
@@ -443,11 +458,20 @@ test('category cards shrink text to fit the card width', () => {
   const fit = require('../js/lib/fit-text');
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  const fitSrc = fs.readFileSync(path.join(__dirname, '../js/lib/fit-text.js'), 'utf8');
   assert.equal(fit.TITLE_MIN, 11);
   assert.equal(fit.META_MIN, 9);
   assert.match(html, /js\/lib\/fit-text\.js/);
   assert.match(signoff, /ds-row-title/);
+  assert.match(signoff, /ds-row-meta/);
+  assert.match(signoff, /metaBits\.map/);
   assert.match(signoff, /EodFitText\?\.fitSheetCards/);
+  assert.doesNotMatch(signoff, /ResizeObserver/);
+  assert.doesNotMatch(fitSrc, /ds-actions \.btn/);
+  assert.doesNotMatch(fitSrc, /ds-row-meta/);
+  assert.match(css, /\.ds-actions \{\s*display: grid;/);
+  assert.match(css, /\.ds-row-meta \{\s*display: flex;\s*flex-wrap: wrap;/);
 });
 
 const sendGates = require('../js/lib/send-gates');

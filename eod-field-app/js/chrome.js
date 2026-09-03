@@ -216,6 +216,28 @@
     }, { once: true });
   }
 
+  const NAV_COLLAPSE_KEY = 'eod-nav-collapsed';
+
+  function syncToggleUi(collapsed) {
+    const btn = document.getElementById('navCollapseBtn');
+    if (!btn) return;
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    btn.title = collapsed ? 'Expand navigation' : 'Collapse navigation';
+    btn.textContent = collapsed ? '»' : '«';
+  }
+
+  function applyNavCollapsed(collapsed) {
+    document.body.classList.toggle('nav-collapsed', !!collapsed);
+    syncToggleUi(!!collapsed);
+    try {
+      localStorage.setItem(NAV_COLLAPSE_KEY, collapsed ? '1' : '0');
+    } catch (_) {}
+  }
+
+  function toggleNav() {
+    applyNavCollapsed(!document.body.classList.contains('nav-collapsed'));
+  }
+
   function init() {
     document.querySelectorAll('[data-nav]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -227,8 +249,14 @@
         global.EodRouter.go(nav);
       });
     });
-    document.body.classList.remove('nav-collapsed');
-    try { localStorage.removeItem('eod-nav-collapsed'); } catch (_) {}
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(NAV_COLLAPSE_KEY) === '1'; } catch (_) {}
+    applyNavCollapsed(collapsed);
+    document.getElementById('navCollapseBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleNav();
+    });
 
     document.getElementById('chromeStore')?.addEventListener('click', openQuickView);
     document.getElementById('chromeMeta')?.addEventListener('click', openQuickView);
@@ -250,5 +278,5 @@
     refresh();
   }
 
-  global.EodChrome = { refresh, init, openQuickView };
+  global.EodChrome = { refresh, init, openQuickView, applyNavCollapsed, toggleNav };
 })(typeof window !== 'undefined' ? window : globalThis);
