@@ -280,6 +280,9 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
 }
 .app-pane { display: contents; }
 
+/* Site auth-gate injects this on dump-bin.com; it covers the Pilot strip. */
+#__dumpbin_user_badge { display: none !important; }
+
 /* Slim 28px strip — not a paragraph banner */
 .pilot-banner {
   display: flex;

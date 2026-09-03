@@ -336,6 +336,13 @@ test('dump-bin open-in-tab is a compact icon, not a stretched button', () => {
   assert.doesNotMatch(css, /\.dump-bin-embed-bar\s+\.btn\s*\{/);
 });
 
+test('field-app hides the site-wide signed-in badge so it cannot cover chrome', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(css, /#__dumpbin_user_badge\s*\{\s*display:\s*none\s*!important/);
+  assert.match(html, /auth-gate\.js\?v=/);
+});
+
 test('pilot ships overlay alerts, roles, camera, and PIC QR', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   for (const file of [

@@ -263,6 +263,18 @@
     (document.head || document.documentElement).appendChild(s);
   }
 
+  function shouldSkipUserBadge() {
+    var path = currentPathname();
+    if (path.indexOf('/eod-field-app') === 0) return true;
+    try {
+      if (new URLSearchParams(location.search).get('embed') === '1') return true;
+      if (window.self !== window.top) return true;
+    } catch (_) {
+      return true;
+    }
+    return false;
+  }
+
   function injectUserBadge(email) {
     if (!email || document.getElementById('__dumpbin_user_badge')) return;
     ensureBadgeStyles();
@@ -335,7 +347,9 @@
       }
     }
     noteDirectChecklanesEntryIfNeeded();
-    injectUserBadge(decodeEmailFromToken(getSession()));
+    if (!shouldSkipUserBadge()) {
+      injectUserBadge(decodeEmailFromToken(getSession()));
+    }
     revealPage();
   })();
 

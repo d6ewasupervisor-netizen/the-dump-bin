@@ -17,6 +17,7 @@ body.db-embedded .page-wrap {
 }
 body.db-embedded .db-hero { display: none; }
 body.db-embedded .db-week-nav { margin-top: 0; }
+body.db-embedded #__dumpbin_user_badge { display: none !important; }
 
 /* --- Top nav additions --- */
 .db-nav-links {
