@@ -174,3 +174,22 @@ test('CP lead name still lists the store-day ISE visit', () => {
   assert.deepEqual(asTyson.visible.map((s) => s.visitId), ['27182537', '27184822']);
   assert.equal(asTyson.selected.visitId, '27182537');
 });
+
+test('deleted SAS visits stay off the Visit shift list', () => {
+  const ise = {
+    visitId: '27182525',
+    projectId: 1,
+    projectName: 'Fred Meyer Kompass ISE',
+    visitLead: 'James Duchene Ryan',
+    currentStatus: 'completed',
+  };
+  const deletedCp = {
+    visitId: '27287851',
+    projectId: 9293,
+    projectName: 'Fred Meyer Central Pet Service Surge',
+    visitLead: 'James Duchene Ryan',
+    currentStatus: 'deleted',
+  };
+  const vis = visibleLeadShifts([ise, deletedCp], 'James Duchene Ryan');
+  assert.deepEqual(vis.map((s) => s.visitId), ['27182525']);
+});

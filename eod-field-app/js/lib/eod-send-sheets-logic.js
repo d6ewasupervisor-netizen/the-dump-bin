@@ -76,8 +76,14 @@
     return /central\s*pet\s*reset/.test(shiftTypeBlob(shift));
   }
 
+  function isDeletedVisitShift(shift) {
+    const status = String(shift?.currentStatus || shift?.current_status || shift?.status || '').toLowerCase();
+    return status === 'deleted';
+  }
+
   function isSelectableVisitShift(shift) {
     if (!shift) return false;
+    if (isDeletedVisitShift(shift)) return false;
     if (SELECTABLE_PROJECT_IDS.has(shiftProjectId(shift))) return true;
     const blob = shiftTypeBlob(shift);
     return isCutInBlitzDiv(shift)
