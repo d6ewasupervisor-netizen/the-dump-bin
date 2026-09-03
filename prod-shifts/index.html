@@ -175,7 +175,8 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
             <div class="row"><label>Source date</label><input type="date" id="cd-source-date"></div>
             <div class="row"><label>Dest date</label><input type="date" id="cd-dest-date"></div>
             <div class="row"><label>Cycle name (optional)</label><input id="cd-cycle" placeholder="P06W3"></div>
-            <div class="row"><label>Start offset (min)</label><input type="number" id="cd-offset" value="3"></div>
+            <div class="row"><label>Start offset (min)</label><input type="number" id="cd-offset" value="3" title="Minutes added to start time. Use a different offset than an existing same-day visit to build a second shift."></div>
+            <div class="row"><label>Source visit ID (if 2+ that day)</label><input id="cd-source-visit" placeholder="optional"></div>
           </div>
           <div class="actions">
             <button class="btn" id="cd-preview">Preview</button>
@@ -283,10 +284,11 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       <!-- change-date -->
       <div class="build-form" id="build-change-date" hidden>
         <div class="card">
-          <p class="muted" style="margin-bottom:10px">Moves a built or in-progress visit to a new date the same way Cycle Management does in PROD (new visit + copy roster + soft-delete old). Completed visits cannot move.</p>
+          <p class="muted" style="margin-bottom:10px">Moves a built or in-progress visit to a new date (new visit + copy roster + soft-delete old). Same day can hold more than one visit when start times differ — bump Start offset if that day already has a visit at the same time.</p>
           <div class="grid">
             <div class="row"><label>Visit ID (preferred)</label><input id="mv-visit-id" placeholder="27019920"></div>
             <div class="row"><label>New date</label><input type="date" id="mv-dest-date"></div>
+            <div class="row"><label>Start offset (min)</label><input type="number" id="mv-offset" value="0" title="0 keeps the original start. Leave 0 to auto-stagger +3 if that time is taken."></div>
             <div class="row">
               <label>Project (if resolving by store)</label>
               <select id="mv-project">
@@ -446,6 +448,7 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
           </div>
           <div class="grid" style="margin-top:14px">
             <div class="row"><label>Change date to</label><input type="date" id="run-new-date"></div>
+            <div class="row"><label>Start offset (min)</label><input type="number" id="run-date-offset" value="0" title="0 keeps original start; auto-staggers if taken"></div>
           </div>
           <div class="actions">
             <button class="btn" id="run-change-date-preview">Preview date change</button>
@@ -944,6 +947,7 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
         destDate: $('cd-dest-date').value,
         cycleName: $('cd-cycle').value.trim() || undefined,
         startOffsetMinutes: Number($('cd-offset').value || 3),
+        sourceVisitId: $('cd-source-visit').value.trim() ? Number($('cd-source-visit').value.trim()) : undefined,
       };
     },
   });
@@ -1021,6 +1025,7 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
           visitId: Number(visitId),
           destDate: destDate,
           cycleName: $('mv-cycle').value.trim() || undefined,
+          startOffsetMinutes: $('mv-offset').value === '' ? undefined : Number($('mv-offset').value),
         };
       }
       var store = $('mv-store').value.trim();
@@ -1032,6 +1037,7 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
         sourceDate: sourceDate,
         destDate: destDate,
         cycleName: $('mv-cycle').value.trim() || undefined,
+        startOffsetMinutes: $('mv-offset').value === '' ? undefined : Number($('mv-offset').value),
       };
     },
   });
@@ -1221,7 +1227,12 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       $('run-change-date-preview').disabled = true;
       try {
         showMsg('');
-        lastBody = { visitId: Number(visitId), destDate: destDate, confirm: false };
+        lastBody = {
+          visitId: Number(visitId),
+          destDate: destDate,
+          confirm: false,
+          startOffsetMinutes: $('run-date-offset').value === '' ? undefined : Number($('run-date-offset').value),
+        };
         var data = await apiPost('/api/prod-shifts/build/change-date', lastBody);
         $('run-result-card').hidden = false;
         $('run-result').textContent = JSON.stringify(data, null, 2);
