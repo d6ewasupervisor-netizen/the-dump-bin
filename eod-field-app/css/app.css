@@ -896,12 +896,14 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   line-height: 1.25;
   overflow-wrap: anywhere;
   word-break: break-word;
+  font-size: clamp(12px, 4.2vw, 17px);
 }
 .ds-row-meta,
 .ds-row .manifest-error-msg {
   overflow-wrap: anywhere;
   word-break: break-word;
   max-width: 100%;
+  font-size: clamp(10px, 3.1vw, 13px);
 }
 .ds-row.marked-complete { background: rgba(22,101,52,.25); }
 .ds-row.marked-nis { background: rgba(127,29,29,.28); }
@@ -915,12 +917,27 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   font-weight: 600;
   margin-top: 6px;
 }
-.ds-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ds-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
 .ds-row.marked-backlog { background: rgba(30,64,175,.22); }
 .ds-row-copy.ds-row-open { cursor: pointer; }
-.ds-actions .btn { min-height: var(--touch); font-size: 13px; padding: 8px 10px; flex: 1 1 18%; min-width: 0; }
+.ds-actions .btn,
+.ds-row-compact .ds-actions .btn {
+  min-height: var(--touch);
+  min-width: 0;
+  width: auto;
+  flex: none;
+  font-size: clamp(11px, 3.2vw, 13px);
+  padding: 8px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ds-actions .btn.on { outline: 2px solid var(--accent); }
-.ds-row-compact .ds-actions .btn { flex: 1 1 18%; font-size: 12px; padding: 8px 6px; }
 .ds-bulk { display: none; margin: 8px 0 12px; }
 .ds-bulk.is-on { display: block; }
 .ds-bulk-count { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
@@ -2284,12 +2301,12 @@ body.dump-bin-viewer-open .eod-test-banner {
   display: block;
 }
 
-@media (max-width: 560px) {
-  .ds-actions .btn,
-  .ds-row-compact .ds-actions .btn {
-    flex: 1 1 46%;
-    min-height: var(--touch);
+@media (min-width: 561px) {
+  .ds-actions {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
+}
+@media (max-width: 560px) {
   .set-media-btns .btn { flex: 1 1 46%; }
   .eod-barcode-bar,
   .eod-barcode-manual { flex-wrap: wrap; }
@@ -2298,8 +2315,6 @@ body.dump-bin-viewer-open .eod-test-banner {
   .dept-sig-role-meta { overflow-wrap: anywhere; }
 }
 @media (max-width: 360px) {
-  .ds-actions .btn,
-  .ds-row-compact .ds-actions .btn,
   .set-media-btns .btn,
   .dept-sig-role-actions .btn {
     flex: 1 1 100%;

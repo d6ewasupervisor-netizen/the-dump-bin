@@ -6,8 +6,6 @@
   const TITLE_MIN = 11;
   const META_MAX = 13;
   const META_MIN = 9;
-  const BTN_MAX = 13;
-  const BTN_MIN = 10;
   const STEP = 0.5;
 
   function px(n) {
@@ -59,9 +57,6 @@
     fitWrapped(card.querySelector('.ds-row-title'), TITLE_MIN, TITLE_MAX, 2);
     card.querySelectorAll('.ds-row-meta').forEach((el) => fitOneLine(el, META_MIN, META_MAX));
     card.querySelectorAll('.manifest-error-msg').forEach((el) => fitWrapped(el, META_MIN, META_MAX, 3));
-    card.querySelectorAll('.ds-actions .btn, .ds-photo-actions .btn').forEach((el) => {
-      fitOneLine(el, BTN_MIN, BTN_MAX);
-    });
   }
 
   function fitSheetCards(root) {

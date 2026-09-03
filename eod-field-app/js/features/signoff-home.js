@@ -610,12 +610,7 @@
     const filters = { status: 'not_done' };
     const selectedIds = new Set();
     let pollTimer = null;
-    if (rowsEl && typeof ResizeObserver === 'function' && !rowsEl._dsFitObs) {
-      rowsEl._dsFitObs = new ResizeObserver(() => {
-        try { global.EodFitText?.fitSheetCards?.(rowsEl); } catch (_) {}
-      });
-      rowsEl._dsFitObs.observe(rowsEl);
-    }
+    let lastRowsHtml = '';
 
     function paintFilterChips() {
       const host = document.getElementById('sheetFilters');
@@ -770,12 +765,14 @@
         catch (err) {
           summary.innerHTML = `<span style="color:#ef4444;">${esc(err.message)}</span>`;
           rowsEl.innerHTML = '';
+          lastRowsHtml = '';
           return;
         }
       }
       if (!sheet) {
         summary.innerHTML = 'No hosted sheet for this store/week yet.';
         rowsEl.innerHTML = '';
+        lastRowsHtml = '';
         document.body.classList.add('no-hosted-sheet');
         document.body.classList.remove('has-hosted-sheet');
         paintSelectAll();
@@ -800,9 +797,14 @@
           'out_of_scope'
         )) selectedIds.delete(id);
       }
-      rowsEl.innerHTML = renderRows(sheet, q, filters, selectedIds);
+      const html = renderRows(sheet, q, filters, selectedIds);
       paintBulkBar();
       paintSelectAll();
+      if (html === lastRowsHtml) return;
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      lastRowsHtml = html;
+      rowsEl.innerHTML = html;
+      window.scrollTo(0, y);
       rowsEl.querySelectorAll('[data-select-row]').forEach((box) => {
         box.addEventListener('click', (ev) => ev.stopPropagation());
         box.addEventListener('change', () => {
