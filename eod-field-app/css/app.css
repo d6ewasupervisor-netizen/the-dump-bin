@@ -2279,11 +2279,45 @@ body[data-route="visit"] {
   min-height: calc(100dvh - 220px);
 }
 .dump-bin-embed-bar {
-  justify-content: space-between;
+  display: flex;
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 10px;
-  gap: 10px;
-  flex-wrap: wrap;
+  margin: 0 0 10px;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+.dump-bin-embed-bar h1 { margin: 0; }
+.dump-bin-open-tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch);
+  height: var(--touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-decoration: none;
+}
+.dump-bin-open-tab img {
+  width: 22px;
+  height: 22px;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+[data-theme="light"] .dump-bin-open-tab img,
+[data-theme="inverse"] .dump-bin-open-tab img {
+  filter: invert(1);
+  mix-blend-mode: multiply;
+}
+.dump-bin-open-tab:hover,
+.dump-bin-open-tab:focus-visible {
+  background: var(--btn-secondary);
+  outline: none;
 }
 .dump-bin-frame {
   width: 100%;

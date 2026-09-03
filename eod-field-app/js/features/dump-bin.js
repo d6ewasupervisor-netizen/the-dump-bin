@@ -17,11 +17,14 @@
   async function render(mount) {
     window.removeEventListener('message', onViewerMessage);
     window.addEventListener('message', onViewerMessage);
+    const ver = encodeURIComponent(global.EOD_APP_VERSION || '3.3.62');
     mount.innerHTML = `
       <div class="card dump-bin-embed-card">
-        <div class="btn-row dump-bin-embed-bar">
-          <h1 style="margin:0;">Dump Bin</h1>
-          <a class="btn btn-secondary" href="https://the-dump-bin.com/dump-bin/" target="_blank" rel="noopener">Open in tab</a>
+        <div class="dump-bin-embed-bar">
+          <h1>Dump Bin</h1>
+          <a class="dump-bin-open-tab" href="https://the-dump-bin.com/dump-bin/" target="_blank" rel="noopener" title="Open in new tab" aria-label="Open in new tab">
+            <img src="assets/new_window.png?v=${ver}" alt="" width="22" height="22">
+          </a>
         </div>
         <iframe
           class="dump-bin-frame"
