@@ -153,6 +153,7 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
         <button class="tab" data-build="copy-project">Copy ISE week → project</button>
         <button class="tab" data-build="append">Append person</button>
         <button class="tab" data-build="reassign">Reassign lead</button>
+        <button class="tab" data-build="change-date">Change date</button>
         <button class="tab" data-build="holiday">Admin Holiday</button>
         <button class="tab" data-build="pto">PTO</button>
       </div>
@@ -277,6 +278,37 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
           </div>
         </div>
         <div class="card" id="rl-result-card" hidden><pre class="plan" id="rl-result"></pre></div>
+      </div>
+
+      <!-- change-date -->
+      <div class="build-form" id="build-change-date" hidden>
+        <div class="card">
+          <p class="muted" style="margin-bottom:10px">Moves a built or in-progress visit to a new date the same way Cycle Management does in PROD (new visit + copy roster + soft-delete old). Completed visits cannot move.</p>
+          <div class="grid">
+            <div class="row"><label>Visit ID (preferred)</label><input id="mv-visit-id" placeholder="27019920"></div>
+            <div class="row"><label>New date</label><input type="date" id="mv-dest-date"></div>
+            <div class="row">
+              <label>Project (if resolving by store)</label>
+              <select id="mv-project">
+                <option value="1">Fred Meyer Kompass ISE (1)</option>
+                <option value="1668">Cut In (1668)</option>
+                <option value="1715">Blitz (1715)</option>
+                <option value="3568">DIV Special (3568)</option>
+                <option value="9293">Central Pet Service (9293)</option>
+                <option value="9295">Central Pet Reset (9295)</option>
+                <option value="147">Admin Holiday / PTO (147)</option>
+              </select>
+            </div>
+            <div class="row"><label>Store # (alt)</label><input id="mv-store" placeholder="28"></div>
+            <div class="row"><label>Current date (alt)</label><input type="date" id="mv-source-date"></div>
+            <div class="row"><label>Cycle name (optional)</label><input id="mv-cycle" placeholder="P06W3"></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="mv-preview">Preview</button>
+            <button class="btn primary" id="mv-confirm" disabled>Write to PROD</button>
+          </div>
+        </div>
+        <div class="card" id="mv-result-card" hidden><pre class="plan" id="mv-result"></pre></div>
       </div>
 
       <!-- holiday -->
@@ -411,6 +443,13 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
           <div class="actions">
             <input id="run-start-time" placeholder="e.g. 08:05 AM" style="max-width:160px">
             <button class="btn" id="run-start-visit">Start visit</button>
+          </div>
+          <div class="grid" style="margin-top:14px">
+            <div class="row"><label>Change date to</label><input type="date" id="run-new-date"></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="run-change-date-preview">Preview date change</button>
+            <button class="btn primary" id="run-change-date-confirm" disabled>Write date change</button>
           </div>
         </div>
 
@@ -833,6 +872,9 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
     // already ended — floor at today regardless of the cycle's own end date.
     if ($('pt-date')) $('pt-date').value = start > todayIso() ? start : todayIso();
     if ($('rl-date')) $('rl-date').value = clampDateToRange(todayIso(), start, end);
+    trySetSelect('mv-project', projectId);
+    if ($('mv-cycle')) $('mv-cycle').value = name;
+    if ($('mv-dest-date')) $('mv-dest-date').value = clampDateToRange(todayIso(), start, end);
   }
 
   $('cyc-load').addEventListener('click', async function () {
@@ -962,6 +1004,34 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
         toId: to.id,
         toName: to.name,
         storeNumber: $('rl-store').value.trim() || undefined,
+      };
+    },
+  });
+
+  // change-date (Cycle Management)
+  wirePreviewConfirm({
+    previewId: 'mv-preview', confirmId: 'mv-confirm', resultCardId: 'mv-result-card', resultId: 'mv-result',
+    path: '/api/prod-shifts/build/change-date',
+    buildBody: function () {
+      var visitId = $('mv-visit-id').value.trim();
+      var destDate = $('mv-dest-date').value;
+      if (!destDate) throw new Error('New date is required.');
+      if (visitId) {
+        return {
+          visitId: Number(visitId),
+          destDate: destDate,
+          cycleName: $('mv-cycle').value.trim() || undefined,
+        };
+      }
+      var store = $('mv-store').value.trim();
+      var sourceDate = $('mv-source-date').value;
+      if (!store || !sourceDate) throw new Error('Enter a Visit ID, or Store # + Current date.');
+      return {
+        projectId: Number($('mv-project').value),
+        storeNumber: store,
+        sourceDate: sourceDate,
+        destDate: destDate,
+        cycleName: $('mv-cycle').value.trim() || undefined,
       };
     },
   });
@@ -1132,12 +1202,59 @@ pre.plan{background:#0d1219;border:1px solid var(--border);border-radius:10px;pa
       var lead = currentRoster.find(function (m) { return m.lead; });
       if (lead) $('run-shift-id').value = lead.shiftId;
       $('run-feedback').value = 'this is for store ' + (currentVisit.store?.store?.number || currentVisit.store?.number || '');
+      $('run-new-date').value = '';
+      $('run-change-date-confirm').disabled = true;
       await renderCategories(visitId);
       $('run-body').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       showMsg(err.message, false);
     }
   }
+
+  (function wireRunChangeDate() {
+    var lastBody = null;
+    $('run-change-date-preview').addEventListener('click', async function () {
+      var visitId = $('run-visit-id').value.trim();
+      var destDate = $('run-new-date').value;
+      if (!visitId) { showMsg('Load a visit first.', false); return; }
+      if (!destDate) { showMsg('Pick the new date.', false); return; }
+      $('run-change-date-preview').disabled = true;
+      try {
+        showMsg('');
+        lastBody = { visitId: Number(visitId), destDate: destDate, confirm: false };
+        var data = await apiPost('/api/prod-shifts/build/change-date', lastBody);
+        $('run-result-card').hidden = false;
+        $('run-result').textContent = JSON.stringify(data, null, 2);
+        $('run-change-date-confirm').disabled = false;
+      } catch (err) {
+        showMsg(err.message, false);
+        $('run-change-date-confirm').disabled = true;
+      } finally {
+        $('run-change-date-preview').disabled = false;
+      }
+    });
+    $('run-change-date-confirm').addEventListener('click', async function () {
+      if (!lastBody) return;
+      if (!confirm('Move this visit to ' + lastBody.destDate + ' in PROD?')) return;
+      $('run-change-date-confirm').disabled = true;
+      $('run-change-date-preview').disabled = true;
+      try {
+        showMsg('');
+        var body = Object.assign({}, lastBody, { confirm: true });
+        var data = await apiPost('/api/prod-shifts/build/change-date', body);
+        $('run-result-card').hidden = false;
+        $('run-result').textContent = JSON.stringify(data, null, 2);
+        showMsg('Date changed in PROD.', true);
+        var newId = data.result && data.result.newVisitId;
+        if (newId) await loadVisit(String(newId));
+      } catch (err) {
+        showMsg(err.message, false);
+        $('run-change-date-confirm').disabled = false;
+      } finally {
+        $('run-change-date-preview').disabled = false;
+      }
+    });
+  })();
 
   $('run-load').addEventListener('click', function () {
     loadVisit($('run-visit-id').value.trim());
