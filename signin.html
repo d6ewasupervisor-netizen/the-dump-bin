@@ -154,6 +154,7 @@
         spellcheck="false"
       />
       <p class="help-text">Use the email on file with your supervisor. Text codes go to the mobile number on your survey roster. If you have not already opted in, text <strong>JOIN</strong> to <strong>(509) 572-9212</strong> first, then tap “Text me a one-time PIN.”</p>
+      <p class="help-text">After you request an email link, check your inbox within a couple of minutes. If you do not see it, check your <strong>spam / junk</strong> folder (and promotions, if you use Gmail).</p>
 
       <div class="btn-row">
         <button id="send-btn" class="primary" type="button">Email me a sign-in link</button>
@@ -393,7 +394,7 @@
             }
             return;
           }
-          showStatus('ok', 'Check your email \u2014 your sign-in link is on its way.' +
+          showStatus('ok', 'Check your email \u2014 your sign-in link is on its way. If it is not there in a couple of minutes, check spam / junk.' +
             (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
               ? ' On your phone: press and hold the link, then choose Open in browser.'
               : ''));
