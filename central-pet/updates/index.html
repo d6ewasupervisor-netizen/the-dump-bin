@@ -172,14 +172,19 @@
 
       async function boot() {
         try {
+          if (window.dumpBinAuthReady) {
+            await window.dumpBinAuthReady;
+          }
           var meRes = await dumpBinAuthFetch('/api/me', { noBounceOn401: true });
           if (!meRes.ok) {
-            statusEl.textContent = 'Sign in required.';
+            statusEl.innerHTML = 'Sign in required. <a href="/signin.html?next='
+              + encodeURIComponent(location.pathname + location.search)
+              + '">Sign in</a> to view Central Pet Updates.';
             return;
           }
           var me = await meRes.json();
           if (!me.hasCentralPetUpdatesAccess) {
-            statusEl.textContent = 'You do not have access to Central Pet Updates.';
+            statusEl.textContent = 'You do not have access to Central Pet Updates. Ask your supervisor to grant Central Pet field access.';
             return;
           }
           if (me.canAdminCentralPetUpdates) {
@@ -187,9 +192,9 @@
           }
 
           var res = await dumpBinAuthFetch('/api/central-pet/updates');
-          var data = await res.json();
+          var data = await res.json().catch(function () { return {}; });
           if (!res.ok || !data.ok) {
-            statusEl.textContent = (data && data.error) || 'Could not load updates.';
+            statusEl.textContent = (data && data.error) || ('Could not load updates (HTTP ' + res.status + ').');
             return;
           }
           var updates = data.updates || [];
