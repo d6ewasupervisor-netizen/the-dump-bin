@@ -104,6 +104,7 @@
 
   function kindLabel(item) {
     const st = String(item.sourceType || '');
+    if (st === 'first-shift-packet') return 'First-shift packet';
     if (st === 'orientation-route-offer') return 'Route offer';
     if (st === 'orientation-route-confirm') return 'Route confirmation';
     if (st === 'orientation-nudge') return 'Orientation nudge';
