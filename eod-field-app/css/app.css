@@ -1974,12 +1974,12 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
 .eod-locate-hit {
   display: grid; grid-template-columns: minmax(88px, 28vw) 1fr; gap: 12px;
   padding: clamp(10px, 2.4vw, 16px); border: 1px solid var(--border); border-radius: 12px;
-  background: var(--card); cursor: pointer;
+  background: var(--card); cursor: default;
 }
 .eod-locate-hit--kroger {
-  cursor: default;
   grid-template-columns: minmax(120px, 34vw) 1fr;
 }
+.eod-locate-hit--tap { cursor: pointer; }
 .eod-locate-thumb {
   min-height: 88px; display: flex; align-items: center; justify-content: center;
   background: #fff; border-radius: 8px;
@@ -1988,7 +1988,9 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
 .eod-locate-thumb img { max-width: 100%; max-height: 88px; object-fit: contain; }
 .eod-locate-hit--kroger .eod-locate-thumb img { max-height: 120px; }
 .eod-locate-copy { display: flex; flex-direction: column; gap: 4px; }
+.eod-locate-set { font-weight: 600; margin-top: 2px; }
 .eod-locate-aisle { font-weight: 600; margin-top: 2px; }
+.eod-locate-tap { margin-top: 4px; }
 .eod-locate-miss { font-size: 1.05rem; margin: 18px 8px; }
 
 .eod-pog-item-overlay {

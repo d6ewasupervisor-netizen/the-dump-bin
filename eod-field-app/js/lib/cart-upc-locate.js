@@ -1,4 +1,4 @@
-/* Store-wide UPC locate: Kroger aisle first, SI planogram fallback. */
+/* Store-wide UPC locate: Kroger aisle + SI set/planogram when both hit. */
 (function (global) {
   'use strict';
 
@@ -29,34 +29,59 @@
     return bits.join(' · ');
   }
 
+  function setLabel(m) {
+    return String(m.setName || m.categoryName || '').trim();
+  }
+
+  function hasPlanogram(m) {
+    return Boolean(m.dbkey);
+  }
+
   function matchHtml(m) {
-    const isKroger = m.source === 'kroger';
+    const src = m.source || '';
+    const withKroger = src === 'kroger' || src === 'kroger+si';
+    const withSi = src === 'si' || src === 'kroger+si';
+    const set = setLabel(m);
+    const tap = hasPlanogram(m);
     const img = m.imageUrl
-      ? (isKroger
+      ? (/^https?:\/\//i.test(m.imageUrl)
         ? `<img alt="" src="${esc(m.imageUrl)}">`
         : `<img alt="" data-pog-src="${esc(m.imageUrl)}">`)
       : '';
-    const title = isKroger
-      ? (m.name || 'Item')
-      : (m.setName || m.categoryName || '');
-    const subtitle = isKroger
+    const title = withKroger ? (m.name || 'Item') : (set || m.name || 'Item');
+    const subtitle = withKroger
       ? [m.brand, m.size].filter(Boolean).join(' · ')
       : (m.name || '');
-    const meta = isKroger
+    const meta = withKroger
       ? (m.stockLevel ? `Stock ${m.stockLevel}` : '')
       : [m.brand, m.size].filter(Boolean).join(' · ');
-    const sourceTag = isKroger
-      ? '<div class="muted">Fred Meyer aisle</div>'
-      : '<div class="muted">Kompass set</div>';
-    return `<article class="eod-locate-hit${isKroger ? ' eod-locate-hit--kroger' : ''}" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || m.name || '')}" data-upc="${esc(m.upc || '')}" data-source="${esc(m.source || '')}">
+    const sourceTag = withKroger && withSi
+      ? '<div class="muted">Fred Meyer aisle · Kompass set</div>'
+      : withKroger
+        ? '<div class="muted">Fred Meyer aisle</div>'
+        : '<div class="muted">Kompass set</div>';
+    const setBlock = set
+      ? `<div class="eod-locate-set">Set: ${esc(set)}</div>`
+      : '';
+    const tapHint = tap
+      ? '<div class="muted eod-locate-tap">Tap to open planogram</div>'
+      : '';
+    const cls = [
+      'eod-locate-hit',
+      withKroger ? 'eod-locate-hit--kroger' : '',
+      tap ? 'eod-locate-hit--tap' : '',
+    ].filter(Boolean).join(' ');
+    return `<article class="${cls}" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(set || m.name || '')}" data-upc="${esc(m.upc || '')}" data-source="${esc(src)}">
       <div class="eod-locate-thumb">${img}</div>
       <div class="eod-locate-copy">
         ${sourceTag}
         <strong>${esc(title)}</strong>
         ${subtitle ? `<div>${esc(subtitle)}</div>` : ''}
         ${meta ? `<div>${esc(meta)}</div>` : ''}
+        ${setBlock}
         <div class="muted">UPC ${esc(m.upc || '')}</div>
         <div class="eod-locate-aisle">${esc(locLine(m))}</div>
+        ${tapHint}
       </div>
     </article>`;
   }
@@ -98,7 +123,6 @@
     };
     host.querySelectorAll('.eod-locate-hit').forEach((el) => {
       el.addEventListener('click', () => {
-        if (el.getAttribute('data-source') === 'kroger') return;
         const dbkey = el.getAttribute('data-dbkey') || '';
         const title = el.getAttribute('data-name') || '';
         const hitUpc = el.getAttribute('data-upc') || upc;
