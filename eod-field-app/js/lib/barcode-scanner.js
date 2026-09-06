@@ -6,7 +6,7 @@
     'upc_a', 'upc_e', 'ean_13', 'ean_8',
     'code_128', 'code_39', 'codabar', 'itf', 'qr_code',
   ];
-  const HTML5_SRC = `js/vendor/html5-qrcode.min.js?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.68')}`;
+  const HTML5_SRC = `js/vendor/html5-qrcode.min.js?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.69')}`;
 
   const CAMERA_MIN = 6;
   const MANUAL_MIN = 4;
@@ -206,8 +206,11 @@
         </div>
         <div id="eodBarcodeReader" class="eod-barcode-reader"></div>
         <div class="eod-barcode-manual">
-          <input type="text" id="eodBarcodeManual" inputmode="numeric" autocomplete="off" placeholder="Last 4 or full UPC">
-          <button type="button" class="btn btn-primary" id="eodBarcodeLookup">Look up</button>
+          <label class="eod-barcode-manual-label" for="eodBarcodeManual">Enter UPC</label>
+          <div class="eod-barcode-manual-row">
+            <input type="text" id="eodBarcodeManual" class="eod-barcode-manual-input" inputmode="numeric" autocomplete="off" placeholder="Last 4 or full UPC" aria-label="Enter UPC">
+            <button type="button" class="btn btn-primary" id="eodBarcodeLookup">Look up</button>
+          </div>
         </div>
       </div>`;
       document.body.appendChild(host);

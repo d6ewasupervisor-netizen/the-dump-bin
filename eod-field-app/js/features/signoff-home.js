@@ -586,8 +586,7 @@
           <h1>Categories</h1>
           <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
           <button type="button" class="btn btn-secondary" id="cartScanBtn">Scan</button>
-          <button type="button" class="btn btn-secondary" id="comLoadAddBtn">Add COM</button>
-          <button type="button" class="btn btn-secondary" id="comLoadSuggestBtn">Suggest COM</button>
+          <button type="button" class="btn btn-secondary" id="comLoadBtn">COM Load</button>
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
         </div>
         <div class="ds-bulk" id="sheetBulk"></div>
@@ -862,22 +861,8 @@
     document.getElementById('cartScanBtn')?.addEventListener('click', () => {
       global.EodCartLocate?.openScanner?.();
     });
-    document.getElementById('comLoadAddBtn')?.addEventListener('click', () => {
+    document.getElementById('comLoadBtn')?.addEventListener('click', () => {
       global.EodComLoadRequest?.openManualModal?.();
-    });
-    document.getElementById('comLoadSuggestBtn')?.addEventListener('click', async () => {
-      const btn = document.getElementById('comLoadSuggestBtn');
-      if (btn) btn.disabled = true;
-      try {
-        const suggestions = await global.EodComLoadRequest?.fetchSuggestions?.() || [];
-        suggestIdSet = new Set(suggestions.map((s) => String(s.sheetRowId)));
-        await global.EodComLoadRequest?.selectSuggested?.(selectedIds, S.state.sheet?.rows || []);
-        await paint();
-      } catch (err) {
-        global.EodComLoadRequest?.showToast?.(err.message || String(err));
-      } finally {
-        if (btn) btn.disabled = false;
-      }
     });
     void global.EodCartLocate?.warmIndex?.();
     document.getElementById('syncProdSiBtn').onclick = async () => {

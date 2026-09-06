@@ -2,33 +2,36 @@
 (function (global) {
   'use strict';
 
-  const FALLBACK_STORES = [5,11,13,17,18,19,21,23,24,25,28,30,31,35,40,41,49,50,53,60,63,70,71,75,90,93,111,122,125,126,127,135,140,143,150,153,156,158,163,165,171,180,185,186,195,196,198,208,209,210,214,215,218,220,224,225,226,227,236,240,242,253,255,260,265,281,285,286,325,328,351,355,360,372,375,377,383,390,391,393,417,424,439,449,457,458,459,460,462,464,482,485,486,516,600,603,604,605,608,613,614,615,649,650,651,652,653,654,655,656,657,658,659,660,661,662,663,665,667,668,681,682,683,685,688,691,694,999];
+  const Catalog = global.EodStoreCatalog;
   const STORE_CACHE_KEY = 'eodCatalogStores';
   let catalogStores = null;
+  let catalogFetched = false;
 
   function storeNumbers() {
-    const src = Array.isArray(catalogStores) && catalogStores.length ? catalogStores : FALLBACK_STORES;
-    const nums = src.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0);
-    if (!nums.includes(999)) nums.push(999);
-    return [...new Set(nums)].sort((a, b) => a - b);
+    return Catalog.mergeStoreCatalog(catalogStores);
   }
 
   async function ensureStoreCatalog() {
-    if (catalogStores && catalogStores.length) return storeNumbers();
+    catalogStores = Catalog.mergeStoreCatalog(catalogStores);
+    if (catalogFetched) return catalogStores;
     try {
       const cached = JSON.parse(localStorage.getItem(STORE_CACHE_KEY) || 'null');
-      if (Array.isArray(cached) && cached.length) catalogStores = cached;
+      if (Array.isArray(cached) && cached.length) {
+        catalogStores = Catalog.mergeStoreCatalog(catalogStores, cached);
+      }
     } catch (_) {}
     try {
       const resp = await global.authFetch(`${global.EOD_API_BASE}/api/digital-signoffs/catalog-stores`);
       const data = await resp.json().catch(() => ({}));
-      const nums = (data.stores || []).map((s) => Number(s.storeNum || s.storeNumber || s)).filter((n) => Number.isFinite(n) && n > 0);
+      const nums = (data.stores || []).map((s) => Catalog.toStoreNum(s)).filter((n) => n != null);
       if (nums.length) {
-        catalogStores = nums;
-        try { localStorage.setItem(STORE_CACHE_KEY, JSON.stringify(nums)); } catch (_) {}
+        catalogStores = Catalog.mergeStoreCatalog(catalogStores, nums);
+        catalogFetched = true;
+        try { localStorage.setItem(STORE_CACHE_KEY, JSON.stringify(catalogStores)); } catch (_) {}
       }
     } catch (_) {}
-    return storeNumbers();
+    catalogStores = Catalog.mergeStoreCatalog(catalogStores);
+    return catalogStores;
   }
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
@@ -925,16 +928,11 @@
     const statusEl = overlay.querySelector('#dayConfirmStatus');
     try { await global.EodShiftDay?.load?.(date); } catch (_) {}
     storeBtn.onclick = () => {
-      const scheduled = new Set(global.EodShiftDay?.scheduledStoreNumbers?.(dateEl.value || date) || []);
-      const ordered = [...stores].sort((a, b) => {
-        const aS = scheduled.has(Number(a)) ? 0 : 1;
-        const bS = scheduled.has(Number(b)) ? 0 : 1;
-        return aS - bS || Number(a) - Number(b);
-      });
+      const scheduled = global.EodShiftDay?.scheduledStoreNumbers?.(dateEl.value || date) || [];
       global.EodPicker.open({
         anchor: storeBtn,
         title: 'Store number',
-        items: ordered.map((n) => ({ id: String(n), label: `Store ${n}` })),
+        items: Catalog.pickerItemsForStores(stores, scheduled),
         searchable: true,
         onChoose(item) {
           storeHidden.value = item.id;
@@ -1074,6 +1072,9 @@
       <div class="card" id="shiftCard">
         <h2>Shifts</h2>
         <div id="shiftList"></div>
+        <div class="visit-scan-row">
+          <button type="button" class="btn btn-primary btn-block" id="visitScanBtn">Scan</button>
+        </div>
         <div class="field" style="margin-top:14px;">
           <label>Lead name</label>
           <input type="text" id="visitLeadName" value="${esc(S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked ? 'readonly' : ''}>
@@ -1091,6 +1092,9 @@
 `;
 
     paintShiftList(document.getElementById('shiftList'));
+    document.getElementById('visitScanBtn')?.addEventListener('click', () => {
+      global.EodCartLocate?.openScanner?.();
+    });
     if (global.EodShiftPhotoSync?.ensureCartPhotos) {
       try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
     }
@@ -1152,11 +1156,13 @@
         await withTimeout(global.PhotoDB.switchToDayConfirm(store, date, S.state.photos), 8000);
       } catch (_) {}
     }
-    if (!S.state.shifts.length && listEl) {
+    if (listEl) {
       try {
         await findShifts(store, date, listEl);
       } catch (err) {
-        listEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load shifts.')}</p>`;
+        if (!S.state.shifts.length) {
+          listEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load shifts.')}</p>`;
+        }
       }
     }
     if (statusEl) statusEl.textContent = '';

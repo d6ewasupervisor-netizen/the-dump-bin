@@ -37,6 +37,17 @@
     return Boolean(m.dbkey);
   }
 
+  function comPrefillFromMatch(m, upc) {
+    const set = setLabel(m);
+    return {
+      pogName: set || m.name || '',
+      pogId: m.dbkey || '',
+      dbkey: m.dbkey || '',
+      department: '',
+      setType: 'NII',
+    };
+  }
+
   function matchHtml(m) {
     const src = m.source || '';
     const withKroger = src === 'kroger' || src === 'kroger+si';
@@ -102,6 +113,11 @@
     return data;
   }
 
+  function openComLoad(upc, data) {
+    const match = (data?.matches || [])[0] || {};
+    global.EodComLoadRequest?.openManualModal?.(comPrefillFromMatch(match, upc));
+  }
+
   function showResult(upc, data) {
     let host = document.getElementById('eodLocateOverlay');
     if (host) host.remove();
@@ -111,6 +127,7 @@
     host.innerHTML = `<div class="set-media-overlay-bar">
       <button type="button" class="btn btn-secondary" id="eodLocateClose">Close</button>
       <button type="button" class="btn btn-secondary" id="eodLocateAgain">Scan</button>
+      <button type="button" class="btn btn-primary" id="eodLocateCom">COM Load</button>
       <strong>UPC ${esc(upc)}</strong>
     </div>
     <div id="eodLocateBody" class="eod-locate-body">${resultHtml(data)}</div>`;
@@ -120,6 +137,9 @@
     host.querySelector('#eodLocateAgain').onclick = () => {
       closeResult();
       openScanner();
+    };
+    host.querySelector('#eodLocateCom').onclick = () => {
+      openComLoad(upc, data);
     };
     host.querySelectorAll('.eod-locate-hit').forEach((el) => {
       el.addEventListener('click', () => {

@@ -1965,9 +1965,39 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
 .eod-barcode-reader { flex: 1; min-height: 220px; background: #000; }
 .eod-barcode-reader video, .eod-barcode-reader canvas { width: 100%; height: 100%; object-fit: cover; }
 .eod-barcode-manual {
-  display: flex; gap: 8px; padding: 10px 12px calc(12px + var(--safe-b));
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 14px calc(16px + var(--safe-b));
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(26,58,110,0.08));
+  border-top: 1px solid var(--border, #e5e7eb);
 }
-.eod-barcode-manual input { flex: 1; }
+.eod-barcode-manual-label {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.eod-barcode-manual-row {
+  display: flex; gap: 10px; align-items: stretch;
+}
+.eod-barcode-manual-input {
+  flex: 1; min-height: 52px; border-radius: 12px;
+  border: 1px solid var(--border, #d1d5db);
+  background: #fff; color: #0f172a;
+  padding: 12px 14px; font-size: 1.2rem; font-weight: 600;
+  letter-spacing: 0.08em; font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.eod-barcode-manual-input:focus {
+  outline: none; border-color: var(--brand, #1a3a6e);
+  box-shadow: 0 0 0 3px rgba(26, 58, 110, 0.18);
+}
+.eod-barcode-manual-row .btn {
+  min-width: 108px; min-height: 52px; border-radius: 12px; font-weight: 700;
+}
+.visit-scan-row {
+  margin-top: 12px;
+}
+.visit-scan-row .btn {
+  min-height: 52px; font-size: 1.05rem; font-weight: 700;
+}
 
 .eod-locate-overlay { z-index: 40000; }
 .eod-locate-body { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 12px; }
@@ -2464,8 +2494,8 @@ body.dump-bin-viewer-open .eod-test-banner {
 @media (max-width: 560px) {
   .set-media-btns .btn { flex: 1 1 46%; }
   .eod-barcode-bar,
-  .eod-barcode-manual { flex-wrap: wrap; }
-  .eod-barcode-manual .btn { flex: 1 1 140px; }
+  .eod-barcode-manual-row { flex-wrap: wrap; }
+  .eod-barcode-manual-row .btn { flex: 1 1 140px; }
   .chrome-store { font-size: 1rem; }
   .dept-sig-role-meta { overflow-wrap: anywhere; }
 }

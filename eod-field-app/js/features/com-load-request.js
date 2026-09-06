@@ -19,10 +19,10 @@
     const S = global.EodSession?.state || {};
     return {
       storeNumber: String(S.storeNumber || S.store || '').replace(/^0+/, ''),
-      visitDate: S.visitDate || S.date || '',
+      visitDate: S.workDate || S.visitDate || S.date || '',
       fiscalWeek: S.fiscalWeek || S.week || '',
-      leadEmail: S.leadEmail || S.userEmail || '',
-      leadName: S.leadName || S.userName || '',
+      leadEmail: S.leadEmail || S.profileEmail || S.userEmail || '',
+      leadName: S.leadName || S.profileName || S.userName || '',
     };
   }
 
@@ -135,22 +135,23 @@
     showToast._t = setTimeout(() => { bar.hidden = true; }, 4000);
   }
 
-  function openManualModal() {
+  function openManualModal(prefill) {
     closeModal();
     const ctx = sessionCtx();
+    const p = prefill && typeof prefill === 'object' ? prefill : {};
     const modal = document.createElement('div');
     modal.id = 'comLoadModal';
     modal.className = 'com-load-modal';
     modal.innerHTML = `
-      <div class="com-load-sheet" role="dialog" aria-label="Add COM request">
-        <h2>Add COM request</h2>
-        <label>Category #<input id="comCat" inputmode="numeric" required></label>
-        <label>POG / name<input id="comName" required></label>
-        <label>Department<input id="comDept" placeholder="GROCERY"></label>
-        <label>Footage<input id="comSize" inputmode="decimal" value="1"></label>
-        <label>Est hours<input id="comHrs" inputmode="decimal" value="1"></label>
-        <label>Set type<input id="comSet" value="NII"></label>
-        <label>Fiscal week<input id="comWeek" value="${esc(ctx.fiscalWeek || '')}"></label>
+      <div class="com-load-sheet" role="dialog" aria-label="COM Load">
+        <h2>COM Load</h2>
+        <label>Category #<input id="comCat" inputmode="numeric" value="${esc(p.category || '')}" required></label>
+        <label>POG / name<input id="comName" value="${esc(p.pogName || '')}" required></label>
+        <label>Department<input id="comDept" placeholder="GROCERY" value="${esc(p.department || '')}"></label>
+        <label>Footage<input id="comSize" inputmode="decimal" value="${esc(p.mappedSize != null ? p.mappedSize : '1')}"></label>
+        <label>Est hours<input id="comHrs" inputmode="decimal" value="${esc(p.scheduledHours != null ? p.scheduledHours : '1')}"></label>
+        <label>Set type<input id="comSet" value="${esc(p.setType || 'NII')}"></label>
+        <label>Fiscal week<input id="comWeek" value="${esc(p.fiscalWeek || ctx.fiscalWeek || '')}"></label>
         <label>Load type
           <select id="comType">
             <option value="">Auto</option>
@@ -160,13 +161,17 @@
             <option>BLITZ</option>
           </select>
         </label>
-        <label>POGID (optional)<input id="comPog"></label>
+        <label>POGID / DBKEY (optional)<input id="comPog" value="${esc(p.pogId || p.dbkey || '')}"></label>
         <div class="com-load-actions">
           <button type="button" class="btn btn-secondary" id="comCancel">Cancel</button>
           <button type="button" class="btn" id="comSubmit">Queue</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
+    if (p.loadType) {
+      const sel = modal.querySelector('#comType');
+      if (sel) sel.value = p.loadType;
+    }
     modal.querySelector('#comCancel').onclick = closeModal;
     modal.addEventListener('click', (ev) => { if (ev.target === modal) closeModal(); });
     modal.querySelector('#comSubmit').onclick = async () => {
@@ -191,6 +196,8 @@
         btn.disabled = false;
       }
     };
+    const focusId = p.category ? 'comName' : 'comCat';
+    setTimeout(() => modal.querySelector(`#${focusId}`)?.focus?.(), 50);
   }
 
   async function requestSelected(rows) {
