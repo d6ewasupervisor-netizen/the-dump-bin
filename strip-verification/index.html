@@ -87,6 +87,7 @@ header.top .sub { font-size: 12px; color: var(--ink-soft); }
   padding: 14px; cursor: pointer; touch-action: manipulation; min-height: var(--tap);
 }
 .set-row.complete { border-color: rgba(46,125,82,.4); }
+.set-row.soft-pending { border-color: rgba(201,138,27,.5); }
 .set-row .check {
   width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line);
   display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
@@ -95,6 +96,11 @@ header.top .sub { font-size: 12px; color: var(--ink-soft); }
 .set-row .info { flex: 1; min-width: 0; }
 .set-row .pog-name { font-weight: 700; font-size: 15px; }
 .set-row .pog-id { font-size: 11px; color: var(--ink-soft); word-break: break-all; margin-top: 2px; }
+.set-row .proof-tag {
+  display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 600;
+  color: var(--good); background: var(--good-bg); padding: 2px 8px; border-radius: 999px;
+}
+.set-row .proof-tag.soft { color: var(--warn); background: var(--warn-bg); }
 .set-row .photo-count { font-size: 12px; color: var(--accent); font-weight: 600; flex-shrink: 0; }
 .detail-card {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
@@ -464,18 +470,34 @@ input[type=file] { display: none; }
     setStatus('');
   }
 
+  function proofTagHtml(setRow) {
+    const p = setRow && setRow.proof;
+    if (!p || !p.matchKind) return '';
+    if (p.matchKind === 'soft_pending') {
+      return `<div class="proof-tag soft">Possible match · ${escapeHtml(p.sourcePeriodWeek || 'prior week')}</div>`;
+    }
+    if (p.matchKind === 'exact' || p.matchKind === 'soft_confirmed') {
+      return `<div class="proof-tag">Proof from ${escapeHtml(p.sourcePeriodWeek || p.sourceCampaignSlug || 'prior week')}</div>`;
+    }
+    return '';
+  }
+
   function renderSets() {
     showView('sets');
     const done = state.sets.filter((s) => s.complete).length;
     updateProgress(done, state.sets.length);
-    els.setList.innerHTML = state.sets.map((s) => `<button type="button" class="set-row${s.complete ? ' complete' : ''}${s.notFound ? ' not-found-set' : ''}" data-set="${s.id}">
+    els.setList.innerHTML = state.sets.map((s) => {
+      const soft = s.proof && s.proof.matchKind === 'soft_pending';
+      return `<button type="button" class="set-row${s.complete ? ' complete' : ''}${s.notFound ? ' not-found-set' : ''}${soft ? ' soft-pending' : ''}" data-set="${s.id}">
       <div class="check">${s.complete ? '✓' : ''}</div>
       <div class="info">
         <div class="pog-name">${escapeHtml(s.pogName)}</div>
         <div class="pog-id">${escapeHtml(s.pogId)}</div>
+        ${proofTagHtml(s)}
       </div>
       <div class="photo-count">${formatSetPhotoProgress(s)}</div>
-    </button>`).join('');
+    </button>`;
+    }).join('');
     els.setList.querySelectorAll('[data-set]').forEach((el) => {
       el.addEventListener('click', () => openSet(Number(el.dataset.set)));
     });
@@ -530,6 +552,9 @@ input[type=file] { display: none; }
         ${state.activeSet.footageFt || parseFootageFeet(state.activeSet.pogId) ? `<div><strong>Set size:</strong> ${formatSetSize(state.activeSet)}</div>` : ''}
         ${state.activeSet.notes ? `<div><strong>Notes:</strong> ${escapeHtml(state.activeSet.notes)}</div>` : ''}
         ${state.activeSet.sfpNum ? `<div><strong>SFP:</strong> ${escapeHtml(state.activeSet.sfpNum)} · <strong>CAO:</strong> ${escapeHtml(state.activeSet.caoNum || '')}</div>` : ''}
+        ${state.activeSet.proof && state.activeSet.proof.matchKind === 'exact' ? `<div><strong>Proof:</strong> carried from ${escapeHtml(state.activeSet.proof.sourcePeriodWeek || state.activeSet.proof.sourceCampaignSlug || 'prior week')}</div>` : ''}
+        ${state.activeSet.proof && state.activeSet.proof.matchKind === 'soft_confirmed' ? `<div><strong>Proof:</strong> confirmed match from ${escapeHtml(state.activeSet.proof.sourcePeriodWeek || 'prior week')} (order date ${escapeHtml(state.activeSet.proof.sourceOrderDate || '—')})</div>` : ''}
+        ${state.activeSet.proof && state.activeSet.proof.matchKind === 'soft_pending' ? `<div><strong>Possible match:</strong> prior ${escapeHtml(state.activeSet.proof.sourcePeriodWeek || 'week')} order ${escapeHtml(state.activeSet.proof.sourceOrderDate || '—')} — awaiting supervisor confirm</div>` : ''}
       </div>`;
     renderPhotoSlots();
     updateProgress(state.sets.filter((s) => s.complete).length, state.sets.length);
