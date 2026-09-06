@@ -535,8 +535,9 @@
     return rows;
   }
 
-  function renderRows(sheet, q, filters, selectedIds) {
+  function renderRows(sheet, q, filters, selectedIds, suggestIds) {
     const selected = selectedIds instanceof Set ? selectedIds : new Set();
+    const suggested = suggestIds instanceof Set ? suggestIds : new Set();
     const rows = filteredSheetRows(sheet, q, filters);
     if (!rows.length) return '<p class="muted">No sets match.</p>';
     return rows.map((row) => {
@@ -556,9 +557,10 @@
         locLabel,
         footage ? String(footage) : '',
         est,
+        suggested.has(String(row.id)) ? 'COM suggest' : '',
       ].filter(Boolean);
       const selectedOn = selected.has(String(row.id));
-      return `<div class="ds-row ds-row-compact ${rowClass(row)}${selectedOn ? ' is-selected' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
+      return `<div class="ds-row ds-row-compact ${rowClass(row)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
         <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
         <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
@@ -584,6 +586,8 @@
           <h1>Categories</h1>
           <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
           <button type="button" class="btn btn-secondary" id="cartScanBtn">Scan</button>
+          <button type="button" class="btn btn-secondary" id="comLoadAddBtn">Add COM</button>
+          <button type="button" class="btn btn-secondary" id="comLoadSuggestBtn">Suggest COM</button>
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
         </div>
         <div class="ds-bulk" id="sheetBulk"></div>
@@ -611,6 +615,7 @@
     const selectedIds = new Set();
     let pollTimer = null;
     let lastRowsHtml = '';
+    let suggestIdSet = new Set();
 
     function paintFilterChips() {
       const host = document.getElementById('sheetFilters');
@@ -664,6 +669,7 @@
       bulk.innerHTML = `
         <div class="ds-bulk-count">${n} selected</div>
         <div class="ds-actions">
+          <button type="button" class="btn" data-bulk-com="1">Request COM</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">NIS</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">NISI</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="backlog">Backlog</button>
@@ -672,6 +678,10 @@
         </div>`;
       bulk.querySelectorAll('[data-bulk-mark]').forEach((btn) => {
         btn.onclick = () => runBulkMark(btn.getAttribute('data-bulk-mark'));
+      });
+      bulk.querySelector('[data-bulk-com]')?.addEventListener('click', async () => {
+        const rows = (S.state.sheet?.rows || []).filter((r) => selectedIds.has(String(r.id)));
+        await global.EodComLoadRequest?.requestSelected?.(rows);
       });
     }
 
@@ -797,7 +807,7 @@
           'out_of_scope'
         )) selectedIds.delete(id);
       }
-      const html = renderRows(sheet, q, filters, selectedIds);
+      const html = renderRows(sheet, q, filters, selectedIds, suggestIdSet);
       paintBulkBar();
       paintSelectAll();
       if (html === lastRowsHtml) return;
@@ -851,6 +861,23 @@
 
     document.getElementById('cartScanBtn')?.addEventListener('click', () => {
       global.EodCartLocate?.openScanner?.();
+    });
+    document.getElementById('comLoadAddBtn')?.addEventListener('click', () => {
+      global.EodComLoadRequest?.openManualModal?.();
+    });
+    document.getElementById('comLoadSuggestBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('comLoadSuggestBtn');
+      if (btn) btn.disabled = true;
+      try {
+        const suggestions = await global.EodComLoadRequest?.fetchSuggestions?.() || [];
+        suggestIdSet = new Set(suggestions.map((s) => String(s.sheetRowId)));
+        await global.EodComLoadRequest?.selectSuggested?.(selectedIds, S.state.sheet?.rows || []);
+        await paint();
+      } catch (err) {
+        global.EodComLoadRequest?.showToast?.(err.message || String(err));
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     });
     void global.EodCartLocate?.warmIndex?.();
     document.getElementById('syncProdSiBtn').onclick = async () => {
