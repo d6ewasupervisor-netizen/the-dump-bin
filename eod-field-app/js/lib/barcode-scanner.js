@@ -6,7 +6,7 @@
     'upc_a', 'upc_e', 'ean_13', 'ean_8',
     'code_128', 'code_39', 'codabar', 'itf', 'qr_code',
   ];
-  const HTML5_SRC = `js/vendor/html5-qrcode.min.js?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.66')}`;
+  const HTML5_SRC = `js/vendor/html5-qrcode.min.js?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.67')}`;
 
   const CAMERA_MIN = 6;
   const MANUAL_MIN = 4;

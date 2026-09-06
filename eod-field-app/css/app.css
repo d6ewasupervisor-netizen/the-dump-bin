@@ -1976,12 +1976,19 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
   padding: clamp(10px, 2.4vw, 16px); border: 1px solid var(--border); border-radius: 12px;
   background: var(--card); cursor: pointer;
 }
+.eod-locate-hit--kroger {
+  cursor: default;
+  grid-template-columns: minmax(120px, 34vw) 1fr;
+}
 .eod-locate-thumb {
   min-height: 88px; display: flex; align-items: center; justify-content: center;
   background: #fff; border-radius: 8px;
 }
+.eod-locate-hit--kroger .eod-locate-thumb { min-height: 120px; }
 .eod-locate-thumb img { max-width: 100%; max-height: 88px; object-fit: contain; }
+.eod-locate-hit--kroger .eod-locate-thumb img { max-height: 120px; }
 .eod-locate-copy { display: flex; flex-direction: column; gap: 4px; }
+.eod-locate-aisle { font-weight: 600; margin-top: 2px; }
 .eod-locate-miss { font-size: 1.05rem; margin: 18px 8px; }
 
 .eod-pog-item-overlay {

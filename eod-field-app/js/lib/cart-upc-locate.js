@@ -1,4 +1,4 @@
-/* Store-wide UPC locate from Categories. SI planogram + Kroger image. */
+/* Store-wide UPC locate: Kroger aisle first, SI planogram fallback. */
 (function (global) {
   'use strict';
 
@@ -18,6 +18,7 @@
   }
 
   function locLine(m) {
+    if (m.locationVerbose) return m.locationVerbose;
     const bits = [
       m.aisle ? `Aisle ${m.aisle}` : '',
       m.bay != null ? `Bay ${m.bay}` : '',
@@ -29,17 +30,33 @@
   }
 
   function matchHtml(m) {
+    const isKroger = m.source === 'kroger';
     const img = m.imageUrl
-      ? `<img alt="" data-pog-src="${esc(m.imageUrl)}">`
+      ? (isKroger
+        ? `<img alt="" src="${esc(m.imageUrl)}">`
+        : `<img alt="" data-pog-src="${esc(m.imageUrl)}">`)
       : '';
-    return `<article class="eod-locate-hit" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || '')}" data-upc="${esc(m.upc || '')}">
+    const title = isKroger
+      ? (m.name || 'Item')
+      : (m.setName || m.categoryName || '');
+    const subtitle = isKroger
+      ? [m.brand, m.size].filter(Boolean).join(' · ')
+      : (m.name || '');
+    const meta = isKroger
+      ? (m.stockLevel ? `Stock ${m.stockLevel}` : '')
+      : [m.brand, m.size].filter(Boolean).join(' · ');
+    const sourceTag = isKroger
+      ? '<div class="muted">Fred Meyer aisle</div>'
+      : '<div class="muted">Kompass set</div>';
+    return `<article class="eod-locate-hit${isKroger ? ' eod-locate-hit--kroger' : ''}" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || m.name || '')}" data-upc="${esc(m.upc || '')}" data-source="${esc(m.source || '')}">
       <div class="eod-locate-thumb">${img}</div>
       <div class="eod-locate-copy">
-        <strong>${esc(m.setName || m.categoryName || '')}</strong>
-        <div>${esc(m.name || '')}</div>
-        ${m.brand || m.size ? `<div>${esc([m.brand, m.size].filter(Boolean).join(' · '))}</div>` : ''}
+        ${sourceTag}
+        <strong>${esc(title)}</strong>
+        ${subtitle ? `<div>${esc(subtitle)}</div>` : ''}
+        ${meta ? `<div>${esc(meta)}</div>` : ''}
         <div class="muted">UPC ${esc(m.upc || '')}</div>
-        <div>${esc(locLine(m))}</div>
+        <div class="eod-locate-aisle">${esc(locLine(m))}</div>
       </div>
     </article>`;
   }
@@ -81,6 +98,7 @@
     };
     host.querySelectorAll('.eod-locate-hit').forEach((el) => {
       el.addEventListener('click', () => {
+        if (el.getAttribute('data-source') === 'kroger') return;
         const dbkey = el.getAttribute('data-dbkey') || '';
         const title = el.getAttribute('data-name') || '';
         const hitUpc = el.getAttribute('data-upc') || upc;
