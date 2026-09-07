@@ -2,8 +2,12 @@
 (function (global) {
   'use strict';
 
+  function headingFor(card) {
+    return card.querySelector('h1, h2, h3, .cat-head h1, .section-title');
+  }
+
   function titleFor(card, i) {
-    const h = card.querySelector('h1, h2, h3, .cat-head h1');
+    const h = headingFor(card);
     const t = h ? String(h.textContent || '').trim() : '';
     return t || `Section ${i + 1}`;
   }
@@ -15,7 +19,9 @@
     details.open = true;
     const summary = document.createElement('summary');
     summary.className = 'eod-collapse-sum';
-    summary.textContent = titleFor(card, i);
+    const heading = headingFor(card);
+    summary.textContent = heading ? String(heading.textContent || '').trim() : titleFor(card, i);
+    if (heading) heading.classList.add('eod-collapse-dup');
     const parent = card.parentNode;
     if (!parent) return;
     parent.insertBefore(details, card);

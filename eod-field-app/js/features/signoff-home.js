@@ -602,7 +602,6 @@
         <div class="cat-head">
           <h1>Categories</h1>
           <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
-          <button type="button" class="btn btn-secondary" id="cartScanBtn">Scan</button>
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
         </div>
         <div class="ds-bulk" id="sheetBulk"></div>
@@ -874,12 +873,6 @@
       });
     }
 
-    document.getElementById('cartScanBtn')?.addEventListener('click', async () => {
-      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (err) {
-        console.warn('[signoff] scan bundle', err);
-      }
-      global.EodCartLocate?.openScanner?.();
-    });
     void global.EodCartLocate?.warmIndex?.();
     document.getElementById('syncProdSiBtn').onclick = async () => {
       syncBtn.disabled = true;

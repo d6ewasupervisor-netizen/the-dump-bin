@@ -160,25 +160,35 @@ test('visible lead shifts list ISE-family and Central Pet for that lead', () => 
   assert.equal(otherLead.selected.visitId, '1');
 });
 
-test('CP lead name still lists the store-day ISE visit', () => {
+test('9293 only shows when the Kompass ISE lead is also on service', () => {
   const ise = {
     visitId: '27182537',
     projectId: 1,
     projectName: 'Fred Meyer Kompass ISE',
     visitLead: 'Alexandra Wright Jamsyn',
   };
-  const cp = {
+  const otherService = {
     visitId: '27184822',
     projectId: 9293,
     projectName: 'Fred Meyer Central Pet Service Surge',
     visitLead: 'Kimberly Claflin Janell',
   };
-  const asKimberly = pickVisibleLeadShift([ise, cp], 'Kimberly Claflin Janell', cp);
-  assert.deepEqual(asKimberly.visible.map((s) => s.visitId), ['27182537', '27184822']);
-  assert.equal(asKimberly.selected.visitId, '27184822');
-  const asTyson = pickVisibleLeadShift([ise, cp], 'Tyson Gauthier', null);
-  assert.deepEqual(asTyson.visible.map((s) => s.visitId), ['27182537', '27184822']);
+  const ownService = {
+    visitId: '27184899',
+    projectId: 9293,
+    projectName: 'Fred Meyer Central Pet Service Surge',
+    visitLead: 'Alexandra Wright Jamsyn',
+  };
+  const asKimberly = pickVisibleLeadShift([ise, otherService], 'Kimberly Claflin Janell', otherService);
+  assert.deepEqual(asKimberly.visible.map((s) => s.visitId), ['27182537']);
+  assert.equal(asKimberly.selected.visitId, '27182537');
+  const asTyson = pickVisibleLeadShift([ise, otherService], 'Tyson Gauthier', null);
+  assert.deepEqual(asTyson.visible.map((s) => s.visitId), ['27182537']);
   assert.equal(asTyson.selected.visitId, '27182537');
+  const matched = pickVisibleLeadShift([ise, ownService], 'Tyson Gauthier', null);
+  assert.deepEqual(matched.visible.map((s) => s.visitId), ['27182537', '27184899']);
+  assert.equal(matched.selected.visitId, '27182537');
+  assert.deepEqual(includedIseVisitIds([ise, ownService], matched.selected), []);
 });
 
 test('deleted SAS visits stay off the Visit shift list', () => {

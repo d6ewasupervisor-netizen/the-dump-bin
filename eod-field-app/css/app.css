@@ -553,6 +553,20 @@ body.needs-auth .app-shell {
   letter-spacing: 0.01em;
   cursor: pointer;
 }
+.chrome-scan-btn {
+  appearance: none;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-height: 32px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
 .chrome-meta {
   color: var(--muted);
   font-size: 12px;
@@ -812,13 +826,10 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
 .bottom-nav .nav-label { line-height: 1.1; }
 .bottom-nav [data-slot="extra"] { display: none; }
 .bottom-nav [data-slot="stage"] { display: flex; }
+.bottom-nav [data-slot="phone-more"] { display: flex; }
 .chrome-stages { display: none; }
 .chrome-operator-tray { display: none !important; }
 .chrome-conn { display: flex; align-items: center; gap: 6px; }
-@media (max-width: 720px) {
-  .bottom-nav [data-slot="stage"] { display: none; }
-  .bottom-nav [data-slot="phone-more"] { display: flex; }
-}
 .bottom-nav .nav-collapse-btn {
   display: none;
   appearance: none;
@@ -2707,6 +2718,7 @@ details.eod-collapse > .visit-step-panel {
   margin: 0;
   border-radius: 0;
 }
+details.eod-collapse .eod-collapse-dup { display: none; }
 
 .device-pkg-row {
   display: flex;

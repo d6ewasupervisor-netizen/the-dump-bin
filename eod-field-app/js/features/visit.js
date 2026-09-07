@@ -470,9 +470,12 @@
 
   function paintLeadFromShift(shift, shifts) {
     const S = global.EodSession;
-    if (!shift) return;
-    const lead = shift.visitLead || shift.leadName || leadNameNow();
-    const email = leadEmailFromShifts(shift, shifts);
+    const L = global.EodSendSheetsLogic || {};
+    const ise = L.pickMainKompassIseVisit?.(shifts, null);
+    const source = ise || shift;
+    if (!source) return;
+    const lead = source.visitLead || source.leadName || leadNameNow();
+    const email = leadEmailFromShifts(source, shifts);
     if (lead) {
       S.patch({ leadName: lead, profileName: lead }, 'lead');
       const nameEl = document.getElementById('visitLeadName');
@@ -493,7 +496,7 @@
     }
     const editBtn = document.getElementById('unlockProfileBtn');
     if (editBtn && (lead || email)) editBtn.hidden = false;
-    if (!email && lead) queueLeadEmailLookup(shift, lead);
+    if (!email && lead) queueLeadEmailLookup(source, lead);
   }
 
   function queueLeadEmailLookup(shift, lead) {
@@ -1190,9 +1193,6 @@
       <div class="card" id="shiftCard">
         <h2>Shifts</h2>
         <div id="shiftList"></div>
-        <div class="visit-scan-row">
-          <button type="button" class="btn btn-primary btn-block" id="visitScanBtn">Scan</button>
-        </div>
         <div class="field" style="margin-top:14px;">
           <label>Lead name</label>
           <input type="text" id="visitLeadName" value="${esc(S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked || S.state.selectedShift ? 'readonly' : ''}>
@@ -1210,12 +1210,6 @@
 `;
 
     paintShiftList(document.getElementById('shiftList'));
-    document.getElementById('visitScanBtn')?.addEventListener('click', async () => {
-      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (err) {
-        console.warn('[visit] scan bundle', err);
-      }
-      global.EodCartLocate?.openScanner?.();
-    });
     if (global.EodShiftPhotoSync?.ensureCartPhotos) {
       try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
     }

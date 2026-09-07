@@ -304,6 +304,14 @@
       }
     });
     document.getElementById('chromeMeta')?.addEventListener('click', openQuickView);
+    document.getElementById('chromeScanBtn')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (err) {
+        console.warn('[chrome] scan bundle', err);
+      }
+      global.EodCartLocate?.openScanner?.();
+    });
     document.getElementById('chromeNextAction')?.addEventListener('click', () => {
       const id = document.getElementById('chromeNextAction')?.dataset?.gate;
       const item = global.EodSendGates?.items?.(global.EodSession)?.find((gate) => gate.id === id);

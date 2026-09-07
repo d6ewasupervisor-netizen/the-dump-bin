@@ -131,13 +131,18 @@
 
   function visibleLeadShifts(shifts, leadName) {
     const list = (Array.isArray(shifts) ? shifts : []).filter(isSelectableVisitShift);
-    const lead = String(leadName || '').trim();
-    if (!lead) return list;
-    const mine = list.filter((s) => leadNamesMatch(shiftLeadName(s), lead));
-    if (!mine.length) return list;
-    const iseFamily = list.filter((s) => !isCentralPetReset(s));
-    const myCp = mine.filter(isCentralPetReset);
-    return uniqueShifts([...iseFamily, ...myCp]);
+    const ise = list.find(isMainKompassIse) || null;
+    const kompassLead = shiftLeadName(ise);
+    const lead = kompassLead || String(leadName || '').trim();
+    const core = list.filter((s) => !isCentralPetService(s) && !isCentralPetReset(s));
+    const resets = list.filter((s) => !isCentralPetService(s) && isCentralPetReset(s));
+    const myResets = lead
+      ? resets.filter((s) => leadNamesMatch(shiftLeadName(s), lead))
+      : resets;
+    const service = (ise && kompassLead)
+      ? list.filter((s) => isCentralPetService(s) && leadNamesMatch(shiftLeadName(s), kompassLead))
+      : [];
+    return uniqueShifts([...core, ...myResets, ...service]);
   }
 
   function isIseCompanionShift(shift) {
