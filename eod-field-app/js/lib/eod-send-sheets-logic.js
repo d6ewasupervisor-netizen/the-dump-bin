@@ -76,6 +76,16 @@
     return /central\s*pet\s*reset/.test(shiftTypeBlob(shift));
   }
 
+  /** Project 9293 — Central Pet Service (not Reset 9295). */
+  function isCentralPetService(shift) {
+    if (!shift) return false;
+    if (shiftProjectId(shift) === 9293) return true;
+    if (shiftProjectId(shift) === 9295) return false;
+    const blob = shiftTypeBlob(shift);
+    if (/central\s*pet\s*reset/.test(blob)) return false;
+    return /central\s*pet\s*service/.test(blob) || /pet\s*service\s*surge/.test(blob);
+  }
+
   function isDeletedVisitShift(shift) {
     const status = String(shift?.currentStatus || shift?.current_status || shift?.status || '').toLowerCase();
     return status === 'deleted';
@@ -316,6 +326,7 @@
     isMainKompassIse,
     pickMainKompassIseVisit,
     isCentralPetReset,
+    isCentralPetService,
     isCutInBlitzDiv,
     isSelectableVisitShift,
     leadNamesMatch,

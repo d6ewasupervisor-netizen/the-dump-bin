@@ -341,6 +341,40 @@
     }).join('');
   }
 
+  const CP_SHIFT_DAY_URL = 'https://cpscheduler-production.up.railway.app/shiftday.html';
+
+  function openCentralPetShiftDay(store, date) {
+    const url = new URL(CP_SHIFT_DAY_URL);
+    if (store) url.searchParams.set('store', String(store));
+    if (date) url.searchParams.set('date', String(date));
+    try {
+      global.open(url.toString(), '_blank', 'noopener,noreferrer');
+    } catch (_) {
+      global.location.href = url.toString();
+    }
+  }
+
+  async function maybeOfferCentralPetJump(shift) {
+    const L = global.EodSendSheetsLogic || {};
+    if (!L.isCentralPetService?.(shift)) return;
+    const S = global.EodSession;
+    const store = S.normStoreNumber?.(S.state.storeNumber)
+      || S.normStoreNumber?.(shift.storeNumber || shift.store_number || shift.store)
+      || String(S.state.storeNumber || '').replace(/\D/g, '');
+    const date = S.normIsoDate?.(S.state.workDate)
+      || String(S.state.workDate || shift.visitDate || shift.date || '').slice(0, 10);
+    if (!store || !date) return;
+    const choice = await global.EodAlerts?.showDialog?.({
+      title: 'Open Central Pet?',
+      message: `Open your Shift Day for store ${store} on ${date} in the Central Pet app?`,
+      buttons: [
+        { id: 'stay', label: 'Stay here' },
+        { id: 'open', label: 'Open Central Pet', primary: true },
+      ],
+    });
+    if (choice === 'open') openCentralPetShiftDay(store, date);
+  }
+
   function wireShiftCards(listEl, visible) {
     const S = global.EodSession;
     const cards = visible || [];
@@ -363,6 +397,7 @@
         paintOnboarding();
         updateContinueBtn();
         paintShiftList(listEl);
+        await maybeOfferCentralPetJump(shift);
       };
     });
   }

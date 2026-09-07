@@ -3,9 +3,9 @@
   'use strict';
 
   const STAGES = [
-    { id: 'visit', label: 'Visit', gates: ['visit', 'name', 'checkin', 'cartBefore'] },
+    { id: 'visit', label: 'Visit', gates: ['visit', 'name', 'cartBefore', 'checkin'] },
     { id: 'categories', label: 'Categories', gates: ['sheet'] },
-    { id: 'signatures', label: 'Signatures', gates: ['signature', 'checkout', 'paper'] },
+    { id: 'signatures', label: 'Signatures', gates: ['checkout', 'paper', 'signature'] },
     { id: 'send', label: 'Send', gates: ['recipients', 'cartAfter', 'instaworkPhoto', 'instaworkSave'] },
   ];
 

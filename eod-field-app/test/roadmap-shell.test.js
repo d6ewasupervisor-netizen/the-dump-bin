@@ -84,8 +84,10 @@ test('workflow progress exposes four stages and one next gate', () => {
   const gates = [
     { id: 'visit', ok: true, label: 'Confirm', page: 'visit' },
     { id: 'name', ok: true, label: 'Name', page: 'visit' },
+    { id: 'cartBefore', ok: true, label: 'Cart before', page: 'visit' },
     { id: 'checkin', ok: false, label: 'Check in', page: 'visit' },
     { id: 'sheet', ok: false, label: 'Mark sets', page: 'signoff' },
+    { id: 'checkout', ok: false, label: 'Checkout', page: 'signatures' },
     { id: 'signature', ok: false, label: 'Sign', page: 'send' },
   ];
   const result = workflow.derive({}, { items: () => gates });
@@ -93,6 +95,18 @@ test('workflow progress exposes four stages and one next gate', () => {
   assert.equal(result.stages[0].status, 'current');
   assert.equal(result.next.label, 'Check in');
   assert.equal(result.next.page, 'visit');
+});
+
+test('workflow next prefers cart before over lead signature', () => {
+  const gates = [
+    { id: 'visit', ok: true, label: 'Confirm', page: 'visit' },
+    { id: 'name', ok: true, label: 'Name', page: 'visit' },
+    { id: 'cartBefore', ok: false, label: 'Add a Kompass cart before photo', page: 'visit' },
+    { id: 'checkin', ok: false, label: 'Check in', page: 'visit' },
+    { id: 'signature', ok: false, label: 'Add your lead signature', page: 'send' },
+  ];
+  const result = workflow.derive({}, { items: () => gates });
+  assert.equal(result.next.label, 'Add a Kompass cart before photo');
 });
 
 test('heavy scanner and materials dependencies are lazy and ordered', () => {

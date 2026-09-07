@@ -533,6 +533,37 @@ test('send gates list missing visit confirm and jump metadata', () => {
   assert.equal(sendGates.firstMessage(S), 'Confirm store and date');
 });
 
+test('send gates follow visit → cart → check-in before lead signature', () => {
+  const S = {
+    state: {
+      profileName: 'Lead',
+      leadName: 'Lead',
+      signatureDataUrl: '',
+      emailRecipients: ['a@b.com'],
+      profileEmail: 'a@b.com',
+      checkInManager: '',
+      checkOutManager: '',
+      photos: { before: [], after: [], signoff: [], instawork: [] },
+      instaworkYes: null,
+    },
+    isVisitReady: () => true,
+    hasHostedSheet: () => true,
+    sheetSendReady: () => false,
+  };
+  assert.equal(sendGates.firstMessage(S), 'Add a Kompass cart before photo');
+  S.state.photos.before = [{ dataUrl: 'x' }];
+  assert.equal(sendGates.firstMessage(S), 'Enter the check-in manager on Visit');
+  S.state.checkInManager = 'April';
+  assert.equal(sendGates.firstMessage(S), 'Mark every open set before sending');
+  S.sheetSendReady = () => true;
+  assert.equal(
+    sendGates.firstMessage(S),
+    'Collect management / store PIC signatures (or check-out manager)'
+  );
+  S.state.checkOutManager = 'April';
+  assert.equal(sendGates.firstMessage(S), 'Add your lead signature');
+});
+
 test('cover notes rewrite the In/Out/cart line and keep extra notes', () => {
   const { mergeNotes, summaryLine } = require('../js/lib/cover-notes');
   const S = {
@@ -629,7 +660,10 @@ test('checkout manager gate clears when a name is set', () => {
   assert.ok(sendGates.missing(ready).some((g) => g.id === 'checkout'));
   ready.state.checkOutManager = 'April';
   assert.ok(!sendGates.missing(ready).some((g) => g.id === 'checkout'));
-  assert.notEqual(sendGates.firstMessage(ready), 'Enter the check-out manager (or complete PIC QR)');
+  assert.notEqual(
+    sendGates.firstMessage(ready),
+    'Collect management / store PIC signatures (or check-out manager)'
+  );
 });
 
 test('digital signoff rasterizer loads standard PDF fonts', () => {

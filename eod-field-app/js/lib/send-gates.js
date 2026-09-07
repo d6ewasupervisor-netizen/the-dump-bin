@@ -17,20 +17,12 @@
     const push = (id, ok, label, page, focus) => {
       out.push({ id, ok: !!ok, label, page, focus: focus || null });
     };
+    // Field day order: store → cart before → check-in → categories →
+    // management/PIC → lead signature → send leftovers.
     push('visit', S.isVisitReady?.(), 'Confirm store and date', 'visit', 'confirmVisitBtn');
     push('name', !!(S.state.profileName || S.state.leadName), 'Enter your name on Visit', 'visit', 'visitLeadName');
-    push('signature', !!S.state.signatureDataUrl, 'Add your lead signature', 'send', 'signBtn');
-    push(
-      'recipients',
-      !!(S.state.emailRecipients || []).length || !!(S.state.profileEmail || '').trim(),
-      'Add at least one email recipient',
-      'send',
-      'emailInput'
-    );
-    push('checkin', !!(S.state.checkInManager || '').trim(), 'Enter the check-in manager on Visit', 'visit', null);
-    push('checkout', !!(S.state.checkOutManager || '').trim(), 'Enter the check-out manager (or complete PIC QR)', 'send', 'checkOutManager');
-    push('cartBefore', photoCount(S, 'before') >= 1, 'Add a Kompass cart before photo', 'visit', null);
-    push('cartAfter', photoCount(S, 'after') >= 1, 'Add a Kompass cart after photo', 'send', 'cartAfterCam');
+    push('cartBefore', photoCount(S, 'before') >= 1, 'Add a Kompass cart before photo', 'visit', 'cartBeforeCam');
+    push('checkin', !!(S.state.checkInManager || '').trim(), 'Enter the check-in manager on Visit', 'visit', 'checkInManager');
     if (S.hasHostedSheet?.()) {
       push('sheet', !!S.sheetSendReady?.(), 'Mark every open set before sending', 'signoff', null);
     } else {
@@ -42,6 +34,22 @@
         'sendPaperCam'
       );
     }
+    push(
+      'checkout',
+      !!(S.state.checkOutManager || '').trim(),
+      'Collect management / store PIC signatures (or check-out manager)',
+      'signatures',
+      null
+    );
+    push('signature', !!S.state.signatureDataUrl, 'Add your lead signature', 'send', 'signBtn');
+    push(
+      'recipients',
+      !!(S.state.emailRecipients || []).length || !!(S.state.profileEmail || '').trim(),
+      'Add at least one email recipient',
+      'send',
+      'emailInput'
+    );
+    push('cartAfter', photoCount(S, 'after') >= 1, 'Add a Kompass cart after photo', 'send', 'cartAfterCam');
     if (S.state.instaworkYes === 'Yes') {
       push('instaworkPhoto', photoCount(S, 'instawork') >= 1, 'InstaWork is in use — take a photo of the sign-out timesheet', 'crew', 'iwCamBtn');
       push('instaworkSave', !!S.state.instaworkSavedInfo, 'Tap Confirm & Save so the InstaWork sign-out sheet is routed', 'crew', 'iwSaveBtn');
