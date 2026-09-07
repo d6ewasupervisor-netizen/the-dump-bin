@@ -137,9 +137,19 @@
   }
 
   let syncPromise = null;
+  function isCancelled(err) {
+    return err?.code === 'cancelled' || err?.name === 'AbortError';
+  }
+
+  async function backToStoreSelect() {
+    try { global.EodRouter?.go?.('visit'); } catch (_) {}
+    try { await global.EodVisit?.openDayConfirmModal?.(); } catch (_) {}
+  }
+
   async function syncProdSi() {
     const S = global.EodSession;
     if (syncPromise) return syncPromise;
+    const ctrl = new AbortController();
     const run = async () => {
       const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
       const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
@@ -155,7 +165,13 @@
         headers,
         body,
         skipBusy: true,
+        signal: ctrl.signal,
       });
+      if (ctrl.signal.aborted) {
+        const err = new Error('cancelled');
+        err.code = 'cancelled';
+        throw err;
+      }
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
       if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
@@ -168,10 +184,24 @@
       return data;
     };
     syncPromise = global.EodBusy?.runSession
-      ? global.EodBusy.runSession(async ({ setStage }) => {
-          setStage('Refreshing PROD & SI', 'Pulling live set status…');
-          return run();
-        }, { successTitle: 'Success!', successSubtitle: 'Categories updated.' })
+      ? global.EodBusy.runSession(async ({ setStage, cancelled }) => {
+          setStage('Pulling live data', '');
+          const data = await run();
+          if (cancelled?.()) {
+            const err = new Error('cancelled');
+            err.code = 'cancelled';
+            throw err;
+          }
+          return data;
+        }, {
+          title: 'Pulling live data',
+          subtitle: '',
+          skipSuccess: true,
+          onCancel() {
+            try { ctrl.abort(); } catch (_) {}
+            void backToStoreSelect();
+          },
+        })
       : run();
     try {
       return await syncPromise;
@@ -890,7 +920,7 @@
         try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
         global.EodChrome?.refresh();
       } catch (err) {
-        await global.EodAlerts?.alert?.('Sync failed', err.message || String(err));
+        if (!isCancelled(err)) await global.EodAlerts?.alert?.('Sync failed', err.message || String(err));
       } finally {
         syncBtn.disabled = false;
       }
@@ -932,7 +962,7 @@
         try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
         global.EodChrome?.refresh();
       } catch (err) {
-        console.warn('[signoff] initial sync', err.message || err);
+        if (!isCancelled(err)) console.warn('[signoff] initial sync', err.message || err);
       }
     })();
     startPoll();

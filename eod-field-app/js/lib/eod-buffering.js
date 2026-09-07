@@ -6,7 +6,7 @@
   const MIN_VISIBLE_MS = 480;
   const AMBIENT_MAX_MS = 45000;
   const SUCCESS_HOLD_MS = 1400;
-  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.72')}`;
+  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.73')}`;
   const SKIP_RE = /sas-auth-status|rebotics-auth-status|\/usage\b|eod-version\.json|\/api\/me(?:\?|$)|digital-signoffs\/heartbeat|\/photos\/|\/image(?:\?|$)|field-set\/(?:status|planogram-image)|\/api\/shifts\/day/i;
 
   let depth = 0;
@@ -22,6 +22,9 @@
   let stageTitle = '';
   let stageSubtitle = '';
   let overlayState = 'busy';
+  let sessionCancel = null;
+  let sessionCancelled = false;
+  let skipSuccess = false;
 
   function shouldSkipBusy(url, init) {
     if (init && init.skipBusy) return true;
@@ -32,10 +35,10 @@
   function cardHtml() {
     return `<div class="eod-buffering-card">
       <img class="eod-buffering-gif" src="${ASSET}" alt="" width="104" height="104" decoding="async">
-      <div class="eod-buffering-spinner" aria-hidden="true"></div>
       <div class="eod-buffering-check" aria-hidden="true">&#10003;</div>
       <div class="eod-buffering-title" id="eodBusyTitle"></div>
       <div class="eod-buffering-subtitle" id="eodBusySubtitle"></div>
+      <button type="button" class="btn btn-secondary eod-buffering-cancel" id="eodBusyCancel" hidden>Cancel</button>
     </div>`;
   }
 
@@ -56,8 +59,44 @@
       overlayEl.innerHTML = cardHtml();
     }
     bindDismiss(overlayEl);
+    bindCancel(overlayEl);
     paintStage();
     return overlayEl;
+  }
+
+  function cancelledError() {
+    const err = new Error('cancelled');
+    err.code = 'cancelled';
+    err.name = 'AbortError';
+    return err;
+  }
+
+  function paintCancel() {
+    const btn = overlayEl?.querySelector('#eodBusyCancel');
+    if (!btn) return;
+    const show = overlayState === 'busy' && typeof sessionCancel === 'function' && !sessionCancelled;
+    btn.hidden = !show;
+  }
+
+  function requestCancel() {
+    if (sessionCancelled || typeof sessionCancel !== 'function') return;
+    sessionCancelled = true;
+    const fn = sessionCancel;
+    sessionCancel = null;
+    sessionDepth = 0;
+    paintCloseNow();
+    try { fn(); } catch (_) {}
+  }
+
+  function bindCancel(el) {
+    const btn = el?.querySelector('#eodBusyCancel');
+    if (!btn || btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      requestCancel();
+    });
   }
 
   function bindDismiss(el) {
@@ -80,6 +119,7 @@
       subEl.textContent = stageSubtitle || '';
       subEl.hidden = !stageSubtitle;
     }
+    paintCancel();
   }
 
   function setStage(title, subtitle) {
@@ -219,6 +259,9 @@
     sessionDepth += 1;
     hiddenUntilIdle = false;
     overlayState = 'busy';
+    sessionCancelled = false;
+    sessionCancel = opts && typeof opts.onCancel === 'function' ? opts.onCancel : null;
+    skipSuccess = !!(opts && opts.skipSuccess);
     if (opts && opts.title) stageTitle = String(opts.title);
     else if (!stageTitle) stageTitle = 'Working…';
     if (opts && opts.subtitle !== undefined) stageSubtitle = opts.subtitle == null ? '' : String(opts.subtitle);
@@ -262,7 +305,13 @@
       const result = await fn({
         setStage,
         success: showSuccess,
+        cancelled: () => sessionCancelled,
       });
+      if (sessionCancelled) throw cancelledError();
+      if (skipSuccess) {
+        paintCloseNow();
+        return result;
+      }
       if (overlayState !== 'success') {
         showSuccess((opts && opts.successTitle) || 'Success!', (opts && opts.successSubtitle) || '');
         await new Promise((r) => setTimeout(r, SUCCESS_HOLD_MS));
@@ -271,14 +320,19 @@
       }
       return result;
     } catch (err) {
-      sessionDepth = Math.max(0, sessionDepth - 1);
+      sessionDepth = 0;
+      sessionCancel = null;
       paintCloseNow();
+      if (sessionCancelled || err?.code === 'cancelled' || err?.name === 'AbortError') {
+        throw cancelledError();
+      }
       throw err;
     } finally {
+      sessionCancel = null;
       if (sessionDepth > 0) sessionDepth -= 1;
       if (sessionDepth === 0) {
         hiddenUntilIdle = false;
-        if (depth === 0) paintCloseNow();
+        if (depth === 0 && overlayState !== 'success') paintCloseNow();
       }
     }
   }
@@ -320,6 +374,7 @@
     setStage,
     showSuccess,
     dismissBusy,
+    requestCancel,
     isBusy: () => depth > 0 || sessionDepth > 0,
     shouldSkipBusy,
   };

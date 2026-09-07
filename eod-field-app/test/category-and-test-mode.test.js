@@ -422,7 +422,10 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.match(busy, /AMBIENT_MAX_MS/);
   assert.match(busy, /dismissBusy/);
   assert.match(signoff, /runSession/);
-  assert.match(signoff, /Refreshing PROD/);
+  assert.match(signoff, /Pulling live data/);
+  assert.match(signoff, /backToStoreSelect/);
+  assert.match(html, /id="eodBusyCancel"/);
+  assert.doesNotMatch(html, /eod-buffering-spinner/);
   assert.match(signoff, /skipBusy: true/);
   assert.match(send, /beginSession/);
   assert.match(send, /showSuccess/);
