@@ -6,7 +6,8 @@
   const MIN_VISIBLE_MS = 480;
   const AMBIENT_MAX_MS = 45000;
   const SUCCESS_HOLD_MS = 1400;
-  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.73')}`;
+  const BUSY_LABEL = 'buffering';
+  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.74')}`;
   const SKIP_RE = /sas-auth-status|rebotics-auth-status|\/usage\b|eod-version\.json|\/api\/me(?:\?|$)|digital-signoffs\/heartbeat|\/photos\/|\/image(?:\?|$)|field-set\/(?:status|planogram-image)|\/api\/shifts\/day/i;
 
   let depth = 0;
@@ -114,7 +115,7 @@
     el.dataset.state = overlayState;
     const titleEl = el.querySelector('#eodBusyTitle');
     const subEl = el.querySelector('#eodBusySubtitle');
-    if (titleEl) titleEl.textContent = stageTitle || (overlayState === 'success' ? 'Success!' : 'Working…');
+    if (titleEl) titleEl.textContent = stageTitle || (overlayState === 'success' ? 'Success!' : BUSY_LABEL);
     if (subEl) {
       subEl.textContent = stageSubtitle || '';
       subEl.hidden = !stageSubtitle;
@@ -124,7 +125,8 @@
 
   function setStage(title, subtitle) {
     if (title != null) stageTitle = String(title);
-    if (subtitle !== undefined) stageSubtitle = subtitle == null ? '' : String(subtitle);
+    stageSubtitle = '';
+    void subtitle;
     if (overlayState !== 'success') overlayState = 'busy';
     paintStage();
     if (sessionDepth > 0 || depth > 0) paintOpen({ force: true });
@@ -216,7 +218,7 @@
     ensureOverlay();
     if (opts && opts.force) hiddenUntilIdle = false;
     if (opts && opts.title) setStage(opts.title, opts.subtitle || stageSubtitle);
-    else if (opts && opts.subtitle != null) setStage(stageTitle || 'Working…', opts.subtitle);
+    else if (opts && opts.subtitle != null) setStage(stageTitle || BUSY_LABEL, '');
     if (hiddenUntilIdle && !(opts && opts.force) && sessionDepth === 0) return;
     if (opts && opts.force) {
       if (showTimer) {
@@ -263,8 +265,8 @@
     sessionCancel = opts && typeof opts.onCancel === 'function' ? opts.onCancel : null;
     skipSuccess = !!(opts && opts.skipSuccess);
     if (opts && opts.title) stageTitle = String(opts.title);
-    else if (!stageTitle) stageTitle = 'Working…';
-    if (opts && opts.subtitle !== undefined) stageSubtitle = opts.subtitle == null ? '' : String(opts.subtitle);
+    else if (!stageTitle) stageTitle = BUSY_LABEL;
+    stageSubtitle = '';
     if (showTimer) {
       clearTimeout(showTimer);
       showTimer = null;
@@ -290,7 +292,8 @@
     hiddenUntilIdle = false;
     overlayState = 'success';
     stageTitle = title != null ? String(title) : 'Success!';
-    stageSubtitle = subtitle != null ? String(subtitle) : '';
+    stageSubtitle = '';
+    void subtitle;
     paintOpen({ force: true });
     if (successTimer) clearTimeout(successTimer);
     successTimer = setTimeout(() => {

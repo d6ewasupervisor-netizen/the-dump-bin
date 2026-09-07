@@ -84,10 +84,9 @@
     overlay.className = 'iw-overlay';
     overlay.setAttribute('data-state', 'saving');
     overlay.innerHTML = `<div class="iw-overlay-card">
-      <div class="iw-spinner" aria-hidden="true"></div>
+      <img class="eod-buffering-gif" src="assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.74')}" alt="" width="104" height="104" decoding="async">
       <div class="iw-check" aria-hidden="true">&#10003;</div>
       <div id="iwOverlayTitle" class="iw-overlay-title">Saving InstaWork sign-out sheet\u2026</div>
-      <div id="iwOverlaySubtitle" class="iw-overlay-subtitle">Uploading the photo and routing it to the right period folder.</div>
     </div>`;
     document.body.appendChild(overlay);
     return overlay;
@@ -96,7 +95,6 @@
   function setOverlay(state, opts) {
     const overlay = ensureOverlay();
     const title = document.getElementById('iwOverlayTitle');
-    const sub = document.getElementById('iwOverlaySubtitle');
     if (state === 'hide') {
       overlay.classList.remove('show');
       return;
@@ -104,13 +102,8 @@
     overlay.dataset.state = state;
     if (state === 'saving') {
       if (title) title.textContent = (opts && opts.title) || 'Saving InstaWork sign-out sheet\u2026';
-      if (sub) {
-        sub.textContent = (opts && opts.subtitle)
-          || 'Uploading the photo and routing it to the right period folder.';
-      }
     } else if (state === 'success') {
       if (title) title.textContent = (opts && opts.title) || 'Sign-out sheet saved!';
-      if (sub) sub.textContent = (opts && opts.subtitle) || '';
     }
     overlay.classList.add('show');
   }

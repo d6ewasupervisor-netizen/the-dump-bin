@@ -680,7 +680,7 @@
         if (hit) goToBay(scroll, hit.getAttribute('data-bay'));
       }
       if (!overlay?.classList.contains('is-text')) {
-        busy?.setStage?.('Loading planogram', 'Loading product photos…');
+        busy?.setStage?.('Loading planogram', '');
         const pics = await hydrateImages(mount);
         if (pics.wanted && !pics.loaded && !compactPhotoMode()) applyTextMode(overlay, true, false);
       }

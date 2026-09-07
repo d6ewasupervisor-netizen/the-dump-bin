@@ -799,29 +799,29 @@ ${S.state.notes || ''}`;
       btn.textContent = 'Sending…';
       let generatedSheets = [];
       const busy = global.EodBusy;
-      const setBusy = (title, subtitle) => {
+      const setBusy = (title) => {
         btn.textContent = title || 'Sending…';
-        try { busy?.setStage?.(title, subtitle); } catch (_) {}
+        try { busy?.setStage?.(title, ''); } catch (_) {}
       };
       try {
         if (busy?.beginSession) {
-          busy.beginSession({ title: 'Sending EOD', subtitle: 'Preparing package…' });
+          busy.beginSession({ title: 'Sending EOD' });
         }
         if (global.EodSendSheets?.prepareForEmail) {
-          setBusy('Building sheets', 'Preparing signoff pages…');
+          setBusy('Building sheets');
           generatedSheets = await global.EodSendSheets.prepareForEmail({
             report: payload.report,
             sheet: S.state.sheet,
             storeNumber: payload.storeNumber,
             workDate: payload.workDate,
             testMode: !!payload.testMode,
-            onStatus: (msg) => { setBusy(msg || 'Building sheets', 'Preparing signoff pages…'); },
+            onStatus: (msg) => { setBusy(msg || 'Building sheets'); },
           });
         }
         if (generatedSheets.length) {
           payload.signoffPhotos = generatedSheets.concat(payload.signoffPhotos || []);
         }
-        setBusy('Uploading package', 'Saving photos and sheets…');
+        setBusy('Uploading package');
         const uploaded = await uploadPackageParts(payload, headers);
         const packageId = uploaded && uploaded.packageId;
         const skippedPhotos = (uploaded && uploaded.skipped) || [];
@@ -832,7 +832,7 @@ ${S.state.notes || ''}`;
           delete meta.signoffPhotos;
           delete meta.cartPhotos;
         }
-        setBusy('Sending email', 'Delivering EOD package…');
+        setBusy('Sending email');
         const resp = await global.authFetch(`${global.EOD_API_BASE}/send-eod`, {
           method: 'POST',
           headers,
@@ -858,13 +858,13 @@ ${S.state.notes || ''}`;
           sasNote += `\n\n${global.EodSendSheetsLogic.skippedPhotoMessage(skippedPhotos)}`;
         }
         if (generatedSheets.length && global.EodSendSheets?.uploadAfterSend) {
-          setBusy('Uploading to Kompass', 'Pushing sheets to maintenance…');
+          setBusy('Uploading to Kompass');
           try {
             const sas = await global.EodSendSheets.uploadAfterSend(generatedSheets, {
               storeNumber: payload.storeNumber,
               workDate: payload.workDate,
               leadName: payload.userName,
-              onStatus: (msg) => { setBusy(msg || 'Uploading to Kompass', 'Pushing sheets to maintenance…'); },
+              onStatus: (msg) => { setBusy(msg || 'Uploading to Kompass'); },
             });
             if (sas.failed) {
               sasNote = `\n\nEmail sent. ${sas.uploaded} sheet image(s) uploaded to maintenance; ${sas.failed} failed.`;
@@ -875,7 +875,7 @@ ${S.state.notes || ''}`;
           }
         }
         try {
-          busy?.showSuccess?.('Success!', 'EOD sent.');
+          busy?.showSuccess?.('Success!');
           await new Promise((r) => setTimeout(r, 1400));
         } catch (_) {}
         if (global.showAlert) await global.showAlert('Sent', 'EOD sent.' + sasNote);
