@@ -402,18 +402,28 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   const busy = fs.readFileSync(path.join(__dirname, '../js/lib/eod-buffering.js'), 'utf8');
   const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
   const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
+  const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
   assert.match(html, /js\/lib\/eod-buffering\.js/);
   assert.match(html, /js\/lib\/shift-day-cache\.js/);
   assert.match(html, /js\/lib\/shift-photo-sync\.js/);
   assert.match(html, /id="eodBuffering"/);
   assert.match(html, /assets\/buffering\.gif/);
+  assert.match(html, /eod-buffering-card/);
+  assert.match(html, /eodBusyTitle/);
   assert.match(busy, /assets\/buffering\.gif/);
   assert.match(busy, /wrapAuthFetch/);
   assert.match(busy, /digital-signoffs/);
-  assert.match(busy, /\(\?:sync\|heartbeat\)/);
-  assert.match(busy, /MAX_VISIBLE_MS = 12000/);
+  assert.match(busy, /heartbeat/);
+  assert.match(busy, /runSession/);
+  assert.match(busy, /showSuccess/);
+  assert.match(busy, /setStage/);
+  assert.match(busy, /AMBIENT_MAX_MS/);
   assert.match(busy, /dismissBusy/);
+  assert.match(signoff, /runSession/);
+  assert.match(signoff, /Refreshing PROD/);
   assert.match(signoff, /skipBusy: true/);
+  assert.match(send, /beginSession/);
+  assert.match(send, /showSuccess/);
   assert.match(survey, /skipBusy: true/);
   assert.match(survey, /data-open-media="planogram"/);
   assert.match(survey, /data-open-media="before"/);
@@ -423,7 +433,6 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.match(survey, /openOverlay/);
   assert.match(html, /set-media-prefetch/);
   assert.match(html, /set-media-cache/);
-  assert.match(busy, /planogram/);
   assert.match(html, /si-planogram-board/);
 });
 

@@ -343,7 +343,12 @@
 
   async function fetchBoard({ store, date, dbkey }) {
     const key = boardKey({ store, date, dbkey });
-    if (boardMem.has(key)) return boardMem.get(key);
+    if (boardMem.has(key)) {
+      const hit = boardMem.get(key);
+      if (hit && typeof hit.then !== 'function' && hit?.bays?.length) return hit;
+      if (hit && typeof hit.then === 'function') return hit;
+      boardMem.delete(key);
+    }
     const pending = (async () => {
       const qs = new URLSearchParams({ store, date, dbkey });
       const url = `${API}/planogram?${qs}`;
@@ -355,7 +360,8 @@
     boardMem.set(key, pending);
     try {
       const pog = await pending;
-      boardMem.set(key, pog);
+      if (pog?.bays?.length) boardMem.set(key, pog);
+      else boardMem.delete(key);
       return pog;
     } catch (err) {
       boardMem.delete(key);
@@ -644,7 +650,9 @@
   async function loadAndRender(mount, { store, date, dbkey, highlightUpc, initialBay }) {
     if (!mount) return;
     mount.innerHTML = `<section class="si-pog"><p class="muted">Loading…</p></section>`;
+    const busy = global.EodBusy;
     try {
+      busy?.beginSession?.({ title: 'Loading planogram', subtitle: 'Building bay layout…' });
       const pog = await fetchBoard({ store, date, dbkey });
       if (!pog?.bays?.length) {
         mount.innerHTML = `<section class="si-pog"><p class="muted">None for this set.</p></section>`;
@@ -672,11 +680,14 @@
         if (hit) goToBay(scroll, hit.getAttribute('data-bay'));
       }
       if (!overlay?.classList.contains('is-text')) {
+        busy?.setStage?.('Loading planogram', 'Loading product photos…');
         const pics = await hydrateImages(mount);
         if (pics.wanted && !pics.loaded && !compactPhotoMode()) applyTextMode(overlay, true, false);
       }
     } catch (err) {
       mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
+    } finally {
+      try { busy?.endSession?.(); } catch (_) {}
     }
   }
 
@@ -781,7 +792,8 @@
       applyTextMode(host, next, true);
       if (!next) void hydrateImages(host.querySelector('#setMediaOverlayBody'));
     };
-    loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey, highlightUpc });
+    boardMem.delete(boardKey({ store, date, dbkey }));
+    void loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey, highlightUpc });
     return host;
   }
 

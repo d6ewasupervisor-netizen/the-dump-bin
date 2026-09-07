@@ -140,7 +140,7 @@
   async function syncProdSi() {
     const S = global.EodSession;
     if (syncPromise) return syncPromise;
-    syncPromise = (async () => {
+    const run = async () => {
       const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
       const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
       const visitIds = shifts.map((s) => s.visitId).filter(Boolean);
@@ -166,7 +166,13 @@
       try { global.EodCoverNotes?.apply?.(S, 'prod-si-sync'); } catch (_) {}
       try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
       return data;
-    })();
+    };
+    syncPromise = global.EodBusy?.runSession
+      ? global.EodBusy.runSession(async ({ setStage }) => {
+          setStage('Refreshing PROD & SI', 'Pulling live set status…');
+          return run();
+        }, { successTitle: 'Success!', successSubtitle: 'Categories updated.' })
+      : run();
     try {
       return await syncPromise;
     } finally {

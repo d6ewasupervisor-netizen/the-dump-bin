@@ -796,21 +796,30 @@ ${S.state.notes || ''}`;
       btn.disabled = true;
       btn.textContent = 'Sending…';
       let generatedSheets = [];
+      const busy = global.EodBusy;
+      const setBusy = (title, subtitle) => {
+        btn.textContent = title || 'Sending…';
+        try { busy?.setStage?.(title, subtitle); } catch (_) {}
+      };
       try {
+        if (busy?.beginSession) {
+          busy.beginSession({ title: 'Sending EOD', subtitle: 'Preparing package…' });
+        }
         if (global.EodSendSheets?.prepareForEmail) {
+          setBusy('Building sheets', 'Preparing signoff pages…');
           generatedSheets = await global.EodSendSheets.prepareForEmail({
             report: payload.report,
             sheet: S.state.sheet,
             storeNumber: payload.storeNumber,
             workDate: payload.workDate,
             testMode: !!payload.testMode,
-            onStatus: (msg) => { btn.textContent = msg || 'Sending…'; },
+            onStatus: (msg) => { setBusy(msg || 'Building sheets', 'Preparing signoff pages…'); },
           });
         }
         if (generatedSheets.length) {
           payload.signoffPhotos = generatedSheets.concat(payload.signoffPhotos || []);
         }
-        btn.textContent = 'Sending…';
+        setBusy('Uploading package', 'Saving photos and sheets…');
         const uploaded = await uploadPackageParts(payload, headers);
         const packageId = uploaded && uploaded.packageId;
         const skippedPhotos = (uploaded && uploaded.skipped) || [];
@@ -821,13 +830,16 @@ ${S.state.notes || ''}`;
           delete meta.signoffPhotos;
           delete meta.cartPhotos;
         }
+        setBusy('Sending email', 'Delivering EOD package…');
         const resp = await global.authFetch(`${global.EOD_API_BASE}/send-eod`, {
           method: 'POST',
           headers,
           body: JSON.stringify(meta),
+          skipBusy: true,
         });
         if (resp.status === 412) {
           S.clearDayConfirm();
+          try { busy?.endSession?.(); } catch (_) {}
           await global.EodAlerts?.alert?.(
             'Confirm visit',
             'Please re-confirm your store for today (day-confirm expired), then send again.'
@@ -844,13 +856,13 @@ ${S.state.notes || ''}`;
           sasNote += `\n\n${global.EodSendSheetsLogic.skippedPhotoMessage(skippedPhotos)}`;
         }
         if (generatedSheets.length && global.EodSendSheets?.uploadAfterSend) {
-          btn.textContent = 'Uploading sheets to Kompass…';
+          setBusy('Uploading to Kompass', 'Pushing sheets to maintenance…');
           try {
             const sas = await global.EodSendSheets.uploadAfterSend(generatedSheets, {
               storeNumber: payload.storeNumber,
               workDate: payload.workDate,
               leadName: payload.userName,
-              onStatus: (msg) => { btn.textContent = msg || 'Uploading sheets to Kompass…'; },
+              onStatus: (msg) => { setBusy(msg || 'Uploading to Kompass', 'Pushing sheets to maintenance…'); },
             });
             if (sas.failed) {
               sasNote = `\n\nEmail sent. ${sas.uploaded} sheet image(s) uploaded to maintenance; ${sas.failed} failed.`;
@@ -860,6 +872,10 @@ ${S.state.notes || ''}`;
             sasNote = '\n\nEmail sent. Maintenance after-photo upload had an issue — retry from Send if needed.';
           }
         }
+        try {
+          busy?.showSuccess?.('Success!', 'EOD sent.');
+          await new Promise((r) => setTimeout(r, 1400));
+        } catch (_) {}
         if (global.showAlert) await global.showAlert('Sent', 'EOD sent.' + sasNote);
         global.EodUsage?.track?.('send_success', { stage: 'send', status: 'complete' });
         if (global.PhotoDB?.markEmailOk) {
@@ -871,6 +887,7 @@ ${S.state.notes || ''}`;
         await maybeClearAfterSend(S);
       } catch (err) {
         console.error(err);
+        try { busy?.endSession?.(); } catch (_) {}
         if (err && err.status === 412) {
           S.clearDayConfirm();
           await global.EodAlerts?.alert?.(
@@ -882,6 +899,7 @@ ${S.state.notes || ''}`;
         }
         await global.EodAlerts?.alert?.('Send error', networkSendMessage(err));
       } finally {
+        try { busy?.endSession?.(); } catch (_) {}
         btn.disabled = !!gateMessage();
         btn.textContent = 'Send EOD';
       }
