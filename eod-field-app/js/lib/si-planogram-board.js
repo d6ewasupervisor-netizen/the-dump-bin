@@ -64,7 +64,7 @@
 
   function bayScale(shelves) {
     const rows = (shelves || []).map((shelf) => {
-      const units = Math.max(1, (shelf.items || []).reduce((sum, item) => sum + facingUnits(item), 0));
+      const units = Math.max(1, (shelf.items || []).length);
       return { shelf, units };
     });
     const widestUnits = Math.max(1, ...rows.map((row) => row.units));
@@ -130,7 +130,7 @@
     let row = 1;
     let col = 1;
     source.forEach((item) => {
-      const span = Math.min(columns, facingUnits(item));
+      const span = 1;
       if (col + span - 1 > columns) {
         row += 1;
         col = 1;
@@ -193,7 +193,9 @@
     const peg = pegPlacement ? ' si-pog-peg-item' : '';
     const rowEnd = pegPlacement?.isRowEnd ? ' is-row-end' : '';
     const loc = locLine(it, bay);
-    const grow = Math.max(0.0001, facingUnits(it) * (Number(widthScale) || 1));
+    const faces = facingUnits(it);
+    const faceMark = faces > 1 ? `<span class="si-pog-face-count">x${faces}</span>` : '';
+    const grow = Math.max(0.0001, Number(widthScale) || 1);
     const noImg = it.imageUrl ? '' : ' no-img';
     const label = it.name || it.brand || it.upc || '';
     const style = pegPlacement
@@ -214,7 +216,7 @@
       data-loc="${esc(loc)}"
       data-image="${esc(it.imageUrl || '')}">
       ${pegPlacement ? `<span class="si-pog-peg-pos">${esc(position)}</span>` : ''}
-      ${pegPlacement && facingUnits(it) > 1 ? `<span class="si-pog-facing-badge">×${facingUnits(it)}</span>` : ''}
+      ${pegPlacement && faces > 1 ? `<span class="si-pog-face-count si-pog-face-count-peg">x${faces}</span>` : ''}
       <div class="si-pog-thumb">
         ${it.imageUrl ? `<img alt="" data-pog-src="${esc(it.imageUrl)}">` : ''}
         <div class="si-pog-fallback">${esc(label)}</div>
@@ -223,7 +225,7 @@
         <div class="si-pog-name">${esc(it.name || '')}</div>
         ${it.size ? `<div class="si-pog-size">${esc(it.size)}</div>` : ''}
         <div class="si-pog-loc">${esc(loc)}</div>
-        <div class="si-pog-cap">${it.upc ? `<span class="si-pog-upc-label">UPC </span>${esc(it.upc)}` : ''}</div>
+        <div class="si-pog-cap">${it.upc ? `<span class="si-pog-upc-label">UPC </span><span class="si-pog-upc">${esc(it.upc)}</span>` : ''}${faceMark}</div>
       </div>
     </article>`;
   }
