@@ -349,6 +349,31 @@
       advanceAfterShiftSelected();
       updateContinueBtn();
     }
+    refreshLiveShifts(store, date, listEl);
+  }
+
+  function refreshLiveShifts(store, date, listEl) {
+    const S = global.EodSession;
+    void (async () => {
+      try {
+        const resp = await authFetchTimeout(
+          `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}&live=1`,
+          { skipBusy: true },
+          SHIFT_MS,
+          'Shift refresh timed out'
+        );
+        if (!resp.ok) return;
+        if (S.normStoreNumber(S.state.storeNumber) !== S.normStoreNumber(store)) return;
+        if (String(S.state.workDate || '').slice(0, 10) !== String(date || '').slice(0, 10)) return;
+        const data = await resp.json();
+        let shifts = Array.isArray(data) ? data : (data.shifts || []);
+        const input = S.normStoreNumber(store);
+        shifts = shifts.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
+        if (!shifts.length) return;
+        applyShiftsToSession(shifts, listEl, 'shifts-live');
+        updateContinueBtn();
+      } catch (_) { /* standing list stays */ }
+    })();
   }
 
   function renderShiftCards(shifts, selectedVisitId, includedIds) {

@@ -382,6 +382,7 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.match(visit, /skipBusy: true/);
   assert.doesNotMatch(visit, /busyForce: true/);
   assert.match(visit, /paintLeadFromShift/);
+  assert.match(visit, /live=1/);
   assert.doesNotMatch(visit, /await applyLeadFromShift/);
   assert.match(visit, /dayConfirmModal/);
   assert.match(visit, /dayConfirmStoreBtn/);
