@@ -140,6 +140,12 @@
     return uniqueShifts([...iseFamily, ...myCp]);
   }
 
+  function isIseCompanionShift(shift) {
+    if (!shift || isDeletedVisitShift(shift)) return false;
+    if (isCentralPetReset(shift) || isCentralPetService(shift)) return false;
+    return isMainKompassIse(shift) || isCutInBlitzDiv(shift);
+  }
+
   function autoSelectLeadShift(visible, leadName) {
     const lead = String(leadName || '').trim();
     const mine = lead
@@ -147,15 +153,10 @@
       : [];
     const sameLead = mine.length > 0;
     const pool = sameLead ? mine : visible;
-    if (sameLead) {
-      return pool.find(isCutInBlitzDiv)
-        || pool.find(isCentralPetResetProject)
-        || pool.find(isCentralPetReset)
-        || pool[0]
-        || null;
-    }
-    return pool.find(isCutInBlitzDiv)
-      || pool.find(isMainKompassIse)
+    return pool.find(isMainKompassIse)
+      || pool.find(isCutInBlitzDiv)
+      || pool.find(isCentralPetResetProject)
+      || pool.find(isCentralPetReset)
       || pool.find((s) => !isCentralPetReset(s))
       || pool[0]
       || null;
@@ -165,16 +166,31 @@
     const list = Array.isArray(shifts) ? shifts : [];
     const visible = visibleLeadShifts(list, leadName);
     const ise = pickMainKompassIseVisit(list, null);
+    const iseVisible = ise && visible.find((s) => String(s.visitId) === String(ise.visitId));
     const curId = current?.visitId != null ? String(current.visitId) : '';
+    const currentVisible = curId
+      ? (visible.find((s) => String(s.visitId) === curId) || null)
+      : null;
     let selected = null;
-    if (curId && visible.some((s) => String(s.visitId) === curId)) {
-      selected = visible.find((s) => String(s.visitId) === curId) || current;
+    if (iseVisible) {
+      const keepPet = currentVisible && (isCentralPetReset(current) || isCentralPetService(current));
+      selected = keepPet ? currentVisible : iseVisible;
+    } else if (currentVisible) {
+      selected = currentVisible;
     } else if (visible.length === 1) {
       selected = visible[0];
     } else {
       selected = autoSelectLeadShift(visible, leadName) || ise || null;
     }
     return { visible, selected, ise };
+  }
+
+  function includedIseVisitIds(shifts, selected) {
+    const primary = String(selected?.visitId || '');
+    if (!primary || !isMainKompassIse(selected)) return [];
+    return (Array.isArray(shifts) ? shifts : [])
+      .filter((s) => isIseCompanionShift(s) && String(s.visitId || '') !== primary)
+      .map((s) => String(s.visitId));
   }
 
   function eodPdfFilename(storeNumber, workDate) {
@@ -332,6 +348,8 @@
     leadNamesMatch,
     visibleLeadShifts,
     pickVisibleLeadShift,
+    includedIseVisitIds,
+    isIseCompanionShift,
     eodPdfFilename,
     isRemotePhotoSrc,
     isSendableImageSrc,

@@ -379,7 +379,10 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
   assert.doesNotMatch(visit, /findShiftsBtn/);
   assert.match(visit, /Confirm store to load shifts/);
-  assert.match(visit, /busyForce: true/);
+  assert.match(visit, /skipBusy: true/);
+  assert.doesNotMatch(visit, /busyForce: true/);
+  assert.match(visit, /paintLeadFromShift/);
+  assert.doesNotMatch(visit, /await applyLeadFromShift/);
   assert.match(visit, /dayConfirmModal/);
   assert.match(visit, /dayConfirmStoreBtn/);
   assert.match(visit, /showPicker/);
@@ -421,9 +424,9 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.match(busy, /setStage/);
   assert.match(busy, /AMBIENT_MAX_MS/);
   assert.match(busy, /dismissBusy/);
-  assert.match(signoff, /runSession/);
-  assert.match(signoff, /Pulling live data/);
-  assert.match(signoff, /backToStoreSelect/);
+  assert.match(signoff, /skipBusy: true/);
+  assert.doesNotMatch(signoff, /Pulling live data/);
+  assert.doesNotMatch(signoff, /backToStoreSelect/);
   assert.match(html, /id="eodBusyCancel"/);
   assert.doesNotMatch(html, /eod-buffering-spinner/);
   assert.match(signoff, /skipBusy: true/);

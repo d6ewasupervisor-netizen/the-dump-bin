@@ -12,6 +12,7 @@ const {
   isCentralPetReset,
   visibleLeadShifts,
   pickVisibleLeadShift,
+  includedIseVisitIds,
 } = require('../js/lib/eod-send-sheets-logic');
 
 test('main Kompass ISE is project 1, not Cut In / Blitz / DIV', () => {
@@ -144,10 +145,15 @@ test('visible lead shifts list ISE-family and Central Pet for that lead', () => 
   const vis = visibleLeadShifts([ise, cutIn, cpJames, cpEldin], 'James Duchene Ryan');
   assert.deepEqual(vis.map((s) => s.visitId), ['1', '4', '2']);
   const picked = pickVisibleLeadShift([ise, cutIn, cpJames, cpEldin], 'James Duchene Ryan', null);
-  assert.equal(picked.selected.visitId, '4');
+  assert.equal(picked.selected.visitId, '1');
+  assert.deepEqual(includedIseVisitIds([ise, cutIn, cpJames], picked.selected), ['4']);
   const keep = pickVisibleLeadShift([ise, cutIn, cpJames], 'James Duchene Ryan', ise);
   assert.equal(keep.selected.visitId, '1');
-  const cpOnly = pickVisibleLeadShift([ise, cpJames], 'James Duchene Ryan', null);
+  const keepCutIn = pickVisibleLeadShift([ise, cutIn, cpJames], 'James Duchene Ryan', cutIn);
+  assert.equal(keepCutIn.selected.visitId, '1');
+  const withIse = pickVisibleLeadShift([ise, cpJames], 'James Duchene Ryan', null);
+  assert.equal(withIse.selected.visitId, '1');
+  const cpOnly = pickVisibleLeadShift([cpJames], 'James Duchene Ryan', null);
   assert.equal(cpOnly.selected.visitId, '2');
   const otherLead = pickVisibleLeadShift([ise, cpEldin], 'James Duchene Ryan', null);
   assert.deepEqual(otherLead.visible.map((s) => s.visitId), ['1']);

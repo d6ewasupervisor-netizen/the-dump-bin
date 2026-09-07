@@ -222,7 +222,8 @@
     try {
       const qs = new URLSearchParams({ store, date });
       const resp = await global.authFetch(
-        `https://eod-api.the-dump-bin.com/api/digital-signoffs/sheet?${qs}`
+        `https://eod-api.the-dump-bin.com/api/digital-signoffs/sheet?${qs}`,
+        { skipBusy: true }
       );
       const data = await resp.json().catch(() => ({}));
       if (data.sheet?.fiscalWeek) {
@@ -272,6 +273,7 @@
       selectedShift: selected,
       extraVisitIds: selected ? siblingExtraIds(shifts, selected) : [],
     }, reason);
+    if (selected) paintLeadFromShift(selected, shifts);
     paintShiftList(listEl);
     return picked;
   }
@@ -285,6 +287,9 @@
       ? L.visibleLeadShifts(all, leadNameNow())
       : all;
     const selId = String(S.state.selectedShift?.visitId || '');
+    const included = new Set(
+      L.includedIseVisitIds ? L.includedIseVisitIds(all, S.state.selectedShift) : []
+    );
     if (!all.length) {
       listEl.innerHTML = '<p class="muted">Confirm store to load shifts.</p>';
       return;
@@ -293,7 +298,7 @@
       listEl.innerHTML = '<p class="muted">No ISE, Cut In, Blitz, DIV, or Central Pet shift for this store.</p>';
       return;
     }
-    listEl.innerHTML = renderShiftCards(visible, selId);
+    listEl.innerHTML = renderShiftCards(visible, selId, included);
     wireShiftCards(listEl, visible);
   }
 
@@ -305,6 +310,8 @@
     const shifts = cached.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
     if (!shifts.length) return false;
     applyShiftsToSession(shifts, listEl, 'shifts-cache');
+    advanceAfterShiftSelected();
+    updateContinueBtn();
     return true;
   }
 
@@ -315,7 +322,7 @@
     if (!hadCache && listEl) listEl.innerHTML = '<p class="muted">Searching…</p>';
     const resp = await authFetchTimeout(
       `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`,
-      hadCache ? { skipBusy: true } : { busyForce: true },
+      { skipBusy: true },
       SHIFT_MS,
       'Shift search timed out. Pull to refresh or tap Confirm again.'
     );
@@ -339,18 +346,18 @@
     }
     const picked = applyShiftsToSession(shifts, listEl, 'shifts');
     if (picked.selected) {
-      await applyLeadFromShift(picked.selected);
-      applyShiftsToSession(shifts, listEl, 'shifts-lead');
       advanceAfterShiftSelected();
+      updateContinueBtn();
     }
   }
 
-  function renderShiftCards(shifts, selectedVisitId) {
+  function renderShiftCards(shifts, selectedVisitId, includedIds) {
     const sel = String(selectedVisitId || '');
+    const included = includedIds || new Set();
     return shifts.map((shift) => {
       const status = shift.currentStatus || shift.status || 'unknown';
       const vid = String(shift.visitId || '');
-      const on = vid && vid === sel ? ' selected' : '';
+      const on = vid && (vid === sel || included.has(vid)) ? ' selected' : '';
       return `<div class="shift-card${on}" data-visit="${esc(vid)}">
         <strong>${esc(shift.projectName || shift.teamName || 'Shift')}</strong>
         <div class="muted">${esc(status)} · ${esc(String(shift.totalHours ?? ''))} hrs · ${esc(String(shift.empCount ?? shift.employeeCount ?? ''))} people</div>
@@ -411,7 +418,7 @@
           selectedShift: shift,
           extraVisitIds: siblingExtraIds(S.state.shifts, shift),
         }, 'shift');
-        await applyLeadFromShift(shift);
+        paintLeadFromShift(shift, S.state.shifts);
         S.saveDraft();
         advanceAfterShiftSelected();
         try { global.EodShiftPhotoSync?.run?.('shift'); } catch (_) {}
@@ -423,9 +430,24 @@
     });
   }
 
-  async function applyLeadFromShift(shift) {
+  function leadEmailFromShifts(shift, shifts) {
+    const direct = String(shift?.visitLeadEmail || shift?.leadEmail || shift?.email || '').trim();
+    if (direct) return direct;
+    const L = global.EodSendSheetsLogic || {};
+    for (const s of shifts || []) {
+      if (L.isCentralPetReset?.(s) || L.isCentralPetService?.(s)) continue;
+      const email = String(s?.visitLeadEmail || s?.leadEmail || s?.email || '').trim();
+      if (email) return email;
+    }
+    const me = global.EodRoles?.getMe?.() || {};
+    return String(global.EodSession?.state?.profileEmail || me.email || '').trim();
+  }
+
+  function paintLeadFromShift(shift, shifts) {
     const S = global.EodSession;
-    const lead = shift.visitLead || shift.leadName || '';
+    if (!shift) return;
+    const lead = shift.visitLead || shift.leadName || leadNameNow();
+    const email = leadEmailFromShifts(shift, shifts);
     if (lead) {
       S.patch({ leadName: lead, profileName: lead }, 'lead');
       const nameEl = document.getElementById('visitLeadName');
@@ -433,24 +455,8 @@
         nameEl.value = lead;
         nameEl.readOnly = true;
       }
-      const editBtn = document.getElementById('unlockProfileBtn');
-      if (editBtn) editBtn.hidden = false;
       const profileEl = document.getElementById('visitName');
       if (profileEl && !profileEl.value.trim()) profileEl.value = lead;
-    }
-
-    let email = shift.visitLeadEmail || shift.leadEmail || shift.email || '';
-    if (!email && lead && !(S.state.profileEmail || '').trim()) {
-      try {
-        const resp = await authFetchTimeout(
-          `${global.EOD_API_BASE}/api/lead-info?name=${encodeURIComponent(lead)}`,
-          { skipBusy: true },
-          8000,
-          'Lead lookup timed out'
-        );
-        const data = await resp.json().catch(() => ({}));
-        if (resp.ok && data.email) email = String(data.email).trim();
-      } catch (_) { /* optional */ }
     }
     if (email) {
       S.patch({ profileEmail: email, profileLocked: true }, 'lead-email');
@@ -459,11 +465,36 @@
         emailEl.value = email;
         emailEl.readOnly = true;
       }
-      const nameEl = document.getElementById('visitLeadName');
-      if (nameEl) nameEl.readOnly = true;
-      const editBtn = document.getElementById('unlockProfileBtn');
-      if (editBtn) editBtn.hidden = false;
     }
+    const editBtn = document.getElementById('unlockProfileBtn');
+    if (editBtn && (lead || email)) editBtn.hidden = false;
+    if (!email && lead) queueLeadEmailLookup(shift, lead);
+  }
+
+  function queueLeadEmailLookup(shift, lead) {
+    const S = global.EodSession;
+    const visitId = String(shift?.visitId || '');
+    void (async () => {
+      try {
+        const resp = await authFetchTimeout(
+          `${global.EOD_API_BASE}/api/lead-info?name=${encodeURIComponent(lead)}`,
+          { skipBusy: true },
+          8000,
+          'Lead lookup timed out'
+        );
+        const data = await resp.json().catch(() => ({}));
+        const email = resp.ok && data.email ? String(data.email).trim() : '';
+        if (!email) return;
+        if (visitId && String(S.state.selectedShift?.visitId || '') !== visitId) return;
+        if ((S.state.profileEmail || '').trim()) return;
+        S.patch({ profileEmail: email, profileLocked: true }, 'lead-email');
+        const emailEl = document.getElementById('visitEmail');
+        if (emailEl && !emailEl.value.trim()) {
+          emailEl.value = email;
+          emailEl.readOnly = true;
+        }
+      } catch (_) { /* optional */ }
+    })();
   }
 
   function advanceAfterShiftSelected() {
