@@ -29,7 +29,12 @@
     )) return cache;
     if (inflight && inflight.date === day) return inflight.promise;
     const promise = (async () => {
-      const resp = await global.authFetch(`${API}/day?date=${encodeURIComponent(day)}`, { skipBusy: true });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const resp = await global.authFetch(`${API}/day?date=${encodeURIComponent(day)}`, {
+        skipBusy: true,
+        signal: ctrl.signal,
+      }).finally(() => clearTimeout(timer));
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Schedule day failed (${resp.status})`);
       return applyPayload(day, data);

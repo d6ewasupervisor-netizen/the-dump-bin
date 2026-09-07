@@ -3,7 +3,7 @@
   'use strict';
 
   const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-  const APP_VERSION = '3.3.74';
+  const APP_VERSION = '3.3.75';
 
   let eodStorageTelemetry = {
     quota: null,

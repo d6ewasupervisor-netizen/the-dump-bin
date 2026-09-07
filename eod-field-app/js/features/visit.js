@@ -4,34 +4,55 @@
 
   const Catalog = global.EodStoreCatalog;
   const STORE_CACHE_KEY = 'eodCatalogStores';
+  const CATALOG_MS = 8000;
   let catalogStores = null;
   let catalogFetched = false;
+  let catalogInflight = null;
 
   function storeNumbers() {
     return Catalog.mergeStoreCatalog(catalogStores);
   }
 
-  async function ensureStoreCatalog() {
-    catalogStores = Catalog.mergeStoreCatalog(catalogStores);
-    if (catalogFetched) return catalogStores;
+  function readCachedStores() {
     try {
       const cached = JSON.parse(localStorage.getItem(STORE_CACHE_KEY) || 'null');
       if (Array.isArray(cached) && cached.length) {
         catalogStores = Catalog.mergeStoreCatalog(catalogStores, cached);
       }
     } catch (_) {}
-    try {
-      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/digital-signoffs/catalog-stores`);
-      const data = await resp.json().catch(() => ({}));
-      const nums = (data.stores || []).map((s) => Catalog.toStoreNum(s)).filter((n) => n != null);
-      if (nums.length) {
-        catalogStores = Catalog.mergeStoreCatalog(catalogStores, nums);
-        catalogFetched = true;
-        try { localStorage.setItem(STORE_CACHE_KEY, JSON.stringify(catalogStores)); } catch (_) {}
-      }
-    } catch (_) {}
-    catalogStores = Catalog.mergeStoreCatalog(catalogStores);
-    return catalogStores;
+    return storeNumbers();
+  }
+
+  function refreshStoreCatalog() {
+    if (catalogFetched) return Promise.resolve(storeNumbers());
+    if (catalogInflight) return catalogInflight;
+    catalogInflight = (async () => {
+      try {
+        const resp = await authFetchTimeout(
+          `${global.EOD_API_BASE}/api/digital-signoffs/catalog-stores`,
+          { skipBusy: true },
+          CATALOG_MS,
+          'catalog'
+        );
+        const data = await resp.json().catch(() => ({}));
+        const nums = (data.stores || []).map((s) => Catalog.toStoreNum(s)).filter((n) => n != null);
+        if (nums.length) {
+          catalogStores = Catalog.mergeStoreCatalog(catalogStores, nums);
+          catalogFetched = true;
+          try { localStorage.setItem(STORE_CACHE_KEY, JSON.stringify(catalogStores)); } catch (_) {}
+        }
+      } catch (_) {}
+      return storeNumbers();
+    })().finally(() => {
+      catalogInflight = null;
+    });
+    return catalogInflight;
+  }
+
+  function ensureStoreCatalog() {
+    readCachedStores();
+    void refreshStoreCatalog();
+    return storeNumbers();
   }
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
@@ -934,7 +955,8 @@
   async function openDayConfirmModal(options) {
     const S = global.EodSession;
     if (document.getElementById('dayConfirmModal')) return;
-    const stores = await ensureStoreCatalog();
+    readCachedStores();
+    void refreshStoreCatalog();
     const opts = options || {};
     const last = opts.initialStore || global.EodVisitMemory?.lastStore?.() || S.state.storeNumber || '';
     const date = opts.initialDate || S.todayLocalIsoDate();
@@ -966,13 +988,13 @@
     const storeHidden = overlay.querySelector('#dayConfirmStore');
     const dateEl = overlay.querySelector('#dayConfirmDate');
     const statusEl = overlay.querySelector('#dayConfirmStatus');
-    try { await global.EodShiftDay?.load?.(date); } catch (_) {}
+    void global.EodShiftDay?.load?.(date);
     storeBtn.onclick = () => {
       const scheduled = global.EodShiftDay?.scheduledStoreNumbers?.(dateEl.value || date) || [];
       global.EodPicker.open({
         anchor: storeBtn,
         title: 'Store number',
-        items: Catalog.pickerItemsForStores(stores, scheduled),
+        items: Catalog.pickerItemsForStores(storeNumbers(), scheduled),
         searchable: true,
         onChoose(item) {
           storeHidden.value = item.id;
@@ -993,7 +1015,7 @@
     overlay.querySelector('#dayConfirmSubmit').onclick = async () => {
       const store = (storeHidden.value || '').trim();
       const workDate = (dateEl.value || '').trim();
-      if (!store || !stores.map(String).includes(String(store))) {
+      if (!store || !storeNumbers().map(String).includes(String(store))) {
         statusEl.innerHTML = '<span style="color:#ef4444;">Choose a store from the list.</span>';
         return;
       }
@@ -1080,7 +1102,7 @@
 
   async function render(mount) {
     const S = global.EodSession;
-    const stores = await ensureStoreCatalog();
+    ensureStoreCatalog();
     const authName = String(global.EodRoles?.getMe?.()?.name || '').trim();
     if (authName && !(S.state.profileName || '').trim() && !(S.state.leadName || '').trim()) {
       S.patch({ profileName: authName, leadName: authName }, 'auth-lead');
