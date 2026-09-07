@@ -81,12 +81,14 @@ describe('set-media cache helpers', () => {
 });
 
 describe('set-media wiring', () => {
-  it('loads the cache helper before PhotoDB and prefetch', () => {
+  it('loads the cache helper before PhotoDB; prefetch stays on the survey bundle', () => {
     const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+    const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
     const cacheIdx = html.indexOf('js/lib/set-media-cache.js');
     const photosIdx = html.indexOf('js/features/photo-sessions.js');
-    const prefetchIdx = html.indexOf('js/lib/set-media-prefetch.js');
-    assert.ok(cacheIdx > 0 && cacheIdx < photosIdx && photosIdx < prefetchIdx);
+    assert.ok(cacheIdx > 0 && cacheIdx < photosIdx);
+    assert.doesNotMatch(html, /js\/lib\/set-media-prefetch\.js/);
+    assert.match(bundles, /js\/lib\/set-media-prefetch\.js/);
   });
 
   it('photo-sessions nets Cache Storage out and yields it on quota', () => {

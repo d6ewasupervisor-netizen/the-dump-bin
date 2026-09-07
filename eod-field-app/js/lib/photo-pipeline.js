@@ -377,7 +377,7 @@
     emit('compressing', job);
     try {
       await yieldToUi();
-      const input = job.file || job.dataUrl;
+      const input = job.bitmap || job.canvas || job.file || job.dataUrl;
       const type = job.compressType || job.kind || 'set';
       let out;
       if (global.EodPhotoCompress?.compress) {
@@ -395,6 +395,9 @@
       }
       job.previewUrl = job.dataUrl;
       job.file = null;
+      try { job.bitmap?.close?.(); } catch (_) {}
+      job.bitmap = null;
+      job.canvas = null;
       job.status = 'compressed';
       job.updatedAt = Date.now();
       persist();
@@ -601,6 +604,8 @@
   function enqueue(opts) {
     const S = global.EodSession;
     const file = opts.file || null;
+    const bitmap = opts.bitmap || null;
+    const canvas = opts.canvas || null;
     let previewUrl = opts.previewUrl || null;
     if (!previewUrl && file) {
       try { previewUrl = URL.createObjectURL(file); } catch (_) {}
@@ -639,11 +644,13 @@
       resetId: opts.resetId || null,
       taskId: opts.taskId || null,
       file,
+      bitmap,
+      canvas,
       dataUrl: opts.dataUrl || null,
       previewUrl: previewUrl || opts.dataUrl || null,
       fileName: file?.name || opts.fileName || null,
-      status: file || opts.dataUrl ? 'queued' : 'failed',
-      error: file || opts.dataUrl ? null : 'No photo data',
+      status: file || bitmap || canvas || opts.dataUrl ? 'queued' : 'failed',
+      error: file || bitmap || canvas || opts.dataUrl ? null : 'No photo data',
       uploader: opts.uploader || null,
       skipUpload: !!opts.skipUpload,
       skipProd: !!opts.skipProd,

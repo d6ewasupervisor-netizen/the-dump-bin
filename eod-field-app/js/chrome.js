@@ -30,26 +30,31 @@
       metaEl.title = parts.filter(Boolean).join(' · ');
     }
     if (gateEl) {
-      gateEl.textContent = S.isVisitReady() ? 'OK' : 'Confirm';
-      gateEl.title = S.isVisitReady() ? 'Day confirmed' : 'Needs day confirm';
-      gateEl.className = 'pill ' + (S.isVisitReady() ? 'ok' : 'warn');
+      const ready = S.isVisitReady();
+      gateEl.hidden = !!ready;
+      gateEl.textContent = ready ? 'OK' : 'Confirm';
+      gateEl.title = ready ? 'Day confirmed' : 'Needs day confirm';
+      gateEl.className = 'pill ' + (ready ? 'ok' : 'warn');
     }
+    paintConnChrome();
     paintWorkflow();
     paintUnsentBanner();
     paintFailedPhotoBanner();
   }
 
+  function paintConnChrome() {
+    const row = document.getElementById('chromeConn');
+    if (!row) return;
+    const states = ['sasConnDot', 'reboticsConnDot'].map((id) => document.getElementById(id)?.dataset?.state || 'unknown');
+    const down = states.some((state) => state === 'red' || state === 'down' || state === 'error');
+    row.hidden = !down;
+  }
+
   function paintWorkflow() {
     const S = global.EodSession;
-    const host = document.getElementById('chromeStages');
     const nextBtn = document.getElementById('chromeNextAction');
     const progress = global.EodWorkflowProgress?.derive?.(S, global.EodSendGates);
-    if (!host || !nextBtn || !progress) return;
-    host.innerHTML = progress.stages.map((stage) => {
-      const symbol = stage.status === 'complete' ? '✓' : stage.status === 'current' ? '•' : '○';
-      const state = stage.status === 'complete' ? 'complete' : stage.status === 'current' ? 'current' : 'upcoming';
-      return `<li data-state="${state}"><span aria-hidden="true">${symbol}</span><span>${stage.label}</span><span class="sr-only"> ${state}</span></li>`;
-    }).join('');
+    if (!nextBtn || !progress) return;
     nextBtn.hidden = !progress.next;
     nextBtn.textContent = progress.next ? `Next: ${progress.next.label}` : '';
     nextBtn.dataset.gate = progress.next?.id || '';
@@ -141,7 +146,17 @@
     ].join('\n');
   }
 
+  function parkOperatorControls() {
+    const tray = document.getElementById('chromeOperatorTray');
+    if (!tray) return;
+    const themeBtn = document.getElementById('themeCycleBtn');
+    const verBtn = document.getElementById('eodVersionBadge');
+    if (themeBtn) tray.appendChild(themeBtn);
+    if (verBtn) tray.appendChild(verBtn);
+  }
+
   function closeModal(host) {
+    parkOperatorControls();
     global.EodA11y?.deactivate?.(host);
     host?.remove?.();
   }
@@ -166,8 +181,14 @@
       <h2>${miss.length ? 'Still needed' : 'Visit'}</h2>
       ${miss.length && global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : ''}
       <pre class="muted" style="white-space:pre-wrap;font-size:13px;">${esc(snapshotText())}</pre>
+      <div class="btn-row" id="chromeOperatorHost"></div>
       <button type="button" class="btn btn-primary btn-block" id="eodChromeGatesClose">Close</button>
     </div>`;
+    const opHost = host.querySelector('#chromeOperatorHost');
+    const themeBtn = document.getElementById('themeCycleBtn');
+    const verBtn = document.getElementById('eodVersionBadge');
+    if (opHost && themeBtn) opHost.appendChild(themeBtn);
+    if (opHost && verBtn) opHost.appendChild(verBtn);
     try { global.EodSendGates?.bindList?.(host, S); } catch (_) {}
     host.querySelectorAll('[data-gate]').forEach((btn) => {
       btn.addEventListener('click', () => closeModal(host));
@@ -195,6 +216,9 @@
     }
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>More</h2>
+      <button type="button" class="btn btn-secondary btn-block" data-more="visit">Visit</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="signatures">Signatures</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="send">Send</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
@@ -258,15 +282,34 @@
       toggleNav();
     });
 
-    document.getElementById('chromeStore')?.addEventListener('click', openQuickView);
+    const storeEl = document.getElementById('chromeStore');
+    let storePress = null;
+    storeEl?.addEventListener('pointerdown', () => {
+      storePress = setTimeout(() => {
+        storePress = null;
+        openQuickView();
+      }, 500);
+    });
+    storeEl?.addEventListener('pointerup', () => {
+      if (storePress) {
+        clearTimeout(storePress);
+        storePress = null;
+        openQuickView();
+      }
+    });
+    storeEl?.addEventListener('pointerleave', () => {
+      if (storePress) {
+        clearTimeout(storePress);
+        storePress = null;
+      }
+    });
     document.getElementById('chromeMeta')?.addEventListener('click', openQuickView);
     document.getElementById('chromeNextAction')?.addEventListener('click', () => {
       const id = document.getElementById('chromeNextAction')?.dataset?.gate;
       const item = global.EodSendGates?.items?.(global.EodSession)?.find((gate) => gate.id === id);
       global.EodSendGates?.go?.(item);
     });
-    const storeEl = document.getElementById('chromeStore');
-    if (storeEl) storeEl.title = 'Tap for visit snapshot';
+    if (storeEl) storeEl.title = 'Visit snapshot';
     document.getElementById('pilotBannerLabel')?.addEventListener('click', (e) => {
       if (e.metaKey || e.ctrlKey) return;
     });
@@ -278,5 +321,5 @@
     refresh();
   }
 
-  global.EodChrome = { refresh, init, openQuickView, applyNavCollapsed, toggleNav };
+  global.EodChrome = { refresh, init, openQuickView, applyNavCollapsed, toggleNav, paintConnChrome };
 })(typeof window !== 'undefined' ? window : globalThis);

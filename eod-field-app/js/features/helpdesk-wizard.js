@@ -628,7 +628,57 @@
     };
   }
 
+  function ensureWizardOverlay() {
+    if (document.getElementById('helpdeskWizardOverlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'helpdeskWizardOverlay';
+    overlay.className = 'helpdesk-wizard-overlay';
+    overlay.innerHTML = `
+      <div class="helpdesk-wizard-dialog" role="dialog" aria-modal="true" aria-labelledby="helpdeskWizardTitle">
+        <h2 class="helpdesk-wizard-title" id="helpdeskWizardTitle">KOMPASS Help Desk Report</h2>
+        <p class="muted helpdesk-wizard-lead">Complete one section per issue. Each issue is emailed separately.</p>
+        <div id="helpdeskWizardIssues"></div>
+        <div class="section helpdesk-wizard-copies">
+          <div class="section-title">Email copies</div>
+          <div class="field">
+            <label>Add recipient (CC):</label>
+            <div class="btn-row">
+              <input type="email" id="helpdeskWizardEmailInput" placeholder="recipient@example.com">
+              <button type="button" class="btn btn-primary" id="helpdeskWizardAddRecipient">Add</button>
+            </div>
+          </div>
+          <div class="field" id="helpdeskWizardRecipientContainer" style="margin-top:8px; display:none;">
+            <label>CC recipients:</label>
+            <div id="helpdeskWizardRecipientList"></div>
+          </div>
+          <div class="checkbox-option" style="margin-top:8px;">
+            <input type="checkbox" id="helpdeskAddRetailOdysseyTeam">
+            <label for="helpdeskAddRetailOdysseyTeam">Add Retail Odyssey Team</label>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:16px; justify-content:flex-end;">
+          <button type="button" class="btn btn-secondary" id="helpdeskWizardCancel">Cancel</button>
+          <button type="button" class="btn btn-success" id="helpdeskWizardSubmit">Submit reports</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#helpdeskWizardAddRecipient')?.addEventListener('click', addCc);
+    overlay.querySelector('#helpdeskWizardCancel')?.addEventListener('click', closeWizard);
+    overlay.querySelector('#helpdeskWizardSubmit')?.addEventListener('click', submitWizard);
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) closeWizard();
+    });
+    overlay.addEventListener('eod-dialog-escape', closeWizard);
+    overlay.querySelector('#helpdeskWizardEmailInput')?.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        addCc();
+      }
+    });
+  }
+
   async function openWizard(prefill) {
+    ensureWizardOverlay();
     try { await loadSets(); } catch (_) { /* still open */ }
     issues = [Object.assign(blankIssue(), prefill && typeof prefill === 'object' ? prefill : {})];
     const recipients = st().emailRecipients || global.emailRecipients || [];

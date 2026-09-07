@@ -358,6 +358,7 @@
           markType: markType === 'clear' ? undefined : markType,
         };
 
+    const prevMarks = current ? JSON.parse(JSON.stringify(current.marks || current.mark || null)) : null;
     if (S.state.sheet && global.EodGarden?.applyOptimisticMark) {
       global.EodGarden.applyOptimisticMark(
         S.state.sheet,
@@ -367,6 +368,8 @@
       );
       S.emit?.('sheet-mark');
       try { await global.EodGarden.saveSheetSnapshot(S.state.sheet); } catch (_) {}
+      try { await sheetView?.paint?.(); } catch (_) {}
+      sheetView?.scrollAfter?.(rowId);
     }
 
     const url = method === 'DELETE'
@@ -382,21 +385,28 @@
         body: JSON.stringify(body),
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(data.error || `Mark failed (${resp.status})`);
-      if (!skipReload) await loadSheet();
+      if (!resp.ok) {
+        const hard = resp.status >= 400 && resp.status < 500;
+        const err = new Error(data.error || `Mark failed (${resp.status})`);
+        err.hard = hard;
+        throw err;
+      }
+      void skipReload;
     } catch (err) {
       const msg = String(err && err.message || err || '');
       const network = /fetch|network|offline/i.test(msg)
         || (typeof navigator !== 'undefined' && navigator.onLine === false);
-      const retryable = network || /\(5\d\d\)/.test(msg);
+      const retryable = !err.hard && (network || /\(5\d\d\)/.test(msg));
       if (retryable) {
         try {
           await global.EodGarden?.enqueueMark?.({ rowId, markType, method, body });
         } catch (_) {}
-      } else if (!skipReload) {
-        try { await loadSheet(); } catch (_) {}
-        throw err;
       } else {
+        if (current && prevMarks) {
+          current.marks = prevMarks;
+          current.mark = prevMarks;
+        }
+        try { await sheetView?.paint?.(); } catch (_) {}
         throw err;
       }
     }
@@ -488,6 +498,8 @@
     if (slot) qs.set('slot', slot);
     location.hash = `#/survey?${qs.toString()}`;
   }
+
+  let sheetView = null;
 
   function nextWalkRow(afterId) {
     const rows = global.EodSession?.state?.sheet?.rows || [];
@@ -592,7 +604,6 @@
           <h1>Categories</h1>
           <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
           <button type="button" class="btn btn-secondary" id="cartScanBtn">Scan</button>
-          <button type="button" class="btn btn-secondary" id="comLoadBtn">COM Load</button>
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
         </div>
         <div class="ds-bulk" id="sheetBulk"></div>
@@ -864,11 +875,11 @@
       });
     }
 
-    document.getElementById('cartScanBtn')?.addEventListener('click', () => {
+    document.getElementById('cartScanBtn')?.addEventListener('click', async () => {
+      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (err) {
+        console.warn('[signoff] scan bundle', err);
+      }
       global.EodCartLocate?.openScanner?.();
-    });
-    document.getElementById('comLoadBtn')?.addEventListener('click', () => {
-      global.EodComLoadRequest?.openManualModal?.();
     });
     void global.EodCartLocate?.warmIndex?.();
     document.getElementById('syncProdSiBtn').onclick = async () => {
@@ -903,6 +914,15 @@
       paint();
     });
 
+    sheetView = {
+      paint,
+      scrollAfter(rowId) {
+        const next = nextWalkRow(rowId);
+        if (!next) return;
+        const el = document.querySelector(`[data-row-id="${next.id}"]`);
+        try { el?.scrollIntoView?.({ block: 'nearest' }); } catch (_) {}
+      },
+    };
     await paint();
     void (async () => {
       try {

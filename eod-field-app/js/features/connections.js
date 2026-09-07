@@ -37,6 +37,7 @@
         ? `${label} auth: active (refreshed ${minsAgo} min ago)`
         : `${label} auth: active`)
       : `${label} auth: not active`;
+    try { global.EodChrome?.paintConnChrome?.(); } catch (_) {}
     try {
       if (target === 'sas') sessionStorage.setItem('kompassAuthState', ok ? 'green' : 'red');
     } catch (_) {}

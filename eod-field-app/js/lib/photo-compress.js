@@ -62,6 +62,9 @@
     if (typeof ImageBitmap !== 'undefined' && typeof createImageBitmap === 'function') {
       try {
         if (input instanceof ImageBitmap) return input;
+        if (typeof HTMLCanvasElement !== 'undefined' && input instanceof HTMLCanvasElement) {
+          return await createImageBitmap(input);
+        }
         if (input instanceof Blob || input instanceof File) {
           return await createImageBitmap(input, { imageOrientation: 'from-image' });
         }

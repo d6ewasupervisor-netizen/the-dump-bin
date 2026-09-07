@@ -50,11 +50,27 @@
     if (session && session.isVisitReady() && name === 'visit' && (session.state.selectedShift || session.state.shifts.length)) {
       // Allow revisiting visit setup after ready.
     }
-    const handler = routes.get(name) || routes.get('signoff');
     const mount = document.getElementById('appMount');
+    try {
+      await global.EodRouteBundles?.ensure?.(name);
+    } catch (err) {
+      console.error(err);
+      if (mount) {
+        mount.innerHTML = `<div class="card error"><h2>Something went wrong</h2><p>${global.EodApi.escapeHtml(err.message || String(err))}</p><button type="button" class="btn btn-secondary" id="routeRetryBtn">Retry</button></div>`;
+        mount.querySelector('#routeRetryBtn')?.addEventListener('click', () => render());
+      }
+      return;
+    }
+    const handler = routes.get(name) || routes.get('signoff');
     const chrome = document.getElementById('appChrome');
     const bottomNav = document.getElementById('bottomNav');
-    if (!mount || !handler) return;
+    if (!mount || !handler) {
+      if (mount && !handler) {
+        mount.innerHTML = `<div class="card error"><h2>Something went wrong</h2><p>That page did not load.</p><button type="button" class="btn btn-secondary" id="routeRetryBtn">Retry</button></div>`;
+        mount.querySelector('#routeRetryBtn')?.addEventListener('click', () => render());
+      }
+      return;
+    }
     current = name;
     document.querySelectorAll('[data-nav]').forEach((el) => {
       const nav = el.getAttribute('data-nav');

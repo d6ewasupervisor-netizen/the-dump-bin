@@ -285,6 +285,8 @@ ${S.state.notes || ''}`;
 
   async function render(mount) {
     const S = global.EodSession;
+    try { await global.EodRouteBundles?.ensure?.('signatures'); } catch (_) {}
+    try { await global.EodDeptSignatures?.refresh?.(); } catch (_) {}
     const leadFill = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : '') || '';
     if (leadFill && !(S.state.profileName || '').trim()) {
       S.patch({ profileName: leadFill, leadName: S.state.leadName || leadFill }, 'cover-lead');
@@ -335,7 +337,7 @@ ${S.state.notes || ''}`;
           </div>
           <div id="sendPaperGrid" style="margin-top:10px;"></div>
         </div>`}
-        <div class="field" id="checkOutField">
+        <div class="field" id="checkOutField" ${S.hasHostedSheet() && (global.EodDeptSignatures?.getCollectedForEmail?.() || []).length ? 'hidden' : ''}>
           <label>Manager checked out with</label>
           <input type="text" id="checkOutManager" value="${esc(S.state.checkOutManager || '')}" list="mgrListSend" autocomplete="off">
           ${global.EodVisitMemory?.chipsHtml?.(S.state.managerNamePool, S.state.checkOutManager, esc) || ''}

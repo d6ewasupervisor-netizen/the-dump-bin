@@ -222,7 +222,9 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.match(chrome, /data-more="helpdesk"/);
   assert.match(chrome, /data-more="photos"/);
   assert.match(chrome, /data-more="storage"/);
-  assert.doesNotMatch(chrome, /data-more="signatures"/);
+  assert.match(chrome, /data-more="signatures"/);
+  assert.match(chrome, /data-more="visit"/);
+  assert.match(chrome, /data-more="send"/);
   for (const name of ['visit', 'categories', 'signatures', 'send', 'crew', 'dumpbin', 'helpdesk']) {
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
   }
@@ -256,17 +258,17 @@ test('crew sheet no longer includes the materials card', () => {
   assert.doesNotMatch(src, /openMaterialsBtn/);
 });
 
-test('index.html loads send-sheet rasterizer before send.js', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /js\/lib\/pdf-to-image\.js/);
-  assert.match(html, /js\/lib\/eod-send-sheets\.js/);
-  const sendIdx = html.indexOf('js/features/send.js');
-  const sheetsIdx = html.indexOf('js/lib/eod-send-sheets.js');
+test('send bundle loads the rasterizer before send.js', () => {
+  const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
+  assert.match(bundles, /js\/lib\/pdf-to-image\.js/);
+  assert.match(bundles, /js\/lib\/eod-send-sheets\.js/);
+  const sendIdx = bundles.indexOf('js/features/send.js');
+  const sheetsIdx = bundles.indexOf('js/lib/eod-send-sheets.js');
   assert.ok(sheetsIdx > 0 && sheetsIdx < sendIdx);
 });
 
 test('device storage is in the app: More, Send, boot purge of submitted packages', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
   const store = fs.readFileSync(path.join(__dirname, '../js/features/device-storage.js'), 'utf8');
   const photos = fs.readFileSync(path.join(__dirname, '../js/features/photo-sessions.js'), 'utf8');
   const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
@@ -311,11 +313,10 @@ test('unsent leftovers can be reviewed, discarded, and wiped on reset', () => {
 test('dump-bin does not steal the photos route', () => {
   const src = fs.readFileSync(path.join(__dirname, '../js/features/dump-bin.js'), 'utf8');
   assert.doesNotMatch(src, /register\('photos'/);
-  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /js\/features\/photos\.js/);
-  const dumpIdx = html.indexOf('js/features/dump-bin.js');
-  const photosIdx = html.indexOf('js/features/photos.js');
-  assert.ok(photosIdx > dumpIdx);
+  const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
+  assert.match(bundles, /js\/features\/photos\.js/);
+  assert.match(bundles, /photos: 'photos'/);
+  assert.match(bundles, /dumpbin: 'dumpbin'/);
 });
 
 test('dump-bin open-in-tab is a compact icon, not a stretched button', () => {
@@ -345,16 +346,17 @@ test('field-app hides the site-wide signed-in badge so it cannot cover chrome', 
 
 test('pilot ships overlay alerts, roles, camera, and PIC QR', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
   for (const file of [
     'js/lib/eod-alerts.js',
     'js/lib/eod-roles.js',
     'js/lib/heic.js',
-    'js/lib/eod-camera.js',
-    'js/features/pic-qr.js',
     'js/features/feedback-hub.js',
   ]) {
     assert.match(html, new RegExp(file.replace(/\./g, '\\.')));
   }
+  assert.match(bundles, /js\/lib\/eod-camera\.js/);
+  assert.match(bundles, /js\/features\/pic-qr\.js/);
 });
 
 test('InstaWork save URL is the hosted eod-api, never localhost', () => {
@@ -431,9 +433,10 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.doesNotMatch(survey, /setPlanogramMount/);
   assert.match(survey, /EodSiPlanogram/);
   assert.match(survey, /openOverlay/);
-  assert.match(html, /set-media-prefetch/);
   assert.match(html, /set-media-cache/);
-  assert.match(html, /si-planogram-board/);
+  const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
+  assert.match(bundles, /set-media-prefetch/);
+  assert.match(bundles, /si-planogram-board/);
 });
 
 test('Not in store prompt uses Don\'t Report / Please Report / Cancel before marking', () => {

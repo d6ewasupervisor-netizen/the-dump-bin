@@ -408,7 +408,12 @@
     if (lead) {
       S.patch({ leadName: lead, profileName: lead }, 'lead');
       const nameEl = document.getElementById('visitLeadName');
-      if (nameEl) nameEl.value = lead;
+      if (nameEl) {
+        nameEl.value = lead;
+        nameEl.readOnly = true;
+      }
+      const editBtn = document.getElementById('unlockProfileBtn');
+      if (editBtn) editBtn.hidden = false;
       const profileEl = document.getElementById('visitName');
       if (profileEl && !profileEl.value.trim()) profileEl.value = lead;
     }
@@ -1112,13 +1117,13 @@
         </div>
         <div class="field" style="margin-top:14px;">
           <label>Lead name</label>
-          <input type="text" id="visitLeadName" value="${esc(S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked ? 'readonly' : ''}>
+          <input type="text" id="visitLeadName" value="${esc(S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked || S.state.selectedShift ? 'readonly' : ''}>
         </div>
         <div class="field">
           <label>Lead email</label>
           <input type="email" id="visitEmail" value="${esc(S.state.profileEmail)}" placeholder="you@example.com" ${S.state.profileLocked ? 'readonly' : ''}>
         </div>
-        <button type="button" class="btn btn-secondary btn-block" id="unlockProfileBtn" ${S.state.profileLocked ? '' : 'hidden'}>Edit name / email</button>
+        <button type="button" class="btn btn-secondary btn-block" id="unlockProfileBtn" ${S.state.profileLocked || S.state.selectedShift ? '' : 'hidden'}>Edit name / email</button>
       </div>
 
       <div class="card">
@@ -1127,7 +1132,10 @@
 `;
 
     paintShiftList(document.getElementById('shiftList'));
-    document.getElementById('visitScanBtn')?.addEventListener('click', () => {
+    document.getElementById('visitScanBtn')?.addEventListener('click', async () => {
+      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (err) {
+        console.warn('[visit] scan bundle', err);
+      }
       global.EodCartLocate?.openScanner?.();
     });
     if (global.EodShiftPhotoSync?.ensureCartPhotos) {

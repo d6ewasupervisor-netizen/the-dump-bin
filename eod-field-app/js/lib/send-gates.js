@@ -34,9 +34,10 @@
         'sendPaperCam'
       );
     }
+    const picCollected = (global.EodDeptSignatures?.getCollectedForEmail?.() || []).length > 0;
     push(
       'checkout',
-      !!(S.state.checkOutManager || '').trim(),
+      !!(S.state.checkOutManager || '').trim() || (S.hasHostedSheet?.() && picCollected),
       'Collect management / store PIC signatures (or check-out manager)',
       'signatures',
       null

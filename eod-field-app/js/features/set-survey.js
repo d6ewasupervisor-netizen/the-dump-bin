@@ -212,11 +212,14 @@
         canvas.height = zh;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, sx, sy, zw, zh, 0, 0, zw, zh);
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
-        if (!blob) return;
-        const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const snap = document.createElement('canvas');
+        snap.width = zw;
+        snap.height = zh;
+        snap.getContext('2d').drawImage(canvas, 0, 0);
+        let bitmap = null;
+        try { bitmap = await createImageBitmap(snap); } catch (_) {}
         try {
-          await onCapture(file);
+          await onCapture({ canvas: snap, bitmap, fileName: `capture_${Date.now()}.jpg` });
         } catch (err) {
           // Keep camera open on upload errors ? user can retry or Exit.
           await global.EodAlerts?.alert?.('Capture failed', err?.message || String(err) || 'Capture failed');
@@ -822,9 +825,9 @@
           return `${slot === 'after' ? 'After' : 'Before'} ? Bay ${next} of ${n} ? ${have}/${n}`;
         },
         shouldContinue: () => nextEmptyBay(slot) != null,
-        onCapture: async (file) => {
+        onCapture: async (shot) => {
           const bay = nextEmptyBay(slot) || 1;
-          enqueueLocal(slot, file, bay);
+          enqueueLocal(slot, shot, bay);
         },
       });
     }
@@ -837,24 +840,27 @@
       setMsg(`${files.length} queued`);
     }
 
-    function enqueueLocal(slot, file, bayOverride) {
+    function enqueueLocal(slot, fileOrShot, bayOverride) {
+      const shot = fileOrShot && (fileOrShot.canvas || fileOrShot.bitmap) ? fileOrShot : null;
+      const file = shot ? null : fileOrShot;
       const bay = Number(bayOverride) || nextEmptyBay(slot) || 1;
       const pipe = global.EodPhotoPipeline;
       if (!pipe?.enqueue) {
-        preparePhoto(file, 'set').then((preview) => {
+        preparePhoto(file || shot?.bitmap || shot?.canvas, 'set').then((preview) => {
           local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
           local[slot].push({
             bay,
             preview,
             photoBase64: preview,
             uploadStatus: 'queued',
-            fileName: file.name,
+            fileName: file?.name || shot?.fileName || 'capture.jpg',
           });
           paintBody();
         });
         return;
       }
 
+      const previewUrl = shot?.canvas ? shot.canvas.toDataURL('image/jpeg', 0.35) : null;
       const job = pipe.enqueue({
         kind: 'set',
         compressType: 'set',
@@ -863,6 +869,10 @@
         dbkey,
         rowId,
         file,
+        bitmap: shot?.bitmap || null,
+        canvas: shot?.canvas || null,
+        previewUrl,
+        fileName: file?.name || shot?.fileName || null,
         visitId: local.status?.prod?.visitId,
         resetId: local.status?.prod?.resetId,
         taskId: local.status?.si?.taskId,
@@ -876,7 +886,7 @@
         photoBase64: job.dataUrl || null,
         uploadStatus: pipe.statusLabel(job),
         jobId: job.id,
-        fileName: file.name,
+        fileName: file?.name || shot?.fileName || 'capture.jpg',
       });
       local[slot].sort((a, b) => Number(a.bay) - Number(b.bay));
       if (slot === 'before') persistBefores();
