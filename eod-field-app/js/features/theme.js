@@ -4,14 +4,14 @@
 
   const KEY = 'eodFieldTheme';
   const THEMES = ['dark', 'inverse', 'light', 'gray', 'gray-matter', 'holiday', 'blackout'];
-  const NEXT_LABEL = {
-    dark: 'Inverse',
-    inverse: 'Light',
-    light: 'Gray',
-    gray: 'Gray Matter',
-    'gray-matter': 'Holiday',
-    holiday: 'Blackout',
-    blackout: 'Dark',
+  const CURRENT_LABEL = {
+    dark: 'Dark',
+    inverse: 'Inverse',
+    light: 'Light',
+    gray: 'Gray',
+    'gray-matter': 'Gray Matter',
+    holiday: 'Holiday',
+    blackout: 'Blackout',
   };
   const META = {
     dark: '#0b1220',
@@ -39,9 +39,9 @@
     if (meta) meta.content = META[t] || META.dark;
     const btn = document.getElementById('themeCycleBtn');
     if (btn) {
-      btn.textContent = NEXT_LABEL[t] || 'Theme';
-      btn.title = `Theme: ${t} — tap to cycle`;
-      btn.setAttribute('aria-label', `Cycle theme, currently ${t}`);
+      btn.textContent = CURRENT_LABEL[t] || 'Theme';
+      btn.title = `Theme: ${CURRENT_LABEL[t] || t} — tap to cycle`;
+      btn.setAttribute('aria-label', `Cycle theme, currently ${CURRENT_LABEL[t] || t}`);
     }
   }
 
@@ -59,5 +59,5 @@
     }
   }
 
-  global.EodTheme = { THEMES, KEY, getTheme, applyTheme, cycle, init };
+  global.EodTheme = { THEMES, KEY, CURRENT_LABEL, getTheme, applyTheme, cycle, init };
 })(typeof window !== 'undefined' ? window : globalThis);

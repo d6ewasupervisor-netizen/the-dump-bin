@@ -555,17 +555,44 @@ body.needs-auth .app-shell {
 }
 .chrome-scan-btn {
   appearance: none;
-  border: 0;
-  background: var(--accent);
-  color: #fff;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
   border-radius: 8px;
-  padding: 6px 12px;
-  min-height: 32px;
+  padding: 3px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   flex: 0 0 auto;
+}
+.chrome-scan-ico {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.chrome-scan-bars rect { fill: currentColor; }
+.chrome-scan-lens {
+  fill: color-mix(in srgb, var(--accent) 28%, transparent);
+  stroke: none;
+}
+.chrome-scan-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+.chrome-scan-handle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+}
+#appChrome #themeCycleBtn {
+  display: inline-flex;
+  margin-left: 0;
 }
 .chrome-meta {
   color: var(--muted);

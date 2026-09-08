@@ -84,7 +84,7 @@
     overlay.className = 'iw-overlay';
     overlay.setAttribute('data-state', 'saving');
     overlay.innerHTML = `<div class="iw-overlay-card">
-      <img class="eod-buffering-gif" src="assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.80')}" alt="" width="104" height="104" decoding="async">
+      <img class="eod-buffering-gif" src="assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.3.81')}" alt="" width="104" height="104" decoding="async">
       <div class="iw-check" aria-hidden="true">&#10003;</div>
       <div id="iwOverlayTitle" class="iw-overlay-title">Saving InstaWork sign-out sheet\u2026</div>
     </div>`;

@@ -48,14 +48,26 @@
     row.hidden = false;
   }
 
+  const STAGE_ROUTE = {
+    visit: 'visit',
+    categories: 'signoff',
+    signatures: 'signatures',
+    send: 'send',
+  };
+
   function paintWorkflow() {
-    const S = global.EodSession;
     const nextBtn = document.getElementById('chromeNextAction');
+    const S = global.EodSession;
     const progress = global.EodWorkflowProgress?.derive?.(S, global.EodSendGates);
     if (!nextBtn || !progress) return;
-    nextBtn.hidden = !progress.next;
-    nextBtn.textContent = progress.next ? `Next: ${progress.next.label}` : '';
-    nextBtn.dataset.gate = progress.next?.id || '';
+    const current = progress.stages?.find((stage) => stage.status === 'current')
+      || (progress.stages || []).find((stage) => !stage.complete)
+      || (progress.stages || []).slice(-1)[0]
+      || null;
+    nextBtn.hidden = !current;
+    nextBtn.textContent = current ? current.label : '';
+    nextBtn.dataset.route = current ? (STAGE_ROUTE[current.id] || current.id) : '';
+    nextBtn.title = current ? `On ${current.label}` : '';
   }
 
   async function paintUnsentBanner() {
@@ -149,9 +161,11 @@
     const conn = document.getElementById('chromeConn');
     const themeBtn = document.getElementById('themeCycleBtn');
     const verBtn = document.getElementById('eodVersionBadge');
-    if (tray && themeBtn) tray.appendChild(themeBtn);
+    if (conn && themeBtn) conn.insertBefore(themeBtn, conn.firstChild);
+    else if (tray && themeBtn) tray.appendChild(themeBtn);
     if (conn && verBtn) conn.appendChild(verBtn);
     else if (tray && verBtn) tray.appendChild(verBtn);
+    try { global.EodTheme?.applyTheme?.(global.EodTheme.getTheme?.()); } catch (_) {}
   }
 
   function closeModal(host) {
@@ -313,9 +327,8 @@
       global.EodCartLocate?.openScanner?.();
     });
     document.getElementById('chromeNextAction')?.addEventListener('click', () => {
-      const id = document.getElementById('chromeNextAction')?.dataset?.gate;
-      const item = global.EodSendGates?.items?.(global.EodSession)?.find((gate) => gate.id === id);
-      global.EodSendGates?.go?.(item);
+      const route = document.getElementById('chromeNextAction')?.dataset?.route;
+      if (route) global.EodRouter.go(route);
     });
     if (storeEl) storeEl.title = 'Visit snapshot';
     document.getElementById('pilotBannerLabel')?.addEventListener('click', (e) => {
