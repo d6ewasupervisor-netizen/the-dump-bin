@@ -442,6 +442,10 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.doesNotMatch(survey, /setPlanogramMount/);
   assert.match(survey, /EodSiPlanogram/);
   assert.match(survey, /openOverlay/);
+  assert.doesNotMatch(survey, /PROD date/);
+  assert.doesNotMatch(survey, /SI date/);
+  assert.doesNotMatch(survey, /Sheet row/);
+  assert.doesNotMatch(survey, /ft = \$\{esc\(feet\)\} ft/);
   assert.match(html, /set-media-cache/);
   const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
   assert.match(bundles, /set-media-prefetch/);

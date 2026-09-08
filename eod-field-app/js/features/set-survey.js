@@ -267,7 +267,7 @@
           <button type="button" class="btn btn-secondary" id="refreshStatus">Refresh</button>
         </div>
         <h1>${esc(catName || 'Set capture')}</h1>
-        <p class="muted">DBKEY ${esc(dbkey)} | Store ${esc(S.state.storeNumber)} | PROD date ${esc(S.state.workDate)}</p>
+        <p class="muted">DBKEY ${esc(dbkey)} | Store ${esc(S.state.storeNumber)}</p>
         <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
         <p class="set-survey-view-hint">Select one of the options below to view:</p>
         <div class="set-media-btns" id="setMediaBtns">
@@ -583,22 +583,6 @@
       local.status = status;
       const chips = document.getElementById('setStatusChips');
       if (!chips) return;
-      const bayN = status.expectedBayCount || status.bays?.length || 1;
-      const width = status.bayWidthFt;
-      const feet = status.footageFeet || status.footageDisplay;
-      let footageBit = ` | ${bayN} bay photo${bayN === 1 ? '' : 's'} needed`;
-      if (width && feet) {
-        footageBit = ` | ${bayN} bays | ${esc(width)} ft = ${esc(feet)} ft`;
-      } else if (feet) {
-        footageBit = ` | ${bayN} bays (${esc(feet)} ft footage)`;
-      }
-      const siDate = status.si?.siDate || null;
-      const siSrc = status.si?.siDateSource || null;
-      let siDateBit = '';
-      if (siDate) {
-        const label = siSrc === 'prod_work_date' ? 'SI on PROD date' : (siSrc === 'week_backwalk' ? 'SI earlier in week' : 'SI date');
-        siDateBit = ` <span class="muted">${esc(label)} ${esc(siDate)}</span>`;
-      }
       chips.innerHTML =
         `PROD ${sidePill(status.prod)}` +
         (status.prod.beforeCount != null
@@ -607,10 +591,7 @@
         ` | SI ${sidePill(status.si)}` +
         (status.si.sectionCount != null
           ? ` <span class="muted">${status.si.sectionsWithPhoto || 0}/${status.si.sectionCount} sections</span>`
-          : '') +
-        siDateBit +
-        footageBit +
-        (status.sheetRow?.id ? ` | Sheet row ${esc(status.sheetRow.id)}` : '');
+          : '');
     }
 
     function bayProgressHtml(slot) {
