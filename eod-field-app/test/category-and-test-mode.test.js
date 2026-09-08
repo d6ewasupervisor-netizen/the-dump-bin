@@ -196,6 +196,7 @@ test('theme cycle includes dark, inverse, light, gray, gray-matter, holiday, bla
   assert.match(src, /\['dark', 'inverse', 'light', 'gray', 'gray-matter', 'holiday', 'blackout'\]/);
   assert.match(src, /gray: 'Gray'/);
   assert.match(src, /'gray-matter': 'Matter'/);
+  assert.match(src, /blackout: 'Night'/);
   assert.match(src, /'gray-matter': '#12151a'/);
   assert.match(src, /gray: '#2a3038'/);
   assert.match(src, /holiday: '#8b1e2d'/);

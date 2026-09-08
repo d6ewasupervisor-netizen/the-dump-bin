@@ -11,7 +11,7 @@
     gray: 'Gray',
     'gray-matter': 'Matter',
     holiday: 'Holiday',
-    blackout: 'Blackout',
+    blackout: 'Night',
   };
   const META = {
     dark: '#0b1220',
