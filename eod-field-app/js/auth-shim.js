@@ -73,7 +73,7 @@
       status.textContent = statusMsg || '';
       status.className = 'notice ' + (kind === 'ok' ? 'notice-ok' : 'notice-error');
     }
-    showAuthBanner(statusMsg || 'Sign in required for this pilot (localhost cannot reuse Dump Bin cookies).');
+    showAuthBanner(statusMsg || 'Sign in required (localhost cannot reuse Dump Bin cookies).');
   }
 
   async function exchangeLinkToken() {

@@ -284,9 +284,9 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
 /* Site auth-gate injects this on dump-bin.com; it covers the Pilot strip. */
 #__dumpbin_user_badge { display: none !important; }
 
-/* Slim 28px strip — not a paragraph banner */
+/* Slim strip removed from the field app. Keep the hook so old markup does not show a label. */
 .pilot-banner {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: space-between;
   gap: 8px;

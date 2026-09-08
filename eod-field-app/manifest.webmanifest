@@ -1,6 +1,6 @@
 {
-  "name": "KOMPASS EOD Field Pilot",
-  "short_name": "EOD Pilot",
+  "name": "KOMPASS EOD",
+  "short_name": "KOMPASS EOD",
   "description": "Greenfield EOD field app pilot — digital signoff heart, same eod-api.",
   "start_url": "./index.html",
   "scope": "./",
