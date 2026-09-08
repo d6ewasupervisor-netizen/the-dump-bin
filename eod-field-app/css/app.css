@@ -315,8 +315,8 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
   padding: 1px 8px;
   border-radius: 999px;
   min-height: 20px;
-  background: #1e293b;
-  color: #93c5fd;
+  background: var(--pill-bg);
+  color: var(--pill-fg);
   font-size: 10px;
   font-weight: 800;
   cursor: pointer;
@@ -555,9 +555,9 @@ body.needs-auth .app-shell {
 }
 .chrome-scan-btn {
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--accent);
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
   border-radius: 8px;
   padding: 3px;
   width: 34px;
@@ -573,26 +573,39 @@ body.needs-auth .app-shell {
   width: 22px;
   height: 22px;
   display: block;
+  overflow: visible;
 }
 .chrome-scan-bars rect { fill: currentColor; }
+.chrome-scan-bars-mag rect { fill: currentColor; }
 .chrome-scan-lens {
-  fill: color-mix(in srgb, var(--accent) 28%, transparent);
+  fill: var(--accent);
+  opacity: 0.32;
   stroke: none;
+}
+.chrome-scan-gleam {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  opacity: 0.72;
 }
 .chrome-scan-ring {
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.7;
+  stroke-width: 1.8;
 }
 .chrome-scan-handle {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.1;
+  stroke-width: 2.15;
   stroke-linecap: round;
 }
 #appChrome #themeCycleBtn {
   display: inline-flex;
   margin-left: 0;
+  max-width: 7.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .chrome-meta {
   color: var(--muted);
@@ -634,8 +647,8 @@ body.needs-auth .app-shell {
   margin: 0;
   padding: 1px 7px;
   border-radius: 999px;
-  background: #1e293b;
-  color: #93c5fd;
+  background: var(--pill-bg);
+  color: var(--pill-fg);
   font-size: 10px;
   font-weight: 800;
   cursor: pointer;

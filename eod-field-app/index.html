@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>KOMPASS EOD (field pilot)</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="css/app.css?v=3.3.81">
+  <link rel="stylesheet" href="css/app.css?v=3.3.82">
   <script>
     (function () {
       var t = '';
@@ -22,7 +22,7 @@
       if (host === 'the-dump-bin.com' || host.endsWith('.the-dump-bin.com')) {
         document.write('<script src="/auth-gate.js?v=20260903-embed-badge"><\/script>');
       } else {
-        document.write('<script src="js/auth-shim.js?v=3.3.81"><\/script>');
+        document.write('<script src="js/auth-shim.js?v=3.3.82"><\/script>');
       }
     })();
   </script>
@@ -37,7 +37,7 @@
     </div>
     <div id="chromeOperatorTray" class="chrome-operator-tray" hidden>
       <button type="button" class="theme-cycle-btn" id="themeCycleBtn" title="Theme: dark ? tap to cycle">Inverse</button>
-      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode ? long-press to force Update">v3.3.81</span>
+      <span class="eod-version-badge" id="eodVersionBadge" title="Tap to toggle test mode ? long-press to force Update">v3.3.82</span>
     </div>
     <div id="updateBanner" class="eod-update-banner" hidden></div>
     <div id="authBanner" class="auth-banner" hidden></div>
@@ -77,19 +77,43 @@
         <div class="chrome-store" id="chromeStore">No store</div>
         <button type="button" class="chrome-scan-btn" id="chromeScanBtn" title="Scan UPC" aria-label="Scan UPC">
           <svg class="chrome-scan-ico" viewBox="0 0 24 24" aria-hidden="true">
+            <defs>
+              <clipPath id="chromeScanLensClip">
+                <circle cx="16.05" cy="11" r="4.55"/>
+              </clipPath>
+            </defs>
             <g class="chrome-scan-bars">
-              <rect x="1.5" y="5" width="1.1" height="14"/>
-              <rect x="3.3" y="5" width="0.7" height="14"/>
-              <rect x="4.7" y="5" width="1.6" height="14"/>
-              <rect x="6.8" y="5" width="0.7" height="14"/>
-              <rect x="8.1" y="5" width="1.2" height="14"/>
-              <rect x="10" y="5" width="0.6" height="14"/>
-              <rect x="11.2" y="5" width="1.5" height="14"/>
-              <rect x="13.3" y="5" width="0.7" height="14"/>
+              <rect x="1.35" y="4.4" width="1.15" height="15.2"/>
+              <rect x="3.15" y="4.4" width="0.7" height="15.2"/>
+              <rect x="4.55" y="4.4" width="1.55" height="15.2"/>
+              <rect x="6.65" y="4.4" width="0.7" height="15.2"/>
+              <rect x="8" y="4.4" width="1.2" height="15.2"/>
+              <rect x="9.9" y="4.4" width="0.6" height="15.2"/>
+              <rect x="11.15" y="4.4" width="1.45" height="15.2"/>
+              <rect x="13.2" y="4.4" width="0.7" height="15.2"/>
+              <rect x="14.5" y="4.4" width="1.15" height="15.2"/>
+              <rect x="16.25" y="4.4" width="0.65" height="15.2"/>
+              <rect x="17.5" y="4.4" width="1.35" height="15.2"/>
             </g>
-            <circle class="chrome-scan-lens" cx="16.2" cy="11.2" r="5.1"/>
-            <path class="chrome-scan-ring" d="M16.2 6.1a5.1 5.1 0 1 1 0 10.2 5.1 5.1 0 0 1 0-10.2z"/>
-            <path class="chrome-scan-handle" d="M19.7 14.8 22.4 18.2"/>
+            <circle class="chrome-scan-lens" cx="16.05" cy="11" r="5.15"/>
+            <g class="chrome-scan-bars chrome-scan-bars-mag" clip-path="url(#chromeScanLensClip)">
+              <g transform="translate(16.05 11) scale(1.18) translate(-16.05 -11)">
+                <rect x="1.35" y="4.4" width="1.15" height="15.2"/>
+                <rect x="3.15" y="4.4" width="0.7" height="15.2"/>
+                <rect x="4.55" y="4.4" width="1.55" height="15.2"/>
+                <rect x="6.65" y="4.4" width="0.7" height="15.2"/>
+                <rect x="8" y="4.4" width="1.2" height="15.2"/>
+                <rect x="9.9" y="4.4" width="0.6" height="15.2"/>
+                <rect x="11.15" y="4.4" width="1.45" height="15.2"/>
+                <rect x="13.2" y="4.4" width="0.7" height="15.2"/>
+                <rect x="14.5" y="4.4" width="1.15" height="15.2"/>
+                <rect x="16.25" y="4.4" width="0.65" height="15.2"/>
+                <rect x="17.5" y="4.4" width="1.35" height="15.2"/>
+              </g>
+            </g>
+            <path class="chrome-scan-gleam" d="M12.95 7.45a4.6 4.6 0 0 1 5.7 1.05"/>
+            <circle class="chrome-scan-ring" cx="16.05" cy="11" r="5.15"/>
+            <path class="chrome-scan-handle" d="M19.7 14.65 22.35 18.15"/>
           </svg>
         </button>
         <span class="pill warn" id="chromeGate" hidden>Confirm</span>
@@ -127,13 +151,13 @@
 
     <nav class="bottom-nav" id="bottomNav" aria-label="Primary">
       <button type="button" class="nav-collapse-btn" id="navCollapseBtn" aria-expanded="true" title="Collapse navigation">«</button>
-      <button type="button" data-nav="visit" data-slot="stage"><img class="nav-ico-img" src="icons/nav/visit.png?v=3.3.81" alt="" width="28" height="28"><span class="nav-label">Visit</span></button>
-      <button type="button" data-nav="signoff"><img class="nav-ico-img" src="icons/nav/categories.png?v=3.3.81" alt="" width="28" height="28"><span class="nav-label">Categories</span></button>
-      <button type="button" data-nav="signatures" data-slot="stage"><img class="nav-ico-img" src="icons/nav/signatures.png?v=3.3.81" alt="" width="28" height="28"><span class="nav-label">Signatures</span></button>
-      <button type="button" data-nav="send" data-slot="stage"><img class="nav-ico-img" src="icons/nav/send.png?v=3.3.81" alt="" width="28" height="28"><span class="nav-label">Send</span></button>
-      <button type="button" data-nav="crew" data-slot="extra"><img class="nav-ico-img" src="icons/nav/crew.png?v=3.3.81" alt="" width="28" height="28"><span class="nav-label">Crew</span></button>
-      <button type="button" data-nav="dumpbin" data-slot="extra"><img class="nav-ico-img" src="icons/nav/dumpbin.png?v=3.3.81" alt="" width="28" height="28"><span class="nav-label">Dump Bin</span></button>
-      <button type="button" data-nav="helpdesk" data-slot="extra"><img class="nav-ico-img" src="icons/nav/helpdesk.png?v=3.3.81" alt="" width="28" height="28"><span class="nav-label">Helpdesk</span></button>
+      <button type="button" data-nav="visit" data-slot="stage"><img class="nav-ico-img" src="icons/nav/visit.png?v=3.3.82" alt="" width="28" height="28"><span class="nav-label">Visit</span></button>
+      <button type="button" data-nav="signoff"><img class="nav-ico-img" src="icons/nav/categories.png?v=3.3.82" alt="" width="28" height="28"><span class="nav-label">Categories</span></button>
+      <button type="button" data-nav="signatures" data-slot="stage"><img class="nav-ico-img" src="icons/nav/signatures.png?v=3.3.82" alt="" width="28" height="28"><span class="nav-label">Signatures</span></button>
+      <button type="button" data-nav="send" data-slot="stage"><img class="nav-ico-img" src="icons/nav/send.png?v=3.3.82" alt="" width="28" height="28"><span class="nav-label">Send</span></button>
+      <button type="button" data-nav="crew" data-slot="extra"><img class="nav-ico-img" src="icons/nav/crew.png?v=3.3.82" alt="" width="28" height="28"><span class="nav-label">Crew</span></button>
+      <button type="button" data-nav="dumpbin" data-slot="extra"><img class="nav-ico-img" src="icons/nav/dumpbin.png?v=3.3.82" alt="" width="28" height="28"><span class="nav-label">Dump Bin</span></button>
+      <button type="button" data-nav="helpdesk" data-slot="extra"><img class="nav-ico-img" src="icons/nav/helpdesk.png?v=3.3.82" alt="" width="28" height="28"><span class="nav-label">Helpdesk</span></button>
       <button type="button" data-nav="more" data-slot="phone-more" aria-label="More">
         <svg class="nav-ico-img nav-hamburger" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
           <rect width="28" height="28" rx="7" fill="#2563eb"/>
@@ -150,7 +174,7 @@
 
   <div id="eodBuffering" class="eod-buffering" hidden role="status" aria-live="polite" aria-busy="false" data-state="busy">
     <div class="eod-buffering-card">
-      <img class="eod-buffering-gif" src="assets/buffering.gif?v=3.3.81" alt="" width="104" height="104" decoding="async">
+      <img class="eod-buffering-gif" src="assets/buffering.gif?v=3.3.82" alt="" width="104" height="104" decoding="async">
       <div class="eod-buffering-check" aria-hidden="true">&#10003;</div>
       <div class="eod-buffering-title" id="eodBusyTitle">buffering</div>
       <div class="eod-buffering-subtitle" id="eodBusySubtitle" hidden></div>
@@ -160,57 +184,57 @@
 
   <div id="instaworkBufferOverlay" class="iw-overlay" data-state="saving">
     <div class="iw-overlay-card">
-      <img class="eod-buffering-gif" src="assets/buffering.gif?v=3.3.81" alt="" width="104" height="104" decoding="async">
+      <img class="eod-buffering-gif" src="assets/buffering.gif?v=3.3.82" alt="" width="104" height="104" decoding="async">
       <div class="iw-check" aria-hidden="true">&#10003;</div>
       <div id="iwOverlayTitle" class="iw-overlay-title">Saving InstaWork sign-out sheet&hellip;</div>
     </div>
   </div>
 
-  <script src="js/api.js?v=3.3.81"></script>
-  <script src="js/lib/eod-buffering.js?v=3.3.81"></script>
-  <script src="js/lib/eod-alerts.js?v=3.3.81"></script>
-  <script src="js/lib/dialog-a11y.js?v=3.3.81"></script>
-  <script src="js/lib/script-loader.js?v=3.3.81"></script>
-  <script src="js/lib/route-bundles.js?v=3.3.81"></script>
-  <script src="js/lib/eod-roles.js?v=3.3.81"></script>
-  <script src="js/lib/heic.js?v=3.3.81"></script>
-  <script src="js/usage.js?v=3.3.81"></script>
-  <script src="js/session.js?v=3.3.81"></script>
-  <script src="js/lib/cover-notes.js?v=3.3.81"></script>
-  <script src="js/lib/visit-memory.js?v=3.3.81"></script>
-  <script src="js/features/section-nav.js?v=3.3.81"></script>
-  <script src="js/router.js?v=3.3.81"></script>
-  <script src="js/lib/swipe-nav.js?v=3.3.81"></script>
-  <script src="js/lib/section-collapse.js?v=3.3.81"></script>
-  <script src="js/picker.js?v=3.3.81"></script>
-  <script src="js/features/theme.js?v=3.3.81"></script>
-  <script src="js/chrome.js?v=3.3.81"></script>
-  <script src="js/lib/photo-compress.js?v=3.3.81"></script>
-  <script src="js/lib/eod-instawork-save.js?v=3.3.81"></script>
-  <script src="js/lib/field-set-job-client.js?v=3.3.81"></script>
-  <script src="js/lib/photo-pipeline.js?v=3.3.81"></script>
-  <script src="js/lib/category-card-status.js?v=3.3.81"></script>
-  <script src="js/lib/send-gates.js?v=3.3.81"></script>
-  <script src="js/lib/workflow-progress.js?v=3.3.81"></script>
-  <script src="js/lib/eod-garden.js?v=3.3.81"></script>
-  <script src="js/lib/fit-text.js?v=3.3.81"></script>
-  <script src="js/lib/eod-test-mode-logic.js?v=3.3.81"></script>
-  <script src="js/features/durability.js?v=3.3.81"></script>
-  <script src="js/features/connections.js?v=3.3.81"></script>
-  <script src="js/features/version-test.js?v=3.3.81"></script>
+  <script src="js/api.js?v=3.3.82"></script>
+  <script src="js/lib/eod-buffering.js?v=3.3.82"></script>
+  <script src="js/lib/eod-alerts.js?v=3.3.82"></script>
+  <script src="js/lib/dialog-a11y.js?v=3.3.82"></script>
+  <script src="js/lib/script-loader.js?v=3.3.82"></script>
+  <script src="js/lib/route-bundles.js?v=3.3.82"></script>
+  <script src="js/lib/eod-roles.js?v=3.3.82"></script>
+  <script src="js/lib/heic.js?v=3.3.82"></script>
+  <script src="js/usage.js?v=3.3.82"></script>
+  <script src="js/session.js?v=3.3.82"></script>
+  <script src="js/lib/cover-notes.js?v=3.3.82"></script>
+  <script src="js/lib/visit-memory.js?v=3.3.82"></script>
+  <script src="js/features/section-nav.js?v=3.3.82"></script>
+  <script src="js/router.js?v=3.3.82"></script>
+  <script src="js/lib/swipe-nav.js?v=3.3.82"></script>
+  <script src="js/lib/section-collapse.js?v=3.3.82"></script>
+  <script src="js/picker.js?v=3.3.82"></script>
+  <script src="js/features/theme.js?v=3.3.82"></script>
+  <script src="js/chrome.js?v=3.3.82"></script>
+  <script src="js/lib/photo-compress.js?v=3.3.82"></script>
+  <script src="js/lib/eod-instawork-save.js?v=3.3.82"></script>
+  <script src="js/lib/field-set-job-client.js?v=3.3.82"></script>
+  <script src="js/lib/photo-pipeline.js?v=3.3.82"></script>
+  <script src="js/lib/category-card-status.js?v=3.3.82"></script>
+  <script src="js/lib/send-gates.js?v=3.3.82"></script>
+  <script src="js/lib/workflow-progress.js?v=3.3.82"></script>
+  <script src="js/lib/eod-garden.js?v=3.3.82"></script>
+  <script src="js/lib/fit-text.js?v=3.3.82"></script>
+  <script src="js/lib/eod-test-mode-logic.js?v=3.3.82"></script>
+  <script src="js/features/durability.js?v=3.3.82"></script>
+  <script src="js/features/connections.js?v=3.3.82"></script>
+  <script src="js/features/version-test.js?v=3.3.82"></script>
 
-  <script src="js/lib/set-media-cache.js?v=3.3.81"></script>
-  <script src="js/features/photo-sessions.js?v=3.3.81"></script>
-  <script src="js/features/set-before-store.js?v=3.3.81"></script>
+  <script src="js/lib/set-media-cache.js?v=3.3.82"></script>
+  <script src="js/features/photo-sessions.js?v=3.3.82"></script>
+  <script src="js/features/set-before-store.js?v=3.3.82"></script>
 
-  <script src="js/lib/store-catalog.js?v=3.3.81"></script>
-  <script src="js/lib/shift-day-cache.js?v=3.3.81"></script>
-  <script src="js/features/visit.js?v=3.3.81"></script>
-  <script src="js/features/com-load-request.js?v=3.3.81"></script>
-  <script src="js/features/signoff-home.js?v=3.3.81"></script>
-  <script src="js/lib/shift-photo-sync.js?v=3.3.81"></script>
-  <script src="js/features/feedback-hub.js?v=3.3.81"></script>
+  <script src="js/lib/store-catalog.js?v=3.3.82"></script>
+  <script src="js/lib/shift-day-cache.js?v=3.3.82"></script>
+  <script src="js/features/visit.js?v=3.3.82"></script>
+  <script src="js/features/com-load-request.js?v=3.3.82"></script>
+  <script src="js/features/signoff-home.js?v=3.3.82"></script>
+  <script src="js/lib/shift-photo-sync.js?v=3.3.82"></script>
+  <script src="js/features/feedback-hub.js?v=3.3.82"></script>
 
-  <script src="js/boot.js?v=3.3.81"></script>
+  <script src="js/boot.js?v=3.3.82"></script>
 </body>
 </html>
