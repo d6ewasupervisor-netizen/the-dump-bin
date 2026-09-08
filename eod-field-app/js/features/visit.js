@@ -1122,20 +1122,33 @@
     overlay?.remove();
   }
 
+  function formatPriorStore(n) {
+    const raw = String(n ?? '').replace(/\D/g, '');
+    return raw.replace(/^0+(?=\d)/, '') || '—';
+  }
+
+  function formatPriorDate(iso) {
+    const s = String(iso || '').slice(0, 10);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return s || '—';
+    return `${Number(m[2])}/${Number(m[3])}/${m[1]}`;
+  }
+
   function presentPriorDayChoice() {
     const S = global.EodSession;
     const prior = S?.getPriorDayDraft?.();
     if (!prior || document.getElementById('priorDayChoice')) return false;
+    const store = formatPriorStore(prior.storeNumber);
+    const date = formatPriorDate(prior.workDate);
     const overlay = document.createElement('div');
     overlay.id = 'priorDayChoice';
     overlay.className = 'modal-overlay show';
     overlay.innerHTML = `
       <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="priorDayTitle">
         <h2 id="priorDayTitle">Unfinished visit</h2>
-        <p>Store ${esc(prior.storeNumber || '—')} · ${esc(prior.workDate || '')}</p>
-        <div class="btn-row">
-          <button type="button" class="btn btn-secondary" id="priorDayStart">Start today</button>
-          <button type="button" class="btn btn-primary" id="priorDayResume">Resume</button>
+        <div class="btn-row prior-day-actions">
+          <button type="button" class="btn btn-primary" id="priorDayResume">Resume at store ${esc(store)} for ${esc(date)}</button>
+          <button type="button" class="btn btn-secondary" id="priorDayStart">Fresh start</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);

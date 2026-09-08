@@ -15,11 +15,11 @@
   };
   const META = {
     dark: '#0b1220',
-    inverse: '#062033',
+    inverse: '#010b14',
     light: '#0f5c8c',
     gray: '#2a3038',
     'gray-matter': '#12151a',
-    holiday: '#8b1e2d',
+    holiday: '#ff7a18',
     blackout: '#000000',
   };
 

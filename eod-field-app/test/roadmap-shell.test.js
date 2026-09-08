@@ -238,8 +238,9 @@ test('Gray Matter theme and mobile wrap primitives are defined', () => {
   assert.match(css, /\[data-theme="gray-matter"\][\s\S]*--bg:\s*#12151a/);
   assert.match(css, /\[data-theme="gray-matter"\][\s\S]*--accent:\s*#d7b07a/);
   assert.match(css, /\[data-theme="gray"\][\s\S]*--bg:\s*#2a3038/);
-  assert.match(css, /\[data-theme="holiday"\][\s\S]*--accent:\s*#e2b84a/);
-  assert.match(css, /\[data-theme="holiday"\][\s\S]*--bg:\s*#0e1a12/);
+  assert.match(css, /\[data-theme="holiday"\][\s\S]*--accent:\s*#ff7a18/);
+  assert.match(css, /\[data-theme="holiday"\][\s\S]*--bg:\s*#0c0704/);
+  assert.match(css, /\[data-theme="inverse"\][\s\S]*--text:\s*#ffffff/);
   assert.doesNotMatch(css, /\[data-theme="gray"\][\s\S]{0,80}--bg:\s*#eceff2/);
   assert.match(css, /--touch:\s*44px/);
   assert.match(css, /\.button-group \{[\s\S]*flex-wrap:\s*wrap/);
@@ -264,5 +265,7 @@ test('prior-day draft requires an explicit resume or start-today choice', () => 
   assert.doesNotMatch(session, /if \(state\.workDate && state\.workDate !== today\) \{[\s\S]{0,500}clearDayConfirm\(\)/);
   assert.match(visit, /id="priorDayResume"/);
   assert.match(visit, /id="priorDayStart"/);
+  assert.match(visit, /Fresh start/);
+  assert.match(visit, /Resume at store \$\{esc\(store\)\} for \$\{esc\(date\)\}/);
   assert.match(visit, /initialStore: prior\.storeNumber, initialDate: prior\.workDate/);
 });

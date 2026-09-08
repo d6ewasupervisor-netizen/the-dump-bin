@@ -40,31 +40,31 @@
 }
 
 [data-theme="inverse"] {
-  --bg: #062033;
-  --surface: #08324a;
-  --card: #0b3a55;
-  --border: #3d556c;
-  --accent: #7fd0ff;
-  --accent-dim: #0e4d70;
-  --accent-soft: rgba(127, 208, 255, 0.16);
-  --heading: #c5ebff;
-  --text: #f4f8fc;
-  --muted: #b7c6d4;
-  --ok: #5fd49a;
-  --warn: #fbbf24;
-  --danger: #ff8f7a;
-  --chrome-bg: #062033;
-  --nav-bg: #062033;
-  --input-bg: #08324a;
-  --input-border: #3d556c;
-  --btn-secondary: #0e4666;
-  --btn-fg: #f4f8fc;
-  --row-bg: #0a3a55;
-  --pill-bg: #0e4666;
-  --pill-fg: #d7ecf8;
-  --letterbox: #041824;
-  --glow: rgba(127, 208, 255, 0.22);
-  --theme-meta: #062033;
+  --bg: #010b14;
+  --surface: #042033;
+  --card: #073044;
+  --border: #8ecae8;
+  --accent: #5ce1ff;
+  --accent-dim: #0277a8;
+  --accent-soft: rgba(92, 225, 255, 0.2);
+  --heading: #ffffff;
+  --text: #ffffff;
+  --muted: #c5e4f5;
+  --ok: #4ade80;
+  --warn: #facc15;
+  --danger: #ff6b6b;
+  --chrome-bg: #010b14;
+  --nav-bg: #010b14;
+  --input-bg: #042033;
+  --input-border: #7ec8e8;
+  --btn-secondary: #0a3d58;
+  --btn-fg: #ffffff;
+  --row-bg: #05283a;
+  --pill-bg: #0a4a68;
+  --pill-fg: #ffffff;
+  --letterbox: #00080e;
+  --glow: rgba(92, 225, 255, 0.28);
+  --theme-meta: #010b14;
 }
 
 [data-theme="light"] {
@@ -154,32 +154,32 @@
 }
 
 [data-theme="holiday"] {
-  --bg: #0e1a12;
-  --surface: #132318;
-  --card: #1a2c1e;
-  --border: #8b1e2d;
-  --accent: #e2b84a;
-  --accent-dim: #8b1e2d;
-  --accent-soft: rgba(226, 184, 74, 0.18);
-  --heading: #fde68a;
-  --text: #fff8e7;
-  --muted: #d4c4a0;
-  --ok: #3d9b5c;
-  --warn: #e2b84a;
-  --danger: #e11d48;
-  --chrome-bg: #1a0a0e;
-  --nav-bg: #1a0a0e;
-  --input-bg: #1c281f;
-  --input-border: #c9a227;
-  --btn-secondary: #8b1e2d;
-  --btn-fg: #fff8e7;
-  --row-bg: #1c281f;
-  --pill-bg: #8b1e2d;
-  --pill-fg: #fde68a;
-  --letterbox: #0a120c;
-  --glow: rgba(226, 184, 74, 0.22);
-  --theme-meta: #8b1e2d;
-  --scrim: rgba(10, 18, 12, 0.86);
+  --bg: #0c0704;
+  --surface: #160d08;
+  --card: #1c1009;
+  --border: #ff7a18;
+  --accent: #ff7a18;
+  --accent-dim: #6b21a8;
+  --accent-soft: rgba(255, 122, 24, 0.18);
+  --heading: #ffb347;
+  --text: #fff4e6;
+  --muted: #d4a574;
+  --ok: #7cde6a;
+  --warn: #ff9f1c;
+  --danger: #ff3d00;
+  --chrome-bg: #0a0604;
+  --nav-bg: #0a0604;
+  --input-bg: #1a0e08;
+  --input-border: #c45c12;
+  --btn-secondary: #4a1d7a;
+  --btn-fg: #fff4e6;
+  --row-bg: #140c08;
+  --pill-bg: #4a1d7a;
+  --pill-fg: #ffb347;
+  --letterbox: #050302;
+  --glow: rgba(255, 122, 24, 0.22);
+  --theme-meta: #ff7a18;
+  --scrim: rgba(8, 4, 2, 0.88);
 }
 
 [data-theme="blackout"] {
@@ -368,25 +368,29 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
   background: #1a1e24;
   border-color: #7dcea0;
 }
+[data-theme="inverse"] .btn-primary {
+  background: var(--accent);
+  color: #011018;
+}
 [data-theme="holiday"] .theme-cycle-btn,
 [data-theme="holiday"] .eod-version-badge {
-  background: #8b1e2d;
-  color: #fde68a;
+  background: #4a1d7a;
+  color: #ffb347;
 }
 [data-theme="holiday"] .pilot-banner {
-  background: #1a0a0e;
-  color: #fde68a;
-  border-bottom: 2px solid #e2b84a;
+  background: #0a0604;
+  color: #ffb347;
+  border-bottom: 2px solid #ff7a18;
 }
 [data-theme="holiday"] .pilot-banner-label {
-  color: #fde68a;
+  color: #ff7a18;
 }
 [data-theme="holiday"] .btn-primary {
-  background: #e2b84a;
-  color: #0e1a12;
+  background: #ff7a18;
+  color: #0c0704;
 }
 [data-theme="holiday"] .bottom-nav {
-  border-top: 2px solid #e2b84a;
+  border-top: 2px solid #ff7a18;
 }
 [data-theme="blackout"] .pilot-banner {
   background: #000000;
@@ -963,6 +967,8 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .btn-block { width: 100%; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .btn-row .btn { flex: 1 1 140px; }
+.prior-day-actions { flex-direction: column; align-items: stretch; }
+.prior-day-actions .btn { flex: 0 0 auto; width: 100%; white-space: normal; text-align: center; }
 
 .shift-card, .member-row, .ds-row {
   border: 1px solid var(--border); border-radius: 10px; padding: 12px;
