@@ -226,14 +226,21 @@ body.mpv-lock {
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  touch-action: pan-x pan-y pinch-zoom;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
   background:
     radial-gradient(ellipse at top, #132033 0%, transparent 55%),
     #020617;
   -webkit-overflow-scrolling: touch;
 }
+.mpv-stage.is-pinching {
+  touch-action: none;
+  overflow: hidden;
+}
 .mpv-stage__inner {
   min-height: 100%;
+  width: max-content;
+  min-width: 100%;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -242,12 +249,18 @@ body.mpv-lock {
 }
 .mpv-page-wrap {
   position: relative;
+  flex: 0 0 auto;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   background: #fff;
   line-height: 0;
-  transform-origin: center top;
+  transform-origin: 0 0;
 }
-.mpv-page-wrap canvas { display: block; max-width: 100%; height: auto; }
+.mpv-root .mpv-page-wrap canvas {
+  display: block;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain;
+}
 .mpv-ann-layer {
   position: absolute;
   inset: 0;

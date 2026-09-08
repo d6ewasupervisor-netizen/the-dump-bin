@@ -11,7 +11,7 @@
 
   const WORKER =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const ASSET_VER = '1.1.3';
+  const ASSET_VER = '1.1.4';
   const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
   const MSG_SOURCE = 'materials-pdf-viewer';
 
@@ -32,11 +32,15 @@
   let searchBusy = false;
   let srcBytesCache = null;
   let touchX = null;
+  let touchY = null;
   let pinchDist0 = 0;
   let pinchZoom0 = 1;
+  let pinchOriginX = 0;
+  let pinchOriginY = 0;
+  let pinchScrollX = 0;
+  let pinchScrollY = 0;
   let keyHandler = null;
   let resizeTimer = null;
-  let vvHandler = null;
 
   function inFrame() {
     try {
@@ -440,8 +444,12 @@
         });
       } catch (_) { /* text layer optional */ }
 
+      wrap.style.transform = '';
+      wrap.style.transformOrigin = '0 0';
       inner.innerHTML = '';
       inner.appendChild(wrap);
+      const stageEl = document.getElementById('mpvStage');
+      stageEl?.classList.toggle('is-zoomed', fitMode === 'manual');
       updateNav();
 
       const activeThumb = document.querySelector(`.mpv-thumb[data-page="${currentPage}"]`);
@@ -767,14 +775,26 @@
     const stage = document.getElementById('mpvStage');
     stage?.addEventListener('touchstart', (e) => {
       if (e.touches.length >= 2) {
+        const wrap = document.querySelector('.mpv-page-wrap');
+        const rect = wrap?.getBoundingClientRect();
         pinchDist0 = touchDistance(e.touches);
         pinchZoom0 = zoom;
         fitMode = 'manual';
         touchX = null;
+        touchY = null;
+        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        pinchOriginX = rect ? mx - rect.left : 0;
+        pinchOriginY = rect ? my - rect.top : 0;
+        pinchScrollX = stage.scrollLeft;
+        pinchScrollY = stage.scrollTop;
+        stage.classList.add('is-pinching');
+        if (wrap) wrap.style.transformOrigin = `${pinchOriginX}px ${pinchOriginY}px`;
         return;
       }
       pinchDist0 = 0;
       touchX = e.changedTouches?.[0]?.clientX ?? null;
+      touchY = e.changedTouches?.[0]?.clientY ?? null;
     }, { passive: true });
     stage?.addEventListener('touchmove', (e) => {
       if (e.touches.length < 2 || pinchDist0 <= 0) return;
@@ -788,20 +808,37 @@
       if (pinchDist0 > 0 && e.touches.length < 2) {
         const wrap = document.querySelector('.mpv-page-wrap');
         const m = wrap?.style.transform?.match(/scale\((.+?)\)/);
+        const liveScale = m ? parseFloat(m[1]) : 1;
         wrap && (wrap.style.transform = '');
-        if (m) {
-          zoom = Math.min(4, Math.max(0.35, zoom * parseFloat(m[1])));
+        stage.classList.remove('is-pinching');
+        if (m && Number.isFinite(liveScale) && liveScale > 0) {
+          zoom = Math.min(4, Math.max(0.35, zoom * liveScale));
           fitMode = 'manual';
-          renderPage();
+          const originFracX = wrap && wrap.offsetWidth
+            ? pinchOriginX / wrap.offsetWidth
+            : 0.5;
+          const originFracY = wrap && wrap.offsetHeight
+            ? pinchOriginY / wrap.offsetHeight
+            : 0.5;
+          renderPage().then(() => {
+            const nextWrap = document.querySelector('.mpv-page-wrap');
+            if (!nextWrap) return;
+            stage.scrollLeft = Math.max(0, originFracX * nextWrap.offsetWidth - pinchOriginX + pinchScrollX);
+            stage.scrollTop = Math.max(0, originFracY * nextWrap.offsetHeight - pinchOriginY + pinchScrollY);
+          });
         }
         pinchDist0 = 0;
         touchX = null;
+        touchY = null;
         return;
       }
       if (touchX == null) return;
       const dx = (e.changedTouches?.[0]?.clientX ?? touchX) - touchX;
+      const dy = (e.changedTouches?.[0]?.clientY ?? touchY) - (touchY ?? 0);
       touchX = null;
-      if (Math.abs(dx) < 60) return;
+      touchY = null;
+      if (fitMode === 'manual') return;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
       if (dx < 0) goTo(currentPage + 1);
       else goTo(currentPage - 1);
     }, { passive: true });
@@ -994,10 +1031,6 @@
 
     clearTimeout(resizeTimer);
     window.addEventListener('resize', onResize);
-    if (global.visualViewport) {
-      vvHandler = () => onResize();
-      global.visualViewport.addEventListener('resize', vvHandler);
-    }
   }
 
   function onResize() {
@@ -1013,10 +1046,6 @@
     lockPageScroll(false);
     detachKeys();
     window.removeEventListener('resize', onResize);
-    if (vvHandler && global.visualViewport) {
-      global.visualViewport.removeEventListener('resize', vvHandler);
-      vvHandler = null;
-    }
     pdfDoc = null;
     srcBytesCache = null;
     notifyHost(false);
