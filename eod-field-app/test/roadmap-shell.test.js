@@ -241,6 +241,10 @@ test('Gray Matter theme and mobile wrap primitives are defined', () => {
   assert.match(css, /\[data-theme="holiday"\][\s\S]*--accent:\s*#ff7a18/);
   assert.match(css, /\[data-theme="holiday"\][\s\S]*--bg:\s*#0c0704/);
   assert.match(css, /\[data-theme="inverse"\][\s\S]*--text:\s*#ffffff/);
+  assert.match(css, /\[data-theme="inverse"\][\s\S]*--btn-secondary:\s*#d6f6ff/);
+  assert.match(css, /\[data-theme="inverse"\] \.bottom-nav \{/);
+  assert.match(css, /\[data-theme="inverse"\] \.pill\.ok/);
+  assert.match(css, /\[data-theme="inverse"\] \.btn-success/);
   assert.doesNotMatch(css, /\[data-theme="gray"\][\s\S]{0,80}--bg:\s*#eceff2/);
   assert.match(css, /--touch:\s*44px/);
   assert.match(css, /\.button-group \{[\s\S]*flex-wrap:\s*wrap/);

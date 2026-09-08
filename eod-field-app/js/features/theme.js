@@ -15,7 +15,7 @@
   };
   const META = {
     dark: '#0b1220',
-    inverse: '#010b14',
+    inverse: '#000000',
     light: '#0f5c8c',
     gray: '#2a3038',
     'gray-matter': '#12151a',
