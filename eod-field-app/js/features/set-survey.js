@@ -38,7 +38,7 @@
     return [...new Set([...fromList, selected].filter(Boolean).map(String))];
   }
 
-  async function fetchStatus(dbkey, rowId) {
+  async function fetchStatus(dbkey, rowId, opts = {}) {
     const S = global.EodSession;
     const qs = new URLSearchParams({
       store: S.state.storeNumber,
@@ -49,6 +49,8 @@
     if (S.state.selectedShift?.visitId) qs.set('visitId', S.state.selectedShift.visitId);
     const ids = storeDayVisitIds();
     if (ids.length) qs.set('visitIds', ids.join(','));
+    if (opts.resetId) qs.set('resetId', opts.resetId);
+    if (opts.fresh) qs.set('fresh', '1');
     const resp = await global.authFetch(`${API}/status?${qs}`);
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Status failed (${resp.status})`);
@@ -360,6 +362,9 @@
         const byBay = new Map((local[slot] || []).map((p) => [Number(p.bay), p]));
         for (const job of pipe.jobsForSet(dbkey)) {
           if (job.slot !== slot || job.error === 'replaced') continue;
+          if (local.liveProd && !uploadInFlight(job.status === 'done' ? 'done' : pipe.statusLabel(job)) && job.status === 'done') {
+            continue;
+          }
           const bay = Number(job.bay);
           const prev = byBay.get(bay) || { bay };
           byBay.set(bay, {
@@ -376,6 +381,56 @@
           .filter((p) => p.uploadStatus !== 'replaced')
           .sort((a, b) => Number(a.bay) - Number(b.bay));
       }
+    }
+
+    function liveProdBays(status, slot) {
+      const remote = status?.remotePhotos || {};
+      const list = String(slot) === 'before' ? remote.prodBefore : remote.prodAfter;
+      const fromPhotos = new Set(
+        (Array.isArray(list) ? list : [])
+          .map((p) => Number(p.bay))
+          .filter((n) => Number.isFinite(n) && n > 0)
+      );
+      if (fromPhotos.size) return fromPhotos;
+      const flag = String(slot) === 'before' ? 'hasProdBefore' : 'hasProdAfter';
+      return new Set(
+        (status?.bays || [])
+          .filter((b) => b[flag])
+          .map((b) => Number(b.bay))
+          .filter((n) => Number.isFinite(n) && n > 0)
+      );
+    }
+
+    function applyLiveProd(status) {
+      local.liveProd = true;
+      local.status = status;
+      for (const slot of ['before', 'after']) {
+        const live = liveProdBays(status, slot);
+        local[slot] = (local[slot] || []).filter((p) => {
+          if (uploadInFlight(p.uploadStatus)) return true;
+          return live.has(Number(p.bay));
+        });
+        const pipe = global.EodPhotoPipeline;
+        if (!pipe?.jobsForSet) continue;
+        for (const job of pipe.jobsForSet(dbkey)) {
+          if (job.slot !== slot || job.status !== 'done') continue;
+          if (live.has(Number(job.bay))) continue;
+          pipe.removeJob?.(job.id);
+        }
+      }
+      if (local.pack?.photos) {
+        const beforeLive = liveProdBays(status, 'before');
+        const afterLive = liveProdBays(status, 'after');
+        local.pack = {
+          ...local.pack,
+          photos: (local.pack.photos || []).filter((p) => {
+            if (p.slot === 'before') return beforeLive.has(Number(p.bayIndex));
+            if (p.source === 'prod') return afterLive.has(Number(p.bayIndex));
+            return true;
+          }),
+        };
+      }
+      persistBefores();
     }
 
     hydrateFromPipeline();
@@ -480,11 +535,17 @@
       return !!(b.hasSiPhoto || b.hasProdAfter || b.hasPhoto);
     }
 
+    function uploadInFlight(statusText) {
+      const st = String(statusText || '').toLowerCase();
+      return /queue|compress|ready|waiting|checking|uploading/.test(st);
+    }
+
     function takenBays(slot) {
       const set = new Set();
       for (const p of local[slot] || []) {
         const st = String(p.uploadStatus || '');
         if (st === 'failed' || st === 'replaced') continue;
+        if (local.liveProd && !uploadInFlight(st)) continue;
         const b = Number(p.bay);
         if (Number.isFinite(b) && b > 0) set.add(b);
       }
@@ -492,10 +553,26 @@
         const n = Number(b.bay);
         if (remoteBayCovered(slot, n)) set.add(n);
       }
-      const cached = String(slot) === 'before' ? beforeCached() : afterCached();
-      for (const p of cached) {
-        const n = Number(p.bayIndex);
-        if (Number.isFinite(n) && n > 0) set.add(n);
+      const remote = local.status?.remotePhotos || {};
+      const live = String(slot) === 'before' ? remote.prodBefore : remote.prodAfter;
+      if (Array.isArray(live)) {
+        for (const p of live) {
+          const n = Number(p.bay);
+          if (Number.isFinite(n) && n > 0) set.add(n);
+        }
+      }
+      if (!local.liveProd) {
+        const cached = String(slot) === 'before' ? beforeCached() : afterCached();
+        for (const p of cached) {
+          const n = Number(p.bayIndex);
+          if (Number.isFinite(n) && n > 0) set.add(n);
+        }
+      } else if (String(slot) === 'after') {
+        for (const p of afterCached()) {
+          if (p.source === 'prod') continue;
+          const n = Number(p.bayIndex);
+          if (Number.isFinite(n) && n > 0) set.add(n);
+        }
       }
       return set;
     }
@@ -1012,25 +1089,24 @@
     async function reload() {
       try {
         resetMediaReady();
-        const pogP = loadPlanogram();
-        const packP = fetchPack().then(() => {
-          setMediaReady('before', true);
-          setMediaReady('after', true);
-          paintBody();
-        });
-        const statusP = fetchStatus(dbkey, rowId).then((st) => {
-          paintStatus(st);
-          hydrateFromPipeline();
-          paintBody();
-        });
-        await Promise.allSettled([pogP, packP, statusP]);
+        const resetId = local.status?.prod?.resetId || null;
+        const st = await fetchStatus(dbkey, rowId, { fresh: true, resetId });
+        applyLiveProd(st);
+        paintStatus(st);
+        await Promise.allSettled([
+          loadPlanogram(),
+          fetchPack().then(() => {
+            applyLiveProd(local.status || st);
+          }),
+        ]);
         hydrateFromPipeline();
-        await fetchPack();
+        setMediaReady('before', true);
+        setMediaReady('after', true);
         paintBody();
         setMsg('');
       } catch (err) {
-        document.getElementById('setSurveyBody').innerHTML =
-          `<div class="notice notice-error">${esc(err.message || String(err))}</div>`;
+        setMsg(err.message || String(err), true);
+        paintBody();
       }
     }
 
