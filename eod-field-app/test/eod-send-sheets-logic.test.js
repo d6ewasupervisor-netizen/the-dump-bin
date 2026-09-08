@@ -160,6 +160,29 @@ test('visible lead shifts list ISE-family and Central Pet for that lead', () => 
   assert.equal(otherLead.selected.visitId, '1');
 });
 
+test('Central Pet Service Surge stays hidden when the ISE lead is someone else', () => {
+  const ise = {
+    visitId: '27190001',
+    projectId: 1,
+    projectName: 'Fred Meyer Kompass ISE',
+    visitLead: 'James Duchene Ryan',
+  };
+  const cutIn = {
+    visitId: '27190002',
+    projectId: 1668,
+    projectName: 'Fred Meyer Cut In Kompass ISE',
+    visitLead: 'James Duchene Ryan',
+  };
+  const otherService = {
+    visitId: '27190003',
+    projectId: 9293,
+    projectName: 'Fred Meyer Central Pet Service Surge',
+    visitLead: 'Brian Campbell Charles',
+  };
+  const vis = visibleLeadShifts([otherService, cutIn, ise], 'James Duchene Ryan');
+  assert.deepEqual(vis.map((s) => s.visitId), ['27190002', '27190001']);
+});
+
 test('9293 only shows when the Kompass ISE lead is also on service', () => {
   const ise = {
     visitId: '27182537',

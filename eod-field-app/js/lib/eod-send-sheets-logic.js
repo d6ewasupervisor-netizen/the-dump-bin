@@ -129,20 +129,20 @@
     return out;
   }
 
+  function isAnyCentralPet(shift) {
+    return isCentralPetService(shift) || isCentralPetReset(shift);
+  }
+
   function visibleLeadShifts(shifts, leadName) {
     const list = (Array.isArray(shifts) ? shifts : []).filter(isSelectableVisitShift);
     const ise = list.find(isMainKompassIse) || null;
     const kompassLead = shiftLeadName(ise);
-    const lead = kompassLead || String(leadName || '').trim();
-    const core = list.filter((s) => !isCentralPetService(s) && !isCentralPetReset(s));
-    const resets = list.filter((s) => !isCentralPetService(s) && isCentralPetReset(s));
-    const myResets = lead
-      ? resets.filter((s) => leadNamesMatch(shiftLeadName(s), lead))
-      : resets;
-    const service = (ise && kompassLead)
-      ? list.filter((s) => isCentralPetService(s) && leadNamesMatch(shiftLeadName(s), kompassLead))
+    const gate = kompassLead || String(leadName || '').trim();
+    const core = list.filter((s) => !isAnyCentralPet(s));
+    const allowedCp = gate
+      ? list.filter((s) => isAnyCentralPet(s) && leadNamesMatch(shiftLeadName(s), gate))
       : [];
-    return uniqueShifts([...core, ...myResets, ...service]);
+    return uniqueShifts([...core, ...allowedCp]);
   }
 
   function isIseCompanionShift(shift) {

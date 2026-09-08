@@ -410,6 +410,7 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
   const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
   assert.match(html, /js\/lib\/eod-buffering\.js/);
+  assert.match(html, /eod-send-sheets-logic\.js[\s\S]*features\/visit\.js/);
   assert.match(html, /js\/lib\/shift-day-cache\.js/);
   assert.match(html, /js\/lib\/shift-photo-sync\.js/);
   assert.match(html, /id="eodBuffering"/);
