@@ -45,9 +45,7 @@
   function paintConnChrome() {
     const row = document.getElementById('chromeConn');
     if (!row) return;
-    const states = ['sasConnDot', 'reboticsConnDot'].map((id) => document.getElementById(id)?.dataset?.state || 'unknown');
-    const down = states.some((state) => state === 'red' || state === 'down' || state === 'error');
-    row.hidden = !down;
+    row.hidden = false;
   }
 
   function paintWorkflow() {
@@ -148,11 +146,12 @@
 
   function parkOperatorControls() {
     const tray = document.getElementById('chromeOperatorTray');
-    if (!tray) return;
+    const conn = document.getElementById('chromeConn');
     const themeBtn = document.getElementById('themeCycleBtn');
     const verBtn = document.getElementById('eodVersionBadge');
-    if (themeBtn) tray.appendChild(themeBtn);
-    if (verBtn) tray.appendChild(verBtn);
+    if (tray && themeBtn) tray.appendChild(themeBtn);
+    if (conn && verBtn) conn.appendChild(verBtn);
+    else if (tray && verBtn) tray.appendChild(verBtn);
   }
 
   function closeModal(host) {
@@ -276,6 +275,7 @@
     let collapsed = false;
     try { collapsed = localStorage.getItem(NAV_COLLAPSE_KEY) === '1'; } catch (_) {}
     applyNavCollapsed(collapsed);
+    parkOperatorControls();
     document.getElementById('navCollapseBtn')?.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();

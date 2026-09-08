@@ -829,7 +829,14 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
 .bottom-nav [data-slot="phone-more"] { display: flex; }
 .chrome-stages { display: none; }
 .chrome-operator-tray { display: none !important; }
-.chrome-conn { display: flex; align-items: center; gap: 6px; }
+.chrome-conn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+.chrome-dots { margin-left: 0; }
 .bottom-nav .nav-collapse-btn {
   display: none;
   appearance: none;
