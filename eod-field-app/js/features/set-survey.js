@@ -919,6 +919,8 @@
     function startSequentialCapture(slot) {
       const n = expectedBayCount();
       const replacing = nextEmptyBay(slot) == null;
+      const batchId = replacing ? (`r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) : null;
+      let wiped = false;
       openLiveCamera({
         loadLabel: replacing ? 'Load to replace' : 'Load photos',
         getLabel: () => {
@@ -931,8 +933,12 @@
         },
         shouldContinue: () => nextEmptyBay(slot) != null,
         onCapture: async (shot) => {
-          const bay = nextEmptyBay(slot) || 1;
-          enqueueLocal(slot, shot, bay);
+          const bay = nextEmptyBay(slot) || (replacing ? (wiped ? takenBays(slot).size + 1 : 1) : 1);
+          const opts = replacing
+            ? { replace: true, replaceWipe: !wiped, replaceBatchId: batchId }
+            : null;
+          if (replacing) wiped = true;
+          enqueueLocal(slot, shot, bay, opts);
         },
         onLoadFiles: (files) => enqueueFiles(slot, [...files].reverse(), { replace: replacing }),
       });
@@ -995,6 +1001,7 @@
         resetId: local.status?.prod?.resetId,
         taskId: local.status?.si?.taskId,
         skipSi: slot === 'before',
+        force: slot === 'before' || replacing,
         replace: replacing,
         replaceWipe: !!(opts && opts.replaceWipe),
         replaceBatchId: opts?.replaceBatchId || null,
