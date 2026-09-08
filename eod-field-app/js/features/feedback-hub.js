@@ -180,7 +180,7 @@
         </div>
         <p class="eod-fb-status" id="eodFbStatus"></p>
         <div class="button-group" style="margin-top:8px;gap:8px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-primary" id="eodFbSend">Send to Tyson</button>
+          <button type="button" class="btn btn-primary" id="eodFbSend">Send</button>
           <button type="button" class="btn btn-secondary" id="eodFbHistoryBtn">My reports</button>
           <button type="button" class="btn btn-secondary" id="eodFbClose">Close</button>
         </div>
