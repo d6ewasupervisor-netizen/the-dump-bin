@@ -25,6 +25,8 @@
       'js/lib/pdf-to-image.js',
       'js/lib/eod-send-sheets.js',
       'js/features/cover.js',
+      'js/lib/eod-photo-editor.js',
+      'js/features/photos.js',
       'js/features/send.js',
     ],
     signatures: [

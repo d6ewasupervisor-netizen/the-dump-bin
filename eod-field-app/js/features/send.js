@@ -422,11 +422,39 @@ ${S.state.notes || ''}`;
     });
     try { await global.EodPicQr?.mount?.(document.getElementById('eodPicQrMount')); } catch (_) {}
 
+    function slotNeedsDisplayBytes(type) {
+      const L = global.EodSendSheetsLogic || {};
+      const live = global.PhotoDB?.liveObjectUrls;
+      return photosOf(type).some((p) => {
+        const raw = L.photoEntrySrc ? L.photoEntrySrc(p) : (
+          typeof p === 'string' ? p : (p.dataUrl || p.previewUrl || p.objectUrl || p.preview || '')
+        );
+        if (L.isDisplayablePhotoSrc) return !L.isDisplayablePhotoSrc(raw, live);
+        return !/^data:image\//i.test(String(raw || ''));
+      });
+    }
+
+    function fallbackGridHtml(type) {
+      const arr = photosOf(type);
+      const cards = arr.map((p, i) => {
+        const url = photoSrc(p);
+        if (!url) return '';
+        return `<div><img src="${esc(url)}" alt="${esc(type)} ${i + 1}"></div>`;
+      }).filter(Boolean);
+      if (!cards.length) return '<p class="muted">None yet.</p>';
+      return `<div class="photo-grid">${cards.join('')}</div>`;
+    }
+
     async function paintSendablePhotos(opts) {
       const syncFromProd = !!(opts && opts.syncFromProd);
+      if (!global.EodPhotos?.gridHtml && global.EodRouteBundles?.loadBundle) {
+        try { await global.EodRouteBundles.loadBundle('photos'); } catch (_) {}
+      }
       const Photos = global.EodPhotos;
       if (Photos?.ensureHydrated) {
         try { await Photos.ensureHydrated(); } catch (_) {}
+      } else if (global.PhotoDB?.hydrateArrays && S?.state?.photos) {
+        try { await global.PhotoDB.hydrateArrays(S.state.photos); } catch (_) {}
       }
       if (syncFromProd && global.EodShiftPhotoSync?.ensureCartPhotos) {
         try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
@@ -436,14 +464,21 @@ ${S.state.notes || ''}`;
         { type: 'after', id: 'cartAfterThumbs' },
         { type: 'signoff', id: 'sendPaperGrid' },
       ];
+      if (global.PhotoDB?.hydrateDataUrls && slots.some(({ type }) => slotNeedsDisplayBytes(type))) {
+        try { await global.PhotoDB.hydrateDataUrls(S.state.photos); } catch (_) {}
+      }
       slots.forEach(({ type, id }) => {
         const host = document.getElementById(id);
-        if (!host || !Photos?.gridHtml) return;
-        host.innerHTML = Photos.gridHtml(type);
-        Photos.bindGrid(host, { afterChange: async () => {
-          await paintSendablePhotos();
-          refreshGates();
-        } });
+        if (!host) return;
+        if (Photos?.gridHtml) {
+          host.innerHTML = Photos.gridHtml(type);
+          Photos.bindGrid?.(host, { afterChange: async () => {
+            await paintSendablePhotos();
+            refreshGates();
+          } });
+          return;
+        }
+        host.innerHTML = fallbackGridHtml(type);
       });
       const afterList = global.EodVisitCart?.cartPhotos?.('after') || photosOf('after');
       const pushBtn = document.getElementById('cartAfterPush');

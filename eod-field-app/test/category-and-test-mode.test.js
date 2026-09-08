@@ -710,5 +710,9 @@ test('send page can edit or remove individual photos that go out', () => {
   assert.match(send, /paintSendablePhotos/);
   assert.match(send, /Photos\.gridHtml/);
   assert.match(send, /Photos\.bindGrid/);
+  assert.match(send, /loadBundle\('photos'\)/);
+  assert.match(send, /hydrateDataUrls/);
+  const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
+  assert.match(bundles, /send:[\s\S]*js\/features\/photos\.js/);
 });
 
