@@ -9,7 +9,7 @@
     inverse: 'Inverse',
     light: 'Light',
     gray: 'Gray',
-    'gray-matter': 'Gray Matter',
+    'gray-matter': 'Matter',
     holiday: 'Holiday',
     blackout: 'Blackout',
   };

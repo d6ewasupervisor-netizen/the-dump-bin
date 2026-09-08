@@ -3,7 +3,7 @@
   'use strict';
 
   function v() {
-    return encodeURIComponent(global.EOD_APP_VERSION || '3.3.82');
+    return encodeURIComponent(global.EOD_APP_VERSION || '3.3.83');
   }
 
   function src(path) {
