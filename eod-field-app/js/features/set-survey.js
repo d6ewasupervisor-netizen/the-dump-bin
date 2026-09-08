@@ -147,17 +147,21 @@
    * Live camera stays open for sequential bay capture.
    * Auto-closes only after every bay is filled; otherwise Exit is manual.
    */
-  function openLiveCamera({ getLabel, onCapture, shouldContinue }) {
+  function openLiveCamera({ getLabel, onCapture, shouldContinue, onLoadFiles, loadLabel }) {
     const overlay = document.createElement('div');
     overlay.className = 'vf-live-camera';
     overlay.innerHTML = `
       <div class="vf-live-camera-inner">
         <div class="vf-live-camera-hud" data-hud>Bay ?</div>
+        <p class="vf-live-camera-fallback" data-fallback hidden>Camera unavailable. Load photos from this device.</p>
         <video playsinline autoplay muted></video>
         <canvas hidden></canvas>
         <div class="vf-live-camera-bar">
           <label class="vf-zoom">Zoom <input type="range" min="${LIVE_ZOOM_MIN}" max="${LIVE_ZOOM_MAX}" step="${LIVE_ZOOM_STEP}" value="1"></label>
           <button type="button" class="btn btn-primary" data-act="shutter">Capture</button>
+          <label class="btn btn-secondary set-file-btn">${esc(loadLabel || 'Load photos')}
+            <input type="file" accept="image/*" multiple data-act="load" hidden>
+          </label>
           <button type="button" class="btn btn-secondary" data-act="close">Exit</button>
         </div>
       </div>`;
@@ -167,6 +171,9 @@
     const zoomInput = overlay.querySelector('input[type="range"]');
     const hud = overlay.querySelector('[data-hud]');
     const shutterBtn = overlay.querySelector('[data-act="shutter"]');
+    const loadInput = overlay.querySelector('[data-act="load"]');
+    const fallback = overlay.querySelector('[data-fallback]');
+    const zoomLabel = overlay.querySelector('.vf-zoom');
     let stream = null;
     let zoom = 1;
     let busy = false;
@@ -196,7 +203,34 @@
       zoom = Number(zoomInput.value) || 1;
     };
 
+    function showCameraFallback(message) {
+      try { stream?.getTracks?.().forEach((t) => t.stop()); } catch (_) {}
+      stream = null;
+      if (video) video.hidden = true;
+      if (zoomLabel) zoomLabel.hidden = true;
+      if (shutterBtn) shutterBtn.disabled = true;
+      if (fallback) {
+        fallback.hidden = false;
+        fallback.textContent = message || 'Camera unavailable. Load photos from this device.';
+      }
+      if (hud) hud.textContent = 'Camera unavailable';
+    }
+
     overlay.querySelector('[data-act="close"]').onclick = stop;
+    if (loadInput) {
+      loadInput.onchange = async () => {
+        const files = [...(loadInput.files || [])];
+        loadInput.value = '';
+        if (!files.length) return;
+        try {
+          if (typeof onLoadFiles === 'function') await onLoadFiles(files);
+        } catch (err) {
+          await global.EodAlerts?.alert?.('Load failed', err?.message || String(err) || 'Load failed');
+          return;
+        }
+        stop();
+      };
+    }
     shutterBtn.onclick = async () => {
       if (busy) return;
       busy = true;
@@ -238,8 +272,10 @@
     };
 
     start().catch((err) => {
-      global.showAlert?.('Camera unavailable', err.message || 'Camera unavailable');
-      stop();
+      const denied = /denied|permission|notallowed/i.test(err?.name || '') || /denied|permission/i.test(err?.message || '');
+      showCameraFallback(denied
+        ? 'Camera permission denied. Load photos from this device.'
+        : (err?.message || 'Camera unavailable. Load photos from this device.'));
     });
 
     return { stop, refreshHud };
@@ -484,6 +520,13 @@
       return null;
     }
 
+    /** Loaded files replace PROD in bay order, 1 … N. */
+    function assignBaysForReplace(fileCount) {
+      const n = expectedBayCount();
+      const count = Math.min(Math.max(fileCount, 0), n);
+      return Array.from({ length: count }, (_, i) => i + 1);
+    }
+
     /** First file ? first empty bay (or bay 1); last of a full batch ? last bay. */
     function assignBaysForFiles(slot, fileCount) {
       const n = expectedBayCount();
@@ -720,8 +763,8 @@
             <button type="button" class="btn btn-primary" data-cap="before">${
               nextBefore ? 'Take bay ' + nextBefore : 'Retake befores'
             }</button>
-            <label class="btn btn-secondary set-file-btn">Load photos
-              <input type="file" accept="image/*" multiple data-gal="before" hidden>
+            <label class="btn btn-secondary set-file-btn">${nextBefore ? 'Load photos' : 'Load to replace'}
+              <input type="file" accept="image/*" multiple data-gal="before" data-replace="${nextBefore ? '0' : '1'}" hidden>
             </label>
           </div>
         </section>
@@ -733,8 +776,8 @@
             <button type="button" class="btn btn-primary" data-cap="after">${
               nextAfter ? 'Take bay ' + nextAfter + ' of ' + n : 'Retake afters'
             }</button>
-            <label class="btn btn-secondary set-file-btn">Load photos
-              <input type="file" accept="image/*" multiple data-gal="after" hidden>
+            <label class="btn btn-secondary set-file-btn">${nextAfter ? 'Load photos' : 'Load to replace'}
+              <input type="file" accept="image/*" multiple data-gal="after" data-replace="${nextAfter ? '0' : '1'}" hidden>
             </label>
           </div>
         </section>
@@ -770,9 +813,11 @@
       body.querySelectorAll('[data-gal]').forEach((input) => {
         input.onchange = async () => {
           const files = [...(input.files || [])].reverse();
+          const slot = input.getAttribute('data-gal');
+          const replace = input.getAttribute('data-replace') === '1' || nextEmptyBay(slot) == null;
           input.value = '';
           if (!files.length) return;
-          await enqueueFiles(input.getAttribute('data-gal'), files);
+          await enqueueFiles(slot, files, { replace });
         };
       });
       body.querySelectorAll('[data-clear-bay]').forEach((btn) => {
@@ -796,7 +841,9 @@
 
     function startSequentialCapture(slot) {
       const n = expectedBayCount();
+      const replacing = nextEmptyBay(slot) == null;
       openLiveCamera({
+        loadLabel: replacing ? 'Load to replace' : 'Load photos',
         getLabel: () => {
           const next = nextEmptyBay(slot);
           const have = takenBays(slot).size;
@@ -810,18 +857,30 @@
           const bay = nextEmptyBay(slot) || 1;
           enqueueLocal(slot, shot, bay);
         },
+        onLoadFiles: (files) => enqueueFiles(slot, [...files].reverse(), { replace: replacing }),
       });
     }
 
-    function enqueueFiles(slot, files) {
-      const bays = assignBaysForFiles(slot, files.length);
-      for (let i = 0; i < files.length; i += 1) {
-        enqueueLocal(slot, files[i], bays[i]);
+    function enqueueFiles(slot, files, opts) {
+      const replacing = !!(opts && opts.replace) || nextEmptyBay(slot) == null;
+      const bays = replacing
+        ? assignBaysForReplace(files.length)
+        : assignBaysForFiles(slot, files.length);
+      const used = Math.min(files.length, bays.length);
+      const batchId = replacing ? (`r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) : null;
+      for (let i = 0; i < used; i += 1) {
+        enqueueLocal(slot, files[i], bays[i], {
+          replace: replacing,
+          replaceWipe: replacing && i === 0,
+          replaceBatchId: batchId,
+        });
       }
-      setMsg(`${files.length} queued`);
+      setMsg(replacing
+        ? `${used} queued to replace PROD`
+        : `${used} queued`);
     }
 
-    function enqueueLocal(slot, fileOrShot, bayOverride) {
+    function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
       const shot = fileOrShot && (fileOrShot.canvas || fileOrShot.bitmap) ? fileOrShot : null;
       const file = shot ? null : fileOrShot;
       const bay = Number(bayOverride) || nextEmptyBay(slot) || 1;
@@ -842,6 +901,7 @@
       }
 
       const previewUrl = shot?.canvas ? shot.canvas.toDataURL('image/jpeg', 0.35) : null;
+      const replacing = !!(opts && opts.replace);
       const job = pipe.enqueue({
         kind: 'set',
         compressType: 'set',
@@ -858,6 +918,9 @@
         resetId: local.status?.prod?.resetId,
         taskId: local.status?.si?.taskId,
         skipSi: slot === 'before',
+        replace: replacing,
+        replaceWipe: !!(opts && opts.replaceWipe),
+        replaceBatchId: opts?.replaceBatchId || null,
       });
 
       local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);

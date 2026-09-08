@@ -157,6 +157,10 @@
       siStatus: job.siStatus || null,
       skipProd: !!job.skipProd,
       skipSi: !!job.skipSi,
+      force: !!job.force,
+      replace: !!job.replace,
+      replaceWipe: !!job.replaceWipe,
+      replaceBatchId: job.replaceBatchId || null,
       bytes: job.bytes || null,
       updatedAt: job.updatedAt || Date.now(),
       fileName: job.fileName || null,
@@ -521,7 +525,9 @@
       taskId: job.taskId || null,
       skipProd: !!job.skipProd,
       skipSi: !!job.skipSi,
-      force: !!job.force,
+      force: !!job.force || !!job.replace,
+      replaceWipe: !!job.replaceWipe,
+      replaceBatchId: job.replaceBatchId || null,
     });
     const durable = global.EodFieldSetJobs;
     if (durable?.submit) {
@@ -590,7 +596,16 @@
       runCompress(next);
     }
     while (uploadActive < MAX_UPLOAD) {
-      const next = [...jobs.values()].find((j) => j.status === 'compressed' && j.dataUrl);
+      const ready = [...jobs.values()].filter((j) => j.status === 'compressed' && j.dataUrl);
+      const uploadingReplace = new Set(
+        [...jobs.values()]
+          .filter((j) => j.replace && j.status === 'uploading' && j.replaceBatchId)
+          .map((j) => j.replaceBatchId)
+      );
+      const replacing = ready.filter((j) => j.replace && !uploadingReplace.has(j.replaceBatchId));
+      const next = replacing.length
+        ? replacing.sort((a, b) => Number(a.bay) - Number(b.bay))[0]
+        : ready.find((j) => !j.replace);
       if (!next) break;
       next.status = 'uploading';
       runUpload(next);
@@ -655,7 +670,10 @@
       skipUpload: !!opts.skipUpload,
       skipProd: !!opts.skipProd,
       skipSi: !!opts.skipSi,
-      force: !!opts.force,
+      force: !!opts.force || !!opts.replace,
+      replace: !!opts.replace,
+      replaceWipe: !!opts.replaceWipe,
+      replaceBatchId: opts.replaceBatchId || null,
       updatedAt: Date.now(),
     };
     if (job.skipUpload && job.dataUrl) {

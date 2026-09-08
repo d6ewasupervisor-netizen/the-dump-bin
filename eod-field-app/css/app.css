@@ -2343,6 +2343,18 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
   background: #000;
   min-height: 0;
 }
+.vf-live-camera-fallback {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+  font-size: 16px;
+}
+.vf-live-camera-fallback[hidden] { display: none; }
 .vf-live-camera-bar {
   display: flex;
   flex-wrap: wrap;
