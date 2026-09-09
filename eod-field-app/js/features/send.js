@@ -328,14 +328,14 @@ ${S.state.notes || ''}`;
     const S = global.EodSession;
     const store = S.state.storeNumber;
     const { body, report } = buildBodyAndReport();
-    let recipients = (S.state.emailRecipients || []).slice();
     const userEmail = (S.state.profileEmail || '').trim().toLowerCase();
-    if (userEmail) recipients = [...new Set([...recipients, userEmail])];
-    const testOn = !!(global.EodTestMode?.isEnabled?.()) && !global.EodTestMode?.isForceLive?.();
-    if (S.state.addRetailOdysseyTeam && !testOn) {
-      const team = (global.retailOdysseyTeamEmailsForStore || global.EodRoles?.retailOdysseyTeamEmailsForStore)?.(store) || [];
-      recipients = [...new Set([...recipients, ...team.map((e) => String(e).toLowerCase())])];
-      recipients = (global.omitAiyanaForNonDistrict8 || global.EodRoles?.omitAiyanaForNonDistrict8)?.(recipients, store, userEmail) || recipients;
+    let recipients = [...new Set([
+      ...(S.state.fredmeyerEmailPool || []),
+      ...(S.state.emailRecipients || []),
+    ].map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))];
+    const hasFredMeyerTeam = recipients.some((email) => email.endsWith('@stores.fredmeyer.com'));
+    if (!hasFredMeyerTeam && userEmail) {
+      recipients = [...new Set([userEmail, ...recipients])];
     }
 
     const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
@@ -536,10 +536,6 @@ ${S.state.notes || ''}`;
         <div class="field" id="fmPoolField" ${(S.state.fredmeyerEmailPool || []).length ? '' : 'hidden'}>
           <label>Saved Fred Meyer addresses</label>
           <button type="button" class="btn btn-secondary btn-block" id="fmPickerBtn">Choose addresses</button>
-        </div>
-        <div class="checkbox-option" style="margin:8px 0;">
-          <input type="checkbox" id="addRetailOdysseyTeam" ${S.state.addRetailOdysseyTeam ? 'checked' : ''}>
-          <label for="addRetailOdysseyTeam">Add Retail Odyssey Team</label>
         </div>
         <div id="gateMsg" style="margin:10px 0;color:${gate ? '#fbbf24' : '#22c55e'};">${esc(gate || 'Ready to send.')}</div>
         ${global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : ''}
@@ -864,11 +860,6 @@ ${S.state.notes || ''}`;
       }
       render(mount);
     };
-
-    document.getElementById('addRetailOdysseyTeam')?.addEventListener('change', (ev) => {
-      S.patch({ addRetailOdysseyTeam: !!ev.target.checked }, 'team-cc');
-      S.saveDraft();
-    });
 
     document.getElementById('fmPickerBtn')?.addEventListener('click', () => {
       const pool = S.state.fredmeyerEmailPool || [];
