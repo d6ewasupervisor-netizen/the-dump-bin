@@ -128,11 +128,7 @@
       bar.hidden = false;
       bar.innerHTML = `${n} photo upload${n === 1 ? '' : 's'} failed · <button type="button" class="btn btn-secondary" id="photoFailRetry">Retry</button>`;
       bar.querySelector('#photoFailRetry')?.addEventListener('click', () => {
-        const retried = global.EodPhotoPipeline?.retryFailed?.() || 0;
-        if (!retried && global.EodPhotoPipeline?.retry) {
-          const jobs = global.EodPhotoPipeline.listJobs?.() || [];
-          jobs.filter((j) => j.status === 'failed').forEach((j) => global.EodPhotoPipeline.retry(j.id));
-        }
+        global.EodPhotoPipeline?.retryFailed?.();
         refresh();
       });
     } catch (_) {

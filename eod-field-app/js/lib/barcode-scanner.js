@@ -1,4 +1,4 @@
-/* Native BarcodeDetector + html5-qrcode fallback. All common retail formats. */
+/* Native BarcodeDetector + html5-qrcode fallback. All common retail formats. 3.3.96 */
 (function (global) {
   'use strict';
 

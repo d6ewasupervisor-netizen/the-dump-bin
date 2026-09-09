@@ -132,7 +132,6 @@
       }
       S.patch({ notInStoreSelected: nis, notInSiSelected: nisi }, 'marks-sync');
     }
-    try { global.EodSetMediaPrefetch?.start(sheet); } catch (_) {}
     return sheet;
   }
 
@@ -154,16 +153,30 @@
         visitId: S.state.selectedShift?.visitId || null,
         visitIds,
       });
-      const resp = await global.authFetch(`${API}/sync`, {
+      let resp = await global.authFetch(`${API}/sync-async`, {
         method: 'POST',
         headers,
         body,
         skipBusy: true,
       });
+      if (resp.status === 404 || resp.status === 405) {
+        resp = await global.authFetch(`${API}/sync`, {
+          method: 'POST',
+          headers,
+          body,
+          skipBusy: true,
+        });
+      }
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(data.error || `Sync failed (${resp.status})`);
+      if (!resp.ok && resp.status !== 202) throw new Error(data.error || `Sync failed (${resp.status})`);
       if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
-      else {
+      if (resp.status === 202) {
+        for (let i = 0; i < 6; i += 1) {
+          await new Promise((r) => setTimeout(r, 1200));
+          try { await loadSheet(); } catch (_) { break; }
+          if ((S.state.sheet?.rows || []).some((row) => row.live)) break;
+        }
+      } else if (!data.sheet) {
         S.patch({ sheetLoaded: false }, 'prod-si-sync');
         await loadSheet();
       }
@@ -916,6 +929,7 @@
       },
     };
     await paint();
+    try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
     void (async () => {
       try {
         await syncProdSi();
@@ -923,6 +937,7 @@
         await paint();
         try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
         global.EodChrome?.refresh();
+        try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
       } catch (err) {
         if (!isCancelled(err)) console.warn('[signoff] initial sync', err.message || err);
       }

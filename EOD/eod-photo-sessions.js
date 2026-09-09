@@ -146,7 +146,9 @@
     async function init() {
       if (db) return db;
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, opts.dbVersion || 1);
+        const request = opts.dbVersion
+          ? indexedDB.open(dbName, opts.dbVersion)
+          : indexedDB.open(dbName);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           db = request.result;

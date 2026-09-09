@@ -3,11 +3,13 @@
   'use strict';
 
   const META_KEY = 'eodPhotoPipeline:v2';
-  const IDB_NAME = 'eodPhotoPipeline';
+  const LEGACY_IDB_NAME = 'eodPhotoPipeline';
+  const IDB_NAME = 'eodFieldPhotoOutbox';
   const IDB_STORE = 'jobs';
   const IDB_VERSION = 1;
   const MAX_COMPRESS = 1;
-  const MAX_UPLOAD = 2;
+  const MAX_UPLOAD = 1;
+  const Logic = global.EodPhotoPipelineLogic || {};
   const OK_SIDES = new Set([
     'ok',
     'ok_already_complete',
@@ -27,15 +29,22 @@
   let reconcileBusy = false;
   const statusCache = new Map(); // key -> { at, status }
 
+  function isSuperseded(job) {
+    return Logic.isSuperseded
+      ? Logic.isSuperseded(job)
+      : !!(job && (job.status === 'superseded' || (job.status === 'failed' && job.error === 'replaced')));
+  }
+
   function emit(type, job) {
     const detail = { type, job: job ? publicJob(job) : null, pending: pendingCounts() };
-    if (type === 'failed' && job) {
+    if (type === 'failed' && job && !isSuperseded(job)) {
       global.EodUsage?.track?.('upload_failure', {
         kind: job.kind || 'photo',
         slot: job.slot || '',
         status: 'failed',
       });
     }
+    trackTransition(type, job);
     listeners.forEach((fn) => {
       try { fn(detail); } catch (_) {}
     });
@@ -61,22 +70,52 @@
       skipProd: !!job.skipProd,
       skipSi: !!job.skipSi,
       bytes: job.bytes || null,
+      checksum: job.checksum || null,
+      serverJobId: job.serverJobId || null,
+      statusUrl: job.statusUrl || null,
       updatedAt: job.updatedAt,
     };
   }
 
+  function trackTransition(type, job) {
+    if (!job || !global.EodUsage?.track) return;
+    const code = {
+      queued: 'local-saved',
+      compressed: 'compressed',
+      accepted: 'api-accepted',
+      done: job.prodStatus && job.siStatus ? 'verified' : 'done',
+      failed: 'terminal-error',
+      partial: 'retry-waiting',
+      superseded: 'superseded',
+    }[type];
+    if (!code) return;
+    global.EodUsage.track('photo_pipeline', {
+      transition: code,
+      id: String(job.id || '').slice(0, 80),
+      store: job.storeNumber || '',
+      dbkey: job.dbkey || '',
+      slot: job.slot || '',
+      bay: job.bay || '',
+      ageMs: Date.now() - (job.updatedAt || Date.now()),
+      error: job.error ? String(job.error).slice(0, 80) : '',
+    });
+  }
+
   function pendingCounts() {
+    if (Logic.countJobs) return Logic.countJobs([...jobs.values()]);
     let compress = 0;
     let upload = 0;
     let failed = 0;
     let done = 0;
+    let superseded = 0;
     for (const j of jobs.values()) {
-      if (j.status === 'queued' || j.status === 'compressing') compress += 1;
-      else if (j.status === 'compressed' || j.status === 'uploading' || j.status === 'reconciling') upload += 1;
+      if (isSuperseded(j)) superseded += 1;
+      else if (j.status === 'queued' || j.status === 'compressing') compress += 1;
+      else if (j.status === 'compressed' || j.status === 'uploading' || j.status === 'reconciling' || j.status === 'accepted') upload += 1;
       else if (j.status === 'failed') failed += 1;
       else if (j.status === 'done') done += 1;
     }
-    return { compress, upload, failed, done, total: jobs.size };
+    return { compress, upload, failed, done, superseded, total: jobs.size, open: compress + upload };
   }
 
   function openIdb() {
@@ -162,10 +201,35 @@
       replaceWipe: !!job.replaceWipe,
       replaceBatchId: job.replaceBatchId || null,
       bytes: job.bytes || null,
+      checksum: job.checksum || null,
+      serverJobId: job.serverJobId || null,
+      statusUrl: job.statusUrl || null,
+      idempotencyKey: job.idempotencyKey || null,
+      attempts: job.attempts || 0,
+      nextRetryAt: job.nextRetryAt || null,
       updatedAt: job.updatedAt || Date.now(),
       fileName: job.fileName || null,
-      hasPayload: !!(job.dataUrl || job.file),
+      hasPayload: !!(job.dataUrl || job.file || job.blob),
     };
+  }
+
+  async function markSuperseded(job) {
+    if (!job) return;
+    job.status = 'superseded';
+    job.error = null;
+    job.file = null;
+    job.bitmap = null;
+    job.canvas = null;
+    job.dataUrl = null;
+    job.blob = null;
+    job.hasPayload = false;
+    if (job.previewUrl && String(job.previewUrl).startsWith('blob:')) {
+      try { URL.revokeObjectURL(job.previewUrl); } catch (_) {}
+    }
+    job.previewUrl = null;
+    job.updatedAt = Date.now();
+    await idbDelete(job.id).catch(() => {});
+    emit('superseded', job);
   }
 
   function dataUrlToBlobForPipeline(dataUrl) {
@@ -199,68 +263,111 @@
           idbDelete(j.id).catch(() => {});
           continue;
         }
-        lean.push(metaLean(j));
-        if (j.dataUrl) {
-          const blob = dataUrlToBlobForPipeline(j.dataUrl);
-          idbPut({
-            id: j.id,
-            dataUrl: blob ? undefined : j.dataUrl,
-            blob: blob || undefined,
-            mime: j.mime || (blob && blob.type) || null,
-            bytes: j.bytes || (blob && blob.size) || null,
-            updatedAt: j.updatedAt || Date.now(),
-          }).catch(() => {});
+        if (isSuperseded(j)) {
+          idbDelete(j.id).catch(() => {});
+          continue;
         }
+        lean.push(metaLean(j));
+        persistJobRecord(j).catch(() => {});
       }
-      localStorage.setItem(META_KEY, JSON.stringify({ v: 2, jobs: lean.slice(-120) }));
+      try { localStorage.removeItem(META_KEY); } catch (_) {}
     } catch (_) {
       /* quota */
     }
   }
 
-  async function restore() {
-    try {
-      // Migrate v1 localStorage payloads if present
-      try {
-        const v1 = localStorage.getItem('eodPhotoPipeline:v1');
-        if (v1) {
-          const parsed = JSON.parse(v1);
-          for (const j of parsed.jobs || []) {
-            if (!j?.id || jobs.has(j.id)) continue;
-            hydrateJob(j);
-            if (j.dataUrl) {
-              await idbPut({
-                id: j.id,
-                dataUrl: j.dataUrl,
-                bytes: j.bytes || null,
-                updatedAt: j.updatedAt || Date.now(),
-              }).catch(() => {});
-            }
-          }
-          localStorage.removeItem('eodPhotoPipeline:v1');
-        }
-      } catch (_) {}
+  async function persistJobRecord(job) {
+    if (!job || isSuperseded(job) || job.status === 'done') return;
+    let blob = job.blob || null;
+    if (!blob && job.dataUrl) blob = dataUrlToBlobForPipeline(job.dataUrl);
+    await idbPut({
+      ...metaLean(job),
+      blob: blob || undefined,
+      dataUrl: blob ? undefined : job.dataUrl || undefined,
+      mime: job.mime || (blob && blob.type) || null,
+    });
+  }
 
+  async function openLegacyIdb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(LEGACY_IDB_NAME, 1);
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => resolve(req.result);
+    });
+  }
+
+  async function migrateLegacyPayloads() {
+    try {
+      const v1 = localStorage.getItem('eodPhotoPipeline:v1');
+      if (v1) {
+        const parsed = JSON.parse(v1);
+        for (const j of parsed.jobs || []) {
+          if (!j?.id || jobs.has(j.id)) continue;
+          hydrateJob(Logic.migrateJobRecord ? Logic.migrateJobRecord(j) : j);
+        }
+        localStorage.removeItem('eodPhotoPipeline:v1');
+      }
+    } catch (_) {}
+    try {
       const raw = localStorage.getItem(META_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         for (const j of parsed.jobs || []) {
           if (!j?.id || jobs.has(j.id)) continue;
-          hydrateJob(j);
+          hydrateJob(Logic.migrateJobRecord ? Logic.migrateJobRecord(j) : j);
         }
+        localStorage.removeItem(META_KEY);
       }
-
-      const rows = await idbGetAll().catch(() => []);
+    } catch (_) {}
+    try {
+      const legacy = await openLegacyIdb();
+      const rows = await new Promise((resolve, reject) => {
+        const tx = legacy.transaction(IDB_STORE, 'readonly');
+        const req = tx.objectStore(IDB_STORE).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
       for (const row of rows) {
         const job = jobs.get(row.id);
-        let dataUrl = row.dataUrl || null;
+        if (job && (row.blob || row.dataUrl)) {
+          job.blob = row.blob || job.blob;
+          job.dataUrl = row.dataUrl || job.dataUrl;
+          job.bytes = row.bytes || job.bytes;
+        }
+      }
+      try { legacy.close(); } catch (_) {}
+      indexedDB.deleteDatabase(LEGACY_IDB_NAME);
+    } catch (_) {}
+  }
+
+  async function restore() {
+    try {
+      await migrateLegacyPayloads();
+      const rows = await idbGetAll().catch(() => []);
+      for (const row of rows) {
+        const migrated = Logic.migrateJobRecord ? Logic.migrateJobRecord(row) : row;
+        if (!migrated?.id) continue;
+        if (isSuperseded(migrated)) {
+          jobs.set(migrated.id, { ...migrated, status: 'superseded', file: null, dataUrl: null, blob: null });
+          idbDelete(migrated.id).catch(() => {});
+          continue;
+        }
+        if (!jobs.has(migrated.id)) hydrateJob(migrated);
+        const job = jobs.get(migrated.id);
+        if (!job) continue;
+        if (row.blob) job.blob = row.blob;
+        let dataUrl = job.dataUrl || row.dataUrl || null;
         if (!dataUrl && row.blob) {
           try { dataUrl = await blobToDataUrlForPipeline(row.blob); } catch (_) { dataUrl = null; }
         }
-        if (job && dataUrl) {
+        if (dataUrl) {
           job.dataUrl = dataUrl;
           job.previewUrl = job.previewUrl || dataUrl;
           job.bytes = row.bytes || job.bytes;
+          job.checksum = row.checksum || job.checksum;
+          job.serverJobId = row.serverJobId || job.serverJobId;
+          job.statusUrl = row.statusUrl || job.statusUrl;
+          job.idempotencyKey = row.idempotencyKey || job.idempotencyKey;
           if (job.status === 'failed' && /Lost after reload/i.test(job.error || '')) {
             job.status = 'compressed';
             job.error = null;
@@ -268,8 +375,12 @@
         }
       }
 
-      for (const j of jobs.values()) {
-        if (['queued', 'compressed', 'uploading', 'reconciling'].includes(j.status) && !j.dataUrl && !j.file) {
+      for (const j of [...jobs.values()]) {
+        if (isSuperseded(j)) {
+          await markSuperseded(j);
+          continue;
+        }
+        if (['queued', 'compressed', 'uploading', 'reconciling', 'accepted'].includes(j.status) && !j.dataUrl && !j.file && !j.blob) {
           j.status = 'failed';
           j.error = 'Lost after reload — retake photo';
         }
@@ -336,7 +447,8 @@
     if (visitId) qs.set('visitId', visitId);
     try {
       const resp = await global.authFetch(
-        `https://eod-api.the-dump-bin.com/api/field-set/status?${qs}`
+        `https://eod-api.the-dump-bin.com/api/field-set/status?${qs}`,
+        { skipBusy: true }
       );
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) return null;
@@ -375,25 +487,92 @@
     return false;
   }
 
+  let compressWorker = null;
+  function getCompressWorker() {
+    if (compressWorker) return compressWorker;
+    if (typeof Worker === 'undefined') return null;
+    try {
+      compressWorker = new Worker(new URL('../workers/photo-compress-worker.js', import.meta.url));
+    } catch (_) {
+      try {
+        compressWorker = new Worker('js/workers/photo-compress-worker.js');
+      } catch (_) {
+        compressWorker = null;
+      }
+    }
+    return compressWorker;
+  }
+
+  function compressInWorker(blob, compressType) {
+    const worker = getCompressWorker();
+    if (!worker) return Promise.reject(new Error('no worker'));
+    return new Promise((resolve, reject) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const timer = setTimeout(() => reject(new Error('compress timeout')), 45000);
+      const onMsg = (ev) => {
+        if (ev.data?.id !== id) return;
+        worker.removeEventListener('message', onMsg);
+        clearTimeout(timer);
+        if (ev.data.ok) resolve(ev.data);
+        else reject(new Error(ev.data.error || 'compress failed'));
+      };
+      worker.addEventListener('message', onMsg);
+      worker.postMessage({ type: 'compress', id, blob, compressType });
+    });
+  }
+
+  async function inputToBlob(job) {
+    if (job.file instanceof Blob) return job.file;
+    if (job.blob instanceof Blob) return job.blob;
+    if (job.dataUrl) return dataUrlToBlobForPipeline(job.dataUrl);
+    if (job.canvas?.toBlob) {
+      return new Promise((resolve) => job.canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
+    }
+    return null;
+  }
+
   async function runCompress(job) {
     compressActive += 1;
     job.updatedAt = Date.now();
     emit('compressing', job);
     try {
       await yieldToUi();
-      const input = job.bitmap || job.canvas || job.file || job.dataUrl;
       const type = job.compressType || job.kind || 'set';
-      let out;
-      if (global.EodPhotoCompress?.compress) {
-        out = await global.EodPhotoCompress.compress(input, type);
+      let blob = await inputToBlob(job);
+      let checksum = null;
+      let mime = null;
+      let bytes = null;
+      let dataUrl = job.dataUrl || null;
+      if (blob) {
+        try {
+          const out = await compressInWorker(blob, type);
+          blob = out.blob;
+          checksum = out.checksum;
+          mime = out.mime;
+          bytes = out.bytes;
+          dataUrl = await blobToDataUrlForPipeline(blob);
+        } catch (_) {
+          if (global.EodPhotoCompress?.compress) {
+            const out = await global.EodPhotoCompress.compress(job.bitmap || job.canvas || blob || job.dataUrl, type);
+            dataUrl = out.dataUrl;
+            bytes = out.bytes || null;
+            mime = out.mime || null;
+            blob = dataUrlToBlobForPipeline(dataUrl);
+          } else if (!dataUrl && blob) {
+            dataUrl = await blobToDataUrlForPipeline(blob);
+            bytes = blob.size;
+            mime = blob.type;
+          }
+        }
       } else if (job.file) {
-        out = { dataUrl: await readFile(job.file), bytes: job.file.size };
-      } else {
-        out = { dataUrl: job.dataUrl, bytes: 0 };
+        dataUrl = await readFile(job.file);
+        bytes = job.file.size;
       }
-      job.dataUrl = out.dataUrl;
-      job.bytes = out.bytes || null;
-      job.mime = out.mime || null;
+      job.dataUrl = dataUrl;
+      job.blob = blob || dataUrlToBlobForPipeline(dataUrl);
+      job.bytes = bytes || job.blob?.size || null;
+      job.mime = mime || job.blob?.type || null;
+      job.checksum = checksum || job.checksum || null;
       if (job.previewUrl && String(job.previewUrl).startsWith('blob:')) {
         try { URL.revokeObjectURL(job.previewUrl); } catch (_) {}
       }
@@ -404,6 +583,7 @@
       job.canvas = null;
       job.status = 'compressed';
       job.updatedAt = Date.now();
+      await persistJobRecord(job);
       persist();
       emit('compressed', job);
     } catch (err) {
@@ -497,11 +677,22 @@
       persist();
       emit('done', job);
     } catch (err) {
-      job.status = 'failed';
-      job.error = err?.message || String(err);
-      job.updatedAt = Date.now();
-      persist();
-      emit('failed', job);
+      job.attempts = (job.attempts || 0) + 1;
+      const transient = /timeout|network|failed to fetch|503|429|502|waiting for connection/i.test(err?.message || '');
+      if (transient && job.attempts < 8 && (job.dataUrl || job.blob)) {
+        job.status = 'compressed';
+        job.error = err?.message || String(err);
+        job.nextRetryAt = Date.now() + (Logic.fullJitterMs ? Logic.fullJitterMs(job.attempts) : Math.min(30000, 400 * (2 ** job.attempts)));
+        persist();
+        emit('partial', job);
+        setTimeout(schedulePump, Math.max(0, job.nextRetryAt - Date.now()));
+      } else {
+        job.status = 'failed';
+        job.error = err?.message || String(err);
+        job.updatedAt = Date.now();
+        persist();
+        emit('failed', job);
+      }
     } finally {
       uploadActive -= 1;
       schedulePump();
@@ -525,24 +716,40 @@
       taskId: job.taskId || null,
       skipProd: !!job.skipProd,
       skipSi: !!job.skipSi,
-      force: !!job.force || !!job.replace,
+        replace: !!job.replace,
       replaceWipe: !!job.replaceWipe,
       replaceBatchId: job.replaceBatchId || null,
     });
+    job.idempotencyKey = job.idempotencyKey
+      || (Logic.stableIdempotencyKey ? Logic.stableIdempotencyKey(job) : `eod-photo:${job.id}`);
     const durable = global.EodFieldSetJobs;
-    if (durable?.submit) {
-      return durable.submit('photo', {
+    if (durable?.submitBinary || durable?.submit) {
+      const submitter = durable.submitBinary || durable.submit;
+      const accepted = await submitter.call(durable, 'photo', {
         headers,
         body,
-        idempotencyKey: durable.operationKey('photo', job.id),
+        blob: job.blob || null,
+        checksum: job.checksum || null,
+        job,
+        idempotencyKey: job.idempotencyKey,
         timeoutMs: 3 * 60 * 1000,
-        allowAsync: !job.force,
+        allowAsync: true,
+        skipBusy: true,
       });
+      if (accepted?.jobId || accepted?.statusUrl) {
+        job.serverJobId = accepted.jobId || job.serverJobId;
+        job.statusUrl = accepted.statusUrl || job.statusUrl;
+        job.status = 'accepted';
+        persist();
+        emit('accepted', job);
+      }
+      return accepted?.result || accepted;
     }
     const resp = await global.authFetch('https://eod-api.the-dump-bin.com/api/field-set/photo', {
       method: 'POST',
-      headers,
+      headers: { ...headers, Prefer: 'respond-async', 'Idempotency-Key': job.idempotencyKey },
       body,
+      skipBusy: true,
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok && !data.result) throw new Error(data.error || `Upload failed (${resp.status})`);
@@ -563,6 +770,7 @@
     const resp = await global.authFetch(`${global.EOD_API_BASE}/sas-upload`, {
       method: 'POST',
       headers,
+      skipBusy: true,
       body: JSON.stringify({
         storeNumber,
         date,
@@ -596,7 +804,11 @@
       runCompress(next);
     }
     while (uploadActive < MAX_UPLOAD) {
-      const ready = [...jobs.values()].filter((j) => j.status === 'compressed' && j.dataUrl);
+      const ready = [...jobs.values()].filter((j) =>
+        j.status === 'compressed'
+        && (j.dataUrl || j.blob)
+        && (!j.nextRetryAt || j.nextRetryAt <= Date.now())
+      );
       const uploadingReplace = new Set(
         [...jobs.values()]
           .filter((j) => j.replace && j.status === 'uploading' && j.replaceBatchId)
@@ -627,22 +839,19 @@
     }
     const id = opts.id || makeId([opts.kind || 'photo', opts.dbkey, opts.slot, opts.bay]);
     if (opts.kind === 'set' && opts.dbkey && opts.slot && opts.bay != null) {
-      for (const j of jobs.values()) {
-        if (
+      const incoming = { id, kind: 'set', dbkey: opts.dbkey, slot: opts.slot, bay: opts.bay };
+      const doomed = Logic.jobsToSupersede
+        ? Logic.jobsToSupersede([...jobs.values()], incoming)
+        : [...jobs.values()].filter((j) =>
           j.kind === 'set'
           && j.dbkey === opts.dbkey
           && j.slot === opts.slot
           && Number(j.bay) === Number(opts.bay)
           && j.status !== 'done'
+          && j.status !== 'superseded'
           && j.id !== id
-        ) {
-          j.status = 'failed';
-          j.error = 'replaced';
-          if (j.previewUrl && String(j.previewUrl).startsWith('blob:')) {
-            try { URL.revokeObjectURL(j.previewUrl); } catch (_) {}
-          }
-        }
-      }
+        );
+      for (const j of doomed) markSuperseded(j);
     }
 
     const job = {
@@ -670,7 +879,7 @@
       skipUpload: !!opts.skipUpload,
       skipProd: !!opts.skipProd,
       skipSi: !!opts.skipSi,
-      force: !!opts.force || !!opts.replace,
+      force: false,
       replace: !!opts.replace,
       replaceWipe: !!opts.replaceWipe,
       replaceBatchId: opts.replaceBatchId || null,
@@ -679,11 +888,21 @@
     if (job.skipUpload && job.dataUrl) {
       job.status = 'done';
     }
+    job.idempotencyKey = Logic.stableIdempotencyKey ? Logic.stableIdempotencyKey(job) : `eod-photo:${job.id}`;
     jobs.set(id, job);
+    const saved = persistJobRecord(job).catch(() => {});
     persist();
     emit('queued', job);
     schedulePump();
-    return publicJob(job);
+    const pub = publicJob(job);
+    pub.ready = saved;
+    return pub;
+  }
+
+  async function enqueueCapture(opts) {
+    const job = enqueue(opts);
+    try { await job.ready; } catch (_) {}
+    return job;
   }
 
   function listJobs(filter) {
@@ -714,7 +933,9 @@
         return job.prodStatus || job.siStatus
           ? `PROD ${job.prodStatus || '—'} / SI ${job.siStatus || '—'}`
           : 'done';
-      case 'failed': return job.error === 'replaced' ? 'replaced' : 'failed';
+      case 'superseded': return 'superseded';
+      case 'accepted': return 'accepted';
+      case 'failed': return isSuperseded(job) ? 'superseded' : 'failed';
       default: return job.status;
     }
   }
@@ -727,7 +948,7 @@
   function retryFailed() {
     let n = 0;
     for (const j of jobs.values()) {
-      if (j.status === 'failed' && j.error !== 'replaced') {
+      if (Logic.shouldRetry ? Logic.shouldRetry(j) : (j.status === 'failed' && !isSuperseded(j) && (j.dataUrl || j.blob || j.file))) {
         if (retry(j.id)) n += 1;
       }
     }
@@ -736,8 +957,8 @@
 
   function retry(id) {
     const job = jobs.get(id);
-    if (!job) return null;
-    if (job.dataUrl) job.status = 'compressed';
+    if (!job || isSuperseded(job)) return null;
+    if (job.dataUrl || job.blob) job.status = 'compressed';
     else if (job.file) job.status = 'queued';
     else return null;
     job.error = null;
@@ -771,7 +992,7 @@
     let n = 0;
     const now = Date.now();
     for (const j of [...jobs.values()]) {
-      if (j.error === 'replaced') {
+      if (isSuperseded(j) || j.status === 'superseded') {
         if (removeJob(j.id)) n += 1;
         continue;
       }
@@ -804,7 +1025,8 @@
         const job = jobs.get(id);
         if (!job) return reject(new Error('Job missing'));
         if (job.status === 'done') return resolve(publicJob(job));
-        if (job.status === 'failed' && job.error !== 'replaced') {
+        if (job.status === 'superseded') return resolve(publicJob(job));
+        if (job.status === 'failed' && !isSuperseded(job)) {
           return reject(new Error(job.error || 'failed'));
         }
         if (Date.now() - start > timeoutMs) return reject(new Error('timeout'));
@@ -817,9 +1039,9 @@
   async function waitForSet(dbkey, { allowFailed = false, timeoutMs = 180000 } = {}) {
     const start = Date.now();
     for (;;) {
-      const list = jobsForSet(dbkey).filter((j) => j.error !== 'replaced');
-      const open = list.filter((j) => !['done', 'failed'].includes(j.status));
-      const failed = list.filter((j) => j.status === 'failed');
+      const list = jobsForSet(dbkey).filter((j) => !isSuperseded(j));
+      const open = list.filter((j) => !['done', 'failed', 'superseded'].includes(j.status));
+      const failed = list.filter((j) => j.status === 'failed' && !isSuperseded(j));
       if (!open.length) {
         if (failed.length && !allowFailed) {
           throw new Error(`${failed.length} photo(s) failed — tap failed thumbs to retry`);
@@ -839,7 +1061,7 @@
       for (const job of jobs.values()) {
         if (job.kind !== 'set') continue;
         if (!['compressed', 'failed', 'queued'].includes(job.status)) continue;
-        if (job.error === 'replaced') continue;
+        if (isSuperseded(job)) continue;
         if (!job.dataUrl && !job.file) continue;
         try {
           const done = await reconcileSetJob(job);
@@ -878,6 +1100,7 @@
   global.EodPhotoPipeline = {
     start,
     enqueue,
+    enqueueCapture,
     listJobs,
     jobsForSet,
     statusLabel,

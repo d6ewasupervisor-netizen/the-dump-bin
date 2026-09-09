@@ -103,7 +103,16 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.3.95').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.3.96').catch(() => {});
+          if (!navigator.serviceWorker._eodControllerBound) {
+            navigator.serviceWorker._eodControllerBound = true;
+            let reloading = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              if (reloading) return;
+              reloading = true;
+              location.reload();
+            });
+          }
         }
       } catch (_) {}
       try { window.EodUsage?.start?.(); } catch (_) {}

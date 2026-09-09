@@ -60,7 +60,14 @@
       idempotencyKey,
       timeoutMs,
       allowAsync = true,
+      statusUrl,
     } = {}) {
+      if (statusUrl) {
+        try {
+          const existing = await poll(statusUrl, { timeoutMs: Math.min(timeoutMs || 8 * 60 * 1000, 15000) });
+          return existing;
+        } catch (_) { /* resubmit */ }
+      }
       const requestHeaders = Object.assign({}, headers || {});
       if (allowAsync) {
         requestHeaders.Prefer = 'respond-async';
@@ -70,18 +77,71 @@
         method: 'POST',
         headers: requestHeaders,
         body,
+        skipBusy: true,
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok && !data.result) {
         throw new Error(data.error || `Field-set request failed (${response.status})`);
       }
       if (response.status === 202 && data.statusUrl) {
-        return poll(data.statusUrl, { timeoutMs });
+        const result = await poll(data.statusUrl, { timeoutMs });
+        return Object.assign({ jobId: data.jobId, statusUrl: data.statusUrl }, result || {});
       }
       return data.result || data;
     }
 
-    return { operationKey, hashText, poll, submit };
+    async function submitBinary(path, opts = {}) {
+      const {
+        body,
+        headers,
+        blob,
+        checksum,
+        job,
+        idempotencyKey,
+        timeoutMs,
+        allowAsync = true,
+      } = opts;
+      if (job?.statusUrl) {
+        try {
+          const existing = await poll(job.statusUrl, { timeoutMs: 20000 });
+          return Object.assign({ jobId: job.serverJobId, statusUrl: job.statusUrl, result: existing }, existing || {});
+        } catch (_) { /* resubmit */ }
+      }
+      if (blob && checksum) {
+        const meta = typeof body === 'string' ? JSON.parse(body) : (body || {});
+        delete meta.photoBase64;
+        const requestHeaders = Object.assign({}, headers || {}, {
+          'Content-Type': blob.type || 'image/jpeg',
+          'X-Photo-Checksum': checksum,
+          'X-Photo-Meta': JSON.stringify(meta),
+        });
+        delete requestHeaders['Content-Type'];
+        requestHeaders['Content-Type'] = blob.type || 'image/jpeg';
+        if (allowAsync) {
+          requestHeaders.Prefer = 'respond-async';
+          requestHeaders['Idempotency-Key'] = idempotencyKey;
+        }
+        const response = await runtime.authFetch(`${FIELD_SET_API}/photo-bin`, {
+          method: 'POST',
+          headers: requestHeaders,
+          body: blob,
+          skipBusy: true,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok && !data.result) {
+          throw new Error(data.error || `Binary photo upload failed (${response.status})`);
+        }
+        if (response.status === 202 && data.statusUrl) {
+          const result = await poll(data.statusUrl, { timeoutMs });
+          return { jobId: data.jobId, statusUrl: data.statusUrl, result };
+        }
+        return { jobId: data.jobId || null, statusUrl: data.statusUrl || null, result: data.result || data };
+      }
+      const accepted = await submit(path, opts);
+      return accepted?.result ? accepted : { result: accepted, jobId: accepted?.jobId, statusUrl: accepted?.statusUrl };
+    }
+
+    return { operationKey, hashText, poll, submit, submitBinary };
   }
 
   const api = createClient(global);

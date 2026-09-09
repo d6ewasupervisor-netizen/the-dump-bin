@@ -87,6 +87,22 @@
     } catch (_) { /* pack may not be ready yet */ }
   }
 
+  function uploadsOpen() {
+    const p = global.EodPhotoPipeline?.pendingCounts?.();
+    return (p?.upload || 0) > 0 || (p?.compress || 0) > 0;
+  }
+
+  function prioritizeRows(rows) {
+    const open = [];
+    const rest = [];
+    for (const row of rows || []) {
+      const live = row?.live || {};
+      const done = !!(live.prodComplete && live.siComplete);
+      (done ? rest : open).push(row);
+    }
+    return [...open, ...rest];
+  }
+
   async function start(sheet) {
     pendingSheet = sheet || global.EodSession?.state?.sheet || pendingSheet;
     if (running) return;
@@ -96,22 +112,24 @@
         const next = pendingSheet;
         pendingSheet = null;
         const S = global.EodSession;
-        const rows = next?.rows;
+        const rows = prioritizeRows(next?.rows);
         const store = S?.state?.storeNumber;
         const date = S?.state?.workDate;
         if (!store || !Array.isArray(rows) || !rows.length) continue;
         try { await Media()?.bindShift?.(store, date); } catch (_) {}
-        const policy = Media()?.connectionPrefetchPolicy?.() || { allowPrefetch: true, prefetchThumbs: true, prefetchPlanogramImages: true };
+        const policy = Media()?.connectionPrefetchPolicy?.() || { allowPrefetch: true, prefetchThumbs: true, prefetchPlanogramImages: false };
         if (!policy.allowPrefetch) continue;
+        if (uploadsOpen()) continue;
         const gate = await Media()?.allowPrefetch?.();
         if (gate && !gate.ok) continue;
         runToken += 1;
         const token = runToken;
         let packs = null;
-        try { packs = await loadPhotoPacks(rows); } catch (_) { /* older API: per-row fallback */ }
+        try { packs = await loadPhotoPacks(rows.slice(0, 12)); } catch (_) { /* older API: per-row fallback */ }
         for (const row of rows) {
           if (token !== runToken) break;
-          await prefetchRow(row, { store, date, token, policy, packs });
+          if (uploadsOpen()) break;
+          await prefetchRow(row, { store, date, token, policy: { ...policy, prefetchPlanogramImages: false }, packs });
         }
       }
     } finally {

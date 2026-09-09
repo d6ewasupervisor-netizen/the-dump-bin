@@ -1,15 +1,15 @@
 /* Field-app shell cache so a Chrome kill / airplane reopen still loads. */
-const CACHE = 'eod-field-3.3.95';
+const CACHE = 'eod-field-3.3.96';
 const PRECACHE = [
   './',
   './index.html',
-  './eod-version.json',
-  './css/app.css?v=3.3.95',
-  './css/materials-browser.css?v=3.3.95',
+  './css/app.css?v=3.3.96',
+  './css/materials-browser.css?v=3.3.96',
   './manifest.webmanifest',
-  './assets/buffering.gif?v=3.3.95',
+  './assets/buffering.gif?v=3.3.96',
   './icons/favicon-192.png',
   './icons/favicon-512.png',
+  './js/workers/photo-compress-worker.js',
 ];
 
 function shellAssetsFromHtml(html) {
@@ -26,7 +26,7 @@ function shellAssetsFromHtml(html) {
 
 function isNetworkOnly(url) {
   return url.origin !== self.location.origin
-    || /\/api\/|eod-api\.|auth-gate|store-data|send-eod|send-eod-helpdesk-report|verify-store|sas-upload/.test(url.href);
+    || /\/api\/|eod-api\.|auth-gate|store-data|send-eod|send-eod-helpdesk-report|verify-store|sas-upload|eod-version\.json/.test(url.href);
 }
 
 async function cacheOne(cache, asset) {

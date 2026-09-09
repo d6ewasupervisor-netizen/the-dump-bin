@@ -299,9 +299,13 @@
         <h2>Sheets</h2>
         ${sheets.map((sh) => rowHtml(sh.id, `#${sh.store} · ${sh.week}`, fmtBytes(sh.bytes), 'sheet', 'Remove')).join('')}
       </div>` : ''}
+      ${(pipe.failed || 0) > 0 ? `<div class="card">
+        <h2>Failed uploads</h2>
+        ${rowHtml('pipeline-failed', `${pipe.failed} failed`, 'Retry only these', 'pipeline-retry', 'Retry')}
+      </div>` : ''}
       ${(pipe.done || 0) > 0 ? `<div class="card">
         <h2>Finished uploads</h2>
-        ${rowHtml('pipeline', `${pipe.done} finished`, `${pipe.total || 0} jobs`, 'pipeline', 'Clear')}
+        ${rowHtml('pipeline', `${pipe.done} finished`, `${(pipe.total || 0) - (pipe.superseded || 0)} jobs`, 'pipeline', 'Clear')}
       </div>` : ''}
     `;
 
@@ -346,6 +350,11 @@
         if (act === 'sheet') {
           if (!(await confirmRemove('Remove this sheet copy?'))) return;
           await global.EodGarden.deleteSheetSnapshot(id);
+          await afterChange();
+          return;
+        }
+        if (act === 'pipeline-retry') {
+          global.EodPhotoPipeline?.retryFailed?.();
           await afterChange();
           return;
         }

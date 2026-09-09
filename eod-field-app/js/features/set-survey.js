@@ -51,7 +51,7 @@
     if (ids.length) qs.set('visitIds', ids.join(','));
     if (opts.resetId) qs.set('resetId', opts.resetId);
     if (opts.fresh) qs.set('fresh', '1');
-    const resp = await global.authFetch(`${API}/status?${qs}`);
+    const resp = await global.authFetch(`${API}/status?${qs}`, { skipBusy: true });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Status failed (${resp.status})`);
     return data.status;
@@ -361,7 +361,7 @@
       for (const slot of ['before', 'after']) {
         const byBay = new Map((local[slot] || []).map((p) => [Number(p.bay), p]));
         for (const job of pipe.jobsForSet(dbkey)) {
-          if (job.slot !== slot || job.error === 'replaced') continue;
+          if (job.slot !== slot || job.status === 'superseded' || job.error === 'replaced') continue;
           if (local.liveProd && !uploadInFlight(job.status === 'done' ? 'done' : pipe.statusLabel(job)) && job.status === 'done') {
             continue;
           }
@@ -442,7 +442,7 @@
       const n = expectedBayCount();
       if (n < 1) return null;
       const afterJobs = (global.EodPhotoPipeline?.jobsForSet?.(dbkey) || []).filter(
-        (j) => j.slot === 'after' && j.error !== 'replaced'
+        (j) => j.slot === 'after' && j.status !== 'superseded' && j.error !== 'replaced'
       );
       const doneBays = new Set(
         afterJobs.filter((j) => j.status === 'done').map((j) => Number(j.bay))
@@ -497,7 +497,7 @@
         if (detail.job?.slot === 'after') maybeAutoCloseSi();
         fetchPack().then(() => paintBody());
         return;
-      } else if (detail.type === 'failed' && detail.job?.error !== 'replaced') {
+      } else if (detail.type === 'failed' && detail.job?.status !== 'superseded' && detail.job?.error !== 'replaced') {
         setMsg(detail.job?.error || 'Upload failed', true);
       }
       paintBody();
@@ -647,7 +647,7 @@
         return;
       }
       try {
-        const resp = await global.authFetch(`${DS_API}/rows/${encodeURIComponent(rowId)}/photos`);
+        const resp = await global.authFetch(`${DS_API}/rows/${encodeURIComponent(rowId)}/photos`, { skipBusy: true });
         const data = await resp.json().catch(() => ({}));
         local.pack = data && Array.isArray(data.photos) ? data : { photos: [] };
       } catch (_) {
@@ -938,13 +938,13 @@
             ? { replace: true, replaceWipe: !wiped, replaceBatchId: batchId }
             : null;
           if (replacing) wiped = true;
-          enqueueLocal(slot, shot, bay, opts);
+          await enqueueLocal(slot, shot, bay, opts);
         },
         onLoadFiles: (files) => enqueueFiles(slot, [...files].reverse(), { replace: replacing }),
       });
     }
 
-    function enqueueFiles(slot, files, opts) {
+    async function enqueueFiles(slot, files, opts) {
       const replacing = !!(opts && opts.replace) || nextEmptyBay(slot) == null;
       const bays = replacing
         ? assignBaysForReplace(files.length)
@@ -952,7 +952,7 @@
       const used = Math.min(files.length, bays.length);
       const batchId = replacing ? (`r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) : null;
       for (let i = 0; i < used; i += 1) {
-        enqueueLocal(slot, files[i], bays[i], {
+        await enqueueLocal(slot, files[i], bays[i], {
           replace: replacing,
           replaceWipe: replacing && i === 0,
           replaceBatchId: batchId,
@@ -963,7 +963,7 @@
         : `${used} queued`);
     }
 
-    function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
+    async function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
       const shot = fileOrShot && (fileOrShot.canvas || fileOrShot.bitmap) ? fileOrShot : null;
       const file = shot ? null : fileOrShot;
       const bay = Number(bayOverride) || nextEmptyBay(slot) || 1;
@@ -985,7 +985,8 @@
 
       const previewUrl = shot?.canvas ? shot.canvas.toDataURL('image/jpeg', 0.35) : null;
       const replacing = !!(opts && opts.replace);
-      const job = pipe.enqueue({
+      const enqueueFn = pipe.enqueueCapture || pipe.enqueue;
+      const job = await enqueueFn.call(pipe, {
         kind: 'set',
         compressType: 'set',
         slot,
@@ -1001,7 +1002,6 @@
         resetId: local.status?.prod?.resetId,
         taskId: local.status?.si?.taskId,
         skipSi: slot === 'before',
-        force: slot === 'before' || replacing,
         replace: replacing,
         replaceWipe: !!(opts && opts.replaceWipe),
         replaceBatchId: opts?.replaceBatchId || null,
@@ -1093,11 +1093,35 @@
         });
     }
 
-    async function reload() {
+    function seedFromSheetRow() {
+      const rows = S.state.sheet?.rows || [];
+      const row = rows.find((r) => String(r.id) === String(rowId) || String(r.dbkey) === String(dbkey));
+      if (!row) return;
+      const live = row.live || {};
+      const seeded = {
+        expectedBayCount: Number(live.sectionCount || live.bayCount || row.bayCount || 0) || null,
+        prod: {
+          status: live.prodComplete ? 'completed' : (live.prodPresent ? 'open' : 'unknown'),
+          beforeCount: Number(live.prodBeforeCount) || 0,
+          afterCount: Number(live.prodAfterCount) || 0,
+        },
+        si: {
+          status: live.siComplete ? 'completed' : (live.siPresent ? 'open' : 'unknown'),
+          sectionCount: Number(live.sectionCount) || 0,
+          sectionsWithPhoto: Number(live.siPhotoCount || live.photoCount) || 0,
+        },
+        bays: [],
+      };
+      local.status = seeded;
+      paintStatus(seeded);
+    }
+
+    async function reload(opts = {}) {
+      setMediaReady('before', true);
+      setMediaReady('after', true);
       try {
-        resetMediaReady();
         const resetId = local.status?.prod?.resetId || null;
-        const st = await fetchStatus(dbkey, rowId, { fresh: true, resetId });
+        const st = await fetchStatus(dbkey, rowId, { fresh: !!opts.fresh, resetId });
         applyLiveProd(st);
         paintStatus(st);
         await Promise.allSettled([
@@ -1113,11 +1137,13 @@
         setMsg('');
       } catch (err) {
         setMsg(err.message || String(err), true);
+        setMediaReady('before', true);
+        setMediaReady('after', true);
         paintBody();
       }
     }
 
-    document.getElementById('refreshStatus').onclick = reload;
+    document.getElementById('refreshStatus').onclick = () => reload({ fresh: true });
     document.getElementById('setMediaBtns')?.addEventListener('click', (ev) => {
       const btn = ev.target?.closest?.('[data-open-media]');
       if (!btn || btn.disabled) return;
@@ -1130,7 +1156,12 @@
         global.EodRouter.go('signoff');
       };
     }
-    await reload();
+    seedFromSheetRow();
+    setMediaReady('before', true);
+    setMediaReady('after', true);
+    hydrateFromPipeline();
+    paintBody();
+    void reload({ fresh: false });
   }
   global.EodSetSurvey = { render };
   global.EodRouter.register('survey', render);

@@ -90,17 +90,13 @@
       try { await global.EodCrew?.loadMembers?.({ skipBusy: true }); } catch (err) {
         console.warn('[shift-warm] members', err.message || err);
       }
-      if (global.EodSignoffHome?.syncProdSi) {
-        try { await global.EodSignoffHome.syncProdSi(); } catch (err) {
-          console.warn('[photo-sync] counts', err.message || err);
-        }
-      } else if (global.EodSignoffHome?.loadSheet) {
+      if (!S.state.sheet && global.EodSignoffHome?.loadSheet) {
         try { await global.EodSignoffHome.loadSheet(); } catch (_) {}
       }
       await ensureCartPhotos();
       const sheet = S.state.sheet;
       if (sheet?.rows?.length) {
-        prefetchSetPhotos(sheet).catch(() => {});
+        try { global.EodSetMediaPrefetch?.start(sheet); } catch (_) {}
       }
       try { global.EodCoverNotes?.apply?.(S, reason || 'shift-photos'); } catch (_) {}
     } finally {
