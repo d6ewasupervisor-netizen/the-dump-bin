@@ -1,0 +1,44 @@
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const root = path.resolve(__dirname, '..');
+const send = fs.readFileSync(path.join(root, 'js/features/send.js'), 'utf8');
+
+test('sent EOD opens the one-time PIN gate instead of sending again', () => {
+  assert.match(send, /Resend is not allowed unless you have the one-time PIN\./);
+  assert.match(send, /\{ id: 'cancel', label: 'Cancel' \}/);
+  assert.match(send, /\{ id: 'enter', label: 'Enter PIN', primary: true \}/);
+  assert.match(send, /if \(sendLock\?\.sent && !resendAuthorization\)/);
+});
+
+test('PIN verification is bound to the active store and work date', () => {
+  assert.match(send, /\/api\/eod\/resend-pin\/verify/);
+  assert.match(send, /storeNumber: S\.state\.storeNumber/);
+  assert.match(send, /workDate: S\.state\.workDate/);
+  assert.match(send, /resendAuthorization = data\.authorization/);
+});
+
+test('accepted authorization is sent once with the next EOD submission', () => {
+  assert.match(send, /meta\.resendAuthorization = resendAuthorization/);
+  assert.match(send, /resendAuthorization = null;\s*applySendLock/);
+  assert.match(send, /This one-time PIN can only be used for this resend\./);
+});
+
+test('pilot version is bumped in lockstep', () => {
+  const version = JSON.parse(fs.readFileSync(path.join(root, 'eod-version.json'), 'utf8')).version;
+  assert.equal(version, '3.3.99');
+  for (const relative of [
+    'index.html',
+    'js/api.js',
+    'js/boot.js',
+    'js/lib/eod-buffering.js',
+    'js/lib/barcode-scanner.js',
+    'sw.js',
+  ]) {
+    assert.match(fs.readFileSync(path.join(root, relative), 'utf8'), /3\.3\.99/);
+  }
+});

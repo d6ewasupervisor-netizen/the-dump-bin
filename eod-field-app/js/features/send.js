@@ -4,6 +4,7 @@
 
   let sendPicPoll = null;
   let sendLock = null;
+  let resendAuthorization = null;
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
@@ -15,7 +16,7 @@
     if (!receipt) return '';
     if (receipt.inFlight) return 'EOD is already sending. Wait. Do not tap Send again.';
     const when = receipt.sentAtLabel ? ` at ${receipt.sentAtLabel}` : '';
-    return `EOD sent${when}. It will not send again.`;
+    return `EOD sent${when}. A one-time PIN is required to send it again.`;
   }
 
   function applySendLock(receipt) {
@@ -28,9 +29,9 @@
     const note = document.getElementById('sendReceiptNote');
     const text = receiptLockMessage(receipt);
     if (btn) {
-      btn.disabled = true;
-      btn.textContent = receipt.sent ? 'EOD sent' : 'Sending…';
-      btn.dataset.sendLocked = '1';
+      btn.disabled = !!receipt.inFlight;
+      btn.textContent = receipt.sent ? 'Send EOD again' : 'Sending…';
+      btn.dataset.sendLocked = receipt.inFlight ? '1' : '';
     }
     if (note) note.textContent = text;
   }
@@ -48,6 +49,106 @@
     } catch (_) {
       return null;
     }
+  }
+
+  function pinEntryDialog() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'eod-alert-overlay show';
+      overlay.innerHTML = `
+        <div class="eod-alert-dialog" role="dialog" aria-modal="true" aria-labelledby="eodResendPinTitle">
+          <h2 id="eodResendPinTitle">Enter one-time PIN</h2>
+          <div class="field" style="margin:12px 0;">
+            <label for="eodResendPinInput">Six-digit PIN</label>
+            <input id="eodResendPinInput" type="text" inputmode="numeric" autocomplete="one-time-code"
+              pattern="[0-9]*" maxlength="6" aria-describedby="eodResendPinError">
+          </div>
+          <p id="eodResendPinError" class="eod-alert-body" style="color:var(--danger);margin-bottom:10px;" hidden></p>
+          <div class="eod-alert-actions">
+            <button type="button" class="btn btn-secondary" data-action="cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" data-action="enter">Enter PIN</button>
+          </div>
+        </div>`;
+      const input = overlay.querySelector('#eodResendPinInput');
+      const error = overlay.querySelector('#eodResendPinError');
+      const finish = (value) => {
+        global.EodA11y?.deactivate?.(overlay);
+        overlay.remove();
+        resolve(value);
+      };
+      const submit = () => {
+        const pin = String(input.value || '').replace(/\D/g, '');
+        if (!/^\d{6}$/.test(pin)) {
+          error.textContent = 'Enter the six-digit one-time PIN.';
+          error.hidden = false;
+          input.focus();
+          return;
+        }
+        finish(pin);
+      };
+      overlay.querySelector('[data-action="cancel"]').onclick = () => finish(null);
+      overlay.querySelector('[data-action="enter"]').onclick = submit;
+      input.addEventListener('input', () => {
+        input.value = String(input.value || '').replace(/\D/g, '').slice(0, 6);
+        error.hidden = true;
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') submit();
+      });
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) finish(null);
+      });
+      overlay.addEventListener('eod-dialog-escape', () => finish(null));
+      document.body.appendChild(overlay);
+      global.EodA11y?.activate?.(overlay, input);
+      input.focus();
+    });
+  }
+
+  async function unlockResend(S) {
+    const choice = await global.EodAlerts?.showDialog?.({
+      title: 'EOD already sent',
+      message: 'Resend is not allowed unless you have the one-time PIN.',
+      buttons: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'enter', label: 'Enter PIN', primary: true },
+      ],
+    });
+    if (choice !== 'enter') return false;
+    const pin = await pinEntryDialog();
+    if (!pin) return false;
+    const resp = await global.authFetch(`${global.EOD_API_BASE}/api/eod/resend-pin/verify`, {
+      method: 'POST',
+      headers: global.EodApi.dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        pin,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.authorization) {
+      const attempts = data.attemptsRemaining != null && Number.isFinite(Number(data.attemptsRemaining))
+        ? ` ${data.attemptsRemaining} attempt(s) remain.`
+        : '';
+      await global.EodAlerts?.alert?.(
+        'PIN not accepted',
+        `${data.error || 'That one-time PIN is not valid for this store and date.'}${attempts}`,
+      );
+      return false;
+    }
+    resendAuthorization = data.authorization;
+    const btn = document.getElementById('sendBtn');
+    if (btn) {
+      btn.disabled = !!gateMessage();
+      btn.dataset.sendLocked = '';
+      btn.textContent = 'Send EOD again';
+    }
+    await global.EodAlerts?.alert?.(
+      'PIN accepted',
+      'Make any changes you need to make, then click Send EOD again. This one-time PIN can only be used for this resend.',
+    );
+    return true;
   }
 
   function mmddyyyy(iso) {
@@ -297,7 +398,9 @@ ${S.state.notes || ''}`;
     const btn = document.getElementById('sendBtn');
     if (btn && btn.dataset.sendLocked === '1') {
       btn.disabled = true;
-    } else if (btn && btn.textContent === 'Send EOD') btn.disabled = !!gate;
+    } else if (btn && (btn.textContent === 'Send EOD' || btn.textContent === 'Send EOD again')) {
+      btn.disabled = !!gate;
+    }
     const html = global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : '';
     const existing = document.getElementById('eodSendGates');
     if (existing) {
@@ -827,8 +930,12 @@ ${S.state.notes || ''}`;
     });
 
     document.getElementById('sendBtn').onclick = async () => {
-      if (sendLock?.sent || sendLock?.inFlight) {
+      if (sendLock?.inFlight) {
         await global.EodAlerts?.alert?.('EOD sent', receiptLockMessage(sendLock));
+        return;
+      }
+      if (sendLock?.sent && !resendAuthorization) {
+        await unlockResend(S);
         return;
       }
       const msg = gateMessage();
@@ -910,6 +1017,7 @@ ${S.state.notes || ''}`;
         const packageId = uploaded && uploaded.packageId;
         const skippedPhotos = (uploaded && uploaded.skipped) || [];
         const meta = Object.assign({}, payload);
+        if (resendAuthorization) meta.resendAuthorization = resendAuthorization;
         if (packageId) {
           meta.packageId = packageId;
           delete meta.pdfBase64;
@@ -934,6 +1042,22 @@ ${S.state.notes || ''}`;
           return;
         }
         const data = await resp.json().catch(() => ({}));
+        if (
+          !resp.ok
+          && (
+            String(data.code || '').startsWith('resend_authorization')
+            || data.code === 'no_prior_send'
+          )
+        ) {
+          resendAuthorization = null;
+          if (data.receipt) applySendLock(data.receipt);
+          try { busy?.endSession?.(); } catch (_) {}
+          await global.EodAlerts?.alert?.(
+            'PIN required',
+            data.error || 'That one-time PIN is invalid, expired, or has already been used.',
+          );
+          return;
+        }
         if (resp.status === 409 && data.receipt) {
           applySendLock(data.receipt);
           try { busy?.endSession?.(); } catch (_) {}
@@ -943,6 +1067,7 @@ ${S.state.notes || ''}`;
         if (!resp.ok || data.success === false) {
           throw new Error(data.error || data.message || `Send failed (${resp.status})`);
         }
+        resendAuthorization = null;
         applySendLock(data.receipt || { sent: true, sentAtLabel: '' });
         let sasNote = '';
         if (skippedPhotos.length && global.EodSendSheetsLogic?.skippedPhotoMessage) {
