@@ -716,3 +716,42 @@ test('send page can edit or remove individual photos that go out', () => {
   assert.match(bundles, /send:[\s\S]*js\/features\/photos\.js/);
 });
 
+test('after-photo review jumps to that bay on the planogram and bottom nav Back restores it', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const review = fs.readFileSync(path.join(__dirname, '../js/lib/set-review.js'), 'utf8');
+  const pog = fs.readFileSync(path.join(__dirname, '../js/lib/si-planogram-board.js'), 'utf8');
+  const chrome = fs.readFileSync(path.join(__dirname, '../js/chrome.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  assert.match(html, /id="navOverlayBack"/);
+  assert.doesNotMatch(html, /data-nav="[^"]*"[\s\S]{0,40}id="navOverlayBack"/);
+  assert.match(css, /#navOverlayBack\[hidden\]/);
+  assert.match(review, /ghOpenPlanogram/);
+  assert.match(review, /slotFilter \|\| ''\)\.toLowerCase\(\) === 'after'/);
+  assert.match(review, /pushOverlayBack/);
+  assert.match(review, /initialBay: bay/);
+  assert.match(pog, /function openOverlay\(\{ store, date, dbkey, title, highlightUpc, initialBay \}\)/);
+  assert.match(pog, /hasOverlayBack/);
+  assert.match(pog, /goOverlayBack/);
+  assert.match(chrome, /function pushOverlayBack/);
+  assert.match(chrome, /function goOverlayBack/);
+  assert.match(chrome, /function dismissOverlays/);
+  assert.match(chrome, /navOverlayBack/);
+  assert.match(chrome, /dismissOverlays\(\)/);
+});
+
+test('SAS and SI bulbs own auth refresh; the title-bar reload button is gone', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const conn = fs.readFileSync(path.join(__dirname, '../js/features/connections.js'), 'utf8');
+  assert.doesNotMatch(html, /refreshConnectionsBtn/);
+  assert.match(html, /<button type="button" class="conn-dot" id="sasConnDot"/);
+  assert.match(html, /<button type="button" class="conn-dot" id="reboticsConnDot"/);
+  assert.match(conn, /function connDots/);
+  assert.match(conn, /refreshConnections\(el\)/);
+  assert.match(conn, /already connected/);
+  assert.match(conn, /Continue anyway/);
+  assert.match(conn, /showConfirm/);
+  assert.doesNotMatch(conn, /showAlert/);
+  assert.match(conn, /chromeDots/);
+  assert.match(conn, /classList\.add\('spinning'\)/);
+});
+

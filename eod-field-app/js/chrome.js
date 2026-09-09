@@ -240,6 +240,7 @@
       btn.addEventListener('click', () => {
         const dest = btn.getAttribute('data-more');
         closeModal(host);
+        dismissOverlays();
         global.EodRouter.go(dest);
       });
     });
@@ -248,6 +249,50 @@
     host.addEventListener('eod-dialog-escape', () => {
       closeModal(host);
     }, { once: true });
+  }
+
+  const overlayBackStack = [];
+
+  function paintOverlayBack() {
+    const btn = document.getElementById('navOverlayBack');
+    if (!btn) return;
+    btn.hidden = overlayBackStack.length === 0;
+  }
+
+  function pushOverlayBack(entry) {
+    if (!entry || typeof entry.restore !== 'function') return;
+    overlayBackStack.push(entry);
+    paintOverlayBack();
+  }
+
+  function popOverlayBack() {
+    const entry = overlayBackStack.pop() || null;
+    paintOverlayBack();
+    return entry;
+  }
+
+  function clearOverlayBack() {
+    overlayBackStack.length = 0;
+    paintOverlayBack();
+  }
+
+  function hasOverlayBack() {
+    return overlayBackStack.length > 0;
+  }
+
+  function goOverlayBack() {
+    const entry = popOverlayBack();
+    if (!entry) return false;
+    try { entry.restore(); } catch (e) {
+      console.warn('[chrome] overlay back', e);
+    }
+    return true;
+  }
+
+  function dismissOverlays() {
+    clearOverlayBack();
+    try { global.EodSetReview?.closeOverlay?.(); } catch (_) {}
+    try { global.EodSiPlanogram?.closeOverlay?.(); } catch (_) {}
   }
 
   const NAV_COLLAPSE_KEY = 'eod-nav-collapsed';
@@ -282,6 +327,7 @@
           openMoreMenu();
           return;
         }
+        dismissOverlays();
         if (global.EodRouter?.go) global.EodRouter.go(nav);
       });
     });
@@ -297,6 +343,11 @@
       e.preventDefault();
       e.stopPropagation();
       toggleNav();
+    });
+    document.getElementById('navOverlayBack')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      goOverlayBack();
     });
 
     const storeEl = document.getElementById('chromeStore');
@@ -331,7 +382,10 @@
     });
     document.getElementById('chromeNextAction')?.addEventListener('click', () => {
       const route = document.getElementById('chromeNextAction')?.dataset?.route;
-      if (route) global.EodRouter.go(route);
+      if (route) {
+        dismissOverlays();
+        global.EodRouter.go(route);
+      }
     });
     if (storeEl) storeEl.title = 'Visit snapshot';
     document.getElementById('pilotBannerLabel')?.addEventListener('click', (e) => {
@@ -345,6 +399,21 @@
     refresh();
   }
 
-  global.EodChrome = { refresh, init, bindNav, openQuickView, applyNavCollapsed, toggleNav, paintConnChrome };
+  global.EodChrome = {
+    refresh,
+    init,
+    bindNav,
+    openQuickView,
+    applyNavCollapsed,
+    toggleNav,
+    paintConnChrome,
+    pushOverlayBack,
+    popOverlayBack,
+    clearOverlayBack,
+    hasOverlayBack,
+    goOverlayBack,
+    paintOverlayBack,
+    dismissOverlays,
+  };
   bindNav();
 })(typeof window !== 'undefined' ? window : globalThis);

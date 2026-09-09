@@ -79,19 +79,21 @@
     return `${s}s`;
   }
 
+  function connDots() {
+    return [document.getElementById('sasConnDot'), document.getElementById('reboticsConnDot')].filter(Boolean);
+  }
+
   function updateRefreshButtonState() {
-    const btn = document.getElementById('refreshConnectionsBtn');
-    if (!btn) return;
+    const row = document.getElementById('chromeDots');
     const remaining = getRefreshCooldownRemainingMs();
-    if (remaining > 0) {
-      btn.disabled = true;
-      btn.classList.add('cooldown');
-      btn.title = `Auth refresh available in ${formatCooldownLabel(remaining)}`;
-    } else {
-      btn.disabled = false;
-      btn.classList.remove('cooldown');
-      btn.title = 'Refresh SAS / SI auth, shifts & dept signatures';
-    }
+    if (row) row.classList.toggle('cooldown', remaining > 0);
+    const title = remaining > 0
+      ? `Auth refresh available in ${formatCooldownLabel(remaining)}`
+      : 'Refresh SAS / SI auth, shifts & dept signatures';
+    connDots().forEach((el) => {
+      el.disabled = remaining > 0;
+      if (remaining > 0) el.title = title;
+    });
   }
 
   function ensureRefreshCooldownTicker() {
@@ -163,26 +165,21 @@
     try { await global.EodRouter?.render?.(); } catch (_) {}
   }
 
-  function bothLightsGreen() {
-    const sas = document.getElementById('sasConnDot');
-    const si = document.getElementById('reboticsConnDot');
-    return sas?.dataset.state === 'green' && si?.dataset.state === 'green';
+  function lightIsGreen(el) {
+    return el?.dataset?.state === 'green';
   }
 
-  async function refreshConnections() {
-    const btn = document.getElementById('refreshConnectionsBtn');
-    if (!btn) return;
+  async function refreshConnections(fromEl) {
     const remaining = getRefreshCooldownRemainingMs();
-    if (bothLightsGreen()) {
-      if (global.showAlert) {
-        await global.showAlert(
-          'Auth already connected',
-          'The green lights mean SAS and Store Intelligence are signed in. A background worker keeps that connection and refreshes it as needed.\n\nThis is not a page refresh. You only need this when a light is red.'
+    if (lightIsGreen(fromEl)) {
+      const label = fromEl.id === 'reboticsConnDot' ? 'SI' : 'SAS';
+      if (global.showConfirm) {
+        const go = await global.showConfirm(
+          `${label} is already connected`,
+          'A refresh is not necessary. The green light means this login is active and a background worker keeps it that way.\n\nContinue anyway?'
         );
-      } else {
-        toast('Auth is already green — no refresh needed.', 'ok');
+        if (!go) return;
       }
-      return;
     }
     if (remaining > 0) {
       toast(`Auth refresh available in ${formatCooldownLabel(remaining)}`, 'error');
@@ -210,7 +207,9 @@
 
     localStorage.setItem(REFRESH_COOLDOWN_KEY, String(Date.now()));
     ensureRefreshCooldownTicker();
-    btn.classList.add('spinning');
+    const dots = document.getElementById('chromeDots');
+    dots?.classList.add('spinning');
+    connDots().forEach((el) => { el.disabled = true; });
 
     const base = global.EOD_API_BASE;
     let sasResult = null;
@@ -249,15 +248,18 @@
     } catch (e) {
       console.error('[refresh] post-trigger failed', e);
     } finally {
-      btn.classList.remove('spinning');
+      dots?.classList.remove('spinning');
+      updateRefreshButtonState();
     }
   }
 
   function init() {
-    document.getElementById('refreshConnectionsBtn')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      refreshConnections();
+    connDots().forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        refreshConnections(el);
+      });
     });
     ensureRefreshCooldownTicker();
     pollConnections();

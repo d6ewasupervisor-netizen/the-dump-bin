@@ -739,9 +739,16 @@ body.needs-auth .app-shell {
   flex: 0 0 auto;
 }
 .conn-dot {
+  appearance: none; -webkit-appearance: none;
   display: inline-flex; align-items: center; gap: 3px;
+  margin: 0; padding: 4px 2px; border: 0; background: transparent;
   font-size: 10px; color: var(--muted); font-weight: 700;
-  white-space: nowrap;
+  white-space: nowrap; cursor: pointer;
+}
+.conn-dot:disabled { cursor: wait; }
+.chrome-dots.cooldown .conn-dot { opacity: 0.45; }
+.chrome-dots.spinning .conn-dot .dot {
+  animation: eod-spin 0.8s linear infinite;
 }
 .conn-dot .dot {
   width: 7px; height: 7px; border-radius: 50%; background: #64748b;
@@ -832,30 +839,6 @@ body.needs-auth .app-shell {
   border: 1px solid #334155;
 }
 
-.refresh-connections-btn {
-  appearance: none;
-  border: 1px solid var(--border);
-  background: var(--chrome-bg);
-  color: var(--heading);
-  border-radius: 8px;
-  width: var(--touch);
-  height: var(--touch);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex: 0 0 auto;
-  padding: 0;
-}
-.refresh-connections-btn:hover { border-color: var(--accent); }
-.refresh-connections-btn:disabled,
-.refresh-connections-btn.cooldown {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.refresh-connections-btn.spinning svg {
-  animation: eod-spin 0.8s linear infinite;
-}
 @keyframes eod-spin { to { transform: rotate(360deg); } }
 
 .chrome-links {
@@ -980,6 +963,7 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
   object-fit: contain;
 }
 .bottom-nav .nav-label { line-height: 1.1; }
+.bottom-nav #navOverlayBack[hidden] { display: none !important; }
 .bottom-nav [data-slot="extra"] { display: none; }
 .bottom-nav [data-slot="stage"] { display: flex; }
 .bottom-nav [data-slot="phone-more"] { display: flex; }
@@ -1440,7 +1424,8 @@ h2 { font-size: 1.15rem; color: var(--heading); }
     max-width: 72px;
   }
   body.nav-collapsed .nav-label { display: none; }
-  body.nav-collapsed .bottom-nav button[data-nav] {
+  body.nav-collapsed .bottom-nav button[data-nav],
+  body.nav-collapsed .bottom-nav #navOverlayBack {
     justify-content: center;
     padding-left: 4px;
     padding-right: 4px;

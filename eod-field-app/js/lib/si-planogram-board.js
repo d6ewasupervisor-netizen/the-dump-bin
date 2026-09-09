@@ -756,7 +756,7 @@
     });
   }
 
-  function openOverlay({ store, date, dbkey, title, highlightUpc }) {
+  function openOverlay({ store, date, dbkey, title, highlightUpc, initialBay }) {
     closeOverlay();
     const host = document.createElement('div');
     host.id = 'eodSetMediaOverlay';
@@ -780,7 +780,10 @@
     document.body.appendChild(host);
     document.body.classList.add('set-media-open');
     const ctx = { store, date, dbkey, title };
-    host.querySelector('#setMediaClose').onclick = closeOverlay;
+    host.querySelector('#setMediaClose').onclick = () => {
+      if (global.EodChrome?.hasOverlayBack?.()) global.EodChrome.goOverlayBack();
+      else closeOverlay();
+    };
     host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
     host.querySelector('#pogRowsBtn').onclick = (ev) => {
       const on = !host.classList.contains('is-setting-peg-rows');
@@ -795,7 +798,7 @@
       if (!next) void hydrateImages(host.querySelector('#setMediaOverlayBody'));
     };
     boardMem.delete(boardKey({ store, date, dbkey }));
-    void loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey, highlightUpc });
+    void loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey, highlightUpc, initialBay });
     return host;
   }
 

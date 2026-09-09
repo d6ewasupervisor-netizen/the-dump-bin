@@ -381,6 +381,9 @@
             <div class="gh-tool-row">
               ${toolBtn('ghSavePhoto', '', '⬇', 'Save')}
               ${toolBtn('ghSharePhoto', '', '↗', 'Share')}
+              ${String(slotFilter || '').toLowerCase() === 'after' && (row.dbkey || row.pog)
+                ? toolBtn('ghOpenPlanogram', '', '▦', 'Planogram')
+                : ''}
             </div>
             <p class="gh-muted" id="ghReviewErr" hidden></p>
           </div>
@@ -742,6 +745,48 @@
       }
     }
 
+    function reviewReturnOpts(bay) {
+      return {
+        row,
+        photos: photos.length ? photos : opts.photos,
+        photoSource: opts.photoSource,
+        warning: opts.warning,
+        slotFilter,
+        heading,
+        api,
+        token,
+        authFetch,
+        photosUrl,
+        hideComplete,
+        skipRemoteMark: opts.skipRemoteMark,
+        alreadySigned: opts.alreadySigned,
+        onMarked: opts.onMarked,
+        onConfirmComplete: opts.onConfirmComplete,
+        startBay: bay,
+      };
+    }
+
+    async function openPlanogram() {
+      const dbkey = String(row?.dbkey || row?.pog || '').trim();
+      if (String(slotFilter || '').toLowerCase() !== 'after' || !dbkey) return;
+      if (typeof global.EodSiPlanogram?.openOverlay !== 'function') {
+        try { await global.EodRouteBundles?.ensure?.('survey'); } catch (_) {}
+      }
+      if (typeof global.EodSiPlanogram?.openOverlay !== 'function') return;
+      const S = global.EodSession;
+      const bay = bayNumberOf(photos[idx]) || (idx + 1);
+      global.EodChrome?.pushOverlayBack?.({
+        restore: () => global.EodSetReview.openOverlay(reviewReturnOpts(bay)),
+      });
+      global.EodSiPlanogram.openOverlay({
+        store: S?.state?.storeNumber,
+        date: S?.state?.workDate,
+        dbkey,
+        title: `${row.catName || row.cat_name || heading || 'Set'} · Planogram`,
+        initialBay: bay,
+      });
+    }
+
     async function confirmComplete() {
       if (!rowComplete(row)) {
         const ok = await markComplete();
@@ -772,6 +817,7 @@
       });
       document.getElementById('ghSavePhoto')?.addEventListener('click', () => savePhoto().catch(console.error));
       document.getElementById('ghSharePhoto')?.addEventListener('click', () => sharePhoto().catch(console.error));
+      document.getElementById('ghOpenPlanogram')?.addEventListener('click', () => { void openPlanogram(); });
       if (!hideComplete) {
         document.getElementById('ghConfirmComplete')?.addEventListener('click', () => confirmComplete());
       }
@@ -907,7 +953,7 @@
     }
 
     load();
-    return { reload: load };
+    return { reload: load, openPlanogram };
   }
 
   global.EodSetReview = { createReview, rowComplete, preloadRole, openOverlay, closeOverlay, filterBySlot };
