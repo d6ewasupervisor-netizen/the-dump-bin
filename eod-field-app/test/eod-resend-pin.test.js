@@ -30,7 +30,8 @@ test('accepted authorization is sent once with the next EOD submission', () => {
 
 test('pilot version is bumped in lockstep', () => {
   const version = JSON.parse(fs.readFileSync(path.join(root, 'eod-version.json'), 'utf8')).version;
-  assert.equal(version, '3.3.99');
+  assert.match(version, /^\d+\.\d+\.\d+$/);
+  const versionPattern = new RegExp(version.replace(/\./g, '\\.'));
   for (const relative of [
     'index.html',
     'js/api.js',
@@ -39,6 +40,6 @@ test('pilot version is bumped in lockstep', () => {
     'js/lib/barcode-scanner.js',
     'sw.js',
   ]) {
-    assert.match(fs.readFileSync(path.join(root, relative), 'utf8'), /3\.3\.99/);
+    assert.match(fs.readFileSync(path.join(root, relative), 'utf8'), versionPattern);
   }
 });
