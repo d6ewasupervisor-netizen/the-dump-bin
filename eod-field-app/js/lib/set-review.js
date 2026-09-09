@@ -122,6 +122,15 @@
     return t !== 'light' && t !== 'gray';
   }
 
+  function isBeforeSlot(slot) {
+    return String(slot || '').toLowerCase() === 'before';
+  }
+
+  function canShowPlanogram(slotFilter, row) {
+    if (isBeforeSlot(slotFilter)) return false;
+    return !!(row && (row.dbkey || row.pog));
+  }
+
   function toolBtn(id, extraClass, icon, label, attrs = '') {
     return `<button type="button" class="btn btn-secondary gh-btn gh-btn-secondary gh-tool${extraClass ? ` ${extraClass}` : ''}" id="${id}" ${attrs}>
       <span class="gh-tool-ico" aria-hidden="true">${icon}</span>
@@ -377,13 +386,11 @@
               ${toolBtn('ghZoomOut', '', '−', 'Out')}
               ${toolBtn('ghZoomIn', '', '+', 'In')}
               ${toolBtn('ghClearMarks', '', '✕', 'Clear')}
+              ${canShowPlanogram(slotFilter, row) ? toolBtn('ghOpenPlanogram', '', '▦', 'Planogram') : ''}
             </div>
             <div class="gh-tool-row">
               ${toolBtn('ghSavePhoto', '', '⬇', 'Save')}
               ${toolBtn('ghSharePhoto', '', '↗', 'Share')}
-              ${String(slotFilter || '').toLowerCase() === 'after' && (row.dbkey || row.pog)
-                ? toolBtn('ghOpenPlanogram', '', '▦', 'Planogram')
-                : ''}
             </div>
             <p class="gh-muted" id="ghReviewErr" hidden></p>
           </div>
@@ -768,7 +775,7 @@
 
     async function openPlanogram() {
       const dbkey = String(row?.dbkey || row?.pog || '').trim();
-      if (String(slotFilter || '').toLowerCase() !== 'after' || !dbkey) return;
+      if (isBeforeSlot(slotFilter) || !dbkey) return;
       if (typeof global.EodSiPlanogram?.openOverlay !== 'function') {
         try { await global.EodRouteBundles?.ensure?.('survey'); } catch (_) {}
       }

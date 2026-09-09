@@ -726,7 +726,8 @@ test('after-photo review jumps to that bay on the planogram and bottom nav Back 
   assert.doesNotMatch(html, /data-nav="[^"]*"[\s\S]{0,40}id="navOverlayBack"/);
   assert.match(css, /#navOverlayBack\[hidden\]/);
   assert.match(review, /ghOpenPlanogram/);
-  assert.match(review, /slotFilter \|\| ''\)\.toLowerCase\(\) === 'after'/);
+  assert.match(review, /function canShowPlanogram/);
+  assert.match(review, /isBeforeSlot\(slotFilter\)/);
   assert.match(review, /pushOverlayBack/);
   assert.match(review, /initialBay: bay/);
   assert.match(pog, /function openOverlay\(\{ store, date, dbkey, title, highlightUpc, initialBay \}\)/);
