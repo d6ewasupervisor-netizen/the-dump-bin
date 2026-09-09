@@ -10413,6 +10413,10 @@ ${data.Notes || ''}`;
 
                 const result = await response.json();
                 loading.classList.remove('show');
+                if (response.status === 409) {
+                    showAlert('EOD sent', result.error || 'EOD already sent. It will not send again.');
+                    return;
+                }
                 if (result.success) {
                     // Auto-upload coversheet image to Kompass ISE after successful send.
                     try {

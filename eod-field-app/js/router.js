@@ -40,7 +40,7 @@
       });
     }
     const session = global.EodSession;
-    if (session && !session.isVisitReady() && name !== 'visit' && name !== 'storage') {
+    if (session && !session.isVisitReady() && name !== 'visit' && name !== 'storage' && name !== 'sends') {
       name = 'visit';
       if (normalize(location.hash) !== 'visit') {
         location.replace('#/visit');

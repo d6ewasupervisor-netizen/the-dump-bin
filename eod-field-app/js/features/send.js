@@ -3,11 +3,51 @@
   'use strict';
 
   let sendPicPoll = null;
+  let sendLock = null;
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
   function padStore(n) {
     return String(n || '').replace(/\D/g, '').padStart(3, '0');
+  }
+
+  function receiptLockMessage(receipt) {
+    if (!receipt) return '';
+    if (receipt.inFlight) return 'EOD is already sending. Wait. Do not tap Send again.';
+    const when = receipt.sentAtLabel ? ` at ${receipt.sentAtLabel}` : '';
+    return `EOD sent${when}. It will not send again.`;
+  }
+
+  function applySendLock(receipt) {
+    if (!receipt || (!receipt.sent && !receipt.inFlight)) {
+      sendLock = null;
+      return;
+    }
+    sendLock = receipt;
+    const btn = document.getElementById('sendBtn');
+    const note = document.getElementById('sendReceiptNote');
+    const text = receiptLockMessage(receipt);
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = receipt.sent ? 'EOD sent' : 'Sending…';
+      btn.dataset.sendLocked = '1';
+    }
+    if (note) note.textContent = text;
+  }
+
+  async function loadSendReceipt() {
+    const S = global.EodSession;
+    if (!S?.state?.storeNumber || !S.state.workDate || !global.authFetch) return null;
+    if (global.EodTestMode?.isOn?.() && !global.EodTestMode?.isForceLive?.()) return null;
+    try {
+      const url = `${global.EOD_API_BASE}/api/eod/send-receipt?storeNumber=${encodeURIComponent(S.state.storeNumber)}&workDate=${encodeURIComponent(S.state.workDate)}`;
+      const resp = await global.authFetch(url, { method: 'GET' });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) return null;
+      return data.receipt || null;
+    } catch (_) {
+      return null;
+    }
   }
 
   function mmddyyyy(iso) {
@@ -255,7 +295,9 @@ ${S.state.notes || ''}`;
       msg.textContent = gate || 'Ready to send.';
     }
     const btn = document.getElementById('sendBtn');
-    if (btn && btn.textContent === 'Send EOD') btn.disabled = !!gate;
+    if (btn && btn.dataset.sendLocked === '1') {
+      btn.disabled = true;
+    } else if (btn && btn.textContent === 'Send EOD') btn.disabled = !!gate;
     const html = global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : '';
     const existing = document.getElementById('eodSendGates');
     if (existing) {
@@ -391,6 +433,7 @@ ${S.state.notes || ''}`;
         </div>
         <div id="gateMsg" style="margin:10px 0;color:${gate ? '#fbbf24' : '#22c55e'};">${esc(gate || 'Ready to send.')}</div>
         ${global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : ''}
+        <div id="sendReceiptNote" class="muted" style="margin:8px 0;"></div>
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="previewBtn">Preview</button>
           <button type="button" class="btn btn-success" id="sendBtn" ${gate ? 'disabled' : ''}>Send EOD</button>
@@ -784,6 +827,10 @@ ${S.state.notes || ''}`;
     });
 
     document.getElementById('sendBtn').onclick = async () => {
+      if (sendLock?.sent || sendLock?.inFlight) {
+        await global.EodAlerts?.alert?.('EOD sent', receiptLockMessage(sendLock));
+        return;
+      }
       const msg = gateMessage();
       if (msg) {
         global.EodUsage?.track?.('gate_failure', {
@@ -830,7 +877,9 @@ ${S.state.notes || ''}`;
       }
       const headers = global.EodApi.dayConfirmHeaders();
       const btn = document.getElementById('sendBtn');
+      if (btn.dataset.sendLocked === '1') return;
       btn.disabled = true;
+      btn.dataset.sendLocked = '1';
       btn.textContent = 'Sending…';
       let generatedSheets = [];
       const busy = global.EodBusy;
@@ -885,9 +934,16 @@ ${S.state.notes || ''}`;
           return;
         }
         const data = await resp.json().catch(() => ({}));
+        if (resp.status === 409 && data.receipt) {
+          applySendLock(data.receipt);
+          try { busy?.endSession?.(); } catch (_) {}
+          await global.EodAlerts?.alert?.('EOD sent', data.error || receiptLockMessage(data.receipt));
+          return;
+        }
         if (!resp.ok || data.success === false) {
           throw new Error(data.error || data.message || `Send failed (${resp.status})`);
         }
+        applySendLock(data.receipt || { sent: true, sentAtLabel: '' });
         let sasNote = '';
         if (skippedPhotos.length && global.EodSendSheetsLogic?.skippedPhotoMessage) {
           sasNote += `\n\n${global.EodSendSheetsLogic.skippedPhotoMessage(skippedPhotos)}`;
@@ -913,7 +969,7 @@ ${S.state.notes || ''}`;
           busy?.showSuccess?.('Success!');
           await new Promise((r) => setTimeout(r, 1400));
         } catch (_) {}
-        if (global.showAlert) await global.showAlert('Sent', 'EOD sent.' + sasNote);
+        if (global.showAlert) await global.showAlert('Sent', receiptLockMessage(sendLock) + sasNote);
         global.EodUsage?.track?.('send_success', { stage: 'send', status: 'complete' });
         if (global.PhotoDB?.markEmailOk) {
           try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
@@ -934,13 +990,28 @@ ${S.state.notes || ''}`;
           global.EodRouter.go('visit');
           return;
         }
+        const verified = await loadSendReceipt();
+        if (verified?.sent || verified?.inFlight) {
+          applySendLock(verified);
+          await global.EodAlerts?.alert?.('EOD sent', receiptLockMessage(verified));
+          return;
+        }
+        if (btn) btn.dataset.sendLocked = '';
         await global.EodAlerts?.alert?.('Send error', networkSendMessage(err));
       } finally {
         try { busy?.endSession?.(); } catch (_) {}
-        btn.disabled = !!gateMessage();
-        btn.textContent = 'Send EOD';
+        if (sendLock?.sent || sendLock?.inFlight) {
+          applySendLock(sendLock);
+        } else if (btn) {
+          btn.dataset.sendLocked = '';
+          btn.disabled = !!gateMessage();
+          btn.textContent = 'Send EOD';
+        }
       }
     };
+    loadSendReceipt().then((receipt) => {
+      if (receipt) applySendLock(receipt);
+    });
   }
 
   async function maybeClearAfterSend(S) {
@@ -1057,8 +1128,9 @@ ${S.state.notes || ''}`;
   function networkSendMessage(err) {
     const msg = String((err && err.message) || err || '');
     if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
-      return 'Network dropped while sending. Stay on this screen and tap Send EOD again.';
+      return 'Network dropped while sending. Stay on this screen. Send stays locked until the receipt confirms it did not go.';
     }
+    if (/already sent|will not send again/i.test(msg)) return msg;
     return msg || 'Unknown error';
   }
 

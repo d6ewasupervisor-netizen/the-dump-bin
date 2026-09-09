@@ -48,6 +48,7 @@
 
   async function boot() {
     try {
+      try { window.EodChrome?.bindNav?.(); } catch (_) {}
       const verEl = document.getElementById('pilotVer');
       if (verEl && window.EOD_APP_VERSION) verEl.textContent = window.EOD_APP_VERSION;
 
@@ -102,7 +103,7 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.3.94').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.3.95').catch(() => {});
         }
       } catch (_) {}
       try { window.EodUsage?.start?.(); } catch (_) {}

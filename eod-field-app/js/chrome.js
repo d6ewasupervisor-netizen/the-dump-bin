@@ -235,6 +235,7 @@
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
+      ${global.EodRoles?.canForceLive?.() ? '<button type="button" class="btn btn-secondary btn-block" data-more="sends">Sent EODs</button>' : ''}
       <button type="button" class="btn btn-secondary btn-block" data-more="photos">Photos</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="storage">Device</button>
       <button type="button" class="btn btn-primary btn-block" id="eodMoreClose">Close</button>
@@ -275,17 +276,23 @@
     applyNavCollapsed(!document.body.classList.contains('nav-collapsed'));
   }
 
-  function init() {
+  function bindNav() {
     document.querySelectorAll('[data-nav]').forEach((btn) => {
+      if (btn.dataset.navBound === '1') return;
+      btn.dataset.navBound = '1';
       btn.addEventListener('click', () => {
         const nav = btn.getAttribute('data-nav');
         if (nav === 'more') {
           openMoreMenu();
           return;
         }
-        global.EodRouter.go(nav);
+        if (global.EodRouter?.go) global.EodRouter.go(nav);
       });
     });
+  }
+
+  function init() {
+    bindNav();
     let collapsed = false;
     try { collapsed = localStorage.getItem(NAV_COLLAPSE_KEY) === '1'; } catch (_) {}
     applyNavCollapsed(collapsed);
@@ -342,5 +349,6 @@
     refresh();
   }
 
-  global.EodChrome = { refresh, init, openQuickView, applyNavCollapsed, toggleNav, paintConnChrome };
+  global.EodChrome = { refresh, init, bindNav, openQuickView, applyNavCollapsed, toggleNav, paintConnChrome };
+  bindNav();
 })(typeof window !== 'undefined' ? window : globalThis);
