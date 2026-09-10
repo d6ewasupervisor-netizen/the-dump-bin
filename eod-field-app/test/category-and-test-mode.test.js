@@ -12,6 +12,8 @@ const {
   formatEstHrs,
   prodPhotoState,
   prodStatusPillHtml,
+  neededCaptureSlot,
+  liveStatusLineHtml,
 } = require('../js/lib/category-card-status');
 const {
   hasLoadedShift,
@@ -61,6 +63,32 @@ test('PROD pill follows before/after photos, not SAS category_completion', () =>
 
   assert.equal(prodPhotoState({ live: { prodStatus: 'absent', prodBeforeCount: 0 } }).kind, 'hidden');
   assert.equal(prodStatusPillHtml({ kind: 'hidden' }), '');
+});
+
+test('neededCaptureSlot is before until any before exists, then after', () => {
+  assert.equal(neededCaptureSlot({ live: { prodBeforeCount: 0, prodAfterCount: 0 } }), 'before');
+  assert.equal(neededCaptureSlot({ live: { prodBeforeCount: 1, prodAfterCount: 0 } }), 'after');
+  assert.equal(neededCaptureSlot({ live: { prodBeforeCount: 0, prodAfterCount: 0 } }, 2), 'after');
+});
+
+test('live status line says in progress when SAS is complete but only befores exist', () => {
+  const html = liveStatusLineHtml({
+    live: {
+      prodComplete: true,
+      prodStatus: 'done',
+      prodBeforeCount: 1,
+      prodAfterCount: 0,
+      siPresent: true,
+      siComplete: false,
+      siPhotoCount: 0,
+      sectionCount: 1,
+    },
+  });
+  assert.match(html, /in progress/);
+  assert.doesNotMatch(html, />complete</);
+  assert.match(html, /before 1 \/ after 0/);
+  assert.match(html, /incomplete/);
+  assert.match(html, /0\/1 sections/);
 });
 
 test('PROD after count falls back to prod-source photos when the live column is missing', () => {
@@ -682,9 +710,21 @@ test('already-sent EOD dialog offers the lead a Request PIN action', () => {
   assert.match(send, /choice === 'request'/);
 });
 
-test('category cards do not include a Capture button', () => {
+test('category cards include Capture and a live PROD/SI status line', () => {
   const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
-  assert.doesNotMatch(signoff, />Capture</);
+  assert.match(signoff, />Capture</);
+  assert.match(signoff, /data-capture-start/);
+  assert.match(signoff, /liveStatusLineHtml/);
+  assert.match(signoff, /neededCaptureSlot/);
+});
+
+test('list Capture opens a from-one session and survey status ignores SAS completed', () => {
+  const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
+  assert.match(survey, /fromOne: true/);
+  assert.match(survey, /Moving to bay/);
+  assert.match(survey, /liveStatusLineFromCounts/);
+  assert.match(survey, /prodKindFromCounts/);
+  assert.doesNotMatch(survey, /live\.prodComplete \? 'completed'/);
 });
 
 test('double-swipe nav order is visit, categories, signatures, send', () => {

@@ -1220,6 +1220,13 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .ds-select-all-row .ds-row-check { margin-top: 0; }
 .ds-select-all-row .ds-row-check:disabled { opacity: .4; }
 .ds-row-compact .ds-row-copy { flex: 1 1 60%; min-width: 0; }
+.ds-row-live {
+  margin-top: 6px;
+  font-size: clamp(10px, 3.1vw, 13px);
+  line-height: 1.35;
+}
+.ds-row-capture { flex: 1 1 100%; }
+.ds-row-capture .btn { width: 100%; min-height: var(--touch); }
 .ds-row-compact .ds-actions { flex: 1 1 100%; }
 .ds-row.is-selected { outline: 2px solid var(--accent); }
 .cat-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
@@ -2377,6 +2384,22 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
   text-align: center;
   pointer-events: none;
 }
+.vf-live-camera-toast {
+  position: absolute;
+  top: calc(62px + var(--safe-t, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.vf-live-camera-toast[hidden] { display: none; }
 .vf-live-camera video {
   flex: 1;
   width: 100%;

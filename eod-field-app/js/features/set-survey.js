@@ -21,9 +21,9 @@
   function sidePill(side) {
     const st = String(side?.status || 'unknown');
     const cls =
-      st === 'completed' || st === 'ok' || st === 'ok_already_complete'
+      st === 'completed' || st === 'complete' || st === 'ok' || st === 'ok_already_complete'
         ? 'ok'
-        : st === 'open'
+        : st === 'open' || st === 'in progress' || st === 'incomplete'
           ? 'warn'
           : st === 'error' || st === 'not_found' || st === 'unavailable'
             ? 'danger'
@@ -149,12 +149,13 @@
    * Live camera stays open for sequential bay capture.
    * Auto-closes only after every bay is filled; otherwise Exit is manual.
    */
-  function openLiveCamera({ getLabel, onCapture, shouldContinue, onLoadFiles, loadLabel }) {
+  function openLiveCamera({ getLabel, onCapture, shouldContinue, onLoadFiles, loadLabel, onStop }) {
     const overlay = document.createElement('div');
     overlay.className = 'vf-live-camera';
     overlay.innerHTML = `
       <div class="vf-live-camera-inner">
         <div class="vf-live-camera-hud" data-hud>Bay ?</div>
+        <div class="vf-live-camera-toast" data-toast hidden></div>
         <p class="vf-live-camera-fallback" data-fallback hidden>Camera unavailable. Load photos from this device.</p>
         <video playsinline autoplay muted></video>
         <canvas hidden></canvas>
@@ -172,6 +173,7 @@
     const canvas = overlay.querySelector('canvas');
     const zoomInput = overlay.querySelector('input[type="range"]');
     const hud = overlay.querySelector('[data-hud]');
+    const toast = overlay.querySelector('[data-toast]');
     const shutterBtn = overlay.querySelector('[data-act="shutter"]');
     const loadInput = overlay.querySelector('[data-act="load"]');
     const fallback = overlay.querySelector('[data-fallback]');
@@ -182,6 +184,19 @@
 
     function refreshHud() {
       if (hud) hud.textContent = (typeof getLabel === 'function' ? getLabel() : null) || 'Capture';
+    }
+
+    let toastTimer = null;
+    function flashToast(text) {
+      if (!toast) return;
+      toast.hidden = !text;
+      toast.textContent = text || '';
+      if (toastTimer) clearTimeout(toastTimer);
+      if (!text) return;
+      toastTimer = setTimeout(() => {
+        toast.hidden = true;
+        toast.textContent = '';
+      }, 900);
     }
 
     async function start() {
@@ -195,10 +210,14 @@
     }
 
     function stop() {
+      if (toastTimer) clearTimeout(toastTimer);
       try {
         stream?.getTracks?.().forEach((t) => t.stop());
       } catch (_) {}
       overlay.remove();
+      if (typeof onStop === 'function') {
+        try { onStop(); } catch (_) {}
+      }
     }
 
     zoomInput.oninput = () => {
@@ -227,7 +246,7 @@
         try {
           if (typeof onLoadFiles === 'function') await onLoadFiles(files);
         } catch (err) {
-          await global.EodAlerts?.alert?.('Load failed', err?.message || String(err) || 'Load failed');
+          flashToast(err?.message || 'Load failed');
           return;
         }
         stop();
@@ -255,15 +274,14 @@
         let bitmap = null;
         try { bitmap = await createImageBitmap(snap); } catch (_) {}
         try {
-          await onCapture({ canvas: snap, bitmap, fileName: `capture_${Date.now()}.jpg` });
+          const nextHint = await onCapture({ canvas: snap, bitmap, fileName: `capture_${Date.now()}.jpg` });
+          if (nextHint && nextHint.toast) flashToast(nextHint.toast);
         } catch (err) {
-          // Keep camera open on upload errors ? user can retry or Exit.
-          await global.EodAlerts?.alert?.('Capture failed', err?.message || String(err) || 'Capture failed');
+          flashToast(err?.message || 'Capture failed');
           refreshHud();
           return;
         }
         refreshHud();
-        // Only leave camera when every bay has a photo (or caller says stop).
         if (typeof shouldContinue === 'function' && !shouldContinue()) {
           stop();
         }
@@ -290,6 +308,7 @@
     const rowId = qp.get('rowId') || null;
     const catName = qp.get('name') || '';
     const preferSlot = String(qp.get('slot') || 'after').toLowerCase() === 'before' ? 'before' : 'after';
+    const autoCapture = qp.get('capture') === '1';
 
     if (!dbkey) {
       mount.innerHTML = `<div class="card error"><h2>Missing dbkey</h2><p>Open Capture/View from a Categories sheet row.</p>
@@ -326,6 +345,8 @@
       pack: { photos: [] },
       uploading: false,
     };
+    let liveCameraOpen = false;
+    let listCaptureStarted = false;
 
     const mediaReady = { planogram: false, before: false, after: false };
 
@@ -495,12 +516,12 @@
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
         if (detail.job?.slot === 'after') maybeAutoCloseSi();
-        fetchPack().then(() => paintBody());
+        if (!liveCameraOpen) fetchPack().then(() => paintBody());
         return;
       } else if (detail.type === 'failed' && detail.job?.status !== 'superseded' && detail.job?.error !== 'replaced') {
         setMsg(detail.job?.error || 'Upload failed', true);
       }
-      paintBody();
+      if (!liveCameraOpen) paintBody();
     });
 
     function setMsg(text, isErr) {
@@ -700,18 +721,43 @@
     }
 
     function paintStatus(status) {
-      local.status = status;
+      if (status) local.status = status;
       const chips = document.getElementById('setStatusChips');
-      if (!chips) return;
+      if (!chips || !local.status) return;
+      const Status = global.EodCategoryCardStatus;
+      const beforeRemote = Number(local.status.prod?.beforeCount) || 0;
+      const after = Number(local.status.prod?.afterCount) || 0;
+      const extraBefore = (local.before || []).filter((p) => {
+        const st = String(p.uploadStatus || '');
+        return st !== 'failed' && st !== 'replaced';
+      }).length;
+      const before = Math.max(beforeRemote, extraBefore);
+      const prodKind = Status?.prodKindFromCounts
+        ? Status.prodKindFromCounts(before, after)
+        : (before > 0 && after > 0 ? 'complete' : (before || after ? 'in_progress' : 'not_started'));
+      const siHave = Number(local.status.si?.sectionsWithPhoto) || 0;
+      const siNeed = Number(local.status.si?.sectionCount) || 0;
+      const siLabel = siNeed > 0 && siHave >= siNeed
+        ? 'complete'
+        : (siNeed || siHave || local.status.si ? 'incomplete' : 'unknown');
+      if (local.status.prod) local.status.prod.status = prodKind === 'complete' ? 'complete' : prodKind === 'in_progress' ? 'in progress' : 'not started';
+      if (local.status.si) local.status.si.status = siLabel;
+      if (Status?.liveStatusLineFromCounts) {
+        chips.innerHTML = Status.liveStatusLineFromCounts({
+          prodKind,
+          before,
+          after,
+          siLabel,
+          siHave,
+          siNeed,
+        }, esc);
+        return;
+      }
       chips.innerHTML =
-        `PROD ${sidePill(status.prod)}` +
-        (status.prod.beforeCount != null
-          ? ` <span class="muted">before ${status.prod.beforeCount} / after ${status.prod.afterCount || 0}</span>`
-          : '') +
-        ` | SI ${sidePill(status.si)}` +
-        (status.si.sectionCount != null
-          ? ` <span class="muted">${status.si.sectionsWithPhoto || 0}/${status.si.sectionCount} sections</span>`
-          : '');
+        `PROD ${sidePill(local.status.prod)}` +
+        ` <span class="muted">before ${before} / after ${after}</span>` +
+        ` | SI ${sidePill(local.status.si)}` +
+        ` <span class="muted">${siHave}/${siNeed} sections</span>`;
     }
 
     function bayProgressHtml(slot) {
@@ -826,6 +872,7 @@
     }
 
     function paintBody() {
+      if (liveCameraOpen) return;
       const n = expectedBayCount();
       const body = document.getElementById('setSurveyBody');
       if (!body) return;
@@ -916,31 +963,60 @@
       });
     }
 
-    function startSequentialCapture(slot) {
-      const n = expectedBayCount();
-      const replacing = nextEmptyBay(slot) == null;
+    function startSequentialCapture(slot, opts) {
+      const fromOne = !!(opts && opts.fromOne);
+      const returnTo = opts && opts.returnTo;
+      const n = () => expectedBayCount();
+      const replacing = !fromOne && nextEmptyBay(slot) == null;
       const batchId = replacing ? (`r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) : null;
       let wiped = false;
+      let sessionBay = 0;
+      liveCameraOpen = true;
       openLiveCamera({
         loadLabel: replacing ? 'Load to replace' : 'Load photos',
         getLabel: () => {
+          const total = n();
+          if (fromOne) {
+            const next = sessionBay + 1;
+            if (next > total) return `${slot === 'after' ? 'After' : 'Before'} · ${total}/${total}`;
+            return `${slot === 'after' ? 'After' : 'Before'} · Bay ${next} of ${total}`;
+          }
           const next = nextEmptyBay(slot);
           const have = takenBays(slot).size;
           if (next == null) {
-            return `${slot === 'after' ? 'After' : 'Before'} ? ${have}/${n} ? Exit`;
+            return `${slot === 'after' ? 'After' : 'Before'} · ${have}/${total}`;
           }
-          return `${slot === 'after' ? 'After' : 'Before'} ? Bay ${next} of ${n} ? ${have}/${n}`;
+          return `${slot === 'after' ? 'After' : 'Before'} · Bay ${next} of ${total} · ${have}/${total}`;
         },
-        shouldContinue: () => nextEmptyBay(slot) != null,
+        shouldContinue: () => (fromOne ? sessionBay < n() : nextEmptyBay(slot) != null),
         onCapture: async (shot) => {
-          const bay = nextEmptyBay(slot) || (replacing ? (wiped ? takenBays(slot).size + 1 : 1) : 1);
-          const opts = replacing
-            ? { replace: true, replaceWipe: !wiped, replaceBatchId: batchId }
-            : null;
+          const total = n();
+          let bay;
+          if (fromOne) {
+            sessionBay += 1;
+            bay = sessionBay;
+          } else {
+            bay = nextEmptyBay(slot) || (replacing ? (wiped ? takenBays(slot).size + 1 : 1) : 1);
+          }
+          const enqueueOpts = replacing
+            ? { replace: true, replaceWipe: !wiped, replaceBatchId: batchId, background: true, skipPaint: true }
+            : { background: true, skipPaint: true };
           if (replacing) wiped = true;
-          await enqueueLocal(slot, shot, bay, opts);
+          await enqueueLocal(slot, shot, bay, enqueueOpts);
+          const next = fromOne ? sessionBay + 1 : nextEmptyBay(slot);
+          if (next != null && next <= total) return { toast: `Moving to bay ${next}` };
+          return null;
         },
-        onLoadFiles: (files) => enqueueFiles(slot, [...files].reverse(), { replace: replacing }),
+        onLoadFiles: (files) => enqueueFiles(slot, [...files].reverse(), { replace: replacing || fromOne }),
+        onStop: () => {
+          liveCameraOpen = false;
+          if (returnTo === 'signoff') {
+            try { unsubPipe?.(); } catch (_) {}
+            global.EodRouter.go('signoff');
+            return;
+          }
+          paintBody();
+        },
       });
     }
 
@@ -985,8 +1061,8 @@
 
       const previewUrl = shot?.canvas ? shot.canvas.toDataURL('image/jpeg', 0.35) : null;
       const replacing = !!(opts && opts.replace);
-      const enqueueFn = pipe.enqueueCapture || pipe.enqueue;
-      const job = await enqueueFn.call(pipe, {
+      const background = !!(opts && opts.background);
+      const payload = {
         kind: 'set',
         compressType: 'set',
         slot,
@@ -1005,7 +1081,10 @@
         replace: replacing,
         replaceWipe: !!(opts && opts.replaceWipe),
         replaceBatchId: opts?.replaceBatchId || null,
-      });
+      };
+      const job = background
+        ? pipe.enqueue(payload)
+        : await (pipe.enqueueCapture || pipe.enqueue).call(pipe, payload);
 
       local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
       local[slot].push({
@@ -1018,7 +1097,7 @@
       });
       local[slot].sort((a, b) => Number(a.bay) - Number(b.bay));
       if (slot === 'before') persistBefores();
-      paintBody();
+      if (!(opts && opts.skipPaint) && !liveCameraOpen) paintBody();
     }
 
     async function finishAll() {
@@ -1098,17 +1177,24 @@
       const row = rows.find((r) => String(r.id) === String(rowId) || String(r.dbkey) === String(dbkey));
       if (!row) return;
       const live = row.live || {};
+      const beforeCount = Number(live.prodBeforeCount) || 0;
+      const afterCount = Number(live.prodAfterCount) || 0;
+      const prodKind = global.EodCategoryCardStatus?.prodKindFromCounts
+        ? global.EodCategoryCardStatus.prodKindFromCounts(beforeCount, afterCount)
+        : (beforeCount > 0 && afterCount > 0 ? 'complete' : (beforeCount || afterCount ? 'in_progress' : 'not_started'));
+      const siHave = Number(live.siPhotoCount || live.photoCount) || 0;
+      const siNeed = Number(live.sectionCount) || 0;
       const seeded = {
         expectedBayCount: Number(live.sectionCount || live.bayCount || row.bayCount || 0) || null,
         prod: {
-          status: live.prodComplete ? 'completed' : (live.prodPresent ? 'open' : 'unknown'),
-          beforeCount: Number(live.prodBeforeCount) || 0,
-          afterCount: Number(live.prodAfterCount) || 0,
+          status: prodKind === 'complete' ? 'complete' : prodKind === 'in_progress' ? 'in progress' : 'not started',
+          beforeCount,
+          afterCount,
         },
         si: {
-          status: live.siComplete ? 'completed' : (live.siPresent ? 'open' : 'unknown'),
-          sectionCount: Number(live.sectionCount) || 0,
-          sectionsWithPhoto: Number(live.siPhotoCount || live.photoCount) || 0,
+          status: siNeed > 0 && siHave >= siNeed ? 'complete' : (live.siPresent || siNeed || siHave ? 'incomplete' : 'unknown'),
+          sectionCount: siNeed,
+          sectionsWithPhoto: siHave,
         },
         bays: [],
       };
@@ -1161,6 +1247,10 @@
     setMediaReady('after', true);
     hydrateFromPipeline();
     paintBody();
+    if (autoCapture && !listCaptureStarted) {
+      listCaptureStarted = true;
+      startSequentialCapture(preferSlot, { fromOne: true, returnTo: 'signoff' });
+    }
     void reload({ fresh: false });
   }
   global.EodSetSurvey = { render };

@@ -491,16 +491,22 @@
     return Array.isArray(list) ? list.length : 0;
   }
 
-  function openSetSurvey(btn, slot) {
+  function openSetSurvey(btn, slot, extras) {
     const dbkey = btn.getAttribute('data-dbkey') || '';
-    const row = btn.getAttribute('data-capture') || btn.getAttribute('data-before') || btn.getAttribute('data-open-set') || '';
+    const row = btn.getAttribute('data-capture-start')
+      || btn.getAttribute('data-capture')
+      || btn.getAttribute('data-before')
+      || btn.getAttribute('data-open-set')
+      || '';
     const name = btn.getAttribute('data-name') || '';
     if (!dbkey) {
       global.showAlert?.('Set unavailable', 'This row has no dbkey — cannot open Capture/View.');
       return;
     }
     const qs = new URLSearchParams({ dbkey, rowId: row, name });
-    if (slot) qs.set('slot', slot);
+    const useSlot = slot || btn.getAttribute('data-slot') || '';
+    if (useSlot) qs.set('slot', useSlot);
+    if (extras && extras.capture) qs.set('capture', '1');
     location.hash = `#/survey?${qs.toString()}`;
   }
 
@@ -594,13 +600,23 @@
         suggested.has(String(row.id)) ? 'COM suggest' : '',
       ].filter(Boolean);
       const selectedOn = selected.has(String(row.id));
+      const localBefores = localBeforeCount(row);
+      const Status = global.EodCategoryCardStatus;
+      const liveLine = Status?.liveStatusLineHtml
+        ? Status.liveStatusLineHtml(row, esc, localBefores)
+        : '';
+      const captureSlot = Status?.neededCaptureSlot
+        ? Status.neededCaptureSlot(row, localBefores)
+        : 'after';
       return `<div class="ds-row ds-row-compact ${rowClass(row)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
         <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
         <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
+          ${liveLine ? `<div class="ds-row-live">${liveLine}</div>` : ''}
           ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
+        ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-slot="${esc(captureSlot)}">Capture</button></div>` : ''}
         <div class="ds-actions">
           ${btn('not_in_store', 'NIS')}
           ${btn('not_in_si', 'NISI')}
@@ -877,6 +893,12 @@
           } finally {
             btn.disabled = false;
           }
+        };
+      });
+      rowsEl.querySelectorAll('[data-capture-start]').forEach((btn) => {
+        btn.onclick = (ev) => {
+          ev.stopPropagation();
+          openSetSurvey(btn, btn.getAttribute('data-slot'), { capture: true });
         };
       });
       rowsEl.querySelectorAll('[data-open-set]').forEach((el) => {

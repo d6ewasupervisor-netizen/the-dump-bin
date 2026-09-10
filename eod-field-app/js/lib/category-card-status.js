@@ -49,7 +49,7 @@
     return [];
   }
 
-  function prodPhotoCounts(row) {
+  function prodPhotoCounts(row, extraBefore) {
     const live = row && row.live;
     const photos = photoList(row);
     const beforeFromPhotos = photos.filter((p) => p && String(p.slot || '').toLowerCase() === 'before').length;
@@ -58,21 +58,83 @@
       const source = String((p && p.source) || '').toLowerCase();
       return slot === 'after' && (source === 'prod' || source === 'sas');
     }).length;
-    const before = Math.max(Number(live && live.prodBeforeCount) || 0, beforeFromPhotos);
+    const before = Math.max(
+      Number(live && live.prodBeforeCount) || 0,
+      beforeFromPhotos,
+      Number(extraBefore) || 0
+    );
     const stored = live && live.prodAfterCount;
     const after = stored != null && stored !== '' ? Number(stored) || 0 : afterFromPhotos;
     return { before, after };
   }
 
-  function prodPhotoState(row) {
+  function prodKindFromCounts(before, after) {
+    if (before > 0 && after > 0) return 'complete';
+    if (before > 0 || after > 0) return 'in_progress';
+    return 'not_started';
+  }
+
+  function prodPhotoState(row, extraBefore) {
     const live = row && row.live;
-    if (!live) return { kind: 'hidden', before: 0, after: 0 };
+    const counts = prodPhotoCounts(row, extraBefore);
+    if (!live) {
+      if (counts.before || counts.after) return { kind: prodKindFromCounts(counts.before, counts.after), ...counts };
+      return { kind: 'hidden', before: 0, after: 0 };
+    }
     const inProd = !!live.prodStatus && String(live.prodStatus).toLowerCase() !== 'absent';
-    if (!inProd) return { kind: 'hidden', before: 0, after: 0 };
-    const counts = prodPhotoCounts(row);
-    if (counts.before > 0 && counts.after > 0) return { kind: 'complete', ...counts };
-    if (counts.before > 0 || counts.after > 0) return { kind: 'in_progress', ...counts };
-    return { kind: 'not_started', ...counts };
+    if (!inProd && !counts.before && !counts.after) return { kind: 'hidden', ...counts };
+    return { kind: prodKindFromCounts(counts.before, counts.after), ...counts };
+  }
+
+  function siSectionCounts(row) {
+    const live = row && row.live;
+    const have = Number(live && (live.siPhotoCount || live.photoCount)) || 0;
+    const need = Number(live && live.sectionCount) || 0;
+    return { have, need };
+  }
+
+  function siDisplayLabel(row) {
+    const live = row && row.live;
+    const { have, need } = siSectionCounts(row);
+    if (need > 0 && have >= need) return 'complete';
+    if (live && (live.siPresent || need || have || live.siStatus)) return 'incomplete';
+    return 'unknown';
+  }
+
+  function neededCaptureSlot(row, extraBefore) {
+    const counts = prodPhotoCounts(row, extraBefore);
+    if (counts.before <= 0) return 'before';
+    return 'after';
+  }
+
+  function liveStatusLineFromCounts(opts, esc) {
+    const escape = typeof esc === 'function' ? esc : (s) => String(s == null ? '' : s);
+    const before = Number(opts && opts.before) || 0;
+    const after = Number(opts && opts.after) || 0;
+    const kind = opts && opts.prodKind ? opts.prodKind : prodKindFromCounts(before, after);
+    const prodLabel = kind === 'complete' ? 'complete' : kind === 'in_progress' ? 'in progress' : 'not started';
+    const prodCls = kind === 'complete' ? 'ok' : kind === 'in_progress' ? 'warn' : '';
+    const siLabel = String((opts && opts.siLabel) || 'unknown');
+    const siCls = siLabel === 'complete' ? 'ok' : siLabel === 'incomplete' ? 'warn' : '';
+    const have = Number(opts && opts.siHave) || 0;
+    const need = Number(opts && opts.siNeed) || 0;
+    return `PROD <span class="pill ${prodCls}">${escape(prodLabel)}</span>`
+      + ` <span class="muted">before ${before} / after ${after}</span>`
+      + ` | SI <span class="pill ${siCls}">${escape(siLabel)}</span>`
+      + ` <span class="muted">${have}/${need} sections</span>`;
+  }
+
+  function liveStatusLineHtml(row, esc, extraBefore) {
+    const state = prodPhotoState(row, extraBefore);
+    const si = siSectionCounts(row);
+    return liveStatusLineFromCounts({
+      prodKind: state.kind === 'hidden' ? 'not_started' : state.kind,
+      before: state.before,
+      after: state.after,
+      siLabel: siDisplayLabel(row),
+      siHave: si.have,
+      siNeed: si.need,
+    }, esc);
   }
 
   function prodStatusPillHtml(state) {
@@ -203,6 +265,12 @@
     prodPhotoCounts,
     prodPhotoState,
     prodStatusPillHtml,
+    prodKindFromCounts,
+    siSectionCounts,
+    siDisplayLabel,
+    neededCaptureSlot,
+    liveStatusLineFromCounts,
+    liveStatusLineHtml,
     prodDone,
     siDone,
     sheetRowDone,
