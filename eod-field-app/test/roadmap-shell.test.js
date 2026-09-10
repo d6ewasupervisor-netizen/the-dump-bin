@@ -172,29 +172,22 @@ test('dense one-fixture planograms pack as a portrait peg grid without collision
   assert.equal(occupied.size, 65);
 });
 
-test('manual peg row endings preserve item order and force the next item left', () => {
-  const items = Array.from({ length: 8 }, (_, i) => ({
-    itemPosition: i + 1,
-    position: i + 1,
-    h: 1,
-  }));
-  const packed = packPegItems(items, 6, new Set(['3', '7']));
+test('peg pack uses planogram shelf and position when those fields exist', () => {
+  const items = [
+    { name: 'top-left', shelf: 6, position: 1 },
+    { name: 'top-right', shelf: 6, position: 4 },
+    { name: 'bottom', shelf: 1, position: 2 },
+  ];
+  assert.equal(isPegBay({ layoutMode: 'peg', shelves: [{ items: [{}] }, { items: [{}] }] }), false);
+  const packed = packPegItems(items);
+  assert.equal(packed.columns, 4);
+  assert.equal(packed.rows, 2);
   assert.deepEqual(
-    packed.placements.map(({ item, row, col, isRowEnd }) => ({
-      item: item.itemPosition,
-      row,
-      col,
-      isRowEnd,
-    })),
+    packed.placements.map(({ item, row, col }) => ({ name: item.name, row, col })),
     [
-      { item: 1, row: 1, col: 1, isRowEnd: false },
-      { item: 2, row: 1, col: 2, isRowEnd: false },
-      { item: 3, row: 1, col: 3, isRowEnd: true },
-      { item: 4, row: 2, col: 1, isRowEnd: false },
-      { item: 5, row: 2, col: 2, isRowEnd: false },
-      { item: 6, row: 2, col: 3, isRowEnd: false },
-      { item: 7, row: 2, col: 4, isRowEnd: true },
-      { item: 8, row: 3, col: 1, isRowEnd: false },
+      { name: 'top-left', row: 1, col: 1 },
+      { name: 'top-right', row: 1, col: 4 },
+      { name: 'bottom', row: 2, col: 2 },
     ]
   );
 });
@@ -209,13 +202,12 @@ test('compact planogram stays image-first and grab-swipes between bays', () => {
   assert.match(board, /scroll\.scrollLeft = drag\.left - dx/);
   assert.match(board, /goToBay\(scroll, bay\)/);
   assert.match(board, /class="si-pog-bay is-peg"/);
-  assert.match(board, /id="pogRowsBtn"[\s\S]*>Set rows</);
-  assert.match(board, /togglePegBreak\(ctx, bay, itemNumber\)/);
+  assert.doesNotMatch(board, /pogRowsBtn|Set rows|togglePegBreak/);
   assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.si-pog-live \.si-pog-meta[\s\S]*display: none/);
   assert.match(css, /\.si-pog-bay \{[\s\S]*width: min\(100%, 72dvh\)/);
   assert.match(css, /\.si-pog-slots \{[\s\S]*gap: 0;[\s\S]*padding: 0/);
   assert.match(css, /\.si-pog-peg-board \{[\s\S]*radial-gradient/);
-  assert.match(css, /\.si-pog-item\.si-pog-peg-item\.is-row-end::after/);
+  assert.doesNotMatch(css, /is-setting-peg-rows|is-row-end::after/);
   assert.match(css, /scroll-snap-type: x mandatory/);
 });
 

@@ -5,10 +5,8 @@
   const API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const IMAGE_CONCURRENCY = 6;
   const TEXT_KEY = 'eod-pog-text-only';
-  const PEG_BREAKS_KEY = 'eod-pog-peg-row-breaks-v1';
   const COMPACT_QUERY = '(max-width: 560px)';
   const boardMem = new Map();
-  const pegBreaksMem = new Map();
 
   function esc(s) {
     return global.EodApi.escapeHtml(s);
@@ -64,7 +62,7 @@
 
   function bayScale(shelves) {
     const rows = (shelves || []).map((shelf) => {
-      const units = Math.max(1, (shelf.items || []).length);
+      const units = Math.max(1, (shelf.items || []).reduce((sum, it) => sum + facingUnits(it), 0));
       return { shelf, units };
     });
     const widestUnits = Math.max(1, ...rows.map((row) => row.units));
@@ -87,58 +85,46 @@
     return String(item?.itemPosition || item?.position || '');
   }
 
-  function pegBreakKey({ store, dbkey }, bay) {
-    return `${store || ''}|${dbkey || ''}|${bay || ''}`;
-  }
-
-  function readPegBreaks(ctx, bay) {
-    const key = pegBreakKey(ctx || {}, bay);
-    try {
-      const all = JSON.parse(global.localStorage?.getItem(PEG_BREAKS_KEY) || '{}');
-      const values = new Set(Array.isArray(all[key]) ? all[key].map(String) : []);
-      pegBreaksMem.set(key, values);
-      return new Set(values);
-    } catch (_) {
-      return new Set(pegBreaksMem.get(key) || []);
+  function packPegItems(items, columnCount) {
+    const source = (items || []).slice().sort((a, b) => {
+      const shelfA = Number(a.shelf) || 0;
+      const shelfB = Number(b.shelf) || 0;
+      if (shelfA !== shelfB) return shelfB - shelfA;
+      return (Number(a.position) || Number(a.itemPosition) || 0)
+        - (Number(b.position) || Number(b.itemPosition) || 0);
+    });
+    const shelfNums = [...new Set(source.map((it) => Number(it.shelf)).filter(Number.isFinite))];
+    if (shelfNums.length > 1) {
+      const shelves = shelfNums.slice().sort((a, b) => b - a);
+      const placements = [];
+      const rowOf = new Map(shelves.map((shelf, i) => [shelf, i + 1]));
+      let columns = Math.max(1, Math.floor(Number(columnCount) || 0));
+      source.forEach((item) => {
+        const col = Math.max(1, Number(item.position) || Number(item.itemPosition) || 1);
+        const span = facingUnits(item);
+        columns = Math.max(columns, col + span - 1);
+        placements.push({
+          item,
+          row: rowOf.get(Number(item.shelf)) || 1,
+          col,
+          span,
+        });
+      });
+      return { columns, rows: shelves.length, placements };
     }
-  }
-
-  function togglePegBreak(ctx, bay, itemNumber) {
-    const value = String(itemNumber || '');
-    if (!value) return new Set();
-    const key = pegBreakKey(ctx || {}, bay);
-    const values = readPegBreaks(ctx, bay);
-    if (values.has(value)) values.delete(value);
-    else values.add(value);
-    pegBreaksMem.set(key, values);
-    try {
-      const all = JSON.parse(global.localStorage?.getItem(PEG_BREAKS_KEY) || '{}');
-      all[key] = [...values].sort((a, b) => Number(a) - Number(b));
-      global.localStorage?.setItem(PEG_BREAKS_KEY, JSON.stringify(all));
-    } catch (_) { /* keep the in-memory edit for this session */ }
-    return new Set(values);
-  }
-
-  function packPegItems(items, columnCount, rowBreaks) {
-    const source = (items || []).slice().sort((a, b) => (
-      (Number(a.itemPosition) || Number(a.position) || 0)
-      - (Number(b.itemPosition) || Number(b.position) || 0)
-    ));
     const columns = Math.max(1, Math.floor(Number(columnCount) || pegColumns(source)));
-    const breaks = rowBreaks instanceof Set ? rowBreaks : new Set(rowBreaks || []);
     const placements = [];
     let row = 1;
     let col = 1;
     source.forEach((item) => {
-      const span = 1;
+      const span = facingUnits(item);
       if (col + span - 1 > columns) {
         row += 1;
         col = 1;
       }
-      const isRowEnd = breaks.has(pegItemNumber(item));
-      placements.push({ item, row, col, span, isRowEnd });
+      placements.push({ item, row, col, span });
       col += span;
-      if (isRowEnd || col > columns) {
+      if (col > columns) {
         row += 1;
         col = 1;
       }
@@ -148,8 +134,9 @@
   }
 
   function isPegBay(bay) {
-    if (bay?.layoutMode === 'peg') return true;
     const shelves = bay?.shelves || [];
+    if (shelves.length > 1) return false;
+    if (bay?.layoutMode === 'peg') return true;
     const count = shelves.reduce((sum, shelf) => sum + (shelf.items || []).length, 0);
     return shelves.length === 1 && count >= 24;
   }
@@ -191,7 +178,6 @@
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
     const peg = pegPlacement ? ' si-pog-peg-item' : '';
-    const rowEnd = pegPlacement?.isRowEnd ? ' is-row-end' : '';
     const loc = locLine(it, bay);
     const faces = facingUnits(it);
     const faceMark = faces > 1 ? `<span class="si-pog-face-count">x${faces}</span>` : '';
@@ -202,7 +188,7 @@
       ? `grid-column:${pegPlacement.col}/span ${pegPlacement.span};grid-row:${pegPlacement.row}`
       : `flex:${grow} 1 0`;
     const position = it.itemPosition || it.position || '';
-    return `<article class="si-pog-item${peg}${rowEnd}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
+    return `<article class="si-pog-item${peg}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
       aria-label="${esc(`${label}${position ? `, position ${position}` : ''}`)}"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
@@ -246,8 +232,7 @@
     if (isPegBay({ ...bay, shelves })) {
       const packed = packPegItems(
         shelves.flatMap((shelf) => shelf.items || []),
-        null,
-        readPegBreaks(ctx, bay.bay)
+        bay.columns
       );
       return `<section class="si-pog-bay is-peg" style="--pog-peg-columns:${packed.columns};--pog-peg-rows:${packed.rows}">
         <div class="si-pog-bay-h">Bay ${esc(bay.bay)} · Pegs</div>
@@ -492,57 +477,41 @@
     return best.getAttribute('data-bay') || '';
   }
 
-  function syncRowsBtn(btn, scroll) {
-    if (!btn || !scroll) return;
-    const bay = activeBay(scroll);
-    const frame = [...scroll.querySelectorAll('.si-pog-bay-frame')]
-      .find((el) => String(el.getAttribute('data-bay')) === String(bay));
-    const available = Boolean(frame?.querySelector('.si-pog-bay.is-peg'));
-    btn.hidden = !available;
-    if (!available) {
-      const host = btn.closest('.si-pog-live');
-      host?.classList.remove('is-setting-peg-rows');
-      btn.setAttribute('aria-pressed', 'false');
-      btn.textContent = 'Set rows';
-    }
-  }
-
-  function paintBayNav(nav, scroll, rowsBtn) {
+  function paintBayNav(nav, scroll) {
     if (!scroll) return;
     const on = activeBay(scroll);
     nav?.querySelectorAll('[data-go-bay]').forEach((btn) => {
       btn.classList.toggle('on', String(btn.getAttribute('data-go-bay')) === String(on));
     });
-    syncRowsBtn(rowsBtn, scroll);
   }
 
-  function bindBaySwipe(scroll, nav, rowsBtn) {
+  function bindBaySwipe(scroll, nav) {
     if (!scroll) return;
     sizeBaySlides(scroll);
-    paintBayNav(nav, scroll, rowsBtn);
+    paintBayNav(nav, scroll);
     if (scroll._pogSlideObs) scroll._pogSlideObs.disconnect();
     if (typeof ResizeObserver === 'function') {
       scroll._pogSlideObs = new ResizeObserver(() => {
         const bay = scroll._pogBay || activeBay(scroll);
         sizeBaySlides(scroll);
         if (bay) goToBay(scroll, bay, true);
-        paintBayNav(nav, scroll, rowsBtn);
+        paintBayNav(nav, scroll);
       });
       scroll._pogSlideObs.observe(scroll);
     }
     scroll.addEventListener('scroll', () => {
       scroll._pogBay = activeBay(scroll);
-      paintBayNav(nav, scroll, rowsBtn);
+      paintBayNav(nav, scroll);
     }, { passive: true });
     nav?.addEventListener('click', (ev) => {
       const btn = ev.target.closest('[data-go-bay]');
       if (!btn) return;
       goToBay(scroll, btn.getAttribute('data-go-bay'));
     });
-    bindGrabPan(scroll, nav, rowsBtn);
+    bindGrabPan(scroll, nav);
   }
 
-  function bindGrabPan(scroll, nav, rowsBtn) {
+  function bindGrabPan(scroll, nav) {
     if (!scroll || scroll._pogGrabBound) return;
     scroll._pogGrabBound = true;
     let drag = null;
@@ -553,7 +522,7 @@
         scroll._pogSuppressClickUntil = Date.now() + 400;
         const bay = activeBay(scroll);
         if (bay) goToBay(scroll, bay);
-        paintBayNav(nav, scroll, rowsBtn);
+        paintBayNav(nav, scroll);
       }
       scroll.classList.remove('is-grabbing');
       try {
@@ -609,23 +578,11 @@
     return el;
   }
 
-  function bindItems(root, pog, ctx) {
+  function bindItems(root, pog) {
     const title = pog?.title || '';
     const openFrom = (el) => {
       if (!el) return;
       openItemDetail(el, title);
-    };
-    const setRowEnd = (el) => {
-      if (!el?.classList.contains('si-pog-peg-item')) return false;
-      const overlay = root.closest('.si-pog-live');
-      if (!overlay?.classList.contains('is-setting-peg-rows')) return false;
-      const bay = el.getAttribute('data-bay') || '';
-      const itemNumber = el.getAttribute('data-item-position') || el.getAttribute('data-position') || '';
-      const scroll = root.querySelector('.si-pog-scroll');
-      const initialBay = activeBay(scroll) || bay;
-      togglePegBreak(ctx, bay, itemNumber);
-      void loadAndRender(root, { ...ctx, initialBay });
-      return true;
     };
     if (root._pogClick) root.removeEventListener('click', root._pogClick);
     root._pogClick = (ev) => {
@@ -639,7 +596,6 @@
       }
       ev.preventDefault();
       ev.stopPropagation();
-      if (setRowEnd(el)) return;
       openFrom(el);
     };
     root.addEventListener('click', root._pogClick);
@@ -647,7 +603,6 @@
       el.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter' || ev.key === ' ') {
           ev.preventDefault();
-          if (setRowEnd(el)) return;
           openFrom(el);
         }
       });
@@ -667,11 +622,10 @@
       }
       const ctx = { store, date, dbkey, highlightUpc };
       mount.innerHTML = boardHtml(pog, highlightUpc, ctx);
-      bindItems(mount, pog, ctx);
+      bindItems(mount, pog);
       const overlay = mount.closest('.si-pog-live');
       const scroll = mount.querySelector('.si-pog-scroll');
       const nav = overlay?.querySelector('#pogBayNav');
-      const rowsBtn = overlay?.querySelector('#pogRowsBtn');
       if (nav) {
         const bays = pog.bays || [];
         nav.hidden = bays.length < 2;
@@ -679,9 +633,9 @@
           `<button type="button" class="si-pog-bay-dot" data-go-bay="${esc(b.bay)}">${esc(b.bay)}</button>`
         )).join('');
       }
-      bindBaySwipe(scroll, nav, rowsBtn);
+      bindBaySwipe(scroll, nav);
       if (initialBay) goToBay(scroll, initialBay, true);
-      paintBayNav(nav, scroll, rowsBtn);
+      paintBayNav(nav, scroll);
       if (highlightUpc) {
         const hit = applyHighlight(mount, highlightUpc);
         if (hit) goToBay(scroll, hit.getAttribute('data-bay'));
@@ -769,7 +723,6 @@
     host.innerHTML = `<div class="set-media-overlay-bar">
       <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
       <button type="button" class="btn btn-primary" id="pogScanBtn">Scan</button>
-      <button type="button" class="btn btn-secondary" id="pogRowsBtn" aria-pressed="false" hidden>Set rows</button>
       <button type="button" class="btn btn-secondary" id="pogTextBtn">Text</button>
       <strong>${esc(title || 'Planogram')}</strong>
     </div>
@@ -790,12 +743,6 @@
       else closeOverlay();
     };
     host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
-    host.querySelector('#pogRowsBtn').onclick = (ev) => {
-      const on = !host.classList.contains('is-setting-peg-rows');
-      host.classList.toggle('is-setting-peg-rows', on);
-      ev.currentTarget.setAttribute('aria-pressed', on ? 'true' : 'false');
-      ev.currentTarget.textContent = on ? 'Done' : 'Set rows';
-    };
     applyTextMode(host, compactPhotoMode() ? false : readTextPref(), false);
     host.querySelector('#pogTextBtn').onclick = () => {
       const next = !host.classList.contains('is-text');
@@ -821,8 +768,6 @@
     pegItemNumber,
     packPegItems,
     isPegBay,
-    readPegBreaks,
-    togglePegBreak,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodSiPlanogram = api;
