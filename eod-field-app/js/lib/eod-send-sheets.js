@@ -252,10 +252,10 @@
 
     const L = logic();
     const main = L.pickMainKompassIseVisit(S?.state?.shifts, S?.state?.selectedShift);
-    const visitId = main?.visitId || undefined;
-    if (!leadName && !visitId) {
-      console.warn('[eod-send-sheets] skip SAS upload — missing lead and ISE visit');
-      return { uploaded: 0, skipped: true, reason: 'no-visit' };
+    const visitId = main?.visitId;
+    if (!visitId) {
+      console.warn('[eod-send-sheets] skip SAS upload — no Kompass ISE visit for this store and day');
+      return { uploaded: 0, skipped: true, reason: 'no-ise-visit' };
     }
 
     const results = [];

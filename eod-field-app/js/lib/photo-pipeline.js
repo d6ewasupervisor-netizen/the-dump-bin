@@ -760,7 +760,12 @@
     const S = global.EodSession;
     const storeNumber = job.storeNumber || S.state.storeNumber;
     const date = job.workDate || S.state.workDate;
-    const visitId = job.visitId || S.state.selectedShift?.visitId;
+    const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+      S.state.shifts,
+      S.state.selectedShift
+    );
+    const visitId = mainIse?.visitId || job.visitId;
+    if (!visitId) throw new Error('No Kompass ISE shift found for this store and day');
     const leadName = S.state.leadName || S.state.profileName || '';
     const padded = String(storeNumber).padStart(3, '0');
     const dateCompact = String(date || '').replace(/-/g, '');
@@ -784,6 +789,25 @@
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Upload failed (${resp.status})`);
+    if (data.jobId) {
+      const started = Date.now();
+      while (Date.now() - started < 3 * 60 * 1000) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const statusResp = await global.authFetch(
+          `${global.EOD_API_BASE}/sas-upload/${encodeURIComponent(data.jobId)}`,
+          { skipBusy: true, noBounceOn401: true }
+        );
+        const statusData = await statusResp.json().catch(() => ({}));
+        if (!statusResp.ok || !statusData.success || !statusData.job) {
+          throw new Error(statusData.error || `Upload status failed (${statusResp.status})`);
+        }
+        const status = String(statusData.job.status || '').toLowerCase();
+        try { await global.PhotoDB?.setSasJobStatus?.(data.jobId, status || 'pending'); } catch (_) {}
+        if (status === 'completed') return { ...data, completed: true, job: statusData.job };
+        if (status === 'failed') throw new Error(statusData.job.error || 'PROD cart upload failed');
+      }
+      throw new Error('PROD cart upload timed out');
+    }
     return data;
   }
 

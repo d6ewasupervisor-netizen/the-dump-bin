@@ -552,6 +552,18 @@
     return (S.state.photos?.[key] || []).filter((p) => !p?.kind || p.kind === 'cart' || p.kind === `cart-${key}`);
   }
 
+  function mainKompassIseVisit() {
+    const S = global.EodSession;
+    const visit = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+      S.state.shifts,
+      S.state.selectedShift
+    );
+    if (!visit?.visitId) {
+      throw new Error('No Kompass ISE shift found for this store and day');
+    }
+    return visit;
+  }
+
   function thumbRow(list) {
     if (!list.length) return '<p class="muted">None yet.</p>';
     const L = global.EodSendSheetsLogic || {};
@@ -571,8 +583,7 @@
 
   async function pullCartFromProd(slot) {
     const S = global.EodSession;
-    const visitId = S.state.selectedShift?.visitId;
-    if (!visitId) throw new Error('Select a shift first');
+    const visitId = mainKompassIseVisit().visitId;
     const path = slot === 'after'
       ? `/api/visit-photos/${encodeURIComponent(visitId)}/after-images`
       : `/api/visit-photos/${encodeURIComponent(visitId)}/before-images`;
@@ -618,8 +629,7 @@
 
   async function uploadCartToProd(slot, dataUrl) {
     const S = global.EodSession;
-    const visitId = S.state.selectedShift?.visitId;
-    if (!visitId) throw new Error('Select a shift first');
+    const visitId = mainKompassIseVisit().visitId;
     const storeNumber = S.state.storeNumber;
     const date = S.state.workDate;
     const leadName = S.state.leadName || S.state.profileName || '';
@@ -709,7 +719,7 @@
           slot,
           bay: 1,
           file,
-          visitId: S.state.selectedShift?.visitId,
+          visitId: mainKompassIseVisit().visitId,
         });
         const entry = {
           dataUrl: job.previewUrl,

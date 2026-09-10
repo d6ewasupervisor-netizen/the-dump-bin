@@ -734,13 +734,20 @@ ${S.state.notes || ''}`;
         try {
           const pipe = global.EodPhotoPipeline;
           if (pipe?.enqueue) {
+            const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+              S.state.shifts,
+              S.state.selectedShift
+            );
+            if (!mainIse?.visitId) {
+              throw new Error('No Kompass ISE shift found for this store and day');
+            }
             const job = pipe.enqueue({
               kind: 'cart',
               compressType: slot,
               slot,
               bay: 1,
               file,
-              visitId: S.state.selectedShift?.visitId,
+              visitId: mainIse.visitId,
             });
             const entry = {
               dataUrl: job.previewUrl,
