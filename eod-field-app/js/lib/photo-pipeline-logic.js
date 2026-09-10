@@ -84,10 +84,15 @@
     return parts.join(':').replace(/[^A-Za-z0-9._:-]/g, '-').slice(0, 200);
   }
 
+  function hasCompressInput(job) {
+    if (!job) return false;
+    return !!(job.file || job.dataUrl || job.blob || job.canvas || job.bitmap);
+  }
+
   function shouldRetry(job) {
     if (!job || isSuperseded(job)) return false;
     if (job.status !== 'failed') return false;
-    return !!(job.dataUrl || job.blob || job.file || job.hasPayload);
+    return !!(job.dataUrl || job.blob || job.file || job.hasPayload || job.canvas || job.bitmap);
   }
 
   function sameBay(a, b) {
@@ -139,6 +144,7 @@
     countJobs,
     fullJitterMs,
     stableIdempotencyKey,
+    hasCompressInput,
     shouldRetry,
     sameBay,
     jobsToSupersede,

@@ -279,7 +279,12 @@
   async function persistJobRecord(job) {
     if (!job || isSuperseded(job) || job.status === 'done') return;
     let blob = job.blob || null;
+    if (!blob && job.file instanceof Blob) blob = job.file;
     if (!blob && job.dataUrl) blob = dataUrlToBlobForPipeline(job.dataUrl);
+    if (!blob && job.canvas?.toBlob) {
+      blob = await new Promise((resolve) => job.canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
+    }
+    if (blob && !job.blob) job.blob = blob;
     await idbPut({
       ...metaLean(job),
       blob: blob || undefined,
@@ -493,7 +498,8 @@
     if (compressWorker) return compressWorker;
     if (typeof Worker === 'undefined') return null;
     try {
-      compressWorker = new Worker(new URL('../workers/photo-compress-worker.js', import.meta.url));
+      const workerUrl = new URL('js/workers/photo-compress-worker.js', document.baseURI || location.href);
+      compressWorker = new Worker(workerUrl);
     } catch (_) {
       try {
         compressWorker = new Worker('js/workers/photo-compress-worker.js');
@@ -832,7 +838,10 @@
 
   async function pump() {
     while (compressActive < MAX_COMPRESS) {
-      const next = [...jobs.values()].find((j) => j.status === 'queued' && (j.file || j.dataUrl));
+      const next = [...jobs.values()].find((j) =>
+        j.status === 'queued'
+        && (Logic.hasCompressInput ? Logic.hasCompressInput(j) : (j.file || j.dataUrl || j.blob || j.canvas || j.bitmap))
+      );
       if (!next) break;
       next.status = 'compressing';
       runCompress(next);

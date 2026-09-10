@@ -32,6 +32,13 @@ describe('photo-pipeline-logic', () => {
     assert.equal(migrated.hasPayload, false);
   });
 
+  it('treats camera canvas and bitmap shots as compress-ready', () => {
+    assert.equal(logic.hasCompressInput({ status: 'queued', canvas: {} }), true);
+    assert.equal(logic.hasCompressInput({ status: 'queued', bitmap: {} }), true);
+    assert.equal(logic.hasCompressInput({ status: 'queued', blob: {} }), true);
+    assert.equal(logic.hasCompressInput({ status: 'queued' }), false);
+  });
+
   it('does not retry superseded or payload-less jobs', () => {
     assert.equal(logic.shouldRetry({ status: 'failed', error: 'replaced' }), false);
     assert.equal(logic.shouldRetry({ status: 'superseded', dataUrl: 'x' }), false);

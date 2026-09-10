@@ -418,6 +418,43 @@
       }
     }
 
+    function flushDevicePhotosToPipeline() {
+      const pipe = global.EodPhotoPipeline;
+      if (!pipe?.enqueue) return 0;
+      const existing = new Set(
+        pipe.jobsForSet(dbkey)
+          .filter((j) => j.status !== 'superseded' && j.error !== 'replaced')
+          .map((j) => `${j.slot}:${Number(j.bay)}`)
+      );
+      let n = 0;
+      for (const slot of ['before', 'after']) {
+        const live = liveCoveredBays(local.status, slot);
+        for (const p of local[slot] || []) {
+          const bay = Number(p.bay);
+          if (!bay || live.has(bay) || existing.has(`${slot}:${bay}`)) continue;
+          const dataUrl = p.photoBase64 || p.preview;
+          if (!dataUrl || !String(dataUrl).startsWith('data:')) continue;
+          pipe.enqueue({
+            kind: 'set',
+            compressType: 'set',
+            slot,
+            bay,
+            dbkey,
+            rowId,
+            dataUrl,
+            fileName: p.fileName || `${slot}.jpg`,
+            visitId: local.status?.prod?.visitId,
+            resetId: local.status?.prod?.resetId || null,
+            taskId: local.status?.si?.taskId || null,
+            skipSi: slot === 'before',
+          });
+          existing.add(`${slot}:${bay}`);
+          n += 1;
+        }
+      }
+      return n;
+    }
+
     function liveCoveredBays(status, slot) {
       const remote = status?.remotePhotos || {};
       const fromPhotos = new Set();
@@ -1111,6 +1148,8 @@
             uploadStatus: 'queued',
             fileName: file?.name || shot?.fileName || 'capture.jpg',
           });
+          if (slot === 'before') persistBefores();
+          else persistAfters();
           paintBody();
         });
         return;
@@ -1224,6 +1263,8 @@
           }),
         ]);
         hydrateFromPipeline();
+        const flushed = flushDevicePhotosToPipeline();
+        if (flushed) hydrateFromPipeline();
         setMediaReady('before', true);
         setMediaReady('after', true);
         paintBody();
