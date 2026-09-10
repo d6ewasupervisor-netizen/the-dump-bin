@@ -7,10 +7,15 @@
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
   function bothLiveComplete(row) {
+    const Status = global.EodCategoryCardStatus;
+    if (Status?.prodPhotosReady && Status?.siPhotosReady) {
+      return Status.prodPhotosReady(row) && Status.siPhotosReady(row);
+    }
     const live = row?.live;
     if (!live) return false;
-    if (live.bothComplete) return true;
-    return !!(live.prodComplete && live.siComplete);
+    return Number(live.prodBeforeCount) > 0
+      && Number(live.prodAfterCount) > 0
+      && (Number(live.siPhotoCount || live.photoCount) > 0);
   }
 
   function markActive(row, type) {
@@ -349,6 +354,7 @@
   }
 
   async function applyMark(rowId, markType, opts) {
+    if (markType === 'complete') return;
     const skipReload = !!(opts && opts.skipReload);
     const forceOn = !!(opts && opts.forceOn);
     const helpdeskSent = !!(opts && opts.helpdeskSent);
@@ -621,7 +627,6 @@
           ${btn('not_in_store', 'NIS')}
           ${btn('not_in_si', 'NISI')}
           ${btn('backlog', 'Backlog')}
-          ${btn('complete', 'Complete')}
           ${btn('out_of_scope', 'Out of Scope')}
         </div>
       </div>`;
@@ -658,7 +663,7 @@
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
     const syncBtn = document.getElementById('syncProdSiBtn');
-    const filters = { status: 'not_done' };
+    const filters = { status: S.state.sheetFilter || 'not_done' };
     const selectedIds = new Set();
     let pollTimer = null;
     let lastRowsHtml = '';
@@ -705,7 +710,6 @@
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">NIS</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">NISI</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="backlog">Backlog</button>
-          <button type="button" class="btn btn-secondary" data-bulk-mark="complete">Complete</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="out_of_scope">Out of Scope</button>
         </div>`;
       bulk.querySelectorAll('[data-bulk-mark]').forEach((btn) => {
@@ -927,6 +931,7 @@
       if (!btn) return;
       const value = btn.getAttribute('data-value') || 'all';
       filters.status = filters.status === value ? 'all' : value;
+      S.patch({ sheetFilter: filters.status }, 'sheet-filter');
       paint();
     });
 
@@ -968,6 +973,11 @@
     openPrintAtStoreModal,
     nextWalkRow,
     openSurveyForRow,
+    showDoneTab() {
+      const sess = global.EodSession;
+      sess.patch({ sheetFilter: 'done' }, 'sheet-filter');
+      global.EodRouter.go('signoff');
+    },
     syncProdSi,
   };
   global.EodRouter.register('signoff', render);

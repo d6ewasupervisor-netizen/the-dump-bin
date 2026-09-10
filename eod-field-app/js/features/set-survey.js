@@ -370,15 +370,25 @@
     }
 
     const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
-    if (week && global.EodSetBeforeStore) {
-      local.before = (global.EodSetBeforeStore.getBefores(S.state.storeNumber, week, dbkey) || []).map((p) => ({
+    function fromDeviceStore(list, fallbackName) {
+      return (list || []).map((p) => ({
         bay: p.bay || 1,
         preview: p.dataUrl || p.preview,
         photoBase64: p.dataUrl || p.photoBase64 || p.preview,
         uploadStatus: p.uploadStatus || 'on device',
-        fileName: p.fileName || 'before.jpg',
+        fileName: p.fileName || fallbackName,
         jobId: p.jobId || null,
       }));
+    }
+    if (week && global.EodSetBeforeStore) {
+      local.before = fromDeviceStore(
+        global.EodSetBeforeStore.getBefores(S.state.storeNumber, week, dbkey),
+        'before.jpg'
+      );
+      local.after = fromDeviceStore(
+        global.EodSetBeforeStore.getAfters?.(S.state.storeNumber, week, dbkey),
+        'after.jpg'
+      );
     }
 
     function hydrateFromPipeline() {
@@ -437,33 +447,6 @@
     function applyLiveProd(status) {
       local.liveProd = true;
       local.status = status;
-      for (const slot of ['before', 'after']) {
-        const live = liveCoveredBays(status, slot);
-        local[slot] = (local[slot] || []).filter((p) => {
-          if (uploadInFlight(p.uploadStatus)) return true;
-          return live.has(Number(p.bay));
-        });
-        const pipe = global.EodPhotoPipeline;
-        if (!pipe?.jobsForSet) continue;
-        for (const job of pipe.jobsForSet(dbkey)) {
-          if (job.slot !== slot || job.status !== 'done') continue;
-          if (live.has(Number(job.bay))) continue;
-          pipe.removeJob?.(job.id);
-        }
-      }
-      if (local.pack?.photos) {
-        const beforeLive = liveCoveredBays(status, 'before');
-        const afterLive = liveCoveredBays(status, 'after');
-        local.pack = {
-          ...local.pack,
-          photos: (local.pack.photos || []).filter((p) => {
-            if (p.slot === 'before') return beforeLive.has(Number(p.bayIndex));
-            if (p.source === 'prod') return afterLive.has(Number(p.bayIndex));
-            return true;
-          }),
-        };
-      }
-      persistBefores();
     }
 
     hydrateFromPipeline();
@@ -477,28 +460,28 @@
       const afterJobs = (global.EodPhotoPipeline?.jobsForSet?.(dbkey) || []).filter(
         (j) => j.slot === 'after' && j.status !== 'superseded' && j.error !== 'replaced'
       );
-      const doneBays = new Set(
-        afterJobs.filter((j) => j.status === 'done').map((j) => Number(j.bay))
-      );
-      // Prefer remote+local taken count
-      const taken = takenBays('after');
-      for (const b of doneBays) taken.add(b);
-      if (taken.size < n) return null;
       const open = afterJobs.some((j) => !['done', 'failed'].includes(j.status));
       if (open) return null;
       const failed = afterJobs.filter((j) => j.status === 'failed');
       if (failed.length) return null;
+      if (takenBays('before').size < n) return null;
+      if (takenBays('after').size < n) return null;
+      const st = local.status || {};
+      const prodBefore = Number(st.prod?.beforeCount) || liveCoveredBays(st, 'before').size;
+      const prodAfter = Number(st.prod?.afterCount) || (st.remotePhotos?.prodAfter || []).length;
+      const siHave = Number(st.si?.sectionsWithPhoto) || (st.remotePhotos?.si || []).length;
+      if (prodBefore < n || prodAfter < n || siHave < n) return null;
 
       autoClosePromise = (async () => {
         try {
-          setMsg('All after photos loaded ? closing SI set (waiting for CV if needed)?');
+          setMsg('PROD and SI photos are in — closing the set…');
           const result = await completeSet(dbkey, rowId, {
             visitId: local.status?.prod?.visitId,
             resetId: local.status?.prod?.resetId,
             taskId: local.status?.si?.taskId,
           });
           setMsg(
-            `Closed ? PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || result.si?.detail || ''}`
+            `Closed — PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || result.si?.detail || ''}`
           );
           if (result.status) paintStatus(result.status);
           else {
@@ -508,7 +491,7 @@
           try {
             await global.EodSignoffHome?.loadSheet?.();
           } catch (_) {}
-          paintBody();
+          global.EodSignoffHome?.showDoneTab?.();
         } catch (err) {
           autoClosePromise = null;
           setMsg(err.message || String(err), true);
@@ -521,15 +504,19 @@
       if (detail?.job?.dbkey && String(detail.job.dbkey) !== String(dbkey)) return;
       hydrateFromPipeline();
       if (detail.job?.slot === 'before') persistBefores();
+      if (detail.job?.slot === 'after') persistAfters();
       const counts = global.EodPhotoPipeline.pendingCounts();
       const open = counts.compress + counts.upload;
       if (open > 0) {
         setMsg(`Background: ${counts.compress} compressing | ${counts.upload} uploading`);
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
-        if (detail.job?.slot === 'after') maybeAutoCloseSi();
         if (!liveCameraOpen) {
-          void refreshRemoteAndPaint();
+          void refreshRemoteAndPaint().then(() => {
+            if (detail.job?.slot === 'after') maybeAutoCloseSi();
+          });
+        } else if (detail.job?.slot === 'after') {
+          maybeAutoCloseSi();
         }
         return;
       } else if (detail.type === 'failed' && detail.job?.status !== 'superseded' && detail.job?.error !== 'replaced') {
@@ -580,7 +567,6 @@
       for (const p of local[slot] || []) {
         const st = String(p.uploadStatus || '');
         if (st === 'failed' || st === 'replaced') continue;
-        if (local.liveProd && !uploadInFlight(st)) continue;
         const b = Number(p.bay);
         if (Number.isFinite(b) && b > 0) set.add(b);
       }
@@ -710,21 +696,26 @@
       }));
     }
 
-    function persistBefores() {
+    function persistSlot(slot) {
       if (!(week && global.EodSetBeforeStore)) return;
-      global.EodSetBeforeStore.setBefores(
-        S.state.storeNumber,
-        week,
-        dbkey,
-        local.before.map((p) => ({
-          bay: p.bay,
-          dataUrl: p.photoBase64 || p.preview,
-          uploadStatus: p.uploadStatus,
-          jobId: p.jobId || null,
-          workDate: S.state.workDate,
-          capturedAt: Date.now(),
-        }))
-      );
+      const photos = (local[slot] || []).map((p) => ({
+        bay: p.bay,
+        dataUrl: p.photoBase64 || p.preview,
+        uploadStatus: p.uploadStatus,
+        jobId: p.jobId || null,
+        workDate: S.state.workDate,
+        capturedAt: Date.now(),
+      }));
+      if (slot === 'before') global.EodSetBeforeStore.setBefores(S.state.storeNumber, week, dbkey, photos);
+      else global.EodSetBeforeStore.setAfters?.(S.state.storeNumber, week, dbkey, photos);
+    }
+
+    function persistBefores() {
+      persistSlot('before');
+    }
+
+    function persistAfters() {
+      persistSlot('after');
     }
 
     function paintStatus(status) {
@@ -932,6 +923,7 @@
       }
       local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bayNum);
       if (slot === 'before') persistBefores();
+      else persistAfters();
       setMsg('Removed device bay ' + bayNum);
       paintBody();
     }
@@ -973,7 +965,6 @@
 
         <div class="btn-row" style="margin-top:16px;flex-wrap:wrap;">
           <button type="button" class="btn btn-secondary" id="crossFillBtn">Pull from other system</button>
-          <button type="button" class="btn btn-success" id="finishSetBtn">Finish set (upload + complete + mark sheet)</button>
         </div>`;
 
       bindCaptureControls(body);
@@ -992,7 +983,6 @@
           setMsg(err.message || String(err), true);
         }
       };
-      document.getElementById('finishSetBtn').onclick = () => finishAll();
     }
 
     function bindCaptureControls(body) {
@@ -1163,58 +1153,8 @@
       });
       local[slot].sort((a, b) => Number(a.bay) - Number(b.bay));
       if (slot === 'before') persistBefores();
+      else persistAfters();
       if (!(opts && opts.skipPaint) && !liveCameraOpen) paintBody();
-    }
-
-    async function finishAll() {
-      try {
-        const n = expectedBayCount();
-        const afterHave = takenBays('after').size;
-        if (afterHave < n) {
-          const ok = await global.EodAlerts?.confirm?.(
-            'Finish set?',
-            `Only ${afterHave} of ${n} after photos on device. Finish anyway?`
-          );
-          if (!ok) return;
-        }
-        setMsg('Waiting for uploads, then closing SI (CV + survey if needed)…');
-        if (global.EodPhotoPipeline?.waitForSet) {
-          try {
-            await global.EodPhotoPipeline.waitForSet(dbkey, { allowFailed: false, timeoutMs: 180000 });
-          } catch (err) {
-            setMsg(err.message || String(err), true);
-            hydrateFromPipeline();
-            paintBody();
-            return;
-          }
-        }
-        hydrateFromPipeline();
-        const result = await completeSet(dbkey, rowId, {
-          visitId: local.status?.prod?.visitId,
-          resetId: local.status?.prod?.resetId,
-          taskId: local.status?.si?.taskId,
-        });
-        setMsg(
-          `Done — PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || result.si?.detail || ''}`
-        );
-        if (result.status) paintStatus(result.status);
-        else {
-          local.status = await fetchStatus(dbkey, rowId);
-          paintStatus(local.status);
-        }
-        try {
-          await global.EodSignoffHome?.loadSheet?.();
-        } catch (_) {}
-        const next = global.EodSignoffHome?.nextWalkRow?.(rowId);
-        if (next?.dbkey) {
-          try { unsubPipe?.(); } catch (_) {}
-          global.EodSignoffHome.openSurveyForRow(next);
-          return;
-        }
-        paintBody();
-      } catch (err) {
-        setMsg(err.message || String(err), true);
-      }
     }
 
     function loadPlanogram() {

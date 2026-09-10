@@ -274,7 +274,7 @@
       ...opts,
       root: host,
       hideBack: false,
-      hideComplete: opts.hideComplete !== false,
+      hideComplete: true,
       backLabel: opts.backLabel || 'Close',
       onBack: () => {
         closeOverlay();

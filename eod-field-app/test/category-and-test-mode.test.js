@@ -115,7 +115,16 @@ test('SI location label uses live.siLocation.label', () => {
 
 test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {
   const done = {
-    live: { prodComplete: true, prodStatus: 'done', siComplete: true, siStatus: 'completed' },
+    live: {
+      prodComplete: true,
+      prodStatus: 'done',
+      siComplete: true,
+      siStatus: 'completed',
+      prodBeforeCount: 3,
+      prodAfterCount: 3,
+      siPhotoCount: 3,
+      sectionCount: 3,
+    },
     marks: { active: ['complete'] },
   };
   const open = {
@@ -140,9 +149,18 @@ test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {
   assert.equal(matchesSheetFilters(nis, { notInStore: true, notInSi: true }), true);
 });
 
-test('sheet filters: Done includes live PROD+SI even without a lead mark', () => {
+test('sheet filters: Done requires PROD before+after and SI afters, not a lead Complete mark', () => {
   const liveBoth = {
-    live: { prodComplete: true, prodStatus: 'done', siComplete: true, siStatus: 'completed' },
+    live: {
+      prodComplete: true,
+      prodStatus: 'done',
+      siComplete: true,
+      siStatus: 'completed',
+      prodBeforeCount: 4,
+      prodAfterCount: 4,
+      siPhotoCount: 4,
+      sectionCount: 4,
+    },
     marks: { active: [] },
   };
   const backlog = { marks: { backlog: true, active: ['backlog'] } };
@@ -155,11 +173,11 @@ test('sheet filters: Done includes live PROD+SI even without a lead mark', () =>
   assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(backlog, { status: 'backlog' }), true);
   assert.equal(matchesSheetFilters(complete, { status: 'backlog' }), false);
-  assert.equal(sheetRowDone(complete), true);
-  assert.equal(matchesSheetFilters(complete, { status: 'done' }), true);
+  assert.equal(sheetRowDone(complete), false);
+  assert.equal(matchesSheetFilters(complete, { status: 'done' }), false);
 });
 
-test('NISI is not done; only NIS / Complete / Out of Scope / both-live clear a set', () => {
+test('NISI is not done; only NIS / Out of Scope / photos clear a set', () => {
   const nisi = { marks: { notInSi: true, active: ['not_in_si'] } };
   const nis = { marks: { notInStore: true, active: ['not_in_store'] } };
   const oos = { marks: { outOfScope: true, active: ['out_of_scope'] } };
@@ -185,7 +203,19 @@ test('walk sort: aisle order, backlog after open, complete at bottom, next skips
   } = require('../js/lib/category-card-status');
   const a12 = { id: 1, dbkey: 'a', catName: 'Frozen', live: { siLocation: { label: 'Aisle 12' } }, marks: { active: [] } };
   const a3 = { id: 2, dbkey: 'b', catName: 'Dairy', live: { siLocation: { label: 'Aisle 3' } }, marks: { active: [] } };
-  const done = { id: 3, dbkey: 'c', catName: 'Done set', live: { siLocation: { label: 'Aisle 1' } }, marks: { active: ['complete'], complete: true } };
+  const done = {
+    id: 3,
+    dbkey: 'c',
+    catName: 'Done set',
+    live: {
+      siLocation: { label: 'Aisle 1' },
+      prodBeforeCount: 2,
+      prodAfterCount: 2,
+      siPhotoCount: 2,
+      sectionCount: 2,
+    },
+    marks: { active: [] },
+  };
   const back = { id: 4, dbkey: 'd', catName: 'Later', live: { siLocation: { label: 'Aisle 2' } }, marks: { active: ['backlog'], backlog: true } };
   const sorted = sortWalkRows([done, a12, back, a3]);
   assert.equal(sorted[0].id, 2);
@@ -547,8 +577,9 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /id="sheetSelectAll"/);
   assert.match(signoff, /filteredSheetRows/);
   assert.doesNotMatch(signoff, /id="sheetNext"/);
-  assert.match(signoff, /btn\('complete', 'Complete'\)/);
+  assert.doesNotMatch(signoff, /btn\('complete', 'Complete'\)/);
   assert.match(signoff, /btn\('out_of_scope', 'Out of Scope'\)/);
+  assert.doesNotMatch(signoff, /data-bulk-mark="complete"/);
   assert.match(signoff, /data-select-row/);
   assert.match(signoff, /data-bulk-mark/);
   assert.doesNotMatch(signoff, /data-filter="prod"/);
@@ -739,6 +770,16 @@ test('set survey shows PROD and SI remotes and copies afters when one side is be
   assert.match(dept, /function rowInScope/);
   assert.match(dept, /workRows = sheet\.rows\.filter\(rowInScope\)/);
   assert.doesNotMatch(dept, /filter\(rowHasWorkMark\)/);
+});
+
+test('Complete does not delete local afters that have not landed in PROD or SI', () => {
+  const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
+  assert.match(survey, /function applyLiveProd\(status\) \{\s*local\.liveProd = true;\s*local\.status = status;\s*\}/);
+  assert.doesNotMatch(survey, /pipe\.removeJob/);
+  assert.doesNotMatch(survey, /if \(local\.liveProd && !uploadInFlight/);
+  assert.doesNotMatch(survey, /finishSetBtn/);
+  assert.match(survey, /function persistAfters/);
+  assert.match(survey, /showDoneTab/);
 });
 
 test('double-swipe nav order is visit, categories, signatures, send', () => {

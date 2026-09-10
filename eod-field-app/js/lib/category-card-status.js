@@ -144,36 +144,37 @@
     return '<span class="pill">PROD not started</span>';
   }
 
+  function prodPhotosReady(row, extraBefore) {
+    const counts = prodPhotoCounts(row, extraBefore);
+    return counts.before > 0 && counts.after > 0;
+  }
+
+  function siPhotosReady(row) {
+    const { have, need } = siSectionCounts(row);
+    if (have < 1) return false;
+    if (need > 0) return have >= need;
+    return true;
+  }
+
   function prodDone(row) {
-    const live = row && row.live;
-    if (!live) return false;
-    if (live.prodComplete) return true;
-    return String(live.prodStatus || '').toLowerCase() === 'done';
+    return prodPhotosReady(row);
   }
 
   function siDone(row) {
-    const live = row && row.live;
-    if (!live) return false;
-    if (live.siComplete) return true;
-    const st = String(live.siStatus || '').toLowerCase();
-    return st === 'completed' || st === 'complete' || st === 'done';
+    return siPhotosReady(row);
   }
 
   function sheetRowDone(row) {
     if (markActive(row, 'out_of_scope')) return true;
-    if (markActive(row, 'complete')) return true;
     if (markActive(row, 'not_in_store')) return true;
-    if (prodDone(row) && siDone(row)) return true;
-    return false;
+    return prodPhotosReady(row) && siPhotosReady(row);
   }
 
   function rowSendReady(row) {
     if (markActive(row, 'out_of_scope')) return true;
     if (markActive(row, 'not_in_store')) return true;
-    if (markActive(row, 'complete')) return true;
     if (markActive(row, 'backlog')) return true;
-    if (prodDone(row) && siDone(row)) return true;
-    return false;
+    return prodPhotosReady(row) && siPhotosReady(row);
   }
 
   function formatEstHrs(raw) {
@@ -271,6 +272,8 @@
     neededCaptureSlot,
     liveStatusLineFromCounts,
     liveStatusLineHtml,
+    prodPhotosReady,
+    siPhotosReady,
     prodDone,
     siDone,
     sheetRowDone,
