@@ -445,6 +445,7 @@
     toast('Saving draft & photos, then reloading…', 'ok');
 
     try { global.EodSession?.saveDraft(); } catch (_) {}
+    try { global.EodDevicePhotoFlush?.persistOpen?.(); } catch (_) {}
 
     let saved = true;
     if (global.EodDurability?.awaitDurablePhotoSave) {

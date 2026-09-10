@@ -418,7 +418,21 @@
       }
     }
 
-    function flushDevicePhotosToPipeline() {
+    async function flushDevicePhotosToPipeline() {
+      persistOpen();
+      const Flush = global.EodDevicePhotoFlush;
+      if (Flush?.flushSet) {
+        return Flush.flushSet({
+          dbkey,
+          rowId,
+          before: local.before,
+          after: local.after,
+          status: local.status,
+          visitId: local.status?.prod?.visitId || S.state.selectedShift?.visitId || null,
+          resetId: local.status?.prod?.resetId || null,
+          taskId: local.status?.si?.taskId || null,
+        });
+      }
       const pipe = global.EodPhotoPipeline;
       if (!pipe?.enqueue) return 0;
       const existing = new Set(
@@ -433,7 +447,15 @@
           const bay = Number(p.bay);
           if (!bay || live.has(bay) || existing.has(`${slot}:${bay}`)) continue;
           const dataUrl = p.photoBase64 || p.preview;
-          if (!dataUrl || !String(dataUrl).startsWith('data:')) continue;
+          if (!dataUrl || !(String(dataUrl).startsWith('data:') || String(dataUrl).startsWith('blob:'))) continue;
+          const payload = { dataUrl: String(dataUrl).startsWith('data:') ? dataUrl : null };
+          if (!payload.dataUrl && String(dataUrl).startsWith('blob:')) {
+            try {
+              const resp = await fetch(dataUrl);
+              payload.file = await resp.blob();
+            } catch (_) { continue; }
+          }
+          if (!payload.dataUrl && !payload.file) continue;
           pipe.enqueue({
             kind: 'set',
             compressType: 'set',
@@ -441,7 +463,8 @@
             bay,
             dbkey,
             rowId,
-            dataUrl,
+            dataUrl: payload.dataUrl,
+            file: payload.file || null,
             fileName: p.fileName || `${slot}.jpg`,
             visitId: local.status?.prod?.visitId,
             resetId: local.status?.prod?.resetId || null,
@@ -735,16 +758,28 @@
 
     function persistSlot(slot) {
       if (!(week && global.EodSetBeforeStore)) return;
-      const photos = (local[slot] || []).map((p) => ({
-        bay: p.bay,
-        dataUrl: p.photoBase64 || p.preview,
-        uploadStatus: p.uploadStatus,
-        jobId: p.jobId || null,
-        workDate: S.state.workDate,
-        capturedAt: Date.now(),
-      }));
-      if (slot === 'before') global.EodSetBeforeStore.setBefores(S.state.storeNumber, week, dbkey, photos);
-      else global.EodSetBeforeStore.setAfters?.(S.state.storeNumber, week, dbkey, photos);
+      try {
+        const incoming = (local[slot] || []).map((p) => ({
+          bay: p.bay,
+          dataUrl: p.photoBase64 || p.preview,
+          uploadStatus: p.uploadStatus,
+          jobId: p.jobId || null,
+          workDate: S.state.workDate,
+          capturedAt: Date.now(),
+        })).filter((p) => p.dataUrl && String(p.dataUrl).startsWith('data:'));
+        const keepBays = new Set((local[slot] || []).map((p) => Number(p.bay)));
+        const prev = (slot === 'before'
+          ? global.EodSetBeforeStore.getBefores(S.state.storeNumber, week, dbkey)
+          : global.EodSetBeforeStore.getAfters?.(S.state.storeNumber, week, dbkey)) || [];
+        const byBay = new Map();
+        for (const p of prev) {
+          if (keepBays.has(Number(p.bay))) byBay.set(Number(p.bay), p);
+        }
+        for (const p of incoming) byBay.set(Number(p.bay), p);
+        const photos = [...byBay.values()];
+        if (slot === 'before') global.EodSetBeforeStore.setBefores(S.state.storeNumber, week, dbkey, photos);
+        else global.EodSetBeforeStore.setAfters?.(S.state.storeNumber, week, dbkey, photos);
+      } catch (_) {}
     }
 
     function persistBefores() {
@@ -754,6 +789,12 @@
     function persistAfters() {
       persistSlot('after');
     }
+
+    function persistOpen() {
+      persistBefores();
+      persistAfters();
+    }
+    global.EodDevicePhotoFlush?.setOpenPersister?.(persistOpen);
 
     function paintStatus(status) {
       if (status) local.status = status;
@@ -946,7 +987,7 @@
             `<div class="set-thumb device" data-slot="${slot}" data-bay="${esc(p.bay)}" data-job="${esc(p.jobId || '')}">
               <button type="button" class="set-thumb-x" data-clear-slot="${slot}" data-clear-bay="${esc(p.bay)}" data-clear-job="${esc(p.jobId || '')}" aria-label="Remove device photo">×</button>
               <img src="${p.preview}" alt="${slot} bay ${esc(p.bay)}">
-              <span>Bay ${esc(p.bay)} | ${esc(p.uploadStatus || 'queued')}</span>
+              <span>Bay ${esc(p.bay)} | ${esc(p.uploadStatus || 'on device')}</span>
             </div>`
         )
         .join('')}</div>`;
@@ -967,6 +1008,7 @@
     }
 
     function paintBody() {
+      persistOpen();
       if (liveCameraOpen) return;
       const n = expectedBayCount();
       const body = document.getElementById('setSurveyBody');
@@ -1128,8 +1170,8 @@
         });
       }
       setMsg(replacing
-        ? `${used} queued to replace PROD`
-        : `${used} queued`);
+        ? `${used} on device — replacing PROD`
+        : `${used} on device`);
     }
 
     async function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
@@ -1145,7 +1187,7 @@
             bay,
             preview,
             photoBase64: preview,
-            uploadStatus: 'queued',
+            uploadStatus: 'on device',
             fileName: file?.name || shot?.fileName || 'capture.jpg',
           });
           if (slot === 'before') persistBefores();
@@ -1263,7 +1305,8 @@
           }),
         ]);
         hydrateFromPipeline();
-        const flushed = flushDevicePhotosToPipeline();
+        persistOpen();
+        const flushed = await flushDevicePhotosToPipeline();
         if (flushed) hydrateFromPipeline();
         setMediaReady('before', true);
         setMediaReady('after', true);
@@ -1299,13 +1342,20 @@
     setMediaReady('before', true);
     setMediaReady('after', true);
     hydrateFromPipeline();
+    persistOpen();
     paintBody();
     if (autoCapture && !listCaptureStarted) {
       listCaptureStarted = true;
       startSequentialCapture(preferSlot, { fromOne: true, returnTo: 'signoff' });
     }
+    void flushDevicePhotosToPipeline().then((n) => {
+      if (n) {
+        hydrateFromPipeline();
+        if (!liveCameraOpen) paintBody();
+      }
+    });
     void reload({ fresh: false });
   }
-  global.EodSetSurvey = { render };
+  global.EodSetSurvey = { render, persistOpen: () => global.EodDevicePhotoFlush?.persistOpen?.() };
   global.EodRouter.register('survey', render);
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1203,6 +1203,7 @@
       schedulePump();
       reconcileOpenJobs();
       scheduleAcceptedPoll();
+      try { void global.EodDevicePhotoFlush?.flushCurrentStore?.(); } catch (_) {}
     });
     window.addEventListener('online', () => {
       reconcileOpenJobs();

@@ -105,7 +105,7 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.4.18').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.4.19').catch(() => {});
           if (!navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;
@@ -134,8 +134,10 @@
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
           try { window.EodSession.saveDraft(); } catch (_) {}
+          try { window.EodDevicePhotoFlush?.persistOpen?.(); } catch (_) {}
         } else {
           try { window.EodDeviceStorage?.purgeInBackground?.(); } catch (_) {}
+          try { void window.EodDevicePhotoFlush?.flushCurrentStore?.(); } catch (_) {}
         }
       });
       window.addEventListener('beforeunload', () => {

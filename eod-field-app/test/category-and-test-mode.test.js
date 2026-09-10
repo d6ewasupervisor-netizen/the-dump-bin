@@ -550,6 +550,10 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
   assert.match(bundles, /set-media-prefetch/);
   assert.match(bundles, /si-planogram-board/);
+  assert.match(html, /device-photo-flush/);
+  assert.match(bundles, /device-photo-flush/);
+  assert.match(survey, /EodDevicePhotoFlush/);
+  assert.match(survey, /persistOpen/);
 });
 
 test('Not in store prompt uses Don\'t Report / Please Report / Cancel before marking', () => {

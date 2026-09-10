@@ -79,6 +79,17 @@
     if (afterKey) localStorage.removeItem(afterKey);
   }
 
+  function listSets(store, fiscalWeek) {
+    const befores = loadAll(store, fiscalWeek);
+    const afters = loadAll(store, fiscalWeek, AFTER_PREFIX);
+    const keys = new Set([...Object.keys(befores), ...Object.keys(afters)]);
+    return [...keys].map((dbkey) => ({
+      dbkey,
+      before: Array.isArray(befores[dbkey]) ? befores[dbkey] : [],
+      after: Array.isArray(afters[dbkey]) ? afters[dbkey] : [],
+    }));
+  }
+
   function clearAllForStore(store) {
     const s = normStore(store);
     if (!s) return;
@@ -98,6 +109,7 @@
     getAfters,
     setAfters,
     appendBefore,
+    listSets,
     clearStoreWeek,
     clearAllForStore,
     storageKey,

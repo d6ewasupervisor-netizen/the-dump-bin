@@ -18,6 +18,7 @@
       'js/lib/si-planogram-board.js',
       'js/lib/barcode-scanner.js',
       'js/lib/cart-upc-locate.js',
+      'js/lib/device-photo-flush.js',
       'js/features/set-survey.js',
     ],
     send: [
