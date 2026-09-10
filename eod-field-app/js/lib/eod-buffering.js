@@ -7,7 +7,7 @@
   const AMBIENT_MAX_MS = 45000;
   const SUCCESS_HOLD_MS = 1400;
   const BUSY_LABEL = 'buffering';
-  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.4.20')}`;
+  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.4.21')}`;
   const SKIP_RE = /sas-auth-status|rebotics-auth-status|\/usage\b|eod-version\.json|\/api\/me(?:\?|$)|digital-signoffs\/(?:heartbeat|catalog-stores|sync|visit-mirror)|\/photos\/|\/image(?:\?|$)|field-set\/(?:status|planogram|planogram-image|photo|jobs)|\/api\/shifts\/day|sas-upload/i;
 
   let depth = 0;
