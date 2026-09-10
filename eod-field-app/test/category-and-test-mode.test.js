@@ -288,11 +288,11 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.match(chrome, /data-more="crew"/);
   assert.match(chrome, /data-more="dumpbin"/);
   assert.match(chrome, /data-more="helpdesk"/);
-  assert.match(chrome, /data-more="photos"/);
   assert.match(chrome, /data-more="storage"/);
-  assert.match(chrome, /data-more="signatures"/);
-  assert.match(chrome, /data-more="visit"/);
-  assert.match(chrome, /data-more="send"/);
+  assert.doesNotMatch(chrome, /data-more="photos"/);
+  assert.doesNotMatch(chrome, /data-more="visit"/);
+  assert.doesNotMatch(chrome, /data-more="signatures"/);
+  assert.doesNotMatch(chrome, /data-more="send"/);
   for (const name of ['visit', 'categories', 'signatures', 'send', 'crew', 'dumpbin', 'helpdesk']) {
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
   }
