@@ -598,8 +598,8 @@ test('cover notes rewrite the In/Out/cart line and keep extra notes', () => {
   );
 });
 
-test('cover notes add Not in store lines from sheet marks', () => {
-  const { mergeNotes } = require('../js/lib/cover-notes');
+test('cover notes omit set lists already shown in dedicated fields', () => {
+  const { mergeNotes, notesWithoutSetLists } = require('../js/lib/cover-notes');
   const S = {
     state: {
       checkInManager: 'Bryce',
@@ -612,13 +612,29 @@ test('cover notes add Not in store lines from sheet marks', () => {
           { catName: 'Soft Drinks', marks: { active: ['not_in_si'], notInSi: true } },
         ],
       },
-      notes: '',
+      notes: [
+        'Not in store: Isotonic',
+        'Not in SI: Soft Drinks',
+        '— Day summary —',
+        '— Not in SI: Soft Drinks, Frozen',
+        'Lead note stays',
+      ].join('\n'),
     },
   };
-  const notes = mergeNotes('', S);
-  assert.match(notes, /Not in store: Isotonic/);
-  assert.match(notes, /Not in SI: Soft Drinks/);
-  assert.ok(notes.indexOf('Not in store: Isotonic') < notes.indexOf('Not in SI: Soft Drinks'));
+  const notes = mergeNotes(S.state.notes, S);
+  assert.doesNotMatch(notes, /Not in store:/);
+  assert.doesNotMatch(notes, /Not in SI:/);
+  assert.doesNotMatch(notes, /Day summary/);
+  assert.match(notes, /Lead note stays/);
+  assert.equal(notesWithoutSetLists(S.state.notes), 'Lead note stays');
+});
+
+test('attached PDF cover uses current signoff and Help Desk rules', () => {
+  const sheets = fs.readFileSync(path.join(__dirname, '../js/lib/eod-send-sheets.js'), 'utf8');
+  assert.match(sheets, /rowHtml\('Signoff Attached', signoffAttached \? 'Yes' : 'No'/);
+  assert.doesNotMatch(sheets, /rowHtml\('Digital signoff'/);
+  assert.match(sheets, /calledHelpDesk \? rowHtml\('Commodities'/);
+  assert.match(sheets, /listHtml\(r\.notInSi, \/\^not in si:/);
 });
 
 test('category cards do not include a Capture button', () => {

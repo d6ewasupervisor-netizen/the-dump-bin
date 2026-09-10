@@ -235,6 +235,7 @@
     const Notes = global.EodCoverNotes;
     const notInStoreLines = Notes?.nisLines?.(S) || [];
     const notInSiLines = Notes?.nisiLines?.(S) || [];
+    const cleanNotes = Notes?.notesWithoutSetLists?.(S.state.notes) ?? (S.state.notes || '');
     const notInStoreText = notInStoreLines.length
       ? notInStoreLines.join('\n')
       : ((S.state.notInStoreSelected || []).join('\n') || 'None');
@@ -287,7 +288,7 @@ Help desk reports: ${(S.state.helpdeskSubmittedReports || []).length
 After picture of KOMPASS cart taken: ${yn(afterDone)}
 Sign-off sheets photographed: ${yn(signoffDone)}
 ${digitalReady ? '' : `Number of sign-off photos: ${signoffCount}\n`}Notes:
-${S.state.notes || ''}`;
+${cleanNotes}`;
 
     const report = {
       leadName: lead,
@@ -316,7 +317,7 @@ ${S.state.notes || ''}`;
       signoffDone: yn(signoffDone),
       signoffCount: digitalReady ? '' : signoffCount,
       omitSignoffPhotoCount: digitalReady,
-      notes: S.state.notes || '',
+      notes: cleanNotes,
       app: 'eod-field-app',
       version: global.EOD_APP_VERSION,
     };

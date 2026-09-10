@@ -43,18 +43,35 @@
     return '#1C2733';
   }
 
-  function rowHtml(label, value, alt) {
+  function rowHtml(label, value, alt, valueHtml) {
     const bg = alt ? '#F5F9FC' : '#FFFFFF';
     const color = ynColor(value);
     const display = String(value ?? '').trim() || '—';
     return `<tr>
       <td style="background:${bg};border:1px solid #BFD6EC;padding:10px 12px;font-family:Calibri,Arial,sans-serif;font-size:14px;color:#0E2A47;font-weight:600;width:38%;vertical-align:top;">${esc(label)}</td>
-      <td style="background:${bg};border:1px solid #BFD6EC;padding:10px 12px;font-family:Calibri,Arial,sans-serif;font-size:14px;color:${color};white-space:pre-wrap;word-break:break-word;vertical-align:top;">${esc(display)}</td>
+      <td style="background:${bg};border:1px solid #BFD6EC;padding:10px 12px;font-family:Calibri,Arial,sans-serif;font-size:14px;color:${color};white-space:pre-wrap;word-break:break-word;vertical-align:top;">${valueHtml == null ? esc(display) : valueHtml}</td>
     </tr>`;
+  }
+
+  function listHtml(value, stripPrefix) {
+    const raw = String(value ?? '').trim();
+    if (!raw || /^none$/i.test(raw) || raw === '—') return esc(raw || '—');
+    const items = raw
+      .split(/\r?\n|;/)
+      .map((part) => part.trim().replace(/^•\s*/, ''))
+      .map((part) => (stripPrefix ? part.replace(stripPrefix, '').trim() : part))
+      .filter(Boolean);
+    if (!items.length) return esc(raw);
+    return `<ul style="margin:0;padding:0 0 0 18px;">${items
+      .map((item) => `<li style="margin:0 0 3px;">${esc(item)}</li>`)
+      .join('')}</ul>`;
   }
 
   function buildCoversheetElement(report, { testMode } = {}) {
     const r = report || {};
+    const calledHelpDesk = /^(?:yes|y|true|1)(?:\b|$)/i.test(String(r.calledHelpDesk || '').trim());
+    const signoffAttached = logic().hasDigitalSignoff?.(r) !== false
+      && !/^(?:none|no|false|not attached|—|-)(?:\b|$)/i.test(String(r.digitalSignoff || '').trim());
     const host = document.createElement('div');
     host.style.cssText = 'position:fixed;left:-10000px;top:0;width:640px;background:#fff;z-index:-1;';
     const testBanner = testMode
@@ -80,18 +97,19 @@
             ${rowHtml('Manager checked in with', r.checkInManager, false)}
             ${rowHtml('InstaWork support', r.instaworkSupport, true)}
             ${rowHtml('Called KOMPASS Help Desk', r.calledHelpDesk, false)}
-            ${rowHtml('Commodities', r.commodities, true)}
-            ${rowHtml('Issue', r.issue, false)}
-            ${rowHtml('Issue resolved', r.issueResolved, true)}
-            ${rowHtml('Temporary solution', r.tempSolution, false)}
+            ${calledHelpDesk ? rowHtml('Commodities', r.commodities, true) : ''}
+            ${calledHelpDesk ? rowHtml('Issue', r.issue, false) : ''}
+            ${calledHelpDesk ? rowHtml('Issue resolved', r.issueResolved, true) : ''}
+            ${calledHelpDesk ? rowHtml('Temporary solution', r.tempSolution, false) : ''}
             ${rowHtml('Manager checked out with', r.checkOutManager, true)}
             ${rowHtml('Signed out in PROD', r.signedOutProd, false)}
             ${rowHtml('Signed out in SI', r.signedOutSi, true)}
-            ${rowHtml('Not in store', r.notInStore, false)}
-            ${rowHtml('Not in SI', r.notInSi, true)}
-            ${rowHtml('Digital signoff', r.digitalSignoff, false)}
-            ${rowHtml('Department signatures', r.deptSignatures, true)}
+            ${rowHtml('Not in store', r.notInStore, false, listHtml(r.notInStore, /^not in store:\s*/i))}
+            ${rowHtml('Not in SI', r.notInSi, true, listHtml(r.notInSi, /^not in si:\s*/i))}
+            ${rowHtml('Signoff Attached', signoffAttached ? 'Yes' : 'No', false)}
+            ${rowHtml('Department signatures', r.deptSignatures, true, listHtml(r.deptSignatures))}
             ${rowHtml('After picture of KOMPASS cart', r.afterTaken, false)}
+            ${rowHtml('Sign-off sheets photographed', r.signoffDone, true)}
           </table>
         </div>
       </div>`;

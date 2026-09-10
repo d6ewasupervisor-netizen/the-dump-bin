@@ -3,8 +3,8 @@
   'use strict';
 
   const COVER_RE = /^In:\s/i;
-  const NIS_RE = /^Not in store:/i;
-  const NISI_RE = /^Not in SI:/i;
+  const SET_LIST_RE = /^(?:[•\-—]\s*)*Not in (?:store|SI):/i;
+  const DAY_SUMMARY_RE = /^(?:[•\-—]\s*)*Day summary(?:\s*[—-])?$/i;
   const SKIP = new Set(['cover-sync', 'reset', 'notes']);
 
   function cartCount(S, slot) {
@@ -85,30 +85,22 @@
     return `In: ${inn} · Out: ${out} · cart ${cartCount(S, 'before')}/${cartCount(S, 'after')} · ${marked}`;
   }
 
+  function notesWithoutSetLists(existing) {
+    return String(existing || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line
+        && !SET_LIST_RE.test(line)
+        && !DAY_SUMMARY_RE.test(line))
+      .join('\n');
+  }
+
   function mergeNotes(existing, S) {
     const summary = summaryLine(S);
-    const nis = nisLines(S);
-    const nisi = nisiLines(S);
-    const lines = String(existing || '').split(/\r?\n/);
-    const rest = [];
-    const haveNis = new Set(nis.map((l) => l.toLowerCase()));
-    const haveNisi = new Set(nisi.map((l) => l.toLowerCase()));
-    for (const raw of lines) {
-      const line = String(raw || '');
-      const t = line.trim();
-      if (!t) continue;
-      if (COVER_RE.test(t)) continue;
-      if (NIS_RE.test(t)) {
-        if (!haveNis.has(t.toLowerCase())) rest.push(line);
-        continue;
-      }
-      if (NISI_RE.test(t)) {
-        if (!haveNisi.has(t.toLowerCase())) rest.push(line);
-        continue;
-      }
-      rest.push(line);
-    }
-    return [summary, ...nis, ...nisi, ...rest].join('\n');
+    const rest = notesWithoutSetLists(existing)
+      .split(/\r?\n/)
+      .filter((line) => line && !COVER_RE.test(line));
+    return [summary, ...rest].join('\n');
   }
 
   function applyToDom(next) {
@@ -139,7 +131,16 @@
     });
   }
 
-  const api = { summaryLine, mergeNotes, nisLines, nisiLines, apply, init, cartCount };
+  const api = {
+    summaryLine,
+    mergeNotes,
+    notesWithoutSetLists,
+    nisLines,
+    nisiLines,
+    apply,
+    init,
+    cartCount,
+  };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodCoverNotes = api;
 })(typeof window !== 'undefined' ? window : globalThis);
