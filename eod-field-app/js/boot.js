@@ -92,6 +92,7 @@
       try { window.EodCoverNotes?.init?.(window.EodSession); } catch (err) { console.warn('[eod-field-app] cover notes', err); }
       try { window.EodLandscapeSigPad?.forceClose?.(); } catch (_) {}
       try { window.EodSwipeNav?.init?.(); } catch (err) { console.warn('[eod-field-app] swipe nav', err); }
+      try { window.EodVisitMirror?.init?.(); } catch (err) { console.warn('[eod-field-app] visit mirror', err); }
       try { window.EodShiftPhotoSync?.init?.(); } catch (err) { console.warn('[eod-field-app] photo sync', err); }
       try { window.EodStoreProdWarm?.start?.(); } catch (err) { console.warn('[eod-field-app] prod warm', err); }
       try { window.EodConnections?.init?.(); } catch (err) { console.warn('[eod-field-app] connections init', err); }
@@ -104,7 +105,7 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.4.16').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.4.17').catch(() => {});
           if (!navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;

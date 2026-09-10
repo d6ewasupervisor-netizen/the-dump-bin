@@ -1302,6 +1302,8 @@
     }
     try { await withTimeout(global.EodCover?.loadStoreData?.(store), HYDRATE_MS); } catch (_) {}
     try { await withTimeout(prefetchSheetWeek(store, date), HYDRATE_MS); } catch (_) {}
+    let mirrored = null;
+    try { mirrored = await withTimeout(global.EodVisitMirror?.hydrate?.(S), HYDRATE_MS); } catch (_) {}
     if (global.PhotoDB?.switchToDayConfirm) {
       try {
         await withTimeout(global.PhotoDB.switchToDayConfirm(store, date, S.state.photos), 8000);
@@ -1315,6 +1317,10 @@
           listEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load shifts.')}</p>`;
         }
       }
+    }
+    if (mirrored) {
+      try { global.EodVisitMirror.selectMirroredShift(S, mirrored); } catch (_) {}
+      if (S.state.selectedShift) paintLeadFromShift(S.state.selectedShift, S.state.shifts);
     }
     if (statusEl) statusEl.textContent = '';
   }

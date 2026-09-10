@@ -513,6 +513,7 @@ test('compass buffering overlay ships and wraps slow authFetch', () => {
   assert.match(html, /eod-send-sheets-logic\.js[\s\S]*features\/visit\.js/);
   assert.match(html, /js\/lib\/shift-day-cache\.js/);
   assert.match(html, /js\/lib\/shift-photo-sync\.js/);
+  assert.match(html, /js\/lib\/visit-mirror\.js/);
   assert.match(html, /id="eodBuffering"/);
   assert.match(html, /assets\/buffering\.gif/);
   assert.match(html, /eod-buffering-card/);
@@ -915,6 +916,7 @@ test('store prod warm heartbeats and Categories poll the sheet, not a full sync'
   assert.match(warm, /\/heartbeat/);
   assert.match(warm, /HEARTBEAT_MS = 45_000/);
   assert.match(warm, /prefetchStatuses/);
+  assert.match(warm, /prefetchStatuses\(\)\.then\(\(\) => prefetchPlanograms\(\)\)/);
   assert.match(warm, /prefetchPlanograms/);
   assert.match(warm, /\/planogram\?/);
   assert.match(warm, /peekPlanogram/);
@@ -940,5 +942,18 @@ test('SAS and SI bulbs own auth refresh; the title-bar reload button is gone', (
   assert.doesNotMatch(conn, /showAlert/);
   assert.match(conn, /chromeDots/);
   assert.match(conn, /classList\.add\('spinning'\)/);
+});
+
+test('visit mirror hydrates the lead snapshot onto a second login', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const mirror = fs.readFileSync(path.join(__dirname, '../js/lib/visit-mirror.js'), 'utf8');
+  const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
+  const sync = fs.readFileSync(path.join(__dirname, '../js/lib/shift-photo-sync.js'), 'utf8');
+  assert.match(html, /js\/lib\/visit-mirror\.js/);
+  assert.match(mirror, /function hydrate/);
+  assert.match(mirror, /signatureDataUrl/);
+  assert.match(visit, /EodVisitMirror\?\.hydrate/);
+  assert.match(sync, /setAfters/);
+  assert.match(sync, /prefetchSetPhotos/);
 });
 

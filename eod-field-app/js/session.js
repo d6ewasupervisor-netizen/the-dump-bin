@@ -274,6 +274,7 @@
     if (dataUrl) localStorage.setItem(SIGNATURE_KEY, dataUrl);
     else localStorage.removeItem(SIGNATURE_KEY);
     emit('signature');
+    try { global.EodVisitMirror?.persist?.(global.EodSession); } catch (_) {}
   }
 
   function loadDraft() {
@@ -397,6 +398,7 @@
     localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
     saveProfile();
     try { global.EodVisitMemory?.captureFromSession?.({ state, resolvedLeadName }); } catch (_) {}
+    try { global.EodVisitMirror?.persist?.(global.EodSession); } catch (_) {}
   }
 
   // Bridge for ported modules that still read DOM / window arrays.

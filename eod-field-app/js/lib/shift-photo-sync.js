@@ -70,8 +70,14 @@
         const data = await resp.json().catch(() => ({}));
         const photos = Array.isArray(data.photos) ? data.photos : [];
         const befores = photos.filter((p) => String(p.slot || '').toLowerCase() === 'before');
-        if (befores.length && global.EodSetBeforeStore?.setBefores && store && week) {
-          global.EodSetBeforeStore.setBefores(store, week, row.dbkey, befores);
+        const afters = photos.filter((p) => String(p.slot || '').toLowerCase() !== 'before');
+        if (store && week && global.EodSetBeforeStore) {
+          if (befores.length && global.EodSetBeforeStore.setBefores) {
+            global.EodSetBeforeStore.setBefores(store, week, row.dbkey, befores);
+          }
+          if (afters.length && global.EodSetBeforeStore.setAfters) {
+            global.EodSetBeforeStore.setAfters(store, week, row.dbkey, afters);
+          }
         }
       } catch (err) {
         console.warn('[photo-sync] set', row.dbkey, err.message || err);
@@ -97,6 +103,7 @@
       const sheet = S.state.sheet;
       if (sheet?.rows?.length) {
         try { global.EodSetMediaPrefetch?.start(sheet); } catch (_) {}
+        try { await prefetchSetPhotos(sheet); } catch (_) {}
       }
       try { global.EodCoverNotes?.apply?.(S, reason || 'shift-photos'); } catch (_) {}
     } finally {

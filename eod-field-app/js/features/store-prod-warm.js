@@ -84,6 +84,7 @@
         }),
         skipBusy: true,
       });
+      try { global.EodVisitMirror?.persist?.(S); } catch (_) {}
     } catch (_) { /* keep trying next tick */ }
   }
 
@@ -173,20 +174,17 @@
   function start() {
     if (started) {
       beat();
-      prefetchStatuses();
-      prefetchPlanograms();
+      prefetchStatuses().then(() => prefetchPlanograms()).catch(() => {});
       return;
     }
     started = true;
     beat();
-    prefetchStatuses();
-    prefetchPlanograms();
+    prefetchStatuses().then(() => prefetchPlanograms()).catch(() => {});
     if (beatTimer) clearInterval(beatTimer);
     beatTimer = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       beat();
-      prefetchStatuses();
-      prefetchPlanograms();
+      prefetchStatuses().then(() => prefetchPlanograms()).catch(() => {});
     }, HEARTBEAT_MS);
   }
 
