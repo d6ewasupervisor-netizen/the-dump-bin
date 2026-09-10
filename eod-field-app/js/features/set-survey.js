@@ -9,6 +9,71 @@
   const LIVE_ZOOM_MAX = 4;
   const LIVE_ZOOM_STEP = 0.25;
 
+  function photoBay(p, fallback = null) {
+    const n = Number(p?.bay ?? p?.bayIndex);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  }
+
+  function photoId(p) {
+    return p?.id ?? p?.photoId ?? p?.imageId ?? p?.actionId ?? p?.sectionId ?? null;
+  }
+
+  function isOwnedPhotoUrl(url) {
+    const value = String(url || '').trim();
+    if (/^(data:|blob:)/i.test(value) || value.startsWith('/api/')) return true;
+    try {
+      const parsed = new URL(value);
+      return parsed.hostname === 'eod-api.the-dump-bin.com' && parsed.pathname.startsWith('/api/');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function ownedRemotePhoto(p, { rowId, slot, source } = {}) {
+    const resolvedSource = String(p?.source || source || (slot === 'before' ? 'prod' : 'si')).toLowerCase();
+    const resolvedId = photoId(p);
+    const suppliedUrl = String(p?.url || '').trim();
+    const suppliedThumb = String(p?.thumbUrl || '').trim();
+    let url = isOwnedPhotoUrl(suppliedUrl) ? suppliedUrl : '';
+    let thumbUrl = isOwnedPhotoUrl(suppliedThumb) ? suppliedThumb : '';
+    if ((!url || !thumbUrl) && rowId && resolvedId != null && /^(prod|si)$/.test(resolvedSource)) {
+      const base = `${DS_API}/rows/${encodeURIComponent(rowId)}/photos/${resolvedSource}/${encodeURIComponent(resolvedId)}/image`;
+      if (!url) url = base;
+      if (!thumbUrl) thumbUrl = `${base}?thumb=1`;
+    }
+    return {
+      slot: p?.slot || slot,
+      source: resolvedSource,
+      id: resolvedId,
+      label: p?.label || `Bay ${photoBay(p, 1)}`,
+      url,
+      thumbUrl: thumbUrl || url,
+      bayIndex: photoBay(p),
+    };
+  }
+
+  function storedPhoto(p, { rowId, slot, fallbackName } = {}) {
+    const dataUrl = p?.dataUrl || p?.photoBase64 || '';
+    const remote = ownedRemotePhoto(p, { rowId, slot, source: p?.source });
+    const full = dataUrl || remote.url || p?.previewUrl || p?.preview || '';
+    const suppliedPreview = [p?.thumbUrl, p?.previewUrl, p?.preview]
+      .map((value) => String(value || '').trim())
+      .find(isOwnedPhotoUrl) || '';
+    const preview = suppliedPreview || dataUrl || remote.thumbUrl || full;
+    return {
+      bay: photoBay(p, 1),
+      preview,
+      photoBase64: /^(data:|blob:)/i.test(String(dataUrl || preview)) ? (dataUrl || preview) : null,
+      url: full,
+      thumbUrl: remote.thumbUrl || preview,
+      source: p?.source || remote.source || 'device',
+      id: photoId(p),
+      uploadStatus: p?.uploadStatus || 'on device',
+      fileName: p?.fileName || fallbackName,
+      jobId: p?.jobId || null,
+    };
+  }
+
   function esc(s) {
     return global.EodApi.escapeHtml(s);
   }
@@ -370,24 +435,19 @@
     }
 
     const week = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
-    function fromDeviceStore(list, fallbackName) {
-      return (list || []).map((p) => ({
-        bay: p.bay || 1,
-        preview: p.dataUrl || p.preview,
-        photoBase64: p.dataUrl || p.photoBase64 || p.preview,
-        uploadStatus: p.uploadStatus || 'on device',
-        fileName: p.fileName || fallbackName,
-        jobId: p.jobId || null,
-      }));
+    function fromDeviceStore(list, fallbackName, slot) {
+      return (list || []).map((p) => storedPhoto(p, { rowId, slot, fallbackName }));
     }
     if (week && global.EodSetBeforeStore) {
       local.before = fromDeviceStore(
         global.EodSetBeforeStore.getBefores(S.state.storeNumber, week, dbkey),
-        'before.jpg'
+        'before.jpg',
+        'before'
       );
       local.after = fromDeviceStore(
         global.EodSetBeforeStore.getAfters?.(S.state.storeNumber, week, dbkey),
-        'after.jpg'
+        'after.jpg',
+        'after'
       );
     }
 
@@ -857,14 +917,18 @@
     }
 
     function deviceAsPhotos(list, slot) {
-      return (list || []).map((p) => ({
-        slot,
-        source: 'device',
-        id: `device-${slot}-${p.bay}`,
-        label: `Bay ${p.bay}`,
-        url: p.preview || p.photoBase64 || '',
-        bayIndex: Number(p.bay) || null,
-      })).filter((p) => p.url);
+      return (list || []).map((p) => {
+        const mapped = ownedRemotePhoto(p, { rowId, slot, source: p.source });
+        return {
+          slot,
+          source: 'device',
+          id: p.id || `device-${slot}-${p.bay}`,
+          label: `Bay ${p.bay}`,
+          url: p.photoBase64 || mapped.url || p.url || p.preview || '',
+          thumbUrl: mapped.thumbUrl || p.thumbUrl || p.preview || '',
+          bayIndex: Number(p.bay) || null,
+        };
+      }).filter((p) => p.url);
     }
 
     function remoteAsPhotos(slot) {
@@ -875,18 +939,12 @@
       const seen = new Set();
       const out = [];
       for (const p of list) {
-        const bay = Number(p.bay);
-        if (!p?.url || !Number.isFinite(bay) || bay < 1) continue;
+        const mapped = ownedRemotePhoto(p, { rowId, slot, source: p?.source });
+        const bay = Number(mapped.bayIndex);
+        if (!mapped.url || !Number.isFinite(bay) || bay < 1) continue;
         if (seen.has(bay)) continue;
         seen.add(bay);
-        out.push({
-          slot: p.slot || slot,
-          source: p.source || (slot === 'before' ? 'prod' : 'si'),
-          id: p.id || p.sectionId || `${p.source || 'remote'}-${bay}`,
-          label: `Bay ${bay}`,
-          url: p.url,
-          bayIndex: bay,
-        });
+        out.push(mapped);
       }
       return out;
     }
@@ -895,9 +953,11 @@
       const live = remoteAsPhotos(slot);
       const pack = slot === 'before' ? beforeCached() : afterCached();
       const device = deviceAsPhotos(local[slot], slot);
+      const localDevice = device.filter((p) => /^(data:|blob:)/i.test(String(p.url || '')));
+      const remoteDevice = device.filter((p) => !/^(data:|blob:)/i.test(String(p.url || '')));
       const seen = new Set();
       const out = [];
-      for (const p of [...live, ...pack, ...device]) {
+      for (const p of [...localDevice, ...pack, ...live, ...remoteDevice]) {
         const bay = Number(p.bayIndex);
         const key = Number.isFinite(bay) && bay > 0 ? `bay-${bay}` : `${p.source}|${p.id}`;
         if (seen.has(key) || !p.url) continue;
@@ -1356,6 +1416,13 @@
     });
     void reload({ fresh: false });
   }
+  global.EodSetSurveyPhotoRefs = {
+    photoBay,
+    photoId,
+    isOwnedPhotoUrl,
+    ownedRemotePhoto,
+    storedPhoto,
+  };
   global.EodSetSurvey = { render, persistOpen: () => global.EodDevicePhotoFlush?.persistOpen?.() };
   global.EodRouter.register('survey', render);
 })(typeof window !== 'undefined' ? window : globalThis);
