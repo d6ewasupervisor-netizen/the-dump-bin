@@ -9,10 +9,17 @@ const root = path.resolve(__dirname, '..');
 const send = fs.readFileSync(path.join(root, 'js/features/send.js'), 'utf8');
 
 test('sent EOD opens the one-time PIN gate instead of sending again', () => {
-  assert.match(send, /Resend is not allowed unless you have the one-time PIN\./);
+  assert.match(send, /A one-time PIN is required to resend this EOD\./);
   assert.match(send, /\{ id: 'cancel', label: 'Cancel' \}/);
-  assert.match(send, /\{ id: 'enter', label: 'Enter PIN', primary: true \}/);
+  assert.match(send, /\{ id: 'request', label: 'Request PIN', primary: true \}/);
+  assert.match(send, /\{ id: 'enter', label: 'Enter PIN' \}/);
   assert.match(send, /if \(sendLock\?\.sent && !resendAuthorization\)/);
+});
+
+test('lead can request supervisor approval for the one-time PIN', () => {
+  assert.match(send, /\/api\/eod\/resend-pin\/request/);
+  assert.match(send, /if \(choice === 'request'\)/);
+  assert.match(send, /PIN request was sent for supervisor approval/);
 });
 
 test('PIN verification is bound to the active store and work date', () => {

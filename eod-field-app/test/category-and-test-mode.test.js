@@ -580,7 +580,7 @@ test('send gates follow visit → cart → check-in before lead signature', () =
   assert.equal(sendGates.firstMessage(S), 'Add your lead signature');
 });
 
-test('cover notes rewrite the In/Out/cart line and keep extra notes', () => {
+test('cover notes remove the generated In/Out/cart/marked line and keep lead notes', () => {
   const { mergeNotes, summaryLine } = require('../js/lib/cover-notes');
   const S = {
     state: {
@@ -592,10 +592,7 @@ test('cover notes rewrite the In/Out/cart line and keep extra notes', () => {
     },
   };
   assert.equal(summaryLine(S), 'In: Bryce · Out: Bryce · cart 1/1 · 4/30 marked');
-  assert.equal(
-    mergeNotes(S.state.notes, S),
-    'In: Bryce · Out: Bryce · cart 1/1 · 4/30 marked\nLead leftover'
-  );
+  assert.equal(mergeNotes(S.state.notes, S), 'Lead leftover');
 });
 
 test('cover notes omit set lists already shown in dedicated fields', () => {
@@ -635,6 +632,13 @@ test('attached PDF cover uses current signoff and Help Desk rules', () => {
   assert.doesNotMatch(sheets, /rowHtml\('Digital signoff'/);
   assert.match(sheets, /calledHelpDesk \? rowHtml\('Commodities'/);
   assert.match(sheets, /listHtml\(r\.notInSi, \/\^not in si:/);
+});
+
+test('already-sent EOD dialog offers the lead a Request PIN action', () => {
+  const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
+  assert.match(send, /id: 'request', label: 'Request PIN'/);
+  assert.match(send, /\/api\/eod\/resend-pin\/request/);
+  assert.match(send, /choice === 'request'/);
 });
 
 test('category cards do not include a Capture button', () => {

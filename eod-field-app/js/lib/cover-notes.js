@@ -1,4 +1,4 @@
-/* Keep the EOD cover "In / Out / cart / marked" line in sync with the shift. */
+/* Keep handwritten Notes separate from structured EOD cover fields. */
 (function (global) {
   'use strict';
 
@@ -90,17 +90,14 @@
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line
+        && !COVER_RE.test(line)
         && !SET_LIST_RE.test(line)
         && !DAY_SUMMARY_RE.test(line))
       .join('\n');
   }
 
-  function mergeNotes(existing, S) {
-    const summary = summaryLine(S);
-    const rest = notesWithoutSetLists(existing)
-      .split(/\r?\n/)
-      .filter((line) => line && !COVER_RE.test(line));
-    return [summary, ...rest].join('\n');
+  function mergeNotes(existing) {
+    return notesWithoutSetLists(existing);
   }
 
   function applyToDom(next) {

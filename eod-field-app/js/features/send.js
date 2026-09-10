@@ -105,15 +105,52 @@
     });
   }
 
+  async function requestResendPin(S) {
+    try {
+      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/eod/resend-pin/request`, {
+        method: 'POST',
+        headers: global.EodApi.dayConfirmHeaders(),
+        body: JSON.stringify({
+          storeNumber: S.state.storeNumber,
+          workDate: S.state.workDate,
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok) {
+        await global.EodAlerts?.alert?.(
+          'PIN request failed',
+          data.error || 'The resend PIN request could not be sent.',
+        );
+        return false;
+      }
+      await global.EodAlerts?.alert?.(
+        'PIN requested',
+        data.message || 'Your PIN request was sent for supervisor approval.',
+      );
+      return true;
+    } catch (err) {
+      await global.EodAlerts?.alert?.(
+        'PIN request failed',
+        err?.message || 'The resend PIN request could not be sent.',
+      );
+      return false;
+    }
+  }
+
   async function unlockResend(S) {
     const choice = await global.EodAlerts?.showDialog?.({
       title: 'EOD already sent',
-      message: 'Resend is not allowed unless you have the one-time PIN.',
+      message: 'A one-time PIN is required to resend this EOD.',
       buttons: [
         { id: 'cancel', label: 'Cancel' },
-        { id: 'enter', label: 'Enter PIN', primary: true },
+        { id: 'request', label: 'Request PIN', primary: true },
+        { id: 'enter', label: 'Enter PIN' },
       ],
     });
+    if (choice === 'request') {
+      await requestResendPin(S);
+      return false;
+    }
     if (choice !== 'enter') return false;
     const pin = await pinEntryDialog();
     if (!pin) return false;
