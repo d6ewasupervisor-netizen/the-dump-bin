@@ -27,17 +27,6 @@
   let catalogRoles = ROLE_FALLBACK.slice();
   let lastSheetRef = null;
 
-  /** Patterns to map sheet rows → PIC roles (grocery is NOT "all rows"). */
-  const ROW_ROLE_PATTERNS = {
-    grocery: [/grocery/i],
-    produce: [/produce/i],
-    meat: [/meat/i],
-    bakery: [/bakery/i],
-    deli: [/deli/i],
-    fuel_center: [/fuel/i],
-    home_manager: [/home|general merch|\bgm\b/i],
-    dept_pic: [/blitz|dept\.?\s*pic/i],
-  };
   const ROLE_ORDER = ROLE_FALLBACK.map((r) => r.key);
   const GROCERY_EXPAND_KEYS = ['produce', 'meat', 'bakery', 'deli', 'fuel_center', 'dept_pic', 'home_manager'];
 
@@ -52,13 +41,9 @@
     const list = Array.isArray(rows) ? rows : [];
     const key = String(roleKey || '').trim().toLowerCase();
     if (key === 'store_pic' || key === 'home_manager') return list.slice();
-    const patterns = ROW_ROLE_PATTERNS[key];
-    if (!patterns) return [];
     return list.filter((row) => {
-      const text = haystack(row);
-      if (patterns.some((re) => re.test(text))) return true;
       if (key === 'dept_pic' && /blitz/i.test(String(row.shiftType || row.shift_type || ''))) return true;
-      return false;
+      return window.EodSignoffDepartment?.rowMatchesSignoffRole?.(row, key) || false;
     });
   }
 
@@ -149,24 +134,16 @@
       .replace(/"/g, '&quot;');
   }
 
+  function canonicalName(value) {
+    return window.EodPersonName?.capitalizeNameWords?.(value)
+      || String(value || '').trim().replace(/\s+/g, ' ');
+  }
+
   function roleLabel(key) {
     return (roles.find((r) => r.key === key) || {}).label || key;
   }
 
   const ROLE_LABEL_BY_KEY = Object.fromEntries(ROLE_FALLBACK.map((r) => [r.key, r.label]));
-
-  function haystack(row) {
-    return [
-      row?.dept,
-      row?.catName,
-      row?.cat_name,
-      row?.pog,
-      row?.pageBucket,
-      row?.page_bucket,
-      row?.shiftType,
-      row?.shift_type,
-    ].filter(Boolean).join(' ');
-  }
 
   function rowHasWorkMark(row) {
     const m = row?.marks || row?.mark;
@@ -181,14 +158,10 @@
     const list = Array.isArray(rows) ? rows : [];
     const found = new Set();
     for (const row of list) {
-      const text = haystack(row);
       const st = String(row?.shiftType || row?.shift_type || '');
-      for (const key of ROLE_ORDER) {
-        const patterns = ROW_ROLE_PATTERNS[key];
-        if (!patterns) continue;
-        if (patterns.some((re) => re.test(text))) found.add(key);
-        else if (key === 'dept_pic' && /blitz/i.test(st)) found.add(key);
-      }
+      const rowRoles = window.EodSignoffDepartment?.rolesForSignoffRow?.(row) || ['grocery'];
+      rowRoles.forEach((key) => found.add(key));
+      if (/blitz/i.test(st)) found.add('dept_pic');
     }
     return ROLE_ORDER.filter((k) => found.has(k));
   }
@@ -455,7 +428,12 @@
       const cResp = await authFetch(`${API}/${encodeURIComponent(store)}/contacts`);
       if (cResp.ok) {
         const data = await cResp.json();
-        contacts = Array.isArray(data.contacts) ? data.contacts : [];
+        contacts = Array.isArray(data.contacts)
+          ? data.contacts.map((contact) => ({
+              ...contact,
+              fullName: canonicalName(contact.fullName),
+            }))
+          : [];
       }
     } catch (_) { contacts = []; }
 
@@ -466,7 +444,12 @@
         );
         if (sResp.ok) {
           const data = await sResp.json();
-          signatures = Array.isArray(data.signatures) ? data.signatures : [];
+          signatures = Array.isArray(data.signatures)
+            ? data.signatures.map((signature) => ({
+                ...signature,
+                signerName: canonicalName(signature.signerName),
+              }))
+            : [];
           if (Array.isArray(data.roles) && data.roles.length) {
             catalogRoles = data.roles.filter((r) => String(r?.key || '').toLowerCase() !== 'lead');
           }
@@ -562,7 +545,7 @@
       return;
     }
     if (wizard.step === 'name') {
-      const name = (body.querySelector('#deptSigNameInput')?.value || '').trim();
+      const name = canonicalName(body.querySelector('#deptSigNameInput')?.value || '');
       if (!name) {
         if (typeof showAlert === 'function') showAlert('Name required', 'Please enter your name.');
         return;
@@ -759,7 +742,7 @@
             const c = contacts.find((x) => String(x.id) === String(id));
             if (!c) return;
             wizard.contactId = c.id;
-            wizard.fullName = c.fullName;
+            wizard.fullName = canonicalName(c.fullName);
             wizard.email = c.email;
             wizard.step = 'confirm';
           }
@@ -775,6 +758,14 @@
       next.textContent = 'Continue';
       body.innerHTML = `<div class="field"><label>Full name</label>
         <input type="text" id="deptSigNameInput" value="${escapeHtml(wizard.fullName)}" autocomplete="name" style="width:100%;"></div>`;
+      const nameInput = document.getElementById('deptSigNameInput');
+      nameInput?.addEventListener('input', () => {
+        const nextValue = window.EodPersonName?.capitalizeNameWhileTyping?.(nameInput.value) || nameInput.value;
+        if (nameInput.value !== nextValue) nameInput.value = nextValue;
+      });
+      nameInput?.addEventListener('blur', () => {
+        nameInput.value = canonicalName(nameInput.value);
+      });
       setTimeout(() => document.getElementById('deptSigNameInput')?.focus(), 50);
       return;
     }
@@ -1030,7 +1021,7 @@
       .map((s) => ({
         roleKey: s.roleKey,
         roleLabel: roleLabel(s.roleKey),
-        signerName: s.signerName,
+        signerName: canonicalName(s.signerName),
         signerTitle: s.signerTitle,
         signerEmail: s.signerEmail,
         signatureUrl: s.signatureUrl,

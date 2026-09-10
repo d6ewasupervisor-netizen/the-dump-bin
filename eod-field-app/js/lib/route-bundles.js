@@ -31,6 +31,8 @@
     ],
     signatures: [
       'js/lib/landscape-sig-pad.js',
+      'js/lib/signoff-department.js',
+      'js/lib/person-name.js',
       'js/features/dept-signatures.js',
       'js/features/signatures.js',
     ],
