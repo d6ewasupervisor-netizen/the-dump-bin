@@ -51,9 +51,6 @@
 
   async function prefetchSetPhotos(sheet) {
     const rows = (sheet && sheet.rows) || [];
-    const S = global.EodSession;
-    const store = S?.state?.storeNumber;
-    const week = S?.state?.fiscalWeek || sheet?.fiscalWeek;
     for (const row of rows) {
       if (!row?.id || !row.dbkey) continue;
       const live = row.live || {};
@@ -67,18 +64,9 @@
           { skipBusy: true, noBounceOn401: true }
         );
         if (!resp.ok) continue;
-        const data = await resp.json().catch(() => ({}));
-        const photos = Array.isArray(data.photos) ? data.photos : [];
-        const befores = photos.filter((p) => String(p.slot || '').toLowerCase() === 'before');
-        const afters = photos.filter((p) => String(p.slot || '').toLowerCase() !== 'before');
-        if (store && week && global.EodSetBeforeStore) {
-          if (befores.length && global.EodSetBeforeStore.setBefores) {
-            global.EodSetBeforeStore.setBefores(store, week, row.dbkey, befores);
-          }
-          if (afters.length && global.EodSetBeforeStore.setAfters) {
-            global.EodSetBeforeStore.setAfters(store, week, row.dbkey, afters);
-          }
-        }
+        await resp.json().catch(() => ({}));
+        // EodSetBeforeStore is the device outbox. Server photo metadata must
+        // never replace its full-resolution, not-yet-uploaded captures.
       } catch (err) {
         console.warn('[photo-sync] set', row.dbkey, err.message || err);
       }

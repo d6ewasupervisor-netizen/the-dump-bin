@@ -957,7 +957,7 @@ test('visit mirror hydrates the lead snapshot onto a second login', () => {
   assert.match(mirror, /function hydrate/);
   assert.match(mirror, /signatureDataUrl/);
   assert.match(visit, /EodVisitMirror\?\.hydrate/);
-  assert.match(sync, /setAfters/);
+  assert.doesNotMatch(sync, /EodSetBeforeStore\.setAfters/);
   assert.match(sync, /prefetchSetPhotos/);
 });
 

@@ -92,3 +92,8 @@ test('flushStoreWeek walks every persisted dbkey', async () => {
   assert.equal(n, 2);
   assert.deepEqual(enqueued.map((j) => j.dbkey), ['111', '222']);
 });
+
+test('server photo prefetch never overwrites the device outbox', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../js/lib/shift-photo-sync.js'), 'utf8');
+  assert.doesNotMatch(source, /EodSetBeforeStore\.set(?:Befores|Afters)/);
+});
