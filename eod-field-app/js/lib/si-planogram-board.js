@@ -352,11 +352,16 @@
       boardMem.delete(key);
     }
     const pending = (async () => {
+      const warmed = global.EodStoreProdWarm?.peekPlanogram?.(dbkey);
+      if (warmed?.bays?.length) return warmed;
       const qs = new URLSearchParams({ store, date, dbkey });
       const url = `${API}/planogram?${qs}`;
       const resp = await global.authFetch(url, { skipBusy: true });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Planogram failed (${resp.status})`);
+      if (data.planogram) {
+        try { global.EodStoreProdWarm?.putPlanogram?.(dbkey, data.planogram); } catch (_) {}
+      }
       return data.planogram || null;
     })();
     boardMem.set(key, pending);

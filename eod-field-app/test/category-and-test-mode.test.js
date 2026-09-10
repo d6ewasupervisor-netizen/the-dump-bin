@@ -860,6 +860,12 @@ test('store prod warm heartbeats and Categories poll the sheet, not a full sync'
   assert.match(warm, /\/heartbeat/);
   assert.match(warm, /HEARTBEAT_MS = 45_000/);
   assert.match(warm, /prefetchStatuses/);
+  assert.match(warm, /prefetchPlanograms/);
+  assert.match(warm, /\/planogram\?/);
+  assert.match(warm, /peekPlanogram/);
+  assert.doesNotMatch(warm, /planogram-image/);
+  const pog = fs.readFileSync(path.join(__dirname, '../js/lib/si-planogram-board.js'), 'utf8');
+  assert.match(pog, /EodStoreProdWarm\?\.peekPlanogram/);
   assert.match(signoff, /EodStoreProdWarm\?\.start/);
   assert.match(signoff, /poll sheet/);
   assert.match(survey, /EodStoreProdWarm\?\.peekStatus/);

@@ -8,10 +8,15 @@
   const SHEET_MS = 45_000;
   const STATUS_TTL_MS = 180_000;
   const STATUS_CONCURRENCY = 2;
+  const POG_TTL_MS = 8 * 60_000;
+  const POG_PREFETCH = 6;
+  const POG_CONCURRENCY = 1;
 
   const statusCache = new Map();
+  const pogCache = new Map();
   let beatTimer = null;
   let prefetching = false;
+  let pogPrefetching = false;
   let started = false;
 
   function cacheKey(dbkey) {
@@ -36,6 +41,21 @@
 
   function dropStatus(dbkey) {
     statusCache.delete(cacheKey(dbkey));
+  }
+
+  function putPlanogram(dbkey, planogram) {
+    if (!dbkey || !planogram?.bays?.length) return;
+    pogCache.set(cacheKey(dbkey), { at: Date.now(), planogram });
+  }
+
+  function peekPlanogram(dbkey) {
+    const hit = pogCache.get(cacheKey(dbkey));
+    if (!hit) return null;
+    if (Date.now() - hit.at >= POG_TTL_MS) {
+      pogCache.delete(cacheKey(dbkey));
+      return null;
+    }
+    return hit.planogram;
   }
 
   function visitReady() {
@@ -117,20 +137,56 @@
     }
   }
 
+  async function fetchOnePlanogram(row) {
+    const S = global.EodSession;
+    const qs = new URLSearchParams({
+      store: S.state.storeNumber,
+      date: S.state.workDate,
+      dbkey: row.dbkey,
+    });
+    const resp = await global.authFetch(`${FIELD_API}/planogram?${qs}`, { skipBusy: true });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.planogram) return;
+    putPlanogram(row.dbkey, data.planogram);
+  }
+
+  async function prefetchPlanograms() {
+    if (pogPrefetching || !visitReady()) return;
+    const need = openRows().filter((row) => !peekPlanogram(row.dbkey)).slice(0, POG_PREFETCH);
+    if (!need.length) return;
+    pogPrefetching = true;
+    try {
+      let i = 0;
+      async function worker() {
+        while (i < need.length) {
+          const row = need[i];
+          i += 1;
+          try { await fetchOnePlanogram(row); } catch (_) { /* skip */ }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(POG_CONCURRENCY, need.length) }, () => worker()));
+    } finally {
+      pogPrefetching = false;
+    }
+  }
+
   function start() {
     if (started) {
       beat();
       prefetchStatuses();
+      prefetchPlanograms();
       return;
     }
     started = true;
     beat();
     prefetchStatuses();
+    prefetchPlanograms();
     if (beatTimer) clearInterval(beatTimer);
     beatTimer = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       beat();
       prefetchStatuses();
+      prefetchPlanograms();
     }, HEARTBEAT_MS);
   }
 
@@ -145,9 +201,12 @@
     stop,
     beat,
     prefetchStatuses,
+    prefetchPlanograms,
     peekStatus,
     putStatus,
     dropStatus,
+    peekPlanogram,
+    putPlanogram,
     HEARTBEAT_MS,
     SHEET_MS,
   };
