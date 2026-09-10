@@ -114,7 +114,7 @@
       visitIds: storeDayVisitIds(),
       direction: 'auto',
     });
-    const resp = await global.authFetch(`${API}/cross-fill`, { method: 'POST', headers, body });
+    const resp = await global.authFetch(`${API}/cross-fill`, { method: 'POST', headers, body, skipBusy: true });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Cross-fill failed (${resp.status})`);
     return data.result;
@@ -507,8 +507,8 @@
       if (detail.job?.slot === 'after') persistAfters();
       const counts = global.EodPhotoPipeline.pendingCounts();
       const open = counts.compress + counts.upload;
-      if (open > 0) {
-        setMsg(`Background: ${counts.compress} compressing | ${counts.upload} uploading`);
+      if (open > 0 || detail.type === 'accepted' || detail.type === 'partial') {
+        setMsg(global.EodPhotoPipelineLogic?.QUEUE_COPY || 'Working in the background. Keep going. Give it a minute to catch up.');
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
         if (!liveCameraOpen) {
@@ -841,11 +841,12 @@
           const siHave = Number(st?.si?.sectionsWithPhoto) || 0;
           const prodAfter = Number(st?.prod?.afterCount) || 0;
           if (siHave !== prodAfter && (siHave > 0 || prodAfter > 0)) {
-            const r = await crossFill(dbkey, rowId);
-            if (r?.status) {
+            void crossFill(dbkey, rowId).then((r) => {
+              if (!r?.status) return;
               applyLiveProd(r.status);
               paintStatus(r.status);
-            }
+              if (!liveCameraOpen) paintBody();
+            }).catch(() => {});
           }
         } catch (_) { /* keep current board */ }
         try { await fetchPack(); } catch (_) {}

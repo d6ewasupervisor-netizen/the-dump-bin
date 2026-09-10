@@ -26,17 +26,21 @@
       return (hash >>> 0).toString(36);
     }
 
-    async function poll(statusUrl, { timeoutMs = 8 * 60 * 1000 } = {}) {
+    async function peek(statusUrl) {
       const url = new URL(statusUrl, API_ORIGIN).href;
+      const response = await runtime.authFetch(url, { skipBusy: true });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Job status failed (${response.status})`);
+      return data.job || data;
+    }
+
+    async function poll(statusUrl, { timeoutMs = 8 * 60 * 1000 } = {}) {
       const deadline = Date.now() + timeoutMs;
       let delayMs = 1000;
       let lastError = null;
       while (Date.now() < deadline) {
         try {
-          const response = await runtime.authFetch(url, { skipBusy: true });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(data.error || `Job status failed (${response.status})`);
-          const job = data.job || data;
+          const job = await peek(statusUrl);
           if (job.status === 'completed') return job.result;
           if (job.status === 'failed') {
             const err = new Error(job.error || 'Field-set job failed');
@@ -103,8 +107,22 @@
       } = opts;
       if (job?.statusUrl) {
         try {
-          const existing = await poll(job.statusUrl, { timeoutMs: 20000 });
-          return Object.assign({ jobId: job.serverJobId, statusUrl: job.statusUrl, result: existing }, existing || {});
+          const existing = await peek(job.statusUrl);
+          if (existing.status === 'completed') {
+            return Object.assign({
+              jobId: job.serverJobId || existing.id,
+              statusUrl: job.statusUrl,
+              result: existing.result,
+              accepted: false,
+            }, existing.result || {});
+          }
+          if (['pending', 'retry', 'processing'].includes(existing.status)) {
+            return {
+              jobId: job.serverJobId || existing.id,
+              statusUrl: job.statusUrl,
+              accepted: true,
+            };
+          }
         } catch (_) { /* resubmit */ }
       }
       if (blob && checksum) {
@@ -132,6 +150,9 @@
           throw new Error(data.error || `Binary photo upload failed (${response.status})`);
         }
         if (response.status === 202 && data.statusUrl) {
+          if (opts.waitForResult === false) {
+            return { jobId: data.jobId, statusUrl: data.statusUrl, accepted: true };
+          }
           const result = await poll(data.statusUrl, { timeoutMs });
           return { jobId: data.jobId, statusUrl: data.statusUrl, result };
         }
@@ -141,7 +162,7 @@
       return accepted?.result ? accepted : { result: accepted, jobId: accepted?.jobId, statusUrl: accepted?.statusUrl };
     }
 
-    return { operationKey, hashText, poll, submit, submitBinary };
+    return { operationKey, hashText, peek, poll, submit, submitBinary };
   }
 
   const api = createClient(global);

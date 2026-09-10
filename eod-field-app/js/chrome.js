@@ -39,6 +39,7 @@
     paintConnChrome();
     paintWorkflow();
     paintUnsentBanner();
+    paintQueueBanner();
     paintFailedPhotoBanner();
   }
 
@@ -97,6 +98,51 @@
       };
       bar.querySelector('#unsentOpenPhotos')?.addEventListener('click', openReview);
       bar.onclick = openReview;
+    } catch (_) {
+      bar.hidden = true;
+    }
+  }
+
+  let queueMergeUntil = 0;
+  let queueLastOpen = 0;
+
+  function paintQueueBanner() {
+    let bar = document.getElementById('eodPhotoQueueBanner');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'eodPhotoQueueBanner';
+      bar.hidden = true;
+      bar.className = 'eod-photo-queue-banner';
+      const unsent = document.getElementById('eodUnsentBanner');
+      if (unsent && unsent.parentNode) unsent.parentNode.insertBefore(bar, unsent.nextSibling);
+      else {
+        const chrome = document.getElementById('appChrome');
+        if (chrome && chrome.parentNode) chrome.parentNode.insertBefore(bar, chrome.nextSibling);
+        else document.querySelector('.app-shell')?.prepend(bar);
+      }
+    }
+    try {
+      const Logic = global.EodPhotoPipelineLogic || {};
+      const p = global.EodPhotoPipeline?.pendingCounts?.() || {};
+      const open = Number(p.open || 0);
+      if (open === 0 && queueLastOpen > 0) {
+        const hold = Logic.MERGE_HOLD_MS || 60_000;
+        queueMergeUntil = Date.now() + hold;
+        setTimeout(() => {
+          try { paintQueueBanner(); } catch (_) {}
+        }, hold + 50);
+      }
+      queueLastOpen = open;
+      const state = Logic.queueBannerShouldShow
+        ? Logic.queueBannerShouldShow(p, { mergeUntil: queueMergeUntil })
+        : { show: open > 0, copy: 'Working in the background. Keep going. Give it a minute to catch up.' };
+      if (!state.show) {
+        bar.hidden = true;
+        bar.textContent = '';
+        return;
+      }
+      bar.hidden = false;
+      bar.textContent = state.copy;
     } catch (_) {
       bar.hidden = true;
     }

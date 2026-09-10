@@ -2671,7 +2671,8 @@ body.dump-bin-viewer-open .eod-test-banner {
 }
 
 .eod-unsent-banner,
-.eod-photo-fail-banner {
+.eod-photo-fail-banner,
+.eod-photo-queue-banner {
   margin: 8px 12px 0;
   padding: 8px 12px;
   border-radius: 8px;
@@ -2686,11 +2687,17 @@ body.dump-bin-viewer-open .eod-test-banner {
 }
 .eod-unsent-banner[hidden],
 .eod-photo-fail-banner[hidden],
+.eod-photo-queue-banner[hidden],
 #pilotSignIn[hidden],
 #authBanner[hidden] {
   display: none !important;
 }
 .eod-photo-fail-banner { cursor: default; }
+.eod-photo-queue-banner {
+  background: #1e3a5f;
+  color: #dbeafe;
+  cursor: default;
+}
 .unsent-type {
   margin: 12px 0 6px;
   font-size: 14px;

@@ -381,6 +381,7 @@
           continue;
         }
         if (['queued', 'compressed', 'uploading', 'reconciling', 'accepted'].includes(j.status) && !j.dataUrl && !j.file && !j.blob) {
+          if (j.status === 'accepted' && j.statusUrl) continue;
           j.status = 'failed';
           j.error = 'Lost after reload — retake photo';
         }
@@ -619,6 +620,13 @@
         job.uploadResult = result || null;
       } else if (job.kind === 'set') {
         const result = await defaultSetUpload(job);
+        if (result?.accepted && !result?.prod) {
+          job.status = 'accepted';
+          persist();
+          emit('accepted', job);
+          scheduleAcceptedPoll();
+          return;
+        }
         job.prodStatus = result?.prod?.status || null;
         job.siStatus = result?.si?.status || null;
         job.uploadResult = result;
@@ -678,8 +686,8 @@
       emit('done', job);
     } catch (err) {
       job.attempts = (job.attempts || 0) + 1;
-      const transient = /timeout|network|failed to fetch|503|429|502|waiting for connection/i.test(err?.message || '');
-      if (transient && job.attempts < 8 && (job.dataUrl || job.blob)) {
+      const transient = /timeout|network|failed to fetch|503|429|502|waiting for connection|lease|backed up|catching up|session not active/i.test(err?.message || '');
+      if (transient && job.attempts < 40 && (job.dataUrl || job.blob || job.statusUrl)) {
         job.status = 'compressed';
         job.error = err?.message || String(err);
         job.nextRetryAt = Date.now() + (Logic.fullJitterMs ? Logic.fullJitterMs(job.attempts) : Math.min(30000, 400 * (2 ** job.attempts)));
@@ -734,14 +742,16 @@
         idempotencyKey: job.idempotencyKey,
         timeoutMs: 3 * 60 * 1000,
         allowAsync: true,
+        waitForResult: false,
         skipBusy: true,
       });
       if (accepted?.jobId || accepted?.statusUrl) {
         job.serverJobId = accepted.jobId || job.serverJobId;
         job.statusUrl = accepted.statusUrl || job.statusUrl;
-        job.status = 'accepted';
         persist();
-        emit('accepted', job);
+      }
+      if (accepted?.accepted && !accepted?.result?.prod) {
+        return { accepted: true, jobId: accepted.jobId, statusUrl: accepted.statusUrl };
       }
       return accepted?.result || accepted;
     }
@@ -1077,6 +1087,81 @@
     }
   }
 
+  let acceptedPollTimer = null;
+  let acceptedPollBusy = false;
+
+  function applyServerResult(job, result) {
+    job.prodStatus = result?.prod?.status || job.prodStatus;
+    job.siStatus = result?.si?.status || job.siStatus;
+    job.uploadResult = result || job.uploadResult;
+    const prodOk = sideOk(job.prodStatus, 'set') || job.skipProd;
+    const siOk = sideOk(job.siStatus, 'set') || job.skipSi;
+    if (prodOk && siOk) {
+      job.status = 'done';
+      job.error = null;
+      job.skipProd = true;
+      job.skipSi = true;
+      persist();
+      emit('done', job);
+      return 'done';
+    }
+    if (prodOk && !siOk) job.skipProd = true;
+    if (siOk && !prodOk) job.skipSi = true;
+    persist();
+    emit('partial', job);
+    return 'partial';
+  }
+
+  function scheduleAcceptedPoll() {
+    if (acceptedPollTimer) return;
+    acceptedPollTimer = setTimeout(() => {
+      acceptedPollTimer = null;
+      pollAcceptedJobs().catch(() => {});
+    }, 4000);
+  }
+
+  async function pollAcceptedJobs() {
+    if (acceptedPollBusy) return;
+    const durable = global.EodFieldSetJobs;
+    if (!durable?.peek) {
+      scheduleAcceptedPoll();
+      return;
+    }
+    const open = [...jobs.values()].filter((j) => j.status === 'accepted' && j.statusUrl && !isSuperseded(j));
+    if (!open.length) return;
+    acceptedPollBusy = true;
+    try {
+      for (const job of open) {
+        try {
+          const remote = await durable.peek(job.statusUrl);
+          if (remote.status === 'completed') {
+            applyServerResult(job, remote.result);
+            continue;
+          }
+          if (remote.status === 'failed') {
+            if (job.dataUrl || job.blob) {
+              job.status = 'compressed';
+              job.error = remote.error || 'SI still catching up';
+              job.nextRetryAt = Date.now() + 15000;
+              persist();
+              emit('partial', job);
+            } else {
+              job.error = remote.error || null;
+              persist();
+              emit('partial', job);
+            }
+          }
+        } catch (_) {}
+      }
+    } finally {
+      acceptedPollBusy = false;
+      if ([...jobs.values()].some((j) => j.status === 'accepted' && j.statusUrl)) {
+        scheduleAcceptedPoll();
+      }
+      schedulePump();
+    }
+  }
+
   async function reconcileOpenJobs() {
     if (reconcileBusy) return;
     reconcileBusy = true;
@@ -1108,15 +1193,18 @@
     restore().then(() => {
       schedulePump();
       reconcileOpenJobs();
+      scheduleAcceptedPoll();
     });
     window.addEventListener('online', () => {
       reconcileOpenJobs();
       schedulePump();
+      scheduleAcceptedPoll();
     });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         reconcileOpenJobs();
         schedulePump();
+        scheduleAcceptedPoll();
       }
     });
   }
@@ -1140,6 +1228,7 @@
     reconcileOpenJobs,
     fetchSetStatus,
     purgeSettledJobs,
+    pollAcceptedJobs,
   };
 
   if (document.readyState === 'loading') {

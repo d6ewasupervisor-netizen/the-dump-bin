@@ -118,10 +118,22 @@
     return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
+  const QUEUE_COPY = 'Working in the background. Keep going. Give it a minute to catch up.';
+  const MERGE_HOLD_MS = 60_000;
+
+  function queueBannerShouldShow(counts, { mergeUntil = 0, now = Date.now() } = {}) {
+    const open = Number(counts?.open || 0);
+    if (open > 0) return { show: true, copy: QUEUE_COPY, merging: false };
+    if (now < Number(mergeUntil || 0)) return { show: true, copy: QUEUE_COPY, merging: true };
+    return { show: false, copy: '', merging: false };
+  }
+
   return {
     OPEN_COMPRESS,
     OPEN_UPLOAD,
     TERMINAL,
+    QUEUE_COPY,
+    MERGE_HOLD_MS,
     isSuperseded,
     migrateJobRecord,
     countJobs,
@@ -131,5 +143,6 @@
     sameBay,
     jobsToSupersede,
     bytesToHex,
+    queueBannerShouldShow,
   };
 });

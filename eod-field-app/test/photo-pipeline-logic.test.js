@@ -84,6 +84,26 @@ describe('photo-pipeline-logic', () => {
     assert.match(a, /^eod-photo:215:2026-09-09:9459238:before:3:job1$/);
   });
 
+  it('counts accepted jobs as open', () => {
+    const counts = logic.countJobs([
+      { status: 'accepted' },
+      { status: 'done' },
+    ]);
+    assert.equal(counts.upload, 1);
+    assert.equal(counts.open, 1);
+  });
+
+  it('keeps the background banner up through the merge window', () => {
+    const now = 1_000_000;
+    const open = logic.queueBannerShouldShow({ open: 2 }, { now });
+    assert.equal(open.show, true);
+    assert.equal(open.copy, logic.QUEUE_COPY);
+    const merging = logic.queueBannerShouldShow({ open: 0 }, { mergeUntil: now + 10_000, now });
+    assert.equal(merging.show, true);
+    const settled = logic.queueBannerShouldShow({ open: 0 }, { mergeUntil: now - 1, now });
+    assert.equal(settled.show, false);
+  });
+
   it('counts a 71-photo history without treating replaced jobs as failures', () => {
     const jobs = [];
     for (let i = 0; i < 71; i += 1) {

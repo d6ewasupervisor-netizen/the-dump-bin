@@ -1,12 +1,12 @@
 /* Field-app shell cache so a Chrome kill / airplane reopen still loads. */
-const CACHE = 'eod-field-3.4.15';
+const CACHE = 'eod-field-3.4.16';
 const PRECACHE = [
   './',
   './index.html',
-  './css/app.css?v=3.4.15',
-  './css/materials-browser.css?v=3.4.15',
+  './css/app.css?v=3.4.16',
+  './css/materials-browser.css?v=3.4.16',
   './manifest.webmanifest',
-  './assets/buffering.gif?v=3.4.15',
+  './assets/buffering.gif?v=3.4.16',
   './icons/favicon-192.png',
   './icons/favicon-512.png',
   './js/workers/photo-compress-worker.js',
