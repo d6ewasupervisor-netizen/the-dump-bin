@@ -1977,6 +1977,7 @@ body.set-media-open .bottom-nav { display: none !important; }
 .si-pog-peg-item .si-pog-thumb { background: var(--pog-item); }
 .si-pog-peg-item .si-pog-thumb img { object-position: top center; }
 .si-pog-bay.is-peg .si-pog-meta { display: none; }
+.si-pog-live.is-text .si-pog-bay.is-peg .si-pog-meta { display: flex; }
 .si-pog-peg-pos,
 .si-pog-facing-badge {
   position: absolute;
@@ -2154,10 +2155,9 @@ body.set-media-open .bottom-nav { display: none !important; }
 }
 
 @media (max-width: 560px) {
-  .set-media-overlay.si-pog-live #pogTextBtn,
   .set-media-overlay.si-pog-live .si-pog-legend,
   .si-pog-live-body .si-pog > .muted,
-  .si-pog-live .si-pog-meta {
+  .si-pog-live:not(.is-text) .si-pog-meta {
     display: none;
   }
   .si-pog-live-body .si-pog-scroll {

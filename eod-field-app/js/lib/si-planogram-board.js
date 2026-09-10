@@ -743,7 +743,7 @@
       else closeOverlay();
     };
     host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
-    applyTextMode(host, compactPhotoMode() ? false : readTextPref(), false);
+    applyTextMode(host, readTextPref(), false);
     host.querySelector('#pogTextBtn').onclick = () => {
       const next = !host.classList.contains('is-text');
       applyTextMode(host, next, true);

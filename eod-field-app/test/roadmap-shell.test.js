@@ -203,7 +203,11 @@ test('compact planogram stays image-first and grab-swipes between bays', () => {
   assert.match(board, /goToBay\(scroll, bay\)/);
   assert.match(board, /class="si-pog-bay is-peg"/);
   assert.doesNotMatch(board, /pogRowsBtn|Set rows|togglePegBreak/);
-  assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.si-pog-live \.si-pog-meta[\s\S]*display: none/);
+  assert.match(board, /id="pogTextBtn">Text</);
+  assert.match(board, /applyTextMode\(host, next, true\)/);
+  const compact = css.match(/@media \(max-width: 560px\) \{\s*\.set-media-overlay\.si-pog-live[\s\S]*?\n\}/)?.[0] || '';
+  assert.ok(compact.includes('.si-pog-live:not(.is-text) .si-pog-meta'));
+  assert.doesNotMatch(compact, /#pogTextBtn/);
   assert.match(css, /\.si-pog-bay \{[\s\S]*width: min\(100%, 72dvh\)/);
   assert.match(css, /\.si-pog-slots \{[\s\S]*gap: 0;[\s\S]*padding: 0/);
   assert.match(css, /\.si-pog-peg-board \{[\s\S]*radial-gradient/);
