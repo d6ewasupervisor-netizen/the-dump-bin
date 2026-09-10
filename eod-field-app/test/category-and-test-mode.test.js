@@ -10,6 +10,8 @@ const {
   sheetRowDone,
   rowSendReady,
   formatEstHrs,
+  prodPhotoState,
+  prodStatusPillHtml,
 } = require('../js/lib/category-card-status');
 const {
   hasLoadedShift,
@@ -36,6 +38,43 @@ test('before pill: hidden when not in PROD or live has not loaded', () => {
   assert.equal(beforePillState({ live: { prodStatus: 'absent', prodBeforeCount: 0 } }, 0).kind, 'hidden');
   assert.equal(beforePillState({}, 0).kind, 'hidden');
   assert.equal(beforePillHtml({ kind: 'hidden' }), '');
+});
+
+test('PROD pill follows before/after photos, not SAS category_completion', () => {
+  const notStarted = prodPhotoState({
+    live: { prodStatus: 'done', prodComplete: true, prodBeforeCount: 0, prodAfterCount: 0 },
+  });
+  assert.equal(notStarted.kind, 'not_started');
+  assert.match(prodStatusPillHtml(notStarted), /PROD not started/);
+
+  const inProgress = prodPhotoState({
+    live: { prodStatus: 'done', prodComplete: true, prodBeforeCount: 4, prodAfterCount: 0 },
+  });
+  assert.equal(inProgress.kind, 'in_progress');
+  assert.match(prodStatusPillHtml(inProgress), /PROD in progress/);
+
+  const complete = prodPhotoState({
+    live: { prodStatus: 'open', prodComplete: false, prodBeforeCount: 4, prodAfterCount: 4 },
+  });
+  assert.equal(complete.kind, 'complete');
+  assert.match(prodStatusPillHtml(complete), /PROD complete/);
+
+  assert.equal(prodPhotoState({ live: { prodStatus: 'absent', prodBeforeCount: 0 } }).kind, 'hidden');
+  assert.equal(prodStatusPillHtml({ kind: 'hidden' }), '');
+});
+
+test('PROD after count falls back to prod-source photos when the live column is missing', () => {
+  const state = prodPhotoState({
+    live: { prodStatus: 'open', prodBeforeCount: 2 },
+    photos: [
+      { slot: 'before', source: 'prod' },
+      { slot: 'before', source: 'prod' },
+      { slot: 'after', source: 'si' },
+      { slot: 'after', source: 'prod' },
+    ],
+  });
+  assert.equal(state.kind, 'complete');
+  assert.equal(state.after, 1);
 });
 
 test('SI location label uses live.siLocation.label', () => {
@@ -674,6 +713,16 @@ test('planogram is boxed so it does not steal page scroll or signatures', () => 
   assert.match(swipe, /eod-lsp-overlay\.show/);
   assert.match(swipe, /set-media-overlay/);
   assert.doesNotMatch(swipe, /closest\('\.landscape-sig, canvas/);
+});
+
+test('planogram shelves and facings follow theme colors instead of a white board', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  assert.match(css, /--pog-shelf:/);
+  assert.match(css, /--pog-item:/);
+  assert.match(css, /\.si-pog-slots \{[\s\S]*background:\s*var\(--pog-shelf\)/);
+  assert.match(css, /\.si-pog-item \{[\s\S]*background:\s*var\(--pog-item\)/);
+  assert.match(css, /\.si-pog-thumb \{[\s\S]*background:\s*var\(--pog-item\)/);
+  assert.doesNotMatch(css, /\.si-pog-item \{\s*background:\s*#fff/);
 });
 
 test('checkout manager gate clears when a name is set', () => {

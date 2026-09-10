@@ -42,7 +42,11 @@
     const live = row?.live;
     const pills = [];
     if (live) {
-      if (live.prodComplete || String(live.prodStatus || '').toLowerCase() === 'done') {
+      const Status = global.EodCategoryCardStatus;
+      if (Status?.prodStatusPillHtml) {
+        const prodPill = Status.prodStatusPillHtml(Status.prodPhotoState(row));
+        if (prodPill) pills.push(prodPill);
+      } else if (live.prodComplete || String(live.prodStatus || '').toLowerCase() === 'done') {
         pills.push('<span class="pill ok">PROD complete</span>');
       }
       if (live.siComplete) {

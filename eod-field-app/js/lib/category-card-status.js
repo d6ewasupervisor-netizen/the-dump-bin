@@ -43,6 +43,45 @@
     return m.type === type;
   }
 
+  function photoList(row) {
+    if (Array.isArray(row && row.photos)) return row.photos;
+    if (row && row.live && Array.isArray(row.live.photos)) return row.live.photos;
+    return [];
+  }
+
+  function prodPhotoCounts(row) {
+    const live = row && row.live;
+    const photos = photoList(row);
+    const beforeFromPhotos = photos.filter((p) => p && String(p.slot || '').toLowerCase() === 'before').length;
+    const afterFromPhotos = photos.filter((p) => {
+      const slot = String((p && p.slot) || '').toLowerCase();
+      const source = String((p && p.source) || '').toLowerCase();
+      return slot === 'after' && (source === 'prod' || source === 'sas');
+    }).length;
+    const before = Math.max(Number(live && live.prodBeforeCount) || 0, beforeFromPhotos);
+    const stored = live && live.prodAfterCount;
+    const after = stored != null && stored !== '' ? Number(stored) || 0 : afterFromPhotos;
+    return { before, after };
+  }
+
+  function prodPhotoState(row) {
+    const live = row && row.live;
+    if (!live) return { kind: 'hidden', before: 0, after: 0 };
+    const inProd = !!live.prodStatus && String(live.prodStatus).toLowerCase() !== 'absent';
+    if (!inProd) return { kind: 'hidden', before: 0, after: 0 };
+    const counts = prodPhotoCounts(row);
+    if (counts.before > 0 && counts.after > 0) return { kind: 'complete', ...counts };
+    if (counts.before > 0 || counts.after > 0) return { kind: 'in_progress', ...counts };
+    return { kind: 'not_started', ...counts };
+  }
+
+  function prodStatusPillHtml(state) {
+    if (!state || state.kind === 'hidden') return '';
+    if (state.kind === 'complete') return '<span class="pill ok">PROD complete</span>';
+    if (state.kind === 'in_progress') return '<span class="pill warn">PROD in progress</span>';
+    return '<span class="pill">PROD not started</span>';
+  }
+
   function prodDone(row) {
     const live = row && row.live;
     if (!live) return false;
@@ -161,6 +200,9 @@
     beforePillHtml,
     siLocationLabel,
     markActive,
+    prodPhotoCounts,
+    prodPhotoState,
+    prodStatusPillHtml,
     prodDone,
     siDone,
     sheetRowDone,
