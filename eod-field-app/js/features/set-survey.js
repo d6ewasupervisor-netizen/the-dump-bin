@@ -388,9 +388,8 @@
         const byBay = new Map((local[slot] || []).map((p) => [Number(p.bay), p]));
         for (const job of pipe.jobsForSet(dbkey)) {
           if (job.slot !== slot || job.status === 'superseded' || job.error === 'replaced') continue;
-          if (local.liveProd && !uploadInFlight(job.status === 'done' ? 'done' : pipe.statusLabel(job)) && job.status === 'done') {
-            continue;
-          }
+          const live = liveCoveredBays(local.status, slot);
+          if (job.status === 'done' && live.has(Number(job.bay))) continue;
           const bay = Number(job.bay);
           const prev = byBay.get(bay) || { bay };
           byBay.set(bay, {
@@ -409,19 +408,27 @@
       }
     }
 
-    function liveProdBays(status, slot) {
+    function liveCoveredBays(status, slot) {
       const remote = status?.remotePhotos || {};
-      const list = String(slot) === 'before' ? remote.prodBefore : remote.prodAfter;
-      const fromPhotos = new Set(
-        (Array.isArray(list) ? list : [])
-          .map((p) => Number(p.bay))
-          .filter((n) => Number.isFinite(n) && n > 0)
-      );
+      const fromPhotos = new Set();
+      const add = (list) => {
+        for (const p of Array.isArray(list) ? list : []) {
+          const n = Number(p.bay);
+          if (Number.isFinite(n) && n > 0) fromPhotos.add(n);
+        }
+      };
+      if (String(slot) === 'before') add(remote.prodBefore);
+      else {
+        add(remote.prodAfter);
+        add(remote.si);
+      }
       if (fromPhotos.size) return fromPhotos;
-      const flag = String(slot) === 'before' ? 'hasProdBefore' : 'hasProdAfter';
       return new Set(
         (status?.bays || [])
-          .filter((b) => b[flag])
+          .filter((b) => {
+            if (String(slot) === 'before') return !!b.hasProdBefore;
+            return !!(b.hasSiPhoto || b.hasProdAfter || b.hasPhoto);
+          })
           .map((b) => Number(b.bay))
           .filter((n) => Number.isFinite(n) && n > 0)
       );
@@ -431,7 +438,7 @@
       local.liveProd = true;
       local.status = status;
       for (const slot of ['before', 'after']) {
-        const live = liveProdBays(status, slot);
+        const live = liveCoveredBays(status, slot);
         local[slot] = (local[slot] || []).filter((p) => {
           if (uploadInFlight(p.uploadStatus)) return true;
           return live.has(Number(p.bay));
@@ -445,8 +452,8 @@
         }
       }
       if (local.pack?.photos) {
-        const beforeLive = liveProdBays(status, 'before');
-        const afterLive = liveProdBays(status, 'after');
+        const beforeLive = liveCoveredBays(status, 'before');
+        const afterLive = liveCoveredBays(status, 'after');
         local.pack = {
           ...local.pack,
           photos: (local.pack.photos || []).filter((p) => {
@@ -521,7 +528,9 @@
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
         if (detail.job?.slot === 'after') maybeAutoCloseSi();
-        if (!liveCameraOpen) fetchPack().then(() => paintBody());
+        if (!liveCameraOpen) {
+          void refreshRemoteAndPaint();
+        }
         return;
       } else if (detail.type === 'failed' && detail.job?.status !== 'superseded' && detail.job?.error !== 'replaced') {
         setMsg(detail.job?.error || 'Upload failed', true);
@@ -579,14 +588,7 @@
         const n = Number(b.bay);
         if (remoteBayCovered(slot, n)) set.add(n);
       }
-      const remote = local.status?.remotePhotos || {};
-      const live = String(slot) === 'before' ? remote.prodBefore : remote.prodAfter;
-      if (Array.isArray(live)) {
-        for (const p of live) {
-          const n = Number(p.bay);
-          if (Number.isFinite(n) && n > 0) set.add(n);
-        }
-      }
+      for (const n of liveCoveredBays(local.status, slot)) set.add(n);
       if (!local.liveProd) {
         const cached = String(slot) === 'before' ? beforeCached() : afterCached();
         for (const p of cached) {
@@ -796,12 +798,70 @@
       })).filter((p) => p.url);
     }
 
+    function remoteAsPhotos(slot) {
+      const remote = local.status?.remotePhotos || {};
+      const list = String(slot) === 'before'
+        ? (remote.prodBefore || [])
+        : [...(remote.si || []), ...(remote.prodAfter || [])];
+      const seen = new Set();
+      const out = [];
+      for (const p of list) {
+        const bay = Number(p.bay);
+        if (!p?.url || !Number.isFinite(bay) || bay < 1) continue;
+        if (seen.has(bay)) continue;
+        seen.add(bay);
+        out.push({
+          slot: p.slot || slot,
+          source: p.source || (slot === 'before' ? 'prod' : 'si'),
+          id: p.id || p.sectionId || `${p.source || 'remote'}-${bay}`,
+          label: `Bay ${bay}`,
+          url: p.url,
+          bayIndex: bay,
+        });
+      }
+      return out;
+    }
+
     function viewerPhotos(slot) {
-      const remote = slot === 'before' ? beforeCached() : afterCached();
+      const live = remoteAsPhotos(slot);
+      const pack = slot === 'before' ? beforeCached() : afterCached();
       const device = deviceAsPhotos(local[slot], slot);
-      const seen = new Set(remote.map((p) => `${p.slot}|${p.bayIndex || p.id}`));
-      const extra = device.filter((p) => !seen.has(`${p.slot}|${p.bayIndex || p.id}`));
-      return [...remote, ...extra];
+      const seen = new Set();
+      const out = [];
+      for (const p of [...live, ...pack, ...device]) {
+        const bay = Number(p.bayIndex);
+        const key = Number.isFinite(bay) && bay > 0 ? `bay-${bay}` : `${p.source}|${p.id}`;
+        if (seen.has(key) || !p.url) continue;
+        seen.add(key);
+        out.push(p);
+      }
+      return out;
+    }
+
+    let remoteSyncing = false;
+    async function refreshRemoteAndPaint() {
+      if (remoteSyncing) return;
+      remoteSyncing = true;
+      try {
+        try {
+          const st = await fetchStatus(dbkey, rowId, { fresh: true });
+          applyLiveProd(st);
+          paintStatus(st);
+          const siHave = Number(st?.si?.sectionsWithPhoto) || 0;
+          const prodAfter = Number(st?.prod?.afterCount) || 0;
+          if (siHave !== prodAfter && (siHave > 0 || prodAfter > 0)) {
+            const r = await crossFill(dbkey, rowId);
+            if (r?.status) {
+              applyLiveProd(r.status);
+              paintStatus(r.status);
+            }
+          }
+        } catch (_) { /* keep current board */ }
+        try { await fetchPack(); } catch (_) {}
+        if (!liveCameraOpen) paintBody();
+      } finally {
+        remoteSyncing = false;
+      }
     }
 
     function openMedia(kind, startBay) {
@@ -1227,6 +1287,11 @@
         setMediaReady('after', true);
         paintBody();
         setMsg('');
+        const siHave = Number((local.status || st)?.si?.sectionsWithPhoto) || 0;
+        const prodAfter = Number((local.status || st)?.prod?.afterCount) || 0;
+        if (siHave !== prodAfter && (siHave > 0 || prodAfter > 0)) {
+          void refreshRemoteAndPaint();
+        }
       } catch (err) {
         setMsg(err.message || String(err), true);
         setMediaReady('before', true);

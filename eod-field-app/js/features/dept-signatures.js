@@ -145,15 +145,6 @@
 
   const ROLE_LABEL_BY_KEY = Object.fromEntries(ROLE_FALLBACK.map((r) => [r.key, r.label]));
 
-  function rowHasWorkMark(row) {
-    const m = row?.marks || row?.mark;
-    if (!m) return false;
-    if (Array.isArray(m.active) && m.active.length) return true;
-    if (m.type) return true;
-    if (m.complete || m.notInStore || m.notInSi) return true;
-    return false;
-  }
-
   function roleKeysMatchingRows(rows) {
     const list = Array.isArray(rows) ? rows : [];
     const found = new Set();
@@ -205,11 +196,16 @@
   }
 
   /**
-   * Scope PIC signature slots to departments worked today on the digital sheet.
-   * Only roles implied by marked rows (Complete / NIS / NISI) are listed —
-   * e.g. Produce + Grocery marked → those two PICs only. Already-collected
-   * signatures stay visible.
+   * Scope PIC signature slots to departments on today’s sheet (not only
+   * already-marked Complete / NIS). Produce / bakery / fuel stay collectable
+   * during the walkthrough. Already-collected signatures stay visible.
    */
+  function rowInScope(row) {
+    if (!row) return false;
+    if (row.outOfScope || row.out_of_scope || row.marks?.outOfScope) return false;
+    return true;
+  }
+
   function syncFromSheet(sheet) {
     lastSheetRef = sheet || null;
     if (!sheet || !Array.isArray(sheet.rows)) {
@@ -220,8 +216,8 @@
       return roles;
     }
 
-    const markedRows = sheet.rows.filter(rowHasWorkMark);
-    const keySet = new Set(roleKeysMatchingRows(markedRows));
+    const workRows = sheet.rows.filter(rowInScope);
+    const keySet = new Set(roleKeysMatchingRows(workRows));
     for (const sig of signatures) {
       const k = String(sig.roleKey || '').toLowerCase();
       if (k && ROLE_LABEL_BY_KEY[k]) keySet.add(k);

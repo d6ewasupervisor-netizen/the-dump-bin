@@ -727,6 +727,20 @@ test('list Capture opens a from-one session and survey status ignores SAS comple
   assert.doesNotMatch(survey, /live\.prodComplete \? 'completed'/);
 });
 
+test('set survey shows PROD and SI remotes and copies afters when one side is behind', () => {
+  const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
+  const dept = fs.readFileSync(path.join(__dirname, '../js/features/dept-signatures.js'), 'utf8');
+  assert.match(survey, /function liveCoveredBays/);
+  assert.match(survey, /add\(remote\.si\)/);
+  assert.match(survey, /function remoteAsPhotos/);
+  assert.match(survey, /function refreshRemoteAndPaint/);
+  assert.match(survey, /siHave !== prodAfter/);
+  assert.doesNotMatch(survey, /function liveProdBays/);
+  assert.match(dept, /function rowInScope/);
+  assert.match(dept, /workRows = sheet\.rows\.filter\(rowInScope\)/);
+  assert.doesNotMatch(dept, /filter\(rowHasWorkMark\)/);
+});
+
 test('double-swipe nav order is visit, categories, signatures, send', () => {
   const swipe = require('../js/lib/swipe-nav');
   assert.deepEqual(swipe.PRIMARY, ['visit', 'signoff', 'signatures', 'send']);
