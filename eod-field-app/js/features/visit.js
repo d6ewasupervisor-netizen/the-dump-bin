@@ -258,15 +258,33 @@
     ).trim();
   }
 
+  function fallbackPickShifts(shifts, current) {
+    const L = global.EodSendSheetsLogic || {};
+    if (L.autoSelectLeadShift) {
+      return {
+        visible: shifts,
+        selected: L.autoSelectLeadShift(shifts, leadNameNow()) || current || shifts[0] || null,
+      };
+    }
+    return { visible: shifts, selected: shifts[0] || current || null };
+  }
+
+  function openShiftDetails() {
+    const S = global.EodSession;
+    if (!S.state.selectedShift) return;
+    S.saveDraft();
+    advanceAfterShiftSelected();
+    updateContinueBtn();
+    paintOnboarding();
+  }
+
   function applyShiftsToSession(shifts, listEl, reason) {
     const S = global.EodSession;
     const L = global.EodSendSheetsLogic || {};
+    const prevId = String(S.state.selectedShift?.visitId || '');
     const picked = L.pickVisibleLeadShift
       ? L.pickVisibleLeadShift(shifts, leadNameNow(), S.state.selectedShift)
-      : {
-        visible: shifts,
-        selected: shifts.length === 1 ? shifts[0] : S.state.selectedShift,
-      };
+      : fallbackPickShifts(shifts, S.state.selectedShift);
     const selected = picked.selected || null;
     S.patch({
       shifts,
@@ -275,6 +293,12 @@
     }, reason);
     if (selected) paintLeadFromShift(selected, shifts);
     paintShiftList(listEl);
+    const nextId = String(selected?.visitId || '');
+    const shouldOpenDetails = !!selected && reason !== 'lead-filter' && (
+      reason === 'shifts' || reason === 'shifts-cache' || prevId !== nextId
+    );
+    if (shouldOpenDetails) openShiftDetails();
+    else updateContinueBtn();
     return picked;
   }
 
@@ -310,8 +334,6 @@
     const shifts = cached.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
     if (!shifts.length) return false;
     applyShiftsToSession(shifts, listEl, 'shifts-cache');
-    advanceAfterShiftSelected();
-    updateContinueBtn();
     return true;
   }
 
@@ -344,11 +366,7 @@
         : '<p class="muted">No shifts found for this store/date.</p>';
       return;
     }
-    const picked = applyShiftsToSession(shifts, listEl, 'shifts');
-    if (picked.selected) {
-      advanceAfterShiftSelected();
-      updateContinueBtn();
-    }
+    applyShiftsToSession(shifts, listEl, 'shifts');
     refreshLiveShifts(store, date, listEl);
   }
 
@@ -371,7 +389,6 @@
         shifts = shifts.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
         if (!shifts.length) return;
         applyShiftsToSession(shifts, listEl, 'shifts-live');
-        updateContinueBtn();
       } catch (_) { /* standing list stays */ }
     })();
   }
@@ -444,12 +461,8 @@
           extraVisitIds: siblingExtraIds(S.state.shifts, shift),
         }, 'shift');
         paintLeadFromShift(shift, S.state.shifts);
-        S.saveDraft();
-        advanceAfterShiftSelected();
-        try { global.EodShiftPhotoSync?.run?.('shift'); } catch (_) {}
-        paintOnboarding();
-        updateContinueBtn();
         paintShiftList(listEl);
+        openShiftDetails();
         await maybeOfferCentralPetJump(shift);
       };
     });

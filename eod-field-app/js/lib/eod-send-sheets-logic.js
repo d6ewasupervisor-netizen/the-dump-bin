@@ -353,6 +353,7 @@
     leadNamesMatch,
     visibleLeadShifts,
     pickVisibleLeadShift,
+    autoSelectLeadShift,
     includedIseVisitIds,
     isIseCompanionShift,
     eodPdfFilename,

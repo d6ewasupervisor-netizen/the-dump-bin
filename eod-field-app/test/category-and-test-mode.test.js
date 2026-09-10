@@ -434,6 +434,8 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.doesNotMatch(visit, /visitCartRefresh/);
   assert.doesNotMatch(visit, /saveInMgr/);
   assert.match(visit, /visibleLeadShifts/);
+  assert.match(visit, /function applyShiftsToSession[\s\S]*openShiftDetails/);
+  assert.match(visit, /function openShiftDetails[\s\S]*paintOnboarding/);
   assert.match(visit, /pickerItemsForStores/);
   assert.doesNotMatch(visit, /scheduled\.has\(Number\(a\)\)/);
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');

@@ -12,6 +12,7 @@ const {
   isCentralPetReset,
   visibleLeadShifts,
   pickVisibleLeadShift,
+  autoSelectLeadShift,
   includedIseVisitIds,
 } = require('../js/lib/eod-send-sheets-logic');
 
@@ -146,6 +147,8 @@ test('visible lead shifts list ISE-family and Central Pet for that lead', () => 
   assert.deepEqual(vis.map((s) => s.visitId), ['1', '4', '2']);
   const picked = pickVisibleLeadShift([ise, cutIn, cpJames, cpEldin], 'James Duchene Ryan', null);
   assert.equal(picked.selected.visitId, '1');
+  assert.equal(autoSelectLeadShift([cutIn, ise, cpJames], 'James Duchene Ryan').visitId, '1');
+  assert.equal(autoSelectLeadShift([cutIn, cpJames], '').visitId, '4');
   assert.deepEqual(includedIseVisitIds([ise, cutIn, cpJames], picked.selected), ['4']);
   const keep = pickVisibleLeadShift([ise, cutIn, cpJames], 'James Duchene Ryan', ise);
   assert.equal(keep.selected.visitId, '1');

@@ -82,6 +82,7 @@
     const expiresAt = Date.now() + (Number(expiresInMs) || 36 * 60 * 60 * 1000);
     const canonStore = normStoreNumber(store);
     const canonDate = normIsoDate(date);
+    const storeChanged = state.storeNumber !== canonStore || state.workDate !== canonDate;
     localStorage.setItem(DAY_CONFIRM_KEY, JSON.stringify({
       token,
       store: canonStore,
@@ -90,6 +91,11 @@
     }));
     state.storeNumber = canonStore;
     state.workDate = canonDate;
+    if (storeChanged) {
+      state.selectedShift = null;
+      state.shifts = [];
+      state.extraVisitIds = [];
+    }
     emit('dayConfirm');
   }
 
