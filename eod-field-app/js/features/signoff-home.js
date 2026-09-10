@@ -672,35 +672,20 @@
       });
     }
 
-    function pacificHourNow() {
-      try {
-        const parts = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'America/Los_Angeles',
-          hour: 'numeric',
-          hour12: false,
-        }).formatToParts(new Date());
-        return Number(parts.find((p) => p.type === 'hour')?.value) % 24;
-      } catch {
-        return new Date().getHours();
-      }
-    }
-
-    function pollMs() {
-      return pacificHourNow() >= 12 ? 5 * 60 * 1000 : 60 * 60 * 1000;
-    }
-
     function startPoll() {
       if (pollTimer) clearInterval(pollTimer);
+      const ms = global.EodStoreProdWarm?.SHEET_MS || 45_000;
       pollTimer = setInterval(async () => {
         if (global.EodRouter?.current !== 'signoff') return;
         try {
-          await syncProdSi();
+          await loadSheet();
           await paint();
+          global.EodStoreProdWarm?.prefetchStatuses?.();
           global.EodChrome?.refresh();
         } catch (err) {
-          console.warn('[signoff] poll sync', err.message || err);
+          console.warn('[signoff] poll sheet', err.message || err);
         }
-      }, pollMs());
+      }, ms);
     }
 
     function paintBulkBar() {
@@ -956,6 +941,7 @@
     };
     await paint();
     try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
+    try { global.EodStoreProdWarm?.start?.(); } catch (_) {}
     void (async () => {
       try {
         await syncProdSi();

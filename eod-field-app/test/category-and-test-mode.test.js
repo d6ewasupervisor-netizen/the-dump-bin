@@ -851,6 +851,20 @@ test('after-photo review jumps to that bay on the planogram and bottom nav Back 
   assert.match(chrome, /dismissOverlays\(\)/);
 });
 
+test('store prod warm heartbeats and Categories poll the sheet, not a full sync', () => {
+  const warm = fs.readFileSync(path.join(__dirname, '../js/features/store-prod-warm.js'), 'utf8');
+  const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
+  assert.match(html, /store-prod-warm\.js/);
+  assert.match(warm, /\/heartbeat/);
+  assert.match(warm, /HEARTBEAT_MS = 45_000/);
+  assert.match(warm, /prefetchStatuses/);
+  assert.match(signoff, /EodStoreProdWarm\?\.start/);
+  assert.match(signoff, /poll sheet/);
+  assert.match(survey, /EodStoreProdWarm\?\.peekStatus/);
+});
+
 test('SAS and SI bulbs own auth refresh; the title-bar reload button is gone', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const conn = fs.readFileSync(path.join(__dirname, '../js/features/connections.js'), 'utf8');

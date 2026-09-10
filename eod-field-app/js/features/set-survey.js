@@ -39,6 +39,10 @@
   }
 
   async function fetchStatus(dbkey, rowId, opts = {}) {
+    if (!opts.fresh && !opts.skipCache) {
+      const cached = global.EodStoreProdWarm?.peekStatus?.(dbkey);
+      if (cached) return cached;
+    }
     const S = global.EodSession;
     const qs = new URLSearchParams({
       store: S.state.storeNumber,
@@ -54,6 +58,7 @@
     const resp = await global.authFetch(`${API}/status?${qs}`, { skipBusy: true });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Status failed (${resp.status})`);
+    try { global.EodStoreProdWarm?.putStatus?.(dbkey, data.status); } catch (_) {}
     return data.status;
   }
 
@@ -1040,6 +1045,7 @@
     }
 
     async function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
+      try { global.EodStoreProdWarm?.dropStatus?.(dbkey); } catch (_) {}
       const shot = fileOrShot && (fileOrShot.canvas || fileOrShot.bitmap) ? fileOrShot : null;
       const file = shot ? null : fileOrShot;
       const bay = Number(bayOverride) || nextEmptyBay(slot) || 1;
