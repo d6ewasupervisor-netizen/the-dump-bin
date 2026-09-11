@@ -202,6 +202,7 @@
       resetId: ids?.resetId || null,
       taskId: ids?.taskId || null,
       skipProd: !!ids?.skipProd,
+      skipSi: !!ids?.skipSi,
       markSheet: true,
     });
     const durable = global.EodFieldSetJobs;
