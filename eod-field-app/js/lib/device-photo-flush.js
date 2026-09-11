@@ -105,6 +105,9 @@
           bay,
           dbkey,
           rowId: opts.rowId || null,
+          expectedBayCount: Number(status?.expectedBayCount)
+            || Number(status?.si?.sectionCount)
+            || null,
           dataUrl: payload.dataUrl || null,
           file: payload.file || null,
           fileName: p.fileName || `${slot}.jpg`,
