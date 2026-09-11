@@ -18,6 +18,10 @@
     return p?.id ?? p?.photoId ?? p?.imageId ?? p?.actionId ?? p?.sectionId ?? null;
   }
 
+  function selectedFilesInOrder(files) {
+    return [...(files || [])];
+  }
+
   function isOwnedPhotoUrl(url) {
     const value = String(url || '').trim();
     if (/^(data:|blob:)/i.test(value) || value.startsWith('/api/')) return true;
@@ -1131,7 +1135,7 @@
       });
       body.querySelectorAll('[data-gal]').forEach((input) => {
         input.onchange = async () => {
-          const files = [...(input.files || [])].reverse();
+          const files = selectedFilesInOrder(input.files);
           const slot = input.getAttribute('data-gal');
           const replace = input.getAttribute('data-replace') === '1' || nextEmptyBay(slot) == null;
           input.value = '';
@@ -1202,7 +1206,7 @@
           if (next != null && next <= total) return { toast: `Moving to bay ${next}` };
           return null;
         },
-        onLoadFiles: (files) => enqueueFiles(slot, [...files].reverse(), { replace: replacing || fromOne }),
+        onLoadFiles: (files) => enqueueFiles(slot, selectedFilesInOrder(files), { replace: replacing || fromOne }),
         onStop: () => {
           liveCameraOpen = false;
           if (returnTo === 'signoff') {
@@ -1422,6 +1426,7 @@
     isOwnedPhotoUrl,
     ownedRemotePhoto,
     storedPhoto,
+    selectedFilesInOrder,
   };
   global.EodSetSurvey = { render, persistOpen: () => global.EodDevicePhotoFlush?.persistOpen?.() };
   global.EodRouter.register('survey', render);
