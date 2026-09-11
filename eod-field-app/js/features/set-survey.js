@@ -201,6 +201,7 @@
       visitIds: storeDayVisitIds(),
       resetId: ids?.resetId || null,
       taskId: ids?.taskId || null,
+      skipProd: !!ids?.skipProd,
       markSheet: true,
     });
     const durable = global.EodFieldSetJobs;
@@ -589,21 +590,19 @@
       if (open) return null;
       const failed = afterJobs.filter((j) => j.status === 'failed');
       if (failed.length) return null;
-      if (takenBays('before').size < n) return null;
       if (takenBays('after').size < n) return null;
       const st = local.status || {};
-      const prodBefore = Number(st.prod?.beforeCount) || liveCoveredBays(st, 'before').size;
-      const prodAfter = Number(st.prod?.afterCount) || (st.remotePhotos?.prodAfter || []).length;
       const siHave = Number(st.si?.sectionsWithPhoto) || (st.remotePhotos?.si || []).length;
-      if (prodBefore < n || prodAfter < n || siHave < n) return null;
+      if (siHave < n) return null;
 
       autoClosePromise = (async () => {
         try {
-          setMsg('PROD and SI photos are in — closing the set…');
+          setMsg('SI photos are in — closing the set…');
           const result = await completeSet(dbkey, rowId, {
             visitId: local.status?.prod?.visitId,
             resetId: local.status?.prod?.resetId,
             taskId: local.status?.si?.taskId,
+            skipProd: true,
           });
           setMsg(
             `Closed — PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || result.si?.detail || ''}`
