@@ -510,6 +510,7 @@
     const editBtn = document.getElementById('unlockProfileBtn');
     if (editBtn && (lead || email)) editBtn.hidden = false;
     if (!email && lead) queueLeadEmailLookup(source, lead);
+    try { global.EodSasUser?.refreshLead?.(); } catch (_) {}
   }
 
   function queueLeadEmailLookup(shift, lead) {
