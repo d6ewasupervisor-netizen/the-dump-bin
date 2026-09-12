@@ -1241,7 +1241,7 @@
 
     async function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
       if (global.EodSasUser?.requireConnected) {
-        const gate = await global.EodSasUser.requireConnected();
+        const gate = await global.EodSasUser.requireConnected({ slot });
         if (!gate.ok) {
           setMsg(gate.message);
           return;
