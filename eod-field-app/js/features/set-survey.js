@@ -1240,6 +1240,13 @@
     }
 
     async function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
+      if (global.EodSasUser?.requireConnected) {
+        const gate = await global.EodSasUser.requireConnected();
+        if (!gate.ok) {
+          setMsg(gate.message);
+          return;
+        }
+      }
       try { global.EodStoreProdWarm?.dropStatus?.(dbkey); } catch (_) {}
       const shot = fileOrShot && (fileOrShot.canvas || fileOrShot.bitmap) ? fileOrShot : null;
       const file = shot ? null : fileOrShot;

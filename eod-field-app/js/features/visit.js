@@ -1240,6 +1240,8 @@
         <button type="button" class="btn btn-secondary btn-block" id="unlockProfileBtn" ${S.state.profileLocked || S.state.selectedShift ? '' : 'hidden'}>Edit name / email</button>
       </div>
 
+      <div class="card" id="sasUserCard"></div>
+
       <div class="card">
         <div id="visitOnboarding"></div>
       </div>
@@ -1250,6 +1252,7 @@
       try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
     }
     await paintOnboarding();
+    try { await global.EodSasUser?.mount?.(document.getElementById('sasUserCard')); } catch (_) {}
 
     document.getElementById('resetVisitBtn').onclick = () => doReset();
 
