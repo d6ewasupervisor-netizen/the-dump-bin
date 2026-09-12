@@ -1,11 +1,11 @@
-/* Per-lead SAS + SI login. Pattern lock proves the TOTP owner. */
+/* Reporting-systems login. Pattern unlocks stored creds next time. */
 (function (global) {
   'use strict';
 
-  const REFRESH_COOLDOWN_MS = 10 * 60 * 1000;
-  const REFRESH_COOLDOWN_KEY = 'eodSasUserRefreshAt';
+  const Logic = global.EodSasUserLoginLogic || {};
   let status = null;
   let statusAt = 0;
+  let view = 'idle';
   const STATUS_TTL_MS = 15 * 1000;
   const patternLocks = new Map();
 
@@ -19,12 +19,6 @@
       return;
     }
     console.info('[sas-user]', msg);
-  }
-
-  function cooldownLeft() {
-    const last = parseInt(localStorage.getItem(REFRESH_COOLDOWN_KEY) || '0', 10);
-    if (!last) return 0;
-    return Math.max(0, REFRESH_COOLDOWN_MS - (Date.now() - last));
   }
 
   async function fetchStatus(force) {
@@ -54,9 +48,9 @@
 
   async function requireConnected(opts) {
     const cur = await fetchStatus();
-    if (!cur.connected) return { ok: false, message: 'Connect Your SAS + SI on the visit page' };
+    if (!cur.connected) return { ok: false, message: 'Login to the reporting systems on Visit' };
     if (opts?.slot === 'after' && !cur.sharedActor && !cur.siConnected) {
-      return { ok: false, message: 'Connect Store Intelligence on the visit page' };
+      return { ok: false, message: 'Login to the reporting systems on Visit' };
     }
     return { ok: true };
   }
@@ -118,79 +112,16 @@
     };
   }
 
-  function patternMarkup(id) {
-    return `<div class="sas-pattern" data-pattern="${id}" aria-label="Pattern">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
-      ${[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => `<button type="button" class="sas-pattern-dot" data-dot="${i}" tabindex="-1"></button>`).join('')}
-    </div>`;
-  }
-
   function paint(root, cur, busy) {
     if (!root) return;
     patternLocks.clear();
-    if (cur.connected) {
-      const who = cur.sharedActor ? 'office SAS' : (cur.usernameHint || 'SAS');
-      const si = cur.sharedActor ? 'office SI' : (cur.siConnected ? (cur.siUsernameHint || 'SI') : 'SI not connected');
-      root.innerHTML = `
-        <h2>Your SAS + SI</h2>
-        <p class="visit-confirmed">Connected as ${esc(who)}</p>
-        <p class="muted">${esc(si)}</p>
-        <div class="btn-row" style="margin-top:10px;">
-          <button type="button" class="btn btn-secondary" data-sas="refresh" ${busy || cooldownLeft() ? 'disabled' : ''}>Refresh</button>
-          ${cur.sharedActor ? '' : '<button type="button" class="btn btn-secondary" data-sas="disconnect">Disconnect</button>'}
-        </div>
-        <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
-      return;
-    }
-    root.innerHTML = `
-      <h2>Your SAS + SI</h2>
-      <div class="field">
-        <label for="sasUserUsername">SAS username</label>
-        <input type="email" id="sasUserUsername" autocomplete="username">
-      </div>
-      <div class="field">
-        <label for="sasUserPassword">SAS password</label>
-        <input type="password" id="sasUserPassword" autocomplete="current-password">
-      </div>
-      <div class="field">
-        <label for="sasUserTotp">Authenticator secret</label>
-        <input type="text" id="sasUserTotp" autocomplete="off" spellcheck="false">
-      </div>
-      <div data-pattern-wrap hidden>
-        <label>Pattern</label>
-        ${patternMarkup('set')}
-        <label>Draw again</label>
-        ${patternMarkup('confirm')}
-      </div>
-      <div class="field">
-        <label for="sasUserSiUsername">SI username</label>
-        <input type="text" id="sasUserSiUsername" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="field">
-        <label for="sasUserSiPassword">SI password</label>
-        <input type="password" id="sasUserSiPassword" autocomplete="off">
-      </div>
-      <button type="button" class="btn btn-primary btn-block" data-sas="connect" ${busy ? 'disabled' : ''}>Connect</button>
-      <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
-  }
-
-  function esc(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    const html = Logic.cardHtml ? Logic.cardHtml(view, cur, busy) : '';
+    root.innerHTML = html;
   }
 
   function setMsg(root, text) {
     const el = root?.querySelector('[data-sas-msg]');
     if (el) el.textContent = text || '';
-  }
-
-  function syncPatternVisibility(root) {
-    const totp = root.querySelector('#sasUserTotp')?.value.trim();
-    const wrap = root.querySelector('[data-pattern-wrap]');
-    if (wrap) wrap.hidden = !totp;
   }
 
   function readFields() {
@@ -200,7 +131,7 @@
       totpSecret: document.getElementById('sasUserTotp')?.value.trim() || '',
       siUsername: document.getElementById('sasUserSiUsername')?.value.trim() || '',
       siPassword: document.getElementById('sasUserSiPassword')?.value || '',
-      pattern: patternLocks.get('set')?.value() || [],
+      pattern: patternLocks.get('set')?.value() || patternLocks.get('unlock')?.value() || [],
       patternConfirm: patternLocks.get('confirm')?.value() || [],
     };
   }
@@ -219,32 +150,77 @@
     });
   }
 
+  function bindLocks(root) {
+    root.querySelectorAll('[data-pattern]').forEach((el) => {
+      patternLocks.set(el.getAttribute('data-pattern'), bindPatternLock(el));
+    });
+  }
+
   async function mount(root) {
     if (!root) return;
     let busy = false;
-    const redraw = async (force, keep) => {
+    const redraw = async (force, keep, nextView) => {
       const cur = await fetchStatus(force).catch(() => ({ connected: false }));
+      if (nextView) view = nextView;
       paint(root, cur, busy);
-      if (keep) writeFields(keep);
-      root.querySelectorAll('[data-pattern]').forEach((el) => {
-        patternLocks.set(el.getAttribute('data-pattern'), bindPatternLock(el));
-      });
-      syncPatternVisibility(root);
+      if (keep && view === 'form') writeFields(keep);
+      bindLocks(root);
       bind();
     };
     const bind = () => {
-      root.querySelector('#sasUserTotp')?.addEventListener('input', () => syncPatternVisibility(root));
+      root.querySelector('[data-sas="open"]')?.addEventListener('click', async () => {
+        const cur = status || await fetchStatus();
+        view = Logic.openMode ? Logic.openMode(cur) : 'form';
+        await redraw(false);
+      });
+      root.querySelector('[data-sas="cancel"]')?.addEventListener('click', async () => {
+        view = 'idle';
+        await redraw(false);
+      });
+      root.querySelector('[data-sas="form"]')?.addEventListener('click', async () => {
+        view = 'form';
+        await redraw(false);
+      });
+      root.querySelector('[data-sas="unlock"]')?.addEventListener('click', async () => {
+        if (busy) return;
+        const fields = readFields();
+        busy = true;
+        setMsg(root, 'Unlocking…');
+        try {
+          const resp = await global.authFetch(`${apiBase()}/api/sas-user/unlock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            skipBusy: true,
+            body: JSON.stringify({ pattern: fields.pattern }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) {
+            toast(data.error || 'Unlock failed', 'error');
+            statusAt = 0;
+            await redraw(true, null, 'unlock');
+            setMsg(root, data.error || 'Pattern did not match');
+            return;
+          }
+          toast('Logged in', 'ok');
+          statusAt = 0;
+          view = 'idle';
+          await redraw(true);
+          setMsg(root, 'Logged in');
+        } catch (err) {
+          await redraw(true, null, 'unlock');
+          setMsg(root, err.message || 'Unlock failed');
+        } finally {
+          busy = false;
+        }
+      });
       root.querySelector('[data-sas="connect"]')?.addEventListener('click', async () => {
         if (busy) return;
         const fields = readFields();
         busy = true;
         paint(root, status || { connected: false }, true);
         writeFields(fields);
-        root.querySelectorAll('[data-pattern]').forEach((el) => {
-          patternLocks.set(el.getAttribute('data-pattern'), bindPatternLock(el));
-        });
-        syncPatternVisibility(root);
-        setMsg(root, 'Connecting…');
+        bindLocks(root);
+        setMsg(root, 'Saving…');
         try {
           const resp = await global.authFetch(`${apiBase()}/api/sas-user/connect`, {
             method: 'POST',
@@ -262,46 +238,27 @@
           });
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok || !data.ok) {
-            toast(data.error || 'SAS connect failed', 'error');
+            toast(data.error || 'Login failed', 'error');
             status = { connected: false, lastRefreshError: data.error };
             statusAt = 0;
-            await redraw(true, fields);
-            setMsg(root, data.error || 'Could not connect');
+            await redraw(true, fields, 'form');
+            setMsg(root, data.error || 'Could not save');
             return;
           }
-          toast('SAS + SI connected', 'ok');
+          toast('Logged in', 'ok');
           statusAt = 0;
+          view = 'idle';
           await redraw(true);
+          setMsg(root, 'Logged in');
         } catch (err) {
-          await redraw(true, fields);
-          setMsg(root, err.message || 'Could not connect');
+          await redraw(true, fields, 'form');
+          setMsg(root, err.message || 'Could not save');
         } finally {
           busy = false;
         }
       });
-      root.querySelector('[data-sas="disconnect"]')?.addEventListener('click', async () => {
-        await global.authFetch(`${apiBase()}/api/sas-user/disconnect`, {
-          method: 'POST',
-          skipBusy: true,
-        });
-        statusAt = 0;
-        await redraw(true);
-      });
-      root.querySelector('[data-sas="refresh"]')?.addEventListener('click', async () => {
-        if (cooldownLeft() > 0) return;
-        localStorage.setItem(REFRESH_COOLDOWN_KEY, String(Date.now()));
-        const resp = await global.authFetch(`${apiBase()}/api/sas-user/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          skipBusy: true,
-          body: JSON.stringify({ force: true }),
-        });
-        const data = await resp.json().catch(() => ({}));
-        statusAt = 0;
-        await redraw(true);
-        setMsg(root, data.ok ? (data.skipped ? 'Still fresh' : 'Refreshed') : (data.error || 'Refresh failed'));
-      });
     };
+    view = 'idle';
     await redraw(true);
   }
 
