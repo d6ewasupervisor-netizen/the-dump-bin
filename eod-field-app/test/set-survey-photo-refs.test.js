@@ -72,6 +72,28 @@ test('on-device data photos stay directly viewable', () => {
   assert.equal(photo.url, dataUrl);
 });
 
+test('board placeholders persist without keeping the local JPEG', () => {
+  const refs = loadPhotoRefs();
+  const rec = refs.deviceStoreRecord({
+    bay: 2,
+    url: 'https://eod-api.the-dump-bin.com/api/digital-signoffs/rows/9175/photos/prod/before-bay-2/image',
+    thumbUrl: 'https://eod-api.the-dump-bin.com/api/digital-signoffs/rows/9175/photos/prod/before-bay-2/image?thumb=1',
+    photoBase64: 'data:image/jpeg;base64,YWJj',
+    offloaded: true,
+    source: 'prod',
+    id: 'before-bay-2',
+    uploadStatus: 'done',
+  }, { workDate: '2026-09-11' });
+  assert.equal(rec.dataUrl, undefined);
+  assert.match(rec.url, /\/photos\/prod\/before-bay-2\/image$/);
+  assert.equal(rec.offloaded, true);
+
+  const photo = refs.storedPhoto(rec, { rowId: 9175, slot: 'before' });
+  assert.equal(photo.photoBase64, null);
+  assert.equal(photo.offloaded, true);
+  assert.equal(photo.preview, rec.thumbUrl);
+});
+
 test('selected set photos keep the device file order for bay assignment', () => {
   const refs = loadPhotoRefs();
   const files = [

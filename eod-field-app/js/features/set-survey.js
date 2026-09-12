@@ -59,22 +59,47 @@
   function storedPhoto(p, { rowId, slot, fallbackName } = {}) {
     const dataUrl = p?.dataUrl || p?.photoBase64 || '';
     const remote = ownedRemotePhoto(p, { rowId, slot, source: p?.source });
-    const full = dataUrl || remote.url || p?.previewUrl || p?.preview || '';
+    const hasLocal = /^(data:|blob:)/i.test(String(dataUrl || ''));
+    const offloaded = !!(p?.offloaded || (isOwnedPhotoUrl(p?.url) && !hasLocal));
+    const full = (!offloaded && dataUrl) || remote.url || p?.previewUrl || p?.preview || '';
     const suppliedPreview = [p?.thumbUrl, p?.previewUrl, p?.preview]
       .map((value) => String(value || '').trim())
       .find(isOwnedPhotoUrl) || '';
-    const preview = suppliedPreview || dataUrl || remote.thumbUrl || full;
+    const preview = suppliedPreview || (offloaded ? '' : dataUrl) || remote.thumbUrl || full;
     return {
       bay: photoBay(p, 1),
       preview,
-      photoBase64: /^(data:|blob:)/i.test(String(dataUrl || preview)) ? (dataUrl || preview) : null,
+      photoBase64: offloaded ? null : (/^(data:|blob:)/i.test(String(dataUrl || preview)) ? (dataUrl || preview) : null),
       url: full,
       thumbUrl: remote.thumbUrl || preview,
       source: p?.source || remote.source || 'device',
-      id: photoId(p),
-      uploadStatus: p?.uploadStatus || 'on device',
+      id: photoId(p) || p?.board?.photoId || null,
+      uploadStatus: p?.uploadStatus || (offloaded ? 'on board' : 'on device'),
       fileName: p?.fileName || fallbackName,
       jobId: p?.jobId || null,
+      offloaded,
+    };
+  }
+
+  function deviceStoreRecord(p, { workDate } = {}) {
+    const dataUrl = /^(data:)/i.test(String(p?.photoBase64 || p?.dataUrl || ''))
+      ? (p.photoBase64 || p.dataUrl)
+      : '';
+    const url = isOwnedPhotoUrl(p?.url) ? String(p.url).trim() : '';
+    const thumbUrl = isOwnedPhotoUrl(p?.thumbUrl) ? String(p.thumbUrl).trim() : url;
+    if (!dataUrl && !url) return null;
+    return {
+      bay: photoBay(p, 1),
+      dataUrl: url ? undefined : (dataUrl || undefined),
+      url: url || undefined,
+      thumbUrl: thumbUrl || undefined,
+      source: p?.source || undefined,
+      id: photoId(p) || undefined,
+      uploadStatus: p?.uploadStatus || undefined,
+      jobId: p?.jobId || null,
+      offloaded: !!(p?.offloaded || url),
+      workDate: workDate || p?.workDate || undefined,
+      capturedAt: Date.now(),
     };
   }
 
@@ -471,11 +496,16 @@
           byBay.set(bay, {
             ...prev,
             bay,
-            preview: job.previewUrl || job.dataUrl || prev.preview,
-            photoBase64: job.dataUrl || prev.photoBase64,
+            preview: job.previewUrl || job.board?.thumbUrl || job.dataUrl || prev.preview,
+            photoBase64: job.offloaded ? null : (job.dataUrl || prev.photoBase64),
+            url: job.board?.url || prev.url,
+            thumbUrl: job.board?.thumbUrl || prev.thumbUrl,
+            source: job.board?.source || prev.source,
+            id: job.board?.photoId || prev.id,
             uploadStatus: pipe.statusLabel(job),
             jobId: job.id,
             fileName: prev.fileName || null,
+            offloaded: !!job.offloaded,
           });
         }
         local[slot] = [...byBay.values()]
@@ -824,14 +854,9 @@
     function persistSlot(slot) {
       if (!(week && global.EodSetBeforeStore)) return;
       try {
-        const incoming = (local[slot] || []).map((p) => ({
-          bay: p.bay,
-          dataUrl: p.photoBase64 || p.preview,
-          uploadStatus: p.uploadStatus,
-          jobId: p.jobId || null,
-          workDate: S.state.workDate,
-          capturedAt: Date.now(),
-        })).filter((p) => p.dataUrl && String(p.dataUrl).startsWith('data:'));
+        const incoming = (local[slot] || [])
+          .map((p) => deviceStoreRecord(p, { workDate: S.state.workDate }))
+          .filter(Boolean);
         const keepBays = new Set((local[slot] || []).map((p) => Number(p.bay)));
         const prev = (slot === 'before'
           ? global.EodSetBeforeStore.getBefores(S.state.storeNumber, week, dbkey)
@@ -1435,6 +1460,7 @@
     isOwnedPhotoUrl,
     ownedRemotePhoto,
     storedPhoto,
+    deviceStoreRecord,
     selectedFilesInOrder,
   };
   global.EodSetSurvey = { render, persistOpen: () => global.EodDevicePhotoFlush?.persistOpen?.() };

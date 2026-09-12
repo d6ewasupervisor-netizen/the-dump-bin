@@ -123,6 +123,61 @@
     return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
+  function boardPointerForBay({ rowId, slot, bay, source } = {}) {
+    const id = Number(rowId);
+    const n = Number(bay) || 1;
+    const slotNorm = String(slot || 'after').toLowerCase() === 'before' ? 'before' : 'after';
+    const src = String(source || (slotNorm === 'before' ? 'prod' : 'si')).toLowerCase();
+    if (!Number.isFinite(id) || id <= 0) return null;
+    const photoId = `${slotNorm}-bay-${n}`;
+    const url = `/api/digital-signoffs/rows/${id}/photos/${src}/${photoId}/image`;
+    return {
+      rowId: id,
+      source: src,
+      photoId,
+      slot: slotNorm,
+      bay: n,
+      url,
+      thumbUrl: `${url}?thumb=1`,
+    };
+  }
+
+  function boardPointerFromResult(result, job) {
+    const raw = result?.board;
+    if (raw && (raw.url || raw.thumbUrl)) {
+      return {
+        rowId: Number(raw.rowId) || Number(job?.rowId) || null,
+        source: raw.source || null,
+        photoId: raw.photoId || null,
+        slot: raw.slot || job?.slot || null,
+        bay: raw.bay == null ? (Number(job?.bay) || null) : Number(raw.bay),
+        url: raw.url || null,
+        thumbUrl: raw.thumbUrl || raw.url || null,
+      };
+    }
+    const rowId = result?.sheetRow?.id || job?.rowId;
+    return boardPointerForBay({
+      rowId,
+      slot: job?.slot,
+      bay: job?.bay,
+      source: job?.slot === 'before' ? 'prod' : 'si',
+    });
+  }
+
+  function applyBoardOffload(job, pointer) {
+    if (!job || !pointer?.url) return job;
+    job.board = pointer;
+    job.previewUrl = pointer.thumbUrl || pointer.url;
+    job.dataUrl = null;
+    job.blob = null;
+    job.file = null;
+    job.bitmap = null;
+    job.canvas = null;
+    job.hasPayload = false;
+    job.offloaded = true;
+    return job;
+  }
+
   const QUEUE_COPY = 'Working in the background. Keep going. Give it a minute to catch up.';
   const MERGE_HOLD_MS = 60_000;
 
@@ -149,6 +204,9 @@
     sameBay,
     jobsToSupersede,
     bytesToHex,
+    boardPointerForBay,
+    boardPointerFromResult,
+    applyBoardOffload,
     queueBannerShouldShow,
   };
 });

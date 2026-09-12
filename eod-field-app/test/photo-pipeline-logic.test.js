@@ -111,6 +111,33 @@ describe('photo-pipeline-logic', () => {
     assert.equal(settled.show, false);
   });
 
+  it('builds a board pointer and drops local bytes after ingest', () => {
+    const pointer = logic.boardPointerFromResult({
+      board: {
+        rowId: 9175,
+        source: 'prod',
+        photoId: 'before-bay-2',
+        slot: 'before',
+        bay: 2,
+        url: '/api/digital-signoffs/rows/9175/photos/prod/before-bay-2/image',
+        thumbUrl: '/api/digital-signoffs/rows/9175/photos/prod/before-bay-2/image?thumb=1',
+      },
+    }, { slot: 'before', bay: 2, rowId: 9175 });
+    assert.equal(pointer.photoId, 'before-bay-2');
+    const job = {
+      status: 'done',
+      dataUrl: 'data:image/jpeg;base64,xx',
+      blob: { size: 12 },
+      file: { name: 'x.jpg' },
+    };
+    logic.applyBoardOffload(job, pointer);
+    assert.equal(job.offloaded, true);
+    assert.equal(job.dataUrl, null);
+    assert.equal(job.blob, null);
+    assert.equal(job.previewUrl, pointer.thumbUrl);
+    assert.equal(job.hasPayload, false);
+  });
+
   it('counts a 71-photo history without treating replaced jobs as failures', () => {
     const jobs = [];
     for (let i = 0; i < 71; i += 1) {

@@ -91,7 +91,7 @@
       for (const p of opts[slot] || []) {
         const bay = Number(p.bay);
         if (!bay || live.has(bay) || existing.has(`${slot}:${bay}`)) continue;
-        if (alreadyOnServer(p.uploadStatus)) continue;
+        if (p.offloaded || alreadyOnServer(p.uploadStatus)) continue;
         const payload = await toEnqueuePayload(p);
         if (!payload) continue;
         if (payload.dataUrl) {

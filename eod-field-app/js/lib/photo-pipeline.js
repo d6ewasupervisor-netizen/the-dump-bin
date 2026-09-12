@@ -73,8 +73,28 @@
       checksum: job.checksum || null,
       serverJobId: job.serverJobId || null,
       statusUrl: job.statusUrl || null,
+      board: job.board || null,
+      offloaded: !!job.offloaded,
       updatedAt: job.updatedAt,
     };
+  }
+
+  function dropLocalPreview(job) {
+    if (job?.previewUrl && String(job.previewUrl).startsWith('blob:')) {
+      try { URL.revokeObjectURL(job.previewUrl); } catch (_) {}
+    }
+  }
+
+  function maybeOffloadJob(job) {
+    if (!job || job.offloaded) return false;
+    const pointer = Logic.boardPointerFromResult
+      ? Logic.boardPointerFromResult(job.uploadResult, job)
+      : null;
+    if (!pointer?.url) return false;
+    dropLocalPreview(job);
+    if (Logic.applyBoardOffload) Logic.applyBoardOffload(job, pointer);
+    idbDelete(job.id).catch(() => {});
+    return true;
   }
 
   function trackTransition(type, job) {
@@ -211,6 +231,8 @@
       updatedAt: job.updatedAt || Date.now(),
       fileName: job.fileName || null,
       hasPayload: !!(job.dataUrl || job.file || job.blob),
+      board: job.board || null,
+      offloaded: !!job.offloaded,
     };
   }
 
@@ -487,6 +509,7 @@
       job.status = 'done';
       job.error = null;
       job.updatedAt = Date.now();
+      maybeOffloadJob(job);
       persist();
       emit('done', job);
       return true;
@@ -655,6 +678,7 @@
           job.error = null;
           job.skipProd = true;
           job.skipSi = true;
+          maybeOffloadJob(job);
         } else if (prodOk && !siOk) {
           job.skipProd = true;
           job.status = 'compressed';
@@ -686,6 +710,7 @@
       } else {
         job.status = 'done';
         job.error = null;
+        maybeOffloadJob(job);
       }
 
       job.updatedAt = Date.now();
@@ -1113,6 +1138,7 @@
       job.error = null;
       job.skipProd = true;
       job.skipSi = true;
+      maybeOffloadJob(job);
       persist();
       emit('done', job);
       return 'done';
