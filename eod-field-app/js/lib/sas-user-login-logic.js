@@ -22,6 +22,22 @@
     </div>`;
   }
 
+  // Android-style: a straight swipe over an unvisited dot selects it too,
+  // so fast lines can't silently skip dots (0->2 includes 1, 0->8 includes 4).
+  function jumpMidpoint(a, b) {
+    const ai = Number(a);
+    const bi = Number(b);
+    if (!Number.isInteger(ai) || !Number.isInteger(bi)) return -1;
+    if (ai < 0 || ai > 8 || bi < 0 || bi > 8 || ai === bi) return -1;
+    const r1 = Math.floor(ai / 3);
+    const c1 = ai % 3;
+    const r2 = Math.floor(bi / 3);
+    const c2 = bi % 3;
+    if ((r1 + r2) % 2 !== 0 || (c1 + c2) % 2 !== 0) return -1;
+    const mid = ((r1 + r2) / 2) * 3 + ((c1 + c2) / 2);
+    return mid === ai || mid === bi ? -1 : mid;
+  }
+
   function openMode(status) {
     if (status?.hasPattern && status?.hasCreds && !status?.sharedActor) return 'unlock';
     return 'form';
@@ -168,6 +184,7 @@
   }
 
   return {
+    jumpMidpoint,
     openMode,
     idleHtml,
     formHtml,

@@ -4,6 +4,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const L = require('../js/lib/sas-user-login-logic');
 
+test('crossed dots join the pattern so fast swipes match', () => {
+  assert.equal(L.jumpMidpoint(0, 2), 1);
+  assert.equal(L.jumpMidpoint(0, 8), 4);
+  assert.equal(L.jumpMidpoint(2, 6), 4);
+  assert.equal(L.jumpMidpoint(1, 7), 4);
+  assert.equal(L.jumpMidpoint(0, 1), -1);
+  assert.equal(L.jumpMidpoint(0, 4), -1);
+  assert.equal(L.jumpMidpoint(3, 3), -1);
+});
+
 test('idle card is a reporting-systems login button, not a SAS + SI status', () => {
   const html = L.cardHtml('idle', { connected: true, sharedActor: true });
   assert.match(html, /Login to the reporting systems/);

@@ -112,6 +112,9 @@
     function addDot(n) {
       if (!Number.isInteger(n) || n < 0 || n > 8) return;
       if (active.includes(n)) return;
+      const prev = active.length ? active[active.length - 1] : -1;
+      const mid = Logic.jumpMidpoint ? Logic.jumpMidpoint(prev, n) : -1;
+      if (mid >= 0 && !active.includes(mid)) active.push(mid);
       active.push(n);
       paint();
     }
