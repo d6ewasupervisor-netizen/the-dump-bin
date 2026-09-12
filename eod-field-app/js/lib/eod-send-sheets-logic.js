@@ -229,10 +229,20 @@
     return /^data:image\//i.test(s);
   }
 
+  function isTeamPhotoUrl(src) {
+    return /\/api\/field-session\/photos\//.test(String(src || ''));
+  }
+
   function photoEntrySrc(entry) {
     if (!entry) return '';
     if (typeof entry === 'string') return entry;
-    return entry.dataUrl || entry.previewUrl || entry.objectUrl || entry.preview || '';
+    return entry.dataUrl
+      || entry.previewUrl
+      || entry.objectUrl
+      || entry.preview
+      || entry.teamUrl
+      || entry.thumbUrl
+      || '';
   }
 
   function isDisplayablePhotoSrc(src, liveBlobUrls) {
@@ -244,9 +254,17 @@
     return false;
   }
 
+  function hasRecoverablePhoto(entry, liveBlobUrls) {
+    if (!entry) return false;
+    if (typeof entry === 'string') return isDisplayablePhotoSrc(entry, liveBlobUrls);
+    if (entry.offloaded && (entry.teamUrl || entry.thumbUrl)) return true;
+    if (isTeamPhotoUrl(entry.teamUrl) || isTeamPhotoUrl(entry.thumbUrl)) return true;
+    return isDisplayablePhotoSrc(photoEntrySrc(entry), liveBlobUrls);
+  }
+
   function cartSlotHasLoadedPhotos(entries, liveBlobUrls) {
     return (Array.isArray(entries) ? entries : []).some((p) => (
-      isDisplayablePhotoSrc(photoEntrySrc(p), liveBlobUrls)
+      hasRecoverablePhoto(p, liveBlobUrls)
     ));
   }
 
@@ -359,8 +377,10 @@
     eodPdfFilename,
     isRemotePhotoSrc,
     isSendableImageSrc,
+    isTeamPhotoUrl,
     photoEntrySrc,
     isDisplayablePhotoSrc,
+    hasRecoverablePhoto,
     cartSlotHasLoadedPhotos,
     cartSlotNeedsProdPull,
     cartSlotLabel,

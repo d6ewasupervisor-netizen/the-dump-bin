@@ -7,7 +7,7 @@
     return arr.filter((p) => {
       if (!p) return false;
       if (typeof p === 'string') return true;
-      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl);
+      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl || p.teamUrl || p.offloaded);
     }).length;
   }
 

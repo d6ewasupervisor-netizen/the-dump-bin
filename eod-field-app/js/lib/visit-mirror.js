@@ -43,6 +43,12 @@
         notInStoreSelected: Array.isArray(state.notInStoreSelected) ? state.notInStoreSelected.slice() : [],
         notInSiSelected: Array.isArray(state.notInSiSelected) ? state.notInSiSelected.slice() : [],
         extraVisitIds: Array.isArray(state.extraVisitIds) ? state.extraVisitIds.map(String) : [],
+        managerNamePool: Array.isArray(state.managerNamePool) ? state.managerNamePool.slice() : [],
+        fredmeyerEmailPool: Array.isArray(state.fredmeyerEmailPool) ? state.fredmeyerEmailPool.slice() : [],
+        helpdeskSubmittedReports: Array.isArray(state.helpdeskSubmittedReports)
+          ? state.helpdeskSubmittedReports.slice()
+          : [],
+        addRetailOdysseyTeam: !!state.addRetailOdysseyTeam,
         selectedShift: state.selectedShift
           ? {
               visitId: state.selectedShift.visitId,
@@ -75,6 +81,8 @@
       || (payload.notInSiSelected && payload.notInSiSelected.length)
       || (payload.visitStep && payload.visitStep !== 'setup')
       || payload.selectedShift?.visitId
+      || (payload.managerNamePool && payload.managerNamePool.length)
+      || payload.addRetailOdysseyTeam
     );
   }
 
@@ -108,6 +116,16 @@
       if (Array.isArray(p.extraVisitIds) && p.extraVisitIds.length && !(S.state.extraVisitIds || []).length) {
         patch.extraVisitIds = p.extraVisitIds.map(String);
       }
+      if (Array.isArray(p.managerNamePool) && p.managerNamePool.length) {
+        patch.managerNamePool = p.managerNamePool.slice();
+      }
+      if (Array.isArray(p.fredmeyerEmailPool) && p.fredmeyerEmailPool.length) {
+        patch.fredmeyerEmailPool = p.fredmeyerEmailPool.slice();
+      }
+      if (Array.isArray(p.helpdeskSubmittedReports) && p.helpdeskSubmittedReports.length) {
+        patch.helpdeskSubmittedReports = p.helpdeskSubmittedReports.slice();
+      }
+      if (p.addRetailOdysseyTeam) patch.addRetailOdysseyTeam = true;
       S.patch(patch, 'visit-mirror');
       if (p.signatureDataUrl && !S.state.signatureDataUrl) {
         S.state.signatureDataUrl = p.signatureDataUrl;

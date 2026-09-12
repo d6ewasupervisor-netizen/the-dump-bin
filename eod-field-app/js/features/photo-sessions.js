@@ -1460,6 +1460,7 @@
       hydrateArrays,
       isLiveObjectUrl,
       noteLiveObjectUrl,
+      attachObjectUrl,
       liveObjectUrls,
       photoSrc,
       getBlob,

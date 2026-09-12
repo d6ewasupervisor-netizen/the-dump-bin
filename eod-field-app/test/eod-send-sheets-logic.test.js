@@ -104,6 +104,17 @@ test('sendable photo src rejects CloudFront URLs and accepts data URLs', () => {
   assert.equal(cartSlotNeedsProdPull([{ dataUrl }]), false);
   assert.equal(cartSlotHasLoadedPhotos([{ previewUrl: liveBlob }], live), true);
   assert.equal(cartSlotNeedsProdPull([{ previewUrl: liveBlob }], live), false);
+
+  const {
+    isTeamPhotoUrl,
+    hasRecoverablePhoto,
+  } = require('../js/lib/eod-send-sheets-logic');
+  const teamUrl = '/api/field-session/photos/before/cart-1/image?store=682&date=2026-09-11';
+  assert.equal(isTeamPhotoUrl(teamUrl), true);
+  assert.equal(isDisplayablePhotoSrc(teamUrl), false);
+  assert.equal(hasRecoverablePhoto({ teamUrl, offloaded: true }), true);
+  assert.equal(cartSlotHasLoadedPhotos([{ teamUrl, offloaded: true }]), true);
+  assert.equal(cartSlotNeedsProdPull([{ teamUrl, offloaded: true }]), false);
 });
 
 test('coversheet and digital filenames match live EOD naming', () => {

@@ -203,7 +203,7 @@
       const sameVisit = S.normStoreNumber(p.storeNumber) === S.state.storeNumber
         && S.normIsoDate(p.workDate) === S.state.workDate;
       if (p.storeNumber && p.workDate && !sameVisit) return false;
-      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl);
+      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl || p.teamUrl || p.offloaded);
     });
   }
 
@@ -1005,6 +1005,9 @@ ${cleanNotes}`;
       }
       if (global.PhotoDB?.hydrateDataUrls) {
         try { await global.PhotoDB.hydrateDataUrls(S.state.photos); } catch (_) {}
+      }
+      if (global.EodTeamSession?.materializePhotos) {
+        try { await global.EodTeamSession.materializePhotos(S.state.photos); } catch (_) {}
       }
       let payload = buildPayload();
       if (global.applyEodTestModeToPayload) payload = global.applyEodTestModeToPayload(payload);

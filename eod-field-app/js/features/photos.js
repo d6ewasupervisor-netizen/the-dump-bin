@@ -45,6 +45,9 @@
     if (global.PhotoDB?.hydrateArrays && S?.state?.photos) {
       try { await global.PhotoDB.hydrateArrays(S.state.photos); } catch (_) {}
     }
+    if (global.EodTeamSession?.hydrateThumbs && S?.state?.photos) {
+      try { await global.EodTeamSession.hydrateThumbs(S.state.photos); } catch (_) {}
+    }
   }
 
   async function preparePhoto(file, type) {
@@ -65,6 +68,7 @@
     const S = global.EodSession;
     if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(S.state.photos);
     S.saveDraft();
+    try { global.EodTeamSession?.scheduleSync?.(S); } catch (_) {}
   }
 
   async function loadPhotos() {
