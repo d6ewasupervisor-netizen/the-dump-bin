@@ -5,13 +5,33 @@
   'use strict';
 
   const Logic = global.EodSasUserLoginLogic || {};
+
+  // ── Status cache ────────────────────────────────────────────────────────────
   let status = null;
   let statusAt = 0;
   let statusFor = '';
-  let view = 'idle';
-  let rootEl = null;
   const STATUS_TTL_MS = 15 * 1000;
+
+  // ── UI state ─────────────────────────────────────────────────────────────────
+  let view = 'idle';
+  let busy = false;
+  let rootEl = null;
+
+  // ── Pattern state ─────────────────────────────────────────────────────────────
+  // 'set' → user draws first pass; 'confirm' → second pass to confirm; 'done' → matched
+  let patternStep = 'set';
+  let patternFirstValue = [];      // stored after successful first draw
+  let masterPatternStep = 'set';
+  let masterPatternFirstValue = [];
+
+  // ── Pattern lock registry ─────────────────────────────────────────────────────
   const patternLocks = new Map();
+
+  // ── Cross-component references (set inside mount) ─────────────────────────────
+  let repaintCurrent = null;  // fetches fresh status + repaints
+  let paintAndBind = null;    // repaints + rebinds without fetching
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   function apiBase() {
     return global.EOD_API_BASE;
@@ -84,8 +104,14 @@
     return { ok: true };
   }
 
-  function bindPatternLock(host) {
+  // ── Pattern lock ──────────────────────────────────────────────────────────────
+
+  /* opts.onComplete(value) is called on pointerup when at least opts.minDots
+     (default 4) dots are drawn. Fires once per gesture. */
+  function bindPatternLock(host, opts) {
     if (!host) return { value: () => [] };
+    const minDots = (opts && opts.minDots) || 4;
+    const onComplete = opts && opts.onComplete;
     const dots = [...host.querySelectorAll('[data-dot]')];
     const svg = host.querySelector('svg');
     const active = [];
@@ -136,7 +162,10 @@
       if (!drawing) return;
       hit(ev);
     });
-    host.addEventListener('pointerup', () => { drawing = false; });
+    host.addEventListener('pointerup', () => {
+      drawing = false;
+      if (onComplete && active.length >= minDots) onComplete(active.slice());
+    });
     host.addEventListener('pointercancel', () => { drawing = false; });
 
     return {
@@ -144,46 +173,23 @@
     };
   }
 
-  let repaintCurrent = null;
-
-  function paint(root, cur, busy, keep) {
-    if (!root) return;
-    patternLocks.clear();
-    const lead = leadContext();
-    const defaults = keep ? {
-      username: keep.username,
-      siUsername: keep.siUsername,
-    } : {
-      username: lead.email,
-      siUsername: lead.email,
-    };
-    const html = Logic.cardHtml ? Logic.cardHtml(view, cur, busy, {
-      lead: {
-        name: lead.name,
-        email: lead.email,
-        connected: !!cur?.connected,
-        hasCreds: !!cur?.hasCreds,
-      },
-      defaults,
-    }) : '';
-    root.innerHTML = html;
-    if (!keep) applyLeadDefaults(root, lead);
-  }
-
-  function applyLeadDefaults(root, lead) {
-    if (!lead?.email) return;
-    const user = root.querySelector('#sasUserUsername');
-    if (user && !user.value.trim()) user.value = lead.email;
-    const siUser = root.querySelector('#sasUserSiUsername');
-    if (siUser && !siUser.value.trim()) siUser.value = lead.email;
-  }
+  // ── Repaint helpers ───────────────────────────────────────────────────────────
 
   function setMsg(root, text) {
-    const el = root?.querySelector('[data-sas-msg]');
+    const el = (root || rootEl)?.querySelector('[data-sas-msg]');
     if (el) el.textContent = text || '';
   }
 
   function readFields() {
+    // Pattern: when the sequential flow is done, use the stored first value
+    // (which was confirmed to match).  Otherwise fall back to what's drawn.
+    const pat = (patternStep === 'done')
+      ? patternFirstValue
+      : (patternLocks.get('set')?.value() || patternLocks.get('unlock')?.value() || []);
+    const masterPat = (masterPatternStep === 'done')
+      ? masterPatternFirstValue
+      : (patternLocks.get('masterSet')?.value() || []);
+
     return {
       username: document.getElementById('sasUserUsername')?.value.trim() || '',
       password: document.getElementById('sasUserPassword')?.value || '',
@@ -191,11 +197,11 @@
       siUsername: document.getElementById('sasUserSiUsername')?.value.trim() || '',
       siPassword: document.getElementById('sasUserSiPassword')?.value || '',
       handoffCode: document.getElementById('sasHandoffCode')?.value.trim() || '',
-      pattern: patternLocks.get('set')?.value() || patternLocks.get('unlock')?.value() || [],
-      patternConfirm: patternLocks.get('confirm')?.value() || [],
+      pattern: pat,
+      patternConfirm: pat,   // always equal — backend validates against stored or uses both
       masterPattern: patternLocks.get('master')?.value() || [],
-      masterSet: patternLocks.get('masterSet')?.value() || [],
-      masterConfirm: patternLocks.get('masterConfirm')?.value() || [],
+      masterSet: masterPat,
+      masterConfirm: masterPat,
     };
   }
 
@@ -214,11 +220,113 @@
     });
   }
 
+  function resetPatternState() {
+    patternStep = 'set';
+    patternFirstValue = [];
+    masterPatternStep = 'set';
+    masterPatternFirstValue = [];
+  }
+
+  // ── paint ─────────────────────────────────────────────────────────────────────
+
+  function paint(root, cur, isBusy, keep) {
+    if (!root) return;
+    patternLocks.clear();
+    const lead = leadContext();
+    const defaults = keep ? {
+      username: keep.username,
+      siUsername: keep.siUsername,
+    } : {
+      username: lead.email,
+      siUsername: lead.email,
+    };
+    const html = Logic.cardHtml ? Logic.cardHtml(view, cur, isBusy, {
+      lead: {
+        name: lead.name,
+        email: lead.email,
+        connected: !!cur?.connected,
+        hasCreds: !!cur?.hasCreds,
+      },
+      defaults,
+      patternStep,
+      masterStep: masterPatternStep,
+    }) : '';
+    root.innerHTML = html;
+    if (!keep) applyLeadDefaults(root, lead);
+  }
+
+  function applyLeadDefaults(root, lead) {
+    if (!lead?.email) return;
+    const user = root.querySelector('#sasUserUsername');
+    if (user && !user.value.trim()) user.value = lead.email;
+    const siUser = root.querySelector('#sasUserSiUsername');
+    if (siUser && !siUser.value.trim()) siUser.value = lead.email;
+  }
+
+  // ── Pattern lock binding ──────────────────────────────────────────────────────
+
   function bindLocks(root) {
     root.querySelectorAll('[data-pattern]').forEach((el) => {
-      patternLocks.set(el.getAttribute('data-pattern'), bindPatternLock(el));
+      const id = el.getAttribute('data-pattern');
+      let opts = {};
+
+      if (id === 'set') {
+        // First draw in the credential form
+        opts.onComplete = (val) => {
+          patternFirstValue = val;
+          if (status?.hasPattern) {
+            // Updating existing creds — single draw is enough; backend validates
+            patternStep = 'done';
+          } else {
+            // New pattern — require confirmation
+            patternStep = 'confirm';
+          }
+          if (paintAndBind) paintAndBind();
+        };
+      } else if (id === 'confirm') {
+        // Confirmation draw for new pattern
+        opts.onComplete = (val) => {
+          if (JSON.stringify(val) === JSON.stringify(patternFirstValue)) {
+            patternStep = 'done';
+            if (paintAndBind) paintAndBind();
+          } else {
+            setMsg(rootEl, 'Patterns didn\'t match — try again');
+            patternStep = 'set';
+            patternFirstValue = [];
+            if (paintAndBind) paintAndBind();
+          }
+        };
+      } else if (id === 'unlock') {
+        // Auto-submit on pattern complete
+        opts.onComplete = (val) => doUnlock(val);
+      } else if (id === 'master') {
+        // Auto-submit master unlock on pattern complete
+        opts.onComplete = (val) => doMasterUnlock(val);
+      } else if (id === 'masterSet') {
+        opts.onComplete = (val) => {
+          masterPatternFirstValue = val;
+          masterPatternStep = 'confirm';
+          if (paintAndBind) paintAndBind();
+        };
+      } else if (id === 'masterConfirm') {
+        opts.onComplete = (val) => {
+          if (JSON.stringify(val) === JSON.stringify(masterPatternFirstValue)) {
+            masterPatternStep = 'done';
+            if (paintAndBind) paintAndBind();
+          } else {
+            setMsg(rootEl, 'Patterns didn\'t match — try again');
+            masterPatternStep = 'set';
+            masterPatternFirstValue = [];
+            if (paintAndBind) paintAndBind();
+          }
+        };
+      }
+
+      patternLocks.set(id, bindPatternLock(el, opts));
     });
   }
+
+  // ── API helpers ───────────────────────────────────────────────────────────────
 
   async function postJson(path, body) {
     const leadEmail = leadParam();
@@ -232,36 +340,105 @@
     return { resp, data };
   }
 
+  // ── Extracted action functions (called from bind() or onComplete) ─────────────
+
+  async function doUnlock(pattern) {
+    if (busy) return;
+    busy = true;
+    setMsg(null, 'Unlocking…');
+    try {
+      const { resp, data } = await postJson('/api/sas-user/unlock', { pattern });
+      if (!resp.ok || !data.ok) {
+        toast(data.error || 'Pattern did not match', 'error');
+        statusAt = 0;
+        if (paintAndBind) paintAndBind();
+        setMsg(null, data.error || 'Pattern did not match — try again');
+        return;
+      }
+      toast('Logged in', 'ok');
+      statusAt = 0;
+      view = 'idle';
+      if (repaintCurrent) await repaintCurrent('idle');
+    } catch (err) {
+      if (paintAndBind) paintAndBind();
+      setMsg(null, err.message || 'Unlock failed');
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function doMasterUnlock(pattern) {
+    if (busy) return;
+    busy = true;
+    setMsg(null, 'Taking over…');
+    try {
+      const { resp, data } = await postJson('/api/sas-user/master/unlock-for-lead', {
+        masterPattern: pattern,
+      });
+      if (!resp.ok || !data.ok) {
+        toast(data.error || 'Takeover failed', 'error');
+        statusAt = 0;
+        if (paintAndBind) paintAndBind();
+        setMsg(null, data.error || 'Master pattern did not match');
+        return;
+      }
+      toast('Logged in', 'ok');
+      statusAt = 0;
+      view = 'idle';
+      if (repaintCurrent) await repaintCurrent('idle');
+    } catch (err) {
+      if (paintAndBind) paintAndBind();
+      setMsg(null, err.message || 'Takeover failed');
+    } finally {
+      busy = false;
+    }
+  }
+
+  // ── mount ─────────────────────────────────────────────────────────────────────
+
   async function mount(root) {
     if (!root) return;
     rootEl = root;
-    let busy = false;
+
     const redraw = async (force, keep, nextView) => {
       const cur = await fetchStatus(force).catch(() => ({ connected: false }));
-      if (nextView) view = nextView;
+      if (nextView) { view = nextView; resetPatternState(); }
       paint(root, cur, busy, keep);
       bindLocks(root);
       bind();
     };
+
     repaintCurrent = async (nextView, force = true) => {
-      if (nextView) view = nextView;
+      if (nextView) { view = nextView; resetPatternState(); }
       if (force) statusAt = 0;
       const cur = await fetchStatus(force).catch(() => ({ connected: false }));
       paint(root, cur, false);
       bindLocks(root);
       bind();
     };
+
+    // Quick repaint without a status fetch — used by pattern onComplete callbacks
+    paintAndBind = () => {
+      paint(root, status || { connected: false }, false);
+      bindLocks(root);
+      bind();
+    };
+
     const bind = () => {
       root.querySelector('[data-sas="open"]')?.addEventListener('click', async () => {
         const cur = status && statusFor === leadParam() ? status : await fetchStatus();
-        view = Logic.openMode ? Logic.openMode(cur) : 'form';
+        const nextView = Logic.openMode ? Logic.openMode(cur) : 'form';
+        resetPatternState();
+        view = nextView;
         await redraw(false);
       });
       root.querySelector('[data-sas="cancel"]')?.addEventListener('click', async () => {
         view = 'idle';
+        resetPatternState();
         await redraw(false);
       });
       root.querySelector('[data-sas="form"]')?.addEventListener('click', async () => {
+        resetPatternState();
         view = 'form';
         await redraw(false);
       });
@@ -274,6 +451,8 @@
         await redraw(false);
       });
       root.querySelector('[data-sas="master-setup"]')?.addEventListener('click', async () => {
+        masterPatternStep = 'set';
+        masterPatternFirstValue = [];
         view = 'masterSetup';
         await redraw(false);
       });
@@ -322,33 +501,14 @@
           busy = false;
         }
       });
-      root.querySelector('[data-sas="master-unlock"]')?.addEventListener('click', async () => {
-        if (busy) return;
+      // Unlock button — fallback for auto-submit on pattern complete
+      root.querySelector('[data-sas="unlock"]')?.addEventListener('click', async () => {
         const fields = readFields();
-        busy = true;
-        setMsg(root, 'Taking over…');
-        try {
-          const { resp, data } = await postJson('/api/sas-user/master/unlock-for-lead', {
-            masterPattern: fields.masterPattern,
-          });
-          if (!resp.ok || !data.ok) {
-            toast(data.error || 'Takeover failed', 'error');
-            statusAt = 0;
-            await redraw(true, null, 'master');
-            setMsg(root, data.error || 'Master pattern did not match');
-            return;
-          }
-          toast('Logged in', 'ok');
-          statusAt = 0;
-          view = 'idle';
-          await redraw(true);
-          setMsg(root, 'Logged in');
-        } catch (err) {
-          await redraw(true, null, 'master');
-          setMsg(root, err.message || 'Takeover failed');
-        } finally {
-          busy = false;
-        }
+        await doUnlock(fields.pattern);
+      });
+      root.querySelector('[data-sas="master-unlock"]')?.addEventListener('click', async () => {
+        const fields = readFields();
+        await doMasterUnlock(fields.masterPattern);
       });
       root.querySelector('[data-sas="master-save"]')?.addEventListener('click', async () => {
         if (busy) return;
@@ -366,37 +526,13 @@
             return;
           }
           toast('Master pattern saved', 'ok');
+          masterPatternStep = 'set';
+          masterPatternFirstValue = [];
           view = 'master';
           await redraw(false);
           setMsg(root, 'Master pattern saved');
         } catch (err) {
           setMsg(root, err.message || 'Could not save');
-        } finally {
-          busy = false;
-        }
-      });
-      root.querySelector('[data-sas="unlock"]')?.addEventListener('click', async () => {
-        if (busy) return;
-        const fields = readFields();
-        busy = true;
-        setMsg(root, 'Unlocking…');
-        try {
-          const { resp, data } = await postJson('/api/sas-user/unlock', { pattern: fields.pattern });
-          if (!resp.ok || !data.ok) {
-            toast(data.error || 'Unlock failed', 'error');
-            statusAt = 0;
-            await redraw(true, null, 'unlock');
-            setMsg(root, data.error || 'Pattern did not match');
-            return;
-          }
-          toast('Logged in', 'ok');
-          statusAt = 0;
-          view = 'idle';
-          await redraw(true);
-          setMsg(root, 'Logged in');
-        } catch (err) {
-          await redraw(true, null, 'unlock');
-          setMsg(root, err.message || 'Unlock failed');
         } finally {
           busy = false;
         }
@@ -422,6 +558,7 @@
             toast(data.error || 'Login failed', 'error');
             status = { connected: false, lastRefreshError: data.error };
             statusAt = 0;
+            resetPatternState();
             await redraw(true, fields, 'form');
             setMsg(root, data.error || 'Could not save');
             return;
@@ -429,9 +566,11 @@
           toast('Logged in', 'ok');
           statusAt = 0;
           view = 'idle';
+          resetPatternState();
           await redraw(true);
           setMsg(root, 'Logged in');
         } catch (err) {
+          resetPatternState();
           await redraw(true, fields, 'form');
           setMsg(root, err.message || 'Could not save');
         } finally {
@@ -439,7 +578,9 @@
         }
       });
     };
+
     view = 'idle';
+    resetPatternState();
     await redraw(true);
     try {
       const S = global.EodSession;
@@ -460,6 +601,7 @@
       await repaintCurrent(null, false);
       return;
     }
+    resetPatternState();
     await repaintCurrent('idle');
   }
 

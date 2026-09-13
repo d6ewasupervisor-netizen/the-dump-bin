@@ -31,21 +31,49 @@ test('idle card shows the shift lead name and email', () => {
   assert.match(html, /No saved login yet/);
 });
 
-test('first login opens the credential form with pattern confirm', () => {
+test('first login: form step=set shows only the first pattern box', () => {
   assert.equal(L.openMode({ hasCreds: false, hasPattern: false }), 'form');
-  const html = L.cardHtml('form', { hasPattern: false });
+  const html = L.cardHtml('form', { hasPattern: false }, false, { patternStep: 'set' });
   assert.match(html, /Username/);
   assert.match(html, /Password/);
-  assert.match(html, /Authenticator secret/);
+  assert.match(html, /Authenticator setup key/);
   assert.match(html, /data-pattern="set"/);
-  assert.match(html, /data-pattern="confirm"/);
+  // Confirm box must NOT appear yet — it only shows when step transitions to confirm
+  assert.doesNotMatch(html, /data-pattern="confirm"/);
   assert.equal(L.bannedCopy(html), false);
+});
+
+test('first login: form step=confirm shows only the confirmation box', () => {
+  const html = L.cardHtml('form', { hasPattern: false }, false, { patternStep: 'confirm' });
+  assert.match(html, /data-pattern="confirm"/);
+  assert.doesNotMatch(html, /data-pattern="set"/);
+  assert.doesNotMatch(html, /data-pattern="confirm".*data-pattern="confirm"/); // no duplicate
+  assert.equal(L.bannedCopy(html), false);
+});
+
+test('first login: form step=done shows checkmark and enables Save', () => {
+  const html = L.cardHtml('form', { hasPattern: false }, false, { patternStep: 'done' });
+  assert.match(html, /Pattern ready/);
+  assert.doesNotMatch(html, /data-pattern="set"/);
+  assert.doesNotMatch(html, /data-pattern="confirm"/);
+  // Save button should be enabled (no disabled attr)
+  assert.doesNotMatch(html, /data-sas="connect"[^>]*disabled/);
+  assert.equal(L.bannedCopy(html), false);
+});
+
+test('form default (no patternStep) shows the set box and Save disabled', () => {
+  const html = L.cardHtml('form', { hasPattern: false });
+  assert.match(html, /data-pattern="set"/);
+  assert.doesNotMatch(html, /data-pattern="confirm"/);
+  // Save disabled until pattern confirmed
+  assert.match(html, /data-sas="connect"[^>]*disabled/);
 });
 
 test('form prefills the lead email and names the lead', () => {
   const html = L.cardHtml('form', { hasPattern: true }, false, {
     lead: { name: 'James Duchene', email: 'james.duchene@retailodyssey.com', hasCreds: true },
     defaults: { username: 'james.duchene@retailodyssey.com', siUsername: 'james.duchene@retailodyssey.com' },
+    patternStep: 'set',
   });
   assert.match(html, /James Duchene/);
   assert.match(html, /value="james\.duchene@retailodyssey\.com"/);
@@ -75,7 +103,7 @@ test('handoff view takes a one-time 6-digit code', () => {
   assert.equal(L.bannedCopy(html), false);
 });
 
-test('master views never carry credential fields', () => {
+test('master unlock has one pattern box and auto-submit button', () => {
   const takeOver = L.cardHtml('master', {}, false, {
     lead: { name: 'James Duchene', email: 'james.duchene@retailodyssey.com' },
   });
@@ -83,8 +111,28 @@ test('master views never carry credential fields', () => {
   assert.match(takeOver, /Take over login/);
   assert.doesNotMatch(takeOver, /sasUserPassword/);
   assert.doesNotMatch(takeOver, /sasUserTotp/);
-  const setup = L.cardHtml('masterSetup', {}, false, {});
+  assert.equal(L.bannedCopy(takeOver), false);
+});
+
+test('master setup: step=set shows only masterSet box', () => {
+  const setup = L.cardHtml('masterSetup', {}, false, { masterStep: 'set' });
   assert.match(setup, /data-pattern="masterSet"/);
+  assert.doesNotMatch(setup, /data-pattern="masterConfirm"/);
+  assert.equal(L.bannedCopy(setup), false);
+});
+
+test('master setup: step=confirm shows only masterConfirm box', () => {
+  const setup = L.cardHtml('masterSetup', {}, false, { masterStep: 'confirm' });
   assert.match(setup, /data-pattern="masterConfirm"/);
-  assert.equal(L.bannedCopy(takeOver + setup), false);
+  assert.doesNotMatch(setup, /data-pattern="masterSet"/);
+  assert.equal(L.bannedCopy(setup), false);
+});
+
+test('master setup: step=done shows checkmark and enables Save', () => {
+  const setup = L.cardHtml('masterSetup', {}, false, { masterStep: 'done' });
+  assert.match(setup, /Pattern ready/);
+  assert.doesNotMatch(setup, /data-pattern="masterSet"/);
+  assert.doesNotMatch(setup, /data-pattern="masterConfirm"/);
+  assert.doesNotMatch(setup, /data-sas="master-save"[^>]*disabled/);
+  assert.equal(L.bannedCopy(setup), false);
 });

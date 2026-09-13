@@ -59,9 +59,35 @@
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
   }
 
-  function formHtml({ hasPattern, busy, lead, defaults } = {}) {
+  /* patternStep: 'set' | 'confirm' | 'done'
+     When hasPattern is true (updating existing creds), a single draw suffices —
+     the backend validates it against the stored pattern.
+     When hasPattern is false (first save), two sequential draws are required. */
+  function formHtml({ hasPattern, busy, lead, defaults, patternStep } = {}) {
+    const step = patternStep || 'set';
+    const saveOk = step === 'done';
     const user = esc(defaults?.username || '');
     const siUser = esc(defaults?.siUsername || '');
+
+    let patSection;
+    if (step === 'done') {
+      patSection = `<div class="sas-pattern-ready" style="padding:10px 0;color:var(--color-ok,#2a7);">✓ Pattern ready</div>`;
+    } else if (step === 'confirm') {
+      patSection = `<div class="field">
+        <label>Draw it again to confirm</label>
+        ${patternMarkup('confirm')}
+      </div>`;
+    } else {
+      const hint = hasPattern
+        ? `<div class="muted" style="margin-bottom:6px;font-size:0.85em;">Draw your existing pattern to authorize this update</div>`
+        : `<div class="muted" style="margin-bottom:6px;font-size:0.85em;">At least 4 dots — you\'ll draw it again to confirm</div>`;
+      patSection = `<div class="field">
+        <label>Pattern</label>
+        ${hint}
+        ${patternMarkup('set')}
+      </div>`;
+    }
+
     return `${leadLine(lead)}
       <div class="field">
         <label for="sasUserUsername">Username</label>
@@ -72,17 +98,11 @@
         <input type="password" id="sasUserPassword" autocomplete="current-password">
       </div>
       <div class="field">
-        <label for="sasUserTotp">Authenticator secret</label>
-        <input type="text" id="sasUserTotp" autocomplete="off" spellcheck="false">
+        <label for="sasUserTotp">Authenticator setup key</label>
+        <div class="muted" style="margin-bottom:4px;font-size:0.85em;">The long setup key from your authenticator app, not the 6-digit code</div>
+        <input type="text" id="sasUserTotp" autocomplete="off" spellcheck="false" inputmode="text">
       </div>
-      <div class="field">
-        <label>Pattern</label>
-        ${patternMarkup('set')}
-      </div>
-      ${hasPattern ? '' : `<div class="field">
-        <label>Draw again</label>
-        ${patternMarkup('confirm')}
-      </div>`}
+      ${patSection}
       <div class="field">
         <label for="sasUserSiUsername">SI username</label>
         <input type="text" id="sasUserSiUsername" autocomplete="off" spellcheck="false" value="${siUser}">
@@ -92,7 +112,7 @@
         <input type="password" id="sasUserSiPassword" autocomplete="off">
       </div>
       <div class="btn-row">
-        <button type="button" class="btn btn-primary" data-sas="connect" ${busy ? 'disabled' : ''}>Save</button>
+        <button type="button" class="btn btn-primary" data-sas="connect" ${busy || !saveOk ? 'disabled' : ''}>Save</button>
         <button type="button" class="btn btn-secondary" data-sas="cancel">Cancel</button>
       </div>
       <div class="btn-row">
@@ -105,6 +125,8 @@
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
   }
 
+  /* Unlock: one pattern box, auto-submits on pattern complete.
+     The "Unlock" button is kept as a fallback (accessibility / hesitant drawers). */
   function unlockHtml({ busy, lead } = {}) {
     return `${leadLine(lead)}
       <div class="field">
@@ -136,6 +158,7 @@
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
   }
 
+  /* Master unlock: one pattern box, auto-submits on pattern complete. */
   function masterHtml({ busy, lead } = {}) {
     return `${leadLine(lead)}
       <div class="field">
@@ -152,18 +175,28 @@
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
   }
 
-  function masterSetupHtml({ busy, lead } = {}) {
-    return `${leadLine(lead)}
-      <div class="field">
-        <label>Master pattern</label>
-        ${patternMarkup('masterSet')}
-      </div>
-      <div class="field">
-        <label>Draw again</label>
+  /* masterStep: 'set' | 'confirm' | 'done' — sequential, same logic as formHtml pattern. */
+  function masterSetupHtml({ busy, lead, masterStep } = {}) {
+    const step = masterStep || 'set';
+    let patSection;
+    if (step === 'done') {
+      patSection = `<div class="sas-pattern-ready" style="padding:10px 0;color:var(--color-ok,#2a7);">✓ Pattern ready — tap Save</div>`;
+    } else if (step === 'confirm') {
+      patSection = `<div class="field">
+        <label>Draw it again to confirm</label>
         ${patternMarkup('masterConfirm')}
-      </div>
+      </div>`;
+    } else {
+      patSection = `<div class="field">
+        <label>Master pattern</label>
+        <div class="muted" style="margin-bottom:6px;font-size:0.85em;">At least 4 dots — you\'ll draw it again to confirm</div>
+        ${patternMarkup('masterSet')}
+      </div>`;
+    }
+    return `${leadLine(lead)}
+      ${patSection}
       <div class="btn-row">
-        <button type="button" class="btn btn-primary" data-sas="master-save" ${busy ? 'disabled' : ''}>Save master pattern</button>
+        <button type="button" class="btn btn-primary" data-sas="master-save" ${busy || step !== 'done' ? 'disabled' : ''}>Save master pattern</button>
         <button type="button" class="btn btn-secondary" data-sas="master">Back</button>
       </div>
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
@@ -171,11 +204,11 @@
 
   function cardHtml(mode, status, busy, extra) {
     const lead = extra?.lead || null;
-    if (mode === 'form') return formHtml({ hasPattern: !!status?.hasPattern, busy, lead, defaults: extra?.defaults });
+    if (mode === 'form') return formHtml({ hasPattern: !!status?.hasPattern, busy, lead, defaults: extra?.defaults, patternStep: extra?.patternStep });
     if (mode === 'unlock') return unlockHtml({ busy, lead });
     if (mode === 'handoff') return handoffHtml({ busy, lead });
     if (mode === 'master') return masterHtml({ busy, lead });
-    if (mode === 'masterSetup') return masterSetupHtml({ busy, lead });
+    if (mode === 'masterSetup') return masterSetupHtml({ busy, lead, masterStep: extra?.masterStep });
     return idleHtml(lead);
   }
 
