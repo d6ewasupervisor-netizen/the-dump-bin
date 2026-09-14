@@ -520,8 +520,7 @@
       }
     };
 
-    document.getElementById('editForm').onsubmit = async (e) => {
-      e.preventDefault();
+    async function saveEditsPayload(id) {
       const payload = {
         subject: document.getElementById('editSubject').value.trim(),
         to: document.getElementById('editTo').value.split(',').map((s) => s.trim()).filter(Boolean),
@@ -529,12 +528,36 @@
       };
       const delivery = document.getElementById('editDelivery').value;
       if (delivery) payload.deliveryStatus = delivery;
+      await api(`${API_PREFIX}/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    }
+
+    document.getElementById('editForm').onsubmit = async (e) => {
+      e.preventDefault();
       try {
-        await api(`${API_PREFIX}/${item.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        await saveEditsPayload(item.id);
         await loadList();
         await selectEmail(item.id);
       } catch (ex) {
         showDetailError(ex.message);
+      }
+    };
+
+    const saveAndSendBtn = document.getElementById('saveAndSendBtn');
+    saveAndSendBtn.disabled = !item.canResend;
+    saveAndSendBtn.onclick = async () => {
+      if (!item.canResend) return;
+      if (!window.confirm('Save edits and resend with updated recipients/subject?')) return;
+      saveAndSendBtn.disabled = true;
+      try {
+        await saveEditsPayload(item.id);
+        const result = await api(`${API_PREFIX}/${item.id}/resend`, { method: 'POST', body: '{}' });
+        alert(`Sent. New Resend ID: ${result.resendId || 'unknown'}`);
+        await loadList();
+        if (result.recordId) await selectEmail(result.recordId);
+      } catch (ex) {
+        showDetailError(ex.message);
+      } finally {
+        saveAndSendBtn.disabled = !item.canResend;
       }
     };
   }
