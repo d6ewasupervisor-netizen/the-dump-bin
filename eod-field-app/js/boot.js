@@ -84,6 +84,7 @@
         }
       } catch (_) {}
       try { window.EodFeedbackHub?.init?.(); } catch (_) {}
+      try { window.EodFieldAlerts?.init?.(); } catch (err) { console.warn('[eod-field-app] field alerts', err); }
 
       patchPortedModules();
       try { window.EodDurability?.startAutosave?.(); } catch (_) {}
@@ -106,7 +107,7 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.4.42').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.4.43').catch(() => {});
           if (!navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;
