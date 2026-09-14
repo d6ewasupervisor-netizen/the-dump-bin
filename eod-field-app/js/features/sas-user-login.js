@@ -478,7 +478,10 @@
           formStep = 'si';
           if (paintAndBind) paintAndBind();
         } catch (err) {
-          setMsg(root, err.message || 'Failed to verify SAS — check connection');
+          const msg = (err && String(err.message || '').toLowerCase().includes('fetch'))
+            ? 'Connection error — check your connection and try again'
+            : (err.message || 'Failed to verify SAS — check connection');
+          setMsg(root, msg);
         } finally {
           if (btn && !btn.closest('[data-sas]')) { /* already re-rendered */ } else if (btn) btn.disabled = false;
         }
@@ -647,7 +650,10 @@
         } catch (err) {
           resetFormState();
           await redraw(true, fields, 'form');
-          setMsg(root, err.message || 'Could not save');
+          const msg = (err && String(err.message || '').toLowerCase().includes('fetch'))
+            ? 'Connection error — wait 60 seconds and try again from step 1'
+            : (err.message || 'Could not save');
+          setMsg(root, msg);
         } finally {
           busy = false;
         }
