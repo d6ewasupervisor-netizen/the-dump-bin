@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Extension Admin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
+<script src="/auth-gate.js?v=20260913-ext-admin"></script>
 <style>
 :root {
   --bg:#0a0e13; --card:#151d28; --border:#243044; --text:#f0f4f8;
@@ -13,28 +14,15 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-a{color:var(--accent);text-decoration:none}
-
-/* ── Gate ── */
-#gate{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
-.gate-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;width:100%;max-width:360px}
-.gate-card h1{font-size:1.2rem;font-weight:700;margin-bottom:6px}
-.gate-card p{color:var(--muted);font-size:13px;margin-bottom:20px}
-.gate-card input{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:#111820;color:var(--text);font:inherit;font-size:14px;margin-bottom:12px}
-.gate-card button{width:100%;padding:12px;border-radius:8px;border:none;background:var(--accent);color:#000;font:inherit;font-weight:700;cursor:pointer;font-size:14px}
-.gate-card button:disabled{opacity:.5;cursor:not-allowed}
-.gate-err{color:var(--red);font-size:12px;margin-top:8px;min-height:18px}
 
 /* ── App shell ── */
-#app{display:none;max-width:1100px;margin:0 auto;padding:18px 14px 80px}
+.wrap{max-width:1100px;margin:0 auto;padding:18px 14px 80px}
 .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
 h1{font-size:1.5rem;font-weight:800}
 .sub{color:var(--sec);font-size:13px;margin-top:4px}
 .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
-.btn.danger{color:var(--red);border-color:rgba(255,71,87,.4)}
-.btn.danger:hover{background:rgba(255,71,87,.1)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .refresh-info{color:var(--muted);font-size:12px}
 
@@ -78,30 +66,15 @@ h1{font-size:1.5rem;font-weight:800}
 .toggle-thumb{position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;pointer-events:none}
 .toggle input:checked ~ .toggle-thumb{transform:translateX(16px)}
 
-/* Empty state */
+/* Empty / error */
 .empty{text-align:center;padding:60px 24px;color:var(--muted)}
 .empty h2{font-size:1rem;margin-bottom:8px;color:var(--sec)}
-
-/* Loading */
-.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
-@keyframes spin{to{transform:rotate(360deg)}}
+.err-banner{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.4);border-radius:8px;padding:12px 14px;color:#ff8a96;font-size:13px;margin-bottom:16px;display:none}
+.err-banner.visible{display:block}
 </style>
 </head>
 <body>
-
-<!-- Password gate -->
-<div id="gate">
-  <div class="gate-card">
-    <h1>Extension Admin</h1>
-    <p>Enter your SAS_AUTH_SECRET to access the dashboard.</p>
-    <input type="password" id="secretInput" placeholder="SAS_AUTH_SECRET" autocomplete="off">
-    <button id="gateBtn">Sign in</button>
-    <div class="gate-err" id="gateErr"></div>
-  </div>
-</div>
-
-<!-- Dashboard -->
-<div id="app">
+<div class="wrap">
   <div class="top">
     <div>
       <h1>Extension Instances</h1>
@@ -110,9 +83,9 @@ h1{font-size:1.5rem;font-weight:800}
     <div class="top-actions">
       <span class="refresh-info" id="refreshInfo"></span>
       <button class="btn" id="refreshBtn">↺ Refresh</button>
-      <button class="btn danger" id="signOutBtn">Sign out</button>
     </div>
   </div>
+  <div class="err-banner" id="errBanner"></div>
   <div class="grid" id="grid"></div>
 </div>
 
@@ -120,63 +93,25 @@ h1{font-size:1.5rem;font-weight:800}
 'use strict';
 
 const API = 'https://eod-api-production.up.railway.app';
-const SESSION_KEY = 'extAdminSecret';
-let secret = '';
 let refreshTimer = null;
-let lastLoaded = null;
 
-// ── Gate ────────────────────────────────────────────────────────
-const gateEl   = document.getElementById('gate');
-const appEl    = document.getElementById('app');
-const secretEl = document.getElementById('secretInput');
-const gateBtn  = document.getElementById('gateBtn');
-const gateErr  = document.getElementById('gateErr');
-
-async function trySignIn() {
-  const val = secretEl.value.trim();
-  if (!val) { gateErr.textContent = 'Enter the secret.'; return; }
-  gateBtn.disabled = true;
-  gateErr.textContent = '';
-  try {
-    const r = await fetch(API + '/extension/instances', {
-      headers: { Authorization: 'Bearer ' + val },
-    });
-    if (r.status === 401) { gateErr.textContent = 'Incorrect secret.'; return; }
-    if (!r.ok) { gateErr.textContent = 'Server error ' + r.status; return; }
-    secret = val;
-    sessionStorage.setItem(SESSION_KEY, secret);
-    showApp();
-    const data = await r.json();
-    render(data);
-  } catch (e) {
-    gateErr.textContent = 'Could not reach server: ' + e.message;
-  } finally {
-    gateBtn.disabled = false;
-  }
+// ── Auth-gate integration ────────────────────────────────────────
+// auth-gate.js exposes dumpBinAuthFetch once the session is verified.
+// It redirects to /signin.html automatically if the user is not logged in.
+async function authFetch(path, opts) {
+  if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
+  const fn = window.dumpBinAuthFetch;
+  if (!fn) throw new Error('Auth not ready');
+  return fn(path, opts || {});
 }
 
-gateBtn.addEventListener('click', trySignIn);
-secretEl.addEventListener('keydown', e => { if (e.key === 'Enter') trySignIn(); });
-
-// Restore session from sessionStorage.
-const saved = sessionStorage.getItem(SESSION_KEY);
-if (saved) { secret = saved; showApp(); load(); }
-
-// ── App ─────────────────────────────────────────────────────────
-function showApp() {
-  gateEl.style.display = 'none';
-  appEl.style.display  = 'block';
+// ── Boot ─────────────────────────────────────────────────────────
+async function boot() {
+  // Wait for auth-gate to finish its session check (redirects if needed).
+  if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
+  load();
   scheduleAutoRefresh();
 }
-
-document.getElementById('signOutBtn').addEventListener('click', () => {
-  sessionStorage.removeItem(SESSION_KEY);
-  secret = '';
-  gateEl.style.display = 'flex';
-  appEl.style.display  = 'none';
-  clearTimeout(refreshTimer);
-  document.getElementById('grid').innerHTML = '';
-});
 
 document.getElementById('refreshBtn').addEventListener('click', load);
 
@@ -187,23 +122,31 @@ function scheduleAutoRefresh() {
 
 async function load() {
   document.getElementById('refreshInfo').textContent = '⟳ loading…';
+  const errBanner = document.getElementById('errBanner');
+  errBanner.classList.remove('visible');
   try {
-    const r = await fetch(API + '/extension/instances', {
-      headers: { Authorization: 'Bearer ' + secret },
-    });
-    if (r.status === 401) {
-      sessionStorage.removeItem(SESSION_KEY);
-      location.reload();
+    const r = await authFetch(API + '/extension/instances');
+    if (!r.ok) {
+      const msg = r.status === 403
+        ? 'Admin role required to access extension management.'
+        : 'Error ' + r.status + ' loading instances.';
+      showErr(msg);
       return;
     }
     const data = await r.json();
     render(data);
-    lastLoaded = new Date();
     document.getElementById('refreshInfo').textContent =
-      'Updated ' + lastLoaded.toLocaleTimeString();
+      'Updated ' + new Date().toLocaleTimeString();
   } catch (e) {
-    document.getElementById('refreshInfo').textContent = 'Load failed: ' + e.message;
+    showErr('Load failed: ' + e.message);
   }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errBanner');
+  el.textContent = msg;
+  el.classList.add('visible');
+  document.getElementById('refreshInfo').textContent = '';
 }
 
 // ── Render ──────────────────────────────────────────────────────
@@ -218,7 +161,7 @@ const FLAG_META = [
 
 function onlineDotClass(lastSeen) {
   if (!lastSeen) return 'dot-red';
-  const age = (Date.now() - new Date(lastSeen).getTime()) / 1000 / 60; // minutes
+  const age = (Date.now() - new Date(lastSeen).getTime()) / 1000 / 60;
   if (age < 5)  return 'dot-green';
   if (age < 60) return 'dot-yellow';
   return 'dot-red';
@@ -227,8 +170,8 @@ function onlineDotClass(lastSeen) {
 function relativeTime(ts) {
   if (!ts) return 'never';
   const sec = Math.round((Date.now() - new Date(ts).getTime()) / 1000);
-  if (sec < 60)  return sec + 's ago';
-  if (sec < 3600) return Math.round(sec / 60) + 'm ago';
+  if (sec < 60)   return sec + 's ago';
+  if (sec < 3600)  return Math.round(sec / 60) + 'm ago';
   if (sec < 86400) return Math.round(sec / 3600) + 'h ago';
   return Math.round(sec / 86400) + 'd ago';
 }
@@ -245,7 +188,7 @@ function render({ instances, defaultConfig }) {
   sub.textContent = instances.length + ' instance' + (instances.length === 1 ? '' : 's') + ' registered';
 
   if (!instances.length) {
-    grid.innerHTML = '<div class="empty"><h2>No instances yet</h2><p>Instances appear here once an extension phones home for the first time (within ~10 seconds of Chrome loading it).</p></div>';
+    grid.innerHTML = '<div class="empty"><h2>No instances yet</h2><p>Instances appear here once an extension phones home for the first time (~10 s after Chrome loads it).</p></div>';
     return;
   }
 
@@ -254,16 +197,14 @@ function render({ instances, defaultConfig }) {
 }
 
 function buildCard(inst, defaultConfig) {
-  const cfg     = inst.config || defaultConfig;
-  const dotCls  = onlineDotClass(inst.lastSeen);
-  const killed  = cfg.killSwitch === true;
+  const cfg    = inst.config || defaultConfig;
+  const dotCls = onlineDotClass(inst.lastSeen);
+  const killed = cfg.killSwitch === true;
   const labelDisplay = inst.label || inst.instanceId.slice(0, 8) + '…';
 
   const flags = FLAG_META.map(fm => {
-    // Kill switch: "true = dangerous/locked"; other flags "true = enabled".
     const isChecked = fm.key === 'killSwitch' ? (cfg[fm.key] === true) : (cfg[fm.key] !== false);
-    const trackCls  = (fm.danger && isChecked && fm.key !== 'killSwitch') ? '' :
-                      (fm.danger && isChecked && fm.key === 'killSwitch') ? 'danger-on' : '';
+    const trackCls  = (fm.key === 'killSwitch' && isChecked) ? 'danger-on' : '';
     return `
       <div class="flag-row">
         <div class="flag-label">
@@ -310,21 +251,19 @@ function attachCardEvents(instances) {
       const value      = cb.checked;
       cb.disabled = true;
       try {
-        const r = await fetch(`${API}/extension/instances/${encodeURIComponent(instanceId)}`, {
+        const r = await authFetch(`${API}/extension/instances/${encodeURIComponent(instanceId)}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ config: { [flag]: value } }),
         });
         if (!r.ok) {
-          cb.checked = !value; // revert
+          cb.checked = !value;
           alert('Save failed: ' + r.status);
         } else {
-          // Re-tint card if kill switch toggled.
           const card = document.querySelector(`.instance-card[data-id="${instanceId}"]`);
           if (flag === 'killSwitch' && card) {
             card.classList.toggle('killed', value);
           }
-          // Update danger-on class on track.
           const track = cb.nextElementSibling;
           if (track && flag === 'killSwitch') {
             track.classList.toggle('danger-on', value);
@@ -339,7 +278,7 @@ function attachCardEvents(instances) {
     });
   });
 
-  // Rename buttons.
+  // Rename.
   document.querySelectorAll('button[data-rename-save]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const instanceId = btn.dataset.renameSave;
@@ -349,15 +288,14 @@ function attachCardEvents(instances) {
       btn.disabled = true;
       btn.textContent = '…';
       try {
-        const r = await fetch(`${API}/extension/instances/${encodeURIComponent(instanceId)}`, {
+        const r = await authFetch(`${API}/extension/instances/${encodeURIComponent(instanceId)}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ label }),
         });
         if (r.ok) {
-          // Update the card label display.
-          const card     = document.querySelector(`.instance-card[data-id="${instanceId}"]`);
-          const labelEl  = card && card.querySelector('.card-label');
+          const card    = document.querySelector(`.instance-card[data-id="${instanceId}"]`);
+          const labelEl = card && card.querySelector('.card-label');
           if (labelEl) labelEl.textContent = label || instanceId.slice(0, 8) + '…';
           btn.textContent = '✓';
           setTimeout(() => { btn.textContent = 'Save'; }, 1500);
@@ -374,7 +312,6 @@ function attachCardEvents(instances) {
     });
   });
 
-  // Save label on Enter.
   document.querySelectorAll('input[data-rename]').forEach(input => {
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
@@ -389,6 +326,13 @@ function escHtml(str) {
   return String(str || '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[c]));
+}
+
+// Start.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
 }
 </script>
 </body>
