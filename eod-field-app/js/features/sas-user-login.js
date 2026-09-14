@@ -24,6 +24,11 @@
   let masterPatternStep = 'set';
   let masterPatternFirstValue = [];
 
+  // ── Form wizard state ─────────────────────────────────────────────────────────
+  // 'sas' → step 1; 'si' → step 2; 'pattern' → step 3
+  let formStep = 'sas';
+  let formDraft = {};   // field values carried across steps
+
   // ── Pattern lock registry ─────────────────────────────────────────────────────
   const patternLocks = new Map();
 
@@ -190,12 +195,13 @@
       ? masterPatternFirstValue
       : (patternLocks.get('masterSet')?.value() || []);
 
+    // Fall back to formDraft for fields that aren't in the DOM on steps 2 & 3.
     return {
-      username: document.getElementById('sasUserUsername')?.value.trim() || '',
-      password: document.getElementById('sasUserPassword')?.value || '',
-      totpSecret: document.getElementById('sasUserTotp')?.value.trim() || '',
-      siUsername: document.getElementById('sasUserSiUsername')?.value.trim() || '',
-      siPassword: document.getElementById('sasUserSiPassword')?.value || '',
+      username: document.getElementById('sasUserUsername')?.value.trim() || formDraft.username || '',
+      password: document.getElementById('sasUserPassword')?.value || formDraft.password || '',
+      totpSecret: document.getElementById('sasUserTotp')?.value.trim() || formDraft.totpSecret || '',
+      siUsername: document.getElementById('sasUserSiUsername')?.value.trim() || formDraft.siUsername || '',
+      siPassword: document.getElementById('sasUserSiPassword')?.value || formDraft.siPassword || '',
       handoffCode: document.getElementById('sasHandoffCode')?.value.trim() || '',
       pattern: pat,
       patternConfirm: pat,   // always equal — backend validates against stored or uses both
@@ -227,6 +233,12 @@
     masterPatternFirstValue = [];
   }
 
+  function resetFormState() {
+    formStep = 'sas';
+    formDraft = {};
+    resetPatternState();
+  }
+
   // ── paint ─────────────────────────────────────────────────────────────────────
 
   function paint(root, cur, isBusy, keep) {
@@ -237,8 +249,8 @@
       username: keep.username,
       siUsername: keep.siUsername,
     } : {
-      username: lead.email,
-      siUsername: lead.email,
+      username: formDraft.username || lead.email,
+      siUsername: formDraft.siUsername || lead.email,
     };
     const html = Logic.cardHtml ? Logic.cardHtml(view, cur, isBusy, {
       lead: {
@@ -250,6 +262,7 @@
       defaults,
       patternStep,
       masterStep: masterPatternStep,
+      formStep,
     }) : '';
     root.innerHTML = html;
     if (!keep) applyLeadDefaults(root, lead);
@@ -428,19 +441,51 @@
       root.querySelector('[data-sas="open"]')?.addEventListener('click', async () => {
         const cur = status && statusFor === leadParam() ? status : await fetchStatus();
         const nextView = Logic.openMode ? Logic.openMode(cur) : 'form';
-        resetPatternState();
+        resetFormState();
         view = nextView;
         await redraw(false);
       });
       root.querySelector('[data-sas="cancel"]')?.addEventListener('click', async () => {
         view = 'idle';
-        resetPatternState();
+        resetFormState();
         await redraw(false);
       });
       root.querySelector('[data-sas="form"]')?.addEventListener('click', async () => {
-        resetPatternState();
+        resetFormState();
         view = 'form';
         await redraw(false);
+      });
+      // ── Form wizard step navigation ──────────────────────────────────────────
+      root.querySelector('[data-sas="next-sas"]')?.addEventListener('click', () => {
+        const username = document.getElementById('sasUserUsername')?.value.trim() || '';
+        const password = document.getElementById('sasUserPassword')?.value || '';
+        if (!username) { setMsg(root, 'Enter your username'); return; }
+        if (!password) { setMsg(root, 'Enter your password'); return; }
+        formDraft.username = username;
+        formDraft.password = password;
+        formDraft.totpSecret = document.getElementById('sasUserTotp')?.value.trim() || '';
+        formStep = 'si';
+        if (paintAndBind) paintAndBind();
+      });
+      root.querySelector('[data-sas="next-si"]')?.addEventListener('click', () => {
+        const siUsername = document.getElementById('sasUserSiUsername')?.value.trim() || '';
+        const siPassword = document.getElementById('sasUserSiPassword')?.value || '';
+        if (!siUsername) { setMsg(root, 'Enter your SI username'); return; }
+        if (!siPassword) { setMsg(root, 'Enter your SI password'); return; }
+        formDraft.siUsername = siUsername;
+        formDraft.siPassword = siPassword;
+        formStep = 'pattern';
+        resetPatternState();
+        if (paintAndBind) paintAndBind();
+      });
+      root.querySelector('[data-sas="back-si"]')?.addEventListener('click', () => {
+        formStep = 'sas';
+        if (paintAndBind) paintAndBind();
+      });
+      root.querySelector('[data-sas="back-pattern"]')?.addEventListener('click', () => {
+        formStep = 'si';
+        resetPatternState();
+        if (paintAndBind) paintAndBind();
       });
       root.querySelector('[data-sas="handoff"]')?.addEventListener('click', async () => {
         view = 'handoff';
@@ -558,19 +603,19 @@
             toast(data.error || 'Login failed', 'error');
             status = { connected: false, lastRefreshError: data.error };
             statusAt = 0;
-            resetPatternState();
-            await redraw(true, fields, 'form');
-            setMsg(root, data.error || 'Could not save');
+            resetFormState();
+            await redraw(true, null, 'form');
+            setMsg(root, data.error || 'Could not save — start from step 1');
             return;
           }
           toast('Logged in', 'ok');
           statusAt = 0;
           view = 'idle';
-          resetPatternState();
+          resetFormState();
           await redraw(true);
           setMsg(root, 'Logged in');
         } catch (err) {
-          resetPatternState();
+          resetFormState();
           await redraw(true, fields, 'form');
           setMsg(root, err.message || 'Could not save');
         } finally {
@@ -580,7 +625,7 @@
     };
 
     view = 'idle';
-    resetPatternState();
+    resetFormState();
     await redraw(true);
     try {
       const S = global.EodSession;

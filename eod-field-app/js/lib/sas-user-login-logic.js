@@ -59,65 +59,91 @@
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
   }
 
-  /* patternStep: 'set' | 'confirm' | 'done'
+  /* formStep: 'sas' | 'si' | 'pattern'
+     Sequential 3-step flow: SAS creds → SI creds → Pattern.
+     patternStep: 'set' | 'confirm' | 'done' (used inside the pattern step).
      When hasPattern is true (updating existing creds), a single draw suffices —
      the backend validates it against the stored pattern.
      When hasPattern is false (first save), two sequential draws are required. */
-  function formHtml({ hasPattern, busy, lead, defaults, patternStep } = {}) {
+  function formHtml({ hasPattern, busy, lead, defaults, patternStep, formStep } = {}) {
+    const fs = formStep || 'sas';
+
+    // ── Step 1: SAS credentials ───────────────────────────────────────────────
+    if (fs === 'sas') {
+      const user = esc(defaults?.username || '');
+      return `${leadLine(lead)}
+        <div class="muted" style="margin-bottom:8px;font-size:0.85em;">Step 1 of 3 — SAS login</div>
+        <div class="field">
+          <label for="sasUserUsername">Username</label>
+          <input type="email" id="sasUserUsername" autocomplete="username" value="${user}">
+        </div>
+        <div class="field">
+          <label for="sasUserPassword">Password</label>
+          <input type="password" id="sasUserPassword" autocomplete="current-password">
+        </div>
+        <div class="field">
+          <label for="sasUserTotp">Authenticator setup key</label>
+          <div class="muted" style="margin-bottom:4px;font-size:0.85em;">The long setup key from your authenticator app, not the 6-digit code</div>
+          <input type="text" id="sasUserTotp" autocomplete="off" spellcheck="false" inputmode="text">
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" data-sas="next-sas" ${busy ? 'disabled' : ''}>Next →</button>
+          <button type="button" class="btn btn-secondary" data-sas="cancel">Cancel</button>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" data-sas="handoff">Use handoff code</button>
+          <button type="button" class="btn btn-secondary" data-sas="master">Supervisor takeover</button>
+        </div>
+        <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
+    }
+
+    // ── Step 2: SI credentials ────────────────────────────────────────────────
+    if (fs === 'si') {
+      const siUser = esc(defaults?.siUsername || '');
+      return `${leadLine(lead)}
+        <div class="muted" style="margin-bottom:8px;font-size:0.85em;">Step 2 of 3 — SI login</div>
+        <div class="field">
+          <label for="sasUserSiUsername">SI username</label>
+          <input type="text" id="sasUserSiUsername" autocomplete="off" spellcheck="false" value="${siUser}">
+        </div>
+        <div class="field">
+          <label for="sasUserSiPassword">SI password</label>
+          <input type="password" id="sasUserSiPassword" autocomplete="off">
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" data-sas="next-si" ${busy ? 'disabled' : ''}>Next →</button>
+          <button type="button" class="btn btn-secondary" data-sas="back-si">← Back</button>
+        </div>
+        <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
+    }
+
+    // ── Step 3: Pattern ───────────────────────────────────────────────────────
     const step = patternStep || 'set';
     const saveOk = step === 'done';
-    const user = esc(defaults?.username || '');
-    const siUser = esc(defaults?.siUsername || '');
-
     let patSection;
     if (step === 'done') {
       patSection = `<div class="sas-pattern-ready" style="padding:10px 0;color:var(--color-ok,#2a7);">✓ Pattern ready</div>`;
     } else if (step === 'confirm') {
       patSection = `<div class="field">
-        <label>Draw it again to confirm</label>
-        ${patternMarkup('confirm')}
-      </div>`;
+          <label>Draw it again to confirm</label>
+          ${patternMarkup('confirm')}
+        </div>`;
     } else {
       const hint = hasPattern
         ? `<div class="muted" style="margin-bottom:6px;font-size:0.85em;">Draw your existing pattern to authorize this update</div>`
         : `<div class="muted" style="margin-bottom:6px;font-size:0.85em;">At least 4 dots — you\'ll draw it again to confirm</div>`;
       patSection = `<div class="field">
-        <label>Pattern</label>
-        ${hint}
-        ${patternMarkup('set')}
-      </div>`;
+          <label>Pattern</label>
+          ${hint}
+          ${patternMarkup('set')}
+        </div>`;
     }
-
     return `${leadLine(lead)}
-      <div class="field">
-        <label for="sasUserUsername">Username</label>
-        <input type="email" id="sasUserUsername" autocomplete="username" value="${user}">
-      </div>
-      <div class="field">
-        <label for="sasUserPassword">Password</label>
-        <input type="password" id="sasUserPassword" autocomplete="current-password">
-      </div>
-      <div class="field">
-        <label for="sasUserTotp">Authenticator setup key</label>
-        <div class="muted" style="margin-bottom:4px;font-size:0.85em;">The long setup key from your authenticator app, not the 6-digit code</div>
-        <input type="text" id="sasUserTotp" autocomplete="off" spellcheck="false" inputmode="text">
-      </div>
+      <div class="muted" style="margin-bottom:8px;font-size:0.85em;">Step 3 of 3 — Set your pattern</div>
       ${patSection}
-      <div class="field">
-        <label for="sasUserSiUsername">SI username</label>
-        <input type="text" id="sasUserSiUsername" autocomplete="off" spellcheck="false" value="${siUser}">
-      </div>
-      <div class="field">
-        <label for="sasUserSiPassword">SI password</label>
-        <input type="password" id="sasUserSiPassword" autocomplete="off">
-      </div>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" data-sas="connect" ${busy || !saveOk ? 'disabled' : ''}>Save</button>
-        <button type="button" class="btn btn-secondary" data-sas="cancel">Cancel</button>
-      </div>
-      <div class="btn-row">
-        <button type="button" class="btn btn-secondary" data-sas="handoff">Use handoff code</button>
-        <button type="button" class="btn btn-secondary" data-sas="master">Supervisor takeover</button>
+        <button type="button" class="btn btn-secondary" data-sas="back-pattern">← Back</button>
       </div>
       <div class="btn-row">
         <button type="button" class="btn btn-secondary" data-sas="make-handoff" ${busy ? 'disabled' : ''}>Set OTP</button>
@@ -204,7 +230,7 @@
 
   function cardHtml(mode, status, busy, extra) {
     const lead = extra?.lead || null;
-    if (mode === 'form') return formHtml({ hasPattern: !!status?.hasPattern, busy, lead, defaults: extra?.defaults, patternStep: extra?.patternStep });
+    if (mode === 'form') return formHtml({ hasPattern: !!status?.hasPattern, busy, lead, defaults: extra?.defaults, patternStep: extra?.patternStep, formStep: extra?.formStep });
     if (mode === 'unlock') return unlockHtml({ busy, lead });
     if (mode === 'handoff') return handoffHtml({ busy, lead });
     if (mode === 'master') return masterHtml({ busy, lead });
