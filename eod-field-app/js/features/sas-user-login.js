@@ -633,12 +633,23 @@
             siPassword: fields.siPassword,
           });
           if (!resp.ok || !data.ok) {
-            toast(data.error || 'Login failed', 'error');
+            const isAuthErr = data.code === 'okta_auth_failed' || data.code === 'sas_auth_failed'
+              || data.code === 'okta_locked' || data.code === 'okta_password_expired'
+              || data.code === 'missing_credentials';
+            const msg = data.error
+              || (isAuthErr ? 'Wrong username or password — re-enter your SAS credentials' : 'Could not save — start from step 1');
+            toast(msg, 'error');
             status = { connected: false, lastRefreshError: data.error };
             statusAt = 0;
-            resetFormState();
-            await redraw(true, null, 'form');
-            setMsg(root, data.error || 'Could not save — start from step 1');
+            // Go back to SAS step for auth errors so user can fix creds
+            if (isAuthErr) {
+              formStep = 'sas';
+              if (paintAndBind) paintAndBind();
+            } else {
+              resetFormState();
+              await redraw(true, null, 'form');
+            }
+            setMsg(root, msg);
             return;
           }
           toast('Logged in', 'ok');
