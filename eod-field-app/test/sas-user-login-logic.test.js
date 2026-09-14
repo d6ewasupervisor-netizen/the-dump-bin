@@ -31,28 +31,36 @@ test('idle card shows the shift lead name and email', () => {
   assert.match(html, /No saved login yet/);
 });
 
-test('first login: form step=set shows only the first pattern box', () => {
+// Credentials are step 1; the pattern boxes only exist on step 3. Tests that
+// assert on pattern markup must say formStep: 'pattern' or they render step 1.
+test('first login: credential step asks for username, password, and setup key', () => {
   assert.equal(L.openMode({ hasCreds: false, hasPattern: false }), 'form');
-  const html = L.cardHtml('form', { hasPattern: false }, false, { patternStep: 'set' });
+  const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'sas' });
   assert.match(html, /Username/);
   assert.match(html, /Password/);
   assert.match(html, /Authenticator setup key/);
+  assert.doesNotMatch(html, /data-pattern=/);
+  assert.equal(L.bannedCopy(html), false);
+});
+
+test('first login: pattern step=set shows only the first pattern box', () => {
+  const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'pattern', patternStep: 'set' });
   assert.match(html, /data-pattern="set"/);
   // Confirm box must NOT appear yet — it only shows when step transitions to confirm
   assert.doesNotMatch(html, /data-pattern="confirm"/);
   assert.equal(L.bannedCopy(html), false);
 });
 
-test('first login: form step=confirm shows only the confirmation box', () => {
-  const html = L.cardHtml('form', { hasPattern: false }, false, { patternStep: 'confirm' });
+test('first login: pattern step=confirm shows only the confirmation box', () => {
+  const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'pattern', patternStep: 'confirm' });
   assert.match(html, /data-pattern="confirm"/);
   assert.doesNotMatch(html, /data-pattern="set"/);
   assert.doesNotMatch(html, /data-pattern="confirm".*data-pattern="confirm"/); // no duplicate
   assert.equal(L.bannedCopy(html), false);
 });
 
-test('first login: form step=done shows checkmark and enables Save', () => {
-  const html = L.cardHtml('form', { hasPattern: false }, false, { patternStep: 'done' });
+test('first login: pattern step=done shows checkmark and enables Save', () => {
+  const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'pattern', patternStep: 'done' });
   assert.match(html, /Pattern ready/);
   assert.doesNotMatch(html, /data-pattern="set"/);
   assert.doesNotMatch(html, /data-pattern="confirm"/);
@@ -61,25 +69,38 @@ test('first login: form step=done shows checkmark and enables Save', () => {
   assert.equal(L.bannedCopy(html), false);
 });
 
-test('form default (no patternStep) shows the set box and Save disabled', () => {
-  const html = L.cardHtml('form', { hasPattern: false });
+test('pattern step default (no patternStep) shows the set box and Save disabled', () => {
+  const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'pattern' });
   assert.match(html, /data-pattern="set"/);
   assert.doesNotMatch(html, /data-pattern="confirm"/);
   // Save disabled until pattern confirmed
   assert.match(html, /data-sas="connect"[^>]*disabled/);
 });
 
-test('form prefills the lead email and names the lead', () => {
+test('step 1 prefills the First.Last sign-in name and names the lead', () => {
   const html = L.cardHtml('form', { hasPattern: true }, false, {
     lead: { name: 'James Duchene', email: 'james.duchene@retailodyssey.com', hasCreds: true },
-    defaults: { username: 'james.duchene@retailodyssey.com', siUsername: 'james.duchene@retailodyssey.com' },
+    defaults: { username: 'James.Duchene', siUsername: 'James.Duchene' },
     patternStep: 'set',
+    formStep: 'sas',
   });
   assert.match(html, /James Duchene/);
-  assert.match(html, /value="james\.duchene@retailodyssey\.com"/);
-  assert.match(html, /Set OTP/);
+  assert.match(html, /value="James\.Duchene"/);
+  // Okta rejects the RO email for leads provisioned on another domain, and a
+  // type="email" box would fight a bare first.last value.
+  assert.doesNotMatch(html, /id="sasUserUsername"[^>]*type="email"/);
   assert.match(html, /Supervisor takeover/);
   assert.equal(L.bannedCopy(html), false);
+});
+
+test('Set OTP lives on the pattern step, not the credential step', () => {
+  const opts = {
+    lead: { name: 'James Duchene', email: 'james.duchene@retailodyssey.com', hasCreds: true },
+    defaults: { username: 'James.Duchene', siUsername: 'James.Duchene' },
+    patternStep: 'set',
+  };
+  assert.doesNotMatch(L.cardHtml('form', { hasPattern: true }, false, { ...opts, formStep: 'sas' }), /Set OTP/);
+  assert.match(L.cardHtml('form', { hasPattern: true }, false, { ...opts, formStep: 'pattern' }), /Set OTP/);
 });
 
 test('office login still opens the credential form, not a status card', () => {

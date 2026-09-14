@@ -1,12 +1,12 @@
 /* Field-app shell cache so a Chrome kill / airplane reopen still loads. */
-const CACHE = 'eod-field-3.4.41';
+const CACHE = 'eod-field-3.4.42';
 const PRECACHE = [
   './',
   './index.html',
-  './css/app.css?v=3.4.41',
-  './css/materials-browser.css?v=3.4.41',
+  './css/app.css?v=3.4.42',
+  './css/materials-browser.css?v=3.4.42',
   './manifest.webmanifest',
-  './assets/buffering.gif?v=3.4.41',
+  './assets/buffering.gif?v=3.4.42',
   './icons/favicon-192.png',
   './icons/favicon-512.png',
   './js/workers/photo-compress-worker.js',
@@ -30,7 +30,7 @@ function isNetworkOnly(url) {
 }
 
 function isCacheFirst(url) {
-  // Same-origin assets with ?v= are immutable at that URL â€” serve from cache
+  // Same-origin assets with ?v= are immutable at that URL Ã¢â‚¬â€ serve from cache
   // immediately and revalidate in the background. This covers all versioned
   // JS, CSS, and image files (55+ scripts on load) so repeat visits don't
   // block on a network round-trip for every file.
@@ -81,7 +81,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
 
-    // Cache-first for versioned (immutable) assets â€” ?v= guarantees the URL
+    // Cache-first for versioned (immutable) assets Ã¢â‚¬â€ ?v= guarantees the URL
     // is stable for this content. Serve instantly from cache; background-
     // revalidate so a corrected copy is ready for the next load.
     if (!optionalRemote && isCacheFirst(url)) {

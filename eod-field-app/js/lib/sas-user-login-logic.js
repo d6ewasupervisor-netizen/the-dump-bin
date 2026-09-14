@@ -75,7 +75,7 @@
         <div class="muted" style="margin-bottom:8px;font-size:0.85em;">Step 1 of 3 — SAS login</div>
         <div class="field">
           <label for="sasUserUsername">Username</label>
-          <input type="email" id="sasUserUsername" autocomplete="username" value="${user}">
+          <input type="text" id="sasUserUsername" autocomplete="username" autocapitalize="none" spellcheck="false" value="${user}">
         </div>
         <div class="field">
           <label for="sasUserPassword">Password</label>

@@ -72,8 +72,9 @@
     return lead.email || '';
   }
 
-  // Store Intelligence signs in as First.Last, never an email address.
-  function siUsernameFor(lead) {
+  // Both SAS (Okta) and Store Intelligence take First.Last. The RO email is
+  // rejected outright by Okta for leads provisioned on another domain.
+  function signInNameFor(lead) {
     const parts = String(lead?.name || '').trim().split(/\s+/).filter(Boolean);
     if (parts.length >= 2) return `${parts[0]}.${parts[parts.length - 1]}`;
     return String(lead?.email || '').split('@')[0].trim();
@@ -256,8 +257,8 @@
       username: keep.username,
       siUsername: keep.siUsername,
     } : {
-      username: formDraft.username || lead.email,
-      siUsername: formDraft.siUsername || siUsernameFor(lead),
+      username: formDraft.username || signInNameFor(lead),
+      siUsername: formDraft.siUsername || signInNameFor(lead),
     };
     const html = Logic.cardHtml ? Logic.cardHtml(view, cur, isBusy, {
       lead: {
@@ -278,9 +279,9 @@
   function applyLeadDefaults(root, lead) {
     if (!lead?.email) return;
     const user = root.querySelector('#sasUserUsername');
-    if (user && !user.value.trim()) user.value = lead.email;
+    if (user && !user.value.trim()) user.value = signInNameFor(lead);
     const siUser = root.querySelector('#sasUserSiUsername');
-    if (siUser && !siUser.value.trim()) siUser.value = siUsernameFor(lead);
+    if (siUser && !siUser.value.trim()) siUser.value = signInNameFor(lead);
   }
 
   // ── Pattern lock binding ──────────────────────────────────────────────────────
