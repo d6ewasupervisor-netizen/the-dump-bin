@@ -241,6 +241,10 @@
     }
     if (f.status === 'done' && !sheetRowDone(row)) return false;
     if (f.status === 'not_done' && sheetRowDone(row)) return false;
+    if (f.status === 'in_progress') {
+      const prodKind = row?.live?.prodKind;
+      if (prodKind !== 'in_progress') return false;
+    }
     if (f.prod === 'done' && !prodDone(row)) return false;
     if (f.prod === 'not_done' && prodDone(row)) return false;
     if (f.si === 'done' && !siDone(row)) return false;

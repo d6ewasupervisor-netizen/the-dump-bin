@@ -456,27 +456,57 @@
         await redraw(false);
       });
       // ── Form wizard step navigation ──────────────────────────────────────────
-      root.querySelector('[data-sas="next-sas"]')?.addEventListener('click', () => {
+      root.querySelector('[data-sas="next-sas"]')?.addEventListener('click', async () => {
         const username = document.getElementById('sasUserUsername')?.value.trim() || '';
         const password = document.getElementById('sasUserPassword')?.value || '';
+        const totpSecret = document.getElementById('sasUserTotp')?.value.trim() || '';
         if (!username) { setMsg(root, 'Enter your username'); return; }
         if (!password) { setMsg(root, 'Enter your password'); return; }
-        formDraft.username = username;
-        formDraft.password = password;
-        formDraft.totpSecret = document.getElementById('sasUserTotp')?.value.trim() || '';
-        formStep = 'si';
-        if (paintAndBind) paintAndBind();
+        if (!totpSecret) { setMsg(root, 'Enter your authenticator setup key'); return; }
+        const btn = root.querySelector('[data-sas="next-sas"]');
+        if (btn) btn.disabled = true;
+        setMsg(root, 'Checking SAS login…');
+        try {
+          const { resp, data } = await postJson('/api/sas-user/verify-sas', { username, password, totpSecret });
+          if (!resp.ok || !data.ok) {
+            setMsg(root, data.error || 'SAS login failed — check credentials');
+            return;
+          }
+          formDraft.username = username;
+          formDraft.password = password;
+          formDraft.totpSecret = totpSecret;
+          formStep = 'si';
+          if (paintAndBind) paintAndBind();
+        } catch (err) {
+          setMsg(root, err.message || 'Failed to verify SAS — check connection');
+        } finally {
+          if (btn && !btn.closest('[data-sas]')) { /* already re-rendered */ } else if (btn) btn.disabled = false;
+        }
       });
-      root.querySelector('[data-sas="next-si"]')?.addEventListener('click', () => {
+      root.querySelector('[data-sas="next-si"]')?.addEventListener('click', async () => {
         const siUsername = document.getElementById('sasUserSiUsername')?.value.trim() || '';
         const siPassword = document.getElementById('sasUserSiPassword')?.value || '';
         if (!siUsername) { setMsg(root, 'Enter your SI username'); return; }
         if (!siPassword) { setMsg(root, 'Enter your SI password'); return; }
-        formDraft.siUsername = siUsername;
-        formDraft.siPassword = siPassword;
-        formStep = 'pattern';
-        resetPatternState();
-        if (paintAndBind) paintAndBind();
+        const btn = root.querySelector('[data-sas="next-si"]');
+        if (btn) btn.disabled = true;
+        setMsg(root, 'Checking SI login…');
+        try {
+          const { resp, data } = await postJson('/api/sas-user/verify-si', { siUsername, siPassword });
+          if (!resp.ok || !data.ok) {
+            setMsg(root, data.error || 'SI login failed — check credentials');
+            return;
+          }
+          formDraft.siUsername = siUsername;
+          formDraft.siPassword = siPassword;
+          formStep = 'pattern';
+          resetPatternState();
+          if (paintAndBind) paintAndBind();
+        } catch (err) {
+          setMsg(root, err.message || 'Failed to verify SI — check connection');
+        } finally {
+          if (btn) btn.disabled = false;
+        }
       });
       root.querySelector('[data-sas="back-si"]')?.addEventListener('click', () => {
         formStep = 'sas';

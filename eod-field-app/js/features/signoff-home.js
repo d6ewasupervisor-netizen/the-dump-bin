@@ -624,8 +624,8 @@
         </div>
         ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-slot="${esc(captureSlot)}">Capture</button></div>` : ''}
         <div class="ds-actions">
-          ${btn('not_in_store', 'NIS')}
-          ${btn('not_in_si', 'NISI')}
+          ${btn('not_in_store', 'Not in Store')}
+          ${btn('not_in_si', 'Not in SI')}
           ${btn('backlog', 'Backlog')}
           ${btn('out_of_scope', 'Out of Scope')}
         </div>
@@ -645,7 +645,8 @@
         <div class="ds-bulk" id="sheetBulk"></div>
         <div class="ds-filters" id="sheetFilters">
           <div class="ds-filter-row">
-            <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_done">Not Done</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_done">Not Started</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="in_progress">In Progress</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="backlog">Backlog</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Done</button>
           </div>
@@ -707,8 +708,8 @@
         <div class="ds-bulk-count">${n} selected</div>
         <div class="ds-actions">
           <button type="button" class="btn" data-bulk-com="1">Request COM</button>
-          <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">NIS</button>
-          <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">NISI</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">Not in Store</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">Not in SI</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="backlog">Backlog</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="out_of_scope">Out of Scope</button>
         </div>`;

@@ -4,10 +4,17 @@
   "description": "Isolated greenfield rebuild of the KOMPASS EOD field app.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test \"test/**/*.test.js\" && npm run validate:publish",
+    "validate:publish": "node scripts/validate-publish.mjs",
+    "version:bump": "node scripts/bump-version.mjs",
+    "smoke:blank": "node scripts/smoke-blank.mjs",
+    "smoke:mobile": "node scripts/smoke-mobile.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
 }

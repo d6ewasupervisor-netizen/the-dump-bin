@@ -1,4 +1,4 @@
-/* Native BarcodeDetector + html5-qrcode fallback. All common retail formats. 3.4.35 */
+/* Native BarcodeDetector + html5-qrcode fallback. All common retail formats. 3.4.36 */
 (function (global) {
   'use strict';
 
@@ -257,3 +257,4 @@
 
   global.EodBarcodeScanner = { start, close };
 })(typeof window !== 'undefined' ? window : globalThis);
+
