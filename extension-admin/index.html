@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extension Admin</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<style>
+:root {
+  --bg:#0a0e13; --card:#151d28; --border:#243044; --text:#f0f4f8;
+  --muted:#6b7d94; --sec:#a8b8cc; --accent:#4da6ff; --green:#00e87a;
+  --amber:#ffcc00; --red:#ff4757; --purple:#b57bee; --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+
+/* ── Gate ── */
+#gate{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.gate-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;width:100%;max-width:360px}
+.gate-card h1{font-size:1.2rem;font-weight:700;margin-bottom:6px}
+.gate-card p{color:var(--muted);font-size:13px;margin-bottom:20px}
+.gate-card input{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:#111820;color:var(--text);font:inherit;font-size:14px;margin-bottom:12px}
+.gate-card button{width:100%;padding:12px;border-radius:8px;border:none;background:var(--accent);color:#000;font:inherit;font-weight:700;cursor:pointer;font-size:14px}
+.gate-card button:disabled{opacity:.5;cursor:not-allowed}
+.gate-err{color:var(--red);font-size:12px;margin-top:8px;min-height:18px}
+
+/* ── App shell ── */
+#app{display:none;max-width:1100px;margin:0 auto;padding:18px 14px 80px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+h1{font-size:1.5rem;font-weight:800}
+.sub{color:var(--sec);font-size:13px;margin-top:4px}
+.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.danger{color:var(--red);border-color:rgba(255,71,87,.4)}
+.btn.danger:hover{background:rgba(255,71,87,.1)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.refresh-info{color:var(--muted);font-size:12px}
+
+/* ── Instance grid ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.instance-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s}
+.instance-card.killed{border-color:var(--red);background:rgba(255,71,87,.06)}
+.card-head{display:flex;align-items:center;gap:10px}
+.online-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot-yellow{background:var(--amber)}
+.dot-red{background:var(--red)}
+.card-label{font-weight:700;font-size:14px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.type-badge{font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;flex-shrink:0}
+.badge-portable{background:rgba(181,123,238,.2);color:var(--purple)}
+.badge-desktop{background:rgba(77,166,255,.15);color:var(--accent)}
+.badge-unknown{background:rgba(107,125,148,.2);color:var(--muted)}
+.card-meta{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.card-meta span{display:flex;gap:6px}
+.meta-key{color:var(--sec);font-weight:600;flex-shrink:0;min-width:54px}
+
+/* ── Rename ── */
+.rename-row{display:flex;gap:6px;align-items:center}
+.rename-input{flex:1;padding:6px 9px;border-radius:6px;border:1px solid var(--border);background:#111820;color:var(--text);font:inherit;font-size:13px}
+.rename-btn{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--sec);font:inherit;font-size:12px;cursor:pointer}
+.rename-btn:hover{border-color:var(--accent);color:var(--accent)}
+.rename-btn.save{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+
+/* ── Feature flags ── */
+.flags-grid{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--border);padding-top:12px}
+.flag-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.flag-label{font-size:13px;color:var(--sec)}
+.flag-label small{display:block;font-size:11px;color:var(--muted)}
+
+/* Toggle switch */
+.toggle{position:relative;width:38px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;border-radius:999px;background:#243044;cursor:pointer;transition:background .2s}
+.toggle input:checked + .toggle-track{background:var(--accent)}
+.toggle input:checked + .toggle-track.danger-on{background:var(--red)}
+.toggle-thumb{position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;pointer-events:none}
+.toggle input:checked ~ .toggle-thumb{transform:translateX(16px)}
+
+/* Empty state */
+.empty{text-align:center;padding:60px 24px;color:var(--muted)}
+.empty h2{font-size:1rem;margin-bottom:8px;color:var(--sec)}
+
+/* Loading */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- Password gate -->
+<div id="gate">
+  <div class="gate-card">
+    <h1>Extension Admin</h1>
+    <p>Enter your SAS_AUTH_SECRET to access the dashboard.</p>
+    <input type="password" id="secretInput" placeholder="SAS_AUTH_SECRET" autocomplete="off">
+    <button id="gateBtn">Sign in</button>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="app">
+  <div class="top">
+    <div>
+      <h1>Extension Instances</h1>
+      <div class="sub" id="appSub">Loading…</div>
+    </div>
+    <div class="top-actions">
+      <span class="refresh-info" id="refreshInfo"></span>
+      <button class="btn" id="refreshBtn">↺ Refresh</button>
+      <button class="btn danger" id="signOutBtn">Sign out</button>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+'use strict';
+
+const API = 'https://eod-api-production.up.railway.app';
+const SESSION_KEY = 'extAdminSecret';
+let secret = '';
+let refreshTimer = null;
+let lastLoaded = null;
+
+// ── Gate ────────────────────────────────────────────────────────
+const gateEl   = document.getElementById('gate');
+const appEl    = document.getElementById('app');
+const secretEl = document.getElementById('secretInput');
+const gateBtn  = document.getElementById('gateBtn');
+const gateErr  = document.getElementById('gateErr');
+
+async function trySignIn() {
+  const val = secretEl.value.trim();
+  if (!val) { gateErr.textContent = 'Enter the secret.'; return; }
+  gateBtn.disabled = true;
+  gateErr.textContent = '';
+  try {
+    const r = await fetch(API + '/extension/instances', {
+      headers: { Authorization: 'Bearer ' + val },
+    });
+    if (r.status === 401) { gateErr.textContent = 'Incorrect secret.'; return; }
+    if (!r.ok) { gateErr.textContent = 'Server error ' + r.status; return; }
+    secret = val;
+    sessionStorage.setItem(SESSION_KEY, secret);
+    showApp();
+    const data = await r.json();
+    render(data);
+  } catch (e) {
+    gateErr.textContent = 'Could not reach server: ' + e.message;
+  } finally {
+    gateBtn.disabled = false;
+  }
+}
+
+gateBtn.addEventListener('click', trySignIn);
+secretEl.addEventListener('keydown', e => { if (e.key === 'Enter') trySignIn(); });
+
+// Restore session from sessionStorage.
+const saved = sessionStorage.getItem(SESSION_KEY);
+if (saved) { secret = saved; showApp(); load(); }
+
+// ── App ─────────────────────────────────────────────────────────
+function showApp() {
+  gateEl.style.display = 'none';
+  appEl.style.display  = 'block';
+  scheduleAutoRefresh();
+}
+
+document.getElementById('signOutBtn').addEventListener('click', () => {
+  sessionStorage.removeItem(SESSION_KEY);
+  secret = '';
+  gateEl.style.display = 'flex';
+  appEl.style.display  = 'none';
+  clearTimeout(refreshTimer);
+  document.getElementById('grid').innerHTML = '';
+});
+
+document.getElementById('refreshBtn').addEventListener('click', load);
+
+function scheduleAutoRefresh() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => { load(); scheduleAutoRefresh(); }, 60_000);
+}
+
+async function load() {
+  document.getElementById('refreshInfo').textContent = '⟳ loading…';
+  try {
+    const r = await fetch(API + '/extension/instances', {
+      headers: { Authorization: 'Bearer ' + secret },
+    });
+    if (r.status === 401) {
+      sessionStorage.removeItem(SESSION_KEY);
+      location.reload();
+      return;
+    }
+    const data = await r.json();
+    render(data);
+    lastLoaded = new Date();
+    document.getElementById('refreshInfo').textContent =
+      'Updated ' + lastLoaded.toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('refreshInfo').textContent = 'Load failed: ' + e.message;
+  }
+}
+
+// ── Render ──────────────────────────────────────────────────────
+const FLAG_META = [
+  { key: 'tabDailyRoutine',   label: 'Daily Routine tab',    sub: 'Show the module card & panel',  danger: false },
+  { key: 'tabAdminAutoFind',  label: 'Admin Auto-Find',       sub: 'Show billable admin finder',     danger: false },
+  { key: 'tabMoreTools',      label: 'More Tools tab',        sub: 'Show full More Tools section',   danger: false },
+  { key: 'tabHAR',            label: 'HAR Recorder tab',      sub: 'Show network capture tab',       danger: false },
+  { key: 'enableTimeExpense', label: 'Time & Expense access', sub: 'Allow T&E mutations in PROD',    danger: true  },
+  { key: 'killSwitch',        label: 'Kill switch',           sub: 'Lock this instance entirely',    danger: true  },
+];
+
+function onlineDotClass(lastSeen) {
+  if (!lastSeen) return 'dot-red';
+  const age = (Date.now() - new Date(lastSeen).getTime()) / 1000 / 60; // minutes
+  if (age < 5)  return 'dot-green';
+  if (age < 60) return 'dot-yellow';
+  return 'dot-red';
+}
+
+function relativeTime(ts) {
+  if (!ts) return 'never';
+  const sec = Math.round((Date.now() - new Date(ts).getTime()) / 1000);
+  if (sec < 60)  return sec + 's ago';
+  if (sec < 3600) return Math.round(sec / 60) + 'm ago';
+  if (sec < 86400) return Math.round(sec / 3600) + 'h ago';
+  return Math.round(sec / 86400) + 'd ago';
+}
+
+function typeBadge(type) {
+  if (type === 'portable') return '<span class="type-badge badge-portable">Portable</span>';
+  if (type === 'desktop')  return '<span class="type-badge badge-desktop">Desktop</span>';
+  return '<span class="type-badge badge-unknown">Unknown</span>';
+}
+
+function render({ instances, defaultConfig }) {
+  const grid = document.getElementById('grid');
+  const sub  = document.getElementById('appSub');
+  sub.textContent = instances.length + ' instance' + (instances.length === 1 ? '' : 's') + ' registered';
+
+  if (!instances.length) {
+    grid.innerHTML = '<div class="empty"><h2>No instances yet</h2><p>Instances appear here once an extension phones home for the first time (within ~10 seconds of Chrome loading it).</p></div>';
+    return;
+  }
+
+  grid.innerHTML = instances.map(inst => buildCard(inst, defaultConfig)).join('');
+  attachCardEvents(instances);
+}
+
+function buildCard(inst, defaultConfig) {
+  const cfg     = inst.config || defaultConfig;
+  const dotCls  = onlineDotClass(inst.lastSeen);
+  const killed  = cfg.killSwitch === true;
+  const labelDisplay = inst.label || inst.instanceId.slice(0, 8) + '…';
+
+  const flags = FLAG_META.map(fm => {
+    // Kill switch: "true = dangerous/locked"; other flags "true = enabled".
+    const isChecked = fm.key === 'killSwitch' ? (cfg[fm.key] === true) : (cfg[fm.key] !== false);
+    const trackCls  = (fm.danger && isChecked && fm.key !== 'killSwitch') ? '' :
+                      (fm.danger && isChecked && fm.key === 'killSwitch') ? 'danger-on' : '';
+    return `
+      <div class="flag-row">
+        <div class="flag-label">
+          ${fm.label}
+          <small>${fm.sub}</small>
+        </div>
+        <label class="toggle" title="${fm.label}">
+          <input type="checkbox" data-instance="${inst.instanceId}" data-flag="${fm.key}"
+                 ${isChecked ? 'checked' : ''}>
+          <div class="toggle-track ${trackCls}"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="instance-card${killed ? ' killed' : ''}" data-id="${inst.instanceId}">
+      <div class="card-head">
+        <div class="online-dot ${dotCls}"></div>
+        <div class="card-label" title="${inst.instanceId}">${escHtml(labelDisplay)}</div>
+        ${typeBadge(inst.type)}
+      </div>
+      <div class="card-meta">
+        <span><span class="meta-key">Version</span>${escHtml(inst.version || '—')}</span>
+        <span><span class="meta-key">Seen</span>${relativeTime(inst.lastSeen)}</span>
+        <span><span class="meta-key">First</span>${relativeTime(inst.firstSeen)}</span>
+        <span><span class="meta-key">ID</span><span style="font-family:monospace;font-size:11px">${escHtml(inst.instanceId)}</span></span>
+      </div>
+      <div class="rename-row">
+        <input class="rename-input" type="text" placeholder="Set a label…"
+               value="${escHtml(inst.label || '')}" data-rename="${inst.instanceId}">
+        <button class="rename-btn save" data-rename-save="${inst.instanceId}">Save</button>
+      </div>
+      <div class="flags-grid">${flags}</div>
+    </div>`;
+}
+
+function attachCardEvents(instances) {
+  // Feature flag toggles.
+  document.querySelectorAll('input[data-flag]').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const instanceId = cb.dataset.instance;
+      const flag       = cb.dataset.flag;
+      const value      = cb.checked;
+      cb.disabled = true;
+      try {
+        const r = await fetch(`${API}/extension/instances/${encodeURIComponent(instanceId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret },
+          body: JSON.stringify({ config: { [flag]: value } }),
+        });
+        if (!r.ok) {
+          cb.checked = !value; // revert
+          alert('Save failed: ' + r.status);
+        } else {
+          // Re-tint card if kill switch toggled.
+          const card = document.querySelector(`.instance-card[data-id="${instanceId}"]`);
+          if (flag === 'killSwitch' && card) {
+            card.classList.toggle('killed', value);
+          }
+          // Update danger-on class on track.
+          const track = cb.nextElementSibling;
+          if (track && flag === 'killSwitch') {
+            track.classList.toggle('danger-on', value);
+          }
+        }
+      } catch (e) {
+        cb.checked = !value;
+        alert('Network error: ' + e.message);
+      } finally {
+        cb.disabled = false;
+      }
+    });
+  });
+
+  // Rename buttons.
+  document.querySelectorAll('button[data-rename-save]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const instanceId = btn.dataset.renameSave;
+      const input      = document.querySelector(`input[data-rename="${instanceId}"]`);
+      if (!input) return;
+      const label = input.value.trim() || null;
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        const r = await fetch(`${API}/extension/instances/${encodeURIComponent(instanceId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + secret },
+          body: JSON.stringify({ label }),
+        });
+        if (r.ok) {
+          // Update the card label display.
+          const card     = document.querySelector(`.instance-card[data-id="${instanceId}"]`);
+          const labelEl  = card && card.querySelector('.card-label');
+          if (labelEl) labelEl.textContent = label || instanceId.slice(0, 8) + '…';
+          btn.textContent = '✓';
+          setTimeout(() => { btn.textContent = 'Save'; }, 1500);
+        } else {
+          btn.textContent = 'Error';
+          setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+        }
+      } catch (e) {
+        btn.textContent = 'Error';
+        setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // Save label on Enter.
+  document.querySelectorAll('input[data-rename]').forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const btn = document.querySelector(`button[data-rename-save="${input.dataset.rename}"]`);
+        if (btn) btn.click();
+      }
+    });
+  });
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+</script>
+</body>
+</html>
