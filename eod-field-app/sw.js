@@ -1,12 +1,12 @@
 /* Field-app shell cache so a Chrome kill / airplane reopen still loads. */
-const CACHE = 'eod-field-3.4.39';
+const CACHE = 'eod-field-3.4.40';
 const PRECACHE = [
   './',
   './index.html',
-  './css/app.css?v=3.4.39',
-  './css/materials-browser.css?v=3.4.39',
+  './css/app.css?v=3.4.40',
+  './css/materials-browser.css?v=3.4.40',
   './manifest.webmanifest',
-  './assets/buffering.gif?v=3.4.39',
+  './assets/buffering.gif?v=3.4.40',
   './icons/favicon-192.png',
   './icons/favicon-512.png',
   './js/workers/photo-compress-worker.js',
@@ -27,6 +27,14 @@ function shellAssetsFromHtml(html) {
 function isNetworkOnly(url) {
   return url.origin !== self.location.origin
     || /\/api\/|eod-api\.|auth-gate|store-data|send-eod|send-eod-helpdesk-report|verify-store|sas-upload|eod-version\.json/.test(url.href);
+}
+
+function isCacheFirst(url) {
+  // Same-origin assets with ?v= are immutable at that URL — serve from cache
+  // immediately and revalidate in the background. This covers all versioned
+  // JS, CSS, and image files (55+ scripts on load) so repeat visits don't
+  // block on a network round-trip for every file.
+  return url.origin === self.location.origin && url.searchParams.has('v');
 }
 
 async function cacheOne(cache, asset) {
@@ -72,6 +80,19 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
+
+    // Cache-first for versioned (immutable) assets — ?v= guarantees the URL
+    // is stable for this content. Serve instantly from cache; background-
+    // revalidate so a corrected copy is ready for the next load.
+    if (!optionalRemote && isCacheFirst(url)) {
+      const cached = await cache.match(req);
+      if (cached) {
+        fetch(req).then((r) => { if (r && r.ok) cache.put(req, r.clone()).catch(() => {}); }).catch(() => {});
+        return cached;
+      }
+    }
+
+    // Network-first for everything else (index.html, manifests, CDN scripts).
     try {
       const fresh = await fetch(req);
       if (fresh && fresh.ok) cache.put(req, fresh.clone()).catch(() => {});
