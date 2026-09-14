@@ -72,6 +72,13 @@
     return lead.email || '';
   }
 
+  // Store Intelligence signs in as First.Last, never an email address.
+  function siUsernameFor(lead) {
+    const parts = String(lead?.name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]}.${parts[parts.length - 1]}`;
+    return String(lead?.email || '').split('@')[0].trim();
+  }
+
   async function fetchStatus(force) {
     const leadEmail = leadParam();
     if (!force && status && statusFor === leadEmail && Date.now() - statusAt < STATUS_TTL_MS) return status;
@@ -250,7 +257,7 @@
       siUsername: keep.siUsername,
     } : {
       username: formDraft.username || lead.email,
-      siUsername: formDraft.siUsername || lead.email,
+      siUsername: formDraft.siUsername || siUsernameFor(lead),
     };
     const html = Logic.cardHtml ? Logic.cardHtml(view, cur, isBusy, {
       lead: {
@@ -273,7 +280,7 @@
     const user = root.querySelector('#sasUserUsername');
     if (user && !user.value.trim()) user.value = lead.email;
     const siUser = root.querySelector('#sasUserSiUsername');
-    if (siUser && !siUser.value.trim()) siUser.value = lead.email;
+    if (siUser && !siUser.value.trim()) siUser.value = siUsernameFor(lead);
   }
 
   // ── Pattern lock binding ──────────────────────────────────────────────────────
