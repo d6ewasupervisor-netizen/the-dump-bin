@@ -194,7 +194,11 @@
         slot: p.slot,
         bay: p.bay,
       }));
+      const closedDbkeys = new Set(Array.isArray(inv.closedDbkeys) ? inv.closedDbkeys : []);
       const want = new Set(pull.map((p) => `${p.dbkey}:${p.slot}:${p.bay}`));
+
+      // Track which bays we confirm buffered this tick.
+      const bufferedThisTick = new Map(); // dbkey -> Set of 'slot:bay' strings
       let n = 0;
       for (const item of photos) {
         if (!want.has(`${item.dbkey}:${item.slot}:${item.bay}`)) continue;
@@ -203,12 +207,39 @@
           if (!gate?.ok) continue;
         }
         try {
-          await pushOne(item);
+          const ack = await pushOne(item);
           n += 1;
+          // Buffer ack received — offload device bytes for this bay.
+          if (ack && ack.bufferedId) {
+            try {
+              global.EodPhotoPipeline?.offloadBufferedBay?.(item.dbkey, item.slot, item.bay, ack);
+            } catch (_) { /* best-effort */ }
+            if (!bufferedThisTick.has(item.dbkey)) bufferedThisTick.set(item.dbkey, new Set());
+            bufferedThisTick.get(item.dbkey).add(`${item.slot}:${item.bay}`);
+          }
         } catch (_) { /* next tick retries */ }
         if (n >= 8) break;
       }
-      if (n > 0) {
+
+      // For sets where ALL after bays are now buffered (or closed), signal "safe to continue".
+      if (n > 0 || closedDbkeys.size > 0) {
+        const allKept = new Set([...(inv.kept || []).map((k) => `${k.dbkey}:${k.slot}:${k.bay}`)]);
+        const safeDbkeys = new Set();
+        for (const photo of photos) {
+          if (photo.slot !== 'after') continue;
+          const dk = photo.dbkey;
+          if (closedDbkeys.has(dk)) { safeDbkeys.add(dk); continue; }
+          // All after bays for this set either already kept or just buffered.
+          const setAfters = photos.filter((p) => p.slot === 'after' && p.dbkey === dk);
+          const allDone = setAfters.every((p) => {
+            const k = `${p.dbkey}:${p.slot}:${p.bay}`;
+            return allKept.has(k) || (bufferedThisTick.get(p.dbkey) || new Set()).has(`${p.slot}:${p.bay}`);
+          });
+          if (allDone && setAfters.length > 0) safeDbkeys.add(dk);
+        }
+        for (const dk of safeDbkeys) {
+          try { global.EodSetPhotoReconcile?.notifySetSafe?.(dk); } catch (_) { /* ignore */ }
+        }
         try { global.EodPhotoPipeline?.schedulePump?.(); } catch (_) { /* ignore */ }
       }
     } finally {
@@ -228,10 +259,31 @@
     setTimeout(run, 4_000);
   }
 
+  // Listeners for "all bays for this set are safely buffered on server".
+  const setListeners = new Map(); // dbkey -> Set<fn>
+
+  function onSetSafe(dbkey, fn) {
+    const key = String(dbkey || '');
+    if (!setListeners.has(key)) setListeners.set(key, new Set());
+    setListeners.get(key).add(fn);
+    return () => { const s = setListeners.get(key); if (s) s.delete(fn); };
+  }
+
+  function notifySetSafe(dbkey) {
+    const key = String(dbkey || '');
+    const fns = setListeners.get(key);
+    if (fns) for (const fn of fns) { try { fn(key); } catch (_) { /* ignore */ } }
+    // Also broadcast to any wildcard listeners (key '').
+    const wildcards = setListeners.get('');
+    if (wildcards) for (const fn of wildcards) { try { fn(key); } catch (_) { /* ignore */ } }
+  }
+
   global.EodSetPhotoReconcile = {
     start,
     tick,
     collectDevicePhotos,
+    onSetSafe,
+    notifySetSafe,
   };
 
   if (document.readyState === 'loading') {

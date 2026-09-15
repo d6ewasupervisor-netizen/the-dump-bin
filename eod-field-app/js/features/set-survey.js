@@ -655,6 +655,12 @@
       return autoClosePromise;
     }
 
+    // Subscribe to server buffer ack: when all bays for THIS set land safely in our DB,
+    // show the "safe to continue" message and stop showing the patient message.
+    const unsubSetSafe = global.EodSetPhotoReconcile?.onSetSafe?.(dbkey, () => {
+      setMsg('Ok you\u2019re safe to continue to the next set.');
+    });
+
     const unsubPipe = global.EodPhotoPipeline?.onChange?.((detail) => {
       if (detail?.job?.dbkey && String(detail.job.dbkey) !== String(dbkey)) return;
       hydrateFromPipeline();
@@ -662,8 +668,8 @@
       if (detail.job?.slot === 'after') persistAfters();
       const counts = global.EodPhotoPipeline.pendingCounts();
       const open = counts.compress + counts.upload;
-      if (open > 0 || detail.type === 'accepted' || detail.type === 'partial') {
-        setMsg(global.EodPhotoPipelineLogic?.QUEUE_COPY || 'Working in the background. Keep going. Give it a minute to catch up.');
+      if (open > 0 || detail.type === 'partial') {
+        setMsg(global.EodPhotoPipelineLogic?.QUEUE_COPY || 'Please be patient, there is a lot going on behind the scenes.');
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
         if (!liveCameraOpen) {
@@ -1237,6 +1243,7 @@
           liveCameraOpen = false;
           if (returnTo === 'signoff') {
             try { unsubPipe?.(); } catch (_) {}
+            try { unsubSetSafe?.(); } catch (_) {}
             global.EodRouter.go('signoff');
             return;
           }
@@ -1433,6 +1440,7 @@
     if (backBtn) {
       backBtn.onclick = () => {
         try { unsubPipe?.(); } catch (_) {}
+        try { unsubSetSafe?.(); } catch (_) {}
         global.EodRouter.go('signoff');
       };
     }

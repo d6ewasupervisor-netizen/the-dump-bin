@@ -1089,6 +1089,53 @@
     return n;
   }
 
+  /**
+   * Called when server confirms a bay's bytes are safely buffered (reconcile/push ack).
+   * Clears device-local bytes for that bay's pipeline jobs — the server is now the source
+   * of truth. The job transitions to 'accepted' so the pipeline knows it's durable.
+   */
+  function offloadBufferedBay(dbkey, slot, bay, ackData) {
+    const logic = (typeof EodPhotoPipelineLogic !== 'undefined' && EodPhotoPipelineLogic)
+      || global.EodPhotoPipelineLogic
+      || null;
+    let n = 0;
+    for (const j of [...jobs.values()]) {
+      if (
+        j.kind !== 'set'
+        || String(j.dbkey) !== String(dbkey)
+        || String(j.slot) !== String(slot)
+        || Number(j.bay) !== Number(bay)
+      ) continue;
+      if (j.status === 'done' || j.status === 'superseded') continue;
+      // Clear device bytes; mark as accepted (durable on server).
+      j.dataUrl = null;
+      j.blob = null;
+      j.file = null;
+      j.bitmap = null;
+      j.canvas = null;
+      j.hasPayload = false;
+      j.offloaded = true;
+      j.bufferedId = ackData?.bufferedId || null;
+      j.checksum = j.checksum || ackData?.checksum || null;
+      if (j.status !== 'done') {
+        j.status = 'accepted';
+        j.updatedAt = Date.now();
+      }
+      if (j.blobId && global.PhotoDB?.deleteBlob) {
+        try { global.PhotoDB.deleteBlob(j.blobId).catch(() => {}); } catch (_) {}
+        j.blobId = null;
+      }
+      if (j.previewUrl && String(j.previewUrl).startsWith('blob:')) {
+        try { URL.revokeObjectURL(j.previewUrl); } catch (_) {}
+        j.previewUrl = null;
+      }
+      persist();
+      emit('accepted', j);
+      n += 1;
+    }
+    return n;
+  }
+
   function waitForJob(id, timeoutMs = 120000) {
     return new Promise((resolve, reject) => {
       const start = Date.now();
@@ -1261,6 +1308,7 @@
     retryFailed,
     removeJob,
     removeSetBay,
+    offloadBufferedBay,
     waitForJob,
     waitForSet,
     schedulePump,

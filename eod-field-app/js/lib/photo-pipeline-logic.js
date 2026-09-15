@@ -178,7 +178,7 @@
     return job;
   }
 
-  const QUEUE_COPY = 'Working in the background. Keep going. Give it a minute to catch up.';
+  const QUEUE_COPY = 'Please be patient, there is a lot going on behind the scenes.';
   const MERGE_HOLD_MS = 60_000;
 
   function queueBannerShouldShow(counts, { mergeUntil = 0, now = Date.now() } = {}) {
