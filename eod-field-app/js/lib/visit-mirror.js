@@ -127,11 +127,11 @@
       }
       if (p.addRetailOdysseyTeam) patch.addRetailOdysseyTeam = true;
       S.patch(patch, 'visit-mirror');
-      if (p.signatureDataUrl && !S.state.signatureDataUrl) {
+      if (p.signatureDataUrl && S.state.signatureDataUrl !== p.signatureDataUrl) {
         S.state.signatureDataUrl = p.signatureDataUrl;
-        S.emit?.('signature');
-      } else if (p.signatureDataUrl && S.state.signatureDataUrl !== p.signatureDataUrl) {
-        S.state.signatureDataUrl = p.signatureDataUrl;
+        try {
+          if (p.signatureDataUrl) localStorage.setItem('kompassSignature', p.signatureDataUrl);
+        } catch (_) {}
         S.emit?.('signature');
       }
     } finally {

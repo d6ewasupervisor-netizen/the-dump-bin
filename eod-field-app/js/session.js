@@ -271,10 +271,18 @@
 
   function saveSignature(dataUrl) {
     state.signatureDataUrl = dataUrl || '';
-    if (dataUrl) localStorage.setItem(SIGNATURE_KEY, dataUrl);
-    else localStorage.removeItem(SIGNATURE_KEY);
+    try {
+      if (dataUrl) localStorage.setItem(SIGNATURE_KEY, dataUrl);
+      else localStorage.removeItem(SIGNATURE_KEY);
+    } catch (_) {}
     emit('signature');
-    try { global.EodVisitMirror?.persist?.(global.EodSession); } catch (_) {}
+    try {
+      if (global.EodVisitMirror?.persistNow) {
+        global.EodVisitMirror.persistNow(global.EodSession).catch(() => {});
+      } else {
+        global.EodVisitMirror?.persist?.(global.EodSession);
+      }
+    } catch (_) {}
   }
 
   function loadDraft() {

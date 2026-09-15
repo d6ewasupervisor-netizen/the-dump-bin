@@ -203,7 +203,7 @@
       const sameVisit = S.normStoreNumber(p.storeNumber) === S.state.storeNumber
         && S.normIsoDate(p.workDate) === S.state.workDate;
       if (p.storeNumber && p.workDate && !sameVisit) return false;
-      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl || p.teamUrl || p.offloaded);
+      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl || p.teamUrl || p.thumbUrl || p.offloaded);
     });
   }
 
@@ -457,6 +457,7 @@ ${cleanNotes}`;
 
   let liveGatesBound = false;
   function ensureLiveGates(S) {
+    refreshGates();
     if (liveGatesBound || !S?.on) return;
     liveGatesBound = true;
     S.on((_state, reason) => {
@@ -470,6 +471,16 @@ ${cleanNotes}`;
     const S = global.EodSession;
     try { await global.EodRouteBundles?.ensure?.('signatures'); } catch (_) {}
     try { await global.EodDeptSignatures?.refresh?.(); } catch (_) {}
+    try {
+      if (global.EodTeamSession?.hydrate && !(S.state.photos?.after || []).length) {
+        await global.EodTeamSession.hydrate(S);
+      }
+    } catch (_) {}
+    try {
+      if (global.EodVisitMirror?.hydrate && !S.state.signatureDataUrl) {
+        await global.EodVisitMirror.hydrate(S);
+      }
+    } catch (_) {}
     const leadFill = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : '') || '';
     if (leadFill && !(S.state.profileName || '').trim()) {
       S.patch({ profileName: leadFill, leadName: S.state.leadName || leadFill }, 'cover-lead');
@@ -672,6 +683,7 @@ ${cleanNotes}`;
       if (pushBtn) pushBtn.disabled = !afterList.length;
     }
     await paintSendablePhotos({ syncFromProd: true });
+    refreshGates();
 
     document.getElementById('sendPaperCam')?.addEventListener('click', async () => {
       if (!global.EodCamera?.open) return;

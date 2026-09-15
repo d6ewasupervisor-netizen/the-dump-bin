@@ -1310,14 +1310,15 @@
     try { await withTimeout(global.EodCover?.loadStoreData?.(store), HYDRATE_MS); } catch (_) {}
     try { await withTimeout(prefetchSheetWeek(store, date), HYDRATE_MS); } catch (_) {}
     let mirrored = null;
-    try { mirrored = await withTimeout(global.EodTeamSession?.hydrate?.(S), HYDRATE_MS); } catch (_) {}
-    if (!mirrored) {
-      try { mirrored = await withTimeout(global.EodVisitMirror?.hydrate?.(S), HYDRATE_MS); } catch (_) {}
-    }
+    try { await withTimeout(global.EodTeamSession?.hydrate?.(S), HYDRATE_MS); } catch (_) {}
+    try { mirrored = await withTimeout(global.EodVisitMirror?.hydrate?.(S), HYDRATE_MS); } catch (_) {}
     if (global.PhotoDB?.switchToDayConfirm) {
       try {
         await withTimeout(global.PhotoDB.switchToDayConfirm(store, date, S.state.photos), 8000);
       } catch (_) {}
+    }
+    if (global.EodTeamSession?.hydrateThumbs && S.state.photos) {
+      try { await withTimeout(global.EodTeamSession.hydrateThumbs(S.state.photos), HYDRATE_MS); } catch (_) {}
     }
     if (listEl) {
       try {

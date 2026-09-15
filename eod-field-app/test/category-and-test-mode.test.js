@@ -14,6 +14,7 @@ const {
   prodStatusPillHtml,
   neededCaptureSlot,
   liveStatusLineHtml,
+  siDisplayLabel,
 } = require('../js/lib/category-card-status');
 const {
   hasLoadedShift,
@@ -111,6 +112,28 @@ test('SI location label uses live.siLocation.label', () => {
     'Aisle 12 · 01-GROCERY · 6 bays'
   );
   assert.equal(siLocationLabel({ live: {} }), '');
+});
+
+test('live status line treats Complete mark as PROD+SI complete without photo counts', () => {
+  const row = {
+    live: {
+      prodStatus: 'open',
+      siPresent: true,
+      siStatus: 'incomplete',
+      prodBeforeCount: 0,
+      prodAfterCount: 0,
+      siPhotoCount: 0,
+      sectionCount: 6,
+    },
+    marks: { active: ['complete'], details: { complete: { markedBy: 'nuke-reports' } } },
+  };
+  assert.equal(prodPhotoState(row).kind, 'complete');
+  assert.equal(siDisplayLabel(row), 'complete');
+  const html = liveStatusLineHtml(row, (s) => s);
+  assert.match(html, /PROD[\s\S]*complete/);
+  assert.match(html, /SI[\s\S]*complete/);
+  assert.equal(rowSendReady(row), true);
+  assert.equal(sheetRowDone(row), true);
 });
 
 test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {

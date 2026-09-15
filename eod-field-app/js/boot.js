@@ -46,6 +46,22 @@
     }
   }
 
+  async function hydrateRemoteShift() {
+    const S = window.EodSession;
+    if (!S?.isVisitReady?.()) return;
+    try { await window.EodTeamSession?.hydrate?.(S); } catch (err) {
+      console.warn('[eod-field-app] team session hydrate', err);
+    }
+    try { await window.EodVisitMirror?.hydrate?.(S); } catch (err) {
+      console.warn('[eod-field-app] visit mirror hydrate', err);
+    }
+    try {
+      if (window.EodTeamSession?.hydrateThumbs && S.state.photos) {
+        await window.EodTeamSession.hydrateThumbs(S.state.photos);
+      }
+    } catch (_) {}
+  }
+
   async function boot() {
     try {
       try { window.EodChrome?.bindNav?.(); } catch (_) {}
@@ -100,6 +116,7 @@
       try { window.EodConnections?.init?.(); } catch (err) { console.warn('[eod-field-app] connections init', err); }
       try { window.EodTestMode?.init?.(); } catch (err) { console.warn('[eod-field-app] version/test init', err); }
       await loadPhotosIntoSession();
+      await hydrateRemoteShift();
       window.EodRouter.init();
       try {
         const choosingPriorDay = window.EodVisit?.presentPriorDayChoice?.();
@@ -107,7 +124,7 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.4.44').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.4.45').catch(() => {});
           if (!navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;

@@ -4,10 +4,20 @@
 
   function photoCount(S, type) {
     const arr = (S?.state?.photos && S.state.photos[type]) || [];
+    const L = global.EodSendSheetsLogic || {};
+    const live = global.PhotoDB?.liveObjectUrls;
+    if (typeof L.cartSlotHasLoadedPhotos === 'function') {
+      return arr.filter((p) => L.hasRecoverablePhoto
+        ? L.hasRecoverablePhoto(p, live)
+        : L.cartSlotHasLoadedPhotos([p], live)).length;
+    }
     return arr.filter((p) => {
       if (!p) return false;
       if (typeof p === 'string') return true;
-      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl || p.teamUrl || p.offloaded);
+      return !!(
+        p.dataUrl || p.blobId || p.previewUrl || p.objectUrl
+        || p.teamUrl || p.thumbUrl || p.offloaded
+      );
     }).length;
   }
 

@@ -77,6 +77,9 @@
   function prodPhotoState(row, extraBefore) {
     const live = row && row.live;
     const counts = prodPhotoCounts(row, extraBefore);
+    if (markActive(row, 'complete')) {
+      return { kind: 'complete', ...counts };
+    }
     if (!live) {
       if (counts.before || counts.after) return { kind: prodKindFromCounts(counts.before, counts.after), ...counts };
       return { kind: 'hidden', before: 0, after: 0 };
@@ -94,6 +97,7 @@
   }
 
   function siDisplayLabel(row) {
+    if (markActive(row, 'complete')) return 'complete';
     const live = row && row.live;
     const { have, need } = siSectionCounts(row);
     if (need > 0 && have >= need) return 'complete';
@@ -157,10 +161,16 @@
   }
 
   function prodDone(row) {
+    if (markActive(row, 'complete') || markActive(row, 'not_in_store') || markActive(row, 'out_of_scope')) {
+      return true;
+    }
     return prodPhotosReady(row);
   }
 
   function siDone(row) {
+    if (markActive(row, 'complete') || markActive(row, 'not_in_store') || markActive(row, 'out_of_scope')) {
+      return true;
+    }
     return siPhotosReady(row);
   }
 
