@@ -66,7 +66,7 @@
       if (t === 'complete') {
         // System auto-complete from PROD+SI shows as sheet complete; lead override labeled separately
         const by = row?.marks?.details?.complete?.markedBy;
-        if (by && by !== 'prod-si-sync') {
+        if (by && by !== 'prod-si-sync' && by !== 'nuke-reports') {
           pills.push('<span class="pill ok">lead complete</span>');
         } else {
           pills.push('<span class="pill ok">sheet complete</span>');
@@ -199,6 +199,174 @@
     } finally {
       syncPromise = null;
     }
+  }
+
+  async function runNuke() {
+    const S = global.EodSession;
+    const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+    const resp = await global.authFetch(`${API}/nuke`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        fiscalWeek: S.state.fiscalWeek || S.state.sheet?.fiscalWeek || null,
+        visitId: S.state.selectedShift?.visitId || null,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Nuke failed (${resp.status})`);
+    if (data.sheet) {
+      S.patch({
+        sheet: data.sheet,
+        sheetLoaded: true,
+        fiscalWeek: data.sheet.fiscalWeek || S.state.fiscalWeek || '',
+      }, 'nuke');
+      try { await global.EodGarden?.saveSheetSnapshot?.(data.sheet); } catch (_) {}
+      try { global.EodDeptSignatures?.syncFromSheet?.(data.sheet); } catch (_) {}
+      try { global.EodCoverNotes?.apply?.(S, 'nuke'); } catch (_) {}
+    }
+    return data;
+  }
+
+  function showNukeResults(data, { onRefresh } = {}) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'eod-alert-overlay show ds-nuke-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      const marked = data.markedComplete || [];
+      const open = data.variances || [];
+      const ready = !!data.sendReady;
+      const ms = data.ms != null ? `${Math.round(Number(data.ms) / 100) / 10}s` : '';
+      const head = ready
+        ? `All sets clear${ms ? ` · ${ms}` : ''}. Send EOD when the rest of the checklist is done.`
+        : `Marked ${marked.length} complete${ms ? ` in ${ms}` : ''}. ${open.length} still need a call.`;
+      const varHtml = open.map((v) => {
+        const opts = (v.options || []).map((o) => (
+          `<button type="button" class="btn btn-secondary" data-nuke-mark="${esc(o.id)}" data-row="${esc(v.rowId)}" title="${esc(o.hint || '')}">${esc(o.label)}</button>`
+        )).join('');
+        return `<div class="ds-nuke-row" data-nuke-row="${esc(v.rowId)}">
+          <div class="ds-nuke-row-title"><strong>${esc(v.label)}</strong> <span class="muted">${esc(v.dbkey || '')}</span></div>
+          <div class="muted ds-nuke-finding">${esc(v.finding || v.kind || '')}</div>
+          <div class="ds-actions">${opts}</div>
+        </div>`;
+      }).join('');
+      overlay.innerHTML = `
+        <div class="eod-alert-dialog ds-nuke-dialog">
+          <h2>Nuke</h2>
+          <div class="eod-alert-body">${esc(head)}</div>
+          ${open.length ? `<div class="ds-nuke-list">${varHtml}</div>` : ''}
+          <div class="eod-alert-actions">
+            ${ready ? '<button type="button" class="btn btn-primary" data-nuke-act="send">Go to Send</button>' : ''}
+            <button type="button" class="btn btn-secondary" data-nuke-act="close">Close</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      try { global.EodA11y?.activate?.(overlay); } catch (_) {}
+
+      const finish = (act) => {
+        try { global.EodA11y?.deactivate?.(overlay); } catch (_) {}
+        overlay.remove();
+        resolve(act);
+      };
+
+      overlay.querySelector('[data-nuke-act="close"]')?.addEventListener('click', () => finish('close'));
+      overlay.querySelector('[data-nuke-act="send"]')?.addEventListener('click', () => {
+        finish('send');
+        try { global.EodRouter?.go?.('send'); } catch (_) {}
+      });
+      overlay.querySelectorAll('[data-nuke-mark]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const rowId = btn.getAttribute('data-row');
+          const markType = btn.getAttribute('data-nuke-mark');
+          btn.disabled = true;
+          try {
+            if (markType === 'not_in_store' && typeof global.askToReportNotInStore === 'function') {
+              const row = (global.EodSession.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+              const choice = await global.askToReportNotInStore(row || { catName: 'set' });
+              if (!choice || choice === 'cancel') {
+                btn.disabled = false;
+                return;
+              }
+              await applyMark(rowId, markType, { forceOn: true, helpdeskSent: choice === 'report' });
+              if (choice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
+                await global.openHelpdeskForSheetRow(row);
+              }
+            } else if (markType === 'out_of_scope') {
+              const ok = await confirmOutOfScope(1);
+              if (!ok) {
+                btn.disabled = false;
+                return;
+              }
+              await applyMark(rowId, markType, { forceOn: true });
+            } else {
+              await applyMark(rowId, markType, { forceOn: true });
+            }
+            const host = overlay.querySelector(`[data-nuke-row="${rowId}"]`);
+            host?.remove();
+            if (!overlay.querySelector('[data-nuke-row]')) {
+              const body = overlay.querySelector('.eod-alert-body');
+              if (body) body.textContent = 'All remaining sets marked. Go to Send when ready.';
+              const actions = overlay.querySelector('.eod-alert-actions');
+              if (actions && !actions.querySelector('[data-nuke-act="send"]')) {
+                const go = document.createElement('button');
+                go.type = 'button';
+                go.className = 'btn btn-primary';
+                go.setAttribute('data-nuke-act', 'send');
+                go.textContent = 'Go to Send';
+                go.addEventListener('click', () => {
+                  finish('send');
+                  try { global.EodRouter?.go?.('send'); } catch (_) {}
+                });
+                actions.insertBefore(go, actions.firstChild);
+              }
+            }
+            if (typeof onRefresh === 'function') await onRefresh();
+            global.EodChrome?.refresh();
+          } catch (err) {
+            await global.EodAlerts?.alert?.('Mark failed', err.message || String(err));
+            btn.disabled = false;
+          }
+        });
+      });
+    });
+  }
+
+  function bindNukeLongPress(titleEl, run) {
+    if (!titleEl || titleEl.dataset.nukeBound) return;
+    titleEl.dataset.nukeBound = '1';
+    titleEl.classList.add('ds-nuke-title');
+    titleEl.title = 'Hold for Nuke';
+    let timer = null;
+    let fired = false;
+    const clear = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    titleEl.addEventListener('pointerdown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      fired = false;
+      clear();
+      timer = setTimeout(() => {
+        timer = null;
+        fired = true;
+        try { titleEl.releasePointerCapture?.(e.pointerId); } catch (_) {}
+        run();
+      }, 650);
+    });
+    titleEl.addEventListener('pointerup', clear);
+    titleEl.addEventListener('pointercancel', clear);
+    titleEl.addEventListener('pointerleave', clear);
+    titleEl.addEventListener('click', (e) => {
+      if (fired) {
+        e.preventDefault();
+        e.stopPropagation();
+        fired = false;
+      }
+    }, true);
   }
 
   /** Fetch all signoff pages as PDF (preview) or fax via print-at-store. */
@@ -638,7 +806,7 @@
     mount.innerHTML = `
       <div class="card heart">
         <div class="cat-head">
-          <h1>Categories</h1>
+          <h1 id="categoriesTitle">Categories</h1>
           <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
         </div>
@@ -916,6 +1084,25 @@
         syncBtn.disabled = false;
       }
     };
+    bindNukeLongPress(document.getElementById('categoriesTitle'), async () => {
+      const title = document.getElementById('categoriesTitle');
+      if (title) title.classList.add('is-nuking');
+      try {
+        const data = await runNuke();
+        await paint();
+        global.EodChrome?.refresh();
+        await showNukeResults(data, {
+          onRefresh: async () => {
+            try { await loadSheet(); } catch (_) {}
+            await paint();
+          },
+        });
+      } catch (err) {
+        await global.EodAlerts?.alert?.('Nuke failed', err.message || String(err));
+      } finally {
+        title?.classList.remove('is-nuking');
+      }
+    });
     document.getElementById('sheetSearch').oninput = () => paint();
     document.getElementById('sheetSelectAll')?.addEventListener('click', (ev) => ev.stopPropagation());
     document.getElementById('sheetSelectAll')?.addEventListener('change', () => {
@@ -974,6 +1161,7 @@
     openPrintAtStoreModal,
     nextWalkRow,
     openSurveyForRow,
+    runNuke,
     showDoneTab() {
       const sess = global.EodSession;
       sess.patch({ sheetFilter: 'done' }, 'sheet-filter');

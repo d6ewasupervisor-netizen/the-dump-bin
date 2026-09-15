@@ -149,7 +149,7 @@ test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {
   assert.equal(matchesSheetFilters(nis, { notInStore: true, notInSi: true }), true);
 });
 
-test('sheet filters: Done requires PROD before+after and SI afters, not a lead Complete mark', () => {
+test('sheet filters: Done includes live both-complete or Complete mark', () => {
   const liveBoth = {
     live: {
       prodComplete: true,
@@ -173,11 +173,12 @@ test('sheet filters: Done requires PROD before+after and SI afters, not a lead C
   assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(backlog, { status: 'backlog' }), true);
   assert.equal(matchesSheetFilters(complete, { status: 'backlog' }), false);
-  assert.equal(sheetRowDone(complete), false);
-  assert.equal(matchesSheetFilters(complete, { status: 'done' }), false);
+  assert.equal(sheetRowDone(complete), true);
+  assert.equal(rowSendReady(complete), true);
+  assert.equal(matchesSheetFilters(complete, { status: 'done' }), true);
 });
 
-test('NISI is not done; only NIS / Out of Scope / photos clear a set', () => {
+test('NISI is not done; Complete / NIS / Out of Scope / photos clear a set', () => {
   const nisi = { marks: { notInSi: true, active: ['not_in_si'] } };
   const nis = { marks: { notInStore: true, active: ['not_in_store'] } };
   const oos = { marks: { outOfScope: true, active: ['out_of_scope'] } };
@@ -576,8 +577,13 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /id="sheetFilters"/);
   assert.match(signoff, /data-filter="status"/);
   assert.match(signoff, /data-value="done">Done/);
-  assert.match(signoff, /data-value="not_done">Not Done/);
+  assert.match(signoff, /data-value="not_done">Not Started/);
   assert.match(signoff, /data-value="backlog">Backlog/);
+  assert.match(signoff, /id="categoriesTitle"/);
+  assert.match(signoff, /bindNukeLongPress/);
+  assert.match(signoff, /\/nuke/);
+  assert.match(signoff, /function runNuke/);
+  assert.match(signoff, /showNukeResults/);
   assert.match(signoff, /id="sheetBulk"/);
   assert.match(signoff, /id="sheetSelectAll"/);
   assert.match(signoff, /filteredSheetRows/);

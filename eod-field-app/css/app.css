@@ -1231,6 +1231,13 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .ds-row.is-selected { outline: 2px solid var(--accent); }
 .cat-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
 .cat-head h1 { margin: 0; flex: 1 1 auto; }
+.cat-head h1.ds-nuke-title { user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+.cat-head h1.ds-nuke-title.is-nuking { opacity: 0.55; }
+.ds-nuke-overlay .ds-nuke-dialog { width: min(520px, 100%); max-height: min(86vh, 720px); display: flex; flex-direction: column; }
+.ds-nuke-list { overflow: auto; max-height: 48vh; margin: 0 0 12px; display: flex; flex-direction: column; gap: 10px; }
+.ds-nuke-row { border: 1px solid var(--border, #334155); border-radius: 10px; padding: 10px; }
+.ds-nuke-row-title { margin-bottom: 4px; }
+.ds-nuke-finding { font-size: 13px; margin-bottom: 8px; }
 .manager-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .manager-chip {
   appearance: none; border: 1px solid var(--border); background: var(--surface);

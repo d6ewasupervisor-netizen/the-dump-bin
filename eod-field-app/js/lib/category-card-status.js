@@ -167,6 +167,7 @@
   function sheetRowDone(row) {
     if (markActive(row, 'out_of_scope')) return true;
     if (markActive(row, 'not_in_store')) return true;
+    if (markActive(row, 'complete')) return true;
     return prodPhotosReady(row) && siPhotosReady(row);
   }
 
@@ -174,6 +175,7 @@
     if (markActive(row, 'out_of_scope')) return true;
     if (markActive(row, 'not_in_store')) return true;
     if (markActive(row, 'backlog')) return true;
+    if (markActive(row, 'complete')) return true;
     return prodPhotosReady(row) && siPhotosReady(row);
   }
 
