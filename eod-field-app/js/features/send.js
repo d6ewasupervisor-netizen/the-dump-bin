@@ -1066,6 +1066,29 @@ ${cleanNotes}`;
         if (busy?.beginSession) {
           busy.beginSession({ title: 'Sending EOD' });
         }
+        if (global.EodSendGates?.kickSettleDrain) {
+          setBusy('Closing SI sets');
+          const settle = await global.EodSendGates.kickSettleDrain({
+            storeNumber: payload.storeNumber,
+            workDate: payload.workDate,
+            authFetch: global.authFetch,
+            apiBase: global.EOD_API_BASE,
+            headers,
+            timeoutMs: 180_000,
+            pollMs: 4000,
+            onStatus: (msg) => setBusy(msg || 'Closing SI sets'),
+          });
+          if (settle?.pending || settle?.timedOut) {
+            const n = Number(settle.openBacklog) || 0;
+            const detail = n > 0
+              ? `${n} set(s) still finishing SI closeout.`
+              : 'SI closeout is still catching up.';
+            await global.EodAlerts?.alert?.(
+              'SI still closing',
+              `${detail} Send will continue — DumpBin can finish the rest.`
+            );
+          }
+        }
         if (global.EodSendSheets?.prepareForEmail) {
           setBusy('Building sheets');
           generatedSheets = await global.EodSendSheets.prepareForEmail({

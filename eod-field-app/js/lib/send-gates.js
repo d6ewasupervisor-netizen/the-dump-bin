@@ -111,7 +111,109 @@
     });
   }
 
-  const api = { items, missing, firstMessage, go, listHtml, bindList, photoCount };
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Kick store-day settle-drain and poll until completed/failed or timeout.
+   * Soft-warn path: never hard-blocks Send; returns { ok, pending, openBacklog, job }.
+   */
+  async function kickSettleDrain(opts) {
+    const {
+      storeNumber,
+      workDate,
+      authFetch,
+      apiBase,
+      headers,
+      timeoutMs = 180_000,
+      pollMs = 4000,
+      onStatus,
+    } = opts || {};
+    const fetchFn = authFetch || global.authFetch;
+    const base = String(apiBase || global.EOD_API_BASE || '').replace(/\/$/, '');
+    if (!fetchFn || !base || !storeNumber || !workDate) {
+      return { ok: true, skipped: true, pending: false, openBacklog: 0 };
+    }
+    let kick;
+    try {
+      const resp = await fetchFn(`${base}/api/field-set/settle-now`, {
+        method: 'POST',
+        headers: Object.assign({ 'content-type': 'application/json' }, headers || {}),
+        body: JSON.stringify({ storeNumber, workDate }),
+      });
+      kick = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        return {
+          ok: false,
+          pending: true,
+          openBacklog: Number(kick.openBacklog) || 0,
+          error: kick.error || `settle-now ${resp.status}`,
+        };
+      }
+    } catch (err) {
+      return { ok: false, pending: true, openBacklog: 0, error: err.message || String(err) };
+    }
+
+    const jobId = kick.job?.jobId || kick.job?.id;
+    const openBacklog = Number(kick.openBacklog) || 0;
+    if (!jobId) {
+      return { ok: true, pending: openBacklog > 0, openBacklog, job: kick.job || null };
+    }
+
+    const deadline = Date.now() + Math.max(5_000, Number(timeoutMs) || 180_000);
+    let lastJob = kick.job;
+    while (Date.now() < deadline) {
+      try {
+        onStatus?.('Closing SI sets…');
+        const statusResp = await fetchFn(`${base}/api/field-set/jobs/${jobId}`, {
+          headers: headers || {},
+        });
+        const body = await statusResp.json().catch(() => ({}));
+        lastJob = body.job || lastJob;
+        const status = String(lastJob?.status || '');
+        if (status === 'completed') {
+          const pendingLeft = Array.isArray(lastJob?.result?.pending)
+            ? lastJob.result.pending.length
+            : 0;
+          return {
+            ok: true,
+            pending: pendingLeft > 0,
+            openBacklog: pendingLeft,
+            job: lastJob,
+          };
+        }
+        if (status === 'failed') {
+          return {
+            ok: false,
+            pending: true,
+            openBacklog: openBacklog || 1,
+            job: lastJob,
+            error: lastJob?.error || 'settle-drain failed',
+          };
+        }
+      } catch (_) { /* keep polling */ }
+      await sleep(Math.max(1000, Number(pollMs) || 4000));
+    }
+    return {
+      ok: false,
+      pending: true,
+      openBacklog: openBacklog || 1,
+      job: lastJob,
+      timedOut: true,
+    };
+  }
+
+  const api = {
+    items,
+    missing,
+    firstMessage,
+    go,
+    listHtml,
+    bindList,
+    photoCount,
+    kickSettleDrain,
+  };
   if (typeof module === 'object' && module.exports) module.exports = api;
   global.EodSendGates = api;
 })(typeof window !== 'undefined' ? window : globalThis);

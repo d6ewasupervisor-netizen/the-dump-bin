@@ -714,6 +714,43 @@ test('send gates follow visit → cart → check-in before lead signature', () =
   assert.equal(sendGates.firstMessage(S), 'Add your lead signature');
 });
 
+test('kickSettleDrain polls settle-now then soft-returns on timeout', async () => {
+  const calls = [];
+  const authFetch = async (url, init) => {
+    calls.push({ url, method: init?.method || 'GET' });
+    if (String(url).includes('/settle-now')) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            ok: true,
+            openBacklog: 2,
+            job: { jobId: 'job-settle-1', status: 'pending' },
+          };
+        },
+      };
+    }
+    return {
+      ok: true,
+      async json() {
+        return { ok: true, job: { jobId: 'job-settle-1', status: 'retry' } };
+      },
+    };
+  };
+  const out = await sendGates.kickSettleDrain({
+    storeNumber: '19',
+    workDate: '2026-09-15',
+    authFetch,
+    apiBase: 'https://eod-api.example',
+    timeoutMs: 50,
+    pollMs: 10,
+  });
+  assert.equal(out.timedOut, true);
+  assert.equal(out.pending, true);
+  assert.ok(calls.some((c) => /settle-now/.test(c.url)));
+  assert.ok(calls.some((c) => /jobs\/job-settle-1/.test(c.url)));
+});
+
 test('cover notes remove the generated In/Out/cart/marked line and keep lead notes', () => {
   const { mergeNotes, summaryLine } = require('../js/lib/cover-notes');
   const S = {
