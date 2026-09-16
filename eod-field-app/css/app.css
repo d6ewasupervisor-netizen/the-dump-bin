@@ -1703,6 +1703,48 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   touch-action: none;
   pointer-events: auto;
 }
+/* ── Recipient email typeahead ───────────────────────────────────────────── */
+.email-suggest-list {
+  position: relative;
+  z-index: 200;
+  background: var(--surface, #1f2937);
+  border: 1px solid var(--border, #4b5563);
+  border-radius: 8px;
+  margin-top: 4px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.email-suggest-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border, #374151);
+  color: var(--text, #f8fafc);
+  text-align: left;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.email-suggest-item:last-child { border-bottom: none; }
+.email-suggest-item:active,
+.email-suggest-item:focus { background: var(--row-bg, #1e293b); outline: none; }
+.email-suggest-name {
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.email-suggest-addr {
+  font-size: 12px;
+  color: var(--muted, #94a3b8);
+  margin-top: 2px;
+}
+.pill-sm { font-size: 11px; padding: 1px 6px; }
+
 /* ── EOD sent acknowledgement overlay ───────────────────────────────────── */
 .eod-sent-ack-overlay {
   position: fixed;

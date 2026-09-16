@@ -375,10 +375,11 @@ ${cleanNotes}`;
       ...(S.state.fredmeyerEmailPool || []),
       ...(S.state.emailRecipients || []),
     ].map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))];
-    const hasFredMeyerTeam = recipients.some((email) => email.endsWith('@stores.fredmeyer.com'));
-    if (!hasFredMeyerTeam && userEmail) {
-      recipients = [...new Set([userEmail, ...recipients])];
+    // Lead is always included regardless of FM team presence
+    if (userEmail && !recipients.includes(userEmail)) {
+      recipients = [userEmail, ...recipients];
     }
+    recipients = [...new Set(recipients)];
 
     const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
       S.state.shifts,
@@ -581,9 +582,10 @@ ${cleanNotes}`;
         <div class="field">
           <label>Add recipient</label>
           <div class="btn-row">
-            <input type="email" id="emailInput" placeholder="recipient@example.com" style="flex:1;min-height:44px;padding:10px;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff;font-size:16px;">
+            <input type="text" id="emailInput" placeholder="Name or email address" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;min-height:44px;padding:10px;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff;font-size:16px;">
             <button type="button" class="btn btn-primary" id="addEmailBtn">Add</button>
           </div>
+          <div id="emailSuggestList" class="email-suggest-list" style="display:none;"></div>
         </div>
         <div id="recipientList" style="margin-bottom:12px;"></div>
         <div class="field" id="fmPoolField" ${(S.state.fredmeyerEmailPool || []).length ? '' : 'hidden'}>
@@ -908,18 +910,112 @@ ${cleanNotes}`;
     }
     paintRecipients();
 
-    document.getElementById('addEmailBtn').onclick = () => {
-      const v = document.getElementById('emailInput').value.trim().toLowerCase();
-      if (!v || !v.includes('@')) return;
+    // ── Recipient typeahead ────────────────────────────────────────────────
+    const emailInput = document.getElementById('emailInput');
+    const suggestList = document.getElementById('emailSuggestList');
+    let suggestTimer = null;
+    let lastQuery = '';
+
+    function addRecipientEmail(email) {
+      const v = String(email || '').trim().toLowerCase();
+      if (!v || !v.includes('@')) return false;
       const arr = S.state.emailRecipients.slice();
       if (!arr.includes(v)) arr.push(v);
       S.patch({ emailRecipients: arr }, 'recipients');
-      document.getElementById('emailInput').value = '';
       S.saveDraft();
       if (v.endsWith('@stores.fredmeyer.com')) {
         global.EodCover?.addFredmeyerEmail?.(v).catch(() => {});
       }
-      render(mount);
+      return true;
+    }
+
+    function hideSuggest() {
+      if (suggestList) { suggestList.style.display = 'none'; suggestList.innerHTML = ''; }
+      lastQuery = '';
+    }
+
+    function renderSuggest(people) {
+      if (!suggestList || !people.length) { hideSuggest(); return; }
+      suggestList.innerHTML = people.map((p) => {
+        const name = esc(p.name || '');
+        const email = esc(p.email || '');
+        const badge = p.role === 'supervisor' ? ' <span class="pill pill-sm">Supervisor</span>' : '';
+        return `<button type="button" class="email-suggest-item" data-email="${email}">
+          <span class="email-suggest-name">${name}${badge}</span>
+          <span class="email-suggest-addr">${email}</span>
+        </button>`;
+      }).join('');
+      suggestList.style.display = '';
+      suggestList.querySelectorAll('.email-suggest-item').forEach((btn) => {
+        btn.addEventListener('mousedown', (e) => {
+          // mousedown so it fires before blur
+          e.preventDefault();
+        });
+        btn.addEventListener('click', () => {
+          const email = btn.getAttribute('data-email');
+          if (addRecipientEmail(email)) {
+            emailInput.value = '';
+            hideSuggest();
+            paintRecipients();
+            render(mount);
+          }
+        });
+      });
+    }
+
+    async function fetchSuggest(q) {
+      try {
+        const url = `${global.EOD_API_BASE}/api/dump-bin/print-at-store/cc-contacts?q=${encodeURIComponent(q)}&limit=8`;
+        const resp = await global.authFetch(url, { skipBusy: true });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (lastQuery !== q) return; // stale
+        const people = (data.people || []).filter((p) => p.email && p.name);
+        // Filter out already-added recipients
+        const existing = new Set(S.state.emailRecipients.map((e) => e.toLowerCase()));
+        const filtered = people.filter((p) => !existing.has(p.email.toLowerCase()));
+        renderSuggest(filtered);
+      } catch (_) { /* network; ignore */ }
+    }
+
+    emailInput.addEventListener('input', () => {
+      const raw = emailInput.value.trim();
+      if (suggestTimer) { clearTimeout(suggestTimer); suggestTimer = null; }
+      // If it looks like a full email address, no suggest needed
+      if (raw.includes('@')) { hideSuggest(); return; }
+      if (raw.length < 4) { hideSuggest(); return; }
+      lastQuery = raw;
+      suggestTimer = setTimeout(() => fetchSuggest(raw), 280);
+    });
+
+    emailInput.addEventListener('blur', () => {
+      // Small delay so click on a suggest item fires first
+      setTimeout(hideSuggest, 180);
+    });
+
+    emailInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { hideSuggest(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = emailInput.value.trim().toLowerCase();
+        if (v && v.includes('@')) {
+          if (addRecipientEmail(v)) {
+            emailInput.value = '';
+            hideSuggest();
+            render(mount);
+          }
+        }
+      }
+    });
+
+    document.getElementById('addEmailBtn').onclick = () => {
+      const v = emailInput.value.trim().toLowerCase();
+      if (!v || !v.includes('@')) return;
+      if (addRecipientEmail(v)) {
+        emailInput.value = '';
+        hideSuggest();
+        render(mount);
+      }
     };
 
     document.getElementById('fmPickerBtn')?.addEventListener('click', () => {
