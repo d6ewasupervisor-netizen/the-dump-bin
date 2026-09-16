@@ -15,6 +15,8 @@ const {
   neededCaptureSlot,
   liveStatusLineHtml,
   siDisplayLabel,
+  siAisleLabel,
+  versionLabel,
 } = require('../js/lib/category-card-status');
 const {
   hasLoadedShift,
@@ -87,9 +89,51 @@ test('live status line says in progress when SAS is complete but only befores ex
   });
   assert.match(html, /in progress/);
   assert.doesNotMatch(html, />complete</);
-  assert.match(html, /before 1 \/ after 0/);
+  // PROD keeps before/after slots as "1/0"; SI is a single after count.
+  assert.match(html, /<span class="muted">1\/0<\/span>/);
+  assert.doesNotMatch(html, /before|after|sections/);
   assert.match(html, /incomplete/);
-  assert.match(html, /0\/1 sections/);
+  assert.match(html, /<span class="muted">0<\/span>/);
+});
+
+test('compact card meta drops the department and bay count, keeping the aisle', () => {
+  const row = {
+    live: {
+      siLocation: {
+        aisleLabel: 'Aisle 7',
+        department: '01-GROCERY',
+        bayCount: 3,
+        label: 'Aisle 7 \u00b7 01-GROCERY \u00b7 3 bays',
+      },
+    },
+  };
+  assert.equal(siAisleLabel(row), 'Aisle 7');
+  assert.equal(siLocationLabel(row), 'Aisle 7 \u00b7 01-GROCERY \u00b7 3 bays');
+});
+
+test('card meta shows no aisle when SI only reported department and bays', () => {
+  const row = {
+    live: { siLocation: { department: '01-GROCERY', bayCount: 3, label: '01-GROCERY \u00b7 3 bays' } },
+  };
+  assert.equal(siAisleLabel(row), '');
+});
+
+test('version label prefers the token and falls back to V + version', () => {
+  assert.equal(versionLabel({ versionToken: 'V5', version: '5' }), 'V5');
+  assert.equal(versionLabel({ version: '12' }), 'V12');
+  assert.equal(versionLabel({}), '');
+});
+
+test('not executable closes the set for done and send-ready', () => {
+  const row = { marks: { active: ['not_executable'], notExecutable: true } };
+  assert.equal(sheetRowDone(row), true);
+  assert.equal(rowSendReady(row), true);
+});
+
+test('not executable rows stay visible on Categories', () => {
+  const row = { marks: { active: ['not_executable'], notExecutable: true } };
+  assert.equal(matchesSheetFilters(row, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(row, { status: 'not_done' }), false);
 });
 
 test('PROD after count falls back to prod-source photos when the live column is missing', () => {

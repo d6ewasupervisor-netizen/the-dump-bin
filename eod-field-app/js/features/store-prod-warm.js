@@ -94,7 +94,10 @@
       if (!row?.dbkey) return false;
       if (row.live?.bothComplete) return false;
       const marks = row.marks?.active || [];
-      if (marks.includes('complete') || marks.includes('not_in_store') || marks.includes('out_of_scope')) {
+      if (marks.includes('complete')
+        || marks.includes('not_in_store')
+        || marks.includes('out_of_scope')
+        || marks.includes('not_executable')) {
         return false;
       }
       return true;

@@ -1229,6 +1229,46 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .ds-row-capture .btn { width: 100%; min-height: var(--touch); }
 .ds-row-compact .ds-actions { flex: 1 1 100%; }
 .ds-row.is-selected { outline: 2px solid var(--accent); }
+.ds-row.marked-ne { background: rgba(120, 53, 15, .3); }
+
+/* Category number — contrasting box on the right of the card copy. */
+.ds-row-catnum {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  min-width: 2.75em;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--accent-soft, #1e293b);
+  border: 2px solid var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1.15;
+  font-size: clamp(12px, 3.6vw, 15px);
+}
+
+/* Selection bar floats above the bottom nav so marks are reachable at any
+   scroll position. Hidden until rows are selected. */
+.ds-bulk:not(.is-on) { display: none; }
+.ds-bulk.is-on {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--nav-h, 64px) + var(--safe-b, 0px) + 8px);
+  z-index: 60;
+  padding: 10px 12px;
+  background: var(--surface, #0f172a);
+  border: 1px solid var(--accent, #2563eb);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.ds-bulk.is-on .ds-bulk-count { font-weight: 700; margin-bottom: 8px; }
+.ds-bulk.is-on .ds-actions { margin-top: 0; }
+/* Keep the last card clear of the floating bar. */
+.ds-bulk.is-on ~ #sheetRows { padding-bottom: 168px; }
 .cat-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
 .cat-head h1 { margin: 0; flex: 1 1 auto; }
 .cat-head h1.ds-nuke-title { user-select: none; -webkit-user-select: none; touch-action: manipulation; }
@@ -2803,6 +2843,12 @@ body.dump-bin-viewer-open .eod-test-banner {
 .eod-buffering[data-state="success"] .eod-buffering-check { display: block; }
 @keyframes eod-busy-spin { to { transform: rotate(360deg); } }
 
+/* 5 mark buttons: 3-up keeps them to two rows instead of three. */
+@media (min-width: 400px) {
+  .ds-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 @media (min-width: 561px) {
   .ds-actions {
     grid-template-columns: repeat(5, minmax(0, 1fr));

@@ -31,6 +31,29 @@
     return String(loc.label || loc.aisleLabel || '').trim();
   }
 
+  /* Aisle only. siLocation.label is "aisle · department · N bays"; the compact
+     card shows walk order, not the department or the bay count. */
+  function siAisleLabel(row) {
+    const loc = row && row.live && row.live.siLocation;
+    if (!loc) return '';
+    if (typeof loc === 'string') {
+      const m = loc.match(/aisle\s*[\w-]+/i);
+      return m ? m[0].trim() : '';
+    }
+    const aisle = String(loc.aisleLabel || '').trim();
+    if (aisle) return aisle;
+    const first = String(loc.label || '').split('\u00b7')[0].trim();
+    return /aisle/i.test(first) ? first : '';
+  }
+
+  /* "V5" for the card meta. */
+  function versionLabel(row) {
+    const token = String((row && row.versionToken) || '').trim();
+    if (token) return token;
+    const v = String((row && row.version) || '').trim();
+    return v ? `V${v}` : '';
+  }
+
   function markActive(row, type) {
     const m = row && (row.marks || row.mark);
     if (!m) return false;
@@ -40,6 +63,7 @@
     if (type === 'not_in_si') return !!m.notInSi;
     if (type === 'backlog') return !!m.backlog;
     if (type === 'out_of_scope') return !!m.outOfScope;
+    if (type === 'not_executable') return !!m.notExecutable;
     return m.type === type;
   }
 
@@ -121,11 +145,12 @@
     const siLabel = String((opts && opts.siLabel) || 'unknown');
     const siCls = siLabel === 'complete' ? 'ok' : siLabel === 'incomplete' ? 'warn' : '';
     const have = Number(opts && opts.siHave) || 0;
-    const need = Number(opts && opts.siNeed) || 0;
+    // PROD carries before/after slots, so it reads "1/1". SI only has afters,
+    // so it is a single count.
     return `PROD <span class="pill ${prodCls}">${escape(prodLabel)}</span>`
-      + ` <span class="muted">before ${before} / after ${after}</span>`
+      + ` <span class="muted">${before}/${after}</span>`
       + ` | SI <span class="pill ${siCls}">${escape(siLabel)}</span>`
-      + ` <span class="muted">${have}/${need} sections</span>`;
+      + ` <span class="muted">${have}</span>`;
   }
 
   function liveStatusLineHtml(row, esc, extraBefore) {
@@ -160,30 +185,31 @@
     return true;
   }
 
+  /* Terminal marks close a set without photos on either side. */
+  function terminalMark(row) {
+    return markActive(row, 'not_in_store')
+      || markActive(row, 'out_of_scope')
+      || markActive(row, 'not_executable');
+  }
+
   function prodDone(row) {
-    if (markActive(row, 'complete') || markActive(row, 'not_in_store') || markActive(row, 'out_of_scope')) {
-      return true;
-    }
+    if (markActive(row, 'complete') || terminalMark(row)) return true;
     return prodPhotosReady(row);
   }
 
   function siDone(row) {
-    if (markActive(row, 'complete') || markActive(row, 'not_in_store') || markActive(row, 'out_of_scope')) {
-      return true;
-    }
+    if (markActive(row, 'complete') || terminalMark(row)) return true;
     return siPhotosReady(row);
   }
 
   function sheetRowDone(row) {
-    if (markActive(row, 'out_of_scope')) return true;
-    if (markActive(row, 'not_in_store')) return true;
+    if (terminalMark(row)) return true;
     if (markActive(row, 'complete')) return true;
     return prodPhotosReady(row) && siPhotosReady(row);
   }
 
   function rowSendReady(row) {
-    if (markActive(row, 'out_of_scope')) return true;
-    if (markActive(row, 'not_in_store')) return true;
+    if (terminalMark(row)) return true;
     if (markActive(row, 'backlog')) return true;
     if (markActive(row, 'complete')) return true;
     return prodPhotosReady(row) && siPhotosReady(row);
@@ -278,7 +304,10 @@
     beforePillState,
     beforePillHtml,
     siLocationLabel,
+    siAisleLabel,
+    versionLabel,
     markActive,
+    terminalMark,
     prodPhotoCounts,
     prodPhotoState,
     prodStatusPillHtml,

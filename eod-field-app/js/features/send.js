@@ -279,6 +279,8 @@
     const notInSiText = notInSiLines.length
       ? notInSiLines.join('\n')
       : ((S.state.notInSiSelected || []).join('\n') || 'None');
+    const notExecutableLines = Notes?.notExecutableLines?.(S) || [];
+    const notExecutableText = notExecutableLines.length ? notExecutableLines.join('\n') : 'None';
     const sheet = S.state.sheet;
     const digitalValue = global.EodSendSheetsLogic?.digitalSignoffCoverValue?.(sheet)
       || (sheet && Array.isArray(sheet.rows) && sheet.rows.length ? 'attached' : 'none (no hosted sheet)');
@@ -315,6 +317,7 @@ Department signatures:
 ${deptSigText}
 ${notInStoreText === 'None' ? 'Not in store: None' : notInStoreText}
 ${notInSiText === 'None' ? 'Not in SI: None' : notInSiText}
+${notExecutableText === 'None' ? 'Not executable: None' : notExecutableText}
 Help desk reports: ${(S.state.helpdeskSubmittedReports || []).length
       ? (S.state.helpdeskSubmittedReports || []).map((r) => {
           const kind = r.issueTypeId === 'not_in_store' ? 'Not in store' : (r.issueTypeId || 'issue');
@@ -348,6 +351,7 @@ ${cleanNotes}`;
       signedOutSi: signedOut.si,
       notInStore: notInStoreText,
       notInSi: notInSiText,
+      notExecutable: notExecutableText,
       digitalSignoff: digitalValue,
       deptSignatures: deptSigText,
       afterTaken: yn(afterDone),

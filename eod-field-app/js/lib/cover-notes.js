@@ -3,7 +3,7 @@
   'use strict';
 
   const COVER_RE = /^In:\s/i;
-  const SET_LIST_RE = /^(?:[•\-—]\s*)*Not in (?:store|SI):/i;
+  const SET_LIST_RE = /^(?:[•\-—]\s*)*Not (?:in (?:store|SI)|executable):/i;
   const DAY_SUMMARY_RE = /^(?:[•\-—]\s*)*Day summary(?:\s*[—-])?$/i;
   const SKIP = new Set(['cover-sync', 'reset', 'notes']);
 
@@ -75,6 +75,22 @@
     return out;
   }
 
+  function notExecutableLines(S) {
+    const rows = S?.state?.sheet?.rows || [];
+    const out = [];
+    const seen = new Set();
+    for (const row of rows) {
+      if (!markActive(row, 'not_executable')) continue;
+      const label = String(row.catName || row.dbkey || '').trim();
+      if (!label) continue;
+      const line = `Not executable: ${label}`;
+      if (seen.has(line.toLowerCase())) continue;
+      seen.add(line.toLowerCase());
+      out.push(line);
+    }
+    return out;
+  }
+
   function summaryLine(S) {
     const sheet = S?.state?.sheet;
     const marked = sheet
@@ -134,6 +150,7 @@
     notesWithoutSetLists,
     nisLines,
     nisiLines,
+    notExecutableLines,
     apply,
     init,
     cartCount,

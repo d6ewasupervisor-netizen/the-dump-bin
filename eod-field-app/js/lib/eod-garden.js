@@ -135,10 +135,12 @@
       notInSi: arr.includes('not_in_si'),
       backlog: arr.includes('backlog'),
       outOfScope: arr.includes('out_of_scope'),
+      notExecutable: arr.includes('not_executable'),
       active: arr,
       pending: true,
       type: arr.includes('complete') ? 'complete'
         : arr.includes('not_in_store') ? 'not_in_store'
+        : arr.includes('not_executable') ? 'not_executable'
         : arr.includes('out_of_scope') ? 'out_of_scope'
         : arr.includes('not_in_si') ? 'not_in_si'
         : arr.includes('backlog') ? 'backlog'

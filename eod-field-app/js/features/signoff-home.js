@@ -30,6 +30,7 @@
     if (type === 'not_in_si') return !!m.notInSi;
     if (type === 'backlog') return !!m.backlog;
     if (type === 'out_of_scope') return !!m.outOfScope;
+    if (type === 'not_executable') return !!m.notExecutable;
     return m.type === type;
   }
 
@@ -40,6 +41,7 @@
     return markActive(row, 'complete')
       || markActive(row, 'not_in_store')
       || markActive(row, 'out_of_scope')
+      || markActive(row, 'not_executable')
       || bothLiveComplete(row);
   }
 
@@ -90,6 +92,7 @@
     if (markActive(row, 'not_in_store')) c.push('marked-nis');
     if (markActive(row, 'not_in_si') && !row?.live?.siPresent) c.push('marked-nisi');
     if (markActive(row, 'backlog') && !rowLooksComplete(row)) c.push('marked-backlog');
+    if (markActive(row, 'not_executable')) c.push('marked-ne');
     if (row?.hasError || String(row?.errorMessage || row?.error_message || '').trim()) {
       c.push('manifest-error');
     }
@@ -755,10 +758,11 @@
     const rows = filteredSheetRows(sheet, q, filters);
     if (!rows.length) return '<p class="muted">No sets match.</p>';
     return rows.map((row) => {
-      const locLabel = global.EodCategoryCardStatus
-        ? global.EodCategoryCardStatus.siLocationLabel(row)
+      const aisleLabel = global.EodCategoryCardStatus
+        ? global.EodCategoryCardStatus.siAisleLabel(row)
         : '';
       const footage = row.footageDisplay || row.size || row.footage || '';
+      const version = global.EodCategoryCardStatus?.versionLabel?.(row) || '';
       const est = global.EodCategoryCardStatus?.formatEstHrs?.(row.estHrs) || '';
       const btn = (type, label) => {
         const on = markActive(row, type);
@@ -766,10 +770,12 @@
       };
       const errMsg = String(row.errorMessage || row.error_message || '').trim();
       const canOpen = !!row.dbkey;
+      const catNum = String(row.catId || '').trim();
       const metaBits = [
-        row.dbkey ? `DBKEY ${row.dbkey}` : '',
-        locLabel,
+        row.dbkey ? `DB ${row.dbkey}` : '',
+        aisleLabel,
         footage ? String(footage) : '',
+        version,
         est,
         suggested.has(String(row.id)) ? 'COM suggest' : '',
       ].filter(Boolean);
@@ -790,12 +796,14 @@
           ${liveLine ? `<div class="ds-row-live">${liveLine}</div>` : ''}
           ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
+        ${catNum ? `<div class="ds-row-catnum" title="Category">${esc(catNum)}</div>` : ''}
         ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-slot="${esc(captureSlot)}">Capture</button></div>` : ''}
         <div class="ds-actions">
           ${btn('not_in_store', 'Not in Store')}
           ${btn('not_in_si', 'Not in SI')}
           ${btn('backlog', 'Backlog')}
           ${btn('out_of_scope', 'Out of Scope')}
+          ${btn('not_executable', 'Not Executable')}
         </div>
       </div>`;
     }).join('');
@@ -880,6 +888,7 @@
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">Not in SI</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="backlog">Backlog</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="out_of_scope">Out of Scope</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="not_executable">Not Executable</button>
         </div>`;
       bulk.querySelectorAll('[data-bulk-mark]').forEach((btn) => {
         btn.onclick = () => runBulkMark(btn.getAttribute('data-bulk-mark'));
