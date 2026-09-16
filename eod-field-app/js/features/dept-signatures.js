@@ -22,6 +22,8 @@
   let contacts = [];
   let signatures = [];
   let wizard = null; // { roleKey, step, contactId, fullName, email }
+  /** Keyed by lowercase email → dataUrl; persists for the session so a PIC can reuse across roles. */
+  const sessionSigCache = new Map();
   /** When set, only these role keys are shown (day-scoped from the digital sheet). */
   let scopedRoleKeys = null; // string[] | null
   let catalogRoles = ROLE_FALLBACK.slice();
@@ -794,15 +796,28 @@
     if (wizard.step === 'choice') {
       hint.textContent = 'Review today’s sets, or skip straight to your signature.';
       next.style.display = 'none';
+      const cachedUrl = sessionSigCache.get((wizard.email || '').toLowerCase());
       body.innerHTML = `
+        ${cachedUrl ? `
+        <button type="button" class="dept-sig-choice dept-sig-choice-reuse" id="deptSigReuseSign">
+          <strong>Use my earlier signature</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">Already signed today — reuse for this department</span>
+        </button>` : ''}
         <button type="button" class="dept-sig-choice" id="deptSigViewSets">
           <strong>View sets</strong><br>
           <span style="color:#94a3b8;font-size:13px;">Before and after photos for this department</span>
         </button>
         <button type="button" class="dept-sig-choice" id="deptSigJustSign">
-          <strong>Just sign</strong><br>
-          <span style="color:#94a3b8;font-size:13px;">Skip photo review</span>
+          <strong>${cachedUrl ? 'Sign fresh' : 'Just sign'}</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">${cachedUrl ? 'Draw, type, or upload a new signature' : 'Skip photo review'}</span>
         </button>`;
+      if (cachedUrl) {
+        document.getElementById('deptSigReuseSign').onclick = async () => {
+          wizard.signatureDataUrl = cachedUrl;
+          wizard.sigInput = null;
+          await submitSignature();
+        };
+      }
       document.getElementById('deptSigViewSets').onclick = () => enterSetsStep();
       document.getElementById('deptSigJustSign').onclick = () => {
         wizard.step = 'sign';
@@ -994,6 +1009,8 @@
         throw new Error(data.error || `Save failed (${resp.status})`);
       }
       addRecipientEmail(wizard.email);
+      // Cache this dataUrl so the same PIC can reuse it for other departments
+      if (wizard.email) sessionSigCache.set(wizard.email.toLowerCase(), dataUrl);
       closeWizard();
       await refresh();
       if (typeof showAlert === 'function') {

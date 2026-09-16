@@ -1703,6 +1703,11 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   touch-action: none;
   pointer-events: auto;
 }
+/* "Use my earlier signature" reuse button — visually distinct from other choices */
+.dept-sig-choice-reuse {
+  border-color: var(--accent-dim, #0d4f8b) !important;
+  background: color-mix(in srgb, var(--accent-dim, #0d4f8b) 12%, var(--row-bg, #1e293b)) !important;
+}
 /* dept-signatures input host: let ESI widget control sizing */
 .dept-sig-input-host { padding: 0; }
 #deptSigRoleList.eod-hidden-list { display: none !important; }
