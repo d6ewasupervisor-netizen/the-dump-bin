@@ -75,8 +75,8 @@
   // Both SAS (Okta) and Store Intelligence take First.Last. The RO email is
   // rejected outright by Okta for leads provisioned on another domain.
   function signInNameFor(lead) {
-    const parts = String(lead?.name || '').trim().split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) return `${parts[0]}.${parts[parts.length - 1]}`;
+    const parts = String(lead?.name || '').replace(/,/g, '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
     return String(lead?.email || '').split('@')[0].trim();
   }
 
