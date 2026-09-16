@@ -54,8 +54,16 @@
     return `<div class="muted" data-sas-lead style="margin-bottom:8px;">${who} · ${state}</div>`;
   }
 
-  function idleHtml(lead) {
-    return `${leadLine(lead)}<button type="button" class="btn btn-primary btn-block" data-sas="open">Login to the reporting systems</button>
+  function idleHtml(lead, status) {
+    if (status?.hasPattern && status?.hasCreds && !status?.sharedActor) {
+      return `${leadLine(lead)}
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" data-sas="open-unlock">Unlock reporting systems</button>
+          <button type="button" class="btn btn-secondary" data-sas="open-setup">Setup / edit</button>
+        </div>
+        <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
+    }
+    return `${leadLine(lead)}<button type="button" class="btn btn-primary btn-block" data-sas="open-setup">Setup reporting systems</button>
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
   }
 
@@ -235,7 +243,7 @@
     if (mode === 'handoff') return handoffHtml({ busy, lead });
     if (mode === 'master') return masterHtml({ busy, lead });
     if (mode === 'masterSetup') return masterSetupHtml({ busy, lead, masterStep: extra?.masterStep });
-    return idleHtml(lead);
+    return idleHtml(lead, status);
   }
 
   function bannedCopy(html) {

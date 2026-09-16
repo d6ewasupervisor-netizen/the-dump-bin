@@ -446,6 +446,17 @@
     };
 
     const bind = () => {
+      root.querySelector('[data-sas="open-unlock"]')?.addEventListener('click', async () => {
+        resetFormState();
+        view = 'unlock';
+        await redraw(false);
+      });
+      root.querySelector('[data-sas="open-setup"]')?.addEventListener('click', async () => {
+        resetFormState();
+        view = 'form';
+        await redraw(false);
+      });
+      // Fallback for any old templates
       root.querySelector('[data-sas="open"]')?.addEventListener('click', async () => {
         const cur = status && statusFor === leadParam() ? status : await fetchStatus();
         const nextView = Logic.openMode ? Logic.openMode(cur) : 'form';
