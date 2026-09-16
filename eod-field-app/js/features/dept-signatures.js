@@ -322,13 +322,25 @@
       const sig = byRole.get(role.key);
       const collected = !!sig;
       return `
-        <div class="dept-sig-role-row ${collected ? 'collected' : ''}">
+        <div class="dept-sig-role-row ${collected ? 'collected' : ''}" data-role-key="${escapeHtml(role.key)}">
           <div>
             <div><strong>${escapeHtml(role.label)}</strong></div>
-            <div class="dept-sig-role-meta">
+            <div class="dept-sig-role-meta" data-dept-sig-meta="${escapeHtml(role.key)}">
               ${collected
                 ? `Signed by ${escapeHtml(sig.signerName)} · ${escapeHtml(sig.signerEmail)}`
                 : 'Not collected yet'}
+            </div>
+            <div class="dept-sig-edit-form" data-dept-sig-edit-form="${escapeHtml(role.key)}" style="display:none;margin-top:8px;">
+              <div class="field" style="margin-bottom:6px;">
+                <input type="text" class="dept-sig-edit-name" placeholder="Full name" value="${collected ? escapeHtml(sig.signerName) : ''}" style="width:100%;">
+              </div>
+              <div class="field" style="margin-bottom:6px;">
+                <input type="email" class="dept-sig-edit-email" placeholder="Email" value="${collected ? escapeHtml(sig.signerEmail) : ''}" style="width:100%;">
+              </div>
+              <div class="btn-row">
+                <button type="button" class="btn btn-primary btn-sm" data-dept-sig-edit-save="${escapeHtml(role.key)}">Save</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dept-sig-edit-cancel="${escapeHtml(role.key)}">Cancel</button>
+              </div>
             </div>
           </div>
           <div class="dept-sig-role-actions">
@@ -338,6 +350,7 @@
             <button type="button" class="btn btn-secondary" data-dept-sig-send="${escapeHtml(role.key)}" title="Text or email a secure link">
               Send text
             </button>
+            ${collected ? `<button type="button" class="btn btn-secondary" data-dept-sig-edit="${escapeHtml(role.key)}">Edit</button>` : ''}
             ${collected ? `<button type="button" class="btn btn-secondary" data-dept-sig-clear="${escapeHtml(role.key)}">Clear</button>` : ''}
           </div>
         </div>`;
@@ -350,13 +363,56 @@
       btn.onclick = () => {
         const roleKey = btn.getAttribute('data-dept-sig-send');
         const sig = byRole.get(roleKey);
-        const contact = sig
-          ? { fullName: sig.signerName, email: sig.signerEmail }
-          : contacts.find((c) => false);
         if (window.EodGuestHandoff?.sendDeptHandoff) {
           window.EodGuestHandoff.sendDeptHandoff(roleKey, roleLabel(roleKey), sig ? { fullName: sig.signerName, email: sig.signerEmail } : null);
         } else if (typeof showAlert === 'function') {
           showAlert('Not loaded', 'Guest handoff module is not available.');
+        }
+      };
+    });
+    host.querySelectorAll('[data-dept-sig-edit]').forEach((btn) => {
+      btn.onclick = () => {
+        const roleKey = btn.getAttribute('data-dept-sig-edit');
+        const row = host.querySelector(`[data-role-key="${roleKey}"]`);
+        if (!row) return;
+        row.querySelector(`[data-dept-sig-edit-form="${roleKey}"]`).style.display = 'block';
+        row.querySelector(`[data-dept-sig-meta="${roleKey}"]`).style.display = 'none';
+        btn.style.display = 'none';
+        row.querySelector(`[data-dept-sig-edit-name]`)?.focus();
+      };
+    });
+    host.querySelectorAll('[data-dept-sig-edit-cancel]').forEach((btn) => {
+      btn.onclick = () => {
+        const roleKey = btn.getAttribute('data-dept-sig-edit-cancel');
+        const row = host.querySelector(`[data-role-key="${roleKey}"]`);
+        if (!row) return;
+        row.querySelector(`[data-dept-sig-edit-form="${roleKey}"]`).style.display = 'none';
+        row.querySelector(`[data-dept-sig-meta="${roleKey}"]`).style.display = '';
+        row.querySelector(`[data-dept-sig-edit="${roleKey}"]`).style.display = '';
+      };
+    });
+    host.querySelectorAll('[data-dept-sig-edit-save]').forEach((btn) => {
+      btn.onclick = async () => {
+        const roleKey = btn.getAttribute('data-dept-sig-edit-save');
+        const row = host.querySelector(`[data-role-key="${roleKey}"]`);
+        if (!row) return;
+        const nameVal = row.querySelector('.dept-sig-edit-name')?.value.trim();
+        const emailVal = row.querySelector('.dept-sig-edit-email')?.value.trim().toLowerCase();
+        if (!nameVal) { if (typeof showAlert === 'function') showAlert('Name required', 'Enter the signer\'s name.'); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) { if (typeof showAlert === 'function') showAlert('Email required', 'Enter a valid email address.'); return; }
+        btn.disabled = true;
+        try {
+          const resp = await authFetch(`${API}/${encodeURIComponent(storeNumber())}/signatures/${encodeURIComponent(roleKey)}`, {
+            method: 'PATCH',
+            headers: dayConfirmHeaders(),
+            body: JSON.stringify({ storeNumber: storeNumber(), workDate: workDate(), date: workDate(), fullName: nameVal, email: emailVal }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) throw new Error(data.error || `Save failed (${resp.status})`);
+          await refresh();
+        } catch (err) {
+          if (typeof showAlert === 'function') showAlert('Save failed', err.message || String(err));
+          btn.disabled = false;
         }
       };
     });
