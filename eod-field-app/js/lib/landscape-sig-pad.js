@@ -70,6 +70,26 @@
     unlockPageScroll();
   }
 
+  let _lspFontsInjected = false;
+  function ensureLspGFonts() {
+    if (_lspFontsInjected) return;
+    _lspFontsInjected = true;
+    if (!document.getElementById('eod-sig-gfonts')) {
+      const link = document.createElement('link');
+      link.id = 'eod-sig-gfonts';
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Pacifico&family=Great+Vibes&family=Caveat:wght@700&display=swap';
+      document.head.appendChild(link);
+    }
+  }
+
+  const LSP_FONTS = [
+    { key: 'dancing',    label: 'Dancing Script', family: '"Dancing Script", cursive',  style: 'italic' },
+    { key: 'pacifico',   label: 'Pacifico',        family: '"Pacifico", cursive',         style: 'normal' },
+    { key: 'greatvibes', label: 'Great Vibes',     family: '"Great Vibes", cursive',      style: 'italic' },
+    { key: 'caveat',     label: 'Caveat',           family: '"Caveat", cursive',           style: 'normal' },
+  ];
+
   function ensureDom() {
     let overlay = document.getElementById('eodLandscapeSigOverlay');
     if (!overlay) {
@@ -81,11 +101,17 @@
           <strong id="eodLspTitle">Sign</strong>
           <button type="button" class="eod-lsp-clear" id="eodLspClear">Clear</button>
           <button type="button" class="eod-lsp-clear" id="eodLspLoad">Load photo</button>
+          <button type="button" class="eod-lsp-type-btn" id="eodLspTypeBtn">Type</button>
           <button type="button" class="eod-lsp-cancel" id="eodLspCancel">Cancel</button>
           <button type="button" class="eod-lsp-accept" id="eodLspAccept">Use signature</button>
         </div>
         <div class="eod-lsp-stage" id="eodLspStage">
           <canvas id="eodLspCanvas"></canvas>
+          <div id="eodLspTypePanel" class="eod-lsp-type-panel" style="display:none">
+            <input type="text" id="eodLspTypeInput" class="eod-lsp-type-input" placeholder="Type your full name" autocomplete="name">
+            <div id="eodLspFontGrid" class="eod-lsp-font-grid"></div>
+            <div class="eod-lsp-type-preview-wrap"><canvas id="eodLspTypeCanvas"></canvas></div>
+          </div>
         </div>`;
     }
     document.body.appendChild(overlay);
@@ -117,6 +143,11 @@
     let snapshot = null;
     let closed = false;
     let pointerId = null;
+
+    // Type-mode state
+    let lspMode = 'draw'; // 'draw' | 'type'
+    let lspTypedName = '';
+    let lspSelectedFontIdx = 0;
 
     function sizeCanvas() {
       const w = Math.max(280, Math.floor(stage.clientWidth || window.innerWidth || 320));
@@ -218,6 +249,120 @@
       sizeCanvas();
     }
 
+    // ── Type mode ──────────────────────────────────────────────────────────
+    function lspSwitchMode(m) {
+      lspMode = m;
+      const typePanel = document.getElementById('eodLspTypePanel');
+      const typeBtn   = document.getElementById('eodLspTypeBtn');
+      if (m === 'type') {
+        canvas.style.display = 'none';
+        if (typePanel) typePanel.style.display = '';
+        if (typeBtn) { typeBtn.textContent = 'Draw'; typeBtn.classList.add('active'); }
+        ensureLspGFonts();
+        lspSizeTypeCanvas();
+        lspRenderFontGrid();
+        if (lspTypedName) lspRenderTypePreview();
+        setTimeout(() => document.getElementById('eodLspTypeInput')?.focus(), 50);
+      } else {
+        canvas.style.display = '';
+        if (typePanel) typePanel.style.display = 'none';
+        if (typeBtn) { typeBtn.textContent = 'Type'; typeBtn.classList.remove('active'); }
+      }
+    }
+
+    function lspSizeTypeCanvas() {
+      const tc = document.getElementById('eodLspTypeCanvas');
+      if (!tc) return;
+      const wrap = tc.parentElement || stage;
+      const w = Math.max(240, Math.floor(wrap.clientWidth || stage.clientWidth || 320));
+      const h = Math.max(90, Math.floor(w * 0.22));
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      tc.width  = Math.floor(w * dpr);
+      tc.height = Math.floor(h * dpr);
+      tc.style.width  = `${w}px`;
+      tc.style.height = `${h}px`;
+      const c = tc.getContext('2d');
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.fillStyle = '#fff';
+      c.fillRect(0, 0, tc.width, tc.height);
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function lspRenderFontGrid() {
+      const grid = document.getElementById('eodLspFontGrid');
+      if (!grid) return;
+      const preview = lspTypedName || 'Signature';
+      grid.innerHTML = LSP_FONTS.map((f, i) =>
+        `<button type="button" class="eod-lsp-font-btn${i === lspSelectedFontIdx ? ' active' : ''}" data-lfi="${i}" style="font-family:${f.family};font-style:${f.style};">${preview.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</button>`
+      ).join('');
+      grid.querySelectorAll('.eod-lsp-font-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          lspSelectedFontIdx = +btn.getAttribute('data-lfi');
+          lspRenderFontGrid();
+          if (lspTypedName) lspRenderTypePreview();
+        });
+      });
+    }
+
+    function lspRenderTypePreview() {
+      const tc = document.getElementById('eodLspTypeCanvas');
+      if (!tc || !lspTypedName) return;
+      const c = tc.getContext('2d');
+      const d = Math.min(window.devicePixelRatio || 1, 2);
+      const lw = tc.width / d, lh = tc.height / d;
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.fillStyle = '#fff';
+      c.fillRect(0, 0, tc.width, tc.height);
+      c.setTransform(d, 0, 0, d, 0, 0);
+      const f = LSP_FONTS[lspSelectedFontIdx];
+      let fontSize = Math.max(18, Math.floor(lh * 0.52));
+      let measured;
+      for (let i = 0; i < 12; i++) {
+        c.font = `${f.style} ${fontSize}px ${f.family}`;
+        measured = c.measureText(lspTypedName);
+        if (measured.width <= lw * 0.92) break;
+        fontSize = Math.max(14, fontSize - 4);
+      }
+      c.fillStyle = '#111';
+      c.fillText(lspTypedName, (lw - measured.width) / 2, lh * 0.66);
+    }
+
+    function lspRenderTypedToMainCanvas() {
+      return new Promise((resolve) => {
+        if (!lspTypedName) { resolve(false); return; }
+        const f = LSP_FONTS[lspSelectedFontIdx];
+        const w = canvas.width, h = canvas.height;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const lw = w / dpr, lh = h / dpr;
+        const fontStr = (sz) => `${f.style} ${sz}px ${f.family}`;
+        let fontSize = Math.max(24, Math.floor(lh * 0.35));
+
+        function doRender() {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          let measured;
+          for (let i = 0; i < 14; i++) {
+            ctx.font = fontStr(fontSize);
+            measured = ctx.measureText(lspTypedName);
+            if (measured.width <= lw * 0.9) break;
+            fontSize = Math.max(18, fontSize - 6);
+          }
+          ctx.fillStyle = '#111';
+          ctx.fillText(lspTypedName, (lw - measured.width) / 2, lh * 0.60);
+          resolve(true);
+        }
+
+        if (document.fonts && document.fonts.load) {
+          document.fonts.load(fontStr(fontSize)).then(doRender, doRender);
+        } else {
+          setTimeout(doRender, 200);
+        }
+      });
+    }
+
     function finish(accepted) {
       if (closed) return;
       closed = true;
@@ -267,11 +412,17 @@
       e.stopPropagation();
       snapshot = null;
       o.existingDataUrl = null;
+      lspTypedName = '';
+      const inp = document.getElementById('eodLspTypeInput');
+      if (inp) inp.value = '';
+      lspRenderFontGrid();
       sizeCanvas();
     };
     document.getElementById('eodLspLoad')?.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      // Switch back to draw mode so the loaded image shows on the main canvas
+      lspSwitchMode('draw');
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*,.heic,.heif';
@@ -294,14 +445,35 @@
       };
       input.click();
     });
+    document.getElementById('eodLspTypeBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      lspSwitchMode(lspMode === 'type' ? 'draw' : 'type');
+    });
+    // Type input live updates
+    document.getElementById('eodLspTypeInput')?.addEventListener('input', () => {
+      lspTypedName = document.getElementById('eodLspTypeInput')?.value || '';
+      lspRenderFontGrid();
+      lspRenderTypePreview();
+    });
     document.getElementById('eodLspCancel').onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
       finish(false);
     };
-    document.getElementById('eodLspAccept').onclick = (e) => {
+    document.getElementById('eodLspAccept').onclick = async (e) => {
       e.preventDefault();
       e.stopPropagation();
+      // If type mode: render to main canvas first
+      if (lspMode === 'type') {
+        if (!lspTypedName.trim()) {
+          alert('Please type your name before continuing.');
+          return;
+        }
+        await lspRenderTypedToMainCanvas();
+        finish(true);
+        return;
+      }
       if (isBlank(canvas, ctx)) {
         alert('Please sign before continuing.');
         return;

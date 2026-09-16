@@ -579,6 +579,10 @@
       return;
     }
     if (wizard.step === 'sign') {
+      // Store latest dataUrl from sigInput before submitting
+      if (wizard.sigInput) {
+        wizard.signatureDataUrl = await wizard.sigInput.getDataUrl();
+      }
       await submitSignature();
     }
   }
@@ -817,19 +821,26 @@
     if (wizard.step === 'sign') {
       hint.textContent = '';
       next.textContent = 'Save signature';
-      body.innerHTML = `
-        <div class="dept-sig-pad-wrap">
-          <canvas id="deptSigCanvas"></canvas>
-        </div>
-        <button type="button" class="btn btn-secondary btn-block" id="deptSigClearPad" style="margin-top:8px;">Clear</button>`;
-      const pad = bindInlinePad(document.getElementById('deptSigCanvas'), {
-        existingDataUrl: wizard.signatureDataUrl || '',
-        onChange: (url) => { if (wizard) wizard.signatureDataUrl = url; },
-      });
-      document.getElementById('deptSigClearPad').onclick = () => {
-        pad.clear();
-        if (wizard) wizard.signatureDataUrl = '';
-      };
+      body.innerHTML = `<div class="dept-sig-pad-wrap dept-sig-input-host"></div>`;
+      const host = body.querySelector('.dept-sig-input-host');
+      if (window.EodSigInput && host) {
+        wizard.sigInput = window.EodSigInput.create(host, {
+          existingDataUrl: wizard.signatureDataUrl || '',
+        });
+      } else {
+        // Fallback: plain draw canvas
+        host.innerHTML = `<canvas id="deptSigCanvas"></canvas>
+          <button type="button" class="btn btn-secondary btn-block" id="deptSigClearPad" style="margin-top:8px;">Clear</button>`;
+        const pad = bindInlinePad(document.getElementById('deptSigCanvas'), {
+          existingDataUrl: wizard.signatureDataUrl || '',
+          onChange: (url) => { if (wizard) wizard.signatureDataUrl = url; },
+        });
+        document.getElementById('deptSigClearPad').onclick = () => {
+          pad.clear();
+          if (wizard) wizard.signatureDataUrl = '';
+        };
+        wizard.sigInput = null;
+      }
     }
   }
 
@@ -935,11 +946,17 @@
   }
 
   async function submitSignature() {
-    if (!wizard?.signatureDataUrl) {
-      notify('Signature required', 'Please sign before saving.');
+    // Resolve dataUrl from shared sig input (supports draw/type/upload) or legacy field
+    let dataUrl = '';
+    if (wizard?.sigInput) {
+      dataUrl = await wizard.sigInput.getDataUrl();
+    } else {
+      dataUrl = wizard?.signatureDataUrl || '';
+    }
+    if (!dataUrl) {
+      notify('Signature required', 'Please draw, type, or upload your signature before saving.');
       return;
     }
-    const dataUrl = wizard.signatureDataUrl;
     const store = storeNumber();
     const date = workDate();
     if (!store || !date) {

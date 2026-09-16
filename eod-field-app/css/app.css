@@ -1703,7 +1703,189 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   touch-action: none;
   pointer-events: auto;
 }
+/* dept-signatures input host: let ESI widget control sizing */
+.dept-sig-input-host { padding: 0; }
 #deptSigRoleList.eod-hidden-list { display: none !important; }
+
+/* ── Shared signature input widget (EodSigInput) ─────────────────────────── */
+.esi-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.esi-tab {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1px solid var(--border, #334155);
+  border-radius: 6px;
+  background: var(--row-bg, #1e293b);
+  color: var(--text, #f8fafc);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 38px;
+  line-height: 1.2;
+}
+.esi-tab.active {
+  background: var(--accent-dim, #0d4f8b);
+  border-color: var(--accent, #1e88e5);
+  color: #fff;
+}
+.esi-draw-canvas {
+  display: block;
+  width: 100%;
+  height: min(42vh, 280px);
+  min-height: 180px;
+  background: #fff;
+  touch-action: none;
+  pointer-events: auto;
+  border: 2px solid var(--accent-dim, #0d4f8b);
+  border-radius: 8px;
+}
+.esi-name-input {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #334155);
+  border-radius: 6px;
+  background: var(--surface, #111827);
+  color: var(--text, #f8fafc);
+  font-size: 18px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+.esi-font-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.esi-font-btn {
+  padding: 10px 8px;
+  border: 2px solid var(--border, #334155);
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+  font-size: 20px;
+  text-align: center;
+  min-height: 52px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.esi-font-btn.active {
+  border-color: var(--accent, #1e88e5);
+  box-shadow: 0 0 0 2px var(--accent, #1e88e5);
+}
+.esi-type-preview-wrap {
+  border: 1px solid var(--border, #334155);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.esi-type-canvas {
+  display: block;
+  width: 100%;
+  background: #fff;
+}
+.esi-choose-btn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 2px dashed var(--accent-dim, #0d4f8b);
+  border-radius: 8px;
+  background: var(--row-bg, #1e293b);
+  color: var(--text, #f8fafc);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.esi-upload-canvas {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border, #334155);
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* ── Landscape sig pad — Type mode additions ─────────────────────────────── */
+.eod-lsp-type-btn {
+  background: #1e3a5f;
+}
+.eod-lsp-type-btn.active {
+  background: #0d4f8b;
+  outline: 2px solid #60a5fa;
+}
+.eod-lsp-type-panel {
+  position: absolute;
+  inset: 0;
+  background: var(--bg, #0b1220);
+  color: var(--text, #f8fafc);
+  overflow-y: auto;
+  padding: 14px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.eod-lsp-type-input {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  background: var(--surface, #111827);
+  color: var(--text, #f8fafc);
+  font-size: 20px;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.eod-lsp-font-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.eod-lsp-font-btn {
+  padding: 12px 10px;
+  border: 2px solid var(--border, #334155);
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+  font-size: 22px;
+  text-align: center;
+  min-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.eod-lsp-font-btn.active {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px #60a5fa;
+}
+.eod-lsp-type-preview-wrap {
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#eodLspTypeCanvas {
+  display: block;
+  width: 100%;
+  background: #fff;
+}
 .sheet-summary { font-size: 0.95rem; line-height: 1.45; }
 .sheet-summary .pill { margin-left: 2px; }
 

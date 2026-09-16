@@ -31,6 +31,7 @@
       'js/features/send.js',
     ],
     signatures: [
+      'js/lib/signature-input.js',
       'js/lib/landscape-sig-pad.js',
       'js/lib/signoff-department.js',
       'js/lib/person-name.js',
