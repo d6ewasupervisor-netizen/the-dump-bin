@@ -1185,11 +1185,10 @@ ${cleanNotes}`;
             sasNote = '\n\nEmail sent. Maintenance after-photo upload had an issue — retry from Send if needed.';
           }
         }
-        try {
-          busy?.showSuccess?.('Success!');
-          await new Promise((r) => setTimeout(r, 1400));
-        } catch (_) {}
-        if (global.showAlert) await global.showAlert('Sent', receiptLockMessage(sendLock) + sasNote);
+        // Brief success flash then hand off to the ack overlay
+        try { busy?.showSuccess?.('Success!'); } catch (_) {}
+        await new Promise((r) => setTimeout(r, 700));
+        try { busy?.endSession?.(); } catch (_) {}
         global.EodUsage?.track?.('send_success', { stage: 'send', status: 'complete' });
         if (global.PhotoDB?.markEmailOk) {
           try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
@@ -1197,7 +1196,8 @@ ${cleanNotes}`;
         try { await global.PhotoDB?.tryCompleteSession?.(); } catch (_) {}
         try { await global.PhotoDB?.purgeSubmitted?.({ keepActive: true }); } catch (_) {}
         try { global.EodPhotoPipeline?.purgeSettledJobs?.(); } catch (_) {}
-        await maybeClearAfterSend(S);
+        // Persistent ack overlay — waits for "Start new visit" tap, then resets
+        await showEodSentOverlay(receiptLockMessage(sendLock) + sasNote, S);
       } catch (err) {
         console.error(err);
         try { busy?.endSession?.(); } catch (_) {}
@@ -1231,6 +1231,51 @@ ${cleanNotes}`;
     };
     loadSendReceipt().then((receipt) => {
       if (receipt) applySendLock(receipt);
+    });
+  }
+
+  /**
+   * Show a persistent "EOD sent" success overlay that requires a button tap
+   * to acknowledge and reset to a new visit. Replaces the auto-dismiss success
+   * flash + showAlert('Sent') + maybeClearAfterSend dialog chain.
+   *
+   * Returns a Promise that resolves after the user taps "Start new visit"
+   * and the visit has been reset.
+   */
+  function showEodSentOverlay(receiptMsg, S) {
+    return new Promise((resolve) => {
+      // Remove any stale instance
+      document.getElementById('eodSentAckOverlay')?.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'eodSentAckOverlay';
+      overlay.className = 'eod-sent-ack-overlay';
+      // Sanitize message for display (newlines → <br>)
+      const safeMsg = String(receiptMsg || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+      overlay.innerHTML = `
+        <div class="eod-sent-ack-card" role="alertdialog" aria-modal="true" aria-labelledby="eodSentAckTitle">
+          <div class="eod-sent-ack-check" aria-hidden="true">&#10003;</div>
+          <h2 class="eod-sent-ack-title" id="eodSentAckTitle">EOD sent!</h2>
+          ${safeMsg ? `<p class="eod-sent-ack-msg">${safeMsg}</p>` : ''}
+          <button type="button" class="btn btn-primary eod-sent-ack-btn" id="eodSentAckBtn">Start new visit</button>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      // Animate in
+      requestAnimationFrame(() => overlay.classList.add('show'));
+
+      document.getElementById('eodSentAckBtn').addEventListener('click', async () => {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 300);
+        try {
+          await S.resetVisit({ wipePersonal: false, wipeSetBefores: false });
+        } catch (_) {}
+        try { global.EodChrome?.refresh?.(); } catch (_) {}
+        try { global.EodRouter?.go?.('visit'); } catch (_) {}
+        resolve();
+      });
     });
   }
 

@@ -1703,6 +1703,66 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   touch-action: none;
   pointer-events: auto;
 }
+/* ── EOD sent acknowledgement overlay ───────────────────────────────────── */
+.eod-sent-ack-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99000;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.eod-sent-ack-overlay.show { opacity: 1; }
+.eod-sent-ack-card {
+  background: var(--surface, #111827);
+  border: 1px solid var(--border, #334155);
+  border-radius: 16px;
+  padding: 36px 28px 32px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+.eod-sent-ack-check {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #166534;
+  color: #fff;
+  font-size: 40px;
+  line-height: 72px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.eod-sent-ack-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text, #f8fafc);
+}
+.eod-sent-ack-msg {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted, #94a3b8);
+  line-height: 1.5;
+}
+.eod-sent-ack-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
 /* "Use my earlier signature" reuse button — visually distinct from other choices */
 .dept-sig-choice-reuse {
   border-color: var(--accent-dim, #0d4f8b) !important;
