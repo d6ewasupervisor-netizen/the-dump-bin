@@ -829,7 +829,10 @@
         </div>
         <div class="field" style="margin-top:12px;">
           <label>Search sets</label>
-          <input type="search" id="sheetSearch" placeholder="Category, DBKEY, aisle…">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="search" id="sheetSearch" placeholder="Category, DBKEY, aisle…" style="flex:1;min-width:0;">
+            <button type="button" class="btn btn-secondary" id="sheetScanBtn" style="flex-shrink:0;">Scan UPC</button>
+          </div>
         </div>
         <div class="ds-select-all-row">
           <input type="checkbox" class="ds-row-check" id="sheetSelectAll" aria-label="Select all visible">
@@ -1113,6 +1116,10 @@
       }
     });
     document.getElementById('sheetSearch').oninput = () => paint();
+    document.getElementById('sheetScanBtn').onclick = async () => {
+      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (_) {}
+      global.EodCartLocate?.openScanner?.();
+    };
     document.getElementById('sheetSelectAll')?.addEventListener('click', (ev) => ev.stopPropagation());
     document.getElementById('sheetSelectAll')?.addEventListener('change', () => {
       const box = document.getElementById('sheetSelectAll');

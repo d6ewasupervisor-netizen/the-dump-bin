@@ -1212,7 +1212,10 @@
       <div class="card">
         <div class="btn-row" style="justify-content:space-between;align-items:center;">
           <h1 style="margin:0;">Today's visit</h1>
-          <button type="button" class="btn btn-secondary" id="resetVisitBtn">Reset</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" class="btn btn-secondary" id="visitScanBtn">Scan UPC</button>
+            <button type="button" class="btn btn-secondary" id="resetVisitBtn">Reset</button>
+          </div>
         </div>
         <div class="field-row">
           <div class="field">
@@ -1258,6 +1261,10 @@
     await paintOnboarding();
     try { await global.EodSasUser?.mount?.(document.getElementById('sasUserCard')); } catch (_) {}
 
+    document.getElementById('visitScanBtn').onclick = async () => {
+      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (_) {}
+      global.EodCartLocate?.openScanner?.();
+    };
     document.getElementById('resetVisitBtn').onclick = () => doReset();
 
     document.getElementById('visitLeadName').oninput = () => {
