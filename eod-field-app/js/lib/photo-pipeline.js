@@ -9,6 +9,7 @@
   const IDB_VERSION = 1;
   const MAX_COMPRESS = 1;
   const MAX_UPLOAD = 1;
+  const MAX_SET_ATTEMPTS = 10;
   const Logic = global.EodPhotoPipelineLogic || {};
   const OK_SIDES = new Set([
     'ok',
@@ -403,6 +404,16 @@
     job.updatedAt = Date.now();
     await idbDelete(job.id).catch(() => {});
     emit('superseded', job);
+    // Confirmed fix (2026-09-18, field report — one set showing ~211 "trying
+    // to upload"): nothing auto-purges superseded jobs from the live `jobs`
+    // Map — purgeSettledJobs() does remove them, but it's only ever called
+    // from device-storage.js's purgeInBackground(), which nothing in the app
+    // actually invokes (verified: no callers). So every duplicate/retry
+    // supersede cycle left a permanent, byte-wiped-but-still-counted entry in
+    // the Map for the rest of the shift, inflating any total/count derived
+    // from Map size. Remove it here immediately instead of waiting on a purge
+    // path that never runs.
+    jobs.delete(job.id);
   }
 
   function dataUrlToBlobForPipeline(dataUrl) {
@@ -923,6 +934,15 @@
       emit('done', job);
     } catch (err) {
       job.attempts = (job.attempts || 0) + 1;
+      if (job.kind === "set" && job.attempts >= MAX_SET_ATTEMPTS) {
+        job.status = "failed";
+        job.error = job.error || "Too many upload attempts — needs attention";
+        job.needsAttention = true;
+        job.updatedAt = Date.now();
+        persistJob(job);
+        emit("failed", job);
+        return;
+      }
       const transient = /timeout|network|failed to fetch|503|429|502|waiting for connection|lease|backed up|catching up|session not active/i.test(err?.message || '');
       if (transient && job.attempts < 40 && (job.dataUrl || job.blob || job.statusUrl)) {
         job.status = 'compressed';
@@ -1100,7 +1120,14 @@
   }
 
   function makeId(parts) {
-    return parts.filter(Boolean).join(':') + ':' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    return parts.filter(Boolean).join(":") + ":" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  function makeSetJobId(dbkey, slot, bay) {
+    const key = Logic.normalizeDbkey
+      ? Logic.normalizeDbkey(dbkey)
+      : String(dbkey || "").replace(/\D/g, "").replace(/^0+/, "");
+    return ["set", key, String(slot || ""), String(Number(bay))].join(":");
   }
 
   function enqueue(opts) {
@@ -1112,9 +1139,16 @@
     if (!previewUrl && file) {
       try { previewUrl = URL.createObjectURL(file); } catch (_) {}
     }
-    const id = opts.id || makeId([opts.kind || 'photo', opts.dbkey, opts.slot, opts.bay]);
-    if (opts.kind === 'set' && opts.dbkey && opts.slot && opts.bay != null) {
-      const incoming = { id, kind: 'set', dbkey: opts.dbkey, slot: opts.slot, bay: opts.bay };
+    const normKey = (opts.kind === "set" && opts.dbkey)
+      ? (Logic.normalizeDbkey ? Logic.normalizeDbkey(opts.dbkey) : String(opts.dbkey).replace(/\D/g, "").replace(/^0+/, ""))
+      : opts.dbkey;
+    if (opts.kind === "set" && normKey) opts = { ...opts, dbkey: normKey };
+    const id = opts.id
+      || (opts.kind === "set" && normKey && opts.slot != null && opts.bay != null
+        ? makeSetJobId(normKey, opts.slot, opts.bay)
+        : makeId([opts.kind || "photo", opts.dbkey, opts.slot, opts.bay]));
+    if (opts.kind === "set" && opts.dbkey && opts.slot && opts.bay != null) {
+      const incoming = { id, kind: "set", dbkey: opts.dbkey, slot: opts.slot, bay: opts.bay };
       const doomed = Logic.jobsToSupersede
         ? Logic.jobsToSupersede([...jobs.values()], incoming)
         : [...jobs.values()].filter((j) =>
@@ -1194,7 +1228,18 @@
   }
 
   function jobsForSet(dbkey) {
-    return listJobs({ kind: 'set', dbkey: String(dbkey) });
+    const want = Logic.normalizeDbkey
+      ? Logic.normalizeDbkey(dbkey)
+      : String(dbkey || "").replace(/\D/g, "").replace(/^0+/, "");
+    return [...jobs.values()]
+      .map(toPublic)
+      .filter((j) => {
+        if (j.kind !== "set") return false;
+        const got = Logic.normalizeDbkey
+          ? Logic.normalizeDbkey(j.dbkey)
+          : String(j.dbkey || "").replace(/\D/g, "").replace(/^0+/, "");
+        return got === want;
+      });
   }
 
   function statusLabel(job) {

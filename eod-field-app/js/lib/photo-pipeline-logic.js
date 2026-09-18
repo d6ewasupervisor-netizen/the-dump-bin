@@ -166,12 +166,16 @@
     return !!(job.dataUrl || job.blob || job.file || job.hasPayload || job.canvas || job.bitmap);
   }
 
+  function normalizeDbkey(raw) {
+    return String(raw == null ? '' : raw).replace(/\D/g, '').replace(/^0+/, '');
+  }
+
   function sameBay(a, b) {
     return a
       && b
       && a.kind === 'set'
       && b.kind === 'set'
-      && String(a.dbkey) === String(b.dbkey)
+      && normalizeDbkey(a.dbkey) === normalizeDbkey(b.dbkey)
       && String(a.slot) === String(b.slot)
       && Number(a.bay) === Number(b.bay);
   }
@@ -276,6 +280,7 @@
     stableIdempotencyKey,
     hasCompressInput,
     shouldRetry,
+    normalizeDbkey,
     sameBay,
     jobsToSupersede,
     bytesToHex,

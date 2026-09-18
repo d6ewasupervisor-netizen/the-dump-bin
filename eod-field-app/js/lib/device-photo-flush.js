@@ -4,6 +4,20 @@
 
   let openPersister = null;
   let flushBusy = false;
+  const enqueueCooldown = new Map();
+  const ENQUEUE_COOLDOWN_MS = 120000;
+
+  function normalizeDbkey(raw) {
+    return String(raw == null ? '' : raw).replace(/\D/g, '').replace(/^0+/, '');
+  }
+
+  function cooldownOk(dbkey, slot, bay) {
+    const k = dbkey + ':' + slot + ':' + Number(bay);
+    const at = enqueueCooldown.get(k) || 0;
+    if (Date.now() - at < ENQUEUE_COOLDOWN_MS) return false;
+    enqueueCooldown.set(k, Date.now());
+    return true;
+  }
 
   function setOpenPersister(fn) {
     openPersister = typeof fn === 'function' ? fn : null;
@@ -77,12 +91,13 @@
   async function flushSet(opts) {
     const pipe = global.EodPhotoPipeline;
     if (!pipe?.enqueue) return 0;
-    const dbkey = String(opts?.dbkey || '').replace(/\D/g, '').replace(/^0+/, '');
+    const dbkey = normalizeDbkey(opts?.dbkey);
     if (!dbkey) return 0;
     const status = opts.status || global.EodStoreProdWarm?.peekStatus?.(dbkey) || null;
     const existing = new Set(
       (pipe.jobsForSet?.(dbkey) || [])
         .filter(isLiveJob)
+        .filter((j) => normalizeDbkey(j.dbkey) === dbkey)
         .map((j) => `${j.slot}:${Number(j.bay)}`)
     );
     let n = 0;
