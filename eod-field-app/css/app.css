@@ -3316,6 +3316,14 @@ div.device-pkg-copy { cursor: default; }
 .device-pkg-copy strong { display: block; }
 .device-pkg-row .btn { flex: 0 0 auto; min-height: 40px; }
 
+/* Small button variant */
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.82em;
+  min-height: 32px;
+  border-radius: 6px;
+}
+
 /* ── Device storage — enhanced rows ────────────────────────── */
 .dev-section-header {
   display: flex;
