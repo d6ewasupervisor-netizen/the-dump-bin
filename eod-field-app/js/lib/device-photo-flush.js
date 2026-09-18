@@ -11,12 +11,17 @@
     return String(raw == null ? '' : raw).replace(/\D/g, '').replace(/^0+/, '');
   }
 
-  function cooldownOk(dbkey, slot, bay) {
-    const k = dbkey + ':' + slot + ':' + Number(bay);
-    const at = enqueueCooldown.get(k) || 0;
-    if (Date.now() - at < ENQUEUE_COOLDOWN_MS) return false;
-    enqueueCooldown.set(k, Date.now());
-    return true;
+  function cooldownKey(dbkey, slot, bay) {
+    return dbkey + ':' + slot + ':' + Number(bay);
+  }
+
+  function inCooldown(dbkey, slot, bay) {
+    const at = enqueueCooldown.get(cooldownKey(dbkey, slot, bay)) || 0;
+    return Date.now() - at < ENQUEUE_COOLDOWN_MS;
+  }
+
+  function markCooldown(dbkey, slot, bay) {
+    enqueueCooldown.set(cooldownKey(dbkey, slot, bay), Date.now());
   }
 
   function setOpenPersister(fn) {
@@ -107,6 +112,7 @@
         const bay = Number(p.bay);
         if (!bay || live.has(bay) || existing.has(`${slot}:${bay}`)) continue;
         if (p.offloaded || alreadyOnServer(p.uploadStatus)) continue;
+        if (inCooldown(dbkey, slot, bay)) continue;
         const payload = await toEnqueuePayload(p);
         if (!payload) continue;
         if (payload.dataUrl) {
@@ -131,6 +137,7 @@
           taskId: opts.taskId || status?.si?.taskId || null,
           skipSi: slot === 'before',
         });
+        markCooldown(dbkey, slot, bay);
         existing.add(`${slot}:${bay}`);
         n += 1;
       }

@@ -263,3 +263,35 @@ it('sessionHasProtectedJobs: ignores other stores/dates and superseded', () => {
   });
   assert.equal(logic.sessionHasProtectedJobs(jobs, '123', '2026-09-17'), true);
 });
+
+it('normalizeDbkey strips punctuation and leading zeros', () => {
+  assert.equal(logic.normalizeDbkey('0123'), '123');
+  assert.equal(logic.normalizeDbkey('1-023'), '1023');
+  assert.equal(logic.normalizeDbkey('000'), '');
+  assert.equal(logic.normalizeDbkey(null), '');
+});
+
+it('jobsToSupersede matches legacy un-normalized dbkey to fresh normalized', () => {
+  const legacy = {
+    id: 'old',
+    kind: 'set',
+    dbkey: '0123',
+    slot: 'after',
+    bay: 2,
+    status: 'queued',
+    hasPayload: true,
+  };
+  const fresh = {
+    id: 'new',
+    kind: 'set',
+    dbkey: '123',
+    slot: 'after',
+    bay: 2,
+    status: 'queued',
+    hasPayload: true,
+  };
+  assert.equal(logic.sameBay(legacy, fresh), true);
+  const doomed = logic.jobsToSupersede([legacy], fresh);
+  assert.equal(doomed.length, 1);
+  assert.equal(doomed[0].id, 'old');
+});
