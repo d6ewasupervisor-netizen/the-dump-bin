@@ -1232,7 +1232,7 @@
       ? Logic.normalizeDbkey(dbkey)
       : String(dbkey || "").replace(/\D/g, "").replace(/^0+/, "");
     return [...jobs.values()]
-      .map(toPublic)
+      .map(publicJob)
       .filter((j) => {
         if (j.kind !== "set") return false;
         const got = Logic.normalizeDbkey
