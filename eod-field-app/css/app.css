@@ -826,6 +826,17 @@ body.needs-auth .app-shell {
 }
 .conn-dot[data-state="green"] { color: #86efac; }
 .conn-dot[data-state="red"] { color: #fca5a5; }
+.conn-user {
+  display: none;
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-left: 1px;
+}
+@media (min-width: 768px) {
+  .conn-user:not(:empty) { display: inline; }
+  .conn-dot { gap: 4px; font-size: 11px; padding: 4px 4px; }
+}
 
 .eod-version-badge {
   display: inline-flex;

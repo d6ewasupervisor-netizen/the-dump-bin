@@ -26,7 +26,7 @@
     toast._t = setTimeout(() => { el.hidden = true; }, 4500);
   }
 
-  function setConnState(target, ok, minsAgo) {
+  function setConnState(target, ok, minsAgo, display) {
     const id = target === 'sas' ? 'sasConnDot' : 'reboticsConnDot';
     const el = document.getElementById(id);
     if (!el) return;
@@ -37,6 +37,8 @@
         ? `${label} auth: active (refreshed ${minsAgo} min ago)`
         : `${label} auth: active`)
       : `${label} auth: not active`;
+    const userSpan = el.querySelector('.conn-user');
+    if (userSpan) userSpan.textContent = (ok && display) ? display : '';
     try { global.EodChrome?.paintConnChrome?.(); } catch (_) {}
     try {
       if (target === 'sas') sessionStorage.setItem('kompassAuthState', ok ? 'green' : 'red');
@@ -48,7 +50,7 @@
     try {
       const r = await global.authFetch(`${base}/sas-auth-status`, { noBounceOn401: true });
       const j = r.ok ? await r.json() : { ok: false };
-      setConnState('sas', !!j.ok && !j.stale, j.minutes_since_refresh);
+      setConnState('sas', !!j.ok && !j.stale, j.minutes_since_refresh, j.display || null);
     } catch (e) {
       console.warn('[conn] SAS probe failed:', e);
       setConnState('sas', false);
@@ -56,7 +58,7 @@
     try {
       const r = await global.authFetch(`${base}/rebotics-auth-status`, { noBounceOn401: true });
       const j = r.ok ? await r.json() : { ok: false };
-      setConnState('rebotics', !!j.ok && !j.stale, j.minutes_since_refresh ?? j.minutesSinceRefresh);
+      setConnState('rebotics', !!j.ok && !j.stale, j.minutes_since_refresh ?? j.minutesSinceRefresh, j.display || null);
     } catch (e) {
       console.warn('[conn] Rebotics probe failed:', e);
       setConnState('rebotics', false);
