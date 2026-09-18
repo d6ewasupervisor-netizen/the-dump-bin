@@ -1,4 +1,4 @@
-/* On-device package list — keep or remove local photos / leftovers. */
+/* On-device package list — richer detail, reload sessions, multi-select bulk action. */
 (function (global) {
   'use strict';
 
@@ -12,6 +12,10 @@
     instawork: 'InstaWork',
   };
 
+  // Select-mode state survives re-renders (module-level closure)
+  let _pkgSelectMode = false;
+  let _shSelectMode = false;
+
   function esc(s) { return (global.EodApi?.escapeHtml || ((x) => String(x ?? '')))(s); }
 
   function fmtBytes(n) {
@@ -20,6 +24,20 @@
     if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)} KB`;
     if (v < 1024 * 1024 * 1024) return `${(v / (1024 * 1024)).toFixed(1)} MB`;
     return `${(v / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  }
+
+  function fmtTimestamp(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return 'Today ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    const yest = new Date(now); yest.setDate(now.getDate() - 1);
+    if (d.toDateString() === yest.toDateString()) {
+      return 'Yesterday ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
   function sessionStatus(s, activeId) {
@@ -31,13 +49,29 @@
     return 'not sent';
   }
 
-  function typeMeta(s) {
+  const STATUS_CLS = {
+    'this visit': 'dev-badge--active',
+    'this visit · sent': 'dev-badge--sent',
+    'sent': 'dev-badge--sent',
+    'submitted': 'dev-badge--sent',
+    'uploading': 'dev-badge--upload',
+    'failed upload': 'dev-badge--fail',
+    'not sent': 'dev-badge--unsent',
+  };
+
+  function statusBadge(s, activeId) {
+    const st = sessionStatus(s, activeId);
+    const cls = STATUS_CLS[st] || 'dev-badge--unsent';
+    return `<span class="dev-badge ${esc(cls)}">${esc(st)}</span>`;
+  }
+
+  function typeLine(s) {
     const parts = [];
     for (const t of TYPE_ORDER) {
       const n = s.types?.[t] || 0;
       if (n) parts.push(`${TYPE_LABEL[t] || t} ${n}`);
     }
-    return parts.join(' · ');
+    return parts.length ? parts.join(' · ') : 'No photos';
   }
 
   function photoSrc(entry) {
@@ -62,6 +96,21 @@
     return window.confirm(title);
   }
 
+  async function confirmLoad(store, date) {
+    if (global.EodAlerts?.showDialog) {
+      const id = await global.EodAlerts.showDialog({
+        title: `Load #${store} · ${date}?`,
+        message: 'Replaces current visit photos with this saved session.',
+        buttons: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'load', label: 'Load', primary: true },
+        ],
+      });
+      return id === 'load';
+    }
+    return window.confirm(`Load session #${store} · ${date}? This replaces current visit photos.`);
+  }
+
   async function gather() {
     const inv = await global.PhotoDB?.deviceInventory?.() || {
       pressure: {},
@@ -76,17 +125,74 @@
     return { inv, sheets, pipe };
   }
 
-  function rowHtml(id, title, meta, actionId, actionLabel, viewable) {
-    const copyOpen = viewable
-      ? `<button type="button" class="device-pkg-copy" data-view="${esc(id)}">`
-      : '<div class="device-pkg-copy">';
-    const copyClose = viewable ? '</button>' : '</div>';
+  // ── Session package row ──────────────────────────────────────────────────
+  function sessionRowHtml(s, activeId, selectMode) {
+    const isActive = activeId && s.id === activeId;
+    const hasPhotos = (s.count || 0) > 0;
+    const title = `#${esc(s.store)} · ${esc(s.date)}`;
+    const detail = typeLine(s);
+    const size = `${s.count || 0} photo${s.count === 1 ? '' : 's'} · ${fmtBytes(s.bytes)}`;
+    const saved = s.timestamp ? fmtTimestamp(s.timestamp) : '';
+    const badge = statusBadge(s, activeId);
+
+    const checkHtml = selectMode
+      ? `<label class="dev-row-check" aria-label="Select"><input type="checkbox" class="dev-sel" data-sel="${esc(s.id)}" data-kind="session"></label>`
+      : '';
+
+    const loadBtn = (!isActive && hasPhotos)
+      ? `<button type="button" class="btn btn-sm btn-secondary" data-act="session-load" data-id="${esc(s.id)}" data-store="${esc(s.store)}" data-date="${esc(s.date)}">Load into visit</button>`
+      : '';
+
+    return `<div class="device-pkg-row" data-row="${esc(s.id)}">
+      ${checkHtml}
+      <button type="button" class="device-pkg-copy" data-view="${esc(s.id)}">
+        <strong>${title}</strong>
+        <div class="dev-detail-line">${esc(detail)} · ${esc(size)} ${badge}</div>
+        ${saved ? `<div class="dev-detail-line muted">Saved ${esc(saved)}</div>` : ''}
+      </button>
+      <div class="dev-row-actions">
+        ${loadBtn}
+        <button type="button" class="btn btn-sm btn-secondary" data-act="session" data-id="${esc(s.id)}">Remove</button>
+      </div>
+    </div>`;
+  }
+
+  // ── Sheet row ────────────────────────────────────────────────────────────
+  function sheetRowHtml(sh, selectMode) {
+    const saved = sh.savedAt ? fmtTimestamp(sh.savedAt) : '';
+    const detail = [fmtBytes(sh.bytes), saved ? `Saved ${saved}` : ''].filter(Boolean).join(' · ');
+
+    const checkHtml = selectMode
+      ? `<label class="dev-row-check" aria-label="Select"><input type="checkbox" class="dev-sel" data-sel="${esc(sh.id)}" data-kind="sheet"></label>`
+      : '';
+
+    return `<div class="device-pkg-row" data-row="${esc(sh.id)}">
+      ${checkHtml}
+      <div class="device-pkg-copy">
+        <strong>#${esc(sh.store)} · ${esc(sh.week)}</strong>
+        <div class="dev-detail-line muted">${esc(detail)}</div>
+      </div>
+      <button type="button" class="btn btn-sm btn-secondary" data-act="sheet" data-id="${esc(sh.id)}">Remove</button>
+    </div>`;
+  }
+
+  // ── Generic single-item rows (legacy, quarantine, pipeline) ─────────────
+  function simpleRowHtml(id, title, meta, actionId, actionLabel) {
     return `<div class="device-pkg-row" data-row="${esc(id)}">
-      ${copyOpen}
+      <div class="device-pkg-copy">
         <strong>${esc(title)}</strong>
-        <div class="muted">${esc(meta)}</div>
-      ${copyClose}
-      ${actionId ? `<button type="button" class="btn btn-secondary" data-act="${esc(actionId)}" data-id="${esc(id)}">${esc(actionLabel)}</button>` : ''}
+        <div class="dev-detail-line muted">${esc(meta)}</div>
+      </div>
+      ${actionId ? `<button type="button" class="btn btn-sm btn-secondary" data-act="${esc(actionId)}" data-id="${esc(id)}">${esc(actionLabel)}</button>` : ''}
+    </div>`;
+  }
+
+  // ── Bulk select bar ──────────────────────────────────────────────────────
+  function selectBarHtml(kind) {
+    return `<div class="dev-select-bar" data-selectbar="${esc(kind)}">
+      <button type="button" class="btn btn-sm btn-secondary" data-selectall="${esc(kind)}">All</button>
+      <button type="button" class="btn btn-sm btn-secondary" data-selectnone="${esc(kind)}">None</button>
+      <button type="button" class="btn btn-sm btn-danger" data-bulkremove="${esc(kind)}">Remove selected</button>
     </div>`;
   }
 
@@ -103,9 +209,26 @@
     return r;
   }
 
-  function closeLightbox() {
-    document.getElementById(LIGHTBOX_ID)?.remove();
+  async function loadSessionIntoActive(id, store, date) {
+    if (!(await confirmLoad(store, date))) return false;
+    const S = global.EodSession;
+    if (!S) return false;
+    const rec = await global.PhotoDB?.loadSessionForView?.(id);
+    if (!rec || !rec.photos) return false;
+    S.patch({
+      photos: {
+        before: rec.photos.before || [],
+        after: rec.photos.after || [],
+        signoff: rec.photos.signoff || [],
+        instawork: rec.photos.instawork || [],
+      },
+    }, 'device-storage');
+    try { S.saveDraft(); } catch (_) {}
+    global.EodChrome?.refresh?.();
+    return true;
   }
+
+  function closeLightbox() { document.getElementById(LIGHTBOX_ID)?.remove(); }
 
   function openLightbox(src) {
     closeLightbox();
@@ -167,11 +290,11 @@
         <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="unsentReviewTitle">
           <h2 id="unsentReviewTitle">Unsent photos</h2>
           ${unsent.map((s) => {
-            const meta = [`${s.count} photo${s.count === 1 ? '' : 's'}`, typeMeta(s), fmtBytes(s.bytes)].filter(Boolean).join(' · ');
+            const meta = [`${s.count} photo${s.count === 1 ? '' : 's'}`, typeLine(s), fmtBytes(s.bytes)].filter(Boolean).join(' · ');
             return `<div class="device-pkg-row">
               <button type="button" class="device-pkg-copy" data-open="${esc(s.id)}">
                 <strong>#${esc(s.store)} · ${esc(s.date)}</strong>
-                <div class="muted">${esc(meta)}</div>
+                <div class="dev-detail-line muted">${esc(meta)}</div>
               </button>
               <button type="button" class="btn btn-danger" data-discard="${esc(s.id)}">Discard</button>
             </div>`;
@@ -230,10 +353,7 @@
         if (!(await confirmRemove('Discard this package?'))) return;
         await removeSession(id);
         if (fromList) await paintList();
-        else {
-          closeReview();
-          await refreshStorageIfOpen();
-        }
+        else { closeReview(); await refreshStorageIfOpen(); }
       });
       host.querySelector('#unsentDetailClose')?.addEventListener('click', () => {
         if (fromList) paintList();
@@ -250,10 +370,7 @@
     if (mount && global.EodRouter?.current === 'storage') await render(mount);
   }
 
-  function openUnsentReview() {
-    return openPackageOverlay({ id: null });
-  }
-
+  function openUnsentReview() { return openPackageOverlay({ id: null }); }
   function openSessionReview(id) {
     if (!id) return openUnsentReview();
     return openPackageOverlay({ id });
@@ -269,6 +386,9 @@
     const activeId = inv.activeId;
     const sessions = inv.sessions || [];
 
+    const pkgRows = sessions.map((s) => sessionRowHtml(s, activeId, _pkgSelectMode)).join('');
+    const shRows = sheets.map((sh) => sheetRowHtml(sh, _shSelectMode)).join('');
+
     mount.innerHTML = `
       <div class="card">
         <h1>Device</h1>
@@ -279,33 +399,47 @@
         </div>
         <div id="devStorageMsg" class="muted" style="margin-top:8px;"></div>
       </div>
+
       <div class="card">
-        <h2>Packages</h2>
-        ${sessions.length ? sessions.map((s) => {
-          const title = `#${s.store} · ${s.date}`;
-          const bits = [typeMeta(s), `${s.count} photo${s.count === 1 ? '' : 's'}`, fmtBytes(s.bytes), sessionStatus(s, activeId)].filter(Boolean);
-          return rowHtml(s.id, title, bits.join(' · '), 'session', 'Remove', true);
-        }).join('') : '<p class="muted">None on this phone.</p>'}
+        <div class="dev-section-header">
+          <h2>Packages</h2>
+          ${sessions.length > 1
+            ? `<button type="button" class="btn btn-sm btn-secondary" id="devPkgSelectToggle">${_pkgSelectMode ? 'Cancel' : 'Select'}</button>`
+            : ''}
+        </div>
+        ${_pkgSelectMode ? selectBarHtml('session') : ''}
+        ${sessions.length ? pkgRows : '<p class="muted">None on this phone.</p>'}
       </div>
+
       ${inv.legacy ? `<div class="card">
         <h2>Old copy</h2>
-        ${rowHtml('legacy', inv.legacy.label || 'Old photo copy', `${inv.legacy.count} photo${inv.legacy.count === 1 ? '' : 's'} · ${fmtBytes(inv.legacy.bytes)}`, 'legacy', 'Remove')}
+        ${simpleRowHtml('legacy', inv.legacy.label || 'Old photo copy', `${inv.legacy.count} photo${inv.legacy.count === 1 ? '' : 's'} · ${fmtBytes(inv.legacy.bytes)}`, 'legacy', 'Remove')}
       </div>` : ''}
+
       ${inv.quarantine ? `<div class="card">
         <h2>Unstamped</h2>
-        ${rowHtml('quarantine', inv.quarantine.label || 'Unstamped', `${inv.quarantine.count} photo${inv.quarantine.count === 1 ? '' : 's'} · ${fmtBytes(inv.quarantine.bytes)}`, 'quarantine', 'Remove')}
+        ${simpleRowHtml('quarantine', inv.quarantine.label || 'Unstamped', `${inv.quarantine.count} photo${inv.quarantine.count === 1 ? '' : 's'} · ${fmtBytes(inv.quarantine.bytes)}`, 'quarantine', 'Remove')}
       </div>` : ''}
+
       ${sheets.length ? `<div class="card">
-        <h2>Sheets</h2>
-        ${sheets.map((sh) => rowHtml(sh.id, `#${sh.store} · ${sh.week}`, fmtBytes(sh.bytes), 'sheet', 'Remove')).join('')}
+        <div class="dev-section-header">
+          <h2>Sheets</h2>
+          ${sheets.length > 1
+            ? `<button type="button" class="btn btn-sm btn-secondary" id="devShSelectToggle">${_shSelectMode ? 'Cancel' : 'Select'}</button>`
+            : ''}
+        </div>
+        ${_shSelectMode ? selectBarHtml('sheet') : ''}
+        ${shRows}
       </div>` : ''}
+
       ${(pipe.failed || 0) > 0 ? `<div class="card">
         <h2>Failed uploads</h2>
-        ${rowHtml('pipeline-failed', `${pipe.failed} failed`, 'Retry only these', 'pipeline-retry', 'Retry')}
+        ${simpleRowHtml('pipeline-failed', `${pipe.failed} failed`, 'Tap Retry to requeue', 'pipeline-retry', 'Retry')}
       </div>` : ''}
+
       ${(pipe.done || 0) > 0 ? `<div class="card">
         <h2>Finished uploads</h2>
-        ${rowHtml('pipeline', `${pipe.done} finished`, `${(pipe.total || 0) - (pipe.superseded || 0)} jobs`, 'pipeline', 'Clear')}
+        ${simpleRowHtml('pipeline', `${pipe.done} finished`, `${(pipe.total || 0) - (pipe.superseded || 0)} jobs`, 'pipeline', 'Clear')}
       </div>` : ''}
     `;
 
@@ -321,18 +455,27 @@
       await render(mount);
     }
 
+    // ── Photo review ──────────────────────────────────────────────────────
     mount.querySelectorAll('[data-view]').forEach((btn) => {
       btn.addEventListener('click', () => openSessionReview(btn.getAttribute('data-view')));
     });
 
+    // ── Single-item actions ───────────────────────────────────────────────
     mount.querySelectorAll('[data-act]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const act = btn.getAttribute('data-act');
         const id = btn.getAttribute('data-id');
+
         if (act === 'session') {
           if (!(await confirmRemove('Remove this package?'))) return;
           await removeSession(id);
           await afterChange();
+          return;
+        }
+        if (act === 'session-load') {
+          const store = btn.getAttribute('data-store');
+          const date = btn.getAttribute('data-date');
+          if (await loadSessionIntoActive(id, store, date)) await afterChange();
           return;
         }
         if (act === 'legacy') {
@@ -365,6 +508,49 @@
       });
     });
 
+    // ── Select-mode toggles ───────────────────────────────────────────────
+    document.getElementById('devPkgSelectToggle')?.addEventListener('click', async () => {
+      _pkgSelectMode = !_pkgSelectMode;
+      await render(mount);
+    });
+    document.getElementById('devShSelectToggle')?.addEventListener('click', async () => {
+      _shSelectMode = !_shSelectMode;
+      await render(mount);
+    });
+
+    // ── Bulk select helpers ───────────────────────────────────────────────
+    function selInputs(kind) {
+      return [...mount.querySelectorAll(`.dev-sel[data-kind="${kind}"]`)];
+    }
+
+    mount.querySelectorAll('[data-selectall]').forEach((btn) => {
+      const kind = btn.getAttribute('data-selectall');
+      btn.addEventListener('click', () => selInputs(kind).forEach((cb) => { cb.checked = true; }));
+    });
+    mount.querySelectorAll('[data-selectnone]').forEach((btn) => {
+      const kind = btn.getAttribute('data-selectnone');
+      btn.addEventListener('click', () => selInputs(kind).forEach((cb) => { cb.checked = false; }));
+    });
+
+    // ── Bulk remove ───────────────────────────────────────────────────────
+    mount.querySelectorAll('[data-bulkremove]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const kind = btn.getAttribute('data-bulkremove');
+        const checked = selInputs(kind).filter((cb) => cb.checked);
+        if (!checked.length) { setMsg('Nothing selected.'); return; }
+        if (!(await confirmRemove(`Remove ${checked.length} item${checked.length === 1 ? '' : 's'}?`))) return;
+        for (const cb of checked) {
+          const id = cb.getAttribute('data-sel');
+          if (kind === 'session') await removeSession(id);
+          if (kind === 'sheet') await global.EodGarden?.deleteSheetSnapshot?.(id);
+        }
+        if (kind === 'session') _pkgSelectMode = false;
+        if (kind === 'sheet') _shSelectMode = false;
+        await afterChange();
+      });
+    });
+
+    // ── Device-level actions ──────────────────────────────────────────────
     document.getElementById('devPurgeSent')?.addEventListener('click', async () => {
       if (!(await confirmRemove('Remove all sent packages?'))) return;
       const r = await global.PhotoDB.purgeSubmitted({ keepActive: true, maxAgeMs: 0 });

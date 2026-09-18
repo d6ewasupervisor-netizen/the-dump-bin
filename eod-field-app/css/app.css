@@ -3316,6 +3316,70 @@ div.device-pkg-copy { cursor: default; }
 .device-pkg-copy strong { display: block; }
 .device-pkg-row .btn { flex: 0 0 auto; min-height: 40px; }
 
+/* ── Device storage — enhanced rows ────────────────────────── */
+.dev-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.dev-section-header h2 { margin: 0; }
+
+.dev-detail-line {
+  font-size: 0.82em;
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.dev-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.dev-row-check {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.dev-row-check input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary, #7556f3);
+  cursor: pointer;
+}
+
+/* Select bar */
+.dev-select-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+/* Status badges */
+.dev-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.78em;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.dev-badge--active  { background: #1a6b3a; color: #d4f5e3; }
+.dev-badge--sent    { background: #1a3d6b; color: #c8dff5; }
+.dev-badge--upload  { background: #5a3f00; color: #ffe8a0; }
+.dev-badge--fail    { background: #6b1a1a; color: #ffd4d4; }
+.dev-badge--unsent  { background: #3a2500; color: #ffd4a0; }
+
 .sas-pattern {
   position: relative;
   display: grid;
