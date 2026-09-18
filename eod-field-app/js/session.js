@@ -131,7 +131,7 @@
       try { await global.PhotoDB.clearPhotos(); } catch (_) {}
     }
     if (wipeUnsent && global.PhotoDB?.purgeUnsentLeftovers) {
-      try { await global.PhotoDB.purgeUnsentLeftovers(); } catch (_) {}
+      try { await global.PhotoDB.purgeUnsentLeftovers({ force: true }); } catch (_) {}
     }
     state.storeNumber = '';
     state.workDate = todayLocalIsoDate();

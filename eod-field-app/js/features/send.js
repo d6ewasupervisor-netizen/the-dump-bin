@@ -371,12 +371,12 @@ ${cleanNotes}`;
     const store = S.state.storeNumber;
     const { body, report } = buildBodyAndReport();
     const userEmail = (S.state.profileEmail || '').trim().toLowerCase();
+    const hasFredMeyerTeam = (S.state.fredmeyerEmailPool || []).length > 0;
     let recipients = [...new Set([
       ...(S.state.fredmeyerEmailPool || []),
       ...(S.state.emailRecipients || []),
     ].map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))];
-    // Lead is always included regardless of FM team presence
-    if (userEmail && !recipients.includes(userEmail)) {
+    if (!hasFredMeyerTeam && userEmail) {
       recipients = [userEmail, ...recipients];
     }
     recipients = [...new Set(recipients)];

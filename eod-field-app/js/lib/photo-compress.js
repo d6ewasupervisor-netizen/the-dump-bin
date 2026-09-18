@@ -260,13 +260,12 @@
       guard += 1;
     }
 
-    try {
-      bitmap.close?.();
-    } catch (_) {}
-
     if (!encoded) {
-      // Absolute fallback: original data URL if we can read it
+      // Absolute fallback: original data URL if we can read it. Must run BEFORE
+      // bitmap.close() below, since for a bitmap/canvas input (as opposed to a
+      // string or Blob) this is the only remaining source of the photo bytes.
       if (typeof input === 'string') {
+        try { bitmap.close?.(); } catch (_) {}
         return {
           dataUrl: input,
           blob: null,
@@ -278,18 +277,52 @@
           fallback: true,
         };
       }
-      const raw = await blobToDataUrl(input);
-      return {
-        dataUrl: raw,
-        blob: input,
-        mime: input.type || 'image/jpeg',
-        bytes: input.size || dataUrlByteLength(raw),
-        width: srcW,
-        height: srcH,
-        quality: null,
-        fallback: true,
-      };
+      if (input instanceof Blob || input instanceof File) {
+        const raw = await blobToDataUrl(input);
+        try { bitmap.close?.(); } catch (_) {}
+        return {
+          dataUrl: raw,
+          blob: input,
+          mime: input.type || 'image/jpeg',
+          bytes: input.size || dataUrlByteLength(raw),
+          width: srcW,
+          height: srcH,
+          quality: null,
+          fallback: true,
+        };
+      }
+      // input is an ImageBitmap/canvas-like object (not a string or Blob) — the
+      // encoder failed at every quality/size step, so draw it straight to a
+      // plain canvas at native size with no size budget, rather than lose it.
+      try {
+        const rawCanvas = document.createElement('canvas');
+        rawCanvas.width = srcW;
+        rawCanvas.height = srcH;
+        const rctx = rawCanvas.getContext('2d');
+        drawBitmap(rctx, bitmap, srcW, srcH);
+        const rawDataUrl = rawCanvas.toDataURL('image/jpeg', 0.85);
+        try { bitmap.close?.(); } catch (_) {}
+        return {
+          dataUrl: rawDataUrl,
+          blob: null,
+          mime: 'image/jpeg',
+          bytes: dataUrlByteLength(rawDataUrl),
+          width: srcW,
+          height: srcH,
+          quality: null,
+          fallback: true,
+        };
+      } catch (err) {
+        // Truly could not extract anything — close only now, as a last resort,
+        // and surface the failure so the caller does not silently proceed.
+        try { bitmap.close?.(); } catch (_) {}
+        throw new Error(`compress fallback failed to extract photo: ${err?.message || err}`);
+      }
     }
+
+    try {
+      bitmap.close?.();
+    } catch (_) {}
 
     const dataUrl = await blobToDataUrl(encoded.blob);
     return {

@@ -63,7 +63,7 @@
         </div>
         <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
     }
-    return `${leadLine(lead)}<button type="button" class="btn btn-primary btn-block" data-sas="open-setup">Setup reporting systems</button>
+    return `${leadLine(lead)}<button type="button" class="btn btn-primary btn-block" data-sas="open-setup">Login to the reporting systems</button>
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
   }
 

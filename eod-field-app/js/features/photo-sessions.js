@@ -1,12 +1,12 @@
 /**
- * Batch 5 / T0.1 — day-confirm-keyed photo sessions (IndexedDB).
+ * Batch 5 / T0.1 â€” day-confirm-keyed photo sessions (IndexedDB).
  *
  * Records: session:<store>:<YYYY-MM-DD>
  * Quarantine: quarantine:legacy (unstamped migration only)
- * Legacy allPhotos: never deleted (rollback safety for ≤2.11.8).
+ * Legacy allPhotos: never deleted (rollback safety for â‰¤2.11.8).
  *
  * Caps: percentage of navigator.storage.estimate().quota when available
- * (soft 30% / hard 50%). Fallback fixed 40 MB / 90 MB if estimate missing —
+ * (soft 30% / hard 50%). Fallback fixed 40 MB / 90 MB if estimate missing â€”
  * fixed hard cap alone is meaningless vs Safari eviction; prefer % of quota.
  */
 (function (global) {
@@ -25,7 +25,7 @@
   const SOFT_QUOTA_FRAC = 0.30;
   const HARD_QUOTA_FRAC = 0.50;
   const SENT_PRUNE_MS = 36 * 60 * 60 * 1000;
-  /** Email ok + only failed jobs (no open) → eligible for sentAt after this window. */
+  /** Email ok + only failed jobs (no open) â†’ eligible for sentAt after this window. */
   const FAILED_AFTER_EMAIL_ELIGIBLE_MS = 14 * 24 * 60 * 60 * 1000;
 
   let cachedEstimate = { quota: null, usage: null, at: 0 };
@@ -66,7 +66,7 @@
           if (Number.isFinite(est.usage) && est.usage >= 0) usage = Math.floor(est.usage);
         }
       }
-    } catch (_) { /* Safari quirks — fall back */ }
+    } catch (_) { /* Safari quirks â€” fall back */ }
     cachedEstimate = { quota, usage, at: now };
     return cachedEstimate;
   }
@@ -81,7 +81,7 @@
     }
     const softBytes = Math.max(5 * 1024 * 1024, Math.floor(quota * SOFT_QUOTA_FRAC));
     let hardBytes = Math.max(softBytes + (2 * 1024 * 1024), Math.floor(quota * HARD_QUOTA_FRAC));
-    // Never claim a hard cap above 80% of reported quota — leave headroom for eviction.
+    // Never claim a hard cap above 80% of reported quota â€” leave headroom for eviction.
     hardBytes = Math.min(hardBytes, Math.floor(quota * 0.80));
     return { softBytes, hardBytes, mode: 'quota-frac' };
   }
@@ -643,7 +643,7 @@
       const meta = sessionMetaFrom(existing);
       const nextMeta = mutator(meta, arrs) || meta;
       const rec = buildSessionRecord(parsed.store, parsed.date, arrs, nextMeta);
-      // Preserve photo arrays from existing when mutator didn't touch arrs via rebuild —
+      // Preserve photo arrays from existing when mutator didn't touch arrs via rebuild â€”
       // buildSessionRecord already got arrs from existing.
       await putRecord(rec);
       return rec;
@@ -656,7 +656,7 @@
     }
 
     function resolveActiveKey() {
-      // Spec: active key comes from the day-confirm token only — not wall clock,
+      // Spec: active key comes from the day-confirm token only â€” not wall clock,
       // not the form alone (form can lag or rollover independently).
       const dc = typeof opts.getActiveDayConfirm === 'function' ? opts.getActiveDayConfirm() : null;
       if (dc?.store && dc?.date) {
@@ -705,19 +705,41 @@
       return out;
     }
 
+
+    function pipelineProtectsSession(s) {
+      if (!s) return false;
+      const pipe = global.EodPhotoPipeline;
+      if (pipe && typeof pipe.sessionHasProtectedJobs === 'function') {
+        try {
+          return !!pipe.sessionHasProtectedJobs(s.store, s.date);
+        } catch (_) {
+          /* fall through */
+        }
+      }
+      // Pipeline not loaded / not ready: refuse auto-delete while photos remain.
+      // Explicit user discard paths do not call this helper.
+      return !!(Number(s.count) > 0 || Number(s.bytes) > 0 || s.hasOpenJobs);
+    }
+
     async function pruneSentOlderThan7Days() {
       const now = Date.now();
       const sessions = await listSessionSummaries();
       let removed = 0;
+      let skippedProtected = 0;
       for (const s of sessions) {
         if (!s.sentAt) continue;
         const t = new Date(s.sentAt).getTime();
         if (!Number.isFinite(t) || now - t < SENT_PRUNE_MS) continue;
         if (activeKey && s.id === activeKey.id) continue;
+        // B / PhotoDB: email/sentAt is not PROD+SI confirm - keep blobs while pipeline protects.
+        if (pipelineProtectsSession(s)) {
+          skippedProtected += 1;
+          continue;
+        }
         await deleteRecord(s.id);
         removed += 1;
       }
-      return { removed };
+      return { removed, skippedProtected };
     }
 
     function isSubmittedSession(s) {
@@ -749,16 +771,22 @@
       const sessions = await listSessionSummaries();
       const activeId = keepActive ? resolveActiveKey()?.id : null;
       let removed = 0;
+      let skippedProtected = 0;
       for (const s of sessions) {
         if (!isSubmittedSession(s)) continue;
         if (activeId && s.id === activeId) continue;
         const stamp = s.sentAt || s.emailOkAt || s.timestamp;
         const t = stamp ? new Date(stamp).getTime() : 0;
         if (maxAgeMs > 0 && Number.isFinite(t) && now - t < maxAgeMs) continue;
+        // B / PhotoDB: emailOk alone must never wipe blobs still gated by isFullyConfirmed.
+        if (pipelineProtectsSession(s)) {
+          skippedProtected += 1;
+          continue;
+        }
         await deleteRecord(s.id);
         removed += 1;
       }
-      return { removed };
+      return { removed, skippedProtected };
     }
 
     async function slimLegacyMirror() {
@@ -852,7 +880,7 @@
       let total = sessions.reduce((a, s) => a + s.bytes, 0);
       while (total > caps.hardBytes) {
         const victims = sessions
-          .filter((s) => s.sentAt && (!activeKey || s.id !== activeKey.id))
+          .filter((s) => s.sentAt && (!activeKey || s.id !== activeKey.id) && !pipelineProtectsSession(s))
           .sort((a, b) => {
             const ta = new Date(a.sentAt).getTime() || 0;
             const tb = new Date(b.sentAt).getTime() || 0;
@@ -934,7 +962,7 @@
       const legacy = await getRecord(LEGACY_ID);
 
       // Even if marker exists, a fresh allPhotos with new stamps can still
-      // be absorbed — but only once per marker generation. Marker means
+      // be absorbed â€” but only once per marker generation. Marker means
       // "initial split done"; we still merge any remaining stamped leftovers
       // that aren't already in a session (safe re-run).
       if (!legacy) {
@@ -1010,7 +1038,7 @@
         });
       }
 
-      // Never delete allPhotos — leave for ≤2.11.8 rollback.
+      // Never delete allPhotos â€” leave for â‰¤2.11.8 rollback.
       await putRecord({
         id: MIGRATION_ID,
         schemaVersion: SCHEMA_VERSION,
@@ -1067,7 +1095,7 @@
       }
       const arrs = slimmed;
 
-      // Dual-write allPhotos mirror of active (or empty) for ≤2.11.8 rollback.
+      // Dual-write allPhotos mirror of active (or empty) for â‰¤2.11.8 rollback.
       const legacyMirror = {
         id: LEGACY_ID,
         before: arrs.before,
@@ -1099,7 +1127,7 @@
           await writeActive();
         }
       } else {
-        // No active session — still mirror memory to allPhotos for rollback,
+        // No active session â€” still mirror memory to allPhotos for rollback,
         // but do not invent a session key (would bypass day-confirm).
         await putRecord(legacyMirror);
       }
@@ -1199,14 +1227,32 @@
       };
     }
 
-    async function purgeUnsentLeftovers() {
+            /**
+     * Wipe empty unsent husks by default. Sessions that still hold photos are
+     * kept unless opts.force === true (explicit user Discard-all / resetVisit).
+     * SAFETY (2026-09-17 Brad+Claude overnight): automatic callers must never
+     * pass force — that was a silent photo-loss footgun.
+     */
+    async function purgeUnsentLeftovers(opts = {}) {
+      const force = !!(opts && opts.force);
       const sessions = await unsentSessions();
       let removed = 0;
+      let skipped = 0;
       for (const s of sessions) {
+        const count = Number(s.count) || 0;
+        const bytes = Number(s.bytes) || 0;
+        const open = !!(s.hasOpenJobs);
+        if (!force && (count > 0 || bytes > 0 || open)) {
+          skipped += 1;
+          continue;
+        }
         await deleteRecord(s.id);
         removed += 1;
       }
-      return { removed };
+      if (skipped) {
+        try { console.warn('[PhotoDB] purgeUnsentLeftovers refused to drop', skipped, 'sessions with photos'); } catch (_) {}
+      }
+      return { removed, skipped, refusedWithPhotos: skipped, forced: force };
     }
 
     async function estimatePhotoBytes() {
@@ -1279,7 +1325,7 @@
       return { id: QUARANTINE_ID, count, bytes: arraysBytes(arrs), label: q.label };
     }
 
-    /** Batch 7 — track a SAS/coversheet job on the active session. */
+    /** Batch 7 â€” track a SAS/coversheet job on the active session. */
     async function trackSasJob(jobId, status) {
       const id = String(jobId || '').trim();
       if (!id) return null;
@@ -1300,7 +1346,7 @@
         meta.sasJobs[id] = (st === 'processing' || st === 'completed' || st === 'failed')
           ? st
           : 'pending';
-        // A later completed job means prior failures were retried — drop failed
+        // A later completed job means prior failures were retried â€” drop failed
         // entries so session-complete can close once email + open jobs settle.
         if (meta.sasJobs[id] === 'completed') {
           for (const [jid, s] of Object.entries(meta.sasJobs)) {
@@ -1416,7 +1462,7 @@
       return tryCompleteSessionById(activeKey.id);
     }
 
-    /** Sessions with pending/processing jobs — for startup reconciliation. */
+    /** Sessions with pending/processing jobs â€” for startup reconciliation. */
     async function sessionsWithOpenJobs() {
       const all = await listSessionSummaries();
       return all.filter((s) => s.hasOpenJobs && !s.sentAt);
@@ -1465,7 +1511,7 @@
       photoSrc,
       getBlob,
       loadPhotos: async () => {
-        // Deprecated path — callers should use loadActiveInto. Return active only.
+        // Deprecated path â€” callers should use loadActiveInto. Return active only.
         const tmp = emptyArrays();
         await loadActiveInto(tmp);
         return tmp;

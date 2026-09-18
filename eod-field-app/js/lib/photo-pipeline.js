@@ -48,9 +48,57 @@
     listeners.forEach((fn) => {
       try { fn(detail); } catch (_) {}
     });
+    updateStorageBadge(detail.pending);
     try {
       global.dispatchEvent(new CustomEvent('eod-photo-pipeline', { detail }));
     } catch (_) {}
+  }
+
+  // --- "N on device" badge -------------------------------------------------
+  // Small, muted, non-blocking indicator of protectedOnDevice (jobs still
+  // holding local bytes — safe, just not yet confirmed+offloaded). Reassuring,
+  // not alarming: hidden at 0, muted style normally, only shifts to an
+  // attention style when there are failed jobs needing a retry tap. No modal,
+  // no interruption to capture.
+  let storageBadgeEl = null;
+  function ensureStorageBadge() {
+    if (storageBadgeEl || typeof document === 'undefined') return storageBadgeEl;
+    const el = document.createElement('div');
+    el.id = 'eod-photo-storage-badge';
+    el.setAttribute('role', 'status');
+    el.style.cssText = 'position:fixed;right:10px;bottom:max(10px,env(safe-area-inset-bottom,0px));'
+      + 'z-index:39000;display:none;align-items:center;gap:6px;font-size:12px;line-height:1;'
+      + 'padding:6px 10px;border-radius:999px;background:rgba(30,41,59,.9);color:#cbd5e1;'
+      + 'border:1px solid rgba(148,163,184,.35);pointer-events:none;transition:opacity .2s ease;';
+    document.body.appendChild(el);
+    storageBadgeEl = el;
+    return el;
+  }
+
+  function updateStorageBadge(pending) {
+    try {
+      if (typeof document === 'undefined') return;
+      const n = Number(pending?.protectedOnDevice) || 0;
+      const failed = Number(pending?.failed) || 0;
+      const el = ensureStorageBadge();
+      if (!el) return;
+      if (n <= 0 && failed <= 0) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = 'flex';
+      if (failed > 0) {
+        el.style.background = 'rgba(127,29,29,.92)';
+        el.style.color = '#fecaca';
+        el.style.borderColor = 'rgba(248,113,113,.5)';
+        el.textContent = `${failed} photo${failed === 1 ? '' : 's'} need retry`;
+      } else {
+        el.style.background = 'rgba(30,41,59,.9)';
+        el.style.color = '#cbd5e1';
+        el.style.borderColor = 'rgba(148,163,184,.35)';
+        el.textContent = `${n} on device`;
+      }
+    } catch (_) { /* best-effort UI only */ }
   }
 
   function publicJob(job) {
@@ -75,6 +123,9 @@
       statusUrl: job.statusUrl || null,
       board: job.board || null,
       offloaded: !!job.offloaded,
+      storeNumber: job.storeNumber || null,
+      workDate: job.workDate || null,
+      hasPayload: !!job.hasPayload,
       updatedAt: job.updatedAt,
     };
   }
@@ -85,14 +136,54 @@
     }
   }
 
+  /**
+   * Single choke point for "is it safe to delete this photo's local bytes yet".
+   * A job is only fully confirmed once PROD (and SI, when applicable — SI does
+   * not apply to 'before' slot photos) have each independently reported a real
+   * success status, OR the caller explicitly marked that side as not needed
+   * (skipProd/skipSi). Non-'set' kinds (cart/before/after) upload synchronously
+   * via defaultCartUpload, which throws on any failure/timeout — so reaching
+   * status 'done' for those already implies server confirmation.
+   * This must stay the ONLY gate that allows local bytes to be dropped; do not
+   * add another path that deletes dataUrl/blob/file/PhotoDB blobs without
+   * routing through here first.
+   */
+  function isFullyConfirmed(job) {
+    if (Logic.isFullyConfirmed) return Logic.isFullyConfirmed(job);
+    if (!job) return false;
+    if (job.kind === 'set') {
+      const prodOk = sideOk(job.prodStatus, 'set') || job.skipProd;
+      const siApplicable = String(job.slot || 'after').toLowerCase() !== 'before';
+      const siOk = !siApplicable || sideOk(job.siStatus, 'set') || job.skipSi;
+      return prodOk && siOk;
+    }
+    return job.status === 'done';
+  }
+
   function maybeOffloadJob(job) {
     if (!job || job.offloaded) return false;
+    // isFullyConfirmed (PROD+SI, per isFullyConfirmed's own rules) is the entire
+    // deletion contract. A resolvable board pointer is only needed to swap in a
+    // remote preview thumbnail — its absence must never block a confirmed job's
+    // bytes from being freed, or a device could be stuck holding bytes forever
+    // for jobs that are already safely confirmed server-side.
+    if (!isFullyConfirmed(job)) return false;
     const pointer = Logic.boardPointerFromResult
       ? Logic.boardPointerFromResult(job.uploadResult, job)
       : null;
-    if (!pointer?.url) return false;
     dropLocalPreview(job);
-    if (Logic.applyBoardOffload) Logic.applyBoardOffload(job, pointer);
+    if (pointer?.url && Logic.applyBoardOffload) {
+      Logic.applyBoardOffload(job, pointer); // also nulls dataUrl/blob/file/bitmap/canvas
+    } else {
+      // No pointer to swap in — still drop local bytes, just without a preview.
+      job.dataUrl = null;
+      job.blob = null;
+      job.file = null;
+      job.bitmap = null;
+      job.canvas = null;
+      job.hasPayload = false;
+    }
+    job.offloaded = true;
     idbDelete(job.id).catch(() => {});
     return true;
   }
@@ -128,14 +219,65 @@
     let failed = 0;
     let done = 0;
     let superseded = 0;
+    let protectedOnDevice = 0;
     for (const j of jobs.values()) {
       if (isSuperseded(j)) superseded += 1;
       else if (j.status === 'queued' || j.status === 'compressing') compress += 1;
       else if (j.status === 'compressed' || j.status === 'uploading' || j.status === 'reconciling' || j.status === 'accepted') upload += 1;
       else if (j.status === 'failed') failed += 1;
       else if (j.status === 'done') done += 1;
+      if (j.dataUrl || j.blob || j.file || j.hasPayload) protectedOnDevice += 1;
     }
-    return { compress, upload, failed, done, superseded, total: jobs.size, open: compress + upload };
+    return { compress, upload, failed, done, superseded, protectedOnDevice, total: jobs.size, open: compress + upload };
+  }
+
+  // --- Storage-issue toast (quota exceeded / IDB write failures) ---------
+  // Calm, non-blocking, never interrupts capture. Debounced to once per
+  // ~8-minute "episode" so a run of failures doesn't spam the lead — but the
+  // first failure of a new episode always surfaces, it is never swallowed
+  // silently. Photos stay on-device either way (this is a heads-up, not a
+  // gate); it exists so a lead knows to free space or tap sync before the
+  // device actually runs out.
+  const STORAGE_TOAST_DEBOUNCE_MS = 8 * 60 * 1000;
+  let lastStorageToastAt = 0;
+  let storageToastEl = null;
+
+  function isQuotaError(err) {
+    const name = err?.name || '';
+    const msg = String(err?.message || err || '');
+    return name === 'QuotaExceededError' || /quota/i.test(msg);
+  }
+
+  function showStorageToast(message) {
+    try {
+      if (typeof document === 'undefined') return;
+      if (storageToastEl) storageToastEl.remove();
+      const el = document.createElement('div');
+      el.setAttribute('role', 'status');
+      el.style.cssText = 'position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom,0px));'
+        + 'transform:translateX(-50%);z-index:49000;max-width:min(92vw,420px);'
+        + 'background:#1f2937;color:#f8fafc;border:1px solid #475569;border-radius:12px;'
+        + 'padding:10px 14px;font-size:14px;line-height:1.35;box-shadow:0 6px 20px rgba(0,0,0,.35);'
+        + 'pointer-events:none;';
+      el.textContent = message;
+      document.body.appendChild(el);
+      storageToastEl = el;
+      setTimeout(() => { try { el.remove(); } catch (_) {} if (storageToastEl === el) storageToastEl = null; }, 6000);
+    } catch (_) { /* best-effort UI only */ }
+  }
+
+  function notifyStorageIssue(err) {
+    const now = Date.now();
+    if (now - lastStorageToastAt < STORAGE_TOAST_DEBOUNCE_MS) return;
+    lastStorageToastAt = now;
+    const quota = isQuotaError(err);
+    const message = quota
+      ? 'This device is low on storage. Photos are still saved on the device — free up space or tap Sync.'
+      : 'Having trouble saving a photo locally. It’s still in memory for this session — try to sync soon.';
+    showStorageToast(message);
+    try {
+      global.dispatchEvent?.(new CustomEvent('eod-photo-storage-warning', { detail: { quota, error: err?.message || String(err) } }));
+    } catch (_) {}
   }
 
   function openIdb() {
@@ -165,7 +307,15 @@
           tx.onerror = () => reject(tx.error);
           tx.objectStore(IDB_STORE).put(record);
         })
-    );
+    ).catch((err) => {
+      // Never silent: this is the sole IDB write path, so every persist
+      // failure (quota exceeded, storage corruption, etc.) surfaces here.
+      // The photo itself is NOT lost — it stays in the in-memory `jobs` Map
+      // for this session — but the lead needs to know local persistence is
+      // degraded so a crash/reload before sync would lose the in-memory copy.
+      notifyStorageIssue(err);
+      throw err;
+    });
   }
 
   function idbGetAll() {
@@ -282,7 +432,16 @@
     try {
       const lean = [];
       for (const j of jobs.values()) {
-        if (j.status === 'done' && Date.now() - (j.updatedAt || 0) > 36 * 60 * 60 * 1000) {
+        // Only ever drop a job's IDB record here if it is BOTH terminal-done
+        // AND independently re-verified as fully confirmed (isFullyConfirmed
+        // recomputes from prodStatus/siStatus/skip flags — it does not just
+        // trust the 'done' label). This is a defense-in-depth backstop for
+        // maybeOffloadJob's gate, not a replacement for it.
+        if (
+          j.status === 'done'
+          && isFullyConfirmed(j)
+          && Date.now() - (j.updatedAt || 0) > 36 * 60 * 60 * 1000
+        ) {
           idbDelete(j.id).catch(() => {});
           continue;
         }
@@ -454,6 +613,7 @@
   }
 
   function sideOk(status, kind) {
+    if (Logic.sideOk) return Logic.sideOk(status, kind);
     if (OK_SIDES.has(status)) {
       if (kind === 'set' && status === 'not_found') return false;
       return true;
@@ -559,6 +719,24 @@
     if (job.canvas?.toBlob) {
       return new Promise((resolve) => job.canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
     }
+    // Bitmap-only capture (no file/canvas/dataUrl yet) — was previously unhandled here,
+    // which meant the bitmap got closed and nulled below with nothing ever extracted
+    // from it. Draw it into a canvas so the photo isn't lost.
+    if (job.bitmap) {
+      try {
+        const w = job.bitmap.width;
+        const h = job.bitmap.height;
+        const canvas = (typeof OffscreenCanvas !== 'undefined')
+          ? new OffscreenCanvas(w, h)
+          : Object.assign(document.createElement('canvas'), { width: w, height: h });
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(job.bitmap, 0, 0);
+        if (canvas.convertToBlob) return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+        return await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
+      } catch (_) {
+        return null;
+      }
+    }
     return null;
   }
 
@@ -599,8 +777,16 @@
         dataUrl = await readFile(job.file);
         bytes = job.file.size;
       }
-      job.dataUrl = dataUrl;
-      job.blob = blob || dataUrlToBlobForPipeline(dataUrl);
+      const nextDataUrl = dataUrl;
+      const nextBlob = blob || dataUrlToBlobForPipeline(dataUrl);
+      if (!nextDataUrl && !nextBlob) {
+        // Compression produced nothing usable. Do NOT null out file/bitmap/canvas
+        // below — that would destroy the only copy of the photo with no way to
+        // retry. Fail the job instead; the original bytes stay intact for retry.
+        throw new Error('compress produced no output; original bytes preserved');
+      }
+      job.dataUrl = nextDataUrl;
+      job.blob = nextBlob;
       job.bytes = bytes || job.blob?.size || null;
       job.mime = mime || job.blob?.type || null;
       job.checksum = checksum || job.checksum || null;
@@ -708,9 +894,28 @@
           );
         }
       } else {
-        job.status = 'done';
-        job.error = null;
-        maybeOffloadJob(job);
+        // A truthy result alone isn't durable confirmation — defaultCartUpload
+        // can return a bare `{queued:true}` when the server accepted the
+        // request without a jobId to poll to completion. Only `completed`
+        // (polled via jobId) or `success` (synchronous ack) count as durable;
+        // anything else stays uploading/retrying with bytes intact rather than
+        // marking done and purging on an unconfirmed queue-accept.
+        const result = job.uploadResult;
+        const confirmed = !!(result?.completed || result?.success);
+        if (confirmed) {
+          job.status = 'done';
+          job.error = null;
+          maybeOffloadJob(job);
+        } else {
+          job.status = 'compressed';
+          job.error = result?.queued
+            ? 'Upload accepted, waiting for confirmation'
+            : 'Upload response unrecognized — retrying';
+          job.updatedAt = Date.now();
+          persist();
+          emit('partial', job);
+          return;
+        }
       }
 
       job.updatedAt = Date.now();
@@ -1059,6 +1264,24 @@
     return true;
   }
 
+
+  function sessionHasProtectedJobs(store, workDate) {
+    if (Logic.sessionHasProtectedJobs) {
+      return Logic.sessionHasProtectedJobs([...jobs.values()], store, workDate);
+    }
+    const storeNorm = String(store || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+    const date = String(workDate || '').slice(0, 10);
+    for (const j of jobs.values()) {
+      const jStore = String(j.storeNumber || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+      if (jStore !== storeNorm) continue;
+      const jd = String(j.workDate || '').slice(0, 10);
+      if (date && jd && date !== jd) continue;
+      if (isSuperseded(j) || j.status === 'superseded') continue;
+      if (!isFullyConfirmed(j) || (j.dataUrl || j.blob || j.file || j.hasPayload)) return true;
+    }
+    return false;
+  }
+
   function purgeSettledJobs({ maxAgeMs = 36 * 60 * 60 * 1000 } = {}) {
     let n = 0;
     const now = Date.now();
@@ -1068,6 +1291,7 @@
         continue;
       }
       if (j.status !== 'done') continue;
+      if (!isFullyConfirmed(j)) continue;
       if (maxAgeMs > 0 && now - (j.updatedAt || 0) < maxAgeMs) continue;
       if (removeJob(j.id)) n += 1;
     }
@@ -1090,14 +1314,19 @@
   }
 
   /**
-   * Called when server confirms a bay's bytes are safely buffered (reconcile/push ack).
-   * Clears device-local bytes for that bay's pipeline jobs — the server is now the source
-   * of truth. The job transitions to 'accepted' so the pipeline knows it's durable.
+   * Called when the server confirms a bay's bytes are safely buffered
+   * (reconcile/push ack — i.e. landed in the eod-api field_set_photo_buffer
+   * row). This is DB confirmation only, not PROD/SI confirmation, so it must
+   * NOT touch local bytes: PhotoDB blobs, dataUrl/blob/file, or the IDB
+   * record all stay put. We just record that a durable server-side copy
+   * exists (bufferedId/bufferedAt) as a breadcrumb for recovery/debugging.
+   * The job is marked 'accepted' as a progress marker only — pump() does not
+   * re-drive 'accepted' jobs, so the eod-api reconcile worker owns pushing
+   * this bay the rest of the way into PROD/SI; the device keeps its bytes
+   * as a fallback until maybeOffloadJob's isFullyConfirmed gate says both
+   * sides are truly done (or, for 'before' slot, PROD alone).
    */
   function offloadBufferedBay(dbkey, slot, bay, ackData) {
-    const logic = (typeof EodPhotoPipelineLogic !== 'undefined' && EodPhotoPipelineLogic)
-      || global.EodPhotoPipelineLogic
-      || null;
     let n = 0;
     for (const j of [...jobs.values()]) {
       if (
@@ -1107,27 +1336,12 @@
         || Number(j.bay) !== Number(bay)
       ) continue;
       if (j.status === 'done' || j.status === 'superseded') continue;
-      // Clear device bytes; mark as accepted (durable on server).
-      j.dataUrl = null;
-      j.blob = null;
-      j.file = null;
-      j.bitmap = null;
-      j.canvas = null;
-      j.hasPayload = false;
-      j.offloaded = true;
-      j.bufferedId = ackData?.bufferedId || null;
+      j.bufferedId = ackData?.bufferedId || j.bufferedId || null;
+      j.bufferedAt = Date.now();
       j.checksum = j.checksum || ackData?.checksum || null;
-      if (j.status !== 'done') {
+      if (j.status !== 'done' && j.status !== 'accepted') {
         j.status = 'accepted';
         j.updatedAt = Date.now();
-      }
-      if (j.blobId && global.PhotoDB?.deleteBlob) {
-        try { global.PhotoDB.deleteBlob(j.blobId).catch(() => {}); } catch (_) {}
-        j.blobId = null;
-      }
-      if (j.previewUrl && String(j.previewUrl).startsWith('blob:')) {
-        try { URL.revokeObjectURL(j.previewUrl); } catch (_) {}
-        j.previewUrl = null;
       }
       persist();
       emit('accepted', j);
@@ -1316,6 +1530,8 @@
     fetchSetStatus,
     purgeSettledJobs,
     pollAcceptedJobs,
+    sessionHasProtectedJobs,
+    isFullyConfirmed,
   };
 
   if (document.readyState === 'loading') {

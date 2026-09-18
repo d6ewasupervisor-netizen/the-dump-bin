@@ -11,6 +11,70 @@
   const OPEN_COMPRESS = new Set(['queued', 'compressing']);
   const OPEN_UPLOAD = new Set(['compressed', 'uploading', 'reconciling', 'accepted']);
   const TERMINAL = new Set(['done', 'failed', 'superseded']);
+  const OK_SIDES = new Set([
+    'ok',
+    'ok_already_complete',
+    'skipped',
+    'already_present',
+    'not_found', // not a hard fail for cart uploads; excluded for 'set' below
+  ]);
+
+  /** Mirrors the server-side semantics: a 'set' SI/PROD side reporting
+   * not_found means the task/reset wasn't there to receive the photo, which
+   * is NOT the same as confirmed-delivered, so it must not count as ok. */
+  function sideOk(status, kind) {
+    if (OK_SIDES.has(status)) {
+      if (kind === 'set' && status === 'not_found') return false;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Whether a job is safe to drop local bytes for. This is the single
+   * predicate that gates deletion anywhere in the pipeline — do not delete
+   * dataUrl/blob/file/PhotoDB bytes based on any other check.
+   * - 'set' jobs need PROD confirmed, and SI confirmed too unless the slot
+   *   is 'before' (SI does not apply to befores) or the caller explicitly
+   *   marked a side as skipped (skipProd/skipSi).
+   * - Non-'set' kinds (cart/before/after) upload synchronously and throw on
+   *   any failure, so reaching status 'done' already implies confirmation.
+   */
+  function isFullyConfirmed(job) {
+    if (!job) return false;
+    if (job.kind === 'set') {
+      const prodOk = sideOk(job.prodStatus, 'set') || job.skipProd;
+      const siApplicable = String(job.slot || 'after').toLowerCase() !== 'before';
+      const siOk = !siApplicable || sideOk(job.siStatus, 'set') || job.skipSi;
+      return !!(prodOk && siOk);
+    }
+    return job.status === 'done';
+  }
+
+  function hasLocalBytes(j) {
+    return !!(j && (j.dataUrl || j.blob || j.file || j.hasPayload));
+  }
+
+  /**
+   * True if any job for this store+date still needs its local bytes kept —
+   * either not yet fully confirmed, or confirmed but not yet offloaded.
+   * Mirrors the inline fallback previously duplicated in photo-pipeline.js's
+   * sessionHasProtectedJobs; keep both in sync (or better, have that one
+   * always delegate here — see the Logic.sessionHasProtectedJobs check there).
+   */
+  function sessionHasProtectedJobs(jobList, store, workDate) {
+    const storeNorm = String(store || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+    const date = String(workDate || '').slice(0, 10);
+    for (const j of jobList || []) {
+      const jStore = String(j?.storeNumber || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+      if (jStore !== storeNorm) continue;
+      const jd = String(j?.workDate || '').slice(0, 10);
+      if (date && jd && date !== jd) continue;
+      if (isSuperseded(j)) continue;
+      if (!isFullyConfirmed(j) || hasLocalBytes(j)) return true;
+    }
+    return false;
+  }
 
   function isSuperseded(job) {
     if (!job) return false;
@@ -43,6 +107,7 @@
     let failed = 0;
     let done = 0;
     let superseded = 0;
+    let protectedOnDevice = 0; // still holding local bytes — not yet safe to have deleted
     const jobs = jobList || [];
     for (const j of jobs) {
       if (isSuperseded(j)) {
@@ -53,6 +118,11 @@
       else if (OPEN_UPLOAD.has(j.status)) upload += 1;
       else if (j.status === 'failed') failed += 1;
       else if (j.status === 'done') done += 1;
+      // Note: a 'done' job only ever still has local bytes if isFullyConfirmed
+      // (in photo-pipeline.js) hasn't yet run maybeOffloadJob's cleanup — this
+      // count is a snapshot, safe to surface either way since it just means
+      // "we still hold a copy", never "we lost one".
+      if (hasLocalBytes(j)) protectedOnDevice += 1;
     }
     return {
       compress,
@@ -60,6 +130,7 @@
       failed,
       done,
       superseded,
+      protectedOnDevice,
       total: jobs.length,
       open: compress + upload,
     };
@@ -196,6 +267,10 @@
     MERGE_HOLD_MS,
     isSuperseded,
     migrateJobRecord,
+    sideOk,
+    isFullyConfirmed,
+    hasLocalBytes,
+    sessionHasProtectedJobs,
     countJobs,
     fullJitterMs,
     stableIdempotencyKey,

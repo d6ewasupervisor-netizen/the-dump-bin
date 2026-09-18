@@ -193,7 +193,7 @@
       });
       host.querySelector('#unsentDiscardAll')?.addEventListener('click', async () => {
         if (!(await confirmRemove('Discard all unsent leftovers?'))) return;
-        await global.PhotoDB.purgeUnsentLeftovers();
+        await global.PhotoDB.purgeUnsentLeftovers({ force: true });
         global.EodChrome?.refresh?.();
         closeReview();
         await refreshStorageIfOpen();

@@ -138,6 +138,65 @@ describe('photo-pipeline-logic', () => {
     assert.equal(job.hasPayload, false);
   });
 
+  it('sideOk: not_found is ok for cart kinds but not for set', () => {
+    assert.equal(logic.sideOk('not_found', 'cart'), true);
+    assert.equal(logic.sideOk('not_found', 'set'), false);
+    assert.equal(logic.sideOk('ok', 'set'), true);
+    assert.equal(logic.sideOk('sas_login_required', 'set'), false);
+    assert.equal(logic.sideOk(undefined, 'set'), false);
+  });
+
+  it('isFullyConfirmed: set jobs need both PROD and SI confirmed for after slot', () => {
+    const base = { kind: 'set', slot: 'after', prodStatus: 'ok', siStatus: 'ok' };
+    assert.equal(logic.isFullyConfirmed(base), true);
+    assert.equal(logic.isFullyConfirmed({ ...base, siStatus: 'not_found' }), false);
+    assert.equal(logic.isFullyConfirmed({ ...base, prodStatus: 'sas_login_required' }), false);
+    assert.equal(logic.isFullyConfirmed({ ...base, prodStatus: null }), false);
+  });
+
+  it('isFullyConfirmed: skipProd/skipSi bypass an unconfirmed side', () => {
+    assert.equal(logic.isFullyConfirmed({
+      kind: 'set', slot: 'after', prodStatus: 'ok', siStatus: null, skipSi: true,
+    }), true);
+    assert.equal(logic.isFullyConfirmed({
+      kind: 'set', slot: 'after', prodStatus: null, skipProd: true, siStatus: 'ok',
+    }), true);
+  });
+
+  it('isFullyConfirmed: before slot only requires PROD (SI not applicable)', () => {
+    assert.equal(logic.isFullyConfirmed({
+      kind: 'set', slot: 'before', prodStatus: 'ok', siStatus: null,
+    }), true);
+    assert.equal(logic.isFullyConfirmed({
+      kind: 'set', slot: 'before', prodStatus: null, siStatus: 'ok',
+    }), false);
+  });
+
+  it('isFullyConfirmed: non-set kinds only need status done', () => {
+    assert.equal(logic.isFullyConfirmed({ kind: 'cart', status: 'done' }), true);
+    assert.equal(logic.isFullyConfirmed({ kind: 'before', status: 'uploading' }), false);
+    assert.equal(logic.isFullyConfirmed(null), false);
+  });
+
+  it('hasLocalBytes: true whenever any local payload field is present', () => {
+    assert.equal(logic.hasLocalBytes({ dataUrl: 'data:x' }), true);
+    assert.equal(logic.hasLocalBytes({ blob: {} }), true);
+    assert.equal(logic.hasLocalBytes({ file: {} }), true);
+    assert.equal(logic.hasLocalBytes({ hasPayload: true }), true);
+    assert.equal(logic.hasLocalBytes({}), false);
+    assert.equal(logic.hasLocalBytes(null), false);
+  });
+
+  it('countJobs: protectedOnDevice counts jobs still holding local bytes', () => {
+    const counts = logic.countJobs([
+      { status: 'done', dataUrl: 'data:x' }, // done but not yet offloaded
+      { status: 'done', offloaded: true }, // offloaded, no local bytes
+      { status: 'uploading', blob: {} },
+      { status: 'failed', error: 'replaced', dataUrl: 'data:x' }, // superseded jobs are skipped entirely
+    ]);
+    assert.equal(counts.protectedOnDevice, 2);
+  });
+
   it('counts a 71-photo history without treating replaced jobs as failures', () => {
     const jobs = [];
     for (let i = 0; i < 71; i += 1) {
@@ -148,4 +207,59 @@ describe('photo-pipeline-logic', () => {
     assert.equal(counts.failed, 1);
     assert.equal(counts.superseded, 71);
   });
+});
+
+
+it('sessionHasProtectedJobs: blocks while unconfirmed or bytes remain', () => {
+  const jobs = [
+    {
+      kind: 'set',
+      storeNumber: '0123',
+      workDate: '2026-09-17',
+      slot: 'after',
+      status: 'done',
+      prodStatus: 'ok',
+      siStatus: 'ok',
+      dataUrl: 'data:x',
+      hasPayload: true,
+    },
+  ];
+  assert.equal(logic.sessionHasProtectedJobs(jobs, '123', '2026-09-17'), true);
+  jobs[0].dataUrl = null;
+  jobs[0].hasPayload = false;
+  assert.equal(logic.sessionHasProtectedJobs(jobs, '123', '2026-09-17'), false);
+});
+
+it('sessionHasProtectedJobs: ignores other stores/dates and superseded', () => {
+  const jobs = [
+    {
+      kind: 'set',
+      storeNumber: '99',
+      workDate: '2026-09-17',
+      slot: 'after',
+      status: 'accepted',
+      hasPayload: true,
+    },
+    {
+      kind: 'set',
+      storeNumber: '123',
+      workDate: '2026-09-16',
+      slot: 'after',
+      status: 'failed',
+      error: 'replaced',
+      hasPayload: true,
+    },
+  ];
+  assert.equal(logic.sessionHasProtectedJobs(jobs, '123', '2026-09-17'), false);
+  jobs.push({
+    kind: 'set',
+    storeNumber: '123',
+    workDate: '2026-09-17',
+    slot: 'after',
+    status: 'accepted',
+    prodStatus: null,
+    siStatus: null,
+    hasPayload: true,
+  });
+  assert.equal(logic.sessionHasProtectedJobs(jobs, '123', '2026-09-17'), true);
 });
