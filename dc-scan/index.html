@@ -6,1200 +6,869 @@
 <meta name="theme-color" content="#0a0e13">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>DC Scan Signup — Live Board</title>
+<title>DC Scan Board</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
-
 <script src="/auth-gate.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #0a0e13;
-  --bg-elevated: #111820;
-  --card: #151d28;
-  --card-border: #243044;
-  --text: #f0f4f8;
-  --text-secondary: #a8b8cc;
-  --muted: #6b7d94;
-  --accent: #4da6ff;
-  --green: #00e87a;
-  --green-bg: rgba(0,232,122,0.12);
-  --amber: #ffcc00;
-  --amber-bg: rgba(255,204,0,0.12);
-  --orange: #ff8c42;
-  --red: #ff4757;
-  --radius: 14px;
-  --radius-sm: 10px;
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-top: env(safe-area-inset-top, 0px);
+:root{
+  --bg:#0a0e13;--bg2:#111820;--card:#151d28;--border:#243044;
+  --text:#f0f4f8;--muted:#6b7d94;--sub:#a8b8cc;
+  --accent:#4da6ff;--green:#00e87a;--green-bg:rgba(0,232,122,.12);
+  --amber:#ffcc00;--amber-bg:rgba(255,204,0,.12);
+  --orange:#ff8c42;--red:#ff4757;
+  --r:14px;--rs:10px;
+  --sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  font-family: 'DM Sans', system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  min-height: 100dvh;
-  line-height: 1.5;
-  overflow-x: hidden;
-}
-.wrap {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: calc(16px + var(--safe-top)) 14px calc(88px + var(--safe-bottom));
-}
-.top-bar {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
-}
-.top-bar h1 { font-size: clamp(1.35rem, 5vw, 1.65rem); font-weight: 800; letter-spacing: -0.02em; }
-.top-bar p { color: var(--text-secondary); font-size: 13px; margin-top: 4px; max-width: 36rem; }
-.live-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--card); border: 1px solid var(--card-border);
-  border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600;
-  flex-shrink: 0;
-}
-.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-.live-pill.connected .live-dot {
-  background: var(--green);
-  box-shadow: 0 0 10px rgba(0,232,122,0.7);
-  animation: pulse 2s infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-.urgent {
-  background: linear-gradient(135deg, rgba(255,140,66,0.18), rgba(255,71,87,0.10));
-  border: 1px solid rgba(255,140,66,0.45);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  margin-bottom: 14px;
-  font-size: 14px;
-}
-.urgent strong { color: var(--orange); }
-.signed-in {
-  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
-  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius-sm);
-  padding: 12px 14px; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);
-}
-.signed-in strong { word-break: break-all; color: var(--text); }
-.access-gate {
-  background: linear-gradient(135deg, rgba(255,204,0,0.14), rgba(255,140,66,0.10));
-  border: 1px solid rgba(255,204,0,0.45);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-.access-gate h3 { font-size: 15px; margin-bottom: 8px; }
-.access-gate p { color: var(--text-secondary); margin-bottom: 10px; }
-.access-gate label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 0 6px; text-transform: uppercase; letter-spacing: 0.05em; }
-.access-gate input, .access-gate textarea {
-  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--card-border);
-  background: var(--bg-elevated); color: var(--text); font: inherit;
-}
-.access-gate textarea { min-height: 72px; resize: vertical; }
-.access-gate .btn { margin-top: 12px; }
-.access-gate.pending { border-color: rgba(77,166,255,0.45); background: rgba(77,166,255,0.08); }
-.read-only-actions { opacity: 0.55; pointer-events: none; }
-.signed-in button, .unclaim-btn, .btn-secondary {
-  padding: 10px 14px; border-radius: 8px; border: 1px solid var(--card-border);
-  background: var(--bg-elevated); color: var(--text-secondary);
-  font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
-  min-height: 44px; touch-action: manipulation;
-}
-.section { margin-bottom: 22px; }
-.section-head {
-  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  align-items: end; margin-bottom: 12px;
-}
-.section-head h2 { font-size: clamp(1.1rem, 4.2vw, 1.25rem); font-weight: 800; }
-.section-head .meta { font-size: 12px; color: var(--muted); line-height: 1.4; }
-.stats {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px;
-}
-.stat {
-  background: var(--card); border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm); padding: 12px 8px; text-align: center;
-  min-width: 0;
-}
-.stat .num { font-size: clamp(1.25rem, 5vw, 1.65rem); font-weight: 800; line-height: 1.1; }
-.stat .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; font-weight: 700; }
-.stat.open .num { color: var(--amber); }
-.stat.pledged .num { color: var(--accent); }
-.stat.done .num { color: var(--green); }
-.grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 10px; margin-bottom: 14px;
-}
-.store-card {
-  background: var(--card); border: 1px solid var(--card-border);
-  border-radius: var(--radius); padding: 14px;
-  min-width: 0;
-}
-.store-card.open { border-style: dashed; }
-.store-card.pledged { border-color: rgba(77,166,255,0.4); }
-.store-card.finalized { border-color: rgba(255,204,0,0.4); background: var(--amber-bg); }
-.store-card.built { border-color: rgba(0,232,122,0.45); background: var(--green-bg); }
-.store-card.completed { border-color: rgba(0,232,122,0.55); background: var(--green-bg); }
-.store-card.scheduled { border-color: rgba(77,166,255,0.35); background: rgba(77,166,255,0.08); }
-.store-card .fm { font-size: 18px; font-weight: 800; }
-.store-card .loc { font-size: 12px; color: var(--muted); margin: 2px 0 10px; }
-.badge {
-  display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.05em; padding: 4px 8px; border-radius: 6px;
-}
-.badge.open { background: var(--bg-elevated); color: var(--muted); }
-.badge.pledged { background: rgba(77,166,255,0.15); color: var(--accent); }
-.badge.finalized { background: var(--amber-bg); color: var(--amber); }
-.badge.built { background: var(--green-bg); color: var(--green); }
-.badge.completed { background: var(--green-bg); color: var(--green); }
-.badge.scheduled { background: rgba(77,166,255,0.15); color: var(--accent); }
-.store-card .who { font-size: 13px; color: var(--text-secondary); margin-top: 10px; line-height: 1.45; word-break: break-word; }
-.store-card .prod-status { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.prod-banner { font-size: 12px; color: var(--text-secondary); margin: -6px 0 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
-.prod-banner.warn { color: var(--amber); }
-.prod-banner-text { flex: 1; min-width: 12rem; }
-.prod-resync-btn {
-  padding: 10px 14px; border-radius: 8px; border: 1px solid var(--card-border);
-  background: var(--card); color: var(--text); font-size: 13px; font-weight: 700;
-  font-family: inherit; cursor: pointer; min-height: 44px; touch-action: manipulation;
-  white-space: nowrap;
-}
-.prod-resync-btn:disabled { opacity: 0.6; cursor: wait; }
-.prod-resync-btn:not(:disabled):active { border-color: var(--accent); color: var(--accent); }
-.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.panel {
-  background: var(--card); border: 1px solid var(--card-border);
-  border-radius: var(--radius); padding: 16px;
-}
-.panel h3 { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
-.panel .sub { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
-input, select, textarea {
-  width: 100%; max-width: 100%; padding: 12px 14px; border-radius: var(--radius-sm);
-  border: 1px solid var(--card-border); background: var(--bg-elevated);
-  color: var(--text); font-size: 16px; font-family: inherit; margin-bottom: 12px;
-  min-height: 48px; -webkit-appearance: none; appearance: none;
-}
-textarea { min-height: 84px; resize: vertical; }
-.btn {
-  width: 100%; padding: 14px; border: none; border-radius: var(--radius-sm);
-  background: var(--accent); color: #fff; font-size: 15px; font-weight: 800;
-  font-family: inherit; cursor: pointer; min-height: 48px; touch-action: manipulation;
-}
-.btn.green { background: var(--green); color: #04140c; }
-.btn:disabled { background: #1e2c3e; color: #5a7088; cursor: not-allowed; }
-.msg { font-size: 13px; margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); display: none; }
-.msg.show { display: block; }
-.msg.ok { background: var(--green-bg); color: var(--green); border: 1px solid rgba(0,232,122,0.3); }
-.msg.err { background: rgba(255,71,87,0.12); color: var(--red); border: 1px solid rgba(255,71,87,0.3); }
-.pledge-list { list-style: none; }
-.pledge-list li {
-  padding: 12px 0; border-bottom: 1px solid var(--card-border);
-  font-size: 14px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
-  align-items: center;
-}
-.pledge-list .store { font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
-.denied { opacity: 0.55; }
-.hidden { display: none !important; }
-.boot-status {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: calc(24px + var(--safe-top)) 14px 24px;
-  color: var(--text-secondary);
-  font-size: 15px;
-  text-align: center;
-}
-.boot-status.err { color: var(--red); }
-.mobile-nav {
-  display: none;
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  z-index: 40;
-  padding: 8px 10px calc(8px + var(--safe-bottom));
-  background: rgba(10,14,19,0.94);
-  border-top: 1px solid var(--card-border);
-  backdrop-filter: blur(10px);
-  gap: 8px;
-}
-.mobile-nav button {
-  flex: 1;
-  min-height: 44px;
-  border-radius: 10px;
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 700;
-  font-family: inherit;
-  touch-action: manipulation;
-}
-.mobile-nav button:active { border-color: var(--accent); color: var(--accent); }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;line-height:1.5;overflow-x:hidden;}
 
-@media (max-width: 800px) {
-  .panels { grid-template-columns: 1fr; }
+/* ── layout ── */
+.wrap{max-width:1080px;margin:0 auto;padding:calc(12px + var(--st)) 12px calc(80px + var(--sb));}
+.top-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.top-bar h1{font-size:clamp(1.2rem,4.5vw,1.5rem);font-weight:800;letter-spacing:-.02em;}
+.top-bar p{color:var(--sub);font-size:12px;margin-top:3px;}
+.live-pill{display:inline-flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:7px 13px;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+.live-pill.ok .live-dot{background:var(--green);box-shadow:0 0 8px rgba(0,232,122,.7);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── prod banner ── */
+.prod-banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;font-size:12px;color:var(--sub);background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;margin-bottom:10px;}
+.prod-banner.warn{color:var(--amber);border-color:rgba(255,204,0,.35);}
+.prod-banner-text{flex:1;min-width:10rem;}
+.resync-btn{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;min-height:40px;touch-action:manipulation;white-space:nowrap;}
+.resync-btn:disabled{opacity:.6;cursor:wait;}
+
+/* ── signed-in bar ── */
+.me-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--sub);}
+.me-bar strong{color:var(--text);word-break:break-all;}
+.me-bar button{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--sub);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;min-height:40px;touch-action:manipulation;}
+
+/* ── access gate ── */
+.access-gate{background:linear-gradient(135deg,rgba(255,204,0,.14),rgba(255,140,66,.1));border:1px solid rgba(255,204,0,.45);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;font-size:14px;}
+.access-gate h3{font-size:15px;margin-bottom:8px;}
+.access-gate p{color:var(--sub);margin-bottom:10px;}
+.access-gate label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 5px;text-transform:uppercase;letter-spacing:.05em;}
+.access-gate input,.access-gate textarea{width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font:inherit;font-size:15px;}
+.access-gate textarea{min-height:66px;resize:vertical;}
+.access-gate.pending{border-color:rgba(77,166,255,.45);background:rgba(77,166,255,.08);}
+
+/* ── section ── */
+.section{margin-bottom:20px;}
+.section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.section-head h2{font-size:clamp(1rem,4vw,1.2rem);font-weight:800;}
+.section-head .meta{font-size:11px;color:var(--muted);line-height:1.4;}
+
+/* ── stats row ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px;}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:10px 6px;text-align:center;}
+.stat .n{font-size:clamp(1.1rem,4vw,1.45rem);font-weight:800;line-height:1.1;}
+.stat .l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;font-weight:700;}
+.stat.open .n{color:var(--amber);}
+.stat.inprod .n{color:var(--green);}
+.stat.claimed .n{color:var(--accent);}
+
+/* ── store grid ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:9px;}
+
+/* ── store card ── */
+.store-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;cursor:pointer;position:relative;transition:transform .1s,box-shadow .1s;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
+.store-card:active{transform:scale(.97);}
+.store-card.open{border-style:dashed;opacity:.8;}
+.store-card.open:active{opacity:1;}
+.store-card.pledged{border-color:rgba(77,166,255,.4);}
+.store-card.finalized{border-color:rgba(255,204,0,.4);background:var(--amber-bg);}
+.store-card.built,.store-card.scheduled{border-color:rgba(0,232,122,.45);background:var(--green-bg);}
+.store-card.completed{border-color:rgba(0,232,122,.55);background:var(--green-bg);}
+.store-card.drop-target{outline:2px dashed var(--accent);outline-offset:2px;background:rgba(77,166,255,.12);}
+.store-card.dragging-source{opacity:.4;}
+
+.card-fm{font-size:17px;font-weight:800;margin-bottom:2px;}
+.card-city{font-size:11px;color:var(--muted);margin-bottom:9px;}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 7px;border-radius:5px;}
+.badge.open{background:var(--bg2);color:var(--muted);}
+.badge.pledged{background:rgba(77,166,255,.15);color:var(--accent);}
+.badge.finalized{background:var(--amber-bg);color:var(--amber);}
+.badge.built,.badge.scheduled{background:var(--green-bg);color:var(--green);}
+.badge.completed{background:var(--green-bg);color:var(--green);}
+.card-who{font-size:13px;font-weight:700;color:var(--text);margin-top:9px;line-height:1.35;}
+.card-date{font-size:11px;color:var(--sub);margin-top:3px;}
+.card-time{font-size:10px;color:var(--muted);margin-top:1px;}
+.card-note{font-size:10px;color:var(--amber);margin-top:3px;}
+.drag-handle{position:absolute;top:9px;right:9px;font-size:16px;color:var(--muted);cursor:grab;line-height:1;display:none;}
+.is-admin .store-card.assigned .drag-handle{display:block;}
+.drag-handle:active{cursor:grabbing;}
+
+/* ── finalize bar ── */
+.fin-bar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px 14px;margin-bottom:12px;}
+.fin-bar .fin-info{flex:1;min-width:10rem;font-size:13px;color:var(--sub);}
+.fin-bar .fin-info strong{display:block;font-size:14px;color:var(--text);margin-bottom:2px;}
+.btn-fin{padding:12px 18px;border:none;border-radius:var(--rs);background:var(--green);color:#04140c;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;min-height:48px;touch-action:manipulation;white-space:nowrap;}
+.btn-fin:disabled{background:#1e2c3e;color:#5a7088;cursor:not-allowed;}
+.msg{font-size:12px;margin-top:8px;padding:9px 11px;border-radius:var(--rs);display:none;width:100%;}
+.msg.show{display:block;}
+.msg.ok{background:var(--green-bg);color:var(--green);border:1px solid rgba(0,232,122,.3);}
+.msg.err{background:rgba(255,71,87,.12);color:var(--red);border:1px solid rgba(255,71,87,.3);}
+
+/* ── open offers section ── */
+.offers-section{margin-bottom:18px;}
+.offers-section h3{font-size:14px;font-weight:800;margin-bottom:8px;}
+.offer-card{background:var(--card);border:1px solid rgba(255,140,66,.4);border-radius:var(--rs);padding:12px;margin-bottom:8px;font-size:13px;}
+.offer-card .offer-store{font-weight:700;color:var(--orange);}
+.offer-card .offer-detail{color:var(--sub);font-size:12px;margin:4px 0 10px;}
+.btn-take{padding:10px 14px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;min-height:44px;touch-action:manipulation;}
+.btn-secondary{padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--sub);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;min-height:44px;touch-action:manipulation;}
+
+/* ── bottom sheet ── */
+.sheet-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;touch-action:none;}
+.sheet-backdrop.open{display:block;}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:51;background:var(--bg2);border-radius:20px 20px 0 0;border-top:1px solid var(--border);padding:0 0 calc(16px + var(--sb));max-height:90dvh;overflow-y:auto;transition:transform .22s cubic-bezier(.32,.72,0,1);transform:translateY(100%);}
+.sheet.open{transform:translateY(0);}
+.sheet-drag{width:40px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 8px;}
+.sheet-title{font-size:16px;font-weight:800;padding:0 18px 14px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sheet-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.sheet-actions{display:flex;flex-direction:column;gap:8px;padding:0 14px;}
+.sheet-btn{display:block;width:100%;padding:16px 18px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;min-height:54px;touch-action:manipulation;transition:border-color .12s;}
+.sheet-btn:active{border-color:var(--accent);}
+.sheet-btn.danger{color:var(--red);border-color:rgba(255,71,87,.35);}
+.sheet-btn.primary{background:var(--accent);color:#fff;border-color:transparent;}
+.sheet-btn.green{background:var(--green);color:#04140c;border-color:transparent;}
+.sheet-btn .sub{display:block;font-size:11px;font-weight:400;color:inherit;opacity:.7;margin-top:2px;}
+.sheet-field{padding:0 14px;margin-bottom:10px;}
+.sheet-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em;}
+.sheet-field select,.sheet-field input,.sheet-field textarea{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:15px;font-family:inherit;min-height:48px;-webkit-appearance:none;appearance:none;}
+.sheet-field textarea{min-height:72px;resize:vertical;}
+.sheet-msg{font-size:12px;margin:8px 14px 0;padding:9px 11px;border-radius:var(--rs);display:none;}
+.sheet-msg.show{display:block;}
+.sheet-msg.ok{background:var(--green-bg);color:var(--green);border:1px solid rgba(0,232,122,.3);}
+.sheet-msg.err{background:rgba(255,71,87,.12);color:var(--red);border:1px solid rgba(255,71,87,.3);}
+
+/* ── move-mode overlay ── */
+.move-mode-bar{display:none;position:fixed;left:0;right:0;top:calc(var(--st));z-index:45;background:var(--accent);color:#fff;font-size:14px;font-weight:700;padding:14px 16px;text-align:center;}
+.move-mode-bar.active{display:block;}
+.move-mode-bar button{background:transparent;border:1px solid rgba(255,255,255,.5);border-radius:8px;color:#fff;font:inherit;font-size:13px;font-weight:700;padding:6px 12px;margin-left:10px;cursor:pointer;}
+
+/* ── boot status ── */
+.boot-status{max-width:1080px;margin:0 auto;padding:calc(24px + var(--st)) 14px 24px;color:var(--sub);font-size:15px;text-align:center;}
+.boot-status.err{color:var(--red);}
+
+/* ── mobile nav ── */
+.mnav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;padding:7px 8px calc(7px + var(--sb));background:rgba(10,14,19,.95);border-top:1px solid var(--border);backdrop-filter:blur(12px);gap:7px;}
+.mnav button{flex:1;min-height:44px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:11px;font-weight:700;font-family:inherit;touch-action:manipulation;}
+.mnav button:active{border-color:var(--accent);color:var(--accent);}
+
+/* ── responsive ── */
+@media(max-width:800px){
+  .stats{grid-template-columns:repeat(4,1fr);}
 }
-@media (max-width: 640px) {
-  .wrap { padding-left: 12px; padding-right: 12px; }
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .store-card { padding: 12px; }
-  .store-card .fm { font-size: 16px; }
-  .panel { padding: 14px; }
-  .live-pill { width: 100%; justify-content: center; }
-  .signed-in { align-items: stretch; }
-  .signed-in button { width: 100%; }
-  .mobile-nav { display: flex; }
-  .pledge-list li { flex-direction: column; align-items: stretch; }
-  .pledge-list .unclaim-btn { width: 100%; }
+@media(max-width:600px){
+  .wrap{padding-left:10px;padding-right:10px;}
+  .grid{grid-template-columns:1fr 1fr;gap:8px;}
+  .store-card{padding:11px;}
+  .card-fm{font-size:15px;}
+  .mnav{display:flex;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .me-bar button{flex:1;}
 }
-@media (max-width: 380px) {
-  .grid { grid-template-columns: 1fr; }
-  .stat .lbl { font-size: 9px; }
+@media(max-width:360px){
+  .grid{grid-template-columns:1fr;}
 }
+.hidden{display:none!important;}
 </style>
 </head>
 <body>
 <div id="boot-status" class="boot-status">Loading DC Scan board…</div>
-<div class="wrap" id="app" hidden>
+<div id="app" class="wrap" hidden>
+
+  <!-- top bar -->
   <div class="top-bar">
-    <div>
-      <h1>DC Scan signup board</h1>
-      <p>Project 8081 · RO8 DC Scans · live board + SAS PROD schedule</p>
-    </div>
-    <div class="live-pill" id="live-pill">
-      <span class="live-dot"></span>
-      <span id="live-label">Connecting…</span>
-    </div>
+    <div><h1>DC Scan board</h1><p>Project 8081 · RO8 DC Scans</p></div>
+    <div class="live-pill" id="live-pill"><span class="live-dot"></span><span id="live-label">Connecting…</span></div>
   </div>
-  <div class="prod-banner" id="prod-banner" hidden>
+
+  <!-- prod banner -->
+  <div class="prod-banner hidden" id="prod-banner">
     <span class="prod-banner-text" id="prod-banner-text"></span>
-    <button type="button" class="prod-resync-btn" id="prod-resync-btn">Resync SAS PROD</button>
+    <button type="button" class="resync-btn" id="resync-btn">Resync PROD</button>
   </div>
 
-  <div class="urgent">
-    <strong>Need coverage this week.</strong>
-    Please claim remaining P06W3 stores and begin as early as <strong>today</strong>.
-    Scans can run anytime Wed 9:00 AM – Fri 5:00 PM. After that, lock your ongoing stores for next week and beyond.
-  </div>
-
-  <div class="signed-in">
+  <!-- signed-in bar -->
+  <div class="me-bar">
     <span>Signed in as <strong id="me-email">—</strong></span>
     <button type="button" id="sign-out-btn">Sign out</button>
   </div>
 
+  <!-- access gate -->
   <div class="access-gate hidden" id="access-gate">
     <h3 id="access-gate-title">Request DC Scan access</h3>
-    <p id="access-gate-copy">Your signed-in email is not on the DC Scan volunteer list yet. You can view the board, but claiming stores requires supervisor approval.</p>
+    <p id="access-gate-copy">Your account isn't on the DC Scan volunteer list. You can view the board, but claiming requires supervisor approval.</p>
     <div id="access-request-form">
       <label for="access-name">Your name</label>
-      <input type="text" id="access-name" autocomplete="name" />
+      <input type="text" id="access-name" autocomplete="name">
       <label for="access-reason">Note for supervisor (optional)</label>
       <textarea id="access-reason" placeholder="e.g. District 8 DC Scan volunteer"></textarea>
-      <button type="button" class="btn" id="access-request-btn">Request access</button>
-      <div class="msg" id="access-msg"></div>
+      <div style="padding-top:10px;">
+        <button type="button" class="sheet-btn primary" id="access-request-btn">Request access</button>
+      </div>
+      <div class="sheet-msg" id="access-msg"></div>
     </div>
-    <p class="hidden" id="access-pending-copy">Your access request is pending. Refresh this page after your supervisor approves it, or sign out and back in with your other work email if you have one.</p>
+    <p class="hidden" id="access-pending-copy" style="color:var(--sub);font-size:13px;">Request pending. Refresh after your supervisor approves it.</p>
   </div>
 
+  <!-- open coverage offers -->
+  <div class="offers-section hidden" id="offers-section">
+    <h3>Open coverage</h3>
+    <div id="offers-list"></div>
+  </div>
+
+  <!-- finalize bar (only when user has unfinalized picks) -->
+  <div class="fin-bar hidden" id="fin-bar">
+    <div class="fin-info"><strong id="fin-bar-title">Finalize your picks</strong><span id="fin-bar-sub">Lock selections to build SAS visits and shifts.</span></div>
+    <button type="button" class="btn-fin" id="finalize-btn">Finalize</button>
+    <div class="msg" id="fin-msg"></div>
+  </div>
+
+  <!-- this week -->
   <section class="section" id="this-week-section">
     <div class="section-head">
-      <div>
-        <h2>This week</h2>
-        <div class="meta" id="this-week-meta">—</div>
-      </div>
+      <div><h2>This week</h2><div class="meta" id="this-week-meta">—</div></div>
     </div>
     <div class="stats" id="this-week-stats"></div>
     <div class="grid" id="this-week-grid"></div>
   </section>
 
+  <!-- going forward -->
   <section class="section" id="ongoing-section">
     <div class="section-head">
-      <div>
-        <h2>Going forward (semi-permanent)</h2>
-        <div class="meta" id="ongoing-meta">—</div>
-      </div>
+      <div><h2>Going forward</h2><div class="meta" id="ongoing-meta">—</div></div>
     </div>
     <div class="stats" id="ongoing-stats"></div>
     <div class="grid" id="ongoing-grid"></div>
   </section>
 
-  <div class="panels" id="participant-panels">
-    <div class="panel hidden" id="admin-assign-panel">
-      <h3>Admin assign</h3>
-      <p class="sub">Assign any store to any volunteer (force-replaces current holder). Available to site admins.</p>
-      <form id="admin-assign-form">
-        <label for="admin-scope">Panel</label>
-        <select id="admin-scope" required>
-          <option value="thisWeek">This week (urgent)</option>
-          <option value="ongoing">Going forward</option>
-        </select>
-        <label for="admin-store">Store</label>
-        <select id="admin-store" required><option value="">Select…</option></select>
-        <label for="admin-date">Scan day</label>
-        <select id="admin-date" required><option value="">Select…</option></select>
-        <label for="admin-assignee">Assign to</label>
-        <select id="admin-assignee" required><option value="">Select…</option></select>
-        <label for="admin-note">Note (optional)</label>
-        <textarea id="admin-note" placeholder="Why this assignment?"></textarea>
-        <button type="submit" class="btn green" id="admin-assign-btn">Assign store</button>
-        <div class="msg" id="admin-assign-msg"></div>
-      </form>
-    </div>
+</div><!-- /app -->
 
-    <div class="panel">
-      <h3>Claim a store</h3>
-      <p class="sub">Open stores only. You can claim more than one. Choosing a day is required (Wed–Fri).</p>
-      <form id="claim-form">
-        <label for="claim-scope">Panel</label>
-        <select id="claim-scope" required>
-          <option value="thisWeek">This week (urgent)</option>
-          <option value="ongoing">Going forward</option>
-        </select>
-        <label for="claim-store">Store</label>
-        <select id="claim-store" required><option value="">Select…</option></select>
-        <label for="claim-date">Scan day</label>
-        <select id="claim-date" required><option value="">Select…</option></select>
-        <button type="submit" class="btn" id="claim-btn">I will complete this store</button>
-        <div class="msg" id="claim-msg"></div>
-      </form>
-    </div>
-
-    <div class="panel">
-      <h3 id="my-selections-title">My selections</h3>
-      <p class="sub" id="my-selections-sub">Reschedule a day yourself (Wed–Fri). Back out emails teammates and holds the SAS shift until someone takes it. Finalize locks new picks and builds SAS visits.</p>
-      <ul class="pledge-list" id="my-list"></ul>
-      <button type="button" class="btn green" id="finalize-btn" disabled>Confirm / Finalize my selections</button>
-      <div class="msg" id="finalize-msg"></div>
-
-      <div id="open-offers-box" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--card-border)">
-        <h3 style="margin-bottom:8px">Open coverage</h3>
-        <p class="sub">Teammates asked to back out — review below, then confirm to assign yourself. Email links only open this panel; they never auto-assign.</p>
-        <div id="offer-confirm-box" class="hidden" style="margin-bottom:12px;padding:12px;border:1px solid rgba(0,232,122,0.45);border-radius:10px;background:var(--green-bg)">
-          <strong id="offer-confirm-title">Confirm take shift</strong>
-          <p class="sub" id="offer-confirm-detail" style="margin:8px 0"></p>
-          <button type="button" class="btn green" id="offer-confirm-btn">Confirm — assign me as lead</button>
-          <button type="button" class="btn-secondary" id="offer-confirm-cancel" style="width:100%;margin-top:8px">Cancel</button>
-          <div class="msg" id="offer-confirm-msg"></div>
-        </div>
-        <ul class="pledge-list" id="open-offers-list"></ul>
-      </div>
-
-      <div id="change-box" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--card-border)">
-        <h3 style="margin-bottom:8px" id="change-title">Modify shift</h3>
-        <input type="hidden" id="change-pledge-id" />
-        <label for="change-type">What do you need?</label>
-        <select id="change-type">
-          <option value="reschedule">Reschedule day (self-serve)</option>
-          <option value="dropout">Back out — ask teammates to cover</option>
-          <option value="swap">Swap to another store (needs approval)</option>
-        </select>
-        <div id="reschedule-fields">
-          <label for="reschedule-date">New scan day</label>
-          <select id="reschedule-date"></select>
-        </div>
-        <div id="swap-fields" class="hidden">
-          <label for="swap-store">Swap to store</label>
-          <select id="swap-store"></select>
-          <label for="swap-date">Swap to date</label>
-          <select id="swap-date"></select>
-        </div>
-        <label for="change-note">Note (optional)</label>
-        <textarea id="change-note" placeholder="Why the change?"></textarea>
-        <button type="button" class="btn" id="change-submit">Save change</button>
-        <button type="button" class="btn-secondary" id="change-cancel" style="width:100%;margin-top:8px">Cancel</button>
-        <div class="msg" id="change-msg"></div>
-      </div>
-    </div>
-  </div>
-
-  <nav class="mobile-nav" aria-label="Quick jump">
-    <button type="button" data-jump="this-week-section">This week</button>
-    <button type="button" data-jump="ongoing-section">Going forward</button>
-    <button type="button" data-jump="claim-form">Claim</button>
-    <button type="button" data-jump="finalize-btn">My picks</button>
-  </nav>
+<!-- move mode bar -->
+<div class="move-mode-bar" id="move-mode-bar">
+  Moving <span id="move-mode-name"></span> — tap a store to place them
+  <button type="button" id="move-mode-cancel">Cancel</button>
 </div>
 
+<!-- action sheet -->
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-drag"></div>
+  <div class="sheet-title" id="sheet-title">Action<span class="sheet-sub" id="sheet-sub"></span></div>
+  <div id="sheet-body"></div>
+</div>
+
+<!-- mobile nav -->
+<nav class="mnav" id="mnav" aria-label="Quick jump">
+  <button type="button" data-jump="this-week-section">This week</button>
+  <button type="button" data-jump="ongoing-section">Going forward</button>
+  <button type="button" data-jump="offers-section">Coverage</button>
+  <button type="button" data-jump="fin-bar">Finalize</button>
+</nav>
 
 <script>
-(function () {
-  const $ = (id) => document.getElementById(id);
-  let snapshot = null;
-  let me = null;
-  let accessStatus = null;
-  let es = null;
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+let snap=null,me=null,access=null,es=null;
+let moveMode=null; // {pledgeId, email, name, sasVisitId, sasShiftId, storeId, scope}
 
-  function showMsg(el, text, ok) {
-    el.textContent = text || '';
-    el.className = 'msg show ' + (ok ? 'ok' : 'err');
-  }
-  function clearMsg(el) {
-    el.className = 'msg';
-    el.textContent = '';
-  }
+/* ── helpers ── */
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);}
+function fmtDate(ymd){
+  if(!ymd)return'—';
+  const[y,m,d]=ymd.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function fmtDateShort(ymd){
+  if(!ymd)return'—';
+  const[y,m,d]=ymd.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'});
+}
+function showMsg(el,text,ok){if(!el)return;el.textContent=text||'';el.className=(el.className.replace(/\s*(show|ok|err)/g,'')||'msg')+' msg show '+(ok?'ok':'err');}
+function clearMsg(el){if(!el)return;el.className=el.className.replace(/\s*(show|ok|err)/g,'');el.textContent='';}
+function isAdmin(){return Boolean(access&&(access.isAdmin||access.isSupervisor));}
+function isVolunteer(){return Boolean(access&&access.canParticipate);}
+function meEmail(){return String(me&&me.email||'').toLowerCase();}
+function panelOf(scope){return scope==='ongoing'?snap.ongoing:snap.thisWeek;}
 
-  function fmtDate(ymd) {
-    if (!ymd) return '—';
-    const [y, m, d] = ymd.split('-').map(Number);
-    const dt = new Date(y, m - 1, d);
-    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  }
+/* ── API ── */
+async function api(path,opts){
+  const r=await window.dumpBinAuthFetch('/api/dc-scan'+path,opts||{});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+  return d;
+}
 
-  function statusBadge(status) {
-    const label = status === 'completed' ? 'Completed'
-      : status === 'built' ? 'In PROD'
-      : status === 'scheduled' ? 'In PROD'
-      : status === 'finalized' ? 'Finalized'
-      : status === 'pledged' ? 'Claimed'
-      : 'Open';
-    return '<span class="badge ' + status + '">' + label + '</span>';
-  }
+/* ── sheet ── */
+function openSheet(titleHtml,bodyHtml){
+  $('sheet-title').innerHTML=titleHtml;
+  $('sheet-body').innerHTML=bodyHtml;
+  $('sheet-backdrop').classList.add('open');
+  $('sheet').classList.add('open');
+}
+function closeSheet(){
+  $('sheet-backdrop').classList.remove('open');
+  $('sheet').classList.remove('open');
+}
+$('sheet-backdrop').addEventListener('click',closeSheet);
 
-  function renderStats(el, stats) {
-    el.innerHTML = [
-      ['open', stats.open, 'Open'],
-      ['pledged', stats.pledged, 'Claimed'],
-      ['done', stats.inProd || stats.built || 0, 'In PROD'],
-      ['', stats.finalized || 0, 'Finalized'],
-      ['', stats.remaining, 'Left'],
-    ].map(([cls, num, lbl]) =>
-      '<div class="stat ' + cls + '"><div class="num">' + num + '</div><div class="lbl">' + lbl + '</div></div>'
-    ).join('');
-  }
+/* ── move mode ── */
+function enterMoveMode(pledge){
+  moveMode={pledgeId:pledge.id,email:pledge.email,name:pledge.name,
+    sasVisitId:pledge.sasVisitId,sasShiftId:pledge.sasShiftId,
+    storeId:pledge.storeId,scope:pledge.scope};
+  $('move-mode-name').textContent=pledge.name+' (FM '+pledge.storeId+')';
+  $('move-mode-bar').classList.add('active');
+  closeSheet();
+  renderGrids();
+}
+function cancelMoveMode(){
+  moveMode=null;
+  $('move-mode-bar').classList.remove('active');
+  renderGrids();
+}
+$('move-mode-cancel').addEventListener('click',cancelMoveMode);
 
-  function prodDetailHtml(prod) {
-    if (!prod) return '';
-    const bits = [];
-    if (prod.scheduleLabel) bits.push(escapeHtml(prod.scheduleLabel));
-    const statuses = [];
-    if (prod.visitStatus) statuses.push(escapeHtml(prod.visitStatus));
-    if (prod.shiftStatus && prod.shiftStatus !== prod.visitStatus) statuses.push(escapeHtml(prod.shiftStatus));
-    if (statuses.length) bits.push('<span class="prod-status">' + statuses.join(' · ') + '</span>');
-    return bits.length ? '<br/>' + bits.join(' · ') : '';
-  }
+/* ── stats ── */
+function renderStats(el,stats){
+  el.innerHTML=[
+    ['open',stats.open,'Open'],
+    ['claimed',stats.pledged+stats.finalized,'Claimed'],
+    ['inprod',stats.inProd||0,'In PROD'],
+    ['',stats.remaining,'Left'],
+  ].map(([cls,n,l])=>'<div class="stat '+cls+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>').join('');
+}
 
-  function renderGrid(el, panel) {
-    el.innerHTML = panel.stores.map((s) => {
-      const prod = (s.pledge && s.pledge.prod) || s.prod;
-      const who = s.pledge
-        ? ('<div class="who"><strong>' + escapeHtml(s.pledge.name) + '</strong><br/>' +
-           fmtDate(s.pledge.scheduledDate) +
-           prodDetailHtml(prod) +
-           (s.pendingChange
-             ? ('<br/><em>' + (s.pendingChange.type === 'dropout' ? 'coverage needed' : 'change pending') + '</em>')
-             : '') +
-           (s.pledge.buildStatus === 'error' ? '<br/><span style="color:#ff4757">Build error</span>' : '') +
-           (s.pledge.source === 'prod' ? '<br/><em>from SAS PROD</em>' : '') +
-           '</div>')
-        : (prod && prod.leadName)
-          ? ('<div class="who"><strong>' + escapeHtml(prod.leadName) + '</strong><br/>' +
-             fmtDate(prod.scheduledDate) + prodDetailHtml(prod) + '<br/><em>from SAS PROD</em></div>')
-          : '';
-      return '<div class="store-card ' + s.status + '">' +
-        '<div class="fm">' + escapeHtml(s.label) + '</div>' +
-        '<div class="loc">' + escapeHtml(s.city) + ', ' + escapeHtml(s.state) + '</div>' +
-        statusBadge(s.status) + who + '</div>';
-    }).join('');
-  }
+/* ── card rendering ── */
+function badgeHtml(status){
+  const label=status==='completed'?'Completed':status==='built'?'In PROD':status==='scheduled'?'In PROD':status==='finalized'?'Finalized':status==='pledged'?'Claimed':'Open';
+  return'<span class="badge '+status+'">'+label+'</span>';
+}
 
-  function escapeHtml(s) {
-    return String(s || '').replace(/[&<>"']/g, (c) => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    })[c]);
-  }
+function renderCard(s,scope){
+  const assigned=s.status!=='open';
+  const isMoveSrc=moveMode&&moveMode.pledgeId===((s.pledge&&s.pledge.id)||'');
+  const isDropTarget=moveMode&&!isMoveSrc;
+  const prod=s.pledge&&s.pledge.prod||s.prod;
+  const time=prod&&prod.scheduleLabel?('<div class="card-time">'+esc(prod.scheduleLabel)+'</div>'):'';
+  const whoHtml=s.pledge
+    ?('<div class="card-who">'+esc(s.pledge.name)+'</div>'+
+      '<div class="card-date">'+fmtDateShort(s.pledge.scheduledDate)+'</div>'+time+
+      (s.pendingChange?'<div class="card-note">'+(s.pendingChange.type==='dropout'?'Coverage needed':'Change pending')+'</div>':''))
+    :(s.prod&&s.prod.leadName
+      ?('<div class="card-who">'+esc(s.prod.leadName)+'</div>'+
+        '<div class="card-date">'+fmtDateShort(s.prod.scheduledDate)+'</div>'+time)
+      :'');
+  const dragHandle=isAdmin()&&assigned?'<div class="drag-handle" title="Drag to reassign">⠿</div>':'';
+  const classes=['store-card',s.status,assigned?'assigned':'',isDropTarget?'drop-target':'',isMoveSrc?'dragging-source':''].filter(Boolean).join(' ');
+  return'<div class="'+classes+'" data-store="'+s.id+'" data-scope="'+scope+'" data-slotid="'+esc(s.slotId||'')+'">'
+    +dragHandle
+    +'<div class="card-fm">'+esc(s.label)+'</div>'
+    +'<div class="card-city">'+esc(s.city)+', '+esc(s.state)+'</div>'
+    +badgeHtml(s.status)
+    +whoHtml
+    +'</div>';
+}
 
-  function showBootStatus(text, isError) {
-    const el = $('boot-status');
-    if (!el) return;
-    el.textContent = text || '';
-    el.className = 'boot-status' + (isError ? ' err' : '');
-    el.hidden = false;
-  }
-  function hideBootStatus() {
-    const el = $('boot-status');
-    if (!el) return;
-    el.hidden = true;
-  }
-
-  async function api(path, opts) {
-    const res = await window.dumpBinAuthFetch('/api/dc-scan' + path, opts || {});
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    return data;
-  }
-
-  function isSiteAdmin() {
-    return Boolean(accessStatus && (accessStatus.isAdmin || accessStatus.isSupervisor));
-  }
-
-  function updateParticipantUi() {
-    const canParticipate = Boolean(accessStatus && accessStatus.canParticipate);
-    const pending = Boolean(accessStatus && accessStatus.pendingAccessRequest);
-    const gate = $('access-gate');
-    const panels = $('participant-panels');
-    if (!gate || !panels) return;
-    if (!canParticipate) {
-      gate.classList.remove('hidden');
-      gate.classList.toggle('pending', pending);
-      $('access-request-form').classList.toggle('hidden', pending);
-      $('access-pending-copy').classList.toggle('hidden', !pending);
-      $('access-gate-title').textContent = pending ? 'Access request pending' : 'Request DC Scan access';
-      panels.classList.add('read-only-actions');
-    } else {
-      gate.classList.add('hidden');
-      panels.classList.remove('read-only-actions');
+function renderGrids(){
+  const thisEl=$('this-week-grid');
+  const ongEl=$('ongoing-grid');
+  if(!snap)return;
+  thisEl.innerHTML=snap.thisWeek.stores.map(s=>renderCard(s,'thisWeek')).join('');
+  ongEl.innerHTML=snap.ongoing.stores.map(s=>renderCard(s,'ongoing')).join('');
+  // wire click handlers
+  document.querySelectorAll('.store-card').forEach(card=>{
+    card.addEventListener('click',onCardClick);
+    if(isAdmin()){
+      card.setAttribute('draggable','true');
+      card.addEventListener('dragstart',onDragStart);
+      card.addEventListener('dragover',onDragOver);
+      card.addEventListener('dragleave',onDragLeave);
+      card.addEventListener('drop',onDrop);
+      card.addEventListener('dragend',onDragEnd);
     }
-    const adminPanel = $('admin-assign-panel');
-    if (adminPanel) {
-      adminPanel.classList.toggle('hidden', !isSiteAdmin());
-      if (isSiteAdmin()) refreshAdminAssignOptions();
+  });
+  // update admin class on wrap
+  $('app').classList.toggle('is-admin',isAdmin());
+}
+
+/* ── card click ── */
+function onCardClick(e){
+  if(e.target.classList.contains('drag-handle'))return;
+  const card=e.currentTarget;
+  const storeId=card.dataset.store;
+  const scope=card.dataset.scope;
+  const panel=panelOf(scope);
+  const store=panel.stores.find(s=>s.id===storeId);
+  if(!store)return;
+
+  if(moveMode){
+    // Placing a person — admin move
+    if(moveMode.storeId===storeId){cancelMoveMode();return;}
+    confirmAdminMove(store,scope);
+    return;
+  }
+
+  if(!isVolunteer()&&!isAdmin()){
+    openSheet('<strong>FM '+esc(store.label)+'</strong> · '+esc(store.city),'<div style="padding:0 14px 14px;color:var(--sub);font-size:13px;">You don\'t have access to claim stores. Use the access request form above.</div>');
+    return;
+  }
+
+  if(isAdmin()){
+    showAdminCardSheet(store,scope,panel);
+  } else {
+    showVolunteerCardSheet(store,scope,panel);
+  }
+}
+
+/* ── admin sheet ── */
+function showAdminCardSheet(store,scope,panel){
+  const pledge=store.pledge;
+  const isMe=pledge&&String(pledge.email).toLowerCase()===meEmail();
+  const title='<strong>FM '+esc(store.label)+'</strong> · '+esc(store.city)
+    +(pledge?'<span class="sheet-sub">'+esc(pledge.name)+' · '+fmtDate(pledge.scheduledDate)+'</span>':'<span class="sheet-sub">Open</span>');
+
+  let body='<div class="sheet-actions">';
+  if(!pledge){
+    // open — assign someone
+    body+=assignPickerHtml(store,scope,panel,'Assign to');
+  } else {
+    // assigned
+    body+='<button class="sheet-btn" id="sab-move">↔ Move to another store<span class="sub">Tap, then tap destination store</span></button>';
+    body+=assignPickerHtml(store,scope,panel,'Reassign to different person');
+    const dates=(panel.allowedDates||[]);
+    if(dates.length>1){
+      body+='<div style="margin-top:4px;"></div>';
+      body+='<div class="sheet-field"><label>Change date</label><select id="sab-date">'
+        +dates.map(d=>'<option value="'+d+'"'+(d===pledge.scheduledDate?' selected':'')+'>'+fmtDate(d)+'</option>').join('')
+        +'</select></div>';
+      body+='<button class="sheet-btn" id="sab-redate">Save date change</button>';
     }
-  }
-
-  function refreshAdminAssignOptions() {
-    if (!$('admin-assign-panel') || $('admin-assign-panel').classList.contains('hidden')) return;
-    const scope = $('admin-scope').value || 'thisWeek';
-    const panel = panelForScope(scope);
-    const storeSel = $('admin-store');
-    const dateSel = $('admin-date');
-    const assigneeSel = $('admin-assignee');
-    const stores = (panel && panel.stores) || [];
-    storeSel.innerHTML = '<option value="">Select…</option>' +
-      stores.map((s) =>
-        '<option value="' + s.id + '">' + s.label + ' — ' + s.city +
-        (s.status !== 'open' ? ' (' + s.status + ')' : '') + '</option>'
-      ).join('');
-    dateSel.innerHTML = '<option value="">Select…</option>' +
-      ((panel && panel.allowedDates) || []).map((d) =>
-        '<option value="' + d + '">' + fmtDate(d) + '</option>'
-      ).join('');
-    const volunteers = (accessStatus && accessStatus.volunteers) ||
-      (snapshot && snapshot.volunteers) || [];
-    assigneeSel.innerHTML = '<option value="">Select…</option>' +
-      volunteers.map((v) =>
-        '<option value="' + escapeHtml(v.email) + '">' +
-        escapeHtml(v.name || v.displayName || v.email) + '</option>'
-      ).join('');
-  }
-
-  async function loadAccessStatus() {
-    try {
-      const data = await api('/approved-users');
-      accessStatus = data;
-      if (!accessStatus.canParticipate && me && me.email) {
-        const guess = me.email.split('@')[0].replace(/\./g, ' ');
-        const nameEl = $('access-name');
-        if (nameEl) nameEl.value = nameEl.value || guess.replace(/\b\w/g, (c) => c.toUpperCase());
-      }
-      updateParticipantUi();
-      return accessStatus;
-    } catch (err) {
-      console.warn('access status', err);
-      return null;
+    if(isMe){
+      body+='<button class="sheet-btn" id="sab-finalize">✓ Finalize my picks</button>';
     }
+    body+='<button class="sheet-btn danger" id="sab-unassign">Unassign FM '+esc(store.id)+'</button>';
   }
+  body+='<button class="sheet-btn" id="sab-close" style="color:var(--muted)">Cancel</button>';
+  body+='</div><div class="sheet-msg" id="sheet-msg"></div>';
+  openSheet(title,body);
 
-  function isAllowlistError(message) {
-    return String(message || '').toLowerCase().includes('allowlist');
-  }
-
-  function panelForScope(scope) {
-    return scope === 'ongoing' ? snapshot.ongoing : snapshot.thisWeek;
-  }
-
-  function refreshClaimOptions() {
-    const scope = $('claim-scope').value;
-    const panel = panelForScope(scope);
-    const storeSel = $('claim-store');
-    const dateSel = $('claim-date');
-    const openStores = panel.stores.filter((s) => s.status === 'open');
-    storeSel.innerHTML = '<option value="">Select…</option>' +
-      openStores.map((s) => '<option value="' + s.id + '">' + s.label + ' — ' + s.city + '</option>').join('');
-    dateSel.innerHTML = '<option value="">Select…</option>' +
-      (panel.allowedDates || []).map((d) => '<option value="' + d + '">' + fmtDate(d) + '</option>').join('');
-  }
-
-  function renderMyList() {
-    const email = (me && me.email || '').toLowerCase();
-    const admin = isSiteAdmin();
-    const all = snapshot.pledges || [];
-    const mine = admin
-      ? all.slice().sort((a, b) => String(a.storeId).localeCompare(String(b.storeId)))
-      : all.filter((p) => String(p.email).toLowerCase() === email);
-    const list = $('my-list');
-    const title = $('my-selections-title');
-    const sub = $('my-selections-sub');
-    if (title) title.textContent = admin ? 'All selections (admin)' : 'My selections';
-    if (sub) {
-      sub.textContent = admin
-        ? 'You can see every claim, reschedule/back out for anyone, unassign, or reassign. Finalize still applies to your own unfinalized picks.'
-        : 'Reschedule a day yourself (Wed–Fri). Back out emails teammates and holds the SAS shift until someone takes it. Finalize locks new picks and builds SAS visits.';
-    }
-    if (!mine.length) {
-      list.innerHTML = '<li class="denied">' + (admin ? 'No claims on the board yet.' : 'No claims yet.') + '</li>';
-      $('finalize-btn').disabled = true;
-      renderOpenOffers();
-      return;
-    }
-    const pendingOffers = (snapshot.changeRequests || []).filter((r) => r.type === 'dropout' && r.status === 'pending');
-    list.innerHTML = mine.map((p) => {
-      const locked = Boolean(p.finalized);
-      const isMine = String(p.email).toLowerCase() === email;
-      const prod = p.prod;
-      const timeLine = prod && prod.scheduleLabel ? (' · ' + prod.scheduleLabel) : '';
-      const prodLine = p.prodConfirmed
-        ? ' · <em>confirmed in PROD</em>'
-        : (locked ? ' · <em>finalized, awaiting PROD</em>' : '');
-      const myOffer = pendingOffers.find((r) => r.pledgeId === p.id);
-      const offerLine = myOffer
-        ? '<br/><em>coverage offer open — waiting for a teammate</em>'
-        : '';
-      const whoLine = admin
-        ? ('<br/><strong>' + escapeHtml(p.name || p.email) + '</strong>' +
-           (isMine ? ' <em>(you)</em>' : ''))
-        : '';
-      return '<li>' +
-        '<div><span class="store">FM ' + escapeHtml(p.storeId) + '</span> · ' +
-        escapeHtml(p.scope) + ' · ' + fmtDate(p.scheduledDate) + timeLine +
-        (locked ? ' · <em>locked</em>' : '') +
-        prodLine +
-        whoLine +
-        offerLine +
-        prodDetailHtml(prod) +
-        '</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
-        '<button type="button" class="unclaim-btn" data-modify="' + escapeHtml(p.id) + '">Reschedule / back out</button>' +
-        (admin
-          ? '<button type="button" class="btn-secondary" data-unassign="' + escapeHtml(p.id) +
-            '" data-store="' + escapeHtml(p.storeId) + '" data-who="' + escapeHtml(p.name || p.email) +
-            '">Unassign</button>'
-          : '') +
-        (myOffer && (admin || isMine)
-          ? '<button type="button" class="btn-secondary" data-cancel-offer="' + escapeHtml(myOffer.id) + '">Cancel offer</button>'
-          : '') +
-        '</div>' +
-        '</li>';
-    }).join('');
-    const myOwn = all.filter((p) => String(p.email).toLowerCase() === email);
-    $('finalize-btn').disabled = !myOwn.length || myOwn.every((p) => p.finalized);
-    list.querySelectorAll('[data-modify]').forEach((btn) => {
-      btn.addEventListener('click', () => openChange(btn.getAttribute('data-modify')));
-    });
-    list.querySelectorAll('[data-cancel-offer]').forEach((btn) => {
-      btn.addEventListener('click', () => cancelOffer(btn.getAttribute('data-cancel-offer')));
-    });
-    list.querySelectorAll('[data-unassign]').forEach((btn) => {
-      btn.addEventListener('click', () => adminUnassign(
-        btn.getAttribute('data-unassign'),
-        btn.getAttribute('data-store'),
-        btn.getAttribute('data-who'),
-      ));
-    });
-    renderOpenOffers();
-  }
-
-  async function adminUnassign(pledgeId, storeId, who) {
-    if (!confirm('Unassign FM ' + storeId + ' from ' + who + '? The store will open again on the board.')) return;
-    try {
-      const data = await api('/admin-assign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pledgeId, release: true, note: 'Unassigned by admin' }),
+  // wire buttons
+  setTimeout(()=>{
+    const close=$('sab-close');
+    if(close)close.addEventListener('click',closeSheet);
+    const movBtn=$('sab-move');
+    if(movBtn)movBtn.addEventListener('click',()=>enterMoveMode(pledge));
+    const asn=$('sab-assignee');
+    const asnBtn=$('sab-assign-btn');
+    if(asn&&asnBtn){
+      asnBtn.addEventListener('click',async()=>{
+        const toEmail=asn.value;
+        const toDate=$('sab-assign-date')&&$('sab-assign-date').value;
+        if(!toEmail){showMsg($('sheet-msg'),'Pick a person.',false);return;}
+        clearMsg($('sheet-msg'));
+        asnBtn.disabled=true;
+        try{
+          const body2={storeId:store.id,scope,assignToEmail:toEmail,scheduledDate:toDate||(pledge&&pledge.scheduledDate)||panel.allowedDates[0],force:true};
+          if(pledge)body2.pledgeId=pledge.id;
+          const d=await api('/admin-assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body2)});
+          applySnap(d.snapshot);closeSheet();
+        }catch(err){showMsg($('sheet-msg'),err.message,false);asnBtn.disabled=false;}
       });
-      applySnapshot(data.snapshot);
-      showMsg($('finalize-msg'), data.message || 'Unassigned.', true);
-    } catch (err) {
-      showMsg($('finalize-msg'), err.message, false);
     }
+    const redateBtn=$('sab-redate');
+    if(redateBtn&&pledge){
+      redateBtn.addEventListener('click',async()=>{
+        const nd=$('sab-date')&&$('sab-date').value;
+        if(!nd){showMsg($('sheet-msg'),'Pick a date.',false);return;}
+        clearMsg($('sheet-msg'));
+        redateBtn.disabled=true;
+        try{
+          const d=await api('/reschedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pledgeId:pledge.id,scheduledDate:nd})});
+          applySnap(d.snapshot);closeSheet();
+        }catch(err){showMsg($('sheet-msg'),err.message,false);redateBtn.disabled=false;}
+      });
+    }
+    const unBtn=$('sab-unassign');
+    if(unBtn&&pledge){
+      unBtn.addEventListener('click',async()=>{
+        if(!confirm('Unassign FM '+store.id+' from '+pledge.name+'?'))return;
+        clearMsg($('sheet-msg'));unBtn.disabled=true;
+        try{
+          const d=await api('/admin-assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pledgeId:pledge.id,release:true,note:'Unassigned by admin'})});
+          applySnap(d.snapshot);closeSheet();
+        }catch(err){showMsg($('sheet-msg'),err.message,false);unBtn.disabled=false;}
+      });
+    }
+    const finBtn=$('sab-finalize');
+    if(finBtn){
+      finBtn.addEventListener('click',async()=>{
+        if(!confirm('Lock your selections and build SAS visits?'))return;
+        finBtn.disabled=true;
+        try{const d=await api('/finalize',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});applySnap(d.snapshot);closeSheet();}
+        catch(err){showMsg($('sheet-msg'),err.message,false);finBtn.disabled=false;}
+      });
+    }
+  },0);
+}
+
+function assignPickerHtml(store,scope,panel,label){
+  const volunteers=(access&&access.volunteers)||[];
+  const dates=(panel.allowedDates||[]);
+  return'<div class="sheet-field"><label>'+esc(label)+'</label>'
+    +'<select id="sab-assignee"><option value="">Pick person…</option>'
+    +volunteers.map(v=>'<option value="'+esc(v.email)+'">'+esc(v.name||v.displayName||v.email)+'</option>').join('')
+    +'</select></div>'
+    +'<div class="sheet-field"><label>Date</label><select id="sab-assign-date">'
+    +dates.map(d=>'<option value="'+d+'">'+fmtDate(d)+'</option>').join('')
+    +'</select></div>'
+    +'<button class="sheet-btn primary" id="sab-assign-btn">Assign</button>';
+}
+
+/* ── confirm admin move ── */
+async function confirmAdminMove(targetStore,scope){
+  const m=moveMode;
+  if(!confirm('Move '+m.name+' to FM '+targetStore.id+'?')){cancelMoveMode();return;}
+  const panel=panelOf(scope);
+  const date=panel.allowedDates&&panel.allowedDates[0];
+  cancelMoveMode();
+  try{
+    const d=await api('/admin-assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storeId:targetStore.id,scope,assignToEmail:m.email,scheduledDate:date,force:true})});
+    applySnap(d.snapshot);
+  }catch(err){alert('Move failed: '+err.message);}
+}
+
+/* ── volunteer card sheet ── */
+function showVolunteerCardSheet(store,scope,panel){
+  const pledge=store.pledge;
+  const isMine=pledge&&String(pledge.email).toLowerCase()===meEmail();
+  if(!isMine&&store.status==='open'){
+    // Claim flow
+    const dates=(panel.allowedDates||[]);
+    const title='Claim FM '+esc(store.label);
+    const body='<div class="sheet-actions">'
+      +'<div class="sheet-field"><label>Scan day</label><select id="vclaim-date">'
+      +dates.map(d=>'<option value="'+d+'">'+fmtDate(d)+'</option>').join('')
+      +'</select></div>'
+      +'<button class="sheet-btn primary" id="vclaim-btn">I will complete FM '+esc(store.id)+'</button>'
+      +'<button class="sheet-btn" id="vclaim-cancel" style="color:var(--muted)">Cancel</button>'
+      +'</div><div class="sheet-msg" id="sheet-msg"></div>';
+    openSheet(title,body);
+    setTimeout(()=>{
+      $('vclaim-cancel').addEventListener('click',closeSheet);
+      $('vclaim-btn').addEventListener('click',async()=>{
+        const d2=$('vclaim-date').value;
+        $('vclaim-btn').disabled=true;
+        try{const r=await api('/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope,storeId:store.id,scheduledDate:d2})});applySnap(r.snapshot);closeSheet();}
+        catch(err){showMsg($('sheet-msg'),err.message,false);$('vclaim-btn').disabled=false;}
+      });
+    },0);
+    return;
   }
-
-  let pendingTakeOfferId = null;
-
-  function renderOpenOffers() {
-    const box = $('open-offers-box');
-    const list = $('open-offers-list');
-    const email = (me && me.email || '').toLowerCase();
-    const admin = isSiteAdmin();
-    const offers = (snapshot.openOffers || []).filter(
-      (o) => admin || String(o.requestedByEmail || '').toLowerCase() !== email
-    );
-    if (!offers.length && !pendingTakeOfferId) {
-      box.classList.add('hidden');
-      list.innerHTML = '';
-      $('offer-confirm-box').classList.add('hidden');
-      return;
-    }
-    box.classList.remove('hidden');
-    list.innerHTML = offers.map((o) => {
-      const selected = pendingTakeOfferId && pendingTakeOfferId === o.id;
-      return '<li' + (selected ? ' style="border-color:rgba(0,232,122,0.55)"' : '') + '>' +
-        '<div><span class="store">FM ' + escapeHtml(o.storeId) + '</span> · ' +
-        fmtDate(o.scheduledDate) + ' · from ' + escapeHtml(o.requestedByName) +
-        (o.note ? '<br/><em>' + escapeHtml(o.note) + '</em>' : '') +
-        (selected ? '<br/><em>selected — confirm above</em>' : '') +
-        '</div>' +
-        '<button type="button" class="btn' + (selected ? ' green' : '') + '" style="margin-top:8px" data-select-offer="' +
-        escapeHtml(o.id) + '">' + (selected ? 'Selected' : 'Select this shift') + '</button>' +
-        '</li>';
-    }).join('') || '<li class="denied">No open coverage offers right now.</li>';
-    list.querySelectorAll('[data-select-offer]').forEach((btn) => {
-      btn.addEventListener('click', () => selectOfferForConfirm(btn.getAttribute('data-select-offer')));
+  if(!isMine){
+    // Someone else's store — view only
+    const inf=pledge?esc(pledge.name)+' · '+fmtDate(pledge.scheduledDate):'Open';
+    openSheet('FM '+esc(store.label),'<div style="padding:0 14px 14px;color:var(--sub);font-size:13px;">'+inf+'</div><div class="sheet-actions"><button class="sheet-btn" id="v-close" style="color:var(--muted)">Close</button></div>');
+    setTimeout(()=>{const b=$('v-close');if(b)b.addEventListener('click',closeSheet);},0);
+    return;
+  }
+  // My store
+  const dates=(panel.allowedDates||[]);
+  const volunteers=(access&&access.volunteers||[]).filter(v=>String(v.email).toLowerCase()!==meEmail());
+  const title='FM '+esc(store.label)+' — your shift';
+  let body='<div class="sheet-actions">';
+  // Reschedule
+  body+='<div class="sheet-field"><label>Change day</label><select id="vm-date">'
+    +dates.map(d=>'<option value="'+d+'"'+(d===pledge.scheduledDate?' selected':'')+'>'+fmtDate(d)+(d===pledge.scheduledDate?' (current)':'')+'</option>').join('')
+    +'</select></div>';
+  body+='<button class="sheet-btn" id="vm-redate">Save new day</button>';
+  // Reassign
+  if(volunteers.length){
+    body+='<div class="sheet-field" style="margin-top:6px;"><label>Reassign to colleague (needs approval)</label><select id="vm-reassign-to"><option value="">Pick colleague…</option>'
+      +volunteers.map(v=>'<option value="'+esc(v.email)+'">'+esc(v.name||v.email)+'</option>').join('')
+      +'</select></div>';
+    body+='<div class="sheet-field"><label>Note (optional)</label><textarea id="vm-reassign-note" placeholder="Already agreed with them?"></textarea></div>';
+    body+='<button class="sheet-btn" id="vm-reassign">Request reassign (sends to Tyson)</button>';
+  }
+  // Back out
+  body+='<button class="sheet-btn danger" id="vm-dropout">Back out — ask teammates to cover</button>';
+  // Finalize
+  if(!pledge.finalized){
+    body+='<button class="sheet-btn green" id="vm-finalize">✓ Finalize selections</button>';
+  }
+  body+='<button class="sheet-btn" id="vm-close" style="color:var(--muted)">Cancel</button>';
+  body+='</div><div class="sheet-msg" id="sheet-msg"></div>';
+  openSheet(title,body);
+  setTimeout(()=>{
+    $('vm-close').addEventListener('click',closeSheet);
+    const rdBtn=$('vm-redate');
+    if(rdBtn)rdBtn.addEventListener('click',async()=>{
+      const nd=$('vm-date').value;
+      rdBtn.disabled=true;clearMsg($('sheet-msg'));
+      try{const d=await api('/reschedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pledgeId:pledge.id,scheduledDate:nd})});applySnap(d.snapshot);closeSheet();}
+      catch(err){showMsg($('sheet-msg'),err.message,false);rdBtn.disabled=false;}
     });
-    syncOfferConfirmBox();
-  }
-
-  function selectOfferForConfirm(requestId) {
-    pendingTakeOfferId = String(requestId || '').trim() || null;
-    syncOfferConfirmBox();
-    renderOpenOffers();
-    try { $('open-offers-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
-  }
-
-  function syncOfferConfirmBox() {
-    const box = $('offer-confirm-box');
-    const detail = $('offer-confirm-detail');
-    clearMsg($('offer-confirm-msg'));
-    if (!pendingTakeOfferId) {
-      box.classList.add('hidden');
-      return;
-    }
-    const offer = (snapshot.openOffers || []).find((o) => o.id === pendingTakeOfferId);
-    if (!offer) {
-      box.classList.remove('hidden');
-      detail.textContent = 'That coverage offer is no longer open. Pick another from the list, or refresh.';
-      $('offer-confirm-btn').disabled = true;
-      return;
-    }
-    box.classList.remove('hidden');
-    $('offer-confirm-btn').disabled = false;
-    detail.innerHTML =
-      'You are about to take <strong>FM ' + escapeHtml(offer.storeId) + '</strong> on ' +
-      '<strong>' + fmtDate(offer.scheduledDate) + '</strong> from ' +
-      escapeHtml(offer.requestedByName) +
-      '. This will make you the SAS lead and remove them from the shift. Nothing happens until you confirm.';
-  }
-
-  async function confirmTakeOffer() {
-    if (!pendingTakeOfferId) return;
-    clearMsg($('offer-confirm-msg'));
-    try {
-      $('offer-confirm-btn').disabled = true;
-      const data = await api('/take-offer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: pendingTakeOfferId }),
-      });
-      pendingTakeOfferId = null;
-      applySnapshot(data.snapshot);
-      showMsg($('finalize-msg'), data.message || 'Shift taken.', Boolean(data.success));
-      showMsg($('offer-confirm-msg'), data.message || 'Shift taken.', Boolean(data.success));
-    } catch (err) {
-      showMsg($('offer-confirm-msg'), err.message, false);
-      $('offer-confirm-btn').disabled = false;
-    }
-  }
-
-  function openChange(pledgeId) {
-    const p = (snapshot.pledges || []).find((x) => x.id === pledgeId);
-    if (!p) return;
-    $('change-pledge-id').value = pledgeId;
-    $('change-type').value = 'reschedule';
-    $('change-note').value = '';
-    $('change-box').classList.remove('hidden');
-    updateChangeFields(p);
-    clearMsg($('change-msg'));
-    try { $('change-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
-  }
-
-  function updateChangeFields(pledge) {
-    const type = $('change-type').value;
-    const isSwap = type === 'swap';
-    const isReschedule = type === 'reschedule';
-    $('swap-fields').classList.toggle('hidden', !isSwap);
-    $('reschedule-fields').classList.toggle('hidden', !isReschedule);
-    $('change-title').textContent =
-      type === 'dropout' ? 'Back out of shift' :
-      type === 'swap' ? 'Swap store (needs approval)' :
-      'Reschedule day';
-    $('change-submit').textContent =
-      type === 'dropout' ? 'Email teammates' :
-      type === 'swap' ? 'Send for approval' :
-      'Save new day';
-
-    if (!pledge) return;
-    const panel = panelForScope(pledge.scope);
-    const dates = panel.allowedDates || [];
-    if (isReschedule) {
-      $('reschedule-date').innerHTML = dates.map((d) =>
-        '<option value="' + d + '"' + (d === pledge.scheduledDate ? ' selected' : '') + '>' +
-        fmtDate(d) + (d === pledge.scheduledDate ? ' (current)' : '') + '</option>'
-      ).join('') || '<option value="">No dates</option>';
-    }
-    if (isSwap) {
-      const open = panel.stores.filter((s) => s.status === 'open');
-      $('swap-store').innerHTML = open.map((s) =>
-        '<option value="' + s.id + '">' + s.label + ' — ' + s.city + '</option>'
-      ).join('') || '<option value="">No open stores</option>';
-      $('swap-date').innerHTML = dates.map((d) =>
-        '<option value="' + d + '"' + (d === pledge.scheduledDate ? ' selected' : '') + '>' + fmtDate(d) + '</option>'
-      ).join('');
-    }
-  }
-
-  async function cancelOffer(requestId) {
-    if (!confirm('Cancel your coverage offer? You stay assigned to this store.')) return;
-    try {
-      const data = await api('/cancel-offer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId }),
-      });
-      applySnapshot(data.snapshot);
-      showMsg($('finalize-msg'), data.message || 'Offer cancelled.', true);
-    } catch (err) {
-      showMsg($('finalize-msg'), err.message, false);
-    }
-  }
-
-  function updateProdBanner(snap) {
-    const wrap = $('prod-banner');
-    const el = $('prod-banner-text');
-    const prod = snap.prod || {};
-    if (!prod.syncedAt && !prod.error) {
-      wrap.hidden = true;
-      return;
-    }
-    wrap.hidden = false;
-    wrap.className = 'prod-banner' + (prod.ok ? '' : ' warn');
-    if (prod.ok) {
-      const when = prod.syncedAt ? new Date(prod.syncedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—';
-      el.textContent = 'SAS PROD connected · project 8081 · ' + (prod.visitCount || 0) + ' visit(s) · synced ' + when;
-    } else if (prod.sessionAlive) {
-      el.textContent = 'SAS session active · loading project 8081 schedule…';
-    } else {
-      const sasHint = prod.sas?.error ? (' · ' + prod.sas.error) : '';
-      el.textContent = 'SAS PROD sync: ' + (prod.error || 'waiting for session') + sasHint;
-    }
-  }
-
-  function updateLivePill(snap, sseConnected) {
-    const prod = snap.prod || {};
-    $('live-pill').classList.toggle('connected', Boolean(sseConnected && prod.ok));
-    if (prod.ok) {
-      $('live-label').textContent = sseConnected ? 'Live · PROD' : 'PROD synced';
-    } else if (sseConnected) {
-      $('live-label').textContent = 'Live · PROD pending';
-    } else {
-      $('live-label').textContent = 'Reconnecting…';
-    }
-  }
-
-  function applySnapshot(snap) {
-    snapshot = snap;
-    try { localStorage.setItem('dc_scan_snapshot', JSON.stringify(snap)); } catch (_) {}
-    $('this-week-meta').textContent = snap.thisWeek.weekKey + ' · ' +
-      fmtDate(snap.thisWeek.startDate) + ' – ' + fmtDate(snap.thisWeek.endDate) +
-      ' · deadline Fri 5 PM';
-    $('ongoing-meta').textContent = snap.ongoing.weekKey + ' · ' +
-      fmtDate(snap.ongoing.startDate) + ' – ' + fmtDate(snap.ongoing.endDate) +
-      ' · claim your semi-permanent stores';
-    renderStats($('this-week-stats'), snap.thisWeek.stats);
-    renderStats($('ongoing-stats'), snap.ongoing.stats);
-    renderGrid($('this-week-grid'), snap.thisWeek);
-    renderGrid($('ongoing-grid'), snap.ongoing);
-    updateProdBanner(snap);
-    refreshClaimOptions();
-    renderMyList();
-  }
-
-  function connectSse() {
-    if (es) { try { es.close(); } catch (_) {} }
-    const tok = localStorage.getItem('dumpBinSession') || localStorage.getItem('eodSession') || '';
-    const apiBase = (window.dumpBinAuth && window.dumpBinAuth.API_BASE) || '';
-    const url = apiBase + '/api/dc-scan/events?access_token=' + encodeURIComponent(tok);
-    es = new EventSource(url);
-    es.addEventListener('snapshot', (ev) => {
-      try {
-        applySnapshot(JSON.parse(ev.data));
-        updateLivePill(snapshot, true);
-      } catch (_) {}
+    const rsBtn=$('vm-reassign');
+    if(rsBtn)rsBtn.addEventListener('click',async()=>{
+      const toEmail=$('vm-reassign-to').value;
+      const note=$('vm-reassign-note').value;
+      if(!toEmail){showMsg($('sheet-msg'),'Pick a colleague.',false);return;}
+      rsBtn.disabled=true;clearMsg($('sheet-msg'));
+      try{const d=await api('/change-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pledgeId:pledge.id,type:'reassign',toEmail,note})});applySnap(d.snapshot);showMsg($('sheet-msg'),d.message||'Request sent.',true);}
+      catch(err){showMsg($('sheet-msg'),err.message,false);rsBtn.disabled=false;}
     });
-    es.onerror = () => {
-      updateLivePill(snapshot || { prod: {} }, false);
-    };
-  }
-
-  async function boot() {
-    showBootStatus('Loading DC Scan board…', false);
-    try {
-      await (window.dumpBinAuthReady || Promise.resolve());
-      const meRes = await window.dumpBinAuthFetch('/api/me');
-      const meData = await meRes.json();
-      if (!meRes.ok) throw new Error(meData.error || 'Not signed in');
-      me = meData;
-      $('me-email').textContent = me.email || '—';
-      $('app').hidden = false;
-      hideBootStatus();
-
-      await loadAccessStatus();
-
-      try {
-        const cached = localStorage.getItem('dc_scan_snapshot');
-        if (cached) applySnapshot(JSON.parse(cached));
-      } catch (_) {}
-
-      try {
-        const data = await api('/');
-        applySnapshot(data.snapshot);
-        updateLivePill(data.snapshot, false);
-        connectSse();
-      } catch (err) {
-        if (!snapshot) throw err;
-        console.warn('live snapshot', err);
-        updateLivePill(snapshot, false);
-        connectSse();
-      }
-
-      // Email deep link only PREFILLS the confirm panel — never auto-assigns
-      // (security scanners / link bots must not mutate SAS by following the URL).
-      try {
-        const params = new URLSearchParams(location.search);
-        const takeId = params.get('takeOffer') || params.get('offer');
-        if (takeId) {
-          history.replaceState({}, '', location.pathname);
-          selectOfferForConfirm(takeId);
-          showMsg(
-            $('finalize-msg'),
-            'Coverage offer loaded. Review Open coverage and click Confirm — assign me as lead to take it.',
-            true,
-          );
-        }
-      } catch (_) {}
-    } catch (err) {
-      hideBootStatus();
-      $('app').hidden = false;
-      showBootStatus((err && err.message) || 'Failed to load board. Try refreshing, or sign out and sign in again.', true);
-      throw err;
-    }
-  }
-
-  $('offer-confirm-btn').addEventListener('click', () => {
-    confirmTakeOffer();
-  });
-  $('offer-confirm-cancel').addEventListener('click', () => {
-    pendingTakeOfferId = null;
-    syncOfferConfirmBox();
-    renderOpenOffers();
-    clearMsg($('offer-confirm-msg'));
-  });
-
-  $('claim-scope').addEventListener('change', refreshClaimOptions);
-  if ($('admin-scope')) {
-    $('admin-scope').addEventListener('change', refreshAdminAssignOptions);
-  }
-  if ($('admin-assign-form')) {
-    $('admin-assign-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      clearMsg($('admin-assign-msg'));
-      try {
-        $('admin-assign-btn').disabled = true;
-        const data = await api('/admin-assign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            scope: $('admin-scope').value,
-            storeId: $('admin-store').value,
-            scheduledDate: $('admin-date').value,
-            assignToEmail: $('admin-assignee').value,
-            note: $('admin-note').value,
-            force: true,
-          }),
-        });
-        applySnapshot(data.snapshot);
-        showMsg($('admin-assign-msg'), data.message || 'Assigned.', true);
-        refreshAdminAssignOptions();
-      } catch (err) {
-        showMsg($('admin-assign-msg'), err.message, false);
-      } finally {
-        $('admin-assign-btn').disabled = false;
-      }
+    const doBtn=$('vm-dropout');
+    if(doBtn)doBtn.addEventListener('click',async()=>{
+      if(!confirm('Email teammates and hold this shift until someone takes it?'))return;
+      doBtn.disabled=true;clearMsg($('sheet-msg'));
+      try{const d=await api('/change-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pledgeId:pledge.id,type:'dropout'})});applySnap(d.snapshot);closeSheet();}
+      catch(err){showMsg($('sheet-msg'),err.message,false);doBtn.disabled=false;}
     });
-  }
+    const finBtn=$('vm-finalize');
+    if(finBtn)finBtn.addEventListener('click',async()=>{
+      if(!confirm('Lock selections and build SAS visits?'))return;
+      finBtn.disabled=true;
+      try{const d=await api('/finalize',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});applySnap(d.snapshot);closeSheet();}
+      catch(err){showMsg($('sheet-msg'),err.message,false);finBtn.disabled=false;}
+    });
+  },0);
+}
 
-  $('prod-resync-btn').addEventListener('click', async () => {
-    const btn = $('prod-resync-btn');
-    const banner = $('prod-banner-text');
-    const prevLabel = btn.textContent;
-    clearMsg($('finalize-msg'));
-    try {
-      btn.disabled = true;
-      btn.textContent = 'Resyncing…';
-      if (banner) banner.textContent = 'Refreshing SAS session and PROD schedule…';
-      const data = await api('/resync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      applySnapshot(data.snapshot);
-      updateLivePill(data.snapshot, Boolean(es && es.readyState === EventSource.OPEN));
-      showMsg($('finalize-msg'), data.message || 'PROD resync complete.', Boolean(data.success));
-    } catch (err) {
-      showMsg($('finalize-msg'), err.message || 'PROD resync failed.', false);
-      if (snapshot) updateProdBanner(snapshot);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = prevLabel;
-    }
-  });
+/* ── drag and drop (desktop admin) ── */
+let dragSrcStore=null,dragSrcScope=null,dragSrcPledge=null;
+function onDragStart(e){
+  const card=e.currentTarget;
+  const scope=card.dataset.scope;
+  const panel=panelOf(scope);
+  const store=panel.stores.find(s=>s.id===card.dataset.store);
+  if(!store||!store.pledge)return;
+  dragSrcStore=store.id;dragSrcScope=scope;dragSrcPledge=store.pledge;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',store.pledge.name);
+  setTimeout(()=>card.classList.add('dragging-source'),0);
+}
+function onDragOver(e){
+  if(!dragSrcPledge)return;
+  const card=e.currentTarget;
+  if(card.dataset.store===dragSrcStore)return;
+  e.preventDefault();card.classList.add('drop-target');
+}
+function onDragLeave(e){e.currentTarget.classList.remove('drop-target');}
+async function onDrop(e){
+  e.preventDefault();
+  const card=e.currentTarget;card.classList.remove('drop-target');
+  const tgtStoreId=card.dataset.store;
+  const tgtScope=card.dataset.scope;
+  if(!dragSrcPledge||tgtStoreId===dragSrcStore){onDragEnd();return;}
+  const panel=panelOf(tgtScope);
+  const date=panel.allowedDates&&panel.allowedDates[0];
+  try{
+    const d=await api('/admin-assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storeId:tgtStoreId,scope:tgtScope,assignToEmail:dragSrcPledge.email,scheduledDate:dragSrcPledge.scheduledDate||date,force:true})});
+    applySnap(d.snapshot);
+  }catch(err){alert('Move failed: '+err.message);}
+  onDragEnd();
+}
+function onDragEnd(){
+  dragSrcStore=null;dragSrcScope=null;dragSrcPledge=null;
+  document.querySelectorAll('.store-card').forEach(c=>{c.classList.remove('dragging-source','drop-target');});
+}
 
-  $('claim-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    clearMsg($('claim-msg'));
-    if (!navigator.onLine) return showMsg($('claim-msg'), 'You appear offline.', false);
-    try {
-      $('claim-btn').disabled = true;
-      const data = await api('/claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scope: $('claim-scope').value,
-          storeId: $('claim-store').value,
-          scheduledDate: $('claim-date').value,
-        }),
-      });
-      applySnapshot(data.snapshot);
-      showMsg($('claim-msg'), data.message || 'Claimed.', true);
-    } catch (err) {
-      const msg = err.message || 'Claim failed.';
-      if (isAllowlistError(msg)) {
-        showMsg($('claim-msg'), msg + ' Use the access request form above, or sign out and sign in with your other work email.', false);
-        try { await loadAccessStatus(); } catch (_) {}
-      } else {
-        showMsg($('claim-msg'), msg, false);
-      }
-    } finally {
-      $('claim-btn').disabled = false;
-    }
-  });
-
-  $('finalize-btn').addEventListener('click', async () => {
-    clearMsg($('finalize-msg'));
-    if (!confirm('Lock your selections and build SAS visits/shifts for your stores now?')) return;
-    try {
-      $('finalize-btn').disabled = true;
-      const data = await api('/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      applySnapshot(data.snapshot);
-      showMsg($('finalize-msg'), data.message || 'Finalized.', !data.buildError);
-    } catch (err) {
-      showMsg($('finalize-msg'), err.message, false);
-      $('finalize-btn').disabled = false;
-    }
-  });
-
-  $('change-type').addEventListener('change', () => {
-    const pid = $('change-pledge-id').value;
-    const p = (snapshot.pledges || []).find((x) => x.id === pid);
-    updateChangeFields(p);
-  });
-  $('change-cancel').addEventListener('click', () => {
-    $('change-box').classList.add('hidden');
-  });
-  $('change-submit').addEventListener('click', async () => {
-    clearMsg($('change-msg'));
-    const type = $('change-type').value;
-    const pledgeId = $('change-pledge-id').value;
-    const note = $('change-note').value;
-    try {
-      $('change-submit').disabled = true;
-      let data;
-      if (type === 'reschedule') {
-        data = await api('/reschedule', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pledgeId,
-            scheduledDate: $('reschedule-date').value,
-            note,
-          }),
-        });
-      } else {
-        const body = { pledgeId, type, note };
-        if (type === 'swap') {
-          body.swapToStoreId = $('swap-store').value;
-          body.swapToDate = $('swap-date').value;
-        }
-        if (type === 'dropout' && !confirm(
-          'Email teammates and hold this shift until someone takes it? Nothing is removed from SAS until then.'
-        )) {
-          return;
-        }
-        data = await api('/change-request', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-      }
-      applySnapshot(data.snapshot);
-      showMsg($('change-msg'), data.message || 'Saved.', Boolean(data.success !== false));
-      $('change-box').classList.add('hidden');
-    } catch (err) {
-      showMsg($('change-msg'), err.message, false);
-    } finally {
-      $('change-submit').disabled = false;
-    }
-  });
-
-  $('access-request-btn').addEventListener('click', async () => {
-    clearMsg($('access-msg'));
-    try {
-      $('access-request-btn').disabled = true;
-      const data = await api('/access-request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: $('access-name').value,
-          reason: $('access-reason').value,
-        }),
-      });
-      showMsg($('access-msg'), data.message || 'Request sent.', true);
-      accessStatus = Object.assign({}, accessStatus || {}, { pendingAccessRequest: true, canParticipate: false });
-      updateParticipantUi();
-    } catch (err) {
-      showMsg($('access-msg'), err.message || 'Could not submit request.', false);
-      $('access-request-btn').disabled = false;
-    }
-  });
-
-  $('sign-out-btn').addEventListener('click', () => {
-    if (window.dumpBinSignOut) {
-      try {
-        localStorage.removeItem('dumpBinSession');
-        localStorage.removeItem('eodSession');
-      } catch (_) {}
-      location.href = '/signin.html?next=' + encodeURIComponent(location.pathname + location.search);
-      return;
-    }
-    try {
-      localStorage.removeItem('dumpBinSession');
-      localStorage.removeItem('eodSession');
-    } catch (_) {}
-    location.href = '/signin.html?next=' + encodeURIComponent(location.pathname + location.search);
-  });
-
-  document.querySelectorAll('.mobile-nav [data-jump]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-jump');
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      if (typeof el.focus === 'function') {
-        try { el.focus({ preventScroll: true }); } catch (_) {}
-      }
+/* ── open offers ── */
+function renderOffers(){
+  const email=meEmail();
+  const admin=isAdmin();
+  const offers=(snap.openOffers||[]).filter(o=>admin||String(o.requestedByEmail||'').toLowerCase()!==email);
+  const sec=$('offers-section');
+  const list=$('offers-list');
+  sec.classList.toggle('hidden',!offers.length);
+  if(!offers.length){list.innerHTML='';return;}
+  list.innerHTML=offers.map(o=>'<div class="offer-card">'
+    +'<div class="offer-store">FM '+esc(o.storeId)+'</div>'
+    +'<div class="offer-detail">'+fmtDate(o.scheduledDate)+' · from '+esc(o.requestedByName)+(o.note?'<br/><em>'+esc(o.note)+'</em>':'')+'</div>'
+    +'<button class="btn-take" data-take="'+esc(o.id)+'">Take this shift</button>'
+    +(admin?'':' ')
+    +'</div>').join('');
+  list.querySelectorAll('[data-take]').forEach(btn=>{
+    btn.addEventListener('click',async()=>{
+      const rid=btn.getAttribute('data-take');
+      if(!confirm('Take this shift? You become the SAS lead and the previous person is removed.'))return;
+      btn.disabled=true;
+      try{const d=await api('/take-offer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:rid})});applySnap(d.snapshot);}
+      catch(err){alert(err.message);btn.disabled=false;}
     });
   });
+}
 
-  boot().catch((err) => {
-    console.error(err);
+/* ── finalize bar ── */
+function renderFinBar(){
+  const email=meEmail();
+  const mine=(snap.pledges||[]).filter(p=>String(p.email).toLowerCase()===email&&!p.releasedAt);
+  const unfinalized=mine.filter(p=>!p.finalized);
+  const bar=$('fin-bar');
+  const msg=$('fin-msg');
+  if(!mine.length||!isVolunteer()){bar.classList.add('hidden');return;}
+  bar.classList.remove('hidden');
+  $('fin-bar-title').textContent=unfinalized.length
+    ?'Finalize your picks ('+unfinalized.length+' pending)'
+    :'All picks finalized';
+  $('fin-bar-sub').textContent=unfinalized.length
+    ?'Lock to build SAS visits and shifts.'
+    :'Your selections are locked — SAS visits building.';
+  $('finalize-btn').disabled=!unfinalized.length;
+  clearMsg(msg);
+}
+
+/* ── prod banner ── */
+function renderProdBanner(s){
+  const wrap=$('prod-banner');const el=$('prod-banner-text');
+  const prod=s.prod||{};
+  if(!prod.syncedAt&&!prod.error){wrap.classList.add('hidden');return;}
+  wrap.classList.remove('hidden');
+  wrap.className='prod-banner'+(prod.ok?'':' warn');
+  if(prod.ok){
+    const when=prod.syncedAt?new Date(prod.syncedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'—';
+    el.textContent='PROD · '+prod.visitCount+' visit(s) · '+when;
+  }else if(prod.sessionAlive){
+    el.textContent='SAS session active · loading schedule…';
+  }else{
+    el.textContent='PROD sync: '+(prod.error||'waiting for session');
+  }
+}
+
+/* ── live pill ── */
+function renderLivePill(s,sse){
+  const prod=s&&s.prod||{};
+  $('live-pill').classList.toggle('ok',Boolean(sse&&prod.ok));
+  $('live-label').textContent=prod.ok?(sse?'Live · PROD':'PROD synced'):(sse?'Live · PROD pending':'Reconnecting…');
+}
+
+/* ── apply snapshot ── */
+function applySnap(s){
+  snap=s;
+  try{localStorage.setItem('dc_scan_snap',JSON.stringify(s));}catch(_){}
+  $('this-week-meta').textContent=s.thisWeek.weekKey+' · '+fmtDate(s.thisWeek.startDate)+' – '+fmtDate(s.thisWeek.endDate);
+  $('ongoing-meta').textContent=s.ongoing.weekKey+' · '+fmtDate(s.ongoing.startDate)+' – '+fmtDate(s.ongoing.endDate);
+  renderStats($('this-week-stats'),s.thisWeek.stats);
+  renderStats($('ongoing-stats'),s.ongoing.stats);
+  renderGrids();
+  renderProdBanner(s);
+  renderOffers();
+  renderFinBar();
+}
+
+/* ── access gate ── */
+async function loadAccess(){
+  try{
+    access=await api('/approved-users');
+    if(!access.canParticipate&&me&&me.email){
+      const g=$('access-name');if(g)g.value=g.value||me.email.split('@')[0].replace(/\./g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    }
+    updateAccessUi();
+  }catch(err){console.warn('access',err);}
+}
+function updateAccessUi(){
+  const can=Boolean(access&&access.canParticipate);
+  const pending=Boolean(access&&access.pendingAccessRequest);
+  const gate=$('access-gate');
+  if(!can){
+    gate.classList.remove('hidden');
+    gate.classList.toggle('pending',pending);
+    $('access-request-form').classList.toggle('hidden',pending);
+    $('access-pending-copy').classList.toggle('hidden',!pending);
+    $('access-gate-title').textContent=pending?'Access request pending':'Request DC Scan access';
+  }else{
+    gate.classList.add('hidden');
+  }
+}
+
+/* ── SSE ── */
+function connectSse(){
+  if(es){try{es.close();}catch(_){}}
+  const tok=localStorage.getItem('dumpBinSession')||localStorage.getItem('eodSession')||'';
+  const base=(window.dumpBinAuth&&window.dumpBinAuth.API_BASE)||'';
+  es=new EventSource(base+'/api/dc-scan/events?access_token='+encodeURIComponent(tok));
+  es.addEventListener('snapshot',ev=>{
+    try{applySnap(JSON.parse(ev.data));renderLivePill(snap,true);}catch(_){}
   });
+  es.onerror=()=>renderLivePill(snap||{prod:{}},false);
+}
+
+/* ── boot ── */
+async function boot(){
+  $('boot-status').textContent='Loading DC Scan board…';$('boot-status').hidden=false;
+  try{
+    await(window.dumpBinAuthReady||Promise.resolve());
+    const mr=await window.dumpBinAuthFetch('/api/me');
+    const md=await mr.json();
+    if(!mr.ok)throw new Error(md.error||'Not signed in');
+    me=md;
+    $('me-email').textContent=me.email||'—';
+    $('app').hidden=false;
+    $('boot-status').hidden=true;
+    await loadAccess();
+    try{const c=localStorage.getItem('dc_scan_snap');if(c)applySnap(JSON.parse(c));}catch(_){}
+    try{const d=await api('/');applySnap(d.snapshot);renderLivePill(d.snapshot,false);connectSse();}
+    catch(err){if(!snap)throw err;console.warn('snap',err);renderLivePill(snap,false);connectSse();}
+    // URL offer prefill
+    try{
+      const p=new URLSearchParams(location.search);
+      const oid=p.get('offer')||p.get('takeOffer');
+      if(oid){history.replaceState({},'',location.pathname);const o=(snap.openOffers||[]).find(x=>x.id===oid);if(o){$('offers-section').scrollIntoView({behavior:'smooth',block:'start'});}}
+    }catch(_){}
+  }catch(err){
+    $('boot-status').textContent=(err&&err.message)||'Load failed. Refresh or sign out and back in.';
+    $('boot-status').className='boot-status err';$('boot-status').hidden=false;
+  }
+}
+
+/* ── event wiring ── */
+$('sign-out-btn').addEventListener('click',()=>{
+  try{localStorage.removeItem('dumpBinSession');localStorage.removeItem('eodSession');}catch(_){}
+  location.href='/signin.html?next='+encodeURIComponent(location.pathname);
+});
+
+$('resync-btn').addEventListener('click',async()=>{
+  const btn=$('resync-btn');btn.disabled=true;btn.textContent='Syncing…';
+  try{const d=await api('/resync',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});applySnap(d.snapshot);renderLivePill(d.snapshot,Boolean(es&&es.readyState===1));}
+  catch(err){alert('Resync failed: '+err.message);}
+  finally{btn.disabled=false;btn.textContent='Resync PROD';}
+});
+
+$('finalize-btn').addEventListener('click',async()=>{
+  if(!confirm('Lock picks and build SAS visits/shifts now?'))return;
+  $('finalize-btn').disabled=true;
+  try{const d=await api('/finalize',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});applySnap(d.snapshot);showMsg($('fin-msg'),d.message||'Finalized.',!d.buildError);}
+  catch(err){showMsg($('fin-msg'),err.message,false);$('finalize-btn').disabled=false;}
+});
+
+$('access-request-btn').addEventListener('click',async()=>{
+  clearMsg($('access-msg'));
+  const btn=$('access-request-btn');btn.disabled=true;
+  try{
+    const d=await api('/access-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('access-name').value,reason:$('access-reason').value})});
+    showMsg($('access-msg'),d.message||'Request sent.',true);
+    access=Object.assign({},access||{},{pendingAccessRequest:true,canParticipate:false});
+    updateAccessUi();
+  }catch(err){showMsg($('access-msg'),err.message||'Error.',false);btn.disabled=false;}
+});
+
+document.querySelectorAll('[data-jump]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const el=document.getElementById(btn.dataset.jump);
+    if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+});
+
+boot().catch(err=>console.error(err));
 })();
 </script>
 </body>
