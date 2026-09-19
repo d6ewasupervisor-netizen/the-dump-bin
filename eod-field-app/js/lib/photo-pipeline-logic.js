@@ -56,6 +56,25 @@
   }
 
   /**
+   * Bytes a Retry tap can actually resubmit. A stale hasPayload flag is not
+   * enough — restore can leave that true after the blob is gone.
+   */
+  function hasRetryableBytes(job) {
+    return !!(job && (job.dataUrl || job.blob || job.file || job.canvas || job.bitmap));
+  }
+
+  /**
+   * Lock / still-processing / try-again-shortly replies are the server asking
+   * us to wait, not a terminal upload failure. already_present is success and
+   * is handled by sideOk — do not treat it here.
+   */
+  const TRANSIENT_UPLOAD_RE = /timeout|network|failed to fetch|\b503\b|\b429\b|\b502\b|waiting for connection|\blease\b|backed up|catching up|session not active|processing this set|still processing|try again shortly|another field-set job|\block(?:ed|ing)?\b/i;
+
+  function isTransientUploadError(message) {
+    return TRANSIENT_UPLOAD_RE.test(String(message || ''));
+  }
+
+  /**
    * True if any job for this store+date still needs its local bytes kept —
    * either not yet fully confirmed, or confirmed but not yet offloaded.
    * Mirrors the inline fallback previously duplicated in photo-pipeline.js's
@@ -116,7 +135,7 @@
       }
       if (OPEN_COMPRESS.has(j.status)) compress += 1;
       else if (OPEN_UPLOAD.has(j.status)) upload += 1;
-      else if (j.status === 'failed') failed += 1;
+      else if (j.status === 'failed' && hasRetryableBytes(j)) failed += 1;
       else if (j.status === 'done') done += 1;
       // Note: a 'done' job only ever still has local bytes if isFullyConfirmed
       // (in photo-pipeline.js) hasn't yet run maybeOffloadJob's cleanup — this
@@ -163,7 +182,51 @@
   function shouldRetry(job) {
     if (!job || isSuperseded(job)) return false;
     if (job.status !== 'failed') return false;
-    return !!(job.dataUrl || job.blob || job.file || job.hasPayload || job.canvas || job.bitmap);
+    return hasRetryableBytes(job);
+  }
+
+  const RESTORE_OPEN = new Set([
+    'queued',
+    'compressing',
+    'compressed',
+    'uploading',
+    'reconciling',
+    'accepted',
+  ]);
+
+  /**
+   * After sleep/reload, once any surviving bytes are reattached:
+   * - poll: no bytes, but statusUrl can still heal a server-completed job
+   * - drop: no bytes and nothing to poll — Retry cannot help, so it must not
+   *   inflate the retry badge
+   * - requeue: failed only because of a transient lock/processing error, and
+   *   the payload is still here
+   * - keep: leave the record alone
+   */
+  function restoreAction(job) {
+    if (!job || job.status === 'done' || job.status === 'superseded' || isSuperseded(job)) return 'keep';
+    if (!hasRetryableBytes(job)) {
+      if (job.statusUrl && (job.status === 'failed' || job.status === 'accepted' || RESTORE_OPEN.has(job.status))) {
+        return 'poll';
+      }
+      if (job.status === 'failed' || RESTORE_OPEN.has(job.status)) return 'drop';
+      return 'keep';
+    }
+    if (job.status === 'failed' && isTransientUploadError(job.error)) return 'requeue';
+    return 'keep';
+  }
+
+  /**
+   * What to do when a statusUrl peek returns. `done` heals a client `failed`
+   * (or `accepted`) job once the server job is completed.
+   */
+  function remotePeekPlan(job, remoteStatus) {
+    if (!job || isSuperseded(job)) return 'ignore';
+    const status = String(remoteStatus || '').toLowerCase();
+    if (status === 'completed') return 'done';
+    if (status === 'failed') return hasRetryableBytes(job) ? 'requeue' : 'drop';
+    if (['pending', 'retry', 'processing'].includes(status) && job.status === 'failed') return 'accept';
+    return 'keep';
   }
 
   function normalizeDbkey(raw) {
@@ -274,12 +337,16 @@
     sideOk,
     isFullyConfirmed,
     hasLocalBytes,
+    hasRetryableBytes,
+    isTransientUploadError,
     sessionHasProtectedJobs,
     countJobs,
     fullJitterMs,
     stableIdempotencyKey,
     hasCompressInput,
     shouldRetry,
+    restoreAction,
+    remotePeekPlan,
     normalizeDbkey,
     sameBay,
     jobsToSupersede,

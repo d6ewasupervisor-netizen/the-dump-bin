@@ -225,7 +225,7 @@
       if (isSuperseded(j)) superseded += 1;
       else if (j.status === 'queued' || j.status === 'compressing') compress += 1;
       else if (j.status === 'compressed' || j.status === 'uploading' || j.status === 'reconciling' || j.status === 'accepted') upload += 1;
-      else if (j.status === 'failed') failed += 1;
+      else if (j.status === 'failed' && (j.dataUrl || j.blob || j.file || j.canvas || j.bitmap)) failed += 1;
       else if (j.status === 'done') done += 1;
       if (j.dataUrl || j.blob || j.file || j.hasPayload) protectedOnDevice += 1;
     }
@@ -578,13 +578,32 @@
           await markSuperseded(j);
           continue;
         }
-        if (['queued', 'compressed', 'uploading', 'reconciling', 'accepted'].includes(j.status) && !j.dataUrl && !j.file && !j.blob) {
+        const action = Logic.restoreAction ? Logic.restoreAction(j) : null;
+        if (action === 'drop') {
+          jobs.delete(j.id);
+          idbDelete(j.id).catch(() => {});
+          continue;
+        }
+        if (action === 'poll') {
+          j.status = 'accepted';
+          j.error = null;
+          j.needsAttention = false;
+          continue;
+        }
+        if (action === 'requeue') {
+          j.status = 'compressed';
+          j.needsAttention = false;
+          j.nextRetryAt = Date.now() + (Logic.fullJitterMs ? Logic.fullJitterMs(j.attempts || 1) : 1500);
+          continue;
+        }
+        if (!action && ['queued', 'compressed', 'uploading', 'reconciling', 'accepted'].includes(j.status) && !j.dataUrl && !j.file && !j.blob) {
           if (j.status === 'accepted' && j.statusUrl) continue;
           j.status = 'failed';
           j.error = 'Lost after reload — retake photo';
         }
       }
       persist();
+      emit('restored', null);
     } catch (_) {}
   }
 
@@ -934,30 +953,38 @@
       emit('done', job);
     } catch (err) {
       job.attempts = (job.attempts || 0) + 1;
+      const message = err?.message || String(err);
+      const transient = Logic.isTransientUploadError
+        ? Logic.isTransientUploadError(message)
+        : /timeout|network|failed to fetch|503|429|502|waiting for connection|lease|backed up|catching up|session not active|processing this set|still processing|try again shortly|another field-set job|locked/i.test(message);
+      const canRetry = !!(job.dataUrl || job.blob || job.statusUrl);
+      // Lock / still-processing / try-again-shortly must stay retryable.
+      // The set attempt cap used to run first and mark these terminal failed
+      // while the server status was still `retry` (often later `completed`).
+      if (transient && job.attempts < 40 && canRetry) {
+        job.status = (job.statusUrl && !job.dataUrl && !job.blob) ? 'accepted' : 'compressed';
+        job.error = message;
+        job.needsAttention = false;
+        job.nextRetryAt = Date.now() + (Logic.fullJitterMs ? Logic.fullJitterMs(job.attempts) : Math.min(30000, 400 * (2 ** job.attempts)));
+        persist();
+        emit('partial', job);
+        setTimeout(schedulePump, Math.max(0, job.nextRetryAt - Date.now()));
+        return;
+      }
       if (job.kind === "set" && job.attempts >= MAX_SET_ATTEMPTS) {
         job.status = "failed";
         job.error = job.error || "Too many upload attempts — needs attention";
         job.needsAttention = true;
         job.updatedAt = Date.now();
-        persistJob(job);
+        persist();
         emit("failed", job);
         return;
       }
-      const transient = /timeout|network|failed to fetch|503|429|502|waiting for connection|lease|backed up|catching up|session not active/i.test(err?.message || '');
-      if (transient && job.attempts < 40 && (job.dataUrl || job.blob || job.statusUrl)) {
-        job.status = 'compressed';
-        job.error = err?.message || String(err);
-        job.nextRetryAt = Date.now() + (Logic.fullJitterMs ? Logic.fullJitterMs(job.attempts) : Math.min(30000, 400 * (2 ** job.attempts)));
-        persist();
-        emit('partial', job);
-        setTimeout(schedulePump, Math.max(0, job.nextRetryAt - Date.now()));
-      } else {
-        job.status = 'failed';
-        job.error = err?.message || String(err);
-        job.updatedAt = Date.now();
-        persist();
-        emit('failed', job);
-      }
+      job.status = 'failed';
+      job.error = message;
+      job.updatedAt = Date.now();
+      persist();
+      emit('failed', job);
     } finally {
       uploadActive -= 1;
       schedulePump();
@@ -1456,6 +1483,18 @@
     return 'partial';
   }
 
+  function healCompletedJob(job, result) {
+    applyServerResult(job, result);
+    if (job.status === 'done') return;
+    job.status = 'done';
+    job.error = null;
+    job.needsAttention = false;
+    job.updatedAt = Date.now();
+    maybeOffloadJob(job);
+    persist();
+    emit('done', job);
+  }
+
   function scheduleAcceptedPoll() {
     if (acceptedPollTimer) return;
     acceptedPollTimer = setTimeout(() => {
@@ -1471,35 +1510,49 @@
       scheduleAcceptedPoll();
       return;
     }
-    const open = [...jobs.values()].filter((j) => j.status === 'accepted' && j.statusUrl && !isSuperseded(j));
+    const open = [...jobs.values()].filter((j) =>
+      j.statusUrl && !isSuperseded(j) && (j.status === 'accepted' || j.status === 'failed')
+    );
     if (!open.length) return;
     acceptedPollBusy = true;
     try {
       for (const job of open) {
         try {
           const remote = await durable.peek(job.statusUrl);
-          if (remote.status === 'completed') {
-            applyServerResult(job, remote.result);
+          const plan = Logic.remotePeekPlan
+            ? Logic.remotePeekPlan(job, remote?.status)
+            : (String(remote?.status || '').toLowerCase() === 'completed' ? 'done' : 'keep');
+          if (plan === 'done') {
+            healCompletedJob(job, remote.result);
             continue;
           }
-          if (remote.status === 'failed') {
-            if (job.dataUrl || job.blob) {
-              job.status = 'compressed';
-              job.error = remote.error || 'SI still catching up';
-              job.nextRetryAt = Date.now() + 15000;
-              persist();
-              emit('partial', job);
-            } else {
-              job.error = remote.error || null;
-              persist();
-              emit('partial', job);
-            }
+          if (plan === 'requeue') {
+            job.status = 'compressed';
+            job.error = remote.error || 'SI still catching up';
+            job.nextRetryAt = Date.now() + 15000;
+            persist();
+            emit('partial', job);
+            continue;
+          }
+          if (plan === 'drop') {
+            jobs.delete(job.id);
+            idbDelete(job.id).catch(() => {});
+            persist();
+            emit('removed', job);
+            continue;
+          }
+          if (plan === 'accept') {
+            job.status = 'accepted';
+            job.error = null;
+            job.needsAttention = false;
+            persist();
+            emit('accepted', job);
           }
         } catch (_) {}
       }
     } finally {
       acceptedPollBusy = false;
-      if ([...jobs.values()].some((j) => j.status === 'accepted' && j.statusUrl)) {
+      if ([...jobs.values()].some((j) => j.statusUrl && !isSuperseded(j) && (j.status === 'accepted' || j.status === 'failed'))) {
         scheduleAcceptedPoll();
       }
       schedulePump();
