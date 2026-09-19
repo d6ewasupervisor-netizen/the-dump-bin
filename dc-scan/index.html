@@ -193,7 +193,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
   <!-- prod banner -->
   <div class="prod-banner hidden" id="prod-banner">
     <span class="prod-banner-text" id="prod-banner-text"></span>
-    <button type="button" class="resync-btn" id="resync-btn">Resync PROD</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="resync-btn" id="resync-btn">Resync PROD</button>
+      <button type="button" class="resync-btn apply-btn hidden" id="apply-btn" style="background:#1a3a1a;border-color:rgba(0,232,122,.5);color:#00e87a;">▶ Apply to PROD</button>
+    </div>
   </div>
 
   <!-- signed-in bar -->
@@ -742,6 +745,9 @@ function renderProdBanner(s){
   }else{
     el.textContent='PROD sync: '+(prod.error||'waiting for session');
   }
+  // Show "Apply to PROD" button for admins when session is live
+  const applyBtn=$('apply-btn');
+  if(applyBtn) applyBtn.classList.toggle('hidden', !(isAdmin()&&prod.ok));
 }
 
 /* ── live pill ── */
@@ -841,6 +847,23 @@ $('resync-btn').addEventListener('click',async()=>{
   try{const d=await api('/resync',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});applySnap(d.snapshot);renderLivePill(d.snapshot,Boolean(es&&es.readyState===1));}
   catch(err){alert('Resync failed: '+err.message);}
   finally{btn.disabled=false;btn.textContent='Resync PROD';}
+});
+
+$('apply-btn').addEventListener('click',async()=>{
+  const btn=$('apply-btn');
+  const orig=btn.textContent;
+  btn.disabled=true;btn.textContent='Applying…';
+  try{
+    const d=await api('/apply-to-prod',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    applySnap(d.snapshot);
+    const lines=(d.results||[]).map(r=>{
+      if(r.action==='reassign')return(r.ok?'✓':'✗')+' FM '+r.storeId+' '+r.scheduledDate+(r.ok?' → '+r.to:' FAILED: '+r.error);
+      if(r.action==='build')return(r.ok?'✓':'✗')+' FM '+(r.storeId||'?')+' build'+(r.ok?'':' FAILED: '+r.error);
+      return JSON.stringify(r);
+    });
+    alert(d.message+(lines.length?'\n\n'+lines.join('\n'):''));
+  }catch(err){alert('Apply failed: '+err.message);}
+  finally{btn.disabled=false;btn.textContent=orig;}
 });
 
 $('finalize-btn').addEventListener('click',async()=>{
