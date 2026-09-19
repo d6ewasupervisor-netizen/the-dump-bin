@@ -283,6 +283,26 @@
     let zoom = 1;
     let busy = false;
 
+    // Wake-lock: prevents the screen from sleeping while the camera is open.
+    // Released in stop(); re-acquired if the OS drops it (e.g. tab-switch back).
+    let wakeLock = null;
+    async function acquireWakeLock() {
+      if (!navigator.wakeLock) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (_) { /* wakeLock not granted — not fatal */ }
+    }
+    function releaseWakeLock() {
+      try { wakeLock?.release(); } catch (_) {}
+      wakeLock = null;
+    }
+    // Re-acquire after tab-switch returns (OS may have dropped the lock while hidden).
+    const onVisibilityForWakeLock = () => {
+      if (document.visibilityState === 'visible' && !wakeLock && stream) acquireWakeLock();
+    };
+    document.addEventListener('visibilitychange', onVisibilityForWakeLock);
+
     function refreshHud() {
       if (hud) hud.textContent = (typeof getLabel === 'function' ? getLabel() : null) || 'Capture';
     }
@@ -308,10 +328,13 @@
       video.srcObject = stream;
       await video.play();
       refreshHud();
+      acquireWakeLock(); // best-effort, non-blocking
     }
 
     function stop() {
       if (toastTimer) clearTimeout(toastTimer);
+      document.removeEventListener('visibilitychange', onVisibilityForWakeLock);
+      releaseWakeLock();
       try {
         stream?.getTracks?.().forEach((t) => t.stop());
       } catch (_) {}
@@ -1303,7 +1326,6 @@
 
       const previewUrl = shot?.canvas ? shot.canvas.toDataURL('image/jpeg', 0.35) : null;
       const replacing = !!(opts && opts.replace);
-      const background = !!(opts && opts.background);
       const payload = {
         kind: 'set',
         compressType: 'set',
@@ -1325,9 +1347,11 @@
         replaceWipe: !!(opts && opts.replaceWipe),
         replaceBatchId: opts?.replaceBatchId || null,
       };
-      const job = background
-        ? pipe.enqueue(payload)
-        : await (pipe.enqueueCapture || pipe.enqueue).call(pipe, payload);
+      // Always await the IDB write before returning, regardless of background/camera mode.
+      // This closes the capture-to-persist race: bytes must be on disk before the shutter
+      // re-enables for the next shot. A device sleep or page reload after this point is safe.
+      const job = pipe.enqueue(payload);
+      try { await job.ready; } catch (_) {}
 
       local[slot] = (local[slot] || []).filter((p) => Number(p.bay) !== bay);
       local[slot].push({

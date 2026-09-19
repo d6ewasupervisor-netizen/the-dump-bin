@@ -1227,7 +1227,10 @@
     }
     job.idempotencyKey = Logic.stableIdempotencyKey ? Logic.stableIdempotencyKey(job) : `eod-photo:${job.id}`;
     jobs.set(id, job);
-    const saved = persistJobRecord(job).catch(() => {});
+    // Track IDB write failure on the job record so callers (and restore()) can
+    // distinguish "bytes in memory, not yet on disk" from "bytes confirmed in IDB".
+    // notifyStorageIssue() toast is already shown by idbPut — no additional UI needed.
+    const saved = persistJobRecord(job).catch(() => { job._idbWriteFailed = true; });
     persist();
     emit('queued', job);
     schedulePump();
@@ -1603,6 +1606,28 @@
         reconcileOpenJobs();
         schedulePump();
         scheduleAcceptedPoll();
+      } else {
+        // Screen lock or tab switch — flush any in-memory bytes not yet written to IDB.
+        // This is defense-in-depth behind the primary fix (await job.ready in enqueueLocal),
+        // covering any other callers that do not await job.ready themselves.
+        persist();
+      }
+    });
+    // pagehide fires on iOS when the page is unloaded (beforeunload is unreliable on mobile).
+    window.addEventListener('pagehide', () => { persist(); });
+    // beforeunload: warn if any job holds bytes in memory that have not reached the server
+    // yet (no serverJobId / statusUrl), and kick off a best-effort IDB flush.
+    window.addEventListener('beforeunload', (ev) => {
+      const unsafe = [...jobs.values()].some(
+        (j) => !isSuperseded(j)
+          && !['done', 'superseded'].includes(j.status)
+          && (j.file || j.dataUrl || j.blob || j.bitmap || j.canvas)
+          && !j.serverJobId && !j.statusUrl
+      );
+      if (unsafe) {
+        persist(); // best-effort — may not complete before unload, but increases odds
+        ev.preventDefault();
+        ev.returnValue = '';
       }
     });
   }
