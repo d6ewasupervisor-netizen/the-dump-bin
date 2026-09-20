@@ -91,7 +91,9 @@
       if (!loader?.loadSequential) throw new Error('Asset loader missing');
       const style = STYLES[name];
       if (style) await loader.loadStyle(src(style));
-      await loader.loadSequential(scripts.map((path) => src(path)));
+      const urls = scripts.map((path) => src(path));
+      if (loader.loadOrdered) await loader.loadOrdered(urls);
+      else await loader.loadSequential(urls);
     })();
     ready.set(name, run);
     try {
@@ -108,5 +110,18 @@
     await loadBundle(name);
   }
 
-  global.EodRouteBundles = { ensure, loadBundle, BUNDLES, ROUTE_BUNDLE };
+  /* Warm the bundles a lead reaches for every shift while the device is idle,
+     so the first tap on Categories or Send has nothing left to download. */
+  function prefetchIdle(names) {
+    const run = () => {
+      for (const name of names || []) loadBundle(name).catch(() => {});
+    };
+    if (typeof global.requestIdleCallback === 'function') {
+      global.requestIdleCallback(run, { timeout: 5000 });
+    } else {
+      setTimeout(run, 2000);
+    }
+  }
+
+  global.EodRouteBundles = { ensure, loadBundle, prefetchIdle, BUNDLES, ROUTE_BUNDLE };
 })(typeof window !== 'undefined' ? window : globalThis);

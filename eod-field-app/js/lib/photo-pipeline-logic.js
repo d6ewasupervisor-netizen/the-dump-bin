@@ -124,6 +124,7 @@
     let compress = 0;
     let upload = 0;
     let failed = 0;
+    let lost = 0;
     let done = 0;
     let superseded = 0;
     let protectedOnDevice = 0; // still holding local bytes — not yet safe to have deleted
@@ -136,6 +137,9 @@
       if (OPEN_COMPRESS.has(j.status)) compress += 1;
       else if (OPEN_UPLOAD.has(j.status)) upload += 1;
       else if (j.status === 'failed' && hasRetryableBytes(j)) failed += 1;
+      // Failed with nothing left to resubmit. Retry cannot help, but the photo
+      // is gone, so this has to surface somewhere rather than count as nothing.
+      else if (j.status === 'failed') lost += 1;
       else if (j.status === 'done') done += 1;
       // Note: a 'done' job only ever still has local bytes if isFullyConfirmed
       // (in photo-pipeline.js) hasn't yet run maybeOffloadJob's cleanup — this
@@ -147,6 +151,7 @@
       compress,
       upload,
       failed,
+      lost,
       done,
       superseded,
       protectedOnDevice,

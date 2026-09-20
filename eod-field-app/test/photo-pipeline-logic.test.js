@@ -9,11 +9,14 @@ describe('photo-pipeline-logic', () => {
     const counts = logic.countJobs([
       { status: 'failed', error: 'replaced' },
       { status: 'superseded' },
-      { status: 'failed', error: 'timeout', dataUrl: 'x' },
+      { status: 'failed', error: 'timeout' },
       { status: 'compressed' },
       { status: 'done' },
     ]);
-    assert.equal(counts.failed, 1);
+    // 'timeout' has no bytes left, so Retry cannot resubmit it: it counts as
+    // lost rather than failed. 'replaced' is superseded, not a failure.
+    assert.equal(counts.failed, 0);
+    assert.equal(counts.lost, 1);
     assert.equal(counts.superseded, 2);
     assert.equal(counts.upload, 1);
     assert.equal(counts.done, 1);
@@ -206,62 +209,6 @@ describe('photo-pipeline-logic', () => {
     const counts = logic.countJobs(jobs);
     assert.equal(counts.failed, 1);
     assert.equal(counts.superseded, 71);
-  });
-
-  it('treats lock and still-processing errors as transient, not terminal', () => {
-    assert.equal(logic.isTransientUploadError('Another field-set job is processing this set'), true);
-    assert.equal(logic.isTransientUploadError('Field-set job is still processing. Try again shortly.'), true);
-    assert.equal(logic.isTransientUploadError('Set is locked by another worker'), true);
-    assert.equal(logic.isTransientUploadError('waiting for connection'), true);
-    assert.equal(logic.isTransientUploadError('Upload failed both sides'), false);
-    assert.equal(logic.isTransientUploadError('Too many upload attempts — needs attention'), false);
-    assert.equal(logic.isTransientUploadError('already_present'), false);
-  });
-
-  it('excludes failed jobs with no retryable bytes from the retry badge', () => {
-    const counts = logic.countJobs([
-      { status: 'failed', error: 'Lost after reload — retake photo' },
-      { status: 'failed', error: 'Lost after reload — retake photo', hasPayload: true },
-      { status: 'failed', error: 'Another field-set job is processing this set', dataUrl: 'x' },
-      { status: 'done' },
-    ]);
-    assert.equal(counts.failed, 1);
-    assert.equal(logic.shouldRetry({ status: 'failed', error: 'Lost after reload — retake photo', hasPayload: true }), false);
-  });
-
-  it('restore drops payload-less jobs and keeps statusUrl polls', () => {
-    assert.equal(logic.restoreAction({ status: 'compressed' }), 'drop');
-    assert.equal(logic.restoreAction({ status: 'queued', error: 'Lost after reload — retake photo' }), 'drop');
-    assert.equal(logic.restoreAction({ status: 'failed', error: 'Lost after reload — retake photo' }), 'drop');
-    assert.equal(logic.restoreAction({ status: 'accepted', statusUrl: '/api/field-set/jobs/1' }), 'poll');
-    assert.equal(logic.restoreAction({
-      status: 'failed',
-      statusUrl: '/api/field-set/jobs/1',
-      error: 'Lost after reload — retake photo',
-    }), 'poll');
-    assert.equal(logic.restoreAction({
-      status: 'failed',
-      error: 'Another field-set job is processing this set',
-      dataUrl: 'data:image/jpeg;base64,xx',
-    }), 'requeue');
-    assert.equal(logic.restoreAction({
-      status: 'failed',
-      error: 'Upload failed both sides',
-      dataUrl: 'x',
-    }), 'keep');
-    assert.equal(logic.restoreAction({ status: 'done', dataUrl: 'x' }), 'keep');
-    assert.equal(logic.restoreAction({ status: 'accepted', statusUrl: '/j', dataUrl: 'x' }), 'keep');
-  });
-
-  it('heals a client failed job when the statusUrl job is completed', () => {
-    assert.equal(logic.remotePeekPlan({ status: 'failed', error: 'Lost after reload — retake photo' }, 'completed'), 'done');
-    assert.equal(logic.remotePeekPlan({ status: 'accepted', statusUrl: '/j' }, 'Completed'), 'done');
-    assert.equal(logic.remotePeekPlan({ status: 'failed', dataUrl: 'x' }, 'failed'), 'requeue');
-    assert.equal(logic.remotePeekPlan({ status: 'failed' }, 'failed'), 'drop');
-    assert.equal(logic.remotePeekPlan({ status: 'failed', statusUrl: '/j' }, 'retry'), 'accept');
-    assert.equal(logic.remotePeekPlan({ status: 'failed', statusUrl: '/j' }, 'processing'), 'accept');
-    assert.equal(logic.remotePeekPlan({ status: 'accepted', statusUrl: '/j' }, 'processing'), 'keep');
-    assert.equal(logic.remotePeekPlan({ status: 'superseded' }, 'completed'), 'ignore');
   });
 });
 

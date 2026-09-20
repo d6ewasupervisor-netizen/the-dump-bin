@@ -17,6 +17,35 @@
     routes.set(name, handler);
   }
 
+  /* Roughly how many rows each screen opens with, so the skeleton is the
+     shape of what is about to arrive rather than a generic spinner. */
+  const SKELETON_ROWS = {
+    signoff: 6, survey: 4, visit: 4, send: 5,
+    signatures: 3, crew: 4, photos: 4, storage: 4,
+    helpdesk: 3, dumpbin: 5, cover: 3,
+  };
+
+  function paintNavActive(name) {
+    document.querySelectorAll('[data-nav]').forEach((el) => {
+      const nav = el.getAttribute('data-nav');
+      const on = nav === name
+        || (nav === 'signoff' && (name === 'survey' || name === 'cover'))
+        || (nav === 'dumpbin' && name === 'dumpbin')
+        || (nav === 'more' && ['crew', 'dumpbin', 'helpdesk', 'photos', 'storage'].includes(name));
+      el.classList.toggle('is-active', on);
+      if (on) el.setAttribute('aria-current', 'page');
+      else el.removeAttribute('aria-current');
+    });
+  }
+
+  function paintSkeleton(mount, name) {
+    if (!mount) return;
+    const rows = SKELETON_ROWS[name] || 4;
+    let html = '<div class="eod-skeleton" aria-hidden="true"><div class="eod-skeleton-row short"></div>';
+    for (let i = 0; i < rows; i += 1) html += '<div class="eod-skeleton-row"></div>';
+    mount.innerHTML = `${html}</div>`;
+  }
+
   function go(name, opts) {
     const target = normalize(name);
     if ((opts || {}).replace) {
@@ -51,6 +80,19 @@
       // Allow revisiting visit setup after ready.
     }
     const mount = document.getElementById('appMount');
+    const chromeEl = document.getElementById('appChrome');
+    const navEl = document.getElementById('bottomNav');
+
+    /* Answer the tap before any loading starts. Highlighting the destination
+       and putting a skeleton up means navigation never looks ignored, even
+       when the route bundle still has to come off the network. */
+    current = name;
+    paintNavActive(name);
+    document.body.dataset.route = name;
+    if (chromeEl) chromeEl.hidden = false;
+    if (navEl) navEl.hidden = false;
+    if (from !== name) paintSkeleton(mount, name);
+
     try {
       await global.EodRouteBundles?.ensure?.(name);
     } catch (err) {
@@ -62,8 +104,6 @@
       return;
     }
     const handler = routes.get(name) || routes.get('signoff');
-    const chrome = document.getElementById('appChrome');
-    const bottomNav = document.getElementById('bottomNav');
     if (!mount || !handler) {
       if (mount && !handler) {
         mount.innerHTML = `<div class="card error"><h2>Something went wrong</h2><p>That page did not load.</p><button type="button" class="btn btn-secondary" id="routeRetryBtn">Retry</button></div>`;
@@ -71,21 +111,6 @@
       }
       return;
     }
-    current = name;
-    document.querySelectorAll('[data-nav]').forEach((el) => {
-      const nav = el.getAttribute('data-nav');
-      const on = nav === name
-        || (nav === 'signoff' && (name === 'survey' || name === 'cover'))
-        || (nav === 'dumpbin' && name === 'dumpbin')
-        || (nav === 'more' && ['crew', 'dumpbin', 'helpdesk', 'photos', 'storage'].includes(name));
-      el.classList.toggle('is-active', on);
-      if (on) el.setAttribute('aria-current', 'page');
-      else el.removeAttribute('aria-current');
-    });
-    // Sidebar + chrome stay reachable once the shell is up (even on Visit).
-    if (chrome) chrome.hidden = false;
-    if (bottomNav) bottomNav.hidden = false;
-    document.body.dataset.route = name;
     try { global.EodSectionNav?.append?.(name); } catch (_) {}
     try {
       await handler(mount, { route: name });

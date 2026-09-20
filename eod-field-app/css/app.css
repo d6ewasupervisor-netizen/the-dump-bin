@@ -3428,3 +3428,74 @@ div.device-pkg-copy { cursor: default; }
   z-index: 1;
 }
 .sas-pattern-dot.on { background: var(--accent); }
+
+/* Press feedback. The global -webkit-tap-highlight-color:transparent near the
+   top of this file removes the browser's native flash, so every tappable
+   surface has to supply its own. Kept last so it wins over feature rules. */
+button,
+.shift-card,
+.member-row,
+.ds-row {
+  transition: transform 90ms ease-out, filter 90ms ease-out;
+}
+
+button:not(:disabled):active,
+.shift-card:active,
+.member-row:active,
+.ds-row:active {
+  transform: scale(0.97);
+  filter: brightness(1.18);
+}
+
+/* Tapped and waiting on the network. Set synchronously on pointerdown by
+   js/lib/tap-feedback.js so the control answers before the request leaves. */
+.is-pending {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.is-pending::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent 0%, currentColor 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: eod-pending-sweep 900ms linear infinite;
+}
+
+@keyframes eod-pending-sweep {
+  from { background-position: 200% 50%; }
+  to { background-position: 0% 50%; }
+}
+
+/* Route skeletons, painted by the router before a screen's handler runs. */
+.eod-skeleton {
+  padding: 2px 0;
+}
+
+.eod-skeleton-row {
+  height: 62px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: linear-gradient(
+    90deg,
+    var(--btn-secondary) 25%,
+    rgba(255, 255, 255, 0.08) 37%,
+    var(--btn-secondary) 63%
+  );
+  background-size: 400% 100%;
+  animation: eod-skeleton-sweep 1.2s ease-in-out infinite;
+}
+
+.eod-skeleton-row.tall { height: 108px; }
+.eod-skeleton-row.short { height: 38px; }
+
+@keyframes eod-skeleton-sweep {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}

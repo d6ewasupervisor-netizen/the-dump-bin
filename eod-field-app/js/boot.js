@@ -62,6 +62,49 @@
     } catch (_) {}
   }
 
+  function repaintAfterHydrate() {
+    try { window.EodChrome?.refresh?.(); } catch (_) {}
+    /* Visit is the only first-paint screen showing remote photo thumbs, so it
+       is the only one worth re-running. Never stomp an in-progress edit. */
+    if (window.EodRouter?.current !== 'visit') return;
+    const el = document.activeElement;
+    if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+    try { void window.EodRouter.render(); } catch (_) {}
+  }
+
+  /* Runs after the shell is on screen. Each step repaints what it fills in,
+     so a slow store connection delays detail rather than the whole app. */
+  async function hydrateAfterPaint() {
+    try { await window.EodApi?.ensurePersistentStorage?.(); } catch (_) {}
+    try { await window.EodRoles?.load?.(); } catch (_) {}
+    try {
+      const me = window.EodRoles?.getMe?.();
+      const authName = String(me?.name || '').trim();
+      const S = window.EodSession;
+      if (authName && S && !(S.state.profileName || '').trim()) {
+        S.patch({ profileName: authName, leadName: S.state.leadName || authName }, 'auth-lead');
+      }
+    } catch (_) {}
+
+    await loadPhotosIntoSession();
+    await hydrateRemoteShift();
+    repaintAfterHydrate();
+
+    if (window.EodSession.isVisitReady() && window.EodSignoffHome?.loadSheet) {
+      try {
+        const S = window.EodSession;
+        if (!S.state.sheet && window.EodGarden?.loadSheetSnapshot) {
+          const snap = await window.EodGarden.loadSheetSnapshot(S.state.storeNumber, S.state.fiscalWeek);
+          if (snap) S.patch({ sheet: snap, sheetLoaded: true, fiscalWeek: snap.fiscalWeek || S.state.fiscalWeek }, 'sheet-garden');
+        }
+        await window.EodSignoffHome.loadSheet();
+        window.EodChrome.refresh();
+      } catch (_) {}
+    }
+
+    try { await window.EodDeviceStorage?.purgeInBackground?.(); } catch (_) {}
+  }
+
   async function boot() {
     try {
       try { window.EodChrome?.bindNav?.(); } catch (_) {}
@@ -86,19 +129,8 @@
         console.warn('[eod-field-app] PhotoDB init failed', err);
       }
 
-      try { await window.EodApi?.ensurePersistentStorage?.(); } catch (_) {}
-      try { await window.EodDeviceStorage?.purgeInBackground?.(); } catch (_) {}
       try { window.EodBusy?.init?.(); } catch (_) {}
-      try { await window.EodRoles?.load?.(); } catch (_) {}
       try { window.EodShiftDay?.prefetchToday?.(); } catch (_) {}
-      try {
-        const me = window.EodRoles?.getMe?.();
-        const authName = String(me?.name || '').trim();
-        const S = window.EodSession;
-        if (authName && S && !(S.state.profileName || '').trim()) {
-          S.patch({ profileName: authName, leadName: S.state.leadName || authName }, 'auth-lead');
-        }
-      } catch (_) {}
       try { window.EodFeedbackHub?.init?.(); } catch (_) {}
       try { window.EodFieldAlerts?.init?.(); } catch (err) { console.warn('[eod-field-app] field alerts', err); }
 
@@ -116,8 +148,8 @@
       try { window.EodConnections?.init?.(); } catch (err) { console.warn('[eod-field-app] connections init', err); }
       try { window.EodSasBeacon?.start?.(); } catch (err) { console.warn('[eod-field-app] sas beacon', err); }
       try { window.EodTestMode?.init?.(); } catch (err) { console.warn('[eod-field-app] version/test init', err); }
-      await loadPhotosIntoSession();
-      await hydrateRemoteShift();
+      /* First paint. Everything past this point runs against a live screen,
+         so nothing below may block on the network. */
       window.EodRouter.init();
       try {
         const choosingPriorDay = window.EodVisit?.presentPriorDayChoice?.();
@@ -125,7 +157,7 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.4.67').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.4.68').catch(() => {});
           if (!navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;
@@ -138,18 +170,9 @@
         }
       } catch (_) {}
       try { window.EodUsage?.start?.(); } catch (_) {}
+      try { window.EodRouteBundles?.prefetchIdle?.(['survey', 'send']); } catch (_) {}
 
-      if (window.EodSession.isVisitReady() && window.EodSignoffHome?.loadSheet) {
-        try {
-          const S = window.EodSession;
-          if (!S.state.sheet && window.EodGarden?.loadSheetSnapshot) {
-            const snap = await window.EodGarden.loadSheetSnapshot(S.state.storeNumber, S.state.fiscalWeek);
-            if (snap) S.patch({ sheet: snap, sheetLoaded: true, fiscalWeek: snap.fiscalWeek || S.state.fiscalWeek }, 'sheet-garden');
-          }
-          await window.EodSignoffHome.loadSheet();
-          window.EodChrome.refresh();
-        } catch (_) {}
-      }
+      void hydrateAfterPaint();
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {

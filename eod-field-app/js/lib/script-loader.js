@@ -64,7 +64,17 @@
       return out;
     }
 
-    return { loadScript, loadStyle, loadSequential, pending };
+    /* Every script element is created with async=false, so the browser
+       downloads the whole set in parallel but still executes it in the order
+       appended. A seven-file route bundle costs one round trip, not seven. */
+    async function loadOrdered(entries) {
+      const items = (entries || []).map((entry) => (
+        typeof entry === 'string' ? { url: entry } : entry
+      ));
+      return Promise.all(items.map((item) => loadScript(item.url, item)));
+    }
+
+    return { loadScript, loadStyle, loadSequential, loadOrdered, pending };
   }
 
   const api = { createLoader };

@@ -2,12 +2,15 @@
 (function (global) {
   'use strict';
 
-  const DEBOUNCE_MS = 280;
-  const MIN_VISIBLE_MS = 480;
-  const AMBIENT_MAX_MS = 45000;
+  /* The tapped control carries the wait now (see js/lib/tap-feedback.js), so
+     the overlay only has to cover genuinely long work. Showing later and
+     leaving sooner keeps fast requests feeling instant. */
+  const DEBOUNCE_MS = 900;
+  const MIN_VISIBLE_MS = 150;
+  const AMBIENT_MAX_MS = 12000;
   const SUCCESS_HOLD_MS = 1400;
   const BUSY_LABEL = 'buffering';
-  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.4.67')}`;
+  const ASSET = `assets/buffering.gif?v=${encodeURIComponent(global.EOD_APP_VERSION || '3.4.68')}`;
   const SKIP_RE = /sas-auth-status|rebotics-auth-status|\/api\/sas-user\/|\/usage\b|eod-version\.json|\/api\/me(?:\?|$)|digital-signoffs\/(?:heartbeat|catalog-stores|sync|visit-mirror)|field-session\/|\/photos\/|\/image(?:\?|$)|field-set\/(?:status|planogram|planogram-image|photo|jobs|reconcile|settle-now)|\/api\/shifts\/day|sas-upload/i;
 
   let depth = 0;
@@ -356,6 +359,16 @@
       delete opts.busyTitle;
       delete opts.busySubtitle;
       if (skip) return orig(url, opts);
+      /* Decorate the control the user just touched. When we get one it is the
+         only indicator this request needs, so the overlay stays down. */
+      const tapped = force ? null : global.EodTap?.claim?.();
+      if (tapped) {
+        const release = global.EodTap.pending(tapped);
+        return orig(url, opts).then(
+          (res) => { release(); return res; },
+          (err) => { release(); throw err; }
+        );
+      }
       return withBusy(() => orig(url, opts), { force, title, subtitle });
     };
     if (global.EodApi) global.EodApi.authFetch = global.authFetch;
@@ -363,6 +376,7 @@
 
   function init() {
     ensureOverlay();
+    global.EodTap?.init?.();
     wrapAuthFetch();
   }
 

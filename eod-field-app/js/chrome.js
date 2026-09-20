@@ -25,6 +25,7 @@
         const open = (p?.compress || 0) + (p?.upload || 0);
         if (open > 0) parts.push(`${open} syncing`);
         if (p?.failed > 0) parts.push(`${p.failed} failed`);
+        if (p?.lost > 0) parts.push(`${p.lost} lost`);
       } catch (_) {}
       metaEl.textContent = parts.filter(Boolean).join(' · ');
       metaEl.title = parts.filter(Boolean).join(' · ');

@@ -3,6 +3,7 @@
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/field-session';
+  const THUMB_CONCURRENCY = 6;
   const Logic = () => global.EodTeamPhotoStoreLogic || {};
   let persistTimer = null;
   let hydrating = false;
@@ -94,6 +95,7 @@
   async function hydrateThumbs(photos) {
     const L = Logic();
     if (!photos) return photos;
+    const pending = [];
     for (const slot of ['before', 'after', 'signoff', 'instawork']) {
       const list = photos[slot] || [];
       for (const entry of list) {
@@ -103,6 +105,18 @@
         if (/^data:image\//i.test(live) || /^data:image\//i.test(String(entry.dataUrl || ''))) continue;
         const thumb = entry.thumbUrl || entry.teamUrl;
         if (!L.isTeamUrl?.(thumb)) continue;
+        pending.push({ entry, thumb });
+      }
+    }
+    if (!pending.length) return photos;
+
+    /* One round trip at a time put every thumb in the shift on the launch
+       critical path. A bounded pool keeps a 30-photo day off the clock. */
+    let cursor = 0;
+    async function worker() {
+      while (cursor < pending.length) {
+        const { entry, thumb } = pending[cursor];
+        cursor += 1;
         try {
           const blob = await fetchBytes(thumb);
           if (!blob) continue;
@@ -115,6 +129,8 @@
         } catch (_) {}
       }
     }
+    const lanes = Math.min(THUMB_CONCURRENCY, pending.length);
+    await Promise.all(Array.from({ length: lanes }, () => worker()));
     return photos;
   }
 
