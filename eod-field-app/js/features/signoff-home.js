@@ -148,6 +148,20 @@
   }
 
   let syncPromise = null;
+  /* Module scope on purpose: render() runs fresh every time the user comes
+     back to Categories, so a function-scoped handle stacked one more 45s
+     poller per visit. */
+  let pollTimer = null;
+
+  /* The prompt lives in the lazily loaded helpdesk bundle. Without this the
+     typeof guard at the call sites is false and the choice is skipped in
+     silence. */
+  async function nisReportChoice(subject) {
+    try { await global.EodRouteBundles?.ensure?.('helpdesk'); } catch (_) {}
+    if (typeof global.askToReportNotInStore !== 'function') return null;
+    return global.askToReportNotInStore(subject);
+  }
+
   function isCancelled(err) {
     return err?.code === 'cancelled' || err?.name === 'AbortError';
   }
@@ -285,10 +299,10 @@
           const markType = btn.getAttribute('data-nuke-mark');
           btn.disabled = true;
           try {
-            if (markType === 'not_in_store' && typeof global.askToReportNotInStore === 'function') {
+            if (markType === 'not_in_store') {
               const row = (global.EodSession.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
-              const choice = await global.askToReportNotInStore(row || { catName: 'set' });
-              if (!choice || choice === 'cancel') {
+              const choice = await nisReportChoice(row || { catName: 'set' });
+              if (choice && choice === 'cancel') {
                 btn.disabled = false;
                 return;
               }
@@ -633,28 +647,6 @@
     return true;
   }
 
-  /** Mark every still-open set Complete. Leaves NIS / NISI alone. */
-  async function completeAllOpen(onProgress) {
-    const S = global.EodSession;
-    const open = (S.state.sheet?.rows || []).filter(isOpenRow);
-    if (!open.length) return { ok: 0, fail: 0, total: 0 };
-    let ok = 0;
-    let fail = 0;
-    for (let i = 0; i < open.length; i++) {
-      const row = open[i];
-      try {
-        if (typeof onProgress === 'function') onProgress(i + 1, open.length, row);
-        await applyMark(row.id, 'complete', { skipReload: true });
-        ok += 1;
-      } catch (err) {
-        fail += 1;
-        console.warn('[signoff] complete-all row failed', row.id, err);
-      }
-    }
-    await loadSheet();
-    return { ok, fail, total: open.length };
-  }
-
   function sheetWeek() {
     const S = global.EodSession;
     return S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
@@ -845,8 +837,8 @@
     const syncBtn = document.getElementById('syncProdSiBtn');
     const filters = { status: S.state.sheetFilter || 'not_done' };
     const selectedIds = new Set();
-    let pollTimer = null;
     let lastRowsHtml = '';
+    let staleReason = '';
     let suggestIdSet = new Set();
 
     function paintFilterChips() {
@@ -936,9 +928,9 @@
       let nisChoice = opts && Object.prototype.hasOwnProperty.call(opts, 'nisChoice')
         ? opts.nisChoice
         : null;
-      if (turningOnNis && nisChoice == null && typeof global.askToReportNotInStore === 'function') {
-        nisChoice = await global.askToReportNotInStore(current);
-        if (!nisChoice || nisChoice === 'cancel') return false;
+      if (turningOnNis && nisChoice == null) {
+        nisChoice = await nisReportChoice(current);
+        if (nisChoice && nisChoice === 'cancel') return false;
       }
       if (markType === 'out_of_scope' && turningOn && !opts?.skipOosConfirm) {
         const ok = await confirmOutOfScope(1);
@@ -962,9 +954,9 @@
         if (!ok) return;
       }
       let nisChoice = null;
-      if (markType === 'not_in_store' && typeof global.askToReportNotInStore === 'function') {
-        nisChoice = await global.askToReportNotInStore({ catName: `${ids.length} sets` });
-        if (!nisChoice || nisChoice === 'cancel') return;
+      if (markType === 'not_in_store') {
+        nisChoice = await nisReportChoice({ catName: `${ids.length} sets` });
+        if (nisChoice && nisChoice === 'cancel') return;
       }
       for (const rowId of ids) {
         try {
@@ -985,15 +977,28 @@
       global.EodChrome?.refresh();
     }
 
-    async function paint() {
+    /* offline:true renders whatever is already in state without asking the
+       network, so the saved copy is on screen before the refresh starts. */
+    async function paint(opts) {
       let sheet = S.state.sheet;
-      if (!S.state.sheetLoaded) {
-        try { sheet = await loadSheet(); }
-        catch (err) {
-          summary.innerHTML = `<span style="color:#ef4444;">${esc(err.message)}</span>`;
-          rowsEl.innerHTML = '';
-          lastRowsHtml = '';
-          return;
+      const offline = !!(opts && opts.offline);
+      if (offline && !sheet) return;
+      if (!offline && !S.state.sheetLoaded) {
+        try {
+          sheet = await loadSheet();
+          staleReason = '';
+        } catch (err) {
+          // Never blank a populated list because a refresh failed.
+          sheet = S.state.sheet;
+          if (!sheet) {
+            summary.innerHTML = `<span style="color:#ef4444;">${esc(err.message)}</span>`
+              + ' <button type="button" class="btn btn-secondary btn-sm" id="sheetLoadRetry">Retry</button>';
+            summary.querySelector('#sheetLoadRetry')?.addEventListener('click', () => { void paint(); });
+            rowsEl.innerHTML = '';
+            lastRowsHtml = '';
+            return;
+          }
+          staleReason = err.message || 'Could not refresh';
         }
       }
       if (!sheet) {
@@ -1014,7 +1019,23 @@
       summary.innerHTML = `<strong>${esc(sheet.fiscalWeek)}</strong> · Store ${esc(sheet.storeNumber)}`
         + (sheet.team ? ` · Team ${esc(sheet.team)}` : '')
         + ` · ${s.marked || 0}/${visibleRows.length} marked`
-        + ` · <span class="${open ? 'pill warn' : 'pill ok'}">${open} open</span>`;
+        + ` · <span class="${open ? 'pill warn' : 'pill ok'}">${open} open</span>`
+        + (staleReason
+          ? ` · <span class="pill warn">saved copy</span> <button type="button" class="btn btn-secondary btn-sm" id="sheetLoadRetry">Retry</button>`
+          : '')
+        + '<span id="sheetQueuedMarks"></span>';
+      summary.querySelector('#sheetLoadRetry')?.addEventListener('click', () => {
+        S.patch({ sheetLoaded: false }, 'sheet-retry');
+        void paint();
+      });
+      // Marks taken offline are still waiting to reach the server. Say so.
+      void (async () => {
+        try {
+          const n = await global.EodGarden?.queuedCount?.();
+          const host = document.getElementById('sheetQueuedMarks');
+          if (host) host.innerHTML = n ? ` · <span class="pill warn">${n} mark${n === 1 ? '' : 's'} not sent</span>` : '';
+        } catch (_) {}
+      })();
       const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
       paintFilterChips();
       const liveIds = new Set((sheet.rows || []).map((r) => String(r.id)));
@@ -1115,7 +1136,15 @@
         title?.classList.remove('is-nuking');
       }
     });
-    document.getElementById('sheetSearch').oninput = () => paint();
+    // Every keystroke rebuilt every row. Coalesce them.
+    let searchTimer = null;
+    document.getElementById('sheetSearch').oninput = () => {
+      if (searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        searchTimer = null;
+        void paint({ offline: true });
+      }, 180);
+    };
     document.getElementById('sheetScanBtn').onclick = async () => {
       try { await global.EodRouteBundles?.ensure?.('survey'); } catch (_) {}
       global.EodCartLocate?.openScanner?.();
@@ -1148,6 +1177,22 @@
         try { el?.scrollIntoView?.({ block: 'nearest' }); } catch (_) {}
       },
     };
+    /* Put the saved copy on screen before anything touches the network. The
+       snapshot is the same rows the refresh is about to return, so the list
+       is readable immediately instead of after a round trip. */
+    try {
+      if (!S.state.sheet && global.EodGarden?.loadSheetSnapshot) {
+        const week = S.state.fiscalWeek || '';
+        const snap = week
+          ? await global.EodGarden.loadSheetSnapshot(S.state.storeNumber, week)
+          : null;
+        if (snap && Array.isArray(snap.rows)) {
+          S.patch({ sheet: snap, fiscalWeek: snap.fiscalWeek || week }, 'sheet-garden');
+        }
+      }
+      await paint({ offline: true });
+    } catch (_) {}
+
     await paint();
     try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
     try { global.EodStoreProdWarm?.start?.(); } catch (_) {}
@@ -1169,7 +1214,6 @@
   global.EodSignoffHome = {
     loadSheet,
     render,
-    completeAllOpen,
     applyMark,
     markNotInStoreFromHelpdesk,
     openSignoffPdfPreview,

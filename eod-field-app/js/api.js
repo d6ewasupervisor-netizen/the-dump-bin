@@ -3,7 +3,7 @@
   'use strict';
 
   const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-  const APP_VERSION = '3.4.68';
+  const APP_VERSION = '3.4.69';
 
   let eodStorageTelemetry = {
     quota: null,
@@ -128,15 +128,54 @@
     return opts;
   }
 
+  /* Nothing in the app used to bound a request. One socket that opened and
+     then stalled - the usual dying-signal case in a back aisle - wedged the
+     upload queue for the rest of the shift with no way out. Every call now
+     inherits a ceiling unless it brings its own signal or timeoutMs. */
+  const READ_TIMEOUT_MS = 30000;
+  const WRITE_TIMEOUT_MS = 180000;
+
+  function timeoutFor(init) {
+    const explicit = Number(init && init.timeoutMs);
+    if (Number.isFinite(explicit)) return explicit;
+    const method = String((init && init.method) || 'GET').toUpperCase();
+    return method === 'GET' || method === 'HEAD' ? READ_TIMEOUT_MS : WRITE_TIMEOUT_MS;
+  }
+
   async function authFetch(url, init) {
     const opts = applyEodVersionHeader(init);
     const pass = Object.assign({}, opts);
     void refreshEodStorageTelemetry(false);
-    if (typeof global.dumpBinAuthFetch === 'function') {
-      return global.dumpBinAuthFetch(url, pass);
+    const ms = timeoutFor(pass);
+    delete pass.timeoutMs;
+
+    let timer = null;
+    if (ms > 0 && !pass.signal && typeof AbortController === 'function') {
+      const ctrl = new AbortController();
+      pass.signal = ctrl.signal;
+      timer = setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, ms);
     }
-    delete pass.noBounceOn401;
-    return fetch(url, pass);
+
+    try {
+      if (typeof global.dumpBinAuthFetch === 'function') {
+        return await global.dumpBinAuthFetch(url, pass);
+      }
+      delete pass.noBounceOn401;
+      return await fetch(url, pass);
+    } catch (err) {
+      // Only our own timer produces a timeout. A caller-supplied signal keeps
+      // its AbortError so cancellation still reads as cancellation.
+      if (timer && err && err.name === 'AbortError') {
+        // Wording matters: the pipeline's transient-retry test matches /timeout/i.
+        const e = new Error(`Request timeout after ${Math.round(ms / 1000)}s`);
+        e.name = 'TimeoutError';
+        e.timeout = true;
+        throw e;
+      }
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   function dayConfirmHeaders(extra) {

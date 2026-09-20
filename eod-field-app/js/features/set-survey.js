@@ -692,7 +692,10 @@
       const counts = global.EodPhotoPipeline.pendingCounts();
       const open = counts.compress + counts.upload;
       if (open > 0 || detail.type === 'partial') {
-        setMsg(global.EodPhotoPipelineLogic?.QUEUE_COPY || 'Please be patient, there is a lot going on behind the scenes.');
+        const L = global.EodPhotoPipelineLogic;
+        setMsg(L?.queueProgressCopy
+          ? L.queueProgressCopy(counts)
+          : (L?.QUEUE_COPY || 'Please be patient, there is a lot going on behind the scenes.'));
       } else if (detail.type === 'done') {
         setMsg(`Bay ${detail.job?.bay} done`);
         if (!liveCameraOpen) {

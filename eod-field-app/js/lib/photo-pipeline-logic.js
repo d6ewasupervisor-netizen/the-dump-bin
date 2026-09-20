@@ -324,9 +324,22 @@
   const QUEUE_COPY = 'Please be patient, there is a lot going on behind the scenes.';
   const MERGE_HOLD_MS = 60_000;
 
+  /* A number that moves is what tells a human the machine is still alive. The
+     flat string read identically whether one photo or forty were open, and
+     whether the queue was advancing or completely wedged. */
+  function queueProgressCopy(counts) {
+    const compress = Number(counts?.compress || 0);
+    const upload = Number(counts?.upload || 0);
+    if (compress + upload <= 0) return QUEUE_COPY;
+    const parts = [];
+    if (upload > 0) parts.push(`${upload} uploading`);
+    if (compress > 0) parts.push(`${compress} preparing`);
+    return `${parts.join(' \u00b7 ')} \u2014 keep going, this finishes in the background.`;
+  }
+
   function queueBannerShouldShow(counts, { mergeUntil = 0, now = Date.now() } = {}) {
     const open = Number(counts?.open || 0);
-    if (open > 0) return { show: true, copy: QUEUE_COPY, merging: false };
+    if (open > 0) return { show: true, copy: queueProgressCopy(counts), merging: false };
     if (now < Number(mergeUntil || 0)) return { show: true, copy: QUEUE_COPY, merging: true };
     return { show: false, copy: '', merging: false };
   }
@@ -337,6 +350,7 @@
     TERMINAL,
     QUEUE_COPY,
     MERGE_HOLD_MS,
+    queueProgressCopy,
     isSuperseded,
     migrateJobRecord,
     sideOk,
