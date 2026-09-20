@@ -108,13 +108,27 @@
     return !!status?.connected;
   }
 
-  async function requireConnected(opts) {
-    const cur = await fetchStatus();
-    if (!cur.connected) return { ok: false, message: 'Login to the reporting systems on Visit' };
+  function connectedVerdict(cur, opts) {
+    if (!cur || !cur.connected) return { ok: false, message: 'Login to the reporting systems on Visit' };
     if (opts?.slot === 'after' && !cur.sharedActor && !cur.siConnected) {
       return { ok: false, message: 'Login to the reporting systems on Visit' };
     }
     return { ok: true };
+  }
+
+  async function requireConnected(opts) {
+    return connectedVerdict(await fetchStatus(), opts);
+  }
+
+  /* Capture path. A shutter press must never wait on the network, so decide
+     from the last known status and refresh behind the shot. Only the very
+     first call, with nothing cached at all, waits. Worst case a lead who
+     logged out elsewhere gets one more photo through before the gate bites,
+     and that photo is still safe on the device. */
+  async function requireConnectedFast(opts) {
+    if (!status || statusFor !== leadParam()) return requireConnected(opts);
+    if (Date.now() - statusAt >= STATUS_TTL_MS) void fetchStatus(true).catch(() => {});
+    return connectedVerdict(status, opts);
   }
 
   // ── Pattern lock ──────────────────────────────────────────────────────────────
@@ -720,6 +734,7 @@
     mount,
     fetchStatus,
     requireConnected,
+    requireConnectedFast,
     isConnected,
     refreshLead,
     leadContext,

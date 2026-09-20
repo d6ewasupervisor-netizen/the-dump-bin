@@ -8,6 +8,26 @@
   const LIVE_ZOOM_MIN = 0.5;
   const LIVE_ZOOM_MAX = 4;
   const LIVE_ZOOM_STEP = 0.25;
+  const THUMB_MAX_EDGE = 360;
+
+  /* toDataURL is synchronous and its cost tracks pixel count, so running it on
+     a multi-megapixel capture blocks the shutter. Scale to thumbnail size
+     first - roughly a hundredth of the pixels for the same picture on screen. */
+  function thumbDataUrl(canvas) {
+    if (!canvas) return null;
+    try {
+      const edge = Math.max(canvas.width, canvas.height);
+      if (edge <= THUMB_MAX_EDGE) return canvas.toDataURL('image/jpeg', 0.5);
+      const scale = THUMB_MAX_EDGE / edge;
+      const small = document.createElement('canvas');
+      small.width = Math.max(1, Math.round(canvas.width * scale));
+      small.height = Math.max(1, Math.round(canvas.height * scale));
+      small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+      return small.toDataURL('image/jpeg', 0.5);
+    } catch (_) {
+      return null;
+    }
+  }
 
   function photoBay(p, fallback = null) {
     const n = Number(p?.bay ?? p?.bayIndex);
@@ -1298,9 +1318,14 @@
     }
 
     async function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
-      if (global.EodSasUser?.requireConnected) {
-        const gate = await global.EodSasUser.requireConnected({ slot });
+      const gateFn = global.EodSasUser?.requireConnectedFast
+        || global.EodSasUser?.requireConnected;
+      if (gateFn) {
+        const gate = await gateFn.call(global.EodSasUser, { slot });
         if (!gate.ok) {
+          // The card message sits under the live camera, so say it where the
+          // shooter is actually looking.
+          if (liveCameraOpen) flashToast(gate.message);
           setMsg(gate.message);
           return;
         }
@@ -1327,7 +1352,10 @@
         return;
       }
 
-      const previewUrl = shot?.canvas ? shot.canvas.toDataURL('image/jpeg', 0.35) : null;
+      // Encoding the full-resolution capture just to draw a thumbnail held the
+      // shutter disabled for hundreds of milliseconds. Downscale first: the
+      // thumb is a few hundred pixels wide on screen either way.
+      const previewUrl = shot?.canvas ? thumbDataUrl(shot.canvas) : null;
       const replacing = !!(opts && opts.replace);
       const payload = {
         kind: 'set',

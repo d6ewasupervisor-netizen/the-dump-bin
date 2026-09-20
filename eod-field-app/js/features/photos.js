@@ -52,6 +52,14 @@
 
   async function preparePhoto(file, type) {
     const converted = global.EodHeic?.prepareFile ? await global.EodHeic.prepareFile(file) : file;
+    // Worker first: the main-thread compressor runs a binary search of
+    // full-canvas encodes, and this call sits inside the shutter handler.
+    if (global.EodPhotoPipeline?.compressFileInWorker && converted instanceof Blob) {
+      try {
+        const out = await global.EodPhotoPipeline.compressFileInWorker(converted, type || 'default');
+        if (out?.dataUrl) return out.dataUrl;
+      } catch (_) { /* no Worker or encode refused - fall through */ }
+    }
     if (global.EodPhotoCompress?.compressFile) {
       const out = await global.EodPhotoCompress.compressFile(converted, type || 'default');
       return out.dataUrl;

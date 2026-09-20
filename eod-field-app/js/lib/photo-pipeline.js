@@ -469,13 +469,37 @@
     }
   }
 
+  /* Widest maxEdge across every compress policy. The capture is on its way to
+     one of them, so encoding the durable copy above this ceiling costs shutter
+     time on pixels that get thrown away. Capping here is lossless relative to
+     what the pipeline would have produced. */
+  const DURABLE_MAX_EDGE = 2560;
+
+  function canvasToDurableBlob(canvas) {
+    let source = canvas;
+    try {
+      const edge = Math.max(canvas.width, canvas.height);
+      if (edge > DURABLE_MAX_EDGE) {
+        const scale = DURABLE_MAX_EDGE / edge;
+        const small = document.createElement('canvas');
+        small.width = Math.max(1, Math.round(canvas.width * scale));
+        small.height = Math.max(1, Math.round(canvas.height * scale));
+        small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+        source = small;
+      }
+    } catch (_) {
+      source = canvas;
+    }
+    return new Promise((resolve) => source.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
+  }
+
   async function persistJobRecord(job) {
     if (!job || isSuperseded(job) || job.status === 'done') return;
     let blob = job.blob || null;
     if (!blob && job.file instanceof Blob) blob = job.file;
     if (!blob && job.dataUrl) blob = dataUrlToBlobForPipeline(job.dataUrl);
     if (!blob && job.canvas?.toBlob) {
-      blob = await new Promise((resolve) => job.canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
+      blob = await canvasToDurableBlob(job.canvas);
     }
     if (blob && !job.blob) job.blob = blob;
     await idbPut({
@@ -740,6 +764,27 @@
       worker.addEventListener('message', onMsg);
       worker.postMessage({ type: 'compress', id, blob, compressType });
     });
+  }
+
+  /* Cart, signoff and InstaWork capture ran the whole main-thread compressor
+     inside the shutter handler. Same worker the set lane already uses. Callers
+     fall back to EodPhotoCompress when there is no Worker. */
+  /* The worker is built on first use, so without this the first photo of the
+     shift pays for the script fetch and instantiation on top of its encode. */
+  function warmCompressWorker() {
+    try { return !!getCompressWorker(); } catch (_) { return false; }
+  }
+
+  async function compressFileInWorker(file, compressType) {
+    if (!(file instanceof Blob)) throw new Error('compress needs a Blob');
+    const out = await compressInWorker(file, compressType || 'default');
+    return {
+      blob: out.blob,
+      bytes: out.bytes,
+      mime: out.mime,
+      checksum: out.checksum,
+      dataUrl: await blobToDataUrlForPipeline(out.blob),
+    };
   }
 
   async function inputToBlob(job) {
@@ -1636,6 +1681,8 @@
     start,
     enqueue,
     enqueueCapture,
+    compressFileInWorker,
+    warmCompressWorker,
     listJobs,
     jobsForSet,
     statusLabel,

@@ -157,7 +157,7 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.4.69').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.4.70').catch(() => {});
           if (!navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;
@@ -172,6 +172,7 @@
       try { window.EodUsage?.start?.(); } catch (_) {}
       // helpdesk is here because Categories needs askToReportNotInStore from it.
       try { window.EodRouteBundles?.prefetchIdle?.(['survey', 'send', 'helpdesk']); } catch (_) {}
+      try { window.EodPhotoPipeline?.warmCompressWorker?.(); } catch (_) {}
 
       void hydrateAfterPaint();
 

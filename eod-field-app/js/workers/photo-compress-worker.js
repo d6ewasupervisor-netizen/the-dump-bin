@@ -6,6 +6,11 @@ const POLICIES = {
   cart: { maxEdge: 1600, maxBytes: 900 * 1024, startQuality: 0.82, minQuality: 0.48 },
   before: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6 },
   after: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6 },
+  // Signature sheets get printed and faxed, so they keep the taller edge and
+  // the higher floor. These mirror js/lib/photo-compress.js exactly - if they
+  // drift, routing a photo through the worker silently downgrades it.
+  signoff: { maxEdge: 2560, maxBytes: 950 * 1024, startQuality: 0.9, minQuality: 0.55 },
+  instawork: { maxEdge: 2400, maxBytes: 950 * 1024, startQuality: 0.88, minQuality: 0.55 },
   default: { maxEdge: 2048, maxBytes: 900 * 1024, startQuality: 0.85, minQuality: 0.5 },
 };
 
