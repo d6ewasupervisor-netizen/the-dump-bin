@@ -811,7 +811,16 @@
     }).join('');
   }
 
+  function destroyLeftoverCameras() {
+    document.querySelectorAll('.vf-live-camera').forEach((el) => {
+      const video = el.querySelector('video');
+      try { video?.srcObject?.getTracks?.().forEach((t) => t.stop()); } catch (_) {}
+      el.remove();
+    });
+  }
+
   async function render(mount) {
+    destroyLeftoverCameras();
     const S = global.EodSession;
     mount.innerHTML = `
       <div class="card heart">

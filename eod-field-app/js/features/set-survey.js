@@ -454,7 +454,17 @@
     return { stop, refreshHud };
   }
 
+  function destroyLeftoverCameras() {
+    document.querySelectorAll('.vf-live-camera').forEach((el) => {
+      const video = el.querySelector('video');
+      try { video?.srcObject?.getTracks?.().forEach((t) => t.stop()); } catch (_) {}
+      el.remove();
+    });
+    if (activeCameraToast) activeCameraToast = null;
+  }
+
   async function render(mount) {
+    destroyLeftoverCameras();
     const S = global.EodSession;
     const qp = queryParams();
     const dbkey = String(qp.get('dbkey') || '').trim();
@@ -715,6 +725,12 @@
     // Subscribe to server buffer ack: when all bays for THIS set land safely in our DB,
     // show the "safe to continue" message and stop showing the patient message.
     const unsubSetSafe = global.EodSetPhotoReconcile?.onSetSafe?.(dbkey, () => {
+      /* Afters for THIS set are in our buffer. Close an after camera still
+         sitting on this dbkey — leaving it open is how later aisles kept
+         uploading as Condiments bays 1–6. Before cameras stay put. */
+      if (liveCameraOpen && preferSlot === 'after') {
+        document.querySelector('.vf-live-camera [data-act="close"]')?.click();
+      }
       setMsg('Ok you\u2019re safe to continue to the next set.');
     });
 
@@ -803,6 +819,13 @@
         if (st === 'failed' || st === 'replaced') continue;
         const b = Number(p.bay);
         if (Number.isFinite(b) && b > 0) set.add(b);
+      }
+      if (String(slot) === 'after') {
+        for (const job of (global.EodPhotoPipeline?.jobsForSet?.(dbkey) || [])) {
+          if (job.slot !== 'after' || job.status === 'superseded' || job.error === 'replaced') continue;
+          const b = Number(job.bay);
+          if (Number.isFinite(b) && b > 0) set.add(b);
+        }
       }
       for (const b of bayList()) {
         const n = Number(b.bay);
@@ -932,6 +955,12 @@
         }
         for (const p of incoming) byBay.set(Number(p.bay), p);
         const photos = [...byBay.values()];
+        if (slot === 'after' && incoming.length === 0 && prev.length > 0 && keepBays.size === 0) {
+          /* Hydrate can look empty after offload. Writing [] here wiped
+             device afters, nextEmptyBay reset to 1, and the open camera
+             dumped the next aisle onto this set. */
+          return;
+        }
         if (slot === 'before') global.EodSetBeforeStore.setBefores(S.state.storeNumber, week, dbkey, photos);
         else global.EodSetBeforeStore.setAfters?.(S.state.storeNumber, week, dbkey, photos);
       } catch (err) {
@@ -1271,7 +1300,8 @@
         loadLabel: replacing ? 'Load to replace' : 'Load photos',
         getLabel: () => {
           const total = n();
-          const label = slot === 'after' ? 'After' : 'Before';
+          const who = catName ? `${catName} · ` : '';
+          const label = `${who}${slot === 'after' ? 'After' : 'Before'}`;
           if (fromOne) {
             const next = sessionBay + 1;
             // Without a resolved count, show the bay being shot and no total
@@ -1286,10 +1316,15 @@
           if (next == null) return `${label} · ${have}/${total}`;
           return `${label} · Bay ${next} of ${total} · ${have}/${total}`;
         },
-        /* Unknown count keeps the camera open until the lead taps Exit. The
-           old fallback of 1 closed it after the first shot. */
+        /* Before: unknown count stays open until Exit (a fallback of 1 used
+           to close after the first shot). After: never wrap extras onto this
+           set. Store 19 Condiments ate 72 afters from later aisles that way. */
         shouldContinue: () => {
           const total = n();
+          if (String(slot) === 'after') {
+            if (fromOne) return !total || sessionBay < total;
+            return nextEmptyBay(slot) != null;
+          }
           if (fromOne) return !total || sessionBay < total;
           return !total || nextEmptyBay(slot) != null;
         },
@@ -1299,6 +1334,9 @@
           if (fromOne) {
             sessionBay += 1;
             bay = sessionBay;
+          } else if (String(slot) === 'after' && !replacing) {
+            bay = nextEmptyBay(slot);
+            if (!bay) return null;
           } else {
             bay = nextEmptyBay(slot) || (replacing ? (wiped ? takenBays(slot).size + 1 : 1) : 1);
           }
@@ -1547,6 +1585,8 @@
     const backBtn = document.getElementById('backSignoff');
     if (backBtn) {
       backBtn.onclick = () => {
+        destroyLeftoverCameras();
+        liveCameraOpen = false;
         try { unsubPipe?.(); } catch (_) {}
         try { unsubSetSafe?.(); } catch (_) {}
         global.EodRouter.go('signoff');
