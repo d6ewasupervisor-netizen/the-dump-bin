@@ -928,7 +928,12 @@
         const photos = [...byBay.values()];
         if (slot === 'before') global.EodSetBeforeStore.setBefores(S.state.storeNumber, week, dbkey, photos);
         else global.EodSetBeforeStore.setAfters?.(S.state.storeNumber, week, dbkey, photos);
-      } catch (_) {}
+      } catch (err) {
+        /* Losing this write breaks the multi-day carry-forward, and the crew
+           would not find out until they returned for the revisit. */
+        global.EodDiag?.note?.('set-store.persist', err);
+        setMsg('Device storage is full — these photos will not carry to a later visit.', true);
+      }
     }
 
     function persistBefores() {

@@ -27,10 +27,48 @@
     }
   }
 
+  /* Drop buckets from earlier fiscal weeks only. Other stores in the CURRENT
+     week are left alone — a lead can work two stores in one week and each
+     needs its own carry-forward. */
+  function pruneStaleWeeks(keepWeek) {
+    const keep = String(keepWeek || '').trim().toUpperCase();
+    if (!keep) return 0;
+    const doomed = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (!k.startsWith(PREFIX) && !k.startsWith(AFTER_PREFIX)) continue;
+      const week = k.slice(k.lastIndexOf(':') + 1);
+      if (week && week !== keep) doomed.push(k);
+    }
+    for (const k of doomed) {
+      try { localStorage.removeItem(k); } catch (_) { /* keep pruning */ }
+    }
+    return doomed.length;
+  }
+
+  /* This write is what makes the multi-day carry-forward work: befores shot
+     Monday have to still be here when the crew comes back Wednesday for the
+     backlog revisit. A silent quota failure loses them, and nobody finds out
+     until the revisit. Prune dead weeks, retry, and if it still fails, throw
+     so the caller can say so. */
   function saveAll(store, fiscalWeek, map, prefix) {
     const key = storageKey(store, fiscalWeek, prefix);
     if (!key) return;
-    localStorage.setItem(key, JSON.stringify(map || {}));
+    const json = JSON.stringify(map || {});
+    try {
+      localStorage.setItem(key, json);
+      return;
+    } catch (_) {
+      const freed = pruneStaleWeeks(fiscalWeek);
+      try {
+        localStorage.setItem(key, json);
+        global.EodDiag?.note?.('set-store.pruned', `freed ${freed} stale week bucket(s)`);
+      } catch (err) {
+        global.EodDiag?.note?.('set-store.quota', err);
+        throw err;
+      }
+    }
   }
 
   function dbkeyKey(dbkey) {
@@ -112,6 +150,7 @@
     listSets,
     clearStoreWeek,
     clearAllForStore,
+    pruneStaleWeeks,
     storageKey,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

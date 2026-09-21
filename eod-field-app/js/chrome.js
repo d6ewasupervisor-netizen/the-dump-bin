@@ -31,6 +31,8 @@
         if (stuck?.total > 0) parts.push(`${stuck.total} stuck`);
         const blocked = global.EodSetPhotoReconcile?.authBlockedCount?.();
         if (blocked > 0) parts.push(`${blocked} need login`);
+        // Carry-forward is broken once this fires; say so until the day resets.
+        if (global.EodDiag?.count?.('set-store.quota') > 0) parts.push('storage full');
       } catch (_) {}
       metaEl.textContent = parts.filter(Boolean).join(' · ');
       metaEl.title = parts.filter(Boolean).join(' · ');
