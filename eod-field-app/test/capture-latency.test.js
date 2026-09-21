@@ -71,8 +71,10 @@ test('the shutter gate reads cached auth instead of waiting on the network', () 
   assert.match(login, /void fetchStatus\(true\)/);
   // Capture prefers the fast gate, with the blocking one as fallback.
   assert.match(survey, /requireConnectedFast\s*\n?\s*\|\|\s*global\.EodSasUser\?\.requireConnected/);
-  // A refused capture has to speak where the shooter is looking.
-  assert.match(survey, /if \(liveCameraOpen\) flashToast\(gate\.message\)/);
+  // A refused capture has to speak where the shooter is looking. Ship F routes
+  // this through activeCameraToast; calling flashToast from enqueueLocal's
+  // scope threw a ReferenceError instead of showing the message.
+  assert.match(survey, /if \(liveCameraOpen\) activeCameraToast\?\.\(gate\.message\)/);
 });
 
 test('cart, signoff and InstaWork compress off the main thread', () => {

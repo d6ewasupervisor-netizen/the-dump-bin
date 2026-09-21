@@ -135,6 +135,16 @@
       workDate: job.workDate || null,
       hasPayload: !!job.hasPayload,
       updatedAt: job.updatedAt,
+      /* Routing. listJobs() is the only view the reconcile lane gets, and
+         without these it read undefined and fell back to a warm cache that
+         is dropped at capture time — so pushes went out with a null resetId
+         and the server had to infer the target reset. */
+      visitId: job.visitId || null,
+      resetId: job.resetId || null,
+      taskId: job.taskId || null,
+      fileName: job.fileName || null,
+      expectedBayCount: job.expectedBayCount || null,
+      bufferedId: job.bufferedId || null,
     };
   }
 

@@ -76,8 +76,10 @@ test('reconcile builds its manifest without decoding every photo', () => {
   assert.match(rec, /item\.photoBase64 = null;/);
   // tick() must use the lazy manifest, not the eager collector.
   assert.match(rec, /const photos = await collectDeviceManifest\(\);/);
-  // Already-delivered jobs should not be re-offered at all.
-  assert.match(rec, /if \(job\.status === 'done'\) continue;/);
+  // Already-delivered jobs should not be re-offered at all. Ship F widened
+  // this from a bare 'done' check to the full pipeline-owned set.
+  assert.match(rec, /if \(PIPELINE_OWNED\.has\(job\.status\)\) continue;/);
+  assert.match(rec, /const PIPELINE_OWNED = new Set\(\[[^\]]*'done'/);
 });
 
 test('the swallowed paths that could lose a photo now report themselves', () => {

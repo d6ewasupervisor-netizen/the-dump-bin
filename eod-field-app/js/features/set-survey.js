@@ -10,6 +10,11 @@
   const LIVE_ZOOM_STEP = 0.25;
   const THUMB_MAX_EDGE = 360;
 
+  /* The live camera's toast lives inside openLiveCamera, but enqueueLocal runs
+     in render()'s scope and needs to speak to a shooter whose screen is
+     covered by the camera. Published here while a camera is open. */
+  let activeCameraToast = null;
+
   /* toDataURL is synchronous and its cost tracks pixel count, so running it on
      a multi-megapixel capture blocks the shutter. Scale to thumbnail size
      first - roughly a hundredth of the pixels for the same picture on screen. */
@@ -339,6 +344,7 @@
         toast.textContent = '';
       }, 900);
     }
+    activeCameraToast = flashToast;
 
     async function start() {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -353,6 +359,7 @@
 
     function stop() {
       if (toastTimer) clearTimeout(toastTimer);
+      if (activeCameraToast === flashToast) activeCameraToast = null;
       document.removeEventListener('visibilitychange', onVisibilityForWakeLock);
       releaseWakeLock();
       try {
@@ -1325,7 +1332,7 @@
         if (!gate.ok) {
           // The card message sits under the live camera, so say it where the
           // shooter is actually looking.
-          if (liveCameraOpen) flashToast(gate.message);
+          if (liveCameraOpen) activeCameraToast?.(gate.message);
           setMsg(gate.message);
           return;
         }

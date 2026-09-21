@@ -10,6 +10,19 @@
      link allows and still yields the thread when it does not. */
   const PUSH_BUDGET_MS = 20_000;
   const PUSH_HARD_CAP = 60;
+  /* Bays the pipeline lane is actively handling or has finished. */
+  const PIPELINE_OWNED = new Set(['superseded', 'done', 'accepted', 'uploading', 'reconciling']);
+
+  function normStoreNum(v) {
+    return String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  }
+
+  function sameStore(a, b) {
+    const x = normStoreNum(a);
+    const y = normStoreNum(b);
+    // An unstamped job is not evidence it belongs here; require a match.
+    return !!x && !!y && x === y;
+  }
   let timer = null;
   let busy = false;
   let started = false;
@@ -130,8 +143,18 @@
       const jobs = global.EodPhotoPipeline?.listJobs?.() || [];
       for (const job of jobs) {
         if (job.kind !== 'set') continue;
-        if (job.status === 'superseded') continue;
-        if (job.status === 'done') continue;
+        /* listJobs() returns everything still in memory, including jobs
+           restored from IndexedDB for another store or an earlier day, and
+           nothing purges them. pushOne stamps the body with the CURRENT
+           session store and date, so an unscoped job from Monday at store 28
+           would be posted as today's capture at whatever store is open now. */
+        if (!sameStore(job.storeNumber, store)) continue;
+        if (job.workDate && String(job.workDate) !== String(S.state.workDate)) continue;
+        /* Statuses the pipeline lane currently owns. Re-pushing these through
+           the reconcile lane is the duplicate-delivery path: the two lanes
+           build different Idempotency-Keys, so nothing server-side would
+           collapse them. */
+        if (PIPELINE_OWNED.has(job.status)) continue;
         if (!job.dataUrl && !job.file && !job.blobId) continue;
         await push(String(job.dbkey || '').replace(/\D/g, '').replace(/^0+/, ''), job.slot || 'after', {
           bay: job.bay,
@@ -225,12 +248,20 @@
         }),
         skipBusy: true,
       });
+      /* Inventory is the only thing deciding which bays to send. It used to
+         fail open: any non-OK reply, or a body without a pull array, meant
+         "push every bay on the device" — every 25s, up to the hard cap, for
+         as long as the link stayed flaky. Only a missing endpoint (legacy
+         server) still falls back to push-all. */
+      const endpointMissing = invResp.status === 404 || invResp.status === 405;
+      if (!invResp.ok && !endpointMissing) {
+        global.EodDiag?.note?.('reconcile.inventory', `HTTP ${invResp.status}`);
+        return;
+      }
       const inv = invResp.ok ? await invResp.json().catch(() => ({})) : {};
-      const pull = Array.isArray(inv.pull) ? inv.pull : photos.map((p) => ({
-        dbkey: p.dbkey,
-        slot: p.slot,
-        bay: p.bay,
-      }));
+      const pull = Array.isArray(inv.pull)
+        ? inv.pull
+        : (endpointMissing ? photos.map((p) => ({ dbkey: p.dbkey, slot: p.slot, bay: p.bay })) : []);
       const closedDbkeys = new Set(Array.isArray(inv.closedDbkeys) ? inv.closedDbkeys : []);
       const want = new Set(pull.map((p) => `${p.dbkey}:${p.slot}:${p.bay}`));
 
