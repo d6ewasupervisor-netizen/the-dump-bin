@@ -9,6 +9,8 @@
   const LIVE_ZOOM_MAX = 4;
   const LIVE_ZOOM_STEP = 0.25;
   const THUMB_MAX_EDGE = 360;
+  // Resolved at call time: a bundle load-order slip must not brick capture.
+  const BayLogic = () => global.EodBayCountLogic;
 
   /* The live camera's toast lives inside openLiveCamera, but enqueueLocal runs
      in render()'s scope and needs to speak to a shooter whose screen is
@@ -609,7 +611,9 @@
             bay,
             dbkey,
             rowId,
-            expectedBayCount: expectedBayCount(),
+            // null, not a guess: the server auto-closes the set once
+            // bay >= expectedBayCount, and resolves the real count itself.
+            expectedBayCount: knownBayCount(),
             dataUrl: payload.dataUrl,
             file: payload.file || null,
             fileName: p.fileName || `${slot}.jpg`,
@@ -662,8 +666,11 @@
 
     async function maybeAutoCloseSi() {
       if (autoClosePromise) return autoClosePromise;
-      const n = expectedBayCount();
-      if (n < 1) return null;
+      /* Never close a set against a guessed count. Unknown means wait for
+         /status; closing on a fallback of 1 completed eight-bay sets after
+         a single after-photo. */
+      const n = knownBayCount();
+      if (!n) return null;
       const afterJobs = (global.EodPhotoPipeline?.jobsForSet?.(dbkey) || []).filter(
         (j) => j.slot === 'after' && j.status !== 'superseded' && j.error !== 'replaced'
       );
@@ -746,15 +753,28 @@
       el.textContent = text || '';
     }
 
-    function expectedBayCount() {
-      const status = local.status || {};
-      if (Number(status.expectedBayCount) > 0) return Number(status.expectedBayCount);
-      if (status.bays?.length) return status.bays.length;
-      return 1;
+    /* Authoritative bay count, or null when it has not resolved yet.
+
+       This used to fall back to 1, which is a lie the rest of the app acted
+       on: sequential capture stopped after one shot, loading eight photos
+       enqueued one and dropped seven, and the server auto-closes a set when
+       bay >= expectedBayCount, so a single after-photo closed the whole set.
+       Unknown has to stay unknown. Bay count comes from SI sections; PROD
+       footage is linear feet and is resolved server-side, never here. */
+    function knownBayCount() {
+      return BayLogic().knownBayCount(local.status);
+    }
+
+    /* Grid and HUD need some number to draw. Never used for a decision. */
+    function displayBayCount() {
+      return BayLogic().displayBayCount(local.status, [
+        ...(local.before || []),
+        ...(local.after || []),
+      ]);
     }
 
     function bayList() {
-      const n = expectedBayCount();
+      const n = displayBayCount();
       const fromStatus = local.status?.bays || [];
       const byBay = new Map(fromStatus.map((b) => [Number(b.bay), b]));
       const out = [];
@@ -827,30 +847,16 @@
 
     /** Loaded files replace PROD in bay order, 1 … N. */
     function assignBaysForReplace(fileCount) {
-      const n = expectedBayCount();
-      const count = Math.min(Math.max(fileCount, 0), n);
-      return Array.from({ length: count }, (_, i) => i + 1);
+      return BayLogic().planReplaceBays({ known: knownBayCount(), fileCount });
     }
 
     /** First file ? first empty bay (or bay 1); last of a full batch ? last bay. */
     function assignBaysForFiles(slot, fileCount) {
-      const n = expectedBayCount();
-      const taken = takenBays(slot);
-      const empties = [];
-      for (let i = 1; i <= n; i += 1) {
-        if (!taken.has(i)) empties.push(i);
-      }
-      if (!empties.length) {
-        return Array.from({ length: fileCount }, (_, i) => Math.min(i + 1, n));
-      }
-      if (fileCount >= empties.length && taken.size === 0) {
-        return Array.from({ length: Math.min(fileCount, n) }, (_, i) => i + 1);
-      }
-      const assigned = [];
-      for (let i = 0; i < fileCount; i += 1) {
-        assigned.push(empties[i] != null ? empties[i] : empties[empties.length - 1]);
-      }
-      return assigned;
+      return BayLogic().planFileBays({
+        known: knownBayCount(),
+        taken: takenBays(slot),
+        fileCount,
+      });
     }
 
     function afterCached() {
@@ -1164,7 +1170,7 @@
     function paintBody() {
       persistOpen();
       if (liveCameraOpen) return;
-      const n = expectedBayCount();
+      const n = displayBayCount();
       const body = document.getElementById('setSurveyBody');
       if (!body) return;
       const nextAfter = nextEmptyBay('after');
@@ -1255,7 +1261,7 @@
     function startSequentialCapture(slot, opts) {
       const fromOne = !!(opts && opts.fromOne);
       const returnTo = opts && opts.returnTo;
-      const n = () => expectedBayCount();
+      const n = () => knownBayCount();
       const replacing = !fromOne && nextEmptyBay(slot) == null;
       const batchId = replacing ? (`r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) : null;
       let wiped = false;
@@ -1265,19 +1271,28 @@
         loadLabel: replacing ? 'Load to replace' : 'Load photos',
         getLabel: () => {
           const total = n();
+          const label = slot === 'after' ? 'After' : 'Before';
           if (fromOne) {
             const next = sessionBay + 1;
-            if (next > total) return `${slot === 'after' ? 'After' : 'Before'} · ${total}/${total}`;
-            return `${slot === 'after' ? 'After' : 'Before'} · Bay ${next} of ${total}`;
+            // Without a resolved count, show the bay being shot and no total
+            // rather than inventing one.
+            if (!total) return `${label} · Bay ${next}`;
+            if (next > total) return `${label} · ${total}/${total}`;
+            return `${label} · Bay ${next} of ${total}`;
           }
           const next = nextEmptyBay(slot);
           const have = takenBays(slot).size;
-          if (next == null) {
-            return `${slot === 'after' ? 'After' : 'Before'} · ${have}/${total}`;
-          }
-          return `${slot === 'after' ? 'After' : 'Before'} · Bay ${next} of ${total} · ${have}/${total}`;
+          if (!total) return next == null ? `${label} · ${have}` : `${label} · Bay ${next}`;
+          if (next == null) return `${label} · ${have}/${total}`;
+          return `${label} · Bay ${next} of ${total} · ${have}/${total}`;
         },
-        shouldContinue: () => (fromOne ? sessionBay < n() : nextEmptyBay(slot) != null),
+        /* Unknown count keeps the camera open until the lead taps Exit. The
+           old fallback of 1 closed it after the first shot. */
+        shouldContinue: () => {
+          const total = n();
+          if (fromOne) return !total || sessionBay < total;
+          return !total || nextEmptyBay(slot) != null;
+        },
         onCapture: async (shot) => {
           const total = n();
           let bay;
@@ -1293,7 +1308,7 @@
           if (replacing) wiped = true;
           await enqueueLocal(slot, shot, bay, enqueueOpts);
           const next = fromOne ? sessionBay + 1 : nextEmptyBay(slot);
-          if (next != null && next <= total) return { toast: `Moving to bay ${next}` };
+          if (next != null && (!total || next <= total)) return { toast: `Moving to bay ${next}` };
           return null;
         },
         onLoadFiles: (files) => enqueueFiles(slot, selectedFilesInOrder(files), { replace: replacing || fromOne }),
@@ -1345,7 +1360,25 @@
       try { global.EodStoreProdWarm?.dropStatus?.(dbkey); } catch (_) {}
       const shot = fileOrShot && (fileOrShot.canvas || fileOrShot.bitmap) ? fileOrShot : null;
       const file = shot ? null : fileOrShot;
-      const bay = Number(bayOverride) || nextEmptyBay(slot) || 1;
+      const replacingBay = !!(opts && opts.replace);
+      const refuse = (text) => {
+        if (liveCameraOpen) activeCameraToast?.(text);
+        setMsg(text, true);
+      };
+
+      const bay = Number(bayOverride) || nextEmptyBay(slot) || 0;
+      const cap = knownBayCount();
+      /* A full set used to fall through to bay 1 and overwrite it, and a
+         direct capture could push past the set's real bay count. */
+      const reason = BayLogic().refuseBayReason({ known: cap, bay, replacing: replacingBay });
+      if (reason === 'full') {
+        refuse(`Every bay already has a ${slot} photo. Use Replace to redo one.`);
+        return;
+      }
+      if (reason === 'over') {
+        refuse(`This set has ${cap} bay${cap === 1 ? '' : 's'} — bay ${bay} was not added.`);
+        return;
+      }
       const pipe = global.EodPhotoPipeline;
       if (!pipe?.enqueue) {
         preparePhoto(file || shot?.bitmap || shot?.canvas, 'set').then((preview) => {
@@ -1376,7 +1409,9 @@
         bay,
         dbkey,
         rowId,
-        expectedBayCount: expectedBayCount(),
+        // null, not a guess: the server auto-closes the set once
+        // bay >= expectedBayCount, and resolves the real count itself.
+        expectedBayCount: knownBayCount(),
         file,
         bitmap: shot?.bitmap || null,
         canvas: shot?.canvas || null,

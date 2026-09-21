@@ -19,6 +19,7 @@
       'js/lib/barcode-scanner.js',
       'js/lib/cart-upc-locate.js',
       'js/lib/device-photo-flush.js',
+      'js/lib/bay-count-logic.js',
       'js/features/set-survey.js',
     ],
     send: [
