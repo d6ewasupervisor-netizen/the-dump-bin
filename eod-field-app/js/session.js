@@ -249,6 +249,21 @@
     saveDraft();
   }
 
+  function removeNote(line) {
+    const text = String(line || '').trim();
+    if (!text) return;
+    const next = String(state.notes || '')
+      .split(/\r?\n/)
+      .filter((l) => l.trim() !== text)
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    if (next === String(state.notes || '').trim()) return;
+    state.notes = next;
+    emit('notes');
+    saveDraft();
+  }
+
   function loadProfile() {
     try {
       const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
@@ -451,6 +466,7 @@
     patch,
     resolvedLeadName,
     appendNote,
+    removeNote,
     loadDraft,
     getPriorDayDraft,
     resolvePriorDayDraft,

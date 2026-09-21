@@ -564,6 +564,8 @@
           storeNumber: S.state.storeNumber,
           workDate: S.state.workDate,
           markType: markType === 'clear' ? undefined : markType,
+          visitId,
+          visitIds: S.state.extraVisitIds || [],
         };
 
     const prevMarks = current ? JSON.parse(JSON.stringify(current.marks || current.mark || null)) : null;
@@ -619,10 +621,17 @@
       }
     }
 
-    if (markType === 'not_in_store' && turningOn) {
+    if (markType === 'not_in_store') {
       const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId)) || current;
       const label = rowLabel(row);
-      S.appendNote?.(`Not in store: ${label}`);
+      if (turningOn) {
+        S.appendNote?.(`Not in store: ${label}`);
+      } else {
+        S.removeNote?.(`Not in store: ${label}`);
+        S.removeNote?.(`Help desk: Set not in store — ${label}`);
+        const list = (S.state.notInStoreSelected || []).filter((n) => n !== label);
+        S.patch({ notInStoreSelected: list }, 'helpdesk-nis');
+      }
     }
   }
 
