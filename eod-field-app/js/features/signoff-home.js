@@ -506,19 +506,20 @@
 
   function findRowForHelpdeskMeta(meta) {
     const rows = global.EodSession?.state?.sheet?.rows || [];
+    if (global.EodSheetRowMatch?.findSheetRowForMeta) {
+      return global.EodSheetRowMatch.findSheetRowForMeta(rows, meta);
+    }
     const rowId = meta?.rowId != null ? String(meta.rowId) : '';
     const dbkey = String(meta?.dbkey || '').trim();
-    const catNum = String(meta?.categoryNumber || '').replace(/\D/g, '');
-    const name = String(meta?.setLabel || meta?.categoryName || '').trim().toLowerCase();
-    return rows.find((r) => {
-      if (rowId && String(r.id) === rowId) return true;
-      if (dbkey && String(r.dbkey || '').trim() === dbkey) return true;
-      const rNum = String(r.catId || '').replace(/\D/g, '');
-      if (catNum && rNum && catNum === rNum) return true;
-      const rName = String(r.catName || '').trim().toLowerCase();
-      if (name && rName && (rName === name || rName.includes(name) || name.includes(rName))) return true;
-      return false;
-    }) || null;
+    if (rowId) {
+      const hit = rows.find((r) => String(r.id) === rowId);
+      if (hit) return hit;
+    }
+    if (dbkey) {
+      const hit = rows.find((r) => String(r.dbkey || '').trim() === dbkey);
+      if (hit) return hit;
+    }
+    return null;
   }
 
   async function confirmOutOfScope(count) {

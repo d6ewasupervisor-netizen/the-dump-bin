@@ -152,18 +152,14 @@
   }
 
   function matchRowSet(row) {
+    const matched = global.EodSheetRowMatch?.matchProdSetForRow?.(row, setsMap());
+    if (matched) return matched;
     const dbkey = String(row?.dbkey || row?.dbKey || '').trim();
-    const catNum = String(row?.catId || '').replace(/\D/g, '');
-    const name = String(row?.catName || '').trim().toLowerCase();
+    if (!dbkey) return null;
     for (const [visitId, entry] of Object.entries(setsMap())) {
       for (const s of entry.sets || []) {
         const sKey = String(s.dbkey || pogDbkey(s.planogramId) || '').trim();
-        if (dbkey && sKey && dbkey === sKey) return { visitId, set: s, entry };
-        const sNum = String(s.number || '').replace(/\D/g, '');
-        const sName = String(s.name || '').trim().toLowerCase();
-        if (catNum && sNum && catNum === sNum && (!name || !sName || sName === name)) {
-          return { visitId, set: s, entry };
-        }
+        if (sKey && dbkey === sKey) return { visitId, set: s, entry };
       }
     }
     return null;

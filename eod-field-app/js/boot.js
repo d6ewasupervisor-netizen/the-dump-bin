@@ -158,7 +158,7 @@
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
           const hadController = !!navigator.serviceWorker.controller;
-          navigator.serviceWorker.register('sw.js?v=3.4.77').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.4.78').catch(() => {});
           if (hadController && !navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;
