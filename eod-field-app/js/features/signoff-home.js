@@ -350,6 +350,70 @@
     });
   }
 
+  function canOpenSasCategoryAdmin() {
+    return !!(global.EodRoles && global.EodRoles.hasRole && global.EodRoles.hasRole('supervisor', 'admin'));
+  }
+
+  function bindSasCategoryHold(root) {
+    const Sas = global.SasCategoryAdmin;
+    if (!root || !Sas) return;
+    const holdMs = Sas.HOLD_MS || 650;
+    root.querySelectorAll('.ds-row-catnum').forEach((el) => {
+      let start = 0;
+      let x = 0;
+      let y = 0;
+      let fired = false;
+      const reset = () => { start = 0; };
+      el.addEventListener('pointerdown', (e) => {
+        if (e.button != null && e.button !== 0) return;
+        fired = false;
+        delete el.dataset.sasHold;
+        start = Date.now();
+        x = e.clientX;
+        y = e.clientY;
+        try { global.EodRoles?.load?.(); } catch (_) {}
+      });
+      el.addEventListener('pointermove', (e) => {
+        if (!start) return;
+        if (Math.hypot(e.clientX - x, e.clientY - y) > 14) reset();
+      });
+      el.addEventListener('pointerup', (e) => {
+        if (!start) return;
+        const held = Date.now() - start;
+        reset();
+        if (held < holdMs || !canOpenSasCategoryAdmin()) return;
+        const rowId = el.closest('[data-row-id]')?.getAttribute('data-row-id') || '';
+        const row = (global.EodSession?.state?.sheet?.rows || []).find((r) => String(r.id) === rowId);
+        const visitId = Sas.visitIdForRow(row, global.EodSession?.state?.selectedShift?.visitId);
+        const url = Sas.categoryAdminUrl(visitId);
+        if (!url) {
+          try { global.EodConnections?.toast?.('No SAS visit on this shift', 'warn'); } catch (_) {}
+          return;
+        }
+        fired = true;
+        el.dataset.sasHold = '1';
+        e.preventDefault();
+        e.stopPropagation();
+        const opened = window.open(url, '_blank', 'noopener');
+        if (!opened) {
+          try { global.EodConnections?.toast?.('Allow popups to open SAS', 'warn'); } catch (_) {}
+        }
+      });
+      el.addEventListener('pointercancel', reset);
+      el.addEventListener('contextmenu', (e) => {
+        if (!canOpenSasCategoryAdmin()) return;
+        e.preventDefault();
+      });
+      el.addEventListener('click', (e) => {
+        if (!fired && el.dataset.sasHold !== '1') return;
+        e.preventDefault();
+        e.stopPropagation();
+        fired = false;
+        delete el.dataset.sasHold;
+      }, true);
+    });
+  }
+
   function bindNukeLongPress(titleEl, run) {
     if (!titleEl || titleEl.dataset.nukeBound) return;
     titleEl.dataset.nukeBound = '1';
@@ -1111,9 +1175,11 @@
           openSetSurvey(btn, btn.getAttribute('data-slot'), { capture: true });
         };
       });
+      bindSasCategoryHold(rowsEl);
       rowsEl.querySelectorAll('[data-open-set]').forEach((el) => {
         el.addEventListener('click', (ev) => {
           if (ev.target.closest('button, input, .ds-row-check')) return;
+          if (ev.target.closest('.ds-row-catnum')?.dataset.sasHold === '1') return;
           openSetSurvey(el);
         });
       });
