@@ -248,6 +248,13 @@ test('Gray Matter theme and mobile wrap primitives are defined', () => {
   assert.match(index, /t !== 'gray-matter'/);
 });
 
+test('SW claim does not reload an uncontrolled first load', () => {
+  const boot = fs.readFileSync(path.join(__dirname, '../js/boot.js'), 'utf8');
+  assert.match(boot, /const hadController = !!navigator\.serviceWorker\.controller/);
+  assert.match(boot, /if \(hadController && !navigator\.serviceWorker\._eodControllerBound\)/);
+  assert.match(boot, /sessionStorage\.getItem\('eodSwReloaded'\)/);
+});
+
 test('service worker discovers the full local shell and keeps APIs network-only', () => {
   const sw = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
   assert.match(sw, /shellAssetsFromHtml/);

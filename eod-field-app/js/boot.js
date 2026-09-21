@@ -157,12 +157,17 @@
       } catch (_) {}
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
-          navigator.serviceWorker.register('sw.js?v=3.4.75').catch(() => {});
-          if (!navigator.serviceWorker._eodControllerBound) {
+          const hadController = !!navigator.serviceWorker.controller;
+          navigator.serviceWorker.register('sw.js?v=3.4.76').catch(() => {});
+          if (hadController && !navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
               if (reloading) return;
+              try {
+                if (sessionStorage.getItem('eodSwReloaded') === '1') return;
+                sessionStorage.setItem('eodSwReloaded', '1');
+              } catch (_) {}
               reloading = true;
               location.reload();
             });
