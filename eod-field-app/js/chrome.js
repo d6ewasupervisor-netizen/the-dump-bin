@@ -26,6 +26,10 @@
         if (open > 0) parts.push(`${open} syncing`);
         if (p?.failed > 0) parts.push(`${p.failed} failed`);
         if (p?.lost > 0) parts.push(`${p.lost} lost`);
+        const stuck = global.EodPhotoPipeline?.stalledCounts?.();
+        if (stuck?.total > 0) parts.push(`${stuck.total} stuck`);
+        const blocked = global.EodSetPhotoReconcile?.authBlockedCount?.();
+        if (blocked > 0) parts.push(`${blocked} need login`);
       } catch (_) {}
       metaEl.textContent = parts.filter(Boolean).join(' · ');
       metaEl.title = parts.filter(Boolean).join(' · ');

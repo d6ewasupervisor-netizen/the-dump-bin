@@ -4,9 +4,16 @@
 
   const FIELD_API = 'https://eod-api.the-dump-bin.com/api/field-set';
   const TICK_MS = 25_000;
+  /* Was a flat 8 bays per 25s tick, so a 30-bay set needed four ticks before
+     the last bay was even attempted and "safe to continue" was ~75s away on a
+     good connection. A time budget drains the whole set in one tick when the
+     link allows and still yields the thread when it does not. */
+  const PUSH_BUDGET_MS = 20_000;
+  const PUSH_HARD_CAP = 60;
   let timer = null;
   let busy = false;
   let started = false;
+  let authBlocked = 0;
 
   function visitReady() {
     return !!(global.EodSession?.isVisitReady?.() && global.EodSession.state?.storeNumber);
@@ -199,12 +206,25 @@
 
       // Track which bays we confirm buffered this tick.
       const bufferedThisTick = new Map(); // dbkey -> Set of 'slot:bay' strings
+      const deadline = Date.now() + PUSH_BUDGET_MS;
       let n = 0;
+      let skippedForAuth = 0;
       for (const item of photos) {
+        if (n >= PUSH_HARD_CAP || Date.now() > deadline) break;
         if (!want.has(`${item.dbkey}:${item.slot}:${item.bay}`)) continue;
-        if (item.slot === 'after' && global.EodSasUser?.requireConnected) {
-          const gate = await global.EodSasUser.requireConnected({ slot: 'after' }).catch(() => ({ ok: false }));
-          if (!gate?.ok) continue;
+        /* Use the cached gate. The blocking one re-fetches auth status on a
+           30s ceiling, and its .catch turned any slow or failed check into
+           "not connected" - which skipped every after bay on the device, on
+           every tick, for as long as the endpoint was unhappy. */
+        const gateFn = global.EodSasUser?.requireConnectedFast
+          || global.EodSasUser?.requireConnected;
+        if (item.slot === 'after' && gateFn) {
+          const gate = await gateFn.call(global.EodSasUser, { slot: 'after' })
+            .catch(() => ({ ok: false }));
+          if (!gate?.ok) {
+            skippedForAuth += 1;
+            continue;
+          }
         }
         try {
           const ack = await pushOne(item);
@@ -218,11 +238,20 @@
             bufferedThisTick.get(item.dbkey).add(`${item.slot}:${item.bay}`);
           }
         } catch (_) { /* next tick retries */ }
-        if (n >= 8) break;
       }
 
-      // For sets where ALL after bays are now buffered (or closed), signal "safe to continue".
-      if (n > 0 || closedDbkeys.size > 0) {
+      /* Bays held back because the reporting login lapsed used to vanish with
+         no trace, on every tick, for the rest of the shift. */
+      authBlocked = skippedForAuth;
+      if (skippedForAuth) {
+        console.warn('[reconcile] %d after bay(s) waiting on reporting login', skippedForAuth);
+      }
+
+      /* Evaluate whenever the inventory answered, not only when this tick
+         pushed something. A set whose bays were all buffered on an earlier
+         tick produces n === 0, and gating on that meant reopening the card
+         could never announce it safe - the message simply never arrived. */
+      if (invResp.ok || n > 0 || closedDbkeys.size > 0) {
         const allKept = new Set([...(inv.kept || []).map((k) => `${k.dbkey}:${k.slot}:${k.bay}`)]);
         const safeDbkeys = new Set();
         for (const photo of photos) {
@@ -284,6 +313,7 @@
     collectDevicePhotos,
     onSetSafe,
     notifySetSafe,
+    authBlockedCount: () => authBlocked,
   };
 
   if (document.readyState === 'loading') {

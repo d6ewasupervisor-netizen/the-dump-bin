@@ -753,7 +753,12 @@
     if (!worker) return Promise.reject(new Error('no worker'));
     return new Promise((resolve, reject) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const timer = setTimeout(() => reject(new Error('compress timeout')), 45000);
+      const timer = setTimeout(() => {
+        // Without this removal a repeatedly timing-out worker accumulated a
+        // listener per attempt for the life of the page.
+        worker.removeEventListener('message', onMsg);
+        reject(new Error('compress timeout'));
+      }, 45000);
       const onMsg = (ev) => {
         if (ev.data?.id !== id) return;
         worker.removeEventListener('message', onMsg);
@@ -1181,9 +1186,8 @@
           .filter((j) => j.replace && j.status === 'uploading' && j.replaceBatchId)
           .map((j) => j.replaceBatchId)
       );
-      const replacing = ready.filter((j) => j.replace && !uploadingReplace.has(j.replaceBatchId));
-      const next = replacing.length
-        ? replacing.sort((a, b) => Number(a.bay) - Number(b.bay))[0]
+      const next = Logic.pickNextUpload
+        ? Logic.pickNextUpload(ready, uploadingReplace)
         : ready.find((j) => !j.replace);
       if (!next) break;
       next.status = 'uploading';
@@ -1614,9 +1618,13 @@
       statusCache.clear();
       for (const job of jobs.values()) {
         if (job.kind !== 'set') continue;
-        if (!['compressed', 'failed', 'queued'].includes(job.status)) continue;
+        // 'accepted' with no statusUrl came from a reconcile buffer ack and had
+        // no other way out of the pipeline. Its bytes may already be offloaded,
+        // so it cannot be held to the dataUrl/file requirement below.
+        const buffered = job.status === 'accepted' && !job.statusUrl;
+        if (!buffered && !['compressed', 'failed', 'queued'].includes(job.status)) continue;
         if (isSuperseded(job)) continue;
-        if (!job.dataUrl && !job.file) continue;
+        if (!buffered && !job.dataUrl && !job.file) continue;
         try {
           const done = await reconcileSetJob(job);
           if (!done && job.status === 'failed' && job.dataUrl) {
@@ -1632,6 +1640,75 @@
     }
   }
 
+  /* Nothing watched a job that simply stopped moving. This sweep is the only
+     thing that can retire a buffered-but-unreachable bay or push a wedged
+     upload back into the retry lane. */
+  const STALL_SWEEP_MS = 30_000;
+  const BUFFERED_GIVE_UP_MS = 6 * 60 * 1000;
+  let stallTimer = null;
+
+  function listStalled(now) {
+    const at = now || Date.now();
+    return [...jobs.values()].filter((j) => Logic.stallKind && Logic.stallKind(j, at));
+  }
+
+  function stalledCounts(now) {
+    return Logic.countStalled
+      ? Logic.countStalled([...jobs.values()], now || Date.now())
+      : { buffered: 0, uploading: 0, total: 0 };
+  }
+
+  async function sweepStalled() {
+    const now = Date.now();
+    const stuck = listStalled(now);
+    if (!stuck.length) return 0;
+    let moved = 0;
+    for (const job of stuck) {
+      const kind = Logic.stallKind(job, now);
+      try {
+        if (kind === 'uploading') {
+          // The request ceiling should have ended this already. Put it back in
+          // the queue rather than leave it counted as in-flight forever.
+          job.status = job.dataUrl || job.blob ? 'compressed' : 'failed';
+          job.error = job.error || 'Upload stalled — retrying';
+          job.updatedAt = now;
+          job.nextRetryAt = now;
+          moved += 1;
+          persist();
+          emit(job.status === 'failed' ? 'failed' : 'compressing', job);
+          continue;
+        }
+        // kind === 'buffered': ask the server whether the bay actually landed.
+        const settled = await reconcileSetJob(job);
+        if (settled) {
+          moved += 1;
+          continue;
+        }
+        /* Still not visible in set status. The buffer ack is the durable
+           handoff - the server worker owns delivery from there - so after a
+           grace period stop reporting it as the lead's problem. */
+        if (job.bufferedId && now - (Number(job.updatedAt) || now) > BUFFERED_GIVE_UP_MS) {
+          job.status = 'done';
+          job.error = null;
+          job.settledFromBuffer = true;
+          job.updatedAt = now;
+          moved += 1;
+          persist();
+          emit('done', job);
+        }
+      } catch (err) {
+        console.warn('[photo-pipeline] stall sweep', job.id, err?.message || err);
+      }
+    }
+    if (moved) schedulePump();
+    return moved;
+  }
+
+  function startStallSweep() {
+    if (stallTimer) return;
+    stallTimer = setInterval(() => { void sweepStalled(); }, STALL_SWEEP_MS);
+  }
+
   function start() {
     if (started) return;
     started = true;
@@ -1639,6 +1716,7 @@
       schedulePump();
       reconcileOpenJobs();
       scheduleAcceptedPoll();
+      startStallSweep();
       try { void global.EodDevicePhotoFlush?.flushCurrentStore?.(); } catch (_) {}
     });
     window.addEventListener('online', () => {
@@ -1683,6 +1761,9 @@
     enqueueCapture,
     compressFileInWorker,
     warmCompressWorker,
+    sweepStalled,
+    listStalled,
+    stalledCounts,
     listJobs,
     jobsForSet,
     statusLabel,

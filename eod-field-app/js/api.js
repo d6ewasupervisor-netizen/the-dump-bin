@@ -3,7 +3,7 @@
   'use strict';
 
   const EOD_API_BASE = 'https://eod-api.the-dump-bin.com';
-  const APP_VERSION = '3.4.70';
+  const APP_VERSION = '3.4.71';
 
   let eodStorageTelemetry = {
     quota: null,
@@ -156,6 +156,11 @@
       timer = setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, ms);
     }
 
+    /* The timer is deliberately NOT cleared on success. fetch settles as soon
+       as headers arrive, so clearing here would leave every `await resp.json()`
+       unprotected - a server that sends headers and then stalls mid-body is
+       the same hang this ceiling exists to stop. Leaving it armed keeps the
+       body read covered; aborting an already-finished request is a no-op. */
     try {
       if (typeof global.dumpBinAuthFetch === 'function') {
         return await global.dumpBinAuthFetch(url, pass);
@@ -163,6 +168,7 @@
       delete pass.noBounceOn401;
       return await fetch(url, pass);
     } catch (err) {
+      if (timer) clearTimeout(timer);
       // Only our own timer produces a timeout. A caller-supplied signal keeps
       // its AbortError so cancellation still reads as cancellation.
       if (timer && err && err.name === 'AbortError') {
@@ -173,8 +179,6 @@
         throw e;
       }
       throw err;
-    } finally {
-      if (timer) clearTimeout(timer);
     }
   }
 

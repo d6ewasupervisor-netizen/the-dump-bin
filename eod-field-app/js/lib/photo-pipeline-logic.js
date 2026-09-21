@@ -68,7 +68,11 @@
    * us to wait, not a terminal upload failure. already_present is success and
    * is handled by sideOk — do not treat it here.
    */
-  const TRANSIENT_UPLOAD_RE = /timeout|network|failed to fetch|\b503\b|\b429\b|\b502\b|waiting for connection|\blease\b|backed up|catching up|session not active|processing this set|still processing|try again shortly|another field-set job|\block(?:ed|ing)?\b/i;
+  // 'timed out' is spelled out because defaultCartUpload throws 'PROD cart
+  // upload timed out', which /timeout/ does not match - that failure was being
+  // classified terminal and the cart photo died after a single attempt.
+  // 'load failed' is Safari's offline TypeError; Chrome says 'failed to fetch'.
+  const TRANSIENT_UPLOAD_RE = /timeout|timed out|network|failed to fetch|load failed|\b50[0234]\b|\b503\b|\b429\b|\b502\b|waiting for connection|\blease\b|backed up|catching up|session not active|processing this set|still processing|try again shortly|another field-set job|\block(?:ed|ing)?\b/i;
 
   function isTransientUploadError(message) {
     return TRANSIENT_UPLOAD_RE.test(String(message || ''));
@@ -324,6 +328,61 @@
   const QUEUE_COPY = 'Please be patient, there is a lot going on behind the scenes.';
   const MERGE_HOLD_MS = 60_000;
 
+  /* Jobs that stop moving.
+
+     'buffered': offloadBufferedBay marks a bay 'accepted' straight from the
+     reconcile ack, with no statusUrl. Nothing else could move that state -
+     pump() takes queued/compressed, pollAcceptedJobs requires a statusUrl, and
+     reconcileOpenJobs took neither - while countJobs counts accepted as an
+     open upload. The app read "syncing" for the rest of the shift on a photo
+     the server already had.
+
+     'uploading': a request that outlived even the write ceiling. */
+  const ACCEPTED_STALL_MS = 45_000;
+  const UPLOAD_STALL_MS = 4 * 60 * 1000;
+
+  function stallKind(job, now = Date.now()) {
+    if (!job || isSuperseded(job) || job.status === 'done') return null;
+    const age = now - (Number(job.updatedAt) || now);
+    if (job.status === 'accepted' && !job.statusUrl && age > ACCEPTED_STALL_MS) return 'buffered';
+    if ((job.status === 'uploading' || job.status === 'reconciling') && age > UPLOAD_STALL_MS) return 'uploading';
+    return null;
+  }
+
+  /* Which compressed job gets the single upload slot next.
+
+     This used to be `ready.find((j) => !j.replace)`, i.e. always the
+     earliest-inserted job. Retry backoff caps at 30s while the request ceiling
+     is 180s, so a failing job was always ready again before the slot freed:
+     the first two captures traded it back and forth and later bays never got a
+     first attempt. Fewest attempts first fixes that. Array.sort is stable and
+     Map iteration is insertion-ordered, so equal-attempt jobs stay oldest
+     first. */
+  function pickNextUpload(ready, uploadingReplaceBatchIds) {
+    const list = ready || [];
+    const busy = uploadingReplaceBatchIds instanceof Set
+      ? uploadingReplaceBatchIds
+      : new Set(uploadingReplaceBatchIds || []);
+    const replacing = list.filter((j) => j.replace && !busy.has(j.replaceBatchId));
+    if (replacing.length) {
+      return replacing.slice().sort((a, b) => Number(a.bay) - Number(b.bay))[0];
+    }
+    return list
+      .filter((j) => !j.replace)
+      .sort((a, b) => (a.attempts || 0) - (b.attempts || 0))[0] || null;
+  }
+
+  function countStalled(jobList, now = Date.now()) {
+    let buffered = 0;
+    let uploading = 0;
+    for (const j of jobList || []) {
+      const kind = stallKind(j, now);
+      if (kind === 'buffered') buffered += 1;
+      else if (kind === 'uploading') uploading += 1;
+    }
+    return { buffered, uploading, total: buffered + uploading };
+  }
+
   /* A number that moves is what tells a human the machine is still alive. The
      flat string read identically whether one photo or forty were open, and
      whether the queue was advancing or completely wedged. */
@@ -350,7 +409,12 @@
     TERMINAL,
     QUEUE_COPY,
     MERGE_HOLD_MS,
+    ACCEPTED_STALL_MS,
+    UPLOAD_STALL_MS,
     queueProgressCopy,
+    stallKind,
+    countStalled,
+    pickNextUpload,
     isSuperseded,
     migrateJobRecord,
     sideOk,
