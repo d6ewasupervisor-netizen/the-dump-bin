@@ -86,7 +86,10 @@
         const blob = await resp.blob();
         if (!blob || !blob.size) return null;
         return { file: blob };
-      } catch (_) {
+      } catch (err) {
+        /* A revoked object URL after a tab reload. The bay is skipped forever
+           while its thumbnail still renders, so the photo looks captured. */
+        global.EodDiag?.note?.('flush.bytes-missing', err);
         return null;
       }
     }

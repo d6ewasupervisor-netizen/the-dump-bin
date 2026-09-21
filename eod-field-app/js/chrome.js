@@ -26,6 +26,7 @@
         if (open > 0) parts.push(`${open} syncing`);
         if (p?.failed > 0) parts.push(`${p.failed} failed`);
         if (p?.lost > 0) parts.push(`${p.lost} lost`);
+        if (p?.unsaved > 0) parts.push(`${p.unsaved} unsaved`);
         const stuck = global.EodPhotoPipeline?.stalledCounts?.();
         if (stuck?.total > 0) parts.push(`${stuck.total} stuck`);
         const blocked = global.EodSetPhotoReconcile?.authBlockedCount?.();
@@ -193,6 +194,7 @@
     const photos = S.state.photos || {};
     const counts = ['before', 'after', 'signoff', 'instawork']
       .map((k) => `${k} ${(photos[k] || []).length}`).join(' · ');
+    const diag = global.EodDiag?.summaryText?.() || '';
     return [
       `Store #${S.state.storeNumber || '—'} · ${S.state.workDate || '—'}`,
       `Lead ${S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '—'}`,
@@ -200,7 +202,8 @@
       sheet ? `Sheet ${sheet.fiscalWeek || ''} ${sheet.summary?.marked || 0}/${sheet.summary?.total || 0}` : 'No hosted sheet',
       `Photos: ${counts}`,
       S.state.signatureDataUrl ? 'Lead signature on file' : 'No lead signature',
-    ].join('\n');
+      diag ? `Retries: ${diag}` : '',
+    ].filter(Boolean).join('\n');
   }
 
   function parkOperatorControls() {

@@ -65,7 +65,21 @@
     return null;
   }
 
-  async function collectDevicePhotos() {
+  /* Cheap presence check. Decoding is what costs - this only asks whether
+     bytes exist somewhere we can reach. */
+  function hasResolvableBytes(p) {
+    if (!p) return false;
+    if (p.file instanceof Blob) return true;
+    if (p.blobId) return true;
+    return looksLocal(photoBytes(p));
+  }
+
+  /* Build the manifest WITHOUT decoding. The inventory call only needs
+     dbkey/slot/bay/checksum; the base64 is needed for the handful of bays the
+     server actually asks for. Decoding every photo up front meant a 30-bay set
+     ran ~12MB of FileReader plus base64 expansion through the main thread on
+     every 25s tick, including bays the server already had. */
+  async function collectDeviceManifest() {
     const S = global.EodSession;
     if (!S?.state?.storeNumber) return [];
     const store = S.state.storeNumber;
@@ -79,8 +93,10 @@
       if (!dbkey || !bay || seen.has(key)) return;
       // Include locals even when uploadStatus looks done — inventory decides gaps.
       if (p?.offloaded && !photoBytes(p) && !p.blobId && !(p.file instanceof Blob)) return;
-      const photoBase64 = await resolvePhotoBase64(p);
-      if (!photoBase64) return;
+      if (!hasResolvableBytes(p)) {
+        global.EodDiag?.note?.('reconcile.bytes-missing', `${dbkey} ${slot} bay ${bay}`);
+        return;
+      }
       seen.add(key);
       const warm = global.EodStoreProdWarm?.peekStatus?.(dbkey) || null;
       out.push({
@@ -88,7 +104,8 @@
         slot,
         bay,
         checksum: p.checksum || null,
-        photoBase64,
+        // Decoded on demand in tick(), only for bays the inventory asks for.
+        source: p,
         fileName: p.fileName || `${slot}-${bay}.jpg`,
         visitId: p.visitId || warm?.prod?.visitId || S.state.selectedShift?.visitId || null,
         resetId: p.resetId || warm?.prod?.resetId || null,
@@ -107,13 +124,14 @@
         for (const p of set.after || []) await push(dbkey, 'after', p);
         for (const p of set.before || []) await push(dbkey, 'before', p);
       }
-    } catch (_) { /* ignore */ }
+    } catch (err) { global.EodDiag?.note?.('reconcile.collect-local', err); }
 
     try {
       const jobs = global.EodPhotoPipeline?.listJobs?.() || [];
       for (const job of jobs) {
         if (job.kind !== 'set') continue;
         if (job.status === 'superseded') continue;
+        if (job.status === 'done') continue;
         if (!job.dataUrl && !job.file && !job.blobId) continue;
         await push(String(job.dbkey || '').replace(/\D/g, '').replace(/^0+/, ''), job.slot || 'after', {
           bay: job.bay,
@@ -129,8 +147,20 @@
           fileName: job.fileName,
         });
       }
-    } catch (_) { /* ignore */ }
+    } catch (err) { global.EodDiag?.note?.('reconcile.collect-jobs', err); }
 
+    return out;
+  }
+
+  /* Back-compat: the eager form, bytes and all. tick() uses the manifest. */
+  async function collectDevicePhotos() {
+    const manifest = await collectDeviceManifest();
+    const out = [];
+    for (const item of manifest) {
+      const photoBase64 = await resolvePhotoBase64(item.source);
+      if (!photoBase64) continue;
+      out.push(Object.assign({}, item, { photoBase64, source: undefined }));
+    }
     return out;
   }
 
@@ -175,7 +205,7 @@
     try {
       try { await global.EodDevicePhotoFlush?.flushCurrentStore?.(); } catch (_) { /* ignore */ }
 
-      const photos = await collectDevicePhotos();
+      const photos = await collectDeviceManifest();
       if (!photos.length) return;
 
       const S = global.EodSession;
@@ -227,6 +257,13 @@
           }
         }
         try {
+          // Decode here, not in the manifest: only the bays the server asked
+          // for ever touch FileReader.
+          if (!item.photoBase64) item.photoBase64 = await resolvePhotoBase64(item.source);
+          if (!item.photoBase64) {
+            global.EodDiag?.note?.('reconcile.decode-failed', `${item.dbkey} ${item.slot} bay ${item.bay}`);
+            continue;
+          }
           const ack = await pushOne(item);
           n += 1;
           // Buffer ack received — offload device bytes for this bay.
@@ -237,7 +274,14 @@
             if (!bufferedThisTick.has(item.dbkey)) bufferedThisTick.set(item.dbkey, new Set());
             bufferedThisTick.get(item.dbkey).add(`${item.slot}:${item.bay}`);
           }
-        } catch (_) { /* next tick retries */ }
+        } catch (err) {
+          // Still retried next tick; counted so a permanently rejected bay
+          // (413, bad dbkey, expired day-confirm) stops being invisible.
+          global.EodDiag?.note?.('reconcile.push', err);
+        } finally {
+          // Do not hold a decoded copy of every pushed bay for the whole tick.
+          item.photoBase64 = null;
+        }
       }
 
       /* Bays held back because the reporting login lapsed used to vanish with
@@ -311,6 +355,7 @@
     start,
     tick,
     collectDevicePhotos,
+    collectDeviceManifest,
     onSetSafe,
     notifySetSafe,
     authBlockedCount: () => authBlocked,

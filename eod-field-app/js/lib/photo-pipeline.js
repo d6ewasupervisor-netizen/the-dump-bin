@@ -9,7 +9,14 @@
   const IDB_VERSION = 1;
   const MAX_COMPRESS = 1;
   const MAX_UPLOAD = 1;
+  /* Two different ceilings, and they are not interchangeable.
+     MAX_TRANSIENT_ATTEMPTS covers retryable failures - server lease held,
+     still processing, timeout - where giving up early would strand a photo the
+     server was about to accept. MAX_SET_ATTEMPTS only applies once an error is
+     NOT transient. The transient branch runs first, so this smaller number was
+     being read as the overall cap when it never was. */
   const MAX_SET_ATTEMPTS = 10;
+  const MAX_TRANSIENT_ATTEMPTS = 40;
   const Logic = global.EodPhotoPipelineLogic || {};
   const OK_SIDES = new Set([
     'ok',
@@ -628,7 +635,11 @@
       }
       persist();
       emit('restored', null);
-    } catch (_) {}
+    } catch (err) {
+      /* This wraps the whole restore body, so one bad row used to drop every
+         job from the previous session out of memory with no trace. */
+      global.EodDiag?.note?.('pipeline.restore', err);
+    }
   }
 
   function hydrateJob(j) {
@@ -1011,7 +1022,7 @@
       // Lock / still-processing / try-again-shortly must stay retryable.
       // The set attempt cap used to run first and mark these terminal failed
       // while the server status was still `retry` (often later `completed`).
-      if (transient && job.attempts < 40 && canRetry) {
+      if (transient && job.attempts < MAX_TRANSIENT_ATTEMPTS && canRetry) {
         job.status = (job.statusUrl && !job.dataUrl && !job.blob) ? 'accepted' : 'compressed';
         job.error = message;
         job.needsAttention = false;
@@ -1279,7 +1290,11 @@
     // Track IDB write failure on the job record so callers (and restore()) can
     // distinguish "bytes in memory, not yet on disk" from "bytes confirmed in IDB".
     // notifyStorageIssue() toast is already shown by idbPut — no additional UI needed.
-    const saved = persistJobRecord(job).catch(() => { job._idbWriteFailed = true; });
+    const saved = persistJobRecord(job).catch((err) => {
+      job._idbWriteFailed = true;
+      job.idbWriteFailed = true;
+      global.EodDiag?.note?.('pipeline.idb-write', err);
+    });
     persist();
     emit('queued', job);
     schedulePump();
@@ -1600,7 +1615,11 @@
             persist();
             emit('accepted', job);
           }
-        } catch (_) {}
+        } catch (err) {
+          /* A statusUrl that 404s forever polls every 4s for the rest of the
+             shift showing 'accepted'. Counted so that is at least findable. */
+          global.EodDiag?.note?.('pipeline.accepted-poll', err);
+        }
       }
     } finally {
       acceptedPollBusy = false;

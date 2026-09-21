@@ -129,6 +129,7 @@
     let upload = 0;
     let failed = 0;
     let lost = 0;
+    let unsaved = 0;
     let done = 0;
     let superseded = 0;
     let protectedOnDevice = 0; // still holding local bytes — not yet safe to have deleted
@@ -150,12 +151,15 @@
       // count is a snapshot, safe to surface either way since it just means
       // "we still hold a copy", never "we lost one".
       if (hasLocalBytes(j)) protectedOnDevice += 1;
+      // Bytes live only in RAM: a reload or an OS tab-kill loses this photo.
+      if ((j.idbWriteFailed || j._idbWriteFailed) && hasLocalBytes(j)) unsaved += 1;
     }
     return {
       compress,
       upload,
       failed,
       lost,
+      unsaved,
       done,
       superseded,
       protectedOnDevice,
