@@ -124,9 +124,13 @@
         resetId: p.resetId || warm?.prod?.resetId || null,
         taskId: p.taskId || warm?.si?.taskId || null,
         rowId: p.rowId || null,
-        expectedBayCount: Number(warm?.expectedBayCount)
-          || Number(warm?.si?.sectionCount)
-          || null,
+        expectedBayCount: (global.EodBayCountLogic && global.EodBayCountLogic.knownBayCount({
+          expectedBayCount: warm?.expectedBayCount,
+          planogramBayCount: warm?.planogramBayCount,
+          planogram: global.EodStoreProdWarm?.peekPlanogram?.(dbkey),
+          si: warm?.si,
+          bays: warm?.bays,
+        })) || null,
       });
     };
 

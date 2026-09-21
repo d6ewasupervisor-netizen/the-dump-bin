@@ -15,12 +15,17 @@
      expectedBayCount - closed eight-bay sets on the first after-photo. */
   function knownBayCount(status) {
     const s = status || {};
-    const explicit = Number(s.expectedBayCount);
-    if (explicit > 0) return explicit;
-    if (Array.isArray(s.bays) && s.bays.length) return s.bays.length;
-    const sections = Number(s.si && s.si.sectionCount);
-    if (sections > 0) return sections;
-    return null;
+    const explicit = Number(s.expectedBayCount) || 0;
+    const fromBays = Array.isArray(s.bays) && s.bays.length ? s.bays.length : 0;
+    const sections = Number(s.si && s.si.sectionCount) || 0;
+    const pog = Number(s.planogramBayCount)
+      || (s.planogram && Array.isArray(s.planogram.bays) ? s.planogram.bays.length : 0)
+      || 0;
+    // A warm/default "1" is the old lie. Only keep it when nothing else is known.
+    const trusted = explicit > 1 ? explicit : 0;
+    const best = Math.max(trusted, fromBays, sections, pog);
+    if (best > 0) return best;
+    return explicit > 0 ? explicit : null;
   }
 
   /* Only for drawing a grid or a HUD label. Never for a decision. */

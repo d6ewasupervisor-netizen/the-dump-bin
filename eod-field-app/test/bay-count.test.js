@@ -23,6 +23,12 @@ test('SI sections are the source of truth for how many photos a set takes', () =
   assert.equal(bay.knownBayCount({ bays: [1, 2, 3, 4] }), 4);
   // An explicit count wins over a partial bays array.
   assert.equal(bay.knownBayCount({ expectedBayCount: 8, bays: [1, 2] }), 8);
+  assert.equal(bay.knownBayCount({ planogramBayCount: 6 }), 6);
+  assert.equal(bay.knownBayCount({ planogram: { bays: [{}, {}, {}] } }), 3);
+  // A stale warm "1" must not beat the planogram / SI count.
+  assert.equal(bay.knownBayCount({ expectedBayCount: 1, planogramBayCount: 6 }), 6);
+  assert.equal(bay.knownBayCount({ expectedBayCount: 1, si: { sectionCount: 8 } }), 8);
+  assert.equal(bay.knownBayCount({ expectedBayCount: 1 }), 1);
 });
 
 test('footage is never mistaken for a bay count', () => {

@@ -1480,7 +1480,13 @@
       const siHave = Number(live.siPhotoCount || live.photoCount) || 0;
       const siNeed = Number(live.sectionCount) || 0;
       const seeded = {
-        expectedBayCount: Number(live.sectionCount || live.bayCount || row.bayCount || 0) || null,
+        expectedBayCount: BayLogic().knownBayCount({
+          expectedBayCount: live.expectedBayCount,
+          planogramBayCount: live.planogramBayCount || row.bayCount,
+          planogram: global.EodStoreProdWarm?.peekPlanogram?.(row.dbkey),
+          si: { sectionCount: live.sectionCount },
+          bays: live.bays,
+        }) || null,
         prod: {
           status: prodKind === 'complete' ? 'complete' : prodKind === 'in_progress' ? 'in progress' : 'not started',
           beforeCount,
