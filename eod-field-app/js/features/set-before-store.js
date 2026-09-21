@@ -1,8 +1,20 @@
-/* Week-scoped set before photos — survive multi-day backlog visits. */
+/* Set carry-forward store — AFTERS ONLY now.
+   Before photos used to be cached here (full base64, in localStorage) so a
+   backlog set's befores would survive to a later-shift revisit. PROD now
+   keeps that job: once a before photo lands, it shows up as
+   row.live.prodBeforeCount / status.prod.beforeCount, and the app already
+   treats those bays as covered (category-card-status.js, takenBays()).
+   Caching a second full-resolution copy here was pure duplication, and
+   because localStorage quota is tiny (~5-10MB) next to IndexedDB, a handful
+   of unsynced before photos was enough to fill a device and trip the
+   "storage full" state — which then stuck until the day reset. getBefores/
+   setBefores/appendBefore are kept as no-ops so existing callers don't need
+   to change; they just always see an empty before set now, and PROD's
+   status is the only source of truth for befores from here on. */
 (function (global) {
   'use strict';
 
-  const PREFIX = 'eodSetBefores:';
+  const PREFIX = 'eodSetBefores:'; // legacy only — purged on boot, never written again
   const AFTER_PREFIX = 'eodSetAfters:';
 
   function normStore(s) {
@@ -13,7 +25,7 @@
     const s = normStore(store);
     const w = String(fiscalWeek || '').trim().toUpperCase();
     if (!s || !w) return null;
-    return `${prefix || PREFIX}${s}:${w}`;
+    return `${prefix || AFTER_PREFIX}${s}:${w}`;
   }
 
   function loadAll(store, fiscalWeek, prefix) {
@@ -27,9 +39,9 @@
     }
   }
 
-  /* Drop buckets from earlier fiscal weeks only. Other stores in the CURRENT
-     week are left alone — a lead can work two stores in one week and each
-     needs its own carry-forward. */
+  /* Drop after-buckets from earlier fiscal weeks only. Other stores in the
+     CURRENT week are left alone — a lead can work two stores in one week
+     and each needs its own carry-forward. */
   function pruneStaleWeeks(keepWeek) {
     const keep = String(keepWeek || '').trim().toUpperCase();
     if (!keep) return 0;
@@ -37,7 +49,7 @@
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k) continue;
-      if (!k.startsWith(PREFIX) && !k.startsWith(AFTER_PREFIX)) continue;
+      if (!k.startsWith(AFTER_PREFIX)) continue;
       const week = k.slice(k.lastIndexOf(':') + 1);
       if (week && week !== keep) doomed.push(k);
     }
@@ -47,13 +59,8 @@
     return doomed.length;
   }
 
-  /* This write is what makes the multi-day carry-forward work: befores shot
-     Monday have to still be here when the crew comes back Wednesday for the
-     backlog revisit. A silent quota failure loses them, and nobody finds out
-     until the revisit. Prune dead weeks, retry, and if it still fails, throw
-     so the caller can say so. */
-  function saveAll(store, fiscalWeek, map, prefix) {
-    const key = storageKey(store, fiscalWeek, prefix);
+  function saveAfters(store, fiscalWeek, map) {
+    const key = storageKey(store, fiscalWeek, AFTER_PREFIX);
     if (!key) return;
     const json = JSON.stringify(map || {});
     try {
@@ -75,18 +82,20 @@
     return String(dbkey || '').replace(/\D/g, '').replace(/^0+/, '');
   }
 
-  function getBefores(store, fiscalWeek, dbkey) {
-    const all = loadAll(store, fiscalWeek);
-    const k = dbkeyKey(dbkey);
-    return Array.isArray(all[k]) ? all[k].slice() : [];
+  /* Retired — PROD is now the sole source for carried-forward befores.
+     Kept as no-ops so every existing caller (set-survey.js, signoff-home.js,
+     device-photo-flush.js, set-photo-reconcile.js) keeps working unchanged;
+     they just always see an empty before set. */
+  function getBefores() {
+    return [];
   }
 
-  function setBefores(store, fiscalWeek, dbkey, photos) {
-    const all = loadAll(store, fiscalWeek);
-    const k = dbkeyKey(dbkey);
-    if (!k) return;
-    all[k] = Array.isArray(photos) ? photos : [];
-    saveAll(store, fiscalWeek, all);
+  function setBefores() {
+    /* no-op — see file header */
+  }
+
+  function appendBefore() {
+    return [];
   }
 
   function getAfters(store, fiscalWeek, dbkey) {
@@ -100,30 +109,19 @@
     const k = dbkeyKey(dbkey);
     if (!k) return;
     all[k] = Array.isArray(photos) ? photos : [];
-    saveAll(store, fiscalWeek, all, AFTER_PREFIX);
-  }
-
-  function appendBefore(store, fiscalWeek, dbkey, entry) {
-    const list = getBefores(store, fiscalWeek, dbkey);
-    list.push(entry);
-    setBefores(store, fiscalWeek, dbkey, list);
-    return list;
+    saveAfters(store, fiscalWeek, all);
   }
 
   function clearStoreWeek(store, fiscalWeek) {
-    const beforeKey = storageKey(store, fiscalWeek);
     const afterKey = storageKey(store, fiscalWeek, AFTER_PREFIX);
-    if (beforeKey) localStorage.removeItem(beforeKey);
     if (afterKey) localStorage.removeItem(afterKey);
   }
 
   function listSets(store, fiscalWeek) {
-    const befores = loadAll(store, fiscalWeek);
     const afters = loadAll(store, fiscalWeek, AFTER_PREFIX);
-    const keys = new Set([...Object.keys(befores), ...Object.keys(afters)]);
-    return [...keys].map((dbkey) => ({
+    return Object.keys(afters).map((dbkey) => ({
       dbkey,
-      before: Array.isArray(befores[dbkey]) ? befores[dbkey] : [],
+      before: [],
       after: Array.isArray(afters[dbkey]) ? afters[dbkey] : [],
     }));
   }
@@ -131,14 +129,34 @@
   function clearAllForStore(store) {
     const s = normStore(store);
     if (!s) return;
-    const prefixes = [`${PREFIX}${s}:`, `${AFTER_PREFIX}${s}:`];
+    const prefix = `${AFTER_PREFIX}${s}:`;
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && prefixes.some((p) => k.startsWith(p))) keys.push(k);
+      if (k && k.startsWith(prefix)) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
   }
+
+  /* One-time sweep: earlier builds wrote full-resolution base64 before-
+     photos into eodSetBefores:* keys. That's the actual cause of "storage
+     full" — this clears it out immediately on any device that already hit
+     quota, rather than waiting for a day-reset that never fully cleared it
+     anyway (see the retired comment this file used to carry). */
+  function purgeLegacyBefores() {
+    try {
+      const doomed = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(PREFIX)) doomed.push(k);
+      }
+      for (const k of doomed) {
+        try { localStorage.removeItem(k); } catch (_) { /* keep purging */ }
+      }
+      if (doomed.length) global.EodDiag?.note?.('set-store.legacy-purge', `${doomed.length} key(s)`);
+    } catch (_) { /* best-effort cleanup only */ }
+  }
+  purgeLegacyBefores();
 
   global.EodSetBeforeStore = {
     loadAll,

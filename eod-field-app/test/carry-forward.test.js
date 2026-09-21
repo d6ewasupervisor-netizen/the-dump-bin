@@ -8,16 +8,27 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 
-test('before photos are keyed by week, not by day, so they survive to the revisit', () => {
+test('before photos are no longer cached on-device — PROD is the sole source across visits', () => {
   const store = read('js/features/set-before-store.js');
 
-  // Monday's befores must still be on the device Wednesday for a backlog
-  // revisit, so the bucket key must not contain a date.
-  assert.match(store, /return `\$\{prefix \|\| PREFIX\}\$\{s\}:\$\{w\}`;/);
-  const key = store.slice(store.indexOf('function storageKey'), store.indexOf('function loadAll'));
-  assert.doesNotMatch(key, /workDate|date/i, 'the bucket key must be store + fiscal week only');
+  // getBefores/setBefores/appendBefore are retired no-ops: nothing about a
+  // before photo may be written to localStorage any more (that's what used
+  // to fill devices up and trip "storage full").
+  assert.match(store, /function getBefores\(\) \{\s*return \[\];\s*\}/);
+  assert.match(store, /function setBefores\(\) \{/);
+  const setBefores = store.slice(store.indexOf('function setBefores'), store.indexOf('function appendBefore'));
+  assert.doesNotMatch(setBefores, /localStorage\.setItem/, 'setBefores must never write to localStorage');
 
-  // Nothing may expire the bucket on a timer.
+  // Any base64 a device already accumulated under the old before-key gets
+  // swept on boot, so a device that already hit quota gets its space back.
+  assert.match(store, /function purgeLegacyBefores/);
+  assert.match(store, /purgeLegacyBefores\(\);/);
+
+  // Afters keep the old week-scoped (not day-scoped) contract — those still
+  // need to survive a reload within the same visit.
+  assert.match(store, /return `\$\{prefix \|\| AFTER_PREFIX\}\$\{s\}:\$\{w\}`;/);
+  const key = store.slice(store.indexOf('function storageKey'), store.indexOf('function loadAll'));
+  assert.doesNotMatch(key, /workDate|date/i, 'the after bucket key must be store + fiscal week only');
   assert.doesNotMatch(store, /MAX_AGE|setTimeout|setInterval|maxAgeMs/);
 });
 
@@ -57,18 +68,21 @@ test('the reconcile lane carries device-store befores forward without a date fil
   assert.match(manifest, /if \(!dbkey \|\| !bay \|\| seen\.has\(key\)\) return;/);
 });
 
-test('a full device prunes dead weeks and retries before losing the carry-forward', () => {
+test('a full device prunes dead after-weeks and retries before losing the after carry-forward', () => {
   const store = read('js/features/set-before-store.js');
 
   assert.match(store, /function pruneStaleWeeks/);
   // Only earlier weeks go: a lead can work two stores inside one week.
   assert.match(store, /if \(week && week !== keep\) doomed\.push\(k\);/);
+  // Befores are retired, so pruning only ever looks at after-buckets now.
+  const prune = store.slice(store.indexOf('function pruneStaleWeeks'), store.indexOf('function saveAfters'));
+  assert.match(prune, /k\.startsWith\(AFTER_PREFIX\)/);
 
-  const saveAll = store.slice(store.indexOf('function saveAll'), store.indexOf('function dbkeyKey'));
-  assert.match(saveAll, /pruneStaleWeeks\(fiscalWeek\)/);
-  assert.match(saveAll, /EodDiag\?\.note\?\.\('set-store\.quota'/);
+  const saveAfters = store.slice(store.indexOf('function saveAfters'), store.indexOf('function dbkeyKey'));
+  assert.match(saveAfters, /pruneStaleWeeks\(fiscalWeek\)/);
+  assert.match(saveAfters, /EodDiag\?\.note\?\.\('set-store\.quota'/);
   // It must rethrow, or the caller cannot tell the crew.
-  assert.match(saveAll, /throw err;/);
+  assert.match(saveAfters, /throw err;/);
 });
 
 test('a failed carry-forward write is reported instead of swallowed', () => {

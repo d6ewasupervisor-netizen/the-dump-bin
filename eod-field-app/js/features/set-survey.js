@@ -489,6 +489,7 @@
         <h1>${esc(catName || 'Set capture')}</h1>
         <p class="muted">DBKEY ${esc(dbkey)} | Store ${esc(S.state.storeNumber)}</p>
         <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
+        <div id="setBacklogBeforeMsg" class="muted pill ok" hidden></div>
         <p class="set-survey-view-hint">Select one of the options below to view:</p>
         <div class="set-media-btns" id="setMediaBtns">
           <button type="button" class="btn btn-primary" data-open-media="planogram" disabled aria-busy="true">Planogram</button>
@@ -985,6 +986,28 @@
     }
     global.EodDevicePhotoFlush?.setOpenPersister?.(persistOpen);
 
+    /* Backlog sets: PROD now carries the before photos from the earlier
+       visit. When this set is marked backlog AND PROD already has a before
+       on file, tell the lead so they don't retake it — this is the only
+       case that gets the message; a non-backlog set with a PROD before
+       (normal same-visit progress) stays quiet. */
+    function paintBacklogBeforeMsg(beforeRemote) {
+      const el = document.getElementById('setBacklogBeforeMsg');
+      if (!el) return;
+      const rows = S.state.sheet?.rows || [];
+      const row = rows.find((r) => String(r.id) === String(rowId) || String(r.dbkey) === String(dbkey));
+      const isBacklog = row
+        ? !!(global.EodCategoryCardStatus?.markActive?.(row, 'backlog') ?? row.marks?.backlog)
+        : false;
+      if (isBacklog && Number(beforeRemote) > 0) {
+        el.hidden = false;
+        el.textContent = 'Before photos already on file in PROD from the earlier visit — pulled automatically, no need to retake.';
+      } else {
+        el.hidden = true;
+        el.textContent = '';
+      }
+    }
+
     function paintStatus(status) {
       if (status) local.status = status;
       const chips = document.getElementById('setStatusChips');
@@ -992,6 +1015,7 @@
       const Status = global.EodCategoryCardStatus;
       const beforeRemote = Number(local.status.prod?.beforeCount) || 0;
       const after = Number(local.status.prod?.afterCount) || 0;
+      paintBacklogBeforeMsg(beforeRemote);
       const extraBefore = (local.before || []).filter((p) => {
         const st = String(p.uploadStatus || '');
         return st !== 'failed' && st !== 'replaced';
