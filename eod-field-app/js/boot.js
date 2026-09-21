@@ -151,6 +151,20 @@
       /* First paint. Everything past this point runs against a live screen,
          so nothing below may block on the network. */
       window.EodRouter.init();
+      /* Legacy before-photo keys are huge. Delete them after the visit
+         screen is up, one key per turn, so the nav is not the only thing
+         that paints. */
+      try {
+        const keys = window.EodSetBeforeStore?.legacyBeforeKeys?.() || [];
+        const step = () => {
+          const k = keys.shift();
+          if (!k) return;
+          try { localStorage.removeItem(k); } catch (_) {}
+          if (keys.length) setTimeout(step, 0);
+          else if (window.EodDiag?.note) window.EodDiag.note('set-store.legacy-purge', 'deferred');
+        };
+        if (keys.length) setTimeout(step, 0);
+      } catch (_) {}
       try {
         const choosingPriorDay = window.EodVisit?.presentPriorDayChoice?.();
         if (!choosingPriorDay) window.EodVisit?.enforceDayConfirmGate?.();
@@ -158,7 +172,7 @@
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
           const hadController = !!navigator.serviceWorker.controller;
-          navigator.serviceWorker.register('sw.js?v=3.4.81').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.4.82').catch(() => {});
           if (hadController && !navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;

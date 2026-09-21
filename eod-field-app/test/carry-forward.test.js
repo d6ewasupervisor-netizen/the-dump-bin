@@ -20,9 +20,15 @@ test('before photos are no longer cached on-device — PROD is the sole source a
   assert.doesNotMatch(setBefores, /localStorage\.setItem/, 'setBefores must never write to localStorage');
 
   // Any base64 a device already accumulated under the old before-key gets
-  // swept on boot, so a device that already hit quota gets its space back.
+  // swept after first paint. A synchronous sweep during script load froze
+  // the shell on the nav (Wolf's iPad) before the visit screen existed.
+  assert.match(store, /function legacyBeforeKeys/);
   assert.match(store, /function purgeLegacyBefores/);
-  assert.match(store, /purgeLegacyBefores\(\);/);
+  assert.doesNotMatch(store, /purgeLegacyBefores\(\);/);
+  const boot = read('js/boot.js');
+  const afterPaint = boot.slice(boot.indexOf('EodRouter.init()'));
+  assert.match(afterPaint, /legacyBeforeKeys/);
+  assert.match(afterPaint, /setTimeout\(step, 0\)/);
 
   // Afters keep the old week-scoped (not day-scoped) contract — those still
   // need to survive a reload within the same visit.

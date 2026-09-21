@@ -143,20 +143,28 @@
      full" — this clears it out immediately on any device that already hit
      quota, rather than waiting for a day-reset that never fully cleared it
      anyway (see the retired comment this file used to carry). */
-  function purgeLegacyBefores() {
+  function legacyBeforeKeys() {
+    const doomed = [];
     try {
-      const doomed = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k && k.startsWith(PREFIX)) doomed.push(k);
       }
-      for (const k of doomed) {
-        try { localStorage.removeItem(k); } catch (_) { /* keep purging */ }
-      }
-      if (doomed.length) global.EodDiag?.note?.('set-store.legacy-purge', `${doomed.length} key(s)`);
-    } catch (_) { /* best-effort cleanup only */ }
+    } catch (_) { /* listing keys must not block boot */ }
+    return doomed;
   }
-  purgeLegacyBefores();
+
+  /* Sync sweep. Do not call this while the shell is still painting — a device
+     full of base64 before-keys (Wolf's iPad) freezes on the nav and never
+     reaches the visit screen. Boot schedules one delete per turn instead. */
+  function purgeLegacyBefores() {
+    const doomed = legacyBeforeKeys();
+    for (const k of doomed) {
+      try { localStorage.removeItem(k); } catch (_) { /* keep purging */ }
+    }
+    if (doomed.length) global.EodDiag?.note?.('set-store.legacy-purge', `${doomed.length} key(s)`);
+    return doomed.length;
+  }
 
   global.EodSetBeforeStore = {
     loadAll,
@@ -170,5 +178,7 @@
     clearAllForStore,
     pruneStaleWeeks,
     storageKey,
+    legacyBeforeKeys,
+    purgeLegacyBefores,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

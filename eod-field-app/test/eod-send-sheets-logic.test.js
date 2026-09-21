@@ -14,7 +14,14 @@ const {
   pickVisibleLeadShift,
   autoSelectLeadShift,
   includedIseVisitIds,
+  leadNamesMatch,
 } = require('../js/lib/eod-send-sheets-logic');
+
+test('Wolf matches Aiyana Natarisalazar as the same lead', () => {
+  assert.equal(leadNamesMatch('Wolf', 'Aiyana Natarisalazar'), true);
+  assert.equal(leadNamesMatch('Aiyana Natarisalazar Maiingowan', 'Wolf'), true);
+  assert.equal(leadNamesMatch('Wolf', 'James Duchene Ryan'), false);
+});
 
 test('main Kompass ISE is project 1, not Cut In / Blitz / DIV', () => {
   assert.equal(isMainKompassIse({ projectId: 1, projectName: 'Kompass ISE' }), true);

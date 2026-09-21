@@ -102,6 +102,21 @@
       || /kompass\s*ise/.test(blob);
   }
 
+  /* PROD visit_lead is often the preferred name. Login /api/me is often the
+     legal name. Wolf is Aiyana Natarisalazar (Maiingowan). */
+  const LEAD_NICKNAMES = [
+    ['wolf', 'aiyana', 'natarisalazar', 'maiingowan'],
+  ];
+
+  function leadTokens(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
   function leadNamesMatch(a, b) {
     const na = String(a || '').trim().toLowerCase().replace(/\s+/g, ' ');
     const nb = String(b || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -110,7 +125,14 @@
     const aParts = na.split(' ');
     const bParts = nb.split(' ');
     if (aParts[0] === bParts[0] && aParts[aParts.length - 1] === bParts[bParts.length - 1]) return true;
-    return na.includes(nb) || nb.includes(na);
+    if (na.includes(nb) || nb.includes(na)) return true;
+    const ta = leadTokens(na);
+    const tb = leadTokens(nb);
+    return LEAD_NICKNAMES.some((group) => {
+      const aHit = group.some((token) => ta.includes(token));
+      const bHit = group.some((token) => tb.includes(token));
+      return aHit && bHit;
+    });
   }
 
   function shiftLeadName(shift) {
