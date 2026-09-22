@@ -1062,9 +1062,21 @@
     }
   }
 
+  async function tagOutgoingPhoto(job) {
+    const tag = global.EodProviderPhotoTag;
+    if (!tag || typeof tag.tagDataUrl !== 'function') return job.dataUrl;
+    if (job.blob && job.checksum) return job.dataUrl;
+    try {
+      const next = await tag.tagDataUrl(job.dataUrl);
+      if (next) job.dataUrl = next;
+    } catch (_) { /* server stamps on the PROD/SI load if this misses */ }
+    return job.dataUrl;
+  }
+
   async function defaultSetUpload(job) {
     const S = global.EodSession;
     const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+    const photoBase64 = await tagOutgoingPhoto(job);
     const body = JSON.stringify({
       storeNumber: job.storeNumber || S.state.storeNumber,
       workDate: job.workDate || S.state.workDate,
@@ -1073,7 +1085,7 @@
       expectedBayCount: job.expectedBayCount || null,
       slot: job.slot,
       bay: job.bay,
-      photoBase64: job.dataUrl,
+      photoBase64: photoBase64,
       visitId: job.visitId || S.state.selectedShift?.visitId || null,
       visitIds: (S.state.shifts || []).map((s) => s.visitId).filter(Boolean),
       resetId: job.resetId || null,
@@ -1138,6 +1150,7 @@
     const slot = job.slot || 'before';
     const filename = `fm${padded}_kompass_cart_${slot}_photo_${dateCompact}.jpg`;
     const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+    const photoBase64 = await tagOutgoingPhoto(job);
     const resp = await global.authFetch(`${global.EOD_API_BASE}/sas-upload`, {
       method: 'POST',
       headers,
@@ -1147,7 +1160,7 @@
         date,
         leadName,
         visitId,
-        photoBase64: job.dataUrl,
+        photoBase64: photoBase64,
         slot,
         targetReset: 'MAINTENANCE',
         filename,
