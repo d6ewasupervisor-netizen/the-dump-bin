@@ -258,8 +258,15 @@ test('NISI is not done; Complete / NIS / Out of Scope / photos clear a set', () 
   assert.equal(rowSendReady(oos), true);
   assert.equal(rowSendReady(nisiBacklog), true);
   assert.equal(matchesSheetFilters(oos, { status: 'not_done' }), false);
-  assert.equal(matchesSheetFilters(oos, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(oos, { status: 'in_progress' }), false);
   assert.equal(matchesSheetFilters(oos, { status: 'backlog' }), false);
+  assert.equal(matchesSheetFilters(oos, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(oos, {}), true);
+});
+
+test('Out of Scope card on Done offers Undo Out of Scope', () => {
+  const signoff = fs.readFileSync(path.join(__dirname, '..', 'js', 'features', 'signoff-home.js'), 'utf8');
+  assert.match(signoff, /data-mark="out_of_scope">Undo Out of Scope</);
 });
 
 test('walk sort: aisle order, backlog after open, complete at bottom, next skips done', () => {

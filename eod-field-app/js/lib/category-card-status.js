@@ -273,7 +273,8 @@
 
   function matchesSheetFilters(row, filters) {
     const f = filters || {};
-    if (markActive(row, 'out_of_scope')) return false;
+    // Out of Scope lives on Done (and the all-rows view) so it can be undone.
+    if (markActive(row, 'out_of_scope') && f.status && f.status !== 'done') return false;
     if (f.status === 'backlog') {
       if (!markActive(row, 'backlog') || sheetRowDone(row)) return false;
     }

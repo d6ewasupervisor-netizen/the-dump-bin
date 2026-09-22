@@ -93,6 +93,7 @@
     if (markActive(row, 'not_in_si') && !row?.live?.siPresent) c.push('marked-nisi');
     if (markActive(row, 'backlog') && !rowLooksComplete(row)) c.push('marked-backlog');
     if (markActive(row, 'not_executable')) c.push('marked-ne');
+    if (markActive(row, 'out_of_scope')) c.push('marked-oos');
     if (row?.hasError || String(row?.errorMessage || row?.error_message || '').trim()) {
       c.push('manifest-error');
     }
@@ -854,6 +855,19 @@
       const captureSlot = Status?.neededCaptureSlot
         ? Status.neededCaptureSlot(row, localBefores)
         : 'after';
+      if (markActive(row, 'out_of_scope')) {
+        return `<div class="ds-row ds-row-compact ${rowClass(row)}" data-row-id="${row.id}">
+        <div class="ds-row-copy">
+          <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
+          <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
+          <div class="ds-row-live"><span class="pill">Out of Scope</span></div>
+        </div>
+        ${catNum ? `<div class="ds-row-catnum" title="Category">${esc(catNum)}</div>` : ''}
+        <div class="ds-actions">
+          <button type="button" class="btn btn-secondary on" data-row="${row.id}" data-mark="out_of_scope">Undo Out of Scope</button>
+        </div>
+      </div>`;
+      }
       return `<div class="ds-row ds-row-compact ${rowClass(row)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
         <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
         <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
