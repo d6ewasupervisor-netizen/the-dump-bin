@@ -52,11 +52,13 @@ test('the two lanes no longer both own the same bay', () => {
     assert.match(rec, new RegExp(`'${status}'`), `${status} must be pipeline-owned`);
   }
   assert.match(rec, /if \(PIPELINE_OWNED\.has\(job\.status\)\) continue;/);
-  // The safety-net statuses must still flow through the reconcile lane.
+  // Failed stays on the reconcile lane. Queued and compressed belong to the
+  // pipeline so the same bay is not posted a second time.
   const owned = /const PIPELINE_OWNED = new Set\(\[([^\]]+)\]\)/.exec(rec)[1];
-  for (const keep of ['compressed', 'failed', 'queued']) {
-    assert.ok(!owned.includes(keep), `${keep} must stay available to the reconcile lane`);
-  }
+  assert.ok(owned.includes('queued'));
+  assert.ok(owned.includes('compressed'));
+  assert.ok(!owned.includes('failed'));
+  assert.match(rec, /function pipelineOwnsBay/);
 });
 
 test('a failed inventory no longer pushes every bay on the device', () => {

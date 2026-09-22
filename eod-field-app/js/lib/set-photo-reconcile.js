@@ -11,7 +11,7 @@
   const PUSH_BUDGET_MS = 20_000;
   const PUSH_HARD_CAP = 60;
   /* Bays the pipeline lane is actively handling or has finished. */
-  const PIPELINE_OWNED = new Set(['superseded', 'done', 'accepted', 'uploading', 'reconciling']);
+  const PIPELINE_OWNED = new Set(['superseded', 'done', 'accepted', 'uploading', 'reconciling', 'queued', 'compressed']);
 
   function normStoreNum(v) {
     return String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
@@ -27,6 +27,20 @@
   let busy = false;
   let started = false;
   let authBlocked = 0;
+
+  function pipelineOwnsBay(dbkey, slot, bay) {
+    const jobs = global.EodPhotoPipeline?.listJobs?.() || [];
+    const key = String(dbkey || '');
+    const n = Number(bay);
+    return jobs.some((job) => {
+      if (job.kind !== 'set') return false;
+      const jkey = String(job.dbkey || '').replace(/\D/g, '').replace(/^0+/, '');
+      if (!key || jkey !== key) return false;
+      if (String(job.slot || 'after') !== String(slot || 'after')) return false;
+      if (Number(job.bay) !== n) return false;
+      return job.status !== 'failed';
+    });
+  }
 
   function visitReady() {
     return !!(global.EodSession?.isVisitReady?.() && global.EodSession.state?.storeNumber);
@@ -138,8 +152,14 @@
       const sets = global.EodSetBeforeStore?.listSets?.(store, week) || [];
       for (const set of sets) {
         const dbkey = String(set.dbkey || '').replace(/\D/g, '').replace(/^0+/, '');
-        for (const p of set.after || []) await push(dbkey, 'after', p);
-        for (const p of set.before || []) await push(dbkey, 'before', p);
+        for (const p of set.after || []) {
+          if (pipelineOwnsBay(dbkey, 'after', p?.bay)) continue;
+          await push(dbkey, 'after', p);
+        }
+        for (const p of set.before || []) {
+          if (pipelineOwnsBay(dbkey, 'before', p?.bay)) continue;
+          await push(dbkey, 'before', p);
+        }
       }
     } catch (err) { global.EodDiag?.note?.('reconcile.collect-local', err); }
 

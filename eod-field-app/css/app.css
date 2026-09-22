@@ -2690,7 +2690,7 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
 .vf-live-camera {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 100000;
   background: #000;
   display: flex;
   flex-direction: column;
@@ -2772,6 +2772,23 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
   min-width: 140px;
 }
 .vf-zoom input { flex: 1; }
+.vf-capture-float {
+  position: fixed;
+  z-index: 2;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  border: 3px solid #fff;
+  background: var(--accent, #0f766e);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  touch-action: none;
+  cursor: grab;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.vf-capture-float:active { cursor: grabbing; }
+.vf-capture-float:disabled { opacity: 0.55; }
 
 /* Visit onboarding steps */
 .visit-steps {

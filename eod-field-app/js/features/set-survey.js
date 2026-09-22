@@ -289,12 +289,12 @@
         <canvas hidden></canvas>
         <div class="vf-live-camera-bar">
           <label class="vf-zoom">Zoom <input type="range" min="${LIVE_ZOOM_MIN}" max="${LIVE_ZOOM_MAX}" step="${LIVE_ZOOM_STEP}" value="1"></label>
-          <button type="button" class="btn btn-primary" data-act="shutter">Capture</button>
           <label class="btn btn-secondary set-file-btn">${esc(loadLabel || 'Load photos')}
             <input type="file" accept="image/*" multiple data-act="load" hidden>
           </label>
           <button type="button" class="btn btn-secondary" data-act="close">Exit</button>
         </div>
+        <button type="button" class="vf-capture-float" data-act="shutter">Capture</button>
       </div>`;
     document.body.appendChild(overlay);
     const video = overlay.querySelector('video');
@@ -303,6 +303,71 @@
     const hud = overlay.querySelector('[data-hud]');
     const toast = overlay.querySelector('[data-toast]');
     const shutterBtn = overlay.querySelector('[data-act="shutter"]');
+    const CAPTURE_POS_KEY = 'eod.captureButtonPos';
+    function clampCapture(x, y) {
+      const w = shutterBtn.offsetWidth || 84;
+      const h = shutterBtn.offsetHeight || 84;
+      const maxX = Math.max(8, window.innerWidth - w - 8);
+      const maxY = Math.max(8, window.innerHeight - h - 8);
+      return {
+        x: Math.min(maxX, Math.max(8, x)),
+        y: Math.min(maxY, Math.max(8, y)),
+      };
+    }
+    function placeCapture(x, y) {
+      const pos = clampCapture(x, y);
+      shutterBtn.style.left = `${pos.x}px`;
+      shutterBtn.style.top = `${pos.y}px`;
+      shutterBtn.style.right = 'auto';
+      shutterBtn.style.bottom = 'auto';
+      return pos;
+    }
+    function defaultCapturePos() {
+      const w = 84;
+      const h = 84;
+      return clampCapture(window.innerWidth - w - 24, window.innerHeight - h - 160);
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(CAPTURE_POS_KEY) || 'null');
+      if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) placeCapture(saved.x, saved.y);
+      else {
+        const pos = defaultCapturePos();
+        placeCapture(pos.x, pos.y);
+      }
+    } catch (_) {
+      const pos = defaultCapturePos();
+      placeCapture(pos.x, pos.y);
+    }
+    let captureDrag = null;
+    let captureMoved = false;
+    shutterBtn.addEventListener('pointerdown', (ev) => {
+      if (ev.button != null && ev.button !== 0) return;
+      const rect = shutterBtn.getBoundingClientRect();
+      captureDrag = {
+        id: ev.pointerId,
+        dx: ev.clientX - rect.left,
+        dy: ev.clientY - rect.top,
+        x: ev.clientX,
+        y: ev.clientY,
+      };
+      captureMoved = false;
+      try { shutterBtn.setPointerCapture(ev.pointerId); } catch (_) {}
+    });
+    shutterBtn.addEventListener('pointermove', (ev) => {
+      if (!captureDrag || ev.pointerId !== captureDrag.id) return;
+      if (Math.hypot(ev.clientX - captureDrag.x, ev.clientY - captureDrag.y) > 8) captureMoved = true;
+      if (!captureMoved) return;
+      placeCapture(ev.clientX - captureDrag.dx, ev.clientY - captureDrag.dy);
+    });
+    shutterBtn.addEventListener('pointerup', (ev) => {
+      if (!captureDrag || ev.pointerId !== captureDrag.id) return;
+      if (captureMoved) {
+        const rect = shutterBtn.getBoundingClientRect();
+        try { localStorage.setItem(CAPTURE_POS_KEY, JSON.stringify({ x: rect.left, y: rect.top })); } catch (_) {}
+      }
+      captureDrag = null;
+    });
+    shutterBtn.addEventListener('pointercancel', () => { captureDrag = null; });
     const loadInput = overlay.querySelector('[data-act="load"]');
     const fallback = overlay.querySelector('[data-fallback]');
     const zoomLabel = overlay.querySelector('.vf-zoom');
@@ -405,7 +470,13 @@
         stop();
       };
     }
-    shutterBtn.onclick = async () => {
+    shutterBtn.onclick = async (ev) => {
+      if (captureMoved) {
+        captureMoved = false;
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
       if (busy) return;
       busy = true;
       shutterBtn.disabled = true;
