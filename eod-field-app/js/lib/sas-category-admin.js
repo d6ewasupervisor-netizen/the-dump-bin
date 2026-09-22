@@ -1,4 +1,4 @@
-/* SAS PROD category-reset admin URL. HAR 2026-09-21: /en/field/schedules/{visitId}/category-reset/admin */
+/* SAS PROD schedule admin URL. /en/field/schedules/{visitId}/schedule/admin */
 (function (global) {
   'use strict';
 
@@ -16,7 +16,7 @@
   function categoryAdminUrl(visitId) {
     const id = visitIdFrom(visitId);
     if (!id) return '';
-    return 'https://prod.sasretail.com/en/field/schedules/' + id + '/category-reset/admin';
+    return 'https://prod.sasretail.com/en/field/schedules/' + id + '/schedule/admin';
   }
 
   const api = {
