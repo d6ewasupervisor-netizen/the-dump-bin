@@ -27,7 +27,7 @@
     bakery: [/bakery/i],
     meat: [/meat/i],
     produce: [/produce/i],
-    home_manager: [/home|general merch|\bgm\b/i],
+    home_manager: [/home.?side|home|general merch|\bgm\b/i],
     grocery: [/grocery|checklane/i],
   };
 

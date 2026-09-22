@@ -964,7 +964,7 @@ test('checkout gate clears when department PICs have signed, not from a typed na
   ready.state.checkOutManager = 'April';
   assert.ok(sendGates.missing(ready).some((g) => g.id === 'checkout'));
   global.EodDeptSignatures = {
-    getCollectedForEmail: () => [{ roleKey: 'store_pic', signerName: 'April' }],
+    getCollectedForEmail: () => [{ roleKey: 'grocery', signerName: 'April' }],
     scopedRoleKeys: () => ['grocery', 'produce'],
   };
   assert.ok(!sendGates.missing(ready).some((g) => g.id === 'checkout'));
@@ -975,6 +975,43 @@ test('checkout gate clears when department PICs have signed, not from a typed na
   delete global.EodDeptSignatures;
 });
 
+test('home manager signature does not cover other department PICs', () => {
+  const ready = {
+    state: {
+      profileName: 'Tyson',
+      leadName: 'Tyson',
+      signatureDataUrl: 'data:image/png;base64,xx',
+      emailRecipients: ['a@b.com'],
+      profileEmail: 'a@b.com',
+      checkInManager: 'April',
+      checkOutManager: '',
+      photos: { before: [{ dataUrl: 'x' }], after: [{ dataUrl: 'y' }], signoff: [], instawork: [] },
+      instaworkYes: null,
+    },
+    isVisitReady: () => true,
+    hasHostedSheet: () => true,
+    sheetSendReady: () => true,
+  };
+  global.EodDeptSignatures = {
+    getCollectedForEmail: () => [{ roleKey: 'home_manager', signerName: 'Pat' }],
+    scopedRoleKeys: () => ['grocery', 'produce', 'home_manager'],
+  };
+  assert.ok(sendGates.missing(ready).some((g) => g.id === 'checkout'));
+  global.EodDeptSignatures = {
+    getCollectedForEmail: () => [{ roleKey: 'grocery', signerName: 'April' }],
+    scopedRoleKeys: () => ['grocery', 'produce', 'home_manager'],
+  };
+  assert.ok(!sendGates.missing(ready).some((g) => g.id === 'checkout'));
+  delete global.EodDeptSignatures;
+});
+
+test('signatures catalog no longer lists Store Manager', () => {
+  const dept = fs.readFileSync(path.join(__dirname, '../js/features/dept-signatures.js'), 'utf8');
+  const pic = fs.readFileSync(path.join(__dirname, '../js/lib/send-gates.js'), 'utf8');
+  assert.doesNotMatch(dept, /Store Manager/);
+  assert.match(dept, /Grocery PIC/);
+  assert.match(pic, /collected\.includes\('grocery'\)/);
+});
 test('digital signoff rasterizer loads standard PDF fonts', () => {
   const pdf = fs.readFileSync(path.join(__dirname, '../js/lib/pdf-to-image.js'), 'utf8');
   assert.match(pdf, /standardFontDataUrl/);

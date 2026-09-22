@@ -501,7 +501,7 @@ ${cleanNotes}`;
       if (global.EodRouter?.current && global.EodRouter.current !== 'send') return;
       global.EodDeptSignatures?.refresh?.().then(() => {
         const cover = (global.EodDeptSignatures?.getCollectedForEmail?.() || [])
-          .find((s) => /^(store_pic|home_manager)$/i.test(s.roleKey));
+          .find((s) => /^(grocery|store_pic)$/i.test(s.roleKey));
         if (cover?.signerName && !(S.state.checkOutManager || '').trim()) {
           if (global.EodVisitMemory?.setManagers) {
             global.EodVisitMemory.setManagers(S, { checkOutManager: cover.signerName }, 'pic-checkout');

@@ -8,7 +8,6 @@
   const GUEST_API = 'https://eod-api.the-dump-bin.com/api/guest-handoff';
 
   const ROLE_FALLBACK = [
-    { key: 'store_pic', label: 'Store Manager / PIC' },
     { key: 'grocery', label: 'Grocery PIC' },
     { key: 'fuel_center', label: 'Fuel Center PIC' },
     { key: 'deli', label: 'Deli Dept. PIC' },
@@ -31,7 +30,7 @@
   let lastSheetRef = null;
 
   const ROLE_ORDER = ROLE_FALLBACK.map((r) => r.key);
-  const GROCERY_EXPAND_KEYS = ['produce', 'meat', 'bakery', 'deli', 'fuel_center', 'dept_pic', 'home_manager'];
+  const HIDDEN_ROLE_LABELS = { store_pic: 'Grocery PIC' };
 
   function sheetRows() {
     return lastSheetRef?.rows
@@ -43,25 +42,13 @@
   function rowsMatchingRole(rows, roleKey) {
     const list = Array.isArray(rows) ? rows : [];
     const key = String(roleKey || '').trim().toLowerCase();
-    if (key === 'store_pic' || key === 'home_manager') return list.slice();
+    if (key === 'grocery' || key === 'store_pic') return list.slice();
     return list.filter((row) => {
       if (key === 'dept_pic' && /blitz/i.test(String(row.shiftType || row.shift_type || ''))) return true;
       return window.EodSignoffDepartment?.rowMatchesSignoffRole?.(row, key) || false;
     });
   }
 
-  function extraDeptGroups(allRows, primaryKey) {
-    const primaryIds = new Set(rowsMatchingRole(allRows, primaryKey).map((r) => r.id));
-    const catalog = (catalogRoles.length ? catalogRoles : ROLE_FALLBACK);
-    const groups = [];
-    for (const key of GROCERY_EXPAND_KEYS) {
-      if (key === primaryKey) continue;
-      const role = catalog.find((r) => r.key === key) || { key, label: labelForKey(key) };
-      const rows = rowsMatchingRole(allRows, key).filter((r) => !primaryIds.has(r.id));
-      if (rows.length) groups.push({ key: role.key, label: role.label, rows });
-    }
-    return groups;
-  }
 
   function setRowButtonHtml(row) {
     const name = row.catName || row.cat_name || 'Set';
@@ -162,7 +149,7 @@
 
   function labelForKey(key) {
     const fromCatalog = (catalogRoles || []).find((r) => r.key === key);
-    return fromCatalog?.label || ROLE_LABEL_BY_KEY[key] || key;
+    return fromCatalog?.label || ROLE_LABEL_BY_KEY[key] || HIDDEN_ROLE_LABELS[key] || key;
   }
 
   function applyScopedKeys(keys, { allowEmpty = false } = {}) {
@@ -170,7 +157,7 @@
     const normalized = (Array.isArray(keys) ? keys : [])
       .map((k) => String(k || '').trim().toLowerCase())
       .filter((k) => {
-        if (!k || seen.has(k)) return false;
+        if (!k || k === 'store_pic' || k === 'lead' || seen.has(k)) return false;
         if (!ROLE_LABEL_BY_KEY[k] && !(catalogRoles || []).some((r) => r.key === k)) return false;
         seen.add(k);
         return true;
@@ -221,9 +208,11 @@
 
     const workRows = sheet.rows.filter(rowInScope);
     const keySet = new Set(roleKeysMatchingRows(workRows));
+    if (workRows.length) keySet.add('grocery');
+    keySet.delete('store_pic');
     for (const sig of signatures) {
       const k = String(sig.roleKey || '').toLowerCase();
-      if (k && ROLE_LABEL_BY_KEY[k]) keySet.add(k);
+      if (k && k !== 'store_pic' && k !== 'lead' && ROLE_LABEL_BY_KEY[k]) keySet.add(k);
     }
     const keys = ROLE_ORDER.filter((k) => keySet.has(k));
     applyScopedKeys(keys, { allowEmpty: true });
@@ -465,7 +454,7 @@
       if (rolesResp.ok) {
         const data = await rolesResp.json();
         if (Array.isArray(data.roles) && data.roles.length) {
-          catalogRoles = data.roles.filter((r) => String(r?.key || '').toLowerCase() !== 'lead');
+          catalogRoles = data.roles.filter((r) => { const k = String(r?.key || '').toLowerCase(); return k && k !== 'lead' && k !== 'store_pic'; });
         }
       }
     } catch (_) { /* keep fallback catalog */ }
@@ -497,7 +486,7 @@
               }))
             : [];
           if (Array.isArray(data.roles) && data.roles.length) {
-            catalogRoles = data.roles.filter((r) => String(r?.key || '').toLowerCase() !== 'lead');
+            catalogRoles = data.roles.filter((r) => { const k = String(r?.key || '').toLowerCase(); return k && k !== 'lead' && k !== 'store_pic'; });
           }
         }
       } catch (_) { signatures = []; }
@@ -699,34 +688,15 @@
   function renderSetsStep(hint, body, next) {
     const all = sheetRows();
     const mine = rowsMatchingRole(all, wizard.roleKey);
-    const extras = wizard.roleKey === 'grocery' ? extraDeptGroups(all, wizard.roleKey) : [];
-    hint.textContent = wizard.roleKey === 'grocery'
-      ? 'Your grocery sets are listed first. Open another department only if you are signing those out too.'
-      : 'Tap a set to view before and after photos.';
+    hint.textContent = 'Tap a set to view before and after photos.';
     next.style.display = 'inline-flex';
     next.textContent = 'Continue to signature';
-    const extraHtml = extras.map((g) => `
-      <details class="gh-dept-extra" data-extra-role="${escapeHtml(g.key)}">
-        <summary>${escapeHtml(g.label)} (${g.rows.length})</summary>
-        <div class="dept-sig-set-list">${g.rows.map(setRowButtonHtml).join('')}</div>
-      </details>`).join('');
     body.innerHTML = `
       ${wizard.setsError ? `<p class="muted">${escapeHtml(wizard.setsError)}</p>` : ''}
       <div class="dept-sig-set-list">
         ${mine.length ? mine.map(setRowButtonHtml).join('') : '<p class="muted">No sets matched this department on today’s sheet.</p>'}
-      </div>
-      ${extraHtml}`;
+      </div>`;
     bindSetRowClicks(body);
-    body.querySelectorAll('details[data-extra-role]').forEach((el) => {
-      el.addEventListener('toggle', () => {
-        if (!el.open || !wizard.picToken || !window.EodSetReview?.preloadRole) return;
-        window.EodSetReview.preloadRole({
-          api: GUEST_API,
-          token: wizard.picToken,
-          roleKey: el.getAttribute('data-extra-role'),
-        });
-      });
-    });
   }
 
   function renderSetReviewStep(hint, body, back, next) {

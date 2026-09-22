@@ -30,7 +30,7 @@
   function scopedPicRoles() {
     return (global.EodDeptSignatures?.scopedRoleKeys?.() || [])
       .map((k) => String(k || '').toLowerCase())
-      .filter((k) => k && k !== 'lead' && k !== 'store_pic' && k !== 'home_manager');
+      .filter((k) => k && k !== 'lead' && k !== 'store_pic' && k !== 'grocery');
   }
 
   function picSignoffReady(S) {
@@ -38,7 +38,7 @@
       return !!(S.state.checkOutManager || '').trim() || photoCount(S, 'signoff') >= 1;
     }
     const collected = collectedPicRoles();
-    if (collected.includes('store_pic') || collected.includes('home_manager')) return true;
+    if (collected.includes('grocery') || collected.includes('store_pic')) return true;
     const scoped = scopedPicRoles();
     if (scoped.length) return scoped.every((k) => collected.includes(k));
     return collected.length > 0;
