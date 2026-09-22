@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DC Scan Training</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/favicon.png?v=2">
+<script src="/auth-gate.js"></script>
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+:root{
+  --navy:#0B2545; --navy2:#13315C; --sky:#4A7FB5; --red:#C8102E; --yellow:#FFD100;
+  --ground:#F3F6FA; --surface:#FFFFFF; --tint:#E8EEF5; --line:#D3DCE7;
+  --ink:#0B2545; --ink2:#3A4D66; --muted:#5D6F86;
+  --head-ink:#FFFFFF; --link:#2F68A3;
+  --redtint:#FBE9EC; --redink:#9E0C24;
+  --yeltint:#FFF7CC; --yelink:#0B2545;
+  --figbg:#EDF1F6;
+  --font:"Carlito","Calibri","Segoe UI",Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#08182E; --surface:#0E2240; --tint:#132C4F; --line:#223F66;
+    --ink:#E6EDF6; --ink2:#B9C7D9; --muted:#8FA3BC; --link:#8DB8E6;
+    --redtint:#3A1320; --redink:#FF8A9A;
+    --yeltint:#2E2A10; --yelink:#FFE680;
+    --figbg:#0A1C35;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#08182E; --surface:#0E2240; --tint:#132C4F; --line:#223F66;
+  --ink:#E6EDF6; --ink2:#B9C7D9; --muted:#8FA3BC; --link:#8DB8E6;
+  --redtint:#3A1320; --redink:#FF8A9A;
+  --yeltint:#2E2A10; --yelink:#FFE680;
+  --figbg:#0A1C35;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(env(safe-area-inset-top,0px) + 64px)}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--ground);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.5;-webkit-text-size-adjust:100%}
+a{color:var(--link)}
+a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.15}
+p{margin:0}
+ul{margin:0;padding-left:1.15em}
+li+li{margin-top:.35em}
+
+/* Header */
+.masthead{background:var(--navy);color:var(--head-ink);padding-inline:16px;padding-block:28px 26px}
+.mast-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center}
+.mast-inner img{width:150px;height:auto;display:block}
+.eyebrow{font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:#9CC3EA;font-weight:700}
+.masthead h1{font-size:clamp(1.9rem,4.5vw,2.8rem);margin-top:4px}
+.masthead .sub{color:#C9D8EA;margin-top:6px;font-size:1.05rem}
+.rev{display:inline-block;margin-top:12px;font-size:.82rem;color:#C9D8EA;border:1px solid rgba(255,255,255,.28);padding:2px 10px;border-radius:3px;font-variant-numeric:tabular-nums}
+@media (max-width:620px){.mast-inner{grid-template-columns:1fr;gap:14px}.mast-inner img{width:118px}}
+
+/* Nav */
+.navbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--navy2);border-bottom:3px solid var(--sky)}
+.navbar nav{max-width:1180px;margin:0 auto;display:flex;gap:4px;overflow-x:auto;padding-inline:12px;scrollbar-width:thin}
+.navbar a{flex:0 0 auto;color:#DCE7F4;text-decoration:none;font-size:.92rem;padding:12px 10px;white-space:nowrap;border-bottom:3px solid transparent;margin-bottom:-3px}
+.navbar a:hover{color:#fff}
+.navbar a.on{color:#fff;border-bottom-color:var(--yellow);font-weight:700}
+
+main{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:8px 40px}
+section.sec{padding-block:34px 6px;border-bottom:1px solid var(--line)}
+section.sec:last-of-type{border-bottom:0}
+.sec-head{margin-bottom:20px}
+.sec-head h2{font-size:clamp(1.55rem,3.2vw,2rem);color:var(--ink)}
+.sec-head .tag{color:var(--sky);font-style:italic;margin-top:4px;font-size:1.05rem}
+:root:not([data-theme="light"]) .sec-head .tag{color:var(--sky)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:26px 40px}
+.cols3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:20px 32px}
+.label{font-size:.8rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--ink2);border-left:4px solid var(--sky);padding-left:9px;margin-bottom:12px;line-height:1.3}
+.label.red{border-left-color:var(--red)}
+.label.yel{border-left-color:var(--yellow)}
+.block+.block{margin-top:24px}
+
+/* Definition rows */
+.rows{display:grid;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:minmax(120px,30%) 1fr;gap:6px 18px;padding:11px 12px;border-bottom:1px solid var(--line)}
+.row:nth-child(odd){background:var(--tint)}
+.row dt,.row .k{font-weight:700;color:var(--ink)}
+.row dd{margin:0;color:var(--ink2)}
+@media (max-width:520px){.row{grid-template-columns:1fr}}
+
+/* Steps */
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:14px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:32px 1fr;gap:12px;margin:0}
+.steps li::before{counter-increment:s;content:counter(s);width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;display:grid;place-items:center;font-size:.95rem}
+:root[data-theme="dark"] .steps li::before{background:var(--sky)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .steps li::before{background:var(--sky)}}
+.steps b{display:block;color:var(--ink)}
+.steps span{color:var(--ink2)}
+
+/* Callouts */
+.callout{padding:13px 16px;border:1px solid var(--line);border-left:6px solid var(--sky);background:var(--surface);margin-top:18px}
+.callout b{text-transform:uppercase;letter-spacing:.05em;font-size:.88rem;margin-right:6px}
+.callout.yel{border-left-color:var(--yellow);background:var(--yeltint);color:var(--yelink)}
+.callout.red{border-left-color:var(--red);background:var(--redtint);color:var(--redink)}
+.callout.navy{background:var(--navy);color:#fff;border-color:var(--navy);border-left-color:var(--yellow)}
+.callout.big{font-size:1.15rem}
+.stop{color:var(--redink);font-weight:700}
+.go{color:var(--ink);font-weight:700}
+
+/* Figures */
+.figs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:16px;margin-top:20px}
+figure{margin:0}
+.figbtn{display:block;width:100%;padding:0;border:1px solid var(--line);background:var(--figbg);cursor:zoom-in;height:230px}
+.figbtn img{width:100%;height:100%;object-fit:contain;display:block}
+figcaption{font-size:.88rem;color:var(--muted);font-style:italic;margin-top:6px;line-height:1.35}
+.figs.wide{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}
+
+/* Location cards */
+.loc-index{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:12px;margin-bottom:10px}
+.loc-index a{display:grid;grid-template-columns:40px 1fr;gap:10px;align-items:start;text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);padding:12px}
+.loc-index a:hover{border-color:var(--sky)}
+.num{width:36px;height:36px;display:grid;place-items:center;background:var(--navy);color:#fff;font-weight:700;font-size:1.1rem}
+.loc-index strong{display:block}
+.loc-index small{color:var(--ink2);font-size:.9rem;line-height:1.35;display:block}
+.loc{background:var(--surface);border:1px solid var(--line);padding:22px;margin-top:22px}
+.loc-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;margin-bottom:14px}
+.loc-top h3{font-size:1.45rem;flex:1 1 auto}
+.vid{display:inline-flex;align-items:center;gap:8px;background:var(--navy);color:#fff;text-decoration:none;padding:8px 14px;font-weight:700;font-size:.92rem}
+.vid:hover{background:var(--sky)}
+.vid svg{width:14px;height:14px;fill:currentColor}
+.loc .scope{color:var(--ink2);margin-bottom:12px}
+
+/* Tables list */
+.tbl-wrap{overflow-x:auto}
+
+/* Checklists */
+.check{list-style:none;padding:0;margin:0;display:grid;gap:2px}
+.check li{margin:0}
+.check label{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;padding:9px 10px;cursor:pointer;border-radius:2px}
+.check label:hover{background:var(--tint)}
+.check input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--navy)}
+.check input:checked+span{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--sky)}
+.check .ref{display:block;font-size:.84rem;color:var(--muted);margin-top:1px}
+.check .ref a{color:var(--link)}
+.check .live{font-style:normal;display:inline-block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;background:var(--yellow);color:#0B2545;padding:1px 6px;margin-left:4px;vertical-align:2px}
+.progress{display:flex;align-items:center;gap:12px;margin:6px 0 16px;font-variant-numeric:tabular-nums;color:var(--ink2);font-size:.95rem}
+.bar{flex:1;height:8px;background:var(--tint);border:1px solid var(--line);max-width:340px}
+.bar i{display:block;height:100%;background:var(--sky);width:0}
+.btn{font:inherit;font-weight:700;font-size:.95rem;padding:9px 16px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn:hover{background:var(--sky);border-color:var(--sky);color:#fff}
+.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
+.toast{font-size:.92rem;color:var(--ink2)}
+
+/* Training form */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px 18px;background:var(--surface);border:1px solid var(--line);padding:16px;margin-bottom:22px}
+.form label{display:grid;gap:4px;font-size:.82rem;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--ink2)}
+.form input{font:inherit;font-size:1rem;text-transform:none;letter-spacing:0;font-weight:400;padding:8px 10px;border:1px solid var(--line);background:var(--ground);color:var(--ink);width:100%}
+.sign{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px 18px;border-top:1px solid var(--line);padding-top:14px;margin-top:4px}
+.group{background:var(--surface);border:1px solid var(--line);padding:16px 14px 10px}
+.group h3{font-size:1rem;text-transform:uppercase;letter-spacing:.1em;color:#fff;background:var(--navy);margin:-16px -14px 10px;padding:8px 14px}
+
+/* Video table */
+.vtable{width:100%;border-collapse:collapse;min-width:520px}
+.vtable th,.vtable td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.vtable tr:nth-child(odd) td{background:var(--tint)}
+.vtable th{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink2)}
+.vtable td:first-child{font-weight:700;white-space:nowrap}
+.vtable td:last-child{white-space:nowrap}
+
+/* Lightbox */
+.lb{position:fixed;inset:0;background:rgba(5,14,28,.92);z-index:50;display:grid;grid-template-rows:1fr auto;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.lb img{max-width:100%;max-height:100%;margin:auto;object-fit:contain;align-self:center;justify-self:center;min-height:0}
+.lb p{color:#E6EDF6;text-align:center;padding-top:10px;font-style:italic}
+.lb button{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:14px;font:inherit;font-size:1rem;background:var(--yellow);color:#0B2545;border:0;padding:6px 14px;font-weight:700;cursor:pointer}
+
+[hidden]{display:none!important}
+footer{background:var(--navy);color:#C9D8EA;text-align:center;padding-inline:16px;padding-block:18px;font-size:.95rem;letter-spacing:.06em}
+
+/* Signature pads */
+.sigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px 22px;background:var(--surface);border:1px solid var(--line);padding:16px;margin-top:22px}
+.sig{display:grid;gap:6px}
+.sig-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sig-head span{font-size:.82rem;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--ink2)}
+.sig-head button{font:inherit;font-size:.85rem;font-weight:700;padding:4px 12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.sig canvas{display:block;width:100%;height:170px;background:#fff;border:2px solid var(--line);touch-action:none;cursor:crosshair}
+.sig.missing canvas{border-color:var(--red)}
+.sig-name{font-size:.95rem;color:var(--ink2);min-height:1.5em}
+.form input.missing{border-color:var(--red)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn[disabled]:hover{background:var(--navy);border-color:var(--navy)}
+.toast.err{color:var(--redink);font-weight:700}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="mast-inner">
+    <img src="img/ro-logo.png" alt="Retail Odyssey" width="440" height="258">
+    <div>
+      <div class="eyebrow">Fred Meyer · Weekly display audit</div>
+      <h1>Display Compliance</h1>
+      <p class="sub">Program &amp; Training Guide · Wednesday – Tuesday cycle</p>
+      <span class="rev">Version 2.0 · September 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="navbar">
+  <nav id="nav" aria-label="Sections">
+    <a href="#start">Before You Start</a>
+    <a href="#display">What Counts</a>
+    <a href="#never">Never Scan</a>
+    <a href="#not-displays">Displays Not to Scan</a>
+    <a href="#locations">Eight Locations</a>
+    <a href="#endcap-aisle">Endcap or In Aisle</a>
+    <a href="#capture">Photo or Hand Scan</a>
+    <a href="#photos">Photo Guidelines</a>
+    <a href="#photo-fail">When a Photo Fails</a>
+    <a href="#produce">Produce</a>
+    <a href="#special">Adult Bev, Drug &amp; GM</a>
+    <a href="#videos">Videos</a>
+    <a href="#leave">Before You Leave</a>
+    <a href="#training">Training Sign-Off</a>
+  </nav>
+</div>
+
+<main>
+
+<!-- BEFORE YOU START -->
+<section class="sec" id="start">
+  <div class="sec-head"><h2>Before You Start</h2><p class="tag">Scope, cadence, and what to bring</p></div>
+  <div class="cols">
+    <div>
+      <div class="label">This program at a glance</div>
+      <dl class="rows">
+        <div class="row"><dt>Cycle</dt><dd>Wednesday – Tuesday, once every week</dd></div>
+        <div class="row"><dt>Visits per store</dt><dd>1 per week, every store</dd></div>
+        <div class="row"><dt>Earliest start</dt><dd>After the Front Runner store is complete</dd></div>
+        <div class="row"><dt>Target pace</dt><dd>About 90% of scans done by Friday</dd></div>
+      </dl>
+      <div class="callout navy"><b>Secondary locations only</b>Scan only items in a secondary location. If a display is the item’s primary or home location, it is not scanned.</div>
+    </div>
+    <div>
+      <div class="label">Getting started</div>
+      <ol class="steps">
+        <li><div><b>Start your shift</b><span>Clock in and start your shift in Retail Logic, then open the Store Intelligence app.</span></div></li>
+        <li><div><b>Check in at the store</b><span>Check in at the customer service desk. You do not need to wait for a member of management before you begin.</span></div></li>
+        <li><div><b>Work the eight tasks in order</b><span>Select your store, then work the task list top to bottom. Finish a task before starting the next one. Completed tasks turn green.</span></div></li>
+      </ol>
+    </div>
+  </div>
+  <div class="block" style="margin-top:28px">
+    <div class="label">In-store conduct</div>
+    <dl class="rows">
+      <div class="row"><dt>Check in on arrival</dt><dd>At the customer service desk. You do not need to wait for a member of management before you begin.</dd></div>
+      <div class="row"><dt>Work alone</dt><dd>Friends and children may not accompany you on your route.</dd></div>
+      <div class="row"><dt>No eating or drinking</dt><dd>Eating or drinking of any kind while working in the store is strictly prohibited.</dd></div>
+      <div class="row"><dt>Approached by management</dt><dd>Answer what you can, and refer anything you do not know to your supervisor.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<!-- WHAT COUNTS -->
+<section class="sec" id="display">
+  <div class="sec-head"><h2>What Counts as a Display</h2><p class="tag">Primary versus secondary, and the test that settles it</p></div>
+  <div class="cols">
+    <div>
+      <div class="label">Primary versus secondary</div>
+      <dl class="rows">
+        <div class="row"><dt>Primary location</dt><dd>Where the item normally lives: its planogrammed shelf, its bunker, its dedicated fixture. <strong class="stop">Never scanned.</strong></dd></div>
+        <div class="row"><dt>Secondary location</dt><dd>Anywhere else the item appears while also stocked in its home location. <strong class="go">Scanned.</strong></dd></div>
+      </dl>
+      <div class="block">
+        <div class="label">One scan per unique UPC</div>
+        <ul>
+          <li><strong>Unique means each flavor, size, or variety.</strong></li>
+          <li>Six identical Doritos displays across the front of the store is one scan, not six.</li>
+          <li>The same item is scanned once per location it appears in.</li>
+          <li>Two packs of ribs priced differently by weight are one UPC. Scan one.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="label">The two-question test</div>
+      <ol class="steps">
+        <li><div><b>Is this a secondary display?</b><span>A shipper, endcap, table, or any placement that is not the item’s home location.</span></div></li>
+        <li><div><b>Is it stocked elsewhere?</b><span>Can these items also be found in a primary or home location somewhere in this store?</span></div></li>
+      </ol>
+      <div class="callout navy big"><b>Yes to both</b>Scan the display.</div>
+      <div class="block">
+        <div class="label">When the rules do not fit</div>
+        <ul>
+          <li>Ask a nearby store employee whether the item is stocked elsewhere. If yes, scan it.</li>
+          <li>If the item is stocked nowhere else in the store, this is its primary location. Leave it.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="callout yel"><b>When in doubt, scan the display</b>An extra scan is acceptable. A missed display is not.</div>
+</section>
+
+<!-- NEVER SCAN -->
+<section class="sec" id="never">
+  <div class="sec-head"><h2>Items Never Scanned</h2><p class="tag">These are never captured, in any location</p></div>
+  <div class="cols3">
+    <div>
+      <div class="label red">Fixtures and areas</div>
+      <ul>
+        <li>The checkout and check lanes</li>
+        <li>Shelf extenders</li>
+        <li>Clip-strips</li>
+        <li>Trial size bins</li>
+        <li>Items on countertops</li>
+        <li>Carbonated beverage coolers</li>
+      </ul>
+    </div>
+    <div>
+      <div class="label red">Product conditions</div>
+      <ul>
+        <li>Damaged or manager clearance items</li>
+        <li>Red sticker reduced-price items</li>
+        <li>A black line through the UPC</li>
+        <li>A sticker placed over the UPC</li>
+      </ul>
+    </div>
+    <div>
+      <div class="label red">Categories</div>
+      <ul>
+        <li>Ice</li>
+        <li>Eyewear and glasses</li>
+        <li>Promo dishes, pans, rugs</li>
+        <li>General Merchandise outside Grocery GM</li>
+      </ul>
+    </div>
+  </div>
+  <div class="block" style="margin-top:28px">
+    <div class="label yel">Scanned only when in a shipper</div>
+    <div class="cols3">
+      <ul><li>Greeting cards</li><li>Toys, especially Hot Wheels</li><li>Trial size products</li></ul>
+      <ul><li>Books and magazines</li><li>Film and cameras</li><li>Cosmetics</li></ul>
+      <ul><li>Clothing</li><li>DVDs</li></ul>
+    </div>
+  </div>
+  <div class="callout yel"><b>Clearance marks</b>A blacked-out UPC, a covered barcode, or a red clearance sticker marks product being cleared, not promoted. Do not scan it.</div>
+</section>
+
+<!-- DISPLAYS NOT TO SCAN -->
+<section class="sec" id="not-displays">
+  <div class="sec-head"><h2>Displays Not to Scan</h2><p class="tag">Primary locations and out-of-scope areas</p></div>
+  <div class="label red">Common ones on nearly every route</div>
+  <dl class="rows">
+    <div class="row"><dt>Promo tables with black stickers</dt><dd>A black label sticker marks a planogrammed item. The table is a primary location.</dd></div>
+    <div class="row"><dt>Permanent branded fixtures</dt><dd>Krispy Kreme racks and Tastykake fixtures are the home location for those items.</dd></div>
+    <div class="row"><dt>Bakery cases and cake displays</dt><dd>Primary location. Promo items sitting on top of the case are scanned, under Other.</dd></div>
+    <div class="row"><dt>Refrigerated meat and bunker walls</dt><dd>Primary location, even under large promotional pricing signage.</dd></div>
+    <div class="row"><dt>Themed power wings at home</dt><dd>An ice-cream-themed power wing in the ice cream aisle is a primary location.</dd></div>
+    <div class="row"><dt>Battery centers</dt><dd>The battery endcap is primary. Batteries in shippers, on other endcaps, or on power wings are scanned.</dd></div>
+    <div class="row"><dt>Garden Centers</dt><dd>Nothing inside is scanned. The same applies to any separate non-grocery section, except Adult Beverage.</dd></div>
+    <div class="row"><dt>General Merchandise</dt><dd>Out of scope. Grocery GM such as lightbulbs, charcoal, and fire starter logs is in scope.</dd></div>
+  </dl>
+</section>
+
+<!-- EIGHT LOCATIONS -->
+<section class="sec" id="locations">
+  <div class="sec-head"><h2>The Eight Display Locations</h2><p class="tag">Work them in order. The sequence is your walking pattern.</p></div>
+  <div class="loc-index">
+    <a href="#loc-1"><span class="num">1</span><span><strong>Front of Store</strong><small>Front wall to the front endcap, including sidewalk, lobby, and the cart entrance</small></span></a>
+    <a href="#loc-2"><span class="num">2</span><span><strong>End Caps</strong><small>Front, mid, and rear endcaps, power wings, tie-ins, and floor displays beside them</small></span></a>
+    <a href="#loc-3"><span class="num">3</span><span><strong>Rear of Store</strong><small>Back wall to the back endcap, bunkers, bunker ends, and top racks</small></span></a>
+    <a href="#loc-4"><span class="num">4</span><span><strong>In Shelf</strong><small>Promoted items on the shelf in a designated promotional area</small></span></a>
+    <a href="#loc-5"><span class="num">5</span><span><strong>In Aisle</strong><small>Shippers, pallets, and rounder racks on the floor in the aisle</small></span></a>
+    <a href="#loc-6"><span class="num">6</span><span><strong>Tables</strong><small>Produce, bread, bakery, and floral tables throughout the store</small></span></a>
+    <a href="#loc-7"><span class="num">7</span><span><strong>Seasonal</strong><small>Displays on the floor within the seasonal aisle, not on the shelves</small></span></a>
+    <a href="#loc-8"><span class="num">8</span><span><strong>Other</strong><small>Displays that do not fit any of the other seven locations</small></span></a>
+  </div>
+
+  <article class="loc" id="loc-1">
+    <div class="loc-top"><span class="num">1</span><h3>Front of Store</h3><a class="vid" href="https://drive.google.com/file/d/1lr-LI1TdLQs_5j-Hqcj-4Qqt4QMBo8QJ/view?usp=sharing" target="_blank" rel="noopener"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Watch video</a></div>
+    <ul>
+      <li>Front wall of the store through to the front endcap</li>
+      <li>Includes the sidewalk, the lobby, and the cart entrance</li>
+      <li>Promotional SRP shelving, pallet stacks, and floral off the wall</li>
+      <li><strong>Newer stores may have two entrances. Check both.</strong></li>
+    </ul>
+    <div class="figs">
+      <figure><button class="figbtn" type="button"><img src="img/front-pallet.jpg" alt="Promotional pallet display at the front of store" loading="lazy"></button><figcaption>Promotional pallet display, front of store</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/front-entrance.jpg" alt="Displays at the entrance near the carts" loading="lazy"></button><figcaption>Entrance area near the carts</figcaption></figure>
+    </div>
+  </article>
+
+  <article class="loc" id="loc-2">
+    <div class="loc-top"><span class="num">2</span><h3>End Caps</h3><a class="vid" href="https://drive.google.com/file/d/1a6dMAnEIkovzxZ5iJ1bVYfTXXu7paJYk/view?usp=sharing" target="_blank" rel="noopener"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Watch video</a></div>
+    <ul>
+      <li>All endcaps: front, mid-aisle, and rear</li>
+      <li>Power wings left and right, including hanging power wings</li>
+      <li>Tie-ins, pallet drops, and stacked product to the side</li>
+      <li>Floor displays sitting directly next to an endcap</li>
+    </ul>
+    <div class="figs">
+      <figure><button class="figbtn" type="button"><img src="img/endcap-pallet-drop.jpg" alt="Endcap with a pallet drop" loading="lazy"></button><figcaption>Endcap with a pallet drop</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/endcap-power-wing.jpg" alt="Hanging power wing" loading="lazy"></button><figcaption>Hanging power wing</figcaption></figure>
+    </div>
+  </article>
+
+  <article class="loc" id="loc-3">
+    <div class="loc-top"><span class="num">3</span><h3>Rear of Store</h3><a class="vid" href="https://drive.google.com/file/d/1KeFX1-o6xsmQgEBiwykRz5_1LGiFOJaF/view?usp=sharing" target="_blank" rel="noopener"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Watch video</a></div>
+    <ul>
+      <li>Back wall of the store forward to the back endcap</li>
+      <li>Shippers and three-tier bins behind endcaps</li>
+      <li>Bunkers that are not the primary location of the product</li>
+      <li><strong>Always scan the rear bunker ends.</strong> Top racks above bunkers count too.</li>
+    </ul>
+    <div class="figs">
+      <figure><button class="figbtn" type="button"><img src="img/rear-dump-bin.jpg" alt="Dump bin at the rear of store" loading="lazy"></button><figcaption>Dump bin</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/rear-bunker-ends.jpg" alt="Rear bunker ends" loading="lazy"></button><figcaption>Rear bunker ends, always scanned</figcaption></figure>
+    </div>
+  </article>
+
+  <article class="loc" id="loc-4">
+    <div class="loc-top"><span class="num">4</span><h3>In Shelf</h3><a class="vid" href="https://drive.google.com/file/d/1ZQfY7Mz6kGdAcGmEWS6YciVapmaOfcYD/view?usp=sharing" target="_blank" rel="noopener"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Watch video</a></div>
+    <ul>
+      <li>Promoted items on the actual shelf, in a designated promotional area</li>
+      <li>Marked with weekly ad signage, such as Save More with Digital Coupons</li>
+      <li>Some stores do not have this display type at all</li>
+      <li><strong>Do not confuse with In Aisle.</strong> In Shelf is on shelving. In Aisle is on the floor.</li>
+    </ul>
+    <div class="figs wide">
+      <figure><button class="figbtn" type="button"><img src="img/inshelf-save-more.jpg" alt="Save More with Digital Coupons shelf section" loading="lazy"></button><figcaption>Save More with Digital Coupons shelf section</figcaption></figure>
+    </div>
+  </article>
+
+  <article class="loc" id="loc-5">
+    <div class="loc-top"><span class="num">5</span><h3>In Aisle</h3><a class="vid" href="https://drive.google.com/file/d/1_NPIhdJgoylP9WIHIrXriLED4ZGzuol0/view?usp=sharing" target="_blank" rel="noopener"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Watch video</a></div>
+    <ul>
+      <li>Shippers, pallets, and rounder racks on the floor in the aisle</li>
+      <li>Sits between two endcaps, with primary shelving left and right</li>
+      <li>Anything in Produce not on a table goes here</li>
+      <li class="stop">Three-tier baskets and Produce: hand scan only.</li>
+    </ul>
+    <div class="figs">
+      <figure><button class="figbtn" type="button"><img src="img/aisle-shipper.jpg" alt="Corrugated shipper in the aisle" loading="lazy"></button><figcaption>Corrugated shipper, ideal for a photo</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/aisle-rounder.jpg" alt="Three-tier rounder rack" loading="lazy"></button><figcaption>Three-tier rounder rack, hand scan only</figcaption></figure>
+    </div>
+  </article>
+
+  <article class="loc" id="loc-6">
+    <div class="loc-top"><span class="num">6</span><h3>Tables</h3><a class="vid" href="https://drive.google.com/file/d/1y4l7r69KnQ9yedMSUIGDwS20fwjuyHrX/view?usp=sharing" target="_blank" rel="noopener"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Watch video</a></div>
+    <ul>
+      <li>Produce, bread, bakery, and floral tables throughout the store</li>
+      <li>In scope only when the table is not the item’s home location</li>
+      <li>Omit black-sticker tables, Krispy Kreme tables, and red sticker items</li>
+      <li class="stop">Tables can never be captured by photo.</li>
+    </ul>
+    <div class="figs wide">
+      <figure><button class="figbtn" type="button"><img src="img/table-bakery.jpg" alt="Bakery table display" loading="lazy"></button><figcaption>Bakery table display</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/table-floral.jpg" alt="Floral display tables" loading="lazy"></button><figcaption>Floral display tables</figcaption></figure>
+    </div>
+    <div class="callout red"><b>Hand scan only, no exceptions</b>Every table display and every three-tier basket.</div>
+  </article>
+
+  <article class="loc" id="loc-7">
+    <div class="loc-top"><span class="num">7</span><h3>Seasonal</h3><a class="vid" href="https://drive.google.com/file/d/1vrnw_cFXww9uieoas9_svNctO_Xqlh0o/view?usp=sharing" target="_blank" rel="noopener"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Watch video</a></div>
+    <ul>
+      <li>Displays on the floor within the seasonal aisle</li>
+      <li>Items on the shelving in that aisle are not scanned</li>
+      <li>One scan is enough where a shipper holds several variants</li>
+      <li>Contents change through the year: holiday, school supplies, candy</li>
+    </ul>
+    <div class="figs">
+      <figure><button class="figbtn" type="button"><img src="img/seasonal-floor-shipper.jpg" alt="Seasonal floor shipper" loading="lazy"></button><figcaption>Seasonal floor shipper</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/seasonal-aisle-shipper.jpg" alt="Seasonal shipper on the aisle floor" loading="lazy"></button><figcaption>Seasonal shipper on the aisle floor</figcaption></figure>
+    </div>
+  </article>
+
+  <article class="loc" id="loc-8">
+    <div class="loc-top"><span class="num">8</span><h3>Other</h3><a class="vid" href="https://drive.google.com/file/d/1jocJ5T0XHrcEebNc-vYz-K_a6x3xrHEh/view?usp=sharing" target="_blank" rel="noopener"><svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>Watch video</a></div>
+    <ul>
+      <li>For displays that fit none of the other seven locations</li>
+      <li>Most often promo product on top of a fixture: a cooler or a case</li>
+      <li><strong class="go">Scan</strong> the promo items on top of the fixture</li>
+      <li><strong class="stop">Do not scan</strong> the cakes inside the case or items on shelf strips below</li>
+    </ul>
+    <div class="figs wide">
+      <figure><button class="figbtn" type="button"><img src="img/other-promo-top.jpg" alt="Promo items on top of a fixture, shelf-strip items below" loading="lazy"></button><figcaption>Promo on top. Shelf-strip items below are primary.</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/other-bakery-case.jpg" alt="Promo items on top of the bakery case" loading="lazy"></button><figcaption>Promo items on top of the bakery case</figcaption></figure>
+    </div>
+  </article>
+</section>
+
+<!-- ENDCAP OR IN AISLE -->
+<section class="sec" id="endcap-aisle">
+  <div class="sec-head"><h2>Endcap or In Aisle?</h2><p class="tag">The most common location question in the program</p></div>
+  <div class="callout navy big" style="margin-top:0;margin-bottom:22px"><b>Ask yourself</b>Did you walk down into the aisle, past the endcap, to reach the display?</div>
+  <div class="cols">
+    <div>
+      <div class="label">If no — the location is End Caps</div>
+      <ul>
+        <li>You reached it without walking past an endcap</li>
+        <li>Includes power wings, tie-ins, and stacked product beside the endcap</li>
+        <li>An endcap-style fixture set halfway up an aisle is still an endcap if you did not pass an endcap to reach it. Judge by the walk, not the fixture.</li>
+      </ul>
+      <div class="figs">
+        <figure><button class="figbtn" type="button"><img src="img/endcap-floor-display.jpg" alt="Endcap with a floor display beside it" loading="lazy"></button><figcaption>End Caps: endcap with a floor display beside it</figcaption></figure>
+      </div>
+    </div>
+    <div>
+      <div class="label">If yes — the location is In Aisle</div>
+      <ul>
+        <li>The sales floor inside the aisle, primary shelving to the left and right</li>
+        <li>Often includes Produce, Bakery, and Deli down the perimeter aisles</li>
+        <li>Before filing as In Aisle, confirm it is not part of an endcap, or in the store front or store rear.</li>
+      </ul>
+      <div class="figs">
+        <figure><button class="figbtn" type="button"><img src="img/inaisle-shelving.jpg" alt="In Aisle display with shelving to the left and right" loading="lazy"></button><figcaption>In Aisle: shelving to the left and right</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PHOTO OR HAND SCAN -->
+<section class="sec" id="capture">
+  <div class="sec-head"><h2>Photo or Hand Scan?</h2><p class="tag">Two ways to add a UPC, and the places only one of them works</p></div>
+  <div class="cols">
+    <div>
+      <div class="label">Photo is fine here</div>
+      <ul>
+        <li>Corrugated shippers and floor displays</li>
+        <li>Endcaps with standard shelving</li>
+        <li>Front of store and rear of store displays</li>
+        <li>In-shelf promotional sections</li>
+        <li>Seasonal floor shippers</li>
+      </ul>
+    </div>
+    <div>
+      <div class="label red">Hand scan only, no exceptions</div>
+      <ul>
+        <li>All Produce items</li>
+        <li>All Meat and Seafood items</li>
+        <li>Every table display</li>
+        <li>Three-tier baskets and rounder racks</li>
+        <li>Refrigerated and bunker displays, prepared meals, and bakery items</li>
+      </ul>
+    </div>
+  </div>
+  <div class="block" style="margin-top:28px">
+    <div class="label">Hand scanning, step by step</div>
+    <div class="cols">
+      <ol class="steps">
+        <li><div><b>Open manual scan</b><span>Use the blue arrow.</span></div></li>
+        <li><div><b>Scan Barcode</b><span>Camera opens in barcode mode.</span></div></li>
+        <li><div><b>Hold the line over the barcode</b><span>The UPC is added automatically.</span></div></li>
+        <li><div><b>Check the count</b><span>Total shows in Product List.</span></div></li>
+      </ol>
+      <div class="figs" style="margin-top:0">
+        <figure><button class="figbtn" type="button"><img src="img/scanner.jpg" alt="Retail Odyssey issued Bluetooth scanner" loading="lazy"></button><figcaption>Retail Odyssey issued Bluetooth scanner</figcaption></figure>
+        <figure><button class="figbtn" type="button"><img src="img/app-barcode-mode.jpg" alt="App camera in barcode mode" loading="lazy"></button><figcaption>Camera in barcode mode, line over the barcode</figcaption></figure>
+        <figure><button class="figbtn" type="button"><img src="img/app-added.jpg" alt="Product List with scanned items" loading="lazy"></button><figcaption>Each scan is added to the Product List</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PHOTO GUIDELINES -->
+<section class="sec" id="photos">
+  <div class="sec-head"><h2>Photo Guidelines</h2><p class="tag">Frame it the way the technology needs to read it</p></div>
+  <div class="cols">
+    <div>
+      <div class="label">Do</div>
+      <ul>
+        <li>Get all four corners of the display in the frame</li>
+        <li>Stand about six feet back, and shoot straight on</li>
+        <li>One section, about four feet wide, per photo</li>
+        <li>At least one front label per item facing forward</li>
+        <li>Move a large price sign that blocks product, then shoot</li>
+      </ul>
+    </div>
+    <div>
+      <div class="label red">Do not</div>
+      <ul>
+        <li>Shoot at an angle. Photos must be straight on.</li>
+        <li>Stand close. The system may read the wrong part of the image.</li>
+        <li>Cover a whole long display in one shot</li>
+        <li>Remerchandise the display to make it photogenic</li>
+        <li>Worry about overhead signage or extra space in frame</li>
+      </ul>
+    </div>
+  </div>
+  <div class="block" style="margin-top:26px">
+    <div class="label">Correct photo examples</div>
+    <div class="figs">
+      <figure><button class="figbtn" type="button"><img src="img/photo-four-corners.jpg" alt="Display photographed with all four corners, straight on" loading="lazy"></button><figcaption>All four corners, straight on</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/photo-one-section.jpg" alt="One section photographed at a time" loading="lazy"></button><figcaption>One section at a time</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/photo-front-labels.jpg" alt="Front labels facing forward" loading="lazy"></button><figcaption>Front labels facing forward</figcaption></figure>
+    </div>
+  </div>
+  <div class="callout yel"><b>One front label is enough</b>Do not reface the whole display. If front-facing would take a lot of work, hand scan the unique items instead.</div>
+</section>
+
+<!-- PHOTO FAILS -->
+<section class="sec" id="photo-fail">
+  <div class="sec-head"><h2>When a Photo Will Not Work</h2><p class="tag">The four failures that come back flagged</p></div>
+  <div class="cols">
+    <div class="figs" style="margin-top:0">
+      <figure><button class="figbtn" type="button"><img src="img/fail-angle.jpg" alt="Display shot at an angle" loading="lazy"></button><figcaption>Shot at an angle</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/fail-pallet.jpg" alt="Angled pallet with corners lost" loading="lazy"></button><figcaption>Angled pallet, corners lost</figcaption></figure>
+      <figure><button class="figbtn" type="button"><img src="img/fail-too-close.jpg" alt="Photo taken too close, sign read as product" loading="lazy"></button><figcaption>Too close, sign read as product</figcaption></figure>
+    </div>
+    <div>
+      <div class="label red">What fails, and what to do</div>
+      <dl class="rows">
+        <div class="row"><dt>Shot at an angle</dt><dd>Reposition and shoot straight on. If that is impossible, hand scan each unique item.</dd></div>
+        <div class="row"><dt>Taken too close</dt><dd>Step back to about six feet. Too close, and the system can read a pictured item as a real one.</dd></div>
+        <div class="row"><dt>Sign blocking product</dt><dd>Move the sign, take the photo, put the sign back.</dd></div>
+        <div class="row"><dt>Corner cut off</dt><dd>Use the redo arrow and reframe all four corners.</dd></div>
+      </dl>
+    </div>
+  </div>
+  <div class="callout yel"><b>Resolve flagged images before you end your shift</b>The app flags blurry photos, duplicates, partial coverage, and wrong angle. Retake or remove each one, then complete the task and select the reason where the app asks for it.</div>
+  <div class="callout yel"><b>Leave the app open</b>Stay logged in and leave the app running after you finish, until the remaining photos and UPCs finish uploading.</div>
+</section>
+
+<!-- PRODUCE -->
+<section class="sec" id="produce">
+  <div class="sec-head"><h2>Produce</h2><p class="tag">Walk it through. Hand scan and PLU entry only.</p></div>
+  <div class="callout red big" style="margin-top:0;margin-bottom:22px"><b>No photos in the Produce department</b>Ever.</div>
+  <div class="cols">
+    <div>
+      <div class="label">Where Produce displays are filed</div>
+      <ul>
+        <li><strong>End Caps</strong> at the end of the produce aisles</li>
+        <li><strong>In Aisle</strong> in line with the front endcaps, and anything in Produce not on a table</li>
+        <li><strong>Tables</strong> for produce tables that are not the home location</li>
+        <li><strong class="stop">Never Front or Rear of Store,</strong> even when the Produce section sits at the front or back of the store.</li>
+      </ul>
+      <div class="figs">
+        <figure><button class="figbtn" type="button"><img src="img/produce-bagged.jpg" alt="Bagged apples with a standard UPC" loading="lazy"></button><figcaption>Bagged apples, standard UPC, hand scan</figcaption></figure>
+        <figure><button class="figbtn" type="button"><img src="img/produce-plu-sticker.jpg" alt="Stacked barcode sticker showing PLU 4015" loading="lazy"></button><figcaption>Stacked barcode, type the PLU 4015</figcaption></figure>
+        <figure><button class="figbtn" type="button"><img src="img/produce-sale-sign.jpg" alt="Produce with no sticker, sale sign in front" loading="lazy"></button><figcaption>No sticker, read the digits off the sale sign</figcaption></figure>
+      </div>
+    </div>
+    <div>
+      <div class="label">Three ways an item comes in</div>
+      <ol class="steps">
+        <li><div><b>Standard UPC barcode</b><span>Hand scan it. Common on bagged apples and grapes, and on watermelons, honeydews, and pumpkins.</span></div></li>
+        <li><div><b>Sticker with a stacked barcode</b><span>Do not scan it. Type the 4 or 5 digit PLU from the sticker into the barcode field.</span></div></li>
+        <li><div><b>No sticker at all</b><span>Use the sale price sign. Check the description matches, then type the last 4 or 5 digits of the UPC after the leading zeros.</span></div></li>
+      </ol>
+      <div class="callout red"><b>Never scan the barcode on a sales sign</b>Read the digits and type them in. The barcode on shelf and sale signage is not the product UPC.</div>
+    </div>
+  </div>
+
+  <div class="block" id="plu" style="margin-top:34px">
+    <h3 style="font-size:1.4rem;margin-bottom:4px">Entering a PLU Manually</h3>
+    <p style="color:var(--sky);font-style:italic;margin-bottom:16px">Seven taps, in the Survey step of the task</p>
+    <div class="cols">
+      <ol class="steps">
+        <li><div><b>Go to the Survey step</b><span>Inside the open task.</span></div></li>
+        <li><div><b>Tap Scan Barcode</b><span>At the bottom of the screen.</span></div></li>
+        <li><div><b>Turn off the camera</b><span>Use the Turn off camera control.</span></div></li>
+        <li><div><b>Tap into Or enter UPC code</b><span>The field at the top of the list.</span></div></li>
+        <li><div><b>Type the PLU</b><span>The 4 or 5 digit number, in the text box.</span></div></li>
+        <li><div><b>Tap Look up</b><span>Next to the field.</span></div></li>
+        <li><div><b>Check the confirmation</b><span>Added appears and your entry shows in the list.</span></div></li>
+      </ol>
+      <div class="figs" style="margin-top:0;grid-template-columns:repeat(auto-fill,minmax(min(100%,120px),1fr))">
+        <figure><button class="figbtn" type="button" style="height:270px"><img src="img/app-barcode-mode.jpg" alt="Turn off camera control" loading="lazy"></button><figcaption>Turn off camera</figcaption></figure>
+        <figure><button class="figbtn" type="button" style="height:270px"><img src="img/app-enter-upc.jpg" alt="Or enter UPC code field" loading="lazy"></button><figcaption>Or enter UPC code field</figcaption></figure>
+        <figure><button class="figbtn" type="button" style="height:270px"><img src="img/app-type-plu.jpg" alt="Typing the PLU and tapping Look up" loading="lazy"></button><figcaption>Type the PLU, tap Look up</figcaption></figure>
+        <figure><button class="figbtn" type="button" style="height:270px"><img src="img/app-added.jpg" alt="Added confirmation" loading="lazy"></button><figcaption>Added confirmation</figcaption></figure>
+      </div>
+    </div>
+    <div class="callout navy"><b>Two ways a Produce item comes in</b>A UPC you can hand scan, or a 4 to 5 digit PLU you type into the barcode field. Nothing in Produce is ever photographed.</div>
+  </div>
+</section>
+
+<!-- SPECIAL AREAS -->
+<section class="sec" id="special">
+  <div class="sec-head"><h2>Adult Beverage, Drug and Grocery GM</h2><p class="tag">Three areas with rules of their own</p></div>
+  <div class="cols">
+    <div>
+      <div class="label">Adult Beverage</div>
+      <ul>
+        <li>Designated Adult Beverage sections are in scope, including separate store-front Adult Beverage stores</li>
+        <li><strong>There is no separate Adult Beverage task.</strong> File Adult Beverage displays into the location that matches where they sit: endcaps, in-aisle, front, rear.</li>
+        <li>The Adult Beverage section usually comes late in the route. Reopen completed tasks as needed to add its displays.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="label">Drug and Grocery GM</div>
+      <ul>
+        <li>Free-standing promotional fixtures in Drug/GM are scanned</li>
+        <li>Seasonal health displays such as suntan, cough, cold, and flu are scanned when those items are also found elsewhere in the store</li>
+        <li><strong>Grocery GM is in scope:</strong> lightbulbs, charcoal, fire starter logs stocked in the grocery aisles</li>
+        <li><strong class="stop">GM outside Grocery GM is not:</strong> grills, patio furniture, storage bins, birdhouses</li>
+      </ul>
+    </div>
+  </div>
+  <div class="figs wide">
+    <figure><button class="figbtn" type="button"><img src="img/adult-bev-storefront.jpg" alt="Separate store-front Adult Beverage store" loading="lazy"></button><figcaption>Separate store-front Adult Beverage store</figcaption></figure>
+    <figure><button class="figbtn" type="button"><img src="img/adult-bev-section.jpg" alt="Designated Adult Beverage section inside the store" loading="lazy"></button><figcaption>Designated Adult Beverage section inside the store</figcaption></figure>
+  </div>
+</section>
+
+<!-- VIDEOS -->
+<section class="sec" id="videos">
+  <div class="sec-head"><h2>Video Library</h2><p class="tag">The visual companion to this guide</p></div>
+  <div class="label">Start here</div>
+  <div class="tbl-wrap">
+    <table class="vtable">
+      <tbody>
+        <tr><td>Main video</td><td>The objective, the eight locations, capture methods, and the app workflow.</td><td><a href="https://drive.google.com/file/d/1HNYdLtEZskQ9SifH7uc0ozDRrhyK8LbW/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="label" style="margin-top:24px">Location mini videos — one per display location</div>
+  <div class="tbl-wrap">
+    <table class="vtable">
+      <thead><tr><th>Location</th><th>Covers</th><th>Link</th></tr></thead>
+      <tbody>
+        <tr><td>1 Front of Store</td><td>Front wall to the front endcap, sidewalk, lobby, cart entrance</td><td><a href="https://drive.google.com/file/d/1lr-LI1TdLQs_5j-Hqcj-4Qqt4QMBo8QJ/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+        <tr><td>2 End Caps</td><td>Front, mid, and rear endcaps, power wings, tie-ins, adjacent displays</td><td><a href="https://drive.google.com/file/d/1a6dMAnEIkovzxZ5iJ1bVYfTXXu7paJYk/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+        <tr><td>3 Rear of Store</td><td>Back wall to the back endcap, bunkers, bunker ends, top racks</td><td><a href="https://drive.google.com/file/d/1KeFX1-o6xsmQgEBiwykRz5_1LGiFOJaF/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+        <tr><td>4 In Shelf</td><td>Promoted items on the shelf in a designated promotional area</td><td><a href="https://drive.google.com/file/d/1ZQfY7Mz6kGdAcGmEWS6YciVapmaOfcYD/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+        <tr><td>5 In Aisle</td><td>Shippers, pallets, and rounder racks on the floor in the aisle</td><td><a href="https://drive.google.com/file/d/1_NPIhdJgoylP9WIHIrXriLED4ZGzuol0/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+        <tr><td>6 Tables</td><td>Produce, bread, bakery, and floral tables, hand scan only</td><td><a href="https://drive.google.com/file/d/1y4l7r69KnQ9yedMSUIGDwS20fwjuyHrX/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+        <tr><td>7 Seasonal</td><td>Displays on the floor within the seasonal aisle</td><td><a href="https://drive.google.com/file/d/1vrnw_cFXww9uieoas9_svNctO_Xqlh0o/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+        <tr><td>8 Other</td><td>Displays that fit none of the other seven locations</td><td><a href="https://drive.google.com/file/d/1jocJ5T0XHrcEebNc-vYz-K_a6x3xrHEh/view?usp=sharing" target="_blank" rel="noopener">Watch video</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- BEFORE YOU LEAVE -->
+<section class="sec" id="leave">
+  <div class="sec-head"><h2>Before You Leave the Store</h2><p class="tag">Final check</p></div>
+  <div class="progress" data-for="leave"><span class="count"></span><div class="bar"><i></i></div></div>
+  <div class="cols" data-list="leave">
+    <div>
+      <div class="label">The eight tasks</div>
+      <ul class="check">
+        <li><label><input type="checkbox" id="lv-1"><span>All eight tasks complete and showing green</span></label></li>
+        <li><label><input type="checkbox" id="lv-2"><span>Front of store checked at every entrance</span></label></li>
+        <li><label><input type="checkbox" id="lv-3"><span>Adult Beverage section walked, tasks reopened as needed</span></label></li>
+        <li><label><input type="checkbox" id="lv-4"><span>Produce and Meat hand scanned, no photos taken</span></label></li>
+        <li><label><input type="checkbox" id="lv-5"><span>Every table display hand scanned</span></label></li>
+      </ul>
+      <div class="label" style="margin-top:20px">Images and tasks</div>
+      <ul class="check">
+        <li><label><input type="checkbox" id="lv-6"><span>Flagged images retaken or removed</span></label></li>
+        <li><label><input type="checkbox" id="lv-7"><span>Incomplete tasks resolved with a reason selected</span></label></li>
+      </ul>
+    </div>
+    <div>
+      <div class="label">Closing out</div>
+      <ul class="check">
+        <li><label><input type="checkbox" id="lv-8"><span>Shift ended in the app</span></label></li>
+        <li><label><input type="checkbox" id="lv-9"><span>Clocked out and shift ended in Retail Logic</span></label></li>
+        <li><label><input type="checkbox" id="lv-10"><span>App left open and logged in until uploads finish</span></label></li>
+      </ul>
+      <div class="label" style="margin-top:20px">The two rules that matter most</div>
+      <ul>
+        <li><strong>Secondary locations only.</strong> If the display is the item’s home, skip it.</li>
+        <li><strong>When in doubt, scan it.</strong> An extra scan is acceptable. A missed display is not.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="btnrow"><button class="btn ghost" type="button" data-clear="leave">Clear checks</button></div>
+  <div class="callout yel"><b>Common misses</b>A second store entrance never checked · the Adult Beverage section skipped · photos taken of produce, meat, or tables · rear bunker ends missed · flagged images left unresolved · the app closed before uploads finished</div>
+</section>
+
+<!-- TRAINING SIGN-OFF -->
+<section class="sec" id="training">
+  <div class="sec-head"><h2>Training Sign-Off</h2><p class="tag">Display Compliance Scan Training Checklist</p></div>
+  <p style="color:var(--ink2);margin-bottom:18px;max-width:70ch">Trainer and scanner work through every item together on site. Each item links to the section of this guide that covers it. Items marked <span class="live" style="display:inline-block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;background:var(--yellow);color:#0B2545;padding:1px 6px">On site</span> are covered by the trainer in the store and app.</p>
+
+  <form class="form" id="tr-form" autocomplete="off">
+    <label>Scanner name<input id="tr-scanner" type="text"></label>
+    <label>Trainer name<input id="tr-trainer" type="text"></label>
+    <label>Store #<input id="tr-store" type="text" inputmode="numeric"></label>
+    <label>Date<input id="tr-date" type="date"></label>
+    <label>Training time<input id="tr-time" type="text" placeholder="e.g. 6:00 – 10:00 AM"></label>
+  </form>
+
+  <div class="progress" data-for="train"><span class="count"></span><div class="bar"><i></i></div></div>
+  <div class="cols3" data-list="train" style="align-items:start">
+    <div class="group">
+      <h3>Basics</h3>
+      <ul class="check">
+        <li><label><input type="checkbox" id="tr-b1"><span>Clocking in PROD vs Rebotics <em class="live">On site</em></span></label></li>
+        <li><label><input type="checkbox" id="tr-b2"><span>Log-in info <em class="live">On site</em></span></label></li>
+        <li><label><input type="checkbox" id="tr-b3"><span>Checking app version <em class="live">On site</em></span></label></li>
+        <li><label><input type="checkbox" id="tr-b4"><span>Selecting the right store<small class="ref"><a href="#start">Before You Start</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-b5"><span>Reasons for the scan (ad compliance, measuring sales in different areas) <em class="live">On site</em></span></label></li>
+        <li><label><input type="checkbox" id="tr-b6"><span>Program expectations / success matrix (picture count, tables, produce, etc.)<small class="ref"><a href="#start">Before You Start</a> · <a href="#capture">Photo or Hand Scan</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-b7"><span>Good picture basics (distance, 4 foot sections, margins, organized, etc.)<small class="ref"><a href="#photos">Photo Guidelines</a> · <a href="#photo-fail">When a Photo Fails</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-b8"><span>Home location vs promo display<small class="ref"><a href="#display">What Counts</a> · <a href="#not-displays">Displays Not to Scan</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-b9"><span>No logo, no pic<small class="ref"><a href="#photos">Photo Guidelines</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-b10"><span>Task locations in store<small class="ref"><a href="#locations">Eight Locations</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-b11"><span>Finding an efficient path / order<small class="ref"><a href="#locations">Eight Locations</a></small></span></label></li>
+      </ul>
+    </div>
+    <div class="group">
+      <h3>Task Specific</h3>
+      <ul class="check">
+        <li><label><input type="checkbox" id="tr-t1"><span>Endcaps, front and sides/wings, cooler doors<small class="ref"><a href="#loc-2">End Caps</a> · <a href="#endcap-aisle">Endcap or In Aisle</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-t2"><span>Free standing bunkers (produce and rear)<small class="ref"><a href="#loc-3">Rear of Store</a> · <a href="#produce">Produce</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-t3"><span>Produce PLUs vs barcodes, how to enter a PLU<small class="ref"><a href="#produce">Produce</a> · <a href="#plu">Entering a PLU</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-t4"><span>Produce In Aisle vs Endcaps<small class="ref"><a href="#produce">Produce</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-t5"><span>Meat scans<small class="ref"><a href="#capture">Photo or Hand Scan</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-t6"><span>Tables (finding the right items, hidden bakery items)<small class="ref"><a href="#loc-6">Tables</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-t7"><span>Seasonal (what, where)<small class="ref"><a href="#loc-7">Seasonal</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-t8"><span>Other (what it is)<small class="ref"><a href="#loc-8">Other</a></small></span></label></li>
+      </ul>
+    </div>
+    <div class="group">
+      <h3>End Shift</h3>
+      <ul class="check">
+        <li><label><input type="checkbox" id="tr-e1"><span>Importance of End Shift<small class="ref"><a href="#leave">Before You Leave</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-e2"><span>Cleaning up exceptions<small class="ref"><a href="#photo-fail">When a Photo Fails</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-e3"><span>Pictures not uploading / processing<small class="ref"><a href="#photo-fail">When a Photo Fails</a></small></span></label></li>
+        <li><label><input type="checkbox" id="tr-e4"><span>Connectivity problem solving <em class="live">On site</em></span></label></li>
+        <li><label><input type="checkbox" id="tr-e5"><span>Resources for questions<small class="ref"><a href="#videos">Video Library</a> · contact your supervisor</small></span></label></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sigs">
+    <div class="sig" id="sig-scanner-wrap">
+      <div class="sig-head"><span>Scanner signature</span><button type="button" data-sig-clear="scanner">Clear</button></div>
+      <canvas id="sig-scanner" aria-label="Scanner signature"></canvas>
+      <div class="sig-name" data-name-for="tr-scanner"></div>
+    </div>
+    <div class="sig" id="sig-trainer-wrap">
+      <div class="sig-head"><span>Trainer signature</span><button type="button" data-sig-clear="trainer">Clear</button></div>
+      <canvas id="sig-trainer" aria-label="Trainer signature"></canvas>
+      <div class="sig-name" data-name-for="tr-trainer"></div>
+    </div>
+  </div>
+  <div class="btnrow">
+    <button class="btn" type="button" id="confirm-signoff">Confirm</button>
+    <button class="btn ghost" type="button" data-clear="train">Start a new sign-off</button>
+    <a class="btn ghost" id="pdf-link" hidden>Download PDF</a>
+    <span class="toast" id="toast" role="status" aria-live="polite"></span>
+  </div>
+</section>
+
+</main>
+
+<footer>Retail Odyssey</footer>
+
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Photo">
+  <button type="button" id="lb-close">Close</button>
+  <img id="lb-img" alt="">
+  <p id="lb-cap"></p>
+</div>
+
+<script>
+(function(){
+  var KEY='dc-guide-v2';
+  var state={};
+  try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){state={};}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+
+  var boxes=document.querySelectorAll('.check input[type=checkbox]');
+  var fields=document.querySelectorAll('#tr-form input');
+  boxes.forEach(function(b){ if(state[b.id]) b.checked=true; b.addEventListener('change',function(){state[b.id]=b.checked;save();update();dirty();}); });
+  fields.forEach(function(f){ if(state[f.id]) f.value=state[f.id]; f.addEventListener('input',function(){state[f.id]=f.value;f.classList.remove('missing');save();syncNames();dirty();}); });
+  document.querySelectorAll('form').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();});});
+
+  function pacificToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles'}).format(new Date());}
+  var dateEl=document.getElementById('tr-date');
+  if(!dateEl.value){dateEl.value=pacificToday();}
+
+  function syncNames(){
+    document.querySelectorAll('[data-name-for]').forEach(function(n){n.textContent=(document.getElementById(n.dataset.nameFor).value||'').trim();});
+  }
+  syncNames();
+
+  // Signature pads: strokes kept in normalized 0..1 coords so they survive resize/reload.
+  function SigPad(key){
+    var canvas=document.getElementById('sig-'+key), wrap=document.getElementById('sig-'+key+'-wrap');
+    var ctx=canvas.getContext('2d'), strokes=state['sig-'+key]||[], cur=null;
+    function size(){
+      var r=canvas.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+      canvas.width=Math.max(1,Math.round(r.width*dpr)); canvas.height=Math.max(1,Math.round(r.height*dpr));
+      draw();
+    }
+    function paint(c,w,h,lw){
+      c.lineCap='round'; c.lineJoin='round'; c.strokeStyle='#000'; c.lineWidth=lw;
+      strokes.forEach(function(s){
+        c.beginPath();
+        s.forEach(function(p,i){ if(i===0) c.moveTo(p[0]*w,p[1]*h); else c.lineTo(p[0]*w,p[1]*h); });
+        if(s.length===1) c.lineTo(s[0][0]*w+0.1,s[0][1]*h+0.1);
+        c.stroke();
+      });
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      paint(ctx,canvas.width,canvas.height,2.4*(window.devicePixelRatio||1));
+    }
+    function pt(e){var r=canvas.getBoundingClientRect();return [Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))];}
+    canvas.addEventListener('pointerdown',function(e){e.preventDefault();canvas.setPointerCapture(e.pointerId);cur=[pt(e)];strokes.push(cur);wrap.classList.remove('missing');draw();});
+    canvas.addEventListener('pointermove',function(e){if(!cur)return;e.preventDefault();cur.push(pt(e));draw();});
+    function end(){if(!cur)return;cur=null;state['sig-'+key]=strokes;save();dirty();}
+    canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('lostpointercapture',end);
+    window.addEventListener('resize',size);
+    size();
+    return {
+      isEmpty:function(){return !strokes.some(function(s){return s.length>2;});},
+      clear:function(){strokes=[];delete state['sig-'+key];save();draw();dirty();},
+      png:function(){
+        var off=document.createElement('canvas'), r=canvas.getBoundingClientRect(), ratio=r.height/r.width||0.3;
+        off.width=900; off.height=Math.round(900*ratio);
+        paint(off.getContext('2d'),off.width,off.height,4);
+        return off.toDataURL('image/png');
+      },
+      wrap:wrap
+    };
+  }
+  var pads={scanner:SigPad('scanner'),trainer:SigPad('trainer')};
+  document.querySelectorAll('[data-sig-clear]').forEach(function(b){b.addEventListener('click',function(){pads[b.dataset.sigClear].clear();});});
+
+  var confirmBtn=document.getElementById('confirm-signoff'), pdfLink=document.getElementById('pdf-link'), toast=document.getElementById('toast');
+  function setToast(msg,err){toast.textContent=msg;toast.classList.toggle('err',!!err);}
+  function dirty(){if(state.submitted){delete state.submitted;save();}confirmBtn.disabled=false;confirmBtn.textContent='Confirm';}
+  if(state.submitted){confirmBtn.disabled=true;confirmBtn.textContent='Confirmed';setToast('Saved: '+state.submitted);}
+
+  function update(){
+    document.querySelectorAll('.progress').forEach(function(p){
+      var list=document.querySelector('[data-list="'+p.dataset.for+'"]');
+      var all=list.querySelectorAll('input[type=checkbox]');
+      var done=list.querySelectorAll('input[type=checkbox]:checked').length;
+      p.querySelector('.count').textContent=done+' of '+all.length+' complete';
+      p.querySelector('i').style.width=(all.length?done/all.length*100:0)+'%';
+    });
+  }
+  update();
+
+  document.querySelectorAll('[data-clear]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var which=btn.dataset.clear;
+      document.querySelectorAll('[data-list="'+which+'"] input[type=checkbox]').forEach(function(b){b.checked=false;delete state[b.id];});
+      if(which==='train'){
+        fields.forEach(function(f){f.value='';delete state[f.id];f.classList.remove('missing');});
+        var keepTrainer=state.lastTrainer, keepStore=state.lastStore;
+        if(keepTrainer){document.getElementById('tr-trainer').value=keepTrainer;state['tr-trainer']=keepTrainer;}
+        if(keepStore){document.getElementById('tr-store').value=keepStore;state['tr-store']=keepStore;}
+        dateEl.value=pacificToday();state['tr-date']=dateEl.value;
+        pads.scanner.clear();pads.trainer.clear();
+        pads.scanner.wrap.classList.remove('missing');pads.trainer.wrap.classList.remove('missing');
+        if(pdfLink.href){try{URL.revokeObjectURL(pdfLink.href);}catch(e){}}
+        pdfLink.hidden=true;pdfLink.removeAttribute('href');
+        syncNames();setToast('');
+      }
+      save();update();
+    });
+  });
+
+  function val(id){return (document.getElementById(id).value||'').trim();}
+  function b64ToBlob(b64){var bin=atob(b64),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:'application/pdf'});}
+
+  confirmBtn.addEventListener('click',async function(){
+    var missing=[];
+    [['tr-scanner','Scanner name'],['tr-trainer','Trainer name'],['tr-store','Store #'],['tr-date','Date']].forEach(function(p){
+      var el=document.getElementById(p[0]); var ok=!!val(p[0]); el.classList.toggle('missing',!ok); if(!ok)missing.push(p[1]);
+    });
+    if(pads.scanner.isEmpty()){missing.push('Scanner signature');pads.scanner.wrap.classList.add('missing');}
+    if(pads.trainer.isEmpty()){missing.push('Trainer signature');pads.trainer.wrap.classList.add('missing');}
+    if(missing.length){setToast('Missing: '+missing.join(', ')+'.',true);return;}
+
+    var checked=[].slice.call(document.querySelectorAll('[data-list="train"] input[type=checkbox]:checked')).map(function(b){return b.id;});
+    var payload={
+      scanner:val('tr-scanner'),trainer:val('tr-trainer'),store:val('tr-store'),date:val('tr-date'),trainingTime:val('tr-time'),
+      checked:checked,scannerSignature:pads.scanner.png(),trainerSignature:pads.trainer.png()
+    };
+    confirmBtn.disabled=true;confirmBtn.textContent='Saving…';setToast('');
+    try{
+      if(window.dumpBinAuthReady){await window.dumpBinAuthReady;}
+      var res=await window.dumpBinAuthFetch('/api/dc-training/signoff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      var data=await res.json().catch(function(){return {};});
+      if(!res.ok||!data.ok){throw new Error(data.error||('Save failed ('+res.status+')'));}
+      var url=URL.createObjectURL(b64ToBlob(data.pdfBase64));
+      pdfLink.href=url;pdfLink.download=data.fileName;pdfLink.hidden=false;
+      var a=document.createElement('a');a.href=url;a.download=data.fileName;document.body.appendChild(a);a.click();a.remove();
+      state.submitted=data.fileName;state.lastTrainer=payload.trainer;state.lastStore=payload.store;save();
+      confirmBtn.textContent='Confirmed';
+      setToast('Saved: '+data.fileName);
+    }catch(err){
+      confirmBtn.disabled=false;confirmBtn.textContent='Confirm';
+      setToast((err&&err.message)||'Save failed.',true);
+    }
+  });
+
+  // Lightbox
+  var lb=document.getElementById('lb'),lbImg=document.getElementById('lb-img'),lbCap=document.getElementById('lb-cap'),last=null;
+  document.querySelectorAll('.figbtn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var img=btn.querySelector('img'); var cap=btn.parentNode.querySelector('figcaption');
+      lbImg.src=img.src; lbImg.alt=img.alt; lbCap.textContent=cap?cap.textContent:''; last=btn;
+      lb.hidden=false; document.getElementById('lb-close').focus();
+    });
+  });
+  function closeLb(){lb.hidden=true;lbImg.src='';if(last)last.focus();}
+  document.getElementById('lb-close').addEventListener('click',closeLb);
+  lb.addEventListener('click',function(e){if(e.target===lb||e.target===lbImg)closeLb();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!lb.hidden)closeLb();});
+
+  // Active nav
+  var links=[].slice.call(document.querySelectorAll('#nav a'));
+  var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+  function spy(){
+    var y=window.scrollY+120, idx=0;
+    secs.forEach(function(s,i){if(s&&s.offsetTop<=y)idx=i;});
+    links.forEach(function(a,i){a.classList.toggle('on',i===idx);});
+    var on=links[idx]; var nav=document.getElementById('nav');
+    if(on&&(on.offsetLeft<nav.scrollLeft||on.offsetLeft+on.offsetWidth>nav.scrollLeft+nav.clientWidth)){nav.scrollLeft=on.offsetLeft-12;}
+  }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+})();
+</script>
+
+</body></html>
