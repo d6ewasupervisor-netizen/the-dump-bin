@@ -12,6 +12,7 @@
     after: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6, preferJpeg: true, fast: true, label: 'cart-after' },
     signoff: { maxEdge: 2560, maxBytes: 950 * 1024, startQuality: 0.9, minQuality: 0.55, label: 'signoff' },
     instawork: { maxEdge: 2400, maxBytes: 950 * 1024, startQuality: 0.88, minQuality: 0.55, label: 'instawork' },
+    context: { maxEdge: 2048, maxBytes: TARGET_BYTES, startQuality: 0.85, minQuality: 0.5, label: 'context' },
     default: { maxEdge: 2048, maxBytes: TARGET_BYTES, startQuality: 0.85, minQuality: 0.5, label: 'photo' },
   };
 

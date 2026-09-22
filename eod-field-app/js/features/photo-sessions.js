@@ -16,7 +16,7 @@
   const LEGACY_ID = 'allPhotos';
   const QUARANTINE_ID = 'quarantine:legacy';
   const MIGRATION_ID = 'migration:photoSessions:v1';
-  const PHOTO_TYPES = ['before', 'signoff', 'after', 'instawork'];
+  const PHOTO_TYPES = ['before', 'signoff', 'after', 'instawork', 'context'];
 
   /** Fallback when Storage API estimate is unavailable. */
   const FALLBACK_SOFT_BYTES = 40 * 1024 * 1024;
@@ -87,7 +87,7 @@
   }
 
   function emptyArrays() {
-    return { before: [], signoff: [], after: [], instawork: [] };
+    return { before: [], signoff: [], after: [], instawork: [], context: [] };
   }
 
   function sessionId(store, date) {
@@ -354,6 +354,7 @@
         signoff: rec.signoff || [],
         after: rec.after || [],
         instawork: rec.instawork || [],
+        context: rec.context || [],
       });
       let n = 0;
       for (const bid of ids) {
@@ -571,6 +572,7 @@
         signoff: arrs.signoff || [],
         after: arrs.after || [],
         instawork: arrs.instawork || [],
+        context: arrs.context || [],
         sentAt: meta.sentAt == null ? null : meta.sentAt,
         emailOk: meta.emailOk,
         emailOkAt: meta.emailOkAt,
@@ -586,6 +588,7 @@
         signoff: rec?.signoff || [],
         after: rec?.after || [],
         instawork: rec?.instawork || [],
+        context: rec?.context || [],
       };
     }
 
@@ -677,6 +680,7 @@
           signoff: rec.signoff || [],
           after: rec.after || [],
           instawork: rec.instawork || [],
+          context: rec.context || [],
         };
         const meta = sessionMetaFrom(rec);
         const types = {
@@ -684,6 +688,7 @@
           signoff: (arrs.signoff || []).length,
           after: (arrs.after || []).length,
           instawork: (arrs.instawork || []).length,
+          context: (arrs.context || []).length,
         };
         out.push({
           id: rec.id,
@@ -803,6 +808,7 @@
         signoff: rec?.signoff || [],
         after: rec?.after || [],
         instawork: rec?.instawork || [],
+        context: rec?.context || [],
         timestamp: Date.now(),
       });
       const after = arraysCount(arraysFromRecord(rec || {}));
@@ -832,6 +838,7 @@
         signoff: [],
         after: [],
         instawork: [],
+        context: [],
         timestamp: Date.now(),
       });
       return { ok: true, wipedBlobs: false };
@@ -1007,6 +1014,7 @@
             signoff: existing?.signoff || [],
             after: existing?.after || [],
             instawork: existing?.instawork || [],
+            context: existing?.context || [],
           },
           arrs
         );
@@ -1023,6 +1031,7 @@
             signoff: existingQ?.signoff || [],
             after: existingQ?.after || [],
             instawork: existingQ?.instawork || [],
+            context: existingQ?.context || [],
           },
           quarantine
         );
@@ -1034,6 +1043,7 @@
           signoff: mergedQ.signoff,
           after: mergedQ.after,
           instawork: mergedQ.instawork,
+          context: mergedQ.context,
           timestamp: Date.now(),
         });
       }
@@ -1062,6 +1072,7 @@
         photosObj.signoff = [];
         photosObj.after = [];
         photosObj.instawork = [];
+        photosObj.context = [];
         return { key: null, ...empty };
       }
       const rec = await getRecord(activeKey.id);
@@ -1069,6 +1080,7 @@
       photosObj.signoff = dedupe(rec?.signoff || []);
       photosObj.after = dedupe(rec?.after || []);
       photosObj.instawork = dedupe(rec?.instawork || []).slice(-1);
+      photosObj.context = dedupe(rec?.context || []);
       await hydrateArrays(photosObj);
       return {
         key: activeKey,
@@ -1076,6 +1088,7 @@
         signoff: photosObj.signoff,
         after: photosObj.after,
         instawork: photosObj.instawork,
+        context: photosObj.context,
       };
     }
 
@@ -1086,12 +1099,14 @@
         signoff: photosObj.signoff || [],
         after: photosObj.after || [],
         instawork: (photosObj.instawork || []).slice(-1),
+        context: (photosObj.context || []),
       });
       if (photosObj) {
         photosObj.before = slimmed.before;
         photosObj.signoff = slimmed.signoff;
         photosObj.after = slimmed.after;
         photosObj.instawork = slimmed.instawork;
+        photosObj.context = slimmed.context;
       }
       const arrs = slimmed;
 
@@ -1102,6 +1117,7 @@
         signoff: arrs.signoff,
         after: arrs.after,
         instawork: arrs.instawork,
+        context: arrs.context,
         timestamp: Date.now(),
       };
 
@@ -1148,6 +1164,7 @@
         signoff: [],
         after: [],
         instawork: [],
+        context: [],
         timestamp: Date.now(),
       });
       await awaitTx(tx);
@@ -1170,6 +1187,7 @@
             signoff: photosObj.signoff || [],
             after: photosObj.after || [],
             instawork: photosObj.instawork || [],
+            context: photosObj.context || [],
           }, sessionMetaFrom(existing))
         );
       }
@@ -1181,6 +1199,7 @@
       photosObj.signoff = dedupe(rec?.signoff || []);
       photosObj.after = dedupe(rec?.after || []);
       photosObj.instawork = dedupe(rec?.instawork || []).slice(-1);
+      photosObj.context = dedupe(rec?.context || []);
       await hydrateArrays(photosObj);
 
       // Mirror active to allPhotos
@@ -1190,6 +1209,7 @@
         signoff: photosObj.signoff,
         after: photosObj.after,
         instawork: photosObj.instawork,
+        context: photosObj.context,
         timestamp: Date.now(),
       });
       return { key: activeKey };
@@ -1221,6 +1241,7 @@
           signoff: (arrs.signoff || []).length,
           after: (arrs.after || []).length,
           instawork: (arrs.instawork || []).length,
+          context: (arrs.context || []).length,
         },
         timestamp: rec.timestamp || 0,
         ...sessionMetaFrom(rec),
@@ -1319,6 +1340,7 @@
         signoff: q.signoff || [],
         after: q.after || [],
         instawork: q.instawork || [],
+        context: q.context || [],
       };
       const count = arraysCount(arrs);
       if (!count) return null;

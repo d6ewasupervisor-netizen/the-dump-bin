@@ -185,7 +185,7 @@
   async function captureType(type, extraKind) {
     if (!global.EodCamera?.open) return;
     await global.EodCamera.open({
-      label: type === 'signoff' ? 'Paper sign-off' : type === 'instawork' ? 'InstaWork sheet' : `Cart ${type}`,
+      label: type === 'signoff' ? 'Paper sign-off' : type === 'instawork' ? 'InstaWork sheet' : type === 'context' ? 'Additional photo' : `Cart ${type}`,
       onCapture: async (file) => {
         await addFiles(type, [file], extraKind);
       },

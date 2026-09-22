@@ -66,7 +66,7 @@
     const L = Logic();
     if (!S?.state?.photos || !L.mergeRemote) return S.state.photos;
     const next = Object.assign({}, S.state.photos);
-    for (const slot of ['before', 'after', 'signoff', 'instawork']) {
+    for (const slot of ['before', 'after', 'signoff', 'instawork', 'context']) {
       const kind = slot === 'before' || slot === 'after' ? slot : slot;
       next[slot] = L.mergeRemote(next[slot] || [], remote || [], kind);
     }
@@ -96,7 +96,7 @@
     const L = Logic();
     if (!photos) return photos;
     const pending = [];
-    for (const slot of ['before', 'after', 'signoff', 'instawork']) {
+    for (const slot of ['before', 'after', 'signoff', 'instawork', 'context']) {
       const list = photos[slot] || [];
       for (const entry of list) {
         if (!entry || typeof entry !== 'object') continue;
@@ -160,7 +160,7 @@
 
   async function materializePhotos(photos) {
     if (!photos) return photos;
-    for (const slot of ['before', 'after', 'signoff', 'instawork']) {
+    for (const slot of ['before', 'after', 'signoff', 'instawork', 'context']) {
       for (const entry of photos[slot] || []) {
         try { await materializeEntry(entry); } catch (_) {}
       }
@@ -170,7 +170,7 @@
 
   function findEntryByJob(photos, job) {
     if (!photos || !job?.id) return null;
-    for (const slot of ['before', 'after', 'signoff', 'instawork']) {
+    for (const slot of ['before', 'after', 'signoff', 'instawork', 'context']) {
       const hit = (photos[slot] || []).find((p) => p && p.jobId === job.id);
       if (hit) return { slot, entry: hit };
     }
@@ -207,7 +207,7 @@
     uploading = true;
     try {
       let changed = false;
-      for (const slot of ['before', 'after', 'signoff', 'instawork']) {
+      for (const slot of ['before', 'after', 'signoff', 'instawork', 'context']) {
         const list = S.state.photos?.[slot] || [];
         for (let i = 0; i < list.length; i++) {
           const entry = list[i];

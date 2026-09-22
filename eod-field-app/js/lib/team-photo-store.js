@@ -4,7 +4,7 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.EodTeamPhotoStoreLogic = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  const KINDS = ['before', 'after', 'signoff', 'instawork'];
+  const KINDS = ['before', 'after', 'signoff', 'instawork', 'context'];
   const API_ORIGIN = 'https://eod-api.the-dump-bin.com';
 
   function normalizeKind(raw, slot) {

@@ -298,6 +298,7 @@
     const kind = classifySheetFilename(filename);
     if (kind === 'cart-before' || source === 'cart-before') return 'Kompass cart — before';
     if (kind === 'cart-after' || source === 'cart-after') return 'Kompass cart — after';
+    if (kind === 'context' || source === 'context') return 'Additional photos';
     return 'Photo';
   }
 
@@ -315,6 +316,7 @@
     if (name.includes('digital_signoff') || name.includes('digital-signoff')) return 'digital';
     if (name.includes('cart_before') || name.includes('cart-before')) return 'cart-before';
     if (name.includes('cart_after') || name.includes('cart-after')) return 'cart-after';
+    if (name.includes('eod_context') || name.includes('eod-context')) return 'context';
     return 'photo';
   }
 

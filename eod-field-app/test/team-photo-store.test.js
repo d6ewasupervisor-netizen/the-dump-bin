@@ -7,6 +7,7 @@ const L = require('../js/lib/team-photo-store');
 test('team store kinds stay off the PIC board', () => {
   assert.equal(L.normalizeKind('cart-before'), 'before');
   assert.equal(L.normalizeKind('cart', 'after'), 'after');
+  assert.equal(L.normalizeKind('context'), 'context');
   assert.equal(L.normalizeKind('set'), '');
   assert.equal(L.isTeamUrl('/api/field-session/photos/before/cart-1/image?store=682&date=2026-09-11'), true);
   assert.equal(L.isTeamUrl('/api/digital-signoffs/rows/1/photos/prod/9/image'), false);

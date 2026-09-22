@@ -34,7 +34,7 @@
     checkInDone: false,
     beforesStepDone: false,
     signatureDataUrl: '',
-    photos: { before: [], after: [], signoff: [], instawork: [] },
+    photos: { before: [], after: [], signoff: [], instawork: [], context: [] },
     notInStoreSelected: [],
     notInSiSelected: [],
     helpdeskSubmittedReports: [],
@@ -155,7 +155,7 @@
     state.emailRecipients = [];
     state.notInStoreSelected = [];
     state.notInSiSelected = [];
-    state.photos = { before: [], after: [], signoff: [], instawork: [] };
+    state.photos = { before: [], after: [], signoff: [], instawork: [], context: [] };
     state.sheetAcknowledged = false;
     state.instaworkYes = null;
     state.instaworkSavedInfo = null;

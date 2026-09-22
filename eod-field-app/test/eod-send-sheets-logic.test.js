@@ -44,6 +44,7 @@ test('sheet filenames classify coversheet vs digital vs paper', () => {
   assert.equal(classifySheetFilename('cart_before_0.jpg'), 'cart-before');
   assert.equal(classifySheetFilename('cart_after_0.jpg'), 'cart-after');
   assert.equal(classifySheetFilename('signoff_0.jpg'), 'photo');
+  assert.equal(classifySheetFilename('eod_context_0.jpg'), 'context');
 });
 
 test('department signatures become one bullet per name', () => {

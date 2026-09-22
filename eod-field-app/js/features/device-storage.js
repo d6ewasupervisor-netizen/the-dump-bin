@@ -4,12 +4,13 @@
 
   const REVIEW_ID = 'eodUnsentReview';
   const LIGHTBOX_ID = 'eodUnsentLightbox';
-  const TYPE_ORDER = ['before', 'after', 'signoff', 'instawork'];
+  const TYPE_ORDER = ['before', 'after', 'signoff', 'instawork', 'context'];
   const TYPE_LABEL = {
     before: 'Cart before',
     after: 'Cart after',
     signoff: 'Paper sign-off',
     instawork: 'InstaWork',
+    context: 'Additional photos',
   };
 
   // Select-mode state survives re-renders (module-level closure)
@@ -201,7 +202,7 @@
     const r = await global.PhotoDB.deleteSessionById(id, { allowActive: true });
     if (r?.clearedActive && S) {
       S.patch({
-        photos: { before: [], after: [], signoff: [], instawork: [] },
+        photos: { before: [], after: [], signoff: [], instawork: [], context: [] },
       }, 'device-storage');
       try { S.saveDraft(); } catch (_) {}
     }
@@ -221,6 +222,7 @@
         after: rec.photos.after || [],
         signoff: rec.photos.signoff || [],
         instawork: rec.photos.instawork || [],
+        context: rec.photos.context || [],
       },
     }, 'device-storage');
     try { S.saveDraft(); } catch (_) {}

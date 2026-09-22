@@ -249,6 +249,10 @@
       const dataUrl = photoSrc(p) || cartSrc(p);
       if (dataUrl) out.push({ dataUrl, filename: `cart_after_${i}.jpg`, source: 'cart-after' });
     });
+    photosOf('context').forEach((p, i) => {
+      const dataUrl = photoSrc(p) || cartSrc(p);
+      if (dataUrl) out.push({ dataUrl, filename: `eod_context_${i}.jpg`, source: 'context' });
+    });
     const seenCover = { n: 0 };
     return out.filter((item) => {
       const kind = L.classifySheetFilename?.(item.filename) || 'photo';
@@ -416,6 +420,7 @@ ${cleanNotes}`;
           after: photoCount('after'),
           signoff: photoCount('signoff'),
           instawork: photoCount('instawork'),
+          context: photoCount('context'),
         },
         instaworkSave: S.state.instaworkSavedInfo || null,
       },
@@ -526,7 +531,7 @@ ${cleanNotes}`;
             ${esc(String(sheet.summary?.marked || 0))}/${esc(String(sheet.summary?.total || 0))} marked
             ${S.sheetSendReady() ? '<span class="pill ok">send ready</span>' : '<span class="pill warn">open sets remain</span>'}</p>`
             : '<p><span class="pill warn">No hosted sheet</span> — paper sign-off required</p>'}
-          <p class="muted">Photos — before ${photoCount('before')}, after ${photoCount('after')}, signoff ${photoCount('signoff')}, instawork ${photoCount('instawork')}</p>
+          <p class="muted">Photos — before ${photoCount('before')}, after ${photoCount('after')}, signoff ${photoCount('signoff')}, instawork ${photoCount('instawork')}, additional ${photoCount('context')}</p>
         </div>
         ${S.hasHostedSheet() ? '' : `
         <div class="field" id="sendPaperField">
@@ -549,6 +554,16 @@ ${cleanNotes}`;
         <div class="field">
           <label>Notes</label>
           <textarea id="sendNotes" rows="4">${esc(S.state.notes || '')}</textarea>
+        </div>
+        <div class="field" id="sendContextField">
+          <label>Additional photos</label>
+          <div id="sendContextGrid" style="margin-top:8px;"></div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button type="button" class="btn btn-primary" id="sendContextCam">Camera</button>
+            <label class="btn btn-secondary" style="cursor:pointer;">Gallery
+              <input type="file" accept="image/*,.heic,.heif" id="sendContextInput" multiple hidden>
+            </label>
+          </div>
         </div>
         <div class="card" id="cartBeforeCard" style="margin:12px 0;">
           <h2>Kompass cart — before</h2>
@@ -669,6 +684,7 @@ ${cleanNotes}`;
         { type: 'before', id: 'sendBeforeGrid' },
         { type: 'after', id: 'cartAfterThumbs' },
         { type: 'signoff', id: 'sendPaperGrid' },
+        { type: 'context', id: 'sendContextGrid' },
       ];
       if (global.PhotoDB?.hydrateDataUrls && slots.some(({ type }) => slotNeedsDisplayBytes(type))) {
         try { await global.PhotoDB.hydrateDataUrls(S.state.photos); } catch (_) {}
@@ -711,6 +727,40 @@ ${cleanNotes}`;
       if (files.length && global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('signoff', files);
       paintSendablePhotos();
       refreshGates();
+    });
+    const CONTEXT_MAX = 12;
+    function contextRoom() {
+      return Math.max(0, CONTEXT_MAX - photosOf('context').length);
+    }
+    async function addContextFiles(files) {
+      const list = [...(files || [])];
+      const room = contextRoom();
+      const take = list.slice(0, room);
+      if (!take.length) {
+        if (global.showAlert) global.showAlert('Additional photos', '12 photos max.');
+        return;
+      }
+      if (take.length < list.length && global.showAlert) {
+        global.showAlert('Additional photos', '12 photos max.');
+      }
+      if (global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('context', take);
+      await paintSendablePhotos();
+    }
+    document.getElementById('sendContextCam')?.addEventListener('click', async () => {
+      if (!global.EodCamera?.open) return;
+      await global.EodCamera.open({
+        label: 'Additional photo',
+        onCapture: async (file) => {
+          await addContextFiles([file]);
+        },
+        shouldContinue: () => contextRoom() > 0,
+      });
+      await paintSendablePhotos();
+    });
+    document.getElementById('sendContextInput')?.addEventListener('change', async (ev) => {
+      const files = [...(ev.target.files || [])];
+      ev.target.value = '';
+      await addContextFiles(files);
     });
     try { global.EodSendGates?.bindList?.(document.getElementById('eodSendGates'), S); } catch (_) {}
     ensureLiveGates(S);
