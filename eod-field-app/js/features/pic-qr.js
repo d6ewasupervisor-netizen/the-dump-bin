@@ -3,8 +3,10 @@
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/guest-handoff/store-pic';
+  const OPTIN_API = 'https://eod-api.the-dump-bin.com/api/dept-signatures';
 
   let state = { picUrl: null, token: null, expiresAt: null };
+  let optedIn = [];
 
   function storeNumber() {
     return (global.EodSession?.state?.storeNumber || document.getElementById('storeNumber')?.value || '').trim();
@@ -96,6 +98,50 @@
     return state;
   }
 
+  async function loadOptedIn() {
+    const store = storeNumber();
+    if (!store) {
+      optedIn = [];
+      return optedIn;
+    }
+    const resp = await global.authFetch(`${OPTIN_API}/${encodeURIComponent(store)}/sms-opted-in`);
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) {
+      throw new Error(data.error || `Could not load opted-in PICs (${resp.status})`);
+    }
+    optedIn = Array.isArray(data.contacts) ? data.contacts : [];
+    return optedIn;
+  }
+
+  async function sendLink({ recipientName, recipientPhone, roleKey }) {
+    await refresh(false);
+    if (!state.picUrl) throw new Error('Confirm today\'s store first to mint a PIC QR.');
+    const live = typeof global.isEodForceLiveDelivery === 'function'
+      && global.isEodForceLiveDelivery();
+    const resp = await global.authFetch(`${API}/send`, {
+      method: 'POST',
+      headers: global.EodApi.dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        fiscalWeek: fiscalWeek() || undefined,
+        leadName: leadName(),
+        recipientName,
+        recipientPhone,
+        roleKey: roleKey || undefined,
+        sendSms: true,
+        sendEmail: false,
+        forceLive: live || undefined,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) {
+      const smsErr = data.delivery?.sms?.find?.((r) => !r.ok);
+      throw new Error(smsErr?.error || data.error || `Send failed (${resp.status})`);
+    }
+    return data;
+  }
+
   function ensureFullscreen() {
     if (document.getElementById('eodPicQrFs')) return;
     const el = document.createElement('div');
@@ -132,6 +178,94 @@
     fs.classList.add('modal-overlay', 'show');
   }
 
+  function maskPhone(phone) {
+    const d = String(phone || '').replace(/\D/g, '').slice(-10);
+    if (d.length !== 10) return '';
+    return `(***) ***-${d.slice(-4)}`;
+  }
+
+  function ensureTextPicker() {
+    if (document.getElementById('eodPicTextFs')) return;
+    const el = document.createElement('div');
+    el.id = 'eodPicTextFs';
+    el.className = 'eod-pic-qr-fs';
+    el.innerHTML = `<div class="modal-dialog">
+      <h2>Text PIC</h2>
+      <p class="muted" id="eodPicTextStatus"></p>
+      <div id="eodPicTextList"></div>
+      <button type="button" class="btn btn-secondary btn-block" id="eodPicTextClose" style="margin-top:12px;">Close</button>
+    </div>`;
+    document.body.appendChild(el);
+    document.getElementById('eodPicTextClose').onclick = () => { el.style.display = 'none'; };
+    el.addEventListener('click', (e) => { if (e.target === el) el.style.display = 'none'; });
+  }
+
+  function roleLabel(key) {
+    const roles = global.EodDeptSignatures?.roles?.() || [];
+    const hit = roles.find((r) => String(r.key) === String(key));
+    return hit?.label || key || '';
+  }
+
+  async function textOne(pic) {
+    const status = document.getElementById('eodPicTextStatus');
+    if (status) status.textContent = `Texting ${pic.name || 'PIC'}…`;
+    try {
+      const data = await sendLink({
+        recipientName: pic.name,
+        recipientPhone: pic.phone,
+        roleKey: pic.roleKey,
+      });
+      const sms = data.delivery?.sms?.find?.((r) => r.ok);
+      if (status) status.textContent = sms ? `Sent to ${pic.name || 'PIC'}.` : 'Sent.';
+    } catch (err) {
+      if (status) status.textContent = err.message || 'Send failed.';
+      if (global.showAlert) global.showAlert('Text PIC', err.message || 'Send failed.');
+    }
+  }
+
+  async function showTextPicker() {
+    ensureTextPicker();
+    const fs = document.getElementById('eodPicTextFs');
+    const list = document.getElementById('eodPicTextList');
+    const status = document.getElementById('eodPicTextStatus');
+    fs.style.display = 'flex';
+    fs.classList.add('modal-overlay', 'show');
+    if (status) status.textContent = 'Loading…';
+    if (list) list.innerHTML = '';
+    try {
+      await loadOptedIn();
+    } catch (err) {
+      if (status) status.textContent = err.message || 'Could not load opted-in PICs.';
+      return;
+    }
+    if (!optedIn.length) {
+      if (status) status.textContent = 'No opted-in numbers yet.';
+      return;
+    }
+    if (status) status.textContent = '';
+    list.innerHTML = optedIn.map((p, i) => {
+      const meta = [roleLabel(p.roleKey), maskPhone(p.phone)].filter(Boolean).join(' · ');
+      return `<button type="button" class="btn btn-secondary btn-block" data-pic-idx="${i}" style="margin-top:8px;text-align:left;">
+        <strong>${escapeHtml(p.name || 'PIC')}</strong>
+        ${meta ? `<div class="muted">${escapeHtml(meta)}</div>` : ''}
+      </button>`;
+    }).join('');
+    list.querySelectorAll('[data-pic-idx]').forEach((btn) => {
+      btn.onclick = () => {
+        const pic = optedIn[Number(btn.getAttribute('data-pic-idx'))];
+        if (pic) textOne(pic);
+      };
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function cardHtml() {
     return `<div class="card" id="eodPicQrCard">
       <h2>Daily PIC QR</h2>
@@ -140,6 +274,7 @@
       <div id="eodPicQrUrl" class="muted" hidden style="word-break:break-all;font-size:12px;"></div>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="eodPicQrShowBtn">Show QR</button>
+        <button type="button" class="btn btn-primary" id="eodPicQrTextBtn">Text PIC</button>
         <button type="button" class="btn btn-secondary" id="eodPicQrRefreshBtn">Refresh</button>
       </div>
     </div>`;
@@ -149,6 +284,11 @@
     if (!host) return;
     host.innerHTML = cardHtml();
     document.getElementById('eodPicQrShowBtn')?.addEventListener('click', showFullscreen);
+    document.getElementById('eodPicQrTextBtn')?.addEventListener('click', () => {
+      showTextPicker().catch((err) => {
+        if (global.showAlert) global.showAlert('Text PIC', err.message);
+      });
+    });
     document.getElementById('eodPicQrRefreshBtn')?.addEventListener('click', () => {
       refresh(true).catch((err) => {
         if (global.showAlert) global.showAlert('PIC QR', err.message);
@@ -157,5 +297,14 @@
     try { await refresh(false); } catch (_) { paintCard(); }
   }
 
-  global.EodPicQr = { refresh, showFullscreen, mount, getState: () => state, cardHtml };
+  global.EodPicQr = {
+    refresh,
+    showFullscreen,
+    showTextPicker,
+    sendLink,
+    mount,
+    getState: () => state,
+    getOptedIn: () => optedIn.slice(),
+    cardHtml,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

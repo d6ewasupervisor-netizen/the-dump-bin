@@ -495,14 +495,18 @@ ${cleanNotes}`;
       try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
     }
     try { global.EodVisitMemory?.applyToSession?.(S, S.state.storeNumber); } catch (_) {}
-    try { await global.EodPicQr?.refresh?.(false); } catch (_) {}
+    try { await global.EodDeptSignatures?.refresh?.(); } catch (_) {}
     if (sendPicPoll) clearInterval(sendPicPoll);
     sendPicPoll = setInterval(() => {
       if (global.EodRouter?.current && global.EodRouter.current !== 'send') return;
-      global.EodPicQr?.refresh?.(false).then(() => {
-        const out = document.getElementById('checkOutManager');
-        if (out && S.state.checkOutManager && !out.value.trim()) out.value = S.state.checkOutManager;
-        try { global.EodVisitMemory?.paintFields?.(S); } catch (_) {}
+      global.EodDeptSignatures?.refresh?.().then(() => {
+        const cover = (global.EodDeptSignatures?.getCollectedForEmail?.() || [])
+          .find((s) => /^(store_pic|home_manager)$/i.test(s.roleKey));
+        if (cover?.signerName && !(S.state.checkOutManager || '').trim()) {
+          if (global.EodVisitMemory?.setManagers) {
+            global.EodVisitMemory.setManagers(S, { checkOutManager: cover.signerName }, 'pic-checkout');
+          }
+        }
         refreshGates();
       }).catch(() => {});
     }, 12000);
@@ -524,7 +528,6 @@ ${cleanNotes}`;
             : '<p><span class="pill warn">No hosted sheet</span> — paper sign-off required</p>'}
           <p class="muted">Photos — before ${photoCount('before')}, after ${photoCount('after')}, signoff ${photoCount('signoff')}, instawork ${photoCount('instawork')}</p>
         </div>
-        <div id="eodPicQrMount"></div>
         ${S.hasHostedSheet() ? '' : `
         <div class="field" id="sendPaperField">
           <label>Paper sign-off photo</label>
@@ -624,7 +627,6 @@ ${cleanNotes}`;
         if (btn) btn.disabled = false;
       }
     });
-    try { await global.EodPicQr?.mount?.(document.getElementById('eodPicQrMount')); } catch (_) {}
 
     function slotNeedsDisplayBytes(type) {
       const L = global.EodSendSheetsLogic || {};

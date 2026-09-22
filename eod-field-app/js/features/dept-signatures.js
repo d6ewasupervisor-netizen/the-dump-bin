@@ -8,6 +8,7 @@
   const GUEST_API = 'https://eod-api.the-dump-bin.com/api/guest-handoff';
 
   const ROLE_FALLBACK = [
+    { key: 'store_pic', label: 'Store Manager / PIC' },
     { key: 'grocery', label: 'Grocery PIC' },
     { key: 'fuel_center', label: 'Fuel Center PIC' },
     { key: 'deli', label: 'Deli Dept. PIC' },
@@ -347,9 +348,6 @@
             <button type="button" class="btn btn-primary" data-dept-sig-collect="${escapeHtml(role.key)}">
               ${collected ? 'Re-collect' : 'Hand to signer'}
             </button>
-            <button type="button" class="btn btn-secondary" data-dept-sig-send="${escapeHtml(role.key)}" title="Text or email a secure link">
-              Send text
-            </button>
             ${collected ? `<button type="button" class="btn btn-secondary" data-dept-sig-edit="${escapeHtml(role.key)}">Edit</button>` : ''}
             ${collected ? `<button type="button" class="btn btn-secondary" data-dept-sig-clear="${escapeHtml(role.key)}">Clear</button>` : ''}
           </div>
@@ -361,13 +359,7 @@
     });
     host.querySelectorAll('[data-dept-sig-send]').forEach((btn) => {
       btn.onclick = () => {
-        const roleKey = btn.getAttribute('data-dept-sig-send');
-        const sig = byRole.get(roleKey);
-        if (window.EodGuestHandoff?.sendDeptHandoff) {
-          window.EodGuestHandoff.sendDeptHandoff(roleKey, roleLabel(roleKey), sig ? { fullName: sig.signerName, email: sig.signerEmail } : null);
-        } else if (typeof showAlert === 'function') {
-          showAlert('Not loaded', 'Guest handoff module is not available.');
-        }
+        if (window.EodPicQr?.showTextPicker) window.EodPicQr.showTextPicker();
       };
     });
     host.querySelectorAll('[data-dept-sig-edit]').forEach((btn) => {
@@ -564,7 +556,7 @@
       notify('Date required', 'Select the shift / work date first.');
       return;
     }
-    wizard = { roleKey, step: contacts.length ? 'pick' : 'name', contactId: null, fullName: '', email: '', title: '', signatureDataUrl: '' };
+    wizard = { roleKey, step: contacts.length ? 'pick' : 'name', contactId: null, fullName: '', email: '', phone: '', smsNextTime: false, title: '', signatureDataUrl: '' };
     renderWizard();
     document.getElementById('deptSigWizardOverlay')?.classList.add('show');
   }
@@ -578,7 +570,8 @@
   function wizardBack() {
     if (!wizard) return;
     if (wizard.step === 'email') wizard.step = 'name';
-    else if (wizard.step === 'title') wizard.step = 'email';
+    else if (wizard.step === 'phone') wizard.step = wizard.contactId ? (contacts.length ? 'pick' : 'email') : 'email';
+    else if (wizard.step === 'title') wizard.step = 'phone';
     else if (wizard.step === 'name' && contacts.length) wizard.step = 'pick';
     else if (wizard.step === 'setReview') wizard.step = 'sets';
     else if (wizard.step === 'sets') wizard.step = 'choice';
@@ -616,7 +609,14 @@
         return;
       }
       wizard.email = email;
-      wizard.step = 'title';
+      wizard.step = 'phone';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'phone') {
+      wizard.phone = (body.querySelector('#deptSigPhoneInput')?.value || '').trim();
+      wizard.smsNextTime = !!body.querySelector('#deptSigSmsNext')?.checked;
+      wizard.step = wizard.contactId ? 'confirm' : 'title';
       renderWizard();
       return;
     }
@@ -802,7 +802,9 @@
             wizard.contactId = c.id;
             wizard.fullName = canonicalName(c.fullName);
             wizard.email = c.email;
-            wizard.step = 'confirm';
+            wizard.phone = c.phone || '';
+            wizard.smsNextTime = !!c.smsNextTime;
+            wizard.step = 'phone';
           }
           renderWizard();
         };
@@ -833,6 +835,18 @@
       body.innerHTML = `<div class="field"><label>Email</label>
         <input type="email" id="deptSigEmailInput" value="${escapeHtml(wizard.email)}" autocomplete="email" style="width:100%;"></div>`;
       setTimeout(() => document.getElementById('deptSigEmailInput')?.focus(), 50);
+      return;
+    }
+    if (wizard.step === 'phone') {
+      hint.textContent = 'Optional cell for a sign-out text next time.';
+      next.textContent = 'Continue';
+      body.innerHTML = `<div class="field"><label>Cell</label>
+        <input type="tel" id="deptSigPhoneInput" value="${escapeHtml(wizard.phone || '')}" inputmode="tel" autocomplete="tel" style="width:100%;"></div>
+        <label style="display:flex;gap:8px;align-items:flex-start;margin:10px 0 0;font-size:14px;">
+          <input type="checkbox" id="deptSigSmsNext" ${wizard.smsNextTime ? 'checked' : ''}>
+          Text me next time
+        </label>`;
+      setTimeout(() => document.getElementById('deptSigPhoneInput')?.focus(), 50);
       return;
     }
     if (wizard.step === 'title') {
@@ -1050,6 +1064,8 @@
           fullName: wizard.fullName,
           email: wizard.email,
           signerTitle: wizard.title || undefined,
+          signerPhone: wizard.phone || undefined,
+          smsNextTime: !!wizard.smsNextTime,
           signatureDataUrl: dataUrl,
         }),
       });
@@ -1177,6 +1193,7 @@
     getCollectedForEmail,
     persistLeadSignature,
     setRequiredRoles: applyRequiredRoleKeys,
+    scopedRoleKeys: () => (scopedRoleKeys || []).slice(),
     syncFromSheet,
     roles: () => roles.slice(),
   };

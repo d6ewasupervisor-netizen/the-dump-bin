@@ -1,10 +1,13 @@
-/* Department PIC signatures. Daily PIC QR lives on Send. */
+/* Department PIC signatures. Daily PIC QR + Text PIC sit at the top. */
 (function (global) {
   'use strict';
 
   async function render(mount) {
     const S = global.EodSession;
-    mount.innerHTML = `<div class="card heart dept-sig-card" id="deptSigMount"></div>`;
+    mount.innerHTML = `
+      <div id="eodPicQrMount"></div>
+      <div class="card heart dept-sig-card" id="deptSigMount"></div>`;
+    try { await global.EodPicQr?.mount?.(document.getElementById('eodPicQrMount')); } catch (_) {}
     const deptHost = document.getElementById('deptSigMount');
     if (deptHost && global.EodDeptSignatures?.mountInline) {
       await global.EodDeptSignatures.mountInline(deptHost);

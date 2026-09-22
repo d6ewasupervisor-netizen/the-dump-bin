@@ -21,6 +21,29 @@
     }).length;
   }
 
+  function collectedPicRoles() {
+    return (global.EodDeptSignatures?.getCollectedForEmail?.() || [])
+      .map((s) => String(s.roleKey || '').toLowerCase())
+      .filter((k) => k && k !== 'lead');
+  }
+
+  function scopedPicRoles() {
+    return (global.EodDeptSignatures?.scopedRoleKeys?.() || [])
+      .map((k) => String(k || '').toLowerCase())
+      .filter((k) => k && k !== 'lead' && k !== 'store_pic' && k !== 'home_manager');
+  }
+
+  function picSignoffReady(S) {
+    if (!S.hasHostedSheet?.()) {
+      return !!(S.state.checkOutManager || '').trim() || photoCount(S, 'signoff') >= 1;
+    }
+    const collected = collectedPicRoles();
+    if (collected.includes('store_pic') || collected.includes('home_manager')) return true;
+    const scoped = scopedPicRoles();
+    if (scoped.length) return scoped.every((k) => collected.includes(k));
+    return collected.length > 0;
+  }
+
   function items(S) {
     if (!S || !S.state) return [];
     const out = [];
@@ -44,11 +67,10 @@
         'sendPaperCam'
       );
     }
-    const picCollected = (global.EodDeptSignatures?.getCollectedForEmail?.() || []).length > 0;
     push(
       'checkout',
-      !!(S.state.checkOutManager || '').trim() || (S.hasHostedSheet?.() && picCollected),
-      'Collect management / store PIC signatures (or check-out manager)',
+      picSignoffReady(S),
+      'Collect department PIC signatures',
       'signatures',
       null
     );
@@ -206,6 +228,7 @@
 
   const api = {
     items,
+    picSignoffReady,
     missing,
     firstMessage,
     go,

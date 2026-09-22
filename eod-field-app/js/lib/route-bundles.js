@@ -37,6 +37,7 @@
       'js/lib/signoff-department.js',
       'js/lib/person-name.js',
       'js/features/dept-signatures.js',
+      'js/features/pic-qr.js',
       'js/features/signatures.js',
     ],
     dumpbin: [
@@ -57,7 +58,6 @@
       'js/features/sms-optin-qr.js',
       'js/features/guest-handoff.js',
       'js/features/timesheet-mgmt.js',
-      'js/features/pic-qr.js',
       'js/features/crew.js',
     ],
   };

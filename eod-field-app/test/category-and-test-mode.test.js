@@ -752,10 +752,16 @@ test('send gates follow visit → cart → check-in before lead signature', () =
   S.sheetSendReady = () => true;
   assert.equal(
     sendGates.firstMessage(S),
-    'Collect management / store PIC signatures (or check-out manager)'
+    'Collect department PIC signatures'
   );
   S.state.checkOutManager = 'April';
+  assert.equal(sendGates.firstMessage(S), 'Collect department PIC signatures');
+  global.EodDeptSignatures = {
+    getCollectedForEmail: () => [{ roleKey: 'grocery', signerName: 'April' }],
+    scopedRoleKeys: () => ['grocery'],
+  };
   assert.equal(sendGates.firstMessage(S), 'Add your lead signature');
+  delete global.EodDeptSignatures;
 });
 
 test('kickSettleDrain polls settle-now then soft-returns on timeout', async () => {
@@ -937,7 +943,7 @@ test('planogram shelves and facings follow theme colors instead of a white board
   assert.doesNotMatch(css, /\.si-pog-item \{\s*background:\s*#fff/);
 });
 
-test('checkout manager gate clears when a name is set', () => {
+test('checkout gate clears when department PICs have signed, not from a typed name', () => {
   const ready = {
     state: {
       profileName: 'Tyson',
@@ -956,11 +962,17 @@ test('checkout manager gate clears when a name is set', () => {
   };
   assert.ok(sendGates.missing(ready).some((g) => g.id === 'checkout'));
   ready.state.checkOutManager = 'April';
+  assert.ok(sendGates.missing(ready).some((g) => g.id === 'checkout'));
+  global.EodDeptSignatures = {
+    getCollectedForEmail: () => [{ roleKey: 'store_pic', signerName: 'April' }],
+    scopedRoleKeys: () => ['grocery', 'produce'],
+  };
   assert.ok(!sendGates.missing(ready).some((g) => g.id === 'checkout'));
   assert.notEqual(
     sendGates.firstMessage(ready),
-    'Collect management / store PIC signatures (or check-out manager)'
+    'Collect department PIC signatures'
   );
+  delete global.EodDeptSignatures;
 });
 
 test('digital signoff rasterizer loads standard PDF fonts', () => {
@@ -969,6 +981,19 @@ test('digital signoff rasterizer loads standard PDF fonts', () => {
   assert.match(pdf, /cMapUrl/);
 });
 
+
+test('signatures page mounts Daily PIC QR and Text PIC at the top', () => {
+  const sig = fs.readFileSync(path.join(__dirname, '../js/features/signatures.js'), 'utf8');
+  const pic = fs.readFileSync(path.join(__dirname, '../js/features/pic-qr.js'), 'utf8');
+  const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
+  const bundles = fs.readFileSync(path.join(__dirname, '../js/lib/route-bundles.js'), 'utf8');
+  assert.match(sig, /eodPicQrMount/);
+  assert.match(pic, /eodPicQrTextBtn/);
+  assert.match(pic, /sms-opted-in/);
+  assert.match(pic, /\$\{API\}\/send/);
+  assert.doesNotMatch(send, /eodPicQrMount/);
+  assert.match(bundles, /signatures:[\s\S]*pic-qr\.js/);
+});
 test('send page live-refreshes gates after checkout is chosen', () => {
   const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
   const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
