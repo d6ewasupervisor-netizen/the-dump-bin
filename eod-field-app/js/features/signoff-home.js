@@ -587,6 +587,20 @@
     return null;
   }
 
+  async function confirmUndoOutOfScope() {
+    const id = await (global.EodAlerts?.showDialog
+      ? global.EodAlerts.showDialog({
+        title: 'Undo Out of Scope',
+        message: 'Put this set back on the sign-off sheet?',
+        buttons: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'ok', label: 'Undo Out of Scope', primary: true },
+        ],
+      })
+      : Promise.resolve(window.confirm('Undo Out of Scope?') ? 'ok' : 'cancel'));
+    return id === 'ok';
+  }
+
   async function confirmOutOfScope(count) {
     const n = Number(count) || 1;
     const id = await (global.EodAlerts?.showDialog
@@ -855,24 +869,12 @@
       const captureSlot = Status?.neededCaptureSlot
         ? Status.neededCaptureSlot(row, localBefores)
         : 'after';
-      if (markActive(row, 'out_of_scope')) {
-        return `<div class="ds-row ds-row-compact ${rowClass(row)}" data-row-id="${row.id}">
-        <div class="ds-row-copy">
-          <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
-          <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
-          <div class="ds-row-live"><span class="pill">Out of Scope</span></div>
-        </div>
-        ${catNum ? `<div class="ds-row-catnum" title="Category">${esc(catNum)}</div>` : ''}
-        <div class="ds-actions">
-          <button type="button" class="btn btn-secondary on" data-row="${row.id}" data-mark="out_of_scope">Undo Out of Scope</button>
-        </div>
-      </div>`;
-      }
       return `<div class="ds-row ds-row-compact ${rowClass(row)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
         <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
         <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
+          ${markActive(row, 'out_of_scope') ? '<div class="ds-row-live"><span class="pill">Out of Scope</span></div>' : ''}
           ${liveLine ? `<div class="ds-row-live">${liveLine}</div>` : ''}
           ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
@@ -1031,6 +1033,10 @@
       }
       if (markType === 'out_of_scope' && turningOn && !opts?.skipOosConfirm) {
         const ok = await confirmOutOfScope(1);
+        if (!ok) return false;
+      }
+      if (markType === 'out_of_scope' && current && !turningOn) {
+        const ok = await confirmUndoOutOfScope();
         if (!ok) return false;
       }
       await applyMark(rowId, markType, turningOnNis

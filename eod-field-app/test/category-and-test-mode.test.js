@@ -264,9 +264,12 @@ test('NISI is not done; Complete / NIS / Out of Scope / photos clear a set', () 
   assert.equal(matchesSheetFilters(oos, {}), true);
 });
 
-test('Out of Scope card on Done offers Undo Out of Scope', () => {
+test('Out of Scope card keeps the normal card with a badge; tapping the lit mark confirms the undo', () => {
   const signoff = fs.readFileSync(path.join(__dirname, '..', 'js', 'features', 'signoff-home.js'), 'utf8');
-  assert.match(signoff, /data-mark="out_of_scope">Undo Out of Scope</);
+  assert.doesNotMatch(signoff, /data-mark="out_of_scope">Undo Out of Scope</);
+  assert.match(signoff, /markActive\(row, 'out_of_scope'\) \? '<div class="ds-row-live"><span class="pill">Out of Scope<\/span>/);
+  assert.match(signoff, /markType === 'out_of_scope' && current && !turningOn\) \{\s+const ok = await confirmUndoOutOfScope\(\);/);
+  assert.match(signoff, /title: 'Undo Out of Scope'/);
 });
 
 test('walk sort: aisle order, backlog after open, complete at bottom, next skips done', () => {
