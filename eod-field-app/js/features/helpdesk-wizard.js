@@ -71,6 +71,25 @@
     });
   }
 
+  function dropDefaultedHelpdeskCc(emails) {
+    return (emails || []).filter((email) => {
+      const n = String(email || '').trim().toLowerCase();
+      if (!n) return false;
+      if (n.endsWith('@stores.fredmeyer.com')) return false;
+      if (n.endsWith('@gmail.com')) return false;
+      return true;
+    });
+  }
+
+  function seedHelpdeskCc(recipients, store, keepEmail) {
+    const seeded = stripAiyana(dropDefaultedHelpdeskCc(recipients), store, keepEmail);
+    const self = String(keepEmail || '').trim().toLowerCase();
+    if (self && !seeded.some((email) => String(email || '').trim().toLowerCase() === self)) {
+      seeded.unshift(self);
+    }
+    return seeded;
+  }
+
   function pogDbkey(planogramId) {
     const m = String(planogramId || '').match(/_(\d{6,})_/);
     return m ? m[1] : '';
@@ -648,7 +667,7 @@
             <div id="helpdeskWizardRecipientList"></div>
           </div>
           <div class="checkbox-option" style="margin-top:8px;">
-            <input type="checkbox" id="helpdeskAddRetailOdysseyTeam">
+            <input type="checkbox" id="helpdeskAddRetailOdysseyTeam" checked>
             <label for="helpdeskAddRetailOdysseyTeam">Add Retail Odyssey Team</label>
           </div>
         </div>
@@ -678,7 +697,9 @@
     try { await loadSets(); } catch (_) { /* still open */ }
     issues = [Object.assign(blankIssue(), prefill && typeof prefill === 'object' ? prefill : {})];
     const recipients = st().emailRecipients || global.emailRecipients || [];
-    ccList = stripAiyana(recipients.slice(), storeNo(), userEmail());
+    ccList = seedHelpdeskCc(recipients.slice(), storeNo(), userEmail());
+    const teamBox = document.getElementById('helpdeskAddRetailOdysseyTeam');
+    if (teamBox) teamBox.checked = true;
     paintIssues();
     paintCc();
     const overlay = document.getElementById('helpdeskWizardOverlay');
@@ -810,7 +831,7 @@
     }
     const map = setsMap();
     const extraRecipients = stripAiyana(ccList, store, userEmail());
-    const addTeam = document.getElementById('helpdeskAddRetailOdysseyTeam')?.checked || false;
+    const addTeam = document.getElementById('helpdeskAddRetailOdysseyTeam')?.checked !== false;
     const submitted = [];
     try {
       for (const issue of issues.filter((item) => item.issueTypeId)) {
@@ -842,6 +863,8 @@
             userEmail: userEmail(),
             extraRecipients,
             addRetailOdysseyTeam: addTeam,
+            omitRetailOdysseyTeam: !addTeam,
+            filteredDefaults: true,
           }),
         });
         const result = await resp.json().catch(() => ({}));
@@ -867,6 +890,11 @@
     if (!input) return;
     const email = input.value.trim().toLowerCase();
     if (!email || !email.includes('@')) return;
+    if (email.endsWith('@stores.fredmeyer.com')) {
+      input.value = '';
+      toast('Store email', 'Store employee addresses stay off help desk reports.');
+      return;
+    }
     if (email === AIYANA_EMAIL
       && typeof global.isDistrict8Store === 'function'
       && !global.isDistrict8Store(storeNo())

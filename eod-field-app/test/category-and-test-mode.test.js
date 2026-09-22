@@ -634,6 +634,13 @@ test('Not in store prompt uses Don\'t Report / Please Report / Cancel before mar
   assert.match(signoff, /nisChoice === 'cancel'/);
   assert.match(signoff, /openHelpdeskForSheetRow/);
   assert.doesNotMatch(signoff, /skipHelpdeskPrompt/);
+  assert.match(wizard, /dropDefaultedHelpdeskCc/);
+  assert.match(wizard, /seedHelpdeskCc/);
+  assert.match(wizard, /@stores\.fredmeyer\.com/);
+  assert.match(wizard, /@gmail\.com/);
+  assert.match(wizard, /id="helpdeskAddRetailOdysseyTeam" checked/);
+  assert.match(wizard, /filteredDefaults: true/);
+  assert.match(wizard, /omitRetailOdysseyTeam: !addTeam/);
 });
 
 test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and print are gone', () => {
