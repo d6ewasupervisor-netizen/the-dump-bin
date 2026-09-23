@@ -1310,6 +1310,11 @@ ${cleanNotes}`;
         const skippedPhotos = (uploaded && uploaded.skipped) || [];
         const meta = Object.assign({}, payload);
         if (resendAuthorization) meta.resendAuthorization = resendAuthorization;
+        if (generatedSheets.length) {
+          meta.kompassAfterUpload = 'server';
+          const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(S.state.shifts, S.state.selectedShift);
+          if (mainIse?.visitId) meta.maintenanceVisitId = String(mainIse.visitId);
+        }
         if (packageId) {
           meta.packageId = packageId;
           delete meta.pdfBase64;
@@ -1365,7 +1370,12 @@ ${cleanNotes}`;
         if (skippedPhotos.length && global.EodSendSheetsLogic?.skippedPhotoMessage) {
           sasNote += `\n\n${global.EodSendSheetsLogic.skippedPhotoMessage(skippedPhotos)}`;
         }
-        if (generatedSheets.length && global.EodSendSheets?.uploadAfterSend) {
+        const serverAfter = data.kompassAfter && data.kompassAfter.mode === 'server' ? data.kompassAfter : null;
+        if (serverAfter) {
+          if (serverAfter.failed || (!serverAfter.queued && serverAfter.reason && !/^test-/.test(serverAfter.reason))) {
+            sasNote += `\n\nEmail sent. ${serverAfter.queued || 0} sheet image(s) queued for maintenance; ${serverAfter.failed || 0} failed.`;
+          }
+        } else if (generatedSheets.length && global.EodSendSheets?.uploadAfterSend) {
           setBusy('Uploading to Kompass');
           try {
             const sas = await global.EodSendSheets.uploadAfterSend(generatedSheets, {

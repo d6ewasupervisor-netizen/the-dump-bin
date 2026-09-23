@@ -228,7 +228,7 @@
     throw timeoutErr;
   }
 
-  async function uploadOneAfter({ storeNumber, date, leadName, visitId, photoBase64, filename }) {
+  async function enqueueOneAfter({ storeNumber, date, leadName, visitId, photoBase64, filename }) {
     const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
     const resp = await global.authFetch(SAS_UPLOAD_URL, {
       method: 'POST',
@@ -250,7 +250,6 @@
     }
     const jobId = result.jobId;
     try { await global.PhotoDB?.trackSasJob?.(jobId, 'pending'); } catch (_) { /* ignore */ }
-    await pollSasUploadJob(jobId);
     return { jobId };
   }
 
@@ -283,7 +282,7 @@
         ctx.onStatus(`Uploading sheet ${i + 1}/${list.length} to Kompass…`);
       }
       try {
-        const r = await uploadOneAfter({
+        const r = await enqueueOneAfter({
           storeNumber,
           date,
           leadName,
@@ -297,6 +296,16 @@
         results.push({ filename: item.filename, ok: false, error: err.message || String(err) });
       }
     }
+    await Promise.all(results.filter((r) => r.ok).map(async (r) => {
+      try {
+        await pollSasUploadJob(r.jobId);
+      } catch (err) {
+        if (err?.timedOut) return;
+        console.warn('[eod-send-sheets] SAS after upload failed', r.filename, err);
+        r.ok = false;
+        r.error = err.message || String(err);
+      }
+    }));
     return {
       uploaded: results.filter((r) => r.ok).length,
       failed: results.filter((r) => !r.ok).length,
