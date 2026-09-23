@@ -711,30 +711,40 @@
       return n;
     }
 
+    /* An after bay is covered only when PROD has it and, when the set has an
+       SI task, SI has it too. SI alone never covers PROD. */
+    function siTracked(status) {
+      return !!status?.si?.taskId;
+    }
+
     function liveCoveredBays(status, slot) {
       const remote = status?.remotePhotos || {};
-      const fromPhotos = new Set();
-      const add = (list) => {
-        for (const p of Array.isArray(list) ? list : []) {
-          const n = Number(p.bay);
-          if (Number.isFinite(n) && n > 0) fromPhotos.add(n);
-        }
-      };
-      if (String(slot) === 'before') add(remote.prodBefore);
-      else {
-        add(remote.prodAfter);
-        add(remote.si);
+      const bays = (list) => new Set(
+        (Array.isArray(list) ? list : [])
+          .map((p) => Number(p.bay))
+          .filter((n) => Number.isFinite(n) && n > 0)
+      );
+      if (String(slot) === 'before') {
+        const fromPhotos = bays(remote.prodBefore);
+        if (fromPhotos.size) return fromPhotos;
+      } else if ((remote.prodAfter || []).length || (remote.si || []).length) {
+        const prod = bays(remote.prodAfter);
+        if (!siTracked(status)) return prod;
+        const si = bays(remote.si);
+        return new Set([...prod].filter((n) => si.has(n)));
       }
-      if (fromPhotos.size) return fromPhotos;
       return new Set(
         (status?.bays || [])
-          .filter((b) => {
-            if (String(slot) === 'before') return !!b.hasProdBefore;
-            return !!(b.hasSiPhoto || b.hasProdAfter || b.hasPhoto);
-          })
+          .filter((b) => afterOrBeforeCovered(status, b, slot))
           .map((b) => Number(b.bay))
           .filter((n) => Number.isFinite(n) && n > 0)
       );
+    }
+
+    function afterOrBeforeCovered(status, b, slot) {
+      if (!b) return false;
+      if (String(slot) === 'before') return !!b.hasProdBefore;
+      return !!b.hasProdAfter && (!siTracked(status) || !!b.hasSiPhoto);
     }
 
     function applyLiveProd(status) {
@@ -774,9 +784,15 @@
             taskId: local.status?.si?.taskId,
             skipProd: true,
           });
-          setMsg(
-            `Closed — PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || result.si?.detail || ''}`
-          );
+          const waitingProd = result.si?.status === 'waiting_prod';
+          if (waitingProd) {
+            autoClosePromise = null;
+            setMsg(`Waiting on PROD — ${result.prod?.detail || result.prod?.status || ''}`);
+          } else {
+            setMsg(
+              `Closed — PROD ${result.prod?.status}, SI ${result.si?.status}, sheet ${result.sheet?.status}. ${result.sheet?.detail || result.si?.detail || ''}`
+            );
+          }
           if (result.status) paintStatus(result.status);
           else {
             local.status = await fetchStatus(dbkey, rowId);
@@ -785,7 +801,7 @@
           try {
             await global.EodSignoffHome?.loadSheet?.();
           } catch (_) {}
-          global.EodSignoffHome?.showDoneTab?.();
+          if (!waitingProd) global.EodSignoffHome?.showDoneTab?.();
         } catch (err) {
           autoClosePromise = null;
           setMsg(err.message || String(err), true);
@@ -874,9 +890,7 @@
 
     function remoteBayCovered(slot, bayNum) {
       const b = (local.status?.bays || []).find((x) => Number(x.bay) === Number(bayNum));
-      if (!b) return false;
-      if (String(slot) === 'before') return !!b.hasProdBefore;
-      return !!(b.hasSiPhoto || b.hasProdAfter || b.hasPhoto);
+      return afterOrBeforeCovered(local.status, b, slot);
     }
 
     function uploadInFlight(statusText) {

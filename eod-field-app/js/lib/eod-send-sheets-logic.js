@@ -358,7 +358,10 @@
     const prodOk = rows.every((row) => {
       if (Status?.prodDone?.(row) || Status?.sheetRowDone?.(row)) return true;
       const live = row?.live || {};
-      return !!(live.prodComplete || live.bothComplete);
+      if (live.bothComplete) return true;
+      return !!live.prodComplete
+        && Number(live.prodBeforeCount) > 0
+        && Number(live.prodAfterCount) > 0;
     });
     const siOk = rows.every((row) => {
       if (Status?.siDone?.(row) || Status?.sheetRowDone?.(row)) return true;

@@ -40,26 +40,29 @@
     return /^(done|uploaded|ok|accepted)\b/i.test(String(status || ''));
   }
 
+  /* After bays need PROD and, when the set has an SI task, SI too. */
   function remoteBays(status, slot) {
-    const live = new Set();
-    const add = (list) => {
-      for (const p of Array.isArray(list) ? list : []) {
-        const n = Number(p.bay);
-        if (Number.isFinite(n) && n > 0) live.add(n);
-      }
-    };
+    const siTracked = !!status?.si?.taskId;
+    const bays = (list) => new Set(
+      (Array.isArray(list) ? list : [])
+        .map((p) => Number(p.bay))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    );
     const remote = status?.remotePhotos || {};
-    if (String(slot) === 'before') add(remote.prodBefore);
-    else {
-      add(remote.prodAfter);
-      add(remote.si);
+    if (String(slot) === 'before') {
+      const live = bays(remote.prodBefore);
+      if (live.size) return live;
+    } else if ((remote.prodAfter || []).length || (remote.si || []).length) {
+      const prod = bays(remote.prodAfter);
+      if (!siTracked) return prod;
+      const si = bays(remote.si);
+      return new Set([...prod].filter((n) => si.has(n)));
     }
-    if (live.size) return live;
     return new Set(
       (status?.bays || [])
         .filter((b) => {
           if (String(slot) === 'before') return !!b.hasProdBefore;
-          return !!(b.hasSiPhoto || b.hasProdAfter || b.hasPhoto);
+          return !!b.hasProdAfter && (!siTracked || !!b.hasSiPhoto);
         })
         .map((b) => Number(b.bay))
         .filter((n) => Number.isFinite(n) && n > 0)

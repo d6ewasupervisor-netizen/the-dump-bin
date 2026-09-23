@@ -183,10 +183,13 @@
       return global.EodCategoryCardStatus.rowSendReady(row);
     }
     const m = row?.marks || row?.mark;
+    const prodPhotosDone = (live) => !!live?.prodComplete
+      && Number(live.prodBeforeCount) > 0
+      && Number(live.prodAfterCount) > 0;
     if (!m) {
       const live = row?.live;
       if (live?.bothComplete) return true;
-      if (live?.prodComplete && live?.siComplete) return true;
+      if (prodPhotosDone(live) && live?.siComplete) return true;
       return false;
     }
     if (Array.isArray(m.active) && m.active.includes('not_in_si') && m.active.length === 1) return false;
@@ -195,7 +198,7 @@
     if (m.type && m.type !== 'not_in_si') return true;
     const live = row?.live;
     if (live?.bothComplete) return true;
-    if (live?.prodComplete && live?.siComplete) return true;
+    if (prodPhotosDone(live) && live?.siComplete) return true;
     return false;
   }
 

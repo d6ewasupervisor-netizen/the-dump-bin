@@ -900,7 +900,8 @@ test('set survey shows PROD and SI remotes and copies afters when one side is be
   const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
   const dept = fs.readFileSync(path.join(__dirname, '../js/features/dept-signatures.js'), 'utf8');
   assert.match(survey, /function liveCoveredBays/);
-  assert.match(survey, /add\(remote\.si\)/);
+  assert.match(survey, /bays\(remote\.si\)/);
+  assert.match(survey, /!!b\.hasProdAfter && \(!siTracked\(status\) \|\| !!b\.hasSiPhoto\)/);
   assert.match(survey, /function remoteAsPhotos/);
   assert.match(survey, /function refreshRemoteAndPaint/);
   assert.match(survey, /siHave !== prodAfter/);
