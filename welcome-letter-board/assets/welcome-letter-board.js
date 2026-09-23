@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.10';
+  const UI_VERSION = 'v2.11';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -109,6 +109,11 @@
     if (st === 'orientation-route-confirm') return 'Route confirmation';
     if (st === 'orientation-nudge') return 'Orientation nudge';
     if (st === 'orientation-nudge-staff') return 'Orientation nudge (staff)';
+    if (st === 'employee-notice') {
+      if (item.metadata?.kind === 'reply') return 'Employee reply';
+      if (item.metadata?.kindLabel) return item.metadata.kindLabel;
+      return 'Employee notice';
+    }
     if (item.metadata?.kind === 'disregard') return 'Disregard notice';
     if (item.status === 'cancelled') return 'Welcome letter (cancelled)';
     return 'Welcome letter';
@@ -712,12 +717,161 @@
     updateSortHeaders();
 
     await loadHires();
+    await loadEmployees();
     await loadList();
 
     if (idParam) {
       await selectEmail(Number(idParam), { pushUrl: false });
     }
   }
+
+  const employeeState = { selected: null, items: [] };
+
+  function noticePayload() {
+    const emp = employeeState.selected;
+    if (!emp) return null;
+    return {
+      kind: document.getElementById('noticeKind').value,
+      employeeId: emp.employeeId,
+      email: emp.email,
+      fullName: emp.name,
+      firstName: (emp.preferredName || emp.name || '').split(/\s+/)[0],
+      lastWorkedOn: document.getElementById('noticeLastWorked').value,
+      initialNoticeDate: document.getElementById('noticeInitialDate').value,
+      scheduledDate: document.getElementById('noticeShiftDate').value,
+      scheduledTime: document.getElementById('noticeShiftTime').value,
+    };
+  }
+
+  function syncNoticeFields() {
+    const kind = document.getElementById('noticeKind').value;
+    document.getElementById('lastWorkedWrap').classList.toggle('wb-hidden', kind !== 'noncomm-initial');
+    document.getElementById('initialDateWrap').classList.toggle('wb-hidden', kind !== 'noncomm-final');
+    document.getElementById('shiftWrap').classList.toggle('wb-hidden', kind !== 'job-abandonment');
+  }
+
+  function renderEmployeeThread(items) {
+    const el = document.getElementById('employeeThread');
+    if (!items.length) {
+      el.textContent = 'No notices yet.';
+      return;
+    }
+    el.innerHTML = items.map((item) => {
+      const who = item.kind === 'reply'
+        ? (item.from || 'Associate')
+        : (item.sentByEmail || 'Staff');
+      const label = item.kind === 'reply' ? 'Reply' : (item.metadata?.kindLabel || item.kind || 'Notice');
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--wb-line);">
+        <div><strong>${escapeHtml(label)}</strong> · ${escapeHtml(fmtDate(item.sentAt))}</div>
+        <div class="wb-muted">${escapeHtml(who)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function loadEmployeeThread(emp) {
+    const el = document.getElementById('employeeThread');
+    el.textContent = 'Loading…';
+    const q = new URLSearchParams();
+    if (emp.employeeId) q.set('employeeId', String(emp.employeeId));
+    else if (emp.email) q.set('email', emp.email);
+    const data = await api(`/api/welcome-letter/employees/notices?${q.toString()}`);
+    const items = data.items || [];
+    renderEmployeeThread(items);
+    const initial = items.find((item) => item.kind === 'noncomm-initial');
+    if (initial && initial.sentAt) {
+      document.getElementById('noticeInitialDate').value = String(initial.sentAt).slice(0, 10);
+    }
+  }
+
+  function selectEmployee(emp) {
+    employeeState.selected = emp;
+    document.getElementById('employeeEmpty').hidden = true;
+    document.getElementById('employeeBody').hidden = false;
+    document.getElementById('employeeName').textContent = emp.name || 'Employee';
+    document.getElementById('employeeMeta').textContent = [emp.email, emp.phone, emp.title].filter(Boolean).join(' · ');
+    document.getElementById('noticeLastWorked').value = emp.lastWorkedOn || '';
+    document.getElementById('noticeStatus').textContent = '';
+    document.querySelectorAll('#employeeRows tr').forEach((tr) => {
+      tr.classList.toggle('is-selected', String(tr.dataset.id) === String(emp.employeeId));
+    });
+    syncNoticeFields();
+    loadEmployeeThread(emp).catch((err) => {
+      document.getElementById('employeeThread').textContent = err.message;
+    });
+  }
+
+  async function loadEmployees(refresh) {
+    const tbody = document.getElementById('employeeRows');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="3" class="wb-muted">Loading…</td></tr>';
+    try {
+      const data = await api(`/api/welcome-letter/employees${refresh ? '?refresh=1' : ''}`);
+      employeeState.items = data.employees || [];
+      if (!employeeState.items.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="wb-muted">No direct reports returned.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = employeeState.items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}">
+        <td>${escapeHtml(emp.preferredName || emp.name)}</td>
+        <td>${escapeHtml(emp.email || '—')}</td>
+        <td>${escapeHtml(emp.lastWorkedOn || '—')}</td>
+      </tr>`).join('');
+      tbody.querySelectorAll('tr').forEach((tr) => {
+        tr.addEventListener('click', () => {
+          const emp = employeeState.items.find((e) => String(e.employeeId) === tr.dataset.id);
+          if (emp) selectEmployee(emp);
+        });
+      });
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="3" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  async function previewNotice() {
+    const status = document.getElementById('noticeStatus');
+    const payload = noticePayload();
+    if (!payload) return;
+    status.textContent = 'Building preview…';
+    const data = await api('/api/welcome-letter/employees/notice/preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    document.getElementById('noticePreview').srcdoc = data.html;
+    document.getElementById('noticePreviewWrap').classList.remove('wb-hidden');
+    status.textContent = `Reply-to ${data.replyTo}. BCC ${ (data.bcc || []).join(', ') }.`;
+  }
+
+  async function sendNotice() {
+    const status = document.getElementById('noticeStatus');
+    const payload = noticePayload();
+    if (!payload) return;
+    if (!window.confirm(`Send this notice to ${payload.email}?`)) return;
+    status.textContent = 'Sending…';
+    const data = await api('/api/welcome-letter/employees/notice/send', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    status.textContent = `Sent to ${data.to}.`;
+    if (employeeState.selected) await loadEmployeeThread(employeeState.selected);
+    await loadList();
+  }
+
+  function bindEmployeeNotice() {
+    const kind = document.getElementById('noticeKind');
+    const refresh = document.getElementById('employeesRefresh');
+    const preview = document.getElementById('noticePreviewBtn');
+    const send = document.getElementById('noticeSendBtn');
+    if (kind) kind.addEventListener('change', syncNoticeFields);
+    if (refresh) refresh.addEventListener('click', () => loadEmployees(true));
+    if (preview) preview.addEventListener('click', () => previewNotice().catch((err) => {
+      document.getElementById('noticeStatus').textContent = err.message;
+    }));
+    if (send) send.addEventListener('click', () => sendNotice().catch((err) => {
+      document.getElementById('noticeStatus').textContent = err.message;
+    }));
+  }
+
+  bindEmployeeNotice();
 
   boot().catch((err) => {
     const summary = document.getElementById('listSummary');

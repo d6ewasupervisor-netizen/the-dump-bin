@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.7 -->
+  <!-- welcome-letter-board v2.11 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.7">
+  <meta name="welcome-letter-version" content="v2.11">
   <title>Welcome Letter Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -251,6 +251,72 @@
 
     <div id="justSentBanner" class="wb-banner wb-hidden"></div>
 
+    <section class="wb-card" id="employeesCard">
+      <div class="wb-head" style="margin-bottom:12px;">
+        <div>
+          <h2 style="margin:0;color:var(--wb-navy);font-size:1.1rem;">Current employees</h2>
+        </div>
+        <button type="button" id="employeesRefresh" class="wb-btn wb-btn-ghost">Refresh from PROD</button>
+      </div>
+      <div class="wb-layout">
+        <div>
+          <div class="wb-table-wrap">
+            <table class="wb-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Last worked</th>
+                </tr>
+              </thead>
+              <tbody id="employeeRows">
+                <tr><td colspan="3" class="wb-muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="employeeComposer">
+          <p class="wb-detail-empty" id="employeeEmpty">Select an employee to review notices or send one.</p>
+          <div id="employeeBody" hidden>
+            <h3 id="employeeName" style="margin:0 0 8px;color:var(--wb-navy);"></h3>
+            <p class="wb-muted" id="employeeMeta" style="margin:0 0 10px;font-size:13px;"></p>
+            <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Notice
+              <select id="noticeKind" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+                <option value="noncomm-initial">Non-communication — initial (24 hours)</option>
+                <option value="noncomm-final">Non-communication — final (resignation)</option>
+                <option value="job-abandonment">Job abandonment (missed shift)</option>
+              </select>
+            </label>
+            <label id="lastWorkedWrap" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Last day worked
+              <input id="noticeLastWorked" type="date" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+            </label>
+            <label id="initialDateWrap" class="wb-hidden" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Date of initial email
+              <input id="noticeInitialDate" type="date" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+            </label>
+            <div id="shiftWrap" class="wb-hidden">
+              <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Scheduled date
+                <input id="noticeShiftDate" type="date" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+              </label>
+              <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Scheduled time
+                <input id="noticeShiftTime" type="text" placeholder="5:00 AM" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+              </label>
+            </div>
+            <div class="wb-detail-actions" style="margin-bottom:10px;">
+              <button type="button" id="noticePreviewBtn" class="wb-btn wb-btn-ghost">Preview</button>
+              <button type="button" id="noticeSendBtn" class="wb-btn wb-btn-primary">Send notice</button>
+            </div>
+            <p class="wb-muted" id="noticeStatus" style="margin:0 0 8px;font-size:13px;"></p>
+            <div class="wb-preview-wrap wb-hidden" id="noticePreviewWrap">
+              <div class="wb-preview-label">Notice preview</div>
+              <iframe id="noticePreview" title="Employee notice preview" style="width:100%;min-height:280px;border:0;"></iframe>
+            </div>
+            <h4 style="margin:14px 0 6px;color:var(--wb-navy);">Communication</h4>
+            <div id="employeeThread" class="wb-muted" style="font-size:13px;">No notices yet.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="wb-card">
       <h2 style="margin:0 0 10px;color:var(--wb-navy);font-size:1.1rem;">Hire pipeline</h2>
       <p class="wb-muted" style="margin:0 0 10px;font-size:14px;">Corporate welcome ingest, orientation notices, and personal chat links. Matched by EID when the compliance PDF has no email.</p>
@@ -372,8 +438,8 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Welcome Letter Board version">v2.3</span>
+  <span class="wb-version" id="wbVersion" title="Welcome Letter Board version">v2.11</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.10"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.11"></script>
 </body>
 </html>
