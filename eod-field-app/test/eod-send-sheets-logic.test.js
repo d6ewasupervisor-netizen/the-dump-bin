@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 const {
   isMainKompassIse,
   pickMainKompassIseVisit,
@@ -253,4 +255,57 @@ test('deleted SAS visits stay off the Visit shift list', () => {
   };
   const vis = visibleLeadShifts([ise, deletedCp], 'James Duchene Ryan');
   assert.deepEqual(vis.map((s) => s.visitId), ['27182525']);
+});
+
+test('help desk EOD rows: N/A without a report', () => {
+  const L = require('../js/lib/eod-send-sheets-logic.js');
+  assert.deepEqual(L.helpdeskEodFields([], null), {
+    calledHelpDesk: 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A',
+  });
+});
+
+test('help desk EOD rows: commodities and issue come from the report the email was built from', () => {
+  const L = require('../js/lib/eod-send-sheets-logic.js');
+  const reports = [{
+    issueTypeId: 'incorrect_footage',
+    issueTypeLabel: 'Incorrect footage',
+    details: 'Shelf is 8 ft, POG is 12 ft.',
+    setMeta: { categoryName: 'HUMMUS/SALSA/DIPS', categoryNumber: '466', dbkey: '9673505' },
+  }];
+  const open = L.helpdeskEodFields(reports, null);
+  assert.equal(open.calledHelpDesk, 'Yes');
+  assert.equal(open.commodities, 'HUMMUS/SALSA/DIPS (C466)');
+  assert.equal(open.issue, 'Incorrect footage: Shelf is 8 ft, POG is 12 ft.');
+  assert.equal(open.issueResolved, '—');
+  const signature = L.helpdeskSignature(reports);
+  const no = L.helpdeskEodFields(reports, { signature, resolved: 'No', tempSolution: 'Temp set as NII' });
+  assert.equal(no.issueResolved, 'No');
+  assert.equal(no.tempSolution, 'Temp set as NII');
+  const yes = L.helpdeskEodFields(reports, { signature, resolved: 'Yes', tempSolution: '' });
+  assert.equal(yes.issueResolved, 'Yes');
+  assert.equal(yes.tempSolution, 'N/A');
+  const stale = L.helpdeskEodFields(reports.concat([{ issueTypeId: 'missing_fixture', setMeta: { categoryName: 'MIXERS', categoryNumber: '12' } }]), { signature, resolved: 'Yes' });
+  assert.equal(stale.issueResolved, '—');
+  assert.equal(stale.commodities, 'HUMMUS/SALSA/DIPS (C466); MIXERS (C12)');
+  assert.match(stale.issue, /^HUMMUS\/SALSA\/DIPS \(C466\) — Incorrect footage: .*; MIXERS \(C12\) — Missing fixture$/);
+});
+
+test('help desk temporary solutions are the four prebuilt options', () => {
+  const L = require('../js/lib/eod-send-sheets-logic.js');
+  assert.deepEqual(L.HELPDESK_TEMP_SOLUTIONS, [
+    'Email submitted, waiting on resolution.',
+    'New POG being made',
+    'Temp set as NII',
+    'Pending',
+  ]);
+  assert.equal(L.helpdeskIssue({ issueTypeId: 'not_in_store', details: 'Not in store.' }), 'Set not in store');
+  assert.equal(L.helpdeskIssue({ issueTypeId: 'custom', customIssue: 'Pegs missing on bay 2' }), 'Pegs missing on bay 2');
+});
+
+test('Send asks the help desk questions only when a report was sent', () => {
+  const send = fs.readFileSync(path.join(__dirname, '..', 'js', 'features', 'send.js'), 'utf8');
+  assert.match(send, /if \(!reports\.length \|\| !L\?\.helpdeskSignature/);
+  assert.match(send, /if \(!\(await askHelpdeskResolution\(S\)\)\) return;\s+let payload = buildPayload\(\);/);
+  assert.match(send, /title: 'Help desk issue resolved\?'/);
+  assert.match(send, /title: 'Temporary solution'/);
 });

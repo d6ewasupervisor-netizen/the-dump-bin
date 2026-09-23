@@ -871,7 +871,11 @@
         if (!resp.ok || !result.success) {
           throw new Error(result.error || `Server error (${resp.status})`);
         }
-        submitted.push(Object.assign({}, issue, { setMeta: meta, details: issueDetails }));
+        submitted.push(Object.assign({}, issue, {
+          setMeta: meta,
+          details: issueDetails,
+          issueTypeLabel: opt?.label || issue.issueTypeId,
+        }));
       }
       applyToVisit(submitted);
       closeWizard();

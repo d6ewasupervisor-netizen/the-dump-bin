@@ -383,7 +383,90 @@
     return `fm${padStore(storeNumber)}_digital_signoff_p${pageIndex}_${dateCompact(workDate)}.jpg`;
   }
 
+  const HELPDESK_ISSUE_LABELS = {
+    not_in_store: 'Set not in store',
+    missing_fixture: 'Missing fixture',
+    reverse_flow: 'Set flow is incorrect (reverse flow)',
+    incorrect_version: 'Incorrect version',
+    incorrect_footage: 'Incorrect footage',
+    incorrect_planogram: 'Incorrect planogram',
+    obstruction: 'Report obstruction (pole or other permanent feature)',
+    missing_hardware: 'Report missing hardware',
+    custom: 'Report other (custom entry)',
+  };
+
+  const HELPDESK_TEMP_SOLUTIONS = [
+    'Email submitted, waiting on resolution.',
+    'New POG being made',
+    'Temp set as NII',
+    'Pending',
+  ];
+
+  /* Commodity as the help desk email names it: "Category (C###)". */
+  function helpdeskCommodity(report) {
+    const meta = (report && report.setMeta) || {};
+    const name = String(meta.categoryName || (report && report.categoryName) || '').trim();
+    const num = String(meta.categoryNumber || (report && report.categoryNumber) || '').trim();
+    if (name && num) return `${name} (C${num})`;
+    if (name) return name;
+    if (num) return `C${num}`;
+    return String(meta.setLabel || (report && (report.setLabel || report.manualSetName)) || '').trim();
+  }
+
+  /* Issue as the help desk email states it: issue type, then the details typed. */
+  function helpdeskIssue(report) {
+    const id = String((report && report.issueTypeId) || '');
+    const label = String((report && report.issueTypeLabel) || HELPDESK_ISSUE_LABELS[id] || id).trim();
+    const detail = String((report && (report.details || report.customIssue)) || '').trim();
+    if (id === 'custom' && detail) return detail;
+    if (!detail || (id === 'not_in_store' && /^not in store\.?$/i.test(detail))) return label;
+    return label ? `${label}: ${detail}` : detail;
+  }
+
+  function helpdeskSignature(reports) {
+    return (Array.isArray(reports) ? reports : [])
+      .map((r) => `${(r && r.issueTypeId) || ''}|${helpdeskCommodity(r)}|${helpdeskIssue(r)}`)
+      .join('~');
+  }
+
+  function uniq(list) {
+    return [...new Set(list.filter(Boolean))];
+  }
+
+  /**
+   * EOD help desk rows. All N/A unless the lead sent a help desk report.
+   * resolution = { signature, resolved: "Yes"|"No", tempSolution } from the Send prompt.
+   */
+  function helpdeskEodFields(reports, resolution) {
+    const list = Array.isArray(reports) ? reports.filter(Boolean) : [];
+    if (!list.length) {
+      return { calledHelpDesk: 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A' };
+    }
+    const commodityList = uniq(list.map(helpdeskCommodity));
+    const multi = commodityList.length > 1;
+    const issues = uniq(list.map((r) => {
+      const issue = helpdeskIssue(r);
+      const commodity = helpdeskCommodity(r);
+      return multi && commodity ? `${commodity} — ${issue}` : issue;
+    }));
+    const answered = resolution && resolution.signature === helpdeskSignature(list) ? resolution : null;
+    const resolved = answered && (answered.resolved === 'Yes' || answered.resolved === 'No') ? answered.resolved : '—';
+    const temp = resolved === 'Yes' ? 'N/A' : ((answered && answered.tempSolution) || '—');
+    return {
+      calledHelpDesk: 'Yes',
+      commodities: commodityList.join('; ') || '—',
+      issue: issues.join('; ') || '—',
+      issueResolved: resolved,
+      tempSolution: temp,
+    };
+  }
+
   const api = {
+    HELPDESK_TEMP_SOLUTIONS,
+    helpdeskCommodity,
+    helpdeskIssue,
+    helpdeskSignature,
+    helpdeskEodFields,
     padStore,
     dateCompact,
     isMainKompassIse,

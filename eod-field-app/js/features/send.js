@@ -262,6 +262,54 @@
     });
   }
 
+  function helpdeskFields(S) {
+    const L = global.EodSendSheetsLogic;
+    const reports = S.state.helpdeskSubmittedReports || [];
+    if (L?.helpdeskEodFields) return L.helpdeskEodFields(reports, S.state.helpdeskResolution);
+    return { calledHelpDesk: reports.length ? 'Yes' : 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A' };
+  }
+
+  /* Only when the lead sent a help desk report: resolved? and, if not, the temporary solution. */
+  async function askHelpdeskResolution(S) {
+    const L = global.EodSendSheetsLogic;
+    const reports = S.state.helpdeskSubmittedReports || [];
+    if (!reports.length || !L?.helpdeskSignature || !global.EodAlerts?.showDialog) return true;
+    const signature = L.helpdeskSignature(reports);
+    const prior = S.state.helpdeskResolution;
+    if (prior && prior.signature === signature && (prior.resolved === 'Yes' || (prior.resolved === 'No' && prior.tempSolution))) {
+      return true;
+    }
+    const f = L.helpdeskEodFields(reports, null);
+    const resolved = await global.EodAlerts.showDialog({
+      title: 'Help desk issue resolved?',
+      message: `${f.commodities}\n${f.issue}`,
+      buttons: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'No', label: 'No' },
+        { id: 'Yes', label: 'Yes', primary: true },
+      ],
+    });
+    if (resolved !== 'Yes' && resolved !== 'No') return false;
+    let tempSolution = '';
+    if (resolved === 'No') {
+      const options = L.HELPDESK_TEMP_SOLUTIONS || [];
+      const pick = await global.EodAlerts.showDialog({
+        title: 'Temporary solution',
+        message: f.commodities,
+        buttons: [
+          ...options.map((label, i) => ({ id: `t${i}`, label, primary: i === 0 })),
+          { id: 'cancel', label: 'Cancel' },
+        ],
+      });
+      const idx = /^t(\d+)$/.test(String(pick || '')) ? Number(String(pick).slice(1)) : -1;
+      if (idx < 0 || !options[idx]) return false;
+      tempSolution = options[idx];
+    }
+    S.patch({ helpdeskResolution: { signature, resolved, tempSolution } }, 'helpdesk-resolution');
+    try { S.saveDraft(); } catch (_) {}
+    return true;
+  }
+
   function buildBodyAndReport() {
     const S = global.EodSession;
     const store = S.state.storeNumber;
@@ -301,6 +349,10 @@
     } catch (_) {}
     const deptSigText = deptSigLines.length ? deptSigLines.join('\n') : 'None';
 
+    const helpdesk = helpdeskFields(S);
+    const helpdeskLines = helpdesk.calledHelpDesk === 'Yes'
+      ? `Commodities: ${helpdesk.commodities}\nIssue: ${helpdesk.issue}\nIssue resolved: ${helpdesk.issueResolved}\nTemporary solution: ${helpdesk.tempSolution}\n`
+      : '';
     const iwSave = S.state.instaworkSavedInfo;
     const iwSaveTail = iwSave ? (iwSave.filePath || '').split(/[\\/]/).pop() : '';
     const iwSupportLine = S.state.instaworkYes === 'Yes'
@@ -329,7 +381,7 @@ Help desk reports: ${(S.state.helpdeskSubmittedReports || []).length
           return setName ? `${kind} — ${setName}` : kind;
         }).join('; ')
       : 'None'}
-After picture of KOMPASS cart taken: ${yn(afterDone)}
+${helpdeskLines}After picture of KOMPASS cart taken: ${yn(afterDone)}
 Sign-off sheets photographed: ${yn(signoffDone)}
 ${digitalReady ? '' : `Number of sign-off photos: ${signoffCount}\n`}Notes:
 ${cleanNotes}`;
@@ -345,11 +397,7 @@ ${cleanNotes}`;
           ? `Yes (sign-out sheet saved → ${iwSave.folder}\\${iwSaveTail})`
           : 'Yes')
         : (S.state.instaworkYes || 'No'),
-      calledHelpDesk: (S.state.helpdeskSubmittedReports || []).length ? 'Yes' : 'No',
-      commodities: 'N/A',
-      issue: 'N/A',
-      issueResolved: 'N/A',
-      tempSolution: 'N/A',
+      ...helpdesk,
       checkOutManager: S.state.checkOutManager || '',
       signedOutProd: signedOut.prod,
       signedOutSi: signedOut.si,
@@ -1173,6 +1221,7 @@ ${cleanNotes}`;
       if (global.EodTeamSession?.materializePhotos) {
         try { await global.EodTeamSession.materializePhotos(S.state.photos); } catch (_) {}
       }
+      if (!(await askHelpdeskResolution(S))) return;
       let payload = buildPayload();
       if (global.applyEodTestModeToPayload) payload = global.applyEodTestModeToPayload(payload);
       if (global.EodTestMode?.isForceLive?.()) {

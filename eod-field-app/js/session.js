@@ -38,6 +38,7 @@
     notInStoreSelected: [],
     notInSiSelected: [],
     helpdeskSubmittedReports: [],
+    helpdeskResolution: null,
     fredmeyerEmailPool: [],
     managerNamePool: [],
     sheetAcknowledged: false,
@@ -155,6 +156,8 @@
     state.emailRecipients = [];
     state.notInStoreSelected = [];
     state.notInSiSelected = [];
+    state.helpdeskSubmittedReports = [];
+    state.helpdeskResolution = null;
     state.photos = { before: [], after: [], signoff: [], instawork: [], context: [] };
     state.sheetAcknowledged = false;
     state.instaworkYes = null;
@@ -335,6 +338,9 @@
     state.helpdeskSubmittedReports = Array.isArray(data.helpdeskSubmittedReports)
       ? data.helpdeskSubmittedReports.slice()
       : [];
+    state.helpdeskResolution = data.helpdeskResolution && typeof data.helpdeskResolution === 'object'
+      ? { ...data.helpdeskResolution }
+      : null;
     state.sheetAcknowledged = !!data.sheetAcknowledged;
     state.instaworkYes = data.instawork ?? data.instaworkYes ?? null;
     state.instaworkSavedInfo = data.instaworkSavedInfo || null;
@@ -399,6 +405,7 @@
       notInStoreSelected: state.notInStoreSelected.slice(),
       notInSiSelected: state.notInSiSelected.slice(),
       helpdeskSubmittedReports: (state.helpdeskSubmittedReports || []).slice(),
+      helpdeskResolution: state.helpdeskResolution || null,
       sheetAcknowledged: !!state.sheetAcknowledged,
       instawork: state.instaworkYes,
       instaworkSavedInfo: state.instaworkSavedInfo || null,
