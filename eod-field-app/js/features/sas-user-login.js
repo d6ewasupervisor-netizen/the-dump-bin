@@ -98,10 +98,29 @@
       siUsernameHint: data.siUsernameHint || '',
       lastRefreshError: data.lastRefreshError || '',
       sharedActor: !!data.sharedActor,
+      passwordExpireDays: data.passwordExpireDays == null || !Number.isFinite(Number(data.passwordExpireDays))
+        ? null
+        : Number(data.passwordExpireDays),
     };
     statusAt = Date.now();
     statusFor = leadEmail;
     return status;
+  }
+
+  /* Chrome banner read. Never waits on the network: returns the cached value
+     and refreshes behind it, repainting chrome once the fresh status lands. */
+  function passwordExpiryDays() {
+    const lead = leadParam();
+    const stale = !status || statusFor !== lead || Date.now() - statusAt >= STATUS_TTL_MS;
+    if (stale && !passwordExpiryDays.inFlight) {
+      passwordExpiryDays.inFlight = true;
+      void fetchStatus(true)
+        .then(() => { try { global.EodChrome?.refresh?.(); } catch (_) {} })
+        .catch(() => {})
+        .finally(() => { passwordExpiryDays.inFlight = false; });
+    }
+    if (!status || statusFor !== lead) return null;
+    return status.passwordExpireDays;
   }
 
   function isConnected() {
@@ -738,5 +757,6 @@
     isConnected,
     refreshLead,
     leadContext,
+    passwordExpiryDays,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

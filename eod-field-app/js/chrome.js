@@ -49,6 +49,36 @@
     paintUnsentBanner();
     paintQueueBanner();
     paintFailedPhotoBanner();
+    paintPasswordExpiryBanner();
+  }
+
+  const PASSWORD_BANNER_DAYS = 3;
+
+  function paintPasswordExpiryBanner() {
+    let bar = document.getElementById('eodPasswordExpiryBanner');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'eodPasswordExpiryBanner';
+      bar.hidden = true;
+      bar.className = 'eod-password-expiry-banner';
+      const chrome = document.getElementById('appChrome');
+      if (chrome && chrome.parentNode) chrome.parentNode.insertBefore(bar, chrome.nextSibling);
+      else document.querySelector('.app-shell')?.prepend(bar);
+    }
+    try {
+      const days = global.EodSasUser?.passwordExpiryDays?.();
+      if (days == null || days > PASSWORD_BANNER_DAYS) {
+        bar.hidden = true;
+        bar.textContent = '';
+        return;
+      }
+      bar.hidden = false;
+      bar.textContent = days === 0
+        ? 'SAS password expires today'
+        : `SAS password expires in ${days} day${days === 1 ? '' : 's'}`;
+    } catch (_) {
+      bar.hidden = true;
+    }
   }
 
   function paintConnChrome() {
