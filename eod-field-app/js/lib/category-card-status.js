@@ -202,9 +202,17 @@
     return siPhotosReady(row);
   }
 
+  function eodAfterReady(row) {
+    if (String(row?.shiftType || row?.shift_type || '').trim().toUpperCase() !== 'EOD') return false;
+    const photos = photoList(row);
+    if (photos.some((p) => p && String(p.slot || '').toLowerCase() === 'after')) return true;
+    return (Number(row?.live?.prodAfterCount) || 0) > 0;
+  }
+
   function sheetRowDone(row) {
     if (terminalMark(row)) return true;
     if (markActive(row, 'complete')) return true;
+    if (eodAfterReady(row)) return true;
     return prodPhotosReady(row) && siPhotosReady(row);
   }
 
@@ -212,6 +220,7 @@
     if (terminalMark(row)) return true;
     if (markActive(row, 'backlog')) return true;
     if (markActive(row, 'complete')) return true;
+    if (eodAfterReady(row)) return true;
     return prodPhotosReady(row) && siPhotosReady(row);
   }
 
