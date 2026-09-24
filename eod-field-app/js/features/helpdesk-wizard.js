@@ -875,9 +875,14 @@
           setMeta: meta,
           details: issueDetails,
           issueTypeLabel: opt?.label || issue.issueTypeId,
+          photos: [],
         }));
       }
-      applyToVisit(submitted);
+      try {
+        applyToVisit(submitted);
+      } catch (saveErr) {
+        console.warn('helpdesk mailed; phone draft did not save', saveErr);
+      }
       closeWizard();
       toast(
         'Help desk reports sent',

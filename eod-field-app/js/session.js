@@ -407,7 +407,12 @@
       emailRecipients: state.emailRecipients.slice(),
       notInStoreSelected: state.notInStoreSelected.slice(),
       notInSiSelected: state.notInSiSelected.slice(),
-      helpdeskSubmittedReports: (state.helpdeskSubmittedReports || []).slice(),
+      helpdeskSubmittedReports: (state.helpdeskSubmittedReports || []).map((report) => {
+        if (!report || typeof report !== 'object') return report;
+        const copy = Object.assign({}, report);
+        delete copy.photos;
+        return copy;
+      }),
       helpdeskResolution: state.helpdeskResolution || null,
       sheetAcknowledged: !!state.sheetAcknowledged,
       instawork: state.instaworkYes,
@@ -428,7 +433,11 @@
       savedAt: Date.now(),
       app: 'eod-field-app',
     };
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.warn('draft save skipped', err && err.message);
+    }
     saveProfile();
     try { global.EodVisitMemory?.captureFromSession?.({ state, resolvedLeadName }); } catch (_) {}
     try { global.EodVisitMirror?.persist?.(global.EodSession); } catch (_) {}
