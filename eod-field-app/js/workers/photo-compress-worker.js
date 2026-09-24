@@ -2,10 +2,13 @@
 'use strict';
 
 const POLICIES = {
-  set: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6 },
+  // set/before/after: one high-tier encode that PROD, SI, and the signoff board
+  // all keep. passThrough: a capture already encoded at this tier is not
+  // re-encoded (canvasToDurableBlob produces exactly that).
+  set: { maxEdge: 2560, maxBytes: 1536 * 1024, startQuality: 0.9, minQuality: 0.8, webp: true, passThrough: true },
   cart: { maxEdge: 1600, maxBytes: 900 * 1024, startQuality: 0.82, minQuality: 0.48 },
-  before: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6 },
-  after: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6 },
+  before: { maxEdge: 2560, maxBytes: 1536 * 1024, startQuality: 0.9, minQuality: 0.8, webp: true, passThrough: true },
+  after: { maxEdge: 2560, maxBytes: 1536 * 1024, startQuality: 0.9, minQuality: 0.8, webp: true, passThrough: true },
   // Signature sheets get printed and faxed, so they keep the taller edge and
   // the higher floor. These mirror js/lib/photo-compress.js exactly - if they
   // drift, routing a photo through the worker silently downgrades it.
@@ -15,17 +18,27 @@ const POLICIES = {
   default: { maxEdge: 2048, maxBytes: 900 * 1024, startQuality: 0.85, minQuality: 0.5 },
 };
 
+const PASS_THROUGH_MIMES = new Set(['image/webp', 'image/jpeg']);
+let webpEncodes = null;
+
 async function sha256Hex(blob) {
   const buf = await blob.arrayBuffer();
   const hash = await crypto.subtle.digest('SHA-256', buf);
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function encode(bitmap, mime, quality) {
-  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(bitmap, 0, 0);
-  return canvas.convertToBlob({ type: mime, quality });
+/* OffscreenCanvas silently returns PNG where WebP encode is unsupported (Safari). */
+async function canEncodeWebp() {
+  if (webpEncodes != null) return webpEncodes;
+  try {
+    const probe = new OffscreenCanvas(2, 2);
+    probe.getContext('2d');
+    const b = await probe.convertToBlob({ type: 'image/webp', quality: 0.8 });
+    webpEncodes = !!(b && b.type === 'image/webp' && b.size > 0);
+  } catch (_) {
+    webpEncodes = false;
+  }
+  return webpEncodes;
 }
 
 function scaleSize(w, h, maxEdge) {
@@ -39,15 +52,24 @@ async function compressBlob(blob, type) {
   const policy = POLICIES[type] || POLICIES.default;
   const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
   try {
+    if (policy.passThrough
+      && PASS_THROUGH_MIMES.has(blob.type)
+      && blob.size <= policy.maxBytes
+      && Math.max(bitmap.width, bitmap.height) <= policy.maxEdge) {
+      return blob;
+    }
     const { w, h } = scaleSize(bitmap.width, bitmap.height, policy.maxEdge);
     const canvas = new OffscreenCanvas(w, h);
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(bitmap, 0, 0, w, h);
+    const mime = policy.webp && await canEncodeWebp() ? 'image/webp' : 'image/jpeg';
     let quality = policy.startQuality;
-    let out = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+    let out = await canvas.convertToBlob({ type: mime, quality });
     while (out.size > policy.maxBytes && quality > policy.minQuality) {
-      quality = Math.max(policy.minQuality, quality - 0.08);
-      out = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+      quality = Math.max(policy.minQuality, quality - 0.05);
+      out = await canvas.convertToBlob({ type: mime, quality });
     }
     return out;
   } finally {

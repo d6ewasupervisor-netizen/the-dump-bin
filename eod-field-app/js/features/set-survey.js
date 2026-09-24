@@ -414,8 +414,14 @@
     activeCameraToast = flashToast;
 
     async function start() {
+      /* Without a size the browser opens its default stream (often 640×480),
+         and digital zoom crops that further. `ideal` never fails a device. */
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 4032 },
+          height: { ideal: 3024 },
+        },
         audio: false,
       });
       video.srcObject = stream;

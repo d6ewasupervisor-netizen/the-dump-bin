@@ -102,7 +102,11 @@
       };
 
       navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 4032 },
+          height: { ideal: 3024 },
+        },
         audio: false,
       }).then(async (s) => {
         stream = s;

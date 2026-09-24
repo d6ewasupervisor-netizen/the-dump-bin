@@ -492,7 +492,19 @@
      what the pipeline would have produced. */
   const DURABLE_MAX_EDGE = 2560;
 
-  function canvasToDurableBlob(canvas) {
+  /* The durable copy IS the set photo's one lossy encode: same tier as the
+     set policy (2560 / q0.90), WebP where the probe passes. The compress worker
+     passes it through untouched when it already fits. */
+  const DURABLE_QUALITY = 0.9;
+
+  async function durableMime() {
+    try {
+      if (global.EodPhotoCompress?.supportsWebp && await global.EodPhotoCompress.supportsWebp()) return 'image/webp';
+    } catch (_) {}
+    return 'image/jpeg';
+  }
+
+  async function canvasToDurableBlob(canvas) {
     let source = canvas;
     try {
       const edge = Math.max(canvas.width, canvas.height);
@@ -501,13 +513,19 @@
         const small = document.createElement('canvas');
         small.width = Math.max(1, Math.round(canvas.width * scale));
         small.height = Math.max(1, Math.round(canvas.height * scale));
-        small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+        const ctx = small.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(canvas, 0, 0, small.width, small.height);
         source = small;
       }
     } catch (_) {
       source = canvas;
     }
-    return new Promise((resolve) => source.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
+    const mime = await durableMime();
+    const blob = await new Promise((resolve) => source.toBlob((b) => resolve(b), mime, DURABLE_QUALITY));
+    if (blob && blob.type === mime) return blob;
+    return new Promise((resolve) => source.toBlob((b) => resolve(b), 'image/jpeg', DURABLE_QUALITY));
   }
 
   async function persistJobRecord(job) {
@@ -758,6 +776,7 @@
     if (typeof Worker === 'undefined') return null;
     try {
       const workerUrl = new URL('js/workers/photo-compress-worker.js', document.baseURI || location.href);
+      if (global.EOD_APP_VERSION) workerUrl.searchParams.set('v', global.EOD_APP_VERSION);
       compressWorker = new Worker(workerUrl);
     } catch (_) {
       try {
@@ -817,9 +836,7 @@
     if (job.file instanceof Blob) return job.file;
     if (job.blob instanceof Blob) return job.blob;
     if (job.dataUrl) return dataUrlToBlobForPipeline(job.dataUrl);
-    if (job.canvas?.toBlob) {
-      return new Promise((resolve) => job.canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
-    }
+    if (job.canvas?.toBlob) return canvasToDurableBlob(job.canvas);
     // Bitmap-only capture (no file/canvas/dataUrl yet) — was previously unhandled here,
     // which meant the bitmap got closed and nulled below with nothing ever extracted
     // from it. Draw it into a canvas so the photo isn't lost.
@@ -832,8 +849,13 @@
           : Object.assign(document.createElement('canvas'), { width: w, height: h });
         const ctx = canvas.getContext('2d');
         ctx.drawImage(job.bitmap, 0, 0);
-        if (canvas.convertToBlob) return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
-        return await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92));
+        const mime = await durableMime();
+        if (canvas.convertToBlob) {
+          const out = await canvas.convertToBlob({ type: mime, quality: DURABLE_QUALITY });
+          if (out && out.type === mime) return out;
+          return await canvas.convertToBlob({ type: 'image/jpeg', quality: DURABLE_QUALITY });
+        }
+        return await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', DURABLE_QUALITY));
       } catch (_) {
         return null;
       }
@@ -1065,7 +1087,9 @@
   async function tagOutgoingPhoto(job) {
     const tag = global.EodProviderPhotoTag;
     if (!tag || typeof tag.tagDataUrl !== 'function') return job.dataUrl;
-    if (job.blob && job.checksum) return job.dataUrl;
+    // Set photos: the server stamps them in their own format on the PROD/SI
+    // load; a client stamp here would re-encode to JPEG.
+    if (job.kind === 'set' || (job.blob && job.checksum)) return job.dataUrl;
     try {
       const next = await tag.tagDataUrl(job.dataUrl);
       if (next) job.dataUrl = next;

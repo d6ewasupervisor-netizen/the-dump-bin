@@ -6,10 +6,12 @@
   const HARD_MAX_BYTES = 1024 * 1024;
 
   const POLICIES = {
-    set: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6, preferJpeg: true, fast: true, label: 'set' },
+    // Set photos go to PROD, SI, and the signoff board as encoded here (all take
+    // WebP), so this is the one lossy encode they get.
+    set: { maxEdge: 2560, maxBytes: 1536 * 1024, startQuality: 0.9, minQuality: 0.8, fast: true, label: 'set' },
     cart: { maxEdge: 1600, maxBytes: TARGET_BYTES, startQuality: 0.82, minQuality: 0.48, label: 'cart' },
-    before: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6, preferJpeg: true, fast: true, label: 'cart-before' },
-    after: { maxEdge: 1600, maxBytes: 480 * 1024, startQuality: 0.78, minQuality: 0.6, preferJpeg: true, fast: true, label: 'cart-after' },
+    before: { maxEdge: 2560, maxBytes: 1536 * 1024, startQuality: 0.9, minQuality: 0.8, fast: true, label: 'cart-before' },
+    after: { maxEdge: 2560, maxBytes: 1536 * 1024, startQuality: 0.9, minQuality: 0.8, fast: true, label: 'cart-after' },
     signoff: { maxEdge: 2560, maxBytes: 950 * 1024, startQuality: 0.9, minQuality: 0.55, label: 'signoff' },
     instawork: { maxEdge: 2400, maxBytes: 950 * 1024, startQuality: 0.88, minQuality: 0.55, label: 'instawork' },
     context: { maxEdge: 2048, maxBytes: TARGET_BYTES, startQuality: 0.85, minQuality: 0.5, label: 'context' },
@@ -156,7 +158,7 @@
       if (fast) {
         let c = await tryQ(startQuality);
         if (c && c.bytes > maxBytes) {
-          c = await tryQ(Math.max(minQuality, startQuality - 0.12)) || c;
+          c = await tryQ(Math.max(minQuality, startQuality - 0.1)) || c;
         }
         const pick = (c && c.bytes <= maxBytes ? c : null) || c || smallest;
         if (pick && (
