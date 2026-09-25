@@ -436,12 +436,31 @@
     return [...new Set(list.filter(Boolean))];
   }
 
+  function isHelpdeskReport(report) {
+    if (!report || typeof report !== 'object' || Array.isArray(report)) return false;
+    const id = String(report.issueTypeId || '').trim();
+    const detail = String(report.details || report.customIssue || '').trim();
+    return !!(id || detail || helpdeskCommodity(report));
+  }
+
+  function realHelpdeskReports(reports) {
+    return (Array.isArray(reports) ? reports : []).filter(isHelpdeskReport);
+  }
+
+  function resolutionFromReports(list) {
+    if (!list.length || !list.every((r) => r.resolved === 'Yes' || r.resolved === 'No')) return null;
+    if (list.every((r) => r.resolved === 'Yes')) return { resolved: 'Yes', tempSolution: '' };
+    const temps = uniq(list.filter((r) => r.resolved === 'No').map((r) => String(r.tempSolution || '').trim()));
+    if (!temps.length || temps.some((t) => !t)) return null;
+    return { resolved: 'No', tempSolution: temps.join('; ') };
+  }
+
   /**
    * EOD help desk rows. All N/A unless the lead sent a help desk report.
    * resolution = { signature, resolved: "Yes"|"No", tempSolution } from the Send prompt.
    */
   function helpdeskEodFields(reports, resolution) {
-    const list = Array.isArray(reports) ? reports.filter(Boolean) : [];
+    const list = realHelpdeskReports(reports);
     if (!list.length) {
       return { calledHelpDesk: 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A' };
     }
@@ -452,7 +471,9 @@
       const commodity = helpdeskCommodity(r);
       return multi && commodity ? `${commodity} — ${issue}` : issue;
     }));
-    const answered = resolution && resolution.signature === helpdeskSignature(list) ? resolution : null;
+    const fromReports = resolutionFromReports(list);
+    const answered = (resolution && resolution.signature === helpdeskSignature(list) ? resolution : null)
+      || fromReports;
     const resolved = answered && (answered.resolved === 'Yes' || answered.resolved === 'No') ? answered.resolved : '—';
     const temp = resolved === 'Yes' ? 'N/A' : ((answered && answered.tempSolution) || '—');
     return {
@@ -469,6 +490,8 @@
     helpdeskCommodity,
     helpdeskIssue,
     helpdeskSignature,
+    isHelpdeskReport,
+    realHelpdeskReports,
     helpdeskEodFields,
     padStore,
     dateCompact,

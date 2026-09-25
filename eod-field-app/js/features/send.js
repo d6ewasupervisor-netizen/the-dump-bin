@@ -262,9 +262,27 @@
     });
   }
 
+  function cartPhotosInEmail(payload) {
+    const L = global.EodSendSheetsLogic || {};
+    const photos = (payload && payload.signoffPhotos) || [];
+    const ok = (kind) => photos.some((photo) => {
+      const name = (photo && photo.filename) || '';
+      const src = typeof photo === 'string' ? photo : (photo && photo.dataUrl) || '';
+      return L.classifySheetFilename?.(name) === kind && (!L.isSendableImageSrc || L.isSendableImageSrc(src));
+    });
+    return { before: ok('cart-before'), after: ok('cart-after') };
+  }
+
+  function helpdeskReports(S) {
+    const raw = S.state.helpdeskSubmittedReports || [];
+    const L = global.EodSendSheetsLogic;
+    if (L?.realHelpdeskReports) return L.realHelpdeskReports(raw);
+    return raw.filter((r) => r && typeof r === 'object' && (r.issueTypeId || r.details || r.customIssue));
+  }
+
   function helpdeskFields(S) {
     const L = global.EodSendSheetsLogic;
-    const reports = S.state.helpdeskSubmittedReports || [];
+    const reports = helpdeskReports(S);
     if (L?.helpdeskEodFields) return L.helpdeskEodFields(reports, S.state.helpdeskResolution);
     return { calledHelpDesk: reports.length ? 'Yes' : 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A' };
   }
@@ -272,7 +290,7 @@
   /* Only when the lead sent a help desk report: resolved? and, if not, the temporary solution. */
   async function askHelpdeskResolution(S) {
     const L = global.EodSendSheetsLogic;
-    const reports = S.state.helpdeskSubmittedReports || [];
+    const reports = helpdeskReports(S);
     if (!reports.length || !L?.helpdeskSignature || !global.EodAlerts?.showDialog) return true;
     const signature = L.helpdeskSignature(reports);
     const prior = S.state.helpdeskResolution;
@@ -305,7 +323,17 @@
       if (idx < 0 || !options[idx]) return false;
       tempSolution = options[idx];
     }
-    S.patch({ helpdeskResolution: { signature, resolved, tempSolution } }, 'helpdesk-resolution');
+    const stamped = (S.state.helpdeskSubmittedReports || []).map((report) => {
+      if (!L.isHelpdeskReport?.(report)) return report;
+      return Object.assign({}, report, {
+        resolved,
+        tempSolution: resolved === 'Yes' ? '' : tempSolution,
+      });
+    });
+    S.patch({
+      helpdeskSubmittedReports: stamped,
+      helpdeskResolution: { signature, resolved, tempSolution },
+    }, 'helpdesk-resolution');
     try { S.saveDraft(); } catch (_) {}
     return true;
   }
@@ -374,8 +402,8 @@ ${deptSigText}
 ${notInStoreText === 'None' ? 'Not in store: None' : notInStoreText}
 ${notInSiText === 'None' ? 'Not in SI: None' : notInSiText}
 ${notExecutableText === 'None' ? 'Not executable: None' : notExecutableText}
-Help desk reports: ${(S.state.helpdeskSubmittedReports || []).length
-      ? (S.state.helpdeskSubmittedReports || []).map((r) => {
+Help desk reports: ${helpdeskReports(S).length
+      ? helpdeskReports(S).map((r) => {
           const kind = r.issueTypeId === 'not_in_store' ? 'Not in store' : (r.issueTypeId || 'issue');
           const setName = r.setMeta?.setLabel || r.setLabel || r.manualSetName || r.customIssue || '';
           return setName ? `${kind} — ${setName}` : kind;
@@ -1223,6 +1251,15 @@ ${cleanNotes}`;
       }
       if (!(await askHelpdeskResolution(S))) return;
       let payload = buildPayload();
+      const cartMail = cartPhotosInEmail(payload);
+      if (!cartMail.before || !cartMail.after) {
+        const which = [!cartMail.before && 'before', !cartMail.after && 'after'].filter(Boolean).join(' and ');
+        await global.EodAlerts?.alert?.(
+          'Cart photos required',
+          `The EOD email has to include the Kompass cart ${which} photo. Retake it or pull it from PROD, then send again. Nothing was emailed.`
+        );
+        return;
+      }
       if (global.applyEodTestModeToPayload) payload = global.applyEodTestModeToPayload(payload);
       if (global.EodTestMode?.isForceLive?.()) {
         const ok = await global.EodAlerts?.confirm?.(
@@ -1567,6 +1604,12 @@ ${cleanNotes}`;
       const source = (raw && raw.source) || '';
       const label = L.cartSlotLabel ? L.cartSlotLabel(filename, source) : filename;
       if (L.isRemotePhotoSrc?.(str) || (L.isSendableImageSrc && !L.isSendableImageSrc(str))) {
+        const kind = L.classifySheetFilename?.(filename);
+        if (kind === 'cart-before' || kind === 'cart-after' || source === 'cart-before' || source === 'cart-after') {
+          const err = new Error(`The EOD email has to include the ${label}. Retake it or pull it from PROD, then send again.`);
+          err.code = 'CART_PHOTO_REQUIRED';
+          throw err;
+        }
         skipped.push({ filename, source, label });
         continue;
       }

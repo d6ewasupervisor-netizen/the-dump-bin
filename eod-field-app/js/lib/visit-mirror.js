@@ -48,6 +48,7 @@
         helpdeskSubmittedReports: Array.isArray(state.helpdeskSubmittedReports)
           ? state.helpdeskSubmittedReports.slice()
           : [],
+        helpdeskResolution: state.helpdeskResolution || null,
         addRetailOdysseyTeam: !!state.addRetailOdysseyTeam,
         selectedShift: state.selectedShift
           ? {
@@ -79,6 +80,7 @@
       || payload.materialsReadYes != null
       || (payload.notInStoreSelected && payload.notInStoreSelected.length)
       || (payload.notInSiSelected && payload.notInSiSelected.length)
+      || (payload.helpdeskSubmittedReports && payload.helpdeskSubmittedReports.length)
       || (payload.visitStep && payload.visitStep !== 'setup')
       || payload.selectedShift?.visitId
       || (payload.managerNamePool && payload.managerNamePool.length)
@@ -123,7 +125,13 @@
         patch.fredmeyerEmailPool = p.fredmeyerEmailPool.slice();
       }
       if (Array.isArray(p.helpdeskSubmittedReports) && p.helpdeskSubmittedReports.length) {
-        patch.helpdeskSubmittedReports = p.helpdeskSubmittedReports.slice();
+        const kept = global.EodSendSheetsLogic?.realHelpdeskReports
+          ? global.EodSendSheetsLogic.realHelpdeskReports(p.helpdeskSubmittedReports)
+          : p.helpdeskSubmittedReports.filter((r) => r && typeof r === 'object');
+        if (kept.length) patch.helpdeskSubmittedReports = kept;
+      }
+      if (p.helpdeskResolution && typeof p.helpdeskResolution === 'object') {
+        patch.helpdeskResolution = p.helpdeskResolution;
       }
       if (p.addRetailOdysseyTeam) patch.addRetailOdysseyTeam = true;
       S.patch(patch, 'visit-mirror');

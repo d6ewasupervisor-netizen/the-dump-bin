@@ -262,6 +262,9 @@ test('help desk EOD rows: N/A without a report', () => {
   assert.deepEqual(L.helpdeskEodFields([], null), {
     calledHelpDesk: 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A',
   });
+  assert.deepEqual(L.helpdeskEodFields(['[object Object]', { photos: [] }], null), {
+    calledHelpDesk: 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A',
+  });
 });
 
 test('help desk EOD rows: commodities and issue come from the report the email was built from', () => {
@@ -284,6 +287,14 @@ test('help desk EOD rows: commodities and issue come from the report the email w
   const yes = L.helpdeskEodFields(reports, { signature, resolved: 'Yes', tempSolution: '' });
   assert.equal(yes.issueResolved, 'Yes');
   assert.equal(yes.tempSolution, 'N/A');
+  const stamped = L.helpdeskEodFields([{
+    ...reports[0],
+    resolved: 'No',
+    tempSolution: 'Pending',
+  }], null);
+  assert.equal(stamped.issueResolved, 'No');
+  assert.equal(stamped.tempSolution, 'Pending');
+  assert.equal(stamped.commodities, 'HUMMUS/SALSA/DIPS (C466)');
   const stale = L.helpdeskEodFields(reports.concat([{ issueTypeId: 'missing_fixture', setMeta: { categoryName: 'MIXERS', categoryNumber: '12' } }]), { signature, resolved: 'Yes' });
   assert.equal(stale.issueResolved, '—');
   assert.equal(stale.commodities, 'HUMMUS/SALSA/DIPS (C466); MIXERS (C12)');
