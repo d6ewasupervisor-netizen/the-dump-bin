@@ -13,12 +13,14 @@ async function versionHelpers() {
 test('increments the two-digit patch version', async () => {
   const { nextVersion } = await versionHelpers();
   assert.equal(nextVersion('3.4.03'), '3.4.04');
+  assert.equal(nextVersion('3.4.19'), '3.4.20');
   assert.equal(nextVersion('3.4.98'), '3.4.99');
 });
 
 test('rolls patch 99 into the middle digit', async () => {
   const { nextVersion } = await versionHelpers();
   assert.equal(nextVersion('3.3.99'), '3.4.00');
+  assert.equal(nextVersion('3.4.99'), '3.5.00');
 });
 
 test('rolls middle digit 9 into the major version', async () => {
