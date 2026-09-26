@@ -1,0 +1,34 @@
+---
+description: EOD field-app version bump. Two-digit patch; .99 rolls the middle digit; x.9.99 rolls the major. Use on any eod-field-app code change.
+alwaysApply: true
+---
+
+# EOD field-app version bump
+
+Any code change to the pilot field app (`C:\Users\tgaut\eod-field-app` or `the-dump-bin/eod-field-app`) bumps the version in that same change. Read `eod-version.json` first. Run:
+
+```powershell
+cd C:\Users\tgaut\eod-field-app; node scripts/bump-version.mjs
+```
+
+Do not add 1 by hand, and do not use `StrReplace` or a PowerShell `-replace` on the version string.
+
+The third component is two digits (`00`–`99`). The middle component is one digit (`0`–`9`).
+
+- `3.4.19` → `3.4.20`
+- `3.4.99` → `3.5.00`
+- `3.9.99` → `4.0.00`
+
+A third component of `100` or higher (`3.4.101`) is a bad bump. Never write it.
+
+Lockstep, same commit:
+
+1. `eod-version.json`
+2. `js/api.js` — `APP_VERSION`
+3. `index.html` — every `?v=` and the version badge
+4. `js/lib/eod-buffering.js`
+5. `js/lib/barcode-scanner.js`
+6. `sw.js` — `CACHE` (`eod-field-X.Y.Z`) and precache `?v=`
+7. `js/boot.js` — `sw.js?v=`
+
+Load skill `eod-field-app-version-bump` before shipping. Live `/EOD/` (1.x) is a different app and uses its own version rule.

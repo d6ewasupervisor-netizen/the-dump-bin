@@ -1,7 +1,14 @@
 ﻿# Editor / IDE workspace files
 *.code-workspace
 .vscode/
-.cursor/
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/eod-field-app-version-bump.mdc
+!.cursor/skills/
+.cursor/skills/*
+!.cursor/skills/eod-field-app-version-bump/
+!.cursor/skills/eod-field-app-version-bump/**
 .idea/
 
 # OS junk
