@@ -1334,6 +1334,7 @@ ${cleanNotes}`;
             sheet: S.state.sheet,
             storeNumber: payload.storeNumber,
             workDate: payload.workDate,
+            visitId: payload.visitId,
             testMode: !!payload.testMode,
             onStatus: (msg) => { setBusy(msg || 'Building sheets'); },
           });

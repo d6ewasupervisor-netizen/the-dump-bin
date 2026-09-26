@@ -133,7 +133,7 @@
     }
   }
 
-  async function fetchDigitalSignoffJpegPages({ storeNumber, fiscalWeek }) {
+  async function fetchDigitalSignoffJpegPages({ storeNumber, fiscalWeek, workDate, visitId }) {
     const Pdf = global.EodPdfToImage;
     if (!Pdf?.pdfToJpegPages) throw new Error('PDF rasterizer not loaded');
     if (!storeNumber || !fiscalWeek) return [];
@@ -143,6 +143,8 @@
       week: fiscalWeek,
       bucket: 'all',
     });
+    if (workDate) qs.set('date', workDate);
+    if (visitId) qs.set('visitId', String(visitId));
     const resp = await global.authFetch(`${SIGNOFF_PDF_API}/pdf?${qs}`);
     if (resp.status === 404) return [];
     if (!resp.ok) {
@@ -157,7 +159,7 @@
    * Build JPEG embeds for the EOD email (coversheet + digital signoff pages).
    * Same print-preview PDF as Categories → Preview PDF, rasterized like live EOD.
    */
-  async function prepareForEmail({ report, sheet, storeNumber, workDate, testMode, onStatus } = {}) {
+  async function prepareForEmail({ report, sheet, storeNumber, workDate, visitId, testMode, onStatus } = {}) {
     const L = logic();
     const out = [];
     const setStatus = (msg) => {
@@ -182,6 +184,8 @@
       const pages = await fetchDigitalSignoffJpegPages({
         storeNumber: sheet?.storeNumber || storeNumber,
         fiscalWeek: sheet?.fiscalWeek,
+        workDate,
+        visitId,
       });
       pages.forEach((p) => {
         out.push({

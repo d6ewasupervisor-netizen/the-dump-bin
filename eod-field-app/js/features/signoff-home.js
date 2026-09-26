@@ -472,6 +472,12 @@
         week: sheet.fiscalWeek,
         bucket: 'all',
       });
+      if (S.state.workDate) qs.set('date', S.state.workDate);
+      const shiftVisit = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+        S.state.shifts,
+        S.state.selectedShift
+      )?.visitId || S.state.selectedShift?.visitId;
+      if (shiftVisit) qs.set('visitId', String(shiftVisit));
       const resp = await global.authFetch(`${API}/pdf?${qs}`);
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
@@ -496,6 +502,10 @@
       storeNumber: sheet.storeNumber,
       fiscalWeek: sheet.fiscalWeek,
       workDate: S.state.workDate,
+      visitId: global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+        S.state.shifts,
+        S.state.selectedShift
+      )?.visitId || S.state.selectedShift?.visitId || null,
       faxStoreNumber: String(faxStoreNumber || sheet.storeNumber).replace(/\D/g, ''),
       testMode: !!(global.EodTestMode?.isEnabled?.() || sessionStorage.getItem('eodTestMode') === '1'),
       forceLive: (typeof global.isEodForceLiveDelivery === 'function' && global.isEodForceLiveDelivery())
