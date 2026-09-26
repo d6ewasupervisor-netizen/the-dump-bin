@@ -10,6 +10,8 @@ const {
   sheetDisplayBucket,
   sheetDisplayComplete,
   backlogLabelVisible,
+  notInProd,
+  oddityCalloutVisible,
   sheetRowDone,
   rowSendReady,
   formatEstHrs,
@@ -242,7 +244,7 @@ test('sheet filters: Done includes live both-complete or Complete mark', () => {
   assert.equal(matchesSheetFilters(liveBoth, { status: 'not_done' }), false);
   assert.equal(sheetRowDone(backlog), false);
   assert.equal(matchesSheetFilters(backlog, { status: 'done' }), false);
-  assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), false);
+  assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(backlog, { status: 'backlog' }), true);
   assert.equal(matchesSheetFilters(complete, { status: 'backlog' }), false);
   assert.equal(sheetRowDone(complete), true);
@@ -342,6 +344,8 @@ test('category filters split Complete, Not Executable, and Out of Scope', () => 
   assert.equal(sheetDisplayBucket(untouched), 'not_started');
   assert.equal(sheetDisplayBucket(parked), 'backlog');
   assert.equal(backlogLabelVisible(parked), true);
+  assert.equal(matchesSheetFilters(parked, { status: 'not_done' }), true);
+  assert.equal(matchesSheetFilters(parked, { status: 'backlog' }), true);
   assert.equal(sheetDisplayBucket(parkedStarted), 'in_progress');
   assert.equal(backlogLabelVisible(parkedStarted), false);
   assert.equal(sheetDisplayBucket(parkedDone), 'complete');
@@ -349,6 +353,53 @@ test('category filters split Complete, Not Executable, and Out of Scope', () => 
   assert.equal(sheetDisplayBucket(nis), 'not_executable');
   assert.equal(sheetRowDone(finished), true);
   assert.equal(sheetRowDone(nis), true);
+});
+
+test('week carry-forward: Not in Prod, NISI overlays, and the red callout clears once actioned', () => {
+  const missing = { live: { prodStatus: 'absent' }, marks: { active: [] } };
+  const oosMissing = {
+    live: { prodStatus: 'absent' },
+    marks: { outOfScope: true, active: ['out_of_scope'] },
+  };
+  const oosInProd = {
+    live: { prodStatus: 'open', prodBeforeCount: 0 },
+    marks: { outOfScope: true, active: ['out_of_scope'] },
+  };
+  const nisiBacklog = {
+    live: { prodStatus: 'open', prodBeforeCount: 0 },
+    marks: { notInSi: true, backlog: true, active: ['not_in_si', 'backlog'] },
+  };
+  const nisiStarted = {
+    live: { prodStatus: 'open', prodBeforeCount: 1, prodAfterCount: 0 },
+    marks: { notInSi: true, backlog: true, active: ['not_in_si', 'backlog'] },
+  };
+  const nisNisi = {
+    live: { prodStatus: 'absent' },
+    marks: { notInStore: true, notInSi: true, active: ['not_in_store', 'not_in_si'] },
+  };
+  const strips = { errorMessage: 'No strips', live: { prodStatus: 'open', prodBeforeCount: 0 }, marks: { active: [] } };
+  const stripsBacklog = {
+    errorMessage: 'No strips',
+    live: { prodStatus: 'open', prodBeforeCount: 0 },
+    marks: { backlog: true, active: ['backlog'] },
+  };
+  assert.equal(notInProd(missing), true);
+  assert.equal(matchesSheetFilters(missing, { status: 'not_in_prod' }), true);
+  assert.equal(matchesSheetFilters(missing, { status: 'not_done' }), true);
+  assert.equal(matchesSheetFilters(oosMissing, { status: 'out_of_scope' }), true);
+  assert.equal(matchesSheetFilters(oosMissing, { status: 'not_in_prod' }), true);
+  assert.equal(matchesSheetFilters(oosInProd, { status: 'not_in_prod' }), false);
+  assert.equal(matchesSheetFilters(nisiBacklog, { status: 'backlog' }), true);
+  assert.equal(matchesSheetFilters(nisiBacklog, { status: 'not_done' }), true);
+  assert.equal(backlogLabelVisible(nisiBacklog), true);
+  assert.equal(matchesSheetFilters(nisiStarted, { status: 'in_progress' }), true);
+  assert.equal(matchesSheetFilters(nisiStarted, { status: 'backlog' }), false);
+  assert.equal(backlogLabelVisible(nisiStarted), false);
+  assert.equal(matchesSheetFilters(nisNisi, { status: 'not_executable' }), true);
+  assert.equal(matchesSheetFilters(nisNisi, { status: 'not_done' }), false);
+  assert.equal(oddityCalloutVisible(strips), true);
+  assert.equal(oddityCalloutVisible(stripsBacklog), false);
+  assert.equal(oddityCalloutVisible({ ...strips, live: { prodBeforeCount: 1, prodStatus: 'open' } }), false);
 });
 
 test('Out of Scope card keeps the normal card with a badge; tapping the lit mark confirms the undo', () => {
@@ -751,6 +802,7 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /data-value="done">Complete/);
   assert.match(signoff, /data-value="not_executable">Not Executable/);
   assert.match(signoff, /data-value="out_of_scope">Out of Scope/);
+  assert.match(signoff, /data-value="not_in_prod">Not in Prod/);
   assert.doesNotMatch(signoff, /data-value="done">Done/);
   assert.match(signoff, /data-value="not_done">Not Started/);
   assert.match(signoff, /data-value="backlog">Backlog/);

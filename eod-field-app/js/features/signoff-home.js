@@ -100,9 +100,10 @@
     if (backlogOn) c.push('marked-backlog');
     if (markActive(row, 'not_executable')) c.push('marked-ne');
     if (markActive(row, 'out_of_scope')) c.push('marked-oos');
-    if (row?.hasError || String(row?.errorMessage || row?.error_message || '').trim()) {
-      c.push('manifest-error');
-    }
+    const oddity = global.EodCategoryCardStatus?.oddityCalloutVisible
+      ? global.EodCategoryCardStatus.oddityCalloutVisible(row, extraBefore)
+      : !!(row?.hasError || String(row?.errorMessage || row?.error_message || '').trim());
+    if (oddity) c.push('manifest-error');
     return c.join(' ');
   }
 
@@ -885,7 +886,7 @@
           <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
           ${markActive(row, 'out_of_scope') ? '<div class="ds-row-live"><span class="pill">Out of Scope</span></div>' : ''}
           ${liveLine ? `<div class="ds-row-live">${liveLine}</div>` : ''}
-          ${errMsg ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
+          ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
         ${catNum ? `<div class="ds-row-catnum" title="Category">${esc(catNum)}</div>` : ''}
         ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-slot="${esc(captureSlot)}">Capture</button></div>` : ''}
@@ -928,6 +929,7 @@
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Complete</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_executable">Not Executable</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="out_of_scope">Out of Scope</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_in_prod">Not in Prod</button>
           </div>
         </div>
         <div class="field" style="margin-top:12px;">

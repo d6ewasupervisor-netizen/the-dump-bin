@@ -241,13 +241,32 @@
     if (sheetDisplayComplete(row)) return true;
     if (markActive(row, 'complete')) return true;
     if (markActive(row, 'not_in_store')) return true;
-    if (markActive(row, 'not_in_si')) return true;
     if (markActive(row, 'not_executable')) return true;
     if (markActive(row, 'out_of_scope')) return true;
     if (hasBeforePictures(row, extraBefore)) return true;
-    const after = prodPhotoCounts(row, 0).after;
-    if (after > 0) return true;
     return false;
+  }
+
+  /* Absent after a full-week PROD search. Unknown live data is not absence. */
+  function notInProd(row) {
+    const live = row && row.live;
+    if (!live) return false;
+    return String(live.prodStatus || '').trim().toLowerCase() === 'absent';
+  }
+
+  function oddityCalloutVisible(row, extraBefore) {
+    const err = String((row && (row.errorMessage || row.error_message)) || '').trim();
+    if (!err) return false;
+    if (markActive(row, 'backlog')) return false;
+    if (markActive(row, 'not_in_store')) return false;
+    if (markActive(row, 'not_in_si')) return false;
+    if (markActive(row, 'not_executable')) return false;
+    if (markActive(row, 'out_of_scope')) return false;
+    if (markActive(row, 'complete')) return false;
+    if (hasBeforePictures(row, extraBefore)) return false;
+    if (prodPhotoCounts(row, 0).after > 0) return false;
+    if (sheetDisplayComplete(row)) return false;
+    return true;
   }
 
   function sheetDisplayBucket(row, extraBefore) {
@@ -358,12 +377,27 @@
     return open[0];
   }
 
+  function rowInSheetFilter(row, status, extraBefore) {
+    const oos = markActive(row, 'out_of_scope');
+    const ne = markActive(row, 'not_executable') || markActive(row, 'not_in_store');
+    const started = hasBeforePictures(row, extraBefore);
+    const complete = sheetDisplayComplete(row);
+    if (status === 'out_of_scope') return oos;
+    if (status === 'not_executable') return ne;
+    if (status === 'not_in_prod') return notInProd(row);
+    if (status === 'complete') return complete && !oos && !ne;
+    if (status === 'backlog') return backlogLabelVisible(row, extraBefore);
+    if (status === 'in_progress') return started && !complete && !oos && !ne;
+    if (status === 'not_started') return !started && !complete && !oos && !ne;
+    return false;
+  }
+
   function matchesSheetFilters(row, filters, extraBefore) {
     const f = filters || {};
     if (f.status && f.status !== 'all') {
       const alias = { done: 'complete', not_done: 'not_started' };
       const want = alias[f.status] || f.status;
-      if (sheetDisplayBucket(row, extraBefore) !== want) return false;
+      if (!rowInSheetFilter(row, want, extraBefore)) return false;
     }
     if (f.prod === 'done' && !prodDone(row)) return false;
     if (f.prod === 'not_done' && prodDone(row)) return false;
@@ -405,6 +439,9 @@
     sheetDisplayComplete,
     sheetDisplayBucket,
     backlogLabelVisible,
+    notInProd,
+    oddityCalloutVisible,
+    rowInSheetFilter,
     prodDone,
     siDone,
     sheetRowDone,
