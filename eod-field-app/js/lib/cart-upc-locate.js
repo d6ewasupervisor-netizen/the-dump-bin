@@ -37,6 +37,27 @@
     return Boolean(m.dbkey);
   }
 
+  function moneyText(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v) || v <= 0) return '';
+    return (Math.round(v * 100) / 100).toFixed(2);
+  }
+
+  function priceHtml(m) {
+    const price = m && m.price;
+    if (!price || typeof price !== 'object') return '';
+    const regular = moneyText(price.regular);
+    const promoRaw = moneyText(price.promo);
+    const promo = promoRaw && (!regular || Number(promoRaw) < Number(regular)) ? promoRaw : '';
+    const headline = promo || regular;
+    if (!headline) return '';
+    const unit = String(price.soldBy || '').toUpperCase() === 'WEIGHT' ? '/lb' : '';
+    const reg = promo && regular
+      ? `<span class="eod-locate-price-reg">Reg $${esc(regular)}</span>`
+      : '';
+    return `<div class="eod-locate-price">$${esc(headline)}${unit}${reg}</div>`;
+  }
+
   function matchHtml(m) {
     const src = m.source || '';
     const withKroger = src === 'kroger' || src === 'kroger+si';
@@ -76,6 +97,7 @@
       <div class="eod-locate-copy">
         ${sourceTag}
         <strong>${esc(title)}</strong>
+        ${priceHtml(m)}
         ${subtitle ? `<div>${esc(subtitle)}</div>` : ''}
         ${meta ? `<div>${esc(meta)}</div>` : ''}
         ${setBlock}
@@ -173,6 +195,7 @@
     openScanner,
     warmIndex,
     locate,
+    priceHtml,
     NOT_FOUND,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

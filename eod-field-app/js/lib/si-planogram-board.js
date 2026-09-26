@@ -393,8 +393,9 @@
     document.getElementById('eodPogItemOverlay')?.remove();
   }
 
-  function openItemDetail(el, setTitle) {
+  function openItemDetail(el, setTitle, priceBlock) {
     closeItemDetail();
+    priceBlock = typeof priceBlock === 'string' ? priceBlock : '';
     const name = el.getAttribute('data-name') || '';
     const upc = el.getAttribute('data-upc') || '';
     const brand = el.getAttribute('data-brand') || '';
@@ -419,6 +420,7 @@
       <div class="eod-pog-item-copy">
         <div class="eod-pog-item-set">${esc(setTitle || '')}</div>
         <strong>${esc(name)}</strong>
+        ${priceBlock}
         ${upc ? `<div>UPC ${esc(upc)}</div>` : ''}
         <div>${esc(loc)}</div>
         ${brand ? `<div>${esc(brand)}</div>` : ''}
@@ -675,7 +677,7 @@
       if (here.length) {
         const hit = applyHighlight(mount, here.length === 1 ? (here[0].upc || upc) : upc);
         goToBay(scroll, here[0].bay);
-        if (hit) openItemDetail(hit, ctx.title || '');
+        if (hit) openItemDetail(hit, ctx.title || '', global.EodCartLocate?.priceHtml?.(here[0]) || '');
         return;
       }
       if (!matches.length) {
@@ -686,6 +688,7 @@
         `<article class="eod-locate-hit" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || '')}" data-upc="${esc(m.upc || '')}">
           <div class="eod-locate-copy">
             <strong>${esc(m.setName || m.categoryName || '')}</strong>
+            ${global.EodCartLocate?.priceHtml?.(m) || ''}
             <div>${esc(m.name || '')}</div>
             <div class="muted">UPC ${esc(m.upc || '')}</div>
             <div>${esc([
