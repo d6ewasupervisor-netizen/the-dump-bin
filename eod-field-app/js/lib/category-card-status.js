@@ -185,6 +185,84 @@
     return true;
   }
 
+  /* Bay count from SI when we have one. Footage is not a photo count. */
+  function expectedPhotoNeed(row) {
+    const live = row && row.live;
+    const loc = live && live.siLocation;
+    const bay = Number(loc && (loc.bayCount || loc.sectionCount)) || 0;
+    const section = Number(live && (live.sectionCount || live.expectedBayCount)) || 0;
+    const n = Math.max(bay, section);
+    return n > 0 ? n : 0;
+  }
+
+  function countMeetsNeed(count, need) {
+    const n = Number(count) || 0;
+    if (need > 0) return n >= need;
+    return n > 0;
+  }
+
+  function siClosed(row) {
+    const live = row && row.live;
+    if (!live) return false;
+    if (live.siComplete === true) return true;
+    const s = String(live.siStatus || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    return s === 'complete' || s === 'completed' || s === 'done' || s === 'closed' || s === 'finished';
+  }
+
+  /* SI closeout is the action gate on the sheet. An explicit open-action
+     count still blocks Complete when the payload carries one. */
+  function actionsClear(row) {
+    const live = row && row.live;
+    if (!live) return false;
+    if (live.actionsComplete === false) return false;
+    if (live.openActions != null && live.openActions !== '' && Number(live.openActions) > 0) return false;
+    if (live.pendingActions != null && live.pendingActions !== '' && Number(live.pendingActions) > 0) return false;
+    return siClosed(row);
+  }
+
+  function hasBeforePictures(row, extraBefore) {
+    return prodPhotoCounts(row, extraBefore).before > 0;
+  }
+
+  /* Complete section only. Send-ready and sheetRowDone stay on their own rules. */
+  function sheetDisplayComplete(row) {
+    const counts = prodPhotoCounts(row, 0);
+    const need = expectedPhotoNeed(row);
+    const si = siSectionCounts(row);
+    const siNeed = Math.max(need, si.need);
+    return countMeetsNeed(counts.before, need)
+      && countMeetsNeed(counts.after, need)
+      && countMeetsNeed(si.have, siNeed)
+      && siClosed(row)
+      && actionsClear(row);
+  }
+
+  function backlogDisplaced(row, extraBefore) {
+    if (sheetDisplayComplete(row)) return true;
+    if (markActive(row, 'complete')) return true;
+    if (markActive(row, 'not_in_store')) return true;
+    if (markActive(row, 'not_in_si')) return true;
+    if (markActive(row, 'not_executable')) return true;
+    if (markActive(row, 'out_of_scope')) return true;
+    if (hasBeforePictures(row, extraBefore)) return true;
+    const after = prodPhotoCounts(row, 0).after;
+    if (after > 0) return true;
+    return false;
+  }
+
+  function sheetDisplayBucket(row, extraBefore) {
+    if (markActive(row, 'out_of_scope')) return 'out_of_scope';
+    if (markActive(row, 'not_executable') || markActive(row, 'not_in_store')) return 'not_executable';
+    if (sheetDisplayComplete(row)) return 'complete';
+    if (markActive(row, 'backlog') && !backlogDisplaced(row, extraBefore)) return 'backlog';
+    if (hasBeforePictures(row, extraBefore)) return 'in_progress';
+    return 'not_started';
+  }
+
+  function backlogLabelVisible(row, extraBefore) {
+    return sheetDisplayBucket(row, extraBefore) === 'backlog';
+  }
+
   /* Terminal marks close a set without photos on either side. */
   function terminalMark(row) {
     return markActive(row, 'not_in_store')
@@ -280,22 +358,12 @@
     return open[0];
   }
 
-  function matchesSheetFilters(row, filters) {
+  function matchesSheetFilters(row, filters, extraBefore) {
     const f = filters || {};
-    // Out of Scope lives on Done (and the all-rows view) so it can be undone.
-    if (markActive(row, 'out_of_scope') && f.status && f.status !== 'done') return false;
-    if (f.status === 'backlog') {
-      if (!markActive(row, 'backlog') || sheetRowDone(row)) return false;
-    }
-    if (f.status === 'done' && !sheetRowDone(row)) return false;
-    if (f.status === 'not_done') {
-      // "Not Started" tab: row must be not-done AND have no PROD photos yet
-      if (sheetRowDone(row)) return false;
-      if (prodPhotoState(row).kind === 'in_progress') return false;
-    }
-    if (f.status === 'in_progress') {
-      // "In Progress" tab: has some PROD photos but not both before+after
-      if (prodPhotoState(row).kind !== 'in_progress') return false;
+    if (f.status && f.status !== 'all') {
+      const alias = { done: 'complete', not_done: 'not_started' };
+      const want = alias[f.status] || f.status;
+      if (sheetDisplayBucket(row, extraBefore) !== want) return false;
     }
     if (f.prod === 'done' && !prodDone(row)) return false;
     if (f.prod === 'not_done' && prodDone(row)) return false;
@@ -333,6 +401,10 @@
     liveStatusLineHtml,
     prodPhotosReady,
     siPhotosReady,
+    expectedPhotoNeed,
+    sheetDisplayComplete,
+    sheetDisplayBucket,
+    backlogLabelVisible,
     prodDone,
     siDone,
     sheetRowDone,

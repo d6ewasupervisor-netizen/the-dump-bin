@@ -77,7 +77,10 @@
       }
       if (t === 'not_in_si' && live?.siPresent) continue;
       if (t === 'backlog') {
-        pills.push('<span class="pill warn">backlog</span>');
+        const show = global.EodCategoryCardStatus?.backlogLabelVisible
+          ? global.EodCategoryCardStatus.backlogLabelVisible(row)
+          : true;
+        if (show) pills.push('<span class="pill warn">backlog</span>');
         continue;
       }
       pills.push(`<span class="pill">${esc(String(t).replace(/_/g, ' '))}</span>`);
@@ -86,12 +89,15 @@
     return pills.join('');
   }
 
-  function rowClass(row) {
+  function rowClass(row, extraBefore) {
     const c = [];
     if (rowLooksComplete(row)) c.push('marked-complete');
     if (markActive(row, 'not_in_store')) c.push('marked-nis');
     if (markActive(row, 'not_in_si') && !row?.live?.siPresent) c.push('marked-nisi');
-    if (markActive(row, 'backlog') && !rowLooksComplete(row)) c.push('marked-backlog');
+    const backlogOn = global.EodCategoryCardStatus?.backlogLabelVisible
+      ? global.EodCategoryCardStatus.backlogLabelVisible(row, extraBefore)
+      : (markActive(row, 'backlog') && !rowLooksComplete(row));
+    if (backlogOn) c.push('marked-backlog');
     if (markActive(row, 'not_executable')) c.push('marked-ne');
     if (markActive(row, 'out_of_scope')) c.push('marked-oos');
     if (row?.hasError || String(row?.errorMessage || row?.error_message || '').trim()) {
@@ -817,7 +823,7 @@
   function filteredSheetRows(sheet, q, filters) {
     let rows = (sheet.rows || []).filter((row) => {
       if (global.EodCategoryCardStatus?.matchesSheetFilters
-        && !global.EodCategoryCardStatus.matchesSheetFilters(row, filters)) {
+        && !global.EodCategoryCardStatus.matchesSheetFilters(row, filters, localBeforeCount(row))) {
         return false;
       }
       if (!q) return true;
@@ -846,7 +852,10 @@
       const version = global.EodCategoryCardStatus?.versionLabel?.(row) || '';
       const est = global.EodCategoryCardStatus?.formatEstHrs?.(row.estHrs) || '';
       const btn = (type, label) => {
-        const on = markActive(row, type);
+        let on = markActive(row, type);
+        if (type === 'backlog' && Status?.backlogLabelVisible) {
+          on = Status.backlogLabelVisible(row, localBefores);
+        }
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
       const errMsg = String(row.errorMessage || row.error_message || '').trim();
@@ -869,7 +878,7 @@
       const captureSlot = Status?.neededCaptureSlot
         ? Status.neededCaptureSlot(row, localBefores)
         : 'after';
-      return `<div class="ds-row ds-row-compact ${rowClass(row)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
+      return `<div class="ds-row ds-row-compact ${rowClass(row, localBefores)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
         <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
         <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
@@ -911,11 +920,14 @@
         </div>
         <div class="ds-bulk" id="sheetBulk"></div>
         <div class="ds-filters" id="sheetFilters">
+          <div class="ds-filter-label">Filters</div>
           <div class="ds-filter-row">
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_done">Not Started</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="in_progress">In Progress</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="backlog">Backlog</button>
-            <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Done</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Complete</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_executable">Not Executable</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="out_of_scope">Out of Scope</button>
           </div>
         </div>
         <div class="field" style="margin-top:12px;">

@@ -7,6 +7,9 @@ const {
   beforePillHtml,
   siLocationLabel,
   matchesSheetFilters,
+  sheetDisplayBucket,
+  sheetDisplayComplete,
+  backlogLabelVisible,
   sheetRowDone,
   rowSendReady,
   formatEstHrs,
@@ -132,7 +135,8 @@ test('not executable closes the set for done and send-ready', () => {
 
 test('not executable rows stay visible on Categories', () => {
   const row = { marks: { active: ['not_executable'], notExecutable: true } };
-  assert.equal(matchesSheetFilters(row, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(row, { status: 'not_executable' }), true);
+  assert.equal(matchesSheetFilters(row, { status: 'done' }), false);
   assert.equal(matchesSheetFilters(row, { status: 'not_done' }), false);
 });
 
@@ -204,7 +208,8 @@ test('sheet filters: Done / Not Done plus leftover prod/si/nis keys', () => {
   assert.equal(matchesSheetFilters(open, { status: 'done' }), false);
   assert.equal(matchesSheetFilters(open, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(done, { status: 'not_done' }), false);
-  assert.equal(matchesSheetFilters(nis, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(nis, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(nis, { status: 'not_executable' }), true);
   assert.equal(matchesSheetFilters(nisi, { status: 'done' }), false);
   assert.equal(matchesSheetFilters(nisi, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(done, { prod: 'done', si: 'done' }), true);
@@ -237,12 +242,13 @@ test('sheet filters: Done includes live both-complete or Complete mark', () => {
   assert.equal(matchesSheetFilters(liveBoth, { status: 'not_done' }), false);
   assert.equal(sheetRowDone(backlog), false);
   assert.equal(matchesSheetFilters(backlog, { status: 'done' }), false);
-  assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), true);
+  assert.equal(matchesSheetFilters(backlog, { status: 'not_done' }), false);
   assert.equal(matchesSheetFilters(backlog, { status: 'backlog' }), true);
   assert.equal(matchesSheetFilters(complete, { status: 'backlog' }), false);
   assert.equal(sheetRowDone(complete), true);
   assert.equal(rowSendReady(complete), true);
-  assert.equal(matchesSheetFilters(complete, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(complete, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(complete, { status: 'not_done' }), true);
 });
 
 test('NISI is not done; Complete / NIS / Out of Scope / photos clear a set', () => {
@@ -260,8 +266,89 @@ test('NISI is not done; Complete / NIS / Out of Scope / photos clear a set', () 
   assert.equal(matchesSheetFilters(oos, { status: 'not_done' }), false);
   assert.equal(matchesSheetFilters(oos, { status: 'in_progress' }), false);
   assert.equal(matchesSheetFilters(oos, { status: 'backlog' }), false);
-  assert.equal(matchesSheetFilters(oos, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(oos, { status: 'done' }), false);
+  assert.equal(matchesSheetFilters(oos, { status: 'out_of_scope' }), true);
   assert.equal(matchesSheetFilters(oos, {}), true);
+});
+
+test('office-added EOD sets with an after photo are done for send', () => {
+  const photographed = {
+    shiftType: 'EOD',
+    photos: [{ slot: 'after', source: 'prod' }, { slot: 'before', source: 'prod' }],
+    marks: { notInSi: true, active: ['not_in_si'] },
+  };
+  const empty = { shiftType: 'EOD', marks: { notInSi: true, active: ['not_in_si'] } };
+  assert.equal(sheetRowDone(photographed), true);
+  assert.equal(rowSendReady(photographed), true);
+  assert.equal(sheetRowDone(empty), false);
+  assert.equal(rowSendReady(empty), false);
+});
+
+test('category filters split Complete, Not Executable, and Out of Scope', () => {
+  const finished = {
+    live: {
+      siComplete: true,
+      siStatus: 'completed',
+      prodBeforeCount: 4,
+      prodAfterCount: 4,
+      siPhotoCount: 4,
+      sectionCount: 4,
+      siLocation: { bayCount: 4 },
+    },
+    marks: { active: [] },
+  };
+  const partial = {
+    live: {
+      siComplete: true,
+      siStatus: 'completed',
+      prodBeforeCount: 1,
+      prodAfterCount: 1,
+      siPhotoCount: 1,
+      sectionCount: 4,
+    },
+    marks: { active: [] },
+  };
+  const beforesOnly = {
+    live: { prodBeforeCount: 2, prodAfterCount: 0, siPhotoCount: 0, siStatus: 'in_progress' },
+    marks: { active: [] },
+  };
+  const untouched = {
+    live: { prodBeforeCount: 0, prodAfterCount: 0, siStatus: 'created' },
+    marks: { active: [] },
+  };
+  const parked = { marks: { backlog: true, active: ['backlog'] }, live: { prodBeforeCount: 0, prodAfterCount: 0 } };
+  const parkedStarted = {
+    marks: { backlog: true, active: ['backlog'] },
+    live: { prodBeforeCount: 1, prodAfterCount: 0 },
+  };
+  const parkedDone = {
+    marks: { backlog: true, active: ['backlog'] },
+    live: {
+      siComplete: true,
+      siStatus: 'completed',
+      prodBeforeCount: 2,
+      prodAfterCount: 2,
+      siPhotoCount: 2,
+      sectionCount: 2,
+    },
+  };
+  const nis = { marks: { notInStore: true, active: ['not_in_store'] } };
+  assert.equal(sheetDisplayComplete(finished), true);
+  assert.equal(sheetDisplayBucket(finished), 'complete');
+  assert.equal(sheetDisplayComplete(partial), false);
+  assert.equal(sheetDisplayBucket(partial), 'in_progress');
+  assert.equal(matchesSheetFilters(beforesOnly, { status: 'in_progress' }), true);
+  assert.equal(matchesSheetFilters(beforesOnly, { status: 'not_done' }), false);
+  assert.equal(sheetDisplayBucket(untouched), 'not_started');
+  assert.equal(sheetDisplayBucket(parked), 'backlog');
+  assert.equal(backlogLabelVisible(parked), true);
+  assert.equal(sheetDisplayBucket(parkedStarted), 'in_progress');
+  assert.equal(backlogLabelVisible(parkedStarted), false);
+  assert.equal(sheetDisplayBucket(parkedDone), 'complete');
+  assert.equal(backlogLabelVisible(parkedDone), false);
+  assert.equal(sheetDisplayBucket(nis), 'not_executable');
+  assert.equal(sheetRowDone(finished), true);
+  assert.equal(sheetRowDone(nis), true);
 });
 
 test('Out of Scope card keeps the normal card with a badge; tapping the lit mark confirms the undo', () => {
@@ -660,7 +747,11 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   const session = fs.readFileSync(path.join(__dirname, '../js/session.js'), 'utf8');
   assert.match(signoff, /id="sheetFilters"/);
   assert.match(signoff, /data-filter="status"/);
-  assert.match(signoff, /data-value="done">Done/);
+  assert.match(signoff, /ds-filter-label">Filters/);
+  assert.match(signoff, /data-value="done">Complete/);
+  assert.match(signoff, /data-value="not_executable">Not Executable/);
+  assert.match(signoff, /data-value="out_of_scope">Out of Scope/);
+  assert.doesNotMatch(signoff, /data-value="done">Done/);
   assert.match(signoff, /data-value="not_done">Not Started/);
   assert.match(signoff, /data-value="backlog">Backlog/);
   assert.match(signoff, /id="categoriesTitle"/);
