@@ -1312,6 +1312,47 @@ body.role-admin .ds-row-catnum {
 .manager-chip.on { outline: 2px solid var(--accent); }
 .visit-confirmed { min-height: 44px; display: flex; align-items: center; font-weight: 700; }
 .day-confirm-modal { z-index: 45000; }
+.work-date-cal { margin-top: 4px; }
+.work-date-cal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px;
+}
+.work-date-cal-title { font-weight: 700; font-size: 16px; }
+.work-date-cal-nav { min-width: 44px; min-height: 44px; padding: 0 12px; }
+.work-date-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+}
+.work-date-cal-dow {
+  text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); padding: 4px 0;
+}
+.work-date-cal-day {
+  aspect-ratio: 1; min-height: 36px; border: 0; border-radius: 6px;
+  background: transparent; color: inherit; font: inherit; font-weight: 700;
+}
+.work-date-cal-day.is-pad { visibility: hidden; }
+.work-date-cal-day.is-ise { background: #2563eb; color: #fff; }
+.work-date-cal-day.is-today { background: #16a34a; color: #fff; }
+.work-date-cal-day.is-both { background: #7c3aed; color: #fff; }
+.work-date-cal-day.is-selected { box-shadow: inset 0 0 0 2px #fff; }
+.work-date-cal-day.is-selected:not(.is-ise):not(.is-today):not(.is-both) {
+  background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent);
+}
+.eod-scan-ask { z-index: 51000; }
+.eod-scan-done {
+  position: absolute; left: 12px; right: 12px;
+  bottom: calc(132px + var(--safe-b, 0px));
+  display: flex; justify-content: center; pointer-events: none; z-index: 2;
+}
+.eod-scan-done[hidden] { display: none !important; }
+.eod-scan-done .btn { pointer-events: auto; min-height: 48px; }
+.eod-barcode-sheet { position: relative; }
+.scan-results-popup-body, .scan-results-page { display: flex; flex-direction: column; gap: 12px; }
+.scan-result-group h2 { margin: 0 0 4px; font-size: 16px; }
+.scan-result-set { margin: 0 0 6px; font-size: 14px; color: var(--muted); }
+.scan-result-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.scan-result-row {
+  border: 1px solid var(--border, #334155); border-radius: 8px; padding: 8px 10px;
+}
+.scan-result-row--tap { cursor: pointer; }
 .eod-mark-undo {
   position: fixed; left: 12px; right: 12px; bottom: calc(64px + var(--safe-b, 0px));
   z-index: 80; display: flex; align-items: center; justify-content: space-between;
@@ -2544,6 +2585,7 @@ body.set-media-open .bottom-nav { display: none !important; }
   }
 }
 
+#eodScanMoreAsk { z-index: 51000; }
 #eodBarcodeOverlay {
   position: fixed; inset: 0; z-index: 50000;
   background: var(--bg); display: none; flex-direction: column;

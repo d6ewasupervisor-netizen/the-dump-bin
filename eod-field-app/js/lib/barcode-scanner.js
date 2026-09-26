@@ -1,4 +1,4 @@
-/* Native BarcodeDetector + html5-qrcode fallback. All common retail formats. 3.4.24 */
+/* Native BarcodeDetector + html5-qrcode fallback. All common retail formats. 3.4.25 */
 (function (global) {
   'use strict';
 
@@ -16,6 +16,10 @@
   let loopId = null;
   let onScan = null;
   let manualTimer = null;
+  let continuous = false;
+  let accepting = true;
+  let lastHit = { code: '', at: 0 };
+  const REPEAT_MS = 1800;
 
   function digits(raw) {
     return String(raw || '').replace(/\D/g, '');
@@ -70,6 +74,9 @@
     }
     document.body.classList.remove('barcode-scan-open');
     onScan = null;
+    continuous = false;
+    accepting = true;
+    lastHit = { code: '', at: 0 };
   }
 
   function pickBest(codes) {
@@ -84,11 +91,22 @@
   function deliver(raw, minDigits) {
     const n = digits(raw);
     const min = minDigits == null ? CAMERA_MIN : minDigits;
-    if (n.length < min || !onScan) return false;
+    if (!accepting || n.length < min || !onScan) return false;
+    const now = Date.now();
+    if (n === lastHit.code && now - lastHit.at < REPEAT_MS) return false;
+    lastHit = { code: n, at: now };
+    if (continuous) {
+      try { onScan(n); } catch (_) {}
+      return true;
+    }
     const cb = onScan;
     onScan = null;
     void close().then(() => cb(n));
     return true;
+  }
+
+  function setAccepting(on) {
+    accepting = !!on;
   }
 
   async function nativeFormats() {
@@ -125,7 +143,7 @@
       if (!overlay()?.classList.contains('visible')) return;
       try {
         const best = pickBest(await detector.detect(video));
-        if (best && deliver(best)) return;
+        if (best && deliver(best) && !continuous) return;
       } catch (_) { /* skip frame */ }
       loopId = requestAnimationFrame(tick);
     };
@@ -191,8 +209,10 @@
     return true;
   }
 
-  async function start(cb) {
+  async function start(cb, opts) {
     await close();
+    continuous = !!(opts && opts.continuous);
+    accepting = true;
     onScan = cb;
     let host = overlay();
     if (!host) {
@@ -255,6 +275,6 @@
     return false;
   }
 
-  global.EodBarcodeScanner = { start, close };
+  global.EodBarcodeScanner = { start, close, setAccepting };
 })(typeof window !== 'undefined' ? window : globalThis);
 

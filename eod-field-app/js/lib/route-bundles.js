@@ -16,11 +16,20 @@
       'js/lib/set-review.js',
       'js/lib/set-media-prefetch.js',
       'js/lib/si-planogram-board.js',
+      'js/lib/scan-batch-logic.js',
       'js/lib/barcode-scanner.js',
       'js/lib/cart-upc-locate.js',
       'js/lib/device-photo-flush.js',
       'js/lib/bay-count-logic.js',
       'js/features/set-survey.js',
+      'js/features/scan-results.js',
+    ],
+    scans: [
+      'js/lib/si-planogram-board.js',
+      'js/lib/scan-batch-logic.js',
+      'js/lib/barcode-scanner.js',
+      'js/lib/cart-upc-locate.js',
+      'js/features/scan-results.js',
     ],
     send: [
       'js/lib/eod-send-sheets-logic.js',
@@ -72,6 +81,7 @@
     photos: 'photos',
     storage: 'photos',
     crew: 'crew',
+    scans: 'scans',
   };
 
   const STYLES = {

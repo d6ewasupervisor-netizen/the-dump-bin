@@ -10,6 +10,7 @@
     { id: 'crew', label: 'Crew' },
     { id: 'dumpbin', label: 'Dump Bin' },
     { id: 'helpdesk', label: 'Helpdesk' },
+    { id: 'scans', label: 'Scan results' },
   ];
 
   const SUB = {

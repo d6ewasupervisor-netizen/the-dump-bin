@@ -177,9 +177,150 @@
     }
   }
 
-  function openScanner() {
+  let batch = null;
+
+  function hideAsk() {
+    document.getElementById('eodScanMoreAsk')?.remove();
+  }
+
+  function hideDone() {
+    const bar = document.getElementById('eodScanDoneBar');
+    if (bar) bar.hidden = true;
+  }
+
+  function paintCount() {
+    const hint = document.getElementById('eodBarcodeHint');
+    if (!hint || !batch?.bulk) return;
+    const n = batch.items.length;
+    hint.textContent = n === 1 ? '1 item' : `${n} items`;
+  }
+
+  function enqueue(upc) {
+    const code = String(upc || '');
+    const have = batch?.items?.find((item) => item.upc === code);
+    if (have) return have;
+    const item = { upc: code, status: 'looking', data: null, promise: null };
+    item.promise = locate(code).then((data) => {
+      item.data = data;
+      item.status = data?.found ? 'ready' : 'miss';
+      if (batch?.bulk) {
+        global.EodScanBatch?.commit?.(batch.items);
+        paintCount();
+      }
+      return data;
+    }).catch(() => {
+      item.data = { found: false };
+      item.status = 'miss';
+      if (batch?.bulk) global.EodScanBatch?.commit?.(batch.items);
+      return item.data;
+    });
+    batch.items.push(item);
+    if (batch.bulk) {
+      global.EodScanBatch?.commit?.(batch.items);
+      paintCount();
+    }
+    return item;
+  }
+
+  async function finishSingle(item) {
+    hideAsk();
+    hideDone();
+    const upc = item?.upc;
+    batch = null;
+    await global.EodBarcodeScanner?.close?.();
+    let data = item?.data;
+    if (!data && item?.promise) {
+      try { data = await item.promise; } catch (_) { data = { found: false }; }
+    }
+    showResult(upc, data || { found: false });
+  }
+
+  async function finishBulk() {
+    const items = batch?.items ? batch.items.slice() : [];
+    batch = null;
+    hideAsk();
+    hideDone();
+    await global.EodBarcodeScanner?.close?.();
+    if (!items.length) return;
+    global.EodScanBatch?.commit?.(items);
+    global.EodScanResults?.openPopup?.();
+  }
+
+  function ensureDoneBar() {
+    const sheet = document.querySelector('#eodBarcodeOverlay .eod-barcode-sheet');
+    if (!sheet || document.getElementById('eodScanDoneBar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'eodScanDoneBar';
+    bar.className = 'eod-scan-done';
+    bar.hidden = true;
+    bar.innerHTML = '<button type="button" class="btn btn-primary" id="eodScanDoneBtn">Done Scanning</button>';
+    sheet.appendChild(bar);
+    bar.querySelector('#eodScanDoneBtn').onclick = () => { void finishBulk(); };
+  }
+
+  function showAsk(item) {
+    hideAsk();
+    const host = document.createElement('div');
+    host.id = 'eodScanMoreAsk';
+    host.className = 'modal-overlay show eod-scan-ask';
+    host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="eodScanMoreTitle">
+      <h2 id="eodScanMoreTitle">Scan more items?</h2>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="eodScanMoreNo">No</button>
+        <button type="button" class="btn btn-primary" id="eodScanMoreYes">Yes</button>
+      </div>
+    </div>`;
+    document.body.appendChild(host);
+    global.EodA11y?.activate?.(host, '#eodScanMoreYes');
+    host.querySelector('#eodScanMoreNo').onclick = () => { void finishSingle(item); };
+    host.querySelector('#eodScanMoreYes').onclick = () => {
+      global.EodA11y?.deactivate?.(host);
+      host.remove();
+      if (!batch) return;
+      batch.bulk = true;
+      global.EodBarcodeScanner?.setAccepting?.(true);
+      ensureDoneBar();
+      const bar = document.getElementById('eodScanDoneBar');
+      if (bar) bar.hidden = false;
+      global.EodScanBatch?.commit?.(batch.items);
+      paintCount();
+    };
+  }
+
+  function armClose() {
+    const btn = document.getElementById('eodBarcodeClose');
+    if (!btn || btn.dataset.scanBatch === '1') return;
+    btn.dataset.scanBatch = '1';
+    btn.onclick = () => {
+      if (batch?.bulk && batch.items?.length) {
+        void finishBulk();
+        return;
+      }
+      batch = null;
+      hideAsk();
+      hideDone();
+      void global.EodBarcodeScanner?.close?.();
+    };
+  }
+
+  async function openScanner() {
     if (!global.EodBarcodeScanner?.start) return;
-    global.EodBarcodeScanner.start(onScanned);
+    batch = null;
+    hideAsk();
+    hideDone();
+    await global.EodBarcodeScanner.start((upc) => {
+      if (!batch) {
+        batch = { items: [], bulk: false };
+        global.EodBarcodeScanner.setAccepting?.(false);
+        showAsk(enqueue(upc));
+        return;
+      }
+      if (!batch.bulk) return;
+      enqueue(upc);
+      paintCount();
+    }, { continuous: true });
+    armClose();
+    ensureDoneBar();
   }
 
   async function warmIndex() {

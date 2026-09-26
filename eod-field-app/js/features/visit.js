@@ -1058,8 +1058,9 @@
           <button type="button" class="btn btn-secondary btn-block" id="dayConfirmStoreBtn">${last ? `Store ${esc(last)}` : 'Choose store'}</button>
         </div>
         <div class="field">
-          <label for="dayConfirmDate">Date</label>
-          <input type="date" id="dayConfirmDate" value="${esc(date)}">
+          <label id="dayConfirmDateLabel">Date</label>
+          <input type="hidden" id="dayConfirmDate" value="${esc(date)}">
+          <div id="dayConfirmCalendar"></div>
         </div>
         <div id="dayConfirmStatus" class="muted" style="min-height:1.2em;margin:8px 0;"></div>
         <div class="btn-row">
@@ -1074,6 +1075,16 @@
     const storeHidden = overlay.querySelector('#dayConfirmStore');
     const dateEl = overlay.querySelector('#dayConfirmDate');
     const statusEl = overlay.querySelector('#dayConfirmStatus');
+    const calendar = global.EodWorkDateCalendar?.mount?.(overlay.querySelector('#dayConfirmCalendar'), {
+      value: dateEl.value,
+      today: S.todayLocalIsoDate(),
+      getStore: () => storeHidden.value,
+      onChange(iso) {
+        dateEl.value = iso;
+        try { global.EodShiftDay?.load?.(iso); } catch (_) {}
+      },
+      loadDates: (store, from, to) => global.EodShiftDay?.loadStoreIseDates?.(store, from, to) || Promise.resolve([]),
+    });
     void global.EodShiftDay?.load?.(date);
     storeBtn.onclick = () => {
       const scheduled = global.EodShiftDay?.scheduledStoreNumbers?.(dateEl.value || date) || [];
@@ -1085,18 +1096,10 @@
         onChoose(item) {
           storeHidden.value = item.id;
           storeBtn.textContent = `Store ${item.id}`;
+          calendar?.setStore?.();
         },
       });
     };
-    dateEl.addEventListener('click', () => {
-      try { dateEl.showPicker?.(); } catch (_) {}
-    });
-    dateEl.addEventListener('focus', () => {
-      try { dateEl.showPicker?.(); } catch (_) {}
-    });
-    dateEl.addEventListener('change', () => {
-      try { global.EodShiftDay?.load?.(dateEl.value); } catch (_) {}
-    });
     overlay.querySelector('#dayConfirmCancel').onclick = () => { void cancelDayConfirm(); };
     overlay.querySelector('#dayConfirmSubmit').onclick = async () => {
       const store = (storeHidden.value || '').trim();

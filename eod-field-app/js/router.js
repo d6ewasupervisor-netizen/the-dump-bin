@@ -22,7 +22,7 @@
   const SKELETON_ROWS = {
     signoff: 6, survey: 4, visit: 4, send: 5,
     signatures: 3, crew: 4, photos: 4, storage: 4,
-    helpdesk: 3, dumpbin: 5, cover: 3,
+    helpdesk: 3, dumpbin: 5, cover: 3, scans: 4,
   };
 
   function paintNavActive(name) {
@@ -31,7 +31,7 @@
       const on = nav === name
         || (nav === 'signoff' && (name === 'survey' || name === 'cover'))
         || (nav === 'dumpbin' && name === 'dumpbin')
-        || (nav === 'more' && ['crew', 'dumpbin', 'helpdesk', 'photos', 'storage'].includes(name));
+        || (nav === 'more' && ['crew', 'dumpbin', 'helpdesk', 'photos', 'storage', 'scans'].includes(name));
       el.classList.toggle('is-active', on);
       if (on) el.setAttribute('aria-current', 'page');
       else el.removeAttribute('aria-current');
