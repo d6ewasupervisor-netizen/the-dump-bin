@@ -6,6 +6,26 @@ const fs = require('fs');
 const path = require('path');
 const { groupScanResults } = require('../js/lib/scan-batch-logic');
 
+test('a new item with no aisle groups under New items', () => {
+  const groups = groupScanResults([
+    {
+      upc: '0001111016923',
+      status: 'ready',
+      data: {
+        found: true,
+        matches: [{
+          upc: '0001111016923',
+          name: 'KRO PORK MINI WONTONS',
+          notesAction: 'new',
+          setName: '195 FROZEN ASIAN',
+        }],
+      },
+    },
+  ]);
+  assert.equal(groups[0].aisle, 'New items');
+  assert.equal(groups[0].setName, '195 FROZEN ASIAN');
+});
+
 test('scan results group by aisle then set', () => {
   const groups = groupScanResults([
     {

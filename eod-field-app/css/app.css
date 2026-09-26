@@ -2665,6 +2665,9 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
   color: var(--muted, #64748b);
 }
 .eod-locate-set { font-weight: 600; margin-top: 2px; }
+.eod-locate-notes { font-weight: 800; }
+.eod-locate-notes--new { color: #16a34a; }
+.eod-locate-notes--delete { color: #dc2626; }
 .eod-locate-aisle { font-weight: 600; margin-top: 2px; }
 .eod-locate-tap { margin-top: 4px; }
 .eod-locate-miss { font-size: 1.05rem; margin: 18px 8px; }

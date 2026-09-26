@@ -6,8 +6,11 @@
 
   function aisleLabel(match) {
     const n = String(match?.aisle ?? '').trim();
-    if (n) return `Aisle ${n}`;
     const verbose = String(match?.locationVerbose || '');
+    const placed = n || /aisle\s+/i.test(verbose);
+    if (!placed && match?.notesAction === 'new') return 'New items';
+    if (!placed && match?.notesAction === 'delete') return 'Deletes';
+    if (n) return `Aisle ${n}`;
     const found = /aisle\s+([^·,]+)/i.exec(verbose);
     if (found) return found[1].trim();
     return '';
@@ -45,9 +48,16 @@
       }
     }
     const list = [...buckets.values()];
+    function aisleRank(aisle) {
+      if (aisle === 'Not located') return 4;
+      if (aisle === 'Aisle unknown') return 3;
+      if (aisle === 'Deletes') return 2;
+      if (aisle === 'New items') return 1;
+      return 0;
+    }
     list.sort((a, b) => {
-      if (a.aisle === 'Not located') return 1;
-      if (b.aisle === 'Not located') return -1;
+      const rank = aisleRank(a.aisle) - aisleRank(b.aisle);
+      if (rank) return rank;
       return a.aisle.localeCompare(b.aisle, undefined, { numeric: true })
         || a.setName.localeCompare(b.setName, undefined, { numeric: true });
     });

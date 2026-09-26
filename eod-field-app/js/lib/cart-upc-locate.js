@@ -60,27 +60,40 @@
 
   function matchHtml(m) {
     const src = m.source || '';
-    const withKroger = src === 'kroger' || src === 'kroger+si';
-    const withSi = src === 'si' || src === 'kroger+si';
-    const set = setLabel(m);
+    const parts = src.split('+');
+    const withKroger = parts.includes('kroger');
+    const withSi = parts.includes('si') || Boolean(m.dbkey);
+    const notesAction = m.notesAction === 'new' || m.notesAction === 'delete' ? m.notesAction : '';
+    const set = notesAction ? (m.notesSet || setLabel(m)) : setLabel(m);
     const tap = hasPlanogram(m);
     const img = m.imageUrl
       ? (/^https?:\/\//i.test(m.imageUrl)
         ? `<img alt="" src="${esc(m.imageUrl)}">`
         : `<img alt="" data-pog-src="${esc(m.imageUrl)}">`)
       : '';
-    const title = withKroger ? (m.name || 'Item') : (set || m.name || 'Item');
-    const subtitle = withKroger
+    const title = notesAction
+      ? (m.name || set || 'Item')
+      : (withKroger ? (m.name || 'Item') : (set || m.name || 'Item'));
+    const subtitle = notesAction
       ? [m.brand, m.size].filter(Boolean).join(' · ')
-      : (m.name || '');
+      : (withKroger
+        ? [m.brand, m.size].filter(Boolean).join(' · ')
+        : (m.name || ''));
     const meta = withKroger
       ? (m.stockLevel ? `Stock ${m.stockLevel}` : '')
       : [m.brand, m.size].filter(Boolean).join(' · ');
-    const sourceTag = withKroger && withSi
+    const notesTag = notesAction === 'new'
+      ? '<div class="eod-locate-notes eod-locate-notes--new">New item</div>'
+      : notesAction === 'delete'
+        ? '<div class="eod-locate-notes eod-locate-notes--delete">Delete</div>'
+        : '';
+    const sourceTag = notesTag + (withKroger && withSi
       ? '<div class="muted">Fred Meyer aisle · Kompass set</div>'
       : withKroger
         ? '<div class="muted">Fred Meyer aisle</div>'
-        : '<div class="muted">Kompass set</div>';
+        : withSi
+          ? '<div class="muted">Kompass set</div>'
+          : '');
     const setBlock = set
       ? `<div class="eod-locate-set">Set: ${esc(set)}</div>`
       : '';
