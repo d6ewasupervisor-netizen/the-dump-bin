@@ -17,7 +17,10 @@
   }
 
   function setLabel(match) {
-    return String(match?.setName || match?.categoryName || '').trim();
+    const name = String(match?.setName || match?.categoryName || '').trim();
+    const week = String(match?.notesPeriodWeek || '').trim();
+    if (week && name) return `${week} · ${name}`;
+    return name || week;
   }
 
   function groupScanResults(items) {

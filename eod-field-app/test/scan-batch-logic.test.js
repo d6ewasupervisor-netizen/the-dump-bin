@@ -26,6 +26,27 @@ test('a new item with no aisle groups under New items', () => {
   assert.equal(groups[0].setName, '195 FROZEN ASIAN');
 });
 
+test('scan results keep the notes week with the set', () => {
+  const groups = groupScanResults([
+    {
+      upc: '0001111016923',
+      status: 'ready',
+      data: {
+        found: true,
+        matches: [{
+          upc: '0001111016923',
+          notesAction: 'new',
+          notesPeriodWeek: 'P09W4',
+          setName: '195 FROZEN ASIAN',
+          aisle: '12',
+        }],
+      },
+    },
+  ]);
+  assert.equal(groups[0].aisle, 'Aisle 12');
+  assert.equal(groups[0].setName, 'P09W4 · 195 FROZEN ASIAN');
+});
+
 test('scan results group by aisle then set', () => {
   const groups = groupScanResults([
     {

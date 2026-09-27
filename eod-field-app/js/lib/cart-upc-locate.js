@@ -30,7 +30,19 @@
   }
 
   function setLabel(m) {
-    return String(m.setName || m.categoryName || '').trim();
+    const name = String(m.setName || m.categoryName || '').trim();
+    const week = String(m.notesPeriodWeek || '').trim();
+    if (week && name) return `${week} · ${name}`;
+    return name || week;
+  }
+
+  function notesBanner(m) {
+    if (m.notesAction !== 'new' && m.notesAction !== 'delete') return '';
+    const bits = [m.notesAction === 'delete' ? 'Delete' : 'New item'];
+    if (m.notesPeriodWeek) bits.push(m.notesPeriodWeek);
+    if (m.notesTiming) bits.push(m.notesTiming);
+    if (m.notesListKind === 'tentative') bits.push('tentative');
+    return bits.join(' · ');
   }
 
   function hasPlanogram(m) {
@@ -82,11 +94,10 @@
     const meta = withKroger
       ? (m.stockLevel ? `Stock ${m.stockLevel}` : '')
       : [m.brand, m.size].filter(Boolean).join(' · ');
-    const notesTag = notesAction === 'new'
-      ? '<div class="eod-locate-notes eod-locate-notes--new">New item</div>'
-      : notesAction === 'delete'
-        ? '<div class="eod-locate-notes eod-locate-notes--delete">Delete</div>'
-        : '';
+    const banner = notesBanner(m);
+    const notesTag = banner
+      ? `<div class="eod-locate-notes eod-locate-notes--${notesAction}">${esc(banner)}</div>`
+      : '';
     const sourceTag = notesTag + (withKroger && withSi
       ? '<div class="muted">Fred Meyer aisle · Kompass set</div>'
       : withKroger
