@@ -88,7 +88,8 @@
       Number(extraBefore) || 0
     );
     const stored = live && live.prodAfterCount;
-    const after = stored != null && stored !== '' ? Number(stored) || 0 : afterFromPhotos;
+    const storedAfter = stored != null && stored !== '' ? Number(stored) || 0 : 0;
+    const after = Math.max(storedAfter, afterFromPhotos);
     return { before, after };
   }
 
@@ -113,11 +114,55 @@
     return { kind: prodKindFromCounts(counts.before, counts.after), ...counts };
   }
 
-  function siSectionCounts(row) {
+  function footageFeet(row) {
+    const raw = String((row && (row.footage || row.footageDisplay || row.size)) || '').trim();
+    if (!raw) return 0;
+    const token = raw.match(/^F(\d+)$/i);
+    if (token) return Number(token[1]) || 0;
+    const n = parseInt(raw.replace(/[^\d]/g, ''), 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  /* 4 ft bays, then 3 ft. 5 ft does not become 5 pictures. */
+  function bayCountFromFeet(feet) {
+    const n = Number(feet) || 0;
+    if (n <= 0) return 0;
+    for (const width of [4, 3]) {
+      if (n % width === 0) {
+        const bays = n / width;
+        if (bays >= 1 && bays <= 48) return bays;
+      }
+    }
+    for (let fours = Math.floor(n / 4); fours >= 0; fours -= 1) {
+      const rem = n - fours * 4;
+      if (rem % 3 !== 0) continue;
+      const threes = rem / 3;
+      const bays = fours + threes;
+      if (bays >= 1 && bays <= 48) return bays;
+    }
+    return 0;
+  }
+
+  /* After pictures only. A before is not an SI picture, and a 0 SI count
+     must not fall through to the whole photo list. */
+  function siPictureHave(row) {
     const live = row && row.live;
-    const have = Number(live && (live.siPhotoCount || live.photoCount)) || 0;
-    const need = Number(live && live.sectionCount) || 0;
-    return { have, need };
+    const photos = photoList(row);
+    let siAfters = 0;
+    for (const p of photos) {
+      const source = String((p && p.source) || '').toLowerCase();
+      const slot = String((p && p.slot) || '').toLowerCase();
+      if (source === 'si' && slot !== 'before') siAfters += 1;
+    }
+    const explicit = live && live.siPhotoCount;
+    const fromExplicit = explicit != null && explicit !== '' && Number.isFinite(Number(explicit))
+      ? Number(explicit)
+      : 0;
+    return Math.max(fromExplicit, siAfters, prodPhotoCounts(row).after);
+  }
+
+  function siSectionCounts(row) {
+    return { have: siPictureHave(row), need: expectedPhotoNeed(row) };
   }
 
   function siDisplayLabel(row) {
@@ -145,12 +190,12 @@
     const siLabel = String((opts && opts.siLabel) || 'unknown');
     const siCls = siLabel === 'complete' ? 'ok' : siLabel === 'incomplete' ? 'warn' : '';
     const have = Number(opts && opts.siHave) || 0;
-    // PROD carries before/after slots, so it reads "1/1". SI only has afters,
-    // so it is a single count.
+    const need = Number(opts && opts.siNeed) || 0;
+    const siCount = need > 0 ? `${have}/${need}` : String(have);
     return `PROD <span class="pill ${prodCls}">${escape(prodLabel)}</span>`
       + ` <span class="muted">${before}/${after}</span>`
       + ` | SI <span class="pill ${siCls}">${escape(siLabel)}</span>`
-      + ` <span class="muted">${have}</span>`;
+      + ` <span class="muted">${escape(siCount)}</span>`;
   }
 
   function liveStatusLineHtml(row, esc, extraBefore) {
@@ -185,14 +230,16 @@
     return true;
   }
 
-  /* Bay count from SI when we have one. Footage is not a photo count. */
+  /* SI bay count when we have one. Footage is feet, turned into bays only
+     when SI did not report a bay count. */
   function expectedPhotoNeed(row) {
     const live = row && row.live;
     const loc = live && live.siLocation;
     const bay = Number(loc && (loc.bayCount || loc.sectionCount)) || 0;
     const section = Number(live && (live.sectionCount || live.expectedBayCount)) || 0;
     const n = Math.max(bay, section);
-    return n > 0 ? n : 0;
+    if (n > 0) return n;
+    return bayCountFromFeet(footageFeet(row));
   }
 
   function countMeetsNeed(count, need) {
@@ -201,23 +248,16 @@
     return n > 0;
   }
 
-  function siClosed(row) {
-    const live = row && row.live;
-    if (!live) return false;
-    if (live.siComplete === true) return true;
-    const s = String(live.siStatus || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-    return s === 'complete' || s === 'completed' || s === 'done' || s === 'closed' || s === 'finished';
-  }
-
-  /* SI closeout is the action gate on the sheet. An explicit open-action
-     count still blocks Complete when the payload carries one. */
+  /* An explicit open-action count still blocks Complete. The SI status
+     string does not — a photographed bay is done even while the task
+     still says in progress. */
   function actionsClear(row) {
     const live = row && row.live;
-    if (!live) return false;
+    if (!live) return true;
     if (live.actionsComplete === false) return false;
     if (live.openActions != null && live.openActions !== '' && Number(live.openActions) > 0) return false;
     if (live.pendingActions != null && live.pendingActions !== '' && Number(live.pendingActions) > 0) return false;
-    return siClosed(row);
+    return true;
   }
 
   function hasBeforePictures(row, extraBefore) {
@@ -233,7 +273,6 @@
     return countMeetsNeed(counts.before, need)
       && countMeetsNeed(counts.after, need)
       && countMeetsNeed(si.have, siNeed)
-      && siClosed(row)
       && actionsClear(row);
   }
 

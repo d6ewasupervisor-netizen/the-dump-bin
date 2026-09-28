@@ -1115,8 +1115,11 @@
       const prodKind = Status?.prodKindFromCounts
         ? Status.prodKindFromCounts(before, after)
         : (before > 0 && after > 0 ? 'complete' : (before || after ? 'in_progress' : 'not_started'));
-      const siHave = Number(local.status.si?.sectionsWithPhoto) || 0;
-      const siNeed = Number(local.status.si?.sectionCount) || 0;
+      const siHave = Math.max(Number(local.status.si?.sectionsWithPhoto) || 0, after);
+      const siNeed = Math.max(
+        Number(local.status.si?.sectionCount) || 0,
+        Number(local.status.expectedBayCount) || 0
+      );
       const siLabel = siNeed > 0 && siHave >= siNeed
         ? 'complete'
         : (siNeed || siHave || local.status.si ? 'incomplete' : 'unknown');
@@ -1630,8 +1633,11 @@
       const prodKind = global.EodCategoryCardStatus?.prodKindFromCounts
         ? global.EodCategoryCardStatus.prodKindFromCounts(beforeCount, afterCount)
         : (beforeCount > 0 && afterCount > 0 ? 'complete' : (beforeCount || afterCount ? 'in_progress' : 'not_started'));
-      const siHave = Number(live.siPhotoCount || live.photoCount) || 0;
-      const siNeed = Number(live.sectionCount) || 0;
+      const siCounts = global.EodCategoryCardStatus?.siSectionCounts
+        ? global.EodCategoryCardStatus.siSectionCounts(row)
+        : null;
+      const siHave = siCounts ? siCounts.have : (Number(live.siPhotoCount) || 0);
+      const siNeed = siCounts ? siCounts.need : (Number(live.sectionCount) || 0);
       const seeded = {
         expectedBayCount: BayLogic().knownBayCount({
           expectedBayCount: live.expectedBayCount,

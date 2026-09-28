@@ -98,7 +98,85 @@ test('live status line says in progress when SAS is complete but only befores ex
   assert.match(html, /<span class="muted">1\/0<\/span>/);
   assert.doesNotMatch(html, /before|after|sections/);
   assert.match(html, /incomplete/);
-  assert.match(html, /<span class="muted">0<\/span>/);
+  assert.match(html, /<span class="muted">0\/1<\/span>/);
+});
+
+test('SI count is afters over bays, and befores do not count as SI pictures', () => {
+  const bulbs = {
+    footage: '24',
+    live: {
+      prodStatus: 'open',
+      prodBeforeCount: 6,
+      prodAfterCount: 0,
+      siPhotoCount: 0,
+      photoCount: 6,
+      siPresent: false,
+      siStatus: 'absent',
+    },
+    photos: [
+      { slot: 'before', source: 'prod' },
+      { slot: 'before', source: 'prod' },
+      { slot: 'before', source: 'prod' },
+      { slot: 'before', source: 'prod' },
+      { slot: 'before', source: 'prod' },
+      { slot: 'before', source: 'prod' },
+    ],
+    marks: { notInSi: true, active: ['not_in_si'] },
+  };
+  const bulbsHtml = liveStatusLineHtml(bulbs);
+  assert.match(bulbsHtml, /in progress/);
+  assert.match(bulbsHtml, /<span class="muted">6\/0<\/span>/);
+  assert.match(bulbsHtml, /incomplete/);
+  assert.match(bulbsHtml, /<span class="muted">0\/6<\/span>/);
+  assert.equal(matchesSheetFilters(bulbs, { status: 'in_progress' }), true);
+  assert.equal(matchesSheetFilters(bulbs, { status: 'done' }), false);
+
+  const oneBay = {
+    footage: '4',
+    live: {
+      prodStatus: 'done',
+      prodBeforeCount: 1,
+      prodAfterCount: 1,
+      siPhotoCount: 0,
+      photoCount: 2,
+      siPresent: true,
+      siStatus: 'in_progress',
+      siComplete: false,
+      siLocation: { bayCount: 1 },
+    },
+    photos: [
+      { slot: 'before', source: 'prod' },
+      { slot: 'after', source: 'prod' },
+    ],
+    marks: { complete: true, active: ['complete'] },
+  };
+  const bayHtml = liveStatusLineHtml(oneBay);
+  assert.match(bayHtml, /<span class="muted">1\/1<\/span>/);
+  assert.match(bayHtml, />complete</);
+  assert.doesNotMatch(bayHtml, /<span class="muted">2<\/span>/);
+  assert.doesNotMatch(bayHtml, /<span class="muted">2\/1<\/span>/);
+  assert.equal(sheetDisplayComplete(oneBay), true);
+  assert.equal(matchesSheetFilters(oneBay, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(oneBay, { status: 'in_progress' }), false);
+
+  const fiveFootOneBay = {
+    footage: '5',
+    live: {
+      prodStatus: 'done',
+      prodBeforeCount: 1,
+      prodAfterCount: 1,
+      siPhotoCount: 0,
+      photoCount: 2,
+      siStatus: 'in_progress',
+      siLocation: { bayCount: 1 },
+    },
+    photos: [
+      { slot: 'before', source: 'prod' },
+      { slot: 'after', source: 'prod' },
+    ],
+  };
+  assert.match(liveStatusLineHtml(fiveFootOneBay), /<span class="muted">1\/1<\/span>/);
+  assert.equal(matchesSheetFilters(fiveFootOneBay, { status: 'in_progress' }), false);
 });
 
 test('compact card meta drops the department and bay count, keeping the aisle', () => {
