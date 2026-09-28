@@ -3,6 +3,7 @@
   'use strict';
 
   const API = 'https://eod-api.the-dump-bin.com/api/digital-signoffs';
+  let syncRepaint = null;
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
@@ -205,10 +206,19 @@
       if (!resp.ok && resp.status !== 202) throw new Error(data.error || `Sync failed (${resp.status})`);
       if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
       if (resp.status === 202) {
-        for (let i = 0; i < 6; i += 1) {
-          await new Promise((r) => setTimeout(r, 1200));
+        const before = (S.state.sheet?.rows || []).length;
+        let refreshed = false;
+        for (let i = 0; i < 16; i += 1) {
+          await new Promise((r) => setTimeout(r, 1500));
+          if (global.EodRouter?.current && global.EodRouter.current !== 'signoff') return data;
           try { await loadSheet(); } catch (_) { break; }
-          if ((S.state.sheet?.rows || []).some((row) => row.live)) break;
+          const rows = S.state.sheet?.rows || [];
+          if (rows.length > before) break;
+          if (!refreshed && rows.some((row) => row.live)) {
+            refreshed = true;
+            try { await syncRepaint?.(); } catch (_) {}
+          }
+          if (refreshed && i >= 10) break;
         }
       } else if (!data.sheet) {
         S.patch({ sheetLoaded: false }, 'prod-si-sync');
@@ -1297,6 +1307,7 @@
       paint();
     });
 
+    syncRepaint = () => paint();
     sheetView = {
       paint,
       scrollAfter(rowId) {
