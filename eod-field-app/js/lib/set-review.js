@@ -509,13 +509,36 @@
       const frame = track?.querySelector(`.gh-stage-frame[data-idx="${i}"]`);
       if (!track || !frame) return;
       sizeFrames();
-      const left = photos.length < 2 ? 0 : frame.offsetLeft;
+      const gen = ++pinGen;
+      const leftOf = () => (photos.length < 2 ? 0 : frame.offsetLeft);
       syncingScroll = true;
-      track.scrollLeft = left;
-      requestAnimationFrame(() => {
-        track.scrollLeft = photos.length < 2 ? 0 : frame.offsetLeft;
-        syncingScroll = false;
-      });
+      track.style.scrollSnapType = 'none';
+      track.scrollLeft = leftOf();
+      let ticks = 0;
+      const settle = () => {
+        if (gen !== pinGen) return;
+        ticks += 1;
+        const left = leftOf();
+        if (Math.abs(track.scrollLeft - left) > 1) track.scrollLeft = left;
+        const stuck = Math.abs(track.scrollLeft - left) <= 1;
+        if ((stuck && ticks >= 2) || ticks >= 10) {
+          track.style.scrollSnapType = '';
+          requestAnimationFrame(() => {
+            if (gen !== pinGen) return;
+            const finalLeft = leftOf();
+            if (Math.abs(track.scrollLeft - finalLeft) > 1) track.scrollLeft = finalLeft;
+            requestAnimationFrame(() => {
+              if (gen !== pinGen) return;
+              const again = leftOf();
+              if (Math.abs(track.scrollLeft - again) > 1) track.scrollLeft = again;
+              syncingScroll = false;
+            });
+          });
+          return;
+        }
+        requestAnimationFrame(settle);
+      };
+      requestAnimationFrame(settle);
     }
 
     function loadFull(i) {
@@ -543,7 +566,7 @@
         if (!src) return;
         img.dataset.full = '1';
         if (img.src !== src) img.src = src;
-        else if (img.naturalWidth) {
+        else if (idx === i && img.naturalWidth) {
           fitStage();
           pinFrame(i);
         }
@@ -568,21 +591,12 @@
     }
 
     let syncingScroll = false;
+    let pinGen = 0;
 
-    function showPhoto(i, instant) {
+    function showPhoto(i) {
       if (!photos.length) return;
       commitIndex(i);
-      const { track, frame } = activeEls();
-      if (!track || !frame) return;
-      if (instant || photos.length < 2) {
-        pinFrame(idx);
-        return;
-      }
-      syncingScroll = true;
-      track.scrollTo({ left: frame.offsetLeft, behavior: 'smooth' });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => { syncingScroll = false; });
-      });
+      pinFrame(idx);
     }
 
     function sizeFrames() {
