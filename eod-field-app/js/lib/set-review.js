@@ -43,17 +43,18 @@
       .gh-review .gh-stage-track {
         display: flex; gap: 0; width: 100%;
         height: min(70vh, 640px); min-height: min(50vh, 420px);
-        overflow-x: auto; overflow-y: hidden;
-        scroll-snap-type: x mandatory; scroll-snap-stop: always;
+        overflow-x: auto; overflow-y: hidden; overflow-anchor: none;
+        scroll-snap-type: x mandatory;
         touch-action: pan-x; -webkit-overflow-scrolling: touch;
         overscroll-behavior-x: contain; scrollbar-width: none;
       }
       .gh-review .gh-stage-track::-webkit-scrollbar { display: none; }
-      .gh-review .gh-stage-track.is-locked { overflow-x: hidden; touch-action: none; }
+      .gh-review .gh-stage-track.is-locked,
+      .gh-review .gh-stage-track.is-single { overflow-x: hidden; scroll-snap-type: none; }
+      .gh-review .gh-stage-track.is-locked { touch-action: none; }
       .gh-review .gh-stage-frame {
-        flex: 0 0 100%; width: 100%; min-width: 100%; max-width: 100%;
-        height: 100%; scroll-snap-align: start; scroll-snap-stop: always;
-        overflow: hidden; box-sizing: border-box;
+        flex: 0 0 auto; height: 100%; scroll-snap-align: start;
+        overflow: hidden; overflow-anchor: none; box-sizing: border-box;
       }
       .gh-review .gh-stage-vp {
         display: flex; justify-content: center; align-items: center;
@@ -503,18 +504,49 @@
       });
     }
 
+    function pinFrame(i) {
+      const track = document.getElementById('ghStageTrack');
+      const frame = track?.querySelector(`.gh-stage-frame[data-idx="${i}"]`);
+      if (!track || !frame) return;
+      sizeFrames();
+      const left = photos.length < 2 ? 0 : frame.offsetLeft;
+      syncingScroll = true;
+      track.scrollLeft = left;
+      requestAnimationFrame(() => {
+        track.scrollLeft = photos.length < 2 ? 0 : frame.offsetLeft;
+        syncingScroll = false;
+      });
+    }
+
     function loadFull(i) {
       const p = photos[i];
       const frame = document.querySelector(`#ghStageTrack .gh-stage-frame[data-idx="${i}"]`);
       const img = frame?.querySelector('img');
       if (!p || !img) return;
       img.onload = () => {
-        if (idx === i) fitStage();
+        if (idx === i) {
+          fitStage();
+          pinFrame(i);
+        }
+      };
+      img.onerror = () => {
+        const thumb = displayUrl(p, 'thumb');
+        if (thumb && img.dataset.thumbFallback !== '1') {
+          img.dataset.thumbFallback = '1';
+          img.src = thumb;
+        }
       };
       img.alt = p.label || `Photo ${i + 1}`;
+      const thumbNow = displayUrl(p, 'thumb');
+      if (!img.getAttribute('src') && thumbNow) img.src = thumbNow;
       objectUrlFor(p, 'full').then((src) => {
+        if (!src) return;
         img.dataset.full = '1';
-        img.src = src;
+        if (img.src !== src) img.src = src;
+        else if (img.naturalWidth) {
+          fitStage();
+          pinFrame(i);
+        }
       }).catch((err) => {
         if (idx === i) setStatus(err.message || 'Could not load photo', true);
       });
@@ -542,8 +574,12 @@
       commitIndex(i);
       const { track, frame } = activeEls();
       if (!track || !frame) return;
+      if (instant || photos.length < 2) {
+        pinFrame(idx);
+        return;
+      }
       syncingScroll = true;
-      track.scrollTo({ left: frame.offsetLeft, behavior: instant ? 'auto' : 'smooth' });
+      track.scrollTo({ left: frame.offsetLeft, behavior: 'smooth' });
       requestAnimationFrame(() => {
         requestAnimationFrame(() => { syncingScroll = false; });
       });
@@ -552,7 +588,7 @@
     function sizeFrames() {
       const track = document.getElementById('ghStageTrack');
       if (!track) return;
-      const w = Math.max(1, track.clientWidth);
+      const w = Math.max(1, Math.floor(track.clientWidth));
       const h = Math.max(1, track.clientHeight || Math.min(window.innerHeight * 0.7, 640));
       track.querySelectorAll('.gh-stage-frame').forEach((frame) => {
         frame.style.flexBasis = `${w}px`;
@@ -584,6 +620,7 @@
     function renderTrack() {
       const track = document.getElementById('ghStageTrack');
       if (!track) return;
+      track.classList.toggle('is-single', photos.length < 2);
       track.innerHTML = photos.map((p, i) => `
         <div class="gh-stage-frame" data-idx="${i}">
           <div class="gh-stage-vp" data-mode="pan">
@@ -613,11 +650,7 @@
         const obs = new ResizeObserver(() => {
           sizeFrames();
           const frame = track.querySelector(`.gh-stage-frame[data-idx="${idx}"]`);
-          if (frame) {
-            syncingScroll = true;
-            track.scrollTo({ left: frame.offsetLeft, behavior: 'auto' });
-            requestAnimationFrame(() => { syncingScroll = false; });
-          }
+          if (frame) pinFrame(idx);
           if (activeEls().img?.naturalWidth) fitStage();
         });
         obs.observe(track);
