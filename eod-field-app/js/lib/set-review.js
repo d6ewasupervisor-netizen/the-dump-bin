@@ -510,7 +510,11 @@
       if (!track || !frame) return;
       sizeFrames();
       const gen = ++pinGen;
-      const leftOf = () => (photos.length < 2 ? 0 : frame.offsetLeft);
+      const leftOf = () => {
+        if (photos.length < 2) return 0;
+        const delta = frame.getBoundingClientRect().left - track.getBoundingClientRect().left;
+        return Math.max(0, Math.round(track.scrollLeft + delta));
+      };
       syncingScroll = true;
       track.style.scrollSnapType = 'none';
       track.scrollLeft = leftOf();
