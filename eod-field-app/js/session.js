@@ -192,6 +192,9 @@
       if (prodPhotosDone(live) && live?.siComplete) return true;
       return false;
     }
+    const prodAbsent = String(row?.live?.prodStatus || '').trim().toLowerCase() === 'absent';
+    const nisi = !!m.notInSi || (Array.isArray(m.active) && m.active.includes('not_in_si'));
+    if (prodAbsent && nisi) return true;
     if (Array.isArray(m.active) && m.active.includes('not_in_si') && m.active.length === 1) return false;
     if (m.outOfScope || m.complete || m.notInStore || m.backlog) return true;
     if (Array.isArray(m.active) && m.active.some((t) => t !== 'not_in_si')) return true;

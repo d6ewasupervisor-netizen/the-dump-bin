@@ -293,6 +293,11 @@
     return String(live.prodStatus || '').trim().toLowerCase() === 'absent';
   }
 
+  /* Not on the PROD visit and marked not in SI: nothing left to photograph. */
+  function absentFromStoreAndSi(row) {
+    return notInProd(row) && markActive(row, 'not_in_si');
+  }
+
   function oddityCalloutVisible(row, extraBefore) {
     const err = String((row && (row.errorMessage || row.error_message)) || '').trim();
     if (!err) return false;
@@ -310,7 +315,7 @@
 
   function sheetDisplayBucket(row, extraBefore) {
     if (markActive(row, 'out_of_scope')) return 'out_of_scope';
-    if (markActive(row, 'not_executable') || markActive(row, 'not_in_store')) return 'not_executable';
+    if (markActive(row, 'not_executable') || markActive(row, 'not_in_store') || absentFromStoreAndSi(row)) return 'not_executable';
     if (sheetDisplayComplete(row)) return 'complete';
     if (markActive(row, 'backlog') && !backlogDisplaced(row, extraBefore)) return 'backlog';
     if (hasBeforePictures(row, extraBefore)) return 'in_progress';
@@ -325,7 +330,8 @@
   function terminalMark(row) {
     return markActive(row, 'not_in_store')
       || markActive(row, 'out_of_scope')
-      || markActive(row, 'not_executable');
+      || markActive(row, 'not_executable')
+      || absentFromStoreAndSi(row);
   }
 
   function prodDone(row) {
@@ -418,7 +424,7 @@
 
   function rowInSheetFilter(row, status, extraBefore) {
     const oos = markActive(row, 'out_of_scope');
-    const ne = markActive(row, 'not_executable') || markActive(row, 'not_in_store');
+    const ne = markActive(row, 'not_executable') || markActive(row, 'not_in_store') || absentFromStoreAndSi(row);
     const started = hasBeforePictures(row, extraBefore);
     const complete = sheetDisplayComplete(row);
     if (status === 'out_of_scope') return oos;

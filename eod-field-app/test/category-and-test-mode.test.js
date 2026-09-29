@@ -338,6 +338,20 @@ test('NISI is not done; Complete / NIS / Out of Scope / photos clear a set', () 
   const nisiBacklog = { marks: { notInSi: true, backlog: true, active: ['not_in_si', 'backlog'] } };
   assert.equal(sheetRowDone(nisi), false);
   assert.equal(rowSendReady(nisi), false);
+  const gone = {
+    live: { prodStatus: 'absent', siPresent: false, siStatus: 'absent' },
+    marks: { notInSi: true, active: ['not_in_si'] },
+  };
+  assert.equal(sheetRowDone(gone), true);
+  assert.equal(rowSendReady(gone), true);
+  assert.equal(sheetDisplayBucket(gone), 'not_executable');
+  assert.equal(matchesSheetFilters(gone, { status: 'not_done' }), false);
+  assert.equal(matchesSheetFilters(gone, { status: 'not_executable' }), true);
+  const nisiInProd = {
+    live: { prodStatus: 'open', siPresent: false },
+    marks: { notInSi: true, active: ['not_in_si'] },
+  };
+  assert.equal(rowSendReady(nisiInProd), false);
   assert.equal(sheetRowDone(nis), true);
   assert.equal(rowSendReady(nis), true);
   assert.equal(sheetRowDone(oos), true);
