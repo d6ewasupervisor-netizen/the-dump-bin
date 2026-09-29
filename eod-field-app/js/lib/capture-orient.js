@@ -58,14 +58,7 @@
     return ((legacy % 360) + 360) % 360;
   }
 
-  /**
-   * Clockwise quarter-turns to apply to a screen-aligned video frame.
-   * Portrait holds and a viewport that already rotated with the phone stay at 0.
-   * gamma < 0 (phone top to the left, page still portrait) is 3 — 90° counter-clockwise.
-   */
-  function quarterTurns(gravity, angle) {
-    const screenTurn = ((Number(angle) || 0) % 360 + 360) % 360;
-    if (screenTurn !== 0) return 0;
+  function gravityTurns(gravity) {
     if (!gravity) return 0;
     const beta = Number(gravity.beta);
     const gamma = Number(gravity.gamma);
@@ -77,6 +70,24 @@
     return 0;
   }
 
+  /**
+   * Clockwise quarter-turns for the camera buffer.
+   * A landscape hold on a tall buffer becomes a wide file. A buffer that is
+   * already wider than it is tall is already landscape, so it is not turned
+   * again. gamma < 0 (phone top to the left) is 3 — 90° counter-clockwise.
+   */
+  function quarterTurns(gravity, angle, frame) {
+    const g = gravityTurns(gravity);
+    if (!g) return 0;
+    const w = Number(frame && (frame.width || frame.videoWidth)) || 0;
+    const h = Number(frame && (frame.height || frame.videoHeight)) || 0;
+    if ((g === 1 || g === 3) && w > 0 && h > 0 && w > h) return 0;
+    if (g === 2) return 2;
+    const screenTurn = ((Number(angle) || 0) % 360 + 360) % 360;
+    if ((g === 1 || g === 3) && !(w > 0 && h > 0) && screenTurn !== 0) return 0;
+    return g;
+  }
+
   function captureCanvas(video, zoom) {
     const z = Math.max(1, Number(zoom) || 1);
     const w = video.videoWidth || 1280;
@@ -85,7 +96,7 @@
     const zh = Math.max(1, Math.floor(h / z));
     const sx = Math.floor((w - zw) / 2);
     const sy = Math.floor((h - zh) / 2);
-    const turns = quarterTurns(lastGravity, screenAngle()) % 4;
+    const turns = quarterTurns(lastGravity, screenAngle(), { width: zw, height: zh }) % 4;
     const destW = turns % 2 ? zh : zw;
     const destH = turns % 2 ? zw : zh;
     const canvas = document.createElement('canvas');
