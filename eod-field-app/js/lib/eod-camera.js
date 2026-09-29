@@ -61,6 +61,7 @@
       const captured = [];
 
       function stop() {
+        global.EodCaptureOrient?.end?.();
         try { stream?.getTracks?.().forEach((t) => t.stop()); } catch (_) {}
         overlay.remove();
         resolve(captured);
@@ -81,12 +82,19 @@
         busy = true;
         shutter.disabled = true;
         try {
-          const w = video.videoWidth || 1280;
-          const h = video.videoHeight || 720;
-          canvas.width = w;
-          canvas.height = h;
-          canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-          const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.88));
+          if (global.EodCaptureOrient?.prime) await global.EodCaptureOrient.prime();
+          const frame = global.EodCaptureOrient?.captureCanvas
+            ? global.EodCaptureOrient.captureCanvas(video, 1)
+            : null;
+          const shot = frame || canvas;
+          if (!frame) {
+            const w = video.videoWidth || 1280;
+            const h = video.videoHeight || 720;
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+          }
+          const blob = await new Promise((r) => shot.toBlob(r, 'image/jpeg', 0.88));
           if (!blob) return;
           const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
           captured.push(file);
@@ -101,6 +109,7 @@
         }
       };
 
+      global.EodCaptureOrient?.begin?.();
       navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },

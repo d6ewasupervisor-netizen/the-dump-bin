@@ -413,7 +413,12 @@
     }
     activeCameraToast = flashToast;
 
-    async function start() {
+    function start() {
+      global.EodCaptureOrient?.begin?.();
+      return startCamera();
+    }
+
+    async function startCamera() {
       /* Without a size the browser opens its default stream (often 640×480),
          and digital zoom crops that further. `ideal` never fails a device. */
       stream = await navigator.mediaDevices.getUserMedia({
@@ -431,6 +436,7 @@
     }
 
     function stop() {
+      global.EodCaptureOrient?.end?.();
       if (toastTimer) clearTimeout(toastTimer);
       if (activeCameraToast === flashToast) activeCameraToast = null;
       document.removeEventListener('visibilitychange', onVisibilityForWakeLock);
@@ -487,20 +493,11 @@
       busy = true;
       shutterBtn.disabled = true;
       try {
-        const w = video.videoWidth || 1280;
-        const h = video.videoHeight || 720;
-        const zw = Math.max(1, Math.floor(w / zoom));
-        const zh = Math.max(1, Math.floor(h / zoom));
-        const sx = Math.floor((w - zw) / 2);
-        const sy = Math.floor((h - zh) / 2);
-        canvas.width = zw;
-        canvas.height = zh;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, sx, sy, zw, zh, 0, 0, zw, zh);
-        const snap = document.createElement('canvas');
-        snap.width = zw;
-        snap.height = zh;
-        snap.getContext('2d').drawImage(canvas, 0, 0);
+        if (global.EodCaptureOrient?.prime) await global.EodCaptureOrient.prime();
+        const snap = global.EodCaptureOrient?.captureCanvas
+          ? global.EodCaptureOrient.captureCanvas(video, zoom)
+          : null;
+        if (!snap) throw new Error('Could not capture photo');
         let bitmap = null;
         try { bitmap = await createImageBitmap(snap); } catch (_) {}
         try {

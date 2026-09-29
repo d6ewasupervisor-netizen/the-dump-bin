@@ -56,14 +56,15 @@
         overflow: hidden; box-sizing: border-box;
       }
       .gh-review .gh-stage-vp {
-        display: flex; justify-content: center;
+        display: flex; justify-content: center; align-items: center;
         width: 100%; height: 100%;
         overflow: auto; max-height: min(70vh, 640px);
         touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch;
       }
       .gh-review .gh-stage-vp[data-mode="draw"] { touch-action: none; }
       .gh-review .gh-stage { position: relative; display: block; }
-      .gh-review .gh-stage img, .gh-review .gh-stage canvas { display: block; max-width: none; }
+      .gh-review .gh-stage img, .gh-review .gh-stage canvas { display: block; max-width: none; image-orientation: from-image; }
+      .gh-review .gh-film-thumb img { image-orientation: from-image; }
       .gh-review .gh-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
       .gh-review .gh-stage-vp[data-mode="pan"] canvas { pointer-events: none; }
       .gh-review .gh-stage-vp[data-mode="draw"] canvas { pointer-events: auto; }
