@@ -31,22 +31,16 @@
   }
 
   function isCentralPetReset(shift) {
-    if (!shift) return false;
-    const blob = [
-      shift.projectName,
-      shift.teamName,
-      shift.kompassType,
-      shift.projectType,
-      shift.shiftType,
-    ].map((s) => String(s || '').toLowerCase()).join(' ');
-    return /central\s*pet/.test(blob)
-      || /pet\s*service\s*surge/.test(blob)
-      || /pet\s*reset/.test(blob);
+    if (!shift || isCentralPetService(shift)) return false;
+    if (shiftProjectId(shift) === 9295) return true;
+    const blob = shiftTypeBlob(shift);
+    if (/central\s*pet\s*service/.test(blob) || /pet\s*service\s*surge/.test(blob)) return false;
+    return /central\s*pet/.test(blob) || /pet\s*reset/.test(blob);
   }
 
   // SAS projects the Visit page lists and can auto-select.
   const SELECTABLE_PROJECT_IDS = new Set([
-    1, 1668, 1715, 3568, 11909, 11099, 9295, 9293,
+    1, 1668, 1715, 3568, 11909, 11099, 9295,
   ]);
 
   function shiftProjectId(shift) {

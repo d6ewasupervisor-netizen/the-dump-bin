@@ -207,7 +207,7 @@ test('Central Pet Service Surge stays hidden when the ISE lead is someone else',
   assert.deepEqual(vis.map((s) => s.visitId), ['27190002', '27190001']);
 });
 
-test('9293 only shows when the Kompass ISE lead is also on service', () => {
+test('9293 Central Pet Service stays off the Visit list even when the ISE lead matches', () => {
   const ise = {
     visitId: '27182537',
     projectId: 1,
@@ -233,8 +233,9 @@ test('9293 only shows when the Kompass ISE lead is also on service', () => {
   assert.deepEqual(asTyson.visible.map((s) => s.visitId), ['27182537']);
   assert.equal(asTyson.selected.visitId, '27182537');
   const matched = pickVisibleLeadShift([ise, ownService], 'Tyson Gauthier', null);
-  assert.deepEqual(matched.visible.map((s) => s.visitId), ['27182537', '27184899']);
+  assert.deepEqual(matched.visible.map((s) => s.visitId), ['27182537']);
   assert.equal(matched.selected.visitId, '27182537');
+  assert.equal(isCentralPetReset(ownService), false);
   assert.deepEqual(includedIseVisitIds([ise, ownService], matched.selected), []);
 });
 

@@ -242,8 +242,10 @@
   }
 
   function siblingExtraIds(shifts, selected) {
+    const L = global.EodSendSheetsLogic || {};
     const primary = String(selected?.visitId || '');
     return (shifts || [])
+      .filter((s) => !L.isCentralPetService?.(s))
       .map((s) => String(s.visitId || ''))
       .filter((id) => id && id !== primary);
   }
