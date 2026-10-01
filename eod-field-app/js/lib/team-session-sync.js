@@ -139,14 +139,19 @@
     if (!entry || typeof entry !== 'object') {
       return /^data:image\//i.test(String(entry || '')) ? String(entry) : '';
     }
+    const fromJob = L.dataUrlForJob?.(entry.jobId, global.EodPhotoPipeline?.listJobs?.() || []);
+    if (fromJob) return L.rememberDataUrl(entry, fromJob);
     const local = L.localDataUrl?.(entry);
-    if (local) return local;
-    const live = String(entry.previewUrl || entry.objectUrl || entry.preview || '');
-    if (/^blob:/i.test(live)) {
+    if (local) return L.rememberDataUrl ? L.rememberDataUrl(entry, local) : local;
+    const blobs = L.blobPhotoSrcs ? L.blobPhotoSrcs(entry) : [];
+    for (const live of blobs) {
       try {
         const resp = await fetch(live);
         const blob = await resp.blob();
-        if (blob && blob.size > 32) return blobToDataUrl(blob);
+        if (!blob || blob.size <= 32) continue;
+        const dataUrl = await blobToDataUrl(blob);
+        const stamped = L.rememberDataUrl ? L.rememberDataUrl(entry, dataUrl) : '';
+        if (stamped) return stamped;
       } catch (_) {}
     }
     const remote = entry.teamUrl || entry.thumbUrl;
@@ -264,7 +269,7 @@
   async function onPipeline(detail) {
     const type = detail?.type;
     const job = detail?.job;
-    if (!job || (type !== 'compressed' && type !== 'done')) return;
+    if (!job || (type !== 'compressed' && type !== 'done' && type !== 'failed')) return;
     if (job.kind === 'set') return;
     const S = session();
     if (!S?.state?.photos) return;

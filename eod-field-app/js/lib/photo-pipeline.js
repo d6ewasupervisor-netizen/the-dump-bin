@@ -913,10 +913,8 @@
       job.bytes = bytes || job.blob?.size || null;
       job.mime = mime || job.blob?.type || null;
       job.checksum = checksum || job.checksum || null;
-      if (job.previewUrl && String(job.previewUrl).startsWith('blob:')) {
-        try { URL.revokeObjectURL(job.previewUrl); } catch (_) {}
-      }
-      job.previewUrl = job.dataUrl;
+      const oldPreview = job.previewUrl;
+      job.previewUrl = job.dataUrl || oldPreview;
       job.file = null;
       try { job.bitmap?.close?.(); } catch (_) {}
       job.bitmap = null;
@@ -924,6 +922,9 @@
       job.status = 'compressed';
       job.updatedAt = Date.now();
       await persistJobRecord(job);
+      if (oldPreview && String(oldPreview).startsWith('blob:') && oldPreview !== job.previewUrl) {
+        try { URL.revokeObjectURL(oldPreview); } catch (_) {}
+      }
       persist();
       emit('compressed', job);
     } catch (err) {

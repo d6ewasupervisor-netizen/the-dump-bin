@@ -87,6 +87,31 @@
     return /\/api\/field-session\/photos\//.test(s);
   }
 
+  function blobPhotoSrcs(entry) {
+    if (!entry || typeof entry !== 'object') return [];
+    const out = [];
+    for (const key of ['previewUrl', 'objectUrl', 'preview', 'dataUrl']) {
+      const v = String(entry[key] || '');
+      if (/^blob:/i.test(v) && !out.includes(v)) out.push(v);
+    }
+    return out;
+  }
+
+  function dataUrlForJob(jobId, jobs) {
+    const id = String(jobId || '');
+    if (!id) return '';
+    const job = (Array.isArray(jobs) ? jobs : []).find((j) => j && String(j.id) === id);
+    const dataUrl = String(job && job.dataUrl || '');
+    return /^data:image\//i.test(dataUrl) ? dataUrl : '';
+  }
+
+  function rememberDataUrl(entry, dataUrl) {
+    const s = String(dataUrl || '');
+    if (!entry || typeof entry !== 'object' || !/^data:image\//i.test(s)) return '';
+    entry.dataUrl = s;
+    return s;
+  }
+
   return {
     KINDS,
     API_ORIGIN,
@@ -98,5 +123,8 @@
     mergeRemote,
     absUrl,
     isTeamUrl,
+    blobPhotoSrcs,
+    dataUrlForJob,
+    rememberDataUrl,
   };
 });
