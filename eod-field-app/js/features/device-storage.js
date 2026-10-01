@@ -97,6 +97,71 @@
     return window.confirm(title);
   }
 
+  async function confirmClearStorage() {
+    if (global.EodAlerts?.showDialog) {
+      const id = await global.EodAlerts.showDialog({
+        title: 'Clear storage?',
+        message: "Clears saved copies on this phone. Today's visit stays.",
+        buttons: [
+          { id: 'keep', label: 'Keep' },
+          { id: 'clear', label: 'Clear', primary: true },
+        ],
+      });
+      return id === 'clear';
+    }
+    return window.confirm("Clear storage? Today's visit stays.");
+  }
+
+  function dropCarryForwardKeys() {
+    const prefixes = ['eodSetBefores:', 'eodSetAfters:'];
+    const doomed = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && prefixes.some((p) => k.startsWith(p))) doomed.push(k);
+      }
+    } catch (_) { /* listing keys must not block the clear */ }
+    for (const k of doomed) {
+      try { localStorage.removeItem(k); } catch (_) { /* keep clearing */ }
+    }
+    return doomed.length;
+  }
+
+  async function clearStoredData() {
+    const keys = dropCarryForwardKeys();
+    let caches = 0;
+    try { caches = await global.EodSetMediaCache?.purgeAll?.() || 0; } catch (_) {}
+    let sessions = 0;
+    try {
+      const list = await global.PhotoDB?.listSessionSummaries?.() || [];
+      const activeId = global.PhotoDB?.resolveActiveKey?.()?.id || null;
+      for (const s of list) {
+        if (!s?.id || (activeId && s.id === activeId)) continue;
+        const r = await global.PhotoDB.deleteSessionById(s.id);
+        if (r?.ok) sessions += 1;
+      }
+    } catch (_) {}
+    let sent = 0;
+    try {
+      const r = await global.PhotoDB?.purgeSubmitted?.({ keepActive: true, maxAgeMs: 0 });
+      sent = r?.removed || 0;
+    } catch (_) {}
+    try { await global.PhotoDB?.clearLegacyAllPhotos?.(); } catch (_) {}
+    let jobs = 0;
+    try { jobs = global.EodPhotoPipeline?.purgeSettledJobs?.({ maxAgeMs: 0 }) || 0; } catch (_) {}
+    const S = global.EodSession;
+    try {
+      await global.EodGarden?.purgeOldSheets?.({
+        keepStore: S?.state?.storeNumber,
+        keepWeek: S?.state?.fiscalWeek || S?.state?.sheet?.fiscalWeek,
+        maxAgeMs: 0,
+      });
+    } catch (_) {}
+    try { global.EodDiag?.reset?.(); } catch (_) {}
+    try { global.EodChrome?.refresh?.(); } catch (_) {}
+    return { keys, caches, sessions, sent, jobs };
+  }
+
   async function confirmLoad(store, date) {
     if (global.EodAlerts?.showDialog) {
       const id = await global.EodAlerts.showDialog({
@@ -393,7 +458,8 @@
 
     mount.innerHTML = `
       <div class="card">
-        <h1>Device</h1>
+        <h1>Clear storage</h1>
+        <button type="button" class="btn btn-primary btn-block" id="devClearStorage">Clear storage</button>
         <p class="muted">${esc(used)} used · ${esc(quota)} quota · photos ${esc(photoMb)}</p>
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="devPurgeSent">Remove sent</button>
@@ -553,6 +619,20 @@
     });
 
     // ── Device-level actions ──────────────────────────────────────────────
+    document.getElementById('devClearStorage')?.addEventListener('click', async () => {
+      if (!(await confirmClearStorage())) return;
+      const btn = document.getElementById('devClearStorage');
+      if (btn) btn.disabled = true;
+      try {
+        await clearStoredData();
+        setMsg('Cleared.');
+        await afterChange();
+      } catch (err) {
+        setMsg(err.message || String(err));
+        if (btn) btn.disabled = false;
+      }
+    });
+
     document.getElementById('devPurgeSent')?.addEventListener('click', async () => {
       if (!(await confirmRemove('Remove all sent packages?'))) return;
       const r = await global.PhotoDB.purgeSubmitted({ keepActive: true, maxAgeMs: 0 });
@@ -584,6 +664,6 @@
     } catch (_) {}
   }
 
-  global.EodDeviceStorage = { render, purgeInBackground, openUnsentReview, openSessionReview };
+  global.EodDeviceStorage = { render, purgeInBackground, openUnsentReview, openSessionReview, clearStoredData };
   global.EodRouter.register('storage', render);
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -11,12 +11,12 @@
     { id: 'dumpbin', label: 'Dump Bin' },
     { id: 'helpdesk', label: 'Helpdesk' },
     { id: 'scans', label: 'Scan results' },
+    { id: 'storage', label: 'Clear storage' },
   ];
 
   const SUB = {
     cover: { parent: 'visit', label: 'Cover' },
     survey: { parent: 'signoff', label: 'Survey' },
-    storage: { parent: 'send', label: 'Device' },
   };
 
   function routeId(route) {

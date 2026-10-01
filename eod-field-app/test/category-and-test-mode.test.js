@@ -656,7 +656,8 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.match(chrome, /data-more="crew"/);
   assert.match(chrome, /data-more="dumpbin"/);
   assert.match(chrome, /data-more="helpdesk"/);
-  assert.match(chrome, /data-more="storage"/);
+  assert.match(chrome, /data-more="storage">Clear storage/);
+  assert.match(html, /data-nav="storage" data-slot="extra"/);
   assert.doesNotMatch(chrome, /data-more="photos"/);
   assert.doesNotMatch(chrome, /data-more="visit"/);
   assert.doesNotMatch(chrome, /data-more="signatures"/);
@@ -713,6 +714,9 @@ test('device storage is in the app: More, Send, boot purge of submitted packages
   assert.match(html, /js\/features\/device-storage\.js/);
   assert.match(store, /register\('storage'/);
   assert.match(store, /purgeInBackground/);
+  assert.match(store, /id="devClearStorage"/);
+  assert.match(store, /async function clearStoredData/);
+  assert.match(store, /eodSetAfters:/);
   assert.match(photos, /purgeOnBoot/);
   assert.match(photos, /purgeSubmitted/);
   assert.match(photos, /const SENT_PRUNE_MS = 36 \* 60 \* 60 \* 1000/);
