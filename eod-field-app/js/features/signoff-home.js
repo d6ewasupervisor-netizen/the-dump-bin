@@ -896,6 +896,7 @@
       const liveLine = Status?.liveStatusLineHtml
         ? Status.liveStatusLineHtml(row, esc, localBefores)
         : '';
+      const priorNote = Status?.priorShiftNote?.(row, global.EodSession?.state?.workDate) || '';
       const captureSlot = Status?.neededCaptureSlot
         ? Status.neededCaptureSlot(row, localBefores)
         : 'after';
@@ -906,6 +907,7 @@
           <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
           ${markActive(row, 'out_of_scope') ? '<div class="ds-row-live"><span class="pill">Out of Scope</span></div>' : ''}
           ${liveLine ? `<div class="ds-row-live">${liveLine}</div>` : ''}
+          ${priorNote ? `<div class="ds-row-live"><span class="pill">${esc(priorNote)}</span></div>` : ''}
           ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
         ${catNum ? `<div class="ds-row-catnum" title="Category">${esc(catNum)}</div>` : ''}

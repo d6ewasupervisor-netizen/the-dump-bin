@@ -20,6 +20,7 @@ const {
   neededCaptureSlot,
   liveStatusLineHtml,
   siDisplayLabel,
+  priorShiftNote,
   siAisleLabel,
   versionLabel,
 } = require('../js/lib/category-card-status');
@@ -240,6 +241,35 @@ test('SI location label uses live.siLocation.label', () => {
     'Aisle 12 · 01-GROCERY · 6 bays'
   );
   assert.equal(siLocationLabel({ live: {} }), '');
+});
+
+test('PROD complete with no SI task reads as no task and stays signable', () => {
+  const row = {
+    catName: 'LT BULBS STANDARD DECOR DS',
+    live: {
+      prodStatus: 'done',
+      prodComplete: true,
+      prodBeforeCount: 4,
+      prodAfterCount: 10,
+      siPresent: false,
+      siStatus: 'absent',
+      siPhotoCount: 0,
+      sectionCount: 0,
+    },
+    marks: {
+      complete: true,
+      active: ['complete'],
+      details: { complete: { markedAt: '2026-10-01T04:28:21.813Z', visitId: 'blitz' } },
+    },
+  };
+  assert.equal(siDisplayLabel(row), 'no task');
+  const html = liveStatusLineHtml(row, (s) => s);
+  assert.match(html, /PROD[\s\S]*complete/);
+  assert.match(html, /SI[\s\S]*no task/);
+  assert.doesNotMatch(html, /0\/0/);
+  assert.equal(rowSendReady(row), true);
+  assert.equal(priorShiftNote(row, '2026-09-30'), '');
+  assert.equal(priorShiftNote(row, '2026-10-01'), 'Completed on previous shift');
 });
 
 test('live status line treats Complete mark as PROD+SI complete without photo counts', () => {

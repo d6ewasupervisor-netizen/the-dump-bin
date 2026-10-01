@@ -165,7 +165,43 @@
     return { have: siPictureHave(row), need: expectedPhotoNeed(row) };
   }
 
+  function siConfirmedAbsent(row) {
+    const live = row && row.live;
+    if (!live || live.siPresent) return false;
+    const st = String(live.siStatus || '').trim().toLowerCase();
+    return st === '' || st === 'absent' || st === 'unknown' || st === 'unavailable';
+  }
+
+  function pacificDay(value) {
+    if (value == null || value === '') return '';
+    const s = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(d);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function priorShiftNote(row, workDate) {
+    if (!markActive(row, 'complete')) return '';
+    const work = String(workDate || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(work)) return '';
+    const detail = row && row.marks && row.marks.details && row.marks.details.complete;
+    const day = pacificDay(detail && detail.markedAt);
+    if (!day || day >= work) return '';
+    return 'Completed on previous shift';
+  }
+
   function siDisplayLabel(row) {
+    if (markActive(row, 'complete') && siConfirmedAbsent(row)) return 'no task';
     if (markActive(row, 'complete')) return 'complete';
     const live = row && row.live;
     const { have, need } = siSectionCounts(row);
@@ -191,11 +227,11 @@
     const siCls = siLabel === 'complete' ? 'ok' : siLabel === 'incomplete' ? 'warn' : '';
     const have = Number(opts && opts.siHave) || 0;
     const need = Number(opts && opts.siNeed) || 0;
-    const siCount = need > 0 ? `${have}/${need}` : String(have);
+    const siCount = siLabel === 'no task' ? '' : (need > 0 ? `${have}/${need}` : String(have));
     return `PROD <span class="pill ${prodCls}">${escape(prodLabel)}</span>`
       + ` <span class="muted">${before}/${after}</span>`
       + ` | SI <span class="pill ${siCls}">${escape(siLabel)}</span>`
-      + ` <span class="muted">${escape(siCount)}</span>`;
+      + (siCount ? ` <span class="muted">${escape(siCount)}</span>` : '');
   }
 
   function liveStatusLineHtml(row, esc, extraBefore) {
@@ -475,6 +511,8 @@
     prodKindFromCounts,
     siSectionCounts,
     siDisplayLabel,
+    priorShiftNote,
+    siConfirmedAbsent,
     neededCaptureSlot,
     liveStatusLineFromCounts,
     liveStatusLineHtml,
