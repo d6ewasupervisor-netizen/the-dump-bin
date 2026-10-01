@@ -55,6 +55,7 @@
     .cpu-body {
       display: none; margin-top: 14px; padding-top: 14px;
       border-top: 1px solid var(--cp-line);
+      cursor: default;
     }
     .cpu-card.open .cpu-body { display: block; }
     .cpu-frame {
@@ -62,6 +63,31 @@
       border-radius: 8px;
     }
     .cpu-atts { margin-top: 10px; font-size: 13px; color: var(--cp-muted); }
+    .cpu-badge {
+      display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
+      background: var(--cp-mint); border: 1px solid var(--cp-line); color: var(--cp-green);
+      font-size: 11px; font-weight: 700; letter-spacing: .5px; vertical-align: middle;
+    }
+    .cpu-doc { margin-bottom: 14px; }
+    .cpu-doc-open {
+      display: inline-block; padding: 10px 14px; border-radius: 8px;
+      background: var(--cp-green); color: #fff; font-weight: 700; font-size: 14px;
+      text-decoration: none;
+    }
+    .cpu-doc-frame {
+      display: block; width: 100%; height: 80vh; min-height: 480px; margin-top: 12px;
+      border: 1px solid var(--cp-line); border-radius: 8px; background: #fff;
+    }
+    .cpu-pager {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin: 18px 0 0;
+    }
+    .cpu-pager button {
+      padding: 9px 14px; border-radius: 8px; border: 1px solid var(--cp-line);
+      background: #fff; color: var(--cp-green); font-weight: 700; font-size: 14px; cursor: pointer;
+    }
+    .cpu-pager button[disabled] { opacity: .4; cursor: default; }
+    .cpu-pager .where { color: var(--cp-muted); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -76,7 +102,6 @@
     <section class="cpu-hero">
       <div class="label">CENTRAL PET UPDATES</div>
       <h1>Team callouts</h1>
-      <p>Newest first — open a card for the full brief. Texts link straight here.</p>
     </section>
 
     <div class="cpu-toolbar" id="admin-bar" hidden>
@@ -85,14 +110,27 @@
 
     <div class="cpu-status" id="status">Loading updates…</div>
     <div id="feed"></div>
+    <nav class="cpu-pager" id="pager" hidden>
+      <button type="button" id="newer">Newer</button>
+      <span class="where" id="where"></span>
+      <button type="button" id="older">Older</button>
+    </nav>
   </main>
 
   <script>
     (function () {
+      var PAGE_SIZE = 5;
       var feed = document.getElementById('feed');
       var statusEl = document.getElementById('status');
+      var pager = document.getElementById('pager');
+      var newerBtn = document.getElementById('newer');
+      var olderBtn = document.getElementById('older');
+      var whereEl = document.getElementById('where');
       var params = new URLSearchParams(location.search);
       var focusSlug = params.get('p') || '';
+      var currentPage = Math.max(1, parseInt(params.get('page'), 10) || 1);
+      var totalPages = 1;
+      var docUrls = [];
 
       function fmtWhen(iso) {
         try {
@@ -103,14 +141,29 @@
         } catch (_) { return iso; }
       }
 
-      function renderBrief(body, html, atts) {
+      function setQuery(next) {
+        var q = new URLSearchParams();
+        if (next.page && next.page > 1) q.set('page', String(next.page));
+        if (next.slug) q.set('p', next.slug);
+        var qs = q.toString();
+        try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '')); } catch (_) {}
+      }
+
+      function releaseDocUrls() {
+        docUrls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (_) {} });
+        docUrls = [];
+      }
+
+      function renderBrief(container, html, atts) {
+        var wrap = document.createElement('div');
         var attHtml = atts.length
           ? '<div class="cpu-atts"><strong>Attachments (on the email):</strong> '
             + atts.map(function (a) { return String(a); }).join(', ') + '</div>'
           : '';
         // allow-same-origin so we can size the frame; no allow-scripts
-        body.innerHTML = '<iframe class="cpu-frame" title="Central Pet brief" sandbox="allow-same-origin allow-popups"></iframe>' + attHtml;
-        var iframe = body.querySelector('iframe');
+        wrap.innerHTML = '<iframe class="cpu-frame" title="Central Pet brief" sandbox="allow-same-origin allow-popups"></iframe>' + attHtml;
+        container.appendChild(wrap);
+        var iframe = wrap.querySelector('iframe');
         // Blob URL handles large inline-image emails better than srcdoc size limits
         var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         var url = URL.createObjectURL(blob);
@@ -127,6 +180,39 @@
         iframe.src = url;
       }
 
+      function renderDocument(container, update) {
+        var box = document.createElement('div');
+        box.className = 'cpu-doc';
+        box.innerHTML = '<div class="cpu-status">Loading full document…</div>';
+        container.appendChild(box);
+        dumpBinAuthFetch('/api/central-pet/updates/' + encodeURIComponent(update.slug) + '/document')
+          .then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.blob();
+          })
+          .then(function (blob) {
+            var url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+            docUrls.push(url);
+            box.innerHTML = '';
+            var open = document.createElement('a');
+            open.className = 'cpu-doc-open';
+            open.href = url;
+            open.target = '_blank';
+            open.rel = 'noopener';
+            open.textContent = 'Open full document (PDF)';
+            var frame = document.createElement('iframe');
+            frame.className = 'cpu-doc-frame';
+            frame.title = 'Full document';
+            frame.src = url;
+            box.appendChild(open);
+            box.appendChild(frame);
+          })
+          .catch(function (err) {
+            box.innerHTML = '<div class="cpu-status">Could not load the full document'
+              + (err && err.message ? (' (' + err.message + ')') : '') + '.</div>';
+          });
+      }
+
       function openCard(card, update) {
         var wasOpen = card.classList.contains('open');
         document.querySelectorAll('.cpu-card.open').forEach(function (c) {
@@ -134,10 +220,19 @@
           var b = c.querySelector('.cpu-body');
           if (b) b.innerHTML = '';
         });
-        if (wasOpen) return;
+        releaseDocUrls();
+        if (wasOpen) {
+          setQuery({ page: currentPage });
+          return;
+        }
         card.classList.add('open');
         var body = card.querySelector('.cpu-body');
-        body.innerHTML = '<div class="cpu-status">Loading brief…</div>';
+        body.innerHTML = '';
+        if (update.has_document) renderDocument(body, update);
+        var briefBox = document.createElement('div');
+        briefBox.innerHTML = '<div class="cpu-status">Loading brief…</div>';
+        body.appendChild(briefBox);
+        setQuery({ page: currentPage, slug: update.slug });
         dumpBinAuthFetch('/api/central-pet/updates/' + encodeURIComponent(update.slug))
           .then(function (r) {
             return r.json().then(function (data) {
@@ -147,28 +242,100 @@
           .then(function (result) {
             var data = result.data || {};
             if (!result.okHttp || !data.ok || !data.update) {
-              body.innerHTML = '<div class="cpu-status">Could not load this brief'
+              briefBox.innerHTML = '<div class="cpu-status">Could not load this brief'
                 + (data.error ? (': ' + data.error) : (' (HTTP ' + result.status + ')'))
                 + '.</div>';
               return;
             }
             var html = data.update.html_body || '';
+            briefBox.innerHTML = '';
             if (!html) {
-              body.innerHTML = '<div class="cpu-status">This brief has no HTML body.</div>';
+              if (!update.has_document) {
+                briefBox.innerHTML = '<div class="cpu-status">This brief has no HTML body.</div>';
+              }
               return;
             }
             var atts = Array.isArray(data.update.attachment_names) ? data.update.attachment_names : [];
-            renderBrief(body, html, atts);
-            try {
-              history.replaceState(null, '', '?p=' + encodeURIComponent(update.slug));
-            } catch (_) {}
+            renderBrief(briefBox, html, atts);
           })
           .catch(function (err) {
-            body.innerHTML = '<div class="cpu-status">Could not load this brief'
+            briefBox.innerHTML = '<div class="cpu-status">Could not load this brief'
               + (err && err.message ? (': ' + err.message) : '')
               + '.</div>';
           });
       }
+
+      function renderPager(total) {
+        pager.hidden = totalPages <= 1;
+        newerBtn.disabled = currentPage <= 1;
+        olderBtn.disabled = currentPage >= totalPages;
+        whereEl.textContent = 'Page ' + currentPage + ' of ' + totalPages
+          + ' · ' + total + ' update' + (total === 1 ? '' : 's');
+      }
+
+      async function loadPage(opts) {
+        var q = new URLSearchParams({ pageSize: String(PAGE_SIZE) });
+        if (opts.focus) q.set('focus', opts.focus);
+        else q.set('page', String(opts.page || 1));
+        statusEl.hidden = false;
+        statusEl.textContent = 'Loading updates…';
+        var res = await dumpBinAuthFetch('/api/central-pet/updates?' + q.toString());
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok || !data.ok) {
+          statusEl.textContent = (data && data.error) || ('Could not load updates (HTTP ' + res.status + ').');
+          return;
+        }
+        var updates = data.updates || [];
+        currentPage = data.page || 1;
+        totalPages = data.pages || 1;
+        releaseDocUrls();
+        feed.innerHTML = '';
+        if (!updates.length) {
+          statusEl.textContent = 'No updates yet.';
+          pager.hidden = true;
+          return;
+        }
+        statusEl.hidden = true;
+        var focusCard = null;
+        updates.forEach(function (u) {
+          var card = document.createElement('article');
+          card.className = 'cpu-card';
+          card.dataset.slug = u.slug;
+          card.innerHTML =
+            '<div class="when">' + fmtWhen(u.published_at) + '</div>'
+            + '<h2></h2><p class="summary"></p><div class="cpu-body"></div>';
+          var h2 = card.querySelector('h2');
+          h2.textContent = u.title || u.subject;
+          if (u.has_document) {
+            var badge = document.createElement('span');
+            badge.className = 'cpu-badge';
+            badge.textContent = 'PDF';
+            h2.appendChild(badge);
+          }
+          card.querySelector('.summary').textContent = u.summary || u.subject || '';
+          card.addEventListener('click', function (e) {
+            if (e.target.closest('.cpu-body')) return;
+            openCard(card, u);
+          });
+          feed.appendChild(card);
+          if (opts.focus && opts.focus === u.slug) focusCard = { card: card, update: u };
+        });
+        renderPager(data.total || updates.length);
+        if (focusCard) {
+          openCard(focusCard.card, focusCard.update);
+          focusCard.card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          setQuery({ page: currentPage });
+          if (opts.scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
+
+      newerBtn.addEventListener('click', function () {
+        if (currentPage > 1) loadPage({ page: currentPage - 1, scrollTop: true });
+      });
+      olderBtn.addEventListener('click', function () {
+        if (currentPage < totalPages) loadPage({ page: currentPage + 1, scrollTop: true });
+      });
 
       async function boot() {
         try {
@@ -190,40 +357,9 @@
           if (me.canAdminCentralPetUpdates) {
             document.getElementById('admin-bar').hidden = false;
           }
-
-          var res = await dumpBinAuthFetch('/api/central-pet/updates');
-          var data = await res.json().catch(function () { return {}; });
-          if (!res.ok || !data.ok) {
-            statusEl.textContent = (data && data.error) || ('Could not load updates (HTTP ' + res.status + ').');
-            return;
-          }
-          var updates = data.updates || [];
-          if (!updates.length) {
-            statusEl.textContent = 'No updates yet.';
-            return;
-          }
-          statusEl.textContent = updates.length + ' update' + (updates.length === 1 ? '' : 's');
-          feed.innerHTML = '';
-          updates.forEach(function (u) {
-            var card = document.createElement('article');
-            card.className = 'cpu-card';
-            card.dataset.slug = u.slug;
-            card.innerHTML =
-              '<div class="when">' + fmtWhen(u.published_at) + '</div>'
-              + '<h2></h2><p class="summary"></p><div class="cpu-body"></div>';
-            card.querySelector('h2').textContent = u.title || u.subject;
-            card.querySelector('.summary').textContent = u.summary || u.subject || '';
-            card.addEventListener('click', function (e) {
-              if (e.target.closest('.cpu-body')) return;
-              openCard(card, u);
-            });
-            feed.appendChild(card);
-            if (focusSlug && focusSlug === u.slug) {
-              openCard(card, u);
-              card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          });
+          await loadPage(focusSlug ? { focus: focusSlug } : { page: currentPage });
         } catch (err) {
+          statusEl.hidden = false;
           statusEl.textContent = 'Could not load updates.';
         }
       }
