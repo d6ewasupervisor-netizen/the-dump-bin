@@ -154,7 +154,16 @@
         docUrls = [];
       }
 
+      // Emails reference attached images by cid:, which a page cannot load.
+      function resolveCidImages(html) {
+        var logo = location.origin + '/central-pet/updates/ro-logo-email.png';
+        return String(html || '')
+          .replace(/(["'])cid:ro-logo\1/gi, '$1' + logo + '$1')
+          .replace(/<img\b[^>]*\bsrc=["']cid:[^"']*["'][^>]*>/gi, '');
+      }
+
       function renderBrief(container, html, atts) {
+        html = resolveCidImages(html);
         var wrap = document.createElement('div');
         var attHtml = atts.length
           ? '<div class="cpu-atts"><strong>Attachments (on the email):</strong> '
