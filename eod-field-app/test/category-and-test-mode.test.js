@@ -20,6 +20,8 @@ const {
   neededCaptureSlot,
   liveStatusLineHtml,
   siDisplayLabel,
+  siCaptureLabel,
+  siTaskMissing,
   priorShiftNote,
   siAisleLabel,
   versionLabel,
@@ -270,6 +272,71 @@ test('PROD complete with no SI task reads as no task and stays signable', () => 
   assert.equal(rowSendReady(row), true);
   assert.equal(priorShiftNote(row, '2026-09-30'), '');
   assert.equal(priorShiftNote(row, '2026-10-01'), 'Completed on previous shift');
+});
+
+test('one before and full afters with no SI task is Complete', () => {
+  const bulbs = {
+    catName: 'LT BULBS STANDARD DECOR DS',
+    footage: '24 ft',
+    live: {
+      prodStatus: 'done',
+      prodComplete: true,
+      prodBeforeCount: 1,
+      prodAfterCount: 6,
+      siPresent: false,
+      siStatus: 'absent',
+      siPhotoCount: 0,
+      sectionCount: 0,
+    },
+    marks: { active: [] },
+  };
+  assert.equal(sheetDisplayComplete(bulbs), true);
+  assert.equal(sheetDisplayBucket(bulbs), 'complete');
+  assert.equal(matchesSheetFilters(bulbs, { status: 'done' }), true);
+  assert.equal(matchesSheetFilters(bulbs, { status: 'in_progress' }), false);
+  assert.equal(siDisplayLabel(bulbs), 'no task');
+  assert.equal(rowSendReady(bulbs), true);
+  const html = liveStatusLineHtml(bulbs, (s) => s);
+  assert.match(html, /PROD[\s\S]*complete/);
+  assert.match(html, /1\/6/);
+  assert.match(html, /SI[\s\S]*no task/);
+  assert.doesNotMatch(html, /6\/6/);
+
+  const stillOpen = {
+    footage: '24 ft',
+    live: {
+      prodStatus: 'open',
+      prodComplete: false,
+      prodBeforeCount: 1,
+      prodAfterCount: 6,
+      siPresent: false,
+      siStatus: 'absent',
+      siPhotoCount: 0,
+    },
+  };
+  assert.equal(sheetDisplayComplete(stillOpen), false);
+  assert.equal(sheetDisplayBucket(stillOpen), 'in_progress');
+
+  const siTask = {
+    footage: '24 ft',
+    live: {
+      prodStatus: 'done',
+      prodComplete: true,
+      prodBeforeCount: 1,
+      prodAfterCount: 6,
+      siPresent: true,
+      siStatus: 'in_progress',
+      siPhotoCount: 0,
+      sectionCount: 6,
+    },
+  };
+  assert.equal(sheetDisplayComplete(siTask), false);
+
+  const capture = siCaptureLabel({ status: 'not_found' }, 6, 6);
+  assert.equal(capture.siLabel, 'no task');
+  assert.equal(capture.siHave, 0);
+  assert.equal(siTaskMissing({ status: 'not_found' }), true);
+  assert.equal(siTaskMissing({ status: 'in_progress', present: true }), false);
 });
 
 test('live status line treats Complete mark as PROD+SI complete without photo counts', () => {

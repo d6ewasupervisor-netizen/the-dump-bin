@@ -169,7 +169,28 @@
     const live = row && row.live;
     if (!live || live.siPresent) return false;
     const st = String(live.siStatus || '').trim().toLowerCase();
-    return st === '' || st === 'absent' || st === 'unknown' || st === 'unavailable';
+    return st === '' || st === 'absent' || st === 'not_found' || st === 'unknown' || st === 'unavailable' || st === 'no task';
+  }
+
+  /* A loaded status that names no task. An empty object is "not loaded yet". */
+  function siTaskMissing(si) {
+    if (!si || si.present || si.taskId) return false;
+    const st = String(si.status || '').trim().toLowerCase();
+    return st === 'not_found' || st === 'absent' || st === 'unknown' || st === 'unavailable' || st === 'no task';
+  }
+
+  function siExplicitlyAbsent(row) {
+    const live = row && row.live;
+    if (!live || live.siPresent) return false;
+    return siTaskMissing({ status: live.siStatus });
+  }
+
+  function prodDoneFlag(row) {
+    const live = row && row.live;
+    if (!live) return false;
+    if (live.prodComplete === true) return true;
+    const st = String(live.prodStatus || '').trim().toLowerCase();
+    return st === 'done' || st === 'complete' || st === 'completed';
   }
 
   function pacificDay(value) {
@@ -201,6 +222,7 @@
   }
 
   function siDisplayLabel(row) {
+    if (prodClosedPartialBefore(row)) return 'no task';
     if (markActive(row, 'complete') && siConfirmedAbsent(row)) return 'no task';
     if (markActive(row, 'complete')) return 'complete';
     const live = row && row.live;
@@ -300,8 +322,35 @@
     return prodPhotoCounts(row, extraBefore).before > 0;
   }
 
+  /* PROD already closed, no SI task, afters cover the run, at least one before.
+     A before on every bay stays the normal Complete rule when SI has a task. */
+  function prodClosedPartialBefore(row) {
+    if (!siExplicitlyAbsent(row) || !prodDoneFlag(row)) return false;
+    const counts = prodPhotoCounts(row, 0);
+    if (counts.before < 1) return false;
+    return countMeetsNeed(counts.after, expectedPhotoNeed(row)) && actionsClear(row);
+  }
+
+  /* Set-screen chips. PROD afters are not SI photos when the task is missing. */
+  function siCaptureLabel(si, expectedBayCount, afterCount) {
+    if (siTaskMissing(si)) {
+      return {
+        siLabel: 'no task',
+        siHave: Number(si && si.sectionsWithPhoto) || 0,
+        siNeed: 0,
+      };
+    }
+    const siHave = Math.max(Number(si && si.sectionsWithPhoto) || 0, Number(afterCount) || 0);
+    const siNeed = Math.max(Number(si && si.sectionCount) || 0, Number(expectedBayCount) || 0);
+    const siLabel = siNeed > 0 && siHave >= siNeed
+      ? 'complete'
+      : (siNeed || siHave || si ? 'incomplete' : 'unknown');
+    return { siLabel, siHave, siNeed };
+  }
+
   /* Complete section only. Send-ready and sheetRowDone stay on their own rules. */
   function sheetDisplayComplete(row) {
+    if (prodClosedPartialBefore(row)) return true;
     const counts = prodPhotoCounts(row, 0);
     const need = expectedPhotoNeed(row);
     const si = siSectionCounts(row);
@@ -513,6 +562,9 @@
     siDisplayLabel,
     priorShiftNote,
     siConfirmedAbsent,
+    siTaskMissing,
+    siCaptureLabel,
+    prodClosedPartialBefore,
     neededCaptureSlot,
     liveStatusLineFromCounts,
     liveStatusLineHtml,

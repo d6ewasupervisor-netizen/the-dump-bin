@@ -1112,16 +1112,22 @@
       const prodKind = Status?.prodKindFromCounts
         ? Status.prodKindFromCounts(before, after)
         : (before > 0 && after > 0 ? 'complete' : (before || after ? 'in_progress' : 'not_started'));
-      const siHave = Math.max(Number(local.status.si?.sectionsWithPhoto) || 0, after);
-      const siNeed = Math.max(
-        Number(local.status.si?.sectionCount) || 0,
-        Number(local.status.expectedBayCount) || 0
-      );
-      const siLabel = siNeed > 0 && siHave >= siNeed
-        ? 'complete'
-        : (siNeed || siHave || local.status.si ? 'incomplete' : 'unknown');
+      const captured = Status?.siCaptureLabel
+        ? Status.siCaptureLabel(local.status.si, local.status.expectedBayCount, after)
+        : {
+          siHave: Math.max(Number(local.status.si?.sectionsWithPhoto) || 0, after),
+          siNeed: Math.max(Number(local.status.si?.sectionCount) || 0, Number(local.status.expectedBayCount) || 0),
+          siLabel: 'unknown',
+        };
+      const siHave = captured.siHave;
+      const siNeed = captured.siNeed;
+      const siLabel = captured.siLabel === 'unknown' && !Status?.siCaptureLabel
+        ? (siNeed > 0 && siHave >= siNeed
+          ? 'complete'
+          : (siNeed || siHave || local.status.si ? 'incomplete' : 'unknown'))
+        : captured.siLabel;
       if (local.status.prod) local.status.prod.status = prodKind === 'complete' ? 'complete' : prodKind === 'in_progress' ? 'in progress' : 'not started';
-      if (local.status.si) local.status.si.status = siLabel;
+      if (local.status.si && !Status?.siTaskMissing?.(local.status.si)) local.status.si.status = siLabel;
       if (Status?.liveStatusLineFromCounts) {
         chips.innerHTML = Status.liveStatusLineFromCounts({
           prodKind,
@@ -1222,7 +1228,8 @@
           paintStatus(st);
           const siHave = Number(st?.si?.sectionsWithPhoto) || 0;
           const prodAfter = Number(st?.prod?.afterCount) || 0;
-          if (siHave !== prodAfter && (siHave > 0 || prodAfter > 0)) {
+          const noSiTask = global.EodCategoryCardStatus?.siTaskMissing?.(st?.si);
+          if (!noSiTask && siHave !== prodAfter && (siHave > 0 || prodAfter > 0)) {
             void crossFill(dbkey, rowId).then((r) => {
               if (!r?.status) return;
               applyLiveProd(r.status);
@@ -1353,6 +1360,10 @@
 
       bindCaptureControls(body);
       document.getElementById('crossFillBtn').onclick = async () => {
+        if (global.EodCategoryCardStatus?.siTaskMissing?.(local.status?.si)) {
+          setMsg('No Store Intelligence task on this set.');
+          return;
+        }
         try {
           setMsg('Pulling photos across PROD / SI…');
           const r = await crossFill(dbkey, rowId);
