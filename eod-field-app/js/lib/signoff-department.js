@@ -46,7 +46,109 @@
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  function rowCategoryName(row) {
+    return String(row?.catName || row?.cat_name || '');
+  }
+
+  function isHomeSideLightbulbs(row) {
+    return /light\s*bulbs?|\blt\s*bulbs\b/i.test(rowCategoryName(row));
+  }
+
+  function isMoneyServicesRow(row) {
+    return /money\s*services?|money\s*center|money\s*orders?/i.test(rowCategoryName(row));
+  }
+
+  function pacificDay(value) {
+    if (value == null || value === '') return '';
+    const s = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(d);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function idStr(value) {
+    if (value == null || value === '') return '';
+    return String(value);
+  }
+
+  function completeDetail(row) {
+    const m = row && row.marks;
+    const detail = m && m.details && m.details.complete;
+    return detail || {};
+  }
+
+  function completeActive(row) {
+    const m = row && row.marks;
+    if (!m) return false;
+    if (m.complete) return true;
+    return Array.isArray(m.active) && m.active.includes('complete');
+  }
+
+  function clearanceIsThisVisit(row, shift) {
+    const workDate = shift && shift.workDate ? String(shift.workDate).slice(0, 10) : '';
+    const visitId = idStr(shift && shift.visitId);
+    const detail = completeDetail(row);
+    const markVisit = idStr(detail.visitId);
+    const markDay = pacificDay(detail.markedAt);
+    const prodVisit = idStr(row && row.live && row.live.prodVisitId);
+    if (visitId && markVisit && markVisit === visitId) return true;
+    if (visitId && !markVisit && prodVisit && prodVisit === visitId) {
+      if (!markDay || !workDate || markDay === workDate) return true;
+    }
+    if (!markVisit && workDate && markDay === workDate) {
+      if (!visitId || !prodVisit || prodVisit === visitId) return true;
+    }
+    return false;
+  }
+
+  /** Earlier visit or earlier day. This visit's complete still needs a signature. */
+  function signedOutBeforeThisVisit(row, shift) {
+    const workDate = shift && shift.workDate ? String(shift.workDate).slice(0, 10) : '';
+    const visitId = idStr(shift && shift.visitId);
+    if (!workDate && !visitId) return false;
+    if (!completeActive(row)) return false;
+    if (clearanceIsThisVisit(row, shift)) return false;
+    const detail = completeDetail(row);
+    const markVisit = idStr(detail.visitId);
+    const markDay = pacificDay(detail.markedAt);
+    const prodVisit = idStr(row && row.live && row.live.prodVisitId);
+    if (visitId && markVisit && markVisit !== visitId) return true;
+    if (workDate && markDay && markDay < workDate) return true;
+    if (visitId && prodVisit && prodVisit !== visitId) return true;
+    return false;
+  }
+
+  function rowInSignatureScope(row) {
+    if (!row) return false;
+    if (row.outOfScope || row.out_of_scope || row.marks?.outOfScope) return false;
+    const active = row.marks && row.marks.active;
+    if (Array.isArray(active) && active.includes('out_of_scope')) return false;
+    return true;
+  }
+
+  function signatureRolesForRows(rows, shift) {
+    const found = new Set();
+    for (const row of rows || []) {
+      if (!rowInSignatureScope(row)) continue;
+      if (signedOutBeforeThisVisit(row, shift)) continue;
+      for (const key of rolesForSignoffRow(row)) found.add(key);
+    }
+    return ROLE_ORDER.filter((key) => found.has(key));
+  }
+
   function rolesForSignoffRow(row) {
+    if (isHomeSideLightbulbs(row)) return ['home_manager'];
+    if (isMoneyServicesRow(row)) return ['grocery'];
     const code = extractPogDeptCode(row?.pog);
     let roles;
     if (code) {
@@ -77,6 +179,10 @@
     ROLE_ORDER,
     DEPT_CODE_TO_ROLES,
     extractPogDeptCode,
+    isHomeSideLightbulbs,
+    isMoneyServicesRow,
+    signedOutBeforeThisVisit,
+    signatureRolesForRows,
     rolesForSignoffRow,
     rowMatchesSignoffRole,
   };

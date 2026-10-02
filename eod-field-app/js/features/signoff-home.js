@@ -488,6 +488,7 @@
         S.state.selectedShift
       )?.visitId || S.state.selectedShift?.visitId;
       if (shiftVisit) qs.set('visitId', String(shiftVisit));
+      global.EodProxyEod?.applyToSearchParams?.(qs);
       const resp = await global.authFetch(`${API}/pdf?${qs}`);
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
@@ -521,6 +522,7 @@
       forceLive: (typeof global.isEodForceLiveDelivery === 'function' && global.isEodForceLiveDelivery())
         || (typeof global.EodTestMode?.isForceLive === 'function' && global.EodTestMode.isForceLive())
         || undefined,
+      proxyEod: !!global.EodProxyEod?.isActive?.(),
     });
     const resp = await global.authFetch(`${API}/print-at-store`, { method: 'POST', headers, body });
     const data = await resp.json().catch(() => ({}));

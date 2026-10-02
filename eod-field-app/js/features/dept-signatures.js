@@ -142,7 +142,7 @@
       const st = String(row?.shiftType || row?.shift_type || '');
       const rowRoles = window.EodSignoffDepartment?.rolesForSignoffRow?.(row) || ['grocery'];
       rowRoles.forEach((key) => found.add(key));
-      if (/blitz/i.test(st)) found.add('dept_pic');
+      if (/blitz/i.test(st) && rowRoles.includes('dept_pic')) found.add('dept_pic');
     }
     return ROLE_ORDER.filter((k) => found.has(k));
   }
@@ -186,14 +186,22 @@
   }
 
   /**
-   * Scope PIC signature slots to departments on today’s sheet (not only
-   * already-marked Complete / NIS). Produce / bakery / fuel stay collectable
-   * during the walkthrough. Already-collected signatures stay visible.
+   * Signature slots follow sets still open on this visit.
+   * A set signed out on an earlier visit does not open a card.
    */
   function rowInScope(row) {
     if (!row) return false;
     if (row.outOfScope || row.out_of_scope || row.marks?.outOfScope) return false;
     return true;
+  }
+
+  function currentShift() {
+    const S = window.EodSession?.state || {};
+    const visitId = window.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+      S.shifts,
+      S.selectedShift
+    )?.visitId || S.selectedShift?.visitId || '';
+    return { workDate: workDate(), visitId };
   }
 
   function syncFromSheet(sheet) {
@@ -207,14 +215,14 @@
     }
 
     const workRows = sheet.rows.filter(rowInScope);
-    const keySet = new Set(roleKeysMatchingRows(workRows));
-    if (workRows.length) keySet.add('grocery');
-    keySet.delete('store_pic');
-    for (const sig of signatures) {
-      const k = String(sig.roleKey || '').toLowerCase();
-      if (k && k !== 'store_pic' && k !== 'lead' && ROLE_LABEL_BY_KEY[k]) keySet.add(k);
-    }
-    const keys = ROLE_ORDER.filter((k) => keySet.has(k));
+    const shift = currentShift();
+    const keys = window.EodSignoffDepartment?.signatureRolesForRows
+      ? window.EodSignoffDepartment.signatureRolesForRows(workRows, shift)
+      : ROLE_ORDER.filter((k) => {
+        const keySet = new Set(roleKeysMatchingRows(workRows));
+        keySet.delete('dept_pic');
+        return keySet.has(k);
+      });
     applyScopedKeys(keys, { allowEmpty: true });
     return roles;
   }
@@ -243,6 +251,7 @@
         <button type="button" class="btn btn-primary dept-sig-collect-btn" id="deptSigPickerBtn">
           Collect a department signature
         </button>
+        <button type="button" class="btn btn-secondary" id="deptSigProxyBtn" hidden>Sign out for someone else</button>
         <button type="button" class="btn btn-secondary" id="deptSigRefreshBtn">Refresh</button>
       </div>
     `;
@@ -280,12 +289,46 @@
     }
 
     document.getElementById('deptSigRefreshBtn').onclick = () => refresh().catch(console.error);
+    const proxyBtn = document.getElementById('deptSigProxyBtn');
+    if (proxyBtn) {
+      proxyBtn.onclick = () => {
+        window.EodProxyEod?.toggle?.();
+        renderRoleList();
+      };
+    }
+  }
+
+  function paintProxyButton() {
+    const proxyBtn = document.getElementById('deptSigProxyBtn');
+    if (!proxyBtn) return;
+    const allowed = !!window.EodProxyEod?.canUse?.();
+    proxyBtn.hidden = !allowed;
+    if (!allowed) return;
+    proxyBtn.textContent = window.EodProxyEod.activeStamp?.()
+      ? 'Undo'
+      : 'Sign out for someone else';
   }
 
   function renderRoleList() {
     const host = document.getElementById('deptSigRoleList');
     if (!host) return;
     const help = document.getElementById('deptSigHelp');
+    paintProxyButton();
+    if (!window.EodRoles?.getMe?.() && window.EodRoles?.load) {
+      window.EodRoles.load().then(() => paintProxyButton()).catch(() => {});
+    }
+    const stamp = window.EodProxyEod?.activeStamp?.() || '';
+    const pickerBtn = document.getElementById('deptSigPickerBtn');
+    if (stamp) {
+      host.innerHTML = `<p class="dept-sig-proxy-stamp" style="margin:0;"><strong>${escapeHtml(stamp)}</strong></p>`;
+      if (help) help.hidden = true;
+      const meta = document.getElementById('deptSigPickerMeta');
+      if (meta) meta.textContent = stamp;
+      if (pickerBtn) pickerBtn.hidden = true;
+      return;
+    }
+    if (help) help.hidden = false;
+    if (pickerBtn) pickerBtn.hidden = false;
     const byRole = new Map(signatures.map((s) => [s.roleKey, s]));
     if (!roles.length) {
       host.innerHTML = `<p class="muted" style="margin:0;">
@@ -301,7 +344,6 @@
       }
       const meta = document.getElementById('deptSigPickerMeta');
       if (meta) meta.textContent = '0/0';
-      const pickerBtn = document.getElementById('deptSigPickerBtn');
       if (pickerBtn) pickerBtn.disabled = true;
       return;
     }
@@ -408,7 +450,6 @@
       meta.classList.toggle('is-complete', collectedN > 0 && collectedN === roles.length);
       meta.classList.toggle('is-partial', collectedN > 0 && collectedN < roles.length);
     }
-    const pickerBtn = document.getElementById('deptSigPickerBtn');
     if (pickerBtn) {
       pickerBtn.disabled = false;
       pickerBtn.textContent = collectedN === roles.length

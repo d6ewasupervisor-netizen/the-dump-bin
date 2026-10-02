@@ -34,6 +34,7 @@
   }
 
   function picSignoffReady(S) {
+    if (global.EodProxyEod?.activeStamp?.()) return true;
     if (!S.hasHostedSheet?.()) {
       return !!(S.state.checkOutManager || '').trim() || photoCount(S, 'signoff') >= 1;
     }
@@ -74,7 +75,13 @@
       'signatures',
       null
     );
-    push('signature', !!S.state.signatureDataUrl, 'Add your lead signature', 'send', 'signBtn');
+    push(
+      'signature',
+      !!S.state.signatureDataUrl || !!global.EodProxyEod?.activeStamp?.(),
+      'Add your lead signature',
+      'send',
+      'signBtn'
+    );
     push(
       'recipients',
       !!(S.state.emailRecipients || []).length || !!(S.state.profileEmail || '').trim(),

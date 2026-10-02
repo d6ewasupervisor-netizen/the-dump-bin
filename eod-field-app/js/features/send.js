@@ -375,7 +375,8 @@
       const collected = global.EodDeptSignatures?.getCollectedForEmail?.() || [];
       deptSigLines = global.EodSendSheetsLogic?.formatDeptSignatureLines?.(collected) || [];
     } catch (_) {}
-    const deptSigText = deptSigLines.length ? deptSigLines.join('\n') : 'None';
+    const proxyStamp = global.EodProxyEod?.activeStamp?.() || '';
+    const deptSigText = proxyStamp || (deptSigLines.length ? deptSigLines.join('\n') : 'None');
 
     const helpdesk = helpdeskFields(S);
     const helpdeskLines = helpdesk.calledHelpDesk === 'Yes'
@@ -479,6 +480,7 @@ ${cleanNotes}`;
       checkInManager: S.state.checkInManager || '',
       checkOutManager: S.state.checkOutManager || '',
       visitId: mainIse?.visitId || null,
+      proxyEod: !!global.EodProxyEod?.isActive?.(),
       pdfFilename: (global.EodSendSheetsLogic?.eodPdfFilename
         || ((n, d) => `EOD_FM${padStore(n)}_${String(d || '').slice(5, 7)}-${String(d || '').slice(8, 10)}-${String(d || '').slice(2, 4)}.pdf`))(store, S.state.workDate),
       signoffPhotos: collectSignoffPhotos(),
@@ -668,10 +670,15 @@ ${cleanNotes}`;
         </div>
         <div class="field">
           <label>Lead signature</label>
-          <div class="sig-preview" id="sigPreview">${S.state.signatureDataUrl
-            ? `<img src="${S.state.signatureDataUrl}" alt="Signature">`
-            : 'No signature yet'}</div>
-          <button type="button" class="btn btn-primary btn-block" id="signBtn" style="margin-top:8px;">Sign</button>
+          <div class="sig-preview" id="sigPreview">${global.EodProxyEod?.activeStamp?.()
+            ? global.EodApi.escapeHtml(global.EodProxyEod.activeStamp())
+            : (S.state.signatureDataUrl
+              ? `<img src="${S.state.signatureDataUrl}" alt="Signature">`
+              : 'No signature yet')}</div>
+          <button type="button" class="btn btn-primary btn-block" id="signBtn" style="margin-top:8px;" ${global.EodProxyEod?.activeStamp?.() ? 'hidden' : ''}>Sign</button>
+          ${global.EodProxyEod?.canUse?.()
+            ? `<button type="button" class="btn btn-secondary btn-block" id="proxyEodBtn" style="margin-top:8px;">${global.EodProxyEod.activeStamp?.() ? 'Undo' : 'Sign out for someone else'}</button>`
+            : ''}
         </div>
         <div class="field">
           <label>Add recipient</label>
@@ -1174,7 +1181,12 @@ ${cleanNotes}`;
       });
     });
 
-    document.getElementById('signBtn').onclick = () => {
+    document.getElementById('proxyEodBtn')?.addEventListener('click', () => {
+      global.EodProxyEod?.toggle?.();
+      render(mount);
+    });
+
+    document.getElementById('signBtn')?.addEventListener('click', () => {
       if (!global.EodLandscapeSigPad?.open) {
         global.showAlert?.('Signature', 'Signature pad failed to load. Refresh and try again.');
         return;
@@ -1187,7 +1199,7 @@ ${cleanNotes}`;
           render(mount);
         },
       });
-    };
+    });
 
     document.getElementById('previewBtn').onclick = () => {
       const payload = global.applyEodTestModeToPayload

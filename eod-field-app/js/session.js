@@ -34,6 +34,7 @@
     checkInDone: false,
     beforesStepDone: false,
     signatureDataUrl: '',
+    proxyEodStamp: '',
     photos: { before: [], after: [], signoff: [], instawork: [], context: [] },
     notInStoreSelected: [],
     notInSiSelected: [],
@@ -165,6 +166,7 @@
     state.kompassTimesheetYes = null;
     state.materialsReadYes = null;
     state.addRetailOdysseyTeam = false;
+    state.proxyEodStamp = '';
     emit('reset');
   }
 
@@ -356,6 +358,9 @@
     state.extraVisitIds = Array.isArray(data.extraVisitIds) ? data.extraVisitIds.map(String) : [];
     state.profileLocked = !!data.profileLocked;
     state.addRetailOdysseyTeam = !!data.addRetailOdysseyTeam;
+    state.proxyEodStamp = /^EOD submitted \d{2}\/\d{2}\/\d{2}$/.test(String(data.proxyEodStamp || ''))
+      ? String(data.proxyEodStamp)
+      : '';
     // A day-confirm may only hydrate the same draft visit; never cross store/date.
     const dc = getActiveDayConfirm();
     if (dc && (!state.storeNumber
@@ -425,6 +430,7 @@
       extraVisitIds: (state.extraVisitIds || []).slice(),
       profileLocked: !!state.profileLocked,
       addRetailOdysseyTeam: !!state.addRetailOdysseyTeam,
+      proxyEodStamp: state.proxyEodStamp || '',
       selectedShift: state.selectedShift
         ? {
             visitId: state.selectedShift.visitId,

@@ -60,6 +60,7 @@
             }
           : null,
         signatureDataUrl: state.signatureDataUrl || '',
+        proxyEodStamp: state.proxyEodStamp || '',
       },
     };
   }
@@ -70,6 +71,7 @@
       payload.checkInManager
       || payload.checkOutManager
       || payload.signatureDataUrl
+      || payload.proxyEodStamp
       || payload.cartPhotoDone
       || payload.checkInDone
       || payload.beforesStepDone
@@ -134,6 +136,11 @@
         patch.helpdeskResolution = p.helpdeskResolution;
       }
       if (p.addRetailOdysseyTeam) patch.addRetailOdysseyTeam = true;
+      if (typeof p.proxyEodStamp === 'string') {
+        patch.proxyEodStamp = /^EOD submitted \d{2}\/\d{2}\/\d{2}$/.test(p.proxyEodStamp)
+          ? p.proxyEodStamp
+          : '';
+      }
       S.patch(patch, 'visit-mirror');
       if (p.signatureDataUrl && S.state.signatureDataUrl !== p.signatureDataUrl) {
         S.state.signatureDataUrl = p.signatureDataUrl;

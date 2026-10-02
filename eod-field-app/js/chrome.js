@@ -233,7 +233,8 @@
       `In ${S.state.checkInManager || '—'} · Out ${S.state.checkOutManager || '—'}`,
       sheet ? `Sheet ${sheet.fiscalWeek || ''} ${sheet.summary?.marked || 0}/${sheet.summary?.total || 0}` : 'No hosted sheet',
       `Photos: ${counts}`,
-      S.state.signatureDataUrl ? 'Lead signature on file' : 'No lead signature',
+      global.EodProxyEod?.activeStamp?.()
+        || (S.state.signatureDataUrl ? 'Lead signature on file' : 'No lead signature'),
       diag ? `Retries: ${diag}` : '',
     ].filter(Boolean).join('\n');
   }

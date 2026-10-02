@@ -145,6 +145,7 @@
     });
     if (workDate) qs.set('date', workDate);
     if (visitId) qs.set('visitId', String(visitId));
+    global.EodProxyEod?.applyToSearchParams?.(qs);
     const resp = await global.authFetch(`${SIGNOFF_PDF_API}/pdf?${qs}`);
     if (resp.status === 404) return [];
     if (!resp.ok) {
