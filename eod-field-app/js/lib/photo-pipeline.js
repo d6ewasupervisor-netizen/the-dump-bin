@@ -1163,12 +1163,12 @@
     const S = global.EodSession;
     const storeNumber = job.storeNumber || S.state.storeNumber;
     const date = job.workDate || S.state.workDate;
-    const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+    const maint = global.EodSendSheetsLogic?.pickMaintenancePhotoVisit?.(
       S.state.shifts,
       S.state.selectedShift
     );
-    const visitId = mainIse?.visitId || job.visitId;
-    if (!visitId) throw new Error('No Kompass ISE shift found for this store and day');
+    const visitId = maint?.visitId || job.visitId;
+    if (!visitId) throw new Error('No Kompass ISE, Blitz, or Cut In shift found for this store and day');
     const leadName = S.state.leadName || S.state.profileName || '';
     const padded = String(storeNumber).padStart(3, '0');
     const dateCompact = String(date || '').replace(/-/g, '');

@@ -570,12 +570,12 @@
 
   function mainKompassIseVisit() {
     const S = global.EodSession;
-    const visit = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+    const visit = global.EodSendSheetsLogic?.pickMaintenancePhotoVisit?.(
       S.state.shifts,
       S.state.selectedShift
     );
     if (!visit?.visitId) {
-      throw new Error('No Kompass ISE shift found for this store and day');
+      throw new Error('No Kompass ISE, Blitz, or Cut In shift found for this store and day');
     }
     return visit;
   }

@@ -7,6 +7,7 @@ const path = require('path');
 const {
   isMainKompassIse,
   pickMainKompassIseVisit,
+  pickMaintenancePhotoVisit,
   classifySheetFilename,
   coversheetFilename,
   digitalSignoffFilename,
@@ -38,6 +39,20 @@ test('pickMainKompassIseVisit prefers ISE even when Cut In is selected', () => {
   assert.equal(pickMainKompassIseVisit([cutIn, ise], cutIn), ise);
   assert.equal(pickMainKompassIseVisit([cutIn, ise], ise), ise);
   assert.equal(pickMainKompassIseVisit([cutIn], cutIn), null);
+});
+
+test('maintenance photos stay on ISE, else Cut In or Blitz', () => {
+  const ise = { visitId: '111', projectId: 1, projectName: 'Kompass ISE' };
+  const cutIn = { visitId: '222', projectId: 1668, projectName: 'Cut In' };
+  const blitz = { visitId: '333', projectId: 1715, projectName: 'Blitz' };
+  const div = { visitId: '444', projectId: 3568, projectName: 'DIV' };
+  assert.equal(pickMaintenancePhotoVisit([cutIn, ise, blitz], blitz).visitId, '111');
+  assert.equal(pickMaintenancePhotoVisit([cutIn, blitz], cutIn).visitId, '222');
+  assert.equal(pickMaintenancePhotoVisit([cutIn, blitz], blitz).visitId, '333');
+  assert.equal(pickMaintenancePhotoVisit([blitz], null).visitId, '333');
+  assert.equal(pickMaintenancePhotoVisit([cutIn], null).visitId, '222');
+  assert.equal(pickMaintenancePhotoVisit([div, blitz], div).visitId, '333');
+  assert.equal(pickMaintenancePhotoVisit([div], div), null);
 });
 
 test('sheet filenames classify coversheet vs digital vs paper', () => {

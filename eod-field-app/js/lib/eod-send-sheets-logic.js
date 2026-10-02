@@ -30,6 +30,35 @@
     return list.find(isMainKompassIse) || null;
   }
 
+  function isCutInShift(shift) {
+    const id = shiftProjectId(shift);
+    if (id === 1668) return true;
+    const blob = shiftTypeBlob(shift);
+    if (/blitz/.test(blob)) return false;
+    return /cut\s*in/.test(blob);
+  }
+
+  function isBlitzShift(shift) {
+    const id = shiftProjectId(shift);
+    if (id === 1715) return true;
+    const blob = shiftTypeBlob(shift);
+    if (/cut\s*in/.test(blob)) return false;
+    return /blitz/.test(blob);
+  }
+
+  /**
+   * KOMPASS MAINTENANCE before/after photos.
+   * Kompass ISE (project 1) when that visit is on the store day.
+   * Cut In (1668) or Blitz (1715) only when ISE is absent.
+   */
+  function pickMaintenancePhotoVisit(shifts, selectedShift) {
+    const ise = pickMainKompassIseVisit(shifts, selectedShift);
+    if (ise?.visitId) return ise;
+    const list = Array.isArray(shifts) ? shifts : [];
+    if (isCutInShift(selectedShift) || isBlitzShift(selectedShift)) return selectedShift;
+    return list.find(isCutInShift) || list.find(isBlitzShift) || null;
+  }
+
   function isCentralPetReset(shift) {
     if (!shift || isCentralPetService(shift)) return false;
     if (shiftProjectId(shift) === 9295) return true;
@@ -491,6 +520,9 @@
     dateCompact,
     isMainKompassIse,
     pickMainKompassIseVisit,
+    isCutInShift,
+    isBlitzShift,
+    pickMaintenancePhotoVisit,
     isCentralPetReset,
     isCentralPetService,
     isCutInBlitzDiv,

@@ -925,12 +925,12 @@ ${cleanNotes}`;
         try {
           const pipe = global.EodPhotoPipeline;
           if (pipe?.enqueue) {
-            const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+            const maint = global.EodSendSheetsLogic?.pickMaintenancePhotoVisit?.(
               S.state.shifts,
               S.state.selectedShift
             );
-            if (!mainIse?.visitId) {
-              throw new Error('No Kompass ISE shift found for this store and day');
+            if (!maint?.visitId) {
+              throw new Error('No Kompass ISE, Blitz, or Cut In shift found for this store and day');
             }
             const job = pipe.enqueue({
               kind: 'cart',
@@ -938,7 +938,7 @@ ${cleanNotes}`;
               slot,
               bay: 1,
               file,
-              visitId: mainIse.visitId,
+              visitId: maint.visitId,
             });
             const entry = {
               dataUrl: job.previewUrl,

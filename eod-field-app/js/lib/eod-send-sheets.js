@@ -273,11 +273,11 @@
     if (canon === '999') return { uploaded: 0, skipped: true, reason: 'test-store' };
 
     const L = logic();
-    const main = L.pickMainKompassIseVisit(S?.state?.shifts, S?.state?.selectedShift);
+    const main = L.pickMaintenancePhotoVisit(S?.state?.shifts, S?.state?.selectedShift);
     const visitId = main?.visitId;
     if (!visitId) {
-      console.warn('[eod-send-sheets] skip SAS upload — no Kompass ISE visit for this store and day');
-      return { uploaded: 0, skipped: true, reason: 'no-ise-visit' };
+      console.warn('[eod-send-sheets] skip SAS upload — no Kompass ISE, Blitz, or Cut In visit for this store and day');
+      return { uploaded: 0, skipped: true, reason: 'no-maintenance-visit' };
     }
 
     const results = [];

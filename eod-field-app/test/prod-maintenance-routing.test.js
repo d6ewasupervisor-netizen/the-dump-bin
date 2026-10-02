@@ -17,8 +17,10 @@ test('cart captures target the main Kompass ISE maintenance slots', () => {
   assert.match(visit, /function mainKompassIseVisit\(\)/);
   assert.match(visit, /const visitId = mainKompassIseVisit\(\)\.visitId;/);
   assert.match(visit, /visitId: mainKompassIseVisit\(\)\.visitId,/);
-  assert.match(send, /pickMainKompassIseVisit/);
-  assert.match(send, /visitId: mainIse\.visitId,/);
+  assert.match(visit, /pickMaintenancePhotoVisit/);
+  assert.match(send, /pickMaintenancePhotoVisit/);
+  assert.match(send, /visitId: maint\.visitId,/);
+  assert.match(pipeline, /pickMaintenancePhotoVisit/);
   assert.match(pipeline, /targetReset: 'MAINTENANCE'/);
   assert.match(pipeline, /slot,/);
   assert.match(pipeline, /status === 'completed'/);
@@ -31,6 +33,6 @@ test('EOD cover and digital signoff pages upload to maintenance after photos', (
   assert.match(sheets, /source: 'digital-signoff'/);
   assert.match(sheets, /slot: 'after'/);
   assert.match(sheets, /targetReset: 'MAINTENANCE'/);
-  assert.match(sheets, /pickMainKompassIseVisit/);
-  assert.match(sheets, /no-ise-visit/);
+  assert.match(sheets, /pickMaintenancePhotoVisit/);
+  assert.match(sheets, /no-maintenance-visit/);
 });
