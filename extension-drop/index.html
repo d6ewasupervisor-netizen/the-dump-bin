@@ -40,8 +40,7 @@
         <li>In the folder picker, click the USB drive, then click the <strong>sas-automator-portable</strong> folder (the one with <strong>manifest.json</strong>). Click <strong>Select Folder</strong>. Do not pick the USB root. Do not pick Documents or Downloads.</li>
         <li>Come back to this page. Click <strong>Download update</strong> once. Wait until it says Downloaded. File Explorer should show a zip named like <strong>sas-automator-portable-2.8.3.zip</strong> inside that same USB folder.</li>
         <li>If the zip is missing from the USB folder, stop. Check Chrome’s download shelf. If it went to This PC → Downloads, move that zip onto the USB folder, then delete it from Downloads.</li>
-        <li>On the USB folder, double-click the zip to open it. Press <strong>Ctrl+A</strong> (select all). Press <strong>Ctrl+C</strong> (copy).</li>
-        <li>Click the USB folder behind the zip (the folder that already has <strong>manifest.json</strong>). Press <strong>Ctrl+V</strong> (paste). When Windows asks, choose <strong>Replace the files in the destination</strong> for every prompt. Do not extract into a new folder named after the zip.</li>
+        <li>On the USB folder, right-click the zip → <strong>Extract All…</strong>. Click <strong>Browse</strong> and pick the same <strong>sas-automator-portable</strong> folder (the one that already has <strong>manifest.json</strong>). Do not leave the default path if it adds a new folder named after the zip. Click <strong>Extract</strong>. When Windows asks, choose <strong>Replace the files in the destination</strong> every time.</li>
         <li>In Chrome, type <strong>chrome://extensions</strong>, press Enter. Find <strong>SAS Retail Automator (Portable)</strong>. Click the reload circle. Unlock with your pattern.</li>
         <li>Go back to <strong>chrome://settings/downloads</strong> → <strong>Change</strong> → This PC → <strong>Downloads</strong>, so later Chrome downloads do not keep going to the USB stick.</li>
       </ol>
@@ -102,7 +101,7 @@
           a.remove();
           URL.revokeObjectURL(url);
           btn.textContent = 'Downloaded';
-          setMsg('Zip is on the USB folder. Open it, Ctrl+A, Ctrl+C, paste into the same USB folder, Replace the files. Then chrome://extensions → reload.', 'ok');
+          setMsg('Right-click the zip on the USB → Extract All → Browse to the same sas-automator-portable folder → Extract → Replace the files. Then chrome://extensions → reload.', 'ok');
         } catch (e) {
           btn.disabled = false;
           btn.textContent = 'Download update';
