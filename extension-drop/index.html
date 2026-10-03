@@ -21,21 +21,29 @@
     .msg.err{color:#ff8a96}
     .msg.ok{color:var(--green)}
     ol{margin:0 0 0 18px;color:var(--sec);font-size:14px;line-height:1.55}
-    ol li{margin:0 0 8px}
+    ol li{margin:0 0 10px}
+    ol ol{margin:8px 0 0 16px;list-style:lower-alpha}
+    .warn{color:#ffb86b;font-weight:700}
   </style>
 </head>
 <body>
   <div class="wrap">
     <a class="back" href="/">← Team Resources</a>
     <h1>SAS Automator update</h1>
-    <p class="sub">This download works once. Save it on the USB stick, not the office computer.</p>
+    <p class="sub">One download. Put it on the USB stick. Do not leave the zip in Chrome’s default Downloads folder on this PC.</p>
     <div class="panel">
       <ol>
-        <li>Plug in the USB stick.</li>
-        <li>Chrome → <strong>chrome://settings/downloads</strong> → <strong>Change</strong> → pick the SAS Automator Portable folder on the USB stick.</li>
-        <li>Come back here and tap <strong>Download update</strong>.</li>
-        <li>On the USB stick, open the zip. Extract into that same USB folder. Replace existing files.</li>
-        <li><strong>chrome://extensions</strong> → reload SAS Retail Automator (Portable). Unlock with your pattern.</li>
+        <li>Plug in the USB stick. Wait until File Explorer shows the drive (example: <strong>E:</strong> or <strong>F:</strong>).</li>
+        <li>Open that drive. Find the folder that already has the automator in it. It is named <strong>sas-automator-portable</strong> (or the folder you used last time with <strong>manifest.json</strong> inside). Leave that window open so you can see the path.</li>
+        <li>In Chrome, click the address bar, type exactly <strong>chrome://settings/downloads</strong>, press Enter.</li>
+        <li>Under <strong>Location</strong>, click <strong>Change</strong>.</li>
+        <li>In the folder picker, click the USB drive, then click the <strong>sas-automator-portable</strong> folder (the one with <strong>manifest.json</strong>). Click <strong>Select Folder</strong>. Do not pick the USB root. Do not pick Documents or Downloads.</li>
+        <li>Come back to this page. Click <strong>Download update</strong> once. Wait until it says Downloaded. File Explorer should show a zip named like <strong>sas-automator-portable-2.8.3.zip</strong> inside that same USB folder.</li>
+        <li>If the zip is missing from the USB folder, stop. Check Chrome’s download shelf. If it went to This PC → Downloads, move that zip onto the USB folder, then delete it from Downloads.</li>
+        <li>On the USB folder, double-click the zip to open it. Press <strong>Ctrl+A</strong> (select all). Press <strong>Ctrl+C</strong> (copy).</li>
+        <li>Click the USB folder behind the zip (the folder that already has <strong>manifest.json</strong>). Press <strong>Ctrl+V</strong> (paste). When Windows asks, choose <strong>Replace the files in the destination</strong> for every prompt. Do not extract into a new folder named after the zip.</li>
+        <li>In Chrome, type <strong>chrome://extensions</strong>, press Enter. Find <strong>SAS Retail Automator (Portable)</strong>. Click the reload circle. Unlock with your pattern.</li>
+        <li>Go back to <strong>chrome://settings/downloads</strong> → <strong>Change</strong> → This PC → <strong>Downloads</strong>, so later Chrome downloads do not keep going to the USB stick.</li>
       </ol>
       <button class="btn" id="dl" type="button" disabled>Checking…</button>
       <p class="msg" id="msg"></p>
@@ -94,7 +102,7 @@
           a.remove();
           URL.revokeObjectURL(url);
           btn.textContent = 'Downloaded';
-          setMsg('Open that zip on the USB stick and extract over the same folder. Replace files when asked.', 'ok');
+          setMsg('Zip is on the USB folder. Open it, Ctrl+A, Ctrl+C, paste into the same USB folder, Replace the files. Then chrome://extensions → reload.', 'ok');
         } catch (e) {
           btn.disabled = false;
           btn.textContent = 'Download update';
