@@ -32,8 +32,10 @@
       <button class="btn" id="dl" type="button" disabled>Checking…</button>
       <p class="msg" id="msg"></p>
       <ol id="steps" hidden>
-        <li>Open the zip. Extract <strong>sas-automator-portable-2.8.3.zip</strong> over the existing extension folder.</li>
-        <li>Copy <strong>vault.enc</strong> into that same folder.</li>
+        <li>Plug in the USB stick that already has SAS Automator Portable on it.</li>
+        <li>Open the downloaded zip. Inside: <strong>sas-automator-portable-2.8.3.zip</strong> and <strong>vault.enc</strong>.</li>
+        <li>Extract <strong>sas-automator-portable-2.8.3.zip</strong> <strong>into and over</strong> the portable folder on the USB stick. Replace existing files when Windows asks.</li>
+        <li>Copy <strong>vault.enc</strong> into that same USB folder (replace if a file with that name is already there).</li>
         <li>Chrome → <strong>chrome://extensions</strong> → reload SAS Retail Automator (Portable).</li>
         <li>Unlock with your pattern.</li>
       </ol>
@@ -91,7 +93,7 @@
           a.remove();
           URL.revokeObjectURL(url);
           btn.textContent = 'Downloaded';
-          setMsg('Save that zip, then follow the steps below.', 'ok');
+          setMsg('Save that zip. Copy it onto the USB stick and replace the files there, then follow the steps below.', 'ok');
           steps.hidden = false;
         } catch (e) {
           btn.disabled = false;
