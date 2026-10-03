@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SAS Automator update</title>
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
-  <script src="/auth-gate.js?v=20261003-ext-drop"></script>
+  <script src="/auth-gate.js?v=20261003-ext-drop2"></script>
   <style>
     :root { --bg:#0a0e13; --card:#151d28; --border:#243044; --text:#f0f4f8; --muted:#6b7d94; --sec:#a8b8cc; --accent:#4da6ff; --green:#00e87a; --red:#ff4757; --radius:14px; }
     *{box-sizing:border-box;margin:0;padding:0}
@@ -15,37 +15,36 @@
     h1{font-size:1.45rem;font-weight:800;margin:16px 0 8px}
     .sub{color:var(--sec);font-size:14px;line-height:1.45;margin-bottom:18px}
     .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
-    .btn{display:block;width:100%;border:0;background:#1f4e79;color:#fff;border-radius:10px;padding:14px 16px;font:inherit;font-size:16px;font-weight:800;cursor:pointer}
+    .btn{display:block;width:100%;border:0;background:#1f4e79;color:#fff;border-radius:10px;padding:14px 16px;font:inherit;font-size:16px;font-weight:800;cursor:pointer;margin-top:16px}
     .btn:disabled{opacity:.5;cursor:not-allowed}
     .msg{margin-top:14px;font-size:14px;color:var(--sec);line-height:1.45}
     .msg.err{color:#ff8a96}
     .msg.ok{color:var(--green)}
-    ol{margin:14px 0 0 18px;color:var(--sec);font-size:14px;line-height:1.55}
+    ol{margin:0 0 0 18px;color:var(--sec);font-size:14px;line-height:1.55}
+    ol li{margin:0 0 8px}
   </style>
 </head>
 <body>
   <div class="wrap">
     <a class="back" href="/">← Team Resources</a>
     <h1>SAS Automator update</h1>
-    <p class="sub">Download the office update. This button works once.</p>
+    <p class="sub">This download works once. Save it on the USB stick, not the office computer.</p>
     <div class="panel">
+      <ol>
+        <li>Plug in the USB stick.</li>
+        <li>Chrome → <strong>chrome://settings/downloads</strong> → <strong>Change</strong> → pick the SAS Automator Portable folder on the USB stick.</li>
+        <li>Come back here and tap <strong>Download update</strong>.</li>
+        <li>On the USB stick, open the zip. Extract into that same USB folder. Replace existing files.</li>
+        <li><strong>chrome://extensions</strong> → reload SAS Retail Automator (Portable). Unlock with your pattern.</li>
+      </ol>
       <button class="btn" id="dl" type="button" disabled>Checking…</button>
       <p class="msg" id="msg"></p>
-      <ol id="steps" hidden>
-        <li>Plug in the USB stick that already has SAS Automator Portable on it.</li>
-        <li>Open the downloaded zip. Inside: <strong>sas-automator-portable-2.8.3.zip</strong> and <strong>vault.enc</strong>.</li>
-        <li>Extract <strong>sas-automator-portable-2.8.3.zip</strong> <strong>into and over</strong> the portable folder on the USB stick. Replace existing files when Windows asks.</li>
-        <li>Copy <strong>vault.enc</strong> into that same USB folder (replace if a file with that name is already there).</li>
-        <li>Chrome → <strong>chrome://extensions</strong> → reload SAS Retail Automator (Portable).</li>
-        <li>Unlock with your pattern.</li>
-      </ol>
     </div>
   </div>
   <script>
     (async function () {
       var btn = document.getElementById('dl');
       var msg = document.getElementById('msg');
-      var steps = document.getElementById('steps');
       function setMsg(text, cls) {
         msg.className = 'msg' + (cls ? ' ' + cls : '');
         msg.textContent = text || '';
@@ -83,18 +82,19 @@
             setMsg(err.error || 'Download failed.', 'err');
             return;
           }
+          var cd = res.headers.get('Content-Disposition') || res.headers.get('content-disposition') || '';
+          var m = cd.match(/filename="([^"]+)"/);
           var blob = await res.blob();
           var url = URL.createObjectURL(blob);
           var a = document.createElement('a');
           a.href = url;
-          a.download = 'sas-portable-drop.zip';
+          a.download = (m && m[1]) || 'sas-automator-portable.zip';
           document.body.appendChild(a);
           a.click();
           a.remove();
           URL.revokeObjectURL(url);
           btn.textContent = 'Downloaded';
-          setMsg('Save that zip. Copy it onto the USB stick and replace the files there, then follow the steps below.', 'ok');
-          steps.hidden = false;
+          setMsg('Open that zip on the USB stick and extract over the same folder. Replace files when asked.', 'ok');
         } catch (e) {
           btn.disabled = false;
           btn.textContent = 'Download update';
