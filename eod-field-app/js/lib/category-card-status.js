@@ -232,10 +232,25 @@
     return 'unknown';
   }
 
-  function neededCaptureSlot(row, extraBefore) {
+  function neededCaptureSlot(row, extraBefore, extraAfter) {
     const counts = prodPhotoCounts(row, extraBefore);
-    if (counts.before <= 0) return 'before';
+    const before = counts.before;
+    const after = Math.max(counts.after, Number(extraAfter) || 0);
+    const need = expectedPhotoNeed(row);
+    if (countMeetsNeed(before, need) && countMeetsNeed(after, need)) return '';
+    if (before <= 0) return 'before';
     return 'after';
+  }
+
+  function nextCaptureBay(row, slot, extraBefore, extraAfter) {
+    const counts = prodPhotoCounts(row, extraBefore);
+    const have = String(slot) === 'before'
+      ? counts.before
+      : Math.max(counts.after, Number(extraAfter) || 0);
+    const next = (Number(have) || 0) + 1;
+    const need = expectedPhotoNeed(row);
+    if (need > 0 && next > need) return need;
+    return Math.max(1, next);
   }
 
   function liveStatusLineFromCounts(opts, esc) {
@@ -573,6 +588,7 @@
     siCaptureLabel,
     prodClosedPartialBefore,
     neededCaptureSlot,
+    nextCaptureBay,
     liveStatusLineFromCounts,
     liveStatusLineHtml,
     prodPhotosReady,

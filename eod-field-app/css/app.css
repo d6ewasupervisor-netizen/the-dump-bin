@@ -1275,6 +1275,12 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 }
 .ds-row-capture { flex: 1 1 100%; }
 .ds-row-capture .btn { width: 100%; min-height: var(--touch); }
+.ds-row-capture .btn:disabled {
+  background: #44403c;
+  color: #f5f5f4;
+  opacity: 1;
+  cursor: default;
+}
 .ds-row-compact .ds-actions { flex: 1 1 100%; }
 .ds-row.is-selected { outline: 2px solid var(--accent); }
 .ds-row.marked-ne { background: rgba(120, 53, 15, .3); }

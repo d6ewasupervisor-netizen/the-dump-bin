@@ -19,6 +19,7 @@ const {
   prodPhotoState,
   prodStatusPillHtml,
   neededCaptureSlot,
+  nextCaptureBay,
   liveStatusLineHtml,
   siDisplayLabel,
   siCaptureLabel,
@@ -81,6 +82,15 @@ test('neededCaptureSlot is before until any before exists, then after', () => {
   assert.equal(neededCaptureSlot({ live: { prodBeforeCount: 0, prodAfterCount: 0 } }), 'before');
   assert.equal(neededCaptureSlot({ live: { prodBeforeCount: 1, prodAfterCount: 0 } }), 'after');
   assert.equal(neededCaptureSlot({ live: { prodBeforeCount: 0, prodAfterCount: 0 } }, 2), 'after');
+  assert.equal(neededCaptureSlot({
+    live: { prodBeforeCount: 6, prodAfterCount: 2, siLocation: { bayCount: 6 } },
+  }), 'after');
+  assert.equal(neededCaptureSlot({
+    live: { prodBeforeCount: 6, prodAfterCount: 6, siLocation: { bayCount: 6 } },
+  }), '');
+  assert.equal(nextCaptureBay({
+    live: { prodBeforeCount: 6, prodAfterCount: 2, siLocation: { bayCount: 6 } },
+  }, 'after'), 3);
 });
 
 test('live status line says in progress when SAS is complete but only befores exist', () => {

@@ -1416,11 +1416,12 @@
     function startSequentialCapture(slot, opts) {
       const fromOne = !!(opts && opts.fromOne);
       const returnTo = opts && opts.returnTo;
+      const startBay = Math.max(1, Number(opts && opts.startBay) || 1);
       const n = () => knownBayCount();
       const replacing = !fromOne && nextEmptyBay(slot) == null;
       const batchId = replacing ? (`r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) : null;
       let wiped = false;
-      let sessionBay = 0;
+      let sessionBay = startBay - 1;
       liveCameraOpen = true;
       openLiveCamera({
         loadLabel: replacing ? 'Load to replace' : 'Load photos',
@@ -1729,7 +1730,11 @@
     paintBody();
     if (autoCapture && !listCaptureStarted) {
       listCaptureStarted = true;
-      startSequentialCapture(preferSlot, { fromOne: true, returnTo: 'signoff' });
+      startSequentialCapture(preferSlot, {
+        fromOne: true,
+        returnTo: 'signoff',
+        startBay: Math.max(1, Number(qp.get('bay')) || 1),
+      });
     }
     void flushDevicePhotosToPipeline().then((n) => {
       if (n) {

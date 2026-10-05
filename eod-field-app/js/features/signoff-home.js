@@ -779,6 +779,14 @@
     return Array.isArray(list) ? list.length : 0;
   }
 
+  function localAfterCount(row) {
+    const S = global.EodSession;
+    const week = sheetWeek();
+    if (!row?.dbkey || !week) return 0;
+    const list = global.EodSetBeforeStore?.getAfters?.(S.state.storeNumber, week, row.dbkey) || [];
+    return Array.isArray(list) ? list.length : 0;
+  }
+
   function openSetSurvey(btn, slot, extras) {
     const dbkey = btn.getAttribute('data-dbkey') || '';
     const row = btn.getAttribute('data-capture-start')
@@ -794,6 +802,8 @@
     const qs = new URLSearchParams({ dbkey, rowId: row, name });
     const useSlot = slot || btn.getAttribute('data-slot') || '';
     if (useSlot) qs.set('slot', useSlot);
+    const bay = btn.getAttribute('data-bay');
+    if (bay) qs.set('bay', bay);
     if (extras && extras.capture) qs.set('capture', '1');
     location.hash = `#/survey?${qs.toString()}`;
   }
@@ -901,8 +911,11 @@
         : '';
       const priorNote = Status?.priorShiftNote?.(row, global.EodSession?.state?.workDate) || '';
       const captureSlot = Status?.neededCaptureSlot
-        ? Status.neededCaptureSlot(row, localBefores)
-        : 'after';
+        ? Status.neededCaptureSlot(row, localBefores, localAfterCount(row))
+        : 'before';
+      const captureBay = captureSlot && Status?.nextCaptureBay
+        ? Status.nextCaptureBay(row, captureSlot, localBefores, localAfterCount(row))
+        : 1;
       const openAttrs = canOpen
         ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"`
         : '';
@@ -920,7 +933,7 @@
           ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
         ${catNum ? `<div class="ds-row-catnum" title="Category">${esc(catNum)}</div>` : ''}
-        ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-slot="${esc(captureSlot)}">Capture</button></div>` : ''}
+        ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-slot="${esc(captureSlot)}" data-bay="${captureBay}"${captureSlot ? '' : ' disabled'}>Capture</button></div>` : ''}
         <div class="ds-actions">
           ${btn('not_in_store', 'Not in Store')}
           ${btn('not_in_si', 'Not in SI')}
@@ -1242,6 +1255,7 @@
       rowsEl.querySelectorAll('[data-capture-start]').forEach((btn) => {
         btn.onclick = (ev) => {
           ev.stopPropagation();
+          if (btn.disabled || !btn.getAttribute('data-slot')) return;
           openSetSurvey(btn, btn.getAttribute('data-slot'), { capture: true });
         };
       });
