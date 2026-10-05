@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.11';
+  const UI_VERSION = 'v2.12';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -715,6 +715,7 @@
       });
     }
     updateSortHeaders();
+    initReferrals();
 
     await loadHires();
     await loadEmployees();
@@ -869,6 +870,623 @@
     if (send) send.addEventListener('click', () => sendNotice().catch((err) => {
       document.getElementById('noticeStatus').textContent = err.message;
     }));
+  }
+
+  const REFERRAL_API = '/api/welcome-letter/referrals';
+  const referralState = { items: [], due: [] };
+
+  const DUE_LABELS = {
+    waiting_for_first_shift: 'Waiting for first shift',
+    upcoming: 'Upcoming',
+    needs_referred_eid: 'Needs referred EID',
+    needs_good_standing: 'Needs good standing',
+    not_in_good_standing: 'Not in good standing',
+    needs_hours: 'Needs hours',
+    short_hours: 'Short hours',
+    eligible: 'Eligible',
+    paid: 'Paid',
+    closed: 'Closed',
+  };
+
+  const STATUS_LABELS = {
+    reported: 'Reported',
+    contacted: 'Contacted',
+    submitted: 'Submitted',
+    interview: 'Interview',
+    offer: 'Offer',
+    hired: 'Hired',
+    not_selected: 'Not selected',
+  };
+
+  const PAYOUT_LABELS = {
+    pending: 'Pending',
+    eligible: 'Eligible',
+    tracker_prepared: 'Tracker prepared',
+    submitted_to_director: 'Submitted to director',
+    vp_approved: 'VP approved',
+    sent: 'Sent',
+    paid: 'Paid',
+  };
+
+  function setPanel(el, show) {
+    if (!el) return;
+    el.hidden = !show;
+    el.classList.toggle('wb-hidden', !show);
+  }
+
+  function fmtDay(iso) {
+    if (!iso) return '—';
+    const match = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return fmtShortDate(iso) || String(iso);
+    const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return day.toLocaleDateString();
+  }
+
+  function dateInputValue(iso) {
+    const match = String(iso || '').match(/^(\d{4}-\d{2}-\d{2})/);
+    return match ? match[1] : '';
+  }
+
+  function emptyToNull(value) {
+    const text = String(value ?? '').trim();
+    return text ? text : null;
+  }
+
+  function standingSelect(value) {
+    if (value === true) return 'true';
+    if (value === false) return 'false';
+    return '';
+  }
+
+  function parseStanding(value) {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return null;
+  }
+
+  function standingText(value) {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    return 'Not set';
+  }
+
+  function labelOf(map, value) {
+    const key = String(value || '');
+    return map[key] || (key ? key.replace(/_/g, ' ') : '—');
+  }
+
+  function milestoneOf(referral, n) {
+    const milestones = referral && referral.milestones;
+    if (!milestones) return {};
+    return milestones[n] || milestones[String(n)] || {};
+  }
+
+  function milestoneTitle(source, n) {
+    const days = source && source.daysRequired;
+    const hours = source && source.hoursRequired;
+    if (days && hours) return `${days}-day / ${hours}-hour`;
+    return n === 2 ? '30-day / 80-hour' : '15-day / 40-hour';
+  }
+
+  function dueBadge(state) {
+    const label = labelOf(DUE_LABELS, state);
+    const key = String(state || '');
+    if (key === 'eligible' || key === 'paid') return badge(label, 'sent');
+    if (key === 'needs_hours' || key === 'short_hours' || key === 'upcoming') return badge(label, 'pending');
+    if (key === 'needs_referred_eid' || key === 'needs_good_standing' || key === 'not_in_good_standing') {
+      return badge(label, 'failed');
+    }
+    return badge(label, 'not-opened');
+  }
+
+  function referralStatusBadge(status) {
+    const label = labelOf(STATUS_LABELS, status);
+    const key = String(status || '');
+    if (key === 'hired' || key === 'offer') return badge(label, 'sent');
+    if (key === 'not_selected') return badge(label, 'failed');
+    if (key === 'interview' || key === 'submitted' || key === 'contacted') return badge(label, 'pending');
+    return badge(label, 'not-opened');
+  }
+
+  function showRefBanner({ ok, message }) {
+    const el = document.getElementById('refBanner');
+    if (!el) return;
+    el.classList.remove('wb-hidden', 'ok', 'err');
+    el.hidden = false;
+    el.classList.add(ok ? 'ok' : 'err');
+    el.textContent = message;
+  }
+
+  function setSelectValue(id, value, fallback) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const next = value || fallback || '';
+    if (next && ![...el.options].some((opt) => opt.value === next)) {
+      const option = document.createElement('option');
+      option.value = next;
+      option.textContent = labelOf(PAYOUT_LABELS, next);
+      el.appendChild(option);
+    }
+    el.value = next || fallback || '';
+  }
+
+  function showFormError(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!message) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = message;
+  }
+
+  function hoursLine(milestone) {
+    const required = milestone && milestone.hoursRequired != null ? `${milestone.hoursRequired}h required` : '';
+    if (!milestone || milestone.hoursConfirmed == null) {
+      return required ? `Hours not confirmed · ${required}` : 'Hours not confirmed';
+    }
+    return `${milestone.hoursConfirmed}h confirmed${required ? ` · ${required}` : ''}`;
+  }
+
+  function milestoneCell(referral, n) {
+    const milestone = milestoneOf(referral, n);
+    const payout = labelOf(PAYOUT_LABELS, milestone.payoutStatus || referral[`m${n}PayoutStatus`]);
+    return `<div><strong>${escapeHtml(milestoneTitle(milestone, n))}</strong></div>
+      <div>${escapeHtml(fmtDay(milestone.eligibleOn))}</div>
+      <div>${dueBadge(milestone.dueState)}</div>
+      <div class="wb-muted">${escapeHtml(hoursLine(milestone))}</div>
+      <div class="wb-muted">Payout record: ${escapeHtml(payout)}</div>`;
+  }
+
+  function standingCell(referrer, referred) {
+    return `<div>Referrer: ${escapeHtml(standingText(referrer))}</div>
+      <div>Referred: ${escapeHtml(standingText(referred))}</div>`;
+  }
+
+  function renderReferralRows(items) {
+    const tbody = document.getElementById('refRows');
+    if (!tbody) return;
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="wb-muted">No referrals yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map((item) => `<tr data-id="${escapeHtml(item.id)}">
+      <td>${escapeHtml(item.referrerName || '—')}</td>
+      <td>${escapeHtml(item.referralName || '—')}</td>
+      <td>${referralStatusBadge(item.status)}</td>
+      <td>
+        <div>Referred ${escapeHtml(item.referredEid || '—')}</div>
+        <div class="wb-muted">Referrer ${escapeHtml(item.referrerEid || '—')}</div>
+      </td>
+      <td>${escapeHtml(fmtDay(item.firstShiftOn))}</td>
+      <td>${milestoneCell(item, 1)}</td>
+      <td>${milestoneCell(item, 2)}</td>
+      <td>${standingCell(item.referrerGoodStanding, item.referredGoodStanding)}</td>
+    </tr>`).join('');
+    tbody.querySelectorAll('tr[data-id]').forEach((row) => {
+      row.addEventListener('click', () => {
+        const found = referralState.items.find((item) => item.id === row.dataset.id);
+        if (found) openReferralForm(found);
+      });
+    });
+  }
+
+  function renderDueRows(items) {
+    const tbody = document.getElementById('refDueRows');
+    const count = document.getElementById('refDueCount');
+    if (count) count.textContent = items.length ? String(items.length) : '';
+    if (!tbody) return;
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="wb-muted">No milestones have arrived that still need hours.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map((item) => `<tr>
+      <td>${escapeHtml(item.referrerName || '—')}</td>
+      <td>${escapeHtml(item.referralName || '—')}</td>
+      <td>${escapeHtml(milestoneTitle(item, item.milestone))}</td>
+      <td>
+        <div>${escapeHtml(fmtDay(item.eligibleOn))}</div>
+        <div class="wb-muted">First shift ${escapeHtml(fmtDay(item.firstShiftOn))}</div>
+      </td>
+      <td>${dueBadge(item.dueState)}<div class="wb-muted" style="margin-top:4px;">${escapeHtml(hoursLine(item))}</div></td>
+      <td>
+        <div>Referred ${escapeHtml(item.referredEid || '—')}</div>
+        <div class="wb-muted">Referrer ${escapeHtml(item.referrerEid || '—')}</div>
+      </td>
+      <td>${standingCell(item.referrerGoodStanding, item.referredGoodStanding)}</td>
+      <td><button type="button" class="wb-btn wb-btn-primary ref-hours-btn" data-id="${escapeHtml(item.referralId)}" data-milestone="${escapeHtml(item.milestone)}" style="padding:6px 10px;font-size:13px;">Enter hours</button></td>
+    </tr>`).join('');
+    tbody.querySelectorAll('.ref-hours-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const found = referralState.due.find((item) => (
+          item.referralId === btn.dataset.id && String(item.milestone) === String(btn.dataset.milestone)
+        ));
+        if (found) openHoursForm(found);
+      });
+    });
+  }
+
+  async function loadReferralList() {
+    const tbody = document.getElementById('refRows');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="wb-muted">Loading…</td></tr>';
+    const params = new URLSearchParams();
+    const status = document.getElementById('refStatusFilter');
+    if (status && status.value) params.set('status', status.value);
+    const query = params.toString();
+    const data = await api(`${REFERRAL_API}${query ? `?${query}` : ''}`);
+    referralState.items = data.items || [];
+    renderReferralRows(referralState.items);
+  }
+
+  async function loadDue() {
+    const tbody = document.getElementById('refDueRows');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="wb-muted">Loading…</td></tr>';
+    const data = await api(`${REFERRAL_API}/due`);
+    const arrived = (data.items || []).filter((item) => (
+      item.dueState === 'needs_hours' || item.dueState === 'short_hours'
+    ));
+    referralState.due = arrived;
+    renderDueRows(arrived);
+  }
+
+  async function loadReferrals() {
+    const banner = document.getElementById('refBanner');
+    if (banner) {
+      banner.classList.add('wb-hidden');
+      banner.hidden = true;
+      banner.textContent = '';
+    }
+    const errors = [];
+    try {
+      await loadReferralList();
+    } catch (err) {
+      errors.push(err.message);
+      const tbody = document.getElementById('refRows');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
+    }
+    try {
+      await loadDue();
+    } catch (err) {
+      errors.push(err.message);
+      const tbody = document.getElementById('refDueRows');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
+    }
+    if (errors.length) showRefBanner({ ok: false, message: errors.join(' ') });
+    return errors.length === 0;
+  }
+
+  function openReferralForm(item) {
+    setReferralView('list', { pushUrl: true });
+    showFormError('refFormError', '');
+    document.getElementById('refEditingId').value = item ? item.id : '';
+    document.getElementById('refFormTitle').textContent = item ? 'Edit referral' : 'Add referral';
+    document.getElementById('refReferrerName').value = item ? (item.referrerName || '') : '';
+    document.getElementById('refReferrerEid').value = item ? (item.referrerEid || '') : '';
+    document.getElementById('refReferrerPhone').value = item ? (item.referrerPhone || '') : '';
+    document.getElementById('refReferrerStore').value = item ? (item.referrerStoreNumber || '') : '';
+    document.getElementById('refReferrerDept').value = item ? (item.referrerDeptNumber || '') : '';
+    document.getElementById('refRetailer').value = item ? (item.retailer || '') : '';
+    document.getElementById('refReferrerSupervisor').value = item ? (item.referrerSupervisorName || '') : '';
+    document.getElementById('refReferralName').value = item ? (item.referralName || '') : '';
+    document.getElementById('refReferralPhone').value = item ? (item.referralPhone || '') : '';
+    document.getElementById('refReferralEmail').value = item ? (item.referralEmail || '') : '';
+    document.getElementById('refReferredEid').value = item ? (item.referredEid || '') : '';
+    setSelectValue('refStatus', item ? item.status : 'reported', 'reported');
+    document.getElementById('refReportedOn').value = item ? dateInputValue(item.reportedOn) : '';
+    document.getElementById('refTaFormOn').value = item ? dateInputValue(item.taFormSubmittedOn) : '';
+    document.getElementById('refFirstShiftOn').value = item ? dateInputValue(item.firstShiftOn) : '';
+    document.getElementById('refOnboardHireId').value = item ? (item.onboardHireId || '') : '';
+    document.getElementById('refReferrerStanding').value = item ? standingSelect(item.referrerGoodStanding) : '';
+    document.getElementById('refReferredStanding').value = item ? standingSelect(item.referredGoodStanding) : '';
+    document.getElementById('refSupervisorContacted').checked = item ? Boolean(item.supervisorContacted) : false;
+    setSelectValue('refM1Payout', item ? item.m1PayoutStatus : 'pending', 'pending');
+    setSelectValue('refM2Payout', item ? item.m2PayoutStatus : 'pending', 'pending');
+    document.getElementById('refNotes').value = item ? (item.notes || '') : '';
+    const form = document.getElementById('referralForm');
+    setPanel(form, true);
+    document.getElementById('refReferrerName').focus();
+  }
+
+  function closeReferralForm() {
+    setPanel(document.getElementById('referralForm'), false);
+    showFormError('refFormError', '');
+  }
+
+  function referralPayload(creating) {
+    const payload = {
+      referrerName: document.getElementById('refReferrerName').value.trim(),
+      referrerEid: emptyToNull(document.getElementById('refReferrerEid').value),
+      referrerStoreNumber: emptyToNull(document.getElementById('refReferrerStore').value),
+      referrerDeptNumber: emptyToNull(document.getElementById('refReferrerDept').value),
+      referrerPhone: emptyToNull(document.getElementById('refReferrerPhone').value),
+      referrerSupervisorName: emptyToNull(document.getElementById('refReferrerSupervisor').value),
+      retailer: emptyToNull(document.getElementById('refRetailer').value),
+      referralName: document.getElementById('refReferralName').value.trim(),
+      referralPhone: emptyToNull(document.getElementById('refReferralPhone').value),
+      referralEmail: emptyToNull(document.getElementById('refReferralEmail').value),
+      reportedOn: emptyToNull(document.getElementById('refReportedOn').value),
+      supervisorContacted: document.getElementById('refSupervisorContacted').checked,
+      taFormSubmittedOn: emptyToNull(document.getElementById('refTaFormOn').value),
+      status: document.getElementById('refStatus').value,
+      referredEid: emptyToNull(document.getElementById('refReferredEid').value),
+      onboardHireId: emptyToNull(document.getElementById('refOnboardHireId').value),
+      firstShiftOn: emptyToNull(document.getElementById('refFirstShiftOn').value),
+      referrerGoodStanding: parseStanding(document.getElementById('refReferrerStanding').value),
+      referredGoodStanding: parseStanding(document.getElementById('refReferredStanding').value),
+      m1PayoutStatus: document.getElementById('refM1Payout').value,
+      m2PayoutStatus: document.getElementById('refM2Payout').value,
+      notes: emptyToNull(document.getElementById('refNotes').value),
+    };
+    if (!payload.referrerName || !payload.referralName) {
+      throw new Error('Referrer name and referred person are required.');
+    }
+    if (!creating) return payload;
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] == null) delete payload[key];
+    });
+    if (!payload.notes) delete payload.notes;
+    return payload;
+  }
+
+  async function saveReferral(event) {
+    event.preventDefault();
+    const btn = document.getElementById('refSaveBtn');
+    const id = document.getElementById('refEditingId').value;
+    showFormError('refFormError', '');
+    let payload;
+    try {
+      payload = referralPayload(!id);
+    } catch (err) {
+      showFormError('refFormError', err.message);
+      return;
+    }
+    btn.disabled = true;
+    try {
+      if (id) {
+        await api(`${REFERRAL_API}/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await api(REFERRAL_API, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
+      closeReferralForm();
+      const refreshed = await loadReferrals();
+      if (refreshed) {
+        showRefBanner({
+          ok: true,
+          message: id ? 'Referral updated.' : 'Referral added.',
+        });
+      }
+    } catch (err) {
+      showFormError('refFormError', err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function openHoursForm(item) {
+    showFormError('refHoursError', '');
+    document.getElementById('refHoursId').value = item.referralId || '';
+    document.getElementById('refHoursMilestone').value = String(item.milestone || 1);
+    document.getElementById('refHoursValue').value = '';
+    document.getElementById('refHoursReferrerStanding').value = standingSelect(item.referrerGoodStanding);
+    document.getElementById('refHoursReferredStanding').value = standingSelect(item.referredGoodStanding);
+    const last = item.hoursConfirmed == null
+      ? 'No hours are confirmed yet.'
+      : `Last confirmed figure on file: ${item.hoursConfirmed} hours${item.hoursConfirmedBy ? ` (${item.hoursConfirmedBy})` : ''}.`;
+    document.getElementById('refHoursContext').textContent = `${item.referrerName || 'Referrer'} referred ${item.referralName || 'the new hire'}. ${milestoneTitle(item, item.milestone)}. ${last} Type the hours from PROD. They are not confirmed until you submit.`;
+    setPanel(document.getElementById('referralHoursForm'), true);
+    document.getElementById('refHoursValue').focus();
+  }
+
+  function closeHoursForm() {
+    setPanel(document.getElementById('referralHoursForm'), false);
+    document.getElementById('refHoursValue').value = '';
+    showFormError('refHoursError', '');
+  }
+
+  async function saveHours(event) {
+    event.preventDefault();
+    const btn = document.getElementById('refHoursSaveBtn');
+    const id = document.getElementById('refHoursId').value;
+    const milestone = Number(document.getElementById('refHoursMilestone').value);
+    const hours = Number(document.getElementById('refHoursValue').value);
+    showFormError('refHoursError', '');
+    if (!id) {
+      showFormError('refHoursError', 'Choose a milestone from the Due list first.');
+      return;
+    }
+    if (!Number.isFinite(hours) || hours < 0 || hours > 1000) {
+      showFormError('refHoursError', 'Hours must be a number from 0 to 1000.');
+      return;
+    }
+    const title = milestone === 2 ? '30-day / 80-hour' : '15-day / 40-hour';
+    if (!window.confirm(`Confirm ${hours} hours from PROD for the ${title} milestone? This records those hours. It does not email a payout.`)) {
+      return;
+    }
+    btn.disabled = true;
+    try {
+      await api(`${REFERRAL_API}/${encodeURIComponent(id)}/hours`, {
+        method: 'POST',
+        body: JSON.stringify({
+          milestone,
+          hours,
+          referrerGoodStanding: parseStanding(document.getElementById('refHoursReferrerStanding').value),
+          referredGoodStanding: parseStanding(document.getElementById('refHoursReferredStanding').value),
+        }),
+      });
+      closeHoursForm();
+      const refreshed = await loadReferrals();
+      if (refreshed) {
+        showRefBanner({
+          ok: true,
+          message: `Confirmed ${hours} hours from PROD for the ${title} milestone.`,
+        });
+      }
+    } catch (err) {
+      showFormError('refHoursError', err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function filenameFromDisposition(header, fallback) {
+    if (!header) return fallback;
+    const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+    if (encoded) {
+      try { return decodeURIComponent(encoded[1].trim()); } catch (_err) { return fallback; }
+    }
+    const plain = /filename="([^"]+)"/i.exec(header) || /filename=([^;]+)/i.exec(header);
+    return plain ? plain[1].trim() : fallback;
+  }
+
+  async function downloadTracker(format) {
+    // GET download only. Never POST /tracker, never markPrepared, never email.
+    const fetchFn = window.dumpBinAuthFetch || fetch;
+    const xlsxBtn = document.getElementById('refXlsxBtn');
+    const csvBtn = document.getElementById('refCsvBtn');
+    if (xlsxBtn) xlsxBtn.disabled = true;
+    if (csvBtn) csvBtn.disabled = true;
+    try {
+      const res = await fetchFn(`${REFERRAL_API}/tracker?format=${encodeURIComponent(format)}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      const type = res.headers.get('Content-Type') || '';
+      if (!res.ok || type.includes('application/json')) {
+        const text = await res.text();
+        let body = {};
+        try { body = text ? JSON.parse(text) : {}; } catch (_err) { body = {}; }
+        const missing = Array.isArray(body.incomplete)
+          ? body.incomplete.map((row) => `milestone ${row.milestone} missing ${(row.missing || []).join(', ')}`).join('; ')
+          : '';
+        throw new Error([body.error || `HTTP ${res.status}`, missing].filter(Boolean).join(' '));
+      }
+      const blob = await res.blob();
+      const filename = filenameFromDisposition(
+        res.headers.get('Content-Disposition'),
+        `SAS_Referral_Payout_Tracker.${format}`,
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showRefBanner({
+        ok: true,
+        message: `Downloaded ${filename}. The file was not emailed, and no payout was submitted.`,
+      });
+    } catch (err) {
+      showRefBanner({ ok: false, message: err.message });
+    } finally {
+      if (xlsxBtn) xlsxBtn.disabled = false;
+      if (csvBtn) csvBtn.disabled = false;
+    }
+  }
+
+  function setReferralView(view, { pushUrl = true } = {}) {
+    const due = view === 'due';
+    setPanel(document.getElementById('refListView'), !due);
+    setPanel(document.getElementById('refDueView'), due);
+    const listBtn = document.getElementById('refViewList');
+    const dueBtn = document.getElementById('refViewDue');
+    if (listBtn) {
+      listBtn.classList.toggle('is-active', !due);
+      listBtn.setAttribute('aria-selected', String(!due));
+    }
+    if (dueBtn) {
+      dueBtn.classList.toggle('is-active', due);
+      dueBtn.setAttribute('aria-selected', String(due));
+    }
+    if (pushUrl) {
+      const url = new URL(window.location.href);
+      if (due) url.searchParams.set('view', 'due');
+      else url.searchParams.delete('view');
+      window.history.replaceState(null, '', url.toString());
+    }
+  }
+
+  function switchMainTab(name, { pushUrl = true } = {}) {
+    const referrals = name === 'referrals';
+    setPanel(document.getElementById('panelBoard'), !referrals);
+    setPanel(document.getElementById('panelReferrals'), referrals);
+    const boardActions = document.getElementById('boardActions');
+    if (boardActions) boardActions.classList.toggle('wb-hidden', referrals);
+    const boardTab = document.getElementById('tabBoard');
+    const referralTab = document.getElementById('tabReferrals');
+    if (boardTab) {
+      boardTab.classList.toggle('is-active', !referrals);
+      boardTab.setAttribute('aria-selected', String(!referrals));
+    }
+    if (referralTab) {
+      referralTab.classList.toggle('is-active', referrals);
+      referralTab.setAttribute('aria-selected', String(referrals));
+    }
+    if (pushUrl) {
+      const url = new URL(window.location.href);
+      if (referrals) url.searchParams.set('tab', 'referrals');
+      else {
+        url.searchParams.delete('tab');
+        url.searchParams.delete('view');
+      }
+      window.history.replaceState(null, '', url.toString());
+    }
+    if (referrals) {
+      loadReferrals().catch((err) => showRefBanner({ ok: false, message: err.message }));
+    }
+  }
+
+  function initReferrals() {
+    const boardTab = document.getElementById('tabBoard');
+    const referralTab = document.getElementById('tabReferrals');
+    if (boardTab) boardTab.addEventListener('click', () => switchMainTab('board'));
+    if (referralTab) referralTab.addEventListener('click', () => switchMainTab('referrals'));
+    const listBtn = document.getElementById('refViewList');
+    const dueBtn = document.getElementById('refViewDue');
+    if (listBtn) listBtn.addEventListener('click', () => setReferralView('list'));
+    if (dueBtn) dueBtn.addEventListener('click', () => setReferralView('due'));
+    const filter = document.getElementById('refFilterForm');
+    if (filter) {
+      filter.addEventListener('submit', (event) => {
+        event.preventDefault();
+        loadReferralList().catch((err) => showRefBanner({ ok: false, message: err.message }));
+      });
+    }
+    const addBtn = document.getElementById('refAddBtn');
+    if (addBtn) addBtn.addEventListener('click', () => openReferralForm(null));
+    const refreshBtn = document.getElementById('refRefreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        loadReferrals().catch((err) => showRefBanner({ ok: false, message: err.message }));
+      });
+    }
+    const form = document.getElementById('referralForm');
+    if (form) form.addEventListener('submit', (event) => { saveReferral(event).catch(() => {}); });
+    const cancel = document.getElementById('refCancelBtn');
+    if (cancel) cancel.addEventListener('click', closeReferralForm);
+    const hoursForm = document.getElementById('referralHoursForm');
+    if (hoursForm) hoursForm.addEventListener('submit', (event) => { saveHours(event).catch(() => {}); });
+    const hoursCancel = document.getElementById('refHoursCancelBtn');
+    if (hoursCancel) hoursCancel.addEventListener('click', closeHoursForm);
+    const xlsx = document.getElementById('refXlsxBtn');
+    const csv = document.getElementById('refCsvBtn');
+    if (xlsx) xlsx.addEventListener('click', () => { downloadTracker('xlsx').catch(() => {}); });
+    if (csv) csv.addEventListener('click', () => { downloadTracker('csv').catch(() => {}); });
+
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') === 'referrals') {
+      switchMainTab('referrals', { pushUrl: false });
+      if (url.searchParams.get('view') === 'due') setReferralView('due', { pushUrl: false });
+    }
   }
 
   bindEmployeeNotice();

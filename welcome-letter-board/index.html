@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.11 -->
+  <!-- welcome-letter-board v2.12 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.11">
+  <meta name="welcome-letter-version" content="v2.12">
   <title>Welcome Letter Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -213,6 +213,77 @@
     .wb-modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
     .wb-hidden { display: none !important; }
+
+    .wb-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 16px;
+    }
+    .wb-tab {
+      appearance: none;
+      border: 1px solid var(--wb-line);
+      background: var(--wb-white);
+      color: var(--wb-navy);
+      border-radius: 999px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    .wb-tab:hover { background: var(--wb-sky-tint); }
+    .wb-tab.is-active {
+      background: var(--wb-navy);
+      color: #fff;
+      border-color: var(--wb-navy);
+    }
+    .wb-tab:focus-visible { outline: 2px solid var(--wb-sky); outline-offset: 2px; }
+    .wb-tab-count {
+      display: inline-block;
+      margin-left: 6px;
+      min-width: 1.2em;
+      text-align: center;
+    }
+
+    .wb-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .wb-form-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--wb-navy);
+    }
+    .wb-form-grid input,
+    .wb-form-grid select,
+    .wb-form-grid textarea {
+      font: inherit;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--wb-ink);
+      border: 1px solid var(--wb-line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: var(--wb-white);
+      min-height: 38px;
+    }
+    .wb-form-grid textarea { min-height: 88px; resize: vertical; }
+    .wb-span-all { grid-column: 1 / -1; }
+    .wb-form-grid label.wb-check {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+    }
+    .wb-check input { width: auto; min-height: 0; }
+    .wb-help { margin: 0; color: var(--wb-muted); font-size: 13px; line-height: 1.45; }
+    .wb-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    #refDueRows tr, #referralForm { cursor: default; }
   </style>
 </head>
 <body>
@@ -243,11 +314,18 @@
         <p>Every welcome letter sent to new hires — MTA delivery status, first-party open/click beacons, cancel (disregard), and exact resend.</p>
         <p class="wb-signed-in" id="signedInAs" hidden></p>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+      <div id="boardActions" class="wb-actions">
         <button type="button" id="refreshBtn" class="wb-btn wb-btn-ghost">Refresh delivery (Resend)</button>
         <a href="/welcome/" class="wb-btn wb-btn-primary">Send New Welcome Letter</a>
       </div>
     </div>
+
+    <div class="wb-tabs" role="tablist" aria-label="Welcome Letter Board">
+      <button type="button" class="wb-tab is-active" id="tabBoard" role="tab" aria-selected="true" aria-controls="panelBoard">Board</button>
+      <button type="button" class="wb-tab" id="tabReferrals" role="tab" aria-selected="false" aria-controls="panelReferrals">Referrals</button>
+    </div>
+
+    <div id="panelBoard">
 
     <div id="justSentBanner" class="wb-banner wb-hidden"></div>
 
@@ -436,10 +514,246 @@
 
     </div>
 
+    <div id="panelReferrals" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <div class="wb-head" style="margin-bottom:12px;">
+          <div>
+            <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">District 8 referrals</h2>
+            <p class="wb-help" style="margin-top:8px;max-width:78ch;">Referrer, referred associate, milestone dates, and good standing for Tyson Gauthier’s district. Hours are typed in from PROD. Nothing on this tab confirms hours or sends a payout on its own.</p>
+            <p class="wb-help" style="margin-top:6px;max-width:78ch;">The tracker buttons only download a file. Payouts go Supervisor to Director to VP to asm.referral@advantagesolutions.net outside this app.</p>
+          </div>
+          <div class="wb-actions">
+            <button type="button" id="refAddBtn" class="wb-btn wb-btn-primary">Add referral</button>
+            <button type="button" id="refRefreshBtn" class="wb-btn wb-btn-ghost">Refresh</button>
+            <button type="button" id="refXlsxBtn" class="wb-btn wb-btn-ghost">Download tracker (xlsx)</button>
+            <button type="button" id="refCsvBtn" class="wb-btn wb-btn-ghost">Download tracker (csv)</button>
+          </div>
+        </div>
+        <div id="refBanner" class="wb-banner wb-hidden"></div>
+        <div class="wb-tabs" role="tablist" aria-label="Referral views">
+          <button type="button" class="wb-tab is-active" id="refViewList" role="tab" aria-selected="true" aria-controls="refListView">All referrals</button>
+          <button type="button" class="wb-tab" id="refViewDue" role="tab" aria-selected="false" aria-controls="refDueView">Due <span id="refDueCount" class="wb-tab-count"></span></button>
+        </div>
+
+        <div id="refListView">
+          <form id="refFilterForm" class="wb-filters" style="margin-bottom:12px;">
+            <label>Status
+              <select id="refStatusFilter">
+                <option value="">Any</option>
+                <option value="reported">Reported</option>
+                <option value="contacted">Contacted</option>
+                <option value="submitted">Submitted</option>
+                <option value="interview">Interview</option>
+                <option value="offer">Offer</option>
+                <option value="hired">Hired</option>
+                <option value="not_selected">Not selected</option>
+              </select>
+            </label>
+            <div class="wb-filter-actions">
+              <button type="submit" class="wb-btn wb-btn-primary">Apply</button>
+            </div>
+          </form>
+          <div class="wb-table-wrap">
+            <table class="wb-table">
+              <thead>
+                <tr>
+                  <th>Referrer</th>
+                  <th>Referred</th>
+                  <th>Status</th>
+                  <th>EID</th>
+                  <th>First shift</th>
+                  <th>15-day / 40-hour</th>
+                  <th>30-day / 80-hour</th>
+                  <th>Good standing</th>
+                </tr>
+              </thead>
+              <tbody id="refRows">
+                <tr><td colspan="8" class="wb-muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <form id="referralForm" class="wb-card wb-hidden" hidden style="margin-top:16px;box-shadow:none;">
+            <h3 id="refFormTitle" style="margin:0 0 8px;color:var(--wb-navy);">Add referral</h3>
+            <p class="wb-help" style="margin-bottom:12px;">Saving stores the referral. It does not confirm hours or email a payout.</p>
+            <input type="hidden" id="refEditingId" value="">
+            <div class="wb-form-grid">
+              <label>Referrer name
+                <input id="refReferrerName" required autocomplete="off">
+              </label>
+              <label>Referrer EID
+                <input id="refReferrerEid" autocomplete="off">
+              </label>
+              <label>Referrer phone
+                <input id="refReferrerPhone" autocomplete="off">
+              </label>
+              <label>Store number
+                <input id="refReferrerStore" autocomplete="off">
+              </label>
+              <label>Dept number
+                <input id="refReferrerDept" autocomplete="off" placeholder="08">
+              </label>
+              <label>Retailer
+                <input id="refRetailer" autocomplete="off" placeholder="Fred Meyer">
+              </label>
+              <label class="wb-span-all">Referrer’s supervisor
+                <input id="refReferrerSupervisor" autocomplete="off">
+              </label>
+              <label>Referred person
+                <input id="refReferralName" required autocomplete="off">
+              </label>
+              <label>Referred phone
+                <input id="refReferralPhone" autocomplete="off">
+              </label>
+              <label>Referred email
+                <input id="refReferralEmail" type="email" autocomplete="off">
+              </label>
+              <label>Referred EID
+                <input id="refReferredEid" autocomplete="off">
+              </label>
+              <label>Status
+                <select id="refStatus">
+                  <option value="reported">Reported</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="interview">Interview</option>
+                  <option value="offer">Offer</option>
+                  <option value="hired">Hired</option>
+                  <option value="not_selected">Not selected</option>
+                </select>
+              </label>
+              <label>Reported on
+                <input id="refReportedOn" type="date">
+              </label>
+              <label>TA form submitted
+                <input id="refTaFormOn" type="date">
+              </label>
+              <label>First shift date
+                <input id="refFirstShiftOn" type="date">
+              </label>
+              <label>Onboard hire id
+                <input id="refOnboardHireId" autocomplete="off">
+              </label>
+              <label>Referrer good standing
+                <select id="refReferrerStanding">
+                  <option value="">Not set</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label>Referred good standing
+                <select id="refReferredStanding">
+                  <option value="">Not set</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label class="wb-check wb-span-all">
+                <input id="refSupervisorContacted" type="checkbox">
+                Supervisor contacted
+              </label>
+              <label>15-day / 40-hour payout record
+                <select id="refM1Payout">
+                  <option value="pending">Pending</option>
+                  <option value="eligible">Eligible</option>
+                  <option value="tracker_prepared">Tracker prepared</option>
+                  <option value="submitted_to_director">Submitted to director</option>
+                  <option value="vp_approved">VP approved</option>
+                  <option value="sent">Sent</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </label>
+              <label>30-day / 80-hour payout record
+                <select id="refM2Payout">
+                  <option value="pending">Pending</option>
+                  <option value="eligible">Eligible</option>
+                  <option value="tracker_prepared">Tracker prepared</option>
+                  <option value="submitted_to_director">Submitted to director</option>
+                  <option value="vp_approved">VP approved</option>
+                  <option value="sent">Sent</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </label>
+              <p class="wb-help wb-span-all">Payout status here is a record only. Changing it does not email the director, VP, or asm.referral@advantagesolutions.net.</p>
+              <label class="wb-span-all">Notes
+                <textarea id="refNotes"></textarea>
+              </label>
+            </div>
+            <div class="wb-actions" style="margin-top:12px;">
+              <button type="submit" id="refSaveBtn" class="wb-btn wb-btn-primary">Save referral</button>
+              <button type="button" id="refCancelBtn" class="wb-btn wb-btn-ghost">Cancel</button>
+            </div>
+            <p id="refFormError" class="wb-error" hidden></p>
+          </form>
+        </div>
+
+        <div id="refDueView" class="wb-hidden" hidden>
+          <p class="wb-help" style="margin-bottom:12px;">Milestones whose date has arrived and still need hours. Read the hours in PROD, then submit the form. The page does not fill or confirm hours for you.</p>
+          <div class="wb-table-wrap">
+            <table class="wb-table">
+              <thead>
+                <tr>
+                  <th>Referrer</th>
+                  <th>Referred</th>
+                  <th>Milestone</th>
+                  <th>Milestone date</th>
+                  <th>Status</th>
+                  <th>EID</th>
+                  <th>Good standing</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="refDueRows">
+                <tr><td colspan="8" class="wb-muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <form id="referralHoursForm" class="wb-card wb-hidden" hidden style="margin-top:16px;box-shadow:none;">
+            <h3 style="margin:0 0 8px;color:var(--wb-navy);">Confirm hours from PROD</h3>
+            <p id="refHoursContext" class="wb-help" style="margin-bottom:12px;"></p>
+            <input type="hidden" id="refHoursId" value="">
+            <div class="wb-form-grid">
+              <label>Milestone
+                <select id="refHoursMilestone">
+                  <option value="1">1 — 15-day / 40-hour</option>
+                  <option value="2">2 — 30-day / 80-hour</option>
+                </select>
+              </label>
+              <label>Hours from PROD
+                <input id="refHoursValue" type="number" min="0" max="1000" step="0.01" required placeholder="Type the PROD hours">
+              </label>
+              <label>Referrer good standing
+                <select id="refHoursReferrerStanding">
+                  <option value="">Not set</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label>Referred good standing
+                <select id="refHoursReferredStanding">
+                  <option value="">Not set</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+            </div>
+            <div class="wb-actions" style="margin-top:12px;">
+              <button type="submit" id="refHoursSaveBtn" class="wb-btn wb-btn-primary">Confirm hours</button>
+              <button type="button" id="refHoursCancelBtn" class="wb-btn wb-btn-ghost">Cancel</button>
+            </div>
+            <p id="refHoursError" class="wb-error" hidden></p>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    </div>
+
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Welcome Letter Board version">v2.11</span>
+  <span class="wb-version" id="wbVersion" title="Welcome Letter Board version">v2.12</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.11"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.12"></script>
 </body>
 </html>
