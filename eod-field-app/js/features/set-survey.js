@@ -42,7 +42,7 @@
   }
 
   function photoId(p) {
-    return p?.id ?? p?.photoId ?? p?.imageId ?? p?.actionId ?? p?.sectionId ?? null;
+    return p?.id ?? p?.photoId ?? p?.imageId ?? p?.actionId ?? p?.reportId ?? p?.sectionId ?? null;
   }
 
   function selectedFilesInOrder(files) {
@@ -921,18 +921,10 @@
         if (remoteBayCovered(slot, n)) set.add(n);
       }
       for (const n of liveCoveredBays(local.status, slot)) set.add(n);
-      if (!local.liveProd) {
-        const cached = String(slot) === 'before' ? beforeCached() : afterCached();
-        for (const p of cached) {
-          const n = Number(p.bayIndex);
-          if (Number.isFinite(n) && n > 0) set.add(n);
-        }
-      } else if (String(slot) === 'after') {
-        for (const p of afterCached()) {
-          if (p.source === 'prod') continue;
-          const n = Number(p.bayIndex);
-          if (Number.isFinite(n) && n > 0) set.add(n);
-        }
+      const cached = String(slot) === 'before' ? beforeCached() : afterCached();
+      for (const p of cached) {
+        const n = Number(p.bayIndex);
+        if (Number.isFinite(n) && n > 0) set.add(n);
       }
       return set;
     }
@@ -1044,10 +1036,11 @@
         }
         for (const p of incoming) byBay.set(Number(p.bay), p);
         const photos = [...byBay.values()];
-        if (slot === 'after' && incoming.length === 0 && prev.length > 0 && keepBays.size === 0) {
+        if (incoming.length === 0 && prev.length > 0 && keepBays.size === 0) {
           /* Hydrate can look empty after offload. Writing [] here wiped
-             device afters, nextEmptyBay reset to 1, and the open camera
-             dumped the next aisle onto this set. */
+             device photos, nextEmptyBay reset to 1, and the open camera
+             dumped the next aisle onto this set. Befores added after the
+             afters hit the same wipe. */
           return;
         }
         if (slot === 'before') global.EodSetBeforeStore.setBefores(S.state.storeNumber, week, dbkey, photos);
@@ -1203,11 +1196,12 @@
       const live = remoteAsPhotos(slot);
       const pack = slot === 'before' ? beforeCached() : afterCached();
       const device = deviceAsPhotos(local[slot], slot);
-      const localDevice = device.filter((p) => /^(data:|blob:)/i.test(String(p.url || '')));
+      const freshDevice = device.filter((p) => /^data:/i.test(String(p.url || '')));
+      const blobDevice = device.filter((p) => /^blob:/i.test(String(p.url || '')));
       const remoteDevice = device.filter((p) => !/^(data:|blob:)/i.test(String(p.url || '')));
       const seen = new Set();
       const out = [];
-      for (const p of [...localDevice, ...pack, ...live, ...remoteDevice]) {
+      for (const p of [...freshDevice, ...pack, ...live, ...blobDevice, ...remoteDevice]) {
         const bay = Number(p.bayIndex);
         const key = Number.isFinite(bay) && bay > 0 ? `bay-${bay}` : `${p.source}|${p.id}`;
         if (seen.has(key) || !p.url) continue;

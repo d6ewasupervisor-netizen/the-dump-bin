@@ -620,12 +620,14 @@
     function activeIndexFromScroll(track) {
       const frames = [...(track?.querySelectorAll('.gh-stage-frame') || [])];
       if (!frames.length) return 0;
-      const mid = (track.scrollLeft || 0) + track.clientWidth / 2;
+      const trackBox = track.getBoundingClientRect();
+      const mid = trackBox.left + track.clientWidth / 2;
       let best = 0;
       let bestDist = Infinity;
       frames.forEach((frame) => {
         const i = Number(frame.dataset.idx);
-        const center = frame.offsetLeft + frame.offsetWidth / 2;
+        const box = frame.getBoundingClientRect();
+        const center = box.left + box.width / 2;
         const dist = Math.abs(center - mid);
         if (dist < bestDist) {
           best = i;
