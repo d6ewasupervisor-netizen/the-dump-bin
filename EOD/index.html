@@ -2,6 +2,20 @@
 <!-- build: 2026-08-24T23:10Z eod-v2.17.7-pic-sets-sign -->
 <html lang="en">
 <head>
+    <script>
+      (function () {
+        var incoming = new URLSearchParams(location.search);
+        var dest = new URL('/', location.origin);
+        if (location.hostname === 'www.the-dump-bin.com') {
+          dest.protocol = 'https:';
+          dest.hostname = 'the-dump-bin.com';
+        }
+        var token = incoming.get('token');
+        if (token) dest.searchParams.set('token', token);
+        dest.searchParams.set('retired', 'eod-cover');
+        location.replace(dest.href);
+      })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">

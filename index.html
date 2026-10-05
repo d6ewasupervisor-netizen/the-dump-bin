@@ -9,6 +9,94 @@
 
   <link rel="stylesheet" href="/styles.css">
   <script src="/auth-gate.js?v=20260813-hub-restrict"></script>
+  <style>
+    .card--retired {
+      position: relative;
+      overflow: hidden;
+    }
+    .card__retired-stamp {
+      position: absolute;
+      left: 4%;
+      top: 8%;
+      width: 92%;
+      height: 84%;
+      object-fit: contain;
+      object-position: center;
+      pointer-events: none;
+      z-index: 2;
+      user-select: none;
+    }
+    .retired-notice {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%);
+      z-index: 40;
+      width: min(440px, calc(100% - 24px));
+      margin: 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #141c27;
+      border: 2px solid #C8102E;
+      color: #e8ecf1;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.35;
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    }
+    .retired-notice[hidden] { display: none !important; }
+    @keyframes eod-pilot-invite {
+      0% {
+        transform: translateY(0) scale(1);
+        outline-color: transparent;
+        box-shadow: 0 0 0 0 rgba(57, 255, 20, 0);
+      }
+      8% {
+        transform: translateY(-20px) scale(1.045);
+        outline-color: #39ff14;
+        box-shadow: 0 0 0 6px #39ff14, 0 0 32px 8px rgba(57, 255, 20, .9), 0 24px 40px rgba(0,0,0,.4);
+      }
+      18% {
+        transform: translateY(-16px) scale(1.03);
+        outline-color: rgba(57, 255, 20, .2);
+        box-shadow: 0 0 0 2px rgba(57, 255, 20, .25), 0 16px 28px rgba(0,0,0,.28);
+      }
+      32% {
+        transform: translateY(-22px) scale(1.05);
+        outline-color: #39ff14;
+        box-shadow: 0 0 0 7px #39ff14, 0 0 40px 10px rgba(57, 255, 20, .95), 0 26px 42px rgba(0,0,0,.42);
+      }
+      46% {
+        transform: translateY(-16px) scale(1.03);
+        outline-color: rgba(57, 255, 20, .18);
+        box-shadow: 0 0 0 2px rgba(57, 255, 20, .22), 0 16px 28px rgba(0,0,0,.28);
+      }
+      60% {
+        transform: translateY(-24px) scale(1.055);
+        outline-color: #39ff14;
+        box-shadow: 0 0 0 8px #39ff14, 0 0 48px 12px rgba(57, 255, 20, 1), 0 28px 46px rgba(0,0,0,.45);
+      }
+      76% {
+        transform: translateY(-18px) scale(1.035);
+        outline-color: #39ff14;
+        box-shadow: 0 0 0 5px rgba(57, 255, 20, .75), 0 0 22px 4px rgba(57, 255, 20, .55), 0 18px 30px rgba(0,0,0,.3);
+      }
+      100% {
+        transform: translateY(0) scale(1);
+        outline-color: transparent;
+        box-shadow: 0 0 0 0 rgba(57, 255, 20, 0);
+      }
+    }
+    .card.card--invite,
+    .card.card--invite:hover {
+      position: relative;
+      z-index: 5;
+      transition: none;
+      outline: 8px solid transparent;
+      outline-offset: 3px;
+      animation: eod-pilot-invite 4.8s ease-in-out 1 both;
+    }
+  </style>
 </head>
 <body>
 
@@ -36,6 +124,7 @@
 
     <section class="card-section">
       <h2 class="card-section__title">Daily Tools</h2>
+      <p id="retired-notice" class="retired-notice" hidden>EOD Cover Sheet is retired. Use EOD Field Pilot.</p>
       <div class="card-grid">
 
         <a href="/dump-bin/" class="card">
@@ -44,13 +133,14 @@
           <span class="card__desc">Weekly Kompass materials, planograms, special projects, and reset resources.</span>
         </a>
 
-        <a href="/EOD/" class="card">
+        <a href="/EOD/" class="card card--retired" data-retired="eod-cover">
           <span class="card__icon">📋</span>
           <span class="card__title">EOD Cover Sheet</span>
           <span class="card__desc">Generate and email the Kompass end-of-day cover sheet for your store.</span>
+          <img class="card__retired-stamp" src="/retired.png" alt="Officially retired">
         </a>
 
-        <a href="/eod-field-app/" class="card">
+        <a href="/eod-field-app/" class="card" data-invite="eod-field-pilot">
           <span class="card__icon">🧪</span>
           <span class="card__title">EOD Field Pilot</span>
           <span class="card__desc">Greenfield EOD rebuild — digital signoff heart. Production Cover Sheet stays at EOD until cutover.</span>
@@ -305,6 +395,53 @@
           if (anyVisible) section.hidden = false;
         });
       } catch (_) {}
+    })();
+  </script>
+  <script>
+    (function () {
+      var cover = document.querySelector('[data-retired="eod-cover"]');
+      var pilot = document.querySelector('[data-invite="eod-field-pilot"]');
+      var notice = document.getElementById('retired-notice');
+      if (!cover || !pilot || !notice) return;
+
+      var timer = 0;
+
+      function pulse() {
+        notice.hidden = false;
+        pilot.classList.remove('card--invite');
+        void pilot.offsetWidth;
+        pilot.classList.add('card--invite');
+        try {
+          pilot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (_) {}
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          pilot.classList.remove('card--invite');
+        }, 4900);
+      }
+
+      cover.addEventListener('click', function (e) {
+        if (e.button !== 0) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        pulse();
+      });
+
+      var params = new URLSearchParams(location.search);
+      if (params.get('retired') !== 'eod-cover') return;
+
+      function land() {
+        pulse();
+        params.delete('retired');
+        var next = location.pathname + (params.toString() ? ('?' + params.toString()) : '') + location.hash;
+        try { history.replaceState({}, '', next); } catch (_) {}
+      }
+
+      if (window.dumpBinAuthReady && typeof window.dumpBinAuthReady.then === 'function') {
+        window.dumpBinAuthReady.then(land).catch(function () {});
+      } else {
+        land();
+      }
     })();
   </script>
 
