@@ -105,6 +105,7 @@
       ? global.EodCategoryCardStatus.oddityCalloutVisible(row, extraBefore)
       : !!(row?.hasError || String(row?.errorMessage || row?.error_message || '').trim());
     if (oddity) c.push('manifest-error');
+    if (global.EodCategoryCardStatus?.missingFromProd?.(row)) c.push('missing-prod');
     return c.join(' ');
   }
 
@@ -902,12 +903,18 @@
       const captureSlot = Status?.neededCaptureSlot
         ? Status.neededCaptureSlot(row, localBefores)
         : 'after';
-      return `<div class="ds-row ds-row-compact ${rowClass(row, localBefores)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}"${canOpen ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"` : ''}>
-        <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
-        <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}">
+      const openAttrs = canOpen
+        ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"`
+        : '';
+      return `<div class="ds-row ds-row-compact ${rowClass(row, localBefores)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}">
+        <label class="ds-row-check-hit">
+          <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
+        </label>
+        <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}"${openAttrs}>
           <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
           <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
           ${markActive(row, 'out_of_scope') ? '<div class="ds-row-live"><span class="pill">Out of Scope</span></div>' : ''}
+          ${Status?.missingFromProd?.(row) ? '<div class="ds-row-live"><span class="pill missing-prod">not in prod</span></div>' : ''}
           ${liveLine ? `<div class="ds-row-live">${liveLine}</div>` : ''}
           ${priorNote ? `<div class="ds-row-live"><span class="pill">${esc(priorNote)}</span></div>` : ''}
           ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
@@ -1196,6 +1203,11 @@
       rowsEl.innerHTML = html;
       if (pane) pane.scrollTop = y;
       window.scrollTo(0, y);
+      rowsEl.querySelectorAll('.ds-row-check-hit').forEach((hit) => {
+        const stop = (ev) => ev.stopPropagation();
+        hit.addEventListener('pointerdown', stop);
+        hit.addEventListener('click', stop);
+      });
       rowsEl.querySelectorAll('[data-select-row]').forEach((box) => {
         box.addEventListener('click', (ev) => ev.stopPropagation());
         box.addEventListener('change', () => {
@@ -1236,7 +1248,7 @@
       bindSasCategoryHold(rowsEl);
       rowsEl.querySelectorAll('[data-open-set]').forEach((el) => {
         el.addEventListener('click', (ev) => {
-          if (ev.target.closest('button, input, .ds-row-check')) return;
+          if (ev.target.closest('button, input, .ds-row-check, .ds-row-check-hit')) return;
           if (ev.target.closest('.ds-row-catnum')?.dataset.sasHold === '1') return;
           openSetSurvey(el);
         });

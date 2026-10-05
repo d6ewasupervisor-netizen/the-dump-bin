@@ -378,6 +378,13 @@
     return String(live.prodStatus || '').trim().toLowerCase() === 'absent';
   }
 
+  /* On the SI task layer, missing from the PROD visit. */
+  function missingFromProd(row) {
+    const live = row && row.live;
+    if (!live || !live.siPresent) return false;
+    return notInProd(row);
+  }
+
   /* Not on the PROD visit and marked not in SI: nothing left to photograph. */
   function absentFromStoreAndSi(row) {
     return notInProd(row) && markActive(row, 'not_in_si');
@@ -575,6 +582,7 @@
     sheetDisplayBucket,
     backlogLabelVisible,
     notInProd,
+    missingFromProd,
     oddityCalloutVisible,
     rowInSheetFilter,
     prodDone,

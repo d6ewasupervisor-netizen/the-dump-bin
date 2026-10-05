@@ -11,6 +11,7 @@ const {
   sheetDisplayComplete,
   backlogLabelVisible,
   notInProd,
+  missingFromProd,
   oddityCalloutVisible,
   sheetRowDone,
   rowSendReady,
@@ -573,6 +574,10 @@ test('week carry-forward: Not in Prod, NISI overlays, and the red callout clears
     marks: { backlog: true, active: ['backlog'] },
   };
   assert.equal(notInProd(missing), true);
+  assert.equal(missingFromProd({ live: { prodStatus: 'absent', siPresent: true } }), true);
+  assert.equal(missingFromProd({ live: { prodStatus: 'absent', siPresent: false } }), false);
+  assert.equal(missingFromProd({ live: { prodStatus: 'open', siPresent: true } }), false);
+  assert.equal(missingFromProd({}), false);
   assert.equal(matchesSheetFilters(missing, { status: 'not_in_prod' }), true);
   assert.equal(matchesSheetFilters(missing, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(oosMissing, { status: 'out_of_scope' }), true);
@@ -1013,6 +1018,10 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /btn\('out_of_scope', 'Out of Scope'\)/);
   assert.doesNotMatch(signoff, /data-bulk-mark="complete"/);
   assert.match(signoff, /data-select-row/);
+  assert.match(signoff, /ds-row-check-hit/);
+  assert.match(signoff, /missing-prod/);
+  assert.match(signoff, /not in prod/);
+  assert.doesNotMatch(signoff, /data-row-id="\$\{row\.id\}"\$\{canOpen \? ` data-open-set=/);
   assert.match(signoff, /data-bulk-mark/);
   assert.doesNotMatch(signoff, /data-filter="prod"/);
   assert.doesNotMatch(signoff, /data-filter="si"/);

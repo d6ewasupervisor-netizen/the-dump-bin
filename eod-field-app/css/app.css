@@ -1206,6 +1206,21 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 }
 .ds-actions .btn.on { outline: 2px solid var(--accent); }
 .ds-row.is-com-suggest { border-color: #93c5fd; box-shadow: inset 3px 0 0 #2563eb; }
+.ds-row.missing-prod {
+  background: #fbbf24;
+  border: 2px solid #9a3412;
+  box-shadow: inset 6px 0 0 #9a3412;
+  color: #1c1917;
+}
+.ds-row.missing-prod .ds-row-title,
+.ds-row.missing-prod .muted,
+.ds-row.missing-prod .ds-row-meta,
+.ds-row.missing-prod .ds-row-live { color: #1c1917; }
+.ds-row.missing-prod .pill.missing-prod {
+  background: #9a3412;
+  color: #fff;
+  font-weight: 800;
+}
 .com-load-modal {
   position: fixed; inset: 0; z-index: 80; background: rgba(15,23,42,.45);
   display: flex; align-items: flex-end; justify-content: center; padding: 12px;
@@ -1229,8 +1244,18 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   font-weight: 600; text-align: center;
 }
 .ds-row-compact { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.ds-row-check-hit {
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin: -6px 0 -6px -6px;
+  padding: 8px 6px 6px;
+}
 .ds-row-check {
-  flex: 0 0 22px; width: 22px; height: 22px; margin-top: 4px; accent-color: var(--accent);
+  flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--accent);
 }
 .ds-select-all-row {
   display: flex; align-items: center; padding: 4px 12px 6px;
