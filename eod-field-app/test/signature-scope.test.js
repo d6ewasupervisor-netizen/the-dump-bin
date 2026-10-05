@@ -56,6 +56,51 @@ test('a previous visit does not open a signature slot', () => {
   assert.deepEqual(signatureRolesForRows([priorProduce, bulbs, money], shift), ['grocery', 'home_manager']);
 });
 
+test('today’s cut-in and blitz still open Produce and Home Manager', () => {
+  const shift = { workDate: '2026-10-05', visitId: '27312459' };
+  const produce = {
+    catName: 'DRESSING  DIP 6 SHELF',
+    dept: 'PACKAGE PRODUCE',
+    shiftType: 'Update',
+    pog: 'D701_L00000_D07_C140_V100_F016_MX',
+    marks: {
+      complete: true,
+      active: ['complete'],
+      details: { complete: { visitId: '27416227', markedAt: '2026-10-05T15:47:02.562Z' } },
+    },
+    live: { prodVisitId: '27416227' },
+  };
+  const crafts = {
+    catName: 'ART SUPPLIES M DS',
+    dept: 'GM',
+    shiftType: 'Blitz',
+    pog: 'P09W4_8898292_D701_L00000_D03_C810_V261_F008_MX',
+    marks: {
+      complete: true,
+      active: ['complete'],
+      details: { complete: { visitId: '27377154', markedAt: '2026-10-05T17:40:40.795Z' } },
+    },
+    live: { prodVisitId: '27377154' },
+  };
+  const charcoal = {
+    catName: 'CHARCOAL 4FT LEAD',
+    dept: 'GM',
+    shiftType: 'Update',
+    pog: 'P09W4_9347005_D060_L00000_D03_C206_V850_F016_MX',
+    marks: {
+      complete: true,
+      active: ['complete'],
+      details: { complete: { visitId: '27312459', markedAt: '2026-10-05T15:46:37.405Z' } },
+    },
+  };
+  assert.equal(signedOutBeforeThisVisit(produce, shift), false);
+  assert.equal(signedOutBeforeThisVisit(crafts, shift), false);
+  assert.deepEqual(
+    signatureRolesForRows([produce, crafts, charcoal], shift),
+    ['produce', 'home_manager'],
+  );
+});
+
 test('proxy stamp stays on Tyson login and uses Pacific MM/DD/YY', () => {
   assert.equal(isTysonLogin('Tyson.Gauthier@retail-odyssey.com'), true);
   assert.equal(isTysonLogin('lead@example.com'), false);

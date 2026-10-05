@@ -58,6 +58,12 @@
     return /money\s*services?|money\s*center|money\s*orders?/i.test(rowCategoryName(row));
   }
 
+  /** Tracker Dept GM is the home side. D03 alone is HBC and stays grocery. */
+  function displayDeptIsHomeSide(row) {
+    const dept = String(row?.dept || '').trim();
+    return /^(gm|home(\s*side)?|general\s*merch(andise)?)$/i.test(dept);
+  }
+
   function pacificDay(value) {
     if (value == null || value === '') return '';
     const s = String(value).trim();
@@ -111,7 +117,7 @@
     return false;
   }
 
-  /** Earlier visit or earlier day. This visit's complete still needs a signature. */
+  /** Earlier day. A complete from today still needs a signature, including Blitz and Cut In. */
   function signedOutBeforeThisVisit(row, shift) {
     const workDate = shift && shift.workDate ? String(shift.workDate).slice(0, 10) : '';
     const visitId = idStr(shift && shift.visitId);
@@ -122,6 +128,7 @@
     const markVisit = idStr(detail.visitId);
     const markDay = pacificDay(detail.markedAt);
     const prodVisit = idStr(row && row.live && row.live.prodVisitId);
+    if (workDate && markDay && markDay === workDate) return false;
     if (visitId && markVisit && markVisit !== visitId) return true;
     if (workDate && markDay && markDay < workDate) return true;
     if (visitId && prodVisit && prodVisit !== visitId) return true;
@@ -153,6 +160,7 @@
     let roles;
     if (code) {
       roles = [...(DEPT_CODE_TO_ROLES[code] || ['grocery'])];
+      if (code === '03' && displayDeptIsHomeSide(row)) roles = ['home_manager'];
     } else {
       const text = [
         row?.dept,
@@ -181,6 +189,7 @@
     extractPogDeptCode,
     isHomeSideLightbulbs,
     isMoneyServicesRow,
+    displayDeptIsHomeSide,
     signedOutBeforeThisVisit,
     signatureRolesForRows,
     rolesForSignoffRow,

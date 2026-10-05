@@ -186,8 +186,8 @@
   }
 
   /**
-   * Signature slots follow sets still open on this visit.
-   * A set signed out on an earlier visit does not open a card.
+   * Signature slots follow departments worked today, including Blitz and Cut In.
+   * A set signed out on an earlier day does not open a card.
    */
   function rowInScope(row) {
     if (!row) return false;
