@@ -1021,6 +1021,8 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /ds-row-check-hit/);
   assert.match(signoff, /missing-prod/);
   assert.match(signoff, /not in prod/);
+  const cardCss = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  assert.match(cardCss, /\.ds-row\.missing-prod \.ds-row-catnum \{[^}]*background:\s*#1c1917/s);
   assert.doesNotMatch(signoff, /data-row-id="\$\{row\.id\}"\$\{canOpen \? ` data-open-set=/);
   assert.match(signoff, /data-bulk-mark/);
   assert.doesNotMatch(signoff, /data-filter="prod"/);
