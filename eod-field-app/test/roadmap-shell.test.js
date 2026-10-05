@@ -13,6 +13,7 @@ const {
   isPegBay,
   packPegItems,
   pegColumns,
+  pegFrame,
 } = require('../js/lib/si-planogram-board');
 
 function fakeDocument() {
@@ -170,6 +171,20 @@ test('dense one-fixture planograms pack as a portrait peg grid without collision
     }
   });
   assert.equal(occupied.size, 65);
+});
+
+test('peg frame hangs merch coordinates instead of one row', () => {
+  const frame = pegFrame([
+    { name: 'brush', pegR: 2, pegC: 2, heightIn: 10.5, widthIn: 2.8, position: 1 },
+    { name: 'book', pegR: 29, pegC: 42, heightIn: 7.74, widthIn: 8.25, position: 36 },
+  ]);
+  assert.ok(frame);
+  assert.ok(frame.spanIn > 20);
+  const brush = frame.placements.find((row) => row.item.name === 'brush');
+  const book = frame.placements.find((row) => row.item.name === 'book');
+  assert.ok(book.top > brush.top);
+  assert.ok(book.left > brush.left);
+  assert.equal(book.inch, true);
 });
 
 test('peg pack uses planogram shelf and position when those fields exist', () => {

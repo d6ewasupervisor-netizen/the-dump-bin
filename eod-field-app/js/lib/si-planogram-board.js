@@ -133,6 +133,45 @@
     return { columns, rows, placements };
   }
 
+  /** Inch hang from the merch R/C peg, same geometry Pegasus uses. */
+  function pegFrame(items) {
+    const boxes = [];
+    (items || []).forEach((item) => {
+      const r = Number(item.pegR);
+      const c = Number(item.pegC);
+      if (!Number.isFinite(r) || !Number.isFinite(c) || r <= 0 || c <= 0) return;
+      const h = Math.max(1, Number(item.heightIn) || 6);
+      const w = Math.max(1, Number(item.widthIn) || 2);
+      const left = c - (w / 2);
+      const top = r;
+      boxes.push({ item, left, top, w, h, right: left + w, bottom: top + h });
+    });
+    if (!boxes.length) return null;
+    const minL = Math.min(...boxes.map((box) => box.left));
+    const minT = Math.min(...boxes.map((box) => box.top));
+    const spanC = Math.max(1, Math.max(...boxes.map((box) => box.right)) - minL);
+    const spanR = Math.max(1, Math.max(...boxes.map((box) => box.bottom)) - minT);
+    return {
+      spanIn: spanR,
+      placements: boxes.map((box) => ({
+        item: box.item,
+        inch: true,
+        left: ((box.left - minL) / spanC) * 100,
+        top: ((box.top - minT) / spanR) * 100,
+        width: (box.w / spanC) * 100,
+        height: (box.h / spanR) * 100,
+      })),
+    };
+  }
+
+  function shelfFrame(shelf) {
+    const items = shelf?.items || [];
+    const frame = pegFrame(items);
+    if (!frame) return null;
+    if (frame.placements.length < Math.ceil(items.length * 0.5)) return null;
+    return frame;
+  }
+
   function isPegBay(bay) {
     const shelves = bay?.shelves || [];
     if (shelves.length > 1) return false;
@@ -142,11 +181,17 @@
   }
 
   function locLine(it, bay) {
+    const peg = it.pegCode || (Number(it.pegR) > 0 && Number(it.pegC) > 0 ? `R${it.pegR} C${it.pegC}` : '');
+    const rawPos = it.itemPosition || it.position;
+    const pos = rawPos != null && rawPos !== ''
+      ? (peg ? `#${rawPos}` : `Position ${rawPos}`)
+      : '';
     return [
       it.aisle ? `Aisle ${it.aisle}` : '',
       bay != null ? `Bay ${bay}` : '',
       it.shelf != null && it.shelf !== '' ? `Shelf ${it.shelf}` : '',
-      it.position != null && it.position !== '' ? `Position ${it.position}` : '',
+      pos,
+      peg,
     ].filter(Boolean).join(' · ');
   }
 
@@ -177,6 +222,7 @@
   function itemHtml(it, bay, highlightUpc, widthScale, pegPlacement) {
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
+    const inch = Boolean(pegPlacement && pegPlacement.inch);
     const peg = pegPlacement ? ' si-pog-peg-item' : '';
     const loc = locLine(it, bay);
     const faces = facingUnits(it);
@@ -184,9 +230,11 @@
     const grow = Math.max(0.0001, Number(widthScale) || 1);
     const noImg = it.imageUrl ? '' : ' no-img';
     const label = it.name || it.brand || it.upc || '';
-    const style = pegPlacement
-      ? `grid-column:${pegPlacement.col}/span ${pegPlacement.span};grid-row:${pegPlacement.row}`
-      : `flex:${grow} 1 0`;
+    const style = inch
+      ? `left:${Number(pegPlacement.left).toFixed(2)}%;top:${Number(pegPlacement.top).toFixed(2)}%;width:${Number(pegPlacement.width).toFixed(2)}%;height:${Number(pegPlacement.height).toFixed(2)}%`
+      : pegPlacement
+        ? `grid-column:${pegPlacement.col}/span ${pegPlacement.span};grid-row:${pegPlacement.row}`
+        : `flex:${grow} 1 0`;
     const position = it.itemPosition || it.position || '';
     return `<article class="si-pog-item${peg}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
       aria-label="${esc(`${label}${position ? `, position ${position}` : ''}`)}"
@@ -200,6 +248,8 @@
       data-bay="${esc(bay)}"
       data-aisle="${esc(it.aisle || '')}"
       data-loc="${esc(loc)}"
+      data-pog-action="${esc(it.pogAction || '')}"
+      data-pog-handle="${esc(it.pogHandle || '')}"
       data-image="${esc(it.imageUrl || '')}">
       ${pegPlacement ? `<span class="si-pog-peg-pos">${esc(position)}</span>` : ''}
       ${pegPlacement && faces > 1 ? `<span class="si-pog-face-count si-pog-face-count-peg">x${faces}</span>` : ''}
@@ -224,12 +274,45 @@
     </div>`;
   }
 
+  function inchBoardHtml(frame, bayNum, highlightUpc) {
+    return `<div class="si-pog-peg-board is-inch">${frame.placements.map((placement) => (
+      itemHtml(placement.item, bayNum, highlightUpc, 1, placement)
+    )).join('')}</div>`;
+  }
+
   function bayHtml(bay, highlightUpc, aisle, ctx) {
     const shelves = (bay.shelves || []).map((sh) => ({
       ...sh,
       items: (sh.items || []).map((it) => ({ ...it, aisle: it.aisle || aisle || '' })),
     }));
-    if (isPegBay({ ...bay, shelves })) {
+    const frames = shelves.map((shelf) => ({ shelf, frame: shelfFrame(shelf) }));
+    const pegCount = frames.filter((row) => row.frame).length;
+    if (pegCount && shelves.length > 1) {
+      const layout = bayScale(shelves);
+      const scaleOf = new Map(layout.rows.map((row) => [row.shelf.shelf, row]));
+      const rows = frames.map((row) => `${row.frame ? Math.max(12, Math.round(row.frame.spanIn)) : 11}fr`).join(' ');
+      return `<section class="si-pog-bay is-mixed" style="--pog-columns:${layout.widestUnits}">
+        <div class="si-pog-bay-h">Bay ${esc(bay.bay)}</div>
+        <div class="si-pog-bay-shelves" style="grid-template-rows:${rows}">${frames.map((row) => {
+          if (!row.frame) {
+            const scaled = scaleOf.get(row.shelf.shelf);
+            return shelfHtml(row.shelf, bay.bay, highlightUpc, scaled ? scaled.scale : 1, layout.widestUnits);
+          }
+          return `<div class="si-pog-shelf is-peg-shelf">
+            <div class="si-pog-shelf-label">${esc(row.shelf.shelf)}</div>
+            ${inchBoardHtml(row.frame, bay.bay, highlightUpc)}
+          </div>`;
+        }).join('')}</div>
+      </section>`;
+    }
+    if (isPegBay({ ...bay, shelves }) || pegCount === shelves.length && shelves.length === 1) {
+      const frame = frames[0] && frames[0].frame;
+      if (frame) {
+        return `<section class="si-pog-bay is-peg">
+          <div class="si-pog-bay-h">Bay ${esc(bay.bay)} · Pegs</div>
+          ${inchBoardHtml(frame, bay.bay, highlightUpc)}
+        </section>`;
+      }
       const packed = packPegItems(
         shelves.flatMap((shelf) => shelf.items || []),
         bay.columns
@@ -401,6 +484,7 @@
     const brand = el.getAttribute('data-brand') || '';
     const size = el.getAttribute('data-size') || '';
     const image = el.getAttribute('data-image') || '';
+    const handle = el.getAttribute('data-pog-handle') || '';
     const loc = el.getAttribute('data-loc') || locLine({
       aisle: el.getAttribute('data-aisle') || '',
       shelf: el.getAttribute('data-shelf'),
@@ -423,6 +507,7 @@
         ${priceBlock}
         ${upc ? `<div>UPC ${esc(upc)}</div>` : ''}
         <div>${esc(loc)}</div>
+        ${handle ? `<div class="eod-pog-item-handle">${esc(handle)}</div>` : ''}
         ${brand ? `<div>${esc(brand)}</div>` : ''}
         ${size ? `<div>${esc(size)}</div>` : ''}
       </div>
@@ -770,6 +855,7 @@
     pegColumns,
     pegItemNumber,
     packPegItems,
+    pegFrame,
     isPegBay,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

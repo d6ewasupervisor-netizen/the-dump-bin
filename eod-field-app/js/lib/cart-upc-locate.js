@@ -37,11 +37,20 @@
   }
 
   function notesBanner(m) {
+    if (m.pogAction && m.notesAction === m.pogAction) return '';
     if (m.notesAction !== 'new' && m.notesAction !== 'delete') return '';
     const bits = [m.notesAction === 'delete' ? 'Delete' : 'New item'];
     if (m.notesPeriodWeek) bits.push(m.notesPeriodWeek);
     if (m.notesTiming) bits.push(m.notesTiming);
     if (m.notesListKind === 'tentative') bits.push('tentative');
+    return bits.join(' · ');
+  }
+
+  function pogBanner(m) {
+    if (m.pogAction !== 'new' && m.pogAction !== 'delete' && m.pogAction !== 'move') return '';
+    const label = m.pogAction === 'delete' ? 'Pull' : m.pogAction === 'move' ? 'Move' : 'New';
+    const bits = [label];
+    if (m.pogPeriodWeek) bits.push(m.pogPeriodWeek);
     return bits.join(' · ');
   }
 
@@ -94,11 +103,19 @@
     const meta = withKroger
       ? (m.stockLevel ? `Stock ${m.stockLevel}` : '')
       : [m.brand, m.size].filter(Boolean).join(' · ');
+    const pogAction = m.pogAction === 'new' || m.pogAction === 'delete' || m.pogAction === 'move' ? m.pogAction : '';
+    const pogLine = pogBanner(m);
+    const pogTag = pogLine
+      ? `<div class="eod-locate-notes eod-locate-notes--${pogAction}">${esc(pogLine)}</div>`
+      : '';
+    const handleTag = m.pogHandle
+      ? `<div class="eod-locate-pog">${esc(m.pogHandle)}</div>`
+      : '';
     const banner = notesBanner(m);
     const notesTag = banner
       ? `<div class="eod-locate-notes eod-locate-notes--${notesAction}">${esc(banner)}</div>`
       : '';
-    const sourceTag = notesTag + (withKroger && withSi
+    const sourceTag = pogTag + handleTag + notesTag + (withKroger && withSi
       ? '<div class="muted">Fred Meyer aisle · Kompass set</div>'
       : withKroger
         ? '<div class="muted">Fred Meyer aisle</div>'
