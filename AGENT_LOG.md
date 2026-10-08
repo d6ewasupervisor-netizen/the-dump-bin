@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-08
+
+The Welcome Letter Board card and page are named Employee Board. A name opens the last two weeks of PROD work on the page. `view in prod` sits beside the name.
+
 ## 2026-10-05
 
 Published field-app 3.4.48. Signatures include Produce for a same-day cut-in and Home Manager for GM sets on planogram department 03. The first GitHub Pages deploy failed to attach its artifact, so this entry republishes that same app.

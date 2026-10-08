@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.12';
+  const UI_VERSION = 'v2.13';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -24,7 +24,7 @@
         el.textContent = `${UI_VERSION} / api ${apiVersion}`;
       }
     } else {
-      el.title = `Welcome Letter Board UI ${UI_VERSION}`;
+      el.title = `Employee Board UI ${UI_VERSION}`;
     }
   }
 
@@ -784,6 +784,86 @@
     }
   }
 
+  let workLoadToken = 0;
+
+  function prodWorkforceUrl(employeeId) {
+    return `https://prod.sasretail.com/en/sasretail/workforce/full-profile/${encodeURIComponent(employeeId)}`;
+  }
+
+  function fmtHours(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '0';
+    return String(Math.round(n * 100) / 100);
+  }
+
+  function fmtMoney(value) {
+    const n = Number(value);
+    return `$${(Number.isFinite(n) ? n : 0).toFixed(2)}`;
+  }
+
+  function renderWorkHistory(panel, data) {
+    const summary = data.summary || {};
+    const rows = data.rows || [];
+    const range = `${summary.from || data.from || ''} – ${summary.to || data.to || ''}`;
+    const headline = [
+      `${summary.days || 0} days`,
+      `${fmtHours(summary.totalHours)} payroll hours`,
+      `${fmtHours(summary.regularHours)} regular`,
+      `${fmtHours(summary.overtimeHours)} overtime`,
+      `${fmtHours(summary.doubleHours)} double`,
+      `${fmtMoney(summary.travelDollars)} travel`,
+      `${fmtHours(summary.travelHours)} travel hrs`,
+      `${fmtMoney(summary.perDiem)} per diem`,
+      `${summary.approved || 0} approved`,
+      `${summary.unapproved || 0} unapproved`,
+    ].join(' · ');
+    const body = rows.length
+      ? rows.map((row) => `<tr>
+          <td>${escapeHtml(row.executedOn || '—')}</td>
+          <td>${escapeHtml(row.reportedOn || '—')}</td>
+          <td>${escapeHtml(fmtHours(row.totalHours))}</td>
+          <td>${escapeHtml(fmtHours(row.overtimeHours))}</td>
+          <td>${escapeHtml(fmtMoney(row.travelDollars))}</td>
+          <td>${row.approved ? 'Approved' : 'Unapproved'}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="6">No workforce history</td></tr>';
+    panel.classList.remove('wb-muted');
+    panel.innerHTML = `<h4 style="margin:0 0 6px;color:var(--wb-navy);">Last two weeks</h4>
+      <p class="wb-muted" style="margin:0 0 8px;font-size:13px;">${escapeHtml(range)}</p>
+      <p class="wb-work-summary">${escapeHtml(headline)}</p>
+      <div class="wb-work-scroll">
+        <table class="wb-table">
+          <thead>
+            <tr>
+              <th>Executed</th>
+              <th>Reported</th>
+              <th>Hours</th>
+              <th>OT</th>
+              <th>Travel</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function loadWorkHistory(emp) {
+    const panel = document.getElementById('workPanel');
+    const token = ++workLoadToken;
+    panel.classList.add('wb-muted');
+    panel.textContent = 'Loading…';
+    try {
+      const data = await api(`/api/welcome-letter/employees/${encodeURIComponent(emp.employeeId)}/work`);
+      if (token !== workLoadToken) return;
+      renderWorkHistory(panel, data);
+    } catch (err) {
+      if (token !== workLoadToken) return;
+      panel.classList.add('wb-muted');
+      panel.textContent = err.message;
+    }
+  }
+
   function selectEmployee(emp) {
     employeeState.selected = emp;
     document.getElementById('employeeEmpty').hidden = true;
@@ -796,6 +876,7 @@
       tr.classList.toggle('is-selected', String(tr.dataset.id) === String(emp.employeeId));
     });
     syncNoticeFields();
+    loadWorkHistory(emp);
     loadEmployeeThread(emp).catch((err) => {
       document.getElementById('employeeThread').textContent = err.message;
     });
@@ -813,11 +894,13 @@
         return;
       }
       tbody.innerHTML = employeeState.items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}">
-        <td>${escapeHtml(emp.preferredName || emp.name)}</td>
+        <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span><a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
         <td>${escapeHtml(emp.email || '—')}</td>
         <td>${escapeHtml(emp.lastWorkedOn || '—')}</td>
       </tr>`).join('');
       tbody.querySelectorAll('tr').forEach((tr) => {
+        const link = tr.querySelector('.wb-prod-link');
+        if (link) link.addEventListener('click', (event) => event.stopPropagation());
         tr.addEventListener('click', () => {
           const emp = employeeState.items.find((e) => String(e.employeeId) === tr.dataset.id);
           if (emp) selectEmployee(emp);
