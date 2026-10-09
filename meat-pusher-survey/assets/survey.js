@@ -21,6 +21,11 @@
   var setsRoot = document.getElementById('sets');
   var statusEl = document.getElementById('status');
   var sendBtn = document.getElementById('send');
+  var reopen = document.getElementById('reopen');
+  var reopenText = document.getElementById('reopenText');
+  var completedByStore = {};
+  var lastStore = '';
+  var openedDone = false;
   document.getElementById('setCount').textContent = SETS.length + ' sets';
 
   function todayPacific() {
@@ -61,6 +66,71 @@
       section.querySelector('.measures').hidden = !noBracket;
       section.querySelector('.photos').hidden = gone;
     });
+  });
+
+  function paintStores(completed) {
+    completedByStore = {};
+    (completed || []).forEach(function (row) { completedByStore[String(row.number)] = row; });
+    Array.prototype.forEach.call(form.store.options, function (opt) {
+      opt.classList.toggle('done', !!completedByStore[opt.value]);
+    });
+  }
+
+  function clearAnswers() {
+    SETS.forEach(function (set) {
+      form.querySelectorAll('input[name="fixture-' + set.id + '"]').forEach(function (el) { el.checked = false; });
+      form['count-' + set.id].value = '';
+      form['width-' + set.id].value = '';
+      form['depth-' + set.id].value = '';
+      form['notes-' + set.id].value = '';
+      var section = form.querySelector('[data-commodity="' + set.id + '"]');
+      if (!section) return;
+      section.querySelector('.measures').hidden = true;
+      section.querySelector('.photos').hidden = false;
+    });
+  }
+
+  function applyAnswers(sets) {
+    clearAnswers();
+    (sets || []).forEach(function (set) {
+      var radio = form.querySelector('input[name="fixture-' + set.commodity + '"][value="' + set.fixture + '"]');
+      if (radio) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (set.shelfCount != null) form['count-' + set.commodity].value = set.shelfCount;
+      form['width-' + set.commodity].value = set.width || '';
+      form['depth-' + set.commodity].value = set.depth || '';
+      form['notes-' + set.commodity].value = set.notes || '';
+    });
+  }
+
+  form.store.addEventListener('change', function () {
+    var next = form.store.value;
+    var opt = form.store.selectedOptions[0];
+    if (opt && opt.classList.contains('done')) {
+      reopenText.textContent = opt.textContent + ' is already on file. Open it to add to it?';
+      reopen.hidden = false;
+      return;
+    }
+    reopen.hidden = true;
+    openedDone = false;
+    lastStore = next;
+    clearAnswers();
+  });
+
+  document.getElementById('reopenYes').addEventListener('click', function () {
+    var next = form.store.value;
+    var row = completedByStore[next];
+    openedDone = true;
+    lastStore = next;
+    reopen.hidden = true;
+    applyAnswers(row && row.sets);
+  });
+
+  document.getElementById('reopenNo').addEventListener('click', function () {
+    form.store.value = lastStore;
+    reopen.hidden = true;
   });
 
   function api(path, opts) {
@@ -107,6 +177,12 @@
 
   form.addEventListener('submit', async function (ev) {
     ev.preventDefault();
+    var opt = form.store.selectedOptions[0];
+    if (opt && opt.classList.contains('done') && !openedDone) {
+      reopenText.textContent = opt.textContent + ' is already on file. Open it to add to it?';
+      reopen.hidden = false;
+      return;
+    }
     statusEl.textContent = 'Sending.';
     sendBtn.disabled = true;
     try {
@@ -158,6 +234,9 @@
       statusEl.textContent = 'Saved. Store ' + data.report.storeNumber + ' is on file.';
       form.reset();
       form.reportedOn.value = todayPacific();
+      lastStore = '';
+      openedDone = false;
+      reopen.hidden = true;
       await loadSaved();
     } catch (err) {
       statusEl.textContent = err.message || 'Could not save the report';
@@ -170,6 +249,7 @@
     var res = await api('', { noBounceOn401: true });
     if (!res.ok) return;
     var data = await res.json();
+    paintStores(data.completed);
     var list = document.getElementById('savedList');
     var box = document.getElementById('saved');
     var reports = data.reports || [];

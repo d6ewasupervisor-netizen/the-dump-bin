@@ -53,6 +53,14 @@ figure { margin: 0 0 12px; }
 img { width: 100%; height: auto; display: block; background: #fff; }
 figcaption { font-size: 0.9rem; font-weight: 700; margin-top: 4px; }
 label { display: block; margin: 0 0 10px; font-weight: 700; }
+select option.done { color: #8a93a0; background: #eceff3; }
+.reopen {
+  background: #fff6cc;
+  border: 1px solid #e6c200;
+  padding: 10px;
+  font-weight: 700;
+}
+.reopen button { width: auto; margin: 8px 8px 0 0; }
 input[type="text"], input[type="date"], input:not([type]), select, textarea {
   display: block;
   width: 100%;

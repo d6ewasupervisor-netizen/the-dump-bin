@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09 — Meat pusher store list
+
+Store is a dropdown of the ten District 8 stores, lowest number first. Completed stores are gray. Opening one asks before the saved answers load.
+
 ## 2026-10-09 — Meat pusher review
 
 Card `meat-pusher-review` opens `/meat-pusher-survey/review/`. The filled sheet downloads from eod-api.

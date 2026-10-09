@@ -6,7 +6,7 @@
   <title>Meat Pusher Survey</title>
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&amp;display=swap">
-  <link rel="stylesheet" href="/meat-pusher-survey/assets/survey.css?v=1">
+  <link rel="stylesheet" href="/meat-pusher-survey/assets/survey.css?v=2">
   <script src="/auth-gate.js"></script>
 </head>
 <body>
@@ -69,7 +69,26 @@
     <form id="form">
       <section class="block">
         <h2>Store</h2>
-        <label>Store <input name="store" inputmode="numeric" autocomplete="off" required></label>
+        <label>Store
+          <select name="store" required>
+            <option value=""></option>
+            <option value="19">19 Auburn</option>
+            <option value="23">23 Bellevue</option>
+            <option value="28">28 Burien</option>
+            <option value="31">31 Benson Plaza</option>
+            <option value="53">53 Covington</option>
+            <option value="215">215 Kent</option>
+            <option value="391">391 Kirkland</option>
+            <option value="459">459 Renton</option>
+            <option value="658">658 Issaquah</option>
+            <option value="682">682 Maple Valley</option>
+          </select>
+        </label>
+        <p id="reopen" class="reopen" hidden>
+          <span id="reopenText"></span>
+          <button type="button" id="reopenYes">Open it</button>
+          <button type="button" id="reopenNo">Leave it</button>
+        </p>
         <label>Date <input name="reportedOn" type="date" required></label>
         <label>Name <input name="name" autocomplete="name" required></label>
       </section>
@@ -116,6 +135,6 @@
     </section>
   </main>
   <footer>Retail Odyssey</footer>
-  <script src="/meat-pusher-survey/assets/survey.js?v=2"></script>
+  <script src="/meat-pusher-survey/assets/survey.js?v=3"></script>
 </body>
 </html>
