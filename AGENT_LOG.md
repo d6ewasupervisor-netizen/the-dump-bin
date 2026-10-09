@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09
+
+Meat Pusher Survey card opens `/meat-pusher-survey/`. The card stays hidden until the session includes that card id.
+
 ## 2026-10-08
 
 The Welcome Letter Board card and page are named Employee Board. A name opens the last two weeks of PROD work on the page. `view in prod` sits beside the name.

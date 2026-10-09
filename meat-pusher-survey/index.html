@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meat Pusher Survey</title>
+  <link rel="icon" type="image/png" href="/favicon.png?v=2">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&amp;display=swap">
+  <link rel="stylesheet" href="/meat-pusher-survey/assets/survey.css?v=1">
+  <script src="/auth-gate.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <div class="bar-inner">
+      <h1>Meat Pusher Survey</h1>
+      <p class="bar-sub">556 Ham Bar · 559 Heat &amp; Serve · 570 Dinner Sausage · 575 Hot Dogs · 578 Bacon / Breakfast</p>
+      <p class="rev">Rev 1 · 2026-10-09</p>
+    </div>
+  </header>
+  <main>
+    <p class="hold">Do not install pushers on this visit. The install is on hold.</p>
+    <p class="lead">Mark one line for each set. Photograph the whole set and the back of the shelf.</p>
+    <p id="setCount" class="count"></p>
+
+    <section class="block">
+      <h2>The two shelves</h2>
+      <div class="pair">
+        <figure>
+          <img src="/meat-pusher-survey/assets/ref/bracket.jpg?v=1" alt="Tray clipped over a rear shelf bracket">
+          <figcaption>Rear bracket on the shelf. The tray clips over it.</figcaption>
+        </figure>
+        <figure>
+          <img src="/meat-pusher-survey/assets/ref/no-bracket.jpg?v=1" alt="Shelf clamp and J-channel for a shelf with no rear bracket">
+          <figcaption>No rear bracket. This shelf uses the clamp and J-channel.</figcaption>
+        </figure>
+      </div>
+      <p>Grid pushers, a bunker, and slanted meat shelves are separate answers. Lunchmeat, Convenient Meals, and Kevin's stay on grid pushers. They are not these sets. Hot dogs and dinner sausage are separate lines.</p>
+    </section>
+
+    <details class="block">
+      <summary>Packet photos</summary>
+      <p>Finished sets from the rollout packet. The packet has no Ham Bar after photo. Two pallet sizes arrive with store supplies. Each pallet holds 18 cases. Keep them with the other project materials. Do not send them back on a salvage truck.</p>
+      <figure>
+        <img src="/meat-pusher-survey/assets/ref/breakfast.jpg?v=1" alt="Bacon and breakfast after installation">
+        <figcaption>578 Bacon / Breakfast after installation</figcaption>
+      </figure>
+      <figure>
+        <img src="/meat-pusher-survey/assets/ref/hotdogs.jpg?v=1" alt="Hot dogs and smoked dinner sausage after installation">
+        <figcaption>575 Hot Dogs and 570 Smoked Dinner Sausage after installation</figcaption>
+      </figure>
+      <figure>
+        <img src="/meat-pusher-survey/assets/ref/heat.jpg?v=1" alt="Heat and serve after installation">
+        <figcaption>559 Heat &amp; Serve after installation</figcaption>
+      </figure>
+      <figure>
+        <img src="/meat-pusher-survey/assets/ref/trays.jpg?v=1" alt="Standard tray and wide wall tray">
+        <figcaption>Standard trays ship 12 to a case. Wide wall trays ship 8 to a case.</figcaption>
+      </figure>
+      <div class="pair">
+        <figure>
+          <img src="/meat-pusher-survey/assets/ref/pallet-a.jpg?v=1" alt="Wrapped pusher pallet">
+        </figure>
+        <figure>
+          <img src="/meat-pusher-survey/assets/ref/pallet-b.jpg?v=1" alt="Second wrapped pusher pallet">
+        </figure>
+      </div>
+    </details>
+
+    <form id="form">
+      <section class="block">
+        <h2>Store</h2>
+        <label>Store <input name="store" inputmode="numeric" autocomplete="off" required></label>
+        <label>Date <input name="reportedOn" type="date" required></label>
+        <label>Name <input name="name" autocomplete="name" required></label>
+      </section>
+      <div id="sets"></div>
+      <section class="block">
+        <h2>Pallets</h2>
+        <label class="file">Pallet or cases, if they are in the store
+          <input name="pallet" type="file" accept="image/*" capture="environment">
+        </label>
+      </section>
+      <section class="block install">
+        <h2>Install week</h2>
+        <p>Leave this section blank until the supervisor releases the install.</p>
+        <label>Status
+          <select name="installStatus">
+            <option value=""></option>
+            <option>completed</option>
+            <option>completed with adjustments</option>
+            <option>unable to complete</option>
+          </select>
+        </label>
+        <label>Time
+          <select name="installTime">
+            <option value=""></option>
+            <option>under 15 min</option>
+            <option>15–30</option>
+            <option>30–45</option>
+            <option>45–60</option>
+            <option>over 60</option>
+          </select>
+        </label>
+        <label>Issues <textarea name="issues" rows="2"></textarea></label>
+        <label>Shelf adjustments <textarea name="adjustments" rows="2"></textarea></label>
+        <label>Recommendations <textarea name="recommendations" rows="2"></textarea></label>
+      </section>
+      <p id="status" class="status" role="status"></p>
+      <button type="submit" id="send">Send</button>
+    </form>
+
+    <section class="block" id="saved" hidden>
+      <h2>On file</h2>
+      <div id="savedList"></div>
+    </section>
+  </main>
+  <footer>Retail Odyssey</footer>
+  <script src="/meat-pusher-survey/assets/survey.js?v=1"></script>
+</body>
+</html>
