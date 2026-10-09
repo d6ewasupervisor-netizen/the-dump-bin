@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09 — Meat pusher names
+
+The survey and review pages no longer show who filed the store.
+
 ## 2026-10-09 — Meat pusher print
 
 The review page prints the checked stores on one sheet.

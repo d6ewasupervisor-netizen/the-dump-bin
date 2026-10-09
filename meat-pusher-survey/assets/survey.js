@@ -222,7 +222,6 @@
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           store: form.store.value,
-          name: form.name.value,
           reportedOn: form.reportedOn.value,
           sets: sets,
           palletPhotos: palletPhotos,

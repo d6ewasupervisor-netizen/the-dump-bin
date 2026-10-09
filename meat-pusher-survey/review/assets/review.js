@@ -143,7 +143,7 @@
       btn.classList.toggle('on', Number(btn.dataset.id) === report.id);
     });
     var html = '<p><strong>Store ' + esc(report.storeNumber) + '</strong> ' +
-      esc(report.reportedOn || '') + ' ' + esc(report.name || '') + '</p>' +
+      esc(report.reportedOn || '') + '</p>' +
       '<p><button type="button" id="sheet">Filled sheet</button></p>';
     (report.sets || []).forEach(function (set) {
       var pics = (report.photos || []).filter(function (photo) {
@@ -222,7 +222,7 @@
       btn.type = 'button';
       btn.dataset.id = String(report.id);
       btn.innerHTML = '<span class="store-no">' + esc(report.storeNumber) + '</span>' +
-        esc(report.reportedOn || '') + ' ' + esc(report.name || '');
+        esc(report.reportedOn || '');
       btn.addEventListener('click', function () { show(report); });
       wrap.appendChild(box);
       wrap.appendChild(btn);
