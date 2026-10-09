@@ -24,6 +24,7 @@
   var reopen = document.getElementById('reopen');
   var reopenText = document.getElementById('reopenText');
   var completedByStore = {};
+  var commentsByStore = {};
   var lastStore = '';
   var openedDone = false;
   document.getElementById('setCount').textContent = SETS.length + ' sets';
@@ -71,6 +72,7 @@
   function paintStores(completed) {
     completedByStore = {};
     (completed || []).forEach(function (row) { completedByStore[String(row.number)] = row; });
+    (arguments[1] || []).forEach(function (row) { commentsByStore[String(row.number)] = row.comment; });
     Array.prototype.forEach.call(form.store.options, function (opt) {
       opt.classList.toggle('done', !!completedByStore[opt.value]);
     });
@@ -122,6 +124,7 @@
     lastStore = next;
     clearFiles();
     clearAnswers();
+    form.comment.value = commentsByStore[next] || '';
   });
 
   document.getElementById('reopenYes').addEventListener('click', function () {
@@ -132,6 +135,7 @@
     reopen.hidden = true;
     clearFiles();
     applyAnswers(row && row.sets);
+    form.comment.value = (row && row.comment) || commentsByStore[next] || '';
   });
 
   document.getElementById('reopenNo').addEventListener('click', function () {
@@ -223,6 +227,7 @@
         body: JSON.stringify({
           store: form.store.value,
           reportedOn: form.reportedOn.value,
+          comment: form.comment.value,
           sets: sets,
           palletPhotos: palletPhotos,
           install: {
@@ -256,7 +261,7 @@
     var res = await api('', { noBounceOn401: true });
     if (!res.ok) return;
     var data = await res.json();
-    paintStores(data.completed);
+    paintStores(data.completed, data.comments);
     var list = document.getElementById('savedList');
     var box = document.getElementById('saved');
     var reports = data.reports || [];

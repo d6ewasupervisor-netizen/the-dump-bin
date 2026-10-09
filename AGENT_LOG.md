@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09 — Meat pusher comments
+
+The survey and review have a comment field. It prints on that store's sheet page.
+
 ## 2026-10-09 — Store 19 Heat & Serve
 
 The review answer for that set is the Not in store line, without a second copy of the note.

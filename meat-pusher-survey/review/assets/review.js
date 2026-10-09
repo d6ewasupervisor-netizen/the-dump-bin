@@ -87,7 +87,10 @@
       var res = await api(path, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ids: list.map(function (report) { return report.id; }) })
+        body: JSON.stringify({
+          ids: list.filter(function (report) { return !report.commentOnly; }).map(function (report) { return report.id; }),
+          stores: list.filter(function (report) { return report.commentOnly; }).map(function (report) { return report.storeNumber; })
+        })
       });
       if (!res.ok) {
         var data = await res.json().catch(function () { return {}; });
@@ -137,7 +140,8 @@
     });
     var html = '<p><strong>Store ' + esc(report.storeNumber) + '</strong> ' +
       esc(report.reportedOn || '') + '</p>' +
-      '<p><button type="button" id="sheet">Filled sheet</button></p>';
+      '<label>Comment <textarea id="storeComment" rows="2">' + esc(report.comment || '') + '</textarea></label>' +
+      '<p><button type="button" id="saveComment">Save comment</button> <button type="button" id="sheet">Filled sheet</button></p>';
     (report.sets || []).forEach(function (set) {
       var pics = (report.photos || []).filter(function (photo) {
         return String(photo.commodity) === String(set.commodity);
@@ -171,7 +175,32 @@
       }
     }
     detailEl.innerHTML = html;
-    detailEl.querySelector('#sheet').addEventListener('click', function () { downloadSheet(report); });
+    detailEl.querySelector('#sheet').addEventListener('click', function () {
+      if (report.commentOnly) {
+        picked[String(report.id)] = true;
+        document.getElementById('printBtn').click();
+        return;
+      }
+      downloadSheet(report);
+    });
+    detailEl.querySelector('#saveComment').addEventListener('click', async function () {
+      var text = detailEl.querySelector('#storeComment').value;
+      statusEl.textContent = 'Saving the comment.';
+      try {
+        var path = '/comment';
+        var res = await api(path, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ store: report.storeNumber, comment: text })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok || data.ok === false) throw new Error(data.error || 'Could not save the comment');
+        report.comment = text;
+        statusEl.textContent = 'Comment saved.';
+      } catch (err) {
+        statusEl.textContent = err.message || 'Could not save the comment';
+      }
+    });
     detailEl.querySelectorAll('img[data-photo]').forEach(function (img) {
       photoUrl(img.getAttribute('data-photo')).then(function (res) {
         if (!res.ok) return null;
@@ -197,6 +226,21 @@
       return;
     }
     reports = data.reports || [];
+    (data.comments || []).forEach(function (row) {
+      var hits = reports.filter(function (report) { return report.storeNumber === row.number; });
+      if (!hits.length) {
+        reports.push({
+          id: 'store-' + row.number,
+          storeNumber: row.number,
+          comment: row.comment,
+          sets: [],
+          photos: [],
+          commentOnly: true
+        });
+      } else {
+        hits.forEach(function (report) { report.comment = row.comment; });
+      }
+    });
     reports.sort(function (a, b) {
       return Number(a.storeNumber) - Number(b.storeNumber);
     });
