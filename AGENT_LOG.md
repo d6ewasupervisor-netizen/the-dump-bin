@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09 — Meat pusher print
+
+The review page prints the checked stores on one sheet.
+
 ## 2026-10-09 — Meat pusher duplicate sends
 
 Choosing a different store clears the photo fields so the last store's pictures cannot be sent again.

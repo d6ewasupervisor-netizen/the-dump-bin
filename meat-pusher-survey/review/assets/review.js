@@ -11,11 +11,15 @@
   };
   var SLOTS = { set: 'Set', shelf_back: 'Shelf back', pallet: 'Pallet', cases: 'Cases' };
 
+  var HEADS = ['Store', '556 Ham Bar', '559 Heat & Serve', '570 Dinner Sausage', '575 Hot Dogs', '578 Bacon/Breakfast', 'Notes'];
+  var ORDER = ['556', '559', '570', '575', '578'];
   var statusEl = document.getElementById('status');
   var storesEl = document.getElementById('stores');
   var detailEl = document.getElementById('detail');
   var shareBtn = document.getElementById('share');
   var selected = null;
+  var reports = [];
+  var picked = {};
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -62,6 +66,57 @@
   function photoUrl(id) {
     return api(TOKEN ? '/photos/' + id : '/photos/' + id);
   }
+
+  function notesFor(sets) {
+    return (sets || []).filter(function (set) { return set.notes; }).map(function (set) {
+      return set.commodity + ': ' + set.notes;
+    }).join(' | ');
+  }
+
+  function cellFor(sets, id) {
+    var set = (sets || []).filter(function (row) { return String(row.commodity) === id; })[0];
+    return set ? (set.sheet || '') : '';
+  }
+
+  function chosenReports() {
+    var ids = Object.keys(picked).filter(function (id) { return picked[id]; });
+    var list = reports.filter(function (report) { return ids.indexOf(String(report.id)) !== -1; });
+    if (!list.length && selected != null) {
+      list = reports.filter(function (report) { return Number(report.id) === Number(selected); });
+    }
+    list.sort(function (a, b) { return Number(a.storeNumber) - Number(b.storeNumber); });
+    return list;
+  }
+
+  function fillPrint() {
+    var list = chosenReports();
+    var sheet = document.getElementById('printSheet');
+    if (!list.length) {
+      sheet.innerHTML = '';
+      return false;
+    }
+    var html = '<h1>Meat Pushers</h1><table><thead><tr>' +
+      HEADS.map(function (head) { return '<th>' + esc(head) + '</th>'; }).join('') +
+      '</tr></thead><tbody>';
+    list.forEach(function (report) {
+      var cells = [report.storeNumber].concat(ORDER.map(function (id) {
+        return cellFor(report.sets, id);
+      })).concat([notesFor(report.sets)]);
+      html += '<tr>' + cells.map(function (cell) { return '<td>' + esc(cell) + '</td>'; }).join('') + '</tr>';
+    });
+    html += '</tbody></table><p class="print-foot">Retail Odyssey</p>';
+    sheet.innerHTML = html;
+    return true;
+  }
+
+  document.getElementById('printBtn').addEventListener('click', function () {
+    if (!fillPrint()) {
+      statusEl.textContent = 'Select a store.';
+      return;
+    }
+    statusEl.textContent = '';
+    window.print();
+  });
 
   async function downloadSheet(report) {
     statusEl.textContent = 'Building the sheet.';
@@ -148,19 +203,30 @@
       statusEl.textContent = data.error || 'Could not load reports';
       return;
     }
-    var reports = data.reports || [];
+    reports = data.reports || [];
+    reports.sort(function (a, b) {
+      return Number(a.storeNumber) - Number(b.storeNumber);
+    });
     if (!reports.length) {
       detailEl.innerHTML = '<p>No stores on file.</p>';
       return;
     }
     reports.forEach(function (report) {
+      var wrap = document.createElement('div');
+      wrap.className = 'store-row';
+      var box = document.createElement('input');
+      box.type = 'checkbox';
+      box.setAttribute('aria-label', 'Store ' + report.storeNumber);
+      box.addEventListener('change', function () { picked[String(report.id)] = box.checked; });
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.id = String(report.id);
       btn.innerHTML = '<span class="store-no">' + esc(report.storeNumber) + '</span>' +
         esc(report.reportedOn || '') + ' ' + esc(report.name || '');
       btn.addEventListener('click', function () { show(report); });
-      storesEl.appendChild(btn);
+      wrap.appendChild(box);
+      wrap.appendChild(btn);
+      storesEl.appendChild(wrap);
     });
     show(reports[0]);
   }

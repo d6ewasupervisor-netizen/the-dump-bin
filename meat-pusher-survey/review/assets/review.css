@@ -42,6 +42,8 @@ h1 { margin: 0; font-size: 1.4rem; }
   gap: 16px;
 }
 .stores { display: flex; flex-direction: column; gap: 8px; }
+.store-row { display: flex; gap: 8px; align-items: stretch; }
+.store-row input { width: 18px; flex: none; }
 .stores button {
   font: inherit;
   text-align: left;
@@ -49,6 +51,7 @@ h1 { margin: 0; font-size: 1.4rem; }
   color: var(--navy);
   border: 1px solid #d5deea;
   padding: 10px;
+  flex: 1;
 }
 .stores button.on { border-color: var(--navy); background: var(--navy); color: #fff; }
 .store-no { display: block; font-size: 1.3rem; font-weight: 700; }
@@ -74,6 +77,18 @@ figcaption { font-size: 0.85rem; font-weight: 700; }
 .hold { color: var(--red); font-weight: 700; }
 .status { min-height: 1.2em; font-weight: 700; max-width: 1200px; margin: 8px auto 0; padding: 0 16px; }
 footer { text-align: center; padding: 8px 12px 24px; }
+#printSheet { display: none; }
+#printBtn { background: #fff; color: var(--navy); }
+@media print {
+  .bar, .status, .layout, footer { display: none !important; }
+  #printSheet { display: block; }
+  #printSheet table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  #printSheet th, #printSheet td { border: 1px solid #0B2545; padding: 4px; vertical-align: top; }
+  #printSheet th { background: #0B2545; color: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  #printSheet h1 { font-size: 14pt; margin: 0 0 8px; }
+  #printSheet .print-foot { margin-top: 10px; text-align: center; }
+  @page { size: letter landscape; margin: 0.4in; }
+}
 @media (max-width: 800px) {
   .layout, .photos { grid-template-columns: 1fr; }
   .bar-inner { flex-direction: column; align-items: flex-start; }
