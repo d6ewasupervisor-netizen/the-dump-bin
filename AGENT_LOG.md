@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09 — Store 19 Heat & Serve
+
+The review answer for that set is the Not in store line, without a second copy of the note.
+
 ## 2026-10-09 — Meat pusher one page per store
 
 Print builds a sheet with one page per checked store, answers and photos together.

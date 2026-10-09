@@ -144,7 +144,7 @@
       });
       html += '<article class="set"><h2>' + esc(LABELS[set.commodity] || set.commodity) + '</h2>' +
         '<p class="answer">' + esc(set.sheet || '') + '</p>' +
-        (set.notes ? '<p>' + esc(set.notes) + '</p>' : '') +
+        (set.notes && set.sheet !== set.notes ? '<p>' + esc(set.notes) + '</p>' : '') +
         '<div class="photos">' + pics.map(function (photo) {
           return '<figure><img data-photo="' + photo.id + '" alt="' + esc(SLOTS[photo.slot] || photo.slot) + '">' +
             '<figcaption>' + esc(SLOTS[photo.slot] || photo.slot) + '</figcaption></figure>';
