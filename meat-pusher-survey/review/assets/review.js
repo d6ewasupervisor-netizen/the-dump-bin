@@ -11,8 +11,6 @@
   };
   var SLOTS = { set: 'Set', shelf_back: 'Shelf back', pallet: 'Pallet', cases: 'Cases' };
 
-  var HEADS = ['Store', '556 Ham Bar', '559 Heat & Serve', '570 Dinner Sausage', '575 Hot Dogs', '578 Bacon/Breakfast', 'Notes'];
-  var ORDER = ['556', '559', '570', '575', '578'];
   var statusEl = document.getElementById('status');
   var storesEl = document.getElementById('stores');
   var detailEl = document.getElementById('detail');
@@ -67,17 +65,6 @@
     return api(TOKEN ? '/photos/' + id : '/photos/' + id);
   }
 
-  function notesFor(sets) {
-    return (sets || []).filter(function (set) { return set.notes; }).map(function (set) {
-      return set.commodity + ': ' + set.notes;
-    }).join(' | ');
-  }
-
-  function cellFor(sets, id) {
-    var set = (sets || []).filter(function (row) { return String(row.commodity) === id; })[0];
-    return set ? (set.sheet || '') : '';
-  }
-
   function chosenReports() {
     var ids = Object.keys(picked).filter(function (id) { return picked[id]; });
     var list = reports.filter(function (report) { return ids.indexOf(String(report.id)) !== -1; });
@@ -88,34 +75,40 @@
     return list;
   }
 
-  function fillPrint() {
+  document.getElementById('printBtn').addEventListener('click', async function () {
     var list = chosenReports();
-    var sheet = document.getElementById('printSheet');
     if (!list.length) {
-      sheet.innerHTML = '';
-      return false;
-    }
-    var html = '<h1>Meat Pushers</h1><table><thead><tr>' +
-      HEADS.map(function (head) { return '<th>' + esc(head) + '</th>'; }).join('') +
-      '</tr></thead><tbody>';
-    list.forEach(function (report) {
-      var cells = [report.storeNumber].concat(ORDER.map(function (id) {
-        return cellFor(report.sets, id);
-      })).concat([notesFor(report.sets)]);
-      html += '<tr>' + cells.map(function (cell) { return '<td>' + esc(cell) + '</td>'; }).join('') + '</tr>';
-    });
-    html += '</tbody></table><p class="print-foot">Retail Odyssey</p>';
-    sheet.innerHTML = html;
-    return true;
-  }
-
-  document.getElementById('printBtn').addEventListener('click', function () {
-    if (!fillPrint()) {
       statusEl.textContent = 'Select a store.';
       return;
     }
-    statusEl.textContent = '';
-    window.print();
+    statusEl.textContent = 'Building the sheet.';
+    try {
+      var path = TOKEN ? '/print.pdf' : '/reports/print.pdf';
+      var res = await api(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids: list.map(function (report) { return report.id; }) })
+      });
+      if (!res.ok) {
+        var data = await res.json().catch(function () { return {}; });
+        statusEl.textContent = data.error || 'Could not build the sheet';
+        return;
+      }
+      var blob = await res.blob();
+      var url = URL.createObjectURL(blob);
+      var opened = window.open(url);
+      if (!opened) {
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'Meat Pushers.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      statusEl.textContent = 'Sheet ready.';
+    } catch (err) {
+      statusEl.textContent = err.message || 'Could not build the sheet';
+    }
   });
 
   async function downloadSheet(report) {

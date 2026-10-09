@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09 — Meat pusher one page per store
+
+Print builds a sheet with one page per checked store, answers and photos together.
+
 ## 2026-10-09 — Meat pusher names
 
 The survey and review pages no longer show who filed the store.
