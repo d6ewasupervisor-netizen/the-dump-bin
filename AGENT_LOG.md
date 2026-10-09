@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09 — Meat pusher review
+
+Card `meat-pusher-review` opens `/meat-pusher-survey/review/`. The filled sheet downloads from eod-api.
+
 ## 2026-10-09
 
 Meat Pusher Survey card opens `/meat-pusher-survey/`. The card stays hidden until the session includes that card id.

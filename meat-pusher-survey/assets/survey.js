@@ -173,6 +173,10 @@
     var list = document.getElementById('savedList');
     var box = document.getElementById('saved');
     var reports = data.reports || [];
+    if (data.seeAll) {
+      var review = document.getElementById('reviewLink');
+      if (review) review.hidden = false;
+    }
     if (!reports.length) {
       box.hidden = true;
       return;
