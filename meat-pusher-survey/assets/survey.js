@@ -76,6 +76,10 @@
     });
   }
 
+  function clearFiles() {
+    form.querySelectorAll('input[type="file"]').forEach(function (input) { input.value = ''; });
+  }
+
   function clearAnswers() {
     SETS.forEach(function (set) {
       form.querySelectorAll('input[name="fixture-' + set.id + '"]').forEach(function (el) { el.checked = false; });
@@ -116,6 +120,7 @@
     reopen.hidden = true;
     openedDone = false;
     lastStore = next;
+    clearFiles();
     clearAnswers();
   });
 
@@ -125,6 +130,7 @@
     openedDone = true;
     lastStore = next;
     reopen.hidden = true;
+    clearFiles();
     applyAnswers(row && row.sets);
   });
 
@@ -233,6 +239,8 @@
       if (!res.ok || data.ok === false) throw new Error(data.error || 'Could not save the report');
       statusEl.textContent = 'Saved. Store ' + data.report.storeNumber + ' is on file.';
       form.reset();
+      clearFiles();
+      form.store.value = '';
       form.reportedOn.value = todayPacific();
       lastStore = '';
       openedDone = false;
