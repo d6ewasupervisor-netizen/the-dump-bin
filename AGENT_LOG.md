@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-09 — Meat pusher stacked photos
+
+Filled sheet uses every checked store, one page each.
+
 ## 2026-10-09 — Meat pusher comments
 
 The survey and review have a comment field. It prints on that store's sheet page.

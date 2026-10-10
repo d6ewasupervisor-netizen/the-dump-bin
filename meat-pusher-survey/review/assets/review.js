@@ -176,12 +176,7 @@
     }
     detailEl.innerHTML = html;
     detailEl.querySelector('#sheet').addEventListener('click', function () {
-      if (report.commentOnly) {
-        picked[String(report.id)] = true;
-        document.getElementById('printBtn').click();
-        return;
-      }
-      downloadSheet(report);
+      document.getElementById('printBtn').click();
     });
     detailEl.querySelector('#saveComment').addEventListener('click', async function () {
       var text = detailEl.querySelector('#storeComment').value;
