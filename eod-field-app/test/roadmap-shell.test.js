@@ -14,6 +14,7 @@ const {
   packPegItems,
   pegColumns,
   pegFrame,
+  bayHeadHtml,
 } = require('../js/lib/si-planogram-board');
 
 function fakeDocument() {
@@ -185,6 +186,45 @@ test('peg frame hangs merch coordinates instead of one row', () => {
   assert.ok(book.top > brush.top);
   assert.ok(book.left > brush.left);
   assert.equal(book.inch, true);
+});
+
+test('checklane pegs hang from explicit inches across the real board width', () => {
+  const frame = pegFrame([
+    { name: 'a', pegX: 0, pegY: 0, pegW: 5, pegH: 8 },
+    { name: 'b', pegX: 12, pegY: 9, pegW: 5, pegH: 8 },
+  ], 17);
+  assert.equal(frame.spanIn, 17);
+  const a = frame.placements.find((row) => row.item.name === 'a');
+  const b = frame.placements.find((row) => row.item.name === 'b');
+  assert.equal(a.left, 0);
+  assert.equal(a.top, 0);
+  assert.ok(Math.abs(b.left - (12 / 17) * 100) < 0.01);
+  assert.ok(Math.abs(b.width - (5 / 17) * 100) < 0.01);
+  assert.ok(Math.abs(b.top - (9 / 17) * 100) < 0.01);
+});
+
+test('bay header counts each kind of change and offers the pull list', () => {
+  if (!globalThis.EodApi) {
+    globalThis.EodApi = {
+      escapeHtml: (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`),
+    };
+  }
+  const html = bayHeadHtml({
+    bay: 3,
+    pogRemoved: [{ upc: '1', name: 'Gone' }],
+    shelves: [{
+      items: [
+        { pogAction: 'new' }, { pogAction: 'new' }, { pogAction: 'shift' },
+        { pogAction: 'move' }, { pogAction: 'facings' }, { pogAction: 'upc' }, {},
+      ],
+    }],
+  }, 'Bay 3');
+  assert.match(html, /NEW 2/);
+  assert.match(html, /MOVED 2/);
+  assert.match(html, /FACINGS 1/);
+  assert.match(html, /NEW UPC 1/);
+  assert.match(html, /data-pull-bay="3">PULL 1/);
+  assert.doesNotMatch(bayHeadHtml({ bay: 1, shelves: [{ items: [{}] }] }, 'Bay 1'), /si-pog-chip/);
 });
 
 test('peg pack uses planogram shelf and position when those fields exist', () => {

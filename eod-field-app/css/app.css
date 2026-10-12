@@ -2460,6 +2460,51 @@ body.set-media-open .bottom-nav { display: none !important; }
   overflow: hidden;
 }
 .eod-pog-item-handle { font-weight: 700; margin-top: 6px; }
+
+/* Planogram changes: outline and tag on each changed facing */
+#pogChgBtn { flex: 0 0 auto; }
+#pogChgBtn[hidden] { display: none; }
+.si-pog-item.chg { outline: 3px solid var(--chg-color, #16a34a); outline-offset: -3px; }
+.si-pog-item.chg:not(.si-pog-peg-item) { position: relative; }
+.si-pog-item.chg-new { --chg-color: #16a34a; }
+.si-pog-item.chg-move,
+.si-pog-item.chg-shift { --chg-color: #d97706; }
+.si-pog-item.chg-facings { --chg-color: #2563eb; }
+.si-pog-item.chg-upc { --chg-color: #7c3aed; }
+.si-pog-chg {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 4;
+  padding: 1px 4px;
+  border-radius: 0 3px 0 0;
+  background: var(--chg-color, #16a34a);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+.si-pog-live.is-chg-only .si-pog-item:not(.chg) { opacity: 0.2; filter: grayscale(1); }
+.si-pog-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px; vertical-align: middle; }
+.si-pog-chip {
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 3px;
+  color: #fff;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.si-pog-chip.chg-new { background: #16a34a; }
+.si-pog-chip.chg-shift { background: #d97706; }
+.si-pog-chip.chg-facings { background: #2563eb; }
+.si-pog-chip.chg-upc { background: #7c3aed; }
+.si-pog-chip.chg-pull { background: #dc2626; cursor: pointer; }
+.eod-pog-pull-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.eod-pog-pull-list li { padding: 6px 8px; border-left: 3px solid #dc2626; }
 .si-pog-facing-badge {
   right: 1px;
   background: #c76f00;
@@ -2725,7 +2770,10 @@ body.barcode-scan-open .bottom-nav { display: none !important; }
 .eod-locate-notes { font-weight: 800; }
 .eod-locate-notes--new { color: #16a34a; }
 .eod-locate-notes--delete { color: #dc2626; }
-.eod-locate-notes--move { color: #b45309; }
+.eod-locate-notes--move,
+.eod-locate-notes--shift { color: #b45309; }
+.eod-locate-notes--facings { color: #2563eb; }
+.eod-locate-notes--upc { color: #7c3aed; }
 .eod-locate-pog { font-weight: 700; }
 .eod-locate-aisle { font-weight: 600; margin-top: 2px; }
 .eod-locate-tap { margin-top: 4px; }

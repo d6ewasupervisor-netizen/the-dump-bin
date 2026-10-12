@@ -46,9 +46,18 @@
     return bits.join(' · ');
   }
 
+  const POG_LABEL = {
+    new: 'New',
+    delete: 'Pull',
+    move: 'Move',
+    shift: 'Moved',
+    facings: 'Facings',
+    upc: 'New UPC',
+  };
+
   function pogBanner(m) {
-    if (m.pogAction !== 'new' && m.pogAction !== 'delete' && m.pogAction !== 'move') return '';
-    const label = m.pogAction === 'delete' ? 'Pull' : m.pogAction === 'move' ? 'Move' : 'New';
+    if (!POG_LABEL[m.pogAction]) return '';
+    const label = POG_LABEL[m.pogAction];
     const bits = [label];
     if (m.pogPeriodWeek) bits.push(m.pogPeriodWeek);
     return bits.join(' · ');
@@ -103,7 +112,7 @@
     const meta = withKroger
       ? (m.stockLevel ? `Stock ${m.stockLevel}` : '')
       : [m.brand, m.size].filter(Boolean).join(' · ');
-    const pogAction = m.pogAction === 'new' || m.pogAction === 'delete' || m.pogAction === 'move' ? m.pogAction : '';
+    const pogAction = POG_LABEL[m.pogAction] ? m.pogAction : '';
     const pogLine = pogBanner(m);
     const pogTag = pogLine
       ? `<div class="eod-locate-notes eod-locate-notes--${pogAction}">${esc(pogLine)}</div>`

@@ -133,10 +133,25 @@
     return { columns, rows, placements };
   }
 
-  /** Inch hang from the merch R/C peg, same geometry Pegasus uses. */
-  function pegFrame(items) {
+  /**
+   * Inch hang from the planogram peg.
+   * Checklanes send pegX/pegY (left and top in inches from the board corner,
+   * slide pegs already spread across the board). Stationery sends pegR/pegC
+   * and hangs centered on the hole.
+   */
+  function pegFrame(items, boardWidthIn) {
     const boxes = [];
+    let explicit = false;
     (items || []).forEach((item) => {
+      const x = Number(item.pegX);
+      const y = Number(item.pegY);
+      if (item.pegX != null && Number.isFinite(x) && Number.isFinite(y)) {
+        const h = Math.max(1, Number(item.pegH) || 6);
+        const w = Math.max(1, Number(item.pegW) || 2);
+        explicit = true;
+        boxes.push({ item, left: x, top: y, w, h, right: x + w, bottom: y + h });
+        return;
+      }
       const r = Number(item.pegR);
       const c = Number(item.pegC);
       if (!Number.isFinite(r) || !Number.isFinite(c) || r <= 0 || c <= 0) return;
@@ -147,9 +162,11 @@
       boxes.push({ item, left, top, w, h, right: left + w, bottom: top + h });
     });
     if (!boxes.length) return null;
-    const minL = Math.min(...boxes.map((box) => box.left));
-    const minT = Math.min(...boxes.map((box) => box.top));
-    const spanC = Math.max(1, Math.max(...boxes.map((box) => box.right)) - minL);
+    const minL = explicit ? 0 : Math.min(...boxes.map((box) => box.left));
+    const minT = explicit ? 0 : Math.min(...boxes.map((box) => box.top));
+    const reach = Math.max(...boxes.map((box) => box.right));
+    const boardW = explicit ? Math.max(Number(boardWidthIn) || 0, reach) : reach;
+    const spanC = Math.max(1, boardW - minL);
     const spanR = Math.max(1, Math.max(...boxes.map((box) => box.bottom)) - minT);
     return {
       spanIn: spanR,
@@ -166,7 +183,7 @@
 
   function shelfFrame(shelf) {
     const items = shelf?.items || [];
-    const frame = pegFrame(items);
+    const frame = pegFrame(items, shelf?.pegWidthIn);
     if (!frame) return null;
     if (frame.placements.length < Math.ceil(items.length * 0.5)) return null;
     return frame;
@@ -219,7 +236,22 @@
     paintTextBtn(host);
   }
 
+  const CHG_LABEL = {
+    new: 'NEW',
+    move: 'MOVE IN',
+    shift: 'MOVED',
+    facings: 'FACINGS',
+    upc: 'NEW UPC',
+  };
+
+  function chgKey(it) {
+    return it && CHG_LABEL[it.pogAction] ? it.pogAction : '';
+  }
+
   function itemHtml(it, bay, highlightUpc, widthScale, pegPlacement) {
+    const change = chgKey(it);
+    const chg = change ? ` chg chg-${change}` : '';
+    const chgBadge = change ? `<span class="si-pog-chg">${CHG_LABEL[change]}</span>` : '';
     const st = it.status ? ` st-${esc(it.status)}` : '';
     const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
     const inch = Boolean(pegPlacement && pegPlacement.inch);
@@ -236,7 +268,7 @@
         ? `grid-column:${pegPlacement.col}/span ${pegPlacement.span};grid-row:${pegPlacement.row}`
         : `flex:${grow} 1 0`;
     const position = it.itemPosition || it.position || '';
-    return `<article class="si-pog-item${peg}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
+    return `<article class="si-pog-item${peg}${chg}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
       aria-label="${esc(`${label}${position ? `, position ${position}` : ''}`)}"
       data-name="${esc(it.name || '')}"
       data-upc="${esc(it.upc || '')}"
@@ -250,7 +282,9 @@
       data-loc="${esc(loc)}"
       data-pog-action="${esc(it.pogAction || '')}"
       data-pog-handle="${esc(it.pogHandle || '')}"
+      data-pog-was="${esc(it.pogWas || '')}"
       data-image="${esc(it.imageUrl || '')}">
+      ${chgBadge}
       ${pegPlacement ? `<span class="si-pog-peg-pos">${esc(position)}</span>` : ''}
       ${pegPlacement && faces > 1 ? `<span class="si-pog-face-count si-pog-face-count-peg">x${faces}</span>` : ''}
       <div class="si-pog-thumb">
@@ -274,6 +308,45 @@
     </div>`;
   }
 
+  function bayChangeCounts(bay) {
+    const counts = {};
+    (bay?.shelves || []).forEach((shelf) => {
+      (shelf.items || []).forEach((it) => {
+        const key = chgKey(it);
+        if (key) counts[key] = (counts[key] || 0) + 1;
+      });
+    });
+    return counts;
+  }
+
+  function bayHeadHtml(bay, label) {
+    const counts = bayChangeCounts(bay);
+    const pull = (bay?.pogRemoved || []).length;
+    const chips = [
+      ['new', 'NEW', counts.new],
+      ['shift', 'MOVED', (counts.shift || 0) + (counts.move || 0)],
+      ['facings', 'FACINGS', counts.facings],
+      ['upc', 'NEW UPC', counts.upc],
+    ].filter(([, , n]) => n > 0)
+      .map(([key, text, n]) => `<span class="si-pog-chip chg-${key}">${text} ${n}</span>`)
+      .join('');
+    const pullChip = pull
+      ? `<button type="button" class="si-pog-chip chg-pull" data-pull-bay="${esc(bay.bay)}">PULL ${pull}</button>`
+      : '';
+    const all = chips + pullChip;
+    return `<div class="si-pog-bay-h">${label}${all ? `<span class="si-pog-chips">${all}</span>` : ''}</div>`;
+  }
+
+  function pullListHtml(bay, title) {
+    const rows = (bay?.pogRemoved || []).map((row) => (
+      `<li><strong>${esc(row.name || row.upc || '')}</strong>
+        <div class="muted">UPC ${esc(row.upc || '')}${row.where ? ` · ${esc(row.where)}` : ''}</div></li>`
+    )).join('');
+    return `<div class="eod-pog-pull"><strong>Pull · Bay ${esc(bay?.bay ?? '')}</strong>
+      ${title ? `<div class="muted">${esc(title)}</div>` : ''}
+      <ul class="eod-pog-pull-list">${rows}</ul></div>`;
+  }
+
   function inchBoardHtml(frame, bayNum, highlightUpc) {
     return `<div class="si-pog-peg-board is-inch">${frame.placements.map((placement) => (
       itemHtml(placement.item, bayNum, highlightUpc, 1, placement)
@@ -292,7 +365,7 @@
       const scaleOf = new Map(layout.rows.map((row) => [row.shelf.shelf, row]));
       const rows = frames.map((row) => `${row.frame ? Math.max(12, Math.round(row.frame.spanIn)) : 11}fr`).join(' ');
       return `<section class="si-pog-bay is-mixed" style="--pog-columns:${layout.widestUnits}">
-        <div class="si-pog-bay-h">Bay ${esc(bay.bay)}</div>
+        ${bayHeadHtml(bay, `Bay ${esc(bay.bay)}`)}
         <div class="si-pog-bay-shelves" style="grid-template-rows:${rows}">${frames.map((row) => {
           if (!row.frame) {
             const scaled = scaleOf.get(row.shelf.shelf);
@@ -309,7 +382,7 @@
       const frame = frames[0] && frames[0].frame;
       if (frame) {
         return `<section class="si-pog-bay is-peg">
-          <div class="si-pog-bay-h">Bay ${esc(bay.bay)} · Pegs</div>
+          ${bayHeadHtml(bay, `Bay ${esc(bay.bay)} · Pegs`)}
           ${inchBoardHtml(frame, bay.bay, highlightUpc)}
         </section>`;
       }
@@ -318,7 +391,7 @@
         bay.columns
       );
       return `<section class="si-pog-bay is-peg" style="--pog-peg-columns:${packed.columns};--pog-peg-rows:${packed.rows}">
-        <div class="si-pog-bay-h">Bay ${esc(bay.bay)} · Pegs</div>
+        ${bayHeadHtml(bay, `Bay ${esc(bay.bay)} · Pegs`)}
         <div class="si-pog-peg-board">${packed.placements.map((placement) => (
           itemHtml(placement.item, bay.bay, highlightUpc, 1, placement)
         )).join('')}</div>
@@ -326,7 +399,7 @@
     }
     const layout = bayScale(shelves);
     return `<section class="si-pog-bay" style="--pog-columns:${layout.widestUnits};--pog-shelf-count:${Math.max(1, shelves.length)}">
-      <div class="si-pog-bay-h">Bay ${esc(bay.bay)}</div>
+      ${bayHeadHtml(bay, `Bay ${esc(bay.bay)}`)}
       <div class="si-pog-bay-shelves">${layout.rows.map((row) => (
         shelfHtml(row.shelf, bay.bay, highlightUpc, row.scale, layout.widestUnits)
       )).join('')}</div>
@@ -335,9 +408,17 @@
 
   function boardHtml(pog, highlightUpc, ctx) {
     const s = pog.stats || {};
+    const pc = pog.pogChanges || null;
+    const cc = (pc && pc.counts) || {};
     const bits = [
       s.facings != null ? `${s.facings} facings` : '',
       s.products != null ? `${s.products} products` : '',
+      pc && pc.newFixture ? 'New fixture' : '',
+      cc.new ? `${cc.new} new` : '',
+      cc.moved ? `${cc.moved} moved` : '',
+      cc.facings ? `${cc.facings} facings changed` : '',
+      cc.upc ? `${cc.upc} new UPC` : '',
+      cc.removed ? `${cc.removed} pull` : '',
     ].filter(Boolean);
     const frames = (pog.bays || []).map((bay) => (
       `<div class="si-pog-bay-frame" data-bay="${esc(bay.bay)}">${bayHtml(bay, highlightUpc, pog.aisle, ctx)}</div>`
@@ -673,6 +754,16 @@
     };
     if (root._pogClick) root.removeEventListener('click', root._pogClick);
     root._pogClick = (ev) => {
+      const pullBtn = ev.target.closest('[data-pull-bay]');
+      if (pullBtn && root.contains(pullBtn)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const bayNum = pullBtn.getAttribute('data-pull-bay');
+        const bay = (pog?.bays || []).find((b) => String(b.bay) === String(bayNum));
+        const host = root.closest('.set-media-overlay') || document.body;
+        showPogNotice(host, pullListHtml(bay, title));
+        return;
+      }
       const el = ev.target.closest('.si-pog-item');
       if (!el || !root.contains(el)) return;
       const scroll = el.closest('.si-pog-scroll');
@@ -711,6 +802,10 @@
       mount.innerHTML = boardHtml(pog, highlightUpc, ctx);
       bindItems(mount, pog);
       const overlay = mount.closest('.si-pog-live');
+      const chgBtn = overlay?.querySelector('#pogChgBtn');
+      if (chgBtn) {
+        chgBtn.hidden = !mount.querySelector('.si-pog-item.chg, [data-pull-bay]');
+      }
       const scroll = mount.querySelector('.si-pog-scroll');
       const nav = overlay?.querySelector('#pogBayNav');
       if (nav) {
@@ -812,6 +907,7 @@
       <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
       <button type="button" class="btn btn-primary" id="pogScanBtn">Scan</button>
       <button type="button" class="btn btn-secondary" id="pogTextBtn">Text</button>
+      <button type="button" class="btn btn-secondary" id="pogChgBtn" hidden>Changes</button>
       <strong>${esc(title || 'Planogram')}</strong>
     </div>
     <div class="si-pog-legend" id="pogLegend">
@@ -832,6 +928,11 @@
     };
     host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
     applyTextMode(host, readTextPref(), false);
+    host.querySelector('#pogChgBtn').onclick = () => {
+      const on = !host.classList.contains('is-chg-only');
+      host.classList.toggle('is-chg-only', on);
+      host.querySelector('#pogChgBtn').textContent = on ? 'All' : 'Changes';
+    };
     host.querySelector('#pogTextBtn').onclick = () => {
       const next = !host.classList.contains('is-text');
       applyTextMode(host, next, true);
@@ -856,6 +957,7 @@
     pegItemNumber,
     packPegItems,
     pegFrame,
+    bayHeadHtml,
     isPegBay,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
