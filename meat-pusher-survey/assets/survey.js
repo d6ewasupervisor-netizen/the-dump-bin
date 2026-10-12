@@ -497,7 +497,7 @@
           '<img src="' + ASSETS + 'ex/' + set.id + '-shelf.jpg?v=1" alt="Example, shelf back" loading="lazy"></button>' +
           '<figcaption>Photo 2: shelf back</figcaption></figure>' +
       '</div>' +
-      '<details class="more"><summary>The two shelf types</summary>' +
+      '<details class="more"><summary>Click for more info</summary>' +
         '<img src="' + ASSETS + 'ref/bracket.jpg?v=1" alt="Tray clipped over a rear shelf bracket">' +
         '<p>Rear bracket on the shelf. The tray clips over it.</p>' +
         '<img src="' + ASSETS + 'ref/no-bracket.jpg?v=1" alt="Shelf clamp and J-channel for a shelf with no rear bracket">' +
