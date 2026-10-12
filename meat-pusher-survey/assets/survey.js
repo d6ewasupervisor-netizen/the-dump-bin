@@ -40,6 +40,49 @@
     '578': ['breakfast.jpg', '578 Bacon / Breakfast after installation']
   };
 
+  const GUIDE_KEY = 'meatPusherGuideHide';
+  const GUIDE_TYPES = [
+    {
+      title: 'Flat shelves, rear bracket',
+      img: 'rear-bracket.jpg',
+      alt: 'Flat shelf with a rail along the back edge',
+      tell: [
+        'The shelf is flat.',
+        'There is a metal rail along the back edge of the shelf.',
+        'The pusher tray clips over that rail.'
+      ]
+    },
+    {
+      title: 'Flat shelves, no rear bracket',
+      img: 'no-rail.jpg',
+      alt: 'Flat shelf with a smooth back edge and no rail',
+      tell: [
+        'The shelf is flat.',
+        'The back edge is smooth. There is no rail to clip onto.',
+        'These shelves need a clamp and J-channel, so we need the numbers: how many shelves, how wide, how deep.'
+      ]
+    },
+    {
+      title: 'Grid pushers',
+      img: 'grid.jpg',
+      alt: 'Wire grid pusher rails on a shelf',
+      tell: [
+        'Wire grid rails are already in the case with pushers on them.',
+        'Do not answer for Lunchmeat, Convenient Meals, or Kevin\u2019s. They stay on grid pushers.'
+      ]
+    },
+    {
+      title: 'Slanted meat shelves',
+      img: 'slanted.jpg',
+      alt: 'Meat department shelves that slant down toward the front',
+      tell: [
+        'The shelves slant down toward the front.',
+        'This is the meat department wall, with product in trays on the slant.'
+      ]
+    }
+  ];
+  const GUIDE_STEPS = 6;
+
   const CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="#0B2545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 
   const app = document.getElementById('app');
@@ -65,7 +108,9 @@
     heldComment: '',
     pallet: null,
     sending: false,
-    result: null
+    result: null,
+    guideStep: 0,
+    afterGuide: 'set'
   };
   const gate = { mode: 'phone', stage: 'ident', identity: '', message: '', bad: false, busy: false };
 
@@ -247,6 +292,7 @@
     onBack = null;
     if (state.screen === 'gate') return renderGate();
     if (state.screen === 'stores') return renderStores();
+    if (state.screen === 'guide') return renderGuide();
     if (state.screen === 'intro') return renderIntro();
     if (state.screen === 'set') return renderSet();
     if (state.screen === 'extra') return renderExtra();
@@ -403,9 +449,15 @@
         '</div>' +
         '<div class="grid" id="grid"></div>' +
         '<p class="status bad" role="status" id="storeMsg"></p>' +
+        '<button type="button" class="btn alt" id="showGuide">How to tell the shelf types</button>' +
         '<button type="button" class="link" id="signOut">Sign out</button>' +
       '</div>';
     paintGrid();
+    document.getElementById('showGuide').addEventListener('click', function () {
+      state.afterGuide = 'stores';
+      state.guideStep = 0;
+      go('guide');
+    });
     document.getElementById('filter').addEventListener('input', function (ev) {
       state.filter = ev.target.value.replace(/\D/g, '');
       paintGrid();
@@ -433,7 +485,17 @@
     });
   }
 
-  async function pickStore(number) {
+  function guideHidden() {
+    try { return localStorage.getItem(GUIDE_KEY) === '1'; } catch (_) { return false; }
+  }
+
+  function setGuideHidden(on) {
+    try {
+      if (on) localStorage.setItem(GUIDE_KEY, '1'); else localStorage.removeItem(GUIDE_KEY);
+    } catch (_) { /* private mode */ }
+  }
+
+  async function pickStore(number, opts) {
     const msg = document.getElementById('storeMsg') || document.createElement('p');
     msg.textContent = 'Opening store ' + number + '.';
     msg.className = 'status';
@@ -443,15 +505,104 @@
       state.info = data.store;
       wireStore(data.store);
       state.step = firstOpenStep();
-      if (data.store.status === 'open') {
-        go('set');
+      const next = data.store.status === 'open' ? 'set' : 'intro';
+      if (data.store.status !== 'done' && !guideHidden() && !(opts && opts.skipGuide)) {
+        state.afterGuide = next;
+        state.guideStep = 0;
+        go('guide');
       } else {
-        go('intro');
+        go(next);
       }
     } catch (err) {
       msg.textContent = err.message;
       msg.className = 'status bad';
     }
+  }
+
+  /* first-time guide */
+
+  function guideBody(step) {
+    if (step === 0) {
+      return '<p class="kicker">Read this first</p>' +
+        '<h1 class="title">What we need from you</h1>' +
+        '<div class="card">' +
+          '<p>Each set on the deli wall and ham bar sits on one type of shelf. Your answer decides what we order for this store.</p>' +
+          '<p class="strong">A wrong answer means the wrong parts get ordered. Look at the real shelf. Do not guess.</p>' +
+        '</div>' +
+        '<div class="card"><h2 class="step-label">The 5 sets</h2>' +
+          '<ul class="plain">' + SETS.map(function (s) { return '<li>' + esc(s.label) + '</li>'; }).join('') + '</ul>' +
+          '<p>Answer each set on its own. One store can have different shelf types.</p>' +
+        '</div>' +
+        '<div class="card"><h2 class="step-label">For every set</h2>' +
+          '<ol class="plain">' +
+            '<li>Pick the shelf type.</li>' +
+            '<li>Take 2 photos: the whole set and the back of the shelf.</li>' +
+            '<li>No rear bracket? Count the shelves and measure the width and depth.</li>' +
+          '</ol>' +
+        '</div>';
+    }
+    if (step <= GUIDE_TYPES.length) {
+      const t = GUIDE_TYPES[step - 1];
+      const src = ASSETS + 'guide/' + t.img + '?v=1';
+      return '<p class="kicker">Shelf type ' + step + ' of ' + GUIDE_TYPES.length + '</p>' +
+        '<h1 class="title">' + esc(t.title) + '</h1>' +
+        '<button type="button" class="guide-photo" data-zoom="' + src + '" data-alt="' + esc(t.alt) + '">' +
+          '<img src="' + src + '" alt="' + esc(t.alt) + '"></button>' +
+        '<div class="card"><h2 class="step-label">How to tell</h2>' +
+          '<ul class="plain">' + t.tell.map(function (line) { return '<li>' + esc(line) + '</li>'; }).join('') + '</ul>' +
+          '<p class="pickline">Pick this answer: <b>' + esc(t.title) + '</b></p>' +
+        '</div>';
+    }
+    return '<p class="kicker">Before you answer</p>' +
+      '<h1 class="title">Accuracy matters</h1>' +
+      '<div class="card">' +
+        '<ul class="plain">' +
+          '<li>Look at the back edge of the shelf first. A rail means rear bracket. A smooth edge means no rear bracket.</li>' +
+          '<li>The set is not in the store: pick <b>Not in this store</b>.</li>' +
+          '<li>The set is in a bunker: pick <b>In a bunker</b>.</li>' +
+          '<li>Cannot tell? Tap <b>Skip for now</b>. The store is marked for a revisit. A wrong answer sends a wrong order.</li>' +
+          '<li>Your photos must show the shelf you answered about.</li>' +
+        '</ul>' +
+      '</div>';
+  }
+
+  function renderGuide() {
+    const step = state.guideStep;
+    const last = step === GUIDE_STEPS - 1;
+    const fromPicker = state.afterGuide === 'stores';
+    setChrome({
+      nav: true,
+      progress: (step + 1) / GUIDE_STEPS,
+      where: fromPicker ? '' : 'Store ' + state.number,
+      back: step === 0 ? (fromPicker ? 'Close' : 'Stores') : 'Back',
+      next: last ? (fromPicker ? 'Done' : 'Start') : 'Next'
+    });
+    const showCheck = step === 0 || last;
+    app.innerHTML =
+      '<div class="screen">' +
+        (fromPicker ? '' : '<button type="button" class="link guide-skip" id="skipGuide">Skip</button>') +
+        guideBody(step) +
+        (showCheck
+          ? '<label class="check"><input type="checkbox" id="hideGuide"' + (guideHidden() ? ' checked' : '') + '><span class="box"></span><span>Do not show me this again</span></label>'
+          : '') +
+      '</div>';
+    bindZoom(app);
+    const hide = document.getElementById('hideGuide');
+    if (hide) hide.addEventListener('change', function () { setGuideHidden(hide.checked); });
+    const skip = document.getElementById('skipGuide');
+    if (skip) skip.addEventListener('click', function () { go(state.afterGuide); });
+    onBack = function () {
+      if (step === 0) { go('stores'); return; }
+      state.guideStep -= 1;
+      renderGuide();
+      window.scrollTo(0, 0);
+    };
+    onNext = function () {
+      if (last) { go(state.afterGuide); return; }
+      state.guideStep += 1;
+      renderGuide();
+      window.scrollTo(0, 0);
+    };
   }
 
   /* intro for done / partly done stores */
@@ -828,7 +979,7 @@
         '<button type="button" class="btn alt" id="sameStore">Add more to store ' + esc(state.number) + '</button>' +
       '</div>';
     document.getElementById('nextStore').addEventListener('click', function () { state.filter = ''; go('stores'); });
-    document.getElementById('sameStore').addEventListener('click', function () { pickStore(state.number).then(function () {}); });
+    document.getElementById('sameStore').addEventListener('click', function () { pickStore(state.number, { skipGuide: true }).then(function () {}); });
   }
 
   /* start */

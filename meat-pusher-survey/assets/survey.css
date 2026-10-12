@@ -274,6 +274,32 @@ details.more p { margin-top: 8px; }
 .sum-row b { font-size: 1.05rem; }
 .sum-row .skip { color: #d97a00; font-weight: 700; }
 
+.guide-skip { justify-self: end; margin-bottom: -8px; }
+.guide-photo { display: block; width: 100%; padding: 0; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; background: #000; }
+.guide-photo img { display: block; width: auto; max-width: 100%; max-height: 62vh; max-height: 62dvh; margin: 0 auto; object-fit: contain; }
+ul.plain, ol.plain { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.card p + p { margin-top: 0; }
+.strong { font-weight: 700; color: var(--red); }
+.pickline { padding: 10px 12px; border-radius: 10px; background: #eaf1fa; border: 2px solid var(--navy); }
+.check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+}
+.check input { position: absolute; opacity: 0; pointer-events: none; }
+.check .box { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 2px solid var(--navy); background: #fff; display: grid; place-items: center; }
+.check input:checked + .box { background: var(--navy); }
+.check input:checked + .box::after { content: ""; width: 12px; height: 7px; border-left: 3px solid #fff; border-bottom: 3px solid #fff; transform: rotate(-45deg) translate(1px, -1px); }
+.check input:focus-visible + .box { outline: 3px solid var(--yellow); }
+
 .nav {
   position: fixed;
   left: 0;
