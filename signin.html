@@ -175,6 +175,26 @@
       </div>
     </section>
 
+    <section class="card" aria-labelledby="phone-heading" style="margin-top:16px">
+      <h2 id="phone-heading">Sign in with your phone</h2>
+      <div id="phone-status" class="notice hidden" role="status" aria-live="polite"></div>
+      <label for="phone">Mobile number</label>
+      <input id="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="(555) 555-5555" />
+      <div class="btn-row">
+        <button id="phone-send-btn" class="primary" type="button">Text me a PIN</button>
+      </div>
+      <div id="phone-pin-panel" class="hidden" style="margin-top:18px">
+        <label for="phone-pin">6-digit code</label>
+        <div class="pin-row">
+          <input id="phone-pin" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" />
+        </div>
+        <div class="btn-row">
+          <button id="phone-verify-btn" class="primary" type="button">Verify &amp; sign in</button>
+          <button id="phone-resend-btn" class="secondary" type="button">Resend code</button>
+        </div>
+      </div>
+    </section>
+
     <footer>
       Retail Odyssey &middot; The Dump Bin &middot;
       <a href="/admin.html">Admin</a>
@@ -503,6 +523,97 @@
       resendSmsBtn.addEventListener('click', requestSms);
       verifyPinBtn.addEventListener('click', verifyPin);
       pinEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') verifyPin(); });
+
+      const phoneEl        = document.getElementById('phone');
+      const phoneSendBtn   = document.getElementById('phone-send-btn');
+      const phonePinPanel  = document.getElementById('phone-pin-panel');
+      const phonePinEl     = document.getElementById('phone-pin');
+      const phoneVerifyBtn = document.getElementById('phone-verify-btn');
+      const phoneResendBtn = document.getElementById('phone-resend-btn');
+      const phoneStatusEl  = document.getElementById('phone-status');
+      let lastPhone = '';
+
+      function showPhoneStatus(kind, msg) {
+        phoneStatusEl.className = 'notice ' + (kind === 'error' ? 'notice-error' : 'notice-ok');
+        phoneStatusEl.textContent = msg;
+        phoneStatusEl.classList.remove('hidden');
+      }
+      function hidePhoneStatus() { phoneStatusEl.classList.add('hidden'); }
+
+      async function requestPhonePin() {
+        hidePhoneStatus();
+        const phone = (phoneEl.value || '').trim();
+        if (phone.replace(/\D/g, '').length < 10) {
+          showPhoneStatus('error', 'Enter your 10-digit mobile number.');
+          return;
+        }
+        phoneSendBtn.disabled = true;
+        phoneSendBtn.textContent = 'Sending text\u2026';
+        try {
+          const res = await fetch(API_BASE + '/api/phone-login/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone }),
+          });
+          const data = await res.json().catch(function () { return {}; });
+          if (!res.ok || !data.ok) {
+            showPhoneStatus('error', data.error || 'Could not send text code.');
+            return;
+          }
+          lastPhone = phone;
+          phonePinPanel.classList.remove('hidden');
+          showPhoneStatus('ok', 'Text sent to ' + (data.maskedPhone || 'your phone') + '. Enter the code below.');
+          phonePinEl.value = '';
+          phonePinEl.focus();
+        } catch (err) {
+          showPhoneStatus('error', 'Network error. Please try again.');
+        } finally {
+          phoneSendBtn.disabled = false;
+          phoneSendBtn.textContent = 'Text me a PIN';
+        }
+      }
+
+      async function verifyPhonePin() {
+        hidePhoneStatus();
+        const phone = lastPhone || (phoneEl.value || '').trim();
+        const code = (phonePinEl.value || '').trim();
+        if (!/^\d{6}$/.test(code)) {
+          showPhoneStatus('error', 'Enter the 6-digit code from your text.');
+          return;
+        }
+        phoneVerifyBtn.disabled = true;
+        phoneVerifyBtn.textContent = 'Verifying\u2026';
+        try {
+          const res = await fetch(API_BASE + '/api/phone-login/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone, code: code }),
+          });
+          const data = await res.json().catch(function () { return {}; });
+          if (!res.ok || !data.ok || !data.token) {
+            showPhoneStatus('error', data.error || 'Could not verify code.');
+            phoneVerifyBtn.disabled = false;
+            phoneVerifyBtn.textContent = 'Verify & sign in';
+            return;
+          }
+          try {
+            localStorage.setItem(SESSION_KEY, data.token);
+            localStorage.removeItem(LEGACY_KEY);
+          } catch (_) {}
+          const next = (new URLSearchParams(location.search)).get('next');
+          window.location.replace(resolveNext(next));
+        } catch (err) {
+          showPhoneStatus('error', 'Network error. Please try again.');
+          phoneVerifyBtn.disabled = false;
+          phoneVerifyBtn.textContent = 'Verify & sign in';
+        }
+      }
+
+      phoneSendBtn.addEventListener('click', requestPhonePin);
+      phoneResendBtn.addEventListener('click', requestPhonePin);
+      phoneVerifyBtn.addEventListener('click', verifyPhonePin);
+      phoneEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') requestPhonePin(); });
+      phonePinEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') verifyPhonePin(); });
 
       // Soft-hide SMS button if server reports SMS disabled
       (async function probeSms() {
