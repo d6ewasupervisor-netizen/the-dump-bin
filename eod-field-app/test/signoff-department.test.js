@@ -18,6 +18,27 @@ test('D01 in the POG routes an incorrectly labeled GM row to Grocery', () => {
   assert.deepEqual(rolesForSignoffRow(row), ['grocery']);
 });
 
+test('every Bakery category on a D10 POG signs Deli and Bakery (P10W1 store 19)', () => {
+  for (const catId of [400, 402, 403, 404, 406, 467]) {
+    assert.deepEqual(
+      rolesForSignoffRow({ catId, dept: 'BAKERY', pog: `D701_L00000_D10_C${catId}_V590_I025_MX` }),
+      ['deli', 'bakery'],
+      `cat ${catId}`,
+    );
+  }
+});
+
+test('tracker Dept BAKERY adds the Bakery PIC for a category outside the known list', () => {
+  assert.deepEqual(
+    rolesForSignoffRow({ catId: 499, dept: 'BAKERY', pog: 'D701_L00000_D10_C499_V100_F016_MX' }),
+    ['deli', 'bakery'],
+  );
+  assert.deepEqual(
+    rolesForSignoffRow({ catId: 343, dept: 'FRESH PREPARED', pog: 'D701_L00000_D10_C343_V300_F012_MX' }),
+    ['deli'],
+  );
+});
+
 test('POG department mappings drive department signatures', () => {
   assert.deepEqual(rolesForSignoffRow({ pog: 'D701_L00000_D19_C140_V100_F016_MX' }), ['produce']);
   assert.deepEqual(rolesForSignoffRow({ pog: 'D701_L00000_D87_C100_V100_F016_MX' }), ['home_manager']);

@@ -153,6 +153,15 @@
     return ROLE_ORDER.filter((key) => found.has(key));
   }
 
+  /** Every Kompass category the Category Master lists under dept BAKERY. */
+  const BAKERY_CAT_IDS = Object.freeze([400, 402, 403, 404, 406, 467]);
+
+  /** Bakery sets ride D10 POGs, so the POG code alone says Deli. */
+  function rowNeedsBakeryPic(row) {
+    if (BAKERY_CAT_IDS.includes(rowCatId(row))) return true;
+    return /^bakery$/i.test(String(row?.dept || '').trim());
+  }
+
   function rolesForSignoffRow(row) {
     if (isHomeSideLightbulbs(row)) return ['home_manager'];
     if (isMoneyServicesRow(row)) return ['grocery'];
@@ -175,7 +184,7 @@
       if (!roles.length) roles = ['grocery'];
     }
 
-    if (rowCatId(row) === 400 && !roles.includes('bakery')) roles.push('bakery');
+    if (rowNeedsBakeryPic(row) && !roles.includes('bakery')) roles.push('bakery');
     return ROLE_ORDER.filter((key) => roles.includes(key));
   }
 
@@ -186,6 +195,8 @@
   const api = {
     ROLE_ORDER,
     DEPT_CODE_TO_ROLES,
+    BAKERY_CAT_IDS,
+    rowNeedsBakeryPic,
     extractPogDeptCode,
     isHomeSideLightbulbs,
     isMoneyServicesRow,
