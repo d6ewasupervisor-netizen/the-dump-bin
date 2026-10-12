@@ -138,21 +138,32 @@
     document.querySelectorAll('.stores button').forEach(function (btn) {
       btn.classList.toggle('on', Number(btn.dataset.id) === report.id);
     });
-    var html = '<p><strong>Store ' + esc(report.storeNumber) + '</strong> ' +
-      esc(report.reportedOn || '') + '</p>' +
+    var state = '';
+    if (report.status === 'revisit') {
+      var missing = (report.missing || []).map(function (id) { return LABELS[id] || id; });
+      state = '<p class="revisit">Needs to be revisited. Still open: ' + esc(missing.join(', ')) + '.</p>';
+    } else if (report.status === 'open') {
+      state = '<p>No answers yet.</p>';
+    }
+    var html = state + '<p><strong>Store ' + esc(report.storeNumber) + '</strong> ' +
+      esc(report.reportedOn || '') +
+      (report.supervisor ? ' · ' + esc(report.supervisor) : '') + '</p>' +
       '<label>Comment <textarea id="storeComment" rows="2">' + esc(report.comment || '') + '</textarea></label>' +
       '<p><button type="button" id="saveComment">Save comment</button> <button type="button" id="sheet">Filled sheet</button></p>';
     (report.sets || []).forEach(function (set) {
       var pics = (report.photos || []).filter(function (photo) {
         return String(photo.commodity) === String(set.commodity);
       });
-      html += '<article class="set"><h2>' + esc(LABELS[set.commodity] || set.commodity) + '</h2>' +
-        '<p class="answer">' + esc(set.sheet || '') + '</p>' +
-        (set.notes && set.sheet !== set.notes ? '<p>' + esc(set.notes) + '</p>' : '') +
-        '<div class="photos">' + pics.map(function (photo) {
+      var photoHtml = pics.length
+        ? '<div class="photos">' + pics.map(function (photo) {
           return '<figure><img data-photo="' + photo.id + '" alt="' + esc(SLOTS[photo.slot] || photo.slot) + '">' +
             '<figcaption>' + esc(SLOTS[photo.slot] || photo.slot) + '</figcaption></figure>';
-        }).join('') + '</div></article>';
+        }).join('') + '</div>'
+        : '';
+      html += '<article class="set"><h2>' + esc(LABELS[set.commodity] || set.commodity) + '</h2>' +
+        '<p class="answer">' + esc(set.sheet || set.answer || '') + '</p>' +
+        (set.notes && set.sheet !== set.notes && set.answer !== set.notes ? '<p>' + esc(set.notes) + '</p>' : '') +
+        photoHtml + '</article>';
     });
     var loose = (report.photos || []).filter(function (photo) { return !photo.commodity; });
     if (loose.length) {
@@ -220,6 +231,9 @@
       statusEl.textContent = data.error || 'Could not load reports';
       return;
     }
+    if (data.board && data.board.length) {
+      reports = data.board;
+    } else {
     reports = data.reports || [];
     (data.comments || []).forEach(function (row) {
       var hits = reports.filter(function (report) { return report.storeNumber === row.number; });
@@ -239,6 +253,7 @@
     reports.sort(function (a, b) {
       return Number(a.storeNumber) - Number(b.storeNumber);
     });
+    }
     if (!reports.length) {
       detailEl.innerHTML = '<p>No stores on file.</p>';
       return;
@@ -253,8 +268,10 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.id = String(report.id);
+      if (report.status) btn.classList.add(report.status);
+      var mark = report.status === 'revisit' ? 'Needs to be revisited' : report.status === 'open' ? 'No answers yet' : '';
       btn.innerHTML = '<span class="store-no">' + esc(report.storeNumber) + '</span>' +
-        esc(report.reportedOn || '');
+        esc(mark || report.reportedOn || '');
       btn.addEventListener('click', function () { show(report); });
       wrap.appendChild(box);
       wrap.appendChild(btn);

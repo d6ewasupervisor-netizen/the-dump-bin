@@ -48,20 +48,27 @@ h2 {
   border-left: 4px solid var(--sky);
   padding-left: 8px;
 }
+h3 { margin: 14px 0 6px; font-size: 1rem; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stack { display: grid; gap: 8px; margin: 0 0 8px; }
 figure { margin: 0 0 12px; }
 img { width: 100%; height: auto; display: block; background: #fff; }
 figcaption { font-size: 0.9rem; font-weight: 700; margin-top: 4px; }
+.example-answer { margin: 0 0 8px; font-size: 1.05rem; font-weight: 700; }
 label { display: block; margin: 0 0 10px; font-weight: 700; }
 select option.done { color: #8a93a0; background: #eceff3; }
-.reopen {
+select option.revisit { color: #8a5a00; background: #fff6e8; }
+.note {
   background: #fff6cc;
   border: 1px solid #e6c200;
   padding: 10px;
   font-weight: 700;
 }
-.reopen button { width: auto; margin: 8px 8px 0 0; }
-input[type="text"], input[type="date"], input:not([type]), select, textarea {
+.note.revisit { background: #fff1f1; border-color: var(--red); }
+.locked-answer { font-size: 1.1rem; font-weight: 700; margin: 0 0 8px; }
+.locked-note { margin: 0 0 8px; }
+.hp { position: absolute; left: -9999px; height: 0; overflow: hidden; }
+input[type="text"], input[type="date"], input[type="email"], input[type="tel"], input:not([type]), select, textarea {
   display: block;
   width: 100%;
   margin-top: 4px;
@@ -82,7 +89,7 @@ input[type="text"], input[type="date"], input:not([type]), select, textarea {
 }
 .measures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .file input { font-weight: 400; }
-button {
+button, .ghost {
   font: inherit;
   font-weight: 700;
   background: var(--navy);
@@ -91,11 +98,9 @@ button {
   padding: 12px 18px;
   width: 100%;
 }
+button.inline, .ghost { width: auto; margin: 0 8px 8px 0; }
 button:disabled { opacity: 0.6; }
 .status { min-height: 1.2em; font-weight: 700; }
-.saved-row { border-top: 1px solid #d5deea; padding: 8px 0; }
-.thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
-.thumbs img { width: 72px; height: 72px; object-fit: cover; }
 footer {
   text-align: center;
   padding: 18px 12px 28px;

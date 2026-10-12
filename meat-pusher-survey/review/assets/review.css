@@ -54,6 +54,10 @@ h1 { margin: 0; font-size: 1.4rem; }
   flex: 1;
 }
 .stores button.on { border-color: var(--navy); background: var(--navy); color: #fff; }
+.stores button.done { color: #8a93a0; }
+.stores button.revisit { box-shadow: inset 4px 0 0 var(--red); }
+.stores button.on.done, .stores button.on.revisit { color: #fff; }
+.revisit { color: var(--red); font-weight: 700; }
 .store-no { display: block; font-size: 1.3rem; font-weight: 700; }
 .set {
   background: #fff;

@@ -6,7 +6,7 @@
   <title>Meat Pusher Survey</title>
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&amp;display=swap">
-  <link rel="stylesheet" href="/meat-pusher-survey/assets/survey.css?v=2">
+  <link rel="stylesheet" href="/meat-pusher-survey/assets/survey.css?v=3">
   <script src="/auth-gate.js"></script>
 </head>
 <body>
@@ -35,6 +35,80 @@
         </figure>
       </div>
       <p>Grid pushers, a bunker, and slanted meat shelves are separate answers. Lunchmeat, Convenient Meals, and Kevin's stay on grid pushers. They are not these sets. Hot dogs and dinner sausage are separate lines.</p>
+    </section>
+
+    <section class="block" id="example">
+      <h2>Store 215</h2>
+      <article>
+        <h3>556 Ham Bar</h3>
+        <p class="example-answer">shelves w/back rail</p>
+        <div class="stack">
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/556-set.jpg?v=1" alt="Store 215 ham bar, whole set">
+            <figcaption>Whole set</figcaption>
+          </figure>
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/556-shelf.jpg?v=1" alt="Store 215 ham bar, shelf back">
+            <figcaption>Shelf back</figcaption>
+          </figure>
+        </div>
+      </article>
+      <article>
+        <h3>559 Heat &amp; Serve</h3>
+        <p class="example-answer">6 shelves no back rail 4' x 29"(base)/22"</p>
+        <div class="stack">
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/559-set.jpg?v=1" alt="Store 215 heat and serve, whole set">
+            <figcaption>Whole set</figcaption>
+          </figure>
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/559-shelf.jpg?v=1" alt="Store 215 heat and serve, shelf back">
+            <figcaption>Shelf back</figcaption>
+          </figure>
+        </div>
+      </article>
+      <article>
+        <h3>570 Dinner Sausage</h3>
+        <p class="example-answer">slanted shelves in the meat dept</p>
+        <div class="stack">
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/570-set.jpg?v=1" alt="Store 215 dinner sausage, whole set">
+            <figcaption>Whole set</figcaption>
+          </figure>
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/570-shelf.jpg?v=1" alt="Store 215 dinner sausage, shelf back">
+            <figcaption>Shelf back</figcaption>
+          </figure>
+        </div>
+      </article>
+      <article>
+        <h3>575 Hot Dogs</h3>
+        <p class="example-answer">shelves w/back rail</p>
+        <div class="stack">
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/575-set.jpg?v=1" alt="Store 215 hot dogs, whole set">
+            <figcaption>Whole set</figcaption>
+          </figure>
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/575-shelf.jpg?v=1" alt="Store 215 hot dogs, shelf back">
+            <figcaption>Shelf back</figcaption>
+          </figure>
+        </div>
+      </article>
+      <article>
+        <h3>578 Bacon / Breakfast</h3>
+        <p class="example-answer">shelves w/back rail</p>
+        <div class="stack">
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/578-set.jpg?v=1" alt="Store 215 bacon and breakfast, whole set">
+            <figcaption>Whole set</figcaption>
+          </figure>
+          <figure>
+            <img src="/meat-pusher-survey/assets/ex/578-shelf.jpg?v=1" alt="Store 215 bacon and breakfast, shelf back">
+            <figcaption>Shelf back</figcaption>
+          </figure>
+        </div>
+      </article>
     </section>
 
     <details class="block">
@@ -72,25 +146,12 @@
         <label>Store
           <select name="store" required>
             <option value=""></option>
-            <option value="19">19 Auburn</option>
-            <option value="23">23 Bellevue</option>
-            <option value="28">28 Burien</option>
-            <option value="31">31 Benson Plaza</option>
-            <option value="53">53 Covington</option>
-            <option value="215">215 Kent</option>
-            <option value="391">391 Kirkland</option>
-            <option value="459">459 Renton</option>
-            <option value="658">658 Issaquah</option>
-            <option value="682">682 Maple Valley</option>
           </select>
         </label>
-        <p id="reopen" class="reopen" hidden>
-          <span id="reopenText"></span>
-          <button type="button" id="reopenYes">Open it</button>
-          <button type="button" id="reopenNo">Leave it</button>
-        </p>
+        <p id="storeNote" class="note" hidden></p>
         <label>Date <input name="reportedOn" type="date" required></label>
-        <label>Comment <textarea name="comment" rows="2"></textarea></label>
+        <p id="heldComment" class="locked-answer" hidden></p>
+        <label><span id="commentLabelText">Comment</span> <textarea name="comment" rows="2"></textarea></label>
       </section>
       <div id="sets"></div>
       <section class="block">
@@ -129,12 +190,8 @@
     </form>
 
     <p id="reviewLink" hidden><a href="/meat-pusher-survey/review/">Review board</a></p>
-    <section class="block" id="saved" hidden>
-      <h2>On file</h2>
-      <div id="savedList"></div>
-    </section>
   </main>
   <footer>Retail Odyssey</footer>
-  <script src="/meat-pusher-survey/assets/survey.js?v=6"></script>
+  <script src="/meat-pusher-survey/assets/survey.js?v=7"></script>
 </body>
 </html>
