@@ -79,9 +79,20 @@
         'The shelves slant down toward the front.',
         'This is the meat department wall, with product in trays on the slant.'
       ]
+    },
+    {
+      title: 'In a bunker',
+      img: 'bunker.jpg',
+      alt: 'Open coffin-style island bunker case with product laid flat inside',
+      tell: [
+        'A low open island case in the aisle, not a wall case.',
+        'Product is laid flat and viewed from above the rim.',
+        'There are no glass doors. The top is fully open.',
+        'You are looking down into it, not across at it.'
+      ]
     }
   ];
-  const GUIDE_STEPS = 6;
+  const GUIDE_STEPS = 7;
 
   const CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="#0B2545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 
