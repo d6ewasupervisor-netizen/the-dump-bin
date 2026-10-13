@@ -85,7 +85,7 @@
       }
       .eod-clock-btn svg { width: 20px; height: 20px; display: block; }
       #${OVERLAY_ID} {
-        position: fixed; inset: 0; z-index: 12000;
+        position: fixed; inset: 0; z-index: 46500;
         background: var(--scrim, rgba(2,6,23,.78));
         display: none; align-items: center; justify-content: center;
         padding: 16px; -webkit-tap-highlight-color: transparent;

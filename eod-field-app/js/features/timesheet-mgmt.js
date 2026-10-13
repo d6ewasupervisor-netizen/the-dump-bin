@@ -12,7 +12,26 @@
     join: null,
     pollTimer: null,
     loading: false,
+    drafts: {},
   };
+
+  function draftKey(employeeKey) {
+    return `${state.sheetKey}|${storeNumber()}|${workDate()}|${employeeKey}`;
+  }
+
+  /** Unsaved typed value wins over the polled server value. */
+  function fieldValue(m, field) {
+    const draft = state.drafts[draftKey(m.employeeKey)];
+    if (draft && Object.prototype.hasOwnProperty.call(draft, field)) return draft[field];
+    return m[field] || '';
+  }
+
+  function isEditing() {
+    const active = document.activeElement;
+    const body = document.getElementById('eodTsBody');
+    if (active && body && body.contains(active) && active.matches?.('input, textarea, select')) return true;
+    return !!document.getElementById('eodClockPickerOverlay')?.classList.contains('show');
+  }
 
   function authFetch(url, init) {
     // Prefer window.authFetch (sets X-EOD-Version). Fallback still stamps it.
@@ -221,7 +240,7 @@
         .eod-ts-row-actions .btn { width: auto; flex: 1 1 46%; }
       }
       #eodTsQrOverlay {
-        position: fixed; inset: 0; z-index: 10050; background: rgba(2,6,23,.92);
+        position: fixed; inset: 0; z-index: 45500; background: rgba(2,6,23,.92);
         display: none; align-items: center; justify-content: center; padding: 20px;
       }
       #eodTsQrOverlay.show { display: flex; }
@@ -233,7 +252,7 @@
       .eod-ts-qr-card h3 { margin: 0 0 8px; font-size: 1.2rem; }
       .eod-ts-qr-url { font-size: 12px; word-break: break-all; color: #475569; margin: 10px 0 16px; }
       #eodTsTabletOverlay {
-        position: fixed; inset: 0; z-index: 10060; background: var(--bg, #0b1220);
+        position: fixed; inset: 0; z-index: 45600; background: var(--bg, #0b1220);
         display: none; flex-direction: column;
       }
       #eodTsTabletOverlay.show { display: flex; }
@@ -412,7 +431,7 @@
         : '<span class="eod-ts-meta">—</span>';
       const isIw = state.sheetKey === 'instawork';
       const realNameCell = isIw
-        ? `<td data-label="Real name"><input type="text" data-field="realName" value="${escapeHtml(m.realName || '')}" placeholder="Legal / badge name" aria-label="Real name"></td>`
+        ? `<td data-label="Real name"><input type="text" data-field="realName" value="${escapeHtml(fieldValue(m, 'realName'))}" placeholder="Legal / badge name" aria-label="Real name"></td>`
         : '';
       return `<tr data-key="${escapeHtml(m.employeeKey)}" data-idx="${idx}">
         <td data-label="Teammate">
@@ -430,10 +449,10 @@
             <button type="button" class="btn btn-secondary eod-ts-regen" data-idx="${idx}">New PIN</button>
           </div>
         </td>
-        <td data-label="Clock in"><input type="text" data-field="clockIn" value="${escapeHtml(m.clockIn || '')}" aria-label="Clock in"></td>
-        <td data-label="Lunch out"><input type="text" data-field="lunchOut" value="${escapeHtml(m.lunchOut || '')}" aria-label="Lunch out"></td>
-        <td data-label="Lunch in"><input type="text" data-field="lunchIn" value="${escapeHtml(m.lunchIn || '')}" aria-label="Lunch in"></td>
-        <td data-label="Clock out"><input type="text" data-field="clockOut" value="${escapeHtml(m.clockOut || '')}" aria-label="Clock out"></td>
+        <td data-label="Clock in"><input type="text" data-field="clockIn" value="${escapeHtml(fieldValue(m, 'clockIn'))}" aria-label="Clock in"></td>
+        <td data-label="Lunch out"><input type="text" data-field="lunchOut" value="${escapeHtml(fieldValue(m, 'lunchOut'))}" aria-label="Lunch out"></td>
+        <td data-label="Lunch in"><input type="text" data-field="lunchIn" value="${escapeHtml(fieldValue(m, 'lunchIn'))}" aria-label="Lunch in"></td>
+        <td data-label="Clock out"><input type="text" data-field="clockOut" value="${escapeHtml(fieldValue(m, 'clockOut'))}" aria-label="Clock out"></td>
         <td data-label="Signature">${sig}</td>
         <td data-label="Status">${statusBadge(conf.status)}${conf.submittedAt ? `<div class="eod-ts-meta">${escapeHtml(new Date(conf.submittedAt).toLocaleString())}</div>` : ''}</td>
         <td data-label="Actions">
@@ -467,6 +486,19 @@
           <tbody>${rows}</tbody>
         </table>
       </div>`;
+
+    if (!body.dataset.draftWired) {
+      body.dataset.draftWired = '1';
+      const keepDraft = (e) => {
+        const input = e.target.closest?.('input[data-field]');
+        const tr = input?.closest('tr[data-key]');
+        if (!input || !tr) return;
+        const k = draftKey(tr.dataset.key);
+        state.drafts[k] = { ...(state.drafts[k] || {}), [input.dataset.field]: input.value };
+      };
+      body.addEventListener('input', keepDraft);
+      body.addEventListener('change', keepDraft);
+    }
 
     body.querySelectorAll('.eod-ts-save').forEach((btn) => {
       btn.addEventListener('click', () => saveRow(Number(btn.dataset.idx)).catch(showErr));
@@ -568,6 +600,7 @@
       clockOut: row.clockOut,
       timeSource: 'lead',
     });
+    delete state.drafts[draftKey(row.employeeKey)];
     // Refresh real-name label under teammate without full re-fetch
     const tr = document.querySelector(`#eodTsBody tr[data-idx="${idx}"]`);
     if (tr && state.sheetKey === 'instawork') {
@@ -898,7 +931,9 @@
 
   function startPoll() {
     stopPoll();
-    state.pollTimer = setInterval(() => refresh(false), POLL_MS);
+    state.pollTimer = setInterval(() => {
+      if (!isEditing()) refresh(false);
+    }, POLL_MS);
   }
 
   async function open(sheetKey) {
