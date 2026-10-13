@@ -158,42 +158,195 @@
 
   /* ---- import ---- */
 
+  /* ---- import: two-phase preview → conflict resolve → commit ---- */
+
   var importBtn = document.getElementById('importBtn');
   var importFile = document.getElementById('importFile');
   var importStatus = document.getElementById('importStatus');
+  var conflictModal = document.getElementById('conflictModal');
+
+  function setImportStatus(msg, bad) {
+    if (!importStatus) return;
+    importStatus.textContent = msg;
+    importStatus.style.color = bad ? '#C8102E' : '';
+  }
+
+  function closeModal() {
+    if (conflictModal) conflictModal.hidden = true;
+  }
+
+  function readFileBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result.split(',')[1]); };
+      reader.onerror = function () { reject(new Error('Could not read the file')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function doCommit(decisions, clean) {
+    setImportStatus('Writing changes…');
+    var res = await api('/import/commit', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ decisions: decisions, clean: clean })
+    });
+    var result = await res.json().catch(function () { return {}; });
+    if (!res.ok || result.ok === false) throw new Error(result.error || 'Commit failed');
+    return result;
+  }
+
+  function showConflictModal(conflicts, clean, filename) {
+    if (!conflictModal) return;
+    var decisions = {};
+    conflicts.forEach(function (c) { decisions[c.storeNumber + '::' + c.field] = null; });
+
+    function allResolved() {
+      return conflicts.every(function (c) { return decisions[c.storeNumber + '::' + c.field] !== null; });
+    }
+
+    function setDecision(key, val) {
+      decisions[key] = val;
+      var row = conflictModal.querySelector('[data-key="' + key + '"]');
+      if (row) {
+        row.querySelectorAll('.conflict-action').forEach(function (b) {
+          b.classList.toggle('active', b.dataset.action === val);
+        });
+      }
+      var done = conflicts.filter(function (c) { return decisions[c.storeNumber + '::' + c.field] !== null; }).length;
+      var prog = conflictModal.querySelector('#conflictProgress');
+      if (prog) prog.textContent = done + ' of ' + conflicts.length + ' resolved';
+      var commitBtn = conflictModal.querySelector('#conflictCommit');
+      if (commitBtn) commitBtn.disabled = !allResolved();
+    }
+
+    function buildRow(c) {
+      var key = c.storeNumber + '::' + c.field;
+      return '<tr data-key="' + esc(key) + '">' +
+        '<td class="cc-store"><strong>' + esc(c.storeNumber) + '</strong></td>' +
+        '<td class="cc-field">' + esc(c.label) + '</td>' +
+        '<td class="cc-db">' + esc(c.dbValue || '—') + '</td>' +
+        '<td class="cc-sheet">' + esc(c.sheetValue || '—') + '</td>' +
+        '<td class="cc-actions">' +
+          '<button class="conflict-action" data-key="' + esc(key) + '" data-action="skip" title="Keep DB value, ignore sheet">Skip</button>' +
+          '<button class="conflict-action" data-key="' + esc(key) + '" data-action="yes" title="Replace with sheet value">Yes</button>' +
+          '<button class="conflict-action" data-key="' + esc(key) + '" data-action="no" title="Keep DB value and append sheet value as a conflicting detail">No</button>' +
+        '</td>' +
+      '</tr>';
+    }
+
+    var html = '<div class="cm-inner">' +
+      '<div class="cm-head">' +
+        '<h2>Conflicts in ' + esc(filename) + '</h2>' +
+        '<p>' + conflicts.length + ' field' + (conflicts.length > 1 ? 's' : '') + ' differ between the sheet and the database.</p>' +
+        '<div class="cm-bulk">' +
+          '<button type="button" id="skipAll">Skip all</button>' +
+          '<button type="button" id="yesAll">Yes to all</button>' +
+          '<button type="button" id="noAll">No to all</button>' +
+        '</div>' +
+        '<p id="conflictProgress" class="cp">0 of ' + conflicts.length + ' resolved</p>' +
+      '</div>' +
+      '<div class="cm-legend">' +
+        '<strong>Skip</strong> — keep the database value, ignore the sheet<br>' +
+        '<strong>Yes</strong> — replace the database value with the sheet value<br>' +
+        '<strong>No</strong> — keep the database value and append the sheet value as a conflicting detail' +
+      '</div>' +
+      '<div class="cm-table-wrap"><table class="cm-table">' +
+        '<thead><tr><th>Store</th><th>Field</th><th>Current (DB)</th><th>Sheet value</th><th>Action</th></tr></thead>' +
+        '<tbody>' + conflicts.map(buildRow).join('') + '</tbody>' +
+      '</table></div>' +
+      '<div class="cm-foot">' +
+        '<button type="button" id="conflictCancel">Cancel import</button>' +
+        '<button type="button" id="conflictCommit" disabled>Commit</button>' +
+      '</div>' +
+      '<p id="conflictStatus" class="cp" role="status"></p>' +
+    '</div>';
+
+    conflictModal.innerHTML = html;
+    conflictModal.hidden = false;
+
+    conflictModal.querySelector('#skipAll').addEventListener('click', function () {
+      conflicts.forEach(function (c) { setDecision(c.storeNumber + '::' + c.field, 'skip'); });
+    });
+    conflictModal.querySelector('#yesAll').addEventListener('click', function () {
+      conflicts.forEach(function (c) { setDecision(c.storeNumber + '::' + c.field, 'yes'); });
+    });
+    conflictModal.querySelector('#noAll').addEventListener('click', function () {
+      conflicts.forEach(function (c) { setDecision(c.storeNumber + '::' + c.field, 'no'); });
+    });
+    conflictModal.querySelector('#conflictCancel').addEventListener('click', function () {
+      closeModal();
+      setImportStatus('Import cancelled.');
+    });
+
+    conflictModal.addEventListener('click', function (ev) {
+      var b = ev.target.closest('.conflict-action');
+      if (!b) return;
+      setDecision(b.dataset.key, b.dataset.action);
+    });
+
+    conflictModal.querySelector('#conflictCommit').addEventListener('click', async function () {
+      var commitBtn = conflictModal.querySelector('#conflictCommit');
+      var conflictStatus = conflictModal.querySelector('#conflictStatus');
+      commitBtn.disabled = true;
+      conflictStatus.textContent = 'Writing…';
+      try {
+        var resolvedDecisions = conflicts.map(function (c) {
+          return {
+            storeNumber: c.storeNumber,
+            field: c.field,
+            action: decisions[c.storeNumber + '::' + c.field],
+            sheetValue: c.sheetValue,
+            sheetParsed: c.sheetParsed
+          };
+        });
+        var result = await doCommit(resolvedDecisions, clean);
+        closeModal();
+        var msg = (result.sets || 0) + ' answers · ' + (result.comments || 0) + ' comments';
+        if (result.skipped) msg += ' · ' + result.skipped + ' skipped';
+        if (result.appended && result.appended.length) msg += ' · ' + result.appended.length + ' conflicting details appended';
+        if (result.errors && result.errors.length) msg += ' · ' + result.errors.length + ' errors';
+        setImportStatus('✓ Done — ' + msg);
+        setTimeout(function () { window.location.reload(); }, 1500);
+      } catch (err) {
+        conflictStatus.textContent = '✗ ' + (err.message || 'Commit failed');
+        commitBtn.disabled = false;
+      }
+    });
+  }
 
   if (importBtn && importFile) {
     importBtn.addEventListener('click', function () { importFile.click(); });
     importFile.addEventListener('change', async function () {
       var file = importFile.files && importFile.files[0];
       if (!file) return;
-      importStatus.textContent = 'Reading ' + file.name + '…';
+      setImportStatus('Reading ' + file.name + '…');
       importBtn.disabled = true;
       try {
-        var data = await new Promise(function (resolve, reject) {
-          var reader = new FileReader();
-          reader.onload = function () { resolve(reader.result.split(',')[1]); };
-          reader.onerror = function () { reject(new Error('Could not read the file')); };
-          reader.readAsDataURL(file);
-        });
-        importStatus.textContent = 'Uploading…';
-        var res = await api('/import', {
+        var data = await readFileBase64(file);
+        setImportStatus('Analyzing for conflicts…');
+        var res = await api('/import/preview', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ filename: file.name, data: data })
         });
-        var result = await res.json().catch(function () { return {}; });
-        if (!res.ok || result.ok === false) throw new Error(result.error || 'Import failed');
-        var msg = result.rows + ' rows · ' + (result.created || 0) + ' new stores · ' + (result.updated || 0) + ' updated · ' + (result.sets || 0) + ' answers · ' + (result.comments || 0) + ' comments';
-        if (result.errors && result.errors.length) msg += ' · ' + result.errors.length + ' errors';
-        importStatus.textContent = '✓ ' + msg;
-        importStatus.style.color = '#2e8b57';
-        statusEl.textContent = 'Sheet imported. Reloading board.';
-        await new Promise(function (r) { setTimeout(r, 1200); });
-        window.location.reload();
+        var preview = await res.json().catch(function () { return {}; });
+        if (!res.ok || preview.ok === false) throw new Error(preview.error || 'Preview failed');
+
+        if (!preview.conflicts || !preview.conflicts.length) {
+          // No conflicts — commit immediately
+          setImportStatus('No conflicts. Importing ' + (preview.summary.totalRows || 0) + ' rows…');
+          var result = await doCommit([], preview.clean || []);
+          var msg = (result.sets || 0) + ' answers · ' + (result.comments || 0) + ' comments · ' + (result.created || 0) + ' new stores';
+          setImportStatus('✓ Done — ' + msg);
+          setTimeout(function () { window.location.reload(); }, 1500);
+        } else {
+          setImportStatus(preview.conflicts.length + ' conflict' + (preview.conflicts.length > 1 ? 's' : '') + ' found — resolve below.');
+          showConflictModal(preview.conflicts, preview.clean || [], file.name);
+        }
+        importBtn.disabled = false;
       } catch (err) {
-        importStatus.textContent = '✗ ' + (err.message || 'Import failed');
-        importStatus.style.color = '#C8102E';
+        setImportStatus('✗ ' + (err.message || 'Import failed'), true);
         importBtn.disabled = false;
       }
       importFile.value = '';
