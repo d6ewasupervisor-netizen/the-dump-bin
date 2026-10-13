@@ -156,6 +156,50 @@
   document.getElementById('printBtn').addEventListener('click', function () { doExport('pdf'); });
   document.getElementById('xlsxBtn').addEventListener('click', function () { doExport('xlsx'); });
 
+  /* ---- import ---- */
+
+  var importBtn = document.getElementById('importBtn');
+  var importFile = document.getElementById('importFile');
+  var importStatus = document.getElementById('importStatus');
+
+  if (importBtn && importFile) {
+    importBtn.addEventListener('click', function () { importFile.click(); });
+    importFile.addEventListener('change', async function () {
+      var file = importFile.files && importFile.files[0];
+      if (!file) return;
+      importStatus.textContent = 'Reading ' + file.name + '…';
+      importBtn.disabled = true;
+      try {
+        var data = await new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function () { resolve(reader.result.split(',')[1]); };
+          reader.onerror = function () { reject(new Error('Could not read the file')); };
+          reader.readAsDataURL(file);
+        });
+        importStatus.textContent = 'Uploading…';
+        var res = await api('/import', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, data: data })
+        });
+        var result = await res.json().catch(function () { return {}; });
+        if (!res.ok || result.ok === false) throw new Error(result.error || 'Import failed');
+        var msg = result.rows + ' rows · ' + (result.created || 0) + ' new stores · ' + (result.updated || 0) + ' updated · ' + (result.sets || 0) + ' answers · ' + (result.comments || 0) + ' comments';
+        if (result.errors && result.errors.length) msg += ' · ' + result.errors.length + ' errors';
+        importStatus.textContent = '✓ ' + msg;
+        importStatus.style.color = '#2e8b57';
+        statusEl.textContent = 'Sheet imported. Reloading board.';
+        await new Promise(function (r) { setTimeout(r, 1200); });
+        window.location.reload();
+      } catch (err) {
+        importStatus.textContent = '✗ ' + (err.message || 'Import failed');
+        importStatus.style.color = '#C8102E';
+        importBtn.disabled = false;
+      }
+      importFile.value = '';
+    });
+  }
+
   /* ---- store list ---- */
 
   function paintStores(reports) {

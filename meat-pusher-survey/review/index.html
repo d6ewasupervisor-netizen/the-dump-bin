@@ -6,7 +6,7 @@
   <title>Meat Pusher Review</title>
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700&amp;display=swap">
-  <link rel="stylesheet" href="/meat-pusher-survey/review/assets/review.css?v=4">
+  <link rel="stylesheet" href="/meat-pusher-survey/review/assets/review.css?v=5">
   <script src="/auth-gate.js"></script>
 </head>
 <body>
@@ -40,12 +40,17 @@
       Select all filtered
     </label>
     <span id="selCount" class="sel-count"></span>
+    <label class="import-label">
+      <input type="file" id="importFile" accept=".xlsx,.csv" hidden>
+      <button type="button" class="import-btn" id="importBtn">Upload updated sheet</button>
+    </label>
+    <span id="importStatus" class="import-status"></span>
   </div>
   <div class="layout">
     <aside id="stores" class="stores"></aside>
     <section id="detail"></section>
   </div>
   <footer>Retail Odyssey</footer>
-  <script src="/meat-pusher-survey/review/assets/review.js?v=9"></script>
+  <script src="/meat-pusher-survey/review/assets/review.js?v=10"></script>
 </body>
 </html>
