@@ -26,6 +26,48 @@
     return m[field] || '';
   }
 
+  /** "6:19 AM" / "06:19" → minutes after midnight. */
+  function displayMinutes(raw) {
+    const m = String(raw || '').trim().match(/^(\d{1,2}):(\d{2})\s*([ap]m)?$/i);
+    if (!m) return null;
+    let h = Number(m[1]) % (m[3] ? 12 : 24);
+    if (m[3] && /pm/i.test(m[3])) h += 12;
+    return h * 60 + Number(m[2]);
+  }
+
+  function spanMinutes(from, to) {
+    const a = displayMinutes(from);
+    const b = displayMinutes(to);
+    if (a == null || b == null) return null;
+    return (b - a + 1440) % 1440;
+  }
+
+  const TIME_FIELDS = ['clockIn', 'lunchOut', 'lunchIn', 'clockOut'];
+
+  /** PROD's own total while the row matches PROD; after a lead edit, in to out less lunch. */
+  function totalFor(m) {
+    const prod = m.prodTimes || {};
+    const matchesProd = TIME_FIELDS.every((f) => String(fieldValue(m, f)).trim() === String(prod[f] || '').trim());
+    if (matchesProd && m.prodTotal) return m.prodTotal;
+    const worked = spanMinutes(fieldValue(m, 'clockIn'), fieldValue(m, 'clockOut'));
+    if (worked == null) return '';
+    const total = Math.max(0, worked - (spanMinutes(fieldValue(m, 'lunchOut'), fieldValue(m, 'lunchIn')) || 0));
+    return `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, '0')}m`;
+  }
+
+  /** InstaWork counts as in use once anyone on this sheet has time on a shift. */
+  function syncInstaworkTrigger() {
+    if (state.sheetKey !== 'instawork') return;
+    const S = window.EodSession;
+    if (!S?.patch) return;
+    const timed = state.members.some((m) => String(fieldValue(m, 'clockIn')).trim());
+    const photo = !!S.state.instaworkSavedInfo || (S.state.photos?.instawork || []).length > 0;
+    const next = timed || photo ? 'Yes' : 'No';
+    if (S.state.instaworkYes === next) return;
+    S.patch({ instaworkYes: next }, 'iw');
+    try { S.saveDraft(); } catch (_) {}
+  }
+
   function isEditing() {
     const active = document.activeElement;
     const body = document.getElementById('eodTsBody');
@@ -219,6 +261,7 @@
         font-size: 12px; line-height: 1.35;
       }
       .eod-ts-sig { max-width: 120px; max-height: 40px; background: #fff; border-radius: 4px; display: block; }
+      .eod-ts-total { font-weight: 700; color: #f8fafc; white-space: nowrap; }
       .eod-ts-empty { padding: 28px 16px; text-align: center; color: #94a3b8; }
       .eod-ts-statusline { font-size: 12px; color: #64748b; padding: 0 16px 10px; }
       .eod-ts-row-actions { display: flex; flex-direction: column; gap: 6px; min-width: 110px; }
@@ -370,13 +413,13 @@
     document.getElementById('eodTsSubmitOfficeBtn')?.addEventListener('click', () => submitOffice().catch(showErr));
     document.getElementById('eodTsSubmitSupBtn')?.addEventListener('click', () => submitSupervisor().catch(showErr));
     document.getElementById('eodTsPhotoBtn')?.addEventListener('click', () => {
-      close();
       const S = window.EodSession;
       if (S) {
         S.patch({ instaworkYes: 'Yes' }, 'iw');
         try { S.saveDraft(); } catch (_) {}
       }
-      if (window.EodRouter?.go) window.EodRouter.go('crew');
+      close();
+      if (window.EodRouter?.current !== 'crew') window.EodRouter?.go?.('crew');
     });
     const liveToggle = document.getElementById('eodTsForceLive');
     if (liveToggle) {
@@ -453,10 +496,12 @@
         <td data-label="Lunch out"><input type="text" data-field="lunchOut" value="${escapeHtml(fieldValue(m, 'lunchOut'))}" aria-label="Lunch out"></td>
         <td data-label="Lunch in"><input type="text" data-field="lunchIn" value="${escapeHtml(fieldValue(m, 'lunchIn'))}" aria-label="Lunch in"></td>
         <td data-label="Clock out"><input type="text" data-field="clockOut" value="${escapeHtml(fieldValue(m, 'clockOut'))}" aria-label="Clock out"></td>
+        <td data-label="Total"><span class="eod-ts-total" data-total>${escapeHtml(totalFor(m) || '—')}</span></td>
         <td data-label="Signature">${sig}</td>
-        <td data-label="Status">${statusBadge(conf.status)}${conf.submittedAt ? `<div class="eod-ts-meta">${escapeHtml(new Date(conf.submittedAt).toLocaleString())}</div>` : ''}</td>
+        <td data-label="Status">${statusBadge(conf.status)}${conf.confirmedBy ? `<div class="eod-ts-meta">${escapeHtml(conf.confirmedBy)}</div>` : ''}${conf.submittedAt ? `<div class="eod-ts-meta">${escapeHtml(new Date(conf.submittedAt).toLocaleString())}</div>` : ''}</td>
         <td data-label="Actions">
           <div class="eod-ts-row-actions">
+            <button type="button" class="btn btn-primary eod-ts-confirm" data-idx="${idx}">Confirm</button>
             <button type="button" class="btn btn-secondary eod-ts-save" data-idx="${idx}">Save</button>
             <button type="button" class="btn btn-secondary eod-ts-tablet" data-idx="${idx}">Sign on tablet</button>
             <button type="button" class="btn btn-primary eod-ts-send" data-idx="${idx}">Text / email link</button>
@@ -478,6 +523,7 @@
               <th>Lunch out</th>
               <th>Lunch in</th>
               <th>Out</th>
+              <th>Total</th>
               <th>Signature</th>
               <th>Status</th>
               <th>Actions</th>
@@ -495,6 +541,9 @@
         if (!input || !tr) return;
         const k = draftKey(tr.dataset.key);
         state.drafts[k] = { ...(state.drafts[k] || {}), [input.dataset.field]: input.value };
+        const m = state.members[Number(tr.dataset.idx)];
+        const totalEl = tr.querySelector('[data-total]');
+        if (m && totalEl) totalEl.textContent = totalFor(m) || '—';
       };
       body.addEventListener('input', keepDraft);
       body.addEventListener('change', keepDraft);
@@ -502,6 +551,9 @@
 
     body.querySelectorAll('.eod-ts-save').forEach((btn) => {
       btn.addEventListener('click', () => saveRow(Number(btn.dataset.idx)).catch(showErr));
+    });
+    body.querySelectorAll('.eod-ts-confirm').forEach((btn) => {
+      btn.addEventListener('click', () => saveRow(Number(btn.dataset.idx), { confirm: true }).catch(showErr));
     });
     body.querySelectorAll('.eod-ts-send').forEach((btn) => {
       btn.addEventListener('click', () => sendLink(Number(btn.dataset.idx)));
@@ -552,7 +604,7 @@
     };
   }
 
-  async function saveRow(idx) {
+  async function saveRow(idx, opts = {}) {
     const row = readRowInputs(idx);
     if (!row) return;
     const store = storeNumber();
@@ -584,6 +636,7 @@
         lunchIn: row.lunchIn,
         clockOut: row.clockOut,
         timeSource: 'lead',
+        confirmationStatus: opts.confirm ? 'confirmed' : undefined,
       }),
     });
     const data = await resp.json().catch(() => ({}));
@@ -601,6 +654,16 @@
       timeSource: 'lead',
     });
     delete state.drafts[draftKey(row.employeeKey)];
+    syncInstaworkTrigger();
+    if (opts.confirm) {
+      state.members[idx].confirmation = {
+        ...(state.members[idx].confirmation || {}),
+        status: 'confirmed',
+        confirmedBy: data.row?.confirmed_by || null,
+      };
+      render();
+      return;
+    }
     // Refresh real-name label under teammate without full re-fetch
     const tr = document.querySelector(`#eodTsBody tr[data-idx="${idx}"]`);
     if (tr && state.sheetKey === 'instawork') {
@@ -911,6 +974,7 @@
       state.handoffs = Array.isArray(data.handoffs) ? data.handoffs : [];
       state.join = data.join || state.join;
       render();
+      syncInstaworkTrigger();
     } catch (err) {
       const body = document.getElementById('eodTsBody');
       if (body) {
@@ -956,6 +1020,7 @@
     const frame = document.getElementById('eodTsTabletFrame');
     if (frame) frame.src = 'about:blank';
     document.body.style.overflow = '';
+    try { window.EodCrew?.paintInstawork?.(); } catch (_) {}
   }
 
   window.EodTimesheetMgmt = {
