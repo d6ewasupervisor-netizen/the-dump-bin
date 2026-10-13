@@ -274,6 +274,51 @@ details.more p { margin-top: 8px; }
 .sum-row b { font-size: 1.05rem; }
 .sum-row .skip { color: #d97a00; font-weight: 700; }
 
+.how-to {
+  background: #fff;
+  border: 2px solid var(--navy);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.how-to > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 0 14px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  cursor: pointer;
+  background: var(--navy);
+  color: #fff;
+}
+.how-to > summary::-webkit-details-marker { display: none; }
+.how-to > summary::after { content: ""; flex: none; width: 10px; height: 10px; border-right: 3px solid #fff; border-bottom: 3px solid #fff; transform: rotate(45deg); transition: transform 0.15s ease; margin-right: 4px; }
+.how-to[open] > summary::after { transform: rotate(-135deg); }
+.how-to-body { padding: 12px; display: grid; gap: 12px; }
+.shelf-type-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.shelf-type-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  text-align: center;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.2;
+  cursor: zoom-in;
+}
+.shelf-type-tile img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.how-to-full { margin-top: 4px; }
+
 .guide-skip { justify-self: end; margin-bottom: -8px; }
 .guide-photo { display: block; width: 100%; padding: 0; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; background: #000; }
 .guide-photo img { display: block; width: auto; max-width: 100%; max-height: 62vh; max-height: 62dvh; margin: 0 auto; object-fit: contain; }

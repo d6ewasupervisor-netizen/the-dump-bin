@@ -446,11 +446,30 @@
     state.stores = data.stores || [];
   }
 
+  function shelfTypeGrid() {
+    return '<div class="shelf-type-grid">' +
+      GUIDE_TYPES.map(function (t) {
+        var src = ASSETS + 'guide/' + t.img + '?v=1';
+        return '<button type="button" class="shelf-type-tile" data-zoom="' + src + '" data-alt="' + esc(t.alt) + '">' +
+          '<img src="' + src + '" alt="' + esc(t.alt) + '" loading="lazy">' +
+          '<span>' + esc(t.title) + '</span>' +
+          '</button>';
+      }).join('') +
+    '</div>';
+  }
+
   function renderStores() {
     setChrome({ nav: false });
     app.innerHTML =
       '<div class="screen">' +
         '<p class="hold">Do not install pushers on this visit. The install is on hold.</p>' +
+        '<details class="how-to" id="howTo">' +
+          '<summary id="howToSummary">How to tell the shelf types</summary>' +
+          '<div class="how-to-body">' +
+            shelfTypeGrid() +
+            '<button type="button" class="btn alt how-to-full" id="showGuide">Full walkthrough</button>' +
+          '</div>' +
+        '</details>' +
         '<h1 class="title">Pick your store</h1>' +
         '<input class="filter" id="filter" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Type your store number" value="' + esc(state.filter) + '">' +
         '<div class="legend">' +
@@ -460,9 +479,9 @@
         '</div>' +
         '<div class="grid" id="grid"></div>' +
         '<p class="status bad" role="status" id="storeMsg"></p>' +
-        '<button type="button" class="btn alt" id="showGuide">How to tell the shelf types</button>' +
         '<button type="button" class="link" id="signOut">Sign out</button>' +
       '</div>';
+    bindZoom(app);
     paintGrid();
     document.getElementById('showGuide').addEventListener('click', function () {
       state.afterGuide = 'stores';
