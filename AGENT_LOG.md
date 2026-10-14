@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-14 — Meat pusher manual lead
+
+Outreach store rows can assign a lead pulled elsewhere in the same district, or a name and email typed on the row.
+
 ## 2026-10-14 — InstaWork Clock-in overview
 
 `/instawork-clock/` is a hub-session page (loads `/auth-gate.js`) for leads, supervisors, admins, and office. It lists each InstaWork roster store-day from `GET /api/instawork-clock/overview` on eod-api: name, phone, placeholder slot, verify time, punches, signed, confirmed by. Card `instawork-clock` on the home page. Workers themselves use `https://eod-api.the-dump-bin.com/share/clock/`, not this page.

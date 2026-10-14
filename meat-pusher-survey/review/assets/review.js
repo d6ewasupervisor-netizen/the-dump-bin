@@ -558,8 +558,57 @@
     c.querySelectorAll('tbody tr[data-store]').forEach(function (tr) {
       var e = tr.querySelector('.lead-email');
       var s = tr.querySelector('.lead-sup');
-      if (e || s) typed[tr.getAttribute('data-store')] = { email: e ? e.value : undefined, sup: s ? s.value : undefined };
+      var p = tr.querySelector('.lead-pick');
+      var n = tr.querySelector('.lead-name');
+      if (e || s || p) typed[tr.getAttribute('data-store')] = {
+        email: e ? e.value : undefined,
+        sup: s ? s.value : undefined,
+        pick: p ? p.value : undefined,
+        name: n ? n.value : undefined
+      };
     });
+  }
+
+  function districtOfReport(r) {
+    return String((r && r.district) || '').replace(/\D/g, '');
+  }
+
+  function peopleInDistrict(district) {
+    if (!district) return [];
+    var seen = {};
+    var out = [];
+    function add(person) {
+      var email = String(person.email || '').trim().toLowerCase();
+      if (!email || seen[email]) return;
+      seen[email] = true;
+      out.push({
+        name: person.name || person.assignee_name || '',
+        email: email,
+        workdayId: person.workdayId || person.workday_id || null,
+        supervisorName: person.supervisorName || person.supervisor_name || '',
+        supervisorEmail: person.supervisorEmail || person.supervisor_email || ''
+      });
+    }
+    Object.keys(leadsByStore).forEach(function (sn) {
+      var rep = reportByStore(sn);
+      if (districtOfReport(rep) !== district) return;
+      (leadsByStore[sn] || []).forEach(add);
+    });
+    assignmentsAll.forEach(function (a) {
+      var rep = reportByStore(a.store_number);
+      var d = districtOfReport(rep) || String(a.district || '').replace(/\D/g, '');
+      if (d !== district) return;
+      add(a);
+    });
+    out.sort(function (a, b) { return String(a.name || a.email).localeCompare(String(b.name || b.email)); });
+    return out;
+  }
+
+  function personInDistrict(district, email) {
+    var want = String(email || '').trim().toLowerCase();
+    var list = peopleInDistrict(district);
+    for (var i = 0; i < list.length; i++) if (list[i].email === want) return list[i];
+    return null;
   }
 
   function renderOutreachStores() {
@@ -574,27 +623,45 @@
       var leads = leadsByStore[r.storeNumber] || [];
       var L = leads[0] || null;
       var existing = existingAssigneesFor(r.storeNumber);
-      var leadCell = !leadsPulled
-        ? '<span class="sub">Pull leads first</span>'
+      var t = typed[r.storeNumber] || {};
+      var pick = t.pick != null ? t.pick : (L ? 'sas' : '');
+      var district = districtOfReport(r);
+      var districtPeople = peopleInDistrict(district).filter(function (p) { return !(L && L.email && p.email === String(L.email).toLowerCase()); });
+      var sasLine = !leadsPulled
+        ? ''
         : L
           ? '<strong>' + esc(L.name || '—') + '</strong>' + (leads.length > 1 ? ' <span class="sub">+' + (leads.length - 1) + ' more</span>' : '') +
             '<div class="sub">' + esc(L.date || '') + (L.project ? ' · ' + esc(L.project) : '') + (L.team ? ' · ' + esc(L.team) : '') + '</div>'
-          : '<span class="sub warn">No ISE, Blitz, or Cut-In visit in range</span>';
-      var t = typed[r.storeNumber] || {};
-      var emailVal = t.email != null && t.email !== '' ? t.email : (L ? L.email || '' : '');
-      var supVal = t.sup != null && t.sup !== '' ? t.sup : (L ? (L.supervisorEmail || r.supervisorEmail || '') : '');
-      var emailCell = L
-        ? '<input type="email" class="lead-email" value="' + esc(emailVal) + '" placeholder="no email in SAS">'
-        : '';
-      var supCell = L
-        ? '<input type="email" class="lead-sup" value="' + esc(supVal) + '" placeholder="supervisor email">' +
-          (L.supervisorName ? '<div class="sub">' + esc(L.supervisorName) + '</div>' : '')
-        : '<span class="sub">' + esc(r.supervisorEmail || '') + '</span>';
+          : '<div class="sub warn">No ISE, Blitz, or Cut-In visit in range</div>';
+      var opts = '<option value="">Choose a lead</option>';
+      if (L) opts += '<option value="sas"' + (pick === 'sas' ? ' selected' : '') + '>SAS · ' + esc(L.name || L.email || 'lead') + '</option>';
+      if (districtPeople.length) {
+        opts += '<optgroup label="Same district">';
+        districtPeople.forEach(function (p) {
+          opts += '<option value="' + esc(p.email) + '"' + (pick === p.email ? ' selected' : '') + '>' + esc(p.name || p.email) + '</option>';
+        });
+        opts += '</optgroup>';
+      }
+      opts += '<option value="manual"' + (pick === 'manual' ? ' selected' : '') + '>Type a lead</option>';
+      var nameVal = t.name != null ? t.name : '';
+      var leadCell = sasLine +
+        '<select class="lead-pick">' + opts + '</select>' +
+        '<input class="lead-name" placeholder="Name"' + (pick === 'manual' ? '' : ' hidden') + ' value="' + esc(nameVal) + '">';
+      var emailVal = t.email != null && t.email !== '' ? t.email : (pick === 'sas' && L ? L.email || '' : (pick && pick !== 'manual' && pick !== 'sas' ? pick : ''));
+      var pickedPerson = pick && pick !== 'manual' && pick !== 'sas' ? personInDistrict(district, pick) : null;
+      var supVal = t.sup != null && t.sup !== '' ? t.sup
+        : (pick === 'sas' && L ? (L.supervisorEmail || r.supervisorEmail || '')
+          : (pickedPerson && pickedPerson.supervisorEmail ? pickedPerson.supervisorEmail : (r.supervisorEmail || '')));
+      var supName = (pick === 'sas' && L && L.supervisorName) ? L.supervisorName : (pickedPerson && pickedPerson.supervisorName) || r.supervisor || '';
+      var emailCell = '<input type="email" class="lead-email" value="' + esc(emailVal) + '" placeholder="email">';
+      var supCell = '<input type="email" class="lead-sup" value="' + esc(supVal) + '" placeholder="supervisor email">' +
+        (supName ? '<div class="sub">' + esc(supName) + '</div>' : '');
       var assignedCell = existing.length
         ? existing.map(function (a) { return badge(a.status === 'done' ? 'done' : a.invite_sent_at ? 'invited' : 'assigned', (a.assignee_name || a.assignee_email) + (a.invite_sent_at ? ' · emailed' : '')); }).join(' ')
         : '<span class="sub">—</span>';
-      return '<tr data-store="' + esc(r.storeNumber) + '"' + (L ? '' : ' class="no-lead"') + '>' +
-        '<td><input type="checkbox" class="out-pick"' + (L ? '' : ' disabled') + '></td>' +
+      var canAssign = pick === 'sas' || pick === 'manual' || (pick && pick.indexOf('@') !== -1);
+      return '<tr data-store="' + esc(r.storeNumber) + '"' + (canAssign ? '' : ' class="no-lead"') + '>' +
+        '<td><input type="checkbox" class="out-pick"' + (canAssign ? '' : ' disabled') + '></td>' +
         '<td><strong>' + esc(r.storeNumber) + '</strong>' + (r.storeName ? '<div class="sub">' + esc(r.storeName) + '</div>' : '') + '</td>' +
         '<td class="sub">' + esc(r.group || '') + '</td>' +
         '<td>' + badge(r.status || 'open', STATUS_LABEL[r.status] || 'Not started') + '</td>' +
@@ -621,10 +688,39 @@
     });
     if ($('assignSel')) $('assignSel').addEventListener('click', function () { assignStores(true); });
     if ($('assignAllLeads')) $('assignAllLeads').addEventListener('click', function () { assignStores(false); });
+    container.querySelectorAll('.lead-pick').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        var tr = sel.closest('tr');
+        var pick = sel.value;
+        var nameEl = tr.querySelector('.lead-name');
+        var emailEl = tr.querySelector('.lead-email');
+        var supEl = tr.querySelector('.lead-sup');
+        var cb = tr.querySelector('.out-pick');
+        var sn = tr.getAttribute('data-store');
+        var rep = reportByStore(sn) || {};
+        var L0 = (leadsByStore[sn] || [])[0] || null;
+        if (nameEl) nameEl.hidden = pick !== 'manual';
+        if (pick === 'sas' && L0) {
+          if (emailEl) emailEl.value = L0.email || '';
+          if (supEl) supEl.value = L0.supervisorEmail || rep.supervisorEmail || '';
+        } else if (pick && pick !== 'manual') {
+          var person = personInDistrict(districtOfReport(rep), pick);
+          if (emailEl) emailEl.value = pick;
+          if (supEl) supEl.value = (person && person.supervisorEmail) || rep.supervisorEmail || '';
+        } else if (pick === 'manual') {
+          if (emailEl) emailEl.value = '';
+          if (nameEl) nameEl.focus();
+        }
+        if (cb) {
+          cb.disabled = !pick;
+          cb.checked = !!pick;
+        }
+        tr.classList.toggle('no-lead', !pick);
+      });
+    });
   }
 
   function assignStores(selectedOnly) {
-    if (!leadsPulled) { setPull('Pull leads first.', true); return; }
     var container = $('outStores');
     var items = [];
     var missing = [];
@@ -633,14 +729,21 @@
       if (!cb || cb.disabled) return;
       if (selectedOnly && !cb.checked) return;
       var sn = tr.getAttribute('data-store');
-      var L = (leadsByStore[sn] || [])[0];
-      if (!L) return;
-      var email = (tr.querySelector('.lead-email') || {}).value || '';
-      var sup = (tr.querySelector('.lead-sup') || {}).value || '';
-      if (!email.trim()) { missing.push(sn + ' (' + (L.name || 'lead') + ')'); return; }
+      var rep = reportByStore(sn) || {};
+      var pick = (tr.querySelector('.lead-pick') || {}).value || '';
+      var email = ((tr.querySelector('.lead-email') || {}).value || '').trim();
+      var sup = ((tr.querySelector('.lead-sup') || {}).value || '').trim();
+      var typedName = ((tr.querySelector('.lead-name') || {}).value || '').trim();
+      var L = (leadsByStore[sn] || [])[0] || null;
+      var person = (pick && pick !== 'sas' && pick !== 'manual') ? personInDistrict(districtOfReport(rep), pick) : null;
+      var name = pick === 'manual' ? (typedName || null) : pick === 'sas' ? (L && L.name) || null : (person && person.name) || null;
+      var workdayId = pick === 'sas' ? (L && L.workdayId) || null : (person && person.workdayId) || null;
+      var supervisorName = pick === 'sas' ? (L && L.supervisorName) || rep.supervisor || null : (person && person.supervisorName) || rep.supervisor || null;
+      if (!email) { missing.push(sn + (name ? ' (' + name + ')' : '')); return; }
       items.push({
-        storeNumber: sn, email: email.trim(), name: L.name || null, isLead: true, workdayId: L.workdayId || null,
-        supervisorEmail: sup.trim() || null, supervisorName: L.supervisorName || null
+        storeNumber: sn, email: email, name: name, isLead: true, workdayId: workdayId,
+        supervisorEmail: sup || null, supervisorName: supervisorName,
+        notes: pick === 'manual' ? 'manual' : (pick && pick !== 'sas' ? 'district' : null)
       });
     });
     if (!items.length) {

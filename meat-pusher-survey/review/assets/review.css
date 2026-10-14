@@ -148,7 +148,13 @@ h1 { margin: 0; font-size: 1.3rem; white-space: nowrap; }
 .out-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .out-table tr:last-child td { border-bottom: 0; }
 .out-table input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
-.out-table input[type=email] { font: inherit; font-size: 0.85rem; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; width: 200px; }
+.out-table input[type=email],
+.out-table select.lead-pick,
+.out-table input.lead-name { font: inherit; font-size: 0.85rem; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; max-width: 220px; }
+.out-table input[type=email] { width: 200px; }
+.out-table select.lead-pick { display: block; margin-top: 4px; width: 100%; }
+.out-table input.lead-name { display: block; width: 160px; margin-top: 4px; }
+.out-table input.lead-name[hidden] { display: none; }
 .out-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 12px; background: #f8fbff; border-top: 1px solid var(--line); }
 .out-actions button { font: inherit; font-weight: 700; border: 2px solid var(--navy); background: #fff; color: var(--navy); padding: 6px 14px; cursor: pointer; }
 .out-actions button.primary { background: var(--navy); color: #fff; }
