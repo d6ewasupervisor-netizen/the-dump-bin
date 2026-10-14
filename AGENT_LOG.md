@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-13 — InstaWork timesheet name and signature
+
+Live EOD 2.17.8 blocks InstaWork download, print, email, and submit to office until the lead has entered each InstaWorker's name and that person has signed. Sign on tablet and the text/email link save the name first.
+
 ## 2026-10-09 — Meat pusher stacked photos
 
 Filled sheet uses every checked store, one page each.

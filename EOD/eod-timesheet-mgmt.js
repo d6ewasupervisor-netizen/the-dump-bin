@@ -72,6 +72,29 @@
     return (m?.realName || m?.name || '').trim();
   }
 
+  function placeholderInstaworkName(name) {
+    const s = String(name || '').trim();
+    if (!s) return true;
+    if (/^fred\s*meyer\s*\d+$/i.test(s)) return true;
+    if (/^fm\d+$/i.test(s)) return true;
+    return false;
+  }
+
+  function instaworkOnSheet(m) {
+    const hasTime = [m?.clockIn, m?.clockOut, m?.lunchOut, m?.lunchIn].some((v) => String(v || '').trim());
+    const hasName = !placeholderInstaworkName(m?.realName);
+    const hasSig = Boolean(m?.confirmation?.signatureDataUrl || m?.confirmation?.signatureUrl);
+    return hasTime || hasName || hasSig;
+  }
+
+  function instaworkGaps(members) {
+    const onSheet = (members || []).filter(instaworkOnSheet);
+    return {
+      missingNames: onSheet.filter((m) => placeholderInstaworkName(m.realName)),
+      missingSignatures: onSheet.filter((m) => !(m.confirmation?.signatureDataUrl || m.confirmation?.signatureUrl)),
+    };
+  }
+
   /** Add minutes to "8:00 AM" / "08:00" display times. */
   function addMinutesToDisplayTime(raw, addMins) {
     if (window.EodClockPicker?.parseTime && window.EodClockPicker?.formatDisplay12) {
@@ -479,7 +502,7 @@
       btn.addEventListener('click', () => saveRow(Number(btn.dataset.idx)).catch(showErr));
     });
     body.querySelectorAll('.eod-ts-send').forEach((btn) => {
-      btn.addEventListener('click', () => sendLink(Number(btn.dataset.idx)));
+      btn.addEventListener('click', () => sendLink(Number(btn.dataset.idx)).catch(showErr));
     });
     body.querySelectorAll('.eod-ts-regen').forEach((btn) => {
       btn.addEventListener('click', () => regenPin(Number(btn.dataset.idx)).catch(showErr));
@@ -506,7 +529,15 @@
       const adj = state.members.filter((m) => m.confirmation?.status === 'adjust').length;
       const conf = state.members.filter((m) => m.confirmation?.status === 'confirmed').length;
       const joinHint = state.join?.joinUrl ? ' · JOIN QR ready' : '';
-      status.textContent = `Updated ${new Date().toLocaleTimeString()} · ${state.members.length} people · ${conf} signed · ${adj} adjusted${joinHint}`;
+      let gapHint = '';
+      if (state.sheetKey === 'instawork') {
+        const gaps = instaworkGaps(state.members);
+        const bits = [];
+        if (gaps.missingNames.length) bits.push(`${gaps.missingNames.length} need a name`);
+        if (gaps.missingSignatures.length) bits.push(`${gaps.missingSignatures.length} unsigned`);
+        if (bits.length) gapHint = ` · ${bits.join(' · ')}`;
+      }
+      status.textContent = `Updated ${new Date().toLocaleTimeString()} · ${state.members.length} people · ${conf} signed · ${adj} adjusted${gapHint}${joinHint}`;
     }
   }
 
@@ -539,8 +570,8 @@
       showErr(new Error('Set store and work date first.'));
       return;
     }
-    if (state.sheetKey === 'instawork' && !row.realName) {
-      showErr(new Error('Enter a Real name for this InstaWork teammate before saving — it travels with their PIN.'));
+    if (state.sheetKey === 'instawork' && placeholderInstaworkName(row.realName)) {
+      showErr(new Error('Enter this InstaWorker\'s name. The FredMeyer account name cannot go on the timesheet.'));
       return;
     }
     const resp = await authFetch(`${API}/row`, {
@@ -639,15 +670,20 @@
     const store = storeNumber();
     const date = workDate();
     if (!store || !date) throw new Error('Set store and work date first.');
+    if (state.sheetKey === 'instawork') {
+      await saveRow(idx);
+      if (placeholderInstaworkName(state.members[idx]?.realName)) return;
+    }
+    const named = state.members[idx] || m;
     const resp = await authFetch(`${API}/tablet-session`, {
       method: 'POST',
       headers: dayConfirmHeaders(),
       body: JSON.stringify({
         storeNumber: store,
         workDate: date,
-        employeeKey: m.employeeKey,
-        employeeName: m.name,
-        realName: m.realName || '',
+        employeeKey: named.employeeKey,
+        employeeName: named.name,
+        realName: named.realName || '',
         sheetKey: state.sheetKey,
       }),
     });
@@ -665,7 +701,11 @@
     overlay?.classList.add('show');
   }
 
-  function sendLink(idx) {
+  async function sendLink(idx) {
+    if (state.sheetKey === 'instawork') {
+      await saveRow(idx);
+      if (placeholderInstaworkName(state.members[idx]?.realName)) return;
+    }
     const row = readRowInputs(idx) || state.members[idx];
     if (!row) return;
     if (!window.EodGuestHandoff?.openSendModal) {
@@ -839,7 +879,10 @@
       if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
       throw new Error('Confirm today\'s store first');
     }
-    if (resp.status === 409 && data.pendingSignatures) {
+    if (resp.status === 409 && (data.missingNames || data.missingSignatures)) {
+      throw new Error(data.error || 'InstaWork timesheet is not ready to file.');
+    }
+    if (resp.status === 409 && data.pendingSignatures && state.sheetKey !== 'instawork') {
       const ok = confirm(`${data.error}\n\nSubmit anyway?`);
       if (!ok) throw new Error('Cancelled');
       return postAction(path, { ...body, force: true }, { skipLiveConfirm: true });
