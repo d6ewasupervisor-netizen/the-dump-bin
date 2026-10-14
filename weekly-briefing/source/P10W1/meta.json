@@ -1,0 +1,86 @@
+{
+  "week": "P10W1",
+  "district": "D8",
+  "title": "Period 10 \u00b7 Week 1",
+  "dueAt": "2026-10-19T06:00:00-07:00",
+  "passPct": 80,
+  "board": "callsign",
+  "stops": [
+    "Period 10 Week 1",
+    "Week at a glance",
+    "How the blitz runs",
+    "Check lanes & merch walls",
+    "Liberty tail",
+    "Endcaps",
+    "Snack endcap",
+    "U-scans",
+    "Tags & overstock",
+    "Produce first",
+    "Dairy & frozen",
+    "Deli & bakery",
+    "Grocery, NF & strip routing",
+    "Holds & materials",
+    "Store callouts",
+    "Standing reminders",
+    "Period 10 Week 2",
+    "Further out",
+    "The short version"
+  ],
+  "sections": [
+    {
+      "name": "Opening",
+      "stops": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Checklane Blitz",
+      "stops": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "name": "Fresh",
+      "stops": [
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "name": "Grocery & holds",
+      "stops": [
+        13,
+        14
+      ]
+    },
+    {
+      "name": "Stores & reminders",
+      "stops": [
+        15,
+        16
+      ]
+    },
+    {
+      "name": "Looking ahead",
+      "stops": [
+        17,
+        18
+      ]
+    },
+    {
+      "name": "Wrap",
+      "stops": [
+        19
+      ]
+    }
+  ],
+  "closer": "Somewhere out there, a pack of Doublemint is waiting to move up one shelf, and it's counting on you."
+}

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0B2545">
+  <title>Weekly Briefing — Stats</title>
+  <link rel="icon" type="image/png" href="/favicon.png?v=2">
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <script src="/auth-gate.js?v=20260813-hub-restrict"></script>
+  <style>
+    .admin { flex: 1; background: var(--paper); color: var(--ink); padding: 0 0 40px; }
+    .admin__wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
+    .admin .topbar { position: static; }
+    .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+    .tile { background: #fff; border: 1px solid var(--paper-2); border-radius: var(--radius); padding: 12px; text-align: center; }
+    .tile__n { font-size: 26px; font-weight: 700; line-height: 1; }
+    .tile__l { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); margin-top: 6px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+    .actions .btn { width: auto; min-height: 44px; font-size: 15px; padding: 0 14px; margin: 0; }
+    .actions select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--paper-2); background: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: 15px; background: #fff; border-radius: var(--radius); overflow: hidden; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid var(--paper-2); text-align: left; }
+    th { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); background: #fff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+    .pill.complete { background: #EAF6EE; color: var(--green); }
+    .pill.finished-under { background: #FFF8D6; color: #8a6d00; }
+    .pill.in-progress { background: #EEF4FB; color: var(--sky); }
+    .pill.not-started { background: var(--paper-2); color: var(--ink-dim); }
+    .off { color: var(--red); font-size: 12px; }
+    h2 { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); margin: 22px 0 8px; }
+    .missed-q { background: #fff; border: 1px solid var(--paper-2); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
+    .missed-q strong { color: var(--red); }
+    .missed-q .mstop { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
+    .msg { margin: 8px 0; font-size: 14px; color: var(--ink-dim); min-height: 1.3em; }
+    .nav-links a { color: var(--on-navy-dim); font-size: 14px; text-decoration: none; }
+    @media (max-width: 640px) { .tiles { grid-template-columns: repeat(2, 1fr); } th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { display: none; } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <section class="screen is-active">
+      <header class="topbar">
+        <a class="topbar__back" href="./" aria-label="Back to the walk" style="color:var(--on-navy-dim)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg>
+        </a>
+        <div class="topbar__meta">
+          <div class="topbar__eyebrow">Weekly Briefing · Stats</div>
+          <div class="topbar__title" id="title">Loading…</div>
+        </div>
+        <div class="nav-links"><a href="/">Hub</a></div>
+      </header>
+
+      <div class="admin"><div class="admin__wrap">
+        <div class="actions">
+          <select id="week-select"></select>
+          <button class="btn btn--sky" id="btn-refresh">Refresh</button>
+          <button class="btn btn--ghost-ink" id="btn-register" title="Read packs/current.json from the hub and register it">Register current pack</button>
+          <button class="btn btn--primary" id="btn-launch">Text launch link to D8</button>
+          <button class="btn btn--ghost-ink" id="btn-remind">Text reminder to not-done</button>
+          <button class="btn btn--ghost-ink" id="btn-email">Email me the summary now</button>
+        </div>
+        <div class="msg" id="msg"></div>
+
+        <div class="tiles" id="tiles"></div>
+
+        <h2>Most missed on first try</h2>
+        <div id="missed"></div>
+
+        <h2>Everyone</h2>
+        <table>
+          <thead><tr><th>Name</th><th>Status</th><th class="num">Score</th><th class="num">Min</th><th class="num">Tries</th><th class="num">Stops</th><th>Last seen</th></tr></thead>
+          <tbody id="people"></tbody>
+        </table>
+        <div class="footer" style="color:var(--ink-dim)">Retail Odyssey</div>
+      </div></div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      var API = '/api/weekly-briefing';
+      var $ = function (id) { return document.getElementById(id); };
+      var weeks = [];
+      function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+      function api(path, opts) {
+        opts = opts || {};
+        if (opts.body && typeof opts.body !== 'string') { opts.body = JSON.stringify(opts.body); opts.headers = { 'Content-Type': 'application/json' }; }
+        return window.dumpBinAuthFetch(API + path, opts).then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status)); return d; });
+        });
+      }
+      function msg(t) { $('msg').textContent = t || ''; }
+      function ago(iso) {
+        if (!iso) return '—';
+        var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+        if (m < 2) return 'just now'; if (m < 60) return m + ' min ago';
+        var h = Math.round(m / 60); if (h < 36) return h + ' h ago';
+        return Math.round(h / 24) + ' d ago';
+      }
+      function selectedWeek() { return $('week-select').value; }
+      function tile(l, v) { return '<div class="tile"><div class="tile__n">' + esc(v) + '</div><div class="tile__l">' + esc(l) + '</div></div>'; }
+      function statusLabel(s) { return { complete: 'Complete', 'finished-under': 'Finished, under', 'in-progress': 'In progress', 'not-started': 'Not started' }[s] || s; }
+
+      function loadWeeks() {
+        return api('/admin/weeks').then(function (d) {
+          weeks = d.weeks || [];
+          var sel = $('week-select');
+          sel.innerHTML = weeks.map(function (w) { return '<option value="' + esc(w.week_code) + '">' + esc(w.week_code) + ' · ' + esc(w.title) + ' (' + w.complete + ' complete)</option>'; }).join('');
+          if (!weeks.length) { sel.innerHTML = '<option value="">No weeks yet</option>'; }
+        });
+      }
+      function loadSummary() {
+        var w = selectedWeek();
+        if (!w) { $('title').textContent = 'No weeks registered'; return Promise.resolve(); }
+        msg('Loading…');
+        return api('/admin/summary?week=' + encodeURIComponent(w)).then(function (d) {
+          var s = d.summary; var c = s.counts;
+          $('title').textContent = s.week.title + ' · ' + s.week.week;
+          $('tiles').innerHTML = tile('Complete', c.complete + '/' + s.rosterCount) + tile('Under ' + s.week.passPct + '%', c.finishedUnder)
+            + tile('In progress', c.inProgress) + tile('Not started', c.notStarted)
+            + tile('Average first try', s.avgPct == null ? '—' : s.avgPct + '%') + tile('Median minutes', s.medianMinutes == null ? '—' : s.medianMinutes)
+            + tile('Off roster', c.offRoster) + tile('Launched', s.week.launchedAt ? ago(s.week.launchedAt) : 'not yet');
+          $('missed').innerHTML = s.missed.length ? s.missed.slice(0, 10).map(function (m) {
+            return '<div class="missed-q"><div class="mstop">Stop ' + m.stop + ' · ' + esc(m.stopTitle) + '</div><strong>' + m.wrongPct + '% wrong</strong> (' + m.wrongFirstTry + '/' + m.answered + ') — ' + esc(m.q) + '</div>';
+          }).join('') : '<div class="msg">No checkpoint answers yet.</div>';
+          $('people').innerHTML = s.people.map(function (p) {
+            return '<tr><td>' + esc(p.name) + (p.onRoster ? '' : ' <span class="off">not on roster</span>') + '</td>'
+              + '<td><span class="pill ' + p.status + '">' + statusLabel(p.status) + '</span></td>'
+              + '<td class="num">' + (p.scorePct == null ? '—' : p.scorePct + '%') + '</td>'
+              + '<td class="num">' + (p.minutes || '—') + '</td><td class="num">' + (p.attempts || '—') + '</td><td class="num">' + (p.stopsDone || '—') + '</td>'
+              + '<td>' + ago(p.lastSeenAt) + '</td></tr>';
+          }).join('');
+          msg('Updated ' + new Date(s.generatedAt).toLocaleTimeString());
+        }).catch(function (e) { msg(e.message); });
+      }
+      function confirmThen(text, fn) {
+        // Inline confirm (no modal): second tap within 6s confirms.
+        var btn = this;
+        if (btn.dataset.armed === '1') { btn.dataset.armed = ''; btn.textContent = btn.dataset.label; fn(); return; }
+        btn.dataset.label = btn.textContent; btn.dataset.armed = '1'; btn.textContent = text;
+        setTimeout(function () { if (btn.dataset.armed === '1') { btn.dataset.armed = ''; btn.textContent = btn.dataset.label; } }, 6000);
+      }
+
+      $('btn-refresh').addEventListener('click', loadSummary);
+      $('week-select').addEventListener('change', loadSummary);
+      $('btn-register').addEventListener('click', function () {
+        msg('Reading the current pack from the hub…');
+        api('/admin/register', { method: 'POST', body: {} }).then(function (d) {
+          msg('Registered ' + d.week + ' — ' + d.questions + ' questions, due ' + (d.dueAt ? new Date(d.dueAt).toLocaleString() : '—'));
+          return loadWeeks().then(function () { $('week-select').value = d.week; return loadSummary(); });
+        }).catch(function (e) { msg(e.message); });
+      });
+      $('btn-launch').addEventListener('click', function () {
+        confirmThen.call(this, 'Tap again to text everyone on the D8 roster', function () {
+          msg('Sending…');
+          api('/admin/notify', { method: 'POST', body: { week: selectedWeek(), kind: 'launch' } }).then(function (d) {
+            msg('Launch text sent to ' + d.sent + ' of ' + d.total + (d.noPhone.length ? ' · no phone on file: ' + d.noPhone.join(', ') : ''));
+            loadSummary();
+          }).catch(function (e) { msg(e.message); });
+        });
+      });
+      $('btn-remind').addEventListener('click', function () {
+        confirmThen.call(this, 'Tap again to text everyone not complete', function () {
+          msg('Sending…');
+          api('/admin/notify', { method: 'POST', body: { week: selectedWeek(), kind: 'reminder' } }).then(function (d) {
+            msg('Reminder sent to ' + d.sent + ' of ' + d.total + (d.noPhone.length ? ' · no phone on file: ' + d.noPhone.join(', ') : ''));
+          }).catch(function (e) { msg(e.message); });
+        });
+      });
+      $('btn-email').addEventListener('click', function () {
+        msg('Sending…');
+        api('/admin/summary-email', { method: 'POST', body: { week: selectedWeek() } }).then(function (d) {
+          msg('Summary emailed to ' + d.to.join(', '));
+        }).catch(function (e) { msg(e.message); });
+      });
+
+      (window.dumpBinAuthReady || Promise.resolve()).then(loadWeeks).then(loadSummary).catch(function (e) { msg(e.message); });
+    })();
+  </script>
+</body>
+</html>

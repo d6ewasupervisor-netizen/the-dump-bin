@@ -1,0 +1,552 @@
+{
+ "schema": 1,
+ "week": "P10W1",
+ "district": "D8",
+ "title": "Period 10 · Week 1",
+ "dueAt": "2026-10-19T06:00:00-07:00",
+ "passPct": 80,
+ "board": "callsign",
+ "closer": "Somewhere out there, a pack of Doublemint is waiting to move up one shelf, and it's counting on you.",
+ "sections": [
+  {
+   "name": "Opening",
+   "stops": [
+    1,
+    2
+   ]
+  },
+  {
+   "name": "Checklane Blitz",
+   "stops": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "name": "Fresh",
+   "stops": [
+    10,
+    11,
+    12
+   ]
+  },
+  {
+   "name": "Grocery & holds",
+   "stops": [
+    13,
+    14
+   ]
+  },
+  {
+   "name": "Stores & reminders",
+   "stops": [
+    15,
+    16
+   ]
+  },
+  {
+   "name": "Looking ahead",
+   "stops": [
+    17,
+    18
+   ]
+  },
+  {
+   "name": "Wrap",
+   "stops": [
+    19
+   ]
+  }
+ ],
+ "totalSeconds": 592.6,
+ "questionCount": 20,
+ "stops": [
+  {
+   "n": 1,
+   "id": "s01",
+   "title": "Period 10 Week 1",
+   "frame": "frames/f01.webp",
+   "audio": "audio/a01.m4a",
+   "seconds": 25.0,
+   "narration": "Alright, everyone, let's get into it. This is Period ten, Week one for District eight. You've got sixty-two hours on the books: thirty-seven hours of Compass, with a twenty-five-hour checklane blitz stacked on top. The priorities are Compass and the checklanes. And if you were looking forward to installing meat pushers this week, I'm sorry to report they're on hold. Take a moment if you need it.",
+   "words": 67,
+   "checkpoint": [
+    {
+     "id": "q01",
+     "type": "choice",
+     "q": "How many hours are on the books this week, and how do they break down?",
+     "options": [
+      "62 hours: 37 Kompass plus the 25-hour Checklane Blitz",
+      "37 hours total, blitz included",
+      "62 hours of Kompass, with the blitz on top of that",
+      "25 hours of Kompass plus a 37-hour blitz"
+     ],
+     "correct": 0,
+     "explain": "62 total: 37 hours of Kompass and the 25-hour Checklane Blitz stacked on top."
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "id": "s02",
+   "title": "Week at a glance",
+   "frame": "frames/f02.webp",
+   "audio": "audio/a02.m4a",
+   "seconds": 20.0,
+   "narration": "Here's the week on screen. The checklane blitz is the big one. Frozen Desserts runs five hours, and Fluid Milk, Cookies, and Natural Foods Milk run four each. Anything with the twenty-minute tag is refrigerated or frozen. Spirits, Wine, and Cosmetics are vendor sets, so they aren't ours.",
+   "words": 48,
+   "checkpoint": []
+  },
+  {
+   "n": 3,
+   "id": "s03",
+   "title": "How the blitz runs",
+   "frame": "frames/f03.webp",
+   "audio": "audio/a03.m4a",
+   "seconds": 41.0,
+   "narration": "Now the blitz. It runs weeks one through four at twenty-five hours per store, and it was tested Monday, so we aren't walking in blind. Here's the rule that matters most: every check stand is one hundred percent complete the same day it's started. If it isn't finished, you go back the next day. A check stand never sits for days or rolls into next week, because that's what cost us lost tags, lost strips, and store complaints last rotation. Two fixture changes: one shelf comes off the seven-shelf Liberty snack endcaps, and the Apple accessories fixture comes out, with its items moving to the Kroger Personal Finance side panel. Leave removed shelves and fixtures with the store. Planograms and mapping are in the dump bin.",
+   "words": 126,
+   "checkpoint": [
+    {
+     "id": "q02",
+     "type": "choice",
+     "q": "You start a check stand and can't finish it that day. What happens?",
+     "options": [
+      "You leave it and note it on the signoff form",
+      "The store finishes it after you leave",
+      "You go back the next day and finish it",
+      "It waits for your next scheduled visit, even if that's next week"
+     ],
+     "correct": 2,
+     "explain": "Check stands are 100% complete the same day they're started. If not, the team goes back the next day. Never let one sit for days or roll into next week."
+    },
+    {
+     "id": "q03",
+     "type": "choice",
+     "q": "What's the fixture change on the Liberty snack endcaps?",
+     "options": [
+      "Swap it for a Hispanic snack endcap",
+      "Add a shelf to fit the new meat snacks",
+      "Pull one shelf. Seven shelves become six for height restrictions",
+      "Remove the magazine holders"
+     ],
+     "correct": 2,
+     "explain": "One shelf comes off the seven-shelf Liberty snack endcap so it meets height restrictions."
+    },
+    {
+     "id": "q04",
+     "type": "choice",
+     "q": "What happens to the Apple accessories fixture?",
+     "options": [
+      "It stays put and picks up the new Apple items",
+      "It comes out, and its items move to the KPF side panel, replacing the current HBC items",
+      "It moves to the candy wing of the snack endcap",
+      "The whole fixture moves to the KPF side panel, items and all"
+     ],
+     "correct": 1,
+     "explain": "The fixture comes out. Its items relocate to the Kroger Personal Finance side panel, replacing the Health Beauty Care items there now."
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "id": "s04",
+   "title": "Check lanes & merch walls",
+   "frame": "frames/f04.webp",
+   "audio": "audio/a04.m4a",
+   "seconds": 37.0,
+   "narration": "Here's what the test store saw, and overall it's minimal movement. On the check lanes, meat snacks don't change, Pringles condense left, and Takis move up. Candy shifts with facing reductions, and Nutella Breadsticks replace Rice Krispies Treats. On the merch walls, snack shelves make room for the new Simply Naked chips, and Oreo and Chips Ahoy get added. The inside wall is where the real work is: bays four and five change a lot, and only the top shelf of bay four stays. The test store was mostly set to its old planograms going in. Yours may not be.",
+   "words": 100,
+   "checkpoint": [
+    {
+     "id": "q10",
+     "type": "choice",
+     "q": "Where's the heavy movement on the merch walls?",
+     "options": [
+      "Bays 1 and 2 on the outside wall change the most",
+      "Pegged candy gets a full reset on every bay",
+      "There's no real movement anywhere on the merch walls",
+      "The inside wall: bays 4 and 5 change a lot, and only the bay 4 top shelf stays"
+     ],
+     "correct": 3,
+     "explain": "Bays 4 and 5 on the inside wall change a lot. Only the top shelf of bay 4 stays. Pegged candy doesn't change."
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "id": "s05",
+   "title": "Liberty tail",
+   "frame": "frames/f05.webp",
+   "audio": "audio/a05.m4a",
+   "seconds": 7.0,
+   "narration": "On screen is the Liberty tail, current on top and new on the bottom. Same footprint, mostly shifts, and a few swaps.",
+   "words": 22,
+   "checkpoint": []
+  },
+  {
+   "n": 6,
+   "id": "s06",
+   "title": "Endcaps",
+   "frame": "frames/f06.webp",
+   "audio": "audio/a06.m4a",
+   "seconds": 19.0,
+   "narration": "On the endcaps, the candy wing doesn't change, and the Health Beauty Care wing picks up two or three new items. The snack endcap front is where the fixture work happens: one shelf comes out, Archer meat sticks replace Good Warrior, and Old Wisconsin goes on the bottom. The meal replacement endcap barely moves.",
+   "words": 54,
+   "checkpoint": [
+    {
+     "id": "q11",
+     "type": "choice",
+     "q": "On the snack endcap front, what replaces Good Warrior meat sticks?",
+     "options": [
+      "Jack Link's",
+      "Old Wisconsin meat snacks",
+      "Chomps",
+      "Archer meat sticks"
+     ],
+     "correct": 3,
+     "explain": "Archer replaces Good Warrior. Chomps and Jack Link's move up, and Old Wisconsin goes on the bottom."
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "id": "s07",
+   "title": "Snack endcap",
+   "frame": "frames/f07.webp",
+   "audio": "audio/a07.m4a",
+   "seconds": 5.0,
+   "narration": "Here's that snack endcap. Seven shelves become six to fit under the height limit.",
+   "words": 14,
+   "checkpoint": []
+  },
+  {
+   "n": 8,
+   "id": "s08",
+   "title": "U-scans",
+   "frame": "frames/f08.webp",
+   "audio": "audio/a08.m4a",
+   "seconds": 31.0,
+   "narration": "Now the U-scans, because this is where past rounds went sideways. Only the middle registers update, versions seventy and seventy-three. Versions eighty and eighty-one get no new planogram and no materials. That's expected, so don't report them as not in store. On seventy and seventy-three, chips and nuts come off the top shelf and candy goes in, and the side shelves pick up Pringles and Pepperidge Farm. Here's your action item: before you sign out, confirm the middle registers are set.",
+   "words": 81,
+   "checkpoint": [
+    {
+     "id": "q05",
+     "type": "choice",
+     "q": "On the U-scans, which registers update?",
+     "options": [
+      "Only the middle registers: versions 70 and 73",
+      "All four versions: 70, 73, 80 and 81",
+      "Only versions 80 and 81",
+      "Only the far-left and far-right ends"
+     ],
+     "correct": 0,
+     "explain": "Only the middle registers, versions 70 and 73, update. Versions 80 and 81 get no new POG and no materials."
+    },
+    {
+     "id": "q06",
+     "type": "choice",
+     "q": "You find no materials for U-scan versions 80 and 81. What do you do?",
+     "options": [
+      "Nothing is wrong. Don't report them as not in store, and confirm the middle registers are set before you sign out",
+      "Leave the whole U-scan set for next week and note it on the signoff",
+      "Set 80 and 81 to the new layout using the 70 and 73 materials",
+      "Report 80 and 81 as not in store so the materials get reordered"
+     ],
+     "correct": 0,
+     "explain": "That's expected: 80 and 81 didn't update. Past rounds got wrongly reported as not in store. Confirm 70 and 73 are set before signing out."
+    },
+    {
+     "id": "q07",
+     "type": "choice",
+     "q": "On U-scan versions 70 and 73, what happens to the top shelf?",
+     "options": [
+      "Pringles move to the top shelf",
+      "Nothing changes on the top shelf",
+      "Candy comes out, and chips go in",
+      "Chips and nuts come out, and candy goes in"
+     ],
+     "correct": 3,
+     "explain": "Top shelf: chips and nuts come out, candy goes in. The side shelves pick up Pringles and Pepperidge Farm."
+    }
+   ]
+  },
+  {
+   "n": 9,
+   "id": "s09",
+   "title": "Tags & overstock",
+   "frame": "frames/f09.webp",
+   "audio": "audio/a09.m4a",
+   "seconds": 27.0,
+   "narration": "Plan on tag trouble. The test store got almost none of the right checklane tags. Reuse the current tags wherever they still match, and ask the store to scan the strips to print the new ones. For overstock, plan on about a dozen banana boxes per store: roughly six of overstock, mostly from candy facings dropping from two to one, and six of close-outs and product that isn't on the set. Your counts will vary.",
+   "words": 75,
+   "checkpoint": [
+    {
+     "id": "q08",
+     "type": "choice",
+     "q": "Your checklane tags are missing or wrong. What's the plan?",
+     "options": [
+      "Leave the new items untagged until the store reorders",
+      "Reuse current tags where they still match, and ask the store to scan the strips to print the new ones",
+      "Handwrite every new tag before you sign out the set",
+      "Hold the whole set until the corrected tags arrive"
+     ],
+     "correct": 1,
+     "explain": "The test store got almost none of the right tags. Reuse what still matches, and have the store scan the strips to print the rest."
+    },
+    {
+     "id": "q09",
+     "type": "choice",
+     "q": "How many banana boxes should you plan for off the checklanes?",
+     "options": [
+      "About 6 total, all of it overstock from facing reductions",
+      "About a dozen: roughly 6 of overstock and 6 of close-out or not-on-set product",
+      "About 25, roughly one box per blitz hour",
+      "About 2, since the test store was clean going in"
+     ],
+     "correct": 1,
+     "explain": "The test store pulled 6 banana boxes of overstock (mostly candy facing reductions) and 6 of close-out and not-on-set product. Counts will vary by store."
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "id": "s10",
+   "title": "Produce first",
+   "frame": "frames/f10.webp",
+   "audio": "audio/a10.m4a",
+   "seconds": 29.0,
+   "narration": "The produce sets go first thing, unless I've set another priority. On Packaged Lettuce, Eighty Acres has shut down, so every Eighty Acres item comes out. Work the delete list. On processed produce, a few Kroger items change suppliers, the Fit veggie wash swaps to Simple Truth, and the Simple Truth Cran Cherry trail mix comes off for now until supply recovers. Mushroom strips ride with that set, and the twenty-minute rule applies to the mushrooms.",
+   "words": 76,
+   "checkpoint": [
+    {
+     "id": "q12",
+     "type": "choice",
+     "q": "What's happening on Packaged Lettuce?",
+     "options": [
+      "80 Acres shut down, so every 80 Acres item comes out",
+      "80 Acres moves into Processed Produce",
+      "Simple Truth items are replaced by 80 Acres",
+      "80 Acres expands into more facings"
+     ],
+     "correct": 0,
+     "explain": "80 Acres closed down. All their items come out of Packaged Lettuce. Work the delete list."
+    },
+    {
+     "id": "q13",
+     "type": "choice",
+     "q": "You get Mushroom strips this week. Which set do you record them under?",
+     "options": [
+      "Processed Produce",
+      "Cold Meal Solutions",
+      "Produce Nuts",
+      "Packaged Lettuce"
+     ],
+     "correct": 0,
+     "explain": "Mushroom strips ride with Processed Produce and get recorded there. The 20-minute rule applies to the mushrooms."
+    }
+   ]
+  },
+  {
+   "n": 11,
+   "id": "s11",
+   "title": "Dairy & frozen",
+   "frame": "frames/f11.webp",
+   "audio": "audio/a11.m4a",
+   "seconds": 36.0,
+   "narration": "Everything on screen here is refrigerated or frozen, so the twenty-minute rule is on. Frozen Desserts is a five-hour reflow. Sheets and shells come down into the well, a new fruit door leads the set, and the cheesecakes follow right behind it. On Fluid Milk, white gallon facings come down to make room for seasonal eggnog. On Natural Foods Milk, Silk Protein takes over the space from the deleted Chobani oat milks. Here's your action item: loop in dairy before you pull any milk facings. Stores are touchy about milk space, and that's a fight nobody needs.",
+   "words": 97,
+   "checkpoint": [
+    {
+     "id": "q14",
+     "type": "choice",
+     "q": "What's the action item before you pull milk facings on Fluid Milk or NF Milk?",
+     "options": [
+      "Pull all white gallons before starting",
+      "Move the eggnog to an endcap",
+      "Loop in dairy first",
+      "Wait for the vendor"
+     ],
+     "correct": 2,
+     "explain": "Stores can be touchy about milk space. Loop in dairy before you pull facings."
+    },
+    {
+     "id": "q15",
+     "type": "choice",
+     "q": "What leads the Frozen Desserts set after the reflow?",
+     "options": [
+      "Edwards multiserve pies",
+      "Whipped toppings",
+      "A new fruit door: Tru Fru, Kroger and Fruit Riot",
+      "The cheesecake destination"
+     ],
+     "correct": 2,
+     "explain": "A new fruit door leads the set. The cheesecake destination comes right after it."
+    }
+   ]
+  },
+  {
+   "n": 12,
+   "id": "s12",
+   "title": "Deli & bakery",
+   "frame": "frames/f12.webp",
+   "audio": "audio/a12.m4a",
+   "seconds": 46.0,
+   "narration": "Over in deli and bakery. On Boar's Head, the limited-time hummus leads the hummus section and the tzatziki leads the dips, and the frankfurters and hams can come out per planogram to make room for the new items. On Fresh Kitchen, the Private Selection Taylor Farms items come in and the Deli Kitchen items come out, and two of those salads are cleanup that isn't on the planograms. Breakfast Sweets is a straight coffee cake swap, and Cakes picks up new items across refrigerated, frozen, and the bakery tables. The twenty-minute rule covers the refrigerated and frozen pieces. On a bakery table, the new planogram goes in the plastic sleeve. Otherwise, hand the printed planograms to the Bakery department.",
+   "words": 119,
+   "checkpoint": []
+  },
+  {
+   "n": 13,
+   "id": "s13",
+   "title": "Grocery, NF & strip routing",
+   "frame": "frames/f13.webp",
+   "audio": "audio/a13.m4a",
+   "seconds": 35.0,
+   "narration": "On Cookies, Ghirardelli joins the premium section, and the Oreo and Chips Ahoy Fresh Stacks come out. Face the neighboring product over to hold that space for future items. The rest of the shelf-stable sets are standard new item introductions. And some strips this week get recorded under a different set. Frozen Fruit and Natural Foods Frozen Inline go under Frozen Desserts, mushrooms go under processed produce, bakery pies and cookies go under Cakes, and Packaged Salads go under Cold Meal Solutions.",
+   "words": 82,
+   "checkpoint": [
+    {
+     "id": "q16",
+     "type": "choice",
+     "q": "Oreo and Chips Ahoy Fresh Stacks come out of Cookies. What do you do with the space?",
+     "options": [
+      "Move Kroger Maple Creme into it",
+      "Face the adjacent product over to hold the space for future items",
+      "Fill it with Ghirardelli",
+      "Leave it empty with a hole tag"
+     ],
+     "correct": 1,
+     "explain": "Face adjacent product over to preserve the space for future additions. Ghirardelli goes in the premium cookie section."
+    }
+   ]
+  },
+  {
+   "n": 14,
+   "id": "s14",
+   "title": "Holds & materials",
+   "frame": "frames/f14.webp",
+   "audio": "audio/a14.m4a",
+   "seconds": 39.0,
+   "narration": "Now the holds. Meat pushers are on hold, so do not start pusher installs this week. We're still sorting out grid pushers versus the meat department versus bunkers, and I'll give you the green light when it's settled. Compass execution and the backlog come first. Vestcom boxes have been delivered to all ten District eight stores, and the non-Compass strips and tags are inside them. Set vendor and non-Compass materials aside for the right vendor team, and remind your stores to sign out the non-Compass events so their clicklist locations update. The Fred Meyer one two five strips get set aside, since that project is on hold.",
+   "words": 107,
+   "checkpoint": [
+    {
+     "id": "q17",
+     "type": "choice",
+     "q": "What's the status of meat pushers this week?",
+     "options": [
+      "Install them wherever the meat department asks",
+      "Install them at every store this week, as planned",
+      "On hold. Don't start installs until I give the green light",
+      "Install grid pushers only and hold the bunkers"
+     ],
+     "correct": 2,
+     "explain": "Meat pushers are on hold while grid pushers vs. meat department vs. bunkers gets clarified. Kompass and backlog come first."
+    }
+   ]
+  },
+  {
+   "n": 15,
+   "id": "s15",
+   "title": "Store callouts",
+   "frame": "frames/f15.webp",
+   "audio": "audio/a15.m4a",
+   "seconds": 33.0,
+   "narration": "A few store callouts. At two one five, the relay window runs October twelfth through the twenty-second, and the Center Store second count lands on Tuesday, October thirteenth. While the relay is on, treat Compass sets there as new item introductions, and work with the relay manager. At six five eight, a cosmetics box was delivered on October seventh. That's vendor material, so set it aside. And for every store, once pending or go-back strips are installed, email me so they can be signed out.",
+   "words": 85,
+   "checkpoint": [
+    {
+     "id": "q18",
+     "type": "choice",
+     "q": "What's on the books at Store 215 this week?",
+     "options": [
+      "A remodel kickoff, with all Kompass sets held until February",
+      "The relay window starts 10/12 (treat Kompass sets as NIIs) and the Center Store 2nd count is Tuesday 10/13",
+      "A home side count on Monday 10/12 and nothing else",
+      "Nothing store-specific; it runs like every other store"
+     ],
+     "correct": 1,
+     "explain": "215's relay window runs 10/12 to 10/22, so treat Kompass sets as NIIs and work with the relay manager. The Center Store 2nd count is Tuesday 10/13."
+    }
+   ]
+  },
+  {
+   "n": 16,
+   "id": "s16",
+   "title": "Standing reminders",
+   "frame": "frames/f16.webp",
+   "audio": "audio/a16.m4a",
+   "seconds": 43.0,
+   "narration": "The standing reminders. Before you wrap up a shift, check that your photos show tags installed and planograms fully complete. We're seeing enough misses that it's worth the extra sixty seconds. Signoff photos go to prod under Compass Maintenance, and fill out the signoff form completely. Pull expired product, label it, box it, and give it to the store. Digital shelf labels stay put. Cut-in shifts get wrapped up by nine in the morning, you're out of the store by two thirty, and the end-of-day report goes out by three. Running behind? Tell me as soon as you know. Hotline or helpdesk contact gets cleared with me first. And if you need Instawork support, tell me by Wednesday morning.",
+   "words": 119,
+   "checkpoint": []
+  },
+  {
+   "n": 17,
+   "id": "s17",
+   "title": "Period 10 Week 2",
+   "frame": "frames/f17.webp",
+   "audio": "audio/a17.m4a",
+   "seconds": 47.0,
+   "narration": "Looking ahead to Period ten Week two, the week after next. It's about thirty-five hours, and the checklane blitz keeps going on top of that. Meat pushers are targeted for that week, but wait for my green light. Milk Byproducts is four hours and refrigerated. On Diabetic, the Home Testing items move into the Diabetic sets, and if a store has Home Testing but no Diabetic set, those items go behind the Pharmacy counter. Vinegar reflows shelves four through six by brand. Fifty-three has a home side count on Monday the nineteenth, an apparel count on Tuesday the twentieth, and its Center Store second count on Thursday, October twenty-second. Two one five has a home side count on Wednesday the twenty-first and an apparel count on Thursday the twenty-second.",
+   "words": 129,
+   "checkpoint": [
+    {
+     "id": "q19",
+     "type": "choice",
+     "q": "Period 10 Week 2: a store has Home Testing items but no Diabetic set. Where do those items go?",
+     "options": [
+      "Onto the Vitamins set",
+      "On a clip strip by the pharmacy",
+      "Back to the warehouse",
+      "Behind the Pharmacy counter"
+     ],
+     "correct": 3,
+     "explain": "Home Testing moves into the Diabetic sets. Without a Diabetic set, those items go behind the Pharmacy counter."
+    }
+   ]
+  },
+  {
+   "n": 18,
+   "id": "s18",
+   "title": "Further out",
+   "frame": "frames/f18.webp",
+   "audio": "audio/a18.m4a",
+   "seconds": 36.0,
+   "narration": "Further out. In Period ten Week three, Personal Care Appliances lands, and stores twenty-three, twenty-eight, two one five, and three nine one need six extra pegs on hand to finish it. Start finding them now, because pegs never turn up when you need them. In Period ten Week four, the digital shelf labels team comes back to help knock down backlog. And pending approval, there may be a Christmas tree fluffing visit, about two hours per store, with trees arriving from October twentieth and a target of November first.",
+   "words": 89,
+   "checkpoint": [
+    {
+     "id": "q20",
+     "type": "choice",
+     "q": "Which District 8 stores need 6 extra pegs on hand for Personal Care Appliances in Period 10 Week 3?",
+     "options": [
+      "658 and 682",
+      "All ten District 8 stores",
+      "19, 31, 53 and 459",
+      "23, 28, 215 and 391"
+     ],
+     "correct": 3,
+     "explain": "Stores 23, 28, 215 and 391 are on the 8-foot set that needs 6 extra pegs. Start finding them now."
+    }
+   ]
+  },
+  {
+   "n": 19,
+   "id": "s19",
+   "title": "The short version",
+   "frame": "frames/f19.webp",
+   "audio": "audio/a19.m4a",
+   "seconds": 36.64,
+   "narration": "So, the short version. Sixty-two hours: thirty-seven of Compass and twenty-five of checklane blitz. Check stands are done the same day, or you go back the next day. On the U-scans, only seventy and seventy-three change. The produce sets go first, and the twenty-minute rule applies to anything refrigerated or frozen. Meat pushers are on hold. Two one five starts its relay on the twelfth and counts Center Store on Tuesday the thirteenth. If you have questions or you're running behind, tell me early. That's the week, you all. Somewhere out there, a pack of Doublemint is waiting to move up one shelf, and it's counting on you. Go set it.",
+   "words": 111,
+   "checkpoint": []
+  }
+ ]
+}

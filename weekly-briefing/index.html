@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0B2545">
+  <title>Weekly Briefing — Retail Odyssey</title>
+  <link rel="icon" type="image/png" href="/favicon.png?v=2">
+  <link rel="apple-touch-icon" href="/favicon.png?v=2">
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <script src="/auth-gate.js?v=20260813-hub-restrict"></script>
+</head>
+<body>
+  <div id="app">
+
+    <!-- Loading -->
+    <section class="screen is-active" data-screen="loading">
+      <div class="center">
+        <div class="spinner" aria-hidden="true"></div>
+        <div id="loading-msg">Loading this week's walk…</div>
+      </div>
+    </section>
+
+    <!-- Entrance -->
+    <section class="screen" data-screen="entrance">
+      <div class="entrance">
+        <img class="entrance__logo" src="/logo.png" alt="Retail Odyssey">
+        <div class="entrance__eyebrow">Weekly Briefing · District 8</div>
+        <h1 class="entrance__title" id="ent-title">Period — · Week —</h1>
+        <p class="entrance__sub">A walk through the week, one stop at a time. Checkpoints along the way.</p>
+
+        <div class="facts">
+          <div class="fact"><div class="fact__n" id="ent-stops">—</div><div class="fact__l">Stops</div></div>
+          <div class="fact"><div class="fact__n" id="ent-questions">—</div><div class="fact__l">Checkpoints</div></div>
+          <div class="fact"><div class="fact__n" id="ent-minutes">—</div><div class="fact__l">Minutes</div></div>
+        </div>
+
+        <div class="due" id="ent-due">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span id="ent-due-text">Due —</span>
+        </div>
+
+        <ul class="rules">
+          <li>Each stop unlocks after you hear it, or read it.</li>
+          <li>Checkpoints count your first answer. Wrong answers get a second try.</li>
+          <li><span id="ent-pass">80</span>% completes the week. You can walk it again any time.</li>
+        </ul>
+
+        <div class="callsign" id="ent-callsign" hidden></div>
+
+        <button class="btn btn--primary" id="ent-start">Start the walk</button>
+        <button class="btn btn--ghost" id="ent-review" hidden>See my results</button>
+        <div class="entrance__status" id="ent-status"></div>
+        <div class="footer">Retail Odyssey</div>
+      </div>
+    </section>
+
+    <!-- Stop -->
+    <section class="screen" data-screen="stop">
+      <header class="topbar">
+        <button class="topbar__back" id="stop-back" aria-label="Back">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <div class="topbar__meta">
+          <div class="topbar__eyebrow" id="stop-section">Section</div>
+          <div class="topbar__title" id="stop-title">Stop title</div>
+        </div>
+        <div class="topbar__count" id="stop-count">1 / 19</div>
+      </header>
+      <div class="route" id="route"></div>
+
+      <div class="stop">
+        <div class="stop__stage">
+          <button class="frame" id="frame-btn" aria-label="Enlarge the frame">
+            <img id="frame-img" alt="">
+            <span class="frame__zoom">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5M11 8v6M8 11h6"/></svg>
+              Zoom
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="dock">
+        <div class="player">
+          <button class="player__btn" id="play-btn" aria-label="Play">
+            <svg id="play-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg>
+            <svg id="pause-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" hidden><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+          </button>
+          <div class="player__body">
+            <div class="player__bar" id="play-bar"><div class="player__fill" id="play-fill"></div></div>
+            <div class="player__meta">
+              <span class="player__time" id="play-time">0:00 / 0:00</span>
+              <span>
+                <button class="chip" id="speed-btn">1×</button>
+                <button class="chip" id="read-btn">Read instead</button>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="dock__actions">
+          <button class="btn btn--primary" id="next-btn">Next</button>
+        </div>
+      </div>
+      <audio id="audio" preload="auto" playsinline></audio>
+    </section>
+
+    <!-- Checkpoint -->
+    <section class="screen" data-screen="checkpoint">
+      <header class="topbar">
+        <button class="topbar__back" id="cp-back" aria-label="Back to the stop">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <div class="topbar__meta">
+          <div class="topbar__eyebrow">Checkpoint</div>
+          <div class="topbar__title" id="cp-title">Stop title</div>
+        </div>
+        <div class="topbar__count" id="cp-count">1 / 20</div>
+      </header>
+      <div class="cp">
+        <div class="cp__body">
+          <div class="cp__eyebrow"><span class="pip"></span><span id="cp-kind">Pick one</span></div>
+          <h2 class="cp__q" id="cp-q">Question</h2>
+          <div class="opts" id="cp-opts"></div>
+          <div id="cp-feedback"></div>
+        </div>
+      </div>
+      <div class="cp__dock">
+        <button class="btn btn--sky" id="cp-action" disabled>Check</button>
+      </div>
+    </section>
+
+    <!-- Exit -->
+    <section class="screen" data-screen="exit">
+      <div class="exit">
+        <div class="exit__wrap">
+          <div class="exit__eyebrow">Weekly Briefing · District 8</div>
+          <h1 class="exit__title" id="exit-title">Period — · Week —</h1>
+
+          <div class="ring" id="ring">
+            <svg width="190" height="190" viewBox="0 0 190 190">
+              <circle class="bg" cx="95" cy="95" r="82"/>
+              <circle class="fg" id="ring-fg" cx="95" cy="95" r="82" stroke-dasharray="515.2" stroke-dashoffset="515.2"/>
+            </svg>
+            <div class="ring__label">
+              <div class="ring__pct" id="ring-pct">0%</div>
+              <div class="ring__sub">first try</div>
+            </div>
+          </div>
+          <p class="verdict" id="exit-verdict"></p>
+          <p class="exit__note" id="exit-note"></p>
+
+          <div class="stats">
+            <div class="fact"><div class="fact__n" id="x-correct">—</div><div class="fact__l">Right first try</div></div>
+            <div class="fact"><div class="fact__n" id="x-retries">—</div><div class="fact__l">Second tries</div></div>
+            <div class="fact"><div class="fact__n" id="x-time">—</div><div class="fact__l">Minutes</div></div>
+          </div>
+
+          <div class="card" id="missed-card" hidden>
+            <h3>Worth another look</h3>
+            <ul class="missed" id="missed-list"></ul>
+          </div>
+
+          <div class="card" id="pulse-card" hidden>
+            <h3>Crew pulse</h3>
+            <div class="pulse">
+              <div class="fact"><div class="fact__n" id="p-finished">—</div><div class="fact__l">Finished</div></div>
+              <div class="fact"><div class="fact__n" id="p-avg">—</div><div class="fact__l">Crew average</div></div>
+            </div>
+          </div>
+
+          <div class="card" id="board-card" hidden>
+            <h3>Call sign board</h3>
+            <ul class="board" id="board-list"></ul>
+          </div>
+
+          <p class="closer" id="exit-closer"></p>
+
+          <button class="btn btn--primary" id="exit-again">Walk it again</button>
+          <button class="btn btn--ghost" id="exit-home">Back to Team Resources</button>
+          <div class="footer">Retail Odyssey</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="./app.js?v=1"></script>
+</body>
+</html>

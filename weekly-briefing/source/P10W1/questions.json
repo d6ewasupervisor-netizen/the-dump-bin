@@ -1,0 +1,282 @@
+[
+  {
+    "id": "q01",
+    "stop": 1,
+    "type": "choice",
+    "q": "How many hours are on the books this week, and how do they break down?",
+    "options": [
+      "62 hours: 37 Kompass plus the 25-hour Checklane Blitz",
+      "37 hours total, blitz included",
+      "62 hours of Kompass, with the blitz on top of that",
+      "25 hours of Kompass plus a 37-hour blitz"
+    ],
+    "correct": 0,
+    "explain": "62 total: 37 hours of Kompass and the 25-hour Checklane Blitz stacked on top."
+  },
+  {
+    "id": "q02",
+    "stop": 3,
+    "type": "choice",
+    "q": "You start a check stand and can't finish it that day. What happens?",
+    "options": [
+      "You leave it and note it on the signoff form",
+      "The store finishes it after you leave",
+      "You go back the next day and finish it",
+      "It waits for your next scheduled visit, even if that's next week"
+    ],
+    "correct": 2,
+    "explain": "Check stands are 100% complete the same day they're started. If not, the team goes back the next day. Never let one sit for days or roll into next week."
+  },
+  {
+    "id": "q03",
+    "stop": 3,
+    "type": "choice",
+    "q": "What's the fixture change on the Liberty snack endcaps?",
+    "options": [
+      "Swap it for a Hispanic snack endcap",
+      "Add a shelf to fit the new meat snacks",
+      "Pull one shelf. Seven shelves become six for height restrictions",
+      "Remove the magazine holders"
+    ],
+    "correct": 2,
+    "explain": "One shelf comes off the seven-shelf Liberty snack endcap so it meets height restrictions."
+  },
+  {
+    "id": "q04",
+    "stop": 3,
+    "type": "choice",
+    "q": "What happens to the Apple accessories fixture?",
+    "options": [
+      "It stays put and picks up the new Apple items",
+      "It comes out, and its items move to the KPF side panel, replacing the current HBC items",
+      "It moves to the candy wing of the snack endcap",
+      "The whole fixture moves to the KPF side panel, items and all"
+    ],
+    "correct": 1,
+    "explain": "The fixture comes out. Its items relocate to the Kroger Personal Finance side panel, replacing the Health Beauty Care items there now."
+  },
+  {
+    "id": "q05",
+    "stop": 8,
+    "type": "choice",
+    "q": "On the U-scans, which registers update?",
+    "options": [
+      "Only the middle registers: versions 70 and 73",
+      "All four versions: 70, 73, 80 and 81",
+      "Only versions 80 and 81",
+      "Only the far-left and far-right ends"
+    ],
+    "correct": 0,
+    "explain": "Only the middle registers, versions 70 and 73, update. Versions 80 and 81 get no new POG and no materials."
+  },
+  {
+    "id": "q06",
+    "stop": 8,
+    "type": "choice",
+    "q": "You find no materials for U-scan versions 80 and 81. What do you do?",
+    "options": [
+      "Nothing is wrong. Don't report them as not in store, and confirm the middle registers are set before you sign out",
+      "Leave the whole U-scan set for next week and note it on the signoff",
+      "Set 80 and 81 to the new layout using the 70 and 73 materials",
+      "Report 80 and 81 as not in store so the materials get reordered"
+    ],
+    "correct": 0,
+    "explain": "That's expected: 80 and 81 didn't update. Past rounds got wrongly reported as not in store. Confirm 70 and 73 are set before signing out."
+  },
+  {
+    "id": "q07",
+    "stop": 8,
+    "type": "choice",
+    "q": "On U-scan versions 70 and 73, what happens to the top shelf?",
+    "options": [
+      "Pringles move to the top shelf",
+      "Nothing changes on the top shelf",
+      "Candy comes out, and chips go in",
+      "Chips and nuts come out, and candy goes in"
+    ],
+    "correct": 3,
+    "explain": "Top shelf: chips and nuts come out, candy goes in. The side shelves pick up Pringles and Pepperidge Farm."
+  },
+  {
+    "id": "q08",
+    "stop": 9,
+    "type": "choice",
+    "q": "Your checklane tags are missing or wrong. What's the plan?",
+    "options": [
+      "Leave the new items untagged until the store reorders",
+      "Reuse current tags where they still match, and ask the store to scan the strips to print the new ones",
+      "Handwrite every new tag before you sign out the set",
+      "Hold the whole set until the corrected tags arrive"
+    ],
+    "correct": 1,
+    "explain": "The test store got almost none of the right tags. Reuse what still matches, and have the store scan the strips to print the rest."
+  },
+  {
+    "id": "q09",
+    "stop": 9,
+    "type": "choice",
+    "q": "How many banana boxes should you plan for off the checklanes?",
+    "options": [
+      "About 6 total, all of it overstock from facing reductions",
+      "About a dozen: roughly 6 of overstock and 6 of close-out or not-on-set product",
+      "About 25, roughly one box per blitz hour",
+      "About 2, since the test store was clean going in"
+    ],
+    "correct": 1,
+    "explain": "The test store pulled 6 banana boxes of overstock (mostly candy facing reductions) and 6 of close-out and not-on-set product. Counts will vary by store."
+  },
+  {
+    "id": "q10",
+    "stop": 4,
+    "type": "choice",
+    "q": "Where's the heavy movement on the merch walls?",
+    "options": [
+      "Bays 1 and 2 on the outside wall change the most",
+      "Pegged candy gets a full reset on every bay",
+      "There's no real movement anywhere on the merch walls",
+      "The inside wall: bays 4 and 5 change a lot, and only the bay 4 top shelf stays"
+    ],
+    "correct": 3,
+    "explain": "Bays 4 and 5 on the inside wall change a lot. Only the top shelf of bay 4 stays. Pegged candy doesn't change."
+  },
+  {
+    "id": "q11",
+    "stop": 6,
+    "type": "choice",
+    "q": "On the snack endcap front, what replaces Good Warrior meat sticks?",
+    "options": [
+      "Jack Link's",
+      "Old Wisconsin meat snacks",
+      "Chomps",
+      "Archer meat sticks"
+    ],
+    "correct": 3,
+    "explain": "Archer replaces Good Warrior. Chomps and Jack Link's move up, and Old Wisconsin goes on the bottom."
+  },
+  {
+    "id": "q12",
+    "stop": 10,
+    "type": "choice",
+    "q": "What's happening on Packaged Lettuce?",
+    "options": [
+      "80 Acres shut down, so every 80 Acres item comes out",
+      "80 Acres moves into Processed Produce",
+      "Simple Truth items are replaced by 80 Acres",
+      "80 Acres expands into more facings"
+    ],
+    "correct": 0,
+    "explain": "80 Acres closed down. All their items come out of Packaged Lettuce. Work the delete list."
+  },
+  {
+    "id": "q13",
+    "stop": 10,
+    "type": "choice",
+    "q": "You get Mushroom strips this week. Which set do you record them under?",
+    "options": [
+      "Processed Produce",
+      "Cold Meal Solutions",
+      "Produce Nuts",
+      "Packaged Lettuce"
+    ],
+    "correct": 0,
+    "explain": "Mushroom strips ride with Processed Produce and get recorded there. The 20-minute rule applies to the mushrooms."
+  },
+  {
+    "id": "q14",
+    "stop": 11,
+    "type": "choice",
+    "q": "What's the action item before you pull milk facings on Fluid Milk or NF Milk?",
+    "options": [
+      "Pull all white gallons before starting",
+      "Move the eggnog to an endcap",
+      "Loop in dairy first",
+      "Wait for the vendor"
+    ],
+    "correct": 2,
+    "explain": "Stores can be touchy about milk space. Loop in dairy before you pull facings."
+  },
+  {
+    "id": "q15",
+    "stop": 11,
+    "type": "choice",
+    "q": "What leads the Frozen Desserts set after the reflow?",
+    "options": [
+      "Edwards multiserve pies",
+      "Whipped toppings",
+      "A new fruit door: Tru Fru, Kroger and Fruit Riot",
+      "The cheesecake destination"
+    ],
+    "correct": 2,
+    "explain": "A new fruit door leads the set. The cheesecake destination comes right after it."
+  },
+  {
+    "id": "q16",
+    "stop": 13,
+    "type": "choice",
+    "q": "Oreo and Chips Ahoy Fresh Stacks come out of Cookies. What do you do with the space?",
+    "options": [
+      "Move Kroger Maple Creme into it",
+      "Face the adjacent product over to hold the space for future items",
+      "Fill it with Ghirardelli",
+      "Leave it empty with a hole tag"
+    ],
+    "correct": 1,
+    "explain": "Face adjacent product over to preserve the space for future additions. Ghirardelli goes in the premium cookie section."
+  },
+  {
+    "id": "q17",
+    "stop": 14,
+    "type": "choice",
+    "q": "What's the status of meat pushers this week?",
+    "options": [
+      "Install them wherever the meat department asks",
+      "Install them at every store this week, as planned",
+      "On hold. Don't start installs until I give the green light",
+      "Install grid pushers only and hold the bunkers"
+    ],
+    "correct": 2,
+    "explain": "Meat pushers are on hold while grid pushers vs. meat department vs. bunkers gets clarified. Kompass and backlog come first."
+  },
+  {
+    "id": "q18",
+    "stop": 15,
+    "type": "choice",
+    "q": "What's on the books at Store 215 this week?",
+    "options": [
+      "A remodel kickoff, with all Kompass sets held until February",
+      "The relay window starts 10/12 (treat Kompass sets as NIIs) and the Center Store 2nd count is Tuesday 10/13",
+      "A home side count on Monday 10/12 and nothing else",
+      "Nothing store-specific; it runs like every other store"
+    ],
+    "correct": 1,
+    "explain": "215's relay window runs 10/12 to 10/22, so treat Kompass sets as NIIs and work with the relay manager. The Center Store 2nd count is Tuesday 10/13."
+  },
+  {
+    "id": "q19",
+    "stop": 17,
+    "type": "choice",
+    "q": "Period 10 Week 2: a store has Home Testing items but no Diabetic set. Where do those items go?",
+    "options": [
+      "Onto the Vitamins set",
+      "On a clip strip by the pharmacy",
+      "Back to the warehouse",
+      "Behind the Pharmacy counter"
+    ],
+    "correct": 3,
+    "explain": "Home Testing moves into the Diabetic sets. Without a Diabetic set, those items go behind the Pharmacy counter."
+  },
+  {
+    "id": "q20",
+    "stop": 18,
+    "type": "choice",
+    "q": "Which District 8 stores need 6 extra pegs on hand for Personal Care Appliances in Period 10 Week 3?",
+    "options": [
+      "658 and 682",
+      "All ten District 8 stores",
+      "19, 31, 53 and 459",
+      "23, 28, 215 and 391"
+    ],
+    "correct": 3,
+    "explain": "Stores 23, 28, 215 and 391 are on the 8-foot set that needs 6 extra pegs. Start finding them now."
+  }
+]
