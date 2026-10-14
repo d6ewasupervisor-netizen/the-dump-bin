@@ -1015,11 +1015,42 @@
   /* start */
 
   (function boot() {
+    // ?store=NNN pre-selects a store after sign-in
+    var prestore = new URLSearchParams(location.search).get('store') || '';
+    if (prestore) prestore = prestore.replace(/\D/g, '').replace(/^0+/, '');
+
+    var originalLoadStores = loadStores;
+    loadStores = async function () {
+      await originalLoadStores();
+      if (prestore) {
+        state.filter = prestore;
+        paintGrid();
+      }
+    };
+
+    // After successful code check, if prestore is set, open that store directly
+    var origPickStore = pickStore;
+    if (prestore) {
+      var _origVerify = checkCode;
+      checkCode = async function () {
+        await _origVerify();
+        if (state.screen === 'stores' && prestore) {
+          pickStore(prestore).catch(function () {});
+        }
+      };
+    }
+
     let token = '';
     try { token = localStorage.getItem(TOKEN_KEY) || ''; } catch (_) { token = ''; }
     if (token && tokenAlive(token)) {
       state.token = token;
-      loadStores().then(function () { go('stores'); }).catch(function () { go('gate'); });
+      loadStores().then(function () {
+        if (prestore && state.screen === 'stores') {
+          pickStore(prestore).catch(function () {});
+        } else {
+          go('stores');
+        }
+      }).catch(function () { go('gate'); });
       setChrome({ nav: false });
       app.innerHTML = '<p class="status">Loading.</p>';
       return;

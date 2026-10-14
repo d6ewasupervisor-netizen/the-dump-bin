@@ -530,6 +530,234 @@
     if (allReports.length) show(allReports[0]);
   }
 
+  /* ---- tab switching ---- */
+
+  document.querySelectorAll('.tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('on'); });
+      btn.classList.add('on');
+      var tab = btn.dataset.tab;
+      var rev = document.getElementById('tabReview');
+      var out = document.getElementById('tabOutreach');
+      if (rev) rev.hidden = tab !== 'review';
+      if (out) out.hidden = tab !== 'outreach';
+      if (tab === 'outreach') loadOutreach();
+    });
+  });
+
+  /* ---- outreach tab ---- */
+
+  var outLoaded = false;
+
+  function statusBadge(s) {
+    return '<span class="badge-status ' + esc(s || 'open') + '">' + esc(s || 'open') + '</span>';
+  }
+
+  function loadOutreach() {
+    if (outLoaded) return;
+    outLoaded = true;
+    var today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+    var end = new Date(); end.setDate(end.getDate() + 14);
+    var endStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(end);
+    document.getElementById('outStart').value = today;
+    document.getElementById('outEnd').value = endStr;
+    refreshAssignments();
+  }
+
+  document.getElementById('pullSas').addEventListener('click', function () {
+    var start = document.getElementById('outStart').value;
+    var end = document.getElementById('outEnd').value;
+    var district = document.getElementById('outDistrict').value;
+    var pullStatus = document.getElementById('pullStatus');
+    var sasResults = document.getElementById('sasResults');
+    pullStatus.textContent = 'Pulling from SAS PROD…';
+    sasResults.innerHTML = '';
+    var qs = '?startDate=' + encodeURIComponent(start) + '&endDate=' + encodeURIComponent(end);
+    if (district) qs += '&districts=' + encodeURIComponent(district);
+    api('/outreach/sas-leads' + qs).then(function (res) {
+      return res.json();
+    }).then(function (data) {
+      if (!data.ok) { pullStatus.textContent = '✗ ' + (data.error || 'Failed'); return; }
+      var dists = data.districts || {};
+      var keys = Object.keys(dists);
+      if (!keys.length) { pullStatus.textContent = 'No leads found for that range/district.'; return; }
+      pullStatus.textContent = 'Found leads in ' + keys.length + ' district' + (keys.length > 1 ? 's' : '') + '.';
+      var html = '';
+      keys.forEach(function (d) {
+        var leads = dists[d];
+        var rows = '';
+        leads.forEach(function (L) {
+          var storeList = (L.stores || []).map(function (s) { return s.storeNum; }).join(', ');
+          rows += '<tr data-lead=\'' + esc(JSON.stringify({ name: L.name, email: L.email, district: d, stores: L.stores })) + '\'>' +
+            '<td><input type="checkbox" class="sas-pick"></td>' +
+            '<td>' + esc(L.name || '—') + '</td>' +
+            '<td><input type="email" class="sas-email" value="' + esc(L.email || '') + '" placeholder="email@example.com"></td>' +
+            '<td>' + esc(storeList) + '</td>' +
+            '</tr>';
+        });
+        html += '<div class="out-section"><div class="out-section-head"><span>District ' + esc(d) + '</span></div>' +
+          '<table class="out-table"><thead><tr><th></th><th>Name</th><th>Email</th><th>Stores</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody></table>' +
+          '<div class="out-actions">' +
+            '<button type="button" class="primary assign-all" data-district="' + esc(d) + '">Assign all in D' + esc(d) + '</button>' +
+            '<button type="button" class="yellow assign-sel">Assign selected</button>' +
+          '</div></div>';
+      });
+      sasResults.innerHTML = html;
+      sasResults.querySelectorAll('.assign-all').forEach(function (btn) {
+        btn.addEventListener('click', function () { assignFromTable(sasResults, null); });
+      });
+      sasResults.querySelectorAll('.assign-sel').forEach(function (btn) {
+        btn.addEventListener('click', function () { assignFromTable(btn.closest('.out-section'), true); });
+      });
+    }).catch(function (err) { pullStatus.textContent = '✗ ' + err.message; });
+  });
+
+  function assignFromTable(container, selectedOnly) {
+    var rows = container.querySelectorAll('tbody tr');
+    var assignments = [];
+    rows.forEach(function (tr) {
+      var cb = tr.querySelector('.sas-pick');
+      if (selectedOnly && !cb.checked) return;
+      var emailInput = tr.querySelector('.sas-email');
+      var email = emailInput ? emailInput.value.trim() : '';
+      if (!email) return;
+      var lead = JSON.parse(tr.getAttribute('data-lead') || '{}');
+      (lead.stores || []).forEach(function (s) {
+        assignments.push({
+          storeNumber: String(s.storeNum || ''),
+          district: lead.district || '',
+          assigneeEmail: email,
+          assigneeName: lead.name || '',
+        });
+      });
+    });
+    if (!assignments.length) { document.getElementById('pullStatus').textContent = 'No rows selected or no emails filled in.'; return; }
+    document.getElementById('pullStatus').textContent = 'Assigning ' + assignments.length + ' store pair' + (assignments.length > 1 ? 's' : '') + '…';
+    api('/outreach/assignments', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ assignments: assignments }),
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      document.getElementById('pullStatus').textContent = data.ok
+        ? '✓ ' + (data.created || 0) + ' assignment' + (data.created !== 1 ? 's' : '') + ' saved.'
+        : '✗ ' + (data.error || 'Failed');
+      if (data.ok) refreshAssignments();
+    }).catch(function (err) { document.getElementById('pullStatus').textContent = '✗ ' + err.message; });
+  }
+
+  function refreshAssignments() {
+    var district = document.getElementById('asgDistrict') && document.getElementById('asgDistrict').value;
+    var status = document.getElementById('asgStatus') && document.getElementById('asgStatus').value;
+    var qs = '?';
+    if (district) qs += 'district=' + encodeURIComponent(district) + '&';
+    if (status) qs += 'status=' + encodeURIComponent(status);
+    api('/outreach/assignments' + qs).then(function (r) { return r.json(); }).then(function (data) {
+      if (!data.ok) return;
+      renderAssignments(data.assignments || []);
+    }).catch(function () {});
+  }
+
+  document.getElementById('loadAssignments') && document.getElementById('loadAssignments').addEventListener('click', refreshAssignments);
+  document.getElementById('asgDistrict') && document.getElementById('asgDistrict').addEventListener('change', refreshAssignments);
+  document.getElementById('asgStatus') && document.getElementById('asgStatus').addEventListener('change', refreshAssignments);
+
+  function renderAssignments(assignments) {
+    var container = document.getElementById('asgResults');
+    if (!assignments.length) { container.innerHTML = '<p style="padding:12px">No assignments yet.</p>'; return; }
+
+    // group by district
+    var byDist = {};
+    assignments.forEach(function (a) {
+      var d = a.district || 'Unassigned';
+      if (!byDist[d]) byDist[d] = [];
+      byDist[d].push(a);
+    });
+
+    var html = '';
+    var distKeys = Object.keys(byDist).sort(function (a, b) {
+      return Number(a.replace(/\D/g, '') || 99) - Number(b.replace(/\D/g, '') || 99);
+    });
+    distKeys.forEach(function (d) {
+      var rows = byDist[d].map(function (a) {
+        var surveyBadge = statusBadge(a.survey_status || 'open');
+        var asgBadge = statusBadge(a.status || 'assigned');
+        var invited = a.invite_sent_at ? new Date(a.invite_sent_at).toLocaleDateString() : '—';
+        var reminded = a.last_reminded_at ? new Date(a.last_reminded_at).toLocaleDateString() : '—';
+        return '<tr>' +
+          '<td><input type="checkbox" class="asg-pick" data-id="' + esc(a.id) + '"></td>' +
+          '<td>' + esc(a.store_number) + '</td>' +
+          '<td>' + esc(a.assignee_name || '—') + '</td>' +
+          '<td>' + esc(a.assignee_email) + '</td>' +
+          '<td>' + esc(a.supervisor_email || '—') + '</td>' +
+          '<td>' + asgBadge + '</td>' +
+          '<td>' + surveyBadge + '</td>' +
+          '<td>' + esc(invited) + '</td>' +
+          '<td>' + esc(reminded) + '</td>' +
+          '</tr>';
+      }).join('');
+      html += '<div class="out-section">' +
+        '<div class="out-section-head"><span>District ' + esc(d) + ' — ' + byDist[d].length + ' assignment' + (byDist[d].length !== 1 ? 's' : '') + '</span>' +
+          '<label style="margin-left:auto;font-size:0.85rem;cursor:pointer"><input type="checkbox" class="sel-all-dist" style="margin-right:6px">All</label></div>' +
+        '<div style="overflow-x:auto"><table class="out-table"><thead><tr>' +
+          '<th></th><th>Store</th><th>Name</th><th>Email</th><th>Supervisor</th><th>Status</th><th>Survey</th><th>Invited</th><th>Last reminder</th>' +
+          '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        '<div class="out-actions">' +
+          '<button type="button" class="primary send-invite">Send invite</button>' +
+          '<button type="button" send-remind="1" class="send-remind">Send reminder</button>' +
+          '<button type="button" class="mark-done">Mark done</button>' +
+        '</div></div>';
+    });
+    container.innerHTML = html;
+
+    container.querySelectorAll('.sel-all-dist').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var section = cb.closest('.out-section');
+        section.querySelectorAll('.asg-pick').forEach(function (r) { r.checked = cb.checked; });
+      });
+    });
+
+    container.querySelectorAll('.send-invite').forEach(function (btn) {
+      btn.addEventListener('click', function () { bulkAction(btn, 'invite'); });
+    });
+    container.querySelectorAll('.send-remind').forEach(function (btn) {
+      btn.addEventListener('click', function () { bulkAction(btn, 'remind'); });
+    });
+    container.querySelectorAll('.mark-done').forEach(function (btn) {
+      btn.addEventListener('click', function () { bulkAction(btn, 'done'); });
+    });
+  }
+
+  function bulkAction(btn, action) {
+    var section = btn.closest('.out-section');
+    var ids = [];
+    section.querySelectorAll('.asg-pick:checked').forEach(function (cb) { ids.push(Number(cb.dataset.id)); });
+    if (!ids.length) { statusEl.textContent = 'Check at least one row.'; return; }
+    statusEl.textContent = action === 'invite' ? 'Sending invites…' : action === 'remind' ? 'Sending reminders…' : 'Marking done…';
+    var path = action === 'invite' ? '/outreach/assignments/invite'
+              : action === 'remind' ? '/outreach/assignments/remind'
+              : null;
+    if (!path) {
+      // mark done one by one
+      Promise.all(ids.map(function (id) {
+        return api('/outreach/assignments/' + id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: 'done' }) }).then(function (r) { return r.json(); });
+      })).then(function () {
+        statusEl.textContent = 'Marked done.';
+        refreshAssignments();
+      });
+      return;
+    }
+    api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: ids }) })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) { statusEl.textContent = '✗ ' + (data.error || 'Failed'); return; }
+        var ok = (data.results || []).filter(function (r) { return r.ok; }).length;
+        var fail = (data.results || []).filter(function (r) { return !r.ok; }).length;
+        statusEl.textContent = '✓ ' + ok + ' sent' + (fail ? ', ' + fail + ' failed' : '') + '.';
+        refreshAssignments();
+      }).catch(function (err) { statusEl.textContent = '✗ ' + err.message; });
+  }
+
   var ready = window.dumpBinAuthReady || Promise.resolve();
   ready.then(boot).catch(function () {});
 })();
