@@ -7,6 +7,7 @@
   --line: #d5deea;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   font-family: Carlito, Calibri, "Segoe UI", sans-serif;
@@ -42,14 +43,40 @@ h1 { margin: 0; font-size: 1.3rem; white-space: nowrap; }
 .toolbar {
   max-width: 1300px;
   margin: 0 auto;
-  padding: 10px 16px;
+  padding: 10px 16px 8px;
   display: flex;
-  gap: 14px;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
   border-bottom: 1px solid var(--line);
   background: #fff;
 }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #5a6b7d; margin-right: 4px; min-width: 150px; }
+.chip {
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--navy);
+  cursor: pointer;
+  line-height: 1.3;
+}
+.chip:hover { border-color: var(--navy); }
+.chip.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.chip .chip-n { font-weight: 400; opacity: 0.7; margin-left: 2px; }
+.chip.st-done.on { background: #2e8b57; border-color: #2e8b57; }
+.chip.st-revisit.on { background: #d97a00; border-color: #d97a00; }
+.chip.st-open.on { background: #6b7a8c; border-color: #6b7a8c; }
+.chip-combo { border-style: dashed; }
+.toolbar-foot { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding-top: 4px; }
+.filter-summary { font-size: 0.88rem; font-weight: 700; color: var(--sky); }
+.store-name { font-size: 0.78rem; font-weight: 400; opacity: 0.8; }
+.btn-link { font: inherit; font-size: 0.85rem; background: none; border: 0; color: var(--sky); text-decoration: underline; cursor: pointer; padding: 0; text-align: left; }
+.out-table tr.no-lead td { opacity: 0.6; }
+.sub.warn { color: #d97a00; font-weight: 700; }
 .filter-label {
   display: flex;
   flex-direction: column;

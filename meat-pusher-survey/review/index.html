@@ -6,7 +6,7 @@
   <title>Meat Pusher Review</title>
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700&amp;display=swap">
-  <link rel="stylesheet" href="/meat-pusher-survey/review/assets/review.css?v=8">
+  <link rel="stylesheet" href="/meat-pusher-survey/review/assets/review.css?v=10">
   <script src="/auth-gate.js"></script>
 </head>
 <body>
@@ -22,29 +22,18 @@
   </header>
   <p id="status" class="status" role="status"></p>
   <div id="toolbar" class="toolbar" hidden>
-    <label class="filter-label">Supervisor
-      <select id="filterSup">
-        <option value="">All supervisors</option>
-      </select>
-    </label>
-    <label class="filter-label">Status
-      <select id="filterStatus">
-        <option value="">All</option>
-        <option value="done">Done</option>
-        <option value="revisit">Needs revisit</option>
-        <option value="open">Not started</option>
-      </select>
-    </label>
-    <label class="select-all-label">
-      <input type="checkbox" id="selectAll">
-      Select all filtered
-    </label>
-    <span id="selCount" class="sel-count"></span>
-    <label class="import-label">
-      <input type="file" id="importFile" accept=".xlsx,.csv" hidden>
-      <button type="button" class="import-btn" id="importBtn">Upload updated sheet</button>
-    </label>
-    <span id="importStatus" class="import-status"></span>
+    <div id="groupChips" class="chip-row"></div>
+    <div id="statusChips" class="chip-row"></div>
+    <div class="toolbar-foot">
+      <span id="filterSummary" class="filter-summary"></span>
+      <label class="select-all-label"><input type="checkbox" id="selectAll"> Select all filtered</label>
+      <span id="selCount" class="sel-count"></span>
+      <label class="import-label">
+        <input type="file" id="importFile" accept=".xlsx,.csv" hidden>
+        <button type="button" class="import-btn" id="importBtn">Upload updated sheet</button>
+      </label>
+      <span id="importStatus" class="import-status"></span>
+    </div>
   </div>
   <div id="conflictModal" class="conflict-modal" hidden></div>
   <div id="tabBar" class="tab-bar">
@@ -58,32 +47,16 @@
   <div id="tabOutreach" class="outreach-pane" hidden>
     <div class="outreach-grid">
       <aside class="outreach-sidebar">
-        <h2 class="sidebar-head">Kompass ISE crews</h2>
-        <label class="filter-label">District
-          <select id="outDistrict">
-            <option value="">All districts</option>
-            <option value="D1">District 1</option><option value="D2">District 2</option><option value="D3">District 3</option>
-            <option value="D4">District 4</option><option value="D5">District 5</option><option value="D6">District 6</option>
-            <option value="D7">District 7</option><option value="D8">District 8</option><option value="D9">District 9</option>
-            <option value="D10">District 10</option>
-          </select>
-        </label>
-        <label class="filter-label">From
-          <input type="date" id="outStart">
-        </label>
-        <label class="filter-label">To
-          <input type="date" id="outEnd">
-        </label>
-        <button type="button" class="btn-pull" id="pullSas">Pull from PROD</button>
+        <h2 class="sidebar-head">ISE leads</h2>
+        <p id="outFilterLine" class="sub"></p>
+        <label class="filter-label">From <input type="date" id="outStart"></label>
+        <label class="filter-label">To <input type="date" id="outEnd"></label>
+        <button type="button" class="btn-pull" id="pullLeads">Pull leads for filtered stores</button>
+        <button type="button" class="btn-link" id="pullLeadsRefresh">Re-pull (skip cache)</button>
         <p id="pullStatus" class="pull-status" role="status"></p>
         <hr class="out-hr">
         <h2 class="sidebar-head">Assignments</h2>
-        <label class="filter-label">District
-          <select id="asgDistrict">
-            <option value="">All</option>
-          </select>
-        </label>
-        <label class="filter-label">Status
+        <label class="filter-label">Email status
           <select id="asgStatus">
             <option value="">All</option>
             <option value="assigned">Assigned, not emailed</option>
@@ -94,7 +67,7 @@
         <button type="button" class="btn-pull" id="loadAssignments">Refresh</button>
       </aside>
       <div class="outreach-main">
-        <div id="sasResults"></div>
+        <div id="outStores"></div>
         <div id="summaryBar" class="summary-bar" hidden>
           <span class="summary-title">Management summary</span>
           <button type="button" id="summaryPreview">Preview</button>
@@ -106,6 +79,6 @@
     </div>
   </div>
   <footer>Retail Odyssey</footer>
-  <script src="/meat-pusher-survey/review/assets/review.js?v=13"></script>
+  <script src="/meat-pusher-survey/review/assets/review.js?v=15"></script>
 </body>
 </html>
