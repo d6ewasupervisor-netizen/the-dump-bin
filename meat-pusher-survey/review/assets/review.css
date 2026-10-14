@@ -138,6 +138,40 @@ h1 { margin: 0; font-size: 1.3rem; white-space: nowrap; }
 .badge-status.assigned { background: #f3f3f3; color: #555; }
 .badge-status.revisit { background: #fff4e0; color: #8a4a00; }
 .badge-status.open { background: #f8f8f8; color: #888; }
+.badge-status.lead { background: var(--navy); color: #FFD100; }
+.badge-status.crew { background: #eef2f6; color: var(--navy); }
+.out-table .sub { font-size: 0.82rem; color: #5a6b7d; }
+.out-table td.chips { line-height: 1.9; }
+.tbl-wrap { overflow-x: auto; }
+.head-check { margin-left: auto; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.store-chip {
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  margin: 0 4px 2px 0;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--navy);
+}
+.store-chip.done { background: #e8f5e9; border-color: #2e8b57; color: #2e6a00; }
+.store-chip.revisit { background: #fff4e0; border-color: #d97a00; color: #8a4a00; }
+.out-actions button.danger { border-color: var(--red); color: var(--red); }
+.summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--yellow);
+}
+.summary-title { font-weight: 700; margin-right: auto; }
+.summary-bar button { font: inherit; font-weight: 700; border: 2px solid var(--navy); background: #fff; color: var(--navy); padding: 6px 14px; cursor: pointer; }
+.summary-bar button.primary { background: var(--navy); color: #fff; }
+.summary-box { background: #fff; border: 1px solid var(--line); padding: 14px 16px; }
+.summary-head { font-size: 0.85rem; color: #5a6b7d; font-weight: 700; margin-bottom: 8px; }
 
 /* conflict resolution modal */
 .conflict-modal {

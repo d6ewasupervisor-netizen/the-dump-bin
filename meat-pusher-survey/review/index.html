@@ -6,7 +6,7 @@
   <title>Meat Pusher Review</title>
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700&amp;display=swap">
-  <link rel="stylesheet" href="/meat-pusher-survey/review/assets/review.css?v=7">
+  <link rel="stylesheet" href="/meat-pusher-survey/review/assets/review.css?v=8">
   <script src="/auth-gate.js"></script>
 </head>
 <body>
@@ -58,45 +58,54 @@
   <div id="tabOutreach" class="outreach-pane" hidden>
     <div class="outreach-grid">
       <aside class="outreach-sidebar">
-        <h2 class="sidebar-head">Pull from SAS PROD</h2>
+        <h2 class="sidebar-head">Kompass ISE crews</h2>
         <label class="filter-label">District
           <select id="outDistrict">
             <option value="">All districts</option>
-            <option>D1</option><option>D2</option><option>D3</option>
-            <option>D4</option><option>D5</option><option>D6</option>
-            <option>D7</option><option>D8</option><option>D9</option><option>D10</option>
+            <option value="D1">District 1</option><option value="D2">District 2</option><option value="D3">District 3</option>
+            <option value="D4">District 4</option><option value="D5">District 5</option><option value="D6">District 6</option>
+            <option value="D7">District 7</option><option value="D8">District 8</option><option value="D9">District 9</option>
+            <option value="D10">District 10</option>
           </select>
         </label>
-        <label class="filter-label">Date range
+        <label class="filter-label">From
           <input type="date" id="outStart">
-          <input type="date" id="outEnd" style="margin-top:4px">
+        </label>
+        <label class="filter-label">To
+          <input type="date" id="outEnd">
         </label>
         <button type="button" class="btn-pull" id="pullSas">Pull from PROD</button>
         <p id="pullStatus" class="pull-status" role="status"></p>
         <hr class="out-hr">
         <h2 class="sidebar-head">Assignments</h2>
-        <label class="filter-label">Filter by district
+        <label class="filter-label">District
           <select id="asgDistrict">
             <option value="">All</option>
           </select>
         </label>
-        <label class="filter-label">Filter by status
+        <label class="filter-label">Status
           <select id="asgStatus">
             <option value="">All</option>
-            <option value="assigned">Assigned</option>
-            <option value="invited">Invited</option>
+            <option value="assigned">Assigned, not emailed</option>
+            <option value="invited">Emailed</option>
             <option value="done">Done</option>
           </select>
         </label>
-        <button type="button" class="btn-pull" id="loadAssignments">Refresh assignments</button>
+        <button type="button" class="btn-pull" id="loadAssignments">Refresh</button>
       </aside>
       <div class="outreach-main">
         <div id="sasResults"></div>
+        <div id="summaryBar" class="summary-bar" hidden>
+          <span class="summary-title">Management summary</span>
+          <button type="button" id="summaryPreview">Preview</button>
+          <button type="button" id="summarySend" class="primary">Email Amanda</button>
+        </div>
+        <div id="summaryBox" class="summary-box" hidden></div>
         <div id="asgResults"></div>
       </div>
     </div>
   </div>
   <footer>Retail Odyssey</footer>
-  <script src="/meat-pusher-survey/review/assets/review.js?v=12"></script>
+  <script src="/meat-pusher-survey/review/assets/review.js?v=13"></script>
 </body>
 </html>
