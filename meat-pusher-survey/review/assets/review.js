@@ -519,7 +519,7 @@
     if (!vis.length) { setPull('No stores in the current filter.', true); return; }
     var btn = $('pullLeads');
     btn.disabled = true;
-    setPull('Pulling ISE leads for ' + vis.length + ' store' + (vis.length > 1 ? 's' : '') + '…');
+    setPull('Pulling ISE, Blitz, and Cut-In leads for ' + vis.length + ' store' + (vis.length > 1 ? 's' : '') + '…');
     var qs = '?startDate=' + encodeURIComponent($('outStart').value) + '&endDate=' + encodeURIComponent($('outEnd').value) +
       '&stores=' + encodeURIComponent(vis.map(function (r) { return r.storeNumber; }).join(','));
     if (refresh) qs += '&refresh=1';
@@ -530,11 +530,17 @@
       leadsPulled = true;
       var diag = data.diagnostics || {};
       var hit = vis.filter(function (r) { return (leadsByStore[r.storeNumber] || []).length; }).length;
-      var msg = hit + ' of ' + vis.length + ' filtered stores have an ISE lead in range';
-      if (diag.usableVisits != null) msg += ' (' + diag.usableVisits + ' ISE visits division-wide, ' + (diag.visitsWithoutLead || 0) + ' with no lead set';
+      var msg = hit + ' of ' + vis.length + ' filtered stores have a lead in range';
+      if (diag.byProject) {
+        msg += ' (' + ['ISE', 'Blitz', 'Cut-In'].map(function (k) { return (diag.byProject[k] || 0) + ' ' + k; }).join(', ');
+      } else if (diag.usableVisits != null) {
+        msg += ' (' + diag.usableVisits + ' visits division-wide';
+      }
+      if (diag.visitsWithoutLead) msg += ', ' + diag.visitsWithoutLead + ' with no lead set';
       if (diag.leadsWithoutEmail) msg += ', ' + diag.leadsWithoutEmail + ' leads with no email in SAS';
-      if (diag.usableVisits != null) msg += ').';
-      if (!hit && diag.usableVisits === 0) msg = 'No ISE visits in that date range anywhere in the division.';
+      if (diag.byProject || diag.usableVisits != null) msg += ').';
+      if (diag.projectErrors && diag.projectErrors.length) msg += ' SAS miss: ' + diag.projectErrors.join('; ') + '.';
+      if (!hit && diag.usableVisits === 0) msg = 'No ISE, Blitz, or Cut-In visits in that date range.';
       setPull(msg, !hit);
       renderOutreachStores();
     }).catch(function (err) { btn.disabled = false; setPull('✗ ' + err.message, true); });
@@ -572,8 +578,8 @@
         ? '<span class="sub">Pull leads first</span>'
         : L
           ? '<strong>' + esc(L.name || '—') + '</strong>' + (leads.length > 1 ? ' <span class="sub">+' + (leads.length - 1) + ' more</span>' : '') +
-            '<div class="sub">' + esc(L.date || '') + (L.team ? ' · ' + esc(L.team) : '') + '</div>'
-          : '<span class="sub warn">No ISE visit in range</span>';
+            '<div class="sub">' + esc(L.date || '') + (L.project ? ' · ' + esc(L.project) : '') + (L.team ? ' · ' + esc(L.team) : '') + '</div>'
+          : '<span class="sub warn">No ISE, Blitz, or Cut-In visit in range</span>';
       var t = typed[r.storeNumber] || {};
       var emailVal = t.email != null && t.email !== '' ? t.email : (L ? L.email || '' : '');
       var supVal = t.sup != null && t.sup !== '' ? t.sup : (L ? (L.supervisorEmail || r.supervisorEmail || '') : '');
@@ -602,7 +608,7 @@
     container.innerHTML = '<div class="out-section">' +
       '<div class="out-section-head"><span>Stores in filter · ' + vis.length + '</span>' +
         '<label class="head-check"><input type="checkbox" id="outAll">All with a lead</label></div>' +
-      '<div class="tbl-wrap"><table class="out-table"><thead><tr><th></th><th>Store</th><th>District · Supervisor</th><th>Survey</th><th>ISE lead</th><th>Lead email</th><th>Lead\'s supervisor</th><th>Assigned</th></tr></thead>' +
+      '<div class="tbl-wrap"><table class="out-table"><thead><tr><th></th><th>Store</th><th>District · Supervisor</th><th>Survey</th><th>Lead</th><th>Lead email</th><th>Lead\'s supervisor</th><th>Assigned</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div>' +
       '<div class="out-actions">' +
         '<button type="button" class="primary" id="assignSel">Assign selected stores to their lead</button>' +
