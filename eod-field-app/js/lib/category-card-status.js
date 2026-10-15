@@ -424,7 +424,7 @@
     if (markActive(row, 'out_of_scope')) return 'out_of_scope';
     if (markActive(row, 'not_executable') || markActive(row, 'not_in_store') || absentFromStoreAndSi(row)) return 'not_executable';
     if (sheetDisplayComplete(row)) return 'complete';
-    if (markActive(row, 'backlog') && !backlogDisplaced(row, extraBefore)) return 'backlog';
+    if (markActive(row, 'backlog')) return 'backlog';
     if (hasBeforePictures(row, extraBefore)) return 'in_progress';
     return 'not_started';
   }

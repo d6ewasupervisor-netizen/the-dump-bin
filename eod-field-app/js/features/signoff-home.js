@@ -886,10 +886,7 @@
       const version = global.EodCategoryCardStatus?.versionLabel?.(row) || '';
       const est = global.EodCategoryCardStatus?.formatEstHrs?.(row.estHrs) || '';
       const btn = (type, label) => {
-        let on = markActive(row, type);
-        if (type === 'backlog' && Status?.backlogLabelVisible) {
-          on = Status.backlogLabelVisible(row, localBefores);
-        }
+        const on = markActive(row, type);
         return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
       };
       const errMsg = String(row.errorMessage || row.error_message || '').trim();

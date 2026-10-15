@@ -546,8 +546,9 @@ test('category filters split Complete, Not Executable, and Out of Scope', () => 
   assert.equal(backlogLabelVisible(parked), true);
   assert.equal(matchesSheetFilters(parked, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(parked, { status: 'backlog' }), true);
-  assert.equal(sheetDisplayBucket(parkedStarted), 'in_progress');
-  assert.equal(backlogLabelVisible(parkedStarted), false);
+  assert.equal(sheetDisplayBucket(parkedStarted), 'backlog');
+  assert.equal(backlogLabelVisible(parkedStarted), true);
+  assert.equal(matchesSheetFilters(parkedStarted, { status: 'backlog' }), true);
   assert.equal(sheetDisplayBucket(parkedDone), 'complete');
   assert.equal(backlogLabelVisible(parkedDone), false);
   assert.equal(sheetDisplayBucket(nis), 'not_executable');
@@ -596,9 +597,8 @@ test('week carry-forward: Not in Prod, NISI overlays, and the red callout clears
   assert.equal(matchesSheetFilters(nisiBacklog, { status: 'backlog' }), true);
   assert.equal(matchesSheetFilters(nisiBacklog, { status: 'not_done' }), true);
   assert.equal(backlogLabelVisible(nisiBacklog), true);
-  assert.equal(matchesSheetFilters(nisiStarted, { status: 'in_progress' }), true);
-  assert.equal(matchesSheetFilters(nisiStarted, { status: 'backlog' }), false);
-  assert.equal(backlogLabelVisible(nisiStarted), false);
+  assert.equal(matchesSheetFilters(nisiStarted, { status: 'backlog' }), true);
+  assert.equal(backlogLabelVisible(nisiStarted), true);
   assert.equal(matchesSheetFilters(nisNisi, { status: 'not_executable' }), true);
   assert.equal(matchesSheetFilters(nisNisi, { status: 'not_done' }), false);
   assert.equal(oddityCalloutVisible(strips), true);
