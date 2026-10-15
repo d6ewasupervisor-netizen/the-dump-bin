@@ -6,6 +6,24 @@
     return String(n || '').replace(/\D/g, '').padStart(3, '0');
   }
 
+  function canonStore(value) {
+    return String(value ?? '').replace(/\D/g, '').replace(/^0+/, '');
+  }
+
+  function canonDate(value) {
+    const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value || '').trim());
+    return match ? match[1] : '';
+  }
+
+  function receiptBelongsToVisit(receipt, storeNumber, workDate) {
+    if (!receipt) return false;
+    const store = canonStore(storeNumber);
+    const receiptStore = canonStore(receipt.storeNumber);
+    const date = canonDate(workDate);
+    const receiptDate = canonDate(receipt.workDate);
+    return !!store && !!date && store === receiptStore && date === receiptDate;
+  }
+
   function dateCompact(iso) {
     return String(iso || '').replace(/-/g, '').slice(0, 8);
   }
@@ -517,6 +535,7 @@
     realHelpdeskReports,
     helpdeskEodFields,
     padStore,
+    receiptBelongsToVisit,
     dateCompact,
     isMainKompassIse,
     pickMainKompassIseVisit,

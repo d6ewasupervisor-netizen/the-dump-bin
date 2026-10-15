@@ -12,6 +12,19 @@
     return String(n || '').replace(/\D/g, '').padStart(3, '0');
   }
 
+  function receiptBelongsToVisit(receipt, storeNumber, workDate) {
+    const owned = global.EodSendSheetsLogic?.receiptBelongsToVisit;
+    if (typeof owned === 'function') return owned(receipt, storeNumber, workDate);
+    return false;
+  }
+
+  function dropForeignSendLock() {
+    const S = global.EodSession;
+    if (receiptBelongsToVisit(sendLock, S?.state?.storeNumber, S?.state?.workDate)) return;
+    sendLock = null;
+    resendAuthorization = null;
+  }
+
   function receiptLockMessage(receipt) {
     if (!receipt) return '';
     if (receipt.inFlight) return 'EOD is already sending. Wait. Do not tap Send again.';
@@ -557,6 +570,7 @@ ${cleanNotes}`;
 
   async function render(mount) {
     const S = global.EodSession;
+    dropForeignSendLock();
     try { await global.EodRouteBundles?.ensure?.('signatures'); } catch (_) {}
     try { await global.EodDeptSignatures?.refresh?.(); } catch (_) {}
     try {
@@ -1235,6 +1249,7 @@ ${cleanNotes}`;
     });
 
     document.getElementById('sendBtn').onclick = async () => {
+      dropForeignSendLock();
       if (sendLock?.inFlight) {
         await global.EodAlerts?.alert?.('EOD sent', receiptLockMessage(sendLock));
         return;
@@ -1486,8 +1501,18 @@ ${cleanNotes}`;
         }
       }
     };
+    const visitStore = S.state.storeNumber;
+    const visitDate = S.state.workDate;
     loadSendReceipt().then((receipt) => {
-      if (receipt) applySendLock(receipt);
+      const now = global.EodSession;
+      if (!now || now.state.storeNumber !== visitStore || now.state.workDate !== visitDate) return;
+      if (!receiptBelongsToVisit(receipt, visitStore, visitDate)) {
+        sendLock = null;
+        resendAuthorization = null;
+        applySendLock(null);
+        return;
+      }
+      applySendLock(receipt);
     });
   }
 

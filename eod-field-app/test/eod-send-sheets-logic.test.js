@@ -18,7 +18,18 @@ const {
   autoSelectLeadShift,
   includedIseVisitIds,
   leadNamesMatch,
+  receiptBelongsToVisit,
 } = require('../js/lib/eod-send-sheets-logic');
+
+test('an EOD send receipt belongs only to its store and work date', () => {
+  const store28 = { storeNumber: '28', workDate: '2026-10-14', sent: true };
+  assert.equal(receiptBelongsToVisit(store28, '28', '2026-10-14'), true);
+  assert.equal(receiptBelongsToVisit(store28, '028', '2026-10-14'), true);
+  assert.equal(receiptBelongsToVisit(store28, '23', '2026-10-14'), false);
+  assert.equal(receiptBelongsToVisit(store28, '28', '2026-10-13'), false);
+  assert.equal(receiptBelongsToVisit(null, '23', '2026-10-14'), false);
+  assert.equal(receiptBelongsToVisit(store28, '123', '2026-10-14'), false);
+});
 
 test('Wolf matches Aiyana Natarisalazar as the same lead', () => {
   assert.equal(leadNamesMatch('Wolf', 'Aiyana Natarisalazar'), true);
