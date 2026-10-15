@@ -1,0 +1,38 @@
+{
+  "week": "P10W2",
+  "district": "D8",
+  "title": "Period 10 · Week 2",
+  "dueAt": "2026-10-19T06:00:00-07:00",
+  "passPct": 80,
+  "board": "callsign",
+  "stops": [
+    "Period 10 Week 2",
+    "Week at a glance",
+    "Checklane blitz",
+    "Cocoa",
+    "Milk Byproducts",
+    "Vinegar & Cooking Wine",
+    "Refrigerated & frozen NIIs",
+    "Shelf-stable NIIs",
+    "Vitamins",
+    "NF Vitamins",
+    "Diabetic Supplies",
+    "Pharmacy NIIs & the cane rack",
+    "Materials & holds",
+    "Store callouts",
+    "Standing reminders",
+    "Period 10 Week 3",
+    "Further out",
+    "The short version"
+  ],
+  "sections": [
+    { "name": "Opening", "stops": [1, 2] },
+    { "name": "Checklane Blitz", "stops": [3] },
+    { "name": "Grocery", "stops": [4, 5, 6, 7, 8] },
+    { "name": "HBC, Pharmacy & NF", "stops": [9, 10, 11, 12] },
+    { "name": "Materials & stores", "stops": [13, 14, 15] },
+    { "name": "Looking ahead", "stops": [16, 17] },
+    { "name": "Wrap", "stops": [18] }
+  ],
+  "closer": "Somewhere in a back room, a case of Swiss Miss is about to climb one shelf closer to the syrup it's always admired."
+}

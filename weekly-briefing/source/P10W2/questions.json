@@ -1,0 +1,276 @@
+[
+  {
+    "id": "q01",
+    "stop": 1,
+    "type": "choice",
+    "q": "How many hours are on the books this week, and how do they break down?",
+    "options": [
+      "64 hours: 39 Compass plus the 25-hour Checklane Blitz",
+      "39 hours total, blitz included",
+      "64 hours of Compass, with the blitz on top of that",
+      "25 hours of Compass plus a 39-hour blitz"
+    ],
+    "correct": 0,
+    "explain": "64 total: 39 hours of Compass and the 25-hour Checklane Blitz stacked on top."
+  },
+  {
+    "id": "q02",
+    "stop": 3,
+    "type": "choice",
+    "q": "A store hasn't finished the Checklane Blitz by the end of this week. What happens?",
+    "options": [
+      "It rolls into Period 11",
+      "It gets scheduled again next week, with extra InstaWork help brought in",
+      "The store finishes it on their own",
+      "It waits until the next blitz rotation"
+    ],
+    "correct": 1,
+    "explain": "Stores that haven't completed the blitz get scheduled again next week, and I'm bringing in extra InstaWork help so we have the coverage to close it out."
+  },
+  {
+    "id": "q03",
+    "stop": 4,
+    "type": "choice",
+    "q": "On Cocoa, where do the syrups end up, and how did the test store work the set?",
+    "options": [
+      "Bottom shelf, working top down",
+      "Top two shelves, working from the bottom up",
+      "Middle shelves, working left to right",
+      "They leave the set entirely"
+    ],
+    "correct": 1,
+    "explain": "Syrups move to the top two shelves and cocoa mixes sit on shelves one through four. The test store started at the bottom and worked up; it took two hours."
+  },
+  {
+    "id": "q04",
+    "stop": 5,
+    "type": "multi",
+    "q": "Milk Byproducts. Pick everything that's true.",
+    "options": [
+      "Ricotta moves to the top left of the set",
+      "Refrigerated Hispanic and Refrigerated Italian strips record under Milk Byproducts",
+      "Squeeze sour creams go side by side",
+      "The 20-minute rule applies"
+    ],
+    "correct": [
+      0,
+      1,
+      3
+    ],
+    "explain": "Ricotta goes top left, the Hispanic and Italian strips record under Milk Byproducts, and it's refrigerated. Squeeze sour creams go over/under, not side by side."
+  },
+  {
+    "id": "q05",
+    "stop": 6,
+    "type": "choice",
+    "q": "What happens to the 1-gallon Kroger Multipurpose Cleaning Vinegar?",
+    "options": [
+      "It moves to the bottom shelf of Vinegar",
+      "It leaves the Vinegar set and goes to Household Cleaning",
+      "It's deleted",
+      "It moves to the top shelf, Kroger leading left"
+    ],
+    "correct": 1,
+    "explain": "The cleaning vinegar leaves Vinegar entirely and goes to the Household Cleaning set."
+  },
+  {
+    "id": "q06",
+    "stop": 7,
+    "type": "choice",
+    "q": "Four Kroger Rising Crust pizzas are changing suppliers. What's your job during the reset?",
+    "options": [
+      "Pull them until the new supplier ships",
+      "Confirm the correct supplier product is on the shelf",
+      "Face the old product over to hold the space",
+      "Nothing. Supplier changes don't affect the set"
+    ],
+    "correct": 1,
+    "explain": "Confirm the correct supplier product is on the shelf during the reset. Same goes for Red Baron Crunchtime: verify your store is in scope before cutting it in."
+  },
+  {
+    "id": "q07",
+    "stop": 8,
+    "type": "choice",
+    "q": "The Kroger Au Gratin and Scalloped boxed potatoes have a new UPC and size. How do you treat them?",
+    "options": [
+      "As a simple tag swap",
+      "As a hard add and a hard delete",
+      "Leave the old product and update the tag later",
+      "Move them to the stuffing section"
+    ],
+    "correct": 1,
+    "explain": "New UPC and size means a hard add and a hard delete: the old item comes out, the new item goes in."
+  },
+  {
+    "id": "q08",
+    "stop": 9,
+    "type": "choice",
+    "q": "Vitamins. What did the test store learn that you should plan for?",
+    "options": [
+      "Shelves 5–8 shift left, and they needed four extra pushers",
+      "Shelves 1–4 flip entirely",
+      "The set took half the booked time",
+      "No strips came in"
+    ],
+    "correct": 0,
+    "explain": "Minor movement on shelves one through four, shelves five through eight mostly shift left, and they needed four extra pushers. Have spares on the cart. It ran three and a half hours."
+  },
+  {
+    "id": "q09",
+    "stop": 10,
+    "type": "tf",
+    "q": "True or false: on NF Vitamins, you place the 28 new items first and pull the deletes as you go.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correct": 1,
+    "explain": "False. Pull the deletes first, then place the new items. Then work the 72 changes carefully."
+  },
+  {
+    "id": "q10",
+    "stop": 10,
+    "type": "choice",
+    "q": "Store 391's NF Vitamins planograms look different from everyone else's. What do you go by?",
+    "options": [
+      "The planogram name",
+      "The planogram ID",
+      "Whatever the store manager prefers",
+      "Skip the set at 391"
+    ],
+    "correct": 1,
+    "explain": "391 has its own store-specific planograms. Go by the planogram ID, not the name."
+  },
+  {
+    "id": "q11",
+    "stop": 11,
+    "type": "multi",
+    "q": "Which District 8 stores have the Diabetic Supplies set?",
+    "options": [
+      "23",
+      "31",
+      "53",
+      "215",
+      "391",
+      "658",
+      "682"
+    ],
+    "correct": [
+      0,
+      2,
+      3,
+      4,
+      5
+    ],
+    "explain": "23, 53, 215, 391 and 658. The other five stores don't carry the set, so there's nothing to move there."
+  },
+  {
+    "id": "q12",
+    "stop": 11,
+    "type": "choice",
+    "q": "Where do the Home Testing items go, and which version is every District 8 store on?",
+    "options": [
+      "Bottom shelf, WITH PEN NEEDLE",
+      "Top shelf, NO PEN NEEDLES",
+      "Behind the pharmacy counter, WITH PEN NEEDLE",
+      "They stay in their own set"
+    ],
+    "correct": 1,
+    "explain": "Home Testing items move into Diabetic, mostly on the top shelf. Every District 8 version is NO PEN NEEDLES. If a planogram says with pen needle, it isn't yours."
+  },
+  {
+    "id": "q13",
+    "stop": 12,
+    "type": "multi",
+    "q": "Drive Medical cane rack. Pick everything that's true.",
+    "options": [
+      "No small peg hooks on the fixture",
+      "Remove any hooks hanging off the side, every visit",
+      "The survey needs photos of both sides of the display",
+      "Hooks are fine as long as the store asks for them"
+    ],
+    "correct": [
+      0,
+      1,
+      2
+    ],
+    "explain": "No small peg hooks, ever. Remove strays on every visit. The survey is in the Retail Logic visit and requires photos of both sides."
+  },
+  {
+    "id": "q14",
+    "stop": 13,
+    "type": "choice",
+    "q": "Meat pushers. What's the plan?",
+    "options": [
+      "Install this week wherever parts arrived",
+      "Postponed to Period 11. Start when parts are available, finish each set once all its parts are in store",
+      "Install half now, half later",
+      "Cancelled"
+    ],
+    "correct": 1,
+    "explain": "Postponed to Period 11. We start once parts are available, and each set gets finished once all of its parts are in the store. No half-built sets."
+  },
+  {
+    "id": "q15",
+    "stop": 14,
+    "type": "choice",
+    "q": "At store 215 this week, which sets are planogram-only?",
+    "options": [
+      "Cocoa, Vinegar and Milk Byproducts",
+      "Can Beans, Can Meat and Dry Potatoes",
+      "Vitamins and NF Vitamins",
+      "All of them"
+    ],
+    "correct": 1,
+    "explain": "Can Beans, Can Meat and Dry Potatoes are planogram-only at 215. The relay runs through October 22; treat Compass sets as NIIs and work with the relay manager."
+  },
+  {
+    "id": "q16",
+    "stop": 15,
+    "type": "choice",
+    "q": "You'll need InstaWork support next week. When do you tell me?",
+    "options": [
+      "Friday afternoon",
+      "By Wednesday morning",
+      "The morning of the shift",
+      "Whenever the store asks"
+    ],
+    "correct": 1,
+    "explain": "Tell me by Wednesday morning each week."
+  },
+  {
+    "id": "q17",
+    "stop": 16,
+    "type": "multi",
+    "q": "Which stores need 6 extra magna bar pegs on hand for Personal Care Appliances in Week 3?",
+    "options": [
+      "19",
+      "23",
+      "28",
+      "215",
+      "391",
+      "682"
+    ],
+    "correct": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "explain": "23, 28, 215 and 391 need 6 extra magna bar pegs. Separately, 19, 215 and 682 need 7 extra pegboard pegs for Hair Care Accessories."
+  },
+  {
+    "id": "q18",
+    "stop": 17,
+    "type": "choice",
+    "q": "What is Period 11 Week 2?",
+    "options": [
+      "Meat pusher week",
+      "A blackout week on the vendor schedule",
+      "The next Checklane Blitz",
+      "A 35-hour week"
+    ],
+    "correct": 1,
+    "explain": "Blackout week. Backlog that reaches it has nowhere to go, so clear it before then."
+  }
+]
