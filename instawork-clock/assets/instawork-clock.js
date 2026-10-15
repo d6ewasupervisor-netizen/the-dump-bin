@@ -42,10 +42,11 @@
 
   function statusPill(w) {
     if (!w.employeeKey) return '<span class="pill pill-off">Not in yet</span>';
-    if (w.signed) return '<span class="pill pill-ok">Signed</span>';
-    if (w.clockOut) return '<span class="pill pill-wait">Out, not signed</span>';
-    if (w.clockIn) return '<span class="pill pill-ok">On shift</span>';
-    return '<span class="pill pill-wait">Verified</span>';
+    if (!w.clockIn) return '<span class="pill pill-wait">Needs start</span>';
+    if (!w.lunchOut || !w.lunchIn) return '<span class="pill pill-wait">Needs break</span>';
+    if (!w.clockOut) return '<span class="pill pill-ok">On shift</span>';
+    if (!w.signed) return '<span class="pill pill-wait">Needs signature</span>';
+    return '<span class="pill pill-ok">Signed off</span>';
   }
 
   function render(workers) {
