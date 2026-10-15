@@ -6,4 +6,4 @@
 
 `welcome-letter-board/` is the Employee Board. The card id stays `welcome-letter-board`. Version on the page is v2.12. Work history is loaded from eod-api when a name is clicked.
 
-Pilot source in this repo is `eod-field-app/`. Signature scope is `eod-field-app/js/lib/signoff-department.js`. Live `/EOD/` Instawork filing (2.17.8) requires a lead-entered name and the InstaWorker's signature before download, print, email, or submit to office.
+Pilot source in this repo is `eod-field-app/`. Signature scope is `eod-field-app/js/lib/signoff-department.js`. The hub home no longer shows the EOD Cover Sheet card. `/EOD/` redirects to `/eod-field-app/`. Live `/EOD/` Instawork filing (2.17.8) is behind that redirect.

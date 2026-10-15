@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-15 — EOD Cover Sheet card removed
+
+The Daily Tools card is gone from the hub home. `/EOD/` now opens EOD Field Pilot.
+
 ## 2026-10-14 — Meat pusher manual lead
 
 Outreach store rows can assign a lead pulled elsewhere in the same district, or a name and email typed on the row.

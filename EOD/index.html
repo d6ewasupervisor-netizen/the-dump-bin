@@ -5,14 +5,13 @@
     <script>
       (function () {
         var incoming = new URLSearchParams(location.search);
-        var dest = new URL('/', location.origin);
+        var dest = new URL('/eod-field-app/', location.origin);
         if (location.hostname === 'www.the-dump-bin.com') {
           dest.protocol = 'https:';
           dest.hostname = 'the-dump-bin.com';
         }
         var token = incoming.get('token');
         if (token) dest.searchParams.set('token', token);
-        dest.searchParams.set('retired', 'eod-cover');
         location.replace(dest.href);
       })();
     </script>
