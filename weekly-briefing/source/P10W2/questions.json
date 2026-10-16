@@ -5,13 +5,13 @@
     "type": "choice",
     "q": "How many hours are on the books this week, and how do they break down?",
     "options": [
-      "64 hours: 39 Compass plus the 25-hour Checklane Blitz",
+      "64 hours: 39 Kompass plus the 25-hour Checklane Blitz",
       "39 hours total, blitz included",
-      "64 hours of Compass, with the blitz on top of that",
-      "25 hours of Compass plus a 39-hour blitz"
+      "64 hours of Kompass, with the blitz on top of that",
+      "25 hours of Kompass plus a 39-hour blitz"
     ],
     "correct": 0,
-    "explain": "64 total: 39 hours of Compass and the 25-hour Checklane Blitz stacked on top."
+    "explain": "64 total: 39 hours of Kompass and the 25-hour Checklane Blitz stacked on top."
   },
   {
     "id": "q02",
@@ -222,7 +222,7 @@
       "All of them"
     ],
     "correct": 1,
-    "explain": "Can Beans, Can Meat and Dry Potatoes are planogram-only at 215. The relay runs through October 22; treat Compass sets as NIIs and work with the relay manager."
+    "explain": "Can Beans, Can Meat and Dry Potatoes are planogram-only at 215. The relay runs through October 22; treat Kompass sets as NIIs and work with the relay manager."
   },
   {
     "id": "q16",

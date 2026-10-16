@@ -39,6 +39,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 FRAME_W, FRAME_H = 810, 1440
@@ -283,6 +284,7 @@ def main() -> None:
     pack = {
         "schema": 1,
         "week": week,
+        "build": datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
         "district": meta.get("district", "D8"),
         "title": meta.get("title", week),
         "dueAt": meta.get("dueAt"),

@@ -24,6 +24,11 @@
 
   var me = null;          // { email, name, roles }
   var pack = null;        // pack.json
+  // Pack asset URL with a cache-buster tied to the pack's build stamp, so a
+  // re-cut pack (new narration, same paths) can't serve stale clips/frames.
+  function assetUrl(rel) {
+    return PACKS_BASE + pack.week + '/' + rel + (pack.build ? '?b=' + encodeURIComponent(pack.build) : '');
+  }
   var userKey = '';       // storage key fragment
   var st = null;          // attempt state (see newState)
   var flat = [];          // walk order: [{kind:'stop', n} | {kind:'q', n, qi, q}]
@@ -313,14 +318,14 @@
     $('stop-section').textContent = sec ? sec.name : 'Stop';
     $('stop-title').textContent = s.title;
     $('stop-count').textContent = s.n + ' / ' + pack.stops.length;
-    $('frame-img').src = PACKS_BASE + pack.week + '/' + s.frame;
+    $('frame-img').src = assetUrl(s.frame);
     $('frame-img').alt = s.title;
     closeSheet();
     $('play-fill').classList.remove('is-read');
 
     // audio
     audio.pause();
-    audio.src = PACKS_BASE + pack.week + '/' + s.audio;
+    audio.src = assetUrl(s.audio);
     audio.playbackRate = SPEEDS[speedIx];
     audio.load();
     setPlayIcon(false);
@@ -334,8 +339,8 @@
     // prefetch next frame + clip
     var nx = pack.stops[s.n]; // next stop (n is 1-based)
     if (nx) {
-      var img = new Image(); img.src = PACKS_BASE + pack.week + '/' + nx.frame;
-      try { fetch(PACKS_BASE + pack.week + '/' + nx.audio, { mode: 'same-origin' }).catch(function () {}); } catch (_) {}
+      var img = new Image(); img.src = assetUrl(nx.frame);
+      try { fetch(assetUrl(nx.audio), { mode: 'same-origin' }).catch(function () {}); } catch (_) {}
     }
   }
   function currentStopItem() { var it = flat[st.pos]; return it && it.kind === 'stop' ? it : null; }
@@ -471,7 +476,7 @@
     var it = currentStopItem(); if (!it) return;
     var lb = document.createElement('div');
     lb.className = 'lightbox';
-    lb.innerHTML = '<button class="lightbox__close">Close</button><img src="' + PACKS_BASE + pack.week + '/' + it.stop.frame + '" alt="' + esc(it.stop.title) + '">';
+    lb.innerHTML = '<button class="lightbox__close">Close</button><img src="' + assetUrl(it.stop.frame) + '" alt="' + esc(it.stop.title) + '">';
     document.body.appendChild(lb);
     lb.querySelector('.lightbox__close').addEventListener('click', function () { lb.remove(); });
   });
