@@ -114,9 +114,30 @@
     return { kind: prodKindFromCounts(counts.before, counts.after), ...counts };
   }
 
+  /* Size token sits before the store suffix. D004 is 4 doors, not 4 feet.
+     D701 (division) and D01 (department) are earlier segments. */
+  function doorCount(row) {
+    const pog = String((row && row.pog) || '');
+    const parts = pog.split('_').filter(Boolean);
+    const last = parts[parts.length - 1] || '';
+    const token = /^[A-Za-z]{2}$/.test(last) ? (parts[parts.length - 2] || '') : '';
+    const fromToken = token.match(/^D(\d+)$/i);
+    if (fromToken) {
+      const n = parseInt(fromToken[1], 10);
+      if (n > 0) return n;
+    }
+    const labeled = String((row && row.footage) || '').trim();
+    if (/door/i.test(labeled)) {
+      const n = parseInt(labeled.replace(/[^\d]/g, ''), 10);
+      if (n > 0) return n;
+    }
+    return 0;
+  }
+
   function footageFeet(row) {
+    if (doorCount(row) > 0) return 0;
     const raw = String((row && (row.footage || row.footageDisplay || row.size)) || '').trim();
-    if (!raw) return 0;
+    if (!raw || /door/i.test(raw)) return 0;
     const token = raw.match(/^F(\d+)$/i);
     if (token) return Number(token[1]) || 0;
     const n = parseInt(raw.replace(/[^\d]/g, ''), 10);
@@ -303,8 +324,8 @@
     return true;
   }
 
-  /* SI bay count when we have one. Footage is feet, turned into bays only
-     when SI did not report a bay count. */
+  /* SI bay count when we have one. Doors are one photo each. Feet become
+     bays only when SI did not report a bay count. */
   function expectedPhotoNeed(row) {
     const live = row && row.live;
     const loc = live && live.siLocation;
@@ -312,6 +333,8 @@
     const section = Number(live && (live.sectionCount || live.expectedBayCount)) || 0;
     const n = Math.max(bay, section);
     if (n > 0) return n;
+    const doors = doorCount(row);
+    if (doors > 0) return Math.min(doors, 48);
     return bayCountFromFeet(footageFeet(row));
   }
 

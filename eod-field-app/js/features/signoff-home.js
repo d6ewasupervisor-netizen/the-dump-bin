@@ -882,7 +882,10 @@
       const aisleLabel = global.EodCategoryCardStatus
         ? global.EodCategoryCardStatus.siAisleLabel(row)
         : '';
-      const footage = row.footageDisplay || row.size || row.footage || '';
+      const labeled = String(row.footage || '').trim();
+      const footage = /ft|door|\bin\b/i.test(labeled)
+        ? labeled
+        : (row.footageDisplay || row.size || labeled || '');
       const version = global.EodCategoryCardStatus?.versionLabel?.(row) || '';
       const est = global.EodCategoryCardStatus?.formatEstHrs?.(row.estHrs) || '';
       const btn = (type, label) => {

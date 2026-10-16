@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-15 — Field app 3.4.56 door counts
+
+Categories treats a `D###` planogram token as doors. Four milk doors stay four photos. The size line uses the sheet label (`4 doors`) when it already names the unit.
+
 ## 2026-10-15 — EOD Cover Sheet card removed
 
 The Daily Tools card is gone from the hub home. `/EOD/` now opens EOD Field Pilot.
