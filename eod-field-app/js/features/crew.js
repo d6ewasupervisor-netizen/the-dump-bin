@@ -166,6 +166,7 @@
       <h2>InstaWork</h2>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="openIwBtn">InstaWork sheet</button>
+        <button type="button" class="btn btn-secondary" id="iwDistributeBtn">Distribute time</button>
       </div>
       ${active ? `
       <div class="btn-row" style="margin-top:10px;">
@@ -178,6 +179,11 @@
 
     host.querySelector('#openIwBtn').onclick = () => {
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('instawork');
+    };
+    host.querySelector('#iwDistributeBtn').onclick = () => {
+      global.EodTimesheetMgmt?.distribute?.('instawork')?.catch?.((err) => {
+        if (global.showAlert) global.showAlert('Distribute time', err.message || String(err));
+      });
     };
     host.querySelector('#iwCamBtn')?.addEventListener('click', async () => {
       if (global.EodCamera?.open) {
@@ -231,6 +237,7 @@
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="crewJoinQrBtn">JOIN QR</button>
           <button type="button" class="btn btn-secondary" id="openKtBtn">Kompass sheet</button>
+          <button type="button" class="btn btn-secondary" id="crewDistributeBtn">Distribute time</button>
         </div>
         <div id="crewSmsHost"></div>
       </div>
@@ -274,6 +281,11 @@
     };
     document.getElementById('openKtBtn').onclick = () => {
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('kompass');
+    };
+    document.getElementById('crewDistributeBtn').onclick = () => {
+      global.EodTimesheetMgmt?.distribute?.('kompass')?.catch?.((err) => {
+        if (global.showAlert) global.showAlert('Distribute time', err.message || String(err));
+      });
     };
     paintInstawork();
 

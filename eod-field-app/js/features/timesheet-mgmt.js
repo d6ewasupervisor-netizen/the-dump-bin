@@ -392,6 +392,7 @@
     const liveOn = forceLiveChecked();
     bar.innerHTML = `
       <button type="button" class="btn btn-secondary" id="eodTsRefreshBtn">Refresh</button>
+      <button type="button" class="btn btn-primary" id="eodTsDistributeBtn">Distribute time</button>
       <button type="button" class="btn btn-primary" id="eodTsShowQrBtn">Show JOIN QR</button>
       <button type="button" class="btn btn-secondary" id="eodTsDownloadBtn">Download PDF</button>
       <button type="button" class="btn btn-secondary" id="eodTsPrintBtn">Print at store</button>
@@ -406,6 +407,7 @@
       </label>` : ''}`;
 
     document.getElementById('eodTsRefreshBtn').onclick = () => refresh(true);
+    document.getElementById('eodTsDistributeBtn').onclick = () => distribute(state.sheetKey).catch(showErr);
     document.getElementById('eodTsShowQrBtn').onclick = () => showJoinQr();
     document.getElementById('eodTsDownloadBtn').onclick = () => downloadPdf().catch(showErr);
     document.getElementById('eodTsPrintBtn').onclick = () => printAtStore().catch(showErr);
@@ -1000,6 +1002,48 @@
     }, POLL_MS);
   }
 
+  async function distribute(sheetKey) {
+    const key = sheetKey === 'instawork' ? 'instawork' : 'kompass';
+    const store = storeNumber();
+    const date = workDate();
+    if (!store || !date) {
+      showErr(new Error('Set store and work date first.'));
+      return null;
+    }
+    const status = document.getElementById('eodTsStatus');
+    if (status && state.sheetKey === key) status.textContent = 'Distributing time…';
+    const resp = await authFetch(`${API}/distribute-time`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        sheetKey: key,
+        storeNumber: store,
+        workDate: date,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 412) {
+      if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+      throw new Error('Confirm today\'s store first');
+    }
+    if (!resp.ok || data.ok === false) throw new Error(data.error || `Distribute failed (${resp.status})`);
+    const summary = data.summary || 'Done.';
+    if (status && state.sheetKey === key) {
+      status.style.whiteSpace = 'pre-wrap';
+      status.textContent = summary;
+    }
+    if (typeof showAlert === 'function') showAlert('Distribute time', summary);
+    const overlay = document.getElementById('eodTsMgmtOverlay');
+    if (overlay?.classList.contains('show') && state.sheetKey === key) {
+      try { await refresh(true); } catch (_) { /* the distribute result still stands */ }
+      if (status) {
+        status.style.whiteSpace = 'pre-wrap';
+        status.textContent = summary;
+      }
+    }
+    return data;
+  }
+
   async function open(sheetKey) {
     const key = sheetKey === 'instawork' ? 'instawork' : 'kompass';
     ensureOverlay();
@@ -1030,5 +1074,6 @@
     openKompass: () => open('kompass'),
     refresh: () => refresh(true),
     showJoinQr,
+    distribute,
   };
 })();
