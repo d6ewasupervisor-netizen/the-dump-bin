@@ -160,6 +160,18 @@ def slice_audio(mp3: Path, starts: list[float], total: float, out_dir: Path, ffm
 ALLOWED_PHRASES = ["Good Warrior"]
 
 
+WRITTEN_ONLY = [
+    # "Compass" is the narration-only spelling (ElevenLabs pronunciation). Written text is always "Kompass".
+    (r"\bCompass\b", 'use "Kompass" in written text; "Compass" is for the spoken transcript only'),
+]
+
+
+def check_written(label: str, text: str, errors: list[str]) -> None:
+    for pat, why in WRITTEN_ONLY:
+        if re.search(pat, text):
+            errors.append(f"{label}: {why}: {text[:90]!r}")
+
+
 def check_banned(label: str, text: str, errors: list[str]) -> None:
     for phrase in ALLOWED_PHRASES:
         text = text.replace(phrase, "")
@@ -230,6 +242,8 @@ def main() -> None:
         elif not isinstance(correct, int) or not 0 <= correct < len(opts):
             errors.append(f"{qid}: `correct` {correct!r} does not index its options")
         check_banned(qid, str(q.get("q", "")), errors)
+        for t in (q.get("q", ""), q.get("explain", ""), *opts):
+            check_written(qid, str(t), errors)
         check_banned(qid, str(q.get("explain", "")), errors)
         for o in opts:
             check_banned(qid, str(o), errors)
