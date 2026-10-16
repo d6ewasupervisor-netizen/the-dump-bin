@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-15 — Portable vault card
+
+Home card `portable-vault` links to `/portable-vault/`. The page is the one-time portable automator download and the remote setup steps. It stays hidden until `/api/me` includes that card.
+
 ## 2026-10-15 — Field app 3.4.56 door counts
 
 Categories treats a `D###` planogram token as doors. Four milk doors stay four photos. The size line uses the sheet label (`4 doors`) when it already names the unit.

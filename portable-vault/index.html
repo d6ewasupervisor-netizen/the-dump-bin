@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portable automator</title>
+  <link rel="icon" type="image/png" href="/favicon.png?v=2">
+  <script src="/auth-gate.js?v=20261015-portable-vault"></script>
+  <style>
+    :root { --bg:#0a0e13; --card:#151d28; --border:#243044; --text:#f0f4f8; --muted:#6b7d94; --sec:#a8b8cc; --accent:#4da6ff; --green:#00e87a; --radius:14px; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    .wrap{max-width:560px;margin:0 auto;padding:28px 16px 80px}
+    a.back{color:var(--accent);text-decoration:none;font-size:13px;font-weight:700}
+    h1{font-size:1.45rem;font-weight:800;margin:16px 0 8px}
+    .sub{color:var(--sec);font-size:14px;line-height:1.45;margin-bottom:18px}
+    .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+    .btn{display:block;width:100%;border:0;background:#1f4e79;color:#fff;border-radius:10px;padding:14px 16px;font:inherit;font-size:16px;font-weight:800;cursor:pointer;margin-top:16px}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .msg{margin-top:14px;font-size:14px;color:var(--sec);line-height:1.45}
+    .msg.err{color:#ff8a96}
+    .msg.ok{color:var(--green)}
+    ol{margin:0 0 0 18px;color:var(--sec);font-size:14px;line-height:1.55}
+    ol li{margin:0 0 10px}
+    code{color:var(--text)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/">← Team Resources</a>
+    <h1>Portable automator</h1>
+    <p class="sub">One download, on this sign-in only. The zip is the portable extension with <code>vault.enc</code> already inside. After it downloads, this card is gone.</p>
+    <div class="panel">
+      <ol>
+        <li>On this computer, click <strong>Download</strong> once. Save the zip somewhere you will keep, such as Documents. Do not leave it in a temp folder.</li>
+        <li>Right-click the zip → <strong>Extract All</strong>. Extract into its own folder. The folder must contain <code>manifest.json</code> and <code>vault.enc</code> side by side. If Extract All nested them inside another folder, use the inner folder that has those two files.</li>
+        <li>In Chrome, open <code>chrome://extensions</code>. Turn on <strong>Developer mode</strong>.</li>
+        <li>Click <strong>Load unpacked</strong>. Choose that folder. The card name is <strong>SAS Retail Automator (Portable)</strong>.</li>
+        <li>Open the side panel. Unlock with the same pattern you use on the portable copy at home.</li>
+        <li>SAS sign-in uses the vault. You do not type the SAS password on this computer. If unlock fails, the pattern is wrong or <code>vault.enc</code> is not in the folder you loaded.</li>
+        <li>Later code updates come from the extension’s own update, not from this page. This download cannot be repeated. A new one has to be minted from home.</li>
+      </ol>
+      <button class="btn" id="dl" type="button" disabled>Checking…</button>
+      <p class="msg" id="msg"></p>
+    </div>
+  </div>
+  <script>
+    (async function () {
+      var btn = document.getElementById('dl');
+      var msg = document.getElementById('msg');
+      function setMsg(text, cls) {
+        msg.className = 'msg' + (cls ? ' ' + cls : '');
+        msg.textContent = text || '';
+      }
+      try {
+        var st = await dumpBinAuthFetch('/api/portable-vault/status');
+        var data = await st.json().catch(function () { return {}; });
+        if (st.status === 403) {
+          btn.textContent = 'Unavailable';
+          setMsg('This download is only on your sign-in.', 'err');
+          return;
+        }
+        if (!st.ok) {
+          btn.textContent = 'Unavailable';
+          setMsg(data.error || 'Could not check for a download.', 'err');
+          return;
+        }
+        if (!data.available) {
+          btn.textContent = 'Nothing waiting';
+          setMsg('There is no download on this sign-in. It was already used, or it has not been minted.');
+          return;
+        }
+        btn.disabled = false;
+        btn.textContent = 'Download';
+      } catch (e) {
+        btn.textContent = 'Unavailable';
+        setMsg('Could not check for a download.', 'err');
+        return;
+      }
+
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        btn.textContent = 'Downloading…';
+        setMsg('');
+        try {
+          var res = await dumpBinAuthFetch('/api/portable-vault/claim', { method: 'POST' });
+          if (!res.ok) {
+            var err = await res.json().catch(function () { return {}; });
+            btn.textContent = 'Unavailable';
+            setMsg(err.error || 'Download failed.', 'err');
+            return;
+          }
+          var cd = res.headers.get('Content-Disposition') || res.headers.get('content-disposition') || '';
+          var m = cd.match(/filename="([^"]+)"/);
+          var blob = await res.blob();
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = (m && m[1]) || 'sas-automator-portable.zip';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          btn.textContent = 'Downloaded';
+          setMsg('Extract the zip, then chrome://extensions → Load unpacked on the folder that has manifest.json and vault.enc. Unlock with your pattern. This download is used.', 'ok');
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = 'Download';
+          setMsg('Download failed. If it did not save, try once more.', 'err');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
