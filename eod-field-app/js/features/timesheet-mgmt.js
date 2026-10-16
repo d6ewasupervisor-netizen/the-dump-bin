@@ -460,7 +460,8 @@
     else alert(msg);
   }
 
-  function statusBadge(status) {
+  function statusBadge(status, noShow) {
+    if (noShow) return '<span class="eod-ts-badge adjust">No show</span>';
     const s = status || 'pending';
     const label = s === 'confirmed' ? 'Confirmed' : (s === 'adjust' ? 'Adjusted' : 'Pending');
     return `<span class="eod-ts-badge ${escapeHtml(s)}">${label}</span>`;
@@ -516,11 +517,12 @@
         <td data-label="Clock out"><input type="text" data-field="clockOut" value="${escapeHtml(fieldValue(m, 'clockOut'))}" aria-label="Clock out"></td>
         <td data-label="Total"><span class="eod-ts-total" data-total>${escapeHtml(totalFor(m) || '—')}</span></td>
         <td data-label="Signature">${sig}</td>
-        <td data-label="Status">${statusBadge(conf.status)}${conf.confirmedBy ? `<div class="eod-ts-meta">${escapeHtml(conf.confirmedBy)}</div>` : ''}${conf.submittedAt ? `<div class="eod-ts-meta">${escapeHtml(new Date(conf.submittedAt).toLocaleString())}</div>` : ''}</td>
+        <td data-label="Status">${statusBadge(conf.status, m.noShow)}${conf.confirmedBy ? `<div class="eod-ts-meta">${escapeHtml(conf.confirmedBy)}</div>` : ''}${conf.submittedAt ? `<div class="eod-ts-meta">${escapeHtml(new Date(conf.submittedAt).toLocaleString())}</div>` : ''}</td>
         <td data-label="Actions">
           <div class="eod-ts-row-actions">
             <button type="button" class="btn btn-primary eod-ts-confirm" data-idx="${idx}">Confirm</button>
             <button type="button" class="btn btn-secondary eod-ts-save" data-idx="${idx}">Save</button>
+            ${isIw ? `<button type="button" class="btn btn-secondary eod-ts-noshow" data-idx="${idx}">No show</button>` : ''}
             <button type="button" class="btn btn-secondary eod-ts-tablet" data-idx="${idx}">Sign on tablet</button>
             <button type="button" class="btn btn-primary eod-ts-send" data-idx="${idx}">Text / email link</button>
           </div>
@@ -529,7 +531,14 @@
     }).join('');
 
     const realNameTh = state.sheetKey === 'instawork' ? '<th>Real name</th>' : '';
+    const addForm = state.sheetKey === 'instawork' ? `
+      <form class="eod-ts-add" id="eodTsAddPerson" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center;">
+        <input type="text" id="eodTsAddName" placeholder="Name" aria-label="Name" autocomplete="name" style="padding:8px;font:inherit;">
+        <input type="tel" id="eodTsAddPhone" placeholder="Phone" aria-label="Phone" inputmode="tel" autocomplete="tel" style="padding:8px;font:inherit;">
+        <button type="submit" class="btn btn-secondary">Add</button>
+      </form>` : '';
     body.innerHTML = `
+      ${addForm}
       <div class="eod-ts-table-wrap">
         <table class="eod-ts-table">
           <thead>
@@ -570,6 +579,9 @@
     body.querySelectorAll('.eod-ts-save').forEach((btn) => {
       btn.addEventListener('click', () => saveRow(Number(btn.dataset.idx)).catch(showErr));
     });
+    body.querySelectorAll('.eod-ts-noshow').forEach((btn) => {
+      btn.addEventListener('click', () => markNoShow(Number(btn.dataset.idx)).catch(showErr));
+    });
     body.querySelectorAll('.eod-ts-confirm').forEach((btn) => {
       btn.addEventListener('click', () => saveRow(Number(btn.dataset.idx), { confirm: true }).catch(showErr));
     });
@@ -579,6 +591,14 @@
     body.querySelectorAll('.eod-ts-regen').forEach((btn) => {
       btn.addEventListener('click', () => regenPin(Number(btn.dataset.idx)).catch(showErr));
     });
+    const addFormEl = document.getElementById('eodTsAddPerson');
+    if (addFormEl && !addFormEl.dataset.wired) {
+      addFormEl.dataset.wired = '1';
+      addFormEl.addEventListener('submit', (e) => {
+        e.preventDefault();
+        addInstaworkPerson().catch(showErr);
+      });
+    }
     body.querySelectorAll('.eod-ts-copy-pin').forEach((btn) => {
       btn.addEventListener('click', () => copyPin(Number(btn.dataset.idx)));
     });
@@ -654,6 +674,7 @@
         lunchIn: row.lunchIn,
         clockOut: row.clockOut,
         timeSource: 'lead',
+        noShow: false,
         confirmationStatus: opts.confirm ? 'confirmed' : undefined,
       }),
     });
@@ -696,6 +717,71 @@
     if (typeof showAlert === 'function') {
       showAlert('Saved', `${displayName(row) || row.name} times updated.`);
     }
+  }
+
+  async function markNoShow(idx) {
+    const row = readRowInputs(idx);
+    if (!row) return;
+    const name = row.realName || '';
+    if (!name) {
+      showErr(new Error('Enter their name before marking a no-show.'));
+      return;
+    }
+    const resp = await authFetch(`${API}/row`, {
+      method: 'PATCH',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        sheetKey: state.sheetKey,
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        employeeKey: row.employeeKey,
+        employeeName: row.name,
+        realName: name,
+        workdayId: row.workdayId,
+        employeeId: row.employeeId,
+        shiftId: row.shiftId,
+        visitId: row.visitId,
+        clockIn: '',
+        lunchOut: '',
+        lunchIn: '',
+        clockOut: '',
+        timeSource: 'lead',
+        noShow: true,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 412) {
+      if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+      throw new Error('Confirm today\'s store first');
+    }
+    if (!resp.ok || !data.ok) throw new Error(data.error || `Save failed (${resp.status})`);
+    await load();
+  }
+
+  async function addInstaworkPerson() {
+    const name = document.getElementById('eodTsAddName')?.value?.trim();
+    const phone = document.getElementById('eodTsAddPhone')?.value?.trim();
+    const resp = await authFetch(`${API}/instawork-person`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        name,
+        phone,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 412) {
+      if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+      throw new Error('Confirm today\'s store first');
+    }
+    if (!resp.ok || !data.ok) throw new Error(data.error || `Add failed (${resp.status})`);
+    const nameEl = document.getElementById('eodTsAddName');
+    const phoneEl = document.getElementById('eodTsAddPhone');
+    if (nameEl) nameEl.value = '';
+    if (phoneEl) phoneEl.value = '';
+    await load();
   }
 
   async function regenPin(idx) {

@@ -102,6 +102,7 @@
   }
 
   function statusPill(w) {
+    if (w.noShow) return '<span class="pill pill-no">No show</span>';
     if (!w.employeeKey) return '<span class="pill pill-off">Not in yet</span>';
     if (!w.clockIn) return '<span class="pill pill-wait">Needs start</span>';
     if (!w.lunchOut || !w.lunchIn) return '<span class="pill pill-wait">Needs break</span>';
@@ -145,7 +146,7 @@
             <td data-label="Clock in" class="num">${timeSelects('clockIn', 'Start', w.clockIn)}</td>
             <td data-label="Lunch" class="num">${timeSelects('lunchOut', 'Break start', w.lunchOut)}<span class="dash">–</span>${timeSelects('lunchIn', 'Break end', w.lunchIn)}</td>
             <td data-label="Clock out" class="num">${timeSelects('clockOut', 'End', w.clockOut)}</td>
-            <td data-label="Status">${statusPill(w)}<button type="button" class="btn btn-small" data-save="${esc(w.id)}">Save</button><div class="save-note" data-note="${esc(w.id)}" hidden></div></td>
+            <td data-label="Status">${statusPill(w)}<button type="button" class="btn btn-small" data-save="${esc(w.id)}">Save</button><button type="button" class="btn btn-small btn-secondary" data-noshow="${esc(w.id)}">No show</button><div class="save-note" data-note="${esc(w.id)}" hidden></div></td>
           </tr>`).join('')}</tbody>
         </table>
       </section>`;
@@ -153,6 +154,9 @@
     $('boards').innerHTML = html;
     $('boards').querySelectorAll('[data-save]').forEach((btn) => {
       btn.addEventListener('click', () => saveRow(btn));
+    });
+    $('boards').querySelectorAll('[data-noshow]').forEach((btn) => {
+      btn.addEventListener('click', () => markNoShow(btn));
     });
     for (const [id, note] of Object.entries(saveNotes)) {
       const el = $('boards').querySelector(`[data-note="${id}"]`);
@@ -199,6 +203,32 @@
     }
   }
 
+  async function markNoShow(btn) {
+    const tr = btn.closest('tr');
+    const id = tr && tr.dataset.roster;
+    const note = tr.querySelector('[data-note]');
+    btn.disabled = true;
+    btn.textContent = 'Saving';
+    try {
+      const data = await api('/no-show', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rosterId: id }),
+      });
+      const cleared = data.prodSync && data.prodSync.ok ? 'No show. PROD cleared.' : 'No show saved.';
+      saveNotes[id] = { text: data.prodSync && data.prodSync.error ? data.prodSync.error : cleared, bad: Boolean(data.prodSync && data.prodSync.ok === false && !data.prodSync.skipped) };
+      await load();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'No show';
+      if (note) {
+        note.hidden = false;
+        note.textContent = err.message || 'Could not save';
+        note.classList.add('is-bad');
+      }
+    }
+  }
+
   async function load() {
     const date = $('date').value || todayPacific();
     const store = String($('store').value || '').replace(/\D/g, '');
@@ -222,6 +252,41 @@
     }, REFRESH_MS);
   }
 
+  async function addPerson() {
+    const note = $('addNote');
+    const store = String($('store').value || '').replace(/\D/g, '');
+    const date = $('date').value;
+    const name = $('addName').value.trim();
+    const phone = $('addPhone').value.trim();
+    note.hidden = true;
+    note.classList.remove('is-bad');
+    if (!store || !date) {
+      note.hidden = false;
+      note.textContent = 'Set the store and date first.';
+      note.classList.add('is-bad');
+      return;
+    }
+    $('addBtn').disabled = true;
+    try {
+      await api('/people', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeNumber: store, workDate: date, name, phone }),
+      });
+      $('addName').value = '';
+      $('addPhone').value = '';
+      note.hidden = false;
+      note.textContent = 'Added';
+      await load();
+    } catch (err) {
+      note.hidden = false;
+      note.textContent = err.message || 'Could not add';
+      note.classList.add('is-bad');
+    } finally {
+      $('addBtn').disabled = false;
+    }
+  }
+
   function boot() {
     const u = new URL(window.location.href);
     $('date').value = u.searchParams.get('date') || todayPacific();
@@ -229,6 +294,7 @@
     $('refreshBtn').addEventListener('click', load);
     $('date').addEventListener('change', load);
     $('store').addEventListener('change', load);
+    $('addBtn').addEventListener('click', addPerson);
     load();
     startTimer();
     document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
