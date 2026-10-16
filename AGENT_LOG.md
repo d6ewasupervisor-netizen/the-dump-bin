@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-16 — FM135 on the InstaWork id list
+
+`EOD/Timesheets/instawork_ids.csv` includes FM135, FredMeyer135, with FM136–FM140.
+
 ## 2026-10-16 — Strip board opens the latest week
 
 The store list no longer defaults to District 8 P08W2. With no `campaign` query it loads the newest week that has sets, District 8 first. P10W2 is District 8 stores 459 and 682, and a D6 chip for 351 and 657. P08W2 stays on the week list.
