@@ -253,6 +253,79 @@
     return { visible, selected, ise };
   }
 
+  function isDivFreshShift(shift) {
+    if (shiftProjectId(shift) === 11909) return true;
+    return /div\s*fresh/.test(shiftTypeBlob(shift));
+  }
+
+  function isDivSpecialShift(shift) {
+    if (isDivFreshShift(shift)) return false;
+    if (shiftProjectId(shift) === 3568) return true;
+    const blob = shiftTypeBlob(shift);
+    if (/cut\s*in|blitz|remodel|fresh/.test(blob)) return false;
+    return /\bdiv\b/.test(blob);
+  }
+
+  function isRemodelShift(shift) {
+    if (shiftProjectId(shift) === 11099) return true;
+    return /remodel/.test(shiftTypeBlob(shift));
+  }
+
+  const SHIFT_FILTER_TYPES = [
+    { key: 'ise', label: 'ISE' },
+    { key: 'cut_in', label: 'Cut-In' },
+    { key: 'blitz', label: 'Blitz' },
+    { key: 'div_fresh', label: 'DIV Fresh' },
+    { key: 'div', label: 'DIV' },
+    { key: 'remodel', label: 'Remodel' },
+    { key: 'central_pet', label: 'Central Pet' },
+  ];
+
+  function shiftFilterKey(shift) {
+    if (!shift || isDeletedVisitShift(shift) || isCentralPetService(shift)) return '';
+    if (isCutInShift(shift)) return 'cut_in';
+    if (isBlitzShift(shift)) return 'blitz';
+    if (isDivFreshShift(shift)) return 'div_fresh';
+    if (isDivSpecialShift(shift)) return 'div';
+    if (isRemodelShift(shift)) return 'remodel';
+    if (isCentralPetReset(shift)) return 'central_pet';
+    if (isMainKompassIse(shift)) return 'ise';
+    return '';
+  }
+
+  function shiftFilterButtons(shifts, leadName) {
+    const present = new Set(
+      visibleLeadShifts(shifts, leadName).map(shiftFilterKey).filter(Boolean)
+    );
+    return SHIFT_FILTER_TYPES.filter((type) => present.has(type.key));
+  }
+
+  function rowMatchesShiftFilter(row, filterKey, shifts, leadName) {
+    const key = String(filterKey || '').trim();
+    if (!key || key === 'all') return true;
+    const visible = visibleLeadShifts(shifts, leadName).filter((s) => shiftFilterKey(s) === key);
+    if (!visible.length) return true;
+    const visitIds = new Set(visible.map((s) => String(s.visitId || s.id || '')).filter(Boolean));
+    const projectIds = new Set(visible.map((s) => shiftProjectId(s)).filter((n) => n > 0));
+    const day = row && row.live && row.live.dayVisits;
+    if (Array.isArray(day)) {
+      return day.some((visit) => {
+        const visitId = String(visit?.visitId || visit?.visit_id || '');
+        const projectId = Number(visit?.projectId ?? visit?.project_id);
+        if (visitId && visitIds.has(visitId)) return true;
+        if (Number.isFinite(projectId) && projectIds.has(projectId)) return true;
+        return shiftFilterKey({
+          projectId,
+          projectName: visit?.projectName || visit?.project_name || '',
+        }) === key;
+      });
+    }
+    const prodVisit = String(row?.live?.prodVisitId || '');
+    if (prodVisit && visitIds.has(prodVisit)) return true;
+    const named = row?.shiftType || row?.shift_type || '';
+    return shiftFilterKey({ projectName: named, shiftType: named }) === key;
+  }
+
   function includedIseVisitIds(shifts, selected) {
     const primary = String(selected?.visitId || '');
     if (!primary || !isMainKompassIse(selected)) return [];
@@ -589,6 +662,9 @@
     pickVisibleLeadShift,
     autoSelectLeadShift,
     includedIseVisitIds,
+    shiftFilterKey,
+    shiftFilterButtons,
+    rowMatchesShiftFilter,
     isIseCompanionShift,
     eodPdfFilename,
     isRemotePhotoSrc,

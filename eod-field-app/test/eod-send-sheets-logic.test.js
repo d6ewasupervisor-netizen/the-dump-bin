@@ -19,6 +19,8 @@ const {
   includedIseVisitIds,
   leadNamesMatch,
   receiptBelongsToVisit,
+  shiftFilterButtons,
+  rowMatchesShiftFilter,
 } = require('../js/lib/eod-send-sheets-logic');
 
 test('an EOD send receipt belongs only to its store and work date', () => {
@@ -358,6 +360,46 @@ test('InstaWork support follows placeholder time on the reported shifts', () => 
   assert.equal(instaworkSupportFromMembers([
     { workdayId: 'W123', name: 'Pat Lead', visitId: 'v-ise', clockIn: '5:00 AM' },
   ], shifts), 'No');
+});
+
+test('Categories shift filters follow the cycles on the store day', () => {
+  const ise = { visitId: '1', projectId: 1, projectName: 'Fred Meyer Kompass ISE' };
+  const cutIn = { visitId: '2', projectId: 1668, projectName: 'Fred Meyer Cut In Kompass ISE' };
+  const blitz = { visitId: '3', projectId: 1715, projectName: 'Blitz Kompass ISE' };
+  const shifts = [blitz, cutIn, ise];
+  assert.deepEqual(shiftFilterButtons(shifts).map((b) => b.label), ['ISE', 'Cut-In', 'Blitz']);
+
+  const bakery = { live: { dayVisits: [{ visitId: '2', projectId: 1668, projectName: 'Cut In' }] } };
+  const grocery = { live: { dayVisits: [{ visitId: '1', projectId: 1 }] } };
+  const both = {
+    live: {
+      dayVisits: [
+        { visitId: '1', projectId: 1 },
+        { visitId: '3', projectId: 1715 },
+      ],
+    },
+  };
+  const earlierOnly = { live: { dayVisits: [], prodVisitId: '99' } };
+  const unsynced = { shiftType: 'Blitz Kompass ISE', live: { prodVisitId: '3' } };
+
+  assert.equal(rowMatchesShiftFilter(bakery, 'cut_in', shifts), true);
+  assert.equal(rowMatchesShiftFilter(bakery, 'ise', shifts), false);
+  assert.equal(rowMatchesShiftFilter(grocery, 'ise', shifts), true);
+  assert.equal(rowMatchesShiftFilter(both, 'ise', shifts), true);
+  assert.equal(rowMatchesShiftFilter(both, 'blitz', shifts), true);
+  assert.equal(rowMatchesShiftFilter(both, 'cut_in', shifts), false);
+  assert.equal(rowMatchesShiftFilter(earlierOnly, 'ise', shifts), false);
+  assert.equal(rowMatchesShiftFilter(unsynced, 'blitz', shifts), true);
+  assert.equal(rowMatchesShiftFilter(grocery, 'all', shifts), true);
+
+  const remodel = { visitId: '9', projectId: 11099, projectName: 'Remodel Kompass ISE' };
+  const div = { visitId: '4', projectId: 3568, projectName: 'DIV Special Projects Kompass ISE' };
+  const fresh = { visitId: '5', projectId: 11909, projectName: 'DIV Fresh KOMPASS ISE' };
+  assert.deepEqual(shiftFilterButtons([remodel]).map((b) => b.key), ['remodel']);
+  assert.deepEqual(
+    shiftFilterButtons([fresh, div, ise]).map((b) => b.label),
+    ['ISE', 'DIV Fresh', 'DIV']
+  );
 });
 
 test('Send asks the help desk questions only when a report was sent', () => {

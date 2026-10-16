@@ -1332,6 +1332,9 @@ body.role-admin .ds-row-catnum {
 .ds-bulk.is-on ~ #sheetRows { padding-bottom: 168px; }
 .cat-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
 .cat-head h1 { margin: 0; flex: 1 1 auto; }
+.sheet-shift-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sheet-shift-filters .btn { min-height: var(--touch); font-size: 13px; padding: 6px 10px; }
+.sheet-shift-filters .btn.on { outline: 2px solid var(--accent); }
 .cat-head h1.ds-nuke-title { user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 .cat-head h1.ds-nuke-title.is-nuking { opacity: 0.55; }
 .ds-nuke-overlay .ds-nuke-dialog { width: min(520px, 100%); max-height: min(86vh, 720px); display: flex; flex-direction: column; }

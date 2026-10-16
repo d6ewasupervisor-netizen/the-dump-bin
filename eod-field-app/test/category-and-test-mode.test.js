@@ -1007,6 +1007,8 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
   const session = fs.readFileSync(path.join(__dirname, '../js/session.js'), 'utf8');
   assert.match(signoff, /id="sheetFilters"/);
+  assert.match(signoff, /id="sheetShiftFilters"/);
+  assert.match(signoff, /data-shift-filter/);
   assert.match(signoff, /data-filter="status"/);
   assert.match(signoff, /ds-filter-label">Filters/);
   assert.match(signoff, /data-value="done">Complete/);

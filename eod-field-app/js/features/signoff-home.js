@@ -861,6 +861,16 @@
         && !global.EodCategoryCardStatus.matchesSheetFilters(row, filters, localBeforeCount(row))) {
         return false;
       }
+      const sess = global.EodSession;
+      if (global.EodSendSheetsLogic?.rowMatchesShiftFilter
+        && !global.EodSendSheetsLogic.rowMatchesShiftFilter(
+          row,
+          filters && filters.shift,
+          sess?.state?.shifts,
+          sess?.state?.leadName
+        )) {
+        return false;
+      }
       if (!q) return true;
       const locSearch = global.EodCategoryCardStatus
         ? global.EodCategoryCardStatus.siLocationLabel(row)
@@ -963,6 +973,7 @@
           <h1 id="categoriesTitle">Categories</h1>
           <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
           <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
+          <div class="sheet-shift-filters" id="sheetShiftFilters"></div>
         </div>
         <div class="ds-bulk" id="sheetBulk"></div>
         <div class="ds-filters" id="sheetFilters">
@@ -993,7 +1004,10 @@
     const summary = document.getElementById('sheetSummary');
     const rowsEl = document.getElementById('sheetRows');
     const syncBtn = document.getElementById('syncProdSiBtn');
-    const filters = { status: S.state.sheetFilter || 'not_done' };
+    const filters = {
+      status: S.state.sheetFilter || 'not_done',
+      shift: S.state.sheetShiftFilter || 'all',
+    };
     const selectedIds = new Set();
     let lastRowsHtml = '';
     let staleReason = '';
@@ -1005,6 +1019,23 @@
       host.querySelectorAll('[data-filter="status"]').forEach((btn) => {
         btn.classList.toggle('on', filters.status === btn.getAttribute('data-value'));
       });
+    }
+
+    function paintShiftFilters() {
+      const host = document.getElementById('sheetShiftFilters');
+      if (!host) return;
+      const buttons = global.EodSendSheetsLogic?.shiftFilterButtons?.(
+        S.state.shifts,
+        S.state.leadName
+      ) || [];
+      if (filters.shift && filters.shift !== 'all' && (S.state.shifts || []).length
+        && !buttons.some((b) => b.key === filters.shift)) {
+        filters.shift = 'all';
+        S.patch({ sheetShiftFilter: 'all' }, 'sheet-shift-filter');
+      }
+      host.innerHTML = buttons.map((b) => (
+        `<button type="button" class="btn btn-secondary${filters.shift === b.key ? ' on' : ''}" data-shift-filter="${esc(b.key)}">${esc(b.label)}</button>`
+      )).join('');
     }
 
     function startPoll() {
@@ -1142,6 +1173,7 @@
     /* offline:true renders whatever is already in state without asking the
        network, so the saved copy is on screen before the refresh starts. */
     async function paint(opts) {
+      paintShiftFilters();
       let sheet = S.state.sheet;
       const offline = !!(opts && opts.offline);
       if (offline && !sheet) return;
@@ -1199,6 +1231,7 @@
         } catch (_) {}
       })();
       const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
+      paintShiftFilters();
       paintFilterChips();
       const liveIds = new Set((sheet.rows || []).map((r) => String(r.id)));
       for (const id of [...selectedIds]) {
@@ -1336,6 +1369,14 @@
       filters.status = filters.status === value ? 'all' : value;
       S.patch({ sheetFilter: filters.status }, 'sheet-filter');
       paint();
+    });
+    document.getElementById('sheetShiftFilters')?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-shift-filter]');
+      if (!btn) return;
+      const value = btn.getAttribute('data-shift-filter') || 'all';
+      filters.shift = filters.shift === value ? 'all' : value;
+      S.patch({ sheetShiftFilter: filters.shift }, 'sheet-shift-filter');
+      void paint({ offline: true });
     });
 
     syncRepaint = () => paint();
