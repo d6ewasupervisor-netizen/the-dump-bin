@@ -17,6 +17,8 @@ const {
   pickVisibleLeadShift,
   isDriveMedicalShift,
   shiftFilterKey,
+  shiftRosterBadge,
+  groupRosterMembers,
   autoSelectLeadShift,
   includedIseVisitIds,
   leadNamesMatch,
@@ -426,6 +428,28 @@ test('Categories shift filters follow the cycles on the store day', () => {
     shiftFilterButtons([fresh, div, ise]).map((b) => b.label),
     ['ISE', 'DIV Fresh', 'DIV']
   );
+});
+
+test('crew roster names a person once and badges each shift type', () => {
+  assert.deepEqual(shiftRosterBadge({ projectName: 'Fred Meyer Kompass ISE' }), { key: 'ise', label: 'ISE' });
+  assert.deepEqual(shiftRosterBadge({ projectId: 1668, projectName: 'Cut In Kompass ISE' }), { key: 'cut_in', label: 'Cut-In' });
+  assert.deepEqual(shiftRosterBadge({ projectId: 1715 }), { key: 'blitz', label: 'Blitz' });
+  assert.deepEqual(shiftRosterBadge({ projectName: 'Blitz Kompass ISE' }), { key: 'blitz', label: 'Blitz' });
+  assert.deepEqual(shiftRosterBadge({ projectId: 3568 }), { key: 'div', label: 'DIV' });
+  assert.deepEqual(shiftRosterBadge({ projectId: 11909 }), { key: 'div_fresh', label: 'DIV Fresh' });
+  assert.deepEqual(shiftRosterBadge({ visitId: '999' }), { key: '', label: '' });
+
+  const groups = groupRosterMembers([
+    { employeeId: 10, name: 'Ada Lead', isLead: true, visitId: '1', rosterKey: 'ise', rosterLabel: 'ISE', memberIndex: 0 },
+    { employeeId: 22, name: 'Bea', visitId: '1', rosterKey: 'ise', rosterLabel: 'ISE', memberIndex: 1 },
+    { employeeId: 22, name: 'Bea', visitId: '2', rosterKey: 'cut_in', rosterLabel: 'Cut-In', memberIndex: 2 },
+    { employeeId: 22, name: 'Bea', visitId: '3', rosterKey: 'blitz', rosterLabel: 'Blitz', memberIndex: 3 },
+    { employeeId: 22, name: 'Bea', visitId: '4', rosterKey: 'blitz', rosterLabel: 'Blitz', memberIndex: 4 },
+  ]);
+  assert.deepEqual(groups.map((g) => g.name), ['Ada Lead', 'Bea']);
+  assert.equal(groups[0].isLead, true);
+  assert.deepEqual(groups[1].badges.map((b) => b.label), ['ISE', 'Cut-In', 'Blitz']);
+  assert.deepEqual(groups[1].assignments.map((a) => a.memberIndex), [1, 2, 3, 4]);
 });
 
 test('Send asks the help desk questions only when a report was sent', () => {

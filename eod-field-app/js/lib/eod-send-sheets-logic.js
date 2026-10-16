@@ -305,6 +305,57 @@
     return '';
   }
 
+  /** Short type for the crew roster and the add/remove shift pickers. */
+  function shiftRosterBadge(shift) {
+    const key = shiftFilterKey(shift);
+    const known = SHIFT_FILTER_TYPES.find((type) => type.key === key);
+    if (known) return { key: known.key, label: known.label };
+    const blob = shiftTypeBlob(shift);
+    if (/boars?\s*head/.test(blob)) return { key: 'boars_head', label: 'Boars Head' };
+    const named = String(shift?.kompassType || shift?.projectName || shift?.teamName || '').trim();
+    if (!named) return { key: '', label: '' };
+    return { key: named.toLowerCase(), label: named };
+  }
+
+  /**
+   * One row per person. Each assignment keeps its visit so removal can
+   * target that shift. Badges are one per type.
+   */
+  function groupRosterMembers(members) {
+    const order = SHIFT_FILTER_TYPES.map((type) => type.key);
+    const groups = new Map();
+    for (const member of members || []) {
+      const id = String(member?.employeeId || member?.id || '').trim();
+      const name = String(member?.name || 'Unknown').trim() || 'Unknown';
+      const key = id || name.toLowerCase();
+      let group = groups.get(key);
+      if (!group) {
+        group = { key, name, isLead: false, title: '', badges: [], assignments: [] };
+        groups.set(key, group);
+      }
+      if (member?.isLead) group.isLead = true;
+      if (!group.title && member?.title) group.title = String(member.title);
+      group.assignments.push(member);
+      const badgeKey = String(member?.rosterKey || '');
+      const label = String(member?.rosterLabel || '').trim();
+      const badgeId = badgeKey || label;
+      if (label && !group.badges.some((badge) => badge.key === badgeId)) {
+        group.badges.push({ key: badgeId, label });
+      }
+    }
+    const rank = (badgeKey) => {
+      const index = order.indexOf(badgeKey);
+      return index < 0 ? order.length : index;
+    };
+    for (const group of groups.values()) {
+      group.badges.sort((a, b) => rank(a.key) - rank(b.key) || a.label.localeCompare(b.label));
+    }
+    return [...groups.values()].sort((a, b) => {
+      if (a.isLead !== b.isLead) return a.isLead ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
+  }
+
   function shiftFilterButtons(shifts, leadName) {
     const present = new Set(
       visibleLeadShifts(shifts, leadName).map(shiftFilterKey).filter(Boolean)
@@ -676,6 +727,8 @@
     autoSelectLeadShift,
     includedIseVisitIds,
     shiftFilterKey,
+    shiftRosterBadge,
+    groupRosterMembers,
     shiftFilterButtons,
     rowMatchesShiftFilter,
     isIseCompanionShift,

@@ -1144,6 +1144,43 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   border: 1px solid var(--border); border-radius: 10px; padding: 12px;
   margin-bottom: 8px; background: var(--row-bg); cursor: pointer;
 }
+.roster-person { cursor: default; }
+.roster-person-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+.roster-person-line strong { min-width: 0; }
+.roster-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-left: auto;
+}
+.roster-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #1e3a5f;
+  color: #dbeafe;
+  white-space: nowrap;
+}
+.roster-badge--ise { background: #1e3a8a; color: #dbeafe; }
+.roster-badge--cut_in { background: #7c2d12; color: #ffedd5; }
+.roster-badge--blitz { background: #581c87; color: #f3e8ff; }
+.roster-badge--div { background: #134e4a; color: #ccfbf1; }
+.roster-badge--div_fresh { background: #14532d; color: #dcfce7; }
+.roster-badge--remodel { background: #44403c; color: #f5f5f4; }
+.roster-badge--central_pet { background: #831843; color: #fce7f3; }
+.roster-badge--drive_medical { background: #334155; color: #e2e8f0; }
+.roster-badge--boars_head { background: #7f1d1d; color: #fecaca; }
 .shift-card.selected { outline: 2px solid var(--accent); border-color: var(--accent); }
 .shift-card.completed { opacity: .75; }
 .ds-row { cursor: default; min-width: 0; }

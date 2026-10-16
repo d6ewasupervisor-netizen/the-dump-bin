@@ -4,30 +4,95 @@
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
+  function rosterBadge(shift) {
+    return global.EodSendSheetsLogic?.shiftRosterBadge?.(shift) || { key: '', label: '' };
+  }
+
+  /** ISE, Cut-In, Blitz, DIV, … Never the bare word Shift. */
   function shiftLabel(shift) {
-    return (shift && (shift.kompassType || shift.projectName || shift.teamName)) || 'Shift';
+    const label = rosterBadge(shift).label;
+    if (label) return label;
+    const id = String(shift?.visitId || '').trim();
+    return id ? `Visit ${id}` : 'Visit';
+  }
+
+  function rosterVisitIds() {
+    const S = global.EodSession;
+    const selected = String(S.state.selectedShift?.visitId || '');
+    const ids = [];
+    if (selected) ids.push(selected);
+    for (const raw of S.state.extraVisitIds || []) {
+      const id = String(raw || '');
+      if (id && !ids.includes(id)) ids.push(id);
+    }
+    return ids;
+  }
+
+  function shiftMap(list) {
+    const map = new Map();
+    for (const shift of list || []) {
+      if (!shift) continue;
+      const id = String(shift.visitId || shift.id || '');
+      if (!id) continue;
+      const prev = map.get(id);
+      map.set(id, prev
+        ? Object.assign({}, prev, shift, { visitId: shift.visitId || prev.visitId || id })
+        : shift);
+    }
+    return map;
+  }
+
+  function unresolvedRosterIds(map) {
+    return rosterVisitIds().filter((id) => !rosterBadge(map.get(id)).label);
+  }
+
+  /**
+   * A restored visit keeps the selected project name and sibling visit ids,
+   * but not the Cut-In / Blitz records. Pull those in before labeling.
+   */
+  async function loadRosterCatalog() {
+    const S = global.EodSession;
+    let map = shiftMap([...(S.state.shifts || []), S.state.selectedShift].filter(Boolean));
+    if (!unresolvedRosterIds(map).length) return map;
+    const store = S.state.storeNumber;
+    const date = S.state.workDate;
+    try { await global.EodShiftDay?.load?.(date); } catch (_) { /* cache miss */ }
+    const cached = global.EodShiftDay?.shiftsForStore?.(store, date) || [];
+    if (cached.length) map = shiftMap([...map.values(), ...cached]);
+    if (!unresolvedRosterIds(map).length || !store || !date || !global.authFetch) return map;
+    try {
+      const resp = await global.authFetch(
+        `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`,
+        { skipBusy: true }
+      );
+      if (!resp.ok) return map;
+      const data = await resp.json().catch(() => []);
+      const shifts = Array.isArray(data) ? data : (data.shifts || []);
+      if (!shifts.length) return map;
+      map = shiftMap([...map.values(), ...shifts]);
+      S.patch({ shifts: [...map.values()] }, 'crew-shifts');
+    } catch (_) { /* roster still paints with what it has */ }
+    return map;
   }
 
   /** Selected shift first, then every other store-day shift (ISE, Cut In, Blitz, DIV, ...). */
-  function rosterShifts() {
+  function rosterShifts(map) {
     const S = global.EodSession;
     const selected = S.state.selectedShift;
     if (!selected?.visitId) return [];
-    const byId = new Map((S.state.shifts || []).map((s) => [String(s.visitId), s]));
-    const ids = [String(selected.visitId), ...(S.state.extraVisitIds || []).map(String)];
-    const seen = new Set();
-    const out = [];
-    for (const id of ids) {
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      out.push(id === String(selected.visitId) ? selected : (byId.get(id) || { visitId: id }));
-    }
-    return out;
+    const catalog = map || shiftMap([...(S.state.shifts || []), selected]);
+    return rosterVisitIds().map((id) => {
+      const found = catalog.get(id);
+      if (String(selected.visitId) === id) {
+        return Object.assign({}, found || {}, selected, { visitId: id });
+      }
+      return found || { visitId: id };
+    });
   }
 
-  function shiftForVisit(visitId) {
+  function shiftForVisit(visitId, map) {
     const id = String(visitId || '');
-    return rosterShifts().find((s) => String(s.visitId) === id) || global.EodSession.state.selectedShift;
+    return rosterShifts(map).find((s) => String(s.visitId) === id) || global.EodSession.state.selectedShift;
   }
 
   async function loadMembers(opts = {}) {
@@ -37,7 +102,8 @@
       S.patch({ members: [] }, 'members');
       return [];
     }
-    const siblings = rosterShifts()
+    const catalog = opts.catalog || await loadRosterCatalog();
+    const siblings = rosterShifts(catalog)
       .slice(1)
       .map((s) => String(s.visitId))
       .filter((id) => /^\d+$/.test(id));
@@ -52,9 +118,17 @@
     }
     const data = await resp.json();
     const raw = Array.isArray(data) ? data : (data.members || data.employees || []);
-    const members = raw.map((m) => {
+    const members = raw.map((m, memberIndex) => {
       const visitId = String(m.visitId || shift.visitId);
-      return { ...m, visitId, shiftLabel: shiftLabel(shiftForVisit(visitId)) };
+      const badge = rosterBadge(shiftForVisit(visitId, catalog));
+      return {
+        ...m,
+        visitId,
+        memberIndex,
+        rosterKey: badge.key,
+        rosterLabel: badge.label,
+        shiftLabel: badge.label || shiftLabel(shiftForVisit(visitId, catalog)),
+      };
     });
     S.patch({ members }, 'members');
     return members;
@@ -92,9 +166,11 @@
     return { pending: false, name: emp.name, data };
   }
 
+  let activeRosterCatalog = null;
+
   async function requestRemoval(emp) {
     const S = global.EodSession;
-    const shift = shiftForVisit(emp.visitId);
+    const shift = shiftForVisit(emp.visitId, activeRosterCatalog);
     if (!shift?.visitId) throw new Error('Select a shift first');
     const requestedBy = S.state.leadName || S.state.profileName || S.state.profileEmail || 'Unknown';
     const resp = await global.authFetch(`${global.EOD_API_BASE}/api/shift-request`, {
@@ -186,7 +262,7 @@
         <h2>Shift roster</h2>
         <p class="muted" id="rosterShiftMeta">${shiftsForRoster.length
           ? esc(shiftsForRoster.map(shiftLabel).join(' · '))
-          : 'No shift selected — confirm store on Visit.'}</p>
+          : 'No shift selected. Confirm the store on Visit.'}</p>
         <div id="rosterStatus" class="muted"></div>
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" id="refreshRosterBtn">Refresh roster</button>
@@ -235,6 +311,7 @@
     const addSel = document.getElementById('smAddSelect');
     const addShiftSel = document.getElementById('smAddShift');
     const rmSel = document.getElementById('smRemoveSelect');
+    let rosterCatalog = null;
 
     function addTargetVisitId() {
       return String(addShiftSel?.value || S.state.selectedShift?.visitId || '');
@@ -253,22 +330,60 @@
         .join('');
     }
 
+    function paintShiftChoices(catalog) {
+      const shifts = rosterShifts(catalog);
+      const meta = document.getElementById('rosterShiftMeta');
+      if (meta) {
+        meta.textContent = shifts.length
+          ? shifts.map(shiftLabel).join(' · ')
+          : 'No shift selected. Confirm the store on Visit.';
+      }
+      if (!addShiftSel) return;
+      const current = addShiftSel.value;
+      addShiftSel.innerHTML = shifts.map((s) =>
+        `<option value="${esc(String(s.visitId))}">${esc(shiftLabel(s))}</option>`
+      ).join('');
+      if (current && [...addShiftSel.options].some((opt) => opt.value === current)) {
+        addShiftSel.value = current;
+      }
+    }
+
+    function rosterBadgeHtml(badges) {
+      return (badges || []).map((badge) => {
+        const kind = String(badge.key || '').replace(/[^a-z0-9_]+/gi, '') || 'other';
+        return `<span class="roster-badge roster-badge--${esc(kind)}">${esc(badge.label)}</span>`;
+      }).join('');
+    }
+
     async function paintRoster() {
       try {
-        const members = await loadMembers();
+        const catalog = await loadRosterCatalog();
+        rosterCatalog = catalog;
+        activeRosterCatalog = catalog;
+        paintShiftChoices(catalog);
+        const members = await loadMembers({ catalog });
+        const groups = global.EodSendSheetsLogic?.groupRosterMembers?.(members) || [];
         if (!members.length) {
           list.innerHTML = '<p class="muted">No members loaded.</p>';
         } else {
-          list.innerHTML = members.map((m) => `
-            <div class="member-row">
-              <strong>${esc(m.name || 'Unknown')}${m.isLead ? ' (Lead)' : ''}</strong>
-              <div class="muted">${esc([multiShift ? m.shiftLabel : '', m.shiftTime || m.title || ''].filter(Boolean).join(' · '))}</div>
+          list.innerHTML = groups.map((group) => `
+            <div class="member-row roster-person">
+              <div class="roster-person-line">
+                <strong>${esc(group.name)}${group.isLead ? ' (Lead)' : ''}</strong>
+                <span class="roster-badges">${rosterBadgeHtml(group.badges)}</span>
+              </div>
+              ${group.title ? `<div class="muted">${esc(group.title)}</div>` : ''}
             </div>`).join('');
         }
         if (rmSel) {
-          rmSel.innerHTML = '<option value="">—</option>' + members.map((m, i) =>
-            `<option value="${i}">${esc(m.name || 'Unknown')}${multiShift ? ` — ${esc(m.shiftLabel)}` : ''}</option>`
-          ).join('');
+          const removal = groups.length
+            ? groups.flatMap((group) => group.assignments)
+            : members;
+          rmSel.innerHTML = '<option value="">—</option>' + removal.map((m) => {
+            const type = m.rosterLabel || m.shiftLabel || '';
+            const suffix = type ? ` — ${esc(type)}` : '';
+            return `<option value="${esc(String(m.memberIndex))}">${esc(m.name || 'Unknown')}${suffix}</option>`;
+          }).join('');
         }
         if (canRoster && addSel) {
           addSel._employees = await loadEmployees();
@@ -287,7 +402,7 @@
       const emp = employees.find((e) => String(e.employeeId || e.id) === String(empId));
       if (!emp) return;
       const targetVisitId = addTargetVisitId();
-      const targetLabel = multiShift ? ` to ${shiftLabel(shiftForVisit(targetVisitId))}` : '';
+      const targetLabel = multiShift ? ` to ${shiftLabel(shiftForVisit(targetVisitId, rosterCatalog))}` : '';
       const ok = await (global.showConfirm
         ? global.showConfirm('Add to shift', `Add ${emp.name}${targetLabel}?`)
         : Promise.resolve(confirm(`Add ${emp.name}${targetLabel}?`)));
@@ -303,7 +418,8 @@
       }
     });
     document.getElementById('rosterRemoveBtn')?.addEventListener('click', async () => {
-      const idx = Number(rmSel?.value);
+      if (!rmSel?.value) return;
+      const idx = Number(rmSel.value);
       const emp = (S.state.members || [])[idx];
       if (!emp) return;
       const ok = await (global.showConfirm
