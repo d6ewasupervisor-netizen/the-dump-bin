@@ -423,6 +423,57 @@
     return notInProd(row);
   }
 
+  const SYSTEM_MARKERS = new Set(['prod-si-sync', 'nuke-reports']);
+
+  function markBy(row, type) {
+    const m = row && (row.marks || row.mark);
+    const by = m && m.details && m.details[type] && m.details[type].markedBy;
+    return String(by || '').trim();
+  }
+
+  function userActivatedMark(row, type) {
+    if (!markActive(row, type)) return false;
+    const by = markBy(row, type);
+    return !!by && !SYSTEM_MARKERS.has(by);
+  }
+
+  /* PROD search and SI search both came back empty. Unavailable is not empty. */
+  function bothSystemsAbsent(row) {
+    if (!notInProd(row)) return false;
+    const live = row.live;
+    if (!live || live.siPresent) return false;
+    const st = String(live.siStatus || '').trim().toLowerCase();
+    return st === 'absent' || st === 'not_found' || st === 'no task';
+  }
+
+  /* Out of scope mark, or a manifest set confirmed in neither system. */
+  function vendorOutOfScope(row) {
+    return markActive(row, 'out_of_scope') || bothSystemsAbsent(row);
+  }
+
+  /*
+   * Gate for the Out of Scope filter. A lead undo clears the out-of-scope
+   * mark and the old system NIS / NISI stamps, so a bare both-absent row
+   * stays visible for a COM load.
+   */
+  function parkedVendor(row) {
+    if (markActive(row, 'out_of_scope')) return true;
+    if (!bothSystemsAbsent(row)) return false;
+    const systemNis = markActive(row, 'not_in_store') && !userActivatedMark(row, 'not_in_store');
+    const systemNisi = markActive(row, 'not_in_si') && !userActivatedMark(row, 'not_in_si');
+    return systemNis || systemNisi;
+  }
+
+  function includeNisOnCover(row) {
+    if (vendorOutOfScope(row)) return false;
+    return userActivatedMark(row, 'not_in_store');
+  }
+
+  function includeNisiOnCover(row) {
+    if (vendorOutOfScope(row)) return false;
+    return markActive(row, 'not_in_si');
+  }
+
   /* Not on the PROD visit and marked not in SI: nothing left to photograph. */
   function absentFromStoreAndSi(row) {
     return notInProd(row) && markActive(row, 'not_in_si');
@@ -444,7 +495,7 @@
   }
 
   function sheetDisplayBucket(row, extraBefore) {
-    if (markActive(row, 'out_of_scope')) return 'out_of_scope';
+    if (parkedVendor(row)) return 'out_of_scope';
     if (markActive(row, 'not_executable') || markActive(row, 'not_in_store') || absentFromStoreAndSi(row)) return 'not_executable';
     if (sheetDisplayComplete(row)) return 'complete';
     if (markActive(row, 'backlog')) return 'backlog';
@@ -553,17 +604,21 @@
   }
 
   function rowInSheetFilter(row, status, extraBefore) {
-    const oos = markActive(row, 'out_of_scope');
-    const ne = markActive(row, 'not_executable') || markActive(row, 'not_in_store') || absentFromStoreAndSi(row);
+    const parked = parkedVendor(row);
+    const ne = !parked && (
+      markActive(row, 'not_executable')
+      || markActive(row, 'not_in_store')
+      || absentFromStoreAndSi(row)
+    );
     const started = hasBeforePictures(row, extraBefore);
     const complete = sheetDisplayComplete(row);
-    if (status === 'out_of_scope') return oos;
+    if (status === 'out_of_scope') return parked;
     if (status === 'not_executable') return ne;
-    if (status === 'not_in_prod') return notInProd(row);
-    if (status === 'complete') return complete && !oos && !ne;
+    if (status === 'not_in_prod') return notInProd(row) && !parked;
+    if (status === 'complete') return complete && !parked && !ne;
     if (status === 'backlog') return backlogLabelVisible(row, extraBefore);
-    if (status === 'in_progress') return started && !complete && !oos && !ne;
-    if (status === 'not_started') return !started && !complete && !oos && !ne;
+    if (status === 'in_progress') return started && !complete && !parked && !ne;
+    if (status === 'not_started') return !started && !complete && !parked && !ne;
     return false;
   }
 
@@ -622,6 +677,12 @@
     backlogLabelVisible,
     notInProd,
     missingFromProd,
+    bothSystemsAbsent,
+    vendorOutOfScope,
+    parkedVendor,
+    userActivatedMark,
+    includeNisOnCover,
+    includeNisiOnCover,
     oddityCalloutVisible,
     rowInSheetFilter,
     prodDone,

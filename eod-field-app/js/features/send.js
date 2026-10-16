@@ -351,6 +351,26 @@
     return true;
   }
 
+  function reportedVisitIds() {
+    const S = global.EodSession;
+    return (S.state.shifts || []).map((s) => s && s.visitId).filter(Boolean);
+  }
+
+  async function ensureInstaworkSupport() {
+    const S = global.EodSession;
+    const Logic = global.EodSendSheetsLogic;
+    if (!Logic?.instaworkSupportFromMembers || !global.EodTimesheetMgmt?.fetchInstaworkMembers) {
+      return S.state.instaworkYes === 'Yes' ? 'Yes' : 'No';
+    }
+    const members = await global.EodTimesheetMgmt.fetchInstaworkMembers();
+    const value = Logic.instaworkSupportFromMembers(members, reportedVisitIds());
+    if (S.state.instaworkYes !== value) {
+      S.patch({ instaworkYes: value }, 'iw-auto');
+      try { S.saveDraft(); } catch (_) {}
+    }
+    return value;
+  }
+
   function buildBodyAndReport() {
     const S = global.EodSession;
     const store = S.state.storeNumber;
@@ -493,6 +513,7 @@ ${cleanNotes}`;
       checkInManager: S.state.checkInManager || '',
       checkOutManager: S.state.checkOutManager || '',
       visitId: mainIse?.visitId || null,
+      shiftVisitIds: reportedVisitIds().map((id) => String(id)),
       proxyEod: !!global.EodProxyEod?.isActive?.(),
       pdfFilename: (global.EodSendSheetsLogic?.eodPdfFilename
         || ((n, d) => `EOD_FM${padStore(n)}_${String(d || '').slice(5, 7)}-${String(d || '').slice(8, 10)}-${String(d || '').slice(2, 4)}.pdf`))(store, S.state.workDate),
@@ -593,6 +614,7 @@ ${cleanNotes}`;
     }
     try { global.EodVisitMemory?.applyToSession?.(S, S.state.storeNumber); } catch (_) {}
     try { await global.EodDeptSignatures?.refresh?.(); } catch (_) {}
+    try { await ensureInstaworkSupport(); } catch (_) {}
     if (sendPicPoll) clearInterval(sendPicPoll);
     sendPicPoll = setInterval(() => {
       if (global.EodRouter?.current && global.EodRouter.current !== 'send') return;
@@ -1256,6 +1278,15 @@ ${cleanNotes}`;
       }
       if (sendLock?.sent && !resendAuthorization) {
         await unlockResend(S);
+        return;
+      }
+      try {
+        await ensureInstaworkSupport();
+      } catch (err) {
+        await global.EodAlerts?.alert?.(
+          'InstaWork time',
+          err.message || 'Could not read InstaWork time on today\'s shifts. Nothing was emailed.'
+        );
         return;
       }
       const msg = gateMessage();

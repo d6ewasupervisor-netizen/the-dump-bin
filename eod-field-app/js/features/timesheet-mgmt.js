@@ -55,17 +55,33 @@
     return `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, '0')}m`;
   }
 
-  /** InstaWork counts as in use once anyone on this sheet has time on a shift. */
+  /** A clocked placeholder can light the flag early. Send is what decides No. */
   function syncInstaworkTrigger() {
     if (state.sheetKey !== 'instawork') return;
     const S = window.EodSession;
     if (!S?.patch) return;
-    const timed = state.members.some((m) => String(fieldValue(m, 'clockIn')).trim());
-    const photo = !!S.state.instaworkSavedInfo || (S.state.photos?.instawork || []).length > 0;
-    const next = timed || photo ? 'Yes' : 'No';
-    if (S.state.instaworkYes === next) return;
-    S.patch({ instaworkYes: next }, 'iw');
+    const Logic = window.EodSendSheetsLogic;
+    const timed = state.members.some((m) => (
+      Logic?.memberLoggedTime
+        ? Logic.memberLoggedTime(m)
+        : String(fieldValue(m, 'clockIn')).trim()
+    ));
+    if (!timed || S.state.instaworkYes === 'Yes') return;
+    S.patch({ instaworkYes: 'Yes' }, 'iw');
     try { S.saveDraft(); } catch (_) {}
+  }
+
+  async function fetchInstaworkMembers() {
+    const store = storeNumber();
+    const date = workDate();
+    if (!store || !date) return [];
+    const url = `${API}?sheet=instawork&store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`;
+    const resp = await authFetch(url, { headers: dayConfirmHeaders(), skipBusy: true });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) {
+      throw new Error(data.error || `InstaWork roster failed (${resp.status})`);
+    }
+    return (data.members || []).map((m) => Object.assign({ sheetKey: 'instawork' }, m));
   }
 
   function isEditing() {
@@ -1075,5 +1091,6 @@
     refresh: () => refresh(true),
     showJoinQr,
     distribute,
+    fetchInstaworkMembers,
   };
 })();

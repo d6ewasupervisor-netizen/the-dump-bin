@@ -386,6 +386,44 @@
     return 'none (no hosted sheet)';
   }
 
+  const PLACEHOLDER_WORKDAY = /^fm\d+$/i;
+  const PLACEHOLDER_NAME = /^fred\s*meyer\s*\d+$/i;
+
+  function isInstaworkIdentity(member) {
+    if (!member) return false;
+    if (member.sheetKey === 'instawork') return true;
+    const wd = String(member.workdayId || member.workday_id || '').trim();
+    const name = String(member.name || '').trim();
+    return PLACEHOLDER_WORKDAY.test(wd)
+      || PLACEHOLDER_NAME.test(name)
+      || PLACEHOLDER_WORKDAY.test(name)
+      || PLACEHOLDER_NAME.test(wd);
+  }
+
+  function memberLoggedTime(member) {
+    const fields = ['clockIn', 'clockOut', 'lunchOut', 'lunchIn'];
+    if (fields.some((f) => String(member?.[f] || '').trim())) return true;
+    const prod = member?.prodTimes || {};
+    return fields.some((f) => String(prod[f] || '').trim());
+  }
+
+  /**
+   * Yes when an InstaWork placeholder (FM### / FredMeyer###) or another
+   * InstaWork-sheet identity has time on a shift this EOD is reporting.
+   */
+  function instaworkSupportFromMembers(members, visitIds) {
+    const ids = new Set((Array.isArray(visitIds) ? visitIds : [])
+      .map((id) => String(id || '').trim())
+      .filter(Boolean));
+    const yes = (Array.isArray(members) ? members : []).some((member) => {
+      if (!isInstaworkIdentity(member) || !memberLoggedTime(member)) return false;
+      if (!ids.size) return true;
+      const vid = String(member.visitId || '').trim();
+      return !!vid && ids.has(vid);
+    });
+    return yes ? 'Yes' : 'No';
+  }
+
   function signedOutFromSheet(S) {
     if (!S?.hasHostedSheet?.() && !S?.state?.sheet) return { prod: '—', si: '—' };
     if (typeof S.sheetSendReady === 'function' && S.sheetSendReady()) {
@@ -568,6 +606,9 @@
     digitalSignoffFilename,
     formatDeptSignatureLines,
     digitalSignoffCoverValue,
+    isInstaworkIdentity,
+    memberLoggedTime,
+    instaworkSupportFromMembers,
     signedOutFromSheet,
     hasDigitalSignoff,
   };

@@ -452,9 +452,10 @@ test('NISI is not done; Complete / NIS / Out of Scope / photos clear a set', () 
   };
   assert.equal(sheetRowDone(gone), true);
   assert.equal(rowSendReady(gone), true);
-  assert.equal(sheetDisplayBucket(gone), 'not_executable');
+  assert.equal(sheetDisplayBucket(gone), 'out_of_scope');
   assert.equal(matchesSheetFilters(gone, { status: 'not_done' }), false);
-  assert.equal(matchesSheetFilters(gone, { status: 'not_executable' }), true);
+  assert.equal(matchesSheetFilters(gone, { status: 'not_executable' }), false);
+  assert.equal(matchesSheetFilters(gone, { status: 'out_of_scope' }), true);
   const nisiInProd = {
     live: { prodStatus: 'open', siPresent: false },
     marks: { notInSi: true, active: ['not_in_si'] },
@@ -592,7 +593,7 @@ test('week carry-forward: Not in Prod, NISI overlays, and the red callout clears
   assert.equal(matchesSheetFilters(missing, { status: 'not_in_prod' }), true);
   assert.equal(matchesSheetFilters(missing, { status: 'not_done' }), true);
   assert.equal(matchesSheetFilters(oosMissing, { status: 'out_of_scope' }), true);
-  assert.equal(matchesSheetFilters(oosMissing, { status: 'not_in_prod' }), true);
+  assert.equal(matchesSheetFilters(oosMissing, { status: 'not_in_prod' }), false);
   assert.equal(matchesSheetFilters(oosInProd, { status: 'not_in_prod' }), false);
   assert.equal(matchesSheetFilters(nisiBacklog, { status: 'backlog' }), true);
   assert.equal(matchesSheetFilters(nisiBacklog, { status: 'not_done' }), true);
@@ -1189,6 +1190,63 @@ test('cover notes remove the generated In/Out/cart/marked line and keep lead not
   };
   assert.equal(summaryLine(S), 'In: Bryce · Out: Bryce · cart 1/1 · 4/30 marked');
   assert.equal(mergeNotes(S.state.notes, S), 'Lead leftover');
+});
+
+test('cover lists keep user not-in-store and any not-in-SI, and drop vendor sets', () => {
+  const { nisLines, nisiLines } = require('../js/lib/cover-notes');
+  const S = {
+    state: {
+      sheet: {
+        rows: [
+          {
+            catName: 'S4WINE',
+            live: { prodStatus: 'absent', siPresent: false, siStatus: 'absent' },
+            marks: {
+              notInStore: true,
+              notInSi: true,
+              active: ['not_in_store', 'not_in_si'],
+              details: {
+                not_in_store: { markedBy: 'prod-si-sync' },
+                not_in_si: { markedBy: 'prod-si-sync' },
+              },
+            },
+          },
+          {
+            catName: 'Cereal',
+            live: { prodStatus: 'open', siPresent: true, siStatus: 'created' },
+            marks: {
+              notInStore: true,
+              active: ['not_in_store'],
+              details: { not_in_store: { markedBy: 'lead@example.com' } },
+            },
+          },
+          {
+            catName: 'Coffee',
+            live: { prodStatus: 'open', siPresent: false, siStatus: 'absent' },
+            marks: {
+              notInSi: true,
+              active: ['not_in_si'],
+              details: { not_in_si: { markedBy: 'prod-si-sync' } },
+            },
+          },
+          {
+            catName: 'User parked wine',
+            live: { prodStatus: 'absent', siPresent: false, siStatus: 'absent' },
+            marks: {
+              notInStore: true,
+              outOfScope: true,
+              active: ['not_in_store', 'out_of_scope'],
+              details: { not_in_store: { markedBy: 'lead@example.com' } },
+            },
+          },
+        ],
+      },
+      notInStoreSelected: ['S4WINE', 'Cereal'],
+      notInSiSelected: ['S4WINE', 'Coffee'],
+    },
+  };
+  assert.deepEqual(nisLines(S), ['Not in store: Cereal']);
+  assert.deepEqual(nisiLines(S), ['Not in SI: Coffee']);
 });
 
 test('cover notes omit set lists already shown in dedicated fields', () => {

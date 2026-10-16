@@ -149,8 +149,9 @@
       for (const row of sheet.rows) {
         const label = row.catName || row.dbkey;
         if (!label) continue;
-        if (markActive(row, 'not_in_store')) nis.push(label);
-        if (markActive(row, 'not_in_si')) nisi.push(label);
+        const Cards = global.EodCategoryCardStatus;
+        if (Cards?.includeNisOnCover ? Cards.includeNisOnCover(row) : markActive(row, 'not_in_store')) nis.push(label);
+        if (Cards?.includeNisiOnCover ? Cards.includeNisiOnCover(row) : markActive(row, 'not_in_si')) nisi.push(label);
       }
       S.patch({ notInStoreSelected: nis, notInSiSelected: nisi }, 'marks-sync');
     }

@@ -27,23 +27,37 @@
     return m.type === type;
   }
 
-  function nisLines(S) {
+  function cards() {
+    if (global.EodCategoryCardStatus?.includeNisOnCover) return global.EodCategoryCardStatus;
+    try { return require('./category-card-status'); } catch (_) { return null; }
+  }
+
+  function coverList(S, kind) {
     const rows = S?.state?.sheet?.rows || [];
+    const helper = cards();
+    const include = kind === 'nis'
+      ? (helper?.includeNisOnCover || ((row) => markActive(row, 'not_in_store')))
+      : (helper?.includeNisiOnCover || ((row) => markActive(row, 'not_in_si')));
+    const prefix = kind === 'nis' ? 'Not in store: ' : 'Not in SI: ';
     const out = [];
     const seen = new Set();
+    const allowed = new Set();
     for (const row of rows) {
-      if (!markActive(row, 'not_in_store')) continue;
+      if (!include(row)) continue;
       const label = String(row.catName || row.dbkey || '').trim();
       if (!label) continue;
-      const line = `Not in store: ${label}`;
+      allowed.add(label.toLowerCase());
+      const line = `${prefix}${label}`;
       if (seen.has(line.toLowerCase())) continue;
       seen.add(line.toLowerCase());
       out.push(line);
     }
-    const extra = Array.isArray(S?.state?.notInStoreSelected) ? S.state.notInStoreSelected : [];
+    const extraKey = kind === 'nis' ? 'notInStoreSelected' : 'notInSiSelected';
+    const extra = Array.isArray(S?.state?.[extraKey]) ? S.state[extraKey] : [];
     for (const name of extra) {
-      const line = `Not in store: ${String(name || '').trim()}`;
-      if (!line.slice(14).trim()) continue;
+      const label = String(name || '').trim();
+      if (!label || !allowed.has(label.toLowerCase())) continue;
+      const line = `${prefix}${label}`;
       if (seen.has(line.toLowerCase())) continue;
       seen.add(line.toLowerCase());
       out.push(line);
@@ -51,28 +65,12 @@
     return out;
   }
 
+  function nisLines(S) {
+    return coverList(S, 'nis');
+  }
+
   function nisiLines(S) {
-    const rows = S?.state?.sheet?.rows || [];
-    const out = [];
-    const seen = new Set();
-    for (const row of rows) {
-      if (!markActive(row, 'not_in_si')) continue;
-      const label = String(row.catName || row.dbkey || '').trim();
-      if (!label) continue;
-      const line = `Not in SI: ${label}`;
-      if (seen.has(line.toLowerCase())) continue;
-      seen.add(line.toLowerCase());
-      out.push(line);
-    }
-    const extra = Array.isArray(S?.state?.notInSiSelected) ? S.state.notInSiSelected : [];
-    for (const name of extra) {
-      const line = `Not in SI: ${String(name || '').trim()}`;
-      if (!line.slice(11).trim()) continue;
-      if (seen.has(line.toLowerCase())) continue;
-      seen.add(line.toLowerCase());
-      out.push(line);
-    }
-    return out;
+    return coverList(S, 'nisi');
   }
 
   function notExecutableLines(S) {

@@ -340,6 +340,26 @@ test('help desk temporary solutions are the four prebuilt options', () => {
   assert.equal(L.helpdeskIssue({ issueTypeId: 'custom', customIssue: 'Pegs missing on bay 2' }), 'Pegs missing on bay 2');
 });
 
+test('InstaWork support follows placeholder time on the reported shifts', () => {
+  const { instaworkSupportFromMembers } = require('../js/lib/eod-send-sheets-logic');
+  const shifts = ['v-ise', 'v-blitz'];
+  assert.equal(instaworkSupportFromMembers([
+    { workdayId: 'FM136', name: 'FredMeyer136', visitId: 'v-ise', clockIn: '6:02 AM' },
+  ], shifts), 'Yes');
+  assert.equal(instaworkSupportFromMembers([
+    { workdayId: 'FM136', name: 'FredMeyer136', visitId: 'v-other', clockIn: '6:02 AM' },
+  ], shifts), 'No');
+  assert.equal(instaworkSupportFromMembers([
+    { workdayId: 'FM136', name: 'FredMeyer136', visitId: 'v-ise' },
+  ], shifts), 'No');
+  assert.equal(instaworkSupportFromMembers([
+    { sheetKey: 'instawork', name: '16 Fast Track C', visitId: 'v-blitz', clockOut: '2:10 PM' },
+  ], shifts), 'Yes');
+  assert.equal(instaworkSupportFromMembers([
+    { workdayId: 'W123', name: 'Pat Lead', visitId: 'v-ise', clockIn: '5:00 AM' },
+  ], shifts), 'No');
+});
+
 test('Send asks the help desk questions only when a report was sent', () => {
   const send = fs.readFileSync(path.join(__dirname, '..', 'js', 'features', 'send.js'), 'utf8');
   assert.match(send, /if \(!reports\.length \|\| !L\?\.helpdeskSignature/);
