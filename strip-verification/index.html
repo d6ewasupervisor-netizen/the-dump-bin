@@ -64,6 +64,15 @@ header.top .sub { font-size: 12px; color: var(--ink-soft); }
 .progress-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 10px 0 4px; }
 .progress-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #1a8fbf); width: 0; transition: width .25s; }
 .progress-meta { font-size: 12px; color: var(--ink-soft); }
+.campaign-switch {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px;
+}
+.campaign-switch select, .campaign-switch .chip {
+  font: inherit; font-weight: 700; font-size: 14px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 999px; padding: 8px 14px; min-height: 40px; cursor: pointer;
+}
+.campaign-switch .chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 .store-grid { display: grid; gap: 10px; }
 .store-card {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
@@ -206,7 +215,7 @@ input[type=file] { display: none; }
     <div class="titles">
       <div class="co">Retail Odyssey</div>
       <h1 id="page-title">Strip Verification</h1>
-      <div class="sub" id="page-sub">District 8 · P08W2</div>
+      <div class="sub" id="page-sub"></div>
     </div>
   </div>
   <div class="wrap" id="header-progress" hidden>
@@ -217,6 +226,7 @@ input[type=file] { display: none; }
 
 <main class="wrap">
   <div id="view-stores">
+    <div id="campaign-switch" class="campaign-switch hidden"></div>
     <div class="loading" id="stores-loading">Loading stores…</div>
     <div class="store-grid hidden" id="store-grid"></div>
   </div>
@@ -261,7 +271,8 @@ input[type=file] { display: none; }
 (function () {
   'use strict';
 
-  const CAMPAIGN = new URLSearchParams(location.search).get('campaign') || 'd8-p08w2';
+  let campaignSlug = new URLSearchParams(location.search).get('campaign') || '';
+  let campaignIndex = [];
   const API = (window.dumpBinAuthFetch && window.dumpBinAuthFetch.toString().includes('API_BASE'))
     ? null
     : null;
@@ -340,6 +351,7 @@ input[type=file] { display: none; }
     viewStores: document.getElementById('view-stores'),
     viewSets: document.getElementById('view-sets'),
     viewSet: document.getElementById('view-set'),
+    campaignSwitch: document.getElementById('campaign-switch'),
     storesLoading: document.getElementById('stores-loading'),
     storeGrid: document.getElementById('store-grid'),
     setList: document.getElementById('set-list'),
@@ -422,10 +434,90 @@ input[type=file] { display: none; }
     } catch (_) {}
   }
 
+  function districtLabel(row) {
+    if (row.district) return row.district;
+    const m = String(row.slug || '').match(/^(d\d+)/i);
+    return m ? m[1].toUpperCase() : row.slug;
+  }
+
+  function weeksIn(list) {
+    const weeks = [];
+    for (const row of list) {
+      if (row.periodWeek && !weeks.includes(row.periodWeek)) weeks.push(row.periodWeek);
+    }
+    return weeks;
+  }
+
+  function pickCampaign(list, preferredSlug) {
+    if (preferredSlug && list.some((row) => row.slug === preferredSlug)) return preferredSlug;
+    if (!list.length) return preferredSlug || 'd8-p08w2';
+    const latest = list[0].periodWeek;
+    const inWeek = list.filter((row) => row.periodWeek === latest);
+    const home = inWeek.find((row) => row.district === 'D8' || String(row.slug).startsWith('d8-'));
+    return (home || inWeek[0]).slug;
+  }
+
+  function renderCampaignSwitch() {
+    const current = campaignIndex.find((row) => row.slug === campaignSlug);
+    const week = current && current.periodWeek;
+    const weeks = weeksIn(campaignIndex);
+    const districts = campaignIndex.filter((row) => row.periodWeek === week).slice().sort((a, b) => {
+      const rank = (row) => (districtLabel(row) === 'D8' ? 0 : 1);
+      return rank(a) - rank(b) || districtLabel(a).localeCompare(districtLabel(b));
+    });
+    if (weeks.length < 2 && districts.length < 2) {
+      els.campaignSwitch.classList.add('hidden');
+      els.campaignSwitch.innerHTML = '';
+      return;
+    }
+    els.campaignSwitch.classList.remove('hidden');
+    const weekSelect = weeks.length > 1
+      ? `<select id="week-select" aria-label="Week">${weeks.map((w) => `<option value="${escapeAttr(w)}"${w === week ? ' selected' : ''}>${escapeHtml(w)}</option>`).join('')}</select>`
+      : '';
+    const chips = districts.map((row) => {
+      const on = row.slug === campaignSlug ? ' on' : '';
+      return `<button type="button" class="chip${on}" data-slug="${escapeAttr(row.slug)}">${escapeHtml(districtLabel(row))}</button>`;
+    }).join('');
+    els.campaignSwitch.innerHTML = weekSelect + chips;
+    const sel = document.getElementById('week-select');
+    if (sel) {
+      sel.addEventListener('change', () => {
+        const next = campaignIndex.find((row) => row.periodWeek === sel.value && (row.district === 'D8' || String(row.slug).startsWith('d8-')))
+          || campaignIndex.find((row) => row.periodWeek === sel.value);
+        if (next) selectCampaign(next.slug);
+      });
+    }
+    els.campaignSwitch.querySelectorAll('[data-slug]').forEach((btn) => {
+      btn.addEventListener('click', () => selectCampaign(btn.dataset.slug));
+    });
+  }
+
+  async function loadCampaignIndex() {
+    const res = await api('/api/strip-verification');
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not load campaigns');
+    campaignIndex = data.campaigns || [];
+    campaignSlug = pickCampaign(campaignIndex, campaignSlug);
+    renderCampaignSwitch();
+  }
+
+  function selectCampaign(slug) {
+    if (!slug || slug === campaignSlug) return;
+    campaignSlug = slug;
+    const url = new URL(location.href);
+    url.searchParams.set('campaign', slug);
+    history.replaceState(null, '', url);
+    renderCampaignSwitch();
+    loadCampaign().catch((err) => {
+      els.storesLoading.textContent = err.message || 'Failed to load';
+      setStatus(err.message || 'Failed to load', 'err');
+    });
+  }
+
   async function loadCampaign() {
     els.storesLoading.classList.remove('hidden');
     els.storeGrid.classList.add('hidden');
-    const res = await api('/api/strip-verification/' + encodeURIComponent(CAMPAIGN));
+    const res = await api('/api/strip-verification/' + encodeURIComponent(campaignSlug));
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not load campaign');
     state.campaign = data.campaign;
@@ -457,7 +549,7 @@ input[type=file] { display: none; }
 
   async function openStore(storeNum) {
     setStatus('Loading sets…');
-    const res = await api('/api/strip-verification/' + encodeURIComponent(CAMPAIGN) + '/stores/' + storeNum);
+    const res = await api('/api/strip-verification/' + encodeURIComponent(campaignSlug) + '/stores/' + storeNum);
     const data = await res.json();
     if (!res.ok || !data.ok) {
       setStatus(data.error || 'Could not load store', 'err');
@@ -732,7 +824,7 @@ input[type=file] { display: none; }
     els.btnPartialExport.disabled = true;
     setStatus('Building partial zip…');
     try {
-      const path = '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) +
+      const path = '/api/strip-verification/' + encodeURIComponent(campaignSlug) +
         '/stores/' + state.store.storeNum + '/export.zip';
       const res = await api(path);
       if (!res.ok) {
@@ -800,7 +892,7 @@ input[type=file] { display: none; }
     try {
       const data = await fileToJpegBase64(file);
       const res = await api(
-        '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) +
+        '/api/strip-verification/' + encodeURIComponent(campaignSlug) +
         '/stores/' + state.store.storeNum + '/sets/' + state.activeSet.id + '/photos',
         { method: 'POST', body: JSON.stringify({ label: state.pendingSlot, mime: 'image/jpeg', data }) }
       );
@@ -835,7 +927,7 @@ input[type=file] { display: none; }
     if (note === null) return;
     setStatus('Saving…');
     const res = await api(
-      '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) +
+      '/api/strip-verification/' + encodeURIComponent(campaignSlug) +
       '/stores/' + state.store.storeNum + '/sets/' + state.activeSet.id + '/not-found',
       { method: 'POST', body: JSON.stringify({ note: String(note).trim() }) }
     );
@@ -853,7 +945,7 @@ input[type=file] { display: none; }
     if (!state.activeSet || state.store.submitted) return;
     setStatus('Updating…');
     const res = await api(
-      '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) +
+      '/api/strip-verification/' + encodeURIComponent(campaignSlug) +
       '/stores/' + state.store.storeNum + '/sets/' + state.activeSet.id + '/not-found',
       { method: 'DELETE' }
     );
@@ -869,7 +961,7 @@ input[type=file] { display: none; }
 
   async function refreshActiveSet() {
     const setId = state.activeSet.id;
-    const res = await api('/api/strip-verification/' + encodeURIComponent(CAMPAIGN) + '/stores/' + state.store.storeNum);
+    const res = await api('/api/strip-verification/' + encodeURIComponent(campaignSlug) + '/stores/' + state.store.storeNum);
     const data = await res.json();
     if (!res.ok || !data.ok) return;
     state.store = data.store;
@@ -884,7 +976,7 @@ input[type=file] { display: none; }
     els.btnSubmitStore.disabled = true;
     setStatus('Submitting store…');
     const res = await api(
-      '/api/strip-verification/' + encodeURIComponent(CAMPAIGN) + '/stores/' + state.store.storeNum + '/submit',
+      '/api/strip-verification/' + encodeURIComponent(campaignSlug) + '/stores/' + state.store.storeNum + '/submit',
       { method: 'POST', body: '{}' }
     );
     const data = await res.json();
@@ -927,10 +1019,16 @@ input[type=file] { display: none; }
     if (file) uploadPhoto(file);
   });
 
-  Promise.all([loadMe(), loadCampaign()]).catch((err) => {
-    els.storesLoading.textContent = err.message || 'Failed to load';
-    setStatus(err.message || 'Failed to load', 'err');
-  });
+  loadMe()
+    .then(() => loadCampaignIndex())
+    .catch(() => {
+      if (!campaignSlug) campaignSlug = 'd8-p08w2';
+    })
+    .then(() => loadCampaign())
+    .catch((err) => {
+      els.storesLoading.textContent = err.message || 'Failed to load';
+      setStatus(err.message || 'Failed to load', 'err');
+    });
 })();
 </script>
 </body>

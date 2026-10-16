@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-16 — Strip board opens the latest week
+
+The store list no longer defaults to District 8 P08W2. With no `campaign` query it loads the newest week that has sets, District 8 first. P10W2 is District 8 stores 459 and 682, and a D6 chip for 351 and 657. P08W2 stays on the week list.
+
 ## 2026-10-15 — Portable vault card
 
 Home card `portable-vault` links to `/portable-vault/`. The page is the one-time portable automator download and the remote setup steps. It stays hidden until `/api/me` includes that card.
