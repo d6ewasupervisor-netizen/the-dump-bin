@@ -6,7 +6,7 @@
     { id: 'visit', label: 'Visit', gates: ['visit', 'name', 'cartBefore', 'checkin'] },
     { id: 'categories', label: 'Categories', gates: ['sheet'] },
     { id: 'signatures', label: 'Signatures', gates: ['checkout', 'paper', 'signature'] },
-    { id: 'send', label: 'Send', gates: ['recipients', 'cartAfter', 'instaworkPhoto', 'instaworkSave'] },
+    { id: 'send', label: 'Send', gates: ['recipients', 'cartAfter', 'instaworkOffice'] },
   ];
 
   function derive(S, gateApi) {

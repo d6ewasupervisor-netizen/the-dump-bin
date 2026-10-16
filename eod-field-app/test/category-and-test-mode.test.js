@@ -1142,6 +1142,46 @@ test('send gates follow visit → cart → check-in before lead signature', () =
   delete global.EodDeptSignatures;
 });
 
+test('digital InstaWork office submit checks the send gate the paper photo used to check', () => {
+  const crew = fs.readFileSync(path.join(__dirname, '../js/features/crew.js'), 'utf8');
+  const gatesSrc = fs.readFileSync(path.join(__dirname, '../js/lib/send-gates.js'), 'utf8');
+  assert.doesNotMatch(crew, /iwCamBtn/);
+  assert.doesNotMatch(crew, /Confirm &amp; Save/);
+  assert.doesNotMatch(gatesSrc, /take a photo of the sign-out timesheet/);
+  const base = {
+    profileName: 'Alex',
+    leadName: 'Alex',
+    signatureDataUrl: 'data:image/png;base64,x',
+    emailRecipients: ['a@b.com'],
+    profileEmail: 'a@b.com',
+    checkInManager: 'April',
+    checkOutManager: 'April',
+    photos: { before: [{ dataUrl: 'x' }], after: [{ dataUrl: 'y' }], signoff: [], instawork: [] },
+    instaworkYes: 'Yes',
+    instaworkOfficeSubmitted: false,
+  };
+  const S = {
+    state: base,
+    isVisitReady: () => true,
+    hasHostedSheet: () => true,
+    sheetSendReady: () => true,
+  };
+  global.EodDeptSignatures = {
+    getCollectedForEmail: () => [{ roleKey: 'grocery', signerName: 'April' }],
+    scopedRoleKeys: () => ['grocery'],
+  };
+  const open = sendGates.missing(S);
+  assert.ok(open.some((g) => g.id === 'instaworkOffice' && g.page === 'crew' && g.focus === 'openIwBtn'));
+  assert.equal(open.some((g) => g.id === 'instaworkPhoto' || g.id === 'instaworkSave'), false);
+  S.state.instaworkOfficeSubmitted = true;
+  assert.equal(sendGates.missing(S).some((g) => g.id === 'instaworkOffice'), false);
+  S.state.photos.instawork = [{ dataUrl: 'paper' }];
+  S.state.instaworkSavedInfo = { folder: 'P10W1' };
+  S.state.instaworkOfficeSubmitted = false;
+  assert.equal(sendGates.missing(S).some((g) => g.id === 'instaworkOffice'), true);
+  delete global.EodDeptSignatures;
+});
+
 test('kickSettleDrain polls settle-now then soft-returns on timeout', async () => {
   const calls = [];
   const authFetch = async (url, init) => {

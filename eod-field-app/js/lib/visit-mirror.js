@@ -38,6 +38,7 @@
         sheetAcknowledged: !!state.sheetAcknowledged,
         instaworkYes: state.instaworkYes,
         instaworkSavedInfo: state.instaworkSavedInfo || null,
+        instaworkOfficeSubmitted: !!state.instaworkOfficeSubmitted,
         kompassTimesheetYes: state.kompassTimesheetYes,
         materialsReadYes: state.materialsReadYes,
         notInStoreSelected: Array.isArray(state.notInStoreSelected) ? state.notInStoreSelected.slice() : [],
@@ -109,6 +110,7 @@
       };
       if (p.instaworkYes != null) patch.instaworkYes = p.instaworkYes;
       if (p.instaworkSavedInfo) patch.instaworkSavedInfo = p.instaworkSavedInfo;
+      if (p.instaworkOfficeSubmitted) patch.instaworkOfficeSubmitted = true;
       if (p.kompassTimesheetYes != null) patch.kompassTimesheetYes = p.kompassTimesheetYes;
       if (p.materialsReadYes != null) patch.materialsReadYes = p.materialsReadYes;
       if (Array.isArray(p.notInStoreSelected) && p.notInStoreSelected.length) {

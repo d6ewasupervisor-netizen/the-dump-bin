@@ -45,6 +45,7 @@
     sheetAcknowledged: false,
     instaworkYes: null,
     instaworkSavedInfo: null,
+    instaworkOfficeSubmitted: false,
     kompassTimesheetYes: null,
     materialsReadYes: null,
     visitReady: false,
@@ -163,6 +164,7 @@
     state.sheetAcknowledged = false;
     state.instaworkYes = null;
     state.instaworkSavedInfo = null;
+    state.instaworkOfficeSubmitted = false;
     state.kompassTimesheetYes = null;
     state.materialsReadYes = null;
     state.addRetailOdysseyTeam = false;
@@ -352,6 +354,7 @@
     state.sheetAcknowledged = !!data.sheetAcknowledged;
     state.instaworkYes = data.instawork ?? data.instaworkYes ?? null;
     state.instaworkSavedInfo = data.instaworkSavedInfo || null;
+    state.instaworkOfficeSubmitted = !!data.instaworkOfficeSubmitted;
     state.kompassTimesheetYes = data.kompassTimesheet ?? data.kompassTimesheetYes ?? null;
     state.materialsReadYes = data.materialsRead ?? data.materialsReadYes ?? null;
     if (data.selectedShift) state.selectedShift = data.selectedShift;
@@ -425,6 +428,7 @@
       sheetAcknowledged: !!state.sheetAcknowledged,
       instawork: state.instaworkYes,
       instaworkSavedInfo: state.instaworkSavedInfo || null,
+      instaworkOfficeSubmitted: !!state.instaworkOfficeSubmitted,
       kompassTimesheet: state.kompassTimesheetYes,
       materialsRead: state.materialsReadYes,
       extraVisitIds: (state.extraVisitIds || []).slice(),

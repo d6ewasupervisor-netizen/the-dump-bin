@@ -91,8 +91,13 @@
     );
     push('cartAfter', photoCount(S, 'after') >= 1, 'Add a Kompass cart after photo', 'send', 'cartAfterCam');
     if (S.state.instaworkYes === 'Yes') {
-      push('instaworkPhoto', photoCount(S, 'instawork') >= 1, 'InstaWork is in use — take a photo of the sign-out timesheet', 'crew', 'iwCamBtn');
-      push('instaworkSave', !!S.state.instaworkSavedInfo, 'Tap Confirm & Save so the InstaWork sign-out sheet is routed', 'crew', 'iwSaveBtn');
+      push(
+        'instaworkOffice',
+        !!S.state.instaworkOfficeSubmitted,
+        'Submit the InstaWork timesheet to the office',
+        'crew',
+        'openIwBtn'
+      );
     }
     return out;
   }

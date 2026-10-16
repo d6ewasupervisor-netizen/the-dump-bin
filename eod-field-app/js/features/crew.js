@@ -1,4 +1,4 @@
-/* Crew orbit: timesheets, JOIN QR, SMS opt-in, roster add/remove, InstaWork photo. */
+/* Crew orbit: timesheets, JOIN QR, SMS opt-in, roster add/remove, InstaWork sheet. */
 (function (global) {
   'use strict';
 
@@ -142,40 +142,18 @@
     setTimeout(tick, 8000);
   }
 
-  async function saveInstaworkPhoto() {
-    if (global.EodInstaworkSave?.confirmAndSave) return global.EodInstaworkSave.confirmAndSave();
-    if (global.EodPhotos?.saveInstawork) return global.EodPhotos.saveInstawork();
-    throw new Error('InstaWork save module not loaded');
-  }
-
-  /** On once anyone on the InstaWork sheet has time, or a sign-out photo exists. */
-  function instaworkActive(S) {
-    return S.state.instaworkYes === 'Yes'
-      || !!S.state.instaworkSavedInfo
-      || (S.state.photos?.instawork || []).length > 0;
-  }
-
   function paintInstawork() {
     const host = document.getElementById('crewIwHost');
     if (!host) return;
     const S = global.EodSession;
-    const saved = S.state.instaworkSavedInfo;
-    const dest = saved && global.EodInstaworkSave?.destLine ? global.EodInstaworkSave.destLine(saved) : '';
-    const active = instaworkActive(S);
+    const filed = !!S.state.instaworkOfficeSubmitted;
     host.innerHTML = `
       <h2>InstaWork</h2>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="openIwBtn">InstaWork sheet</button>
         <button type="button" class="btn btn-secondary" id="iwDistributeBtn">Distribute time</button>
       </div>
-      ${active ? `
-      <div class="btn-row" style="margin-top:10px;">
-        <button type="button" class="btn btn-secondary" id="iwCamBtn">Camera</button>
-        <button type="button" class="btn btn-success" id="iwSaveBtn">${saved ? 'Re-save InstaWork Sign-Out Sheet' : 'Confirm &amp; Save InstaWork Sign-Out Sheet'}</button>
-      </div>
-      <div id="iwCrewMsg" class="${saved ? 'iw-saved-dest' : 'muted'}" style="margin-top:8px;">${
-        saved ? `<strong>Saved.</strong> ${esc(dest)}` : ''
-      }</div>` : ''}`;
+      ${filed ? '<div class="iw-saved-dest" style="margin-top:8px;"><strong>Sent to the office.</strong></div>' : ''}`;
 
     host.querySelector('#openIwBtn').onclick = () => {
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('instawork');
@@ -185,43 +163,6 @@
         if (global.showAlert) global.showAlert('Distribute time', err.message || String(err));
       });
     };
-    host.querySelector('#iwCamBtn')?.addEventListener('click', async () => {
-      if (global.EodCamera?.open) {
-        await global.EodCamera.open({
-          label: 'InstaWork sign-out',
-          onCapture: async (file) => {
-            if (global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('instawork', [file]);
-          },
-          shouldContinue: () => false,
-        });
-      } else {
-        global.EodRouter.go('photos');
-      }
-    });
-    host.querySelector('#iwSaveBtn')?.addEventListener('click', async () => {
-      const msg = document.getElementById('iwCrewMsg');
-      try {
-        if (msg) {
-          msg.className = 'muted';
-          msg.textContent = 'Saving…';
-        }
-        const result = await saveInstaworkPhoto();
-        if (msg) {
-          msg.className = 'iw-saved-dest';
-          msg.innerHTML = `<strong>Saved.</strong> ${esc(global.EodInstaworkSave?.destLine?.(result) || '')}`;
-        }
-        const btn = document.getElementById('iwSaveBtn');
-        if (btn) btn.textContent = 'Re-save InstaWork Sign-Out Sheet';
-      } catch (err) {
-        if (msg) {
-          msg.className = 'iw-saved-dest iw-save-failed';
-          msg.innerHTML = `<strong>Save failed.</strong> ${esc(err.message || String(err))}`;
-        }
-        if (global.showAlert) {
-          global.showAlert('InstaWork Sign-Out Sheet Save Failed', err.message || String(err));
-        }
-      }
-    });
   }
 
   async function render(mount) {
@@ -288,6 +229,7 @@
       });
     };
     paintInstawork();
+    global.EodTimesheetMgmt?.fetchInstaworkMembers?.().then(() => paintInstawork()).catch(() => {});
 
     const list = document.getElementById('rosterList');
     const addSel = document.getElementById('smAddSelect');

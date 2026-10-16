@@ -55,6 +55,16 @@
     return `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, '0')}m`;
   }
 
+  /** Digital office submit checks the Send gate the paper photo used to check. */
+  function applyOfficeSubmitted(filed) {
+    if (!filed) return;
+    const S = window.EodSession;
+    if (!S?.patch || S.state.instaworkOfficeSubmitted) return;
+    S.patch({ instaworkOfficeSubmitted: true }, 'iw-office');
+    try { S.saveDraft(); } catch (_) {}
+    try { window.EodCrew?.paintInstawork?.(); } catch (_) {}
+  }
+
   /** A clocked placeholder can light the flag early. Send is what decides No. */
   function syncInstaworkTrigger() {
     if (state.sheetKey !== 'instawork') return;
@@ -81,6 +91,7 @@
     if (!resp.ok || data.ok === false) {
       throw new Error(data.error || `InstaWork roster failed (${resp.status})`);
     }
+    applyOfficeSubmitted(!!data.officeSubmitted);
     return (data.members || []).map((m) => Object.assign({ sheetKey: 'instawork' }, m));
   }
 
@@ -416,7 +427,6 @@
       ${isIw
         ? '<button type="button" class="btn btn-primary" id="eodTsSubmitOfficeBtn">Submit to office</button>'
         : '<button type="button" class="btn btn-primary" id="eodTsSubmitSupBtn">Submit to supervisor</button>'}
-      ${isIw ? '<button type="button" class="btn btn-secondary" id="eodTsPhotoBtn">Sign-out photo</button>' : ''}
       ${testCtx && canLive ? `<label class="eod-ts-live-toggle" title="Supervisor/admin only. Store 999 cannot force a live store fax." style="display:flex;align-items:center;gap:8px;margin-left:auto;padding:6px 10px;border-radius:8px;background:${liveOn ? 'rgba(180,83,9,.25)' : 'rgba(15,23,42,.55)'};border:1px solid ${liveOn ? '#fbbf24' : '#334155'};font-size:13px;cursor:pointer;">
         <input type="checkbox" data-eod-force-live id="eodTsForceLive"${liveOn ? ' checked' : ''} style="width:16px;height:16px;">
         <span>Live delivery path</span>
@@ -430,15 +440,6 @@
     document.getElementById('eodTsEmailBtn').onclick = () => emailPdf().catch(showErr);
     document.getElementById('eodTsSubmitOfficeBtn')?.addEventListener('click', () => submitOffice().catch(showErr));
     document.getElementById('eodTsSubmitSupBtn')?.addEventListener('click', () => submitSupervisor().catch(showErr));
-    document.getElementById('eodTsPhotoBtn')?.addEventListener('click', () => {
-      const S = window.EodSession;
-      if (S) {
-        S.patch({ instaworkYes: 'Yes' }, 'iw');
-        try { S.saveDraft(); } catch (_) {}
-      }
-      close();
-      if (window.EodRouter?.current !== 'crew') window.EodRouter?.go?.('crew');
-    });
     const liveToggle = document.getElementById('eodTsForceLive');
     if (liveToggle) {
       liveToggle.addEventListener('change', () => {
@@ -1018,6 +1019,7 @@
 
   async function submitOffice() {
     const data = await postAction('submit-office', {});
+    if (!data.testMode) applyOfficeSubmitted(true);
     if (typeof showAlert === 'function') {
       if (data.testMode) {
         showAlert(
@@ -1077,6 +1079,7 @@
       state.members = Array.isArray(data.members) ? data.members : [];
       state.handoffs = Array.isArray(data.handoffs) ? data.handoffs : [];
       state.join = data.join || state.join;
+      if (state.sheetKey === 'instawork') applyOfficeSubmitted(!!data.officeSubmitted);
       render();
       syncInstaworkTrigger();
     } catch (err) {

@@ -226,7 +226,6 @@
     await loadPhotos();
     await ensureHydrated();
     const showPaper = !S.hasHostedSheet();
-    const showIw = S.state.instaworkYes === 'Yes' || (S.state.photos.instawork || []).length > 0;
     mount.innerHTML = `
       <div class="card">
         <h1>Photos</h1>
@@ -257,24 +256,6 @@
           </label>
         </div>
         <div id="grid-signoff" style="margin-top:10px;">${gridHtml('signoff')}</div>
-      </div>` : ''}
-      ${showIw ? `
-      <div class="card">
-        <h2>InstaWork sign-out</h2>
-        <div class="btn-row">
-          <button type="button" class="btn btn-primary" data-cam="instawork">Camera</button>
-          <label class="btn btn-secondary" style="cursor:pointer;">
-            Add file
-            <input type="file" accept="image/*,.heic,.heif" data-type="instawork" hidden>
-          </label>
-          <button type="button" class="btn btn-success" id="iwSaveBtn">${S.state.instaworkSavedInfo ? 'Re-save InstaWork Sign-Out Sheet' : 'Confirm &amp; Save InstaWork Sign-Out Sheet'}</button>
-        </div>
-        <div id="iwSaveMsg" class="${S.state.instaworkSavedInfo ? 'iw-saved-dest' : 'muted'}" style="margin-top:8px;">${
-          S.state.instaworkSavedInfo
-            ? `<strong>Saved.</strong> ${esc(global.EodInstaworkSave?.destLine?.(S.state.instaworkSavedInfo) || '')}`
-            : ''
-        }</div>
-        <div id="grid-instawork" style="margin-top:10px;">${gridHtml('instawork')}</div>
       </div>` : ''}
       <div class="card">
         <button type="button" class="btn btn-secondary btn-block" id="photosStorageBtn">Storage / compress old photos</button>
@@ -326,28 +307,6 @@
           if (global.showAlert) global.showAlert('PROD', err.message || String(err));
         }
       };
-    });
-    document.getElementById('iwSaveBtn')?.addEventListener('click', async () => {
-      const msg = document.getElementById('iwSaveMsg');
-      try {
-        if (msg) {
-          msg.className = 'muted';
-          msg.textContent = 'Saving…';
-        }
-        const result = await saveInstawork();
-        if (msg) {
-          msg.className = 'iw-saved-dest';
-          msg.innerHTML = `<strong>Saved.</strong> ${esc(global.EodInstaworkSave?.destLine?.(result) || '')}`;
-        }
-      } catch (err) {
-        if (msg) {
-          msg.className = 'iw-saved-dest iw-save-failed';
-          msg.innerHTML = `<strong>Save failed.</strong> ${esc(err.message || String(err))}`;
-        }
-        if (global.showAlert) {
-          global.showAlert('InstaWork Sign-Out Sheet Save Failed', err.message || String(err));
-        }
-      }
     });
     document.getElementById('photosStorageBtn')?.addEventListener('click', async () => {
       const msg = document.getElementById('photosStorageMsg');

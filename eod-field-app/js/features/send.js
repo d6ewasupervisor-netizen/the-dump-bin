@@ -415,10 +415,9 @@
     const helpdeskLines = helpdesk.calledHelpDesk === 'Yes'
       ? `Commodities: ${helpdesk.commodities}\nIssue: ${helpdesk.issue}\nIssue resolved: ${helpdesk.issueResolved}\nTemporary solution: ${helpdesk.tempSolution}\n`
       : '';
-    const iwSave = S.state.instaworkSavedInfo;
-    const iwSaveTail = iwSave ? (iwSave.filePath || '').split(/[\\/]/).pop() : '';
+    const iwFiled = !!S.state.instaworkOfficeSubmitted;
     const iwSupportLine = S.state.instaworkYes === 'Yes'
-      ? (iwSave ? `Yes (sign-out sheet photo saved → ${iwSave.folder}\\${iwSaveTail})` : 'Yes')
+      ? (iwFiled ? 'Yes (digital timesheet sent to the office)' : 'Yes')
       : (S.state.instaworkYes || '—');
 
     const body = `KOMPASS End of Day Report
@@ -455,9 +454,7 @@ ${cleanNotes}`;
       beforeTaken: yn(beforeDone),
       checkInManager: S.state.checkInManager || '',
       instaworkSupport: S.state.instaworkYes === 'Yes'
-        ? (iwSave
-          ? `Yes (sign-out sheet saved → ${iwSave.folder}\\${iwSaveTail})`
-          : 'Yes')
+        ? (iwFiled ? 'Yes (digital timesheet sent to the office)' : 'Yes')
         : (S.state.instaworkYes || 'No'),
       ...helpdesk,
       checkOutManager: S.state.checkOutManager || '',
