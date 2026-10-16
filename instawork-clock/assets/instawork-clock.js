@@ -31,13 +31,74 @@
     return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : String(e164 || '');
   }
 
-  function api(path) {
+  function api(path, opts) {
     const f = window.dumpBinAuthFetch || fetch;
-    return f(`${API}${path}`).then(async (resp) => {
+    return f(`${API}${path}`, opts).then(async (resp) => {
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || data.ok === false) throw new Error(data.error || `Request failed (${resp.status})`);
       return data;
     });
+  }
+
+  function splitTime(raw) {
+    const m = String(raw || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return { h: '', min: '', ap: '' };
+    let minute = Math.round(Number(m[2]) / 5) * 5;
+    let hour = Number(m[1]);
+    let ap = m[3].toUpperCase();
+    if (minute === 60) {
+      minute = 0;
+      hour += 1;
+      if (hour === 12) ap = ap === 'AM' ? 'PM' : 'AM';
+      if (hour === 13) hour = 1;
+    }
+    return { h: String(hour), min: String(minute).padStart(2, '0'), ap };
+  }
+
+  function timeSelects(field, label, value) {
+    const parts = splitTime(value);
+    const hours = ['<option value=""></option>'];
+    for (let h = 1; h <= 12; h += 1) {
+      hours.push(`<option value="${h}"${String(h) === parts.h ? ' selected' : ''}>${h}</option>`);
+    }
+    const mins = ['<option value=""></option>'];
+    for (let m = 0; m < 60; m += 5) {
+      const mm = String(m).padStart(2, '0');
+      mins.push(`<option value="${mm}"${mm === parts.min ? ' selected' : ''}>${mm}</option>`);
+    }
+    const periods = ['', 'AM', 'PM'].map((p) => (
+      `<option value="${p}"${p === parts.ap ? ' selected' : ''}>${p}</option>`
+    ));
+    return `<span class="time-edit" data-field="${field}">
+      <select data-part="h" aria-label="${label} hour">${hours.join('')}</select>
+      <select data-part="min" aria-label="${label} minute">${mins.join('')}</select>
+      <select data-part="ap" aria-label="${label}">${periods.join('')}</select>
+    </span>`;
+  }
+
+  function readTime(tr, field) {
+    const box = tr.querySelector(`.time-edit[data-field="${field}"]`);
+    if (!box) return '';
+    const h = box.querySelector('[data-part="h"]').value;
+    const min = box.querySelector('[data-part="min"]').value;
+    const ap = box.querySelector('[data-part="ap"]').value;
+    if (!h && !min && !ap) return '';
+    if (!h || min === '' || !ap) {
+      const err = new Error(`${field === 'clockIn' ? 'Start' : field === 'clockOut' ? 'End' : 'Break'} needs an hour, minute, and AM or PM`);
+      throw err;
+    }
+    return `${Number(h)}:${min} ${ap}`;
+  }
+
+  function prodLine(sync) {
+    if (!sync) return 'Saved';
+    if (sync.skipped) return 'Saved. PROD updates when end is set.';
+    if (sync.error) return sync.error;
+    const shifts = sync.shifts || [];
+    if (!shifts.length) return sync.ok ? 'Sent to PROD' : 'Saved';
+    const bad = shifts.filter((s) => !s.ok);
+    if (bad.length) return bad.map((s) => `${s.label}: ${s.error || 'not saved'}`).join(' ');
+    return `PROD ${shifts.map((s) => s.label).join(', ')}`;
   }
 
   function statusPill(w) {
@@ -76,20 +137,66 @@
             <th>Name</th><th>Phone</th><th>Slot</th><th>Verified</th>
             <th>Clock in</th><th>Lunch</th><th>Clock out</th><th>Status</th>
           </tr></thead>
-          <tbody>${list.map((w) => `<tr>
+          <tbody>${list.map((w) => `<tr data-roster="${esc(w.id)}">
             <td data-label="Name"><strong>${esc(w.name)}</strong>${w.shiftStart ? `<br><span class="muted">${esc(w.shiftStart)}${w.shiftEnd ? ` – ${esc(w.shiftEnd)}` : ''}</span>` : ''}</td>
             <td data-label="Phone" class="num"><a href="tel:${esc(w.phone)}">${esc(prettyPhone(w.phone))}</a></td>
             <td data-label="Slot">${esc(w.employeeName || '—')}</td>
             <td data-label="Verified" class="num">${esc(pacificTime(w.lastLoginAt || w.assignedAt))}</td>
-            <td data-label="Clock in" class="num">${esc(w.clockIn)}</td>
-            <td data-label="Lunch" class="num">${w.lunchOut ? `${esc(w.lunchOut)} – ${esc(w.lunchIn)}` : ''}</td>
-            <td data-label="Clock out" class="num">${esc(w.clockOut)}</td>
-            <td data-label="Status">${statusPill(w)}${w.confirmedBy ? `<br><span class="muted">by ${esc(w.confirmedBy)}</span>` : ''}</td>
+            <td data-label="Clock in" class="num">${timeSelects('clockIn', 'Start', w.clockIn)}</td>
+            <td data-label="Lunch" class="num">${timeSelects('lunchOut', 'Break start', w.lunchOut)}<span class="dash">–</span>${timeSelects('lunchIn', 'Break end', w.lunchIn)}</td>
+            <td data-label="Clock out" class="num">${timeSelects('clockOut', 'End', w.clockOut)}</td>
+            <td data-label="Status">${statusPill(w)}<button type="button" class="btn btn-small" data-save="${esc(w.id)}">Save</button><div class="save-note" data-note="${esc(w.id)}" hidden></div></td>
           </tr>`).join('')}</tbody>
         </table>
       </section>`;
     }
     $('boards').innerHTML = html;
+    $('boards').querySelectorAll('[data-save]').forEach((btn) => {
+      btn.addEventListener('click', () => saveRow(btn));
+    });
+    for (const [id, note] of Object.entries(saveNotes)) {
+      const el = $('boards').querySelector(`[data-note="${id}"]`);
+      if (!el || !note) continue;
+      el.hidden = false;
+      el.textContent = note.text;
+      el.classList.toggle('is-bad', note.bad);
+    }
+  }
+
+  const saveNotes = {};
+
+  async function saveRow(btn) {
+    const tr = btn.closest('tr');
+    const id = tr && tr.dataset.roster;
+    const note = tr.querySelector('[data-note]');
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = 'Saving';
+    if (note) { note.hidden = true; note.classList.remove('is-bad'); }
+    try {
+      const data = await api('/times', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rosterId: id,
+          clockIn: readTime(tr, 'clockIn'),
+          lunchOut: readTime(tr, 'lunchOut'),
+          lunchIn: readTime(tr, 'lunchIn'),
+          clockOut: readTime(tr, 'clockOut'),
+        }),
+      });
+      const text = prodLine(data.prodSync);
+      saveNotes[id] = { text, bad: Boolean(data.prodSync && data.prodSync.ok === false && !data.prodSync.skipped) };
+      await load();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = label;
+      if (note) {
+        note.hidden = false;
+        note.textContent = err.message || 'Could not save';
+        note.classList.add('is-bad');
+      }
+    }
   }
 
   async function load() {
@@ -108,7 +215,11 @@
 
   function startTimer() {
     if (timer) clearInterval(timer);
-    timer = setInterval(load, REFRESH_MS);
+    timer = setInterval(() => {
+      const el = document.activeElement;
+      if (el && el.closest && el.closest('#boards select')) return;
+      load();
+    }, REFRESH_MS);
   }
 
   function boot() {

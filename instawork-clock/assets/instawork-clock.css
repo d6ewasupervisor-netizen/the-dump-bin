@@ -67,6 +67,16 @@ th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 tr:nth-child(even) td { background: var(--row-alt); }
 td.num { white-space: nowrap; }
 
+.time-edit { display: inline-flex; gap: 2px; align-items: center; }
+.time-edit select {
+  font: inherit; font-size: 13px; padding: 4px 2px;
+  border: 1px solid var(--border); border-radius: 4px; background: #fff; color: var(--text);
+}
+.dash { margin: 0 4px; color: var(--muted); }
+.btn-small { padding: 4px 10px; font-size: 13px; margin-top: 6px; display: inline-flex; }
+.save-note { font-size: 12px; color: var(--success); margin-top: 4px; max-width: 220px; white-space: normal; }
+.save-note.is-bad { color: var(--danger); }
+
 .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 .pill-ok { background: #DCFCE7; color: var(--success); }
 .pill-wait { background: #FEF3C7; color: var(--warn); }
