@@ -119,6 +119,22 @@ def audio_duration(ffmpeg: str, mp3: Path) -> float:
     return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
 
 
+def page_text(page) -> str:
+    """Text layer if the PDF has one; otherwise OCR (deck PDFs are screenshots, so they usually don't)."""
+    text = page.get_text() or ""
+    if text.strip():
+        return text
+    try:
+        tp = page.get_textpage_ocr(flags=0, language="eng", dpi=120, full=True)
+        return page.get_text(textpage=tp) or ""
+    except Exception as exc:  # noqa: BLE001 — tesseract missing or OCR unsupported
+        if not getattr(page_text, "_warned", False):
+            print(f"WARNING: deck PDF has no text layer and OCR is unavailable ({exc}); "
+                  '"Compass" scan of the frames skipped', file=sys.stderr)
+            page_text._warned = True  # type: ignore[attr-defined]
+        return ""
+
+
 def render_frames(pdf: Path, out_dir: Path, ffmpeg: str) -> list[str]:
     fitz = _pymupdf()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -157,6 +173,62 @@ def slice_audio(mp3: Path, starts: list[float], total: float, out_dir: Path, ffm
     return clips
 
 
+def check_timing(starts: list[float], total: float, paras: list[str]) -> None:
+    """Catch a timing report that was cut against a different recording (e.g. a stale SRT).
+
+    Each clip's length should track its paragraph's share of the words; a clip that is
+    far off (>40% and >8s) means the cues don't belong to this audio.
+    """
+    if starts[0] > 1.0:
+        die(f"timing: first cue starts at {starts[0]:.1f}s, expected ~0")
+    for a, b in zip(starts, starts[1:]):
+        if b <= a:
+            die(f"timing: cues are not increasing ({a:.1f}s then {b:.1f}s)")
+    if starts[-1] >= total - 1.0:
+        die(f"timing: last cue {starts[-1]:.1f}s is at/after the end of the audio ({total:.1f}s)")
+    if len(starts) != len(paras):
+        return  # count mismatch is reported by the caller
+    words = [max(len(p.split()), 1) for p in paras]
+    total_words = sum(words)
+    bad = []
+    for i, st in enumerate(starts):
+        en = starts[i + 1] if i + 1 < len(starts) else total
+        actual = en - st
+        expected = total * words[i] / total_words
+        if abs(actual - expected) > max(8.0, 0.4 * expected):
+            bad.append(f"frame {i + 1}: clip {actual:.0f}s vs ~{expected:.0f}s expected from its word count")
+    if bad:
+        for b in bad:
+            print("  - " + b, file=sys.stderr)
+        die("timing does not fit this audio — the timing report was probably made from an SRT "
+            "for a different recording; rebuild it from this recording's SRT")
+
+
+def list_clips(clips_dir: Path) -> list[Path]:
+    files = sorted(p for p in clips_dir.iterdir() if p.is_file() and re.fullmatch(r"a\d{2}\.\w+", p.name))
+    if not files:
+        die(f"no clips named a01.* .. aNN.* in {clips_dir}")
+    for i, f in enumerate(files, 1):
+        if f.name[1:3] != f"{i:02d}":
+            die(f"clips are not contiguous: expected a{i:02d}.*, found {f.name}")
+    return files
+
+
+def transcode_clips(files: list[Path], out_dir: Path, ffmpeg: str) -> list[dict]:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    clips = []
+    for i, src in enumerate(files, 1):
+        name = f"a{i:02d}.m4a"
+        subprocess.run(
+            [ffmpeg, "-v", "error", "-y", "-i", str(src),
+             "-ac", "1", "-ar", AUDIO_RATE, "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-movflags", "+faststart",
+             str(out_dir / name)],
+            check=True,
+        )
+        clips.append({"file": name, "seconds": round(audio_duration(ffmpeg, out_dir / name), 2)})
+    return clips
+
+
 # Product/brand names that collide with a banned word. Stripped before the check.
 ALLOWED_PHRASES = ["Good Warrior"]
 
@@ -184,8 +256,13 @@ def check_banned(label: str, text: str, errors: list[str]) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pdf", required=True, type=Path)
-    ap.add_argument("--mp3", required=True, type=Path)
-    ap.add_argument("--timing", required=True, type=Path)
+    ap.add_argument("--mp3", type=Path, help="one narration MP3 (sliced by --timing)")
+    ap.add_argument("--timing", type=Path, help="Briefing Builder timing report for --mp3")
+    ap.add_argument("--clips-dir", type=Path,
+                    help="pre-cut clips, one per frame (a01.mp3 .. aNN.mp3, any ffmpeg-readable format); replaces --mp3/--timing")
+    ap.add_argument("--allow-compass-frames", action="store_true",
+                    help='skip the "Compass" scan of the deck PDF text (written frames must say "Kompass")')
+    ap.add_argument("--build-request", default="", help="opaque id recorded in pack.json as buildRequest")
     ap.add_argument("--narration", required=True, type=Path)
     ap.add_argument("--meta", required=True, type=Path)
     ap.add_argument("--questions", required=True, type=Path)
@@ -193,7 +270,11 @@ def main() -> None:
     ap.add_argument("--set-current", action="store_true", help="also write packs/current.json pointing at this week")
     args = ap.parse_args()
 
-    for p in (args.pdf, args.mp3, args.timing, args.narration, args.meta, args.questions):
+    if args.clips_dir is None and (args.mp3 is None or args.timing is None):
+        die("give either --clips-dir or both --mp3 and --timing")
+    required = [args.pdf, args.narration, args.meta, args.questions]
+    required += [args.clips_dir] if args.clips_dir is not None else [args.mp3, args.timing]
+    for p in required:
         if not p.exists():
             die(f"missing input: {p}")
 
@@ -204,15 +285,34 @@ def main() -> None:
         die(f"meta.week must look like P10W1, got {week!r}")
 
     ffmpeg = find_ffmpeg()
-    starts = parse_timing(args.timing)
     paras = parse_narration(args.narration)
-    total = audio_duration(ffmpeg, args.mp3)
+    clip_files: list[Path] = []
+    starts: list[float] = []
+    total = 0.0
+    if args.clips_dir is not None:
+        clip_files = list_clips(args.clips_dir)
+        audio_rows = len(clip_files)
+    else:
+        starts = parse_timing(args.timing)
+        total = audio_duration(ffmpeg, args.mp3)
+        check_timing(starts, total, paras)
+        audio_rows = len(starts)
 
     fitz = _pymupdf()
-    page_count = len(fitz.open(str(args.pdf)))
+    doc = fitz.open(str(args.pdf))
+    page_count = len(doc)
+    if not args.allow_compass_frames:
+        hits = [i + 1 for i, page in enumerate(doc) if re.search(r"\bCompass\b", page_text(page))]
+        if hits:
+            die(f'deck PDF says "Compass" on page(s) {hits}; written frames must say "Kompass" '
+                "(pass --allow-compass-frames only for a deck T has already presented as-is)")
+    for i, para in enumerate(paras, 1):
+        if re.search(r"\bKompass\b", para):
+            print(f"WARNING: narration paragraph {i} spells \"Kompass\" — the voice may mispronounce it; "
+                  "narration is the one place to write \"Compass\"", file=sys.stderr)
     titles = meta.get("stops") or []
     counts = {"pdf pages": page_count, "narration paragraphs": len(paras),
-              "timing rows": len(starts), "meta.stops": len(titles)}
+              "audio clips/timing rows": audio_rows, "meta.stops": len(titles)}
     if len(set(counts.values())) != 1:
         die(f"frame count mismatch: {counts}")
     n = page_count
@@ -257,7 +357,11 @@ def main() -> None:
     if pack_dir.exists():
         shutil.rmtree(pack_dir)
     frames = render_frames(args.pdf, pack_dir / "frames", ffmpeg)
-    clips = slice_audio(args.mp3, starts, total, pack_dir / "audio", ffmpeg)
+    if clip_files:
+        clips = transcode_clips(clip_files, pack_dir / "audio", ffmpeg)
+        total = sum(c["seconds"] for c in clips)
+    else:
+        clips = slice_audio(args.mp3, starts, total, pack_dir / "audio", ffmpeg)
 
     by_stop: dict[int, list[dict]] = {}
     for q in questions:
@@ -285,6 +389,7 @@ def main() -> None:
         "schema": 1,
         "week": week,
         "build": datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
+        "buildRequest": args.build_request or None,
         "district": meta.get("district", "D8"),
         "title": meta.get("title", week),
         "dueAt": meta.get("dueAt"),
