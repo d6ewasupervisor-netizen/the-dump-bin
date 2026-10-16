@@ -321,7 +321,7 @@
       return;
     }
     if (!visible.length) {
-      listEl.innerHTML = '<p class="muted">No ISE, Cut In, Blitz, DIV, Remodel, or Central Pet shift for this store.</p>';
+      listEl.innerHTML = '<p class="muted">No ISE, Cut In, Blitz, DIV, Remodel, Central Pet, or Drive Medical shift for this store.</p>';
       return;
     }
     listEl.innerHTML = renderShiftCards(visible, selId, included);
@@ -395,17 +395,65 @@
     })();
   }
 
+  function pacificToday() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+  }
+
+  async function startDriveMedical(shift, btn) {
+    const S = global.EodSession;
+    const date = String(shift.scheduledDate || shift.scheduled_date || S.state.workDate || '').slice(0, 10);
+    if (date && date !== pacificToday()) {
+      await global.EodAlerts?.showDialog?.({
+        title: 'Drive Medical',
+        message: `This shift is ${date}.`,
+        buttons: [{ id: 'ok', label: 'OK', primary: true }],
+      });
+      return;
+    }
+    if (btn) btn.disabled = true;
+    try {
+      const resp = await authFetchTimeout(
+        `${global.EOD_API_BASE}/api/shifts/${encodeURIComponent(shift.visitId)}/start`,
+        { method: 'POST', skipBusy: true },
+        20000,
+        'Start timed out'
+      );
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `Start failed (${resp.status})`);
+      shift.currentStatus = 'in-progress';
+      const list = (S.state.shifts || []).map((s) => (
+        String(s.visitId) === String(shift.visitId) ? Object.assign({}, s, { currentStatus: 'in-progress' }) : s
+      ));
+      S.patch({ shifts: list, selectedShift: Object.assign({}, shift, { currentStatus: 'in-progress' }) }, 'drive-medical-start');
+      paintShiftList(document.getElementById('shiftList'));
+    } catch (err) {
+      if (btn) btn.disabled = false;
+      await global.EodAlerts?.showDialog?.({
+        title: 'Drive Medical',
+        message: err.message || 'Start failed',
+        buttons: [{ id: 'ok', label: 'OK', primary: true }],
+      });
+    }
+  }
+
   function renderShiftCards(shifts, selectedVisitId, includedIds) {
+    const L = global.EodSendSheetsLogic || {};
     const sel = String(selectedVisitId || '');
     const included = includedIds || new Set();
     return shifts.map((shift) => {
       const status = shift.currentStatus || shift.status || 'unknown';
       const vid = String(shift.visitId || '');
       const on = vid && (vid === sel || included.has(vid)) ? ' selected' : '';
+      const drive = L.isDriveMedicalShift?.(shift);
+      const started = /in-progress|completed|closed|transmitted/i.test(String(status));
+      const startBtn = drive && vid && !started
+        ? `<button type="button" class="btn btn-primary drive-medical-start" data-start="${esc(vid)}">Start</button>`
+        : (drive && started ? '<div class="muted">Started</div>' : '');
       return `<div class="shift-card${on}" data-visit="${esc(vid)}">
         <strong>${esc(shift.projectName || shift.teamName || 'Shift')}</strong>
         <div class="muted">${esc(status)} · ${esc(String(shift.totalHours ?? ''))} hrs · ${esc(String(shift.empCount ?? shift.employeeCount ?? ''))} people</div>
         <div class="muted">${esc(shift.visitLead || shift.leadName || '')}</div>
+        ${startBtn}
         ${/closed|transmitted|complete/i.test(String(status))
           ? '<div class="muted">Closed — still usable for EOD / reports</div>'
           : ''}
@@ -450,6 +498,15 @@
   function wireShiftCards(listEl, visible) {
     const S = global.EodSession;
     const cards = visible || [];
+    listEl.querySelectorAll('.drive-medical-start').forEach((btn) => {
+      btn.onclick = async (event) => {
+        event.stopPropagation();
+        const vid = btn.getAttribute('data-start');
+        const shift = cards.find((s) => String(s.visitId) === vid);
+        if (!shift) return;
+        await startDriveMedical(shift, btn);
+      };
+    });
     listEl.querySelectorAll('.shift-card').forEach((card) => {
       card.onclick = async () => {
         const vid = card.getAttribute('data-visit');

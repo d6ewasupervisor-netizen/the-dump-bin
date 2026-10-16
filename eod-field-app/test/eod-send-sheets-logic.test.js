@@ -15,6 +15,8 @@ const {
   isCentralPetReset,
   visibleLeadShifts,
   pickVisibleLeadShift,
+  isDriveMedicalShift,
+  shiftFilterKey,
   autoSelectLeadShift,
   includedIseVisitIds,
   leadNamesMatch,
@@ -210,6 +212,30 @@ test('visible lead shifts list ISE-family and Central Pet for that lead', () => 
   const otherLead = pickVisibleLeadShift([ise, cpEldin], 'James Duchene Ryan', null);
   assert.deepEqual(otherLead.visible.map((s) => s.visitId), ['1']);
   assert.equal(otherLead.selected.visitId, '1');
+});
+
+test('Drive Medical stays on the list and stays selected beside ISE', () => {
+  const ise = {
+    visitId: '1',
+    projectId: 1,
+    projectName: 'Fred Meyer Kompass ISE',
+    visitLead: 'James Duchene Ryan',
+  };
+  const drive = {
+    visitId: '27485810',
+    projectId: 12831,
+    projectName: 'Fred Meyer Drive Medical Cane Display Surge',
+    visitLead: 'James Duchene Ryan',
+  };
+  assert.equal(isDriveMedicalShift(drive), true);
+  assert.equal(isDriveMedicalShift(ise), false);
+  assert.equal(shiftFilterKey(drive), 'drive_medical');
+  const vis = visibleLeadShifts([ise, drive], 'James Duchene Ryan');
+  assert.deepEqual(vis.map((s) => s.visitId), ['1', '27485810']);
+  const opened = pickVisibleLeadShift([ise, drive], 'James Duchene Ryan', drive);
+  assert.equal(opened.selected.visitId, '27485810');
+  const fresh = pickVisibleLeadShift([ise, drive], 'James Duchene Ryan', null);
+  assert.equal(fresh.selected.visitId, '1');
 });
 
 test('Central Pet Service Surge stays hidden when the ISE lead is someone else', () => {

@@ -87,7 +87,7 @@
 
   // SAS projects the Visit page lists and can auto-select.
   const SELECTABLE_PROJECT_IDS = new Set([
-    1, 1668, 1715, 3568, 11909, 11099, 9295,
+    1, 1668, 1715, 3568, 11909, 11099, 9295, 12831,
   ]);
 
   function shiftProjectId(shift) {
@@ -103,6 +103,11 @@
       shift?.projectType,
       shift?.shiftType,
     ].map((s) => String(s || '').toLowerCase()).join(' ');
+  }
+
+  function isDriveMedicalShift(shift) {
+    if (shiftProjectId(shift) === 12831) return true;
+    return /drive medical|cane display/.test(shiftTypeBlob(shift));
   }
 
   function isCutInBlitzDiv(shift) {
@@ -139,6 +144,7 @@
     const blob = shiftTypeBlob(shift);
     return isCutInBlitzDiv(shift)
       || isCentralPetReset(shift)
+      || isDriveMedicalShift(shift)
       || /remodel/.test(blob)
       || /kompass\s*ise/.test(blob);
   }
@@ -241,8 +247,12 @@
       : null;
     let selected = null;
     if (iseVisible) {
-      const keepPet = currentVisible && (isCentralPetReset(current) || isCentralPetService(current));
-      selected = keepPet ? currentVisible : iseVisible;
+      const keepOther = currentVisible && (
+        isCentralPetReset(current)
+        || isCentralPetService(current)
+        || isDriveMedicalShift(current)
+      );
+      selected = keepOther ? currentVisible : iseVisible;
     } else if (currentVisible) {
       selected = currentVisible;
     } else if (visible.length === 1) {
@@ -279,6 +289,7 @@
     { key: 'div', label: 'DIV' },
     { key: 'remodel', label: 'Remodel' },
     { key: 'central_pet', label: 'Central Pet' },
+    { key: 'drive_medical', label: 'Drive Medical' },
   ];
 
   function shiftFilterKey(shift) {
@@ -289,6 +300,7 @@
     if (isDivSpecialShift(shift)) return 'div';
     if (isRemodelShift(shift)) return 'remodel';
     if (isCentralPetReset(shift)) return 'central_pet';
+    if (isDriveMedicalShift(shift)) return 'drive_medical';
     if (isMainKompassIse(shift)) return 'ise';
     return '';
   }
@@ -655,6 +667,7 @@
     pickMaintenancePhotoVisit,
     isCentralPetReset,
     isCentralPetService,
+    isDriveMedicalShift,
     isCutInBlitzDiv,
     isSelectableVisitShift,
     leadNamesMatch,
