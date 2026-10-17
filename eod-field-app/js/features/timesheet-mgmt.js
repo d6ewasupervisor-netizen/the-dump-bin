@@ -906,6 +906,19 @@
     });
   }
 
+  async function paintJoinQr(img) {
+    if (!img) return;
+    const sheet = state.sheetKey || 'kompass';
+    const url = `${API}/join-qr.png?store=${encodeURIComponent(storeNumber())}&date=${encodeURIComponent(workDate())}&sheet=${encodeURIComponent(sheet)}`;
+    const resp = await authFetch(url);
+    if (!resp.ok) throw new Error('Could not load the sign-in QR');
+    const blob = await resp.blob();
+    const obj = URL.createObjectURL(blob);
+    if (img.dataset.objUrl) URL.revokeObjectURL(img.dataset.objUrl);
+    img.dataset.objUrl = obj;
+    img.src = obj;
+  }
+
   async function refreshJoinToken(refresh) {
     const resp = await authFetch(`${API}/join-token`, {
       method: 'POST',
@@ -913,6 +926,7 @@
       body: JSON.stringify({
         storeNumber: storeNumber(),
         workDate: workDate(),
+        sheetKey: state.sheetKey || 'kompass',
         refresh: !!refresh,
       }),
     });
@@ -932,7 +946,7 @@
       document.getElementById('eodTsQrDate').textContent = join.workDate || workDate();
       document.getElementById('eodTsQrUrl').textContent = join.joinUrl;
       const img = document.getElementById('eodTsQrImg');
-      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(join.joinUrl)}`;
+      await paintJoinQr(img);
       document.getElementById('eodTsQrOverlay').classList.add('show');
     } catch (err) {
       showErr(err);

@@ -448,7 +448,16 @@ function isNarrow() {
     if (status) status.hidden = true;
     if (img) {
       img.hidden = false;
-      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(join.joinUrl)}`;
+      const sheet = join.sheetKey || 'kompass';
+      const qrUrl = `https://eod-api.the-dump-bin.com/api/eod/timesheet-mgmt/join-qr.png?store=${encodeURIComponent(join.storeNumber || '')}&date=${encodeURIComponent(join.workDate || '')}&sheet=${encodeURIComponent(sheet)}`;
+      authFetch(qrUrl).then(async (resp) => {
+        if (!resp.ok) return;
+        const blob = await resp.blob();
+        const obj = URL.createObjectURL(blob);
+        if (img.dataset.objUrl) URL.revokeObjectURL(img.dataset.objUrl);
+        img.dataset.objUrl = obj;
+        img.src = obj;
+      }).catch(() => {});
     }
     if (urlEl) {
       urlEl.hidden = false;
