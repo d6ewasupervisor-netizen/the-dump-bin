@@ -536,6 +536,7 @@
           <div class="eod-ts-name">${escapeHtml(m.name)}</div>
           <div class="eod-ts-meta">${m.isLead ? 'Lead · ' : ''}${escapeHtml(m.title || '')}${m.workdayId ? ` · WD ${escapeHtml(m.workdayId)}` : ''}</div>
           <div class="eod-ts-meta">Source: ${escapeHtml(m.timeSource || 'sas')}</div>
+          ${m.signinMethod ? `<div class="eod-ts-meta">${escapeHtml(m.signinMethod)}</div>` : ''}
           ${isIw && m.realName ? `<div class="eod-ts-meta">Real: ${escapeHtml(m.realName)}</div>` : ''}
           ${note}
         </td>

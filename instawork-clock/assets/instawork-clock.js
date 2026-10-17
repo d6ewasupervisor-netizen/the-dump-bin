@@ -142,7 +142,7 @@
             <td data-label="Name"><strong>${esc(w.name)}</strong>${w.shiftStart ? `<br><span class="muted">${esc(w.shiftStart)}${w.shiftEnd ? ` – ${esc(w.shiftEnd)}` : ''}</span>` : ''}</td>
             <td data-label="Phone" class="num"><a href="tel:${esc(w.phone)}">${esc(prettyPhone(w.phone))}</a></td>
             <td data-label="Slot">${esc(w.employeeName || '—')}</td>
-            <td data-label="Verified" class="num">${esc(pacificTime(w.lastLoginAt || w.assignedAt))}</td>
+            <td data-label="Verified" class="num">${esc(pacificTime(w.lastLoginAt || w.assignedAt))}${w.signinMethod ? `<br><span class="muted">${esc(w.signinMethod)}</span>` : ''}</td>
             <td data-label="Clock in" class="num">${timeSelects('clockIn', 'Start', w.clockIn)}</td>
             <td data-label="Lunch" class="num">${timeSelects('lunchOut', 'Break start', w.lunchOut)}<span class="dash">–</span>${timeSelects('lunchIn', 'Break end', w.lunchIn)}</td>
             <td data-label="Clock out" class="num">${timeSelects('clockOut', 'End', w.clockOut)}</td>
