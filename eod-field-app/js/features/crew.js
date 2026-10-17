@@ -247,7 +247,6 @@
     try { await global.EodRoles?.load?.(); } catch (_) { /* roster still paints */ }
     const canRoster = global.EodRoles?.canManageRoster?.() !== false;
     const shiftsForRoster = rosterShifts();
-    const multiShift = shiftsForRoster.length > 1;
     mount.innerHTML = `
       <div class="card" id="crewIwHost"></div>
       <div class="card">
@@ -269,14 +268,13 @@
           <div class="field">
             <label>Add member</label>
             <select id="smAddSelect"><option value="">—</option></select>
-            ${multiShift ? `<select id="smAddShift" style="margin-top:6px;">${shiftsForRoster.map((s) =>
-              `<option value="${esc(String(s.visitId))}">${esc(shiftLabel(s))}</option>`
-            ).join('')}</select>` : ''}
+            <select id="smAddShift" style="margin-top:6px;"><option value="">—</option></select>
             <button type="button" class="btn btn-primary btn-block" id="rosterAddBtn" style="margin-top:6px;">Add to shift</button>
           </div>
           <div class="field">
             <label>Request removal</label>
             <select id="smRemoveSelect"><option value="">—</option></select>
+            <select id="smRemoveShift" style="margin-top:6px;"><option value="">—</option></select>
             <button type="button" class="btn btn-secondary btn-block" id="rosterRemoveBtn" style="margin-top:6px;">Request removal</button>
           </div>
         </div>
@@ -312,23 +310,94 @@
     const addSel = document.getElementById('smAddSelect');
     const addShiftSel = document.getElementById('smAddShift');
     const rmSel = document.getElementById('smRemoveSelect');
+    const rmShiftSel = document.getElementById('smRemoveShift');
     let rosterCatalog = null;
+    let rosterGroups = [];
+    const SHIFT_ORDER = ['ise', 'cut_in', 'blitz', 'div_fresh', 'div', 'remodel', 'central_pet', 'drive_medical', 'boars_head'];
 
-    function addTargetVisitId() {
-      return String(addShiftSel?.value || S.state.selectedShift?.visitId || '');
+    function shiftRank(shift) {
+      const index = SHIFT_ORDER.indexOf(rosterBadge(shift).key);
+      return index < 0 ? SHIFT_ORDER.length : index;
     }
 
-    function paintAddOptions() {
+    function orderedStoreShifts() {
+      return rosterShifts(rosterCatalog).slice().sort((a, b) => shiftRank(a) - shiftRank(b));
+    }
+
+    function personId(person) {
+      return String(person?.employeeId || person?.id || '');
+    }
+
+    function fillSelect(select, options, previous) {
+      if (!select) return;
+      select.innerHTML = '<option value="">—</option>' + options.map((opt) =>
+        `<option value="${esc(opt.value)}">${esc(opt.label)}</option>`
+      ).join('');
+      if (previous && [...select.options].some((opt) => opt.value === previous)) {
+        select.value = previous;
+      } else if (options.length === 1) {
+        select.value = options[0].value;
+      }
+    }
+
+    function openShiftsFor(employeeId) {
+      const id = String(employeeId || '');
+      const taken = new Set((S.state.members || [])
+        .filter((member) => personId(member) === id)
+        .map((member) => String(member.visitId)));
+      return orderedStoreShifts().filter((shift) => !taken.has(String(shift.visitId)));
+    }
+
+    function paintAddNames() {
       if (!addSel) return;
-      const employees = addSel._employees || [];
-      const target = addTargetVisitId();
-      const onTarget = new Set((S.state.members || [])
-        .filter((m) => String(m.visitId) === target)
-        .map((m) => String(m.employeeId || m.id || '')));
-      addSel.innerHTML = '<option value="">—</option>' + employees
-        .filter((e) => !onTarget.has(String(e.employeeId || e.id || '')))
-        .map((e) => `<option value="${esc(String(e.employeeId || e.id))}">${esc(e.name || 'Unknown')}</option>`)
-        .join('');
+      const current = addSel.value;
+      const employees = (addSel._employees || []).filter((employee) => openShiftsFor(personId(employee)).length);
+      fillSelect(addSel, employees.map((employee) => ({
+        value: personId(employee),
+        label: employee.name || 'Unknown',
+      })), current);
+      paintAddShifts();
+    }
+
+    function paintAddShifts() {
+      const employeeId = addSel?.value || '';
+      const shifts = employeeId ? openShiftsFor(employeeId) : [];
+      fillSelect(addShiftSel, shifts.map((shift) => ({
+        value: String(shift.visitId),
+        label: shiftLabel(shift),
+      })), addShiftSel?.value || '');
+    }
+
+    function removalShiftsFor(group) {
+      const seen = new Set();
+      const options = [];
+      for (const assignment of group?.assignments || []) {
+        const key = assignment.rosterKey || assignment.rosterLabel || String(assignment.visitId);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        options.push({
+          value: String(assignment.memberIndex),
+          label: assignment.rosterLabel || assignment.shiftLabel || 'Visit',
+          rank: SHIFT_ORDER.indexOf(assignment.rosterKey),
+        });
+      }
+      options.sort((a, b) => (a.rank < 0 ? 99 : a.rank) - (b.rank < 0 ? 99 : b.rank));
+      return options;
+    }
+
+    function paintRemoveNames() {
+      if (!rmSel) return;
+      const current = rmSel.value;
+      fillSelect(rmSel, rosterGroups.map((group) => ({
+        value: group.key,
+        label: group.name,
+      })), current);
+      paintRemoveShifts();
+    }
+
+    function paintRemoveShifts() {
+      const group = rosterGroups.find((item) => item.key === (rmSel?.value || ''));
+      fillSelect(rmShiftSel, removalShiftsFor(group), rmShiftSel?.value || '');
     }
 
     function paintShiftChoices(catalog) {
@@ -338,14 +407,6 @@
         meta.textContent = shifts.length
           ? shifts.map(shiftLabel).join(' · ')
           : 'No shift selected. Confirm the store on Visit.';
-      }
-      if (!addShiftSel) return;
-      const current = addShiftSel.value;
-      addShiftSel.innerHTML = shifts.map((s) =>
-        `<option value="${esc(String(s.visitId))}">${esc(shiftLabel(s))}</option>`
-      ).join('');
-      if (current && [...addShiftSel.options].some((opt) => opt.value === current)) {
-        addShiftSel.value = current;
       }
     }
 
@@ -364,6 +425,7 @@
         paintShiftChoices(catalog);
         const members = await loadMembers({ catalog });
         const groups = global.EodSendSheetsLogic?.groupRosterMembers?.(members) || [];
+        rosterGroups = groups;
         if (!members.length) {
           list.innerHTML = '<p class="muted">No members loaded.</p>';
         } else {
@@ -376,37 +438,29 @@
               ${group.title ? `<div class="muted">${esc(group.title)}</div>` : ''}
             </div>`).join('');
         }
-        if (rmSel) {
-          const removal = groups.length
-            ? groups.flatMap((group) => group.assignments)
-            : members;
-          rmSel.innerHTML = '<option value="">—</option>' + removal.map((m) => {
-            const type = m.rosterLabel || m.shiftLabel || '';
-            const suffix = type ? ` — ${esc(type)}` : '';
-            return `<option value="${esc(String(m.memberIndex))}">${esc(m.name || 'Unknown')}${suffix}</option>`;
-          }).join('');
-        }
+        paintRemoveNames();
         if (canRoster && addSel) {
           addSel._employees = await loadEmployees();
-          paintAddOptions();
+          paintAddNames();
         }
       } catch (err) {
         list.innerHTML = `<p style="color:#ef4444;">${esc(err.message)}</p>`;
       }
     }
 
-    addShiftSel?.addEventListener('change', paintAddOptions);
+    addSel?.addEventListener('change', paintAddShifts);
+    rmSel?.addEventListener('change', paintRemoveShifts);
     document.getElementById('refreshRosterBtn').onclick = () => paintRoster();
     document.getElementById('rosterAddBtn')?.addEventListener('click', async () => {
       const empId = addSel?.value;
       const employees = addSel?._employees || [];
-      const emp = employees.find((e) => String(e.employeeId || e.id) === String(empId));
-      if (!emp) return;
-      const targetVisitId = addTargetVisitId();
-      const targetLabel = multiShift ? ` to ${shiftLabel(shiftForVisit(targetVisitId, rosterCatalog))}` : '';
+      const emp = employees.find((e) => personId(e) === String(empId));
+      const targetVisitId = String(addShiftSel?.value || '');
+      if (!emp || !targetVisitId) return;
+      const targetLabel = shiftLabel(shiftForVisit(targetVisitId, rosterCatalog));
       const ok = await (global.showConfirm
-        ? global.showConfirm('Add to shift', `Add ${emp.name}${targetLabel}?`)
-        : Promise.resolve(confirm(`Add ${emp.name}${targetLabel}?`)));
+        ? global.showConfirm('Add to shift', `Add ${emp.name} to ${targetLabel}?`)
+        : Promise.resolve(confirm(`Add ${emp.name} to ${targetLabel}?`)));
       if (!ok) return;
       try {
         const r = await addMember(emp, targetVisitId);
@@ -419,13 +473,14 @@
       }
     });
     document.getElementById('rosterRemoveBtn')?.addEventListener('click', async () => {
-      if (!rmSel?.value) return;
-      const idx = Number(rmSel.value);
+      if (!rmShiftSel?.value) return;
+      const idx = Number(rmShiftSel.value);
       const emp = (S.state.members || [])[idx];
       if (!emp) return;
+      const typeLabel = rmShiftSel.selectedOptions?.[0]?.textContent || '';
       const ok = await (global.showConfirm
-        ? global.showConfirm('Request removal', `Request removal of ${emp.name}?`)
-        : Promise.resolve(confirm(`Request removal of ${emp.name}?`)));
+        ? global.showConfirm('Request removal', `Request removal of ${emp.name} from ${typeLabel}?`)
+        : Promise.resolve(confirm(`Request removal of ${emp.name} from ${typeLabel}?`)));
       if (!ok) return;
       try {
         await requestRemoval(emp);
