@@ -448,7 +448,7 @@ function isNarrow() {
     if (status) status.hidden = true;
     if (img) {
       img.hidden = false;
-      const sheet = join.sheetKey || 'kompass';
+      const sheet = 'any';
       const qrUrl = `https://eod-api.the-dump-bin.com/api/eod/timesheet-mgmt/join-qr.png?store=${encodeURIComponent(join.storeNumber || '')}&date=${encodeURIComponent(join.workDate || '')}&sheet=${encodeURIComponent(sheet)}`;
       authFetch(qrUrl).then(async (resp) => {
         if (!resp.ok) return;

@@ -10,6 +10,7 @@
     members: [],
     handoffs: [],
     join: null,
+    unknownPhones: [],
     pollTimer: null,
     loading: false,
   };
@@ -357,7 +358,7 @@
     const canLive = typeof window.canEodForceLive === 'function' && window.canEodForceLive();
     const liveOn = forceLiveChecked();
     bar.innerHTML = `
-      <button type="button" class="btn btn-primary" id="eodTsShowQrBtn">Show JOIN QR</button>
+      <button type="button" class="btn btn-primary" id="eodTsShowQrBtn">Sign-in QR</button>
       <button type="button" class="btn btn-secondary" id="eodTsDownloadBtn">Download PDF</button>
       <button type="button" class="btn btn-secondary" id="eodTsPrintBtn">Print at store</button>
       <button type="button" class="btn btn-secondary" id="eodTsEmailBtn">Email PDF</button>
@@ -413,6 +414,40 @@
     return `<span class="eod-ts-badge ${escapeHtml(s)}">${label}</span>`;
   }
 
+  function unknownPhoneCard() {
+    const list = state.unknownPhones || [];
+    if (!list.length) return '';
+    const options = (state.members || []).map((m) =>
+      `<option value="${escapeHtml(m.employeeKey)}">${escapeHtml(m.name)}</option>`
+    ).join('');
+    return list.map((row) => `
+      <div class="eod-ts-unknown" data-unknown="${row.id}" style="margin:0 0 12px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;">
+        ${escapeHtml(row.phone || row.maskedPhone)} tried to sign in
+        <label style="margin-left:8px;">Assign to
+          <select data-unknown-id="${row.id}">
+            <option value="">Select</option>
+            ${options}
+          </select>
+        </label>
+      </div>`).join('');
+  }
+
+  async function assignUnknown(unknownId, employeeKey) {
+    const resp = await authFetch(`${API}/assign-phone`, {
+      method: 'PUT',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        unknownId,
+        employeeKey,
+        sheetKey: state.sheetKey,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) throw new Error(data.error || 'Could not assign this phone');
+    state.unknownPhones = (state.unknownPhones || []).filter((row) => String(row.id) !== String(unknownId));
+    render();
+  }
+
   function render() {
     const body = document.getElementById('eodTsBody');
     const status = document.getElementById('eodTsStatus');
@@ -451,11 +486,14 @@
         </td>
         ${realNameCell}
         <td data-label="PIN">
-          <div class="eod-ts-pin">${escapeHtml(m.pin || '—')}</div>
-          <div class="eod-ts-row-actions" style="margin-top:6px;">
-            <button type="button" class="btn btn-secondary eod-ts-copy-pin" data-idx="${idx}">Copy PIN</button>
-            <button type="button" class="btn btn-secondary eod-ts-regen" data-idx="${idx}">New PIN</button>
-          </div>
+          <details>
+            <summary>Fallback</summary>
+            <div class="eod-ts-pin">${escapeHtml(m.pin || '—')}</div>
+            <div class="eod-ts-row-actions" style="margin-top:6px;">
+              <button type="button" class="btn btn-secondary eod-ts-copy-pin" data-idx="${idx}">Copy PIN</button>
+              <button type="button" class="btn btn-secondary eod-ts-regen" data-idx="${idx}">New PIN</button>
+            </div>
+          </details>
         </td>
         <td data-label="Clock in"><input type="text" data-field="clockIn" value="${escapeHtml(m.clockIn || '')}" aria-label="Clock in"></td>
         <td data-label="Lunch out"><input type="text" data-field="lunchOut" value="${escapeHtml(m.lunchOut || '')}" aria-label="Lunch out"></td>
@@ -478,6 +516,7 @@
 
     const realNameTh = state.sheetKey === 'instawork' ? '<th>Real name</th>' : '';
     body.innerHTML = `
+      ${unknownPhoneCard()}
       <div class="eod-ts-table-wrap">
         <table class="eod-ts-table">
           <thead>
@@ -506,6 +545,13 @@
     });
     body.querySelectorAll('.eod-ts-regen').forEach((btn) => {
       btn.addEventListener('click', () => regenPin(Number(btn.dataset.idx)).catch(showErr));
+    });
+    body.querySelectorAll('select[data-unknown-id]').forEach((sel) => {
+      sel.onchange = () => {
+        const employeeKey = sel.value;
+        if (!employeeKey) return;
+        assignUnknown(sel.getAttribute('data-unknown-id'), employeeKey).catch(showErr);
+      };
     });
     body.querySelectorAll('.eod-ts-copy-pin').forEach((btn) => {
       btn.addEventListener('click', () => copyPin(Number(btn.dataset.idx)));
@@ -799,7 +845,7 @@
 
   async function paintJoinQr(img) {
     if (!img) return;
-    const sheet = state.sheetKey || 'kompass';
+    const sheet = 'any';
     const url = `${API}/join-qr.png?store=${encodeURIComponent(storeNumber())}&date=${encodeURIComponent(workDate())}&sheet=${encodeURIComponent(sheet)}`;
     const resp = await authFetch(url);
     if (!resp.ok) throw new Error('Could not load the sign-in QR');
@@ -817,7 +863,7 @@
       body: JSON.stringify({
         storeNumber: storeNumber(),
         workDate: workDate(),
-        sheetKey: state.sheetKey || 'kompass',
+        sheetKey: 'any',
         refresh: !!refresh,
       }),
     });
@@ -1004,6 +1050,7 @@
       state.members = Array.isArray(data.members) ? data.members : [];
       state.handoffs = Array.isArray(data.handoffs) ? data.handoffs : [];
       state.join = data.join || state.join;
+      state.unknownPhones = Array.isArray(data.unknownPhones) ? data.unknownPhones : [];
       if (state.sheetKey === 'instawork' && state.members.length) {
         const iwYes = document.getElementById('instaworkYes');
         const iwNo = document.getElementById('instaworkNo');
