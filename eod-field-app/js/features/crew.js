@@ -244,6 +244,7 @@
   async function render(mount) {
     const S = global.EodSession;
     S.syncDomBridges();
+    try { await global.EodRoles?.load?.(); } catch (_) { /* roster still paints */ }
     const canRoster = global.EodRoles?.canManageRoster?.() !== false;
     const shiftsForRoster = rosterShifts();
     const multiShift = shiftsForRoster.length > 1;
@@ -264,10 +265,6 @@
           ? esc(shiftsForRoster.map(shiftLabel).join(' · '))
           : 'No shift selected. Confirm the store on Visit.'}</p>
         <div id="rosterStatus" class="muted"></div>
-        <div class="btn-row">
-          <button type="button" class="btn btn-secondary" id="refreshRosterBtn">Refresh roster</button>
-        </div>
-        <div id="rosterList" style="margin-top:10px;"></div>
         <div id="rosterEdit" ${canRoster ? '' : 'hidden'} style="margin-top:12px;">
           <div class="field">
             <label>Add member</label>
@@ -283,6 +280,10 @@
             <button type="button" class="btn btn-secondary btn-block" id="rosterRemoveBtn" style="margin-top:6px;">Request removal</button>
           </div>
         </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="refreshRosterBtn">Refresh roster</button>
+        </div>
+        <div id="rosterList" style="margin-top:10px;"></div>
       </div>`;
 
     const smsHost = document.getElementById('crewSmsHost');
