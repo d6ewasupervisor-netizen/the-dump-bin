@@ -11,6 +11,14 @@
 
   var PACKS_BASE = './packs/';
   var API = '/api/weekly-briefing';
+  // ?pack=_staging/P10W3 → preview a staging build: same walk, nothing is
+  // sent to the API (no attempts, no crew pulse) and local state is kept apart.
+  var PREVIEW_PACK = (function () {
+    try {
+      var v = new URLSearchParams(location.search).get('pack') || '';
+      return /^[A-Za-z0-9_\/-]{1,40}$/.test(v) ? v.replace(/^\/+|\/+$/g, '') : '';
+    } catch (_) { return ''; }
+  })();
   var SPEEDS = [1, 1.25, 1.5];
   var READ_WPS = 4;            // words per second the "Read instead" timer assumes
   var READ_MIN_S = 8;
@@ -26,8 +34,9 @@
   var pack = null;        // pack.json
   // Pack asset URL with a cache-buster tied to the pack's build stamp, so a
   // re-cut pack (new narration, same paths) can't serve stale clips/frames.
+  var packPath = '';      // packs/<packPath>/ — the week, or _staging/<week> in preview
   function assetUrl(rel) {
-    return PACKS_BASE + pack.week + '/' + rel + (pack.build ? '?b=' + encodeURIComponent(pack.build) : '');
+    return PACKS_BASE + (packPath || pack.week) + '/' + rel + (pack.build ? '?b=' + encodeURIComponent(pack.build) : '');
   }
   var userKey = '';       // storage key fragment
   var st = null;          // attempt state (see newState)
@@ -65,6 +74,9 @@
   }
   function api(path, opts) {
     opts = opts || {};
+    if (PREVIEW_PACK) {
+      return Promise.reject(Object.assign(new Error('preview: API disabled'), { status: 0 }));
+    }
     if (opts.body && typeof opts.body !== 'string') {
       opts.body = JSON.stringify(opts.body);
       opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
@@ -76,7 +88,7 @@
       });
     });
   }
-  function storeKey() { return 'wb:' + pack.week + ':' + userKey; }
+  function storeKey() { return 'wb:' + (PREVIEW_PACK ? 'preview:' + PREVIEW_PACK : pack.week) + ':' + userKey; }
   function loadLocal() {
     try { var v = localStorage.getItem(storeKey()); return v ? JSON.parse(v) : null; } catch (_) { return null; }
   }
@@ -176,14 +188,17 @@
     }).then(function (m) {
       me = m;
       userKey = String(m.email || 'anon').toLowerCase();
+      if (PREVIEW_PACK) return { week: PREVIEW_PACK };
       return fetch(PACKS_BASE + 'current.json', { cache: 'no-store' }).then(function (r) { return r.json(); });
     }).then(function (cur) {
+      packPath = cur.week;
       return fetch(PACKS_BASE + cur.week + '/pack.json', { cache: 'no-store' }).then(function (r) {
         if (!r.ok) throw new Error('This week\'s pack is missing.');
         return r.json();
       });
     }).then(function (p) {
       pack = p;
+      if (PREVIEW_PACK) pack.title = String(pack.title || pack.week) + ' · preview';
       buildFlat();
       return api('/me?week=' + encodeURIComponent(pack.week)).catch(function () { return {}; });
     }).then(function (mine) {

@@ -263,6 +263,8 @@ def main() -> None:
     ap.add_argument("--allow-compass-frames", action="store_true",
                     help='skip the "Compass" scan of the deck PDF text (written frames must say "Kompass")')
     ap.add_argument("--build-request", default="", help="opaque id recorded in pack.json as buildRequest")
+    ap.add_argument("--check-only", action="store_true",
+                    help="validate deck/narration/meta/questions and exit without audio or rendering")
     ap.add_argument("--narration", required=True, type=Path)
     ap.add_argument("--meta", required=True, type=Path)
     ap.add_argument("--questions", required=True, type=Path)
@@ -270,10 +272,11 @@ def main() -> None:
     ap.add_argument("--set-current", action="store_true", help="also write packs/current.json pointing at this week")
     args = ap.parse_args()
 
-    if args.clips_dir is None and (args.mp3 is None or args.timing is None):
+    if not args.check_only and args.clips_dir is None and (args.mp3 is None or args.timing is None):
         die("give either --clips-dir or both --mp3 and --timing")
     required = [args.pdf, args.narration, args.meta, args.questions]
-    required += [args.clips_dir] if args.clips_dir is not None else [args.mp3, args.timing]
+    if not args.check_only:
+        required += [args.clips_dir] if args.clips_dir is not None else [args.mp3, args.timing]
     for p in required:
         if not p.exists():
             die(f"missing input: {p}")
@@ -289,7 +292,9 @@ def main() -> None:
     clip_files: list[Path] = []
     starts: list[float] = []
     total = 0.0
-    if args.clips_dir is not None:
+    if args.check_only:
+        audio_rows = None
+    elif args.clips_dir is not None:
         clip_files = list_clips(args.clips_dir)
         audio_rows = len(clip_files)
     else:
@@ -311,8 +316,9 @@ def main() -> None:
             print(f"WARNING: narration paragraph {i} spells \"Kompass\" — the voice may mispronounce it; "
                   "narration is the one place to write \"Compass\"", file=sys.stderr)
     titles = meta.get("stops") or []
-    counts = {"pdf pages": page_count, "narration paragraphs": len(paras),
-              "audio clips/timing rows": audio_rows, "meta.stops": len(titles)}
+    counts = {"pdf pages": page_count, "narration paragraphs": len(paras), "meta.stops": len(titles)}
+    if audio_rows is not None:
+        counts["audio clips/timing rows"] = audio_rows
     if len(set(counts.values())) != 1:
         die(f"frame count mismatch: {counts}")
     n = page_count
@@ -352,6 +358,9 @@ def main() -> None:
         for e in errors:
             print("  - " + e, file=sys.stderr)
         die(f"{len(errors)} question problem(s)")
+    if args.check_only:
+        print(f"check ok: {week} frames={n} questions={len(questions)}")
+        return
 
     pack_dir = args.out / week
     if pack_dir.exists():
