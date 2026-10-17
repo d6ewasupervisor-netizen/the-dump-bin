@@ -1,0 +1,7 @@
+{
+ "request": "20261016-rerun-1",
+ "mode": "staging",
+ "deck": "deck.pdf",
+ "allowCompassFrames": true,
+ "note": "Full-length rerun of P10W2 through briefing-worker (ElevenLabs API, per-frame clips) to compare against the hand-built pack before P10W3 goes through unattended."
+}
