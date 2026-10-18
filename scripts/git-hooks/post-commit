@@ -1,0 +1,13 @@
+#!/bin/sh
+# Append one line per commit to .cursor/skill-debt.log.
+# Copy to .git/hooks/post-commit. Do not set core.hooksPath.
+# A machine that never installed this hook will not log its commits.
+root=$(git rev-parse --show-toplevel) || exit 0
+cd "$root" || exit 0
+hash=$(git rev-parse --short HEAD)
+subject=$(git log -1 --pretty=%s | tr '\n' ' ')
+files=$(git diff-tree --no-commit-id --name-only -r HEAD | tr '\n' ' ')
+iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+mkdir -p .cursor
+printf '%s %s %s %s\n' "$iso" "$hash" "$subject" "$files" >> .cursor/skill-debt.log
+exit 0

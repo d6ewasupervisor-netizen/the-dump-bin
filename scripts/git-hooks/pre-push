@@ -1,0 +1,6 @@
+#!/bin/sh
+# Skill coverage warning. Never blocks the push.
+# Copy to .git/hooks/pre-push. Do not set core.hooksPath.
+cd "$(git rev-parse --show-toplevel)" || exit 0
+node "$USERPROFILE/eod-api/scripts/check-skill-coverage.js" || true
+exit 0
