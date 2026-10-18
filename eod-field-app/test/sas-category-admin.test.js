@@ -9,6 +9,18 @@ test('category admin URL matches the SAS PROD schedule admin page', () => {
     categoryAdminUrl('27312457'),
     'https://prod.sasretail.com/en/field/schedules/27312457/schedule/admin'
   );
+  assert.equal(
+    categoryAdminUrl('27430506'),
+    'https://prod.sasretail.com/en/field/schedules/27430506/schedule/admin'
+  );
+  assert.equal(
+    categoryAdminUrl('27482795'),
+    'https://prod.sasretail.com/en/field/schedules/27482795/schedule/admin'
+  );
+  assert.equal(
+    categoryAdminUrl('27485979'),
+    'https://prod.sasretail.com/en/field/schedules/27485979/schedule/admin'
+  );
   assert.equal(categoryAdminUrl(''), '');
   assert.equal(categoryAdminUrl('12'), '');
   assert.equal(visitIdFrom('visit-27312457'), '27312457');

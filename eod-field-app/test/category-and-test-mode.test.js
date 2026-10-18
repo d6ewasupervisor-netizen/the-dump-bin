@@ -920,9 +920,13 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.match(visit, /visibleLeadShifts/);
   assert.match(visit, /function applyShiftsToSession[\s\S]*openShiftDetails/);
   assert.match(visit, /function openShiftDetails[\s\S]*paintOnboarding/);
+  assert.match(visit, /shift-prod-link/);
+  assert.match(visit, /categoryAdminUrl/);
+  assert.match(visit, /openProdFieldSchedule/);
   assert.match(visit, /pickerItemsForStores/);
   assert.doesNotMatch(visit, /scheduled\.has\(Number\(a\)\)/);
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  assert.match(css, /\.shift-prod-link \{/);
   assert.match(css, /\.picker-overlay \{ z-index: 46000; \}/);
   assert.match(css, /\.day-confirm-modal \{ z-index: 45000; \}/);
   const picker = fs.readFileSync(path.join(__dirname, '../js/picker.js'), 'utf8');

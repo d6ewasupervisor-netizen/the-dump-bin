@@ -436,6 +436,24 @@
     }
   }
 
+  function prodFieldScheduleUrl(visitId) {
+    return global.SasCategoryAdmin?.categoryAdminUrl?.(visitId) || '';
+  }
+
+  function openProdFieldSchedule(visitId) {
+    const url = prodFieldScheduleUrl(visitId);
+    if (!url) return;
+    let opened = null;
+    try {
+      opened = global.open(url, '_blank', 'noopener,noreferrer');
+    } catch (_) {
+      opened = null;
+    }
+    if (!opened) {
+      try { global.EodConnections?.toast?.('Allow popups to open PROD', 'warn'); } catch (_) {}
+    }
+  }
+
   function renderShiftCards(shifts, selectedVisitId, includedIds) {
     const L = global.EodSendSheetsLogic || {};
     const sel = String(selectedVisitId || '');
@@ -449,8 +467,13 @@
       const startBtn = drive && vid && !started
         ? `<button type="button" class="btn btn-primary drive-medical-start" data-start="${esc(vid)}">Start</button>`
         : (drive && started ? '<div class="muted">Started</div>' : '');
+      const name = esc(shift.projectName || shift.teamName || 'Shift');
+      const prodUrl = prodFieldScheduleUrl(vid);
+      const title = prodUrl
+        ? `<button type="button" class="shift-prod-link" data-prod="${esc(vid)}">${name}</button>`
+        : `<strong>${name}</strong>`;
       return `<div class="shift-card${on}" data-visit="${esc(vid)}">
-        <strong>${esc(shift.projectName || shift.teamName || 'Shift')}</strong>
+        ${title}
         <div class="muted">${esc(status)} · ${esc(String(shift.totalHours ?? ''))} hrs · ${esc(String(shift.empCount ?? shift.employeeCount ?? ''))} people</div>
         <div class="muted">${esc(shift.visitLead || shift.leadName || '')}</div>
         ${startBtn}
@@ -507,22 +530,38 @@
         await startDriveMedical(shift, btn);
       };
     });
+    function shiftByVisit(vid) {
+      return cards.find((s) => String(s.visitId) === vid)
+        || (S.state.shifts || []).find((s) => String(s.visitId) === vid);
+    }
+    async function chooseShift(shift, card) {
+      listEl.querySelectorAll('.shift-card').forEach((c) => c.classList.remove('selected'));
+      if (card) card.classList.add('selected');
+      S.patch({
+        selectedShift: shift,
+        extraVisitIds: siblingExtraIds(S.state.shifts, shift),
+      }, 'shift');
+      paintLeadFromShift(shift, S.state.shifts);
+      paintShiftList(listEl);
+      openShiftDetails();
+      await maybeOfferCentralPetJump(shift);
+    }
+    listEl.querySelectorAll('.shift-prod-link').forEach((btn) => {
+      btn.onclick = (event) => {
+        event.stopPropagation();
+        const vid = btn.getAttribute('data-prod');
+        const shift = shiftByVisit(vid);
+        openProdFieldSchedule(vid);
+        if (!shift) return;
+        void chooseShift(shift, btn.closest('.shift-card'));
+      };
+    });
     listEl.querySelectorAll('.shift-card').forEach((card) => {
       card.onclick = async () => {
         const vid = card.getAttribute('data-visit');
-        const shift = cards.find((s) => String(s.visitId) === vid)
-          || (S.state.shifts || []).find((s) => String(s.visitId) === vid);
+        const shift = shiftByVisit(vid);
         if (!shift) return;
-        listEl.querySelectorAll('.shift-card').forEach((c) => c.classList.remove('selected'));
-        card.classList.add('selected');
-        S.patch({
-          selectedShift: shift,
-          extraVisitIds: siblingExtraIds(S.state.shifts, shift),
-        }, 'shift');
-        paintLeadFromShift(shift, S.state.shifts);
-        paintShiftList(listEl);
-        openShiftDetails();
-        await maybeOfferCentralPetJump(shift);
+        await chooseShift(shift, card);
       };
     });
   }

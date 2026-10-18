@@ -1181,6 +1181,22 @@ h2 { font-size: 1.15rem; color: var(--heading); }
 .roster-badge--central_pet { background: #831843; color: #fce7f3; }
 .roster-badge--drive_medical { background: #334155; color: #e2e8f0; }
 .roster-badge--boars_head { background: #7f1d1d; color: #fecaca; }
+.shift-prod-link {
+  display: block;
+  width: 100%;
+  margin: 0 0 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
 .shift-card.selected { outline: 2px solid var(--accent); border-color: var(--accent); }
 .shift-card.completed { opacity: .75; }
 .ds-row { cursor: default; min-width: 0; }
