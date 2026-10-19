@@ -11,6 +11,7 @@
     handoffs: [],
     join: null,
     unknownPhones: [],
+    textMisses: [],
     pollTimer: null,
     loading: false,
     drafts: {},
@@ -495,12 +496,58 @@
         unknownId,
         employeeKey,
         sheetKey: state.sheetKey,
+        storeNumber: storeNumber(),
+        workDate: workDate(),
       }),
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok || data.ok === false) throw new Error(data.error || 'Could not assign this phone');
     state.unknownPhones = (state.unknownPhones || []).filter((row) => String(row.id) !== String(unknownId));
     render();
+  }
+
+  function textMissCard() {
+    const list = state.textMisses || [];
+    if (!list.length) return '';
+    const options = (state.members || []).map((m) =>
+      `<option value="${escapeHtml(m.employeeKey)}">${escapeHtml(m.name)}</option>`
+    ).join('');
+    return list.map((row) => `
+      <div class="eod-ts-unknown" data-text-miss="${escapeHtml(row.id)}" style="margin:0 0 12px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;">
+        …${escapeHtml(row.last4)} texted ${escapeHtml(row.keyword)} at ${escapeHtml(row.receivedLabel)}
+        <label style="margin-left:8px;">Assign to
+          <select data-text-miss-id="${escapeHtml(row.id)}">
+            <option value="">Select</option>
+            ${options}
+          </select>
+        </label>
+        <button type="button" class="btn btn-secondary eod-ts-text-miss-dismiss" data-text-miss-id="${escapeHtml(row.id)}" style="margin-left:8px;">Dismiss</button>
+      </div>`).join('');
+  }
+
+  async function resolveTextMiss(action, id, employeeKey) {
+    const resp = await authFetch(`${API}/text-miss/${action}`, {
+      method: 'PUT',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        id,
+        employeeKey,
+        sheetKey: state.sheetKey,
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) {
+      if (resp.status === 404) {
+        await refresh(true);
+        return;
+      }
+      throw new Error(data.error || (action === 'assign' ? 'Could not assign this text' : 'Could not dismiss this text'));
+    }
+    state.textMisses = (state.textMisses || []).filter((row) => String(row.id) !== String(id));
+    if (action === 'assign') await refresh(true);
+    else render();
   }
 
   function render() {
@@ -578,7 +625,9 @@
         <button type="submit" class="btn btn-secondary">Add</button>
       </form>` : '';
     const unknownCard = unknownPhoneCard();
+    const textCard = textMissCard();
     body.innerHTML = `
+      ${textCard}
       ${unknownCard}
       ${addForm}
       <div class="eod-ts-table-wrap">
@@ -646,6 +695,22 @@
         const employeeKey = sel.value;
         if (!employeeKey) return;
         assignUnknown(sel.getAttribute('data-unknown-id'), employeeKey).catch(showErr);
+      };
+    });
+    body.querySelectorAll('select[data-text-miss-id]').forEach((sel) => {
+      sel.onchange = () => {
+        const employeeKey = sel.value;
+        if (!employeeKey) return;
+        sel.disabled = true;
+        resolveTextMiss('assign', sel.getAttribute('data-text-miss-id'), employeeKey)
+          .catch((err) => { sel.disabled = false; showErr(err); });
+      };
+    });
+    body.querySelectorAll('.eod-ts-text-miss-dismiss').forEach((btn) => {
+      btn.onclick = () => {
+        btn.disabled = true;
+        resolveTextMiss('dismiss', btn.getAttribute('data-text-miss-id'))
+          .catch((err) => { btn.disabled = false; showErr(err); });
       };
     });
     body.querySelectorAll('.eod-ts-copy-pin').forEach((btn) => {
@@ -1142,6 +1207,7 @@
       state.handoffs = Array.isArray(data.handoffs) ? data.handoffs : [];
       state.join = data.join || state.join;
       state.unknownPhones = Array.isArray(data.unknownPhones) ? data.unknownPhones : [];
+      state.textMisses = Array.isArray(data.textMisses) ? data.textMisses : [];
       if (state.sheetKey === 'instawork') applyOfficeSubmitted(!!data.officeSubmitted);
       render();
       syncInstaworkTrigger();

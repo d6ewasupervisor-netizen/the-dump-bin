@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-19 — Field app 3.4.71: text-miss card
+
+Pilot 3.4.71 ships `js/features/timesheet-mgmt.js` and the version files only. The time sheet shows a card for a clock text from a number not on today's list (last 4 digits, keyword, time) with **Assign to** and **Dismiss**, and the QR **Assign to** sends store and date. The Instawork reference gains two texting-rule lines and points at eod-api `7fad2ab`, migrations through 164, and field app 3.4.71. The project copy needs the same lines.
+
 ## 2026-10-19 — Instawork reference: sender identity and IN-only clock-in
 
 `eod-field-app/instawork-signin-and-sms-reference.md` texting rules gain two lines: inbound texts carry the sender's identity and a pro's JOIN or START is logged without waking the agent; clock in is IN or CLOCK IN and START is never a clock keyword. The router line points at eod-api `165463b` and migration 163. Doc only, no field-app version bump. The Instawork project copy `claude/instawork-signin-and-sms-reference.md` still needs the same lines.
