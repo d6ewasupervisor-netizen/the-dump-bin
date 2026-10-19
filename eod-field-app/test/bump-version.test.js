@@ -35,6 +35,13 @@ test('canonicalizes legacy patch values above 99', async () => {
   assert.equal(canonicalVersion('3.9.100'), '4.0.00');
 });
 
+test('refuses a bump that would decrease the version', async () => {
+  const { resolveBump, nextVersion } = await versionHelpers();
+  assert.equal(nextVersion('3.4.99'), '3.5.00');
+  assert.throws(() => resolveBump('3.4.69', '3.4.20'), /decrease/);
+  assert.equal(resolveBump('3.4.100', '3.5.00'), '3.5.00');
+});
+
 test('rejects malformed versions', async () => {
   const { nextVersion } = await versionHelpers();
   assert.throws(() => nextVersion('3.4'), /three-part version/);

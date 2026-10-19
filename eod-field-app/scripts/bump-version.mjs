@@ -32,11 +32,25 @@ export function nextVersion(version) {
   return canonicalVersion(`${major}.${minor}.${patch + 1}`);
 }
 
+export function versionLess(left, right) {
+  const [am, ai, ap] = parseVersion(canonicalVersion(left));
+  const [bm, bi, bp] = parseVersion(canonicalVersion(right));
+  if (am !== bm) return am < bm;
+  if (ai !== bi) return ai < bi;
+  return ap < bp;
+}
+
+export function resolveBump(current, explicit) {
+  const next = explicit ? canonicalVersion(explicit) : nextVersion(current);
+  if (versionLess(next, current)) {
+    throw new Error(`Refusing to decrease ${current} to ${next}`);
+  }
+  return next;
+}
+
 function run() {
   const current = JSON.parse(fs.readFileSync(versionFile, 'utf8')).version;
-  const next = process.argv[2]
-    ? canonicalVersion(process.argv[2])
-    : nextVersion(current);
+  const next = resolveBump(current, process.argv[2]);
 
   for (const relative of ['index.html', 'js/api.js', 'js/boot.js', 'js/lib/eod-buffering.js', 'js/lib/barcode-scanner.js', 'sw.js']) {
     const file = path.join(root, relative);
