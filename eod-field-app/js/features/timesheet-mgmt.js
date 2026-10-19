@@ -46,6 +46,22 @@
 
   const TIME_FIELDS = ['clockIn', 'lunchOut', 'lunchIn', 'clockOut'];
 
+  function vsSchedule(minutes) {
+    if (minutes == null || !Number.isFinite(minutes) || minutes === 0) return '';
+    const n = Math.abs(minutes);
+    const span = n >= 60 ? `${Math.floor(n / 60)}h ${String(n % 60).padStart(2, '0')}m` : `${n}m`;
+    return ` (${span} ${minutes < 0 ? 'early' : 'late'})`;
+  }
+
+  /** The pro's own Instawork clock in and out, kept before any time edit. */
+  function instaworkClockLines(iw) {
+    if (!iw || (!iw.clockIn && !iw.clockOut)) return '';
+    const lines = [];
+    if (iw.clockIn) lines.push(`Instawork in ${escapeHtml(iw.clockIn)}${vsSchedule(iw.inVsScheduled)}`);
+    if (iw.clockOut) lines.push(`Instawork out ${escapeHtml(iw.clockOut)}${vsSchedule(iw.outVsScheduled)}`);
+    return lines.map((t) => `<div class="eod-ts-meta eod-ts-iw-clock">${t}</div>`).join('');
+  }
+
   /** PROD's own total while the row matches PROD; after a lead edit, in to out less lunch. */
   function totalFor(m) {
     const prod = m.prodTimes || {};
@@ -585,6 +601,7 @@
           <div class="eod-ts-meta">Source: ${escapeHtml(m.timeSource || 'sas')}</div>
           ${m.signinMethod ? `<div class="eod-ts-meta">${escapeHtml(m.signinMethod)}</div>` : ''}
           ${isIw && m.realName ? `<div class="eod-ts-meta">Real: ${escapeHtml(m.realName)}</div>` : ''}
+          ${isIw ? instaworkClockLines(m.instawork) : ''}
           ${note}
         </td>
         ${realNameCell}
@@ -732,7 +749,8 @@
       const adj = state.members.filter((m) => m.confirmation?.status === 'adjust').length;
       const conf = state.members.filter((m) => m.confirmation?.status === 'confirmed').length;
       const joinHint = state.join?.joinUrl ? ' · JOIN QR ready' : '';
-      status.textContent = `Updated ${new Date().toLocaleTimeString()} · ${state.members.length} people · ${conf} signed · ${adj} adjusted${joinHint}`;
+      const iwHint = state.instaworkError ? ` · Instawork: ${state.instaworkError}` : '';
+      status.textContent = `Updated ${new Date().toLocaleTimeString()} · ${state.members.length} people · ${conf} signed · ${adj} adjusted${joinHint}${iwHint}`;
     }
   }
 
@@ -829,8 +847,15 @@
       meta.textContent = row.realName ? `Real: ${row.realName}` : '';
     }
     if (typeof showAlert === 'function') {
-      showAlert('Saved', `${displayName(row) || row.name} times updated.`);
+      showAlert('Saved', `${displayName(row) || row.name} times updated.${instaworkSaveNote(data.row?.instaworkSync)}`);
     }
+  }
+
+  function instaworkSaveNote(sync) {
+    if (!sync || sync.skipped) return '';
+    if (sync.ok === false) return ` Instawork not updated: ${sync.error || 'unknown error'}`;
+    if (sync.unchanged) return '';
+    return ` Instawork set to ${sync.clockIn}–${sync.clockOut}.`;
   }
 
   async function markNoShow(idx) {
@@ -1204,6 +1229,7 @@
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || data.ok === false) throw new Error(data.error || `Load failed (${resp.status})`);
       state.members = Array.isArray(data.members) ? data.members : [];
+      state.instaworkError = data.instaworkError || '';
       state.handoffs = Array.isArray(data.handoffs) ? data.handoffs : [];
       state.join = data.join || state.join;
       state.unknownPhones = Array.isArray(data.unknownPhones) ? data.unknownPhones : [];
