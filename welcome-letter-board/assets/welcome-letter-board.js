@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.13';
+  const UI_VERSION = 'v2.14';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -622,8 +622,23 @@
     try {
       if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
       const fetchFn = window.dumpBinAuthFetch || fetch;
-      const res = await fetchFn('/api/me', { noBounceOn401: true, credentials: 'include' });
-      if (!res.ok) return false;
+      let res = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          res = await fetchFn('/api/me', { noBounceOn401: true, credentials: 'include' });
+        } catch (_err) {
+          res = null;
+        }
+        if (res && (res.ok || res.status === 401 || res.status === 403)) break;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 700));
+      }
+      if (res && res.status === 401) {
+        if (window.dumpBinAuth && window.dumpBinAuth.bounceToSignIn) {
+          window.dumpBinAuth.bounceToSignIn('employee board');
+        }
+        return 'session';
+      }
+      if (!res || !res.ok) return 'unreachable';
       const me = await res.json();
       state.signedInEmail = me?.email || null;
       const signedEl = document.getElementById('signedInAs');
@@ -631,29 +646,34 @@
         signedEl.textContent = `Signed in as ${state.signedInEmail}`;
         signedEl.hidden = false;
       }
-      // Single source of truth: eod-api's WELCOME_LETTER_ALLOWED_EMAILS,
-      // via /api/me's hasWelcomeLetterAccess. Don't keep a separate copy of
-      // the allowlist here — that's exactly what caused it to drift before.
-      return !!(me && me.hasWelcomeLetterAccess);
+      return (me && me.hasWelcomeLetterAccess) ? 'ok' : 'denied';
     } catch (_err) {
-      return false;
+      return 'unreachable';
     }
   }
 
-  function showAccessDenied() {
+  function showAccessDenied(reason) {
     const denied = document.getElementById('wbAccessDenied');
     const app = document.getElementById('wbApp');
     if (app) app.hidden = true;
-    if (denied) denied.classList.remove('wb-hidden');
+    if (!denied) return;
+    const note = denied.querySelector('p');
+    if (note) {
+      note.textContent = reason === 'unreachable'
+        ? 'The board could not check access. Refresh the page.'
+        : 'The Employee Board is limited to authorized supervisors. If you need access, contact Tyson Gauthier.';
+    }
+    denied.classList.remove('wb-hidden');
   }
 
   async function boot() {
     if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
     setVersionBadge(null);
 
-    const allowed = await ensureWelcomeAccess();
-    if (!allowed) {
-      showAccessDenied();
+    const access = await ensureWelcomeAccess();
+    if (access === 'session') return;
+    if (access !== 'ok') {
+      showAccessDenied(access);
       return;
     }
     const denied = document.getElementById('wbAccessDenied');

@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter v2.5 -->
+  <!-- welcome-letter v2.6 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.5">
+  <meta name="welcome-letter-version" content="v2.6">
   <title>Welcome Letter — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -518,11 +518,11 @@
     </div>
   </div>
 
-  <span class="wl-version" id="wlVersion" title="Welcome Letter app version">v2.5</span>
+  <span class="wl-version" id="wlVersion" title="Welcome Letter app version">v2.6</span>
 
   <script>
 (function () {
-  const UI_VERSION = 'v2.5';
+  const UI_VERSION = 'v2.6';
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const stepForm = document.getElementById('stepForm');
@@ -585,21 +585,47 @@
   }
 
   async function ensureWelcomeAccess() {
+    let reason = 'denied';
     try {
       if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
-      const res = await window.dumpBinAuthFetch('/api/me', { noBounceOn401: true });
-      if (!res.ok) throw new Error('auth failed');
-      const me = await res.json();
-      // Single source of truth: eod-api's WELCOME_LETTER_ALLOWED_EMAILS,
-      // via /api/me's hasWelcomeLetterAccess. Don't keep a separate copy of
-      // the allowlist here — that's exactly what caused it to drift before.
-      accessGranted = !!(me && me.hasWelcomeLetterAccess);
+      let res = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          res = await window.dumpBinAuthFetch('/api/me', { noBounceOn401: true });
+        } catch (_err) {
+          res = null;
+        }
+        if (res && (res.ok || res.status === 401 || res.status === 403)) break;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 700));
+      }
+      if (res && res.status === 401) {
+        if (window.dumpBinAuth && window.dumpBinAuth.bounceToSignIn) {
+          window.dumpBinAuth.bounceToSignIn('welcome letter');
+        }
+        return false;
+      }
+      if (!res || !res.ok) {
+        reason = 'unreachable';
+        accessGranted = false;
+      } else {
+        const me = await res.json();
+        accessGranted = !!(me && me.hasWelcomeLetterAccess);
+      }
     } catch (_) {
+      reason = 'unreachable';
       accessGranted = false;
     }
     if (!accessGranted) {
       if (wlApp) wlApp.hidden = true;
-      if (wlAccessDenied) wlAccessDenied.classList.remove('wl-hidden');
+      if (wlAccessDenied) {
+        const note = wlAccessDenied.querySelector('p');
+        if (note) {
+          note.textContent = reason === 'unreachable'
+            ? 'The page could not check access. Refresh the page.'
+            : 'The Welcome Letter tool is limited to authorized supervisors. If you need access, contact Tyson Gauthier.';
+        }
+        wlAccessDenied.classList.remove('wl-hidden');
+      }
       return false;
     }
     if (wlAccessDenied) wlAccessDenied.classList.add('wl-hidden');

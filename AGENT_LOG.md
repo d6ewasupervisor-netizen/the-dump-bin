@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-19 — Employee Board false access card
+
+`tyson.gauthier@retailodyssey.com` is admin and office. A fresh sign-in opens the Employee Board. A failed `/api/me` (dead session or the API restarting) used to show the supervisor card. v2.14 retries, sends a 401 to sign-in, and only shows that card when the account is actually outside office. Welcome Letter v2.6 does the same.
+
 ## 2026-10-16 — FM135 on the InstaWork id list
 
 `EOD/Timesheets/instawork_ids.csv` includes FM135, FredMeyer135, with FM136–FM140.

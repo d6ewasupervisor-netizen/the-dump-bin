@@ -4,6 +4,6 @@
 
 `meat-pusher-survey/` is the packaged-meat shelf report. Card id `meat-pusher-survey`. The page posts to eod-api `/api/meat-pusher-survey`.
 
-`welcome-letter-board/` is the Employee Board. The card id stays `welcome-letter-board`. Version on the page is v2.12. Work history is loaded from eod-api when a name is clicked.
+`welcome-letter-board/` is the Employee Board. The card id stays `welcome-letter-board`. Version on the page is v2.14. Access is `/api/me` `hasWelcomeLetterAccess` (office group). A 401 goes to sign-in. A failed check asks for a refresh. The supervisor card is only for a 200 that is not office. Work history is loaded from eod-api when a name is clicked. Welcome Letter is v2.6 with the same check.
 
 Pilot source in this repo is `eod-field-app/`. Signature scope is `eod-field-app/js/lib/signoff-department.js`. The hub home no longer shows the EOD Cover Sheet card. `/EOD/` redirects to `/eod-field-app/`. Live `/EOD/` Instawork filing (2.17.8) is behind that redirect.
