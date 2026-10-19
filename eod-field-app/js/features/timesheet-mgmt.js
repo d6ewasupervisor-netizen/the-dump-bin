@@ -847,8 +847,14 @@
       meta.textContent = row.realName ? `Real: ${row.realName}` : '';
     }
     if (typeof showAlert === 'function') {
-      showAlert('Saved', `${displayName(row) || row.name} times updated.${instaworkSaveNote(data.row?.instaworkSync)}`);
+      showAlert('Saved', `${displayName(row) || row.name} times updated.${prodSaveNote(data.row?.prodSync)}${instaworkSaveNote(data.row?.instaworkSync)}`);
     }
+  }
+
+  function prodSaveNote(sync) {
+    if (!sync || sync.skipped || sync.ok !== false) return '';
+    const failed = (sync.shifts || []).filter((s) => !s.ok).map((s) => `${s.label}: ${s.error || 'not saved'}`);
+    return ` PROD not updated: ${sync.error || failed.join('; ') || 'unknown error'}.`;
   }
 
   function instaworkSaveNote(sync) {

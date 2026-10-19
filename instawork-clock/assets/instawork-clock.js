@@ -43,16 +43,27 @@
   function splitTime(raw) {
     const m = String(raw || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
     if (!m) return { h: '', min: '', ap: '' };
-    let minute = Math.round(Number(m[2]) / 5) * 5;
-    let hour = Number(m[1]);
-    let ap = m[3].toUpperCase();
-    if (minute === 60) {
-      minute = 0;
-      hour += 1;
-      if (hour === 12) ap = ap === 'AM' ? 'PM' : 'AM';
-      if (hour === 13) hour = 1;
-    }
-    return { h: String(hour), min: String(minute).padStart(2, '0'), ap };
+    return { h: String(Number(m[1])), min: m[2], ap: m[3].toUpperCase() };
+  }
+
+  function vsSchedule(minutes) {
+    if (minutes == null || !Number.isFinite(minutes) || minutes === 0) return '';
+    const n = Math.abs(minutes);
+    const span = n >= 60 ? `${Math.floor(n / 60)}h ${String(n % 60).padStart(2, '0')}m` : `${n}m`;
+    return ` (${span} ${minutes < 0 ? 'early' : 'late'})`;
+  }
+
+  function instaworkClock(iw, side) {
+    const time = iw && (side === 'in' ? iw.clockIn : iw.clockOut);
+    if (!time) return '';
+    const delta = side === 'in' ? iw.inVsScheduled : iw.outVsScheduled;
+    return `<div class="muted iw-clock">Instawork ${esc(time)}${esc(vsSchedule(delta))}</div>`;
+  }
+
+  function instaworkLine(sync) {
+    if (!sync || sync.skipped || sync.unchanged) return '';
+    if (sync.ok === false) return `Instawork not updated: ${sync.error || 'unknown error'}`;
+    return `Instawork ${sync.clockIn}–${sync.clockOut}`;
   }
 
   function timeSelects(field, label, value) {
@@ -62,7 +73,7 @@
       hours.push(`<option value="${h}"${String(h) === parts.h ? ' selected' : ''}>${h}</option>`);
     }
     const mins = ['<option value=""></option>'];
-    for (let m = 0; m < 60; m += 5) {
+    for (let m = 0; m < 60; m += 1) {
       const mm = String(m).padStart(2, '0');
       mins.push(`<option value="${mm}"${mm === parts.min ? ' selected' : ''}>${mm}</option>`);
     }
@@ -143,9 +154,9 @@
             <td data-label="Phone" class="num"><a href="tel:${esc(w.phone)}">${esc(prettyPhone(w.phone))}</a></td>
             <td data-label="Slot">${esc(w.employeeName || '—')}</td>
             <td data-label="Verified" class="num">${esc(pacificTime(w.lastLoginAt || w.assignedAt))}${w.signinMethod ? `<br><span class="muted">${esc(w.signinMethod)}</span>` : ''}</td>
-            <td data-label="Clock in" class="num">${timeSelects('clockIn', 'Start', w.clockIn)}</td>
+            <td data-label="Clock in" class="num">${timeSelects('clockIn', 'Start', w.clockIn)}${instaworkClock(w.instaworkClock, 'in')}</td>
             <td data-label="Lunch" class="num">${timeSelects('lunchOut', 'Break start', w.lunchOut)}<span class="dash">–</span>${timeSelects('lunchIn', 'Break end', w.lunchIn)}</td>
-            <td data-label="Clock out" class="num">${timeSelects('clockOut', 'End', w.clockOut)}</td>
+            <td data-label="Clock out" class="num">${timeSelects('clockOut', 'End', w.clockOut)}${instaworkClock(w.instaworkClock, 'out')}</td>
             <td data-label="Status">${statusPill(w)}<button type="button" class="btn btn-small" data-save="${esc(w.id)}">Save</button><button type="button" class="btn btn-small btn-secondary" data-noshow="${esc(w.id)}">No show</button><div class="save-note" data-note="${esc(w.id)}" hidden></div></td>
           </tr>`).join('')}</tbody>
         </table>
@@ -189,8 +200,10 @@
           clockOut: readTime(tr, 'clockOut'),
         }),
       });
-      const text = prodLine(data.prodSync);
-      saveNotes[id] = { text, bad: Boolean(data.prodSync && data.prodSync.ok === false && !data.prodSync.skipped) };
+      const text = [prodLine(data.prodSync), instaworkLine(data.instaworkSync)].filter(Boolean).join(' · ');
+      const prodBad = Boolean(data.prodSync && data.prodSync.ok === false && !data.prodSync.skipped);
+      const iwBad = Boolean(data.instaworkSync && data.instaworkSync.ok === false);
+      saveNotes[id] = { text, bad: prodBad || iwBad };
       await load();
     } catch (err) {
       btn.disabled = false;
