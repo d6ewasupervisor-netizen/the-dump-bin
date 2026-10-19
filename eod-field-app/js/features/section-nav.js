@@ -11,6 +11,7 @@
     { id: 'dumpbin', label: 'Dump Bin' },
     { id: 'helpdesk', label: 'Helpdesk' },
     { id: 'scans', label: 'Scan results' },
+    { id: 'audit', label: 'Audit' },
     { id: 'storage', label: 'Clear storage' },
   ];
 

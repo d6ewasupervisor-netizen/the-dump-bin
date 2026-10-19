@@ -62,6 +62,9 @@
       'js/features/photos.js',
       'js/features/device-storage.js',
     ],
+    audit: [
+      'js/features/location-audit.js',
+    ],
     crew: [
       'js/features/clock-picker.js',
       'js/features/sms-optin-qr.js',
@@ -82,10 +85,12 @@
     storage: 'photos',
     crew: 'crew',
     scans: 'scans',
+    audit: 'audit',
   };
 
   const STYLES = {
     dumpbin: 'css/materials-browser.css',
+    audit: 'css/location-audit.css',
   };
 
   const ready = new Map();

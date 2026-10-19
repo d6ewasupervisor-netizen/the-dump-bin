@@ -317,6 +317,7 @@
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="scans">Scan results</button>
+      ${global.EodRoles?.canManageRoster?.() ? '<button type="button" class="btn btn-secondary btn-block" data-more="audit">Audit</button>' : ''}
       ${global.EodRoles?.canForceLive?.() ? '<button type="button" class="btn btn-secondary btn-block" data-more="sends">Sent EODs</button>' : ''}
       <button type="button" class="btn btn-primary btn-block" id="eodMoreClose">Close</button>
     </div>`;
