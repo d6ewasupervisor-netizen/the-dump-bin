@@ -24,11 +24,13 @@ Last updated 2026-10-19. One page covering how a booked Instawork pro or a crew 
 - **STOP** clears both the subscription and the window. A punch from a STOP'd number is saved, and no reply is sent.
 - Every body starts with `TACTAG:`. Replies are folded to GSM-7 (a blank time is `-`); a reply that still isn't GSM-7 drops the JOIN line so it stays one 160-character message.
 - **Owner, lead, supervisor and admin numbers** (the owner number plus `phone_logins` / `employees` roles) are never handled by the clock router: their IN/OUT/LUNCH/BACK/STATUS goes to the D8 agent inbox as before. Everyone else not on today's list gets "This number isn't on today's list."
+- Inbound texts carry the sender's identity (team / Instawork pro / crew / unknown). A pro's JOIN or START is logged without waking the agent.
+- Clock in is IN or CLOCK IN. START is never a clock keyword.
 - Sole-prop limits: one number, roughly 1,000 segments a day. Move to a standard brand with a Low-Volume Mixed campaign before the district-wide text clock-in plus login codes get near that.
 
 ## Where things live
 - Extension: `sas-retail-automator` / `sas-automator-portable` (v2.11.0). Modules `instawork-*.js` (invitation: `instawork-announce.js`); the courier runs in the service worker.
-- eod-api: roster sync, device sign-in, the clock keyword router (`cb2bc69` latest), migrations 157–160. Skills `eod-instawork-roster-sync`, `eod-timesheet-join-pin`, `eod-sms-clock-keywords`.
+- eod-api: roster sync, device sign-in, the clock keyword router (`165463b` latest), migrations 157–160 and 163. Skills `eod-instawork-roster-sync`, `eod-timesheet-join-pin`, `eod-sms-clock-keywords`.
 - sms-outbox: conversational consent plus `GET /consent/:phone`.
 - Field app: `the-dump-bin/eod-field-app` (v3.4.68+). The QR image is drawn by eod-api.
 

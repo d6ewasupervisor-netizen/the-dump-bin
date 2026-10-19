@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-19 — Instawork reference: sender identity and IN-only clock-in
+
+`eod-field-app/instawork-signin-and-sms-reference.md` texting rules gain two lines: inbound texts carry the sender's identity and a pro's JOIN or START is logged without waking the agent; clock in is IN or CLOCK IN and START is never a clock keyword. The router line points at eod-api `165463b` and migration 163. Doc only, no field-app version bump. The Instawork project copy `claude/instawork-signin-and-sms-reference.md` still needs the same lines.
+
 ## 2026-10-19 — Employee Board PTO tab
 
 v2.15 adds a PTO tab. It lists time-off requests and can approve, deny, or build and run the PROD shift. The employee log for that request sits under the row.
