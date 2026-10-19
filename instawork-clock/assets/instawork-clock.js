@@ -112,11 +112,48 @@
     return `PROD ${shifts.map((s) => s.label).join(', ')}`;
   }
 
+  /** A shift this long or shorter has no break. */
+  const NO_BREAK_MAX_MINUTES = 240;
+
+  function clockMinutes(raw) {
+    const m = String(raw || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    return (Number(m[1]) % 12 + (m[3].toUpperCase() === 'PM' ? 12 : 0)) * 60 + Number(m[2]);
+  }
+
+  function nowPacificMinutes() {
+    const parts = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(new Date()).forEach((p) => { parts[p.type] = p.value; });
+    return (Number(parts.hour) % 24) * 60 + Number(parts.minute);
+  }
+
+  /** In to out, or in to now while still on shift today. */
+  function workedMinutes(w) {
+    const start = clockMinutes(w.clockIn);
+    if (start == null) return null;
+    let end = clockMinutes(w.clockOut);
+    if (end == null) {
+      if (w.workDate !== todayPacific()) return null;
+      end = nowPacificMinutes();
+    }
+    return (end - start + 1440) % 1440;
+  }
+
+  function breakDue(w) {
+    if (w.lunchOut && w.lunchIn) return false;
+    const worked = workedMinutes(w);
+    return worked != null && worked > NO_BREAK_MAX_MINUTES;
+  }
+
   function statusPill(w) {
     if (w.noShow) return '<span class="pill pill-no">No show</span>';
-    if (!w.employeeKey) return '<span class="pill pill-off">Not in yet</span>';
-    if (!w.clockIn) return '<span class="pill pill-wait">Needs start</span>';
-    if (!w.lunchOut || !w.lunchIn) return '<span class="pill pill-wait">Needs break</span>';
+    if (!w.clockIn) {
+      return w.employeeKey
+        ? '<span class="pill pill-wait">Needs start</span>'
+        : '<span class="pill pill-off">Not in yet</span>';
+    }
+    if (breakDue(w)) return '<span class="pill pill-wait">Needs break</span>';
     if (!w.clockOut) return '<span class="pill pill-ok">On shift</span>';
     if (!w.signed) return '<span class="pill pill-wait">Needs signature</span>';
     return '<span class="pill pill-ok">Signed off</span>';
@@ -138,7 +175,7 @@
       const [date, store] = key.split('|');
       const inCount = list.filter((w) => w.clockIn).length;
       const signedCount = list.filter((w) => w.signed).length;
-      const verified = list.filter((w) => w.employeeKey).length;
+      const verified = list.filter((w) => w.lastLoginAt || w.assignedAt).length;
       html += `<section class="card">
         <div class="board-head">
           <h2>Store ${esc(store)} · ${esc(dayLabel(date))}</h2>
@@ -169,6 +206,12 @@
     $('boards').querySelectorAll('[data-noshow]').forEach((btn) => {
       btn.addEventListener('click', () => markNoShow(btn));
     });
+    $('boards').querySelectorAll('.time-edit select').forEach((sel) => {
+      sel.addEventListener('change', () => {
+        const tr = sel.closest('tr');
+        if (tr && tr.dataset.roster) dirty.add(tr.dataset.roster);
+      });
+    });
     for (const [id, note] of Object.entries(saveNotes)) {
       const el = $('boards').querySelector(`[data-note="${id}"]`);
       if (!el || !note) continue;
@@ -179,6 +222,8 @@
   }
 
   const saveNotes = {};
+  /** Rows with picker changes that are not saved yet. Auto refresh waits for them. */
+  const dirty = new Set();
 
   async function saveRow(btn) {
     const tr = btn.closest('tr');
@@ -204,6 +249,7 @@
       const prodBad = Boolean(data.prodSync && data.prodSync.ok === false && !data.prodSync.skipped);
       const iwBad = Boolean(data.instaworkSync && data.instaworkSync.ok === false);
       saveNotes[id] = { text, bad: prodBad || iwBad };
+      dirty.delete(id);
       await load();
     } catch (err) {
       btn.disabled = false;
@@ -228,6 +274,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rosterId: id }),
       });
+      dirty.delete(id);
       const cleared = data.prodSync && data.prodSync.ok ? 'No show. PROD cleared.' : 'No show saved.';
       saveNotes[id] = { text: data.prodSync && data.prodSync.error ? data.prodSync.error : cleared, bad: Boolean(data.prodSync && data.prodSync.ok === false && !data.prodSync.skipped) };
       await load();
@@ -261,6 +308,7 @@
     timer = setInterval(() => {
       const el = document.activeElement;
       if (el && el.closest && el.closest('#boards select')) return;
+      if (dirty.size) return;
       load();
     }, REFRESH_MS);
   }
@@ -304,13 +352,14 @@
     const u = new URL(window.location.href);
     $('date').value = u.searchParams.get('date') || todayPacific();
     $('store').value = u.searchParams.get('store') || '';
-    $('refreshBtn').addEventListener('click', load);
-    $('date').addEventListener('change', load);
-    $('store').addEventListener('change', load);
+    const reload = () => { dirty.clear(); load(); };
+    $('refreshBtn').addEventListener('click', reload);
+    $('date').addEventListener('change', reload);
+    $('store').addEventListener('change', reload);
     $('addBtn').addEventListener('click', addPerson);
     load();
     startTimer();
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !dirty.size) load(); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
