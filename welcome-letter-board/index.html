@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.14 -->
+  <!-- welcome-letter-board v2.15 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.14">
+  <meta name="welcome-letter-version" content="v2.15">
   <title>Employee Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -344,6 +344,7 @@
 
     <div class="wb-tabs" role="tablist" aria-label="Employee Board">
       <button type="button" class="wb-tab is-active" id="tabBoard" role="tab" aria-selected="true" aria-controls="panelBoard">Board</button>
+      <button type="button" class="wb-tab" id="tabPto" role="tab" aria-selected="false" aria-controls="panelPto">PTO</button>
       <button type="button" class="wb-tab" id="tabReferrals" role="tab" aria-selected="false" aria-controls="panelReferrals">Referrals</button>
     </div>
 
@@ -535,6 +536,48 @@
       </div>
     </div>
 
+    </div>
+
+    <div id="panelPto" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <div class="wb-head" style="margin-bottom:12px;">
+          <div>
+            <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">Time off</h2>
+          </div>
+          <button type="button" id="ptoRefresh" class="wb-btn wb-btn-ghost">Refresh</button>
+        </div>
+        <div id="ptoBanner" class="wb-banner wb-hidden"></div>
+        <div class="wb-table-wrap">
+          <table class="wb-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Type</th>
+                <th>Dates</th>
+                <th>Hours</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="ptoRows">
+              <tr><td colspan="5" class="wb-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="ptoDetail" class="wb-card" style="margin-top:16px;" hidden>
+          <h3 id="ptoDetailTitle" style="margin:0 0 8px;color:var(--wb-navy);font-size:1.05rem;"></h3>
+          <p id="ptoDetailMeta" class="wb-muted" style="margin:0 0 12px;"></p>
+          <label class="wb-muted" for="ptoNote" style="display:block;margin-bottom:6px;">Note</label>
+          <textarea id="ptoNote" style="width:100%;min-height:64px;margin-bottom:12px;"></textarea>
+          <div class="wb-actions">
+            <button type="button" id="ptoApprove" class="wb-btn wb-btn-primary">Approve</button>
+            <button type="button" id="ptoDeny" class="wb-btn wb-btn-ghost">Deny</button>
+            <button type="button" id="ptoBuild" class="wb-btn wb-btn-primary">Build and run</button>
+          </div>
+          <p id="ptoActionStatus" class="wb-muted" style="margin:12px 0 0;"></p>
+          <h3 style="margin:16px 0 8px;color:var(--wb-navy);font-size:1rem;">Employee log</h3>
+          <div id="ptoLog"></div>
+        </div>
+      </section>
     </div>
 
     <div id="panelReferrals" class="wb-hidden" hidden>
@@ -775,8 +818,8 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.14</span>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.15</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.14"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.15"></script>
 </body>
 </html>

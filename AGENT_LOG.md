@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-19 — Employee Board PTO tab
+
+v2.15 adds a PTO tab. It lists time-off requests and can approve, deny, or build and run the PROD shift. The employee log for that request sits under the row.
+
 ## 2026-10-19 — Employee Board false access card
 
 `tyson.gauthier@retailodyssey.com` is admin and office. A fresh sign-in opens the Employee Board. A failed `/api/me` (dead session or the API restarting) used to show the supervisor card. v2.14 retries, sends a 401 to sign-in, and only shows that card when the account is actually outside office. Welcome Letter v2.6 does the same.

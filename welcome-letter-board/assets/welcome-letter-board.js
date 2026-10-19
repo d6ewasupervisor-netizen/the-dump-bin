@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.14';
+  const UI_VERSION = 'v2.15';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -1518,41 +1518,156 @@
     }
   }
 
+  const ptoState = { items: [], selectedId: null };
+
+  function showPtoBanner(message, ok) {
+    const banner = document.getElementById('ptoBanner');
+    if (!banner) return;
+    banner.classList.remove('wb-hidden', 'ok', 'err');
+    if (!message) {
+      banner.classList.add('wb-hidden');
+      banner.textContent = '';
+      return;
+    }
+    banner.classList.add(ok === false ? 'err' : 'ok');
+    banner.textContent = message;
+  }
+
+  function ptoDates(item) {
+    if (!item) return '';
+    if (item.startDate === item.endDate) return item.startDate;
+    return `${item.startDate} – ${item.endDate}`;
+  }
+
+  function renderPtoRows() {
+    const body = document.getElementById('ptoRows');
+    if (!body) return;
+    if (!ptoState.items.length) {
+      body.innerHTML = '<tr><td colspan="5" class="wb-muted">No time off requests.</td></tr>';
+      return;
+    }
+    body.innerHTML = ptoState.items.map((item) => `
+      <tr data-pto-id="${escapeHtml(item.id)}" style="cursor:pointer;">
+        <td>${escapeHtml(item.employeeName)}</td>
+        <td>${escapeHtml(item.absenceType)}</td>
+        <td>${escapeHtml(ptoDates(item))}</td>
+        <td>${escapeHtml(String(item.hours))}</td>
+        <td>${escapeHtml(item.status)}</td>
+      </tr>
+    `).join('');
+    body.querySelectorAll('tr[data-pto-id]').forEach((row) => {
+      row.addEventListener('click', () => {
+        openPto(row.getAttribute('data-pto-id')).catch((err) => showPtoBanner(err.message, false));
+      });
+    });
+  }
+
+  async function openPto(id) {
+    ptoState.selectedId = id;
+    const item = ptoState.items.find((row) => row.id === id);
+    const detail = document.getElementById('ptoDetail');
+    if (!item || !detail) return;
+    detail.hidden = false;
+    document.getElementById('ptoDetailTitle').textContent = item.employeeName;
+    const clock = [item.startTime, item.endTime].filter(Boolean).join(' – ');
+    const prod = item.visitId ? ` PROD visit ${item.visitId}, shift ${item.shiftId}.` : '';
+    const err = item.buildError ? ` ${item.buildError}` : '';
+    document.getElementById('ptoDetailMeta').textContent =
+      `${item.absenceType} · ${ptoDates(item)}${clock ? ` · ${clock}` : ''} · ${item.hours} hours · ${item.status}.${prod}${err}`;
+    document.getElementById('ptoNote').value = item.decisionNote || '';
+    document.getElementById('ptoActionStatus').textContent = '';
+    const log = await api(`/api/pto/log?requestId=${encodeURIComponent(id)}`);
+    const host = document.getElementById('ptoLog');
+    const entries = log.items || [];
+    host.innerHTML = entries.length
+      ? entries.map((entry) => `<p style="margin:0 0 8px;">${escapeHtml(entry.summary)}</p>`).join('')
+      : '<p class="wb-muted" style="margin:0;">No log lines yet.</p>';
+  }
+
+  async function loadPto() {
+    const data = await api('/api/pto');
+    ptoState.items = data.items || [];
+    renderPtoRows();
+    if (ptoState.selectedId && ptoState.items.some((row) => row.id === ptoState.selectedId)) {
+      await openPto(ptoState.selectedId);
+    }
+  }
+
+  async function ptoAct(action) {
+    const id = ptoState.selectedId;
+    if (!id) return;
+    const status = document.getElementById('ptoActionStatus');
+    const note = document.getElementById('ptoNote').value;
+    status.textContent = 'Working…';
+    const path = action === 'build' ? 'build' : action;
+    try {
+      const item = await api(`/api/pto/${encodeURIComponent(id)}/${path}`, {
+        method: 'POST',
+        body: JSON.stringify({ note }),
+      });
+      status.textContent = item.item ? item.item.status : 'Done.';
+      showPtoBanner('', true);
+    } catch (err) {
+      status.textContent = err.message;
+      showPtoBanner(err.message, false);
+    }
+    await loadPto();
+  }
+
   function switchMainTab(name, { pushUrl = true } = {}) {
-    const referrals = name === 'referrals';
-    setPanel(document.getElementById('panelBoard'), !referrals);
-    setPanel(document.getElementById('panelReferrals'), referrals);
+    const tab = name === 'referrals' || name === 'pto' ? name : 'board';
+    setPanel(document.getElementById('panelBoard'), tab === 'board');
+    setPanel(document.getElementById('panelReferrals'), tab === 'referrals');
+    setPanel(document.getElementById('panelPto'), tab === 'pto');
     const boardActions = document.getElementById('boardActions');
-    if (boardActions) boardActions.classList.toggle('wb-hidden', referrals);
-    const boardTab = document.getElementById('tabBoard');
-    const referralTab = document.getElementById('tabReferrals');
-    if (boardTab) {
-      boardTab.classList.toggle('is-active', !referrals);
-      boardTab.setAttribute('aria-selected', String(!referrals));
-    }
-    if (referralTab) {
-      referralTab.classList.toggle('is-active', referrals);
-      referralTab.setAttribute('aria-selected', String(referrals));
-    }
+    if (boardActions) boardActions.classList.toggle('wb-hidden', tab !== 'board');
+    [
+      ['tabBoard', 'board'],
+      ['tabPto', 'pto'],
+      ['tabReferrals', 'referrals'],
+    ].forEach(([id, key]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const on = tab === key;
+      el.classList.toggle('is-active', on);
+      el.setAttribute('aria-selected', String(on));
+    });
     if (pushUrl) {
       const url = new URL(window.location.href);
-      if (referrals) url.searchParams.set('tab', 'referrals');
-      else {
+      if (tab === 'board') {
         url.searchParams.delete('tab');
         url.searchParams.delete('view');
+      } else {
+        url.searchParams.set('tab', tab);
+        if (tab !== 'referrals') url.searchParams.delete('view');
       }
       window.history.replaceState(null, '', url.toString());
     }
-    if (referrals) {
+    if (tab === 'referrals') {
       loadReferrals().catch((err) => showRefBanner({ ok: false, message: err.message }));
+    }
+    if (tab === 'pto') {
+      loadPto().catch((err) => showPtoBanner(err.message, false));
     }
   }
 
   function initReferrals() {
     const boardTab = document.getElementById('tabBoard');
+    const ptoTab = document.getElementById('tabPto');
     const referralTab = document.getElementById('tabReferrals');
     if (boardTab) boardTab.addEventListener('click', () => switchMainTab('board'));
+    if (ptoTab) ptoTab.addEventListener('click', () => switchMainTab('pto'));
     if (referralTab) referralTab.addEventListener('click', () => switchMainTab('referrals'));
+    const ptoRefresh = document.getElementById('ptoRefresh');
+    if (ptoRefresh) ptoRefresh.addEventListener('click', () => {
+      loadPto().catch((err) => showPtoBanner(err.message, false));
+    });
+    const ptoApprove = document.getElementById('ptoApprove');
+    const ptoDeny = document.getElementById('ptoDeny');
+    const ptoBuild = document.getElementById('ptoBuild');
+    if (ptoApprove) ptoApprove.addEventListener('click', () => { ptoAct('approve').catch((err) => showPtoBanner(err.message, false)); });
+    if (ptoDeny) ptoDeny.addEventListener('click', () => { ptoAct('deny').catch((err) => showPtoBanner(err.message, false)); });
+    if (ptoBuild) ptoBuild.addEventListener('click', () => { ptoAct('build').catch((err) => showPtoBanner(err.message, false)); });
     const listBtn = document.getElementById('refViewList');
     const dueBtn = document.getElementById('refViewDue');
     if (listBtn) listBtn.addEventListener('click', () => setReferralView('list'));
@@ -1586,9 +1701,12 @@
     if (csv) csv.addEventListener('click', () => { downloadTracker('csv').catch(() => {}); });
 
     const url = new URL(window.location.href);
-    if (url.searchParams.get('tab') === 'referrals') {
+    const tab = url.searchParams.get('tab');
+    if (tab === 'referrals') {
       switchMainTab('referrals', { pushUrl: false });
       if (url.searchParams.get('view') === 'due') setReferralView('due', { pushUrl: false });
+    } else if (tab === 'pto') {
+      switchMainTab('pto', { pushUrl: false });
     }
   }
 
