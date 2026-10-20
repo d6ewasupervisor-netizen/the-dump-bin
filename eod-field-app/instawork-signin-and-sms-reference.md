@@ -11,8 +11,8 @@ Last updated 2026-10-19. One page covering how a booked Instawork pro or a crew 
 3. **Sign in**: the lead shows **one Sign-in QR** per store-day (sheetKey `any`) → `/share/clock/?j=` → the worker types their own phone → text code → greeting → time page. The phone is matched in this order: Instawork roster row → Kompass member by PROD phone → a phone the lead entered on a sheet row → *Not on today's list* (the lead taps **Assign to** on the card at the top of the sheet and the worker's phone continues on its own). PIN is only a fallback link (`&pin=1`).
 4. **Next time**: a remembered device shows **Yes, continue** with no code. A new code is required when the last one is over 30 days old, when the phone resolves to a different person, or when the device was used at several stores in the same hour. **Not me** revokes the device.
 5. **No signal**: text **IN / LUNCH / BACK / OUT / STATUS** to (509) 572-9212. The text writes the same timesheet row as the time page. A row the lead already confirmed is never overwritten.
-6. **Pre-shift link**: 15 minutes before a District 8 shift, a pro who has texted JOIN from the phone on their Instawork account gets one single-use link. That JOIN covers later District 8 shifts until they text STOP. A different phone gets no text. The link is `/share/clock/?l=` plus a token, with no name and no phone in it.
-7. **Lead view**: a method badge on each row: code / device / pin / tablet / sms / link.
+6. **Pre-shift link**: 15 minutes before a District 8 shift, at any hour, a pro who has texted JOIN from the phone on their Instawork account gets one single-use link. That JOIN covers later District 8 shifts until they text STOP. A different phone gets no text. The link is `/share/clock/?l=` plus a token, with no name and no phone in it. The text is `TACTAG: Fred Meyer #<store>: your sign-in link <url> Reply STOP to opt out.` and stays in one 160-character message.
+7. **Lead view**: a method badge on each row: code / device / pin / tablet / sms / link. A link or code clock-in more than a mile from the store shows **Far from store**.
 
 ## Texting rules (Twilio 10DLC, Sole Proprietor campaign, unchanged)
 - **JOIN** (also START, YES, UNSTOP) is the only way onto the subscription.
@@ -32,14 +32,14 @@ Last updated 2026-10-19. One page covering how a booked Instawork pro or a crew 
 
 ## Where things live
 - Extension: `sas-retail-automator` / `sas-automator-portable` (v2.11.1). Modules `instawork-*.js` (invitation: `instawork-announce.js`); the courier runs in the service worker.
-- eod-api: roster sync, device sign-in, the clock keyword router, and the pre-shift link (`cda462d`), migrations 157–160 and 163–166. Skills `eod-instawork-roster-sync`, `eod-timesheet-join-pin`, `eod-sms-clock-keywords`.
+- eod-api: roster sync, device sign-in, the clock keyword router, and the pre-shift link (`bac7618`), migrations 157–160 and 163–167. Skills `eod-instawork-roster-sync`, `eod-timesheet-join-pin`, `eod-sms-clock-keywords`. Dry run, supervisor only: `GET /api/instawork-clock/preshift/preview?date=YYYY-MM-DD` (counts only). Test send: **Send test link** on the InstaWork clock board for today's District 8 row, or `POST /api/instawork-clock/preshift/test` with `{ "rosterId": <id> }`.
 - sms-outbox: conversational consent plus `GET /consent/:phone`.
 - Field app: `the-dump-bin/eod-field-app` (v3.4.71+). The QR image is drawn by eod-api.
 
 ## Open items (2026-10-19)
 - Shipped: clock router owner/lead fall-through and GSM-7 replies (eod-api `cb2bc69`); Instawork shift-line invitation, District 8 only (extension v2.11.0).
-- In progress: location flag on the lead board, JOIN-line wording "shift reminders".
-- Not yet verified live: the 5:25 AM sweep, a crew sign-in with a real PROD phone, the assign-phone card after a real miss, a text-miss card from a real text, and an SMS IN/OUT with the JOIN line from a phone that hasn't joined.
+- In progress: JOIN-line wording "shift reminders".
+- Not yet verified live: the 5:25 AM sweep, a crew sign-in with a real PROD phone, the assign-phone card after a real miss, a text-miss card from a real text, an SMS IN/OUT with the JOIN line from a phone that hasn't joined, and the first live pre-shift link.
 
 ## Monday checklist
 1. Before 5:30 AM: Instawork tab status line shows `Server poll … ok`; if the session is stale, press **Push session**, then **Sync to EOD clock**.

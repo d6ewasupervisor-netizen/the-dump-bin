@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-20 — Clock board: test link and far flag
+
+The InstaWork clock board shows the sign-in method, **Far from store** when a link or code clock-in is more than a mile out, and **Send test link** for a supervisor on today's District 8 row. `instawork-clock.js?v=3`. The reference lists the dry run, the test send, the STOP line, and the first live pre-shift link as not yet verified.
+
 ## 2026-10-20 — Instawork reference: JOIN once, extension v2.11.1
 
 `eod-field-app/instawork-signin-and-sms-reference.md`: step 0 says a pro who already joined from the phone on their Instawork account does not join again. The extension line is v2.11.1. Step 6 now describes the shipped pre-shift link (`cda462d`, migration 166). The project copy needs the same lines.
