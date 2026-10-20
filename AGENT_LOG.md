@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-20 — Instawork reference: JOIN once, extension v2.11.1
+
+`eod-field-app/instawork-signin-and-sms-reference.md`: step 0 says a pro who already joined from the phone on their Instawork account does not join again. The extension line is v2.11.1. Step 6 now describes the shipped pre-shift link (`cda462d`, migration 166). The project copy needs the same lines.
+
 ## 2026-10-20 — EOD board columns
 
 Categories on the summary board split the width: name 30%, DBKey 10%, Status 14%, Exception 20%, PROD comment 16%, Edit 10%. Edit and Remove stack. `eod-board.css` and `eod-board.js` at `?v=6`.

@@ -5,13 +5,13 @@ Last updated 2026-10-19. One page covering how a booked Instawork pro or a crew 
 > **Two copies, kept identical:** `the-dump-bin/eod-field-app/instawork-signin-and-sms-reference.md` (repo; published on the-dump-bin.com) and the Instawork project doc `claude/instawork-signin-and-sms-reference.md`. Edit one, update the other in the same change. This copy is public, so no personal phone numbers, keys, or tokens go in it.
 
 ## Flow
-0. **Invite (District 8 only)**: the extension's *Shift-line invitation* posts an Instawork announcement to each upcoming District 8 group, once per group, asking pros to text JOIN to (509) 572-9212 for a one-tap sign-in link before each shift. Stores 19, 215, 53, 682, 31, 459, 28, 658, 391, 23 only, enforced in the extension and again right before the post. Optional auto-send after a booking and after Sync to EOD clock (off by default). v2.11.0+.
+0. **Invite (District 8 only)**: the extension's *Shift-line invitation* posts an Instawork announcement to each upcoming District 8 group, once per group, asking pros to text JOIN to (509) 572-9212 for a one-tap sign-in link before each shift. A pro who already joined from the phone number on their Instawork account does not join again. Stores 19, 215, 53, 682, 31, 459, 28, 658, 391, 23 only, enforced in the extension and again right before the post. Optional auto-send after a booking and after Sync to EOD clock (off by default). v2.11.0+.
 1. **Book**: SAS Retail Automator → Instawork tab books Merchandiser shifts by lead or store (v2.9.0+). Skill: `sas-instawork-booking`.
 2. **Roster**: the extension's *EOD clock roster sync* reads each scoped store's Instawork groups (`timesheet-v2/shift-group/{id}`) and pushes them to eod-api `POST /api/instawork-clock/roster-sync`. Scope is My districts (default 8), a Store list, or All, applied before the pull. The service-worker courier mirrors the Instawork session to eod-api, so the server also polls hourly at :07 and 35 minutes before each group. Status: Instawork tab status line, or `GET /api/instawork-clock/sync-status`.
 3. **Sign in**: the lead shows **one Sign-in QR** per store-day (sheetKey `any`) → `/share/clock/?j=` → the worker types their own phone → text code → greeting → time page. The phone is matched in this order: Instawork roster row → Kompass member by PROD phone → a phone the lead entered on a sheet row → *Not on today's list* (the lead taps **Assign to** on the card at the top of the sheet and the worker's phone continues on its own). PIN is only a fallback link (`&pin=1`).
 4. **Next time**: a remembered device shows **Yes, continue** with no code. A new code is required when the last one is over 30 days old, when the phone resolves to a different person, or when the device was used at several stores in the same hour. **Not me** revokes the device.
 5. **No signal**: text **IN / LUNCH / BACK / OUT / STATUS** to (509) 572-9212. The text writes the same timesheet row as the time page. A row the lead already confirmed is never overwritten.
-6. **Pre-shift link (in progress, eod-api)**: 15 minutes before a District 8 shift, people who have texted JOIN get a single-use link that signs them in with no QR and no code. The lead board flags a clock-in made far from the store.
+6. **Pre-shift link**: 15 minutes before a District 8 shift, a pro who has texted JOIN from the phone on their Instawork account gets one single-use link. That JOIN covers later District 8 shifts until they text STOP. A different phone gets no text. The link is `/share/clock/?l=` plus a token, with no name and no phone in it.
 7. **Lead view**: a method badge on each row: code / device / pin / tablet / sms / link.
 
 ## Texting rules (Twilio 10DLC, Sole Proprietor campaign, unchanged)
@@ -31,14 +31,14 @@ Last updated 2026-10-19. One page covering how a booked Instawork pro or a crew 
 - Sole-prop limits: one number, roughly 1,000 segments a day. Move to a standard brand with a Low-Volume Mixed campaign before the district-wide text clock-in plus login codes get near that.
 
 ## Where things live
-- Extension: `sas-retail-automator` / `sas-automator-portable` (v2.11.0). Modules `instawork-*.js` (invitation: `instawork-announce.js`); the courier runs in the service worker.
-- eod-api: roster sync, device sign-in, the clock keyword router (`7fad2ab` latest), migrations 157–160, 163, and 164. Skills `eod-instawork-roster-sync`, `eod-timesheet-join-pin`, `eod-sms-clock-keywords`.
+- Extension: `sas-retail-automator` / `sas-automator-portable` (v2.11.1). Modules `instawork-*.js` (invitation: `instawork-announce.js`); the courier runs in the service worker.
+- eod-api: roster sync, device sign-in, the clock keyword router, and the pre-shift link (`cda462d`), migrations 157–160 and 163–166. Skills `eod-instawork-roster-sync`, `eod-timesheet-join-pin`, `eod-sms-clock-keywords`.
 - sms-outbox: conversational consent plus `GET /consent/:phone`.
 - Field app: `the-dump-bin/eod-field-app` (v3.4.71+). The QR image is drawn by eod-api.
 
 ## Open items (2026-10-19)
 - Shipped: clock router owner/lead fall-through and GSM-7 replies (eod-api `cb2bc69`); Instawork shift-line invitation, District 8 only (extension v2.11.0).
-- In progress: pre-shift single-use link by text for opted-in District 8 numbers, location flag on the lead board, JOIN-line wording "shift reminders" (eod-api Cursor task 2026-10-19).
+- In progress: location flag on the lead board, JOIN-line wording "shift reminders".
 - Not yet verified live: the 5:25 AM sweep, a crew sign-in with a real PROD phone, the assign-phone card after a real miss, a text-miss card from a real text, and an SMS IN/OUT with the JOIN line from a phone that hasn't joined.
 
 ## Monday checklist
