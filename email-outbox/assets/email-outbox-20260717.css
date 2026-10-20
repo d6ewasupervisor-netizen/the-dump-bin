@@ -85,6 +85,7 @@ tbody tr:hover, tbody tr.is-selected { background: #172554; }
 .badge-pending { background: #78350f; color: #fde68a; }
 .badge-delivered { background: #14532d; color: #bbf7d0; }
 .badge-complained { background: #581c87; color: #e9d5ff; }
+.badge-relayed { background: #1e3a8a; color: #dbeafe; }
 .detail-grid {
   display: grid;
   grid-template-columns: 120px 1fr;

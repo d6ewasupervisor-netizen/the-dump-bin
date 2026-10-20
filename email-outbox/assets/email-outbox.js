@@ -145,6 +145,12 @@
     return `<span class="badge badge-${kind}">${label}</span>`;
   }
 
+  function relayBadge(item) {
+    const relay = item && item.metadata && item.metadata.relay;
+    if (!relay || !relay.relayed) return '';
+    return ' ' + badge('relayed', 'relayed');
+  }
+
   function statusBadge(status) {
     const s = String(status || 'unknown').toLowerCase();
     if (s === 'sent') return badge('Sent', 'sent');
@@ -198,7 +204,7 @@
         <td>${openedBadge(item)}</td>
         <td><div>${item.sourceSystem}</div><div class="muted">${item.sourceType}</div></td>
         <td class="from-cell">${escapeHtml(item.from || '—')}</td>
-        <td class="subject-cell">${escapeHtml(item.subject || '—')}</td>
+        <td class="subject-cell">${escapeHtml(item.subject || '—')}${relayBadge(item)}</td>
         <td class="to-cell">${escapeHtml(to || '—')}</td>
       </tr>`;
     }).join('');
