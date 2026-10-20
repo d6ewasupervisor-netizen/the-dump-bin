@@ -110,9 +110,10 @@
     }
   }
 
-  function categoryCell(name, catId) {
+  function categoryCell(name, catId, spec) {
     const num = String(catId || '').trim();
-    return `<td><div class="cat-cell"><span>${esc(name)}</span>${num ? `<span class="catnum" title="Category">${esc(num)}</span>` : ''}</div></td>`;
+    const line = String(spec || '').trim();
+    return `<td><div class="cat-cell"><span><span class="cat-name">${esc(name)}</span>${line ? `<span class="cat-spec">${esc(line)}</span>` : ''}</span>${num ? `<span class="catnum" title="Category">${esc(num)}</span>` : ''}</div></td>`;
   }
 
   function statusCell(status) {
@@ -125,6 +126,12 @@
     const key = String(dbkey || '').replace(/^0+/, '');
     const c = (state.detail?.categories || []).find((x) => String(x.dbkey || '').replace(/^0+/, '') === key);
     return c?.catId || '';
+  }
+
+  function specForDbkey(dbkey) {
+    const key = String(dbkey || '').replace(/^0+/, '');
+    const c = (state.detail?.categories || []).find((x) => String(x.dbkey || '').replace(/^0+/, '') === key);
+    return [c?.version, c?.sizeLabel].filter(Boolean).join(' · ');
   }
 
   function commentRow(c) {
@@ -150,7 +157,7 @@
          <td class="actions shrink">${actions}</td>`;
     const flash = state.focusDbkey && state.focusDbkey === String(c.dbkey || '').replace(/^0+/, '') ? ' class="flash"' : '';
     return `<tr id="row-${esc(c.dbkey)}"${flash}>
-      ${categoryCell(c.name, c.catId)}
+      ${categoryCell(c.name, c.catId, [c.version, c.sizeLabel].filter(Boolean).join(' · '))}
       <td class="shrink">${esc(c.dbkey || '')}</td>
       ${statusCell(c.status)}
       <td class="shrink">${c.exception ? esc(c.exception) : '<span class="muted">—</span>'}</td>
@@ -179,7 +186,7 @@
         <div class="table-wrap"><table class="fit">
           <thead><tr><th>Category</th><th class="shrink">DBKey</th><th class="share">Exception</th></tr></thead>
           <tbody>${exceptions.map((x) => `<tr>
-            ${categoryCell(x.categoryName || '', catIdForDbkey(x.dbkey))}<td class="shrink">${esc(x.dbkey || '')}</td><td class="share">${esc(x.exceptionText || '')}</td>
+            ${categoryCell(x.categoryName || '', catIdForDbkey(x.dbkey), specForDbkey(x.dbkey))}<td class="shrink">${esc(x.dbkey || '')}</td><td class="share">${esc(x.exceptionText || '')}</td>
           </tr>`).join('')}</tbody>
         </table></div>` : ''}
       <div class="section-title">Categories (${(d.categories || []).length})</div>

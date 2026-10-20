@@ -149,7 +149,8 @@ td.status { white-space: nowrap; }
 td.status.complete { color: var(--success); font-weight: 700; }
 td.status.incomplete { color: var(--danger); font-weight: 700; }
 .cat-cell { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; min-width: 12rem; }
-.cat-cell > span:first-child { min-width: 0; flex: 1 1 auto; }
+.cat-cell > span:first-child { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+.cat-spec { color: var(--muted); font-size: 12px; font-weight: 700; }
 .catnum {
   flex: 0 0 auto;
   min-width: 2.75em;

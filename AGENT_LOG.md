@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-20 — EOD board version and size
+
+Each category on the summary board shows the planogram version and the size under the name (`VN18 · 4 doors`). `eod-board.css` and `eod-board.js` at `?v=7`.
+
 ## 2026-10-20 — Clock board: test link and far flag
 
 The InstaWork clock board shows the sign-in method, **Far from store** when a link or code clock-in is more than a mile out, and **Send test link** for a supervisor on today's District 8 row. `instawork-clock.js?v=3`. The reference lists the dry run, the test send, the STOP line, and the first live pre-shift link as not yet verified.
