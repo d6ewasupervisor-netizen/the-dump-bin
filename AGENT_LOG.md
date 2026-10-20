@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-20 — EOD board columns
+
+Categories on the summary board split the width: name 30%, DBKey 10%, Status 14%, Exception 20%, PROD comment 16%, Edit 10%. Edit and Remove stack. `eod-board.css` and `eod-board.js` at `?v=6`.
+
 ## 2026-10-20 — Field app 3.4.74: EOD Board in More
 
 More and the desktop side nav open the EOD summary board in a new tab. Past summaries and signoff boards stay on that page.

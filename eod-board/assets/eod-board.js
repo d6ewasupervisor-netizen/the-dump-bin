@@ -116,9 +116,9 @@
   }
 
   function statusCell(status) {
-    if (!status) return '<td class="status"><span class="muted">—</span></td>';
+    if (!status) return '<td class="status shrink"><span class="muted">—</span></td>';
     const tone = status === 'Complete' ? ' complete' : status === 'Incomplete' ? ' incomplete' : '';
-    return `<td class="status${tone}">${esc(status)}</td>`;
+    return `<td class="status shrink${tone}">${esc(status)}</td>`;
   }
 
   function catIdForDbkey(dbkey) {
@@ -146,14 +146,14 @@
           </div>
           <div class="error" id="editErr" hidden></div>
         </td>`
-      : `<td class="comment">${c.comment ? esc(c.comment) : '<span class="muted">—</span>'}</td>
-         <td class="actions">${actions}</td>`;
+      : `<td class="comment share">${c.comment ? esc(c.comment) : '<span class="muted">—</span>'}</td>
+         <td class="actions shrink">${actions}</td>`;
     const flash = state.focusDbkey && state.focusDbkey === String(c.dbkey || '').replace(/^0+/, '') ? ' class="flash"' : '';
     return `<tr id="row-${esc(c.dbkey)}"${flash}>
       ${categoryCell(c.name, c.catId)}
-      <td>${esc(c.dbkey || '')}</td>
+      <td class="shrink">${esc(c.dbkey || '')}</td>
       ${statusCell(c.status)}
-      <td>${c.exception ? esc(c.exception) : '<span class="muted">—</span>'}</td>
+      <td class="shrink">${c.exception ? esc(c.exception) : '<span class="muted">—</span>'}</td>
       ${commentCell}
     </tr>`;
   }
@@ -176,28 +176,36 @@
       ${d.prodLive ? '' : '<p class="error">PROD is not reachable right now — comments shown are from the last sync and cannot be edited.</p>'}
       ${exceptions.length ? `
         <div class="section-title alert">Exceptions found and cleared</div>
-        <table>
-          <thead><tr><th>Category</th><th>DBKey</th><th>Exception</th></tr></thead>
+        <div class="table-wrap"><table class="fit">
+          <thead><tr><th>Category</th><th class="shrink">DBKey</th><th class="share">Exception</th></tr></thead>
           <tbody>${exceptions.map((x) => `<tr>
-            ${categoryCell(x.categoryName || '', catIdForDbkey(x.dbkey))}<td>${esc(x.dbkey || '')}</td><td>${esc(x.exceptionText || '')}</td>
+            ${categoryCell(x.categoryName || '', catIdForDbkey(x.dbkey))}<td class="shrink">${esc(x.dbkey || '')}</td><td class="share">${esc(x.exceptionText || '')}</td>
           </tr>`).join('')}</tbody>
-        </table>` : ''}
+        </table></div>` : ''}
       <div class="section-title">Categories (${(d.categories || []).length})</div>
-      <table>
-        <thead><tr><th>Category</th><th>DBKey</th><th>Status</th><th>Exception</th><th>PROD comment</th><th></th></tr></thead>
+      <div class="table-wrap"><table class="fit cats">
+        <colgroup>
+          <col class="c-name">
+          <col class="c-key">
+          <col class="c-status">
+          <col class="c-exc">
+          <col class="c-comment">
+          <col class="c-edit">
+        </colgroup>
+        <thead><tr><th>Category</th><th class="shrink">DBKey</th><th class="shrink">Status</th><th class="shrink">Exception</th><th class="share">PROD comment</th><th class="shrink"></th></tr></thead>
         <tbody>${(d.categories || []).map(commentRow).join('') || '<tr><td colspan="6" class="muted">No categories.</td></tr>'}</tbody>
-      </table>
+      </table></div>
       ${edits.length ? `
         <div class="section-title">Comment changes</div>
-        <table>
-          <thead><tr><th>When</th><th>Who</th><th>Category</th><th>Was</th><th>Now</th></tr></thead>
+        <div class="table-wrap"><table class="fit">
+          <thead><tr><th class="shrink">When</th><th class="shrink">Who</th><th>Category</th><th class="share">Was</th><th class="share">Now</th></tr></thead>
           <tbody>${edits.map((e) => `<tr>
-            <td>${esc(pacificTime(e.editedAt))}</td><td>${esc(e.editedBy)}</td>
+            <td class="shrink">${esc(pacificTime(e.editedAt))}</td><td class="shrink">${esc(e.editedBy)}</td>
             <td>${esc(e.categoryName || e.dbkey)}</td>
-            <td class="comment">${esc(e.previousComment) || '<span class="muted">—</span>'}</td>
-            <td class="comment">${esc(e.newComment) || '<span class="muted">removed</span>'}</td>
+            <td class="comment share">${esc(e.previousComment) || '<span class="muted">—</span>'}</td>
+            <td class="comment share">${esc(e.newComment) || '<span class="muted">removed</span>'}</td>
           </tr>`).join('')}</tbody>
-        </table>` : ''}
+        </table></div>` : ''}
       ${d.pdfUrl ? `<div class="section-title">EOD</div><iframe class="pdf-frame" src="${esc(d.pdfUrl)}" title="EOD PDF"></iframe>` : ''}
     `;
     bindDetail();
