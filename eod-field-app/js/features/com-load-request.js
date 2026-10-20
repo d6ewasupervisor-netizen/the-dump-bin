@@ -164,7 +164,7 @@
         <label>POGID / DBKEY (optional)<input id="comPog" value="${esc(p.pogId || p.dbkey || '')}"></label>
         <div class="com-load-actions">
           <button type="button" class="btn btn-secondary" id="comCancel">Cancel</button>
-          <button type="button" class="btn" id="comSubmit">Queue</button>
+          <button type="button" class="btn" id="comSubmit">Send</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -175,6 +175,8 @@
     modal.querySelector('#comCancel').onclick = closeModal;
     modal.addEventListener('click', (ev) => { if (ev.target === modal) closeModal(); });
     modal.querySelector('#comSubmit').onclick = async () => {
+      const ok = confirm('Send in COM Load Request');
+      if (!ok) return;
       const btn = modal.querySelector('#comSubmit');
       btn.disabled = true;
       try {
@@ -190,7 +192,7 @@
           pogId: modal.querySelector('#comPog').value,
         });
         closeModal();
-        showToast(data.queueLabel || 'Queued');
+        showToast(data.queueLabel || 'Sent');
       } catch (err) {
         showToast(err.message || String(err));
         btn.disabled = false;
@@ -202,11 +204,11 @@
 
   async function requestSelected(rows) {
     if (!rows.length) return;
-    const ok = confirm(`Queue ${rows.length} set(s) for COM load?`);
+    const ok = confirm('Send in COM Load Request');
     if (!ok) return;
     try {
       const data = await submitRows(rows, 'sheet');
-      showToast(data.queueLabel || 'Queued');
+      showToast(data.queueLabel || 'Sent');
     } catch (err) {
       showToast(err.message || String(err));
     }

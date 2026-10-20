@@ -1013,6 +1013,7 @@ test('Not in store prompt uses Don\'t Report / Please Report / Cancel before mar
 test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and print are gone', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const signoff = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  const comLoad = fs.readFileSync(path.join(__dirname, '../js/features/com-load-request.js'), 'utf8');
   const send = fs.readFileSync(path.join(__dirname, '../js/features/send.js'), 'utf8');
   const session = fs.readFileSync(path.join(__dirname, '../js/session.js'), 'utf8');
   assert.match(signoff, /id="sheetFilters"/);
@@ -1022,7 +1023,10 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /ds-filter-label">Filters/);
   assert.match(signoff, /data-value="done">Complete/);
   assert.match(signoff, /data-value="not_executable">Not Executable/);
-  assert.match(signoff, /data-value="out_of_scope">Out of Scope/);
+  assert.match(signoff, /data-value="out_of_scope">Not In Scope/);
+  assert.match(signoff, /Request COM\(s\)\?/);
+  assert.match(comLoad, /confirm\('Send in COM Load Request'\)/);
+  assert.doesNotMatch(comLoad, /Queue/);
   assert.match(signoff, /data-value="not_in_prod">Not in Prod/);
   assert.doesNotMatch(signoff, /data-value="done">Done/);
   assert.match(signoff, /data-value="not_done">Not Started/);

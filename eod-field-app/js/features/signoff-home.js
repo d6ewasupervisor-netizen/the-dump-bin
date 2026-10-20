@@ -984,7 +984,7 @@
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="backlog">Backlog</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Complete</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_executable">Not Executable</button>
-            <button type="button" class="btn btn-secondary" data-filter="status" data-value="out_of_scope">Out of Scope</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="out_of_scope">Not In Scope</button>
             <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_in_prod">Not in Prod</button>
           </div>
         </div>
@@ -1067,7 +1067,7 @@
       bulk.innerHTML = `
         <div class="ds-bulk-count">${n} selected</div>
         <div class="ds-actions">
-          <button type="button" class="btn" data-bulk-com="1">Request COM</button>
+          <button type="button" class="btn" data-bulk-com="1">Request COM(s)?</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">Not in Store</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">Not in SI</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="backlog">Backlog</button>
