@@ -110,6 +110,23 @@
     }
   }
 
+  function categoryCell(name, catId) {
+    const num = String(catId || '').trim();
+    return `<td><div class="cat-cell"><span>${esc(name)}</span>${num ? `<span class="catnum" title="Category">${esc(num)}</span>` : ''}</div></td>`;
+  }
+
+  function statusCell(status) {
+    if (!status) return '<td class="status"><span class="muted">—</span></td>';
+    const tone = status === 'Complete' ? ' complete' : status === 'Incomplete' ? ' incomplete' : '';
+    return `<td class="status${tone}">${esc(status)}</td>`;
+  }
+
+  function catIdForDbkey(dbkey) {
+    const key = String(dbkey || '').replace(/^0+/, '');
+    const c = (state.detail?.categories || []).find((x) => String(x.dbkey || '').replace(/^0+/, '') === key);
+    return c?.catId || '';
+  }
+
   function commentRow(c) {
     const d = state.detail;
     const editing = state.editing === c.dbkey;
@@ -133,8 +150,10 @@
          <td class="actions">${actions}</td>`;
     const flash = state.focusDbkey && state.focusDbkey === String(c.dbkey || '').replace(/^0+/, '') ? ' class="flash"' : '';
     return `<tr id="row-${esc(c.dbkey)}"${flash}>
-      <td>${esc(c.name)}</td>
+      ${categoryCell(c.name, c.catId)}
       <td>${esc(c.dbkey || '')}</td>
+      ${statusCell(c.status)}
+      <td>${c.exception ? esc(c.exception) : '<span class="muted">—</span>'}</td>
       ${commentCell}
     </tr>`;
   }
@@ -160,13 +179,13 @@
         <table>
           <thead><tr><th>Category</th><th>DBKey</th><th>Exception</th></tr></thead>
           <tbody>${exceptions.map((x) => `<tr>
-            <td>${esc(x.categoryName || '')}</td><td>${esc(x.dbkey || '')}</td><td>${esc(x.exceptionText || '')}</td>
+            ${categoryCell(x.categoryName || '', catIdForDbkey(x.dbkey))}<td>${esc(x.dbkey || '')}</td><td>${esc(x.exceptionText || '')}</td>
           </tr>`).join('')}</tbody>
         </table>` : ''}
       <div class="section-title">Categories (${(d.categories || []).length})</div>
       <table>
-        <thead><tr><th>Category</th><th>DBKey</th><th>PROD comment</th><th></th></tr></thead>
-        <tbody>${(d.categories || []).map(commentRow).join('') || '<tr><td colspan="4" class="muted">No categories.</td></tr>'}</tbody>
+        <thead><tr><th>Category</th><th>DBKey</th><th>Status</th><th>Exception</th><th>PROD comment</th><th></th></tr></thead>
+        <tbody>${(d.categories || []).map(commentRow).join('') || '<tr><td colspan="6" class="muted">No categories.</td></tr>'}</tbody>
       </table>
       ${edits.length ? `
         <div class="section-title">Comment changes</div>

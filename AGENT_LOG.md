@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-20 — EOD summary board: category number, Status, Exception
+
+`eod-board/` now matches eod-api's `src/public/eod-board/` (copied, identical). Categories show the category number in a box in the Category cell, then DBKey, Status (Complete green, Incomplete red), Exception, and PROD comment, the same columns as the shift-summary email. Cleared-exception rows show the same box by DBKey. `eod-board.css` and `eod-board.js` at `?v=4`. Needs eod-api `catId` on `/api/eod-board/detail`; without it the box is simply absent.
+
 ## 2026-10-19 — Field app 3.4.71: text-miss card
 
 Pilot 3.4.71 ships `js/features/timesheet-mgmt.js` and the version files only. The time sheet shows a card for a clock text from a number not on today's list (last 4 digits, keyword, time) with **Assign to** and **Dismiss**, and the QR **Assign to** sends store and date. The Instawork reference gains two texting-rule lines and points at eod-api `7fad2ab`, migrations through 164, and field app 3.4.71. The project copy needs the same lines.

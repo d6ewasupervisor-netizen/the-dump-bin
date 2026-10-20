@@ -133,6 +133,23 @@ th { background: var(--navy); color: #fff; font-weight: 600; }
 tr:nth-child(even) td { background: var(--row-alt); }
 tr.flash td { background: #FFF7D6 !important; }
 td.comment { white-space: pre-wrap; }
+td.status { white-space: nowrap; }
+td.status.complete { color: var(--success); font-weight: 700; }
+td.status.incomplete { color: var(--danger); font-weight: 700; }
+.cat-cell { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.catnum {
+  flex: 0 0 auto;
+  min-width: 2.75em;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1.15;
+}
 td.actions { white-space: nowrap; width: 1%; }
 .lock-note { font-size: 0.85rem; color: var(--muted); }
 
