@@ -738,6 +738,11 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.match(css, /\[data-slot="phone-more"\] \{ display: none/);
   assert.match(chrome, /data-more="crew"/);
   assert.match(chrome, /data-more="dumpbin"/);
+  assert.match(chrome, /id="eodMoreBoard">EOD Board/);
+  assert.match(chrome, /window\.open\(eodBoardHref\(\), '_blank', 'noopener'\)/);
+  assert.match(chrome, /https:\/\/the-dump-bin\.com\/eod-board\//);
+  assert.match(html, /data-open-eod-board/);
+  assert.match(html, /data-nav="eod-board" data-slot="extra"/);
   assert.match(chrome, /data-more="helpdesk"/);
   assert.match(chrome, /data-more="storage">Clear storage/);
   assert.match(html, /data-nav="storage" data-slot="extra"/);

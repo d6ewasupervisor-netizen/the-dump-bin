@@ -298,6 +298,16 @@
     }, { once: true });
   }
 
+  function eodBoardHref() {
+    const host = location.hostname || '';
+    if (host === 'the-dump-bin.com' || host.endsWith('.the-dump-bin.com')) return '/eod-board/';
+    return 'https://the-dump-bin.com/eod-board/';
+  }
+
+  function openEodBoard() {
+    window.open(eodBoardHref(), '_blank', 'noopener');
+  }
+
   function openMoreMenu() {
     let host = document.getElementById('eodMoreMenu');
     if (!host) {
@@ -315,6 +325,7 @@
       <button type="button" class="btn btn-primary btn-block" data-more="storage">Clear storage</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
+      <button type="button" class="btn btn-secondary btn-block" id="eodMoreBoard">EOD Board</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="scans">Scan results</button>
       ${global.EodRoles?.canManageRoster?.() ? '<button type="button" class="btn btn-secondary btn-block" data-more="audit">Audit</button>' : ''}
@@ -328,6 +339,10 @@
         dismissOverlays();
         global.EodRouter.go(dest);
       });
+    });
+    host.querySelector('#eodMoreBoard')?.addEventListener('click', () => {
+      closeModal(host);
+      openEodBoard();
     });
     host.querySelector('#eodMoreClose')?.addEventListener('click', () => closeModal(host));
     global.EodA11y?.activate?.(host);
@@ -410,6 +425,10 @@
         const nav = btn.getAttribute('data-nav');
         if (nav === 'more') {
           openMoreMenu();
+          return;
+        }
+        if (btn.hasAttribute('data-open-eod-board')) {
+          openEodBoard();
           return;
         }
         dismissOverlays();

@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-20 — Field app 3.4.74: EOD Board in More
+
+More and the desktop side nav open the EOD summary board in a new tab. Past summaries and signoff boards stay on that page.
+
 ## 2026-10-20 — EOD summary board: category number, Status, Exception
 
 `eod-board/` now matches eod-api's `src/public/eod-board/` (copied, identical). Categories show the category number in a box in the Category cell, then DBKey, Status (Complete green, Incomplete red), Exception, and PROD comment, the same columns as the shift-summary email. Cleared-exception rows show the same box by DBKey. `eod-board.css` and `eod-board.js` at `?v=4`. Needs eod-api `catId` on `/api/eod-board/detail`; without it the box is simply absent.
