@@ -62,6 +62,27 @@
     return lines.map((t) => `<div class="eod-ts-meta eod-ts-iw-clock">${t}</div>`).join('');
   }
 
+  /** In-app only. Print CSS hides this; the timesheet PDF does not receive it. */
+  function registeredLines(m) {
+    if (!m || !Object.prototype.hasOwnProperty.call(m, 'registered')) return '';
+    const reg = m.registered || {};
+    const listed = reg.listed;
+    let html = '';
+    if (listed && (listed.name || listed.phoneDisplay)) {
+      const who = [listed.name, listed.phoneDisplay].filter(Boolean).join(' · ');
+      const head = listed.source === 'instawork' ? `InstaWork: ${who}` : who;
+      html += `<div class="eod-ts-phone">${escapeHtml(head)}</div>`;
+    } else {
+      html += '<div class="eod-ts-phone">No registered phone</div>';
+    }
+    for (const v of reg.variants || []) {
+      const bit = [v.name, v.phoneDisplay].filter(Boolean).join(' · ');
+      if (!bit) continue;
+      html += `<div class="eod-ts-phone eod-ts-variant">Variant · ${escapeHtml(v.label)}: ${escapeHtml(bit)}</div>`;
+    }
+    return html;
+  }
+
   /** PROD's own total while the row matches PROD; after a lead edit, in to out less lunch. */
   function totalFor(m) {
     const prod = m.prodTimes || {};
@@ -295,6 +316,9 @@
       }
       .eod-ts-name { font-weight: 600; color: #f8fafc; }
       .eod-ts-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+      .eod-ts-phone { font-size: 12px; color: #e2e8f0; margin-top: 4px; }
+      .eod-ts-variant { color: #fde68a; }
+      @media print { .eod-ts-phone { display: none !important; } }
       .eod-ts-badge {
         display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
       }
@@ -599,6 +623,7 @@
           <div class="eod-ts-name">${escapeHtml(m.name)}</div>
           <div class="eod-ts-meta">${m.isLead ? 'Lead · ' : ''}${escapeHtml(m.title || '')}${m.workdayId ? ` · WD ${escapeHtml(m.workdayId)}` : ''}</div>
           <div class="eod-ts-meta">Source: ${escapeHtml(m.timeSource || 'sas')}</div>
+          ${registeredLines(m)}
           ${m.signinMethod ? `<div class="eod-ts-meta">${escapeHtml(m.signinMethod)}</div>` : ''}
           ${isIw && m.realName ? `<div class="eod-ts-meta">Real: ${escapeHtml(m.realName)}</div>` : ''}
           ${isIw ? instaworkClockLines(m.instawork) : ''}
