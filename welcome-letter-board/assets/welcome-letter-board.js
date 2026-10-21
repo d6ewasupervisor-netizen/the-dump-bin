@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.16';
+  const UI_VERSION = 'v2.17';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -1577,22 +1577,37 @@
     return `${item.startDate} – ${item.endDate}`;
   }
 
+  function ptoYes(on) {
+    return on
+      ? '<span class="wb-badge wb-badge-sent">Yes</span>'
+      : '<span class="wb-muted">—</span>';
+  }
+
+  function ptoIsBuilt(item) {
+    return !!(item && (item.status === 'built' || item.visitId));
+  }
+
   function renderPtoRows() {
     const body = document.getElementById('ptoRows');
     if (!body) return;
     if (!ptoState.items.length) {
-      body.innerHTML = '<tr><td colspan="5" class="wb-muted">No time off requests.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="wb-muted">No time off requests.</td></tr>';
       return;
     }
-    body.innerHTML = ptoState.items.map((item) => `
+    body.innerHTML = ptoState.items.map((item) => {
+      const built = ptoIsBuilt(item)
+        ? ptoYes(true)
+        : `<span class="wb-muted">${escapeHtml(item.status)}</span>`;
+      return `
       <tr data-pto-id="${escapeHtml(item.id)}" style="cursor:pointer;">
         <td>${escapeHtml(item.employeeName)}</td>
         <td>${escapeHtml(item.absenceType)}</td>
         <td>${escapeHtml(ptoDates(item))}</td>
         <td>${escapeHtml(String(item.hours))}</td>
-        <td>${escapeHtml(item.status)}</td>
-      </tr>
-    `).join('');
+        <td>${built}</td>
+        <td>${ptoYes(!!item.ranAt)}</td>
+      </tr>`;
+    }).join('');
     body.querySelectorAll('tr[data-pto-id]').forEach((row) => {
       row.addEventListener('click', () => {
         openPto(row.getAttribute('data-pto-id')).catch((err) => showPtoBanner(err.message, false));
@@ -1608,10 +1623,15 @@
     detail.hidden = false;
     document.getElementById('ptoDetailTitle').textContent = item.employeeName;
     const clock = [item.startTime, item.endTime].filter(Boolean).join(' – ');
-    const prod = item.visitId ? ` PROD visit ${item.visitId}, shift ${item.shiftId}.` : '';
-    const err = item.buildError ? ` ${item.buildError}` : '';
+    const built = ptoIsBuilt(item)
+      ? ` Built${item.visitId ? `. Visit ${item.visitId}, shift ${item.shiftId}` : ''}.`
+      : '';
+    const ran = item.ranAt ? ' Ran.' : '';
+    const err = !ptoIsBuilt(item) && item.buildError ? ` ${item.buildError}` : '';
     document.getElementById('ptoDetailMeta').textContent =
-      `${item.absenceType} · ${ptoDates(item)}${clock ? ` · ${clock}` : ''} · ${item.hours} hours · ${item.status}.${prod}${err}`;
+      `${item.absenceType} · ${ptoDates(item)}${clock ? ` · ${clock}` : ''} · ${item.hours} hours.${built}${ran}${err}`;
+    const buildBtn = document.getElementById('ptoBuild');
+    if (buildBtn) buildBtn.hidden = !!item.ranAt;
     document.getElementById('ptoNote').value = item.decisionNote || '';
     document.getElementById('ptoActionStatus').textContent = '';
     const log = await api(`/api/pto/log?requestId=${encodeURIComponent(id)}`);

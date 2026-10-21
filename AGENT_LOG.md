@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-21 — Built and Ran on Time off
+
+The PTO table has a Built column and a Ran column. `welcome-letter-board.js?v=2.17`.
+
 ## 2026-10-21 — Employee Board PTO steps
 
 Build and run on Time off lists each step: the window, a slide when the start is taken, the visit and shift, the punch, the completion, and the total. The shift note from the API includes the hours. `welcome-letter-board.js?v=2.16`.

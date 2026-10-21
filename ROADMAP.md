@@ -1,6 +1,6 @@
 # Roadmap
 
-Employee Board PTO (v2.16) shows the build steps after this eod-api deploy. A past day and an 8-hour window that does not end at 3:00 PM need that deploy before Build and run follows them.
+Employee Board PTO (v2.17) shows Built and Ran as separate columns after this eod-api deploy. Ruth Northcutt’s 2026-10-19 row is already recorded.
 
 Portable vault: after both deploys, sign in and open the Portable automator card. The download works once.
 
