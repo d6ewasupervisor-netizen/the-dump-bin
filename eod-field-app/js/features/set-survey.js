@@ -544,6 +544,7 @@
     const dbkey = String(qp.get('dbkey') || '').trim();
     const rowId = qp.get('rowId') || null;
     const catName = qp.get('name') || '';
+    const catNum = qp.get('cat') || '';
     const preferSlot = String(qp.get('slot') || 'after').toLowerCase() === 'before' ? 'before' : 'after';
     const autoCapture = qp.get('capture') === '1';
 
@@ -702,6 +703,8 @@
             dataUrl: payload.dataUrl,
             file: payload.file || null,
             fileName: p.fileName || `${slot}.jpg`,
+            categoryName: catName || null,
+            categoryNumber: catNum || null,
             visitId: local.status?.prod?.visitId,
             resetId: local.status?.prod?.resetId || null,
             taskId: local.status?.si?.taskId || null,
@@ -1576,6 +1579,8 @@
         canvas: shot?.canvas || null,
         previewUrl,
         fileName: file?.name || shot?.fileName || null,
+        categoryName: catName || null,
+        categoryNumber: catNum || null,
         visitId: local.status?.prod?.visitId,
         resetId: local.status?.prod?.resetId,
         taskId: local.status?.si?.taskId,

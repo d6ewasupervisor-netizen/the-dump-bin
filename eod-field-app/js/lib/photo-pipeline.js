@@ -180,6 +180,10 @@
 
   function maybeOffloadJob(job) {
     if (!job || job.offloaded) return false;
+    // The Gmail copy (Downloads/Set_Photos) has to land before the phone
+    // deletes its bytes. PROD/SI confirmation alone is not enough while the
+    // bytes are still here to send.
+    if (!job.localMirrorOk && (job.dataUrl || job.blob)) return false;
     // isFullyConfirmed (PROD+SI, per isFullyConfirmed's own rules) is the entire
     // deletion contract. A resolvable board pointer is only needed to swap in a
     // remote preview thumbnail — its absence must never block a confirmed job's
@@ -398,6 +402,10 @@
       nextRetryAt: job.nextRetryAt || null,
       updatedAt: job.updatedAt || Date.now(),
       fileName: job.fileName || null,
+      categoryName: job.categoryName || null,
+      categoryNumber: job.categoryNumber || null,
+      localMirrorOk: !!job.localMirrorOk,
+      nextMirrorAt: job.nextMirrorAt || null,
       hasPayload: !!(job.dataUrl || job.file || job.blob),
       board: job.board || null,
       offloaded: !!job.offloaded,
@@ -468,6 +476,7 @@
         if (
           j.status === 'done'
           && isFullyConfirmed(j)
+          && j.localMirrorOk
           && Date.now() - (j.updatedAt || 0) > 36 * 60 * 60 * 1000
         ) {
           idbDelete(j.id).catch(() => {});
@@ -529,7 +538,7 @@
   }
 
   async function persistJobRecord(job) {
-    if (!job || isSuperseded(job) || job.status === 'done') return;
+    if (!job || isSuperseded(job) || job.offloaded) return;
     let blob = job.blob || null;
     if (!blob && job.file instanceof Blob) blob = job.file;
     if (!blob && job.dataUrl) blob = dataUrlToBlobForPipeline(job.dataUrl);
@@ -693,6 +702,190 @@
       pumpTimer = null;
       pump().catch(() => {});
     }, 16);
+    mirrorSoon();
+  }
+
+  // Same path as the set-photos board: POST /api/set-photos/upload emails
+  // [Set Photos] and flow-automation files the JPEG under Downloads/Set_Photos.
+  // This does not wait on a Railway redeploy. The running upload route is enough.
+  let mirrorTimer = null;
+  let mirrorBusy = false;
+
+  function mirrorStore(job) {
+    return String(job?.storeNumber || global.EodSession?.state?.storeNumber || '')
+      .replace(/\D/g, '')
+      .replace(/^0+/, '');
+  }
+
+  function mirrorWorkDate(job) {
+    const raw = String(job?.workDate || global.EodSession?.state?.workDate || '').trim();
+    const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (iso) return iso[1];
+    const us = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (us) return `${us[3]}-${us[1].padStart(2, '0')}-${us[2].padStart(2, '0')}`;
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function mirrorSlug(value, fallback) {
+    const s = String(value || '')
+      .replace(/&/g, 'and')
+      .replace(/[^A-Za-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 60);
+    return s || fallback;
+  }
+
+  function mirrorPhase(job) {
+    const slot = String(job?.slot || '').toLowerCase();
+    const kind = String(job?.kind || '').toLowerCase();
+    if (slot === 'before' || kind === 'before') return 'Before';
+    if (slot === 'after' || kind === 'after') return 'After';
+    if (kind === 'set' || kind === 'cart') return 'After';
+    return '';
+  }
+
+  function mirrorFileName(job) {
+    const store = mirrorStore(job);
+    const date = mirrorWorkDate(job);
+    if (!store || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    const phase = mirrorPhase(job);
+    const kind = String(job?.kind || 'photo').toLowerCase();
+    const cat = mirrorSlug(
+      job.categoryNumber || (kind === 'cart' ? 'CART' : (kind === 'set' ? 'X' : kind)),
+      'X'
+    );
+    const db = String(job?.dbkey || '').replace(/\D/g, '');
+    const bay = Math.max(1, Number(job?.bay) || 1);
+    const total = Math.max(bay, Number(job?.expectedBayCount) || bay);
+    const name = mirrorSlug(job.categoryName || kind, 'PHOTO');
+    const parts = ['SetPhotos', `FM${store}`, date];
+    if (phase) parts.push(phase);
+    parts.push(`C${cat}`);
+    if (db) parts.push(`DB${db}`);
+    parts.push(`Bay${String(bay).padStart(2, '0')}of${String(total).padStart(2, '0')}`, name);
+    return `${parts.join('_')}.jpg`;
+  }
+
+  function mirrorCandidate(job) {
+    if (!job || job.localMirrorOk || isSuperseded(job)) return false;
+    if (!(job.dataUrl || job.blob)) return false;
+    if (job.status === 'queued' || job.status === 'compressing') return false;
+    return true;
+  }
+
+  async function jpegDataUrlForMirror(job) {
+    let blob = job.blob || null;
+    if (!blob && job.dataUrl) blob = dataUrlToBlobForPipeline(job.dataUrl);
+    if (!blob) return null;
+    if (!/^image\/jpe?g$/i.test(blob.type || '')) {
+      const bmp = await createImageBitmap(blob);
+      const canvas = document.createElement('canvas');
+      canvas.width = bmp.width;
+      canvas.height = bmp.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bmp, 0, 0);
+      try { bmp.close(); } catch (_) {}
+      blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.88));
+    }
+    if (!blob || !blob.size || blob.size > 12 * 1024 * 1024) return null;
+    return blobToDataUrlForPipeline(blob);
+  }
+
+  async function sendLocalMirror(job) {
+    const fileName = mirrorFileName(job);
+    if (!fileName) throw new Error('local mirror missing store or date');
+    const imageBase64 = await jpegDataUrlForMirror(job);
+    if (!imageBase64) throw new Error('local mirror had no jpeg');
+    const phase = mirrorPhase(job).toLowerCase();
+    const base = global.EOD_API_BASE || 'https://eod-api.the-dump-bin.com';
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 90000) : null;
+    let resp;
+    try {
+      resp = await fetch(`${base}/api/set-photos/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          store: mirrorStore(job),
+          workDate: mirrorWorkDate(job),
+          batchIndex: 1,
+          totalBatches: 1,
+          photos: [{
+            fileName,
+            imageBase64,
+            bytes: job.bytes || null,
+            capturedAt: new Date(job.updatedAt || Date.now()).toISOString(),
+            phase: phase || null,
+            manifest: {
+              phase: phase || null,
+              categoryName: job.categoryName || null,
+              categoryNumber: job.categoryNumber || null,
+              dbkey: job.dbkey || null,
+            },
+          }],
+        }),
+        signal: controller ? controller.signal : undefined,
+      });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false) {
+      throw new Error(data.error || `local mirror HTTP ${resp.status}`);
+    }
+  }
+
+  function mirrorSoon() {
+    if (mirrorTimer || mirrorBusy) return;
+    mirrorTimer = setTimeout(() => {
+      mirrorTimer = null;
+      drainLocalMirror().catch(() => {});
+    }, 80);
+  }
+
+  function scheduleMirrorRetry(delay) {
+    if (mirrorTimer || mirrorBusy) return;
+    mirrorTimer = setTimeout(() => {
+      mirrorTimer = null;
+      drainLocalMirror().catch(() => {});
+    }, delay);
+  }
+
+  async function drainLocalMirror() {
+    if (mirrorBusy) return;
+    const now = Date.now();
+    const waiting = [...jobs.values()].filter(mirrorCandidate);
+    const job = waiting.find((j) => !j.nextMirrorAt || j.nextMirrorAt <= now);
+    if (!job) {
+      const nextAt = waiting.reduce((min, j) => Math.min(min, j.nextMirrorAt || min), Infinity);
+      if (Number.isFinite(nextAt)) scheduleMirrorRetry(Math.max(500, nextAt - now));
+      return;
+    }
+    mirrorBusy = true;
+    try {
+      await sendLocalMirror(job);
+      job.localMirrorOk = true;
+      job.localMirrorError = null;
+      job.nextMirrorAt = null;
+      job.updatedAt = Date.now();
+      await persistJobRecord(job);
+      persist();
+      if (isFullyConfirmed(job)) maybeOffloadJob(job);
+    } catch (err) {
+      job.localMirrorAttempts = (job.localMirrorAttempts || 0) + 1;
+      job.localMirrorError = err?.message || String(err);
+      const exp = Math.min(job.localMirrorAttempts, 7);
+      job.nextMirrorAt = Date.now() + Math.min(120000, 1000 * (2 ** exp));
+      global.EodDiag?.note?.('pipeline.local-mirror', err);
+      persist();
+    } finally {
+      mirrorBusy = false;
+      mirrorSoon();
+    }
   }
 
   function yieldToUi() {
@@ -1318,6 +1511,9 @@
       dataUrl: opts.dataUrl || null,
       previewUrl: previewUrl || opts.dataUrl || null,
       fileName: file?.name || opts.fileName || null,
+      categoryName: opts.categoryName || null,
+      categoryNumber: opts.categoryNumber || null,
+      localMirrorOk: false,
       status: file || bitmap || canvas || opts.dataUrl ? 'queued' : 'failed',
       error: file || bitmap || canvas || opts.dataUrl ? null : 'No photo data',
       uploader: opts.uploader || null,
@@ -1787,6 +1983,9 @@
       try { void global.EodDevicePhotoFlush?.flushCurrentStore?.(); } catch (_) {}
     });
     window.addEventListener('online', () => {
+      for (const j of jobs.values()) {
+        if (!j.localMirrorOk) j.nextMirrorAt = 0;
+      }
       reconcileOpenJobs();
       schedulePump();
       scheduleAcceptedPoll();

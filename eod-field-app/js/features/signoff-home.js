@@ -798,11 +798,13 @@
       || btn.getAttribute('data-open-set')
       || '';
     const name = btn.getAttribute('data-name') || '';
+    const cat = btn.getAttribute('data-cat') || '';
     if (!dbkey) {
       global.showAlert?.('Set unavailable', 'This row has no dbkey — cannot open Capture/View.');
       return;
     }
     const qs = new URLSearchParams({ dbkey, rowId: row, name });
+    if (cat) qs.set('cat', cat);
     const useSlot = slot || btn.getAttribute('data-slot') || '';
     if (useSlot) qs.set('slot', useSlot);
     const bay = btn.getAttribute('data-bay');
@@ -818,6 +820,7 @@
       rowId: String(row.id || ''),
       name: row.catName || row.catId || '',
     });
+    if (row.catId) qs.set('cat', String(row.catId));
     if (slot) qs.set('slot', slot);
     location.hash = `#/survey?${qs.toString()}`;
   }
@@ -930,7 +933,7 @@
         ? Status.nextCaptureBay(row, captureSlot, localBefores, localAfterCount(row))
         : 1;
       const openAttrs = canOpen
-        ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}"`
+        ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}"`
         : '';
       return `<div class="ds-row ds-row-compact ${rowClass(row, localBefores)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}">
         <label class="ds-row-check-hit">
@@ -946,7 +949,7 @@
           ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
         ${catNum ? `<div class="ds-row-catnum" title="Category">${esc(catNum)}</div>` : ''}
-        ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-slot="${esc(captureSlot)}" data-bay="${captureBay}"${captureSlot ? '' : ' disabled'}>Capture</button></div>` : ''}
+        ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-slot="${esc(captureSlot)}" data-bay="${captureBay}"${captureSlot ? '' : ' disabled'}>Capture</button></div>` : ''}
         <div class="ds-actions">
           ${btn('not_in_store', 'Not in Store')}
           ${btn('not_in_si', 'Not in SI')}
