@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.15';
+  const UI_VERSION = 'v2.16';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -58,7 +58,10 @@
     let body = {};
     try { body = text ? JSON.parse(text) : {}; } catch (_err) { body = { raw: text }; }
     if (!res.ok) {
-      throw new Error(body.error || body.message || `HTTP ${res.status}`);
+      const err = new Error(body.error || body.message || `HTTP ${res.status}`);
+      err.steps = body.steps;
+      err.item = body.item;
+      throw err;
     }
     return body;
   }
@@ -1520,6 +1523,41 @@
 
   const ptoState = { items: [], selectedId: null };
 
+  function renderPtoSteps(steps) {
+    const host = document.getElementById('ptoSteps');
+    if (!host) return;
+    if (!steps || !steps.length) {
+      host.hidden = true;
+      host.innerHTML = '';
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML = steps.map((step) => (
+      `<li><span class="wb-step-label">${escapeHtml(step.label)}</span><span>${escapeHtml(step.detail)}</span></li>`
+    )).join('');
+  }
+
+  function stepsFromLog(entries) {
+    const list = entries || [];
+    const withArray = list.find((entry) => Array.isArray(entry.detail?.steps) && entry.detail.steps.length);
+    if (withArray) return withArray.detail.steps;
+    const stepped = list.filter((entry) => entry.detail?.step);
+    if (!stepped.length) return [];
+    const runId = stepped[0].detail.runId;
+    return stepped
+      .filter((entry) => entry.detail.runId === runId)
+      .slice()
+      .reverse()
+      .map((entry) => ({ id: entry.detail.id, label: entry.detail.label, detail: entry.detail.detail }));
+  }
+
+  function setPtoBusy(busy) {
+    ['ptoApprove', 'ptoDeny', 'ptoBuild'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = busy;
+    });
+  }
+
   function showPtoBanner(message, ok) {
     const banner = document.getElementById('ptoBanner');
     if (!banner) return;
@@ -1579,9 +1617,11 @@
     const log = await api(`/api/pto/log?requestId=${encodeURIComponent(id)}`);
     const host = document.getElementById('ptoLog');
     const entries = log.items || [];
-    host.innerHTML = entries.length
-      ? entries.map((entry) => `<p style="margin:0 0 8px;">${escapeHtml(entry.summary)}</p>`).join('')
+    const visible = entries.filter((entry) => !entry.detail?.step);
+    host.innerHTML = visible.length
+      ? visible.map((entry) => `<p style="margin:0 0 8px;">${escapeHtml(entry.summary)}</p>`).join('')
       : '<p class="wb-muted" style="margin:0;">No log lines yet.</p>';
+    renderPtoSteps(stepsFromLog(entries));
   }
 
   async function loadPto() {
@@ -1593,15 +1633,56 @@
     }
   }
 
+  async function pollPtoSteps(id, runId) {
+    const log = await api(`/api/pto/log?requestId=${encodeURIComponent(id)}`);
+    const rows = (log.items || []).filter((entry) => entry.detail?.step && entry.detail.runId === runId);
+    if (!rows.length) return;
+    renderPtoSteps(rows.slice().reverse().map((entry) => ({
+      id: entry.detail.id,
+      label: entry.detail.label,
+      detail: entry.detail.detail,
+    })));
+  }
+
+  async function runPtoBuild(id, note, status) {
+    const runId = `pto-${Date.now()}`;
+    setPtoBusy(true);
+    status.textContent = 'Working…';
+    renderPtoSteps([]);
+    const timer = setInterval(() => {
+      pollPtoSteps(id, runId).catch(() => {});
+    }, 1200);
+    try {
+      const body = await api(`/api/pto/${encodeURIComponent(id)}/build`, {
+        method: 'POST',
+        body: JSON.stringify({ note, runId }),
+      });
+      renderPtoSteps(body.steps || []);
+      status.textContent = body.item ? body.item.status : 'Done.';
+      showPtoBanner('', true);
+    } catch (err) {
+      status.textContent = err.message;
+      if (err.steps && err.steps.length) renderPtoSteps(err.steps);
+      showPtoBanner(err.message, false);
+    } finally {
+      clearInterval(timer);
+      setPtoBusy(false);
+    }
+    await loadPto();
+  }
+
   async function ptoAct(action) {
     const id = ptoState.selectedId;
     if (!id) return;
     const status = document.getElementById('ptoActionStatus');
     const note = document.getElementById('ptoNote').value;
+    if (action === 'build') {
+      await runPtoBuild(id, note, status);
+      return;
+    }
     status.textContent = 'Working…';
-    const path = action === 'build' ? 'build' : action;
     try {
-      const item = await api(`/api/pto/${encodeURIComponent(id)}/${path}`, {
+      const item = await api(`/api/pto/${encodeURIComponent(id)}/${action}`, {
         method: 'POST',
         body: JSON.stringify({ note }),
       });

@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-21 — Employee Board PTO steps
+
+Build and run on Time off lists each step: the window, a slide when the start is taken, the visit and shift, the punch, the completion, and the total. The shift note from the API includes the hours. `welcome-letter-board.js?v=2.16`.
+
 ## 2026-10-20 — EOD board version and size
 
 Each category on the summary board shows the planogram version and the size under the name (`VN18 · 4 doors`). `eod-board.css` and `eod-board.js` at `?v=7`.
