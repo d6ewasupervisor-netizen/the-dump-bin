@@ -62,6 +62,7 @@
           : null,
         signatureDataUrl: state.signatureDataUrl || '',
         proxyEodStamp: state.proxyEodStamp || '',
+        lieuSignoffStamp: state.lieuSignoffStamp || '',
       },
     };
   }
@@ -73,6 +74,7 @@
       || payload.checkOutManager
       || payload.signatureDataUrl
       || payload.proxyEodStamp
+      || payload.lieuSignoffStamp
       || payload.cartPhotoDone
       || payload.checkInDone
       || payload.beforesStepDone
@@ -141,6 +143,11 @@
       if (typeof p.proxyEodStamp === 'string') {
         patch.proxyEodStamp = /^EOD submitted \d{2}\/\d{2}\/\d{2}$/.test(p.proxyEodStamp)
           ? p.proxyEodStamp
+          : '';
+      }
+      if (typeof p.lieuSignoffStamp === 'string') {
+        patch.lieuSignoffStamp = /^Signed \d{2}\/\d{2}\/\d{2}$/.test(p.lieuSignoffStamp)
+          ? p.lieuSignoffStamp
           : '';
       }
       S.patch(patch, 'visit-mirror');

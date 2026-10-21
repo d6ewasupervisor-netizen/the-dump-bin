@@ -491,6 +491,7 @@
       )?.visitId || S.state.selectedShift?.visitId;
       if (shiftVisit) qs.set('visitId', String(shiftVisit));
       global.EodProxyEod?.applyToSearchParams?.(qs);
+      global.EodLieuSign?.applyToSearchParams?.(qs);
       const resp = await global.authFetch(`${API}/pdf?${qs}`);
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
@@ -525,6 +526,7 @@
         || (typeof global.EodTestMode?.isForceLive === 'function' && global.EodTestMode.isForceLive())
         || undefined,
       proxyEod: !!global.EodProxyEod?.isActive?.(),
+      lieuSignoff: !!global.EodLieuSign?.isActive?.(),
     });
     const resp = await global.authFetch(`${API}/print-at-store`, { method: 'POST', headers, body });
     const data = await resp.json().catch(() => ({}));

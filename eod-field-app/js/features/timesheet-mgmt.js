@@ -296,6 +296,8 @@
       .eod-ts-header h2 { margin: 0; font-size: 1.15rem; color: #fde68a; }
       .eod-ts-header p { margin: 4px 0 0; font-size: 13px; color: #94a3b8; line-height: 1.4; }
       .eod-ts-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #1e293b; }
+      .eod-lieu-btn { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; padding: 6px 10px; white-space: normal; min-width: 76px; }
+      .eod-ts-lieu-stamp { font-weight: 700; color: #fde68a; }
       .eod-ts-body { flex: 1; overflow: auto; padding: 12px 16px 24px; -webkit-overflow-scrolling: touch; }
       .eod-ts-table-wrap { overflow-x: auto; border: 1px solid #334155; border-radius: 10px; }
       table.eod-ts-table { width: 100%; border-collapse: collapse; min-width: 1180px; font-size: 13px; }
@@ -451,6 +453,42 @@
       && sessionStorage.getItem('eodForceLiveDelivery') === '1';
   }
 
+  const LIEU_RE = /^lieu:Signed \d{2}\/\d{2}\/\d{2}$/;
+
+  function signatureRaw(member) {
+    const conf = member?.confirmation || {};
+    return String(conf.signatureDataUrl || conf.signatureUrl || '');
+  }
+
+  function lieuLabel(raw) {
+    const match = LIEU_RE.exec(String(raw || '').trim());
+    return match ? match[0].slice(5) : '';
+  }
+
+  function lieuOnSheet(member) {
+    if (state.sheetKey !== 'instawork') return true;
+    if (member?.noShow) return false;
+    const timed = ['clockIn', 'clockOut', 'lunchOut', 'lunchIn'].some((field) => String(member?.[field] || '').trim());
+    return timed || !!String(member?.realName || '').trim() || !!signatureRaw(member);
+  }
+
+  function lieuGaps() {
+    let open = 0;
+    let lieu = 0;
+    for (const member of state.members || []) {
+      if (!lieuOnSheet(member)) continue;
+      const raw = signatureRaw(member);
+      if (LIEU_RE.test(raw)) lieu += 1;
+      else if (!raw) open += 1;
+    }
+    return { open, lieu };
+  }
+
+  function lieuButtonHtml(id, undo) {
+    if (undo) return `<button type="button" class="btn btn-secondary" id="${id}">Undo</button>`;
+    return `<button type="button" class="btn btn-secondary eod-lieu-btn" id="${id}"><span>Sign in</span><span>lieu of</span></button>`;
+  }
+
   function renderActions() {
     const bar = document.getElementById('eodTsActions');
     if (!bar) return;
@@ -459,7 +497,10 @@
     const canLive = (typeof window.canEodForceLive === 'function' && window.canEodForceLive())
       || (typeof window.EodRoles?.canForceLive === 'function' && window.EodRoles.canForceLive());
     const liveOn = forceLiveChecked();
+    const gaps = lieuGaps();
+    const lieuUndo = gaps.open === 0 && gaps.lieu > 0;
     bar.innerHTML = `
+      ${lieuButtonHtml('eodTsLieuBtn', lieuUndo)}
       <button type="button" class="btn btn-secondary" id="eodTsRefreshBtn">Refresh</button>
       <button type="button" class="btn btn-primary" id="eodTsDistributeBtn">Distribute time</button>
       <button type="button" class="btn btn-primary" id="eodTsShowQrBtn">Sign-in QR</button>
@@ -474,6 +515,7 @@
         <span>Live delivery path</span>
       </label>` : ''}`;
 
+    document.getElementById('eodTsLieuBtn').onclick = () => signInLieu(state.sheetKey, lieuUndo).catch(showErr);
     document.getElementById('eodTsRefreshBtn').onclick = () => refresh(true);
     document.getElementById('eodTsDistributeBtn').onclick = () => distribute(state.sheetKey).catch(showErr);
     document.getElementById('eodTsShowQrBtn').onclick = () => showJoinQr();
@@ -611,9 +653,13 @@
       const note = conf.adjustmentNote
         ? `<div class="eod-ts-note"><strong>Reason:</strong> ${escapeHtml(conf.adjustmentNote)}</div>`
         : '';
-      const sig = conf.signatureDataUrl || conf.signatureUrl
-        ? `<img class="eod-ts-sig" alt="Signature" src="${escapeHtml(conf.signatureDataUrl || conf.signatureUrl)}">`
-        : '<span class="eod-ts-meta">—</span>';
+      const sigRaw = conf.signatureDataUrl || conf.signatureUrl || '';
+      const sigLieu = lieuLabel(sigRaw);
+      const sig = sigLieu
+        ? `<span class="eod-ts-lieu-stamp">${escapeHtml(sigLieu)}</span>`
+        : (sigRaw
+          ? `<img class="eod-ts-sig" alt="Signature" src="${escapeHtml(sigRaw)}">`
+          : '<span class="eod-ts-meta">—</span>');
       const isIw = state.sheetKey === 'instawork';
       const realNameCell = isIw
         ? `<td data-label="Real name"><input type="text" data-field="realName" value="${escapeHtml(fieldValue(m, 'realName'))}" placeholder="Legal / badge name" aria-label="Real name"></td>`
@@ -1293,6 +1339,41 @@
     }, POLL_MS);
   }
 
+  async function signInLieu(sheetKey, undo) {
+    const key = sheetKey === 'instawork' ? 'instawork' : 'kompass';
+    const store = storeNumber();
+    const date = workDate();
+    if (!store || !date) {
+      showErr(new Error('Set store and work date first.'));
+      return null;
+    }
+    const resp = await authFetch(`${API}/sign-in-lieu`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        sheetKey: key,
+        storeNumber: store,
+        workDate: date,
+        leadName: leadName(),
+        undo: !!undo,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 412) {
+      if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+      throw new Error('Confirm today\'s store first');
+    }
+    if (!resp.ok || data.ok === false) throw new Error(data.error || 'Could not sign in lieu');
+    if (document.getElementById('eodTsMgmtOverlay')?.classList.contains('show') && state.sheetKey === key) {
+      await refresh(true);
+    }
+    const who = data.count
+      ? `${data.stamp} on ${data.count} ${data.count === 1 ? 'person' : 'people'}.`
+      : (undo ? 'Nothing to undo.' : 'Everyone on this sheet already signed.');
+    if (typeof showAlert === 'function') showAlert(undo ? 'Undo' : 'Sign in lieu of', who);
+    return data;
+  }
+
   async function distribute(sheetKey) {
     const key = sheetKey === 'instawork' ? 'instawork' : 'kompass';
     const store = storeNumber();
@@ -1366,6 +1447,7 @@
     refresh: () => refresh(true),
     showJoinQr,
     distribute,
+    signInLieu,
     fetchInstaworkMembers,
   };
 })();

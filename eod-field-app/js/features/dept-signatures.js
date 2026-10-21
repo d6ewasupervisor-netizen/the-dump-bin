@@ -238,8 +238,9 @@
     section.className = 'section dept-sig-section';
     section.id = 'deptSigSection';
     section.innerHTML = `
-      <div class="dept-sig-header">
-        <div class="section-title">Department Signatures</div>
+      <div class="dept-sig-header" style="display:flex;align-items:center;gap:8px;">
+        <button type="button" class="btn btn-secondary" id="deptSigLieuBtn" style="display:inline-flex;flex-direction:column;align-items:center;line-height:1.05;padding:6px 10px;white-space:normal;min-width:76px;"><span>Sign in</span><span>lieu of</span></button>
+        <div class="section-title" style="flex:1;">Department Signatures</div>
         <span class="dept-sig-progress" id="deptSigPickerMeta">0/0</span>
       </div>
       <p class="sets-help muted dept-sig-help" id="deptSigHelp">
@@ -289,6 +290,13 @@
     }
 
     document.getElementById('deptSigRefreshBtn').onclick = () => refresh().catch(console.error);
+    const lieuBtn = document.getElementById('deptSigLieuBtn');
+    if (lieuBtn) {
+      lieuBtn.onclick = () => {
+        window.EodLieuSign?.toggle?.();
+        renderRoleList();
+      };
+    }
     const proxyBtn = document.getElementById('deptSigProxyBtn');
     if (proxyBtn) {
       proxyBtn.onclick = () => {
@@ -298,7 +306,23 @@
     }
   }
 
+  function paintLieuButton() {
+    const lieuBtn = document.getElementById('deptSigLieuBtn');
+    if (!lieuBtn) return;
+    const on = !!window.EodLieuSign?.activeStamp?.();
+    if (on) {
+      lieuBtn.textContent = 'Undo';
+      lieuBtn.style.display = '';
+      lieuBtn.style.flexDirection = '';
+    } else {
+      lieuBtn.style.display = 'inline-flex';
+      lieuBtn.style.flexDirection = 'column';
+      lieuBtn.innerHTML = '<span>Sign in</span><span>lieu of</span>';
+    }
+  }
+
   function paintProxyButton() {
+    paintLieuButton();
     const proxyBtn = document.getElementById('deptSigProxyBtn');
     if (!proxyBtn) return;
     const allowed = !!window.EodProxyEod?.canUse?.();
@@ -318,6 +342,7 @@
       window.EodRoles.load().then(() => paintProxyButton()).catch(() => {});
     }
     const stamp = window.EodProxyEod?.activeStamp?.() || '';
+    const lieu = window.EodLieuSign?.activeStamp?.() || '';
     const pickerBtn = document.getElementById('deptSigPickerBtn');
     if (stamp) {
       host.innerHTML = `<p class="dept-sig-proxy-stamp" style="margin:0;"><strong>${escapeHtml(stamp)}</strong></p>`;
@@ -360,7 +385,7 @@
             <div class="dept-sig-role-meta" data-dept-sig-meta="${escapeHtml(role.key)}">
               ${collected
                 ? `Signed by ${escapeHtml(sig.signerName)} · ${escapeHtml(sig.signerEmail)}`
-                : 'Not collected yet'}
+                : (lieu ? escapeHtml(lieu) : 'Not collected yet')}
             </div>
             <div class="dept-sig-edit-form" data-dept-sig-edit-form="${escapeHtml(role.key)}" style="display:none;margin-top:8px;">
               <div class="field" style="margin-bottom:6px;">

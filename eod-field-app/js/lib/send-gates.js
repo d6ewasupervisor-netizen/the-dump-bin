@@ -33,8 +33,12 @@
       .filter((k) => k && k !== 'lead' && k !== 'store_pic' && k !== 'grocery');
   }
 
+  function standInStamp() {
+    return global.EodProxyEod?.activeStamp?.() || global.EodLieuSign?.activeStamp?.() || '';
+  }
+
   function picSignoffReady(S) {
-    if (global.EodProxyEod?.activeStamp?.()) return true;
+    if (standInStamp()) return true;
     if (!S.hasHostedSheet?.()) {
       return !!(S.state.checkOutManager || '').trim() || photoCount(S, 'signoff') >= 1;
     }
@@ -77,7 +81,7 @@
     );
     push(
       'signature',
-      !!S.state.signatureDataUrl || !!global.EodProxyEod?.activeStamp?.(),
+      !!S.state.signatureDataUrl || !!standInStamp(),
       'Add your lead signature',
       'send',
       'signBtn'

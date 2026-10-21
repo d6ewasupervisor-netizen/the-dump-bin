@@ -512,6 +512,7 @@ ${cleanNotes}`;
       visitId: mainIse?.visitId || null,
       shiftVisitIds: reportedVisitIds().map((id) => String(id)),
       proxyEod: !!global.EodProxyEod?.isActive?.(),
+      lieuSignoff: !!global.EodLieuSign?.isActive?.(),
       pdfFilename: (global.EodSendSheetsLogic?.eodPdfFilename
         || ((n, d) => `EOD_FM${padStore(n)}_${String(d || '').slice(5, 7)}-${String(d || '').slice(8, 10)}-${String(d || '').slice(2, 4)}.pdf`))(store, S.state.workDate),
       signoffPhotos: collectSignoffPhotos(),
@@ -703,12 +704,12 @@ ${cleanNotes}`;
         </div>
         <div class="field">
           <label>Lead signature</label>
-          <div class="sig-preview" id="sigPreview">${global.EodProxyEod?.activeStamp?.()
-            ? global.EodApi.escapeHtml(global.EodProxyEod.activeStamp())
+          <div class="sig-preview" id="sigPreview">${(global.EodProxyEod?.activeStamp?.() || global.EodLieuSign?.activeStamp?.())
+            ? global.EodApi.escapeHtml(global.EodProxyEod?.activeStamp?.() || global.EodLieuSign.activeStamp())
             : (S.state.signatureDataUrl
               ? `<img src="${S.state.signatureDataUrl}" alt="Signature">`
               : 'No signature yet')}</div>
-          <button type="button" class="btn btn-primary btn-block" id="signBtn" style="margin-top:8px;" ${global.EodProxyEod?.activeStamp?.() ? 'hidden' : ''}>Sign</button>
+          <button type="button" class="btn btn-primary btn-block" id="signBtn" style="margin-top:8px;" ${(global.EodProxyEod?.activeStamp?.() || global.EodLieuSign?.activeStamp?.()) ? 'hidden' : ''}>Sign</button>
           ${global.EodProxyEod?.canUse?.()
             ? `<button type="button" class="btn btn-secondary btn-block" id="proxyEodBtn" style="margin-top:8px;">${global.EodProxyEod.activeStamp?.() ? 'Undo' : 'Sign out for someone else'}</button>`
             : ''}

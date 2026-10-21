@@ -226,11 +226,17 @@
     host.innerHTML = `
       <h2>InstaWork</h2>
       <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="iwLieuBtn" style="display:inline-flex;flex-direction:column;align-items:center;line-height:1.05;padding:6px 10px;white-space:normal;min-width:76px;"><span>Sign in</span><span>lieu of</span></button>
         <button type="button" class="btn btn-primary" id="openIwBtn">InstaWork sheet</button>
         <button type="button" class="btn btn-secondary" id="iwDistributeBtn">Distribute time</button>
       </div>
       ${filed ? '<div class="iw-saved-dest" style="margin-top:8px;"><strong>Sent to the office.</strong></div>' : ''}`;
 
+    host.querySelector('#iwLieuBtn').onclick = () => {
+      global.EodTimesheetMgmt?.signInLieu?.('instawork', false)?.catch?.((err) => {
+        if (global.showAlert) global.showAlert('Sign in lieu of', err.message || String(err));
+      });
+    };
     host.querySelector('#openIwBtn').onclick = () => {
       if (global.EodTimesheetMgmt?.open) global.EodTimesheetMgmt.open('instawork');
     };
@@ -252,6 +258,7 @@
       <div class="card">
         <h1>Crew & timesheets</h1>
         <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="ktLieuBtn" style="display:inline-flex;flex-direction:column;align-items:center;line-height:1.05;padding:6px 10px;white-space:normal;min-width:76px;"><span>Sign in</span><span>lieu of</span></button>
           <button type="button" class="btn btn-primary" id="crewJoinQrBtn">JOIN QR</button>
           <button type="button" class="btn btn-secondary" id="openKtBtn">Kompass sheet</button>
           <button type="button" class="btn btn-secondary" id="crewDistributeBtn">Distribute time</button>
@@ -287,6 +294,11 @@
     const smsHost = document.getElementById('crewSmsHost');
     if (smsHost) smsHost.innerHTML = '';
 
+    document.getElementById('ktLieuBtn').onclick = () => {
+      global.EodTimesheetMgmt?.signInLieu?.('kompass', false)?.catch?.((err) => {
+        if (global.showAlert) global.showAlert('Sign in lieu of', err.message || String(err));
+      });
+    };
     document.getElementById('crewJoinQrBtn').onclick = async () => {
       try {
         if (global.EodTimesheetMgmt?.showJoinQr) await global.EodTimesheetMgmt.showJoinQr();

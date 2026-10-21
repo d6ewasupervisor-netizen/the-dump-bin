@@ -83,6 +83,57 @@
     applyToSearchParams,
     toggle,
   };
-  if (typeof module === 'object' && module.exports) module.exports = api;
+
+  const LIEU_RE = /^Signed \d{2}\/\d{2}\/\d{2}$/;
+
+  function signedStamp(now = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+    }).formatToParts(now);
+    const pick = (type) => (parts.find((p) => p.type === type) || {}).value || '';
+    const month = pick('month');
+    const day = pick('day');
+    const year = pick('year');
+    if (!month || !day || !year) return '';
+    return `Signed ${month}/${day}/${year}`;
+  }
+
+  function storedLieu() {
+    const raw = String(global.EodSession?.state?.lieuSignoffStamp || '');
+    return LIEU_RE.test(raw) ? raw : '';
+  }
+
+  function lieuActiveStamp() {
+    return storedLieu();
+  }
+
+  const lieuApi = {
+    signedStamp,
+    activeStamp: lieuActiveStamp,
+    isActive() { return !!lieuActiveStamp(); },
+    applyToSearchParams(qs) {
+      if (qs && lieuActiveStamp()) qs.set('lieuSignoff', '1');
+      return qs;
+    },
+    toggle() {
+      const S = global.EodSession;
+      if (!S?.patch) return '';
+      const next = storedLieu() ? '' : signedStamp();
+      S.patch({ lieuSignoffStamp: next }, 'lieu-signoff');
+      try { S.saveDraft?.(); } catch (_) {}
+      try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+      try { global.EodSend?.refreshGates?.(); } catch (_) {}
+      return next;
+    },
+  };
+
+  if (typeof module === 'object' && module.exports) {
+    module.exports = api;
+    module.exports.EodLieuSign = lieuApi;
+  }
   global.EodProxyEod = api;
+  global.EodLieuSign = lieuApi;
 })(typeof window !== 'undefined' ? window : globalThis);
