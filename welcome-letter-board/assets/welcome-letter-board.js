@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.21';
+  const UI_VERSION = 'v2.22';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -884,10 +884,10 @@
         ? (item.from || 'Associate')
         : (item.sentByEmail || 'Staff');
       const label = item.kind === 'reply' ? 'Reply' : (item.metadata?.kindLabel || item.kind || 'Notice');
-      return `<div style="padding:8px 0;border-bottom:1px solid var(--wb-line);">
+      return `<button type="button" class="wb-thread-item${employeeState.openNoticeId === item.id ? ' is-open' : ''}" data-id="${escapeHtml(item.id)}">
         <div><strong>${escapeHtml(label)}</strong> · ${escapeHtml(fmtDate(item.sentAt))}</div>
-        <div class="wb-muted">${escapeHtml(who)}</div>
-      </div>`;
+        <div class="wb-muted">${escapeHtml(item.subject || who)}</div>
+      </button>`;
     }).join('');
   }
 
@@ -1055,6 +1055,7 @@
     document.getElementById('noticeLastWorked').value = emp.lastPunchOn || emp.lastLoggedOn || emp.lastWorkedOn || '';
     document.getElementById('noticeStatus').textContent = '';
     clearNoticeDraft();
+    closeNoticeCopy();
     document.querySelectorAll('#employeeRows tr').forEach((tr) => {
       tr.classList.toggle('is-selected', String(tr.dataset.id) === String(emp.employeeId));
     });
@@ -1145,12 +1146,91 @@
     await loadList();
   }
 
+  function closeNoticeCopy() {
+    employeeState.openNoticeId = null;
+    const wrap = document.getElementById('noticeCopy');
+    const frame = document.getElementById('noticeCopyFrame');
+    if (wrap) {
+      wrap.hidden = true;
+      wrap.classList.add('wb-hidden');
+    }
+    if (frame) frame.srcdoc = '';
+  }
+
+  async function openNoticeCopy(id) {
+    const wrap = document.getElementById('noticeCopy');
+    const meta = document.getElementById('noticeCopyMeta');
+    const frame = document.getElementById('noticeCopyFrame');
+    if (!wrap || !frame) return;
+    wrap.hidden = false;
+    wrap.classList.remove('wb-hidden');
+    if (meta) meta.textContent = 'Loading…';
+    frame.srcdoc = '';
+    const data = await api(`/api/welcome-letter/employees/notices/${encodeURIComponent(id)}`);
+    employeeState.openNoticeId = data.id;
+    employeeState.openNoticeFile = `${String(data.subject || 'notice').replace(/[<>:"/\\|?*]+/g, ' ').trim() || 'notice'}.eml`;
+    const copies = [].concat(data.to || [], data.cc || []).filter(Boolean);
+    if (meta) {
+      meta.textContent = [data.subject, data.from, copies.join(', '), fmtDate(data.sentAt)].filter(Boolean).join(' · ');
+    }
+    const html = data.html || `<pre style="white-space:pre-wrap;font-family:Calibri,Arial,sans-serif;padding:16px;">${escapeHtml(data.text || '')}</pre>`;
+    frame.onload = () => {
+      const doc = frame.contentDocument;
+      const h = doc ? Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0, 320) : 320;
+      frame.style.height = `${h}px`;
+    };
+    frame.srcdoc = html;
+    document.querySelectorAll('.wb-thread-item').forEach((btn) => {
+      btn.classList.toggle('is-open', String(btn.dataset.id) === String(data.id));
+    });
+  }
+
+  async function downloadOpenNotice() {
+    const id = employeeState.openNoticeId;
+    if (!id) return;
+    const fetchFn = window.dumpBinAuthFetch || fetch;
+    const res = await fetchFn(`/api/welcome-letter/employees/notices/${encodeURIComponent(id)}/download`, {
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      let message = `HTTP ${res.status}`;
+      try { message = JSON.parse(text).error || message; } catch (_err) { /* keep status */ }
+      throw new Error(message);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = employeeState.openNoticeFile || `notice-${id}.eml`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function bindEmployeeNotice() {
     const kind = document.getElementById('noticeKind');
     const refresh = document.getElementById('employeesRefresh');
     const preview = document.getElementById('noticePreviewBtn');
     const send = document.getElementById('noticeSendBtn');
     const workApply = document.getElementById('workApply');
+    const thread = document.getElementById('employeeThread');
+    const noticeDownload = document.getElementById('noticeCopyDownload');
+    if (thread) thread.addEventListener('click', (event) => {
+      const btn = event.target.closest('.wb-thread-item');
+      if (!btn) return;
+      openNoticeCopy(btn.dataset.id).catch((err) => {
+        const meta = document.getElementById('noticeCopyMeta');
+        if (meta) meta.textContent = err.message;
+      });
+    });
+    if (noticeDownload) noticeDownload.addEventListener('click', () => {
+      downloadOpenNotice().catch((err) => {
+        const meta = document.getElementById('noticeCopyMeta');
+        if (meta) meta.textContent = err.message;
+      });
+    });
     if (workApply) workApply.addEventListener('click', () => {
       const emp = employeeState.selected;
       if (!emp) return;

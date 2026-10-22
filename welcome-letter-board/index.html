@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.21 -->
+  <!-- welcome-letter-board v2.22 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.21">
+  <meta name="welcome-letter-version" content="v2.22">
   <title>Employee Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -189,7 +189,19 @@
     .wb-detail-grid dt { color: var(--wb-muted); margin: 0; font-size: 13px; font-weight: 700; }
     .wb-detail-grid dd { margin: 0; word-break: break-word; font-size: 14px; }
     .wb-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-    .wb-preview-wrap { border: 1px solid var(--wb-line); border-radius: 10px; overflow: hidden; }
+    .wb-thread-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--wb-line);
+      padding: 8px 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+    .wb-thread-item:hover, .wb-thread-item.is-open { background: var(--wb-sky-tint); }
     .wb-preview-label { padding: 8px 12px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--wb-muted); background: #F7FAFC; border-bottom: 1px solid var(--wb-line); }
     #detailPreview { width: 100%; min-height: 360px; height: 46vh; border: 0; background: #fff; }
     .wb-error { color: var(--wb-error); font-size: 13px; margin-top: 10px; }
@@ -444,6 +456,14 @@
             </div>
             <h4 style="margin:14px 0 6px;color:var(--wb-navy);">Communication</h4>
             <div id="employeeThread" class="wb-muted" style="font-size:13px;">No notices yet.</div>
+            <div id="noticeCopy" class="wb-preview-wrap wb-hidden" hidden style="margin-top:10px;">
+              <div class="wb-preview-label">Sent notice</div>
+              <div class="wb-detail-actions" style="padding:8px 12px 0;">
+                <button type="button" id="noticeCopyDownload" class="wb-btn wb-btn-ghost">Download</button>
+              </div>
+              <p class="wb-muted" id="noticeCopyMeta" style="margin:8px 12px;font-size:13px;"></p>
+              <iframe id="noticeCopyFrame" title="Sent notice" style="width:100%;min-height:320px;border:0;background:#fff;"></iframe>
+            </div>
           </div>
         </div>
       </div>
@@ -878,8 +898,8 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.21</span>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.22</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.21"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.22"></script>
 </body>
 </html>

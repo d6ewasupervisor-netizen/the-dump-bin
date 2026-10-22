@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-22 — Sent notice opens and downloads
+
+A notice in Communication opens the stored letter. Download saves that message as an `.eml`. `welcome-letter-board.js?v=2.22`.
+
 ## 2026-10-22 — Past employees tab and roster colors
 
 Current employees show personal email, work email, phone, and last punch. Yellow is a punch older than 14 days. Orange is an open initial or job-abandonment notice. Red is a final notice for someone still on the roster. Past employees is its own tab. `welcome-letter-board.js?v=2.21`.
