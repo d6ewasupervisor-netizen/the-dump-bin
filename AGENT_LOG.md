@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-22 — Notice preview names the CC list
+
+The notice preview status reads CC from the API (`cc`, then `bcc` if an older API is still up). `welcome-letter-board.js?v=2.18`.
+
 ## 2026-10-21 — Built and Ran on Time off
 
 The PTO table has a Built column and a Ran column. `welcome-letter-board.js?v=2.17`.

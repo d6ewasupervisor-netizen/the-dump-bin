@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.17';
+  const UI_VERSION = 'v2.18';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -945,7 +945,8 @@
     });
     document.getElementById('noticePreview').srcdoc = data.html;
     document.getElementById('noticePreviewWrap').classList.remove('wb-hidden');
-    status.textContent = `Reply-to ${data.replyTo}. BCC ${ (data.bcc || []).join(', ') }.`;
+    const copies = data.cc || data.bcc || [];
+    status.textContent = `Reply-to ${data.replyTo}. CC ${copies.join(', ')}.`;
   }
 
   async function sendNotice() {
