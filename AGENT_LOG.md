@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-22 — Time logged range on the employee list
+
+The list column is Last logged. A name opens the last 15 days. From and To apply a range back to January 1. `welcome-letter-board.js?v=2.20`.
+
 ## 2026-10-22 — Notice preview is the letter that sends
 
 The subject line, the letter paragraphs, the signature, and an addendum line can be edited in the preview. Send is refused until that preview is current. `welcome-letter-board.js?v=2.19`.

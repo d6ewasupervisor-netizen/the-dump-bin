@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.19 -->
+  <!-- welcome-letter-board v2.20 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.19">
+  <meta name="welcome-letter-version" content="v2.20">
   <title>Employee Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -237,7 +237,7 @@
       margin: 0 0 10px;
       font-size: 14px;
     }
-    .wb-work-scroll { max-height: 280px; overflow: auto; margin-bottom: 14px; }
+    .wb-work-scroll { max-height: 420px; overflow: auto; margin-bottom: 14px; }
     .wb-work-scroll table { font-size: 13px; }
 
     .wb-hidden { display: none !important; }
@@ -339,7 +339,7 @@
       <div>
         <div class="wb-brand">Retail Odyssey</div>
         <h1>Employee Board</h1>
-        <p>Direct reports from PROD, the last two weeks of work, and welcome letters.</p>
+        <p>Direct reports from PROD, time logged this year, and welcome letters.</p>
         <p class="wb-signed-in" id="signedInAs" hidden></p>
       </div>
       <div id="boardActions" class="wb-actions">
@@ -373,7 +373,7 @@
                 <tr>
                   <th>Name</th>
                   <th>Email</th>
-                  <th>Last worked</th>
+                  <th>Last logged</th>
                 </tr>
               </thead>
               <tbody id="employeeRows">
@@ -387,6 +387,15 @@
           <div id="employeeBody" hidden>
             <h3 id="employeeName" style="margin:0 0 8px;color:var(--wb-navy);"></h3>
             <p class="wb-muted" id="employeeMeta" style="margin:0 0 10px;font-size:13px;"></p>
+            <div id="workRange" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:8px;">
+              <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">From
+                <input id="workFrom" type="date" style="display:block;margin-top:4px;font:inherit;font-weight:400;padding:6px 8px;">
+              </label>
+              <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">To
+                <input id="workTo" type="date" style="display:block;margin-top:4px;font:inherit;font-weight:400;padding:6px 8px;">
+              </label>
+              <button type="button" id="workApply" class="wb-btn wb-btn-ghost">Apply</button>
+            </div>
             <div id="workPanel" class="wb-muted" style="font-size:13px;margin-bottom:12px;">Loading…</div>
             <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Notice
               <select id="noticeKind" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
@@ -829,8 +838,8 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.19</span>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.20</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.19"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.20"></script>
 </body>
 </html>

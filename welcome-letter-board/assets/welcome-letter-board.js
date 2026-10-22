@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.19';
+  const UI_VERSION = 'v2.20';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -950,7 +950,7 @@
         </tr>`).join('')
       : '<tr><td colspan="6">No workforce history</td></tr>';
     panel.classList.remove('wb-muted');
-    panel.innerHTML = `<h4 style="margin:0 0 6px;color:var(--wb-navy);">Last two weeks</h4>
+    panel.innerHTML = `<h4 style="margin:0 0 6px;color:var(--wb-navy);">Time logged</h4>
       <p class="wb-muted" style="margin:0 0 8px;font-size:13px;">${escapeHtml(range)}</p>
       <p class="wb-work-summary">${escapeHtml(headline)}</p>
       <div class="wb-work-scroll">
@@ -970,14 +970,35 @@
       </div>`;
   }
 
-  async function loadWorkHistory(emp) {
+  function applyWorkBounds(data) {
+    const from = document.getElementById('workFrom');
+    const to = document.getElementById('workTo');
+    if (!from || !to || !data) return;
+    if (data.earliest) {
+      from.min = data.earliest;
+      to.min = data.earliest;
+    }
+    if (data.today) {
+      from.max = data.today;
+      to.max = data.today;
+    }
+    if (data.from) from.value = data.from;
+    if (data.to) to.value = data.to;
+  }
+
+  async function loadWorkHistory(emp, range) {
     const panel = document.getElementById('workPanel');
     const token = ++workLoadToken;
     panel.classList.add('wb-muted');
     panel.textContent = 'Loading…';
     try {
-      const data = await api(`/api/welcome-letter/employees/${encodeURIComponent(emp.employeeId)}/work`);
+      const q = new URLSearchParams();
+      if (range && range.from) q.set('from', range.from);
+      if (range && range.to) q.set('to', range.to);
+      const suffix = q.toString() ? `?${q.toString()}` : '';
+      const data = await api(`/api/welcome-letter/employees/${encodeURIComponent(emp.employeeId)}/work${suffix}`);
       if (token !== workLoadToken) return;
+      applyWorkBounds(data);
       renderWorkHistory(panel, data);
     } catch (err) {
       if (token !== workLoadToken) return;
@@ -992,12 +1013,16 @@
     document.getElementById('employeeBody').hidden = false;
     document.getElementById('employeeName').textContent = emp.name || 'Employee';
     document.getElementById('employeeMeta').textContent = [emp.email, emp.phone, emp.title].filter(Boolean).join(' · ');
-    document.getElementById('noticeLastWorked').value = emp.lastWorkedOn || '';
+    document.getElementById('noticeLastWorked').value = emp.lastLoggedOn || emp.lastWorkedOn || '';
     document.getElementById('noticeStatus').textContent = '';
     clearNoticeDraft();
     document.querySelectorAll('#employeeRows tr').forEach((tr) => {
       tr.classList.toggle('is-selected', String(tr.dataset.id) === String(emp.employeeId));
     });
+    const from = document.getElementById('workFrom');
+    const to = document.getElementById('workTo');
+    if (from) from.value = '';
+    if (to) to.value = '';
     syncNoticeFields();
     loadWorkHistory(emp);
     loadEmployeeThread(emp).catch((err) => {
@@ -1019,7 +1044,7 @@
       tbody.innerHTML = employeeState.items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}">
         <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span><a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
         <td>${escapeHtml(emp.email || '—')}</td>
-        <td>${escapeHtml(emp.lastWorkedOn || '—')}</td>
+        <td>${escapeHtml(emp.lastLoggedOn || emp.lastWorkedOn || '—')}</td>
       </tr>`).join('');
       tbody.querySelectorAll('tr').forEach((tr) => {
         const link = tr.querySelector('.wb-prod-link');
@@ -1084,6 +1109,17 @@
     const refresh = document.getElementById('employeesRefresh');
     const preview = document.getElementById('noticePreviewBtn');
     const send = document.getElementById('noticeSendBtn');
+    const workApply = document.getElementById('workApply');
+    if (workApply) workApply.addEventListener('click', () => {
+      const emp = employeeState.selected;
+      if (!emp) return;
+      loadWorkHistory(emp, {
+        from: document.getElementById('workFrom').value,
+        to: document.getElementById('workTo').value,
+      }).catch((err) => {
+        document.getElementById('workPanel').textContent = err.message;
+      });
+    });
     if (kind) kind.addEventListener('change', () => {
       syncNoticeFields();
       markNoticeStale();
