@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.20 -->
+  <!-- welcome-letter-board v2.21 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.20">
+  <meta name="welcome-letter-version" content="v2.21">
   <title>Employee Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -137,6 +137,15 @@
     table.wb-table th.sortable:hover, table.wb-table th.is-sorted { color: var(--wb-navy); }
     table.wb-table tbody tr { cursor: pointer; }
     table.wb-table tbody tr:hover, table.wb-table tbody tr.is-selected { background: var(--wb-sky-tint); }
+    table.wb-table tbody tr.is-stale,
+    table.wb-table tbody tr.is-stale:hover,
+    table.wb-table tbody tr.is-stale.is-selected { background: #FDE68A; }
+    table.wb-table tbody tr.is-open,
+    table.wb-table tbody tr.is-open:hover,
+    table.wb-table tbody tr.is-open.is-selected { background: #FDBA74; }
+    table.wb-table tbody tr.is-final,
+    table.wb-table tbody tr.is-final:hover,
+    table.wb-table tbody tr.is-final.is-selected { background: #FECACA; }
     .wb-muted { color: var(--wb-muted); }
     .wb-steps { margin: 14px 0 0; padding: 0; list-style: none; }
     .wb-steps li { display: grid; grid-template-columns: 6.5rem 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--wb-line); font-size: 14px; }
@@ -350,6 +359,7 @@
 
     <div class="wb-tabs" role="tablist" aria-label="Employee Board">
       <button type="button" class="wb-tab is-active" id="tabBoard" role="tab" aria-selected="true" aria-controls="panelBoard">Board</button>
+      <button type="button" class="wb-tab" id="tabPast" role="tab" aria-selected="false" aria-controls="panelPast">Past employees</button>
       <button type="button" class="wb-tab" id="tabPto" role="tab" aria-selected="false" aria-controls="panelPto">PTO</button>
       <button type="button" class="wb-tab" id="tabReferrals" role="tab" aria-selected="false" aria-controls="panelReferrals">Referrals</button>
     </div>
@@ -372,12 +382,14 @@
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th>Email</th>
-                  <th>Last logged</th>
+                  <th>Personal</th>
+                  <th>Work</th>
+                  <th>Phone</th>
+                  <th>Last punch</th>
                 </tr>
               </thead>
               <tbody id="employeeRows">
-                <tr><td colspan="3" class="wb-muted">Loading…</td></tr>
+                <tr><td colspan="5" class="wb-muted">Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -554,6 +566,34 @@
       </div>
     </div>
 
+    </div>
+
+    <div id="panelPast" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <div class="wb-head" style="margin-bottom:12px;">
+          <div>
+            <h2 style="margin:0;color:var(--wb-navy);font-size:1.1rem;">Past employees</h2>
+          </div>
+          <button type="button" id="pastRefresh" class="wb-btn wb-btn-ghost">Refresh</button>
+        </div>
+        <div class="wb-table-wrap">
+          <table class="wb-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Personal</th>
+                <th>Work</th>
+                <th>Phone</th>
+                <th>Last punch</th>
+                <th>Last on roster</th>
+              </tr>
+            </thead>
+            <tbody id="pastRows">
+              <tr><td colspan="6" class="wb-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <div id="panelPto" class="wb-hidden" hidden>
@@ -838,8 +878,8 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.20</span>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.21</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.20"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.21"></script>
 </body>
 </html>

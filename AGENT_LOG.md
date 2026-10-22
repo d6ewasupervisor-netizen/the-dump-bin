@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-22 — Past employees tab and roster colors
+
+Current employees show personal email, work email, phone, and last punch. Yellow is a punch older than 14 days. Orange is an open initial or job-abandonment notice. Red is a final notice for someone still on the roster. Past employees is its own tab. `welcome-letter-board.js?v=2.21`.
+
 ## 2026-10-22 — Time logged range on the employee list
 
 The list column is Last logged. A name opens the last 15 days. From and To apply a range back to January 1. `welcome-letter-board.js?v=2.20`.

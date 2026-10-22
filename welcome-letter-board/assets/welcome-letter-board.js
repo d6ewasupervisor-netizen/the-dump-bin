@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.20';
+  const UI_VERSION = 'v2.21';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -757,7 +757,7 @@
     return {
       kind: document.getElementById('noticeKind').value,
       employeeId: emp.employeeId,
-      email: emp.email,
+      email: contactEmail(emp),
       fullName: emp.name,
       firstName: (emp.preferredName || emp.name || '').split(/\s+/)[0],
       lastWorkedOn: document.getElementById('noticeLastWorked').value,
@@ -908,6 +908,40 @@
 
   let workLoadToken = 0;
 
+  function listText(values) {
+    const list = (Array.isArray(values) ? values : [values]).map((v) => String(v || '').trim()).filter(Boolean);
+    return list.length ? list.join(', ') : '';
+  }
+
+  function formatPhone(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    const local = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+    if (local.length !== 10) return String(value || '').trim();
+    return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
+  }
+
+  function phoneText(values) {
+    const list = (Array.isArray(values) ? values : [values]).map(formatPhone).filter(Boolean);
+    return list.length ? list.join(', ') : '';
+  }
+
+  function contactEmail(emp) {
+    return listText(emp.personalEmails) || listText(emp.workEmails) || emp.email || '';
+  }
+
+  function punchLabel(emp) {
+    const day = emp.lastPunchOn || emp.lastLoggedOn || emp.lastWorkedOn || '';
+    if (!day) return '—';
+    return emp.lastPunchTime ? `${day} · ${emp.lastPunchTime}` : day;
+  }
+
+  function toneClass(tone) {
+    if (tone === 'final') return 'is-final';
+    if (tone === 'open') return 'is-open';
+    if (tone === 'stale') return 'is-stale';
+    return '';
+  }
+
   function prodWorkforceUrl(employeeId) {
     return `https://prod.sasretail.com/en/sasretail/workforce/full-profile/${encodeURIComponent(employeeId)}`;
   }
@@ -1012,8 +1046,13 @@
     document.getElementById('employeeEmpty').hidden = true;
     document.getElementById('employeeBody').hidden = false;
     document.getElementById('employeeName').textContent = emp.name || 'Employee';
-    document.getElementById('employeeMeta').textContent = [emp.email, emp.phone, emp.title].filter(Boolean).join(' · ');
-    document.getElementById('noticeLastWorked').value = emp.lastLoggedOn || emp.lastWorkedOn || '';
+    document.getElementById('employeeMeta').textContent = [
+      listText(emp.personalEmails) || emp.email,
+      listText(emp.workEmails),
+      phoneText(emp.phones && emp.phones.length ? emp.phones : [emp.phone]),
+      emp.title,
+    ].filter(Boolean).join(' · ');
+    document.getElementById('noticeLastWorked').value = emp.lastPunchOn || emp.lastLoggedOn || emp.lastWorkedOn || '';
     document.getElementById('noticeStatus').textContent = '';
     clearNoticeDraft();
     document.querySelectorAll('#employeeRows tr').forEach((tr) => {
@@ -1033,18 +1072,20 @@
   async function loadEmployees(refresh) {
     const tbody = document.getElementById('employeeRows');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="3" class="wb-muted">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="wb-muted">Loading…</td></tr>';
     try {
       const data = await api(`/api/welcome-letter/employees${refresh ? '?refresh=1' : ''}`);
       employeeState.items = data.employees || [];
       if (!employeeState.items.length) {
-        tbody.innerHTML = '<tr><td colspan="3" class="wb-muted">No direct reports returned.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="wb-muted">No direct reports returned.</td></tr>';
         return;
       }
-      tbody.innerHTML = employeeState.items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}">
+      tbody.innerHTML = employeeState.items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}" class="${toneClass(emp.tone)}">
         <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span><a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
-        <td>${escapeHtml(emp.email || '—')}</td>
-        <td>${escapeHtml(emp.lastLoggedOn || emp.lastWorkedOn || '—')}</td>
+        <td>${escapeHtml(listText(emp.personalEmails) || '—')}</td>
+        <td>${escapeHtml(listText(emp.workEmails) || '—')}</td>
+        <td>${escapeHtml(phoneText(emp.phones && emp.phones.length ? emp.phones : [emp.phone]) || '—')}</td>
+        <td>${escapeHtml(punchLabel(emp))}</td>
       </tr>`).join('');
       tbody.querySelectorAll('tr').forEach((tr) => {
         const link = tr.querySelector('.wb-prod-link');
@@ -1055,7 +1096,7 @@
         });
       });
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="3" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
     }
   }
 
@@ -1874,15 +1915,37 @@
     await loadPto();
   }
 
+  async function loadPastEmployees() {
+    const tbody = document.getElementById('pastRows');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="wb-muted">Loading…</td></tr>';
+    const data = await api('/api/welcome-letter/employees/past');
+    const items = data.employees || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="wb-muted">No one has left the roster yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map((emp) => `<tr class="${toneClass(emp.tone)}">
+      <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span><a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
+      <td>${escapeHtml(listText(emp.personalEmails) || '—')}</td>
+      <td>${escapeHtml(listText(emp.workEmails) || '—')}</td>
+      <td>${escapeHtml(phoneText(emp.phones) || '—')}</td>
+      <td>${escapeHtml(punchLabel(emp))}</td>
+      <td>${escapeHtml(emp.lastSeenOn || emp.removedOn || '—')}</td>
+    </tr>`).join('');
+  }
+
   function switchMainTab(name, { pushUrl = true } = {}) {
-    const tab = name === 'referrals' || name === 'pto' ? name : 'board';
+    const tab = name === 'referrals' || name === 'pto' || name === 'past' ? name : 'board';
     setPanel(document.getElementById('panelBoard'), tab === 'board');
+    setPanel(document.getElementById('panelPast'), tab === 'past');
     setPanel(document.getElementById('panelReferrals'), tab === 'referrals');
     setPanel(document.getElementById('panelPto'), tab === 'pto');
     const boardActions = document.getElementById('boardActions');
     if (boardActions) boardActions.classList.toggle('wb-hidden', tab !== 'board');
     [
       ['tabBoard', 'board'],
+      ['tabPast', 'past'],
       ['tabPto', 'pto'],
       ['tabReferrals', 'referrals'],
     ].forEach(([id, key]) => {
@@ -1903,6 +1966,12 @@
       }
       window.history.replaceState(null, '', url.toString());
     }
+    if (tab === 'past') {
+      loadPastEmployees().catch((err) => {
+        const tbody = document.getElementById('pastRows');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
+      });
+    }
     if (tab === 'referrals') {
       loadReferrals().catch((err) => showRefBanner({ ok: false, message: err.message }));
     }
@@ -1915,9 +1984,18 @@
     const boardTab = document.getElementById('tabBoard');
     const ptoTab = document.getElementById('tabPto');
     const referralTab = document.getElementById('tabReferrals');
+    const pastTab = document.getElementById('tabPast');
     if (boardTab) boardTab.addEventListener('click', () => switchMainTab('board'));
+    if (pastTab) pastTab.addEventListener('click', () => switchMainTab('past'));
     if (ptoTab) ptoTab.addEventListener('click', () => switchMainTab('pto'));
     if (referralTab) referralTab.addEventListener('click', () => switchMainTab('referrals'));
+    const pastRefresh = document.getElementById('pastRefresh');
+    if (pastRefresh) pastRefresh.addEventListener('click', () => {
+      loadPastEmployees().catch((err) => {
+        const tbody = document.getElementById('pastRows');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
+      });
+    });
     const ptoRefresh = document.getElementById('ptoRefresh');
     if (ptoRefresh) ptoRefresh.addEventListener('click', () => {
       loadPto().catch((err) => showPtoBanner(err.message, false));
@@ -1965,6 +2043,8 @@
     if (tab === 'referrals') {
       switchMainTab('referrals', { pushUrl: false });
       if (url.searchParams.get('view') === 'due') setReferralView('due', { pushUrl: false });
+    } else if (tab === 'past') {
+      switchMainTab('past', { pushUrl: false });
     } else if (tab === 'pto') {
       switchMainTab('pto', { pushUrl: false });
     }
