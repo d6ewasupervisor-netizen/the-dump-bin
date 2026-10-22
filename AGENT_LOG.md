@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-22 — Notice preview is the letter that sends
+
+The subject line, the letter paragraphs, the signature, and an addendum line can be edited in the preview. Send is refused until that preview is current. `welcome-letter-board.js?v=2.19`.
+
 ## 2026-10-22 — Notice preview names the CC list
 
 The notice preview status reads CC from the API (`cc`, then `bcc` if an older API is still up). `welcome-letter-board.js?v=2.18`.

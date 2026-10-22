@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.18';
+  const UI_VERSION = 'v2.19';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -774,6 +774,105 @@
     document.getElementById('shiftWrap').classList.toggle('wb-hidden', kind !== 'job-abandonment');
   }
 
+  let noticeDraftKey = '';
+  let noticeDraftStale = false;
+
+  function noticeFieldKey(payload) {
+    return JSON.stringify([
+      payload.kind,
+      payload.employeeId,
+      payload.email,
+      payload.lastWorkedOn,
+      payload.initialNoticeDate,
+      payload.scheduledDate,
+      payload.scheduledTime,
+    ]);
+  }
+
+  function clearNoticeDraft() {
+    noticeDraftKey = '';
+    noticeDraftStale = false;
+    const wrap = document.getElementById('noticePreviewWrap');
+    const frame = document.getElementById('noticePreview');
+    const subject = document.getElementById('noticeSubject');
+    if (wrap) wrap.classList.add('wb-hidden');
+    if (frame) {
+      frame.onload = null;
+      frame.srcdoc = '';
+      frame.style.height = '';
+    }
+    if (subject) subject.value = '';
+  }
+
+  function markNoticeStale() {
+    if (!noticeDraftKey) return;
+    const payload = noticePayload();
+    if (!payload || noticeFieldKey(payload) === noticeDraftKey) {
+      noticeDraftStale = false;
+      return;
+    }
+    noticeDraftStale = true;
+    const status = document.getElementById('noticeStatus');
+    if (status) status.textContent = 'Preview again before sending.';
+  }
+
+  function fitNoticeFrame(frame) {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    const h = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0, 320);
+    frame.style.height = `${h}px`;
+  }
+
+  function prepareNoticeFrame(frame) {
+    const doc = frame.contentDocument;
+    if (!doc || !doc.body || doc.body.dataset.noticeReady === '1') return;
+    doc.body.dataset.noticeReady = '1';
+    const style = doc.createElement('style');
+    style.setAttribute('data-notice-editor', '1');
+    style.textContent = [
+      'td[data-notice="body"], td[data-notice="signature"], td[data-notice="addendum"] { outline: none; }',
+      'td[data-notice="body"]:focus, td[data-notice="signature"]:focus, td[data-notice="addendum"]:focus { background: #F7FBFF; }',
+      'td[data-notice="addendum"]:empty:before { content: attr(data-placeholder); color: #8A9AAB; }',
+    ].join('\n');
+    doc.head.appendChild(style);
+    doc.querySelectorAll('[data-notice="body"], [data-notice="signature"], [data-notice="addendum"]').forEach((el) => {
+      el.setAttribute('contenteditable', 'true');
+    });
+    doc.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' || event.shiftKey) return;
+      const sel = doc.getSelection();
+      const node = sel && sel.anchorNode;
+      const cell = node && (node.nodeType === 1 ? node : node.parentElement);
+      if (!cell || !cell.closest || !cell.closest('[contenteditable="true"]')) return;
+      event.preventDefault();
+      doc.execCommand('insertLineBreak');
+    });
+    doc.addEventListener('input', () => fitNoticeFrame(frame));
+    fitNoticeFrame(frame);
+  }
+
+  function armNoticeDraft(frame, key) {
+    if (!frame.contentDocument || !frame.contentDocument.querySelector('[data-notice="body"]')) return;
+    prepareNoticeFrame(frame);
+    noticeDraftKey = key;
+    noticeDraftStale = false;
+  }
+
+  function readNoticeDraft() {
+    const frame = document.getElementById('noticePreview');
+    const doc = frame && frame.contentDocument;
+    if (!doc || !doc.documentElement || !doc.body) return null;
+    const clone = doc.documentElement.cloneNode(true);
+    clone.querySelectorAll('[contenteditable]').forEach((el) => el.removeAttribute('contenteditable'));
+    clone.querySelectorAll('style[data-notice-editor]').forEach((el) => el.remove());
+    const subject = document.getElementById('noticeSubject');
+    return {
+      editedHtml: `<!DOCTYPE html>\n${clone.outerHTML}`,
+      editedText: String(doc.body.innerText || '').replace(/\n{3,}/g, '\n\n').trim(),
+      editedSubject: subject ? subject.value.trim() : '',
+    };
+  }
+
   function renderEmployeeThread(items) {
     const el = document.getElementById('employeeThread');
     if (!items.length) {
@@ -895,6 +994,7 @@
     document.getElementById('employeeMeta').textContent = [emp.email, emp.phone, emp.title].filter(Boolean).join(' · ');
     document.getElementById('noticeLastWorked').value = emp.lastWorkedOn || '';
     document.getElementById('noticeStatus').textContent = '';
+    clearNoticeDraft();
     document.querySelectorAll('#employeeRows tr').forEach((tr) => {
       tr.classList.toggle('is-selected', String(tr.dataset.id) === String(emp.employeeId));
     });
@@ -943,7 +1043,12 @@
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    document.getElementById('noticePreview').srcdoc = data.html;
+    const frame = document.getElementById('noticePreview');
+    const key = noticeFieldKey(payload);
+    noticeDraftKey = '';
+    frame.onload = () => armNoticeDraft(frame, key);
+    frame.srcdoc = String(data.html || '').replace('</body>', `<!--${Date.now()}--></body>`);
+    document.getElementById('noticeSubject').value = data.subject || '';
     document.getElementById('noticePreviewWrap').classList.remove('wb-hidden');
     const copies = data.cc || data.bcc || [];
     status.textContent = `Reply-to ${data.replyTo}. CC ${copies.join(', ')}.`;
@@ -953,12 +1058,22 @@
     const status = document.getElementById('noticeStatus');
     const payload = noticePayload();
     if (!payload) return;
+    if (!noticeDraftKey || noticeDraftStale || noticeFieldKey(payload) !== noticeDraftKey) {
+      status.textContent = 'Preview again before sending.';
+      return;
+    }
+    const draft = readNoticeDraft();
+    if (!draft || !draft.editedHtml) {
+      status.textContent = 'Preview again before sending.';
+      return;
+    }
     if (!window.confirm(`Send this notice to ${payload.email}?`)) return;
     status.textContent = 'Sending…';
     const data = await api('/api/welcome-letter/employees/notice/send', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, ...draft }),
     });
+    noticeDraftKey = '';
     status.textContent = `Sent to ${data.to}.`;
     if (employeeState.selected) await loadEmployeeThread(employeeState.selected);
     await loadList();
@@ -969,7 +1084,14 @@
     const refresh = document.getElementById('employeesRefresh');
     const preview = document.getElementById('noticePreviewBtn');
     const send = document.getElementById('noticeSendBtn');
-    if (kind) kind.addEventListener('change', syncNoticeFields);
+    if (kind) kind.addEventListener('change', () => {
+      syncNoticeFields();
+      markNoticeStale();
+    });
+    ['noticeLastWorked', 'noticeInitialDate', 'noticeShiftDate', 'noticeShiftTime'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', markNoticeStale);
+    });
     if (refresh) refresh.addEventListener('click', () => loadEmployees(true));
     if (preview) preview.addEventListener('click', () => previewNotice().catch((err) => {
       document.getElementById('noticeStatus').textContent = err.message;
