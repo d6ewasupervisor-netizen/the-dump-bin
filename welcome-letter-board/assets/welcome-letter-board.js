@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.22';
+  const UI_VERSION = 'v2.23';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -1046,12 +1046,16 @@
     document.getElementById('employeeEmpty').hidden = true;
     document.getElementById('employeeBody').hidden = false;
     document.getElementById('employeeName').textContent = emp.name || 'Employee';
-    document.getElementById('employeeMeta').textContent = [
-      listText(emp.personalEmails) || emp.email,
-      listText(emp.workEmails),
-      phoneText(emp.phones && emp.phones.length ? emp.phones : [emp.phone]),
-      emp.title,
-    ].filter(Boolean).join(' · ');
+    const personal = listText(emp.personalEmails);
+    const work = listText(emp.workEmails);
+    const phone = phoneText(emp.phones && emp.phones.length ? emp.phones : [emp.phone]);
+    const bits = [];
+    if (personal) bits.push(`Personal ${escapeHtml(personal)}`);
+    if (work) bits.push(`Work ${escapeHtml(work)}`);
+    if (!personal && !work && emp.email) bits.push(escapeHtml(emp.email));
+    if (phone) bits.push(escapeHtml(phone));
+    if (emp.title) bits.push(escapeHtml(emp.title));
+    document.getElementById('employeeMeta').innerHTML = bits.join('<br>');
     document.getElementById('noticeLastWorked').value = emp.lastPunchOn || emp.lastLoggedOn || emp.lastWorkedOn || '';
     document.getElementById('noticeStatus').textContent = '';
     clearNoticeDraft();
@@ -1073,19 +1077,16 @@
   async function loadEmployees(refresh) {
     const tbody = document.getElementById('employeeRows');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" class="wb-muted">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="2" class="wb-muted">Loading…</td></tr>';
     try {
       const data = await api(`/api/welcome-letter/employees${refresh ? '?refresh=1' : ''}`);
       employeeState.items = data.employees || [];
       if (!employeeState.items.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="wb-muted">No direct reports returned.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="2" class="wb-muted">No direct reports returned.</td></tr>';
         return;
       }
       tbody.innerHTML = employeeState.items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}" class="${toneClass(emp.tone)}">
         <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span><a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
-        <td>${escapeHtml(listText(emp.personalEmails) || '—')}</td>
-        <td>${escapeHtml(listText(emp.workEmails) || '—')}</td>
-        <td>${escapeHtml(phoneText(emp.phones && emp.phones.length ? emp.phones : [emp.phone]) || '—')}</td>
         <td>${escapeHtml(punchLabel(emp))}</td>
       </tr>`).join('');
       tbody.querySelectorAll('tr').forEach((tr) => {
@@ -1097,7 +1098,7 @@
         });
       });
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="5" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="2" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
     }
   }
 

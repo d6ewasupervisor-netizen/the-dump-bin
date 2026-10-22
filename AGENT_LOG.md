@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-22 — Contacts only on the selected employee
+
+The current roster list is name and last punch. Personal email, work email, and phone stay on the person after the name is clicked. Past employees still lists those contacts. `welcome-letter-board.js?v=2.23`.
+
 ## 2026-10-22 — Sent notice opens and downloads
 
 A notice in Communication opens the stored letter. Download saves that message as an `.eml`. `welcome-letter-board.js?v=2.22`.
