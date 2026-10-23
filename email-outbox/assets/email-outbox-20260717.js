@@ -151,6 +151,71 @@
     return ' ' + badge('relayed', 'relayed');
   }
 
+  function heldBadge(item) {
+    const approval = item && item.metadata && item.metadata.approval;
+    if (!approval || String(item.status).toLowerCase() !== 'held') return '';
+    const first = String(approval.approver || '').split('@')[0].split('.')[0] || 'approver';
+    return ' ' + badge(`Held — awaiting ${first}`, 'pending');
+  }
+
+  async function renderHeldActions(item) {
+    const old = document.getElementById('heldActions');
+    if (old) old.remove();
+    const approval = item && item.metadata && item.metadata.approval;
+    if (!item || String(item.status).toLowerCase() !== 'held') return;
+    let csrf = '';
+    try {
+      const out = await api('/api/helpdesk-approval/csrf');
+      csrf = out && out.ok ? out.csrf : '';
+    } catch (_) { return; }
+    if (!csrf) return;
+    const approver = approval && approval.approver ? approval.approver : '';
+    const wrap = document.createElement('div');
+    wrap.id = 'heldActions';
+    wrap.style.cssText = 'margin:10px 0;';
+    wrap.innerHTML = `<strong>Held — awaiting ${escapeHtml(approver || 'approval')}</strong><br>`
+      + '<button type="button" id="heldApprove">Approve &amp; send</button> '
+      + '<button type="button" id="heldReject">Reject</button><br>'
+      + '<input id="heldReason" placeholder="Rejection reason" style="margin-top:6px;width:280px;"> '
+      + '<span id="heldStatus" class="muted"></span>';
+    const metaEl = document.getElementById('detailMeta');
+    if (metaEl && metaEl.parentNode) metaEl.parentNode.insertBefore(wrap, metaEl.nextSibling);
+    wrap.querySelector('#heldApprove').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      try {
+        const out = await api(`/api/helpdesk-approval/${item.id}/approve`, {
+          method: 'POST',
+          body: JSON.stringify({ csrf }),
+        });
+        wrap.querySelector('#heldStatus').textContent = out.alreadyHandled
+          ? 'Already handled.'
+          : 'Approved — the ticket is on its way.';
+      } catch (err) {
+        wrap.querySelector('#heldStatus').textContent = err.message || 'Could not approve.';
+        btn.disabled = false;
+      }
+    });
+    wrap.querySelector('#heldReject').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const reason = wrap.querySelector('#heldReason').value.trim();
+      if (!reason) { wrap.querySelector('#heldStatus').textContent = 'A reason is required to reject.'; return; }
+      btn.disabled = true;
+      try {
+        const out = await api(`/api/helpdesk-approval/${item.id}/reject`, {
+          method: 'POST',
+          body: JSON.stringify({ csrf, reason }),
+        });
+        wrap.querySelector('#heldStatus').textContent = out.alreadyHandled
+          ? 'Already handled.'
+          : 'Rejected — the rep has been told why.';
+      } catch (err) {
+        wrap.querySelector('#heldStatus').textContent = err.message || 'Could not reject.';
+        btn.disabled = false;
+      }
+    });
+  }
+
   function statusBadge(status) {
     const s = String(status || 'unknown').toLowerCase();
     if (s === 'sent') return badge('Sent', 'sent');
@@ -191,7 +256,7 @@
         <td>${openedBadge(item)}</td>
         <td><div>${item.sourceSystem}</div><div class="muted">${item.sourceType}</div></td>
         <td class="from-cell">${escapeHtml(item.from || '—')}</td>
-        <td class="subject-cell">${escapeHtml(item.subject || '—')}${relayBadge(item)}</td>
+        <td class="subject-cell">${escapeHtml(item.subject || '—')}${relayBadge(item)}${heldBadge(item)}</td>
         <td class="to-cell">${escapeHtml(to || '—')}</td>
       </tr>`;
     }).join('');
@@ -365,6 +430,7 @@
     if (item.errorMessage) rows.push(['Error', item.errorMessage]);
     if (item.compacted) rows.push(['Storage', 'Compacted (body/attachments cleared)']);
     meta.innerHTML = rows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('');
+    renderHeldActions(item);
 
     document.getElementById('editSubject').value = item.subject || '';
     document.getElementById('editTo').value = (item.to || []).join(', ');
