@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not found</title>
+<script>
+(function () {
+  'use strict';
+  // Deep links that map to real pages despite static hosting.
+  var m = location.pathname.match(/^\/approvals\/([^\/?#]+)/);
+  if (m) {
+    location.replace('/approvals/index.html?record=' + encodeURIComponent(decodeURIComponent(m[1])));
+    return;
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.style.cssText = 'font-family:Calibri,Arial,sans-serif;background:#f4f6f8;color:#222;padding:48px 16px;text-align:center;';
+    document.body.innerHTML = '<h1 style="font-size:22px;">Page not found</h1>'
+      + '<p><a href="/" style="color:#2F6FB0;">Back to the Dump Bin</a></p>';
+  });
+})();
+</script>
+</head>
+<body></body>
+</html>

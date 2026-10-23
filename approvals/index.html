@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Help desk approvals</title>
+<script src="/auth-gate.js"></script>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; background: #f4f6f8; color: #222; margin: 0; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .help { color: #667; font-size: 13px; margin-bottom: 18px; }
+  .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 18px 20px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e6eaee; }
+  th { color: #667; font-weight: 600; }
+  a.rowlink { color: #2F6FB0; text-decoration: none; font-weight: 600; }
+  .btn { border: 0; border-radius: 8px; padding: 11px 20px; font-size: 15px; cursor: pointer; }
+  .btn-primary { background: #2F6FB0; color: #fff; }
+  .btn-danger { background: #b3261e; color: #fff; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  textarea { width: 100%; min-height: 72px; border: 1px solid #ccd4dc; border-radius: 8px; padding: 8px; font: inherit; box-sizing: border-box; }
+  .photos img { max-width: 180px; max-height: 180px; border-radius: 8px; margin: 4px 6px 0 0; border: 1px solid #dde3e8; }
+  .muted { color: #667; font-size: 13px; }
+  .status { margin: 10px 0; font-size: 14px; }
+  .error { color: #b3261e; }
+  iframe.preview { width: 100%; min-height: 360px; border: 1px solid #dde3e8; border-radius: 8px; background: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">Help desk approvals</h1>
+  <p class="help">Approve sends the ticket from you. Reject sends the rep the reason. Nothing is sent until you press a button.</p>
+  <div id="status" class="status"></div>
+  <div id="list" class="hidden">
+    <div class="card">
+      <table>
+        <thead><tr><th>Ticket</th><th>Rep</th><th>Store</th><th>Waiting since</th></tr></thead>
+        <tbody id="list-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="detail" class="hidden">
+    <div class="card">
+      <div id="meta" class="muted"></div>
+      <iframe id="preview" class="preview" sandbox=""></iframe>
+      <div id="photos" class="photos"></div>
+    </div>
+    <div class="card">
+      <button id="approve" class="btn btn-primary">Approve &amp; send from me</button>
+      <div style="height:12px"></div>
+      <textarea id="reason" placeholder="Reason (required for reject)"></textarea>
+      <div style="height:8px"></div>
+      <button id="reject" class="btn btn-danger">Reject</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var API = '/api/helpdesk-approval';
+  var pathMatch = location.pathname.match(/\/approvals\/([^\/?#]+)/);
+  var recordId = new URLSearchParams(location.search).get('record')
+    || (pathMatch ? decodeURIComponent(pathMatch[1]) : '');
+  var csrf = '';
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function el(id) { return document.getElementById(id); }
+  function setStatus(msg, isError) {
+    el('status').textContent = msg || '';
+    el('status').className = 'status' + (isError ? ' error' : '');
+  }
+  function whenGated(fn) {
+    if (window.dumpBinAuthReady && window.dumpBinAuthReady.then) {
+      window.dumpBinAuthReady.then(fn).catch(fn);
+    } else {
+      fn();
+    }
+  }
+  async function api(path, opts) {
+    var res = await window.dumpBinAuthFetch(API + path, opts || { noBounceOn401: true });
+    return { status: res.status, body: await res.json().catch(function () { return {}; }) };
+  }
+
+  async function loadList() {
+    el('title').textContent = 'Help desk approvals';
+    var out = await api('/', { noBounceOn401: true });
+    if (!out.body.ok) { setStatus(out.body.error || 'Could not load held tickets.', true); return; }
+    var rows = out.body.rows || [];
+    if (!rows.length) { setStatus('No held tickets right now.'); }
+    el('list').classList.remove('hidden');
+    var html = '';
+    rows.forEach(function (r) {
+      html += '<tr>'
+        + '<td><a class="rowlink" href="/approvals/' + encodeURIComponent(r.id) + '">' + esc(r.subject) + '</a></td>'
+        + '<td>' + esc(r.requestedBy) + '</td>'
+        + '<td>FM' + esc(r.storeNumber) + '</td>'
+        + '<td>' + esc(r.requestedAt) + '</td>'
+        + '</tr>';
+    });
+    el('list-body').innerHTML = html;
+  }
+
+  async function loadRecord() {
+    el('title').textContent = 'Review this ticket';
+    var out = await api('/' + encodeURIComponent(recordId), { noBounceOn401: true });
+    if (!out.body.ok) { setStatus(out.body.error || 'Could not load the ticket.', true); return; }
+    var row = out.body.row || {};
+    el('detail').classList.remove('hidden');
+    el('meta').innerHTML = '<strong>' + esc(row.subject) + '</strong><br>'
+      + 'FM' + esc(row.storeNumber) + ' · ' + esc(row.requestedBy) + ' · ' + esc(row.requestedAt)
+      + (row.status !== 'held' ? '<br>Status: ' + esc(row.status) + (row.decidedBy ? ' by ' + esc(row.decidedBy) : '') : '');
+    el('preview').srcdoc = out.body.html || ('<pre>' + esc(out.body.text) + '</pre>');
+    el('photos').innerHTML = (out.body.images || []).map(function (img) {
+      return '<img alt="' + esc(img.filename) + '" src="' + img.dataUrl + '">';
+    }).join('');
+    if (row.status !== 'held') {
+      el('approve').disabled = true;
+      el('reject').disabled = true;
+      setStatus('Already handled: ' + row.status + '.');
+      return;
+    }
+    var csrfOut = await api('/csrf', { noBounceOn401: true });
+    csrf = (csrfOut.body && csrfOut.body.csrf) || '';
+  }
+
+  async function decide(action, reason) {
+    var btn = action === 'approve' ? el('approve') : el('reject');
+    btn.disabled = true;
+    setStatus('Working…');
+    try {
+      var out = await api('/' + encodeURIComponent(recordId) + '/' + action, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ csrf: csrf, reason: reason || '' }),
+      });
+      if (!out.body.ok) {
+        setStatus(out.body.error || 'That did not work.', true);
+        btn.disabled = false;
+        return;
+      }
+      if (out.body.alreadyHandled) { setStatus('Already handled.'); return; }
+      setStatus(action === 'approve' ? 'Approved — the ticket is on its way from you.' : 'Rejected — the rep has been told why.');
+    } catch (e) {
+      setStatus('Could not reach the server.', true);
+      btn.disabled = false;
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', function () {
+    whenGated(function () {
+      if (recordId) {
+        loadRecord();
+        el('approve').addEventListener('click', function () {
+          if (confirm('Send this ticket from you now?')) decide('approve');
+        });
+        el('reject').addEventListener('click', function () {
+          var reason = el('reason').value.trim();
+          if (!reason) { setStatus('A reason is required to reject.', true); return; }
+          if (confirm('Reject and tell the rep why?')) decide('reject', reason);
+        });
+      } else {
+        loadList();
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

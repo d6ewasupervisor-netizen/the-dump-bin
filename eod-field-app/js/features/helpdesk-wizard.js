@@ -834,6 +834,7 @@
     const addTeam = document.getElementById('helpdeskAddRetailOdysseyTeam')?.checked !== false;
     const submitted = [];
     try {
+      let pendingApprover = '';
       for (const issue of issues.filter((item) => item.issueTypeId)) {
         const opt = ISSUE_TYPES.find((o) => o.id === issue.issueTypeId);
         const meta = issueMeta(issue, map);
@@ -871,6 +872,7 @@
         if (!resp.ok || !result.success) {
           throw new Error(result.error || `Server error (${resp.status})`);
         }
+        if (result.status === 'pending_approval') pendingApprover = result.approver || '';
         submitted.push(Object.assign({}, issue, {
           setMeta: meta,
           details: issueDetails,
@@ -884,10 +886,16 @@
         console.warn('helpdesk mailed; phone draft did not save', saveErr);
       }
       closeWizard();
-      toast(
-        'Help desk reports sent',
-        `Sent ${submitted.length} report${submitted.length === 1 ? '' : 's'} to the KOMPASS help desk.`
-      );
+      if (pendingApprover) {
+        const first = (String(pendingApprover).split('@')[0].split('.')[0] || 'your approver');
+        const firstName = first.charAt(0).toUpperCase() + first.slice(1);
+        toast(`Submitted — waiting on ${firstName}'s approval`, '');
+      } else {
+        toast(
+          'Help desk reports sent',
+          `Sent ${submitted.length} report${submitted.length === 1 ? '' : 's'} to the KOMPASS help desk.`
+        );
+      }
     } catch (err) {
       console.error('Helpdesk submit failed:', err);
       toast('Send failed', htmlEsc(err.message || String(err)));
