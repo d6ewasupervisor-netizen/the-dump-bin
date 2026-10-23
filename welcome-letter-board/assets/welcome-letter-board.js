@@ -881,7 +881,7 @@
     }
     el.innerHTML = items.map((item) => {
       const who = item.kind === 'reply'
-        ? (item.from || 'Associate')
+        ? `${item.from || 'Associate'}${item.fromNote ? ` — ${item.fromNote}` : ''}`
         : (item.sentByEmail || 'Staff');
       const label = item.kind === 'reply' ? 'Reply' : (item.metadata?.kindLabel || item.kind || 'Notice');
       return `<button type="button" class="wb-thread-item${employeeState.openNoticeId === item.id ? ' is-open' : ''}" data-id="${escapeHtml(item.id)}">
