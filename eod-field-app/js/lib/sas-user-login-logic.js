@@ -95,9 +95,12 @@
           <button type="button" class="btn btn-secondary" data-sas="how-google">How to</button>
         </div>
         <div data-sas-how hidden style="margin-top:10px;">
-          <p class="muted" style="margin:0 0 8px;">Google Authenticator has to be on your account.</p>
-          <p class="muted" style="margin:0 0 8px;"><a href="https://advantagesolutions.okta.com/app/UserHome">advantagesolutions.okta.com/app/UserHome</a></p>
-          <p class="muted" style="margin:0;">Sign in as usual. Click the down arrow next to your name at the top right and select Account settings. Click Edit Profile. Enter your password when asked. Select Add next to Google Authenticator.</p>
+          <p class="muted" style="margin:0 0 8px;">Set up Google Authenticator. Open <a href="https://advantagesolutions.okta.com/app/UserHome">advantagesolutions.okta.com/app/UserHome</a>, sign in as usual, click the down arrow next to your name at the top right, and select Account settings. Click Edit Profile.</p>
+          <p class="muted" style="margin:0 0 8px;">You will be asked for your password again. Okta Verify is already one factor. You will be brought back to the profile page. Click Set up next to Google Authenticator.</p>
+          <p class="muted" style="margin:0 0 8px;">On the next screen, click Setup. Choose iPhone or Android. If Google Authenticator is already on your phone, still select your device type. If it is not installed, download it from your phone's app store.</p>
+          <p class="muted" style="margin:0 0 8px;">A QR code appears. On a phone with no second device, click Can't scan and copy the 16-digit code. In Google Authenticator, scan the QR code or enter that 16-digit code. If you have other accounts in the app, use the one named advantagesolutions.okta.com. The timer on the right resets quickly. A code you still remember can be used until it has already been used.</p>
+          <p class="muted" style="margin:0 0 8px;">Enter the six-digit code from that account. You will see "You have successfully enrolled Google Authenticator." Okta Verify and Google Authenticator both work after that.</p>
+          <p class="muted" style="margin:0;">In this app, the authenticator code is that six-digit Google Authenticator code. Your password is not saved. An authenticated session is saved.</p>
         </div>
         <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
     }

@@ -44,6 +44,8 @@ test('first login asks for two Google Authenticator codes', () => {
   assert.match(html, /Wait for it to change/);
   assert.match(html, /data-sas="how-google"/);
   assert.match(html, /advantagesolutions\.okta\.com\/app\/UserHome/);
+  assert.match(html, /Click Set up next to Google Authenticator/);
+  assert.doesNotMatch(html, /Select Add next to Google Authenticator/);
   assert.doesNotMatch(html, /Authenticator setup key/);
   assert.doesNotMatch(html, /SI username/);
   assert.doesNotMatch(html, /class="err"/);
