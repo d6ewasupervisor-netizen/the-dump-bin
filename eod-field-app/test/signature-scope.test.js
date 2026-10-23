@@ -102,7 +102,7 @@ test('today’s cut-in and blitz still open Produce and Home Manager', () => {
 });
 
 test('proxy stamp stays on Tyson login and uses Pacific MM/DD/YY', () => {
-  assert.equal(isTysonLogin('Tyson.Gauthier@retail-odyssey.com'), true);
+  assert.equal(isTysonLogin('Tyson.Gauthier@retail-odyssey.com'), true); // relay: lookalike kept for identity matching only
   assert.equal(isTysonLogin('lead@example.com'), false);
   assert.equal(eodSubmittedStamp(new Date('2026-10-02T15:00:00.000Z')), 'EOD submitted 10/02/26');
   global.EodRoles = { getMe: () => ({ email: 'lead@example.com' }) };

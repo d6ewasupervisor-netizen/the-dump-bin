@@ -9885,7 +9885,7 @@
                 ? `<p style="color:#34d399;"><strong>InstaWork sign-out sheet saved:</strong> ${escapeHtml(instaworkSave.folder + '\\' + iwPathTail)}</p>`
                 : '';
 
-            const fromAddr = `EOD_FM${data.StoreNumberPadded}@retail-odyssey.com`;
+            const fromAddr = `EOD_FM${data.StoreNumberPadded}@retail-odyssey.com`; // relay: lookalike From is intentional (Resend domain)
             const recips = payload.recipients || [];
             const toList = recips.length
                 ? `<ul style="margin:6px 0 8px 18px;padding:0;line-height:1.5;">${recips.map(r => `<li>${escapeHtml(String(r))}</li>`).join('')}</ul>`
@@ -10465,7 +10465,7 @@ ${data.Notes || ''}`;
                     } else if (sessionDone?.reason === 'jobs-failed') {
                         sessionNote = `<br><br><span style="color:#fbbf24;font-size:13px;">Email sent, but a photo sync failed. Retry sync, or dismiss the failed sync from the unsent banner so this session can prune.</span>`;
                     }
-                    const body = `${intro}<br><br><strong>From:</strong> EOD_FM${storeNumberPadded}@retail-odyssey.com<br><strong>To:</strong> ${sentTo}${linkNote}${sessionNote}`;
+                    const body = `${intro}<br><br><strong>From:</strong> EOD_FM${storeNumberPadded}@retail-odyssey.com<br><strong>To:</strong> ${sentTo}${linkNote}${sessionNote}`; // relay: lookalike From is intentional (Resend domain)
                     showEodSendSuccess(title, body, { photosClearedBySession: !!(sessionDone?.complete && sessionDone.cleared) });
                 } else {
                     showAlert('Send Failed', 'Error: ' + (result.error || 'Unknown error'));
