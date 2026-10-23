@@ -75,8 +75,13 @@
   // Both SAS (Okta) and Store Intelligence take First.Last. The RO email is
   // rejected outright by Okta for leads provisioned on another domain.
   function signInNameFor(lead) {
+    const cap = (part) => {
+      const text = String(part || '').replace(/[^A-Za-z'-]/g, '');
+      if (!text) return '';
+      return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+    };
     const parts = String(lead?.name || '').replace(/,/g, '').trim().split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+    if (parts.length >= 2) return `${cap(parts[0])}.${cap(parts[1])}`;
     return String(lead?.email || '').split('@')[0].trim();
   }
 
@@ -127,11 +132,8 @@
     return !!status?.connected;
   }
 
-  function connectedVerdict(cur, opts) {
-    if (!cur || !cur.connected) return { ok: false, message: 'Login to the reporting systems on Visit' };
-    if (opts?.slot === 'after' && !cur.sharedActor && !cur.siConnected) {
-      return { ok: false, message: 'Login to the reporting systems on Visit' };
-    }
+  function connectedVerdict(cur) {
+    if (!cur || !cur.connected) return { ok: false, message: 'Sign in on Visit' };
     return { ok: true };
   }
 
@@ -508,34 +510,37 @@
         await redraw(false);
       });
       // ── Form wizard step navigation ──────────────────────────────────────────
-      root.querySelector('[data-sas="next-sas"]')?.addEventListener('click', async () => {
+      root.querySelector('[data-sas="how-google"]')?.addEventListener('click', () => {
+        const panel = root.querySelector('[data-sas-how]');
+        if (panel) panel.hidden = !panel.hidden;
+      });
+      root.querySelector('[data-sas="sign-in"]')?.addEventListener('click', async () => {
         const username = document.getElementById('sasUserUsername')?.value.trim() || '';
         const password = document.getElementById('sasUserPassword')?.value || '';
-        const totpSecret = document.getElementById('sasUserTotp')?.value.trim() || '';
+        const code = (document.getElementById('sasUserCode')?.value || '').replace(/\D/g, '');
+        const code2 = (document.getElementById('sasUserCode2')?.value || '').replace(/\D/g, '');
         if (!username) { setMsg(root, 'Enter your username'); return; }
         if (!password) { setMsg(root, 'Enter your password'); return; }
-        if (!totpSecret) { setMsg(root, 'Enter your authenticator setup key'); return; }
-        const btn = root.querySelector('[data-sas="next-sas"]');
+        if (code.length !== 6 || code2.length !== 6) { setMsg(root, 'Each code must be six digits.'); return; }
+        const btn = root.querySelector('[data-sas="sign-in"]');
         if (btn) btn.disabled = true;
-        setMsg(root, 'Checking SAS login…');
+        setMsg(root, 'Signing in… this takes a few seconds.');
         try {
-          const { resp, data } = await postJson('/api/sas-user/verify-sas', { username, password, totpSecret });
+          const { resp, data } = await postJson('/api/sas-user/connect', { username, password, code, code2 });
           if (!resp.ok || !data.ok) {
-            setMsg(root, data.error || 'SAS login failed — check credentials');
+            setMsg(root, data.error || 'Sign-in failed');
             return;
           }
-          formDraft.username = username;
-          formDraft.password = password;
-          formDraft.totpSecret = totpSecret;
-          formStep = 'si';
-          if (paintAndBind) paintAndBind();
+          view = 'idle';
+          resetFormState();
+          await redraw(true);
         } catch (err) {
           const msg = (err && String(err.message || '').toLowerCase().includes('fetch'))
             ? 'Connection error — check your connection and try again'
-            : (err.message || 'Failed to verify SAS — check connection');
+            : (err.message || 'Sign-in failed');
           setMsg(root, msg);
         } finally {
-          if (btn && !btn.closest('[data-sas]')) { /* already re-rendered */ } else if (btn) btn.disabled = false;
+          if (btn && btn.isConnected) btn.disabled = false;
         }
       });
       root.querySelector('[data-sas="next-si"]')?.addEventListener('click', async () => {

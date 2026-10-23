@@ -14,9 +14,9 @@ test('crossed dots join the pattern so fast swipes match', () => {
   assert.equal(L.jumpMidpoint(3, 3), -1);
 });
 
-test('idle card is a reporting-systems login button, not a SAS + SI status', () => {
+test('a signed-in account stays signed in on the card', () => {
   const html = L.cardHtml('idle', { connected: true, sharedActor: true });
-  assert.match(html, /Login to the reporting systems/);
+  assert.match(html, /Signed in/);
   assert.equal(L.bannedCopy(html), false);
   assert.doesNotMatch(html, /Your SAS \+ SI/);
   assert.doesNotMatch(html, /office SAS/);
@@ -33,12 +33,20 @@ test('idle card shows the shift lead name and email', () => {
 
 // Credentials are step 1; the pattern boxes only exist on step 3. Tests that
 // assert on pattern markup must say formStep: 'pattern' or they render step 1.
-test('first login: credential step asks for username, password, and setup key', () => {
+test('first login asks for two Google Authenticator codes', () => {
   assert.equal(L.openMode({ hasCreds: false, hasPattern: false }), 'form');
+  assert.equal(L.openMode({ connected: true }), 'idle');
   const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'sas' });
   assert.match(html, /Username/);
   assert.match(html, /Password/);
-  assert.match(html, /Authenticator setup key/);
+  assert.match(html, /First code/);
+  assert.match(html, /Second code/);
+  assert.match(html, /Wait for it to change/);
+  assert.match(html, /data-sas="how-google"/);
+  assert.match(html, /advantagesolutions\.okta\.com\/app\/UserHome/);
+  assert.doesNotMatch(html, /Authenticator setup key/);
+  assert.doesNotMatch(html, /SI username/);
+  assert.doesNotMatch(html, /class="err"/);
   assert.doesNotMatch(html, /data-pattern=/);
   assert.equal(L.bannedCopy(html), false);
 });
@@ -89,7 +97,7 @@ test('step 1 prefills the First.Last sign-in name and names the lead', () => {
   // Okta rejects the RO email for leads provisioned on another domain, and a
   // type="email" box would fight a bare first.last value.
   assert.doesNotMatch(html, /id="sasUserUsername"[^>]*type="email"/);
-  assert.match(html, /Supervisor takeover/);
+  assert.match(html, /How to/);
   assert.equal(L.bannedCopy(html), false);
 });
 
@@ -103,12 +111,12 @@ test('Set OTP lives on the pattern step, not the credential step', () => {
   assert.match(L.cardHtml('form', { hasPattern: true }, false, { ...opts, formStep: 'pattern' }), /Set OTP/);
 });
 
-test('office login still opens the credential form, not a status card', () => {
-  assert.equal(L.openMode({ hasCreds: true, hasPattern: true, sharedActor: true }), 'form');
+test('the shared office session does not ask for codes again', () => {
+  assert.equal(L.openMode({ hasCreds: true, hasPattern: true, sharedActor: true }), 'idle');
 });
 
-test('later visits unlock with the stored pattern', () => {
-  assert.equal(L.openMode({ hasCreds: true, hasPattern: true }), 'unlock');
+test('a saved login that is not connected opens the code form', () => {
+  assert.equal(L.openMode({ hasCreds: true, hasPattern: true }), 'form');
   const html = L.cardHtml('unlock', { hasPattern: true, hasCreds: true });
   assert.match(html, /data-pattern="unlock"/);
   assert.match(html, /Unlock/);
