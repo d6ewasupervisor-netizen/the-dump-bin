@@ -10,7 +10,9 @@
  *   2. The email links to https://the-dump-bin.com/?token=<single-use-jwt>
  *      (or any other gated page with ?token=).
  *   3. This script swaps the link token for a long-lived session JWT via
- *      GET /api/verify-token and stores it in localStorage.dumpBinSession.
+ *      POST /api/verify-token (only when the person clicks "Continue to sign
+ *      in" — a scanner must never burn the link) and stores it in
+ *      localStorage.dumpBinSession.
  *   4. window.dumpBinAuthFetch() sends `Authorization: Bearer <jwt>` on
  *      every API call. A 401 wipes the stored token and bounces the user
  *      back to signin.html (unless the caller opts out, e.g. EOD's red-dot
@@ -145,30 +147,81 @@
     _hideStyle = null;
   }
 
-  async function exchangeLinkToken() {
+  // Scanner safety: do NOT exchange on load. The tenant's mail scanner fetches
+  // every URL in a message (some scans run page scripts), so an automatic
+  // exchange would burn the single-use link before the person taps it. Show one
+  // "Continue to sign in" button and POST /api/verify-token only on that click.
+  function exchangeLinkToken() {
     var qp = new URLSearchParams(location.search);
     var linkToken = qp.get('token');
-    if (!linkToken) return !!getSession();
+    if (!linkToken) return Promise.resolve(!!getSession());
 
-    hidePage();
-    try {
-      var res = await fetch(API_BASE + '/api/verify-token?token=' + encodeURIComponent(linkToken));
-      var data = await res.json().catch(function () { return {}; });
-      // Always strip the token from the URL so a refresh can't replay it.
-      qp.delete('token');
-      var newUrl = location.pathname + (qp.toString() ? ('?' + qp.toString()) : '') + location.hash;
-      try { history.replaceState({}, '', newUrl); } catch (_) {}
+    // Strip the token from the URL immediately so a refresh cannot replay it.
+    qp.delete('token');
+    var newUrl = location.pathname + (qp.toString() ? ('?' + qp.toString()) : '') + location.hash;
+    try { history.replaceState({}, '', newUrl); } catch (_) {}
 
-      if (!res.ok || !data.ok || !data.token) {
-        try { sessionStorage.setItem('dumpBinSignInError', (data && data.error) || 'This sign-in link is invalid or has been used.'); } catch (_) {}
-        return !!getSession();
-      }
-      setSession(data.token);
-      return true;
-    } catch (err) {
-      try { console.warn('[auth-gate] verify-token failed:', err && err.message); } catch (_) {}
-      return !!getSession();
-    }
+    return new Promise(function (resolve) {
+      revealPage();
+      var overlay = document.createElement('div');
+      overlay.id = '__dumpbin_auth_gate_continue';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,32,.78);z-index:2147483000;'
+        + 'display:flex;align-items:center;justify-content:center;font-family:Calibri,Arial,sans-serif;';
+      var card = document.createElement('div');
+      card.style.cssText = 'background:#fff;border-radius:12px;padding:28px 30px;max-width:340px;text-align:center;';
+      var title = document.createElement('div');
+      title.textContent = 'Sign in to the Dump Bin';
+      title.style.cssText = 'font-size:18px;font-weight:600;color:#1b2733;margin-bottom:10px;';
+      var note = document.createElement('div');
+      note.textContent = 'One click finishes signing you in.';
+      note.style.cssText = 'font-size:13px;color:#5b6b7b;margin-bottom:18px;';
+      var btn = document.createElement('button');
+      btn.textContent = 'Continue to sign in';
+      btn.style.cssText = 'font-size:15px;padding:10px 22px;border:0;border-radius:8px;background:#2F6FB0;color:#fff;cursor:pointer;';
+      var err = document.createElement('div');
+      err.style.cssText = 'font-size:13px;color:#b3261e;margin-top:12px;min-height:16px;';
+      var alt = document.createElement('div');
+      alt.style.cssText = 'font-size:12px;color:#5b6b7b;margin-top:14px;';
+      var altLink = document.createElement('a');
+      altLink.href = SIGNIN_PATH;
+      altLink.textContent = 'Request a new link';
+      altLink.style.cssText = 'color:#2F6FB0;';
+      alt.appendChild(altLink);
+      card.appendChild(title);
+      card.appendChild(note);
+      card.appendChild(btn);
+      card.appendChild(err);
+      card.appendChild(alt);
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        btn.textContent = 'Signing in…';
+        err.textContent = '';
+        try {
+          var res = await fetch(API_BASE + '/api/verify-token', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ token: linkToken }),
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok || !data.ok || !data.token) {
+            err.textContent = (data && data.error) || 'This sign-in link is invalid or has been used.';
+            btn.disabled = false;
+            btn.textContent = 'Continue to sign in';
+            return;
+          }
+          setSession(data.token);
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+          resolve(true);
+        } catch (_) {
+          err.textContent = 'Could not reach the sign-in service. Check your connection and try again.';
+          btn.disabled = false;
+          btn.textContent = 'Continue to sign in';
+        }
+      });
+    });
   }
 
   // dumpBinAuthFetch: Bearer-fortified fetch.
@@ -313,8 +366,9 @@
   //
   // 1. Public pages (signin/admin) don't run the gate — they have their
   //    own UI for collecting credentials.
-  // 2. If a ?token= is present, swap it for a session JWT. Hide the page
-  //    until the exchange finishes so the user doesn't see a flash.
+  // 2. If a ?token= is present, show a "Continue to sign in" button and swap
+  //    the token for a session JWT only when that button is clicked (mail
+  //    scanners must never burn the link).
   // 3. Otherwise: if we have a session, do nothing and let the page
   //    render. If we don't, redirect to signin.html before anything
   //    sensitive can render.
@@ -339,7 +393,6 @@
     }
 
     if (hasToken) {
-      hidePage();
       var ok = await exchangeLinkToken();
       if (!ok) {
         bounceToSignIn('verify-token did not produce a session');

@@ -76,28 +76,70 @@
     showAuthBanner(statusMsg || 'Sign in required (localhost cannot reuse Dump Bin cookies).');
   }
 
-  async function exchangeLinkToken() {
+  // Scanner safety: do NOT exchange on load (mail scanners fetch URLs and some
+  // run page scripts — an automatic exchange burns the single-use link). Show
+  // one "Continue to sign in" button and POST /api/verify-token on that click.
+  function exchangeLinkToken() {
     var qp = new URLSearchParams(location.search);
     var linkToken = qp.get('token');
-    if (!linkToken) return !!getSession();
-    try {
-      var res = await fetch(API_BASE + '/api/verify-token?token=' + encodeURIComponent(linkToken));
-      var data = await res.json().catch(function () { return {}; });
-      qp.delete('token');
-      var newUrl = location.pathname + (qp.toString() ? ('?' + qp.toString()) : '') + location.hash;
-      try { history.replaceState({}, '', newUrl); } catch (_) {}
-      if (!res.ok || !data.ok || !data.token) {
-        showSignIn(data.error || 'Sign-in link invalid or already used.', 'error');
-        return !!getSession();
-      }
-      setSession(data.token);
-      hideSignIn();
-      showAuthBanner('');
-      return true;
-    } catch (err) {
-      showSignIn('Could not verify sign-in link (network/CORS). Try SMS PIN below.', 'error');
-      return !!getSession();
-    }
+    if (!linkToken) return Promise.resolve(!!getSession());
+
+    qp.delete('token');
+    var newUrl = location.pathname + (qp.toString() ? ('?' + qp.toString()) : '') + location.hash;
+    try { history.replaceState({}, '', newUrl); } catch (_) {}
+
+    return new Promise(function (resolve) {
+      var overlay = document.createElement('div');
+      overlay.id = '__eod_pilot_auth_continue';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,32,.78);z-index:2147483000;'
+        + 'display:flex;align-items:center;justify-content:center;font-family:Calibri,Arial,sans-serif;';
+      var card = document.createElement('div');
+      card.style.cssText = 'background:#fff;border-radius:12px;padding:28px 30px;max-width:340px;text-align:center;';
+      var title = document.createElement('div');
+      title.textContent = 'Sign in';
+      title.style.cssText = 'font-size:18px;font-weight:600;color:#1b2733;margin-bottom:10px;';
+      var note = document.createElement('div');
+      note.textContent = 'One click finishes signing you in.';
+      note.style.cssText = 'font-size:13px;color:#5b6b7b;margin-bottom:18px;';
+      var btn = document.createElement('button');
+      btn.textContent = 'Continue to sign in';
+      btn.style.cssText = 'font-size:15px;padding:10px 22px;border:0;border-radius:8px;background:#2F6FB0;color:#fff;cursor:pointer;';
+      var err = document.createElement('div');
+      err.style.cssText = 'font-size:13px;color:#b3261e;margin-top:12px;min-height:16px;';
+      card.appendChild(title);
+      card.appendChild(note);
+      card.appendChild(btn);
+      card.appendChild(err);
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        btn.textContent = 'Signing in…';
+        err.textContent = '';
+        try {
+          var res = await fetch(API_BASE + '/api/verify-token', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ token: linkToken }),
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok || !data.ok || !data.token) {
+            err.textContent = (data && data.error) || 'This sign-in link is invalid or has been used.';
+            btn.disabled = false;
+            btn.textContent = 'Continue to sign in';
+            return;
+          }
+          setSession(data.token);
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+          resolve(true);
+        } catch (_) {
+          err.textContent = 'Could not verify sign-in link (network/CORS). Try SMS PIN instead.';
+          btn.disabled = false;
+          btn.textContent = 'Continue to sign in';
+        }
+      });
+    });
   }
 
   function toPlainHeaders(h) {
@@ -267,7 +309,11 @@
       } catch (_) {}
       if (linkTok) {
         try {
-          var res = await fetch(API_BASE + '/api/verify-token?token=' + encodeURIComponent(linkTok));
+          var res = await fetch(API_BASE + '/api/verify-token', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ token: linkTok }),
+          });
           var data = await res.json().catch(function () { return {}; });
           if (!res.ok || !data.ok || !data.token) {
             showSignIn(data.error || 'Link token invalid.', 'error');
