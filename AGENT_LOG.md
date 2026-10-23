@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-23 — District Helper page
+
+`/admin/district-helper.html` reads the session JWT from `dumpBinSession` and the eod-api `/api/dhe` roster. The hub card is `district-helper` in Office & Admin, hidden until the office group is granted. No seed data on the page.
+
 ## 2026-10-23 — P10.8b: employee thread shows reply senders with a "(not on roster)" note
 
 `welcome-letter-board/assets/welcome-letter-board.js` renders `item.from` as-is for reply rows and appends `item.fromNote` (computed by the eod-api thread API when the reply's fromEmail is not on the `employees` roster). One-line display change; commit `c1e0878`. Note: an autostash of pre-existing uncommitted edits (AGENT_LOG/AUDIT/instawork-clock) conflicted during the pull — resolved to HEAD; those edits remain in `git stash` entry "autostash" for manual recovery.
