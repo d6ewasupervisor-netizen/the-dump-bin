@@ -96,6 +96,10 @@ Categories treats a `D###` planogram token as doors. Four milk doors stay four p
 
 The Daily Tools card is gone from the hub home. `/EOD/` now opens EOD Field Pilot.
 
+## 2026-10-15 — LF line endings
+
+Dropped the PC field-app snapshot. Nothing in it was missing from main. `main` fast-forwarded to `9f86195`, then `68a4ebd` pins LF with `.gitattributes` and `.editorconfig` and rewrites three suncare CSVs. Not pushed. Local branch `wip/pc-field-app-2026-10-15` is deleted.
+
 ## 2026-10-14 — Meat pusher manual lead
 
 Outreach store rows can assign a lead pulled elsewhere in the same district, or a name and email typed on the row.
