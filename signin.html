@@ -267,7 +267,17 @@
 
       function resolveNext(next) {
         if (!next) return '/';
-        if (next.indexOf('/') === 0) return next;
+        if (next.charAt(0) === '/' && next.charAt(1) !== '/') return next;
+        try {
+          const url = new URL(next);
+          const host = url.hostname.toLowerCase();
+          if (host === 'the-dump-bin.com' || host === 'www.the-dump-bin.com') {
+            return url.pathname + url.search + url.hash;
+          }
+          if (host === 'eod-api.the-dump-bin.com' && /^\/pathways\/?$/.test(url.pathname)) {
+            return '/pathways/' + url.search + url.hash;
+          }
+        } catch (_) { /* not a URL */ }
         return '/';
       }
 

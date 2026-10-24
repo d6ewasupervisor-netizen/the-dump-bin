@@ -1,6 +1,6 @@
 # Audit
 
-The Pathways hub card is `data-card="pathways"` in the Office & Admin section of `index.html`. `cardsForUser` adds it when `pathwaysAllowed` matches `PATHWAYS_ALLOWED_EMAILS`.
+The Pathways hub card is `data-card="pathways"` in the Office & Admin section of `index.html`. It links to `/pathways/`. `https://eod-api.the-dump-bin.com/pathways` redirects there. `cardsForUser` adds the card when `pathwaysAllowed` matches `PATHWAYS_ALLOWED_EMAILS`.
 
 `meat-pusher-survey/review/` is the supervisor review board. Card id `meat-pusher-review`. Management links are minted by the API and open on eod-api, not through the hub sign-in gate.
 

@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-24 — Pathways opens on the Dump Bin
+
+The hub card goes to `/pathways/`. The eod-api address redirects there. Sign-in keeps that return path instead of sending you home.
+
 ## 2026-10-23 — Pathways card on the hub
 
 Office & Admin has a Pathways card. It shows for `PATHWAYS_ALLOWED_EMAILS` and opens `https://eod-api.the-dump-bin.com/pathways`.
