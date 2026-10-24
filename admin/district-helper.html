@@ -207,7 +207,12 @@ function defaultTemplateData() {
 const BUILTIN_TEMPLATE = { id:"__default", name:"Standard (built-in)", isDefault:false, data:defaultTemplateData(), builtin:true };
 
 const START_TIMES = ["04:00 AM","04:30 AM","05:00 AM","05:30 AM","06:00 AM","06:30 AM","07:00 AM","07:30 AM","08:00 AM","09:00 AM"];
-const FIXED_CC = ["seth.newman@retailodyssey.com","andrew.mascott@retailodyssey.com"];
+const FIXED_CC = [
+  "seth.newman@retailodyssey.com",
+  "andrew.mascott@retailodyssey.com",
+  "michelle.lerat@retailodyssey.com",
+  "amanda.mathews@retailodyssey.com",
+];
 
 const uid = () => Math.random().toString(36).slice(2,9);
 
@@ -269,7 +274,7 @@ const S = {
   selLead:"", manualLeads:[], editingLead:false,
   rows:[{id:uid(),date:"",storeNum:""}], showAllStores:false,
   templates:[], tplId:"__default", tpl:structuredClone(BUILTIN_TEMPLATE.data), tplDirty:false, tplOpen:false, tplName:"",
-  ccSeth:false, ccAndrew:false, ccExtra:[], ccInput:"", ccErr:"",
+  ccFixed:Object.fromEntries(FIXED_CC.map(e=>[e,false])), ccExtra:[], ccInput:"", ccErr:"",
   email:"", subject:"", viewMode:"preview", copied:false,
   status:{kind:"load", msg:"Loading…"}
 };
@@ -321,10 +326,10 @@ function loadTemplate(id){
   S.tplId = t.id; S.tpl = structuredClone(t.data); S.tplDirty=false; S.tplName=t.name;
   // merge any new blocks added since the template was saved
   BLOCK_DEFS.forEach(b=>{ if(!S.tpl.blocks[b.key]) S.tpl.blocks[b.key]={on:true,text:b.text}; });
-  S.ccSeth = (S.tpl.cc||[]).includes(FIXED_CC[0]); S.ccAndrew=(S.tpl.cc||[]).includes(FIXED_CC[1]);
+  S.ccFixed = Object.fromEntries(FIXED_CC.map(e=>[e,(S.tpl.cc||[]).includes(e)]));
   S.ccExtra = (S.tpl.cc||[]).filter(e=>!FIXED_CC.includes(e));
 }
-function currentCc(){ const cc=[]; if(S.ccSeth)cc.push(FIXED_CC[0]); if(S.ccAndrew)cc.push(FIXED_CC[1]); return cc.concat(S.ccExtra); }
+function currentCc(){ return FIXED_CC.filter(e=>S.ccFixed[e]).concat(S.ccExtra); }
 async function saveTemplate(asNew){
   let name = S.tplName;
   if (asNew || S.tplId==="__default") { name = prompt("Template name:", S.tplId==="__default" ? "My standard" : S.tplName+" copy"); if(!name) return; }
@@ -487,8 +492,7 @@ function render(){
     }
     /* cc */
     h+=`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><label class="lbl">CC (saved with the template)</label><div class="cc-list">
-      <label class="chk"><input type="checkbox" id="ccSeth"${S.ccSeth?" checked":""}> ${FIXED_CC[0]}</label>
-      <label class="chk"><input type="checkbox" id="ccAndrew"${S.ccAndrew?" checked":""}> ${FIXED_CC[1]}</label>
+      ${FIXED_CC.map(e=>`<label class="chk"><input type="checkbox" data-ccfixed="${esc(e)}"${S.ccFixed[e]?" checked":""}> ${esc(e)}</label>`).join("")}
       ${S.ccExtra.map(e=>`<div class="cc-item"><span>${esc(e)}</span><button class="icon-btn" data-ccdel="${esc(e)}">✕</button></div>`).join("")}</div>
       <div style="display:flex;gap:6px"><input type="email" id="ccInput" value="${esc(S.ccInput)}" placeholder="Add address…"><button class="btn btn-outline btn-sm" id="ccAdd">+ Add</button></div>${S.ccErr?`<div class="hint" style="color:var(--red)">${esc(S.ccErr)}</div>`:""}
       <div class="hint">Lead, you, and the lending supervisor are always copied.</div></div></section>`;
@@ -560,8 +564,7 @@ function bind(){
   on("tplWeek","oninput",function(){S.tpl.week=this.value;markDirty();});
   document.querySelectorAll("[data-blk]").forEach(t=>t.oninput=function(){S.tpl.blocks[this.dataset.blk].text=this.value;markDirty();});
   document.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{const k=b.dataset.sw; S.tpl.blocks[k].on=!S.tpl.blocks[k].on; S.tplDirty=true; render();});
-  on("ccSeth","onchange",function(){S.ccSeth=this.checked;S.tplDirty=true;render();});
-  on("ccAndrew","onchange",function(){S.ccAndrew=this.checked;S.tplDirty=true;render();});
+  document.querySelectorAll("[data-ccfixed]").forEach(b=>b.onchange=function(){ S.ccFixed[this.dataset.ccfixed]=this.checked; S.tplDirty=true; render(); });
   on("ccInput","oninput",function(){S.ccInput=this.value;S.ccErr="";});
   on("ccAdd","onclick",()=>{ const v=S.ccInput.trim().toLowerCase(); if(!v)return; if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){S.ccErr="Invalid email address.";render();return;} if(S.ccExtra.includes(v)||FIXED_CC.includes(v)){S.ccErr="Already listed.";render();return;} S.ccExtra.push(v); S.ccInput=""; S.tplDirty=true; render(); });
   document.querySelectorAll("[data-ccdel]").forEach(b=>b.onclick=()=>{S.ccExtra=S.ccExtra.filter(e=>e!==b.dataset.ccdel);S.tplDirty=true;render();});

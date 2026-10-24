@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-23 — District Helper CC list
+
+Seth Newman and Andrew Mascott stay on the CC list. Michelle Lerat and Amanda Mathews are added as two more checkboxes.
+
 ## 2026-10-23 — District Helper page
 
 `/admin/district-helper.html` reads the session JWT from `dumpBinSession` and the eod-api `/api/dhe` roster. The hub card is `district-helper` in Office & Admin, hidden until the office group is granted. No seed data on the page.
