@@ -73,3 +73,16 @@ button.action {
 button.action.secondary { background: var(--navy); }
 button.action:disabled { opacity: 0.45; cursor: default; }
 .sheet { margin-top: 12px; }
+.log {
+  background: #0E2A47;
+  color: #E8F1F8;
+  border-radius: 10px;
+  padding: 12px 14px;
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.check { width: 1.1rem; height: 1.1rem; }

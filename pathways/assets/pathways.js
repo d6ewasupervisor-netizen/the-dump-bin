@@ -2,7 +2,7 @@
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-  const state = { tab: 'compliance', data: null, sheet: null };
+  const state = { tab: 'compliance', data: null, sheet: null, busy: false };
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -16,6 +16,18 @@
     const m = Math.floor((n % 3600) / 60);
     const s = n % 60;
     return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  function eventLabel(iso) {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return iso;
+    return date.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   }
 
   function api(path, opts) {
@@ -36,6 +48,104 @@
     $('error').textContent = err ? err.message : '';
   }
 
+  function logLine(line) {
+    const box = $('log');
+    box.hidden = false;
+    box.textContent += (box.textContent ? '\n' : '') + line;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function clearLog() {
+    $('log').textContent = '';
+    $('log').hidden = false;
+  }
+
+  async function stream(path, body) {
+    const f = window.dumpBinAuthFetch || fetch;
+    const opts = { method: 'POST' };
+    if (body) {
+      opts.headers = { 'content-type': 'application/json' };
+      opts.body = JSON.stringify(body);
+    }
+    const resp = await f(path, opts);
+    if (!resp.ok && !(resp.headers.get('content-type') || '').includes('ndjson')) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error || `Request failed (${resp.status})`);
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let donePayload = null;
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+        if (msg.line) logLine(msg.line);
+        if (msg.error) throw new Error(msg.error);
+        if (msg.done) donePayload = msg;
+      }
+    }
+    return donePayload;
+  }
+
+  function events() {
+    return (state.data && state.data.events) || [];
+  }
+
+  function eventColumns() {
+    const seen = [];
+    for (const event of events()) {
+      if (!seen.includes(event.created_at)) seen.push(event.created_at);
+    }
+    return seen;
+  }
+
+  function eventCell(email, createdAt) {
+    const hit = events().find((event) => event.email === email && event.created_at === createdAt);
+    return hit ? hms(hit.seconds) : '';
+  }
+
+  function people(status) {
+    return ((state.data && state.data.payouts) || []).filter((row) => (
+      status === 'termed'
+        ? String(row.status).toLowerCase() === 'termed'
+        : String(row.status).toLowerCase() !== 'termed'
+    ));
+  }
+
+  function table(rows, { checks }) {
+    const cols = eventColumns();
+    const head = cols.map((iso) => `<th>${esc(eventLabel(iso))}</th>`).join('');
+    const body = rows.map((row) => {
+      const active = checks && String(row.status).toLowerCase() === 'active' && !String(row.email).startsWith('name:');
+      const extra = cols.map((iso) => `<td>${esc(eventCell(row.email, iso))}</td>`).join('');
+      return `<tr>
+        <td>${active ? `<input class="check" type="checkbox" data-email="${esc(row.email)}" />` : ''}</td>
+        <td>${esc(row.name)}</td>
+        <td>${esc(row.status)}</td>
+        <td>${hms(row.lifetime_seconds)}</td>
+        <td>${hms(row.unpaid_seconds)}</td>
+        <td>${esc(row.last_paid_date || '—')}</td>
+        <td>${row.days_since == null ? '—' : esc(row.days_since)}</td>
+        <td>${row.due ? '<span class="due">Due</span>' : ''}</td>
+        ${extra}
+        <td>${active ? `<button type="button" class="action" data-email="${esc(row.email)}">Record payout</button>` : ''}</td>
+      </tr>`;
+    }).join('');
+    return `<table>
+      <thead><tr>
+        <th></th><th>Name</th><th>Status</th><th>Lifetime</th><th>Unpaid</th><th>Last paid</th><th>Days</th><th></th>
+        ${head}<th></th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+  }
+
   function renderCompliance() {
     const rows = (state.data && state.data.overdue_required) || [];
     if (!rows.length) {
@@ -46,45 +156,35 @@
       const title = course.url
         ? `<a href="${esc(course.url)}">${esc(course.name || 'Course')}</a>`
         : esc(course.name || 'Course');
-      const people = (course.people || []).map((person) => `<li>${esc(person.name)}</li>`).join('');
-      return `<article class="card"><h2>${title}</h2><ul>${people}</ul></article>`;
+      const names = (course.people || []).map((person) => `<li>${esc(person.name)}</li>`).join('');
+      return `<article class="card"><h2>${title}</h2><ul>${names}</ul></article>`;
     }).join('');
   }
 
   function renderPayouts() {
-    const rows = (state.data && state.data.payouts) || [];
-    const body = rows.map((row) => {
-      const active = String(row.status).toLowerCase() === 'active' && !String(row.email).startsWith('name:');
-      return `<tr>
-        <td>${esc(row.name)}</td>
-        <td>${esc(row.status)}</td>
-        <td>${hms(row.lifetime_seconds)}</td>
-        <td>${hms(row.unpaid_seconds)}</td>
-        <td>${esc(row.last_paid_date || '—')}</td>
-        <td>${row.days_since == null ? '—' : esc(row.days_since)}</td>
-        <td>${row.due ? '<span class="due">Due</span>' : ''}</td>
-        <td>${active ? `<button type="button" class="action" data-email="${esc(row.email)}">Record payout</button>` : ''}</td>
-      </tr>`;
-    }).join('');
+    const rows = people('active');
     const sheet = (state.sheet || []).map((row) => (
       `<li>${esc(row.name)} — ${esc(row.hours)} hours</li>`
     )).join('');
     $('payouts').innerHTML = `
       <div class="actions">
+        <button type="button" class="action secondary" id="train">Build and run training shift</button>
         <button type="button" class="action secondary" id="payAll">Pay everyone</button>
       </div>
-      <table>
-        <thead><tr>
-          <th>Name</th><th>Status</th><th>Lifetime</th><th>Unpaid</th><th>Last paid</th><th>Days</th><th></th><th></th>
-        </tr></thead>
-        <tbody>${body}</tbody>
-      </table>
+      ${table(rows, { checks: true })}
       ${sheet ? `<ul class="sheet">${sheet}</ul>` : ''}`;
-    const all = $('payAll');
-    if (all) all.addEventListener('click', () => pay({ all: true }, 'Record a payout for everyone active?'));
-    $('payouts').querySelectorAll('[data-email]').forEach((btn) => {
+    $('train').addEventListener('click', train);
+    $('payAll').addEventListener('click', () => pay({ all: true }, 'Record a payout for everyone active?'));
+    $('payouts').querySelectorAll('button[data-email]').forEach((btn) => {
       btn.addEventListener('click', () => pay({ email: btn.getAttribute('data-email') }, 'Record this payout?'));
     });
+  }
+
+  function renderTerminated() {
+    const rows = people('termed');
+    $('terminated').innerHTML = rows.length
+      ? table(rows, { checks: false })
+      : '<p class="muted">None.</p>';
   }
 
   function render() {
@@ -94,10 +194,14 @@
     $('when').textContent = when;
     $('compliance').hidden = state.tab !== 'compliance';
     $('payouts').hidden = state.tab !== 'payouts';
+    $('terminated').hidden = state.tab !== 'terminated';
     $('tabCompliance').classList.toggle('active', state.tab === 'compliance');
     $('tabPayouts').classList.toggle('active', state.tab === 'payouts');
+    $('tabTerminated').classList.toggle('active', state.tab === 'terminated');
     renderCompliance();
     renderPayouts();
+    renderTerminated();
+    $('pullNow').disabled = state.busy;
   }
 
   async function load() {
@@ -107,6 +211,7 @@
   }
 
   async function pay(body, ask) {
+    if (state.busy) return;
     if (!window.confirm(ask)) return;
     showError(null);
     try {
@@ -123,7 +228,57 @@
     }
   }
 
+  async function pullNow() {
+    if (state.busy) return;
+    state.busy = true;
+    clearLog();
+    render();
+    showError(null);
+    try {
+      await stream('/api/pathways/pull');
+      await load();
+    } catch (err) {
+      showError(err);
+      logLine(err.message);
+    } finally {
+      state.busy = false;
+      render();
+    }
+  }
+
+  function selectedEmails() {
+    return [...$('payouts').querySelectorAll('.check:checked')].map((box) => box.getAttribute('data-email'));
+  }
+
+  async function train() {
+    if (state.busy) return;
+    const emails = selectedEmails();
+    if (!emails.length) {
+      showError(new Error('Select at least one person.'));
+      return;
+    }
+    if (!window.confirm(`Build one store 999 Training shift for ${emails.length} ${emails.length === 1 ? 'person' : 'people'} and record the payout?`)) return;
+    state.busy = true;
+    state.tab = 'payouts';
+    clearLog();
+    render();
+    showError(null);
+    try {
+      const result = await stream('/api/pathways/training-shift', { emails });
+      state.sheet = (result && result.sheet) || [];
+      await load();
+    } catch (err) {
+      showError(err);
+      logLine(err.message);
+    } finally {
+      state.busy = false;
+      render();
+    }
+  }
+
   $('tabCompliance').addEventListener('click', () => { state.tab = 'compliance'; render(); });
   $('tabPayouts').addEventListener('click', () => { state.tab = 'payouts'; render(); });
+  $('tabTerminated').addEventListener('click', () => { state.tab = 'terminated'; render(); });
+  $('pullNow').addEventListener('click', pullNow);
   load().catch(showError);
 })();

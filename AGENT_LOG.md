@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-24 — Pathways pull log and training payout
+
+Pull now writes each step as it happens. Checked people can go on one store 999 Training shift. The punch is the unpaid time. A new column is added for each payout. Terminated people are on their own tab.
+
 ## 2026-10-24 — Pathways opens on the Dump Bin
 
 The hub card goes to `/pathways/`. The eod-api address redirects there. Sign-in keeps that return path instead of sending you home.
