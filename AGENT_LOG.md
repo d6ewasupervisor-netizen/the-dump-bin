@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-23 — Pathways card on the hub
+
+Office & Admin has a Pathways card. It shows for `PATHWAYS_ALLOWED_EMAILS` and opens `https://eod-api.the-dump-bin.com/pathways`.
+
 ## 2026-10-23 — District Helper CC list
 
 Seth Newman and Andrew Mascott stay on the CC list. Michelle Lerat and Amanda Mathews are added as two more checkboxes.
