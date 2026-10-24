@@ -73,6 +73,7 @@ button.action {
 button.action.secondary { background: var(--navy); }
 button.action:disabled { opacity: 0.45; cursor: default; }
 .sheet { margin-top: 12px; }
+.section-title { font-size: 1.05rem; margin: 18px 0 8px; }
 .log {
   background: #0E2A47;
   color: #E8F1F8;

@@ -147,18 +147,86 @@
   }
 
   function renderCompliance() {
-    const rows = (state.data && state.data.overdue_required) || [];
-    if (!rows.length) {
-      $('compliance').innerHTML = '<p class="muted">None.</p>';
-      return;
-    }
-    $('compliance').innerHTML = rows.map((course) => {
+    const pulled = state.data && state.data.captured_at
+      ? new Date(state.data.captured_at).toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles', dateStyle: 'medium', timeStyle: 'short',
+      })
+      : '';
+    const overdue = (state.data && state.data.overdue_required) || [];
+    const roster = (state.data && state.data.people) || [];
+    const overdueHtml = overdue.length ? overdue.map((course) => {
       const title = course.url
         ? `<a href="${esc(course.url)}">${esc(course.name || 'Course')}</a>`
         : esc(course.name || 'Course');
-      const names = (course.people || []).map((person) => `<li>${esc(person.name)}</li>`).join('');
+      const names = (course.people || []).map((person) => {
+        const spent = person.seconds == null ? '' : ` — ${esc(hms(person.seconds))}`;
+        const when = person.activity ? ` — ${esc(person.activity_kind || 'Activity')} ${esc(person.activity)}` : '';
+        return `<li>${esc(person.name)}${spent}${when}</li>`;
+      }).join('');
       return `<article class="card"><h2>${title}</h2><ul>${names}</ul></article>`;
+    }).join('') : '<p class="muted">None.</p>';
+    const detail = roster.map((person) => {
+      const courses = person.courses && person.courses.length ? person.courses : [null];
+      return courses.map((course) => `<tr>
+        <td>${esc(person.name)}</td>
+        <td>${course ? esc(course.name) : ''}</td>
+        <td>${hms(course ? course.seconds : person.lifetime_seconds)}</td>
+        <td>${course && course.activity ? esc(course.activity) : ''}</td>
+        <td>${course && course.activity_kind ? esc(course.activity_kind) : ''}</td>
+        <td>${course && course.overdue ? 'Overdue' : ''}</td>
+      </tr>`).join('');
     }).join('');
+    $('compliance').innerHTML = `
+      <div class="actions">
+        <span class="muted">${pulled ? 'Pulled ' + esc(pulled) : ''}</span>
+        <button type="button" class="action" id="downloadReport">Download report</button>
+      </div>
+      <h2 class="section-title">Overdue</h2>
+      ${overdueHtml}
+      <h2 class="section-title">Time and activity</h2>
+      <table>
+        <thead><tr><th>Person</th><th>Course</th><th>Time spent</th><th>Activity date</th><th>Activity</th><th></th></tr></thead>
+        <tbody>${detail || '<tr><td colspan="6">None.</td></tr>'}</tbody>
+      </table>`;
+    const download = $('downloadReport');
+    if (download) download.addEventListener('click', downloadReport);
+  }
+
+  function csvCell(value) {
+    const text = String(value == null ? '' : value);
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  function downloadReport() {
+    const when = (state.data && state.data.captured_at) || '';
+    const header = ['Pull', 'Person', 'Email', 'Course', 'Course id', 'Required', 'Completed', 'Overdue', 'Due', 'Time spent', 'Activity date', 'Activity', 'URL'];
+    const lines = [header];
+    for (const person of (state.data && state.data.people) || []) {
+      const courses = person.courses && person.courses.length ? person.courses : [null];
+      for (const course of courses) {
+        lines.push([
+          when,
+          person.name,
+          person.email,
+          course ? course.name : '',
+          course ? course.id : '',
+          course ? (course.required ? 'yes' : 'no') : '',
+          course ? (course.completed ? 'yes' : 'no') : '',
+          course ? (course.overdue ? 'yes' : 'no') : '',
+          course ? (course.due || '') : '',
+          hms(course ? course.seconds : person.lifetime_seconds),
+          course ? (course.activity || '') : '',
+          course ? (course.activity_kind || '') : '',
+          course ? (course.url || '') : '',
+        ]);
+      }
+    }
+    const blob = new Blob([lines.map((row) => row.map(csvCell).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `pathways-${when ? when.slice(0, 10) : 'report'}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   function renderPayouts() {
