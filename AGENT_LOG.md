@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-24 — District Helper send button
+
+Send posts the preview to eod-api instead of opening a mailto draft.
+
 ## 2026-10-24 — Compliance shows the pull time and a download
 
 A fresh pull stamps the compliance tab with the Pacific date and time. Each course shows time spent and the activity date Schoox sent. Download report saves that same table as a CSV.

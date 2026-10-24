@@ -256,7 +256,8 @@ const api = {
   templates()     { return this.req("/templates"); },
   saveTemplate(t) { return this.req("/templates", {method:"POST", body:JSON.stringify(t)}); },
   delTemplate(id) { return this.req("/templates/"+encodeURIComponent(id), {method:"DELETE"}); },
-  saveLead(l)     { return this.req("/leads", {method:"POST", body:JSON.stringify(l)}); }
+  saveLead(l)     { return this.req("/leads", {method:"POST", body:JSON.stringify(l)}); },
+  sendMail(body)  { return this.req("/send", {method:"POST", body:JSON.stringify(body)}); }
 };
 const local = {
   key(email){ return "dhe:tpl:"+email; },
@@ -275,7 +276,7 @@ const S = {
   rows:[{id:uid(),date:"",storeNum:""}], showAllStores:false,
   templates:[], tplId:"__default", tpl:structuredClone(BUILTIN_TEMPLATE.data), tplDirty:false, tplOpen:false, tplName:"",
   ccFixed:Object.fromEntries(FIXED_CC.map(e=>[e,false])), ccExtra:[], ccInput:"", ccErr:"",
-  email:"", subject:"", viewMode:"preview", copied:false,
+  email:"", subject:"", viewMode:"preview", copied:false, sending:false,
   status:{kind:"load", msg:"Loading…"}
 };
 
@@ -413,7 +414,18 @@ function recipients(){
   currentCc().forEach(e=>cc.push(e));
   return { to:[...new Set(to.map(e=>e.toLowerCase()))], cc:[...new Set(cc.map(e=>e.toLowerCase()))].filter(e=>!to.includes(e)) };
 }
-function openMail(){ const {to,cc}=recipients(); window.open("mailto:"+to.join(";")+"?subject="+encodeURIComponent(S.subject)+(cc.length?"&cc="+encodeURIComponent(cc.join(";")):"")+"&body="+encodeURIComponent(S.email),"_blank"); }
+function sendMail(){
+  if (S.sending) return;
+  const {to,cc}=recipients();
+  if (!S.email || !S.subject) { toast("Generate the email first", true); return; }
+  if (!to.length) { toast("No recipients", true); return; }
+  S.sending = true; render();
+  api.sendMail({ to, cc, subject: S.subject, text: S.email }).then(function(){
+    S.sending = false; toast("Sent"); render();
+  }).catch(function(e){
+    S.sending = false; toast(e.message || "Send failed", true); render();
+  });
+}
 function copyEmail(){ navigator.clipboard.writeText(S.email).then(()=>{S.copied=true;render();setTimeout(()=>{S.copied=false;render();},1800);}); }
 function copyRecipients(){ const {to,cc}=recipients(); navigator.clipboard.writeText("To: "+to.join("; ")+"\nCc: "+cc.join("; ")+"\nSubject: "+S.subject).then(()=>toast("Recipients copied")); }
 
@@ -509,7 +521,7 @@ function render(){
     h+=`<div class="counts"><span><b>${to.length}</b> to</span><span><b>${cc.length}</b> cc</span><span><b>${S.rows.filter(r=>r.date&&r.storeNum).length}</b> days</span></div>`;
     h+=`<div class="subj"><span><b>To:</b> ${to.length?esc(to.join("; ")):'<i>none selected</i>'}</span><span><b>Cc:</b> ${esc(cc.join("; "))}</span><span><b>Subject:</b> ${esc(S.subject)}</span></div>`;
     h+='<div class="body">'+(S.viewMode==="preview"?renderFormatted(S.email):`<textarea id="emailArea">${esc(S.email)}</textarea>`)+'</div>';
-    h+=`<div class="actions"><button class="btn btn-outline btn-sm" id="copyRec">Copy recipients</button><button class="btn btn-sky btn-sm" id="copyBtn">${S.copied?"✓ Copied":"Copy email"}</button><button class="btn btn-primary btn-sm" id="mailBtn">Open in Outlook</button></div>`;
+    h+=`<div class="actions"><button class="btn btn-outline btn-sm" id="copyRec">Copy recipients</button><button class="btn btn-sky btn-sm" id="copyBtn">${S.copied?"✓ Copied":"Copy email"}</button><button class="btn btn-primary btn-sm" id="mailBtn"${S.sending?" disabled":""}>${S.sending?"Sending…":"Send"}</button></div>`;
   } else {
     h+='<div class="empty">Select recipients, a lead, and the schedule, then generate.</div>';
   }
@@ -571,7 +583,7 @@ function bind(){
   on("genBtn","onclick",build);
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{S.viewMode=b.dataset.view;render();});
   on("emailArea","oninput",function(){S.email=this.value;});
-  on("copyBtn","onclick",copyEmail); on("mailBtn","onclick",openMail); on("copyRec","onclick",copyRecipients);
+  on("copyBtn","onclick",copyEmail); on("mailBtn","onclick",sendMail); on("copyRec","onclick",copyRecipients);
 }
 function markDirty(){ if(!S.tplDirty){ S.tplDirty=true; const el=document.querySelector(".card h2.yellow .right"); if(el) el.innerHTML='<span class="dirty">unsaved changes</span>'; const sv=document.getElementById("tplSave"); if(sv) sv.disabled=false; } }
 
