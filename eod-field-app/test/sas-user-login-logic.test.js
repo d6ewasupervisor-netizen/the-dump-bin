@@ -33,23 +33,26 @@ test('idle card shows the shift lead name and email', () => {
 
 // Credentials are step 1; the pattern boxes only exist on step 3. Tests that
 // assert on pattern markup must say formStep: 'pattern' or they render step 1.
-test('first login offers a push, a six-digit code, and a hidden legacy secret', () => {
+test('first login matches the reauth form: two Okta prompts and an optional Google Authenticator code', () => {
   assert.equal(L.openMode({ hasCreds: false, hasPattern: false }), 'form');
   assert.equal(L.openMode({ connected: true }), 'idle');
   const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'sas' });
-  assert.match(html, /Username/);
+  assert.match(html, /Okta will send two prompts/);
+  assert.match(html, /Approve both/);
+  assert.match(html, /Okta username/);
   assert.match(html, /Password/);
-  assert.match(html, /Approve a push on my phone/);
-  assert.match(html, /Enter a six-digit code/);
+  assert.match(html, /Google Authenticator/);
+  assert.match(html, /leave blank for the two Okta prompts/);
   assert.match(html, /id="sasUserCode"/);
+  assert.match(html, /class="sas-otp"/);
   assert.match(html, /inputmode="numeric"/);
   assert.match(html, /autocomplete="one-time-code"/);
-  assert.match(html, /data-sas-code hidden/);
-  assert.match(html, /Advanced: store an authenticator secret \(legacy\)/);
-  assert.match(html, /data-sas="how-google"/);
-  assert.match(html, /advantagesolutions\.okta\.com\/app\/UserHome/);
-  assert.match(html, /Click Set up next to Google Authenticator/);
-  assert.doesNotMatch(html, /Select Add next to Google Authenticator/);
+  assert.doesNotMatch(html, /data-sas-code hidden/);
+  assert.doesNotMatch(html, /data-sas-advanced/);
+  assert.doesNotMatch(html, /data-sas="how-google"/);
+  assert.doesNotMatch(html, /How to/);
+  assert.doesNotMatch(html, /Approve a push on my phone/);
+  assert.doesNotMatch(html, /advantagesolutions\.okta\.com/);
   assert.doesNotMatch(html, /First code/);
   assert.doesNotMatch(html, /Second code/);
   assert.doesNotMatch(html, /SI username/);
@@ -104,7 +107,8 @@ test('step 1 prefills the First.Last sign-in name and names the lead', () => {
   // Okta rejects the RO email for leads provisioned on another domain, and a
   // type="email" box would fight a bare first.last value.
   assert.doesNotMatch(html, /id="sasUserUsername"[^>]*type="email"/);
-  assert.match(html, /How to/);
+  assert.match(html, /two Okta prompts/);
+  assert.doesNotMatch(html, /How to/);
   assert.equal(L.bannedCopy(html), false);
 });
 
@@ -171,6 +175,14 @@ test('master setup: step=done shows checkmark and enables Save', () => {
   assert.doesNotMatch(setup, /data-pattern="masterConfirm"/);
   assert.doesNotMatch(setup, /data-sas="master-save"[^>]*disabled/);
   assert.equal(L.bannedCopy(setup), false);
+});
+
+test('Visit does not mount a sign-in card', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
+  assert.doesNotMatch(visit, /sasUserCard/);
+  assert.doesNotMatch(visit, /EodSasUser\?\.mount/);
 });
 
 test('More has a persistent sign-in, and the header names who is signed in', () => {

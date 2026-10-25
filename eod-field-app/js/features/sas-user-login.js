@@ -141,7 +141,7 @@
   }
 
   function connectedVerdict(cur) {
-    if (!cur || !cur.connected) return { ok: false, message: 'Sign in on Visit' };
+    if (!cur || !cur.connected) return { ok: false, message: 'Sign in' };
     return { ok: true };
   }
 
@@ -301,8 +301,8 @@
 
   function progressText(data) {
     if (!data) return '';
-    if (data.phase === 'push-waiting' && data.second) return 'Okta asked again — approve the second push';
-    if (data.phase === 'push-waiting') return 'Push sent — approve it in Okta Verify';
+    if (data.phase === 'push-waiting' && data.second) return 'Second Okta prompt — approve it on your phone.';
+    if (data.phase === 'push-waiting') return 'First Okta prompt sent. A second prompt follows.';
     if (data.phase === 'exchange' || data.phase === 'done') return 'Approved, finishing…';
     return '';
   }
@@ -556,16 +556,6 @@
         await redraw(false);
       });
       // ── Form wizard step navigation ──────────────────────────────────────────
-      root.querySelector('[data-sas="how-google"]')?.addEventListener('click', () => {
-        const panel = root.querySelector('[data-sas-how]');
-        if (panel) panel.hidden = !panel.hidden;
-      });
-      root.querySelectorAll('[data-sas-factor]').forEach((el) => {
-        el.addEventListener('change', () => {
-          const codeBox = root.querySelector('[data-sas-code]');
-          if (codeBox) codeBox.hidden = el.value !== 'code' || !el.checked;
-        });
-      });
       root.querySelector('[data-sas="reauth"]')?.addEventListener('click', async () => {
         reauthMode = true;
         view = 'form';
@@ -575,23 +565,22 @@
       root.querySelector('[data-sas="sign-in"]')?.addEventListener('click', async () => {
         const username = document.getElementById('sasUserUsername')?.value.trim() || '';
         const password = document.getElementById('sasUserPassword')?.value || '';
-        const factor = root.querySelector('[data-sas-factor]:checked')?.value || 'push';
         const code = (document.getElementById('sasUserCode')?.value || '').replace(/\D/g, '');
-        const totpSecret = document.getElementById('sasUserTotp')?.value.trim() || '';
         if (!username) { setMsg(root, 'Enter your username'); return; }
         if (!password) { setMsg(root, 'Enter your password'); return; }
-        if (!totpSecret && factor === 'code' && code.length !== 6) {
-          setMsg(root, 'The code must be six digits.');
+        if (code && code.length !== 6) {
+          setMsg(root, 'The code must be six digits, or leave it blank for the two Okta prompts.');
           return;
         }
         const btn = root.querySelector('[data-sas="sign-in"]');
         if (btn) btn.disabled = true;
         const reauth = reauthMode || root.querySelector('[data-sas="sign-in"]')?.dataset.sasReauth === '1';
         const body = { username, password };
-        if (totpSecret) body.totpSecret = totpSecret;
-        else if (factor === 'code') body.totpCode = code;
-        setMsg(root, totpSecret || factor === 'code' ? 'Signing in…' : 'Push sent — approve it in Okta Verify');
-        if (!totpSecret && factor === 'push') startProgress();
+        if (code) body.totpCode = code;
+        setMsg(root, code
+          ? 'Signing in with your Google Authenticator code…'
+          : 'Signing in… Okta will send two prompts. Approve both.');
+        if (!code) startProgress();
         try {
           const { resp, data } = await postJson(reauth ? '/api/sas-user/reauth' : '/api/sas-user/connect', body);
           if (!resp.ok || !data.ok) {
@@ -796,9 +785,11 @@
       });
     };
 
-    view = 'idle';
     resetFormState();
-    await redraw(true);
+    const opening = await fetchStatus(true).catch(() => ({ connected: false }));
+    if (opening?.needs_reauth) reauthMode = true;
+    view = (opening?.needs_reauth || (!opening?.connected && !opening?.sharedActor)) ? 'form' : 'idle';
+    await redraw(false);
     try {
       const S = global.EodSession;
       if (S?.on) {
@@ -813,6 +804,10 @@
 
   async function refreshLead() {
     if (!rootEl || !rootEl.isConnected || !repaintCurrent) return;
+    if (view === 'form') {
+      applyLeadDefaults(rootEl, leadContext());
+      return;
+    }
     if (view !== 'idle') return;
     if (leadParam() === statusFor) {
       await repaintCurrent(null, false);

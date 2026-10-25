@@ -80,44 +80,23 @@
     if (fs === 'sas') {
       const user = esc(defaults?.username || '');
       return `${leadLine(lead)}
+        <p class="muted" data-sas-two-prompts style="margin:0 0 12px;">Okta will send two prompts. Approve both on your phone.</p>
         <div class="field">
-          <label for="sasUserUsername">Username</label>
+          <label for="sasUserUsername">Okta username</label>
           <input type="text" id="sasUserUsername" autocomplete="username" autocapitalize="none" spellcheck="false" value="${user}">
         </div>
         <div class="field">
           <label for="sasUserPassword">Password</label>
           <input type="password" id="sasUserPassword" autocomplete="current-password">
         </div>
-        <fieldset class="field" style="border:0;padding:0;margin:0 0 12px;">
-          <label><input type="radio" name="sasFactor" value="push" checked data-sas-factor="push"> Approve a push on my phone</label>
-          <label><input type="radio" name="sasFactor" value="code" data-sas-factor="code"> Enter a six-digit code</label>
-        </fieldset>
-        <div class="field" data-sas-code hidden>
-          <label for="sasUserCode">Six-digit code</label>
-          <input type="text" id="sasUserCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+        <div class="field">
+          <label for="sasUserCode">Six-digit Google Authenticator code <span class="muted">(optional — leave blank for the two Okta prompts)</span></label>
+          <input type="text" id="sasUserCode" class="sas-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
         </div>
-        <details data-sas-advanced>
-          <summary>Advanced: store an authenticator secret (legacy)</summary>
-          <div class="field">
-            <label for="sasUserTotp">Authenticator secret</label>
-            <input type="text" id="sasUserTotp" autocomplete="off" spellcheck="false" autocapitalize="none">
-          </div>
-        </details>
         <div class="muted" data-sas-progress style="min-height:1.2em;margin-top:8px;"></div>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" data-sas="sign-in" data-sas-reauth="${reauth ? '1' : '0'}" ${busy ? 'disabled' : ''}>Sign in</button>
           <button type="button" class="btn btn-secondary" data-sas="cancel">Cancel</button>
-        </div>
-        <div class="btn-row">
-          <button type="button" class="btn btn-secondary" data-sas="how-google">How to</button>
-        </div>
-        <div data-sas-how hidden style="margin-top:10px;">
-          <p class="muted" style="margin:0 0 8px;">Set up Google Authenticator. Open <a href="https://advantagesolutions.okta.com/app/UserHome">advantagesolutions.okta.com/app/UserHome</a>, sign in as usual, click the down arrow next to your name at the top right, and select Account settings. Click Edit Profile.</p>
-          <p class="muted" style="margin:0 0 8px;">You will be asked for your password again. Okta Verify is already one factor. You will be brought back to the profile page. Click Set up next to Google Authenticator.</p>
-          <p class="muted" style="margin:0 0 8px;">On the next screen, click Setup. Choose iPhone or Android. If Google Authenticator is already on your phone, still select your device type. If it is not installed, download it from your phone's app store.</p>
-          <p class="muted" style="margin:0 0 8px;">A QR code appears. On a phone with no second device, click Can't scan and copy the 16-digit code. In Google Authenticator, scan the QR code or enter that 16-digit code. If you have other accounts in the app, use the one named advantagesolutions.okta.com. The timer on the right resets quickly. A code you still remember can be used until it has already been used.</p>
-          <p class="muted" style="margin:0 0 8px;">Enter the six-digit code from that account. You will see "You have successfully enrolled Google Authenticator." Okta Verify and Google Authenticator both work after that.</p>
-          <p class="muted" style="margin:0;">In this app, the authenticator code is that six-digit Google Authenticator code. Your password is not saved. An authenticated session is saved.</p>
         </div>
         <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
     }
