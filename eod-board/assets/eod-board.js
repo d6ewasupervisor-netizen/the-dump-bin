@@ -110,10 +110,26 @@
     }
   }
 
-  function categoryCell(name, catId, spec) {
+  function categoryReviewUrl(dbkey) {
+    const base = state.detail && state.detail.signoffViewUrl;
+    const key = String(dbkey || '').replace(/\D/g, '').replace(/^0+/, '');
+    if (!base || !key) return '';
+    try {
+      const u = new URL(base, window.location.href);
+      u.searchParams.set('dbkey', key);
+      return u.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function categoryCell(name, catId, spec, dbkey) {
     const num = String(catId || '').trim();
     const line = String(spec || '').trim();
-    return `<td><div class="cat-cell"><span><span class="cat-name">${esc(name)}</span>${line ? `<span class="cat-spec">${esc(line)}</span>` : ''}</span>${num ? `<span class="catnum" title="Category">${esc(num)}</span>` : ''}</div></td>`;
+    const inner = `<span><span class="cat-name">${esc(name)}</span>${line ? `<span class="cat-spec">${esc(line)}</span>` : ''}</span>${num ? `<span class="catnum" title="Category">${esc(num)}</span>` : ''}`;
+    const href = categoryReviewUrl(dbkey);
+    if (!href) return `<td><div class="cat-cell">${inner}</div></td>`;
+    return `<td><a class="cat-cell" href="${esc(href)}" target="_blank" rel="noopener">${inner}</a></td>`;
   }
 
   function statusCell(status) {
@@ -157,7 +173,7 @@
          <td class="actions shrink">${actions}</td>`;
     const flash = state.focusDbkey && state.focusDbkey === String(c.dbkey || '').replace(/^0+/, '') ? ' class="flash"' : '';
     return `<tr id="row-${esc(c.dbkey)}"${flash}>
-      ${categoryCell(c.name, c.catId, [c.version, c.sizeLabel].filter(Boolean).join(' · '))}
+      ${categoryCell(c.name, c.catId, [c.version, c.sizeLabel].filter(Boolean).join(' · '), c.dbkey)}
       <td class="shrink">${esc(c.dbkey || '')}</td>
       ${statusCell(c.status)}
       <td class="shrink">${c.exception ? esc(c.exception) : '<span class="muted">—</span>'}</td>
@@ -186,7 +202,7 @@
         <div class="table-wrap"><table class="fit">
           <thead><tr><th>Category</th><th class="shrink">DBKey</th><th class="share">Exception</th></tr></thead>
           <tbody>${exceptions.map((x) => `<tr>
-            ${categoryCell(x.categoryName || '', catIdForDbkey(x.dbkey), specForDbkey(x.dbkey))}<td class="shrink">${esc(x.dbkey || '')}</td><td class="share">${esc(x.exceptionText || '')}</td>
+            ${categoryCell(x.categoryName || '', catIdForDbkey(x.dbkey), specForDbkey(x.dbkey), x.dbkey)}<td class="shrink">${esc(x.dbkey || '')}</td><td class="share">${esc(x.exceptionText || '')}</td>
           </tr>`).join('')}</tbody>
         </table></div>` : ''}
       <div class="section-title">Categories (${(d.categories || []).length})</div>
@@ -206,12 +222,17 @@
         <div class="section-title">Comment changes</div>
         <div class="table-wrap"><table class="fit">
           <thead><tr><th class="shrink">When</th><th class="shrink">Who</th><th>Category</th><th class="share">Was</th><th class="share">Now</th></tr></thead>
-          <tbody>${edits.map((e) => `<tr>
+          <tbody>${edits.map((e) => {
+            const href = categoryReviewUrl(e.dbkey);
+            const label = esc(e.categoryName || e.dbkey);
+            const cat = href ? `<a class="cat-name-link" href="${esc(href)}" target="_blank" rel="noopener">${label}</a>` : label;
+            return `<tr>
             <td class="shrink">${esc(pacificTime(e.editedAt))}</td><td class="shrink">${esc(e.editedBy)}</td>
-            <td>${esc(e.categoryName || e.dbkey)}</td>
+            <td>${cat}</td>
             <td class="comment share">${esc(e.previousComment) || '<span class="muted">—</span>'}</td>
             <td class="comment share">${esc(e.newComment) || '<span class="muted">removed</span>'}</td>
-          </tr>`).join('')}</tbody>
+          </tr>`;
+          }).join('')}</tbody>
         </table></div>` : ''}
       ${d.pdfUrl ? `<div class="section-title">EOD</div><iframe class="pdf-frame" src="${esc(d.pdfUrl)}" title="EOD PDF"></iframe>` : ''}
     `;

@@ -149,6 +149,12 @@ td.status { white-space: nowrap; }
 td.status.complete { color: var(--success); font-weight: 700; }
 td.status.incomplete { color: var(--danger); font-weight: 700; }
 .cat-cell { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; min-width: 12rem; }
+a.cat-cell { color: inherit; text-decoration: none; border-radius: 4px; }
+a.cat-cell .cat-name { color: var(--accent); }
+a.cat-cell:hover { background: var(--accent-soft); }
+a.cat-cell:hover .cat-name { text-decoration: underline; }
+a.cat-name-link { color: var(--accent); font-weight: 700; text-decoration: none; }
+a.cat-name-link:hover { text-decoration: underline; }
 .cat-cell > span:first-child { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
 .cat-spec { color: var(--muted); font-size: 12px; font-weight: 700; }
 .catnum {

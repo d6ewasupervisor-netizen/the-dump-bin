@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-25 — EOD category opens its signoff review
+
+Category names on the EOD summary board, including cleared exceptions and comment changes, open that set on the signoff review board. Cache is `eod-board.css` and `eod-board.js` `?v=8`. The matching eod-api copy is the same. Checked on a local mock at desktop and 390 px.
+
 ## 2026-10-25 — Field app 3.4.85
 
 Sign in in More and on the side nav opens the SAS sheet.
