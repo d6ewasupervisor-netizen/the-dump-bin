@@ -3665,7 +3665,7 @@ div.device-pkg-copy { cursor: default; }
 .dev-badge--fail    { background: #6b1a1a; color: #ffd4d4; }
 .dev-badge--unsent  { background: #3a2500; color: #ffd4a0; }
 
-.sas-otp {
+.field input.sas-otp {
   font-size: 24px;
   letter-spacing: 0.3em;
   text-align: center;
