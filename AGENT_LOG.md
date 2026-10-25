@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-24 — Compliance is one row per person
+
+Each name is a closed row with owed and complete counts. Opening it lists owed courses, then completions. People who owe a course sort first. Download report is unchanged.
+
 ## 2026-10-24 — Lead shifts on District Helper
 
 The lead’s PROD shifts for the date range show as checkboxes. Each borrowed person has their own per diem and mileage options before they are added.

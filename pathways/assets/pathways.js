@@ -146,48 +146,82 @@
     </table>`;
   }
 
+  function splitCourses(person) {
+    const owed = [];
+    const done = [];
+    const other = [];
+    for (const course of person.courses || []) {
+      if (!course) continue;
+      if (course.completed) done.push(course);
+      else if (course.overdue || course.required) owed.push(course);
+      else other.push(course);
+    }
+    const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''));
+    owed.sort((a, b) => Number(!!b.overdue) - Number(!!a.overdue) || byName(a, b));
+    done.sort(byName);
+    other.sort(byName);
+    return { owed, done, other };
+  }
+
+  function courseLine(course) {
+    const title = course.url
+      ? `<a href="${esc(course.url)}">${esc(course.name || 'Course')}</a>`
+      : esc(course.name || 'Course');
+    const bits = [];
+    if (course.due) bits.push(esc(course.due));
+    if (course.seconds != null) bits.push(esc(hms(course.seconds)));
+    if (course.activity) {
+      const kind = course.activity_kind ? `${course.activity_kind} ` : '';
+      bits.push(esc(`${kind}${course.activity}`));
+    }
+    const meta = bits.length ? `<span class="muted"> — ${bits.join(' — ')}</span>` : '';
+    return `<li>${title}${meta}</li>`;
+  }
+
+  function courseGroup(title, items) {
+    const body = items.length
+      ? `<ul>${items.map(courseLine).join('')}</ul>`
+      : '<p class="muted">None.</p>';
+    return `<div class="course-group"><h3>${esc(title)}</h3>${body}</div>`;
+  }
+
   function renderCompliance() {
     const pulled = state.data && state.data.captured_at
       ? new Date(state.data.captured_at).toLocaleString('en-US', {
         timeZone: 'America/Los_Angeles', dateStyle: 'medium', timeStyle: 'short',
       })
       : '';
-    const overdue = (state.data && state.data.overdue_required) || [];
-    const roster = (state.data && state.data.people) || [];
-    const overdueHtml = overdue.length ? overdue.map((course) => {
-      const title = course.url
-        ? `<a href="${esc(course.url)}">${esc(course.name || 'Course')}</a>`
-        : esc(course.name || 'Course');
-      const names = (course.people || []).map((person) => {
-        const spent = person.seconds == null ? '' : ` — ${esc(hms(person.seconds))}`;
-        const when = person.activity ? ` — ${esc(person.activity_kind || 'Activity')} ${esc(person.activity)}` : '';
-        return `<li>${esc(person.name)}${spent}${when}</li>`;
-      }).join('');
-      return `<article class="card"><h2>${title}</h2><ul>${names}</ul></article>`;
+    const roster = ((state.data && state.data.people) || []).map((person) => ({
+      person,
+      courses: splitCourses(person),
+    })).sort((a, b) => (
+      b.courses.owed.length - a.courses.owed.length
+      || String(a.person.name || '').localeCompare(String(b.person.name || ''))
+    ));
+    const owing = roster.filter((row) => row.courses.owed.length).length;
+    const peopleHtml = roster.length ? roster.map(({ person, courses }) => {
+      const owedLabel = courses.owed.length
+        ? `<span class="due">${courses.owed.length} owed</span>`
+        : '<span class="muted">0 owed</span>';
+      const extra = courses.other.length ? courseGroup('Other', courses.other) : '';
+      return `<details class="person">
+        <summary>
+          <span class="name">${esc(person.name)}</span>
+          <span class="counts">${owedLabel}<span class="muted">${courses.done.length} complete</span></span>
+        </summary>
+        <div class="groups">
+          ${courseGroup('Owed', courses.owed)}
+          ${courseGroup('Completions', courses.done)}
+          ${extra}
+        </div>
+      </details>`;
     }).join('') : '<p class="muted">None.</p>';
-    const detail = roster.map((person) => {
-      const courses = person.courses && person.courses.length ? person.courses : [null];
-      return courses.map((course) => `<tr>
-        <td>${esc(person.name)}</td>
-        <td>${course ? esc(course.name) : ''}</td>
-        <td>${hms(course ? course.seconds : person.lifetime_seconds)}</td>
-        <td>${course && course.activity ? esc(course.activity) : ''}</td>
-        <td>${course && course.activity_kind ? esc(course.activity_kind) : ''}</td>
-        <td>${course && course.overdue ? 'Overdue' : ''}</td>
-      </tr>`).join('');
-    }).join('');
     $('compliance').innerHTML = `
       <div class="actions">
-        <span class="muted">${pulled ? 'Pulled ' + esc(pulled) : ''}</span>
+        <span class="muted">${pulled ? 'Pulled ' + esc(pulled) : ''}${owing ? ' · ' + owing + ' owing' : ''}</span>
         <button type="button" class="action" id="downloadReport">Download report</button>
       </div>
-      <h2 class="section-title">Overdue</h2>
-      ${overdueHtml}
-      <h2 class="section-title">Time and activity</h2>
-      <table>
-        <thead><tr><th>Person</th><th>Course</th><th>Time spent</th><th>Activity date</th><th>Activity</th><th></th></tr></thead>
-        <tbody>${detail || '<tr><td colspan="6">None.</td></tr>'}</tbody>
-      </table>`;
+      ${peopleHtml}`;
     const download = $('downloadReport');
     if (download) download.addEventListener('click', downloadReport);
   }
