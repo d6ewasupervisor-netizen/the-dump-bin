@@ -116,6 +116,7 @@
     };
     statusAt = Date.now();
     statusFor = leadEmail;
+    try { global.EodChrome?.paintSignedIn?.(); } catch (_) {}
     return status;
   }
 
@@ -824,6 +825,7 @@
   global.EodSasUser = {
     mount,
     fetchStatus,
+    cachedStatus: () => status,
     requireConnected,
     requireConnectedFast,
     isConnected,

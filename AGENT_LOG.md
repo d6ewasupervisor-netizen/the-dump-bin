@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-25 — Field app 3.4.84
+
+More has Sign in. A SAS login also tries Store Intelligence. The header shows who is signed in next to the version.
+
 ## 2026-10-25 — Field app 3.4.83
 
 The pilot at `/eod-field-app/` signs in with an Okta Verify push or one six-digit code. The hosted copy was 3.4.82.

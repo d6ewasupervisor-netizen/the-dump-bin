@@ -172,3 +172,14 @@ test('master setup: step=done shows checkmark and enables Save', () => {
   assert.doesNotMatch(setup, /data-sas="master-save"[^>]*disabled/);
   assert.equal(L.bannedCopy(setup), false);
 });
+
+test('More has a persistent sign-in, and the header names who is signed in', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const chrome = fs.readFileSync(path.join(__dirname, '../js/chrome.js'), 'utf8');
+  const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(chrome, /id="eodMoreSignIn">Sign in</);
+  assert.match(chrome, /function openSignIn/);
+  assert.match(index, /id="eodSignedIn"/);
+  assert.match(index, /data-open-sign-in/);
+});

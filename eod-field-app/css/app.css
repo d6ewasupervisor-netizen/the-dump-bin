@@ -838,6 +838,19 @@ body.needs-auth .app-shell {
   .conn-dot { gap: 4px; font-size: 11px; padding: 4px 4px; }
 }
 
+.eod-signed-in {
+  display: inline-flex;
+  align-items: center;
+  max-width: 46vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .eod-version-badge {
   display: inline-flex;
   align-items: center;

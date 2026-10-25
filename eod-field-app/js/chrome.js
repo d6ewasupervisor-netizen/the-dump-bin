@@ -45,6 +45,7 @@
       gateEl.className = 'pill ' + (ready ? 'ok' : 'warn');
     }
     paintConnChrome();
+    paintSignedIn();
     paintWorkflow();
     paintUnsentBanner();
     paintQueueBanner();
@@ -244,8 +245,11 @@
     const conn = document.getElementById('chromeConn');
     const themeBtn = document.getElementById('themeCycleBtn');
     const verBtn = document.getElementById('eodVersionBadge');
+    const who = document.getElementById('eodSignedIn');
     if (conn && themeBtn) conn.insertBefore(themeBtn, conn.firstChild);
     else if (tray && themeBtn) tray.appendChild(themeBtn);
+    if (conn && who) conn.insertBefore(who, conn.firstChild);
+    else if (tray && who) tray.insertBefore(who, tray.firstChild);
     if (conn && verBtn) conn.appendChild(verBtn);
     else if (tray && verBtn) tray.appendChild(verBtn);
     try { global.EodTheme?.applyTheme?.(global.EodTheme.getTheme?.()); } catch (_) {}
@@ -308,6 +312,51 @@
     window.open(eodBoardHref(), '_blank', 'noopener');
   }
 
+  function paintSignedIn() {
+    const el = document.getElementById('eodSignedIn');
+    if (!el) return;
+    const st = global.EodSasUser?.cachedStatus?.() || null;
+    const lead = global.EodSasUser?.leadContext?.() || {};
+    const me = global.EodRoles?.getMe?.() || {};
+    const name = String(lead.name || me.name || me.email || '').trim();
+    if (!name) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = st && st.connected && st.siConnected ? `${name} · SI` : name;
+  }
+
+  function openSignIn() {
+    let host = document.getElementById('eodSignInSheet');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'eodSignInSheet';
+      host.className = 'modal-overlay show';
+      document.body.appendChild(host);
+      host.addEventListener('click', (e) => { if (e.target === host) closeModal(host); });
+    } else {
+      host.classList.add('show');
+      host.style.display = '';
+    }
+    host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
+      <h2>Sign in</h2>
+      <div id="eodSignInHost"></div>
+      <button type="button" class="btn btn-primary btn-block" id="eodSignInClose">Close</button>
+    </div>`;
+    const slot = host.querySelector('#eodSignInHost');
+    try { global.EodSasUser?.mount?.(slot); } catch (err) {
+      if (slot) slot.textContent = 'Sign in is not available.';
+      console.warn('[chrome] sign in', err);
+    }
+    host.querySelector('#eodSignInClose')?.addEventListener('click', () => closeModal(host));
+    global.EodA11y?.activate?.(host);
+    host.addEventListener('eod-dialog-escape', () => {
+      closeModal(host);
+    }, { once: true });
+  }
+
   function openMoreMenu() {
     let host = document.getElementById('eodMoreMenu');
     if (!host) {
@@ -322,6 +371,7 @@
     }
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>More</h2>
+      <button type="button" class="btn btn-primary btn-block" id="eodMoreSignIn">Sign in</button>
       <button type="button" class="btn btn-primary btn-block" data-more="storage">Clear storage</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
@@ -339,6 +389,10 @@
         dismissOverlays();
         global.EodRouter.go(dest);
       });
+    });
+    host.querySelector('#eodMoreSignIn')?.addEventListener('click', () => {
+      closeModal(host);
+      openSignIn();
     });
     host.querySelector('#eodMoreBoard')?.addEventListener('click', () => {
       closeModal(host);
@@ -431,6 +485,10 @@
           openEodBoard();
           return;
         }
+        if (btn.hasAttribute('data-open-sign-in')) {
+          openSignIn();
+          return;
+        }
         dismissOverlays();
         if (global.EodRouter?.go) global.EodRouter.go(nav);
       });
@@ -501,6 +559,7 @@
     });
     global.EodSession?.on(() => refresh());
     refresh();
+    try { global.EodSasUser?.fetchStatus?.(true); } catch (_) {}
   }
 
   global.EodChrome = {
@@ -511,6 +570,8 @@
     applyNavCollapsed,
     toggleNav,
     paintConnChrome,
+    paintSignedIn,
+    openSignIn,
     pushOverlayBack,
     popOverlayBack,
     clearOverlayBack,
