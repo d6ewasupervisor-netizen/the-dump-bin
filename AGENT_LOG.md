@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-24 — Overdue names are red
+
+A person with an overdue course has a red name on the Compliance row. Required courses that are not yet overdue stay a normal name.
+
 ## 2026-10-24 — Compliance is one row per person
 
 Each name is a closed row with owed and complete counts. Opening it lists owed courses, then completions. People who owe a course sort first. Download report is unchanged.

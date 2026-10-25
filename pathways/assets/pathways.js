@@ -200,13 +200,14 @@
     ));
     const owing = roster.filter((row) => row.courses.owed.length).length;
     const peopleHtml = roster.length ? roster.map(({ person, courses }) => {
+      const overdue = courses.owed.some((course) => course.overdue);
       const owedLabel = courses.owed.length
         ? `<span class="due">${courses.owed.length} owed</span>`
         : '<span class="muted">0 owed</span>';
       const extra = courses.other.length ? courseGroup('Other', courses.other) : '';
       return `<details class="person">
         <summary>
-          <span class="name">${esc(person.name)}</span>
+          <span class="name${overdue ? ' due' : ''}">${esc(person.name)}</span>
           <span class="counts">${owedLabel}<span class="muted">${courses.done.length} complete</span></span>
         </summary>
         <div class="groups">

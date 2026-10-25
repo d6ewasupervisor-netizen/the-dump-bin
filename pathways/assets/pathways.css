@@ -107,6 +107,7 @@ button.action:disabled { opacity: 0.45; cursor: default; }
 }
 .person[open] summary { border-bottom: 1px solid var(--border); }
 .person .name { flex: 1; font-weight: 700; }
+.person .name.due { color: var(--danger); }
 .person .counts { display: flex; gap: 12px; font-size: 13px; white-space: nowrap; }
 .person .groups { padding: 4px 16px 12px 30px; }
 .course-group h3 {
