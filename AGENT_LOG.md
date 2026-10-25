@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-25 — Field app 3.4.85
+
+Sign in in More and on the side nav opens the SAS sheet.
+
 ## 2026-10-25 — Field app 3.4.84
 
 More has Sign in. A SAS login also tries Store Intelligence. The header shows who is signed in next to the version.

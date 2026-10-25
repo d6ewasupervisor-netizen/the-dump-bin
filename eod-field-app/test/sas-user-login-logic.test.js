@@ -180,6 +180,7 @@ test('More has a persistent sign-in, and the header names who is signed in', () 
   const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   assert.match(chrome, /id="eodMoreSignIn">Sign in</);
   assert.match(chrome, /function openSignIn/);
+  assert.match(chrome, /\[data-nav\], \[data-open-sign-in\]/);
   assert.match(index, /id="eodSignedIn"/);
   assert.match(index, /data-open-sign-in/);
 });

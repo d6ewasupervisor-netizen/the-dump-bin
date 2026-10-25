@@ -390,9 +390,11 @@
         global.EodRouter.go(dest);
       });
     });
-    host.querySelector('#eodMoreSignIn')?.addEventListener('click', () => {
+    host.querySelector('#eodMoreSignIn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       closeModal(host);
-      openSignIn();
+      setTimeout(() => openSignIn(), 0);
     });
     host.querySelector('#eodMoreBoard')?.addEventListener('click', () => {
       closeModal(host);
@@ -472,10 +474,16 @@
   }
 
   function bindNav() {
-    document.querySelectorAll('[data-nav]').forEach((btn) => {
+    document.querySelectorAll('[data-nav], [data-open-sign-in]').forEach((btn) => {
       if (btn.dataset.navBound === '1') return;
       btn.dataset.navBound = '1';
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        if (btn.hasAttribute('data-open-sign-in')) {
+          e.preventDefault();
+          e.stopPropagation();
+          openSignIn();
+          return;
+        }
         const nav = btn.getAttribute('data-nav');
         if (nav === 'more') {
           openMoreMenu();
@@ -483,10 +491,6 @@
         }
         if (btn.hasAttribute('data-open-eod-board')) {
           openEodBoard();
-          return;
-        }
-        if (btn.hasAttribute('data-open-sign-in')) {
-          openSignIn();
           return;
         }
         dismissOverlays();
