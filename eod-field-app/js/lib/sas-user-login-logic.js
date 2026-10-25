@@ -55,22 +55,31 @@
   }
 
   function idleHtml(lead, status) {
+    if (status?.needs_reauth) {
+      return `${leadLine(lead)}
+        <div class="muted">SAS needs you to sign in again.</div>
+        <button type="button" class="btn btn-primary btn-block" data-sas="reauth">Sign in again</button>
+        <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
+    }
     if (status?.connected || status?.sharedActor) {
+      const gone = status?.okta_gone
+        ? `<div class="muted" data-sas-okta-gone>Your Okta session ended; sign in again when convenient so the app can keep working without you.</div>`
+        : '';
       return `${leadLine(lead)}
         <div class="muted">Signed in.</div>
+        ${gone}
         <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
     }
     return `${leadLine(lead)}<button type="button" class="btn btn-primary btn-block" data-sas="open-setup">Sign in</button>
       <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
   }
 
-  function formHtml({ hasPattern, busy, lead, defaults, patternStep, formStep } = {}) {
+  function formHtml({ hasPattern, busy, lead, defaults, patternStep, formStep, reauth } = {}) {
     const fs = formStep || 'sas';
 
     if (fs === 'sas') {
       const user = esc(defaults?.username || '');
       return `${leadLine(lead)}
-        <p class="muted" style="margin:0 0 12px;">Enter the Google Authenticator code showing now. Wait for it to change, then enter the next one.</p>
         <div class="field">
           <label for="sasUserUsername">Username</label>
           <input type="text" id="sasUserUsername" autocomplete="username" autocapitalize="none" spellcheck="false" value="${user}">
@@ -79,16 +88,24 @@
           <label for="sasUserPassword">Password</label>
           <input type="password" id="sasUserPassword" autocomplete="current-password">
         </div>
-        <div class="field">
-          <label for="sasUserCode">First code</label>
+        <fieldset class="field" style="border:0;padding:0;margin:0 0 12px;">
+          <label><input type="radio" name="sasFactor" value="push" checked data-sas-factor="push"> Approve a push on my phone</label>
+          <label><input type="radio" name="sasFactor" value="code" data-sas-factor="code"> Enter a six-digit code</label>
+        </fieldset>
+        <div class="field" data-sas-code hidden>
+          <label for="sasUserCode">Six-digit code</label>
           <input type="text" id="sasUserCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
         </div>
-        <div class="field">
-          <label for="sasUserCode2">Second code</label>
-          <input type="text" id="sasUserCode2" inputmode="numeric" autocomplete="off" maxlength="6" pattern="[0-9]{6}">
-        </div>
+        <details data-sas-advanced>
+          <summary>Advanced: store an authenticator secret (legacy)</summary>
+          <div class="field">
+            <label for="sasUserTotp">Authenticator secret</label>
+            <input type="text" id="sasUserTotp" autocomplete="off" spellcheck="false" autocapitalize="none">
+          </div>
+        </details>
+        <div class="muted" data-sas-progress style="min-height:1.2em;margin-top:8px;"></div>
         <div class="btn-row">
-          <button type="button" class="btn btn-primary" data-sas="sign-in" ${busy ? 'disabled' : ''}>Sign in</button>
+          <button type="button" class="btn btn-primary" data-sas="sign-in" data-sas-reauth="${reauth ? '1' : '0'}" ${busy ? 'disabled' : ''}>Sign in</button>
           <button type="button" class="btn btn-secondary" data-sas="cancel">Cancel</button>
         </div>
         <div class="btn-row">
@@ -218,7 +235,15 @@
 
   function cardHtml(mode, status, busy, extra) {
     const lead = extra?.lead || null;
-    if (mode === 'form') return formHtml({ hasPattern: !!status?.hasPattern, busy, lead, defaults: extra?.defaults, patternStep: extra?.patternStep, formStep: extra?.formStep });
+    if (mode === 'form') return formHtml({
+      hasPattern: !!status?.hasPattern,
+      busy,
+      lead,
+      defaults: extra?.defaults,
+      patternStep: extra?.patternStep,
+      formStep: extra?.formStep,
+      reauth: !!extra?.reauth,
+    });
     if (mode === 'unlock') return unlockHtml({ busy, lead });
     if (mode === 'handoff') return handoffHtml({ busy, lead });
     if (mode === 'master') return masterHtml({ busy, lead });

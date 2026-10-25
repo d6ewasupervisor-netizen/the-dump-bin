@@ -33,20 +33,25 @@ test('idle card shows the shift lead name and email', () => {
 
 // Credentials are step 1; the pattern boxes only exist on step 3. Tests that
 // assert on pattern markup must say formStep: 'pattern' or they render step 1.
-test('first login asks for two Google Authenticator codes', () => {
+test('first login offers a push, a six-digit code, and a hidden legacy secret', () => {
   assert.equal(L.openMode({ hasCreds: false, hasPattern: false }), 'form');
   assert.equal(L.openMode({ connected: true }), 'idle');
   const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'sas' });
   assert.match(html, /Username/);
   assert.match(html, /Password/);
-  assert.match(html, /First code/);
-  assert.match(html, /Second code/);
-  assert.match(html, /Wait for it to change/);
+  assert.match(html, /Approve a push on my phone/);
+  assert.match(html, /Enter a six-digit code/);
+  assert.match(html, /id="sasUserCode"/);
+  assert.match(html, /inputmode="numeric"/);
+  assert.match(html, /autocomplete="one-time-code"/);
+  assert.match(html, /data-sas-code hidden/);
+  assert.match(html, /Advanced: store an authenticator secret \(legacy\)/);
   assert.match(html, /data-sas="how-google"/);
   assert.match(html, /advantagesolutions\.okta\.com\/app\/UserHome/);
   assert.match(html, /Click Set up next to Google Authenticator/);
   assert.doesNotMatch(html, /Select Add next to Google Authenticator/);
-  assert.doesNotMatch(html, /Authenticator setup key/);
+  assert.doesNotMatch(html, /First code/);
+  assert.doesNotMatch(html, /Second code/);
   assert.doesNotMatch(html, /SI username/);
   assert.doesNotMatch(html, /class="err"/);
   assert.doesNotMatch(html, /data-pattern=/);

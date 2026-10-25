@@ -28,6 +28,8 @@
   // 'sas' → step 1; 'si' → step 2; 'pattern' → step 3
   let formStep = 'sas';
   let formDraft = {};   // field values carried across steps
+  let reauthMode = false;
+  let progressTimer = null;
 
   // ── Pattern lock registry ─────────────────────────────────────────────────────
   const patternLocks = new Map();
@@ -106,6 +108,11 @@
       passwordExpireDays: data.passwordExpireDays == null || !Number.isFinite(Number(data.passwordExpireDays))
         ? null
         : Number(data.passwordExpireDays),
+      mode: data.mode || null,
+      mfa_used: data.mfa_used || null,
+      needs_reauth: !!data.needs_reauth,
+      okta_gone: !!data.okta_gone,
+      can_push: !!data.can_push,
     };
     statusAt = Date.now();
     statusFor = leadEmail;
@@ -279,7 +286,44 @@
   function resetFormState() {
     formStep = 'sas';
     formDraft = {};
+    reauthMode = false;
+    stopProgress();
     resetPatternState();
+  }
+
+  function stopProgress() {
+    if (progressTimer) {
+      clearInterval(progressTimer);
+      progressTimer = null;
+    }
+  }
+
+  function progressText(data) {
+    if (!data) return '';
+    if (data.phase === 'push-waiting' && data.second) return 'Okta asked again — approve the second push';
+    if (data.phase === 'push-waiting') return 'Push sent — approve it in Okta Verify';
+    if (data.phase === 'exchange' || data.phase === 'done') return 'Approved, finishing…';
+    return '';
+  }
+
+  function startProgress() {
+    stopProgress();
+    const tick = async () => {
+      const leadEmail = leadParam();
+      const qs = leadEmail ? `?leadEmail=${encodeURIComponent(leadEmail)}` : '';
+      try {
+        const resp = await global.authFetch(`${apiBase()}/api/sas-user/connect/progress${qs}`, {
+          skipBusy: true,
+          noBounceOn401: true,
+        });
+        const data = resp.ok ? await resp.json().catch(() => ({})) : {};
+        const el = rootEl?.querySelector('[data-sas-progress]');
+        const text = progressText(data);
+        if (el && text) el.textContent = text;
+      } catch (_) { /* the connect request still owns the result */ }
+    };
+    progressTimer = setInterval(tick, 1500);
+    void tick();
   }
 
   // ── paint ─────────────────────────────────────────────────────────────────────
@@ -306,6 +350,7 @@
       patternStep,
       masterStep: masterPatternStep,
       formStep,
+      reauth: reauthMode,
     }) : '';
     root.innerHTML = html;
     if (!keep) applyLeadDefaults(root, lead);
@@ -514,19 +559,40 @@
         const panel = root.querySelector('[data-sas-how]');
         if (panel) panel.hidden = !panel.hidden;
       });
+      root.querySelectorAll('[data-sas-factor]').forEach((el) => {
+        el.addEventListener('change', () => {
+          const codeBox = root.querySelector('[data-sas-code]');
+          if (codeBox) codeBox.hidden = el.value !== 'code' || !el.checked;
+        });
+      });
+      root.querySelector('[data-sas="reauth"]')?.addEventListener('click', async () => {
+        reauthMode = true;
+        view = 'form';
+        formStep = 'sas';
+        await redraw(false);
+      });
       root.querySelector('[data-sas="sign-in"]')?.addEventListener('click', async () => {
         const username = document.getElementById('sasUserUsername')?.value.trim() || '';
         const password = document.getElementById('sasUserPassword')?.value || '';
+        const factor = root.querySelector('[data-sas-factor]:checked')?.value || 'push';
         const code = (document.getElementById('sasUserCode')?.value || '').replace(/\D/g, '');
-        const code2 = (document.getElementById('sasUserCode2')?.value || '').replace(/\D/g, '');
+        const totpSecret = document.getElementById('sasUserTotp')?.value.trim() || '';
         if (!username) { setMsg(root, 'Enter your username'); return; }
         if (!password) { setMsg(root, 'Enter your password'); return; }
-        if (code.length !== 6 || code2.length !== 6) { setMsg(root, 'Each code must be six digits.'); return; }
+        if (!totpSecret && factor === 'code' && code.length !== 6) {
+          setMsg(root, 'The code must be six digits.');
+          return;
+        }
         const btn = root.querySelector('[data-sas="sign-in"]');
         if (btn) btn.disabled = true;
-        setMsg(root, 'Signing in… this takes a few seconds.');
+        const reauth = reauthMode || root.querySelector('[data-sas="sign-in"]')?.dataset.sasReauth === '1';
+        const body = { username, password };
+        if (totpSecret) body.totpSecret = totpSecret;
+        else if (factor === 'code') body.totpCode = code;
+        setMsg(root, totpSecret || factor === 'code' ? 'Signing in…' : 'Push sent — approve it in Okta Verify');
+        if (!totpSecret && factor === 'push') startProgress();
         try {
-          const { resp, data } = await postJson('/api/sas-user/connect', { username, password, code, code2 });
+          const { resp, data } = await postJson(reauth ? '/api/sas-user/reauth' : '/api/sas-user/connect', body);
           if (!resp.ok || !data.ok) {
             setMsg(root, data.error || 'Sign-in failed');
             return;
@@ -540,6 +606,7 @@
             : (err.message || 'Sign-in failed');
           setMsg(root, msg);
         } finally {
+          stopProgress();
           if (btn && btn.isConnected) btn.disabled = false;
         }
       });

@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-25 — Field app 3.4.83
+
+The pilot at `/eod-field-app/` signs in with an Okta Verify push or one six-digit code. The hosted copy was 3.4.82.
+
 ## 2026-10-24 — District Helper error line stays short
 
 A failed API call no longer prints the HTML error page into the status bar.
