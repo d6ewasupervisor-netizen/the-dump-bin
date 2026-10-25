@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-24 — Lead shifts on District Helper
+
+The lead’s PROD shifts for the date range show as checkboxes. Each borrowed person has their own per diem and mileage options before they are added.
+
 ## 2026-10-24 — District Helper send button
 
 Send posts the preview to eod-api instead of opening a mailto draft.

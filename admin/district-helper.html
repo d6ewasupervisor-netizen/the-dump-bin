@@ -257,7 +257,9 @@ const api = {
   saveTemplate(t) { return this.req("/templates", {method:"POST", body:JSON.stringify(t)}); },
   delTemplate(id) { return this.req("/templates/"+encodeURIComponent(id), {method:"DELETE"}); },
   saveLead(l)     { return this.req("/leads", {method:"POST", body:JSON.stringify(l)}); },
-  sendMail(body)  { return this.req("/send", {method:"POST", body:JSON.stringify(body)}); }
+  sendMail(body)  { return this.req("/send", {method:"POST", body:JSON.stringify(body)}); },
+  leadShifts(id, from, to) { return this.req("/lead-shifts?personId="+encodeURIComponent(id)+"&from="+encodeURIComponent(from)+"&to="+encodeURIComponent(to)); },
+  applyShifts(body) { return this.req("/lead-shifts/apply", {method:"POST", body:JSON.stringify(body)}); }
 };
 const local = {
   key(email){ return "dhe:tpl:"+email; },
@@ -266,7 +268,17 @@ const local = {
   del(email,id){ localStorage.setItem(this.key(email), JSON.stringify(this.templates(email).filter(x=>x.id!==id))); }
 };
 
-/* ---------- state ---------- */
+function upcomingMonThu() {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone:"America/Los_Angeles", year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
+  const d = new Date(today + "T12:00:00");
+  const day = d.getDay();
+  const add = (day === 5 || day === 6 || day === 0) ? ((8 - day) % 7) : (1 - day);
+  const mon = new Date(d); mon.setDate(d.getDate() + add);
+  const thu = new Date(mon); thu.setDate(mon.getDate() + 3);
+  const iso = x => x.toISOString().slice(0, 10);
+  return { from: iso(mon), to: iso(thu) };
+}
+const WEEK = upcomingMonThu();
 const S = {
   me:null, isAdmin:false,
   supervisors:[], stores:[], leads:[], associates:[], syncedAt:null,
@@ -274,6 +286,7 @@ const S = {
   recMode:"group", selAssocs:[], singleRec:"",
   selLead:"", manualLeads:[], editingLead:false,
   rows:[{id:uid(),date:"",storeNum:""}], showAllStores:false,
+  shiftFrom:WEEK.from, shiftTo:WEEK.to, leadShifts:[], shiftPick:{}, shiftsLoading:false, adding:false, travel:{},
   templates:[], tplId:"__default", tpl:structuredClone(BUILTIN_TEMPLATE.data), tplDirty:false, tplOpen:false, tplName:"",
   ccFixed:Object.fromEntries(FIXED_CC.map(e=>[e,false])), ccExtra:[], ccInput:"", ccErr:"",
   email:"", subject:"", viewMode:"preview", copied:false, sending:false,
@@ -352,6 +365,50 @@ async function deleteTemplate(){
   if(!confirm(`Delete template "${t.name}"?`)) return;
   try { await api.delTemplate(t.id);
     S.templates = await api.templates(); loadTemplate("__default"); toast("Deleted"); render(); } catch(e){ toast(e.message,true); }
+}
+
+function travelOf(id){
+  if (!S.travel[id]) S.travel[id] = { perDiem:false, homeToStore:false, storeToStore:false, storeToHome:false };
+  return S.travel[id];
+}
+function selectedBorrowers(){
+  const pool=assocPool();
+  if (S.recMode==="individual") { const a=pool.find(x=>x.assocId===S.singleRec); return a?[a]:[]; }
+  return pool.filter(a=>S.selAssocs.includes(a.assocId));
+}
+function applyShiftRows(){
+  const picked=S.leadShifts.filter(s=>S.shiftPick[s.visitId]);
+  if (!picked.length) return;
+  S.rows=picked.map(s=>({ id:"v"+s.visitId, date:s.date, storeNum:String(s.storeNumber) }));
+}
+async function loadLeadShifts(){
+  const lead=allLeads().find(l=>l.leadId===S.selLead);
+  if (!lead || lead._manual || !S.shiftFrom || !S.shiftTo) { S.leadShifts=[]; S.shiftPick={}; render(); return; }
+  S.shiftsLoading=true; render();
+  try {
+    const data=await api.leadShifts(lead.leadId, S.shiftFrom, S.shiftTo);
+    S.leadShifts=data.shifts||[];
+    S.shiftPick={};
+    S.leadShifts.forEach(s=>{ S.shiftPick[s.visitId]=true; });
+    applyShiftRows();
+  } catch(e) {
+    S.leadShifts=[]; toast(e.message,true);
+  } finally {
+    S.shiftsLoading=false; render();
+  }
+}
+async function addToShifts(){
+  if (S.adding) return;
+  const visits=S.leadShifts.filter(s=>S.shiftPick[s.visitId]).map(s=>({ visitId:s.visitId, date:s.date, storeNumber:s.storeNumber }));
+  const people=selectedBorrowers().map(a=>{ const t=travelOf(a.assocId); return { personId:a.assocId, perDiem:!!t.perDiem, homeToStore:!!t.homeToStore, storeToStore:!!t.storeToStore, storeToHome:!!t.storeToHome }; });
+  if (!visits.length || !people.length) { toast("Pick shifts and people", true); return; }
+  S.adding=true; render();
+  try {
+    const data=await api.applyShifts({ visits, people });
+    const failed=(data.results||[]).filter(r=>!r.ok);
+    toast(failed.length ? failed.length+" could not be added" : "Added to the selected shifts", !!failed.length);
+  } catch(e) { toast(e.message,true); }
+  finally { S.adding=false; render(); }
 }
 
 /* ---------- email generation ---------- */
@@ -466,6 +523,17 @@ function render(){
     } else {
       h+=`<label class="lbl">Associate</label><select id="singleSel"><option value="">Select one…</option>${pool.map(a=>`<option value="${esc(a.assocId)}"${a.assocId===S.singleRec?" selected":""}>${esc(a.name)}${a.phone?" — "+fmtPhone(a.phone):""}</option>`).join("")}</select>`;
     }
+    const chosen = selectedBorrowers();
+    if (chosen.length) {
+      h+=`<div style="margin-top:12px">`+chosen.map(a=>{
+        const t=travelOf(a.assocId);
+        return `<div style="margin:8px 0 4px"><b>${esc(prefName(a))}</b></div>
+          <label class="chk"><input type="checkbox" data-tr="${esc(a.assocId)}" data-k="perDiem"${t.perDiem?" checked":""}> $40 a day per diem</label>
+          <label class="chk"><input type="checkbox" data-tr="${esc(a.assocId)}" data-k="homeToStore"${t.homeToStore?" checked":""}> Home to store on Monday</label>
+          <label class="chk"><input type="checkbox" data-tr="${esc(a.assocId)}" data-k="storeToStore"${t.storeToStore?" checked":""}> Store to store through the week</label>
+          <label class="chk"><input type="checkbox" data-tr="${esc(a.assocId)}" data-k="storeToHome"${t.storeToHome?" checked":""}> Store to home on Thursday</label>`;
+      }).join("")+`</div><button class="btn btn-primary btn-sm" id="addShifts"${S.adding?" disabled":""} style="margin-top:8px">${S.adding?"Adding…":"Add to selected shifts"}</button>`;
+    }
     h+='</section>';
 
     /* lead */
@@ -482,7 +550,12 @@ function render(){
 
     /* schedule */
     h+=`<section class="card"><h2>Schedule <span class="right"><label class="chk"><input type="checkbox" id="allStores"${S.showAllStores?" checked":""}> Show all stores</label></span></h2>
-    <div class="field" style="max-width:200px"><label class="lbl">Start time</label><select id="timeSel">${START_TIMES.map(t=>`<option${t===S.tpl.startTime?" selected":""}>${t}</option>`).join("")}</select></div>`;
+    <div class="field" style="max-width:200px"><label class="lbl">Start time</label><select id="timeSel">${START_TIMES.map(t=>`<option${t===S.tpl.startTime?" selected":""}>${t}</option>`).join("")}</select></div>
+    <div class="row" style="margin-bottom:8px"><div><label class="lbl">From</label><input type="date" id="shiftFrom" value="${esc(S.shiftFrom)}"></div><div><label class="lbl">To</label><input type="date" id="shiftTo" value="${esc(S.shiftTo)}"></div></div>`;
+    if (!S.selLead) h+='<div class="hint">Pick a lead to load their PROD shifts.</div>';
+    else if (S.shiftsLoading) h+='<div class="hint">Loading this lead’s PROD shifts…</div>';
+    else if (!S.leadShifts.length) h+='<div class="hint">No shifts list this lead in that range.</div>';
+    else h+=S.leadShifts.map(s=>`<label class="chk"><input type="checkbox" data-visit="${esc(s.visitId)}"${S.shiftPick[s.visitId]?" checked":""}> ${esc(s.date)} · #${esc(s.storeNumber)} ${esc(s.storeName||"")}${s.project?" · "+esc(String(s.project)):""}</label>`).join("");
     S.rows.forEach(r=>{ let day="",fri=false; if(r.date){const d=new Date(r.date+"T12:00:00");day=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];fri=d.getDay()===5;}
       h+=`<div class="sched-row"><span class="day${fri?" fri":""}">${day}</span><input type="date" value="${r.date}" data-rid="${r.id}" data-f="date"><select data-rid="${r.id}" data-f="storeNum"><option value="">Store…</option>${stores.map(s=>`<option value="${esc(s.storeNumber)}"${s.storeNumber===r.storeNum?" selected":""}>#${esc(s.storeNumber)} — ${esc(s.storeName)}${s.city?" ("+esc(s.city)+")":""}</option>`).join("")}</select>${S.rows.length>1?`<button class="icon-btn" data-del="${r.id}" title="Remove">✕</button>`:"<span></span>"}</div>`; });
     h+=`<div style="display:flex;gap:8px;margin-top:4px"><button class="dashed" id="addDay">+ Add day</button><button class="dashed" id="fillWeek" title="Fill Mon–Fri from the first date">Fill the week</button></div></section>`;
@@ -552,7 +625,7 @@ function bind(){
   document.querySelectorAll(".pill[data-aid]").forEach(b=>b.onclick=()=>{const id=b.dataset.aid; S.selAssocs=S.selAssocs.includes(id)?S.selAssocs.filter(x=>x!==id):[...S.selAssocs,id]; render();});
   on("toggleAll","onclick",()=>{const p=assocPool(); S.selAssocs=S.selAssocs.length===p.length?[]:p.map(a=>a.assocId); render();});
   on("singleSel","onchange",function(){S.singleRec=this.value;});
-  on("leadSel","onchange",function(){S.selLead=this.value;S.editingLead=false;render();});
+  on("leadSel","onchange",function(){S.selLead=this.value;S.editingLead=false;loadLeadShifts();});
   on("eLEdit","onclick",()=>{S.editingLead=true;render();});
   on("eLCancel","onclick",()=>{S.editingLead=false;render();});
   on("eLSave","onclick",()=>{ const l=allLeads().find(x=>x.leadId===S.selLead); if(!l)return; l.name=$("eLName").value.trim(); l.preferredName=""; l.phone=$("eLPhone").value.trim(); l.email=$("eLEmail").value.trim(); S.editingLead=false; render(); });
@@ -561,6 +634,11 @@ function bind(){
   on("mLAdd","onclick",()=>{ const n=$("mLName").value.trim(); if(!n)return; const id="manual_"+uid(); S.manualLeads.push({leadId:id,name:n,preferredName:"",phone:$("mLPhone").value.trim(),email:$("mLEmail").value.trim(),role:"Manual",_manual:true}); S.selLead=id; render(); });
   on("allStores","onchange",function(){S.showAllStores=this.checked;render();});
   on("timeSel","onchange",function(){S.tpl.startTime=this.value;S.tplDirty=true;render();});
+  on("shiftFrom","onchange",function(){ S.shiftFrom=this.value; loadLeadShifts(); });
+  on("shiftTo","onchange",function(){ S.shiftTo=this.value; loadLeadShifts(); });
+  document.querySelectorAll("[data-visit]").forEach(el=>el.onchange=function(){ S.shiftPick[this.dataset.visit]=this.checked; applyShiftRows(); render(); });
+  document.querySelectorAll("[data-tr]").forEach(el=>el.onchange=function(){ travelOf(this.dataset.tr)[this.dataset.k]=this.checked; });
+  on("addShifts","onclick",addToShifts);
   document.querySelectorAll("[data-rid]").forEach(el=>el.onchange=function(){ const r=S.rows.find(x=>x.id===this.dataset.rid); if(r) r[this.dataset.f]=this.value; render(); });
   document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{S.rows=S.rows.filter(r=>r.id!==b.dataset.del);render();});
   on("addDay","onclick",()=>{ const last=S.rows[S.rows.length-1]; let date=""; if(last?.date){const d=new Date(last.date+"T12:00:00"); d.setDate(d.getDate()+1); date=d.toISOString().slice(0,10);} S.rows.push({id:uid(),date,storeNum:last?.storeNum||""}); render(); });
