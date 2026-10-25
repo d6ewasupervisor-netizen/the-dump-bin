@@ -11,6 +11,12 @@
 !.cursor/skills/eod-field-app-version-bump/**
 .idea/
 
+# Field-app copies of agent notes. The published site should not pick these up.
+eod-field-app/.cursor/
+eod-field-app/AGENT_LOG.md
+eod-field-app/AUDIT.md
+eod-field-app/ROADMAP.md
+
 # OS junk
 .DS_Store
 Thumbs.db
