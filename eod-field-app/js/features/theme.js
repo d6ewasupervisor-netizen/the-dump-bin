@@ -43,6 +43,7 @@
       btn.title = `Theme: ${CURRENT_LABEL[t] || t} — tap to cycle`;
       btn.setAttribute('aria-label', `Cycle theme, currently ${CURRENT_LABEL[t] || t}`);
     }
+    try { global.EodChrome?.paintNavIcons?.(); } catch (_) {}
   }
 
   function cycle() {

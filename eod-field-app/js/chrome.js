@@ -312,20 +312,60 @@
     window.open(eodBoardHref(), '_blank', 'noopener');
   }
 
+  function signedInNow() {
+    const st = global.EodSasUser?.cachedStatus?.() || null;
+    if (st && st.connected) return true;
+    const lead = global.EodSasUser?.leadContext?.() || {};
+    const me = global.EodRoles?.getMe?.() || {};
+    return !!String(lead.name || me.name || me.email || '').trim();
+  }
+
+  function navIconSrc(theme, name) {
+    const v = global.EOD_APP_VERSION || '';
+    const q = v ? `?v=${v}` : '';
+    return `icons/themes/${theme}/${name}.png${q}`;
+  }
+
+  function paintNavIcons() {
+    const theme = global.EodTheme?.getTheme?.() || document.documentElement.getAttribute('data-theme') || 'dark';
+    const on = signedInNow();
+    document.querySelectorAll('img[data-icon]').forEach((img) => {
+      let name = img.getAttribute('data-icon');
+      if (name === 'sign-in' || name === 'signed-in') name = on ? 'signed-in' : 'sign-in';
+      if (!name) return;
+      const next = navIconSrc(theme, name);
+      if (img.getAttribute('src') !== next) img.setAttribute('src', next);
+    });
+    const label = on ? 'Signed in' : 'Sign in';
+    document.querySelectorAll('[data-open-sign-in]').forEach((btn) => {
+      btn.setAttribute('aria-label', label);
+      const span = btn.querySelector('.nav-label');
+      if (span) span.textContent = label;
+    });
+    const moreBtn = document.getElementById('eodMoreSignIn');
+    if (moreBtn) {
+      moreBtn.setAttribute('aria-label', label);
+      const span = moreBtn.querySelector('.more-sign-label');
+      if (span) span.textContent = label;
+    }
+  }
+
   function paintSignedIn() {
     const el = document.getElementById('eodSignedIn');
-    if (!el) return;
     const st = global.EodSasUser?.cachedStatus?.() || null;
     const lead = global.EodSasUser?.leadContext?.() || {};
     const me = global.EodRoles?.getMe?.() || {};
     const name = String(lead.name || me.name || me.email || '').trim();
-    if (!name) {
-      el.hidden = true;
-      el.textContent = '';
-      return;
+    if (el) {
+      if (!name) {
+        el.hidden = true;
+        el.textContent = '';
+      } else {
+        el.hidden = false;
+        el.textContent = st && st.connected && st.siConnected ? `${name} · SI` : name;
+      }
     }
-    el.hidden = false;
-    el.textContent = st && st.connected && st.siConnected ? `${name} · SI` : name;
+    paintNavIcons();
   }
 
   function openSignIn() {
@@ -369,9 +409,16 @@
       host.classList.add('show');
       host.style.display = '';
     }
+    const theme = global.EodTheme?.getTheme?.() || document.documentElement.getAttribute('data-theme') || 'dark';
+    const signedOn = signedInNow();
+    const signLabel = signedOn ? 'Signed in' : 'Sign in';
+    const signIcon = navIconSrc(theme, signedOn ? 'signed-in' : 'sign-in');
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>More</h2>
-      <button type="button" class="btn btn-primary btn-block" id="eodMoreSignIn">Sign in</button>
+      <button type="button" class="btn btn-primary btn-block more-sign-btn" id="eodMoreSignIn" aria-label="${signLabel}">
+        <img class="nav-ico-img" data-icon="sign-in" src="${signIcon}" alt="" width="28" height="28">
+        <span class="more-sign-label">${signLabel}</span>
+      </button>
       <button type="button" class="btn btn-primary btn-block" data-more="storage">Clear storage</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
@@ -575,6 +622,7 @@
     toggleNav,
     paintConnChrome,
     paintSignedIn,
+    paintNavIcons,
     openSignIn,
     pushOverlayBack,
     popOverlayBack,

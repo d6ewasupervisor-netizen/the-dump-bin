@@ -1049,6 +1049,20 @@ body.eod-test-mode .pilot-banner { background: #7c2d12; }
 .bottom-nav .nav-hamburger {
   object-fit: contain;
 }
+.more-sign-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.more-sign-btn .nav-ico-img {
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  border-radius: 7px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
 .bottom-nav .nav-label { line-height: 1.1; }
 .bottom-nav #navOverlayBack[hidden] { display: none !important; }
 .bottom-nav [data-slot="extra"] { display: none; }

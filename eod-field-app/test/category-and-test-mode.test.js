@@ -718,6 +718,7 @@ test('theme cycle includes dark, inverse, light, gray, gray-matter, holiday, bla
   assert.match(src, /'gray-matter': '#12151a'/);
   assert.match(src, /gray: '#2a3038'/);
   assert.match(src, /holiday: '#ff7a18'/);
+  assert.match(src, /EodChrome\?\.paintNavIcons\?\.\(\)/);
 });
 
 test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones', () => {
@@ -751,8 +752,12 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.doesNotMatch(chrome, /data-more="signatures"/);
   assert.doesNotMatch(chrome, /data-more="send"/);
   for (const name of ['visit', 'categories', 'signatures', 'send', 'crew', 'dumpbin', 'helpdesk']) {
-    assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
+    assert.match(html, new RegExp(`icons/themes/dark/${name}\\.png`));
+    assert.match(html, new RegExp(`data-icon="${name}"`));
   }
+  assert.match(html, /data-icon="sign-in"/);
+  assert.match(html, /icons\/themes\/dark\/sign-in\.png/);
+  assert.match(html, /icons\/themes\/' \+ t \+ '\/' \+ name \+ '\.png/);
 });
 
 test('desktop keeps the side nav static while the page pane scrolls', () => {
