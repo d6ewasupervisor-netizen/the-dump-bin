@@ -247,7 +247,12 @@ const api = {
     const s = session();
     const r = await fetch(API_BASE + path, { ...opts, headers:{ "Content-Type":"application/json", ...(s?.token ? {Authorization:"Bearer "+s.token} : {}), ...(opts.headers||{}) } });
     if (r.status === 401) { window.location.href = "/?next=" + encodeURIComponent(location.pathname); throw new Error("Session expired"); }
-    if (!r.ok) throw new Error((await r.text().catch(()=>"")) || ("HTTP "+r.status));
+  if (!r.ok) {
+    const raw = await r.text().catch(function(){ return ""; });
+    const plain = String(raw || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const brief = (plain.match(/Cannot [A-Z]+ \S+/) || [plain])[0];
+    throw new Error(brief.slice(0, 180) || ("HTTP " + r.status));
+  }
     return r.status === 204 ? null : r.json();
   },
   me()            { return this.req("/me"); },

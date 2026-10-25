@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-24 — District Helper error line stays short
+
+A failed API call no longer prints the HTML error page into the status bar.
+
 ## 2026-10-24 — Overdue names are red
 
 A person with an overdue course has a red name on the Compliance row. Required courses that are not yet overdue stay a normal name.
