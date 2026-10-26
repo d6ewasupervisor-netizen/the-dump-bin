@@ -1,5 +1,7 @@
 # Roadmap
 
+Field app 3.4.97 separates the visible app identity from reporting auth: `Name · Signed in` stays at the top, while the lock and Visit button continue to track PROD + SI.
+
 Field app 3.4.96 makes retained PROD + SI state explicit on Visit and shares the lead's server-side reporting session across devices. Devices already open on 3.4.95 need the version-badge update.
 
 EOD summary category links need this pages deploy (`eod-board.js?v=8`) and the eod-api deploy of `/share/pic/` `dbkey`. Both have to be live before a category opens its photo review.

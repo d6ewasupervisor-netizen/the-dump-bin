@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-26 — Field app 3.4.97
+
+The top identity line now always reads `Name · Signed in` once the Dump Bin session identifies the user. Reporting authentication remains separate on the PROD + SI lock and Visit control.
+
 ## 2026-10-26 — Pathways pull can be a few names
 
 Compliance has a checkbox beside each name and Select all above the list. Pull now with some names checked, but not every name, sends those user ids. None checked, or every name checked, still walks the full roster. `pathways.js?v=6`.

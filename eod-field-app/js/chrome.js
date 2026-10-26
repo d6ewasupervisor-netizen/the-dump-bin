@@ -360,9 +360,7 @@
         el.textContent = '';
       } else {
         el.hidden = false;
-        el.textContent = signedInNow()
-          ? `${name} · PROD + SI`
-          : `${name} · Sign in`;
+        el.textContent = `${name} · Signed in`;
       }
     }
     paintNavIcons();

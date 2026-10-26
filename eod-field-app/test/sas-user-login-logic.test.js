@@ -224,6 +224,8 @@ test('More has a persistent sign-in, and the header names who is signed in', () 
   assert.match(chrome, /function openSignIn/);
   assert.match(chrome, /EodSasUserLogic\?\.reportingReady/);
   assert.match(chrome, /PROD \+ SI sign in/);
+  assert.match(chrome, /`\$\{name\} · Signed in`/);
+  assert.doesNotMatch(chrome, /`\$\{name\} · Sign in`/);
   assert.match(chrome, /\[data-nav\], \[data-open-sign-in\]/);
   assert.match(index, /id="eodSignedIn"/);
   assert.match(index, /data-open-sign-in/);
