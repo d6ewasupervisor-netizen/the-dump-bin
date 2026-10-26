@@ -53,6 +53,31 @@ test('title bar Signed in is a live PROD Okta session', () => {
   assert.equal(L.prodSasSignedIn(null), false);
 });
 
+test('lead Okta light follows the person holding the phone', () => {
+  const base = {
+    appLoggedIn: true,
+    rolesLoaded: true,
+    statusKnown: true,
+    scheduledLeadKnown: true,
+  };
+  assert.equal(L.leadProdSignedIn({ connected: true }), true);
+  assert.equal(L.leadProdSignedIn({ connected: true, sharedActor: true }), false);
+  assert.equal(L.leadProdSignedIn({ connected: true, okta_gone: true }), false);
+  assert.equal(L.leadOktaLight({ ...base, roles: ['lead'], prodSignedIn: true }), 'green');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['lead'], prodSignedIn: false }), 'orange');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['lead'], prodSignedIn: true, appLoggedIn: false }), 'unknown');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['lead'], statusKnown: false, prodSignedIn: false }), 'unknown');
+  assert.equal(L.leadOktaLight({ ...base, roles: [], prodSignedIn: true }), 'red');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['supervisor'], prodSignedIn: true }), 'green');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['supervisor'], prodSignedIn: false }), 'orange');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['supervisor'], prodSignedIn: true, scheduledLeadKnown: false }), 'unknown');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['admin'], prodSignedIn: true }), 'green');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['admin'], prodSignedIn: false }), 'orange');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['admin', 'lead'], prodSignedIn: true, scheduledLeadKnown: false }), 'unknown');
+  assert.equal(L.leadOktaLight({ ...base, roles: ['admin'], statusKnown: false }), 'unknown');
+  assert.equal(L.leadOktaLight({ ...base, roles: [], rolesLoaded: false }), 'unknown');
+});
+
 test('idle card shows the shift lead name and email', () => {
   const html = L.cardHtml('idle', { connected: false }, false, {
     lead: { name: 'James Duchene', email: 'james.duchene@retailodyssey.com' },

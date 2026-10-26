@@ -368,6 +368,7 @@
     }
     paintNavIcons();
     try { global.EodVisit?.paintReportingSignIn?.(st); } catch (_) {}
+    try { global.EodConnections?.paintLeadOkta?.(); } catch (_) {}
   }
 
   function openSignIn() {

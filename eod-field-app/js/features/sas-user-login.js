@@ -832,6 +832,7 @@
     mount,
     fetchStatus,
     cachedStatus: () => status,
+    statusLeadEmail: () => statusFor,
     requireConnected,
     requireConnectedFast,
     isConnected,

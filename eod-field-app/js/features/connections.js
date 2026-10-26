@@ -63,6 +63,8 @@
       console.warn('[conn] Rebotics probe failed:', e);
       setConnState('rebotics', false);
     }
+    try { await global.EodSasUser?.fetchStatus?.(false); } catch (_) {}
+    paintLeadOkta();
   }
 
   function getRefreshCooldownRemainingMs() {
@@ -83,6 +85,68 @@
 
   function connDots() {
     return [document.getElementById('sasConnDot'), document.getElementById('reboticsConnDot')].filter(Boolean);
+  }
+
+  function scheduledLeadEmail() {
+    const st = global.EodSession?.state || {};
+    const shift = st.selectedShift;
+    if (!shift) return '';
+    const direct = String(shift.visitLeadEmail || shift.leadEmail || shift.email || '').trim();
+    if (direct) return direct;
+    if (st.profileLocked) return String(st.profileEmail || '').trim();
+    return '';
+  }
+
+  function leadStatusSnapshot() {
+    const status = global.EodSasUser?.cachedStatus?.() || null;
+    const forEmail = String(global.EodSasUser?.statusLeadEmail?.() || '').trim().toLowerCase();
+    const want = String(
+      global.EodSasUser?.leadContext?.()?.email
+      || global.EodSession?.state?.profileEmail
+      || ''
+    ).trim().toLowerCase();
+    if (!forEmail || (want && forEmail !== want)) return { known: false, signedIn: false };
+    const signedIn = global.EodSasUserLoginLogic?.leadProdSignedIn
+      ? global.EodSasUserLoginLogic.leadProdSignedIn(status)
+      : false;
+    return { known: true, signedIn };
+  }
+
+  const LEAD_TITLES = {
+    green: 'Lead PROD: signed in',
+    orange: 'Lead PROD: not signed in',
+    red: 'Lead PROD: not the lead',
+    unknown: 'Lead PROD: checking',
+  };
+
+  function paintLeadOkta() {
+    const el = document.getElementById('leadOktaDot');
+    if (!el) return;
+    const me = global.EodRoles?.getMe?.() || null;
+    const rolesLoaded = !!(me && (me.email || (Array.isArray(me.roles) && me.roles.length)));
+    const appLoggedIn = !!(me && me.email) || !!global.dumpBinGetSession?.();
+    const prod = leadStatusSnapshot();
+    const scheduled = scheduledLeadEmail();
+    const state = global.EodSasUserLoginLogic?.leadOktaLight
+      ? global.EodSasUserLoginLogic.leadOktaLight({
+        roles: me?.roles || [],
+        appLoggedIn,
+        rolesLoaded,
+        statusKnown: prod.known,
+        prodSignedIn: prod.signedIn,
+        scheduledLeadKnown: !!scheduled,
+      })
+      : 'unknown';
+    el.dataset.state = state;
+    el.title = LEAD_TITLES[state] || LEAD_TITLES.unknown;
+    const want = String(global.EodSasUser?.leadContext?.()?.email || scheduled || '').trim().toLowerCase();
+    const have = String(global.EodSasUser?.statusLeadEmail?.() || '').trim().toLowerCase();
+    if (want && have !== want && !paintLeadOkta.busy) {
+      paintLeadOkta.busy = true;
+      Promise.resolve(global.EodSasUser?.fetchStatus?.(true))
+        .catch(() => {})
+        .finally(() => { paintLeadOkta.busy = false; });
+    }
   }
 
   function updateRefreshButtonState() {
@@ -263,6 +327,17 @@
         refreshConnections(el);
       });
     });
+    const leadDot = document.getElementById('leadOktaDot');
+    if (leadDot) {
+      leadDot.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const state = leadDot.dataset.state;
+        if (state !== 'green' && state !== 'orange') return;
+        try { global.EodChrome?.openSignIn?.(); } catch (_) {}
+      });
+    }
+    paintLeadOkta();
     ensureRefreshCooldownTicker();
     pollConnections();
     if (pollTimer) clearInterval(pollTimer);
@@ -272,6 +347,7 @@
   global.EodConnections = {
     init,
     pollConnections,
+    paintLeadOkta,
     refreshConnections,
     refreshDayData,
     setConnState,

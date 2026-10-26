@@ -521,6 +521,7 @@ body[data-route="visit"] { padding-bottom: var(--safe-b); }
   color: #ffffff;
 }
 [data-theme="inverse"] .conn-dot[data-state="green"] { color: #6ee7a0; }
+[data-theme="inverse"] .conn-dot[data-state="orange"] { color: #ffc56b; }
 [data-theme="inverse"] .conn-dot[data-state="red"] { color: #ff8a8a; }
 [data-theme="inverse"] .ds-row.marked-complete { background: rgba(110, 231, 160, 0.28); }
 [data-theme="inverse"] .ds-row.marked-nis { background: rgba(255, 138, 138, 0.32); }
@@ -809,8 +810,8 @@ body.needs-auth .app-shell {
   white-space: nowrap; cursor: pointer;
 }
 .conn-dot:disabled { cursor: wait; }
-.chrome-dots.cooldown .conn-dot { opacity: 0.45; }
-.chrome-dots.spinning .conn-dot .dot {
+.chrome-dots.cooldown .conn-dot:not(#leadOktaDot) { opacity: 0.45; }
+.chrome-dots.spinning .conn-dot:not(#leadOktaDot) .dot {
   animation: eod-spin 0.8s linear infinite;
 }
 .conn-dot .dot {
@@ -820,11 +821,15 @@ body.needs-auth .app-shell {
 .conn-dot[data-state="green"] .dot {
   background: #22c55e; box-shadow: 0 0 6px #22c55e;
 }
+.conn-dot[data-state="orange"] .dot {
+  background: #f59e0b; box-shadow: 0 0 6px #f59e0b;
+}
 .conn-dot[data-state="bad"] .dot,
 .conn-dot[data-state="red"] .dot {
   background: #ef4444; box-shadow: 0 0 6px #ef4444;
 }
 .conn-dot[data-state="green"] { color: #86efac; }
+.conn-dot[data-state="orange"] { color: #fdba74; }
 .conn-dot[data-state="red"] { color: #fca5a5; }
 .conn-user {
   display: none;

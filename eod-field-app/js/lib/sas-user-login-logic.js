@@ -245,6 +245,39 @@
     return true;
   }
 
+  // The office shared actor is not a lead Okta session.
+  function leadProdSignedIn(status) {
+    if (!status || status.sharedActor) return false;
+    return prodSasSignedIn(status);
+  }
+
+  // Third chrome light.
+  // green: that lead's PROD/Okta session is live.
+  // orange: in the app, and that lead is not in PROD.
+  // red: signed into the app, and not a lead, supervisor, or admin.
+  // Admin, and a supervisor who is not a lead, use the scheduled lead's session.
+  function leadOktaLight({
+    roles,
+    appLoggedIn,
+    rolesLoaded,
+    statusKnown,
+    prodSignedIn,
+    scheduledLeadKnown,
+  } = {}) {
+    if (!appLoggedIn || !rolesLoaded) return 'unknown';
+    const list = Array.isArray(roles) ? roles.map((r) => String(r || '').toLowerCase()) : [];
+    const isAdmin = list.includes('admin');
+    const isSupervisor = list.includes('supervisor');
+    const isLead = list.includes('lead');
+    if (!isLead && !isSupervisor && !isAdmin) return 'red';
+    if (isAdmin || (isSupervisor && !isLead)) {
+      if (!scheduledLeadKnown || !statusKnown) return 'unknown';
+      return prodSignedIn ? 'green' : 'orange';
+    }
+    if (!statusKnown) return 'unknown';
+    return prodSignedIn ? 'green' : 'orange';
+  }
+
   // The app identity and reporting identity are separate. Knowing the lead's
   // name means the Dump Bin session is alive; it does not mean PROD or SI is.
   function reportingReady(status) {
@@ -267,6 +300,8 @@
     openMode,
     captureVerdict,
     prodSasSignedIn,
+    leadProdSignedIn,
+    leadOktaLight,
     reportingReady,
     idleHtml,
     formHtml,
