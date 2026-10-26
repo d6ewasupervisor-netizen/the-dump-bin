@@ -1323,6 +1323,16 @@ h2 { font-size: 1.15rem; color: var(--heading); }
   padding: 8px 10px; font: inherit; color: inherit;
 }
 .com-load-actions { display: flex; gap: 8px; margin-top: 4px; }
+.com-load-me, .ds-bulk-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.com-load-sheet label.com-load-me { flex-direction: row; color: inherit; }
+.com-load-sheet label.com-load-me input { min-height: 0; width: 18px; height: 18px; padding: 0; }
+.com-load-me input, .ds-bulk-me input { width: 18px; height: 18px; }
 .com-load-actions .btn { flex: 1; min-height: 48px; }
 .com-load-toast {
   position: fixed; left: 12px; right: 12px; bottom: 16px; z-index: 90;

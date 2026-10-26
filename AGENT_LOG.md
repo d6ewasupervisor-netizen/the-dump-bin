@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-26 — Field app 3.4.98
+
+On-manifest sets stay on Categories under every shift filter. COM Load has Email me only, which sends the workbook only to the person who is signed in.
+
 ## 2026-10-26 — Field app 3.4.97
 
 The top identity line now always reads `Name · Signed in` once the Dump Bin session identifies the user. Reporting authentication remains separate on the PROD + SI lock and Visit control.

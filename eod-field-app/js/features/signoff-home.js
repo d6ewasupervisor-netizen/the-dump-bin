@@ -1072,6 +1072,7 @@
       bulk.classList.add('is-on');
       bulk.innerHTML = `
         <div class="ds-bulk-count">${n} selected</div>
+        <label class="ds-bulk-me"><input type="checkbox" data-com-email-me ${global.EodComLoadRequest?.emailMeOnly?.() ? 'checked' : ''}> Email me only</label>
         <div class="ds-actions">
           <button type="button" class="btn" data-bulk-com="1">Request COM(s)?</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">Not in Store</button>
@@ -1082,6 +1083,9 @@
         </div>`;
       bulk.querySelectorAll('[data-bulk-mark]').forEach((btn) => {
         btn.onclick = () => runBulkMark(btn.getAttribute('data-bulk-mark'));
+      });
+      bulk.querySelector('[data-com-email-me]')?.addEventListener('change', (ev) => {
+        global.EodComLoadRequest?.setEmailMeOnly?.(ev.target.checked);
       });
       bulk.querySelector('[data-bulk-com]')?.addEventListener('click', async () => {
         const rows = (S.state.sheet?.rows || []).filter((r) => selectedIds.has(String(r.id)));

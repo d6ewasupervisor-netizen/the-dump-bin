@@ -15,6 +15,8 @@
     return fn(url, opts);
   }
 
+  let emailMeOnly = false;
+
   function sessionCtx() {
     const S = global.EodSession?.state || {};
     return {
@@ -60,6 +62,7 @@
       fiscalWeek: ctx.fiscalWeek || undefined,
       leadEmail: ctx.leadEmail,
       leadName: ctx.leadName,
+      emailMeOnly,
       rows: rows.map((r) => rowToPayload(r, source)),
     };
     const res = await authFetch(`${API}/requests`, {
@@ -80,6 +83,7 @@
       fiscalWeek: fields.fiscalWeek || ctx.fiscalWeek,
       leadEmail: ctx.leadEmail,
       leadName: ctx.leadName,
+      emailMeOnly,
       rows: [{
         category: Number(fields.category),
         pogName: fields.pogName,
@@ -162,6 +166,7 @@
           </select>
         </label>
         <label>POGID / DBKEY (optional)<input id="comPog" value="${esc(p.pogId || p.dbkey || '')}"></label>
+        <label class="com-load-me"><input type="checkbox" id="comEmailMe" ${emailMeOnly ? 'checked' : ''}> Email me only</label>
         <div class="com-load-actions">
           <button type="button" class="btn btn-secondary" id="comCancel">Cancel</button>
           <button type="button" class="btn" id="comSubmit">Send</button>
@@ -172,6 +177,9 @@
       const sel = modal.querySelector('#comType');
       if (sel) sel.value = p.loadType;
     }
+    modal.querySelector('#comEmailMe')?.addEventListener('change', (ev) => {
+      emailMeOnly = !!ev.target.checked;
+    });
     modal.querySelector('#comCancel').onclick = closeModal;
     modal.addEventListener('click', (ev) => { if (ev.target === modal) closeModal(); });
     modal.querySelector('#comSubmit').onclick = async () => {
@@ -246,5 +254,7 @@
     suggestIds,
     showToast,
     submitRows,
+    emailMeOnly: () => emailMeOnly,
+    setEmailMeOnly: (on) => { emailMeOnly = !!on; },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

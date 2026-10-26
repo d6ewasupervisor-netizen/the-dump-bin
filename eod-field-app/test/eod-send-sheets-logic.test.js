@@ -419,6 +419,13 @@ test('Categories shift filters follow the cycles on the store day', () => {
   assert.equal(rowMatchesShiftFilter(earlierOnly, 'ise', shifts), false);
   assert.equal(rowMatchesShiftFilter(unsynced, 'blitz', shifts), true);
   assert.equal(rowMatchesShiftFilter(grocery, 'all', shifts), true);
+  const manifestOnly = {
+    pageBucket: 'on_manifest',
+    shiftType: '',
+    live: { dayVisits: [], prodVisitId: '' },
+  };
+  assert.equal(rowMatchesShiftFilter(manifestOnly, 'ise', shifts), true);
+  assert.equal(rowMatchesShiftFilter(manifestOnly, 'blitz', shifts), true);
 
   const remodel = { visitId: '9', projectId: 11099, projectName: 'Remodel Kompass ISE' };
   const div = { visitId: '4', projectId: 3568, projectName: 'DIV Special Projects Kompass ISE' };

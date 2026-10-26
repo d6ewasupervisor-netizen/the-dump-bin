@@ -364,6 +364,8 @@
   }
 
   function rowMatchesShiftFilter(row, filterKey, shifts, leadName) {
+    const bucket = String(row?.pageBucket || row?.page_bucket || '').trim();
+    if (bucket === 'on_manifest') return true;
     const key = String(filterKey || '').trim();
     if (!key || key === 'all') return true;
     const visible = visibleLeadShifts(shifts, leadName).filter((s) => shiftFilterKey(s) === key);
