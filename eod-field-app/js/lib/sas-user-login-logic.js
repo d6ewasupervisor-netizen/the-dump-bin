@@ -234,9 +234,21 @@
     return /your sas \+ si|office sas|office si/i.test(String(html || ''));
   }
 
+  // Shutter gate. A shot goes through when PROD will take it: the lead's own
+  // session, the shared actor, or the shared session carrying it (uploadReady
+  // from /api/sas-user/status). Whether the lead still owes a sign-in is the
+  // card's business, not the camera's.
+  function captureVerdict(status) {
+    if (!status || !(status.connected || status.sharedActor || status.uploadReady)) {
+      return { ok: false, message: 'Sign in' };
+    }
+    return { ok: true };
+  }
+
   return {
     jumpMidpoint,
     openMode,
+    captureVerdict,
     idleHtml,
     formHtml,
     unlockHtml,

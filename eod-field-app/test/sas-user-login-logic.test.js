@@ -22,6 +22,18 @@ test('a signed-in account stays signed in on the card', () => {
   assert.doesNotMatch(html, /office SAS/);
 });
 
+// The shutter must not refuse a shot the server will carry. A lead whose own
+// SAS login is gone still shoots when /status says uploadReady; the card keeps
+// asking for the sign-in on its own.
+test('capture gate opens on uploadReady even when the lead is not connected', () => {
+  assert.deepEqual(L.captureVerdict({ connected: false, needs_reauth: true, uploadReady: true }), { ok: true });
+  assert.deepEqual(L.captureVerdict({ connected: true }), { ok: true });
+  assert.deepEqual(L.captureVerdict({ connected: false, sharedActor: true }), { ok: true });
+  assert.equal(L.captureVerdict({ connected: false, uploadReady: false }).ok, false);
+  assert.equal(L.captureVerdict({ connected: false, uploadReady: false }).message, 'Sign in');
+  assert.equal(L.captureVerdict(null).ok, false);
+});
+
 test('idle card shows the shift lead name and email', () => {
   const html = L.cardHtml('idle', { connected: false }, false, {
     lead: { name: 'James Duchene', email: 'james.duchene@retailodyssey.com' },

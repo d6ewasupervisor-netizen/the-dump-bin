@@ -113,6 +113,7 @@
       needs_reauth: !!data.needs_reauth,
       okta_gone: !!data.okta_gone,
       can_push: !!data.can_push,
+      uploadReady: !!data.uploadReady,
     };
     statusAt = Date.now();
     statusFor = leadEmail;
@@ -141,7 +142,8 @@
   }
 
   function connectedVerdict(cur) {
-    if (!cur || !cur.connected) return { ok: false, message: 'Sign in' };
+    if (Logic.captureVerdict) return Logic.captureVerdict(cur);
+    if (!cur || !(cur.connected || cur.sharedActor || cur.uploadReady)) return { ok: false, message: 'Sign in' };
     return { ok: true };
   }
 
