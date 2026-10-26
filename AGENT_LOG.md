@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-26 — Pathways pull can be a few names
+
+Compliance has a checkbox beside each name and Select all above the list. Pull now with some names checked, but not every name, sends those user ids. None checked, or every name checked, still walks the full roster. `pathways.js?v=6`.
+
 ## 2026-10-26 — Field app 3.4.96
 
 Visit shows PROD + SI sign-in whenever either retained reporting session is missing. The open lock and signed-in label now require both reporting systems instead of only a known lead name. The encrypted lead session remains server-side and is reused by every device for that lead.

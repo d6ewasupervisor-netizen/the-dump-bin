@@ -75,12 +75,26 @@ button.action:disabled { opacity: 0.45; cursor: default; }
 .sheet { margin-top: 12px; }
 .section-title { font-size: 1.05rem; margin: 18px 0 8px; }
 
+.pick-all {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.person-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.person-row > .check { margin-top: 14px; flex: none; }
 .person {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 10px;
   margin-bottom: 8px;
 }
+.person-row .person { flex: 1; min-width: 0; }
 .person summary {
   cursor: pointer;
   list-style: none;

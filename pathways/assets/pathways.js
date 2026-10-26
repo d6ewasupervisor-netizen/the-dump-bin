@@ -2,7 +2,7 @@
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-  const state = { tab: 'compliance', data: null, sheet: null, busy: false };
+  const state = { tab: 'compliance', data: null, sheet: null, busy: false, picked: new Set() };
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -205,26 +205,56 @@
         ? `<span class="due">${courses.owed.length} owed</span>`
         : '<span class="muted">0 owed</span>';
       const extra = courses.other.length ? courseGroup('Other', courses.other) : '';
-      return `<details class="person">
-        <summary>
-          <span class="name${overdue ? ' due' : ''}">${esc(person.name)}</span>
-          <span class="counts">${owedLabel}<span class="muted">${courses.done.length} complete</span></span>
-        </summary>
-        <div class="groups">
-          ${courseGroup('Owed', courses.owed)}
-          ${courseGroup('Completions', courses.done)}
-          ${extra}
-        </div>
-      </details>`;
+      const id = person.user_id == null ? '' : String(person.user_id);
+      const checked = id && state.picked.has(id) ? ' checked' : '';
+      return `<div class="person-row">
+        <input class="check person-check" type="checkbox" data-user-id="${esc(id)}"${checked} />
+        <details class="person">
+          <summary>
+            <span class="name${overdue ? ' due' : ''}">${esc(person.name)}</span>
+            <span class="counts">${owedLabel}<span class="muted">${courses.done.length} complete</span></span>
+          </summary>
+          <div class="groups">
+            ${courseGroup('Owed', courses.owed)}
+            ${courseGroup('Completions', courses.done)}
+            ${extra}
+          </div>
+        </details>
+      </div>`;
     }).join('') : '<p class="muted">None.</p>';
+    const allOn = roster.length > 0 && roster.every(({ person }) => {
+      const id = person.user_id == null ? '' : String(person.user_id);
+      return id && state.picked.has(id);
+    });
     $('compliance').innerHTML = `
       <div class="actions">
         <span class="muted">${pulled ? 'Pulled ' + esc(pulled) : ''}${owing ? ' · ' + owing + ' owing' : ''}</span>
         <button type="button" class="action" id="downloadReport">Download report</button>
       </div>
+      ${roster.length ? `<label class="pick-all"><input class="check" type="checkbox" id="selectAllPeople"${allOn ? ' checked' : ''} /> Select all</label>` : ''}
       ${peopleHtml}`;
     const download = $('downloadReport');
     if (download) download.addEventListener('click', downloadReport);
+    bindRosterChecks();
+  }
+
+  function bindRosterChecks() {
+    const boxes = [...document.querySelectorAll('#compliance .person-check')];
+    const all = $('selectAllPeople');
+    const remember = () => {
+      state.picked = new Set(boxes.filter((box) => box.checked).map((box) => box.getAttribute('data-user-id')).filter(Boolean));
+      if (!all) return;
+      all.checked = boxes.length > 0 && state.picked.size === boxes.length;
+      all.indeterminate = state.picked.size > 0 && state.picked.size < boxes.length;
+    };
+    boxes.forEach((box) => box.addEventListener('change', remember));
+    if (all) {
+      all.addEventListener('change', () => {
+        boxes.forEach((box) => { box.checked = all.checked; });
+        remember();
+      });
+    }
+    remember();
   }
 
   function csvCell(value) {
@@ -331,14 +361,26 @@
     }
   }
 
+  function pullSelection() {
+    const boxes = [...document.querySelectorAll('#compliance .person-check')];
+    if (boxes.length) {
+      state.picked = new Set(boxes.filter((box) => box.checked).map((box) => box.getAttribute('data-user-id')).filter(Boolean));
+    }
+    const ids = [...state.picked];
+    const total = boxes.length || ((state.data && state.data.people) || []).length;
+    if (!ids.length || ids.length >= total) return null;
+    return { user_ids: ids };
+  }
+
   async function pullNow() {
     if (state.busy) return;
+    const body = pullSelection();
     state.busy = true;
     clearLog();
     render();
     showError(null);
     try {
-      await stream('/api/pathways/pull');
+      await stream('/api/pathways/pull', body);
       await load();
     } catch (err) {
       showError(err);
