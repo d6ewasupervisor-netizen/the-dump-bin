@@ -1,0 +1,365 @@
+{
+ "schema": 1,
+ "week": "P10W3",
+ "build": "20261026020612",
+ "buildRequest": null,
+ "district": "D8",
+ "title": "Period 10 · Week 3",
+ "dueAt": "2026-10-26T06:00:00-07:00",
+ "passPct": 80,
+ "board": "callsign",
+ "closer": "That is the Kompass week, and the quiz is keeping score.",
+ "sections": [
+  {
+   "name": "This Week",
+   "stops": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "name": "Looking Ahead",
+   "stops": [
+    9,
+    10,
+    11,
+    12
+   ]
+  }
+ ],
+ "totalSeconds": 406.8,
+ "questionCount": 14,
+ "stops": [
+  {
+   "n": 1,
+   "id": "s01",
+   "title": "Welcome",
+   "frame": "frames/f01.webp",
+   "audio": "audio/a01.m4a",
+   "seconds": 14.0,
+   "narration": "Alright, everyone, this is the briefing for Period ten, week three, District eight. The week totals thirty-one hours across fourteen sets. Details are on screen, checkpoints come along the way, and the checkpoints do count.",
+   "words": 35,
+   "checkpoint": []
+  },
+  {
+   "n": 2,
+   "id": "s02",
+   "title": "The Week at a Glance",
+   "frame": "frames/f02.webp",
+   "audio": "audio/a02.m4a",
+   "seconds": 23.0,
+   "narration": "Here is the whole week on one screen. Grocery carries three sets, Health Beauty Care carries five, fresh carries five, and Natural Foods carries one. The largest set is Natural Foods Chips and Snacks at six hours, followed by Frozen Meatless and Deodorants at four hours each. Six sets run cold, and every cold set has a twenty-minute limit on product out of refrigeration.",
+   "words": 64,
+   "checkpoint": []
+  },
+  {
+   "n": 3,
+   "id": "s03",
+   "title": "Grocery",
+   "frame": "frames/f03.webp",
+   "audio": "audio/a03.m4a",
+   "seconds": 39.0,
+   "narration": "Starting with grocery. Salad Dressing is two hours. The entire Wishbone line comes off the planogram. Newman's Own moves up from the bottom shelf into the top two shelves, and the new Kraft eight-ounce items go on shelf five. Store thirty-one gets condiments strips for this set, and those get recorded under Salad Dressing. Frozen Meatless is four hours and runs cold. MorningStar now leads the set and swaps places with Impossible, with no facing changes. Only the first two doors are touched, and there is one delete. Full set strips are coming for this one, so bring them. Dry Ramen is one hour of new items.",
+   "words": 107,
+   "checkpoint": [
+    {
+     "id": "q01",
+     "type": "choice",
+     "q": "In Salad Dressing, which brand's entire line comes off the planogram?",
+     "options": [
+      "Newman's Own",
+      "Wishbone",
+      "Kraft",
+      "Hidden Valley"
+     ],
+     "correct": 1,
+     "explain": "Wishbone comes off completely. Newman's Own moves up from the bottom shelf into the top 2 shelves, and the new Kraft 8 oz items go on shelf 5."
+    },
+    {
+     "id": "q02",
+     "type": "choice",
+     "q": "Which brand now leads the Frozen Meatless set?",
+     "options": [
+      "Impossible",
+      "Gardein",
+      "MorningStar",
+      "Boca"
+     ],
+     "correct": 2,
+     "explain": "MorningStar leads and swaps places with Impossible. There are no facing changes."
+    },
+    {
+     "id": "q03",
+     "type": "tf",
+     "q": "The Frozen Meatless change touches every door in the set.",
+     "options": [
+      "True",
+      "False"
+     ],
+     "correct": 1,
+     "explain": "Only doors 1 and 2 are touched, with one delete and no new items. Full set strips are coming, so bring them."
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "id": "s04",
+   "title": "Health & Beauty",
+   "frame": "frames/f04.webp",
+   "audio": "audio/a04.m4a",
+   "seconds": 39.0,
+   "narration": "Health Beauty Care. Bleach is two hours, and it was a test set. Start at the top and work down. Most of the movement is vertical, and the smaller liquid bleach drops to the bottom shelf. The set also moves from department zero one to department zero three. Family Planning is two hours, and the work is safers. Pull the safers off every pregnancy test and every lube. The listed condoms and the listed pills stay in safers, in every planogram. Walk every planogram before calling it done. The full list is on the handout. Deodorants is four hours of new items, and the case packs change on the new items, so check them as they go on.",
+   "words": 118,
+   "checkpoint": [
+    {
+     "id": "q04",
+     "type": "choice",
+     "q": "In the Bleach set, where does the smaller liquid bleach go?",
+     "options": [
+      "Top shelf",
+      "Eye level",
+      "Bottom shelf",
+      "An endcap"
+     ],
+     "correct": 2,
+     "explain": "Start at the top and work down. The smaller liquid bleach drops to the bottom shelf."
+    },
+    {
+     "id": "q05",
+     "type": "multi",
+     "q": "Select everything that comes off safers in Family Planning.",
+     "options": [
+      "Pregnancy tests",
+      "Lubes",
+      "The listed condoms",
+      "The listed pills"
+     ],
+     "correct": [
+      0,
+      1
+     ],
+     "explain": "Safers come off all pregnancy tests and lubes. The listed condoms and pills stay in safers in every POG, so every POG gets walked."
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "id": "s05",
+   "title": "Pegs",
+   "frame": "frames/f05.webp",
+   "audio": "audio/a05.m4a",
+   "seconds": 46.0,
+   "narration": "Here is your action item for this week, and it involves pegs. Hair Care Accessories is three hours, and it brings Kroger brand items into the set. Stores nineteen, two one five, and six eight two need seven extra pegboard pegs on hand before the set starts. Personal Care Appliances is two hours and folds in Miscellaneous Health Beauty Care. Stores twenty-three, twenty-eight, two one five, and three nine one need six extra magna bar pegs. Those pegs shipped to the store by store mail with a green label that says hold for the Compass team. Track them down before starting. There is no flow change on Personal Care Appliances. New items land mostly on the top shelf of bay one, and electric razors barely move.",
+   "words": 126,
+   "checkpoint": [
+    {
+     "id": "q06",
+     "type": "choice",
+     "q": "Which stores need 7 extra pegboard pegs for Hair Care Accessories?",
+     "options": [
+      "19, 215, 682",
+      "23, 28, 215, 391",
+      "31, 53, 459",
+      "19, 658, 682"
+     ],
+     "correct": 0,
+     "explain": "Hair Care Accessories pegboard pegs: stores 19, 215 and 682. The magna bar pegs for Personal Care Appliances go to 23, 28, 215 and 391."
+    },
+    {
+     "id": "q07",
+     "type": "choice",
+     "q": "How did the extra pegs for Personal Care Appliances reach the stores?",
+     "options": [
+      "On the Kompass cart",
+      "In the Vestcom box",
+      "By store mail with a green label",
+      "Handed over at the reset"
+     ],
+     "correct": 2,
+     "explain": "They shipped by store mail with a green label: hold for the Kompass team. Track them down before starting the set."
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "id": "s06",
+   "title": "Fresh",
+   "frame": "frames/f06.webp",
+   "audio": "audio/a06.m4a",
+   "seconds": 50.0,
+   "narration": "Fresh, and all of it is cold. Product stays out no longer than twenty minutes on every set here. Ham Bar is one hour. A new Ingredient Meat section is carved out of the set, with items moving over from Heat and Serve. Most sets land with two feet of Ham Bar on the left and two feet of Ingredient Meat on the right. Any Heat and Serve strips get recorded under Ham Bar. Snackmeat is one hour. Pull the deletes first, then reflow to block Hormel and Applegate together, then the Kroger block, and cut the new items in during the reflow. Lunchmeat is one hour. The Simple Truth kimchi leaves Lunchmeat and goes to Convenient Snacking, over in produce, and a Claussen whole dill pickle takes its place in Lunchmeat. Convenient Snacking is one hour, and the kimchi is one of its new items. Fresh Kitchen Meal Kits is one hour of new items.",
+   "words": 156,
+   "checkpoint": [
+    {
+     "id": "q08",
+     "type": "choice",
+     "q": "What is the longest cold product can be out during the fresh sets?",
+     "options": [
+      "10 minutes",
+      "20 minutes",
+      "30 minutes",
+      "45 minutes"
+     ],
+     "correct": 1,
+     "explain": "Every cold set has a 20-minute limit on product out of refrigeration."
+    },
+    {
+     "id": "q09",
+     "type": "choice",
+     "q": "Where does the Simple Truth kimchi go?",
+     "options": [
+      "Out of the set entirely",
+      "To Ham Bar",
+      "From Lunchmeat to Convenient Snacking",
+      "To Fresh Kitchen Meal Kits"
+     ],
+     "correct": 2,
+     "explain": "The kimchi leaves Lunchmeat for Convenient Snacking, and a Claussen Whole Dill Pickle takes its place in Lunchmeat."
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "id": "s07",
+   "title": "NF Chips & Snacks",
+   "frame": "frames/f07.webp",
+   "audio": "audio/a07.m4a",
+   "seconds": 22.0,
+   "narration": "Natural Foods Chips and Snacks is the largest set of the week at six hours. There are no strips or tags on this one. Facings go up on Frito-Lay and Siete. Siete chips and Boulder Canyon chips convert to a vertical block. The multipack and protein sections change too. The deletes are Good Eat'n, Kindling, Angie's, and Quest.",
+   "words": 58,
+   "checkpoint": [
+    {
+     "id": "q10",
+     "type": "choice",
+     "q": "Which brands are deleted from NF Chips & Snacks?",
+     "options": [
+      "Frito-Lay, Siete, Boulder Canyon, Quest",
+      "Good Eat'n, Kindling, Angie's, Quest",
+      "Good Eat'n, Siete, Angie's, Kindling",
+      "Boulder Canyon, Kindling, Quest, Frito-Lay"
+     ],
+     "correct": 1,
+     "explain": "Good Eat'n, Kindling, Angie's and Quest are deleted. Frito-Lay and Siete gain facings, and Siete and Boulder Canyon chips form a vertical block."
+    }
+   ]
+  },
+  {
+   "n": 8,
+   "id": "s08",
+   "title": "Callouts",
+   "frame": "frames/f08.webp",
+   "audio": "audio/a08.m4a",
+   "seconds": 35.0,
+   "narration": "Three callouts. First, the new Kroger shelf strip format starts this week. Strips now carry a shelf number and an item position number. Review the format before installing. Where a section has no room for the extra numbers, spices for example, the shelf number drops and the position number moves into the item information. Second, trial size sets and mobility racks are non-Compass events. Remind the store to sign them out, or they come back as byway issues. Third, hold any fishing strips. Fishing moved to next week, and nothing gets loaded this week.",
+   "words": 94,
+   "checkpoint": [
+    {
+     "id": "q11",
+     "type": "choice",
+     "q": "What happens to trial size sets and mobility racks?",
+     "options": [
+      "Kompass sets them",
+      "The store signs them out",
+      "They go to Bakery",
+      "They are held until next week"
+     ],
+     "correct": 1,
+     "explain": "They are non-Kompass events. The store signs them out, or they come back as byway issues."
+    },
+    {
+     "id": "q12",
+     "type": "tf",
+     "q": "Fishing strips get loaded this week.",
+     "options": [
+      "True",
+      "False"
+     ],
+     "correct": 1,
+     "explain": "Hold any fishing strips and do not load them. Fishing moved to P10W4."
+    }
+   ]
+  },
+  {
+   "n": 9,
+   "id": "s09",
+   "title": "Next Week",
+   "frame": "frames/f09.webp",
+   "audio": "audio/a09.m4a",
+   "seconds": 29.0,
+   "narration": "Looking ahead to next week, about thirty-five hours. The big updates are Baby Food and Sports Nutrition at six hours each, then Bread, Cotton, and Natural Foods Protein Powders at two hours each. Coffee gets seasonal adds. The rest is new items and quarter-hour maintenance. Two sets run as test sets at stores outside District eight that week, Frozen Bread and Asian Foods. After that, Period eleven, weeks two and three, are blackout weeks at zero hours.",
+   "words": 77,
+   "checkpoint": []
+  },
+  {
+   "n": 10,
+   "id": "s10",
+   "title": "Pet Care and Bread",
+   "frame": "frames/f10.webp",
+   "audio": "audio/a10.m4a",
+   "seconds": 38.0,
+   "narration": "Next week, Pet Care is Compass at all ten District eight stores, one hour. It also changes department, from zero one to zero three. Cat scratcher versions get remapped at nineteen, twenty-eight, thirty-one, fifty-three, two one five, three nine one, and six five eight. Bread is two hours. Stores twenty-three, thirty-one, and six five eight convert to Artisan with the Asian planogram. Keep branded rack strips in place, and do not install Compass strips on those racks. On a bakery table, the new planogram goes in the plastic sleeve on the table. Everywhere else, the printed planogram goes to the Bakery department.",
+   "words": 102,
+   "checkpoint": [
+    {
+     "id": "q13",
+     "type": "multi",
+     "q": "Select the District 8 stores converting to Artisan with the Asian POG next week.",
+     "options": [
+      "23",
+      "31",
+      "215",
+      "658"
+     ],
+     "correct": [
+      0,
+      1,
+      3
+     ],
+     "explain": "Stores 23, 31 and 658 convert. Keep branded rack strips in place and do not install Kompass strips on those racks."
+    }
+   ]
+  },
+  {
+   "n": 11,
+   "id": "s11",
+   "title": "Cosmetics and Fuel",
+   "frame": "frames/f11.webp",
+   "audio": "audio/a11.m4a",
+   "seconds": 41.0,
+   "narration": "Two more items for next week. Cotton and Implements and Brushes arrive as part of a cosmetics reset, and the field details are still being put together. Stores on Universal Fixtures receive a package from PM Plastics with the magna bar and hooks, plus full sets of tray labels. The fuel sets are two hours. Stores nineteen, twenty-eight, thirty-one, fifty-three, two one five, three nine one, four five nine, and six eight two have a kiosk planogram. REZ tags are wrapped separately. Compass does not transport merchandise between the store and the fuel station. Ask the store to take the new items out to the fuel station.",
+   "words": 107,
+   "checkpoint": [
+    {
+     "id": "q14",
+     "type": "choice",
+     "q": "Who takes the new fuel items out to the fuel station?",
+     "options": [
+      "The Kompass crew",
+      "The store",
+      "The Vestcom driver",
+      "Bakery"
+     ],
+     "correct": 1,
+     "explain": "Kompass does not transport merchandise between the store and the fuel station. Ask the store to take the new items out."
+    }
+   ]
+  },
+  {
+   "n": 12,
+   "id": "s12",
+   "title": "Key Facts",
+   "frame": "frames/f12.webp",
+   "audio": "audio/a12.m4a",
+   "seconds": 30.78,
+   "narration": "That is the week. Pegs first: seven pegboard pegs at nineteen, two one five, and six eight two, and six magna bar pegs at twenty-three, twenty-eight, two one five, and three nine one. Cold sets stay on the twenty-minute clock. Walk every planogram on safers. The new shelf strip format starts this week. Trial size sets and mobility racks get signed out, and the fishing strips stay held. That is the briefing. The quiz is waiting on the other side.",
+   "words": 80,
+   "checkpoint": []
+  }
+ ]
+}

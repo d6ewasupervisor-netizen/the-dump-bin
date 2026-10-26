@@ -1,0 +1,201 @@
+[
+  {
+    "id": "q01",
+    "stop": 3,
+    "type": "choice",
+    "q": "In Salad Dressing, which brand's entire line comes off the planogram?",
+    "options": [
+      "Newman's Own",
+      "Wishbone",
+      "Kraft",
+      "Hidden Valley"
+    ],
+    "correct": 1,
+    "explain": "Wishbone comes off completely. Newman's Own moves up from the bottom shelf into the top 2 shelves, and the new Kraft 8 oz items go on shelf 5."
+  },
+  {
+    "id": "q02",
+    "stop": 3,
+    "type": "choice",
+    "q": "Which brand now leads the Frozen Meatless set?",
+    "options": [
+      "Impossible",
+      "Gardein",
+      "MorningStar",
+      "Boca"
+    ],
+    "correct": 2,
+    "explain": "MorningStar leads and swaps places with Impossible. There are no facing changes."
+  },
+  {
+    "id": "q03",
+    "stop": 3,
+    "type": "tf",
+    "q": "The Frozen Meatless change touches every door in the set.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correct": 1,
+    "explain": "Only doors 1 and 2 are touched, with one delete and no new items. Full set strips are coming, so bring them."
+  },
+  {
+    "id": "q04",
+    "stop": 4,
+    "type": "choice",
+    "q": "In the Bleach set, where does the smaller liquid bleach go?",
+    "options": [
+      "Top shelf",
+      "Eye level",
+      "Bottom shelf",
+      "An endcap"
+    ],
+    "correct": 2,
+    "explain": "Start at the top and work down. The smaller liquid bleach drops to the bottom shelf."
+  },
+  {
+    "id": "q05",
+    "stop": 4,
+    "type": "multi",
+    "q": "Select everything that comes off safers in Family Planning.",
+    "options": [
+      "Pregnancy tests",
+      "Lubes",
+      "The listed condoms",
+      "The listed pills"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explain": "Safers come off all pregnancy tests and lubes. The listed condoms and pills stay in safers in every POG, so every POG gets walked."
+  },
+  {
+    "id": "q06",
+    "stop": 5,
+    "type": "choice",
+    "q": "Which stores need 7 extra pegboard pegs for Hair Care Accessories?",
+    "options": [
+      "19, 215, 682",
+      "23, 28, 215, 391",
+      "31, 53, 459",
+      "19, 658, 682"
+    ],
+    "correct": 0,
+    "explain": "Hair Care Accessories pegboard pegs: stores 19, 215 and 682. The magna bar pegs for Personal Care Appliances go to 23, 28, 215 and 391."
+  },
+  {
+    "id": "q07",
+    "stop": 5,
+    "type": "choice",
+    "q": "How did the extra pegs for Personal Care Appliances reach the stores?",
+    "options": [
+      "On the Kompass cart",
+      "In the Vestcom box",
+      "By store mail with a green label",
+      "Handed over at the reset"
+    ],
+    "correct": 2,
+    "explain": "They shipped by store mail with a green label: hold for the Kompass team. Track them down before starting the set."
+  },
+  {
+    "id": "q08",
+    "stop": 6,
+    "type": "choice",
+    "q": "What is the longest cold product can be out during the fresh sets?",
+    "options": [
+      "10 minutes",
+      "20 minutes",
+      "30 minutes",
+      "45 minutes"
+    ],
+    "correct": 1,
+    "explain": "Every cold set has a 20-minute limit on product out of refrigeration."
+  },
+  {
+    "id": "q09",
+    "stop": 6,
+    "type": "choice",
+    "q": "Where does the Simple Truth kimchi go?",
+    "options": [
+      "Out of the set entirely",
+      "To Ham Bar",
+      "From Lunchmeat to Convenient Snacking",
+      "To Fresh Kitchen Meal Kits"
+    ],
+    "correct": 2,
+    "explain": "The kimchi leaves Lunchmeat for Convenient Snacking, and a Claussen Whole Dill Pickle takes its place in Lunchmeat."
+  },
+  {
+    "id": "q10",
+    "stop": 7,
+    "type": "choice",
+    "q": "Which brands are deleted from NF Chips & Snacks?",
+    "options": [
+      "Frito-Lay, Siete, Boulder Canyon, Quest",
+      "Good Eat'n, Kindling, Angie's, Quest",
+      "Good Eat'n, Siete, Angie's, Kindling",
+      "Boulder Canyon, Kindling, Quest, Frito-Lay"
+    ],
+    "correct": 1,
+    "explain": "Good Eat'n, Kindling, Angie's and Quest are deleted. Frito-Lay and Siete gain facings, and Siete and Boulder Canyon chips form a vertical block."
+  },
+  {
+    "id": "q11",
+    "stop": 8,
+    "type": "choice",
+    "q": "What happens to trial size sets and mobility racks?",
+    "options": [
+      "Kompass sets them",
+      "The store signs them out",
+      "They go to Bakery",
+      "They are held until next week"
+    ],
+    "correct": 1,
+    "explain": "They are non-Kompass events. The store signs them out, or they come back as byway issues."
+  },
+  {
+    "id": "q12",
+    "stop": 8,
+    "type": "tf",
+    "q": "Fishing strips get loaded this week.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correct": 1,
+    "explain": "Hold any fishing strips and do not load them. Fishing moved to P10W4."
+  },
+  {
+    "id": "q13",
+    "stop": 10,
+    "type": "multi",
+    "q": "Select the District 8 stores converting to Artisan with the Asian POG next week.",
+    "options": [
+      "23",
+      "31",
+      "215",
+      "658"
+    ],
+    "correct": [
+      0,
+      1,
+      3
+    ],
+    "explain": "Stores 23, 31 and 658 convert. Keep branded rack strips in place and do not install Kompass strips on those racks."
+  },
+  {
+    "id": "q14",
+    "stop": 11,
+    "type": "choice",
+    "q": "Who takes the new fuel items out to the fuel station?",
+    "options": [
+      "The Kompass crew",
+      "The store",
+      "The Vestcom driver",
+      "Bakery"
+    ],
+    "correct": 1,
+    "explain": "Kompass does not transport merchandise between the store and the fuel station. Ask the store to take the new items out."
+  }
+]

@@ -1,0 +1,47 @@
+{
+  "week": "P10W3",
+  "district": "D8",
+  "title": "Period 10 · Week 3",
+  "dueAt": "2026-10-26T06:00:00-07:00",
+  "passPct": 80,
+  "board": "callsign",
+  "stops": [
+    "Welcome",
+    "The Week at a Glance",
+    "Grocery",
+    "Health & Beauty",
+    "Pegs",
+    "Fresh",
+    "NF Chips & Snacks",
+    "Callouts",
+    "Next Week",
+    "Pet Care and Bread",
+    "Cosmetics and Fuel",
+    "Key Facts"
+  ],
+  "sections": [
+    {
+      "name": "This Week",
+      "stops": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "Looking Ahead",
+      "stops": [
+        9,
+        10,
+        11,
+        12
+      ]
+    }
+  ],
+  "closer": "That is the Kompass week, and the quiz is keeping score."
+}
