@@ -831,6 +831,8 @@ body.needs-auth .app-shell {
 .conn-dot[data-state="green"] { color: #86efac; }
 .conn-dot[data-state="orange"] { color: #fdba74; }
 .conn-dot[data-state="red"] { color: #fca5a5; }
+.okta-board-row { margin: 0 0 8px; }
+#eodOktaBoard h3 { margin: 12px 0 6px; font-size: 14px; }
 .conn-user {
   display: none;
   font-size: 9px;

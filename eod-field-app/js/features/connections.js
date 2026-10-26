@@ -333,6 +333,12 @@
         e.preventDefault();
         e.stopPropagation();
         const state = leadDot.dataset.state;
+        const roles = global.EodRoles?.roles?.() || [];
+        const oversight = roles.includes('admin') || roles.includes('supervisor');
+        if (oversight) {
+          try { global.EodChrome?.openOktaBoard?.(); } catch (_) {}
+          return;
+        }
         if (state !== 'green' && state !== 'orange') return;
         try { global.EodChrome?.openSignIn?.(); } catch (_) {}
       });

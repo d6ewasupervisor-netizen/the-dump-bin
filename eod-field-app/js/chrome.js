@@ -371,6 +371,70 @@
     try { global.EodConnections?.paintLeadOkta?.(); } catch (_) {}
   }
 
+  function pacificStamp(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  function boardPeople(rows) {
+    return (rows || []).map((person) => ({
+      name: person.name,
+      email: person.email,
+      until: person.live && person.oktaExpiresAt ? pacificStamp(person.oktaExpiresAt) : '',
+      reason: person.reason || '',
+    }));
+  }
+
+  async function openOktaBoard() {
+    let host = document.getElementById('eodOktaBoard');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'eodOktaBoard';
+      host.className = 'modal-overlay show';
+      document.body.appendChild(host);
+      host.addEventListener('click', (e) => { if (e.target === host) closeModal(host); });
+    } else {
+      host.classList.add('show');
+      host.style.display = '';
+    }
+    host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true" aria-label="Okta sessions">
+      <h2>Okta</h2>
+      <div id="eodOktaBoardBody" class="muted">Checking</div>
+      <button type="button" class="btn btn-primary btn-block" id="eodOktaBoardClose">Close</button>
+    </div>`;
+    host.querySelector('#eodOktaBoardClose')?.addEventListener('click', () => closeModal(host));
+    global.EodA11y?.activate?.(host);
+    host.addEventListener('eod-dialog-escape', () => closeModal(host), { once: true });
+    const body = host.querySelector('#eodOktaBoardBody');
+    try {
+      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/sas-user/okta-board`, {
+        skipBusy: true,
+        noBounceOn401: true,
+      });
+      const data = resp.ok ? await resp.json().catch(() => ({})) : {};
+      if (!resp.ok || !data.ok) {
+        if (body) body.textContent = 'Okta sessions are not available.';
+        return;
+      }
+      const html = global.EodSasUserLoginLogic?.oktaBoardHtml?.({
+        live: boardPeople(data.live),
+        offline: boardPeople(data.offline),
+      });
+      if (body) body.innerHTML = html || '';
+    } catch (err) {
+      if (body) body.textContent = 'Okta sessions are not available.';
+      console.warn('[chrome] okta board', err);
+    }
+  }
+
   function openSignIn() {
     let host = document.getElementById('eodSignInSheet');
     if (!host) {
@@ -425,6 +489,7 @@
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
       <button type="button" class="btn btn-secondary btn-block" id="eodMoreBoard">EOD Board</button>
+      ${global.EodRoles?.canForceLive?.() ? '<button type="button" class="btn btn-secondary btn-block" id="eodMoreOkta">Okta</button>' : ''}
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="scans">Scan results</button>
       ${global.EodRoles?.canManageRoster?.() ? '<button type="button" class="btn btn-secondary btn-block" data-more="audit">Audit</button>' : ''}
@@ -448,6 +513,10 @@
     host.querySelector('#eodMoreBoard')?.addEventListener('click', () => {
       closeModal(host);
       openEodBoard();
+    });
+    host.querySelector('#eodMoreOkta')?.addEventListener('click', () => {
+      closeModal(host);
+      setTimeout(() => openOktaBoard(), 0);
     });
     host.querySelector('#eodMoreClose')?.addEventListener('click', () => closeModal(host));
     global.EodA11y?.activate?.(host);
@@ -626,6 +695,7 @@
     paintSignedIn,
     paintNavIcons,
     openSignIn,
+    openOktaBoard,
     pushOverlayBack,
     popOverlayBack,
     clearOverlayBack,

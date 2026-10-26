@@ -53,6 +53,18 @@ test('title bar Signed in is a live PROD Okta session', () => {
   assert.equal(L.prodSasSignedIn(null), false);
 });
 
+test('okta board lists live sessions and who still needs to sign in', () => {
+  const html = L.oktaBoardHtml({
+    live: [{ name: 'Tyson Gauthier A', email: 'tyson.gauthier@retailodyssey.com' }],
+    offline: [{ name: 'James Duchene Ryan', email: 'james.duchene@retailodyssey.com', reason: 'Sign in again' }],
+  });
+  assert.match(html, /<h3>Live<\/h3>/);
+  assert.match(html, /Tyson Gauthier A/);
+  assert.match(html, /<h3>Not signed in<\/h3>/);
+  assert.match(html, /James Duchene Ryan/);
+  assert.match(html, /Sign in again/);
+});
+
 test('lead Okta light follows the person holding the phone', () => {
   const base = {
     appLoggedIn: true,

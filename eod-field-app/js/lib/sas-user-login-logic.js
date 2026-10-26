@@ -278,6 +278,17 @@
     return prodSignedIn ? 'green' : 'orange';
   }
 
+  function oktaBoardHtml(board) {
+    const live = Array.isArray(board?.live) ? board.live : [];
+    const offline = Array.isArray(board?.offline) ? board.offline : [];
+    const line = (person) => {
+      const bits = [person.email, person.until, person.reason].filter(Boolean);
+      return `<div class="okta-board-row"><strong>${esc(person.name || person.email || '')}</strong> <span class="muted">${esc(bits.join(' · '))}</span></div>`;
+    };
+    const block = (rows) => (rows.length ? rows.map(line).join('') : '<div class="muted">Nobody</div>');
+    return `<h3>Live</h3>${block(live)}<h3>Not signed in</h3>${block(offline)}`;
+  }
+
   // The app identity and reporting identity are separate. Knowing the lead's
   // name means the Dump Bin session is alive; it does not mean PROD or SI is.
   function reportingReady(status) {
@@ -302,6 +313,7 @@
     prodSasSignedIn,
     leadProdSignedIn,
     leadOktaLight,
+    oktaBoardHtml,
     reportingReady,
     idleHtml,
     formHtml,
