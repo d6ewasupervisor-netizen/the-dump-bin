@@ -314,10 +314,9 @@
 
   function signedInNow() {
     const st = global.EodSasUser?.cachedStatus?.() || null;
-    if (st && st.connected) return true;
-    const lead = global.EodSasUser?.leadContext?.() || {};
-    const me = global.EodRoles?.getMe?.() || {};
-    return !!String(lead.name || me.name || me.email || '').trim();
+    return global.EodSasUserLogic?.reportingReady
+      ? global.EodSasUserLogic.reportingReady(st)
+      : !!(st && (st.sharedActor || (st.connected && st.siConnected)));
   }
 
   function navIconSrc(name) {
@@ -335,7 +334,7 @@
       const next = navIconSrc(name);
       if (img.getAttribute('src') !== next) img.setAttribute('src', next);
     });
-    const label = on ? 'Signed in' : 'Sign in';
+    const label = on ? 'PROD + SI signed in' : 'PROD + SI sign in';
     document.querySelectorAll('[data-open-sign-in]').forEach((btn) => {
       btn.setAttribute('aria-label', label);
       const span = btn.querySelector('.nav-label');
@@ -361,10 +360,13 @@
         el.textContent = '';
       } else {
         el.hidden = false;
-        el.textContent = st && st.connected && st.siConnected ? `${name} · SI` : name;
+        el.textContent = signedInNow()
+          ? `${name} · PROD + SI`
+          : `${name} · Sign in`;
       }
     }
     paintNavIcons();
+    try { global.EodVisit?.paintReportingSignIn?.(st); } catch (_) {}
   }
 
   function openSignIn() {
@@ -380,7 +382,7 @@
       host.style.display = '';
     }
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
-      <h2>Sign in</h2>
+      <h2>PROD + SI sign in</h2>
       <div id="eodSignInHost"></div>
       <button type="button" class="btn btn-primary btn-block" id="eodSignInClose">Close</button>
     </div>`;
@@ -409,7 +411,7 @@
       host.style.display = '';
     }
     const signedOn = signedInNow();
-    const signLabel = signedOn ? 'Signed in' : 'Sign in';
+    const signLabel = signedOn ? 'PROD + SI signed in' : 'PROD + SI sign in';
     const signIcon = navIconSrc(signedOn ? 'signed-in' : 'sign-in');
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>More</h2>

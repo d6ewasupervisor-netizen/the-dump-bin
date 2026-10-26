@@ -1,5 +1,7 @@
 # Audit
 
+Pilot reporting readiness is `reportingReady` in `eod-field-app/js/lib/sas-user-login-logic.js`: shared actor, or retained PROD plus SI. A Dump Bin identity or `uploadReady` fallback is not presented as a completed reporting login. Visit opens the central PROD + SI sheet while either retained side is missing; the account itself stays encrypted on eod-api under the lead email and is reused across their devices.
+
 The Pathways hub card is `data-card="pathways"` in the Office & Admin section of `index.html`. It links to `/pathways/`. `https://eod-api.the-dump-bin.com/pathways` redirects there. `cardsForUser` adds the card when `pathwaysAllowed` matches `PATHWAYS_ALLOWED_EMAILS`. Compliance (`pathways.js?v=5`) is one closed row per person. A name is red when any course is overdue. Owed is a course that is not completed and is overdue or required. Completions are completed courses. The CSV download still lists every course.
 
 `meat-pusher-survey/review/` is the supervisor review board. Card id `meat-pusher-review`. Management links are minted by the API and open on eod-api, not through the hub sign-in gate.

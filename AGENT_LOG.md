@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-26 — Field app 3.4.96
+
+Visit shows PROD + SI sign-in whenever either retained reporting session is missing. The open lock and signed-in label now require both reporting systems instead of only a known lead name. The encrypted lead session remains server-side and is reused by every device for that lead.
+
 ## 2026-10-25 — EOD category opens its signoff review
 
 Category names on the EOD summary board, including cleared exceptions and comment changes, open that set on the signoff review board. Cache is `eod-board.css` and `eod-board.js` `?v=8`. The matching eod-api copy is the same. Checked on a local mock at desktop and 390 px.

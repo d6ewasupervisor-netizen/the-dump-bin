@@ -39,7 +39,7 @@
   }
 
   function openMode(status) {
-    if (status?.connected || status?.sharedActor) return 'idle';
+    if (reportingReady(status)) return 'idle';
     return 'form';
   }
 
@@ -61,7 +61,7 @@
         <button type="button" class="btn btn-primary btn-block" data-sas="reauth">Sign in again</button>
         <div class="muted" data-sas-msg style="min-height:1.2em;margin-top:8px;"></div>`;
     }
-    if (status?.connected || status?.sharedActor) {
+    if (reportingReady(status)) {
       const gone = status?.okta_gone
         ? `<div class="muted" data-sas-okta-gone>Your Okta session ended; sign in again when convenient so the app can keep working without you.</div>`
         : '';
@@ -237,6 +237,12 @@
     return /your sas \+ si|office sas|office si/i.test(String(html || ''));
   }
 
+  // The app identity and reporting identity are separate. Knowing the lead's
+  // name means the Dump Bin session is alive; it does not mean PROD or SI is.
+  function reportingReady(status) {
+    return !!(status && (status.sharedActor || (status.connected && status.siConnected)));
+  }
+
   // Shutter gate. A shot goes through when PROD will take it: the lead's own
   // session, the shared actor, or the shared session carrying it (uploadReady
   // from /api/sas-user/status). Whether the lead still owes a sign-in is the
@@ -252,6 +258,7 @@
     jumpMidpoint,
     openMode,
     captureVerdict,
+    reportingReady,
     idleHtml,
     formHtml,
     unlockHtml,

@@ -797,7 +797,9 @@
     resetFormState();
     const opening = await fetchStatus(true).catch(() => ({ connected: false }));
     if (opening?.needs_reauth) reauthMode = true;
-    view = (opening?.needs_reauth || (!opening?.connected && !opening?.sharedActor)) ? 'form' : 'idle';
+    view = opening?.needs_reauth
+      ? 'form'
+      : (Logic.openMode ? Logic.openMode(opening) : ((!opening?.connected && !opening?.sharedActor) ? 'form' : 'idle'));
     await redraw(false);
     try {
       const S = global.EodSession;

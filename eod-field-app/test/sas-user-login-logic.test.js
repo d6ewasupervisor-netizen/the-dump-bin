@@ -34,6 +34,15 @@ test('capture gate opens on uploadReady even when the lead is not connected', ()
   assert.equal(L.captureVerdict(null).ok, false);
 });
 
+test('reporting sign-in is ready only when PROD and SI are both retained', () => {
+  assert.equal(L.reportingReady({ connected: true, siConnected: true }), true);
+  assert.equal(L.reportingReady({ sharedActor: true }), true);
+  assert.equal(L.reportingReady({ connected: true, siConnected: false }), false);
+  assert.equal(L.reportingReady({ connected: false, siConnected: true }), false);
+  assert.equal(L.reportingReady({ uploadReady: true }), false);
+  assert.equal(L.reportingReady(null), false);
+});
+
 test('idle card shows the shift lead name and email', () => {
   const html = L.cardHtml('idle', { connected: false }, false, {
     lead: { name: 'James Duchene', email: 'james.duchene@retailodyssey.com' },
@@ -47,7 +56,8 @@ test('idle card shows the shift lead name and email', () => {
 // assert on pattern markup must say formStep: 'pattern' or they render step 1.
 test('first login matches the reauth form: two Okta prompts and an optional Google Authenticator code', () => {
   assert.equal(L.openMode({ hasCreds: false, hasPattern: false }), 'form');
-  assert.equal(L.openMode({ connected: true }), 'idle');
+  assert.equal(L.openMode({ connected: true, siConnected: true }), 'idle');
+  assert.equal(L.openMode({ connected: true, siConnected: false }), 'form');
   const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'sas' });
   assert.match(html, /Okta will send two prompts/);
   assert.match(html, /Approve both/);
@@ -193,11 +203,13 @@ test('master setup: step=done shows checkmark and enables Save', () => {
   assert.equal(L.bannedCopy(setup), false);
 });
 
-test('Visit does not mount a sign-in card', () => {
+test('Visit surfaces the central PROD and SI sign-in without mounting a second form', () => {
   const fs = require('fs');
   const path = require('path');
   const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
-  assert.doesNotMatch(visit, /sasUserCard/);
+  assert.match(visit, /id="visitReportingSignIn"/);
+  assert.match(visit, /id="visitReportingSignInBtn">PROD \+ SI sign in/);
+  assert.match(visit, /EodChrome\?\.openSignIn/);
   assert.doesNotMatch(visit, /EodSasUser\?\.mount/);
 });
 
@@ -210,6 +222,8 @@ test('More has a persistent sign-in, and the header names who is signed in', () 
   assert.match(chrome, /data-icon="sign-in"/);
   assert.match(chrome, /function paintNavIcons/);
   assert.match(chrome, /function openSignIn/);
+  assert.match(chrome, /EodSasUserLogic\?\.reportingReady/);
+  assert.match(chrome, /PROD \+ SI sign in/);
   assert.match(chrome, /\[data-nav\], \[data-open-sign-in\]/);
   assert.match(index, /id="eodSignedIn"/);
   assert.match(index, /data-open-sign-in/);
