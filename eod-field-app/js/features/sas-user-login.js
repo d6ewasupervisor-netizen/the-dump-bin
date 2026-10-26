@@ -568,19 +568,26 @@
         const username = document.getElementById('sasUserUsername')?.value.trim() || '';
         const password = document.getElementById('sasUserPassword')?.value || '';
         const code = (document.getElementById('sasUserCode')?.value || '').replace(/\D/g, '');
+        const code2 = (document.getElementById('sasUserCode2')?.value || '').replace(/\D/g, '');
         if (!username) { setMsg(root, 'Enter your username'); return; }
         if (!password) { setMsg(root, 'Enter your password'); return; }
-        if (code && code.length !== 6) {
-          setMsg(root, 'The code must be six digits, or leave it blank for the two Okta prompts.');
+        if ((code && code.length !== 6) || (code2 && code2.length !== 6)) {
+          setMsg(root, 'Each code must be six digits, or leave both blank for the two Okta prompts.');
+          return;
+        }
+        // Okta takes one code at sign-in and asks for the next on the way to
+        // SAS. One code alone gets spent and then fails there.
+        if (!!code !== !!code2) {
+          setMsg(root, 'Enter both codes, or leave both blank for the two Okta prompts.');
           return;
         }
         const btn = root.querySelector('[data-sas="sign-in"]');
         if (btn) btn.disabled = true;
         const reauth = reauthMode || root.querySelector('[data-sas="sign-in"]')?.dataset.sasReauth === '1';
         const body = { username, password };
-        if (code) body.totpCode = code;
+        if (code) { body.totpCode = code; body.totpCode2 = code2; }
         setMsg(root, code
-          ? 'Signing in with your Google Authenticator code…'
+          ? 'Signing in with your Google Authenticator codes…'
           : 'Signing in… Okta will send two prompts. Approve both.');
         if (!code) startProgress();
         try {

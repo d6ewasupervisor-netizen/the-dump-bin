@@ -54,7 +54,7 @@ test('first login matches the reauth form: two Okta prompts and an optional Goog
   assert.match(html, /Okta username/);
   assert.match(html, /Password/);
   assert.match(html, /Google Authenticator/);
-  assert.match(html, /leave blank for the two Okta prompts/);
+  assert.match(html, /leave both blank for the two Okta prompts/);
   assert.match(html, /id="sasUserCode"/);
   assert.match(html, /class="sas-otp"/);
   assert.match(html, /inputmode="numeric"/);
@@ -65,8 +65,12 @@ test('first login matches the reauth form: two Okta prompts and an optional Goog
   assert.doesNotMatch(html, /How to/);
   assert.doesNotMatch(html, /Approve a push on my phone/);
   assert.doesNotMatch(html, /advantagesolutions\.okta\.com/);
-  assert.doesNotMatch(html, /First code/);
-  assert.doesNotMatch(html, /Second code/);
+  // Okta verifies one code at sign-in and asks for the next on the authorize
+  // hop, so a typed login carries two codes. Blank both for the pushes.
+  assert.match(html, /id="sasUserCode2"/);
+  assert.match(html, /First code/);
+  assert.match(html, /Second code/);
+  assert.match(html, /leave both blank/);
   assert.doesNotMatch(html, /SI username/);
   assert.doesNotMatch(html, /class="err"/);
   assert.doesNotMatch(html, /data-pattern=/);

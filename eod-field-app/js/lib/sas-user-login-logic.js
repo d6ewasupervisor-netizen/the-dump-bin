@@ -90,8 +90,11 @@
           <input type="password" id="sasUserPassword" autocomplete="current-password">
         </div>
         <div class="field">
-          <label for="sasUserCode">Six-digit Google Authenticator code <span class="muted">(optional — leave blank for the two Okta prompts)</span></label>
-          <input type="text" id="sasUserCode" class="sas-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+          <label for="sasUserCode">Google Authenticator codes <span class="muted">(optional — leave both blank for the two Okta prompts)</span></label>
+          <div class="btn-row">
+            <input type="text" id="sasUserCode" class="sas-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="First code" aria-label="First code">
+            <input type="text" id="sasUserCode2" class="sas-otp" inputmode="numeric" autocomplete="off" maxlength="6" pattern="[0-9]{6}" placeholder="Second code" aria-label="Second code">
+          </div>
         </div>
         <div class="muted" data-sas-progress style="min-height:1.2em;margin-top:8px;"></div>
         <div class="btn-row">

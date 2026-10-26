@@ -1,16 +1,16 @@
 /* Field-app shell cache so a Chrome kill / airplane reopen still loads. */
-const CACHE = 'eod-field-3.4.94';
+const CACHE = 'eod-field-3.4.95';
 const PRECACHE = [
   './',
   './index.html',
-  './css/app.css?v=3.4.94',
-  './css/materials-browser.css?v=3.4.94',
+  './css/app.css?v=3.4.95',
+  './css/materials-browser.css?v=3.4.95',
   './manifest.webmanifest',
-  './assets/buffering.gif?v=3.4.94',
+  './assets/buffering.gif?v=3.4.95',
   './icons/favicon-192.png',
   './icons/favicon-512.png',
   './js/workers/photo-compress-worker.js',
-  './js/workers/photo-compress-worker.js?v=3.4.94',
+  './js/workers/photo-compress-worker.js?v=3.4.95',
 ];
 
 function shellAssetsFromHtml(html) {
