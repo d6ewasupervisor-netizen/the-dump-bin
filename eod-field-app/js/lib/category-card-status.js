@@ -54,6 +54,15 @@
     return v ? `V${v}` : '';
   }
 
+  /* Tracker issue week (POG id prefix), shown under the category number. */
+  function issueWeekLabel(row) {
+    const raw = String((row && (row.week || row.rowWeek || row.row_week)) || '').trim();
+    if (!raw) return '';
+    const m = raw.match(/P?\s*0*(\d{1,2})\s*W\s*0*(\d)/i);
+    if (!m) return raw;
+    return `P${String(m[1]).padStart(2, '0')}W${m[2]}`;
+  }
+
   function markActive(row, type) {
     const m = row && (row.marks || row.mark);
     if (!m) return false;
@@ -652,6 +661,7 @@
     siLocationLabel,
     siAisleLabel,
     versionLabel,
+    issueWeekLabel,
     markActive,
     terminalMark,
     prodPhotoCounts,

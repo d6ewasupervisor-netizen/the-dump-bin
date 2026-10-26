@@ -911,6 +911,7 @@
       const errMsg = String(row.errorMessage || row.error_message || '').trim();
       const canOpen = !!row.dbkey;
       const catNum = String(row.catId || '').trim();
+      const issueWeek = global.EodCategoryCardStatus?.issueWeekLabel?.(row) || '';
       const metaBits = [
         row.dbkey ? `DB ${row.dbkey}` : '',
         aisleLabel,
@@ -948,7 +949,7 @@
           ${priorNote ? `<div class="ds-row-live"><span class="pill">${esc(priorNote)}</span></div>` : ''}
           ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
-        ${catNum ? `<div class="ds-row-catnum" title="Category">${esc(catNum)}</div>` : ''}
+        ${catNum ? `<div class="ds-row-catnum" title="Category"><span class="ds-row-catnum-n">${esc(catNum)}</span>${issueWeek ? `<span class="ds-row-issue">${esc(issueWeek)}</span>` : ''}</div>` : ''}
         ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-slot="${esc(captureSlot)}" data-bay="${captureBay}"${captureSlot ? '' : ' disabled'}>Capture</button></div>` : ''}
         <div class="ds-actions">
           ${btn('not_in_store', 'Not in Store')}

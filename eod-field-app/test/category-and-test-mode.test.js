@@ -27,6 +27,7 @@ const {
   priorShiftNote,
   siAisleLabel,
   versionLabel,
+  issueWeekLabel,
 } = require('../js/lib/category-card-status');
 const {
   hasLoadedShift,
@@ -656,6 +657,15 @@ test('formatEstHrs shows minutes under an hour', () => {
   assert.equal(formatEstHrs(''), '');
 });
 
+test('issueWeekLabel is the original issue period and week', () => {
+  assert.equal(issueWeekLabel({ week: 'P10W3' }), 'P10W3');
+  assert.equal(issueWeekLabel({ week: 'P3W4' }), 'P03W4');
+  assert.equal(issueWeekLabel({ week: 'p07w2' }), 'P07W2');
+  assert.equal(issueWeekLabel({ row_week: 'P08W1' }), 'P08W1');
+  assert.equal(issueWeekLabel({ week: '' }), '');
+  assert.equal(issueWeekLabel({}), '');
+});
+
 test('hasLoadedShift is true for a real store with a visit or sheet', () => {
   assert.equal(hasLoadedShift({ storeNumber: '19', selectedShift: { visitId: 'abc' } }), true);
   assert.equal(hasLoadedShift({ storeNumber: '19', sheet: { rows: [{ id: 1 }] } }), true);
@@ -1065,6 +1075,8 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.doesNotMatch(signoff, /id="ackRemainingBtn"/);
   assert.doesNotMatch(signoff, /id="printSignoffBtn"/);
   assert.match(signoff, /formatEstHrs/);
+  assert.match(signoff, /issueWeekLabel/);
+  assert.match(signoff, /ds-row-issue/);
   assert.match(send, /id="sendPrintSignoffBtn"/);
   assert.match(send, /openPrintAtStoreModal/);
   assert.match(signoff, /btn\('backlog'/);
