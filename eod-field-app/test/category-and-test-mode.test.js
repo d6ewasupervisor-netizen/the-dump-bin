@@ -762,12 +762,12 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
   assert.doesNotMatch(chrome, /data-more="signatures"/);
   assert.doesNotMatch(chrome, /data-more="send"/);
   for (const name of ['visit', 'categories', 'signatures', 'send', 'crew', 'dumpbin', 'helpdesk']) {
-    assert.match(html, new RegExp(`icons/themes/dark/${name}\\.png`));
+    assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
     assert.match(html, new RegExp(`data-icon="${name}"`));
   }
   assert.match(html, /data-icon="sign-in"/);
-  assert.match(html, /icons\/themes\/dark\/sign-in\.png/);
-  assert.match(html, /icons\/themes\/' \+ t \+ '\/' \+ name \+ '\.png/);
+  assert.match(html, /icons\/nav\/sign-in\.png/);
+  assert.doesNotMatch(html, /icons\/themes\//);
 });
 
 test('desktop keeps the side nav static while the page pane scrolls', () => {

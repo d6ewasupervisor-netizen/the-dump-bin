@@ -320,20 +320,19 @@
     return !!String(lead.name || me.name || me.email || '').trim();
   }
 
-  function navIconSrc(theme, name) {
+  function navIconSrc(name) {
     const v = global.EOD_APP_VERSION || '';
     const q = v ? `?v=${v}` : '';
-    return `icons/themes/${theme}/${name}.png${q}`;
+    return `icons/nav/${name}.png${q}`;
   }
 
   function paintNavIcons() {
-    const theme = global.EodTheme?.getTheme?.() || document.documentElement.getAttribute('data-theme') || 'dark';
     const on = signedInNow();
     document.querySelectorAll('img[data-icon]').forEach((img) => {
       let name = img.getAttribute('data-icon');
       if (name === 'sign-in' || name === 'signed-in') name = on ? 'signed-in' : 'sign-in';
       if (!name) return;
-      const next = navIconSrc(theme, name);
+      const next = navIconSrc(name);
       if (img.getAttribute('src') !== next) img.setAttribute('src', next);
     });
     const label = on ? 'Signed in' : 'Sign in';
@@ -409,10 +408,9 @@
       host.classList.add('show');
       host.style.display = '';
     }
-    const theme = global.EodTheme?.getTheme?.() || document.documentElement.getAttribute('data-theme') || 'dark';
     const signedOn = signedInNow();
     const signLabel = signedOn ? 'Signed in' : 'Sign in';
-    const signIcon = navIconSrc(theme, signedOn ? 'signed-in' : 'sign-in');
+    const signIcon = navIconSrc(signedOn ? 'signed-in' : 'sign-in');
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>More</h2>
       <button type="button" class="btn btn-primary btn-block more-sign-btn" id="eodMoreSignIn" aria-label="${signLabel}">
