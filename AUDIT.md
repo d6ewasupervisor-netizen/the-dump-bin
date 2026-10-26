@@ -1,6 +1,6 @@
 # Audit
 
-Pilot `#eodSignedIn` is the Dump Bin app identity and reads `Name · Signed in`. It is intentionally independent of reporting readiness. The lock icon and Visit control remain the PROD + SI indicators.
+Pilot `#eodSignedIn` is the shift lead's name. It adds `· Signed in` only when that lead's PROD/SAS session is connected and Okta has not ended. The lock icon and Visit control remain the PROD + SI indicators.
 
 Pilot reporting readiness is `reportingReady` in `eod-field-app/js/lib/sas-user-login-logic.js`: shared actor, or retained PROD plus SI. A Dump Bin identity or `uploadReady` fallback is not presented as a completed reporting login. Visit opens the central PROD + SI sheet while either retained side is missing; the account itself stays encrypted on eod-api under the lead email and is reused across their devices.
 

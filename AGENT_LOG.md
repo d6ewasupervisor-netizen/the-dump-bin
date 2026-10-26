@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-26 — Field app 3.4.99
+
+The name line says Signed in only while that lead has a live PROD/SAS Okta session. A known name with no live session stays the name alone.
+
 ## 2026-10-26 — Field app 3.4.98
 
 On-manifest sets stay on Categories under every shift filter. COM Load has Email me only, which sends the workbook only to the person who is signed in.

@@ -237,6 +237,14 @@
     return /your sas \+ si|office sas|office si/i.test(String(html || ''));
   }
 
+  // Title-bar "Signed in" is this lead's live PROD/SAS Okta session.
+  // A Dump Bin name, a shared office session, or SAS cookies after Okta died
+  // do not count. SI is a separate light.
+  function prodSasSignedIn(status) {
+    if (!status || !status.connected || status.okta_gone || status.needs_reauth) return false;
+    return true;
+  }
+
   // The app identity and reporting identity are separate. Knowing the lead's
   // name means the Dump Bin session is alive; it does not mean PROD or SI is.
   function reportingReady(status) {
@@ -258,6 +266,7 @@
     jumpMidpoint,
     openMode,
     captureVerdict,
+    prodSasSignedIn,
     reportingReady,
     idleHtml,
     formHtml,

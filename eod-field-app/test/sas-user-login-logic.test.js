@@ -43,6 +43,16 @@ test('reporting sign-in is ready only when PROD and SI are both retained', () =>
   assert.equal(L.reportingReady(null), false);
 });
 
+test('title bar Signed in is a live PROD Okta session', () => {
+  assert.equal(L.prodSasSignedIn({ connected: true }), true);
+  assert.equal(L.prodSasSignedIn({ connected: true, okta_gone: false, needs_reauth: false }), true);
+  assert.equal(L.prodSasSignedIn({ connected: true, okta_gone: true }), false);
+  assert.equal(L.prodSasSignedIn({ connected: true, needs_reauth: true }), false);
+  assert.equal(L.prodSasSignedIn({ connected: false }), false);
+  assert.equal(L.prodSasSignedIn({ sharedActor: true }), false);
+  assert.equal(L.prodSasSignedIn(null), false);
+});
+
 test('idle card shows the shift lead name and email', () => {
   const html = L.cardHtml('idle', { connected: false }, false, {
     lead: { name: 'James Duchene', email: 'james.duchene@retailodyssey.com' },
@@ -224,7 +234,8 @@ test('More has a persistent sign-in, and the header names who is signed in', () 
   assert.match(chrome, /function openSignIn/);
   assert.match(chrome, /EodSasUserLogic\?\.reportingReady/);
   assert.match(chrome, /PROD \+ SI sign in/);
-  assert.match(chrome, /`\$\{name\} · Signed in`/);
+  assert.match(chrome, /prodSasSignedIn/);
+  assert.match(chrome, /\$\{name\} · Signed in/);
   assert.doesNotMatch(chrome, /`\$\{name\} · Sign in`/);
   assert.match(chrome, /\[data-nav\], \[data-open-sign-in\]/);
   assert.match(index, /id="eodSignedIn"/);

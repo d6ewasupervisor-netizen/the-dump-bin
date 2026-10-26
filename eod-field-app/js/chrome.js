@@ -359,8 +359,11 @@
         el.hidden = true;
         el.textContent = '';
       } else {
+        const live = global.EodSasUserLoginLogic?.prodSasSignedIn
+          ? global.EodSasUserLoginLogic.prodSasSignedIn(st)
+          : !!(st && st.connected && !st.okta_gone && !st.needs_reauth);
         el.hidden = false;
-        el.textContent = `${name} · Signed in`;
+        el.textContent = live ? `${name} · Signed in` : name;
       }
     }
     paintNavIcons();
