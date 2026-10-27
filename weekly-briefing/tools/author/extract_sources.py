@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """extract_sources.py — turn one week's Dump Bin folder into week_extract.json (+ a digest).
 
@@ -697,6 +698,7 @@ def main():
     ex["agenda_docx"] = [parse_agenda_docx(p) for p in sorted(files["agenda_docx"])]
     ex["remodel_xlsx"] = [parse_remodel_xlsx(p) for p in sorted(files["remodel_xlsx"])]
     ex["unparsed_files"] = sorted(os.path.basename(p) for p in files["other_pdf"] + files["other"])
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)) or ".", exist_ok=True)
     with open(a.out, "w") as f:
         json.dump(ex, f, indent=1, ensure_ascii=False, default=str)
     if a.out_md:

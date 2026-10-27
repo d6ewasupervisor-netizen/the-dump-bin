@@ -34,17 +34,25 @@ def _req(method, path, body=None, raw=False, params=None):
     if params:
         url += "?" + urllib.parse.urlencode(params)
     data = None
-    headers = {"Authorization": f"Bearer {TOKEN}"}
+    headers = {"Authorization": f"Bearer {TOKEN}", "User-Agent": "briefing-author/1.0 (+the-dump-bin)", "Accept": "*/*"}
     if body is not None:
         data = json.dumps(body).encode()
         headers["Content-Type"] = "application/json"
-    r = urllib.request.Request(url, data=data, method=method, headers=headers)
-    try:
-        with urllib.request.urlopen(r, timeout=120) as resp:
-            b = resp.read()
-    except urllib.error.HTTPError as e:
-        sys.exit(f"{method} {path} -> HTTP {e.code}: {e.read()[:300]!r}")
-    return b if raw else json.loads(b or b"{}")
+    last = None
+    for attempt in range(5):
+        r = urllib.request.Request(url, data=data, method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(r, timeout=180) as resp:
+                b = resp.read()
+            return b if raw else json.loads(b or b"{}")
+        except urllib.error.HTTPError as e:
+            last = f"{method} {path} -> HTTP {e.code}: {e.read()[:300]!r}"
+            if e.code < 500 or method == "POST":
+                sys.exit(last)
+        except (urllib.error.URLError, TimeoutError) as e:
+            last = f"{method} {path} -> {e}"
+        time.sleep(3 * (attempt + 1))
+    sys.exit(last)
 
 
 def now_iso():
