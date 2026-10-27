@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-27 — Clip strip reference sheet for the team email
+
+`central-pet/updates/mail/image001-aa7ba5188f7a.jpg` is the P6 pet endcap slide. The team email points at it. The logo stays `central-pet/updates/ro-logo-email.png`.
+
 ## 2026-10-27 — PDF wheel scrolls the page, then turns
 
 Viewer 1.1.6. On a desktop, the wheel moves through the current page while any of it is still below or above the window. The next scroll at the bottom opens the next page at the top. The next scroll at the top opens the previous page at the bottom. A page that already fits turns on the first scroll. Phone swipe is unchanged. Field app pin is 1.1.6 on 3.5.03.
