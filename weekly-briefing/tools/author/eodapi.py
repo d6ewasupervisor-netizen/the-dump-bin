@@ -53,8 +53,8 @@ def now_iso():
 
 def cmd_sources(a):
     lst = _req("GET", "sources", params={"week": a.week})
-    prefix = lst["prefix"]
-    files = lst["files"]
+    prefix = lst.get("prefix", "")
+    files = lst.get("files", [])
     os.makedirs(a.out, exist_ok=True)
     for f in files:
         key = f["key"]
