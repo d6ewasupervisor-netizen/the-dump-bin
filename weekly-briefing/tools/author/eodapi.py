@@ -8,7 +8,7 @@ Routes (Part C, all under /api/weekly-briefing/worker/, Authorization: Bearer <a
   POST text {message}                -> sends "[briefing] ..." to T
   POST thread {week, action}         -> open|close the reply-capture thread
   GET  replies?week=&since=<iso>     -> [{id, body, received_at}]
-  POST source {week, request, mode, files:{name: base64}} -> {sha}
+  POST source {week, request, mode, files}  deck.pdf base64, text files as plain strings -> {sha}
 
 Usage:
   eodapi.py sources   --week P10W4 --out ./src_P10W4
@@ -103,7 +103,10 @@ def cmd_post(a):
         p = os.path.join(a.dir, name)
         if not os.path.exists(p):
             sys.exit(f"missing {p}")
-        files[name] = base64.b64encode(open(p, "rb").read()).decode()
+        if name.endswith(".pdf"):
+            files[name] = base64.b64encode(open(p, "rb").read()).decode()
+        else:
+            files[name] = open(p, encoding="utf-8").read()
     body = {"week": a.week, "request": a.request, "mode": a.mode, "files": files}
     print(_req("POST", "source", body))
 
