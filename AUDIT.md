@@ -1,5 +1,7 @@
 # Audit
 
+Weekly briefing source decks are not in this repo. P10W2 `build.json` has `deckUrl` on eod-api. P10W3 has no `build.json`. `weekly-briefing/source/*/deck.pdf` is gitignored. The planogram `D701_L00000_D03_C201_V415_I132_MX_9088145.pdf` is not on HEAD.
+
 Pilot `#eodSignedIn` is the shift lead's name. It adds `· Signed in` only when that lead's PROD/SAS session is connected and Okta has not ended. The lock icon and Visit control remain the PROD + SI indicators.
 
 Pilot reporting readiness is `reportingReady` in `eod-field-app/js/lib/sas-user-login-logic.js`: shared actor, or retained PROD plus SI. A Dump Bin identity or `uploadReady` fallback is not presented as a completed reporting login. Visit opens the central PROD + SI sheet while either retained side is missing; the account itself stays encrypted on eod-api under the lead email and is reused across their devices.

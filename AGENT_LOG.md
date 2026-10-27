@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-27 — Briefing decks off the public site
+
+P10W2 and P10W3 `deck.pdf` are served from eod-api `/hosted/weekly-briefing/{week}/deck.pdf`. The files are deleted from this repo. `P10W2/build.json` carries `deckUrl`. Future author commits skip the PDF. The planogram `D701_L00000_D03_C201_V415_I132_MX_9088145.pdf` was already gone from HEAD.
+
 ## 2026-10-27 — Clip strip reference sheet for the team email
 
 `central-pet/updates/mail/image001-aa7ba5188f7a.jpg` is the P6 pet endcap slide. The team email points at it. The logo stays `central-pet/updates/ro-logo-email.png`.

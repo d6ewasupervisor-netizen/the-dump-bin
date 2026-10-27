@@ -1,5 +1,7 @@
 # Roadmap
 
+Weekly briefing decks for P10W2 and P10W3 are on eod-api. This repo no longer publishes `weekly-briefing/source/*/deck.pdf`.
+
 Field app 3.5.03 loads PDF viewer 1.1.6. Desktop wheel scrolls the open page, then turns at the top or bottom. Phones on 3.5.02 need the version-badge update.
 
 Field app 3.4.97 separates the visible app identity from reporting auth: `Name · Signed in` stays at the top, while the lock and Visit button continue to track PROD + SI.

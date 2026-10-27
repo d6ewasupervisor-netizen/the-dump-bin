@@ -37,3 +37,6 @@ docs/portable-audit/
 # Nested standalone repo (has its own GitHub remote) -- never commit into this repo
 district1/
 
+# Weekly briefing decks are internal. They are served from eod-api.
+weekly-briefing/source/*/deck.pdf
+

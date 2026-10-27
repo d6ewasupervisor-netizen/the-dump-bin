@@ -116,8 +116,9 @@ QFC/701 in narration, overflow. `_stops.json` feeds `meta.stops`.
    types `choice`|`tf`|`multi`), `meta.json` (`week`, `district`, `title`, `dueAt` Monday 06:00 PT,
    `passPct` 80, `board` "callsign", `stops` = `_stops.json`, `sections`, `closer`).
 6. `render_deck.py`, `render_handout.py`; run `tools/build_pack.py --check-only` on the result.
-7. POST `deck.pdf`, `narration.txt`, `meta.json`, `questions.json`, `build.json` to eod-api, which
-   commits them to `weekly-briefing/source/P##W#/`; the briefing-worker does ElevenLabs + publish.
+7. POST `deck.pdf`, `narration.txt`, `meta.json`, `questions.json`, `build.json` to eod-api.
+   The deck is stored on eod-api and is not committed. The text files land in `weekly-briefing/source/P##W#/`.
+   The briefing-worker downloads the deck, then does ElevenLabs and publish.
 8. Text T the result (build stamp, preview link) and the Teams note.
 
 ## 5. Hard rules (all enforced or checked by the scripts where marked ✓)
