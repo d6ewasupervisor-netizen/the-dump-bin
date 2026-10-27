@@ -1,0 +1,30 @@
+{
+ "request": "20261016-rerun-1",
+ "week": "P10W2",
+ "mode": "staging",
+ "startedAt": "2026-10-27T17:36:44Z",
+ "tts": {
+  "frames": 18,
+  "generated": 18,
+  "cached": 0,
+  "chars": 11053
+ },
+ "pack": {
+  "build": "20261027173949",
+  "totalSeconds": 653.8,
+  "stops": 18,
+  "questions": 18
+ },
+ "mp4": {
+  "seconds": 654.4,
+  "bytes": 21561586,
+  "r2": {
+   "mp4": "Kompass/_briefing-builds/P10W2/P10W2_Briefing (staging).mp4",
+   "mp3": "Kompass/_briefing-builds/P10W2/P10W2_Narration (staging).mp3",
+   "srt": "Kompass/_briefing-builds/P10W2/P10W2_Narration (staging).srt"
+  }
+ },
+ "finishedAt": "2026-10-27T17:42:11Z",
+ "ok": true,
+ "seconds": 326.7
+}

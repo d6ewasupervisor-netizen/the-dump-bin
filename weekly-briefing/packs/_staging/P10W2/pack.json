@@ -1,0 +1,541 @@
+{
+ "schema": 1,
+ "week": "P10W2",
+ "build": "20261027173949",
+ "buildRequest": "20261016-rerun-1",
+ "district": "D8",
+ "title": "Period 10 · Week 2",
+ "dueAt": "2026-10-19T06:00:00-07:00",
+ "passPct": 80,
+ "board": "callsign",
+ "closer": "Somewhere in a back room, a case of Swiss Miss is about to climb one shelf closer to the syrup it's always admired.",
+ "sections": [
+  {
+   "name": "Opening",
+   "stops": [
+    1,
+    2
+   ]
+  },
+  {
+   "name": "Checklane Blitz",
+   "stops": [
+    3
+   ]
+  },
+  {
+   "name": "Grocery",
+   "stops": [
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "name": "HBC, Pharmacy & NF",
+   "stops": [
+    9,
+    10,
+    11,
+    12
+   ]
+  },
+  {
+   "name": "Materials & stores",
+   "stops": [
+    13,
+    14,
+    15
+   ]
+  },
+  {
+   "name": "Looking ahead",
+   "stops": [
+    16,
+    17
+   ]
+  },
+  {
+   "name": "Wrap",
+   "stops": [
+    18
+   ]
+  }
+ ],
+ "totalSeconds": 653.8,
+ "questionCount": 18,
+ "stops": [
+  {
+   "n": 1,
+   "id": "s01",
+   "title": "Period 10 Week 2",
+   "frame": "frames/f01.webp",
+   "audio": "audio/a01.m4a",
+   "seconds": 24.48,
+   "narration": "Alright, let's get into it. This is Period ten, Week two for District eight. You've got sixty-four hours on the books: thirty-nine hours of Compass, with the twenty-five-hour checklane blitz still stacked on top. There are no dedicated priority sets this week, so the order is backlog, current week, checklanes. And the meat pushers are now postponed to Period eleven, which I'm sure is devastating news for everyone.",
+   "words": 68,
+   "checkpoint": [
+    {
+     "id": "q01",
+     "type": "choice",
+     "q": "How many hours are on the books this week, and how do they break down?",
+     "options": [
+      "64 hours: 39 Kompass plus the 25-hour Checklane Blitz",
+      "39 hours total, blitz included",
+      "64 hours of Kompass, with the blitz on top of that",
+      "25 hours of Kompass plus a 39-hour blitz"
+     ],
+     "correct": 0,
+     "explain": "64 total: 39 hours of Kompass and the 25-hour Checklane Blitz stacked on top."
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "id": "s02",
+   "title": "Week at a glance",
+   "frame": "frames/f02.webp",
+   "audio": "audio/a02.m4a",
+   "seconds": 17.36,
+   "narration": "Here's the week on screen. NF Vitamins is the big one at eight hours. Milk Byproducts runs four, and Vinegar, Vitamins, and Diabetic run three each. Anything with the twenty-minute tag is refrigerated or frozen. Spirits, Wine, and Trial Size are vendor sets, so they aren't ours.",
+   "words": 47,
+   "checkpoint": []
+  },
+  {
+   "n": 3,
+   "id": "s03",
+   "title": "Checklane blitz",
+   "frame": "frames/f03.webp",
+   "audio": "audio/a03.m4a",
+   "seconds": 40.0,
+   "narration": "Now the blitz. Twenty-five hours per store, and it keeps running on top of Compass. Here's where we stand: any store that hasn't completed the blitz gets scheduled again next week, and I'm bringing in extra InstaWork help so we have the coverage to close it out. The rules haven't changed. A check stand is one hundred percent complete the same day it's started, or you go back the next day. One shelf still comes off the seven-shelf Liberty snack endcaps, the Apple accessories fixture still comes out with its items moving to the Kroger Personal Finance side panel, and removed shelves and fixtures stay with the store. Backlog first. Don't let this week's leftovers roll into Week three, where the blitz gets heavy again.",
+   "words": 125,
+   "checkpoint": [
+    {
+     "id": "q02",
+     "type": "choice",
+     "q": "A store hasn't finished the Checklane Blitz by the end of this week. What happens?",
+     "options": [
+      "It rolls into Period 11",
+      "It gets scheduled again next week, with extra InstaWork help brought in",
+      "The store finishes it on their own",
+      "It waits until the next blitz rotation"
+     ],
+     "correct": 1,
+     "explain": "Stores that haven't completed the blitz get scheduled again next week, and I'm bringing in extra InstaWork help so we have the coverage to close it out."
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "id": "s04",
+   "title": "Cocoa",
+   "frame": "frames/f04.webp",
+   "audio": "audio/a04.m4a",
+   "seconds": 26.32,
+   "narration": "Cocoa is a two-hour update, and the before and after are on screen. Syrups move to the top two shelves, and cocoa mixes sit on shelves one through four. Every three-foot and four-foot planogram has shelf moves, so execute them as diagrammed. The test store started at the bottom and worked up, and it took them two hours. Do the same. There's a conversion file cleaning up versions, so your planogram name may look a little different. Trust the mapping.",
+   "words": 80,
+   "checkpoint": [
+    {
+     "id": "q03",
+     "type": "choice",
+     "q": "On Cocoa, where do the syrups end up, and how did the test store work the set?",
+     "options": [
+      "Bottom shelf, working top down",
+      "Top two shelves, working from the bottom up",
+      "Middle shelves, working left to right",
+      "They leave the set entirely"
+     ],
+     "correct": 1,
+     "explain": "Syrups move to the top two shelves and cocoa mixes sit on shelves one through four. The test store started at the bottom and worked up; it took two hours."
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "id": "s05",
+   "title": "Milk Byproducts",
+   "frame": "frames/f05.webp",
+   "audio": "audio/a05.m4a",
+   "seconds": 35.52,
+   "narration": "Milk Byproducts is four hours and refrigerated, so the twenty-minute rule is on. Ricotta moves to the top left of the set. Plant-based, organic, and lactose-free items come together wherever the planogram allows. Squeeze sour creams go over and under, and two new Good Culture sixteen-ounce items land in the VX sets. Full strips and full tags on this one. Refrigerated Hispanic and Refrigerated Italian get new item strips, and those get recorded under Milk Byproducts. Stage your pulls so the cooler empties and refills in short passes. Nothing sits on a cart longer than twenty minutes.",
+   "words": 97,
+   "checkpoint": [
+    {
+     "id": "q04",
+     "type": "multi",
+     "q": "Milk Byproducts. Pick everything that's true.",
+     "options": [
+      "Ricotta moves to the top left of the set",
+      "Refrigerated Hispanic and Refrigerated Italian strips record under Milk Byproducts",
+      "Squeeze sour creams go side by side",
+      "The 20-minute rule applies"
+     ],
+     "correct": [
+      0,
+      1,
+      3
+     ],
+     "explain": "Ricotta goes top left, the Hispanic and Italian strips record under Milk Byproducts, and it's refrigerated. Squeeze sour creams go over/under, not side by side."
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "id": "s06",
+   "title": "Vinegar & Cooking Wine",
+   "frame": "frames/f06.webp",
+   "audio": "audio/a06.m4a",
+   "seconds": 20.4,
+   "narration": "Vinegar and Cooking Wine is on the books at three hours, and the test store finished in one. Current on top, new on the bottom. Shelves four through six reflow by brand, with Kroger leading on the left, and there's only minor movement on the lower shelves. The one-gallon Kroger Multipurpose Cleaning Vinegar leaves this set entirely and goes to Household Cleaning.",
+   "words": 62,
+   "checkpoint": [
+    {
+     "id": "q05",
+     "type": "choice",
+     "q": "What happens to the 1-gallon Kroger Multipurpose Cleaning Vinegar?",
+     "options": [
+      "It moves to the bottom shelf of Vinegar",
+      "It leaves the Vinegar set and goes to Household Cleaning",
+      "It's deleted",
+      "It moves to the top shelf, Kroger leading left"
+     ],
+     "correct": 1,
+     "explain": "The cleaning vinegar leaves Vinegar entirely and goes to the Household Cleaning set."
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "id": "s07",
+   "title": "Refrigerated & frozen NIIs",
+   "frame": "frames/f07.webp",
+   "audio": "audio/a07.m4a",
+   "seconds": 40.4,
+   "narration": "Everything on this frame is refrigerated or frozen, so twenty minutes applies. On Frozen Pizza, Red Baron Crunchtime is expanding into more doors, so verify your store is in scope on the planogram before you cut it in. Four Kroger Rising Crust pizzas are changing suppliers, so confirm the correct supplier product is on the shelf during the reset. On Butter, Vital Farms is out, and the slow-moving margarine thins out too. Use the space from the deletes to expand Kerrygold, with Challenge and Danish Creamery filling the gaps. NF Refrigerated Beverage and NF Refrigerated Vegetarian strips record under Butter. Bulk Deli Meat is one new item and a standard new item introduction.",
+   "words": 113,
+   "checkpoint": [
+    {
+     "id": "q06",
+     "type": "choice",
+     "q": "Four Kroger Rising Crust pizzas are changing suppliers. What's your job during the reset?",
+     "options": [
+      "Pull them until the new supplier ships",
+      "Confirm the correct supplier product is on the shelf",
+      "Face the old product over to hold the space",
+      "Nothing. Supplier changes don't affect the set"
+     ],
+     "correct": 1,
+     "explain": "Confirm the correct supplier product is on the shelf during the reset. Same goes for Red Baron Crunchtime: verify your store is in scope before cutting it in."
+    }
+   ]
+  },
+  {
+   "n": 8,
+   "id": "s08",
+   "title": "Shelf-stable NIIs",
+   "frame": "frames/f08.webp",
+   "audio": "audio/a08.m4a",
+   "seconds": 39.04,
+   "narration": "The shelf-stable sets are standard new item introductions, with a few things worth knowing. On Dry Potatoes, Pepperidge Farm and the bagged stuffing come out of the set. The Kroger Au Gratin and Scalloped boxed potatoes get a new UPC and size, so treat them as a hard add and a hard delete. Dry Sauce and Gravy strips record under Dry Potatoes. On Multipack, the Lance family packs and Paw Patrol graham snacks come in, and the Ritz multipacks come out. Can Beans has a couple of size changes on existing cans. Can Meat is one in, one out, one change. And on RTD Coffee, the Coffee and NF Refrigerated Beverage strips record under RTD Coffee.",
+   "words": 116,
+   "checkpoint": [
+    {
+     "id": "q07",
+     "type": "choice",
+     "q": "The Kroger Au Gratin and Scalloped boxed potatoes have a new UPC and size. How do you treat them?",
+     "options": [
+      "As a simple tag swap",
+      "As a hard add and a hard delete",
+      "Leave the old product and update the tag later",
+      "Move them to the stuffing section"
+     ],
+     "correct": 1,
+     "explain": "New UPC and size means a hard add and a hard delete: the old item comes out, the new item goes in."
+    }
+   ]
+  },
+  {
+   "n": 9,
+   "id": "s09",
+   "title": "Vitamins",
+   "frame": "frames/f09.webp",
+   "audio": "audio/a09.m4a",
+   "seconds": 32.08,
+   "narration": "Vitamins is three hours on the books, and the test store ran three and a half. Minor movement on shelves one through four, and shelves five through eight mostly shift left. The test store needed four extra pushers, so have spares on the cart before you start. Spacing is tight but it works, so don't force it; check the planogram when something won't fit. Planograms and mapping are in A Useful Folder under Vitamins, and Miscellaneous HBC strips record under Vitamins. Smoking Cessation is two in, two out, a standard new item introduction.",
+   "words": 93,
+   "checkpoint": [
+    {
+     "id": "q08",
+     "type": "choice",
+     "q": "Vitamins. What did the test store learn that you should plan for?",
+     "options": [
+      "Shelves 5–8 shift left, and they needed four extra pushers",
+      "Shelves 1–4 flip entirely",
+      "The set took half the booked time",
+      "No strips came in"
+     ],
+     "correct": 0,
+     "explain": "Minor movement on shelves one through four, shelves five through eight mostly shift left, and they needed four extra pushers. Have spares on the cart. It ran three and a half hours."
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "id": "s10",
+   "title": "NF Vitamins",
+   "frame": "frames/f10.webp",
+   "audio": "audio/a10.m4a",
+   "seconds": 50.08,
+   "narration": "NF Vitamins is eight hours on the books, and the test store finished in six. Here's the order of operations: pull the deletes first, then place the new items. There are seventy-two changes in this set, mostly UPC, size, and description updates, so work the change list carefully. That's where the misses hide. Movement is side to side with very little vertical change. Every bay gets at least five strips, and some bays get all of them. The test store filled about five banana boxes of close-outs, so plan the handoff before the cart looks like a small cardboard city. Planograms and mapping are in A Useful Folder under NF Vitamins. Three nine one has its own store-specific planograms, so go by the planogram ID, not the name. Shortening and Oil, NF Baking, and NF Condiments strips record under NF Vitamins.",
+   "words": 141,
+   "checkpoint": [
+    {
+     "id": "q09",
+     "type": "tf",
+     "q": "True or false: on NF Vitamins, you place the 28 new items first and pull the deletes as you go.",
+     "options": [
+      "True",
+      "False"
+     ],
+     "correct": 1,
+     "explain": "False. Pull the deletes first, then place the new items. Then work the 72 changes carefully."
+    },
+    {
+     "id": "q10",
+     "type": "choice",
+     "q": "Store 391's NF Vitamins planograms look different from everyone else's. What do you go by?",
+     "options": [
+      "The planogram name",
+      "The planogram ID",
+      "Whatever the store manager prefers",
+      "Skip the set at 391"
+     ],
+     "correct": 1,
+     "explain": "391 has its own store-specific planograms. Go by the planogram ID, not the name."
+    }
+   ]
+  },
+  {
+   "n": 11,
+   "id": "s11",
+   "title": "Diabetic Supplies",
+   "frame": "frames/f11.webp",
+   "audio": "audio/a11.m4a",
+   "seconds": 37.84,
+   "narration": "Diabetic Supplies is a three-hour update, and only five of our stores have the set: twenty-three, fifty-three, two one five, three nine one, and six five eight. Current on top, new on the bottom. The Home Testing items move into this set, mostly on the top shelf, and their standalone set goes away. Every District eight version is the no pen needles version. If a planogram says with pen needle, it isn't yours. Expect slight shelf moves for item heights, with full strips and full tags. Adult Nutrition strips record under Diabetic. The other five stores don't carry this set, so there's nothing to move there.",
+   "words": 106,
+   "checkpoint": [
+    {
+     "id": "q11",
+     "type": "multi",
+     "q": "Which District 8 stores have the Diabetic Supplies set?",
+     "options": [
+      "23",
+      "31",
+      "53",
+      "215",
+      "391",
+      "658",
+      "682"
+     ],
+     "correct": [
+      0,
+      2,
+      3,
+      4,
+      5
+     ],
+     "explain": "23, 53, 215, 391 and 658. The other five stores don't carry the set, so there's nothing to move there."
+    },
+    {
+     "id": "q12",
+     "type": "choice",
+     "q": "Where do the Home Testing items go, and which version is every District 8 store on?",
+     "options": [
+      "Bottom shelf, WITH PEN NEEDLE",
+      "Top shelf, NO PEN NEEDLES",
+      "Behind the pharmacy counter, WITH PEN NEEDLE",
+      "They stay in their own set"
+     ],
+     "correct": 1,
+     "explain": "Home Testing items move into Diabetic, mostly on the top shelf. Every District 8 version is NO PEN NEEDLES. If a planogram says with pen needle, it isn't yours."
+    }
+   ]
+  },
+  {
+   "n": 12,
+   "id": "s12",
+   "title": "Pharmacy NIIs & the cane rack",
+   "frame": "frames/f12.webp",
+   "audio": "audio/a12.m4a",
+   "seconds": 31.6,
+   "narration": "Three one-hour sets in pharmacy. Mobility is a standard new item introduction, and Adult Nutrition strips record there too. Apothecary is standard, including the new case work. Medical Socks is nine new items and nothing out. And the Drive Medical cane rack, again. No small peg hooks on the fixture, not when you build it and not later. If hooks are hanging off the side when you visit, remove them. Every visit. The survey is in the Retail Logic visit, and photos of both sides of the display are required.",
+   "words": 90,
+   "checkpoint": [
+    {
+     "id": "q13",
+     "type": "multi",
+     "q": "Drive Medical cane rack. Pick everything that's true.",
+     "options": [
+      "No small peg hooks on the fixture",
+      "Remove any hooks hanging off the side, every visit",
+      "The survey needs photos of both sides of the display",
+      "Hooks are fine as long as the store asks for them"
+     ],
+     "correct": [
+      0,
+      1,
+      2
+     ],
+     "explain": "No small peg hooks, ever. Remove strays on every visit. The survey is in the Retail Logic visit and requires photos of both sides."
+    }
+   ]
+  },
+  {
+   "n": 13,
+   "id": "s13",
+   "title": "Materials & holds",
+   "frame": "frames/f13.webp",
+   "audio": "audio/a13.m4a",
+   "seconds": 40.64,
+   "narration": "Materials and holds. The Vestcom boxes have been delivered to all ten District eight stores. Non-Compass strips and tags ride inside with the rest of the set, so set vendor and non-Compass materials aside for the right team, and keep the planograms on the Compass cart. Meat pushers are postponed to Period eleven. Do not start pusher installs. We start once parts are available, and each set gets finished once all of its parts are in the store. No half-built sets. Deli strip and tag events are keyed as non-Compass, so make sure the store signs them out and the ClickList locations update. Go-back strip orders are keyed as remodels, so email me once they're installed and I'll get them signed out.",
+   "words": 122,
+   "checkpoint": [
+    {
+     "id": "q14",
+     "type": "choice",
+     "q": "Meat pushers. What's the plan?",
+     "options": [
+      "Install this week wherever parts arrived",
+      "Postponed to Period 11. Start when parts are available, finish each set once all its parts are in store",
+      "Install half now, half later",
+      "Cancelled"
+     ],
+     "correct": 1,
+     "explain": "Postponed to Period 11. We start once parts are available, and each set gets finished once all of its parts are in the store. No half-built sets."
+    }
+   ]
+  },
+  {
+   "n": 14,
+   "id": "s14",
+   "title": "Store callouts",
+   "frame": "frames/f14.webp",
+   "audio": "audio/a14.m4a",
+   "seconds": 41.76,
+   "narration": "A few store callouts. At two one five, the relay window runs October twelfth through the twenty-second. Treat Compass sets as new item introductions while the relay is on, and work with the relay manager. Can Beans, Can Meat, and Dry Potatoes are planogram-only there this week. Two one five also has a home side count on Wednesday the twenty-first and an apparel count on Thursday the twenty-second. Fifty-three has a home side count on Monday the nineteenth, an apparel count on Tuesday the twentieth, and its Center Store second count on Thursday the twenty-second. For every store: if they ask us to set on a later date, email me with the manager's name and title. And in remodel and relay stores, work with the Relay Manager.",
+   "words": 127,
+   "checkpoint": [
+    {
+     "id": "q15",
+     "type": "choice",
+     "q": "At store 215 this week, which sets are planogram-only?",
+     "options": [
+      "Cocoa, Vinegar and Milk Byproducts",
+      "Can Beans, Can Meat and Dry Potatoes",
+      "Vitamins and NF Vitamins",
+      "All of them"
+     ],
+     "correct": 1,
+     "explain": "Can Beans, Can Meat and Dry Potatoes are planogram-only at 215. The relay runs through October 22; treat Kompass sets as NIIs and work with the relay manager."
+    }
+   ]
+  },
+  {
+   "n": 15,
+   "id": "s15",
+   "title": "Standing reminders",
+   "frame": "frames/f15.webp",
+   "audio": "audio/a15.m4a",
+   "seconds": 43.2,
+   "narration": "The standing reminders. Before you close the shift, make sure tags are installed correctly and every planogram is complete, with photos that show it without making anyone squint. Signoff photos go to PROD under Compass Maintenance, close, clear, and in good light, and fill out the signoff form completely. Pull expired product, label it, box it, and give it to the store. Digital shelf labels stay put. Cut-in shifts are closed by nine in the morning, you're out of the store by two thirty, and the EOD goes out by three with the store number in the subject line. Running behind on any of those? Tell me as soon as you know. If you need InstaWork support, tell me by Wednesday morning. And any hotline or helpdesk contact gets cleared with me first.",
+   "words": 133,
+   "checkpoint": [
+    {
+     "id": "q16",
+     "type": "choice",
+     "q": "You'll need InstaWork support next week. When do you tell me?",
+     "options": [
+      "Friday afternoon",
+      "By Wednesday morning",
+      "The morning of the shift",
+      "Whenever the store asks"
+     ],
+     "correct": 1,
+     "explain": "Tell me by Wednesday morning each week."
+    }
+   ]
+  },
+  {
+   "n": 16,
+   "id": "s16",
+   "title": "Period 10 Week 3",
+   "frame": "frames/f16.webp",
+   "audio": "audio/a16.m4a",
+   "seconds": 56.8,
+   "narration": "Looking ahead to Period ten Week three. About thirty-one hours of Compass, with the checklane blitz continuing on top. Pegs first, and find them now. Personal Care Appliances lands, and twenty-three, twenty-eight, two one five, and three nine one need six extra magna bar pegs on hand. Hair Care Accessories lands, and nineteen, two one five, and six eight two need seven extra pegboard pegs on hand. On the fresh side, Convenient Snacking is a produce set, so it goes first thing. The Simple Truth kimchi leaves Lunchmeat and moves to Convenient Snacking in produce, with Claussen pickles taking its spot. Snackmeat reflows to brand-block, Ham Bar gets an Ingredient Meat section, and Frozen Meatless now leads with MorningStar. Also on the schedule: Bleach changes department from D-oh-one to D-oh-three with shelf-height moves in some stores, Salad Dressing drops the entire Wishbone line, Deodorants is a four-hour NII, and NF Chips and Snacks is six.",
+   "words": 155,
+   "checkpoint": [
+    {
+     "id": "q17",
+     "type": "multi",
+     "q": "Which stores need 6 extra magna bar pegs on hand for Personal Care Appliances in Week 3?",
+     "options": [
+      "19",
+      "23",
+      "28",
+      "215",
+      "391",
+      "682"
+     ],
+     "correct": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "explain": "23, 28, 215 and 391 need 6 extra magna bar pegs. Separately, 19, 215 and 682 need 7 extra pegboard pegs for Hair Care Accessories."
+    }
+   ]
+  },
+  {
+   "n": 17,
+   "id": "s17",
+   "title": "Further out",
+   "frame": "frames/f17.webp",
+   "audio": "audio/a17.m4a",
+   "seconds": 22.56,
+   "narration": "Further out. Period ten Week four is about thirty-four hours. Period eleven Week one is about thirty-five, and that's where the meat pushers are targeted. We start when parts are available and finish each set once all its parts are in the store. Period eleven Week two is a blackout week on the vendor schedule. Backlog that reaches the blackout week has nowhere to go, so clear it before then.",
+   "words": 70,
+   "checkpoint": [
+    {
+     "id": "q18",
+     "type": "choice",
+     "q": "What is Period 11 Week 2?",
+     "options": [
+      "Meat pusher week",
+      "A blackout week on the vendor schedule",
+      "The next Checklane Blitz",
+      "A 35-hour week"
+     ],
+     "correct": 1,
+     "explain": "Blackout week. Backlog that reaches it has nowhere to go, so clear it before then."
+    }
+   ]
+  },
+  {
+   "n": 18,
+   "id": "s18",
+   "title": "The short version",
+   "frame": "frames/f18.webp",
+   "audio": "audio/a18.m4a",
+   "seconds": 53.68,
+   "narration": "So, the short version. Sixty-four hours: thirty-nine of Compass and twenty-five of checklane blitz, no priority sets, backlog first. Stores that haven't finished the blitz get scheduled next week with InstaWork help. Cocoa syrups go to the top two shelves, and you work bottom up. Vinegar shelves four through six go by brand with Kroger on the left. Vitamins shelves five through eight shift left, so bring four spare pushers. NF Vitamins: pull the deletes first and work the seventy-two changes. Diabetic is five stores, Home Testing to the top shelf, all no pen needles. No small peg hooks on the cane rack. Meat pushers are postponed to Period eleven. And start hunting pegs for Week three. If you have questions or you're running behind, tell me early. That's the week. Somewhere in a back room, a case of Swiss Miss is about to climb one shelf closer to the syrup it's always admired. Go set it.",
+   "words": 157,
+   "checkpoint": []
+  }
+ ]
+}
