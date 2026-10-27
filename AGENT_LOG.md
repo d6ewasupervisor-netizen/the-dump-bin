@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-27 — Field app 3.5.02 loads the PDF viewer
+
+The pilot Dump Bin loads `materials-pdf-viewer.js?v=1.1.5`. Desktop scroll turns pages. Phone swipe is unchanged.
+
 ## 2026-10-27 — PDF viewer desktop wheel
 
 Dump Bin PDF viewer `shared/pdf-viewer/materials-pdf-viewer.js` is 1.1.5. On a desktop pointer, scrolling up or down over the page turns one page. A trackpad flick stays one page. Ctrl+scroll still zooms. While zoomed, the wheel moves the page until the top or bottom, then the next scroll turns the page. Phone left/right swipe is unchanged. Cache pins updated on the dump bin, `/pdf/`, and EOD.
