@@ -1,0 +1,659 @@
+{
+ "week": "P10W3",
+ "district": "D8",
+ "title": "Period 10 · Week 3",
+ "rev": "P10W3 · Rev 1 · 2026-10-25",
+ "sets": [
+  {
+   "dept": "Grocery",
+   "code": "C026",
+   "name": "Dry Ramen",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C089",
+   "name": "Salad Dressing (incl. C668)",
+   "hours": 2,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C118",
+   "name": "Frozen Meatless",
+   "hours": 4,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C106",
+   "name": "Bleach",
+   "hours": 2,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C183",
+   "name": "Family Planning",
+   "hours": 2,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C165",
+   "name": "Hair Care Accessories",
+   "hours": 3,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C242",
+   "name": "Personal Care Appliances",
+   "hours": 2,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C163",
+   "name": "Deodorants",
+   "hours": 4,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Fresh",
+   "code": "C597",
+   "name": "Convenient Snacking",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Fresh",
+   "code": "C556",
+   "name": "Ham Bar (incl. C559)",
+   "hours": 1,
+   "type": "Update",
+   "cold": true
+  },
+  {
+   "dept": "Fresh",
+   "code": "C561",
+   "name": "Snackmeat",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Fresh",
+   "code": "C576",
+   "name": "Lunchmeat",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Fresh",
+   "code": "C499",
+   "name": "Fresh Kitchen Meal Kits",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C672",
+   "name": "NF Chips & Snacks",
+   "hours": 6,
+   "type": "NII",
+   "cold": false
+  }
+ ],
+ "frames": [
+  {
+   "stop_title": "Welcome",
+   "kicker": "Weekly Kompass Briefing",
+   "title": "",
+   "blocks": [],
+   "narration": "Alright, everyone, this is the briefing for Period ten, week three, District eight. The week totals thirty-one hours across fourteen sets. Details are on screen, checkpoints come along the way, and the checkpoints do count.",
+   "kind": "title"
+  },
+  {
+   "stop_title": "The Week at a Glance",
+   "kicker": "P10W3 · District 8",
+   "title": "This Week at a Glance",
+   "blocks": [
+    {
+     "kind": "sets_table"
+    },
+    {
+     "kind": "counts_info"
+    }
+   ],
+   "narration": "Here is the whole week on one screen. Grocery carries three sets, Health Beauty Care carries five, fresh carries five, and Natural Foods carries one. The largest set is Natural Foods Chips and Snacks at six hours, followed by Frozen Meatless and Deodorants at four hours each. Six sets run cold, and every cold set has a twenty-minute limit on product out of refrigeration."
+  },
+  {
+   "stop_title": "Grocery",
+   "kicker": "Grocery",
+   "title": "Salad Dressing, Meatless, Ramen",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Salad Dressing · C089 (incl. C668)",
+     "hrs": "@C089",
+     "bullets": [
+      "Pull the entire <b>Wishbone</b> line off the planogram.",
+      "Move <b>Newman's Own</b> up from the bottom shelf to the top 2 shelves.",
+      "New <b>Kraft 8 oz</b> items go on <b>shelf 5</b>."
+     ],
+     "html": "<p>Store <span class=\"chip\" style=\"background:#0891B2\">31</span> receives C668 NII strips. Record them under <b>C089</b>.</p>"
+    },
+    {
+     "kind": "card",
+     "head": "Frozen Meatless · C118",
+     "hrs": "@C118",
+     "cold": true,
+     "bullets": [
+      "<b>MorningStar now leads</b> the set; it swaps places with Impossible. No facing changes.",
+      "Only <b>doors 1 and 2</b> are touched. One delete."
+     ],
+     "act": "Bring the full set strips. Product out no longer than 20 minutes."
+    },
+    {
+     "kind": "card",
+     "head": "Dry Ramen · C026",
+     "hrs": "@C026",
+     "paragraphs": [
+      "New items only."
+     ]
+    }
+   ],
+   "narration": "Starting with grocery. Salad Dressing is two hours. The entire Wishbone line comes off the planogram. Newman's Own moves up from the bottom shelf into the top two shelves, and the new Kraft eight-ounce items go on shelf five. Store thirty-one gets condiments strips for this set, and those get recorded under Salad Dressing. Frozen Meatless is four hours and runs cold. MorningStar now leads the set and swaps places with Impossible, with no facing changes. Only the first two doors are touched, and there is one delete. Full set strips are coming for this one, so bring them. Dry Ramen is one hour of new items."
+  },
+  {
+   "stop_title": "Health & Beauty",
+   "kicker": "Health & Beauty",
+   "title": "Bleach, Safers, Deodorants",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Bleach · C106 · Test set",
+     "hrs": "@C106",
+     "bullets": [
+      "<b>Start at the top and work down.</b> Most movement is vertical.",
+      "Smaller liquid bleach drops to the <b>bottom shelf</b>.",
+      "Department change: <b>D01 → D03</b>."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Family Planning · C183",
+     "hrs": "@C183",
+     "bullets": [
+      "Pull safers off <b>all pregnancy tests and lubes</b>.",
+      "Listed condoms and pills stay in safers <b>in every POG</b> (list on the handout)."
+     ],
+     "act": "Walk every POG before calling it done."
+    },
+    {
+     "kind": "card",
+     "head": "Deodorants · C163",
+     "hrs": "@C163",
+     "paragraphs": [
+      "New items. Watch for <b>case-pack changes</b> on the new items."
+     ]
+    }
+   ],
+   "narration": "Health Beauty Care. Bleach is two hours, and it was a test set. Start at the top and work down. Most of the movement is vertical, and the smaller liquid bleach drops to the bottom shelf. The set also moves from department zero one to department zero three. Family Planning is two hours, and the work is safers. Pull the safers off every pregnancy test and every lube. The listed condoms and the listed pills stay in safers, in every planogram. Walk every planogram before calling it done. The full list is on the handout. Deodorants is four hours of new items, and the case packs change on the new items, so check them as they go on."
+  },
+  {
+   "stop_title": "Pegs",
+   "kicker": "Health & Beauty",
+   "title": "Pegs for Two Sets",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "Pegs on hand before you start the set."
+    },
+    {
+     "kind": "card",
+     "head": "Hair Care Accessories · C165",
+     "hrs": "@C165",
+     "paragraphs": [
+      "Kroger brand items come into the set."
+     ],
+     "chips": {
+      "label": "<b>7 extra pegboard pegs</b> needed at:",
+      "stores": [
+       19,
+       215,
+       682
+      ],
+      "color": "red"
+     }
+    },
+    {
+     "kind": "card",
+     "head": "Personal Care Appliances · C242 (incl. C186)",
+     "hrs": "@C242",
+     "chips": {
+      "label": "<b>6 extra magna bar pegs</b> needed at:",
+      "stores": [
+       23,
+       28,
+       215,
+       391
+      ],
+      "color": "red"
+     },
+     "bullets": [
+      "Pegs shipped by <b>store mail</b>, green label: <b>hold for the Kompass team</b>. Track them down first.",
+      "No flow change. New items mostly on the <b>top shelf of Bay 1</b>. Electric razors barely move."
+     ]
+    }
+   ],
+   "narration": "Here is your action item for this week, and it involves pegs. Hair Care Accessories is three hours, and it brings Kroger brand items into the set. Stores nineteen, two one five, and six eight two need seven extra pegboard pegs on hand before the set starts. Personal Care Appliances is two hours and folds in Miscellaneous Health Beauty Care. Stores twenty-three, twenty-eight, two one five, and three nine one need six extra magna bar pegs. Those pegs shipped to the store by store mail with a green label that says hold for the Compass team. Track them down before starting. There is no flow change on Personal Care Appliances. New items land mostly on the top shelf of bay one, and electric razors barely move."
+  },
+  {
+   "stop_title": "Fresh",
+   "kicker": "Fresh",
+   "title": "Cold Sets",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "Every set on this frame is cold: product out no longer than 20 minutes."
+    },
+    {
+     "kind": "card",
+     "head": "Ham Bar · C556 (incl. C559)",
+     "hrs": "@C556",
+     "cold": true,
+     "bullets": [
+      "New <b>Ingredient Meat</b> section; items move over from C559 Heat &amp; Serve.",
+      "Most sets: <b>2 ft Ham Bar left, 2 ft Ingredient Meat right</b>.",
+      "C559 strips are recorded under <b>C556</b>."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Snackmeat · C561",
+     "hrs": "@C561",
+     "cold": true,
+     "bullets": [
+      "Pull the deletes <b>first</b>.",
+      "Reflow: Hormel and Applegate blocked together, then the Kroger block.",
+      "Cut new items in during the reflow."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Lunchmeat · C576 → Convenient Snacking · C597",
+     "cold": true,
+     "bullets": [
+      "Simple Truth <b>Korean Kimchi</b> leaves C576 and goes to C597 in produce.",
+      "A <b>Claussen Whole Dill Pickle</b> takes its place in C576."
+     ],
+     "paragraphs": [
+      "C576 1 hr · C597 1 hr"
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Fresh Kitchen Meal Kits · C499",
+     "hrs": "@C499",
+     "cold": true,
+     "paragraphs": [
+      "New items only."
+     ]
+    }
+   ],
+   "narration": "Fresh, and all of it is cold. Product stays out no longer than twenty minutes on every set here. Ham Bar is one hour. A new Ingredient Meat section is carved out of the set, with items moving over from Heat and Serve. Most sets land with two feet of Ham Bar on the left and two feet of Ingredient Meat on the right. Any Heat and Serve strips get recorded under Ham Bar. Snackmeat is one hour. Pull the deletes first, then reflow to block Hormel and Applegate together, then the Kroger block, and cut the new items in during the reflow. Lunchmeat is one hour. The Simple Truth kimchi leaves Lunchmeat and goes to Convenient Snacking, over in produce, and a Claussen whole dill pickle takes its place in Lunchmeat. Convenient Snacking is one hour, and the kimchi is one of its new items. Fresh Kitchen Meal Kits is one hour of new items."
+  },
+  {
+   "stop_title": "NF Chips & Snacks",
+   "kicker": "Natural Foods",
+   "title": "NF Chips & Snacks",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "NF Chips & Snacks · C672",
+     "hrs": "@C672",
+     "bullets": [
+      "<b>No strips or tags</b> on this set.",
+      "Increase facings on <b>Frito-Lay</b> and <b>Siete</b>.",
+      "<b>Siete</b> chips and <b>Boulder Canyon</b> chips convert to a vertical block.",
+      "Work the changes through the multipack and protein sections."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Pull from the planogram",
+     "cls": "red",
+     "paragraphs": [
+      "<b>Good Eat'n · Kindling · Angie's · Quest</b>"
+     ]
+    },
+    {
+     "kind": "info",
+     "html": "The largest set of the week at <b>6 hours</b>."
+    }
+   ],
+   "narration": "Natural Foods Chips and Snacks is the largest set of the week at six hours. There are no strips or tags on this one. Facings go up on Frito-Lay and Siete. Siete chips and Boulder Canyon chips convert to a vertical block. The multipack and protein sections change too. The deletes are Good Eat'n, Kindling, Angie's, and Quest."
+  },
+  {
+   "stop_title": "Callouts",
+   "kicker": "Callouts",
+   "title": "Three Callouts",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "New shelf strip format",
+     "bullets": [
+      "Starts <b>this week</b>: strips carry a <b>shelf number</b> and an <b>item position number</b>.",
+      "Where a section has no room (spices, for example), the shelf number drops and the position number moves to the item information."
+     ],
+     "act": "Review the format before installing."
+    },
+    {
+     "kind": "card",
+     "head": "Trial size sets and mobility racks",
+     "cls": "navy",
+     "paragraphs": [
+      "Non-Kompass events."
+     ],
+     "html": "<div class=\"act\">Remind the store to sign them out, or they come back as byway issues.</div>"
+    },
+    {
+     "kind": "card",
+     "head": "Fishing",
+     "cls": "red",
+     "html": "<div class=\"act\" style=\"background:#fff;margin-top:0\">Hold any fishing strips. Do not load them. Fishing moved to P10W4.</div>"
+    }
+   ],
+   "narration": "Three callouts. First, the new Kroger shelf strip format starts this week. Strips now carry a shelf number and an item position number. Review the format before installing. Where a section has no room for the extra numbers, spices for example, the shelf number drops and the position number moves into the item information. Second, trial size sets and mobility racks are non-Compass events. Remind the store to sign them out, or they come back as byway issues. Third, hold any fishing strips. Fishing moved to next week, and nothing gets loaded this week."
+  },
+  {
+   "stop_title": "Next Week",
+   "kicker": "Looking Ahead · P10W4",
+   "title": "Next Week: About 35 Hours",
+   "blocks": [
+    {
+     "kind": "table",
+     "columns": [
+      {
+       "label": "Next week · Updates"
+      },
+      {
+       "label": "Hrs",
+       "num": true
+      },
+      {
+       "label": "Type",
+       "muted": true
+      }
+     ],
+     "rows": [
+      [
+       "Baby Food (incl. C670)",
+       "6",
+       "Update"
+      ],
+      [
+       "Sports Nutrition",
+       "6",
+       "Update"
+      ],
+      [
+       "Bread",
+       "2",
+       "Update"
+      ],
+      [
+       "Cotton (incl. C177)",
+       "2",
+       "Update"
+      ],
+      [
+       "NF Protein Powders",
+       "2",
+       "Update"
+      ]
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "The rest of next week",
+     "bullets": [
+      "Coffee gets seasonal adds.",
+      "Everything else is new items and quarter-hour maintenance."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Test sets at other stores",
+     "cls": "navy",
+     "paragraphs": [
+      "Frozen Bread and Asian Foods are tested at stores outside District 8."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "After that",
+     "cls": "org",
+     "paragraphs": [
+      "Period 11, weeks 2 and 3: <b>blackout, 0 hours</b>."
+     ]
+    }
+   ],
+   "narration": "Looking ahead to next week, about thirty-five hours. The big updates are Baby Food and Sports Nutrition at six hours each, then Bread, Cotton, and Natural Foods Protein Powders at two hours each. Coffee gets seasonal adds. The rest is new items and quarter-hour maintenance. Two sets run as test sets at stores outside District eight that week, Frozen Bread and Asian Foods. After that, Period eleven, weeks two and three, are blackout weeks at zero hours."
+  },
+  {
+   "stop_title": "Pet Care and Bread",
+   "kicker": "Looking Ahead · P10W4",
+   "title": "Pet Care and Bread",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Pet Care · C212",
+     "bullets": [
+      "<b>Kompass at all 10</b> District 8 stores.",
+      "Department change: <b>D01 → D03</b>."
+     ],
+     "chips": {
+      "label": "Cat scratcher versions remapped at:",
+      "stores": [
+       19,
+       28,
+       31,
+       53,
+       215,
+       391,
+       658
+      ]
+     }
+    },
+    {
+     "kind": "card",
+     "head": "Bread · C400",
+     "chips": {
+      "label": "Convert to <b>Artisan with the Asian POG</b>:",
+      "stores": [
+       23,
+       31,
+       658
+      ],
+      "color": "orange"
+     },
+     "html": "<ul><li><b>Keep branded rack strips in place.</b> Do not install Kompass strips; use only as a reset guide.</li><li>Bakery table: new POG goes in the plastic sleeve on the table. Otherwise give the printed POG to Bakery.</li></ul>"
+    }
+   ],
+   "narration": "Next week, Pet Care is Compass at all ten District eight stores, one hour. It also changes department, from zero one to zero three. Cat scratcher versions get remapped at nineteen, twenty-eight, thirty-one, fifty-three, two one five, three nine one, and six five eight. Bread is two hours. Stores twenty-three, thirty-one, and six five eight convert to Artisan with the Asian planogram. Keep branded rack strips in place, and do not install Compass strips on those racks. On a bakery table, the new planogram goes in the plastic sleeve on the table. Everywhere else, the printed planogram goes to the Bakery department."
+  },
+  {
+   "stop_title": "Cosmetics and Fuel",
+   "kicker": "Looking Ahead · P10W4",
+   "title": "Cosmetics and Fuel",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Cosmetics · Cotton C247 · Implements & Brushes C194",
+     "bullets": [
+      "Field details are still being put together.",
+      "Stores on <b>Universal Fixtures</b> receive a PM Plastics package (magna bar and hooks) and full sets of tray labels."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Fuel · C142 / C223",
+     "chips": {
+      "label": "Kiosk planogram at:",
+      "stores": [
+       19,
+       28,
+       31,
+       53,
+       215,
+       391,
+       459,
+       682
+      ]
+     },
+     "html": "<ul><li>REZ tags are wrapped separately.</li><li>Kompass does not transport merchandise between the store and the fuel station.</li></ul>",
+     "act": "Ask the store to take the new items out to the fuel station."
+    }
+   ],
+   "narration": "Two more items for next week. Cotton and Implements and Brushes arrive as part of a cosmetics reset, and the field details are still being put together. Stores on Universal Fixtures receive a package from PM Plastics with the magna bar and hooks, plus full sets of tray labels. The fuel sets are two hours. Stores nineteen, twenty-eight, thirty-one, fifty-three, two one five, three nine one, four five nine, and six eight two have a kiosk planogram. REZ tags are wrapped separately. Compass does not transport merchandise between the store and the fuel station. Ask the store to take the new items out to the fuel station."
+  },
+  {
+   "stop_title": "Key Facts",
+   "kicker": "P10W3 · District 8",
+   "title": "Key Facts",
+   "blocks": [
+    {
+     "kind": "keyfacts",
+     "head": "Key Facts for P10W3",
+     "items": [
+      "31 hours · 14 sets · 6 cold sets at 20 minutes",
+      "7 pegboard pegs: 19, 215, 682",
+      "6 magna bar pegs: 23, 28, 215, 391",
+      "Safers: walk every POG",
+      "New shelf strip format starts this week",
+      "Sign out trial size sets and mobility racks",
+      "Hold the fishing strips"
+     ]
+    },
+    {
+     "kind": "info",
+     "big": true,
+     "html": "That is the briefing."
+    }
+   ],
+   "narration": "That is the week. Pegs first: seven pegboard pegs at nineteen, two one five, and six eight two, and six magna bar pegs at twenty-three, twenty-eight, two one five, and three nine one. Cold sets stay on the twenty-minute clock. Walk every planogram on safers. The new shelf strip format starts this week. Trial size sets and mobility racks get signed out, and the fishing strips stay held. That is the briefing. The quiz is waiting on the other side."
+  }
+ ],
+ "handout": {
+  "execution": {
+   "C026": "New items only.",
+   "C089": "Pull the entire Wishbone line. Newman's Own moves up from the bottom shelf to the top 2 shelves. New Kraft 8 oz items go on shelf 5. Store 31: C668 NII strips are recorded under C089.",
+   "C118": "MorningStar leads and swaps places with Impossible. Doors 1 and 2 only. One delete. Bring full set strips. Product out no longer than 20 minutes.",
+   "C106": "Start at the top and work down. Smaller liquid bleach drops to the bottom shelf. Department change D01 to D03.",
+   "C183": "Safers come off all pregnancy tests and lubes. The listed condoms and pills stay in safers in every POG. Walk every POG.",
+   "C165": "Kroger brand items come in. Stores 19, 215, 682: 7 extra pegboard pegs on hand before starting.",
+   "C242": "Stores 23, 28, 215, 391: 6 extra magna bar pegs. Pegs shipped by store mail, green label, hold for the Kompass team. No flow change. New items mostly on the top shelf of Bay 1.",
+   "C163": "New items. Watch for case-pack changes on the new items.",
+   "C597": "Simple Truth Korean Kimchi comes in from C576.",
+   "C556": "New Ingredient Meat section; items move over from C559 Heat & Serve. Most sets: 2 ft Ham Bar left, 2 ft Ingredient Meat right. C559 strips are recorded under C556.",
+   "C561": "Pull deletes first. Reflow: Hormel and Applegate together, then the Kroger block. Cut new items in during the reflow.",
+   "C576": "Simple Truth Korean Kimchi moves to C597. Claussen Whole Dill Pickle takes its place.",
+   "C499": "New items only.",
+   "C672": "No strips or tags. Increase facings on Frito-Lay and Siete. Siete and Boulder Canyon chips convert to a vertical block. Changes in the multipack and protein sections. Pull Good Eat'n, Kindling, Angie's, Quest."
+  },
+  "page2": [
+   {
+    "head": "Pegs on hand before starting",
+    "cls": "r",
+    "act": "7 pegboard pegs (Hair Care Accessories): stores 19, 215, 682<br>6 magna bar pegs (Personal Care Appliances): stores 23, 28, 215, 391"
+   },
+   {
+    "head": "Safers: stay in safers in every POG",
+    "cols": [
+     {
+      "title": "Condoms",
+      "items": [
+       "Trojan Condoms Variety Pack",
+       "Trojan Magnum Lubricated Condoms (2 items)",
+       "Trojan Bareskin Raw Condoms",
+       "Skyn SPRM Feel Non-Latex (as printed in the Kompass Notes)",
+       "Skyn King Large Non-Latex"
+      ]
+     },
+     {
+      "title": "Pills",
+      "items": [
+       "Plan B One Step",
+       "Take Action",
+       "O'Pill Daily Oral Contraceptive (2 items)",
+       "Cadence Morning After"
+      ]
+     }
+    ],
+    "after": "Pull safers off all pregnancy tests and lubes. Walk every POG."
+   },
+   {
+    "head": "Callouts",
+    "cls": "y",
+    "bullets": [
+     "New shelf strip format starts this week: shelf number and item position number. Review the format before installing. Where a section has no room, the shelf number drops and the position number moves to the item information.",
+     "Trial size sets and mobility racks are non-Kompass events. Remind the store to sign them out.",
+     "Hold any fishing strips. Do not load them. Fishing moved to P10W4."
+    ]
+   },
+   {
+    "head": "Next week · P10W4 · about 35 hours",
+    "table": [
+     [
+      "Baby Food (incl. C670)",
+      "6"
+     ],
+     [
+      "Sports Nutrition",
+      "6"
+     ],
+     [
+      "Bread",
+      "2"
+     ],
+     [
+      "Cotton (incl. C177)",
+      "2"
+     ],
+     [
+      "NF Protein Powders",
+      "2"
+     ]
+    ],
+    "table_columns": [
+     "Update",
+     "Hrs"
+    ],
+    "bullets": [
+     "Coffee gets seasonal adds. The rest is new items and quarter-hour maintenance.",
+     "Pet Care (C212): Kompass at all 10 District 8 stores; department change D01 to D03. Cat scratcher versions remapped at 19, 28, 31, 53, 215, 391, 658.",
+     "Bread (C400): stores 23, 31, 658 convert to Artisan with the Asian POG. Keep branded rack strips in place; do not install Kompass strips. Bakery table: new POG goes in the plastic sleeve on the table. Otherwise give the printed POG to Bakery.",
+     "Cotton (C247) and Implements &amp; Brushes (C194): field details are still being put together. Stores on Universal Fixtures receive a PM Plastics package (magna bar and hooks) and full sets of tray labels.",
+     "Fuel (C142 / C223): kiosk planogram at 19, 28, 31, 53, 215, 391, 459, 682. REZ tags are wrapped separately. Ask the store to take the new items out to the fuel station. Kompass does not transport merchandise between the store and the fuel station.",
+     "Frozen Bread and Asian Foods are tested at stores outside District 8.",
+     "Period 11, weeks 2 and 3: blackout, 0 hours."
+    ]
+   }
+  ]
+ }
+}
