@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-27 — PDF viewer desktop wheel
+
+Dump Bin PDF viewer `shared/pdf-viewer/materials-pdf-viewer.js` is 1.1.5. On a desktop pointer, scrolling up or down over the page turns one page. A trackpad flick stays one page. Ctrl+scroll still zooms. While zoomed, the wheel moves the page until the top or bottom, then the next scroll turns the page. Phone left/right swipe is unchanged. Cache pins updated on the dump bin, `/pdf/`, and EOD.
+
 ## 2026-10-26 — Field app 3.4.99
 
 The name line says Signed in only while that lead has a live PROD/SAS Okta session. A known name with no live session stays the name alone.

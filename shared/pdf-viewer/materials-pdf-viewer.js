@@ -11,7 +11,7 @@
 
   const WORKER =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const ASSET_VER = '1.1.4';
+  const ASSET_VER = '1.1.5';
   const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
   const MSG_SOURCE = 'materials-pdf-viewer';
 
@@ -39,6 +39,10 @@
   let pinchOriginY = 0;
   let pinchScrollX = 0;
   let pinchScrollY = 0;
+  let wheelAccum = 0;
+  let wheelStamp = 0;
+  let wheelLockUntil = 0;
+  let wheelGestureStart = 0;
   let keyHandler = null;
   let resizeTimer = null;
 
@@ -844,9 +848,36 @@
     }, { passive: true });
 
     stage?.addEventListener('wheel', (e) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        wheelAccum = 0;
+        closestZoom(e.deltaY < 0 ? 1 : -1);
+        return;
+      }
+      if (!desktopWheelNav() || stage.classList.contains('is-pinching') || e.shiftKey) return;
+      const dy = wheelDeltaPixels(e.deltaY, e.deltaMode);
+      const dx = wheelDeltaPixels(e.deltaX, e.deltaMode);
+      if (!dy || Math.abs(dx) > Math.abs(dy)) return;
+      if (zoomedStageCanScroll(stage, dy)) return;
+
       e.preventDefault();
-      closestZoom(e.deltaY < 0 ? 1 : -1);
+      const now = Date.now();
+      if (now < wheelLockUntil) {
+        if (now - wheelGestureStart < 700) {
+          wheelLockUntil = Math.min(wheelGestureStart + 700, now + 180);
+        }
+        return;
+      }
+      if (now - wheelStamp > 200) wheelAccum = 0;
+      wheelStamp = now;
+      if ((wheelAccum > 0 && dy < 0) || (wheelAccum < 0 && dy > 0)) wheelAccum = 0;
+      wheelAccum += dy;
+      if (Math.abs(wheelAccum) < 40) return;
+      wheelGestureStart = now;
+      wheelLockUntil = now + 180;
+      const dir = wheelAccum > 0 ? 1 : -1;
+      wheelAccum = 0;
+      goTo(currentPage + dir);
     }, { passive: false });
   }
 
@@ -911,6 +942,29 @@
   function detachKeys() {
     if (keyHandler) document.removeEventListener('keydown', keyHandler);
     keyHandler = null;
+  }
+
+  function wheelDeltaPixels(delta, mode) {
+    if (mode === 1) return delta * 16;
+    if (mode === 2) return delta * 800;
+    return delta;
+  }
+
+  function desktopWheelNav() {
+    try {
+      return !!(global.matchMedia && global.matchMedia('(hover: hover) and (pointer: fine)').matches);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  function zoomedStageCanScroll(stage, dy) {
+    if (!stage || fitMode !== 'manual') return false;
+    const maxTop = stage.scrollHeight - stage.clientHeight;
+    if (maxTop <= 2) return false;
+    if (dy < 0) return stage.scrollTop > 2;
+    if (dy > 0) return stage.scrollTop < maxTop - 2;
+    return false;
   }
 
   function isNarrowScreen() {
