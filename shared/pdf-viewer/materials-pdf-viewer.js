@@ -11,7 +11,7 @@
 
   const WORKER =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const ASSET_VER = '1.1.5';
+  const ASSET_VER = '1.1.6';
   const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
   const MSG_SOURCE = 'materials-pdf-viewer';
 
@@ -43,6 +43,7 @@
   let wheelStamp = 0;
   let wheelLockUntil = 0;
   let wheelGestureStart = 0;
+  let pendingScrollEdge = null;
   let keyHandler = null;
   let resizeTimer = null;
 
@@ -454,6 +455,12 @@
       inner.appendChild(wrap);
       const stageEl = document.getElementById('mpvStage');
       stageEl?.classList.toggle('is-zoomed', fitMode === 'manual');
+      if (pendingScrollEdge && stageEl) {
+        const edge = pendingScrollEdge;
+        pendingScrollEdge = null;
+        if (edge === 'end') stageEl.scrollTop = stageEl.scrollHeight;
+        else stageEl.scrollTop = 0;
+      }
       updateNav();
 
       const activeThumb = document.querySelector(`.mpv-thumb[data-page="${currentPage}"]`);
@@ -464,12 +471,13 @@
     }
   }
 
-  function goTo(page) {
+  function goTo(page, edge) {
     const n = Math.min(pageCount, Math.max(1, Math.floor(Number(page) || 1)));
     if (n === currentPage && document.querySelector('.mpv-page-wrap')) {
       updateNav();
       return;
     }
+    pendingScrollEdge = edge === 'end' ? 'end' : 'start';
     currentPage = n;
     renderPage();
   }
@@ -858,7 +866,10 @@
       const dy = wheelDeltaPixels(e.deltaY, e.deltaMode);
       const dx = wheelDeltaPixels(e.deltaX, e.deltaMode);
       if (!dy || Math.abs(dx) > Math.abs(dy)) return;
-      if (zoomedStageCanScroll(stage, dy)) return;
+      if (stageCanScroll(stage, dy)) {
+        wheelAccum = 0;
+        return;
+      }
 
       e.preventDefault();
       const now = Date.now();
@@ -877,7 +888,7 @@
       wheelLockUntil = now + 180;
       const dir = wheelAccum > 0 ? 1 : -1;
       wheelAccum = 0;
-      goTo(currentPage + dir);
+      goTo(currentPage + dir, dir > 0 ? 'start' : 'end');
     }, { passive: false });
   }
 
@@ -958,10 +969,10 @@
     }
   }
 
-  function zoomedStageCanScroll(stage, dy) {
-    if (!stage || fitMode !== 'manual') return false;
+  function stageCanScroll(stage, dy) {
+    if (!stage) return false;
     const maxTop = stage.scrollHeight - stage.clientHeight;
-    if (maxTop <= 2) return false;
+    if (maxTop <= 24) return false;
     if (dy < 0) return stage.scrollTop > 2;
     if (dy > 0) return stage.scrollTop < maxTop - 2;
     return false;

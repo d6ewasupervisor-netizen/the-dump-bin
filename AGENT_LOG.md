@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-27 — PDF wheel scrolls the page, then turns
+
+Viewer 1.1.6. On a desktop, the wheel moves through the current page while any of it is still below or above the window. The next scroll at the bottom opens the next page at the top. The next scroll at the top opens the previous page at the bottom. A page that already fits turns on the first scroll. Phone swipe is unchanged. Field app pin is 1.1.6 on 3.5.03.
+
 ## 2026-10-27 — Field app 3.5.02 loads the PDF viewer
 
 The pilot Dump Bin loads `materials-pdf-viewer.js?v=1.1.5`. Desktop scroll turns pages. Phone swipe is unchanged.

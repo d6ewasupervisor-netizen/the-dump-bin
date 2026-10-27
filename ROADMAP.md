@@ -1,6 +1,6 @@
 # Roadmap
 
-Field app 3.5.02 loads PDF viewer 1.1.5. Desktop scroll turns pages in Dump Bin. Phones already on 3.5.01 need the version-badge update.
+Field app 3.5.03 loads PDF viewer 1.1.6. Desktop wheel scrolls the open page, then turns at the top or bottom. Phones on 3.5.02 need the version-badge update.
 
 Field app 3.4.97 separates the visible app identity from reporting auth: `Name · Signed in` stays at the top, while the lock and Visit button continue to track PROD + SI.
 
