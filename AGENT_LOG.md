@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-27 — Field alert ack report page
+
+`admin/field-alert-acks.html` renders `GET /api/field-alerts/report` with district/severity/status filters ("Not yet acknowledged" default), per-alert correction chains, delivered/opened(channel)/understood, SMS sent/failed, escalations, and a PDF export button. Uses the same `dumpBinSession` Bearer as District Helper.
+
 ## 2026-10-27 — Briefing decks off the public site
 
 P10W2 and P10W3 `deck.pdf` are served from eod-api `/hosted/weekly-briefing/{week}/deck.pdf`. The files are deleted from this repo. `P10W2/build.json` carries `deckUrl`. Future author commits skip the PDF. The planogram `D701_L00000_D03_C201_V415_I132_MX_9088145.pdf` was already gone from HEAD.
