@@ -1,5 +1,7 @@
 # Roadmap
 
+Field app 3.5.06 and Dump Bin CSS 1.1.3 ship together. A phone already open on 3.5.05 needs the version-badge update before the overlay shows. The file-name layout needs this pages deploy.
+
 Weekly briefing decks for P10W2 and P10W3 are on eod-api. This repo no longer publishes `weekly-briefing/source/*/deck.pdf`.
 
 Field app 3.5.03 loads PDF viewer 1.1.6. Desktop wheel scrolls the open page, then turns at the top or bottom. Phones on 3.5.02 need the version-badge update.
