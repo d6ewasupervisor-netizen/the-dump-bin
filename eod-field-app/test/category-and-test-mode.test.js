@@ -1575,6 +1575,9 @@ test('after-photo review jumps to that bay on the planogram and bottom nav Back 
   assert.doesNotMatch(html, /data-nav="[^"]*"[\s\S]{0,40}id="navOverlayBack"/);
   assert.match(css, /#navOverlayBack\[hidden\]/);
   assert.match(review, /ghOpenPlanogram/);
+  assert.match(review, /ghRotate/);
+  assert.match(review, /function sortByBay/);
+  assert.match(review, /function drawOriented/);
   assert.match(review, /function canShowPlanogram/);
   assert.match(review, /isBeforeSlot\(slotFilter\)/);
   assert.match(review, /pushOverlayBack/);
