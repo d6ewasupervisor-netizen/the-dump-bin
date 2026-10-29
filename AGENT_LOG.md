@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-29 — Time off card opens in the row (v2.24)
+
+The Time off table expands the request under the name that was clicked. Approve, deny, the note, Build and run, the step list, and the employee log stay on that card. Pull from Oracle and a Balances column (vacation, floating holiday, sick) call the new eod-api routes. Not published; `main` still serves v2.23.
+
 ## 2026-10-28 — Ack report shows the ack channel (branch fix/ack-report-channel)
 
 `admin/field-alert-acks.html` now renders the channel next to Understood (`2026-10-28 10:37 (sms)`), so an SMS one-tap is distinguishable from an in-app ack. It reads the `ack_channel` field that eod-api's `GET /api/field-alerts/report` started returning in deploy `d0979266`. **Not published yet** — the change is on branch `fix/ack-report-channel` (main needs Tyson's go); the JSON already carries the field.

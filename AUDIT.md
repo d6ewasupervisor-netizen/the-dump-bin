@@ -1,5 +1,7 @@
 # Audit
 
+Employee Board v2.24 (`welcome-letter-board/`): the Time off row expands under the name. Pull from Oracle posts `/api/pto/pull`. Balances render `balances.vacation`, `floatingHoliday`, and `sick`. Approve and deny still post `/api/pto/:id/approve|deny` with the note.
+
 `admin/field-alert-acks.html` renders `GET /api/field-alerts/report` (eod-api) with the dump-bin session Bearer and shows delivered / opened(channel) / understood(channel) / SMS / escalation per recipient, grouped into correction chains. The Understood cell reads `ack_channel` — eod-api deploy `d0979266` is what started returning it, so the page shows `(sms)` only for rows acked after 2026-10-28.
 
 Dump Bin embed (`dump-bin/dump-bin.css?v=1.1.3`) flattens `.db-browser` when `body.db-embedded` is set. Each file row is a grid: the name uses the full row, and Pages plus the size sit under it. The field app overlay is pilot 3.5.06.

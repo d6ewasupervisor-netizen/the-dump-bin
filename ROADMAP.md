@@ -1,5 +1,7 @@
 # Roadmap
 
+- Employee Board v2.24 (not on `main`): time-off row expands in place, Pull from Oracle, balance column. Publish with the eod-api Oracle worklist deploy.
+
 - Ack report (branch `fix/ack-report-channel`): the page shows the ack channel next to Understood. Merge + publish when Tyson says go; eod-api already serves `ack_channel`.
 - AGENTS.md / .clinerules (same branch) carry the "never push `main` without an explicit go" guardrail.
 

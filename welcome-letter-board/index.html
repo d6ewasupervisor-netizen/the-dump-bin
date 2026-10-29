@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.23 -->
+  <!-- welcome-letter-board v2.24 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.23">
+  <meta name="welcome-letter-version" content="v2.24">
   <title>Employee Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -150,6 +150,9 @@
     .wb-steps { margin: 14px 0 0; padding: 0; list-style: none; }
     .wb-steps li { display: grid; grid-template-columns: 6.5rem 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--wb-line); font-size: 14px; }
     .wb-steps .wb-step-label { font-weight: 700; color: var(--wb-navy); }
+    table.wb-table tbody tr.pto-expand,
+    table.wb-table tbody tr.pto-expand:hover { cursor: default; background: transparent; }
+    table.wb-table tbody tr.pto-expand td { padding: 0 0 12px; }
     @media (max-width: 640px) {
       .wb-steps li { grid-template-columns: 1fr; gap: 2px; }
     }
@@ -619,7 +622,10 @@
           <div>
             <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">Time off</h2>
           </div>
-          <button type="button" id="ptoRefresh" class="wb-btn wb-btn-ghost">Refresh</button>
+          <div class="wb-actions">
+            <button type="button" id="ptoPull" class="wb-btn wb-btn-primary">Pull from Oracle</button>
+            <button type="button" id="ptoRefresh" class="wb-btn wb-btn-ghost">Refresh</button>
+          </div>
         </div>
         <div id="ptoBanner" class="wb-banner wb-hidden"></div>
         <div class="wb-table-wrap">
@@ -630,19 +636,21 @@
                 <th>Type</th>
                 <th>Dates</th>
                 <th>Hours</th>
+                <th>Balances</th>
                 <th>Built</th>
                 <th>Ran</th>
               </tr>
             </thead>
             <tbody id="ptoRows">
-              <tr><td colspan="6" class="wb-muted">Loading…</td></tr>
+              <tr><td colspan="7" class="wb-muted">Loading…</td></tr>
             </tbody>
           </table>
         </div>
-        <div id="ptoDetail" class="wb-card" style="margin-top:16px;" hidden>
+        <div id="ptoDetailPark">
+        <div id="ptoDetail" class="wb-card" style="margin-top:8px;" hidden>
           <h3 id="ptoDetailTitle" style="margin:0 0 8px;color:var(--wb-navy);font-size:1.05rem;"></h3>
           <p id="ptoDetailMeta" class="wb-muted" style="margin:0 0 12px;"></p>
-          <label class="wb-muted" for="ptoNote" style="display:block;margin-bottom:6px;">Note</label>
+          <label class="wb-muted" for="ptoNote" style="display:block;margin-bottom:6px;">Note to the employee</label>
           <textarea id="ptoNote" style="width:100%;min-height:64px;margin-bottom:12px;"></textarea>
           <div class="wb-actions">
             <button type="button" id="ptoApprove" class="wb-btn wb-btn-primary">Approve</button>
@@ -653,6 +661,7 @@
           <ol id="ptoSteps" class="wb-steps" hidden></ol>
           <h3 style="margin:16px 0 8px;color:var(--wb-navy);font-size:1rem;">Employee log</h3>
           <div id="ptoLog"></div>
+        </div>
         </div>
       </section>
     </div>
@@ -895,8 +904,8 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.23</span>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.24</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.23"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.24"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.23';
+  const UI_VERSION = 'v2.24';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -1832,8 +1832,23 @@
       .map((entry) => ({ id: entry.detail.id, label: entry.detail.label, detail: entry.detail.detail }));
   }
 
+  function balanceLabel(balances) {
+    if (!balances) return '—';
+    const parts = [];
+    if (balances.vacation != null) parts.push(`Vac ${balances.vacation}`);
+    if (balances.floatingHoliday != null) parts.push(`Float ${balances.floatingHoliday}`);
+    if (balances.sick != null) parts.push(`Sick ${balances.sick}`);
+    return parts.length ? parts.join(' · ') : '—';
+  }
+
+  function parkPtoDetail() {
+    const detail = document.getElementById('ptoDetail');
+    const park = document.getElementById('ptoDetailPark');
+    if (detail && park && detail.parentElement !== park) park.appendChild(detail);
+  }
+
   function setPtoBusy(busy) {
-    ['ptoApprove', 'ptoDeny', 'ptoBuild'].forEach((id) => {
+    ['ptoApprove', 'ptoDeny', 'ptoBuild', 'ptoPull'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.disabled = busy;
     });
@@ -1871,27 +1886,48 @@
   function renderPtoRows() {
     const body = document.getElementById('ptoRows');
     if (!body) return;
+    parkPtoDetail();
     if (!ptoState.items.length) {
-      body.innerHTML = '<tr><td colspan="6" class="wb-muted">No time off requests.</td></tr>';
+      body.innerHTML = '<tr><td colspan="7" class="wb-muted">No time off requests.</td></tr>';
       return;
     }
     body.innerHTML = ptoState.items.map((item) => {
       const built = ptoIsBuilt(item)
         ? ptoYes(true)
         : `<span class="wb-muted">${escapeHtml(item.status)}</span>`;
+      const selected = item.id === ptoState.selectedId;
+      const expand = selected
+        ? '<tr class="pto-expand"><td id="ptoExpandCell" colspan="7"></td></tr>'
+        : '';
       return `
-      <tr data-pto-id="${escapeHtml(item.id)}" style="cursor:pointer;">
+      <tr data-pto-id="${escapeHtml(item.id)}" class="${selected ? 'is-selected' : ''}" style="cursor:pointer;">
         <td>${escapeHtml(item.employeeName)}</td>
         <td>${escapeHtml(item.absenceType)}</td>
         <td>${escapeHtml(ptoDates(item))}</td>
         <td>${escapeHtml(String(item.hours))}</td>
+        <td>${escapeHtml(balanceLabel(item.balances))}</td>
         <td>${built}</td>
         <td>${ptoYes(!!item.ranAt)}</td>
-      </tr>`;
+      </tr>${expand}`;
     }).join('');
+    const detail = document.getElementById('ptoDetail');
+    const cell = document.getElementById('ptoExpandCell');
+    if (detail && cell) {
+      cell.appendChild(detail);
+      detail.hidden = false;
+    }
     body.querySelectorAll('tr[data-pto-id]').forEach((row) => {
       row.addEventListener('click', () => {
-        openPto(row.getAttribute('data-pto-id')).catch((err) => showPtoBanner(err.message, false));
+        const id = row.getAttribute('data-pto-id');
+        if (ptoState.selectedId === id) {
+          ptoState.selectedId = null;
+          parkPtoDetail();
+          const parked = document.getElementById('ptoDetail');
+          if (parked) parked.hidden = true;
+          renderPtoRows();
+          return;
+        }
+        openPto(id).catch((err) => showPtoBanner(err.message, false));
       });
     });
   }
@@ -1901,6 +1937,7 @@
     const item = ptoState.items.find((row) => row.id === id);
     const detail = document.getElementById('ptoDetail');
     if (!item || !detail) return;
+    renderPtoRows();
     detail.hidden = false;
     document.getElementById('ptoDetailTitle').textContent = item.employeeName;
     const clock = [item.startTime, item.endTime].filter(Boolean).join(' – ');
@@ -1909,8 +1946,11 @@
       : '';
     const ran = item.ranAt ? ' Ran.' : '';
     const err = !ptoIsBuilt(item) && item.buildError ? ` ${item.buildError}` : '';
+    const oracle = item.oracleStatus
+      ? ` Oracle ${item.oracleStatus}.`
+      : (item.oracleError ? ` ${item.oracleError}` : '');
     document.getElementById('ptoDetailMeta').textContent =
-      `${item.absenceType} · ${ptoDates(item)}${clock ? ` · ${clock}` : ''} · ${item.hours} hours.${built}${ran}${err}`;
+      `${item.absenceType} · ${ptoDates(item)}${clock ? ` · ${clock}` : ''} · ${item.hours} hours.${built}${ran}${oracle}${err}`;
     const buildBtn = document.getElementById('ptoBuild');
     if (buildBtn) buildBtn.hidden = !!item.ranAt;
     document.getElementById('ptoNote').value = item.decisionNote || '';
@@ -1923,6 +1963,21 @@
       ? visible.map((entry) => `<p style="margin:0 0 8px;">${escapeHtml(entry.summary)}</p>`).join('')
       : '<p class="wb-muted" style="margin:0;">No log lines yet.</p>';
     renderPtoSteps(stepsFromLog(entries));
+  }
+
+  async function pullPto() {
+    const button = document.getElementById('ptoPull');
+    if (button) button.disabled = true;
+    showPtoBanner('Checking Oracle…', true);
+    try {
+      const result = await api('/api/pto/pull', { method: 'POST', body: '{}' });
+      showPtoBanner(`Oracle worklist: ${result.created || 0} new, ${result.updated || 0} already here.`, true);
+      await loadPto();
+    } catch (err) {
+      showPtoBanner(err.message, false);
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   async function loadPto() {
@@ -1977,6 +2032,11 @@
     if (!id) return;
     const status = document.getElementById('ptoActionStatus');
     const note = document.getElementById('ptoNote').value;
+    if (action === 'deny' && !String(note || '').trim()) {
+      status.textContent = 'Write the note before denying.';
+      document.getElementById('ptoNote').focus();
+      return;
+    }
     if (action === 'build') {
       await runPtoBuild(id, note, status);
       return;
@@ -2080,6 +2140,10 @@
     const ptoRefresh = document.getElementById('ptoRefresh');
     if (ptoRefresh) ptoRefresh.addEventListener('click', () => {
       loadPto().catch((err) => showPtoBanner(err.message, false));
+    });
+    const ptoPull = document.getElementById('ptoPull');
+    if (ptoPull) ptoPull.addEventListener('click', () => {
+      pullPto().catch((err) => showPtoBanner(err.message, false));
     });
     const ptoApprove = document.getElementById('ptoApprove');
     const ptoDeny = document.getElementById('ptoDeny');
