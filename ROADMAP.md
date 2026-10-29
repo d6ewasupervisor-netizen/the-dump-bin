@@ -1,5 +1,8 @@
 # Roadmap
 
+- Ack report (branch `fix/ack-report-channel`): the page shows the ack channel next to Understood. Merge + publish when Tyson says go; eod-api already serves `ack_channel`.
+- AGENTS.md / .clinerules (same branch) carry the "never push `main` without an explicit go" guardrail.
+
 Weekly briefing decks for P10W2 and P10W3 are on eod-api. This repo no longer publishes `weekly-briefing/source/*/deck.pdf`.
 
 Field app 3.5.03 loads PDF viewer 1.1.6. Desktop wheel scrolls the open page, then turns at the top or bottom. Phones on 3.5.02 need the version-badge update.
