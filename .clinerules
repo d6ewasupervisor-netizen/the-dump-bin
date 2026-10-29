@@ -1,0 +1,7 @@
+# Agent rules (the-dump-bin)
+
+**Never push to `main` without an explicit go from Tyson in the current message.** Feature work goes on branches. Asking for a change is NOT permission to push `main`; a past go does not carry forward. `main` publishes to the-dump-bin.com.
+
+No email, SMS, magic link, or invite goes to a real person unless Tyson asks for that send in the current turn.
+
+Static site only: no build step. Keep `src/public/eod-board/` in eod-api identical to the hub copy on every change.
