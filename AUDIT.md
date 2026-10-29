@@ -1,5 +1,7 @@
 # Audit
 
+`admin/field-alert-acks.html` renders `GET /api/field-alerts/report` (eod-api) with the dump-bin session Bearer and shows delivered / opened(channel) / understood(channel) / SMS / escalation per recipient, grouped into correction chains. The Understood cell reads `ack_channel` — eod-api deploy `d0979266` is what started returning it, so the page shows `(sms)` only for rows acked after 2026-10-28.
+
 Weekly briefing source decks are not in this repo. P10W2 `build.json` has `deckUrl` on eod-api. P10W3 has no `build.json`. `weekly-briefing/source/*/deck.pdf` is gitignored. The planogram `D701_L00000_D03_C201_V415_I132_MX_9088145.pdf` is not on HEAD.
 
 Pilot `#eodSignedIn` is the shift lead's name. It adds `· Signed in` only when that lead's PROD/SAS session is connected and Okta has not ended. The lock icon and Visit control remain the PROD + SI indicators.
