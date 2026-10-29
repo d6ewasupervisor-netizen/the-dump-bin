@@ -94,6 +94,64 @@
       .eod-field-alert-actions .btn:disabled {
         opacity: 0.45; cursor: not-allowed;
       }
+      .eod-field-alert-info {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: calc(var(--nav-h, 56px) + var(--safe-b, 0px) + 8px);
+        z-index: 40;
+        display: grid;
+        gap: 8px;
+        max-height: 28vh;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        pointer-events: none;
+      }
+      .eod-field-alert-info-card {
+        pointer-events: auto;
+        background: #0f172a;
+        color: #f8fafc;
+        border: 1px solid #38bdf8;
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+      .eod-field-alert-info-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .eod-field-alert-info-head strong {
+        flex: 1 1 auto;
+        font-size: 0.95rem;
+        line-height: 1.25;
+      }
+      .eod-field-alert-info-close {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        color: #7dd3fc;
+        font: inherit;
+        font-weight: 700;
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0 8px;
+      }
+      .eod-field-alert-info-body {
+        margin-top: 4px;
+        font-size: 0.9rem;
+        line-height: 1.35;
+        color: #cbd5e1;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .eod-field-alert-info-doc {
+        display: inline-block;
+        margin-top: 6px;
+        color: #7dd3fc;
+        font-weight: 700;
+      }
     `;
     document.head.appendChild(css);
   }
@@ -278,19 +336,56 @@
     global.EodA11y?.activate?.(overlay, understand);
   }
 
+  function cssEscape(value) {
+    if (global.CSS?.escape) return global.CSS.escape(value);
+    return String(value).replace(/"/g, '\\"');
+  }
+
+  async function dismissInfo(alertId) {
+    if (!alertId) return;
+    const host = document.getElementById('eodFieldAlertInfo');
+    const card = host?.querySelector(`[data-alert-id="${cssEscape(alertId)}"]`);
+    const btn = card?.querySelector('[data-info-dismiss]');
+    if (btn) btn.disabled = true;
+    try {
+      await postAction(alertId, 'understand');
+      await postAction(alertId, 'dismiss');
+      card?.remove();
+      if (host && !host.children.length) host.remove();
+    } catch (_) {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   function renderInfoBanner(alerts) {
     let host = document.getElementById('eodFieldAlertInfo');
     if (!alerts.length) {
       if (host) host.remove();
       return;
     }
+    ensureCss();
     if (!host) {
       host = document.createElement('div');
       host.id = 'eodFieldAlertInfo';
-      host.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:5000;background:#0f172a;color:#f8fafc;border:1px solid #38bdf8;border-radius:12px;padding:12px;';
+      host.className = 'eod-field-alert-info';
       document.body.appendChild(host);
     }
-    host.innerHTML = alerts.map((a) => `<div><strong>${escapeHtml(a.title || 'Notice')}</strong><div>${escapeHtml(a.bodyMd || '')}</div></div>`).join('');
+    host.innerHTML = alerts.map((a) => {
+      const doc = a.docUrl
+        ? `<a class="eod-field-alert-info-doc" href="${escapeHtml(a.docUrl)}" target="_blank" rel="noopener">Open the update</a>`
+        : '';
+      return `<div class="eod-field-alert-info-card" data-alert-id="${escapeHtml(a.id)}">
+        <div class="eod-field-alert-info-head">
+          <strong>${escapeHtml(a.title || 'Notice')}</strong>
+          <button type="button" class="eod-field-alert-info-close" data-info-dismiss="${escapeHtml(a.id)}">Close</button>
+        </div>
+        <div class="eod-field-alert-info-body">${escapeHtml(a.bodyMd || '')}</div>
+        ${doc}
+      </div>`;
+    }).join('');
+    host.querySelectorAll('[data-info-dismiss]').forEach((btn) => {
+      btn.addEventListener('click', () => { void dismissInfo(btn.getAttribute('data-info-dismiss')); });
+    });
   }
 
   function showNext() {
@@ -304,9 +399,10 @@
     busy = true;
     try {
       const ctx = visitContext();
-      const qs = ctx.storeNumber
-        ? `?store=${encodeURIComponent(ctx.storeNumber)}`
-        : '';
+      const params = new URLSearchParams();
+      if (ctx.storeNumber) params.set('store', ctx.storeNumber);
+      params.set('info', '1');
+      const qs = `?${params.toString()}`;
       const resp = await global.authFetch(`${apiBase()}/api/field-alerts/pending${qs}`, {
         noBounceOn401: true,
       });
