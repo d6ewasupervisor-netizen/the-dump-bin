@@ -880,6 +880,23 @@ test('dump-bin open-in-tab is a compact icon, not a stretched button', () => {
   assert.doesNotMatch(css, /\.dump-bin-embed-bar\s+\.btn\s*\{/);
 });
 
+test('dump-bin route is a full-screen overlay with phone padding', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '../js/features/dump-bin.js'), 'utf8');
+  assert.match(src, /class="dump-bin-overlay dump-bin-embed-card"/);
+  assert.match(src, /aria-label="Close"/);
+  assert.match(src, /class="dump-bin-close"/);
+  assert.match(src, /dump-bin-overlay-open/);
+  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*position:\s*fixed/);
+  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*inset:\s*0/);
+  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*padding:/);
+  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*max\(16px,\s*var\(--safe-t\)\)/);
+  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*max\(16px,\s*var\(--safe-l\)\)/);
+  assert.match(css, /\.dump-bin-frame\s*\{[^}]*border:\s*0/);
+  assert.match(css, /\.dump-bin-frame\s*\{[^}]*min-height:\s*0/);
+  assert.doesNotMatch(css, /\.dump-bin-embed-card\s*\{[^}]*min-height:\s*calc\(100vh - 220px\)/);
+});
+
 test('field-app hides the site-wide signed-in badge so it cannot cover chrome', () => {
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
@@ -1575,6 +1592,9 @@ test('after-photo review jumps to that bay on the planogram and bottom nav Back 
   assert.doesNotMatch(html, /data-nav="[^"]*"[\s\S]{0,40}id="navOverlayBack"/);
   assert.match(css, /#navOverlayBack\[hidden\]/);
   assert.match(review, /ghOpenPlanogram/);
+  assert.match(review, /ghRotate/);
+  assert.match(review, /function sortByBay/);
+  assert.match(review, /function drawOriented/);
   assert.match(review, /function canShowPlanogram/);
   assert.match(review, /isBeforeSlot\(slotFilter\)/);
   assert.match(review, /pushOverlayBack/);

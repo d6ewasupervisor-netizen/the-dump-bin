@@ -9,7 +9,7 @@ body.db-embedded {
 body.db-embedded .site-nav { display: none; }
 body.db-embedded .page-wrap {
   max-width: none;
-  padding: 8px 12px 12px;
+  padding: 4px 2px 8px;
   height: 100%;
   height: 100dvh;
   overflow: auto;
@@ -18,6 +18,61 @@ body.db-embedded .page-wrap {
 body.db-embedded .db-hero { display: none; }
 body.db-embedded .db-week-nav { margin-top: 0; }
 body.db-embedded #__dumpbin_user_badge { display: none !important; }
+body.db-embedded .db-browser {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+}
+body.db-embedded .db-item {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
+  padding: 12px 2px;
+}
+body.db-embedded .db-item__checkbox {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  margin-top: 3px;
+}
+body.db-embedded .db-item__icon {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+body.db-embedded .db-item__name {
+  grid-column: 3 / -1;
+  grid-row: 1;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+}
+body.db-embedded .db-item__pages {
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: start;
+}
+body.db-embedded .db-item__meta {
+  grid-column: 4;
+  grid-row: 2;
+  justify-self: end;
+}
+body.db-embedded .db-item--folder .db-item__icon {
+  grid-column: 1;
+  grid-row: 1;
+}
+body.db-embedded .db-item--folder .db-item__name {
+  grid-column: 2 / -1;
+  grid-row: 1;
+}
 
 /* --- Top nav additions --- */
 .db-nav-links {

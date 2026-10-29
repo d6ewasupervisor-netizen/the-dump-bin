@@ -31,6 +31,15 @@
     };
   }
 
+  /** #/alerts/<id>?t=<openToken> — the SMS deep link target. */
+  function deepLinkTarget() {
+    const hash = String(global.location?.hash || '');
+    const m = hash.match(/#\/alerts\/([^?]+)/);
+    if (!m) return null;
+    const params = new URLSearchParams(hash.split('?')[1] || '');
+    return { id: decodeURIComponent(m[1]), token: params.get('t') || '' };
+  }
+
   function ensureCss() {
     if (document.getElementById(STYLE_ID)) return;
     const css = document.createElement('style');
@@ -172,13 +181,16 @@
     const bodyHtml = String(alert.bodyHtml || '').trim()
       || `<p>${escapeHtml(alert.bodyMd || '')}</p>`;
     const alreadyUnderstood = !!alert.understoodAt;
+    const mustOpen = alert.requireOpen === true && !alert.openedAt;
     overlay.innerHTML = `
       <div class="eod-field-alert-dialog" role="dialog" aria-modal="true" aria-labelledby="eodFieldAlertTitle">
         <h2 id="eodFieldAlertTitle">${escapeHtml(alert.title || 'Message')}</h2>
         <div class="eod-field-alert-body">${bodyHtml}</div>
         ${renderImages(alert.images)}
+        ${alert.docUrl ? '<button type="button" class="btn" id="eodFieldAlertOpen">Open notice</button>' : ''}
+        <div id="eodFieldAlertViewer" hidden style="margin:12px 0;height:60vh;background:#020617;border-radius:10px;overflow:hidden;"></div>
         <label class="eod-field-alert-ack">
-          <input type="checkbox" id="eodFieldAlertUnderstand" ${alreadyUnderstood ? 'checked' : ''}>
+          <input type="checkbox" id="eodFieldAlertUnderstand" ${alreadyUnderstood ? 'checked' : ''} ${mustOpen ? 'disabled' : ''}>
           <span>I understand</span>
         </label>
         <div class="eod-field-alert-actions">
@@ -196,6 +208,30 @@
 
     const understand = overlay.querySelector('#eodFieldAlertUnderstand');
     const dismiss = overlay.querySelector('#eodFieldAlertDismiss');
+    const openBtn = overlay.querySelector('#eodFieldAlertOpen');
+    if (openBtn) {
+      openBtn.addEventListener('click', async () => {
+        openBtn.disabled = true;
+        try {
+          const resp = await global.authFetch(`${apiBase()}/api/field-alerts/${encodeURIComponent(alert.id)}/open`, {
+            noBounceOn401: true,
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || 'Could not open the notice');
+          alert.openedAt = data.opened && data.opened.opened_at;
+          understand.disabled = false;
+          const viewer = overlay.querySelector('#eodFieldAlertViewer');
+          const src = data.docUrl || alert.docUrl;
+          if (viewer && src) {
+            viewer.hidden = false;
+            viewer.innerHTML = `<iframe title="Notice" src="${escapeHtml(src)}" style="width:100%;height:100%;border:0;background:#fff;"></iframe>`;
+          }
+        } catch (err) {
+          openBtn.disabled = false;
+          global.EodA11y?.announce?.(err.message || 'Could not open the notice');
+        }
+      });
+    }
 
     understand.addEventListener('change', async () => {
       if (!understand.checked) {
@@ -242,6 +278,21 @@
     global.EodA11y?.activate?.(overlay, understand);
   }
 
+  function renderInfoBanner(alerts) {
+    let host = document.getElementById('eodFieldAlertInfo');
+    if (!alerts.length) {
+      if (host) host.remove();
+      return;
+    }
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'eodFieldAlertInfo';
+      host.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:5000;background:#0f172a;color:#f8fafc;border:1px solid #38bdf8;border-radius:12px;padding:12px;';
+      document.body.appendChild(host);
+    }
+    host.innerHTML = alerts.map((a) => `<div><strong>${escapeHtml(a.title || 'Notice')}</strong><div>${escapeHtml(a.bodyMd || '')}</div></div>`).join('');
+  }
+
   function showNext() {
     if (showingId) return;
     const next = queue[0];
@@ -249,7 +300,7 @@
   }
 
   async function refresh() {
-    if (busy) return;
+    if (busy) return false;
     busy = true;
     try {
       const ctx = visitContext();
@@ -259,21 +310,30 @@
       const resp = await global.authFetch(`${apiBase()}/api/field-alerts/pending${qs}`, {
         noBounceOn401: true,
       });
-      if (!resp.ok) return;
+      if (!resp.ok) return false;
       const data = await resp.json().catch(() => ({}));
       const alerts = Array.isArray(data.alerts) ? data.alerts : [];
-      queue = alerts;
+      const target = deepLinkTarget();
+      if (target) {
+        // The SMS-linked alert shows first.
+        alerts.sort((a, b) => (a.id === target.id ? -1 : 0) - (b.id === target.id ? -1 : 0));
+      }
+      const info = alerts.filter((a) => a.severity === 'info');
+      queue = alerts.filter((a) => a.severity !== 'info');
+      renderInfoBanner(info);
       if (showingId) {
         const still = alerts.some((a) => a.id === showingId);
         if (!still) {
           closeOverlay();
           showNext();
         }
-        return;
+        return true;
       }
       showNext();
+      return true;
     } catch (_) {
       /* offline / auth — retry on next poll */
+      return false;
     } finally {
       busy = false;
     }
@@ -287,13 +347,29 @@
   function init() {
     ensureCss();
     startPolling();
-    void refresh();
+    void (async () => {
+      const ok = await refresh();
+      const target = deepLinkTarget();
+      if (target && !ok && target.token) {
+        // SMS link without a session: straight to the PDF (the open is already
+        // tracked with open_channel sms by the /open redirect).
+        global.location?.replace(
+          `${apiBase()}/api/field-alerts/${encodeURIComponent(target.id)}/open?token=${encodeURIComponent(target.token)}&format=pdf`,
+        );
+      }
+    })();
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) void refresh();
     });
     try {
       global.EodSession?.onChange?.(() => { void refresh(); });
     } catch (_) { /* optional */ }
+    try {
+      global.EodRouter?.register?.('alerts', (mount) => {
+        mount.innerHTML = '<div class="card"><h1>Notice</h1><p>Loading the notice…</p></div>';
+        void refresh();
+      });
+    } catch (_) { /* router optional */ }
   }
 
   global.EodFieldAlerts = {

@@ -63,7 +63,7 @@
         touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch;
       }
       .gh-review .gh-stage-vp[data-mode="draw"] { touch-action: none; }
-      .gh-review .gh-stage { position: relative; display: block; }
+      .gh-review .gh-stage { position: relative; display: block; overflow: hidden; }
       .gh-review .gh-stage img, .gh-review .gh-stage canvas { display: block; max-width: none; image-orientation: from-image; }
       .gh-review .gh-film-thumb img { image-orientation: from-image; }
       .gh-review .gh-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -260,6 +260,26 @@
     return (photos || []).filter((p) => photoSlotOf(p) === want);
   }
 
+  function sortByBay(list) {
+    return [...(list || [])].sort((a, b) => {
+      const slotA = photoSlotOf(a) === 'before' ? 0 : 1;
+      const slotB = photoSlotOf(b) === 'before' ? 0 : 1;
+      if (slotA !== slotB) return slotA - slotB;
+      const aa = bayNumberOf(a);
+      const bb = bayNumberOf(b);
+      if (aa == null && bb == null) return 0;
+      if (aa == null) return 1;
+      if (bb == null) return -1;
+      return aa - bb;
+    });
+  }
+
+  function photoCaption(p, index) {
+    const word = photoSlotOf(p) === 'before' ? 'Before' : 'After';
+    const bay = bayNumberOf(p);
+    return `${word} ${bay || (index + 1)}`;
+  }
+
   function closeOverlay() {
     document.getElementById('eodSetMediaOverlay')?.remove();
     document.body.classList.remove('set-media-open');
@@ -311,7 +331,34 @@
     let drawing = false;
     let lastPt = null;
     let strokes = new Map();
+    let rotation = new Map();
     let imgNatural = { w: 0, h: 0 };
+
+    function keyFor(p, i) {
+      return p?.actionId || p?.id || p?.url || String(i);
+    }
+
+    function photoKey() {
+      return keyFor(photos[idx], idx);
+    }
+
+    function currentDeg() {
+      return rotation.get(photoKey()) || 0;
+    }
+
+    function toOriginal(pt, deg, w, h) {
+      if (deg === 90) return { x: pt.y, y: h - pt.x };
+      if (deg === 180) return { x: w - pt.x, y: h - pt.y };
+      if (deg === 270) return { x: w - pt.y, y: pt.x };
+      return { x: pt.x, y: pt.y };
+    }
+
+    function toOriented(pt, deg, w, h) {
+      if (deg === 90) return { x: h - pt.y, y: pt.x };
+      if (deg === 180) return { x: w - pt.x, y: h - pt.y };
+      if (deg === 270) return { x: pt.y, y: w - pt.x };
+      return { x: pt.x, y: pt.y };
+    }
 
     function currentStrokes() {
       const id = photos[idx]?.actionId || photos[idx]?.id;
@@ -387,6 +434,7 @@
               ${toolBtn('ghModeDraw', '', '✎', 'Mark', 'data-mode="draw"')}
               ${toolBtn('ghZoomOut', '', '−', 'Out')}
               ${toolBtn('ghZoomIn', '', '+', 'In')}
+              ${toolBtn('ghRotate', '', '↻', 'Rotate')}
               ${toolBtn('ghClearMarks', '', '✕', 'Clear')}
               ${canShowPlanogram(slotFilter, row) ? toolBtn('ghOpenPlanogram', '', '▦', 'Planogram') : ''}
             </div>
@@ -446,19 +494,45 @@
       setTrackLocked(mode === 'draw' || scale > 1.05);
     }
 
+    function paintOrientedImage(img, deg, boxW, boxH) {
+      const swap = deg === 90 || deg === 270;
+      const imgW = swap ? boxH : boxW;
+      const imgH = swap ? boxW : boxH;
+      img.style.width = `${imgW}px`;
+      img.style.height = `${imgH}px`;
+      if (deg) {
+        img.style.position = 'absolute';
+        img.style.left = '50%';
+        img.style.top = '50%';
+        img.style.transformOrigin = 'center center';
+        img.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
+      } else {
+        img.style.position = '';
+        img.style.left = '';
+        img.style.top = '';
+        img.style.transformOrigin = '';
+        img.style.transform = '';
+      }
+    }
+
     function fitStage() {
       const { img, canvas, vp, stage } = activeEls();
       if (!img || !canvas || !vp || !img.naturalWidth) return;
-      imgNatural = { w: img.naturalWidth, h: img.naturalHeight };
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      const deg = currentDeg();
+      const swap = deg === 90 || deg === 270;
+      const srcW = img.naturalWidth;
+      const srcH = img.naturalHeight;
+      imgNatural = { w: srcW, h: srcH };
+      const viewW = swap ? srcH : srcW;
+      const viewH = swap ? srcW : srcH;
+      canvas.width = viewW;
+      canvas.height = viewH;
       const maxW = Math.max(280, vp.clientWidth - 4);
       const displayW = maxW;
-      const displayH = displayW * (img.naturalHeight / img.naturalWidth);
-      img.style.width = `${displayW}px`;
-      img.style.height = `${displayH}px`;
+      const displayH = displayW * (viewH / viewW);
       canvas.style.width = `${displayW}px`;
       canvas.style.height = `${displayH}px`;
+      paintOrientedImage(img, deg, displayW, displayH);
       if (stage) {
         stage.style.width = `${displayW}px`;
         stage.style.height = `${displayH}px`;
@@ -466,6 +540,18 @@
       scale = 1;
       applyScale();
       redrawCanvas();
+      paintFilmRotation();
+    }
+
+    function paintFilmRotation() {
+      document.querySelectorAll('#ghFilm button').forEach((btn) => {
+        const i = Number(btn.dataset.idx);
+        const img = btn.querySelector('img');
+        const p = photos[i];
+        if (!img || !p) return;
+        const deg = rotation.get(keyFor(p, i)) || 0;
+        img.style.transform = deg ? `rotate(${deg}deg)` : '';
+      });
     }
 
     function redrawCanvas() {
@@ -477,11 +563,15 @@
       ctx.lineJoin = 'round';
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = Math.max(6, canvas.width / 180);
+      const deg = currentDeg();
+      const srcW = imgNatural.w;
+      const srcH = imgNatural.h;
       for (const stroke of currentStrokes()) {
         if (!stroke.length) continue;
+        const pts = stroke.map((p) => toOriented(p, deg, srcW, srcH));
         ctx.beginPath();
-        ctx.moveTo(stroke[0].x, stroke[0].y);
-        for (let i = 1; i < stroke.length; i += 1) ctx.lineTo(stroke[i].x, stroke[i].y);
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i += 1) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
       }
     }
@@ -498,7 +588,7 @@
       const p = photos[idx];
       if (!p) return;
       const pos = document.getElementById('ghPhotoPos');
-      if (pos) pos.textContent = `${p.label || `Photo ${idx + 1}`} · ${idx + 1} of ${photos.length}`;
+      if (pos) pos.textContent = `${photoCaption(p, idx)} · ${idx + 1} of ${photos.length}`;
       document.querySelectorAll('.gh-film button').forEach((btn, n) => {
         btn.classList.toggle('is-active', n === idx);
       });
@@ -688,8 +778,8 @@
       film.hidden = !photos.length;
       film.innerHTML = photos.map((p, i) => `
         <button type="button" class="gh-film-thumb${i === idx ? ' is-active' : ''}" data-idx="${i}" title="${escapeHtml(p.label || '')}">
-          <img alt="${escapeHtml(p.label || `Photo ${i + 1}`)}">
-          <span>${escapeHtml(p.label || String(i + 1))}</span>
+          <img alt="${escapeHtml(photoCaption(p, i))}">
+          <span>${escapeHtml(photoCaption(p, i))}</span>
         </button>`).join('');
       film.querySelectorAll('button').forEach((btn) => {
         const i = Number(btn.dataset.idx);
@@ -701,14 +791,34 @@
       });
     }
 
+    function drawOriented(ctx, img, deg) {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      ctx.save();
+      if (deg === 90) {
+        ctx.translate(h, 0);
+        ctx.rotate(Math.PI / 2);
+      } else if (deg === 180) {
+        ctx.translate(w, h);
+        ctx.rotate(Math.PI);
+      } else if (deg === 270) {
+        ctx.translate(0, w);
+        ctx.rotate(-Math.PI / 2);
+      }
+      ctx.drawImage(img, 0, 0);
+      ctx.restore();
+    }
+
     async function compositeBlob() {
       const { img, canvas: overlay } = activeEls();
       if (!img?.naturalWidth) throw new Error('Photo is still loading');
+      const deg = currentDeg();
+      const swap = deg === 90 || deg === 270;
       const out = document.createElement('canvas');
-      out.width = img.naturalWidth;
-      out.height = img.naturalHeight;
+      out.width = swap ? img.naturalHeight : img.naturalWidth;
+      out.height = swap ? img.naturalWidth : img.naturalHeight;
       const ctx = out.getContext('2d');
-      ctx.drawImage(img, 0, 0);
+      drawOriented(ctx, img, deg);
       if (overlay) ctx.drawImage(overlay, 0, 0);
       return new Promise((resolve, reject) => {
         out.toBlob((blob) => {
@@ -869,6 +979,11 @@
         scale = Math.max(MIN_ZOOM, scale / ZOOM_STEP);
         applyScale();
       });
+      document.getElementById('ghRotate')?.addEventListener('click', () => {
+        const id = photoKey();
+        rotation.set(id, ((rotation.get(id) || 0) + 90) % 360);
+        fitStage();
+      });
       document.getElementById('ghModePan')?.addEventListener('click', () => { mode = 'pan'; syncModeButtons(); });
       document.getElementById('ghModeDraw')?.addEventListener('click', () => { mode = 'draw'; syncModeButtons(); });
       document.getElementById('ghClearMarks')?.addEventListener('click', () => {
@@ -894,7 +1009,8 @@
         const { canvas } = activeEls();
         if (!canvas) return;
         drawing = true;
-        lastPt = canvasPoint(e, canvas);
+        const src = imgNatural.w ? imgNatural : { w: canvas.width, h: canvas.height };
+        lastPt = toOriginal(canvasPoint(e, canvas), currentDeg(), src.w, src.h);
         currentStrokes().push([lastPt]);
         e.preventDefault();
       }
@@ -902,7 +1018,8 @@
         if (!drawing || mode !== 'draw') return;
         const { canvas } = activeEls();
         if (!canvas) return;
-        const pt = canvasPoint(e, canvas);
+        const src = imgNatural.w ? imgNatural : { w: canvas.width, h: canvas.height };
+        const pt = toOriginal(canvasPoint(e, canvas), currentDeg(), src.w, src.h);
         const stroke = currentStrokes()[currentStrokes().length - 1];
         if (stroke) stroke.push(pt);
         lastPt = pt;
@@ -982,7 +1099,7 @@
           if (!resp.ok) throw new Error(data.error || `Load failed (${resp.status})`);
           rememberPack(token, row.id, data);
         }
-        photos = filterBySlot(Array.isArray(data.photos) ? data.photos : [], slotFilter);
+        photos = sortByBay(filterBySlot(Array.isArray(data.photos) ? data.photos : [], slotFilter));
         warmupPhotos(photos, api, authFetch);
         const tools = document.getElementById('ghReviewTools');
         const stage = document.getElementById('ghStageWrap');
