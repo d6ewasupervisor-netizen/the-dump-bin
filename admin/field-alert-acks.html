@@ -126,7 +126,9 @@ tr.alert-head td{background:#eef3fa;font-weight:700}
           ? `<span class="no">${esc(row.sms_failure)}</span>`
           : `${row.sms_reminders_sent || 0} sent${row.last_sms_at ? ' @ ' + esc(fmt(row.last_sms_at)) : ''}`;
         const opened = row.opened_at ? `${esc(fmt(row.opened_at))} (${esc(row.open_channel || '?')})` : '<span class="no">no</span>';
-        const understood = row.understood_at ? esc(fmt(row.understood_at)) : '<span class="no">NO</span>';
+        const understood = row.understood_at
+          ? `${esc(fmt(row.understood_at))}${row.ack_channel ? ` (${esc(row.ack_channel)})` : ''}`
+          : '<span class="no">NO</span>';
         html.push(`<tr>
           <td>${esc(String(alertId).slice(0, 8))}…</td>
           <td>${esc(row.display_name || row.email)}</td>

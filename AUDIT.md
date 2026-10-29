@@ -1,5 +1,7 @@
 # Audit
 
+`admin/field-alert-acks.html` renders `GET /api/field-alerts/report` (eod-api) with the dump-bin session Bearer and shows delivered / opened(channel) / understood(channel) / SMS / escalation per recipient, grouped into correction chains. The Understood cell reads `ack_channel` — eod-api deploy `d0979266` is what started returning it, so the page shows `(sms)` only for rows acked after 2026-10-28.
+
 Dump Bin embed (`dump-bin/dump-bin.css?v=1.1.3`) flattens `.db-browser` when `body.db-embedded` is set. Each file row is a grid: the name uses the full row, and Pages plus the size sit under it. The field app overlay is pilot 3.5.06.
 
 Weekly briefing source decks are not in this repo. P10W2 `build.json` has `deckUrl` on eod-api. P10W3 has no `build.json`. `weekly-briefing/source/*/deck.pdf` is gitignored. The planogram `D701_L00000_D03_C201_V415_I132_MX_9088145.pdf` is not on HEAD.

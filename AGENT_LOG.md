@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-10-28 — Ack report shows the ack channel (branch fix/ack-report-channel)
+
+`admin/field-alert-acks.html` now renders the channel next to Understood (`2026-10-28 10:37 (sms)`), so an SMS one-tap is distinguishable from an in-app ack. It reads the `ack_channel` field that eod-api's `GET /api/field-alerts/report` started returning in deploy `d0979266`. **Not published yet** — the change is on branch `fix/ack-report-channel` (main needs Tyson's go); the JSON already carries the field.
+
 ## 2026-10-28 — Dump Bin embed is a full-screen field-app overlay
 
 Field app 3.5.06 opens Dump Bin over the phone screen. `dump-bin.css` 1.1.3 drops the inner file-list frame when `?embed=1` is set, and puts the file name on its own line.
