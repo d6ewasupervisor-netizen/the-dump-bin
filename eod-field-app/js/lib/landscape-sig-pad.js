@@ -12,12 +12,12 @@
       document.head.appendChild(css);
     }
     css.textContent = `
+      /* Layout comes from the shared overlay base (.eod-lsp-overlay). */
       .eod-lsp-overlay {
-        display: none; position: fixed; inset: 0; z-index: 50000;
+        display: none;
+        z-index: var(--z-alert);
         background: var(--bg, #0b1220); color: var(--text, #f8fafc); flex-direction: column;
-        padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
-          env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
-        touch-action: none; overflow: hidden;
+        touch-action: none;
         pointer-events: none;
       }
       .eod-lsp-overlay.show { display: flex; pointer-events: auto; }
@@ -95,7 +95,7 @@
     if (!overlay) {
       overlay = document.createElement('div');
       overlay.id = 'eodLandscapeSigOverlay';
-      overlay.className = 'eod-lsp-overlay';
+      overlay.className = 'eod-overlay eod-overlay--full eod-lsp-overlay';
       overlay.innerHTML = `
         <div class="eod-lsp-bar">
           <strong id="eodLspTitle">Sign</strong>

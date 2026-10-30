@@ -6,7 +6,49 @@
   const PAYLOAD_KEYS = new Set([
     'route', 'path', 'from', 'to', 'stage', 'status', 'kind', 'slot',
     'reason', 'count', 'online',
+    /* One-per-session device shape (no identifiers): viewport, platform family,
+       pixel ratio, PWA-vs-tab and app version. Feeds the mobile baseline. */
+    'vw', 'vh', 'dpr', 'platform', 'pwa', 'ver',
   ]);
+  let booted = false;
+
+  function platformFamily() {
+    try {
+      const ua = navigator.userAgent || '';
+      const iPadOs = /Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1;
+      if (/iPhone|iPad|iPod/.test(ua) || iPadOs) return 'ios';
+      if (/Android/i.test(ua)) return 'android';
+      if (/Windows/i.test(ua)) return 'windows';
+      if (/Macintosh|Mac OS X/i.test(ua)) return 'macos';
+      if (/CrOS/i.test(ua)) return 'chromeos';
+      if (/Linux/i.test(ua)) return 'linux';
+      return 'other';
+    } catch (_) { return 'other'; }
+  }
+
+  function isStandalone() {
+    try {
+      if (navigator.standalone === true) return true;
+      return !!(global.matchMedia && global.matchMedia('(display-mode: standalone)').matches);
+    } catch (_) { return false; }
+  }
+
+  /* One event per app session, so "what phones do the leads use" is answerable
+     without a user-agent string or any identifier. */
+  function trackSessionDevice() {
+    if (booted) return;
+    booted = true;
+    track('session_start', {
+      kind: 'device',
+      vw: Math.round(global.innerWidth || 0),
+      vh: Math.round(global.innerHeight || 0),
+      dpr: Math.round((global.devicePixelRatio || 1) * 100) / 100,
+      platform: platformFamily(),
+      pwa: isStandalone() ? 'standalone' : 'browser',
+      ver: String(global.EOD_APP_VERSION || ''),
+      path: location.hash || '#/',
+    });
+  }
   let timer = null;
 
   function lowPiiPayload(payload) {
@@ -36,6 +78,7 @@
 
   function start() {
     if (timer) return;
+    trackSessionDevice();
     const beat = () => {
       if (document.visibilityState !== 'visible') return;
       track('heartbeat', { path: location.hash || '#/' });
@@ -47,5 +90,5 @@
     });
   }
 
-  global.EodUsage = { track, start, lowPiiPayload };
+  global.EodUsage = { track, start, lowPiiPayload, trackSessionDevice, platformFamily };
 })(typeof window !== 'undefined' ? window : globalThis);

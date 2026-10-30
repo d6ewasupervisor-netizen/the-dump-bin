@@ -9,10 +9,8 @@
     const css = document.createElement('style');
     css.id = STYLE_ID;
     css.textContent = `
-      .eod-ed-overlay {
-        display: flex; position: fixed; inset: 0; z-index: 46000; background: var(--bg, #0b1220);
-        flex-direction: column; color: var(--text, #f8fafc);
-      }
+      /* Layout comes from the shared overlay base (.eod-ed-overlay). */
+      .eod-ed-overlay { flex-direction: column; background: var(--bg, #0b1220); color: var(--text, #f8fafc); }
       .eod-ed-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px; background: var(--surface, #111827); }
       .eod-ed-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: var(--card, #020617); }
       .eod-ed-stage canvas { max-width: 100%; max-height: 100%; touch-action: none; background: #111; }
@@ -27,7 +25,7 @@
     ensureCss();
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
-      overlay.className = 'eod-ed-overlay';
+      overlay.className = 'eod-overlay eod-overlay--full eod-ed-overlay';
       overlay.innerHTML = `
         <div class="eod-ed-bar">
           <button type="button" class="btn btn-secondary" data-act="rot">Rotate</button>

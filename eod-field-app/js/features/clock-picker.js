@@ -84,11 +84,10 @@
         border-color: #fde68a; outline: none; box-shadow: 0 0 0 2px rgba(253,230,138,.25);
       }
       .eod-clock-btn svg { width: 20px; height: 20px; display: block; }
+      /* Layout comes from the shared overlay base (.eod-overlay). */
       #${OVERLAY_ID} {
-        position: fixed; inset: 0; z-index: 46500;
-        background: var(--scrim, rgba(2,6,23,.78));
-        display: none; align-items: center; justify-content: center;
-        padding: 16px; -webkit-tap-highlight-color: transparent;
+        z-index: var(--z-picker, 46000);
+        display: none; -webkit-tap-highlight-color: transparent;
       }
       #${OVERLAY_ID}.show { display: flex; }
       .eod-clock-sheet {
@@ -226,8 +225,9 @@
     if (el) return el;
     el = document.createElement('div');
     el.id = OVERLAY_ID;
+    el.className = 'eod-overlay';
     el.innerHTML = `
-      <div class="eod-clock-sheet" role="dialog" aria-modal="true" aria-labelledby="eodClockPickerTitle">
+      <div class="eod-clock-sheet eod-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="eodClockPickerTitle">
         <h3 id="eodClockPickerTitle">Set time</h3>
         <p class="eod-clock-hint">Drag the blue hour hand or yellow minute hand. Tap Hour / Minute to choose which drag adjusts.</p>
         <div class="eod-clock-readout" id="eodClockReadout">—</div>

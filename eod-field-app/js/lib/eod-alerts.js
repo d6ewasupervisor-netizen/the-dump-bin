@@ -8,21 +8,22 @@
     if (document.getElementById(STYLE_ID)) return;
     const css = document.createElement('style');
     css.id = STYLE_ID;
+    /* Positioning, scroll, safe area and z-tier come from the shared overlay
+       base in css/app.css (.eod-overlay / .eod-overlay-panel). Only the
+       dialog's own look lives here. */
     css.textContent = `
-      .eod-alert-overlay {
-        display: none; position: fixed; inset: 0; z-index: 50000;
-        background: var(--scrim, rgba(2,6,23,.78)); align-items: center; justify-content: center;
-        padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-      }
-      .eod-alert-overlay.show { display: flex; }
+      .eod-alert-overlay { z-index: var(--z-alert, 50000); }
       .eod-alert-dialog {
-        width: min(420px, 100%); background: var(--surface, #111827); color: var(--text, #f8fafc);
-        border: 1px solid var(--accent, #334155); border-radius: 14px; padding: 18px 16px 14px;
+        background: var(--surface, #111827); color: var(--text, #f8fafc);
+        border: 1px solid var(--accent, #334155); border-radius: 14px; padding: 14px 16px;
       }
-      .eod-alert-dialog h2 { margin: 0 0 8px; font-size: 18px; }
-      .eod-alert-dialog .eod-alert-body { margin: 0 0 14px; white-space: pre-wrap; color: var(--muted, #cbd5e1); font-size: 15px; line-height: 1.4; }
+      .eod-alert-head {
+        display: flex; align-items: flex-start; gap: 8px; margin: 0 0 8px;
+      }
+      .eod-alert-head h2 { flex: 1 1 auto; margin: 0; font-size: 18px; }
+      .eod-alert-dialog .eod-alert-body { margin: 0 0 14px; white-space: pre-wrap; color: var(--muted, #cbd5e1); font-size: 16px; line-height: 1.4; }
       .eod-alert-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
-      .eod-alert-actions .btn { min-height: 44px; flex: 1 1 auto; }
+      .eod-alert-actions .btn { min-height: 44px; flex: 1 1 auto; font-size: 16px; }
     `;
     document.head.appendChild(css);
   }
@@ -37,14 +38,22 @@
     ensureCss();
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
-      overlay.className = 'eod-alert-overlay show';
+      overlay.className = 'eod-overlay eod-alert-overlay show';
       overlay.innerHTML = `
-        <div class="eod-alert-dialog" role="dialog" aria-modal="true" aria-labelledby="eodAlertTitle">
-          <h2 id="eodAlertTitle">${global.EodApi?.escapeHtml?.(title) || String(title || 'Notice')}</h2>
+        <div class="eod-alert-dialog eod-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="eodAlertTitle">
+          <div class="eod-alert-head">
+            <h2 id="eodAlertTitle">${global.EodApi?.escapeHtml?.(title) || String(title || 'Notice')}</h2>
+            <button type="button" class="eod-overlay-close" aria-label="Close">&#10005;</button>
+          </div>
           <p class="eod-alert-body">${global.EodApi?.escapeHtml?.(message) || String(message || '')}</p>
           <div class="eod-alert-actions"></div>
         </div>`;
       const actions = overlay.querySelector('.eod-alert-actions');
+      const dismiss = () => {
+        closeOverlay(overlay);
+        resolve('cancel');
+      };
+      overlay.querySelector('.eod-overlay-close')?.addEventListener('click', dismiss);
       (buttons || [{ id: 'ok', label: 'OK', primary: true }]).forEach((b) => {
         const btn = document.createElement('button');
         btn.type = 'button';

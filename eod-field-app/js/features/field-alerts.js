@@ -44,18 +44,11 @@
     if (document.getElementById(STYLE_ID)) return;
     const css = document.createElement('style');
     css.id = STYLE_ID;
+    /* Positioning, scroll, safe area and z-tier come from the shared overlay
+       base in css/app.css. The info strip uses the shared nav clearance. */
     css.textContent = `
-      .eod-field-alert-overlay {
-        display: none; position: fixed; inset: 0; z-index: 62000;
-        background: rgba(2, 6, 23, 0.88);
-        align-items: center; justify-content: center;
-        padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
-                 max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-      }
-      .eod-field-alert-overlay.show { display: flex; }
+      .eod-field-alert-overlay { z-index: var(--z-field-alert, 62000); }
       .eod-field-alert-dialog {
-        width: min(520px, 100%); max-height: min(88vh, 720px);
-        overflow: auto; -webkit-overflow-scrolling: touch;
         background: var(--surface, #0f172a); color: var(--text, #f8fafc);
         border: 1px solid var(--accent, #38bdf8); border-radius: 16px;
         padding: 18px 16px 14px; box-shadow: 0 18px 48px rgba(0,0,0,.45);
@@ -98,7 +91,7 @@
         position: fixed;
         left: 12px;
         right: 12px;
-        bottom: calc(var(--nav-h, 56px) + var(--safe-b, 0px) + 8px);
+        bottom: var(--nav-clear, calc(var(--nav-h, 61px) + var(--safe-b, 0px) + 8px));
         z-index: 40;
         display: grid;
         gap: 8px;
@@ -234,14 +227,14 @@
 
     const overlay = document.createElement('div');
     overlay.id = OVERLAY_ID;
-    overlay.className = 'eod-field-alert-overlay show';
+    overlay.className = 'eod-overlay eod-field-alert-overlay show';
     overlay.setAttribute('data-alert-id', alert.id);
     const bodyHtml = String(alert.bodyHtml || '').trim()
       || `<p>${escapeHtml(alert.bodyMd || '')}</p>`;
     const alreadyUnderstood = !!alert.understoodAt;
     const mustOpen = alert.requireOpen === true && !alert.openedAt;
     overlay.innerHTML = `
-      <div class="eod-field-alert-dialog" role="dialog" aria-modal="true" aria-labelledby="eodFieldAlertTitle">
+      <div class="eod-field-alert-dialog eod-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="eodFieldAlertTitle">
         <h2 id="eodFieldAlertTitle">${escapeHtml(alert.title || 'Message')}</h2>
         <div class="eod-field-alert-body">${bodyHtml}</div>
         ${renderImages(alert.images)}

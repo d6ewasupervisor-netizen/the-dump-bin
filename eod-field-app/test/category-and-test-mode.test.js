@@ -887,11 +887,14 @@ test('dump-bin route is a full-screen overlay with phone padding', () => {
   assert.match(src, /aria-label="Close"/);
   assert.match(src, /class="dump-bin-close"/);
   assert.match(src, /dump-bin-overlay-open/);
-  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*position:\s*fixed/);
-  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*inset:\s*0/);
-  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*padding:/);
-  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*max\(16px,\s*var\(--safe-t\)\)/);
-  assert.match(css, /\.dump-bin-overlay\s*\{[^}]*max\(16px,\s*var\(--safe-l\)\)/);
+  // Geometry, safe area and scroll live once, in the shared overlay base.
+  const base = (css.match(/\/\* ── Shared overlay contract[\s\S]*?\n\}\n/) || [''])[0];
+  assert.match(base, /\.dump-bin-overlay,/);
+  assert.match(base, /position:\s*fixed/);
+  assert.match(base, /inset:\s*0/);
+  assert.match(base, /max\(16px,\s*var\(--safe-t\)\)/);
+  assert.match(base, /max\(16px,\s*var\(--safe-l\)\)/);
+  assert.doesNotMatch(css, /\.dump-bin-overlay\s*\{[^}]*position:\s*fixed/);
   assert.match(css, /\.dump-bin-frame\s*\{[^}]*border:\s*0/);
   assert.match(css, /\.dump-bin-frame\s*\{[^}]*min-height:\s*0/);
   assert.doesNotMatch(css, /\.dump-bin-embed-card\s*\{[^}]*min-height:\s*calc\(100vh - 220px\)/);
@@ -964,7 +967,7 @@ test('Visit confirm loads shifts; Find shifts button is gone', () => {
   assert.doesNotMatch(visit, /scheduled\.has\(Number\(a\)\)/);
   const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
   assert.match(css, /\.shift-prod-link \{/);
-  assert.match(css, /\.picker-overlay \{ z-index: 46000; \}/);
+  assert.match(css, /\.picker-overlay \{ align-items: flex-start; z-index: var\(--z-picker\); \}/);
   assert.match(css, /\.day-confirm-modal \{ z-index: 45000; \}/);
   const picker = fs.readFileSync(path.join(__dirname, '../js/picker.js'), 'utf8');
   assert.match(picker, /document\.body\.appendChild\(overlay\)/);
@@ -1438,7 +1441,7 @@ test('PIC can sign on the wizard pad without rotating the phone', () => {
   assert.match(dept, /deptSigCanvas/);
   assert.match(dept, /bindInlinePad/);
   assert.doesNotMatch(dept, /Turn the phone sideways/);
-  assert.match(lsp, /z-index:\s*50000/);
+  assert.match(lsp, /z-index:\s*var\(--z-alert/);
   assert.match(lsp, /forceClose/);
   assert.doesNotMatch(lsp, /html\.eod-lsp-open, html\.eod-lsp-open body/);
   assert.match(css, /\.dept-sig-wizard-overlay \{[\s\S]*z-index:\s*45000/);

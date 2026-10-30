@@ -9,10 +9,8 @@
     const css = document.createElement('style');
     css.id = STYLE_ID;
     css.textContent = `
-      .eod-cam-overlay {
-        display: flex; position: fixed; inset: 0; z-index: 45000; background: #000;
-        flex-direction: column; color: #fff;
-      }
+      /* Layout comes from the shared overlay base (.eod-cam-overlay). */
+      .eod-cam-overlay { flex-direction: column; color: #fff; background: #000; }
       .eod-cam-overlay video { flex: 1; width: 100%; object-fit: cover; background: #000; }
       .eod-cam-bar {
         display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center;
@@ -39,7 +37,7 @@
     ensureCss();
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
-      overlay.className = 'eod-cam-overlay';
+      overlay.className = 'eod-overlay eod-overlay--full eod-cam-overlay';
       overlay.innerHTML = `
         <video playsinline autoplay muted></video>
         <canvas hidden></canvas>

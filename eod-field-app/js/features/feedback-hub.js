@@ -131,7 +131,9 @@
     const css = document.createElement('style');
     css.id = 'eodFeedbackCss';
     css.textContent = `
-      .eod-feedback-overlay { display:none; position:fixed; inset:0; z-index:1800; background:var(--scrim, rgba(0,0,0,.72)); overflow-y:auto; padding:max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px)); }
+      /* Position, inset, padding, scroll and safe area come from the shared
+         overlay base (.eod-feedback-overlay). */
+      .eod-feedback-overlay { display:none; z-index:var(--z-overlay, 45000); align-items:flex-start; }
       .eod-feedback-overlay.show { display:block; }
       .eod-feedback-dialog { max-width:min(560px, 100%); margin:0 auto; background:var(--surface, #111827); border:1px solid var(--border, #334155); border-radius:14px; padding:16px; color:var(--text, #f9fafb); }
       .eod-feedback-dialog h2 { margin:0 0 8px; }
@@ -155,7 +157,7 @@
     overlay.id = 'eodFeedbackOverlay';
     overlay.className = 'eod-feedback-overlay';
     overlay.innerHTML = `
-      <div class="eod-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="eodFbTitle">
+      <div class="eod-feedback-dialog eod-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="eodFbTitle">
         <h2 id="eodFbTitle">App feedback</h2>
         <p class="eod-fb-lead">Tell Tyson what to fix or build next. We attach this screen automatically.</p>
         <div class="eod-fb-context" id="eodFbContext"></div>

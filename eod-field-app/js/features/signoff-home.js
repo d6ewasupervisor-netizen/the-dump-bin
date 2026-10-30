@@ -997,7 +997,7 @@
         <div class="field" style="margin-top:12px;">
           <label>Search sets</label>
           <div style="display:flex;gap:8px;align-items:center;">
-            <input type="search" id="sheetSearch" placeholder="Category, DBKEY, aisle…" style="flex:1;min-width:0;">
+            <input type="search" id="sheetSearch" placeholder="Category or DBKEY" style="flex:1;min-width:0;font-size:16px;">
             <button type="button" class="btn btn-secondary" id="sheetScanBtn" style="flex-shrink:0;">Scan UPC</button>
           </div>
         </div>
