@@ -254,6 +254,12 @@
           <span class="card__desc">All outbound Resend emails across tools — delivery status and exact resend.</span>
         </a>
 
+        <a href="/admin/field-alert-acks.html" class="card" id="notice-console-card" hidden>
+          <span class="card__icon">📣</span>
+          <span class="card__title">Notice Console<span class="notice-badge" id="notice-console-badge" hidden></span></span>
+          <span class="card__desc">Who's confirmed, who hasn't, and what to do about it.</span>
+        </a>
+
         <a href="/admin/district-helper.html" class="card" data-card="district-helper" hidden>
           <span class="card__icon">📨</span>
           <span class="card__title">District Helper</span>
@@ -338,6 +344,50 @@
           if (anyVisible) section.hidden = false;
         });
       } catch (_) {}
+    })();
+  </script>
+
+  <script>
+    // Notice Console card: rendered only for a console admin or a roster
+    // supervisor (the server's /console/me is the authority). Signed out, 403
+    // or offline leaves the card out of the page with no message and no flash —
+    // the card only leaves `hidden` once the scope check has answered.
+    (async function () {
+      var card = document.getElementById('notice-console-card');
+      var badge = document.getElementById('notice-console-badge');
+      if (!card || !badge || typeof dumpBinAuthFetch !== 'function') return;
+      var allowed = false;
+      try {
+        if (window.dumpBinAuth && dumpBinAuth.bootPromise) await dumpBinAuth.bootPromise;
+        var meRes = await dumpBinAuthFetch('/api/field-alerts/console/me', { noBounceOn401: true });
+        if (meRes && meRes.ok) {
+          var scope = await meRes.json();
+          var districts = scope && Array.isArray(scope.districts) ? scope.districts : [];
+          allowed = Boolean(scope) && scope.ok !== false && (scope.admin === true || districts.length > 0);
+        }
+      } catch (_) {
+        /* signed out or offline — nothing to show */
+      }
+      if (allowed) {
+        card.hidden = false;
+        var section = card.closest('[data-gated-section]');
+        if (section) section.hidden = false;
+      }
+      document.documentElement.setAttribute('data-notice-console', allowed ? 'shown' : 'hidden');
+      if (!allowed) return;
+      try {
+        var sumRes = await dumpBinAuthFetch('/api/field-alerts/console/summary', { noBounceOn401: true });
+        if (sumRes && sumRes.ok) {
+          var summary = await sumRes.json();
+          var open = Number(summary && summary.unconfirmed) || 0;
+          badge.textContent = open > 0 ? String(open) : 'All clear';
+          if (!open) badge.classList.add('notice-badge--clear');
+          badge.hidden = false;
+        }
+      } catch (_) {
+        /* the card still works without a count */
+      }
+      document.documentElement.setAttribute('data-notice-badge', badge.hidden ? 'hidden' : 'shown');
     })();
   </script>
 </body>

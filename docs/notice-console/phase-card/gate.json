@@ -1,0 +1,317 @@
+{
+  "phase": "phase-card",
+  "hub": "C:/Users/tgaut/the-dump-bin-wt-card",
+  "out": "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card",
+  "viewports": [
+    {
+      "name": "360x640",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\list-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\detail-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\sheet-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\failures-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "list",
+          "failures": [],
+          "vw": 360,
+          "cards": 3,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": null,
+          "homeBadge": null
+        },
+        {
+          "view": "detail",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "homeCard": null,
+          "homeBadge": null
+        },
+        {
+          "view": "sheet",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "homeCard": null,
+          "homeBadge": null
+        },
+        {
+          "view": "failures",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "homeCard": null,
+          "homeBadge": null
+        }
+      ]
+    },
+    {
+      "name": "390x844",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\list-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\detail-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\sheet-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\failures-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "list",
+          "failures": [],
+          "vw": 390,
+          "cards": 3,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": null,
+          "homeBadge": null
+        },
+        {
+          "view": "detail",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "homeCard": null,
+          "homeBadge": null
+        },
+        {
+          "view": "sheet",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "homeCard": null,
+          "homeBadge": null
+        },
+        {
+          "view": "failures",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "homeCard": null,
+          "homeBadge": null
+        }
+      ]
+    },
+    {
+      "name": "360x640 home admin",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-admin-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-card-admin-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-admin",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home supervisor-d6",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-supervisor-d6-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-card-supervisor-d6-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-supervisor-d6",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home rep-403",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-rep-403-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-rep-403",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home network-error",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-network-error-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-network-error",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home admin-all-clear",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-admin-all-clear-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-card-admin-all-clear-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-admin-all-clear",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "homeBadge": "All clear",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home admin",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-admin-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-card-admin-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-admin",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home supervisor-d6",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-supervisor-d6-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-card-supervisor-d6-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-supervisor-d6",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home rep-403",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-rep-403-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-rep-403",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home network-error",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-network-error-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-network-error",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home admin-all-clear",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-admin-all-clear-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-card\\home-card-admin-all-clear-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-admin-all-clear",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "homeBadge": "All clear",
+          "flashed": false
+        }
+      ]
+    }
+  ]
+}

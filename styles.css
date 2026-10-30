@@ -193,6 +193,36 @@ a:hover { color: var(--color-accent-light); }
   line-height: 1.45;
 }
 
+/* --- Notice Console hub card (supervisor / admin only) --- */
+#notice-console-card[hidden] { display: none; }
+
+
+
+#notice-console-card .card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.notice-badge {
+  flex: none;
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-error);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: .02em;
+  text-align: center;
+}
+
+.notice-badge[hidden] { display: none; }
+.notice-badge--clear { background: var(--color-success); color: #10201a; }
+
 /* --- Shared Form Styles (used by shirt-order) --- */
 .form-section {
   background: var(--color-surface);

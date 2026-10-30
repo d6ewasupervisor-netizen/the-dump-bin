@@ -1,4 +1,15 @@
 # Agent log
+## 2026-10-30 — Notice Console card on the hub (branch feat/notice-console-card)
+
+The Office & Admin row of `index.html` now has a **Notice Console** card next to District Helper, in the same card style: 📣 title, one line ("Who's confirmed, who hasn't, and what to do about it."), a link to `/admin/field-alert-acks.html`, and a pill badge with the viewer's open notice count — `All clear` (green) at zero.
+
+- **Gate:** the card ships `hidden` and only leaves it after `GET /api/field-alerts/console/me` answers. Admin → shown. Roster supervisor with districts (April = D6) → shown. 401, 403, network error → nothing renders, no message, and the card never flashes while the check is in flight. The console page keeps its own server-side scope; this card is convenience, not security.
+- **Badge:** `GET /api/field-alerts/console/summary` (new, eod-api branch of the same name). A failed or missing summary leaves the card standing without a number.
+- **CSS:** `#notice-console-card[hidden] { display: none; }` is required — `.card { display: flex }` outranks the UA `[hidden]` rule, so a bare `hidden` attribute does not hide a card on this page. The `data-card` gated cards have that bug today (they render for everyone); left alone, since fixing it is an access-policy decision.
+- **Mobile gate:** `npm run validate:notice-console` in eod-api (branch `feat/notice-console-card`) now loads this page at 360×640 and 390×844 with five `/console/me` fixtures — admin, supervisor D6, rep 403, network error, all clear. Screenshots + `gate.json` in `docs/notice-console/phase-card/`: `home-admin-390x844.png` (card, badge 3), `home-rep-403-390x844.png` (no card), `home-card-*` (card close-ups at both widths).
+
+**Not published.** Branch `feat/notice-console-card`, cut from `main` `17d431f`; `main` unchanged until Tyson says go. The badge needs the eod-api `/console/summary` route, which ships with the next batched eod-api deploy.
+
 ## 2026-10-30 — Notice console Phase B (ACT) (branch feat/notice-console-act)
 
 The console can now act. Each unconfirmed recipient card has **Remind** and **Confirm for them**; the notice has **Fix text / Correct / Extend or expire / Cancel notice**. Every action opens a bottom sheet with the reason field (and the recipient count for cancel and correct), posts to `/api/field-alerts/console/notices/:id/...` with the session's CSRF token, refreshes the detail, and leaves a confirmation line at the top.
