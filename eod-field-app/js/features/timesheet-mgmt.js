@@ -1374,46 +1374,203 @@
     return data;
   }
 
-  async function distribute(sheetKey) {
-    const key = sheetKey === 'instawork' ? 'instawork' : 'kompass';
+  /** 495 → "8h 15m", 240 → "4h", 45 → "45m". */
+  function formatHm(minutes) {
+    const n = Math.max(0, Math.round(Number(minutes) || 0));
+    const h = Math.floor(n / 60);
+    const m = n % 60;
+    if (h && m) return `${h}h ${m}m`;
+    if (h) return `${h}h`;
+    return `${m}m`;
+  }
+
+  /** What the lead sees after Distribute time, as plain data. */
+  function distributeModel(data) {
+    const d = data || {};
+    if (d.blocked) {
+      return {
+        kind: 'blocked',
+        title: 'Not ready to distribute',
+        groups: (d.blockers || []).map((b) => ({
+          projectName: b.projectName || 'Shift',
+          sets: (b.sets || []).map((s) => s.name || `Set ${s.resetId}`),
+          categoryUrl: b.categoryUrl || '',
+          punches: (b.punches || []).map((p) => `${p.name} — ${p.reason}`),
+          shiftUrl: b.shiftUrl || '',
+        })),
+      };
+    }
+    if (d.verified) {
+      const totals = d.totals || { byType: [], minutes: 0, people: 0 };
+      const rows = (totals.byType || []).map((r) => ({ label: r.projectName, value: formatHm(r.minutes) }));
+      const notOnSets = new Map();
+      for (const u of d.unplaced || []) {
+        notOnSets.set(u.projectName, (notOnSets.get(u.projectName) || 0) + (Number(u.minutes) || 0));
+      }
+      return {
+        kind: 'done',
+        title: 'Time distributed',
+        rows,
+        total: rows.length > 1 || (totals.people || 0) > 0
+          ? { label: `Total · ${totals.people} ${totals.people === 1 ? 'person' : 'people'}`, value: formatHm(totals.minutes) }
+          : null,
+        notOnSets: [...notOnSets].map(([label, minutes]) => ({ label: `${label} — not on a set`, value: formatHm(minutes) })),
+        note: rows.length ? '' : (d.summary || 'Nothing to distribute.'),
+      };
+    }
+    const lines = (d.problems || []).map((p) => (
+      p.onSets == null
+        ? `${p.name} (${p.projectName}): ${p.reason}`
+        : `${p.name} (${p.projectName}): punch ${formatHm(p.punchMinutes)}, on sets ${formatHm(p.onSets)}`
+    ));
+    for (const e of d.errors || []) lines.push(`${e.name} (${e.projectName}) ${e.set}: ${e.error}`);
+    if (!lines.length && d.error) lines.push(d.error);
+    return { kind: 'problem', title: 'Time did not match', lines };
+  }
+
+  function ensureDistributeCss() {
+    if (document.getElementById('eodDistCss')) return;
+    const css = document.createElement('style');
+    css.id = 'eodDistCss';
+    css.textContent = `
+      .eod-dist { display: flex; flex-direction: column; gap: 10px; }
+      .eod-dist section { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+      .eod-dist section + section { border-top: 1px solid var(--border, #334155); padding-top: 10px; }
+      .eod-dist h3 { margin: 0; font-size: 16px; color: var(--text, #f8fafc); }
+      .eod-dist ul { margin: 4px 0 8px; padding-left: 18px; }
+      .eod-dist-label { font-weight: 700; color: var(--text, #f8fafc); }
+      .eod-dist-row { display: flex; justify-content: space-between; gap: 12px; }
+      .eod-dist-row strong { color: var(--text, #f8fafc); white-space: nowrap; }
+      .eod-dist-total { border-top: 1px solid var(--border, #334155); padding-top: 8px; }
+      .eod-dist-ok { color: var(--ok, #6ee7a0); font-weight: 700; }
+      .eod-dist a.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; text-decoration: none; }
+    `;
+    document.head.appendChild(css);
+  }
+
+  function distributeNode(model) {
+    ensureDistributeCss();
+    const root = document.createElement('div');
+    root.className = 'eod-dist';
+    const el = (tag, className, text) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text != null) node.textContent = text;
+      return node;
+    };
+    const link = (href) => {
+      const a = el('a', 'btn btn-secondary', 'Open in PROD');
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      return a;
+    };
+    const list = (items) => {
+      const ul = el('ul');
+      items.forEach((text) => ul.appendChild(el('li', '', text)));
+      return ul;
+    };
+    const row = (label, value, className) => {
+      const r = el('div', `eod-dist-row${className ? ` ${className}` : ''}`);
+      r.appendChild(el('span', '', label));
+      r.appendChild(el('strong', '', value));
+      return r;
+    };
+    if (model.kind === 'blocked') {
+      model.groups.forEach((g) => {
+        const section = el('section');
+        section.appendChild(el('h3', '', g.projectName));
+        if (g.sets.length) {
+          section.appendChild(el('div', 'eod-dist-label', 'Mark complete or an exception'));
+          section.appendChild(list(g.sets));
+          if (g.categoryUrl) section.appendChild(link(g.categoryUrl));
+        }
+        if (g.punches.length) {
+          section.appendChild(el('div', 'eod-dist-label', 'Finalize the punch or mark No Show'));
+          section.appendChild(list(g.punches));
+          if (g.shiftUrl) section.appendChild(link(g.shiftUrl));
+        }
+        root.appendChild(section);
+      });
+    } else if (model.kind === 'done') {
+      model.rows.forEach((r) => root.appendChild(row(r.label, r.value)));
+      model.notOnSets.forEach((r) => root.appendChild(row(r.label, r.value)));
+      if (model.total) root.appendChild(row(model.total.label, model.total.value, 'eod-dist-total'));
+      if (model.note) root.appendChild(el('div', '', model.note));
+      root.appendChild(el('div', 'eod-dist-ok', 'Distributed and verified against PROD.'));
+    } else {
+      root.appendChild(list(model.lines));
+    }
+    return root;
+  }
+
+  async function showDistributeResult(data) {
+    const model = distributeModel(data);
+    const buttons = [{ id: 'ok', label: 'OK', primary: true }];
+    if (window.EodAlerts?.showDialog) {
+      await window.EodAlerts.showDialog({ title: model.title, content: distributeNode(model), buttons });
+    } else if (typeof showAlert === 'function') {
+      await showAlert(model.title, data?.summary || data?.error || '');
+    }
+    return model;
+  }
+
+  let distributing = false;
+
+  function paintDistributeButtons(busy) {
+    ['crewDistributeBtn', 'iwDistributeBtn', 'eodTsDistributeBtn'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.disabled = busy;
+      btn.textContent = busy ? 'Distributing…' : 'Distribute time';
+    });
+  }
+
+  /** One run covers the whole store day: Kompass and InstaWork, every shift. */
+  async function distribute() {
     const store = storeNumber();
     const date = workDate();
     if (!store || !date) {
       showErr(new Error('Set store and work date first.'));
       return null;
     }
+    if (distributing) return null;
+    distributing = true;
+    paintDistributeButtons(true);
     const status = document.getElementById('eodTsStatus');
-    if (status && state.sheetKey === key) status.textContent = 'Distributing time…';
-    const resp = await authFetch(`${API}/distribute-time`, {
-      method: 'POST',
-      headers: dayConfirmHeaders(),
-      body: JSON.stringify({
-        sheetKey: key,
-        storeNumber: store,
-        workDate: date,
-      }),
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (resp.status === 412) {
-      if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
-      throw new Error('Confirm today\'s store first');
-    }
-    if (!resp.ok || data.ok === false) throw new Error(data.error || `Distribute failed (${resp.status})`);
-    const summary = data.summary || 'Done.';
-    if (status && state.sheetKey === key) {
-      status.style.whiteSpace = 'pre-wrap';
-      status.textContent = summary;
-    }
-    if (typeof showAlert === 'function') showAlert('Distribute time', summary);
-    const overlay = document.getElementById('eodTsMgmtOverlay');
-    if (overlay?.classList.contains('show') && state.sheetKey === key) {
-      try { await refresh(true); } catch (_) { /* the distribute result still stands */ }
-      if (status) {
-        status.style.whiteSpace = 'pre-wrap';
-        status.textContent = summary;
+    if (status) status.textContent = 'Distributing time…';
+    try {
+      const resp = await authFetch(`${API}/distribute-time`, {
+        method: 'POST',
+        headers: dayConfirmHeaders(),
+        body: JSON.stringify({
+          sheetKey: 'all',
+          storeNumber: store,
+          workDate: date,
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.status === 412) {
+        if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+        throw new Error('Confirm today\'s store first');
       }
+      const answered = data.blocked === true || typeof data.verified === 'boolean';
+      if (!answered && (!resp.ok || data.ok === false)) {
+        throw new Error(data.error || `Distribute failed (${resp.status})`);
+      }
+      if (status) status.textContent = data.summary || '';
+      distributing = false;
+      paintDistributeButtons(false);
+      await showDistributeResult(data);
+      const overlay = document.getElementById('eodTsMgmtOverlay');
+      if (overlay?.classList.contains('show')) {
+        try { await refresh(true); } catch (_) { /* the distribute result still stands */ }
+      }
+      return data;
+    } finally {
+      distributing = false;
+      paintDistributeButtons(false);
     }
-    return data;
   }
 
   async function open(sheetKey) {
@@ -1447,6 +1604,9 @@
     refresh: () => refresh(true),
     showJoinQr,
     distribute,
+    distributeModel,
+    showDistributeResult,
+    formatHm,
     signInLieu,
     fetchInstaworkMembers,
   };

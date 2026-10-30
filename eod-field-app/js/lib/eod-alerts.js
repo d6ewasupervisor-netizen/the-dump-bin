@@ -22,6 +22,7 @@
       }
       .eod-alert-head h2 { flex: 1 1 auto; margin: 0; font-size: 18px; }
       .eod-alert-dialog .eod-alert-body { margin: 0 0 14px; white-space: pre-wrap; color: var(--muted, #cbd5e1); font-size: 16px; line-height: 1.4; }
+      .eod-alert-dialog .eod-alert-rich { margin: 0 0 14px; color: var(--muted, #cbd5e1); font-size: 16px; line-height: 1.4; }
       .eod-alert-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
       .eod-alert-actions .btn { min-height: 44px; flex: 1 1 auto; font-size: 16px; }
     `;
@@ -34,8 +35,9 @@
     el?.remove();
   }
 
-  function showDialog({ title, message, buttons }) {
+  function showDialog({ title, message, buttons, content }) {
     ensureCss();
+    const rich = typeof Node !== 'undefined' && content instanceof Node;
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'eod-overlay eod-alert-overlay show';
@@ -45,9 +47,12 @@
             <h2 id="eodAlertTitle">${global.EodApi?.escapeHtml?.(title) || String(title || 'Notice')}</h2>
             <button type="button" class="eod-overlay-close" aria-label="Close">&#10005;</button>
           </div>
-          <p class="eod-alert-body">${global.EodApi?.escapeHtml?.(message) || String(message || '')}</p>
+          ${rich
+    ? '<div class="eod-alert-rich"></div>'
+    : `<p class="eod-alert-body">${global.EodApi?.escapeHtml?.(message) || String(message || '')}</p>`}
           <div class="eod-alert-actions"></div>
         </div>`;
+      if (rich) overlay.querySelector('.eod-alert-rich').appendChild(content);
       const actions = overlay.querySelector('.eod-alert-actions');
       const dismiss = () => {
         closeOverlay(overlay);
