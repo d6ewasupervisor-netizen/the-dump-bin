@@ -1,4 +1,19 @@
 # Agent log
+## 2026-10-30 — Notice console Phase B (ACT) (branch feat/notice-console-act)
+
+The console can now act. Each unconfirmed recipient card has **Remind** and **Confirm for them**; the notice has **Fix text / Correct / Extend or expire / Cancel notice**. Every action opens a bottom sheet with the reason field (and the recipient count for cancel and correct), posts to `/api/field-alerts/console/notices/:id/...` with the session's CSRF token, refreshes the detail, and leaves a confirmation line at the top.
+
+- **Remind** sends one SMS, limited to one per person per hour; the sheet reports the block reason when there is one (no phone, no consent, STOP, reminders switched off).
+- **Confirm for them** needs a reason and renders everywhere as `confirmed by tyson.gauthier on behalf of Chris Metzger` plus the reason, with the separate own-confirm / on-behalf counts.
+- **Cancel** revokes with a reason and shows how many recipients (and how many were still unconfirmed) before it runs.
+- **Fix text** edits title and body only — no new version, nobody re-confirms.
+- **Correct** shows the field-level diff first; the confirm button stays disabled until “Show changes” has rendered it.
+- **Extend or expire** takes a date; a future date extends, a past date (or empty) expires now.
+- The Console actions card lists every audit row with who, when, which recipient and the reason.
+
+Sheet CSS fixed two real defects the mobile gate caught (19 px input, 13 px font). Screenshots + `gate.json` in `docs/notice-console/phase-b/`.
+
+**Not deployed.** Branch `feat/notice-console-act` (stacks on `feat/notice-console-see`); `main` is unchanged until Tyson says go.
 ## 2026-10-30 — Notice console Phase A (SEE) (branch feat/notice-console-see)
 
 `admin/field-alert-acks.html` is now the notice console — same file, same URL, logic in `admin/field-alert-acks.js`. Phone width first: filters are a 2-up grid, notices and recipients are cards (no horizontal table), every control is at least 44 px and 16 px.
