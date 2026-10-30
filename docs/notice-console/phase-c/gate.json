@@ -1,0 +1,155 @@
+{
+  "phase": "phase-c",
+  "hub": "C:/Users/tgaut/the-dump-bin",
+  "out": "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c",
+  "viewports": [
+    {
+      "name": "360x640",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\list-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\detail-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\sheet-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\failures-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\compose-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\preview-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "list",
+          "failures": [],
+          "vw": 360,
+          "cards": 3,
+          "recipients": 0,
+          "causes": 0,
+          "picks": 0,
+          "phone": 0
+        },
+        {
+          "view": "detail",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "picks": 0,
+          "phone": 0
+        },
+        {
+          "view": "sheet",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "picks": 0,
+          "phone": 0
+        },
+        {
+          "view": "failures",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "picks": 0,
+          "phone": 0
+        },
+        {
+          "view": "compose",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "picks": 2,
+          "phone": 0
+        },
+        {
+          "view": "preview",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "picks": 2,
+          "phone": 1
+        }
+      ]
+    },
+    {
+      "name": "390x844",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\list-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\detail-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\sheet-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\failures-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\compose-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-c\\preview-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "list",
+          "failures": [],
+          "vw": 390,
+          "cards": 3,
+          "recipients": 0,
+          "causes": 0,
+          "picks": 0,
+          "phone": 0
+        },
+        {
+          "view": "detail",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "picks": 0,
+          "phone": 0
+        },
+        {
+          "view": "sheet",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "picks": 0,
+          "phone": 0
+        },
+        {
+          "view": "failures",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "picks": 0,
+          "phone": 0
+        },
+        {
+          "view": "compose",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "picks": 2,
+          "phone": 0
+        },
+        {
+          "view": "preview",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "picks": 2,
+          "phone": 1
+        }
+      ]
+    }
+  ]
+}

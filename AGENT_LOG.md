@@ -1,4 +1,19 @@
 # Agent log
+## 2026-10-30 — Notice console Phase C (SEND) (branch feat/notice-console-send)
+
+A third tab, **Compose**, sends an ad-hoc notice straight into the field app — no vendor email anywhere.
+
+- Title + **2–4 bullets** (one paragraph each in the overlay).
+- **Severity** buttons with the matrix printed under them (`blocks the app until confirmed · SMS after 120 min · escalates after 120 min · window 6:00–18:00 PT` for action).
+- **Audience** as District / Route / Store / Person, resolved live; the sheet shows *who* resolves and warns about anyone with no consent, no phone or not on the app **before** the send.
+- **Document**: pick an existing Dump Bin PDF or upload one (PDF only, ≤8 MB, stored server-side and served to the field app and the SMS link alike).
+- **Channel**: Field app (CP scheduler is shown disabled as pending).
+- **Preview** renders the overlay at phone width exactly as the lead sees it, plus the SMS text the reminder worker would send.
+- **Send** needs “I approve this notice” and goes through the signed gate; afterwards the console jumps to the new notice's detail.
+
+The mobile gate now drives Compose too (title, bullets, district, live resolve, preview) and caught a 15 px file input and a collapsed picklist — both fixed. Screenshots + `gate.json` in `docs/notice-console/phase-c/`.
+
+**Not deployed.** Branch `feat/notice-console-send` (stacks on act); `main` is unchanged until Tyson says go.
 ## 2026-10-30 — Notice console Phase B (ACT) (branch feat/notice-console-act)
 
 The console can now act. Each unconfirmed recipient card has **Remind** and **Confirm for them**; the notice has **Fix text / Correct / Extend or expire / Cancel notice**. Every action opens a bottom sheet with the reason field (and the recipient count for cancel and correct), posts to `/api/field-alerts/console/notices/:id/...` with the session's CSRF token, refreshes the detail, and leaves a confirmation line at the top.

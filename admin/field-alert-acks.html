@@ -85,6 +85,31 @@ dialog::backdrop{background:rgba(11,37,69,.45)}
 .difflist dt{font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em;color:var(--text2);margin-top:8px}
 .difflist dd{white-space:pre-wrap;word-break:break-word}
 .difflist .to{color:#0b6b2f}
+.lbl{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin:0 0 6px}
+#view-compose label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin:10px 0 4px}
+#view-compose input[type=text],#view-compose textarea{font:inherit;font-size:16px;width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--navy)}
+#view-compose textarea{min-height:64px}
+#view-compose input[type=file]{font-size:16px;width:100%;min-height:44px;padding:8px 0}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.seg-btn{font:inherit;font-size:15px;font-weight:700;min-height:44px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--navy);cursor:pointer;padding:0 10px}
+.seg-btn[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+.seg-btn:disabled{opacity:.55;cursor:not-allowed}
+.picklist{display:flex;flex-direction:column;margin-top:10px;max-height:320px;overflow:auto}
+#view-compose .picklist label{display:flex;gap:10px;align-items:center;min-height:44px;border-top:1px solid #eef1f5;margin:0;text-transform:none;letter-spacing:0;font-size:16px;font-weight:400;color:var(--navy)}
+#view-compose .picklist input{width:20px;height:20px;flex:0 0 auto;margin:0}
+.row-check{display:flex!important;align-items:center;gap:10px;min-height:44px;text-transform:none!important;letter-spacing:0!important;font-size:16px!important;font-weight:700!important;color:var(--navy)!important;margin:0!important}
+.row-check input{width:22px;height:22px}
+.warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:8px 10px;font-size:13px;color:#92400e;margin-top:6px}
+.phone{max-width:390px;margin:12px auto 0;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#0f172a;padding:10px}
+.phone-card{background:#fff;border-radius:12px;overflow:hidden}
+.phone-head{padding:12px 14px;color:#fff;font-weight:700;font-size:15px;line-height:1.3}
+.phone-head.info{background:#0b4d7a}
+.phone-head.action{background:#b45309}
+.phone-head.urgent{background:#C8102E}
+.phone-body{padding:12px 14px;font-size:14px;color:#1f2937;max-height:320px;overflow:auto}
+.phone-body p{margin:0 0 10px}
+.phone-foot{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line);background:#f9fafb;font-size:13px;color:var(--text2)}
+.smsbox{margin-top:12px;background:#eef3fa;border-radius:10px;padding:10px 12px;font-size:14px;white-space:pre-wrap;word-break:break-word}
 @media (min-width:720px){
   .filters{grid-template-columns:repeat(4,minmax(0,1fr))}
   .counts{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -99,9 +124,81 @@ dialog::backdrop{background:rgba(11,37,69,.45)}
 <div class="tabs" role="tablist">
   <button class="tab" id="tab-notices" role="tab" aria-selected="true">Notices</button>
   <button class="tab" id="tab-failures" role="tab" aria-selected="false">Failures</button>
+  <button class="tab" id="tab-compose" role="tab" aria-selected="false">Compose</button>
 </div>
 
 <div class="wrap">
+  <section id="view-compose" hidden>
+    <div class="card">
+      <div class="filters" style="grid-template-columns:1fr">
+        <div><label for="c-title">Title</label>
+          <input id="c-title" type="text" maxlength="200" placeholder="Short headline"></div>
+      </div>
+      <div id="c-bullets">
+        <label for="c-b1">Bullet 1</label><textarea id="c-b1"></textarea>
+        <label for="c-b2">Bullet 2</label><textarea id="c-b2"></textarea>
+        <label for="c-b3">Bullet 3</label><textarea id="c-b3"></textarea>
+        <label for="c-b4">Bullet 4</label><textarea id="c-b4"></textarea>
+      </div>
+      <div class="chain" id="c-bullet-note">2–4 bullets</div>
+    </div>
+
+    <div class="card">
+      <label class="lbl">Severity</label>
+      <div class="seg" id="c-severity">
+        <button type="button" class="seg-btn" data-sev="info">info</button>
+        <button type="button" class="seg-btn" data-sev="action" aria-pressed="true">action</button>
+        <button type="button" class="seg-btn" data-sev="urgent">urgent</button>
+      </div>
+      <div id="c-matrix" class="hint"></div>
+    </div>
+
+    <div class="card">
+      <label class="lbl">Audience</label>
+      <div class="seg" id="c-aud-type">
+        <button type="button" class="seg-btn" data-aud="districts" aria-pressed="true">District</button>
+        <button type="button" class="seg-btn" data-aud="routes">Route</button>
+        <button type="button" class="seg-btn" data-aud="stores">Store</button>
+        <button type="button" class="seg-btn" data-aud="emails">Person</button>
+      </div>
+      <div id="c-aud-list" class="picklist"></div>
+      <div id="c-aud-summary" class="chain"></div>
+      <div id="c-aud-warnings"></div>
+    </div>
+
+    <div class="card">
+      <label class="lbl">Document</label>
+      <select id="c-doc-existing"><option value="">No document</option></select>
+      <label for="c-doc-file" style="margin-top:10px">Upload a PDF</label>
+      <input id="c-doc-file" type="file" accept="application/pdf">
+      <div id="c-doc-status" class="chain"></div>
+    </div>
+
+    <div class="card">
+      <label class="lbl">Channel</label>
+      <div class="seg" id="c-channel">
+        <button type="button" class="seg-btn" data-ch="eod_field_app" aria-pressed="true">Field app</button>
+        <button type="button" class="seg-btn" data-ch="cp_scheduler" disabled>CP scheduler (pending)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row-actions" style="margin-top:0">
+        <button class="btn" id="c-preview">Preview</button>
+        <button class="btn secondary" id="c-reset">Clear</button>
+      </div>
+      <div id="c-preview-out"></div>
+    </div>
+
+    <div class="card">
+      <label class="row-check"><input type="checkbox" id="c-approve"> I approve this notice</label>
+      <label for="c-approval-note" style="margin-top:8px">Note (optional)</label>
+      <input id="c-approval-note" type="text">
+      <button class="btn" id="c-send" disabled style="margin-top:12px">Send notice</button>
+      <div id="c-send-note" class="note" hidden></div>
+    </div>
+  </section>
+
   <section id="view-list">
     <div class="card">
       <div class="filters">

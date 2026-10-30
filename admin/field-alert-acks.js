@@ -214,8 +214,10 @@ function districtOptions() {
     el('view-list').hidden = which !== 'list';
     el('view-detail').hidden = which !== 'detail';
     el('view-failures').hidden = which !== 'failures';
-    el('tab-notices').setAttribute('aria-selected', which === 'failures' ? 'false' : 'true');
+    el('view-compose').hidden = which !== 'compose';
+    el('tab-notices').setAttribute('aria-selected', which === 'list' || which === 'detail' ? 'true' : 'false');
     el('tab-failures').setAttribute('aria-selected', which === 'failures' ? 'true' : 'false');
+    el('tab-compose').setAttribute('aria-selected', which === 'compose' ? 'true' : 'false');
   }
 
   function loadMe() {
@@ -682,4 +684,344 @@ function loadFailures() {
       el('sheet-go').disabled = false;
     });
   });
+/* ─── Phase C: send ────────────────────────────────────────────────────── */
+
+  var compose = {
+    severity: 'action',
+    audType: 'districts',
+    picked: { districts: [], routes: [], stores: [], emails: [] },
+    channel: 'eod_field_app',
+    docId: null,
+    existingDoc: null,
+    docUrl: null,
+    options: null,
+    resolved: null,
+    previewed: false
+  };
+
+  function composeTitle() { return el('c-title').value.trim(); }
+
+  function composeBullets() {
+    return ['c-b1', 'c-b2', 'c-b3', 'c-b4']
+      .map(function (id) { return el(id).value.trim(); })
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  function composeAudience() {
+    var picked = compose.picked;
+    if (compose.audType === 'districts') return { districts: picked.districts.map(Number) };
+    if (compose.audType === 'routes') {
+      var stores = (compose.options ? compose.options.stores : [])
+        .filter(function (s) { return picked.routes.indexOf(s.kompass_route) >= 0; })
+        .map(function (s) { return s.store_number; });
+      return { stores: stores };
+    }
+    if (compose.audType === 'stores') return { stores: picked.stores.slice() };
+    return { emails: picked.emails.slice() };
+  }
+
+  function composeAudienceEmpty() {
+    var aud = composeAudience();
+    return !(aud.districts || aud.stores || aud.emails || []).length;
+  }
+
+  function renderMatrix() {
+    var matrix = (compose.options && compose.options.severityMatrix) || {};
+    var policy = matrix[compose.severity] || {};
+    var bits = [];
+    bits.push(policy.blocking ? 'blocks the app until confirmed' : 'does not block');
+    bits.push(policy.smsAfterMs != null
+      ? 'SMS after ' + Math.round(policy.smsAfterMs / 60000) + ' min'
+      : 'no SMS');
+    bits.push(policy.escalateAfterMs != null
+      ? 'escalates after ' + Math.round(policy.escalateAfterMs / 60000) + ' min'
+      : 'no escalation');
+    if (policy.windowStartHour != null) {
+      bits.push('window ' + policy.windowStartHour + ':00–' + policy.windowEndHour + ':00 PT');
+    }
+    el('c-matrix').textContent = bits.join(' · ');
+  }
+
+  function setSeg(containerId, attr, value) {
+    Array.prototype.forEach.call(el(containerId).querySelectorAll('.seg-btn'), function (btn) {
+      btn.setAttribute('aria-pressed', btn.dataset[attr] === value ? 'true' : 'false');
+    });
+  }
+
+  function renderAudienceList() {
+    var options = compose.options || { districts: [], routes: [], stores: [], people: [] };
+    var type = compose.audType;
+    var items = [];
+    if (type === 'districts') {
+      items = (options.districts || []).map(function (d) { return { key: d, label: 'D' + d }; });
+    } else if (type === 'routes') {
+      items = (options.routes || []).map(function (r) {
+        var stores = (options.stores || []).filter(function (s) { return s.kompass_route === r; });
+        return {
+          key: r,
+          label: r + ' — FM' + stores.map(function (s) { return s.store_number; }).join(', ')
+        };
+      });
+    } else if (type === 'stores') {
+      items = (options.stores || []).map(function (s) { return { key: s.store_number, label: s.label }; });
+    } else {
+      items = (options.people || []).map(function (p) {
+        return {
+          key: p.email,
+          label: (p.display_name || p.email) + ' · D' + (p.districts || []).join(', D')
+            + (p.kompass_route ? ' ' + p.kompass_route : '')
+        };
+      });
+    }
+    el('c-aud-list').innerHTML = items.length
+      ? items.map(function (item) {
+        var on = compose.picked[type].indexOf(item.key) >= 0;
+        return '<label><input type="checkbox" data-pick="' + esc(type) + '" value="' + esc(item.key) + '"'
+          + (on ? ' checked' : '') + '>' + esc(item.label) + '</label>';
+      }).join('')
+      : '<div class="empty">Nothing in your districts.</div>';
+  }
+
+  function composeDocUrl() {
+    if (compose.docId) return '/api/field-alerts/console/docs/' + compose.docId + '.pdf';
+    if (compose.existingDoc) return compose.existingDoc.url;
+    return null;
+  }
+
+  function updateSendButton() {
+    var count = compose.resolved ? compose.resolved.recipients.length : 0;
+    var ready = compose.previewed && el('c-approve').checked && count > 0;
+    el('c-send').disabled = !ready;
+  }
+
+  function renderResolved(resolved) {
+    compose.resolved = resolved;
+    var list = resolved.recipients || [];
+    el('c-aud-summary').textContent = list.length
+      ? list.length + ' recipient' + (list.length === 1 ? '' : 's') + ': '
+        + list.slice(0, 6).map(function (r) { return r.display_name; }).join(', ')
+        + (list.length > 6 ? ' +' + (list.length - 6) + ' more' : '')
+      : 'Nobody resolves from that audience.';
+    var warnings = resolved.warnings || [];
+    el('c-aud-warnings').innerHTML = warnings.length
+      ? warnings.map(function (w) {
+        return '<div class="warn">' + esc(w.message) + '</div>';
+      }).join('')
+      : '';
+    updateSendButton();
+  }
+
+  var resolveTimer = null;
+  function scheduleResolve() {
+    compose.previewed = false;
+    el('c-send').disabled = true;
+    if (resolveTimer) clearTimeout(resolveTimer);
+    if (composeAudienceEmpty()) {
+      renderResolved({ recipients: [], warnings: [], summary: {} });
+      return;
+    }
+    resolveTimer = setTimeout(function () {
+      post('/api/field-alerts/console/compose/resolve', {
+        audience: composeAudience(),
+        channel: compose.channel
+      }).then(renderResolved).catch(function (err) {
+        el('c-aud-summary').textContent = err.message;
+        el('c-aud-warnings').innerHTML = '';
+        compose.resolved = null;
+      });
+    }, 220);
+  }
+
+  function loadComposeOptions() {
+    if (compose.options) {
+      renderMatrix();
+      renderAudienceList();
+      return Promise.resolve(compose.options);
+    }
+    return api('/api/field-alerts/console/compose/options').then(function (data) {
+      compose.options = data;
+      renderMatrix();
+      renderAudienceList();
+      var docs = data.documents || [];
+      el('c-doc-existing').innerHTML = '<option value="">No document</option>'
+        + docs.map(function (doc) {
+          return '<option value="' + esc(doc.reviewId + '|' + doc.variant) + '">'
+            + esc(doc.reviewId + ' · ' + doc.variant) + '</option>';
+        }).join('');
+      return data;
+    });
+  }
+
+  function renderPreview(preview) {
+    var sev = preview.severity || 'action';
+    el('c-preview-out').innerHTML = '<div class="phone"><div class="phone-card">'
+      + '<div class="phone-head ' + esc(sev) + '">' + esc(preview.title || '(no title)') + '</div>'
+      + '<div class="phone-body">' + (preview.bodyHtml || '<p>(no bullets)</p>') + '</div>'
+      + '<div class="phone-foot"><span>☐ I understand</span><span>Dismiss</span></div>'
+      + '</div></div>'
+      + '<div class="smsbox">' + esc(preview.smsText) + '</div>'
+      + '<div class="chain">' + (preview.docUrl ? 'Document attached' : 'No document') + '</div>';
+    compose.previewed = true;
+    updateSendButton();
+  }
+
+  function readFileBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result || '')); };
+      reader.onerror = function () { reject(new Error('could not read that file')); };
+      reader.readAsDataURL(file);
+    });
+  }
+function resetCompose() {
+    el('c-title').value = '';
+    ['c-b1', 'c-b2', 'c-b3', 'c-b4', 'c-approval-note'].forEach(function (id) { el(id).value = ''; });
+    el('c-approve').checked = false;
+    el('c-doc-file').value = '';
+    el('c-doc-existing').value = '';
+    el('c-doc-status').textContent = '';
+    el('c-preview-out').innerHTML = '';
+    compose.docId = null;
+    compose.existingDoc = null;
+    compose.previewed = false;
+    compose.resolved = null;
+    el('c-send-note').hidden = true;
+    updateSendButton();
+  }
+
+  function sendComposeNotice() {
+    var body = {
+      title: composeTitle(),
+      bullets: composeBullets(),
+      severity: compose.severity,
+      audience: composeAudience(),
+      channel: compose.channel,
+      docId: compose.docId,
+      existingDoc: compose.existingDoc
+        ? { reviewId: compose.existingDoc.reviewId, variant: compose.existingDoc.variant }
+        : null,
+      approved: el('c-approve').checked === true,
+      approvalNote: el('c-approval-note').value.trim() || null
+    };
+    var note = el('c-send-note');
+    note.hidden = false;
+    note.className = 'note';
+    note.textContent = 'Sending…';
+    el('c-send').disabled = true;
+    post('/api/field-alerts/console/compose', body).then(function (data) {
+      note.textContent = 'Sent to ' + data.recipients + ' recipient'
+        + (data.recipients === 1 ? '' : 's') + '.';
+      var newId = data.alert && data.alert.id;
+      resetCompose();
+      loadList();
+      if (newId) openNotice(newId);
+    }).catch(function (err) {
+      note.className = 'note bad';
+      note.textContent = err.message;
+      updateSendButton();
+    });
+  }
+
+  el('tab-compose').addEventListener('click', function () {
+    history.replaceState(null, '', location.pathname);
+    currentNotice = null;
+    showView('compose');
+    loadComposeOptions().catch(function (err) {
+      el('c-matrix').textContent = err.message;
+    });
+  });
+
+  el('c-severity').addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-sev]');
+    if (!btn) return;
+    compose.severity = btn.dataset.sev;
+    setSeg('c-severity', 'sev', compose.severity);
+    renderMatrix();
+    compose.previewed = false;
+    updateSendButton();
+  });
+
+  el('c-aud-type').addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-aud]');
+    if (!btn) return;
+    compose.audType = btn.dataset.aud;
+    setSeg('c-aud-type', 'aud', compose.audType);
+    renderAudienceList();
+    scheduleResolve();
+  });
+
+  el('c-aud-list').addEventListener('change', function (event) {
+    var box = event.target.closest('[data-pick]');
+    if (!box) return;
+    var type = box.dataset.pick;
+    var value = box.dataset.pick === 'districts' ? Number(box.value) : box.value;
+    var list = compose.picked[type];
+    var at = list.indexOf(value);
+    if (box.checked && at < 0) list.push(value);
+    if (!box.checked && at >= 0) list.splice(at, 1);
+    scheduleResolve();
+  });
+
+  el('c-channel').addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-ch]');
+    if (!btn || btn.disabled) return;
+    compose.channel = btn.dataset.ch;
+    setSeg('c-channel', 'ch', compose.channel);
+  });
+
+  el('c-doc-existing').addEventListener('change', function () {
+    var value = el('c-doc-existing').value;
+    compose.docId = null;
+    compose.existingDoc = null;
+    if (value) {
+      var parts = value.split('|');
+      var docs = (compose.options && compose.options.documents) || [];
+      var hit = docs.find(function (d) { return d.reviewId === parts[0] && d.variant === parts[1]; });
+      compose.existingDoc = hit || { reviewId: parts[0], variant: parts[1],
+        url: '/api/central-pet/updates/' + encodeURIComponent(parts[0]) + '/document.pdf' };
+      el('c-doc-status').textContent = 'Attached: ' + parts[0] + ' · ' + parts[1];
+    } else {
+      el('c-doc-status').textContent = '';
+    }
+    compose.previewed = false;
+    updateSendButton();
+  });
+
+  el('c-doc-file').addEventListener('change', function () {
+    var file = el('c-doc-file').files && el('c-doc-file').files[0];
+    if (!file) return;
+    el('c-doc-status').textContent = 'Uploading ' + file.name + '…';
+    readFileBase64(file).then(function (dataUrl) {
+      return post('/api/field-alerts/console/docs', { dataUrl: dataUrl, filename: file.name });
+    }).then(function (data) {
+      compose.docId = data.doc.id;
+      compose.existingDoc = null;
+      el('c-doc-existing').value = '';
+      el('c-doc-status').textContent = 'Attached: ' + file.name;
+      compose.previewed = false;
+      updateSendButton();
+    }).catch(function (err) {
+      el('c-doc-status').textContent = err.message;
+    });
+  });
+
+  el('c-preview').addEventListener('click', function () {
+    post('/api/field-alerts/console/compose/preview', {
+      title: composeTitle(),
+      bullets: composeBullets(),
+      severity: compose.severity,
+      docUrl: composeDocUrl()
+    }).then(function (data) {
+      renderPreview(data.preview);
+    }).catch(function (err) {
+      el('c-preview-out').innerHTML = '<div class="warn">' + esc(err.message) + '</div>';
+      compose.previewed = false;
+      updateSendButton();
+    });
+  });
+
+  el('c-approve').addEventListener('change', updateSendButton);
+  el('c-reset').addEventListener('click', resetCompose);
+  el('c-send').addEventListener('click', sendComposeNotice);
 })();
