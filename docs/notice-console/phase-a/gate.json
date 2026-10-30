@@ -1,0 +1,77 @@
+{
+  "phase": "phase-a",
+  "hub": "C:/Users/tgaut/the-dump-bin",
+  "out": "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-a",
+  "viewports": [
+    {
+      "name": "360x640",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-a\\list-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-a\\detail-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-a\\failures-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "list",
+          "failures": [],
+          "vw": 360,
+          "cards": 3,
+          "recipients": 0,
+          "causes": 0
+        },
+        {
+          "view": "detail",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0
+        },
+        {
+          "view": "failures",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2
+        }
+      ]
+    },
+    {
+      "name": "390x844",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-a\\list-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-a\\detail-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin\\docs\\notice-console\\phase-a\\failures-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "list",
+          "failures": [],
+          "vw": 390,
+          "cards": 3,
+          "recipients": 0,
+          "causes": 0
+        },
+        {
+          "view": "detail",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0
+        },
+        {
+          "view": "failures",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2
+        }
+      ]
+    }
+  ]
+}

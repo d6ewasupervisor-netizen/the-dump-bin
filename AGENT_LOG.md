@@ -1,4 +1,31 @@
 # Agent log
+## 2026-10-30 — Notice console Phase B (ACT) (branch feat/notice-console-act)
+
+The console can now act. Each unconfirmed recipient card has **Remind** and **Confirm for them**; the notice has **Fix text / Correct / Extend or expire / Cancel notice**. Every action opens a bottom sheet with the reason field (and the recipient count for cancel and correct), posts to `/api/field-alerts/console/notices/:id/...` with the session's CSRF token, refreshes the detail, and leaves a confirmation line at the top.
+
+- **Remind** sends one SMS, limited to one per person per hour; the sheet reports the block reason when there is one (no phone, no consent, STOP, reminders switched off).
+- **Confirm for them** needs a reason and renders everywhere as `confirmed by tyson.gauthier on behalf of Chris Metzger` plus the reason, with the separate own-confirm / on-behalf counts.
+- **Cancel** revokes with a reason and shows how many recipients (and how many were still unconfirmed) before it runs.
+- **Fix text** edits title and body only — no new version, nobody re-confirms.
+- **Correct** shows the field-level diff first; the confirm button stays disabled until “Show changes” has rendered it.
+- **Extend or expire** takes a date; a future date extends, a past date (or empty) expires now.
+- The Console actions card lists every audit row with who, when, which recipient and the reason.
+
+Sheet CSS fixed two real defects the mobile gate caught (19 px input, 13 px font). Screenshots + `gate.json` in `docs/notice-console/phase-b/`.
+
+**Not deployed.** Branch `feat/notice-console-act` (stacks on `feat/notice-console-see`); `main` is unchanged until Tyson says go.
+## 2026-10-30 — Notice console Phase A (SEE) (branch feat/notice-console-see)
+
+`admin/field-alert-acks.html` is now the notice console — same file, same URL, logic in `admin/field-alert-acks.js`. Phone width first: filters are a 2-up grid, notices and recipients are cards (no horizontal table), every control is at least 44 px and 16 px.
+
+- **Notices tab**: severity, status (live / expired / revoked / superseded), audience label, creator + Pacific timestamp, version chain (corrects / superseded by / review), and four count boxes — delivered x/y, opened, confirmed, unconfirmed — with `own confirm · on behalf · reminders · sms failed · escalated` on one line. Filters: district, route, severity, status.
+- **Detail** (`#notice=<id>`, also the `/c/<id>` short link target): the honest per-recipient list, unconfirmed first — name, email, district · route, delivered, opened (channel), confirmed (channel, and "confirmed by X on behalf of Y" plus the reason when it was on behalf), reminders, SMS state, escalated; then a Console actions card from `/console/audit`.
+- **Failures tab**: every recipient with a delivery or SMS problem, grouped by cause, each group showing the fix hint.
+- **Export PDF** on each view sends the current filters to `/api/field-alerts/console/export.pdf`.
+
+Scope is the server's call (`GET /api/field-alerts/console/me`); the page never widens it. Mobile gate: `npm run validate:notice-console` in eod-api loads this page at 360×640 and 390×844 with fixture API responses and fails on overflow, sub-44 px taps, sub-16 px controls or an empty view; screenshots + `gate.json` are in `docs/notice-console/phase-a/`.
+
+**Not deployed.** Branch `feat/notice-console-see`; `main` is unchanged until Tyson says go.
 
 ## 2026-10-28 — Ack report shows the ack channel (branch fix/ack-report-channel)
 

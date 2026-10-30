@@ -1,5 +1,6 @@
 # Roadmap
 
+- Notice console (branches `feat/notice-console-see` → `feat/notice-console-act`): `admin/field-alert-acks.html` is now the console — scoped notice list with status + counts, per-recipient detail unconfirmed-first, failures grouped by cause with fix hints, PDF per view, and the act sheet (remind / confirm for them / fix text / correct with diff / extend-expire / cancel). Phase C (send) is next; nothing is deployed and `main` is unchanged.
 - Ack report (branch `fix/ack-report-channel`): the page shows the ack channel next to Understood. Merge + publish when Tyson says go; eod-api already serves `ack_channel`.
 - AGENTS.md / .clinerules (same branch) carry the "never push `main` without an explicit go" guardrail.
 
