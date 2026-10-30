@@ -2,171 +2,138 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Field alert acknowledgements</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Field notice console</title>
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="/auth-gate.js"></script>
 <style>
-:root{--navy:#0B2545;--sky:#4A7FB5;--red:#C8102E;--bg:#F4F6F9;--surface:#fff;--line:#D8DEE7;--text2:#4B5668;--text3:#7C8798;--radius:6px}
+:root{--navy:#0B2545;--sky:#4A7FB5;--red:#C8102E;--bg:#F4F6F9;--surface:#fff;--line:#D8DEE7;--text2:#4B5668;--text3:#7C8798;--radius:8px;--ok:#15803d}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Carlito,Calibri,"Segoe UI",sans-serif;background:var(--bg);color:#0B2545;font-size:15px;line-height:1.45}
-.top{background:var(--navy);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.top h1{font-size:18px;font-weight:700}
-.top a{color:#9fd0ff}
-.wrap{max-width:1240px;margin:0 auto;padding:18px 16px 48px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:16px}
-.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+body{font-family:Carlito,Calibri,"Segoe UI",sans-serif;background:var(--bg);color:#0B2545;font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+.top{background:var(--navy);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.top h1{font-size:17px;font-weight:700;line-height:1.25}
+.top .who{font-size:13px;color:#c7dcf5;text-align:right}
+.top a{color:#9fd0ff;display:inline-flex;align-items:center;min-height:44px;padding:0 6px;margin:-12px -6px -12px 0}
+.tabs{display:flex;gap:8px;background:var(--navy);padding:0 12px 10px}
+.tab{flex:1;min-height:44px;border:1px solid #33507a;background:#13325b;color:#dbe8f7;border-radius:999px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;padding:0 12px}
+.tab[aria-selected="true"]{background:#fff;color:var(--navy);border-color:#fff}
+.wrap{max-width:1240px;margin:0 auto;padding:14px 12px calc(32px + env(safe-area-inset-bottom))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .filters label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);display:block;margin-bottom:4px}
-select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);min-width:150px}
-.btn{padding:9px 14px;border-radius:var(--radius);border:1px solid transparent;background:var(--navy);color:#fff;font-weight:700;cursor:pointer}
+select,.btn{font:inherit;font-size:16px;min-height:44px;border-radius:var(--radius);border:1px solid var(--line);background:#fff;color:var(--navy);padding:8px 10px;width:100%}
+.btn{background:var(--navy);color:#fff;font-weight:700;border-color:transparent;cursor:pointer}
 .btn.secondary{background:#fff;color:var(--navy);border-color:var(--line)}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:var(--navy);color:#fff;text-align:left;padding:6px 8px;border:1px solid var(--line);white-space:nowrap}
-td{border:1px solid var(--line);padding:5px 8px;vertical-align:top}
-tr.alert-head td{background:#eef3fa;font-weight:700}
-.chain{color:var(--text2);font-weight:400;font-size:12px}
-.tag{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700}
-.tag.info{background:#e3f2fd}.tag.action{background:#fff3cd;color:#7a5b00}.tag.urgent{background:#fde2e2;color:#9b1c1c}
-.no{color:var(--red);font-weight:700}
-#status{font-size:13px;color:var(--text3);margin:8px 0}
+.btn.danger{background:#fff;color:var(--red);border-color:#f3c6cd}
+.row-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+#status{font-size:13px;color:var(--text3);margin:2px 2px 10px;min-height:1.2em}
+.notice{border-left:4px solid var(--sky)}
+.notice.sev-urgent{border-left-color:var(--red)}
+.notice.sev-info{border-left-color:var(--text3)}
+.notice-head{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.notice-title{font-weight:700;font-size:16px;line-height:1.3;flex:1}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.pill.info{background:#e3f2fd;color:#0b4d7a}
+.pill.action{background:#fff3cd;color:#7a5b00}
+.pill.urgent{background:#fde2e2;color:#9b1c1c}
+.pill.live{background:#e7f6ec;color:var(--ok)}
+.pill.expired{background:#eef1f5;color:var(--text2)}
+.pill.revoked{background:#fde2e2;color:#9b1c1c}
+.pill.superseded{background:#ede9fe;color:#5b21b6}
+.meta{font-size:13px;color:var(--text2);margin-top:6px}
+.chain{font-size:12px;color:var(--text3);margin-top:2px}
+.counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px}
+.count{background:#f7f9fc;border:1px solid #e6ecf3;border-radius:6px;padding:7px 9px}
+.count b{display:block;font-size:17px;line-height:1.1}
+.count span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
+.count.bad b{color:var(--red)}
+.count.good b{color:var(--ok)}
+.rcpt{border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px;margin-bottom:10px;background:#fff}
+.rcpt.unconfirmed{border-left:4px solid var(--red)}
+.rcpt .who{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.rcpt .name{font-weight:700;font-size:15px;line-height:1.3}
+.rcpt .sub{font-size:12px;color:var(--text3)}
+.kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:2px 10px;font-size:13px;margin-top:8px}
+.kv dt{color:var(--text2)}
+.kv dd{word-break:break-word}
+.bad{color:var(--red);font-weight:700}
+.ok{color:var(--ok);font-weight:700}
+.onbehalf{color:#5b21b6;font-weight:700}
+.cause{margin-bottom:12px}
+.cause-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cause h3{font-size:15px}
+.cause .n{font-weight:700;color:var(--red)}
+.hint{font-size:13px;color:var(--text2);background:#f7f9fc;border-radius:6px;padding:8px 10px;margin:8px 0}
+.chip{display:inline-block;background:#eef3fa;color:var(--navy);border-radius:999px;padding:1px 8px;font-size:12px;margin-right:6px}
+.empty{color:var(--text3);font-size:14px;padding:8px 2px}
+@media (min-width:720px){
+  .filters{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .counts{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
 </style>
 </head>
 <body>
 <div class="top">
-  <h1>Field alert acknowledgements</h1>
-  <div><a href="/dump-bin/">Dump Bin</a> · <a href="/admin/district-helper.html">District Helper</a></div>
+  <h1>Field notice console</h1>
+  <div class="who"><span id="me">Loading…</span><br><a href="/dump-bin/">Dump Bin</a></div>
 </div>
+<div class="tabs" role="tablist">
+  <button class="tab" id="tab-notices" role="tab" aria-selected="true">Notices</button>
+  <button class="tab" id="tab-failures" role="tab" aria-selected="false">Failures</button>
+</div>
+
 <div class="wrap">
-  <div class="card">
-    <div class="filters">
-      <div><label for="district">District</label>
-        <select id="district"><option value="">All</option><option value="6">D6</option><option value="8">D8</option></select></div>
-      <div><label for="severity">Severity</label>
-        <select id="severity"><option value="">All</option><option value="info">info</option><option value="action">action</option><option value="urgent">urgent</option></select></div>
-      <div><label for="status">Status</label>
-        <select id="status"><option value="open" selected>Not yet acknowledged</option><option value="understood">Acknowledged</option><option value="">All</option></select></div>
-      <button class="btn" id="refresh">Refresh</button>
-      <button class="btn secondary" id="exportPdf">Export PDF</button>
+  <section id="view-list">
+    <div class="card">
+      <div class="filters">
+        <div><label for="f-district">District</label><select id="f-district"></select></div>
+        <div><label for="f-route">Route</label><select id="f-route"></select></div>
+        <div><label for="f-severity">Severity</label>
+          <select id="f-severity">
+            <option value="">All</option><option value="info">info</option>
+            <option value="action">action</option><option value="urgent">urgent</option>
+          </select></div>
+        <div><label for="f-status">Status</label>
+          <select id="f-status">
+            <option value="">All</option><option value="live">Live</option>
+            <option value="expired">Expired</option><option value="revoked">Revoked</option>
+            <option value="superseded">Superseded</option>
+          </select></div>
+      </div>
+      <div class="row-actions">
+        <button class="btn" id="refresh">Refresh</button>
+        <button class="btn secondary" id="export-list">Export PDF</button>
+      </div>
     </div>
     <div id="status">Loading…</div>
-  </div>
-  <div class="card" style="overflow-x:auto">
-    <table id="report"><thead><tr>
-      <th>Alert</th><th>Recipient</th><th>District</th><th>Role</th><th>Delivered</th><th>Opened</th><th>Understood</th><th>SMS</th><th>Escalated</th>
-    </tr></thead><tbody></tbody></table>
-  </div>
+    <div id="list"></div>
+  </section>
+
+  <section id="view-detail" hidden>
+    <div class="card">
+      <div class="row-actions" style="margin-top:0">
+        <button class="btn secondary" id="back">All notices</button>
+        <button class="btn secondary" id="export-detail">Export PDF</button>
+      </div>
+      <div class="filters" style="margin-top:10px">
+        <div><label for="d-district">District</label><select id="d-district"></select></div>
+        <div><label for="d-route">Route</label><select id="d-route"></select></div>
+      </div>
+    </div>
+    <div id="detail"></div>
+    <div id="detail-audit"></div>
+  </section>
+
+  <section id="view-failures" hidden>
+    <div class="card">
+      <div class="row-actions" style="margin-top:0">
+        <button class="btn" id="refresh-failures">Refresh</button>
+        <button class="btn secondary" id="export-failures">Export PDF</button>
+      </div>
+    </div>
+    <div id="failures"></div>
+  </section>
 </div>
-<script>
-(function () {
-  'use strict';
-  const API_BASE = 'https://eod-api.the-dump-bin.com';
-
-  function sessionToken() {
-    try {
-      if (window.dumpBinAuth && typeof window.dumpBinAuth.getSession === 'function') return window.dumpBinAuth.getSession() || '';
-      return localStorage.getItem('dumpBinSession') || '';
-    } catch (e) { return ''; }
-  }
-
-  function qs() {
-    const p = new URLSearchParams();
-    const district = document.getElementById('district').value;
-    const severity = document.getElementById('severity').value;
-    const status = document.getElementById('status').value;
-    if (district) p.set('district', district);
-    if (severity) p.set('severity', severity);
-    if (status) p.set('status', status);
-    return p.toString();
-  }
-
-  function fmt(v) {
-    if (!v) return '—';
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? String(v) : d.toLocaleString();
-  }
-
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&', '<': '<', '>': '>', '"': '"' }[c]));
-  }
-
-  async function load() {
-    const el = document.getElementById('status');
-    el.textContent = 'Loading…';
-    try {
-      const token = sessionToken();
-      const r = await fetch(`${API_BASE}/api/field-alerts/report?${qs()}`, {
-        headers: token ? { Authorization: 'Bearer ' + token } : {},
-      });
-      if (r.status === 401) { window.location.href = '/?next=' + encodeURIComponent(location.pathname); return; }
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      render(data.rows || []);
-      el.textContent = `${(data.rows || []).length} rows · default sort: not yet acknowledged first`;
-    } catch (err) {
-      el.textContent = 'Failed to load: ' + err.message;
-    }
-  }
-
-  function render(rows) {
-    const tbody = document.querySelector('#report tbody');
-    const byAlert = new Map();
-    for (const row of rows) {
-      if (!byAlert.has(row.id)) byAlert.set(row.id, []);
-      byAlert.get(row.id).push(row);
-    }
-    const html = [];
-    for (const [alertId, list] of byAlert) {
-      const head = list[0] || {};
-      const chain = head.supersedes_alert_id
-        ? `<span class="chain">corrects ${esc(String(head.supersedes_alert_id).slice(0, 8))}… · chain ${esc(head.source_review_id || '-')}</span>`
-        : (head.source_review_id ? `<span class="chain">chain ${esc(head.source_review_id)}</span>` : '');
-      html.push(`<tr class="alert-head"><td colspan="9">${esc(head.title || alertId)} <span class="tag ${esc(head.severity || 'action')}">${esc(head.severity || 'action')}</span> ${chain}</td></tr>`);
-      for (const row of list) {
-        const sms = row.sms_failure
-          ? `<span class="no">${esc(row.sms_failure)}</span>`
-          : `${row.sms_reminders_sent || 0} sent${row.last_sms_at ? ' @ ' + esc(fmt(row.last_sms_at)) : ''}`;
-        const opened = row.opened_at ? `${esc(fmt(row.opened_at))} (${esc(row.open_channel || '?')})` : '<span class="no">no</span>';
-        const understood = row.understood_at
-          ? `${esc(fmt(row.understood_at))}${row.ack_channel ? ` (${esc(row.ack_channel)})` : ''}`
-          : '<span class="no">NO</span>';
-        html.push(`<tr>
-          <td>${esc(String(alertId).slice(0, 8))}…</td>
-          <td>${esc(row.display_name || row.email)}</td>
-          <td>${row.district != null ? 'D' + esc(row.district) : '—'}</td>
-          <td>${esc(row.notice_role || '')}</td>
-          <td>${row.delivered_at ? esc(fmt(row.delivered_at)) : '—'}</td>
-          <td>${opened}</td>
-          <td>${understood}</td>
-          <td>${sms}</td>
-          <td>${row.escalated_at ? esc(fmt(row.escalated_at)) : '—'}</td>
-        </tr>`);
-      }
-    }
-    tbody.innerHTML = html.join('') || '<tr><td colspan="9">No rows.</td></tr>';
-  }
-
-  async function exportPdf() {
-    const token = sessionToken();
-    const r = await fetch(`${API_BASE}/api/field-alerts/report?${qs()}&format=pdf`, {
-      headers: token ? { Authorization: 'Bearer ' + token } : {},
-    });
-    if (!r.ok) { alert('Export failed (HTTP ' + r.status + ')'); return; }
-    const blob = await r.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'field-alert-acks.pdf';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
-
-  document.getElementById('refresh').addEventListener('click', load);
-  document.getElementById('exportPdf').addEventListener('click', exportPdf);
-  for (const id of ['district', 'severity', 'status']) {
-    document.getElementById(id).addEventListener('change', load);
-  }
-  load();
-})();
-</script>
+<script src="/admin/field-alert-acks.js"></script>
 </body>
 </html>
