@@ -1,4 +1,19 @@
 # Agent log
+## 2026-10-30 — Published: hidden cards fix + restrict race; Set Photo Capture link is minted from the hub
+
+**Published.** `fix/hub-hidden-cards` → `main` (Pages run after this push). `.card[hidden] { display: none; }` now hides all 23 gated cards, and the `hubRestrictTo` pass skips cards without a `data-card`, so the Notice Console card can no longer be hidden (or revealed) by the access-policy restrict list — it is answered only by `/api/field-alerts/console/me`. A section whose only candidate is the console card is left to that card's own gate. Gate matrix green at 360×640 and 390×844 for rep, lead, supervisor D6, admin, restricted-ops (seth.newman) and restricted-admin (tgauthier2011@gmail.com):
+
+| Role | Visible gated cards | Console card |
+|---|---|---|
+| rep | `survey` | – |
+| lead | `survey`, set-photos, eod-board, instawork-clock, meat-pusher-survey, si-closeout | – |
+| supervisor D6 | 19 (office set + survey) | ✅ |
+| admin | 24 (all) | ✅ |
+| restricted-ops | `survey`, `survey-admin` | – |
+| restricted-admin | `survey`, `survey-admin` | ✅ |
+
+**Set Photo Capture.** `/api/set-photos/sheet` and `/upload` now require a session (lead+/office) or a signed per-sheet token — eod-api branch `fix/set-photos-dhe-auth`. The store page carries no session, so the hub card mints `/set-photos/?t=…` from `GET /api/set-photos/link` on click and the page sends it back. The field app's local mirror needs the same session Bearer: source fix on `fix/set-photos-mirror-auth`, **needs a field-app publish** before phones stop 401ing on mirror uploads (photos stay local and retry; the SAS path is unaffected).
+
 ## 2026-10-30 — Notice Console card published; hidden now means hidden (branch fix/hub-hidden-cards)
 
 **Published.** `feat/notice-console-card` fast-forwarded into `main` (`17d431f` → `8d767e8`); Pages run `41223222397` success in 29 s and the live home + `styles.css` both carry the card. Live check with the console scope stubbed (no production session token on this machine, and a magic link is outbound): admin renders the card with no badge — `/console/summary` is not deployed yet, the call answers 401 and nothing errors — and the rep 403 renders nothing. `docs/notice-console/published/`.

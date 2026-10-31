@@ -1,5 +1,9 @@
 # Roadmap
 
+- Set Photo Capture auth (eod-api `fix/set-photos-dhe-auth`, deploy with the next batch): `/sheet` + `/upload` need a session (lead+/office) or a signed per-sheet token; the hub mints the tokenised link on card click. The field app's local mirror needs the session Bearer — `fix/set-photos-mirror-auth` — and that needs a **field-app publish** so phones stop 401ing on mirror uploads.
+- Hidden-cards fix: published 2026-10-30. Any new hub card must either carry a `data-card` (access policy) or gate itself like the Notice Console card.
+
+
 - Hidden-cards fix (branch `fix/hub-hidden-cards`): `.card[hidden] { display: none; }` so the 23 gated cards stop rendering for everyone; four-role gate matrix (rep / lead / supervisor D6 / admin, 360+390) green and screenshots in `docs/notice-console/phase-hidden-cards/`. **Not published — waiting on Tyson's look.** The audit table is in `AUDIT.md`; the weaker-than-the-card APIs it found (`/api/set-photos/*` unauthenticated, `/api/dhe/send` sign-in only) are open.
 
 - Notice Console hub card (branch `feat/notice-console-card`): card + badge in Office & Admin, gated on eod-api `GET /api/field-alerts/console/me`, badge from `GET /api/field-alerts/console/summary`. Gate green at 360/390. Publish when Tyson says go, with (or after) the eod-api deploy that carries `/console/summary` — before that the card renders without a count.

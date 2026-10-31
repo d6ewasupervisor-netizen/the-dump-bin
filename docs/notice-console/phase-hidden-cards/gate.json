@@ -392,6 +392,57 @@
       ]
     },
     {
+      "name": "360x640 home restricted-ops",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-restricted-ops-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-restricted-ops-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-restricted-ops",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "survey",
+            "survey-admin"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home restricted-admin",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-restricted-admin-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-restricted-admin-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-restricted-admin-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-restricted-admin",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "survey",
+            "survey-admin"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
       "name": "390x844 home admin",
       "blocking": true,
       "shots": [
@@ -661,6 +712,57 @@
             "weekly-briefing-stats",
             "welcome-letter",
             "welcome-letter-board"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home restricted-ops",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-restricted-ops-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-restricted-ops-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-restricted-ops",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "survey",
+            "survey-admin"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home restricted-admin",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-restricted-admin-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-restricted-admin-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-restricted-admin-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-restricted-admin",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "survey",
+            "survey-admin"
           ],
           "homeBadge": "3",
           "flashed": false

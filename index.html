@@ -80,7 +80,7 @@
           <span class="card__desc">Display Compliance program guide and signed training checklist.</span>
         </a>
 
-        <a href="https://eod-api.the-dump-bin.com/set-photos/" class="card" data-card="set-photos" hidden>
+        <a href="https://eod-api.the-dump-bin.com/set-photos/" class="card" id="set-photos-card" data-card="set-photos" hidden>
           <span class="card__icon">📸</span>
           <span class="card__title">Set Photo Capture</span>
           <span class="card__desc">Quickly upload category photos.</span>
@@ -323,11 +323,19 @@
         if (restrict && restrict.length) {
           document.querySelectorAll('.card').forEach(function (el) {
             var id = el.getAttribute('data-card');
+            // Cards without a data-card are not part of the access policy
+            // (Notice Console gates itself on /api/field-alerts/console/me).
+            if (!id) return;
             el.hidden = restrict.indexOf(id) === -1;
           });
           document.querySelectorAll('.card-section').forEach(function (section) {
             var anyVisible = section.querySelector('.card:not([hidden])');
-            section.hidden = !anyVisible;
+            if (anyVisible) { section.hidden = false; return; }
+            // Nothing in the policy is visible here. The Notice Console card
+            // (not a data-card) can still bring this section back, and it
+            // reveals the section itself when the console scope allows it.
+            if (section.querySelector('#notice-console-card')) return;
+            section.hidden = true;
           });
           return;
         }
@@ -344,6 +352,33 @@
           if (anyVisible) section.hidden = false;
         });
       } catch (_) {}
+    })();
+  </script>
+
+  <script>
+    // Set Photo Capture lives on eod-api and now needs a session Bearer or a
+    // signed per-sheet token. Mint the tokenised link on the way out (the store
+    // page carries no session of its own). Falls back to the bare URL, which
+    // asks for a fresh link.
+    (function () {
+      var card = document.getElementById('set-photos-card');
+      if (!card || typeof dumpBinAuthFetch !== 'function') return;
+      var busy = false;
+      card.addEventListener('click', async function (event) {
+        if (busy) return;
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        busy = true;
+        var href = card.getAttribute('href');
+        try {
+          var res = await dumpBinAuthFetch('/api/set-photos/link', { noBounceOn401: true });
+          if (res && res.ok) {
+            var data = await res.json();
+            if (data && data.url) href = data.url;
+          }
+        } catch (_) {}
+        window.location.href = href;
+      });
     })();
   </script>
 
