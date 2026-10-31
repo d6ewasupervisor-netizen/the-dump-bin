@@ -806,9 +806,17 @@
     const timer = controller ? setTimeout(() => controller.abort(), 90000) : null;
     let resp;
     try {
+      // /api/set-photos/upload now requires the dump-bin session (lead+) or a
+      // signed per-sheet token; the mirror rides the session this app already
+      // holds, exactly like every other eod-api call in the field app.
+      const mirrorToken = (function () {
+        try { return localStorage.getItem('dumpBinSession') || ''; } catch (_) { return ''; }
+      })();
+      const mirrorHeaders = { 'Content-Type': 'application/json' };
+      if (mirrorToken) mirrorHeaders.Authorization = 'Bearer ' + mirrorToken;
       resp = await fetch(`${base}/api/set-photos/upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: mirrorHeaders,
         body: JSON.stringify({
           store: mirrorStore(job),
           workDate: mirrorWorkDate(job),
