@@ -1,4 +1,14 @@
 # Agent log
+## 2026-10-30 — Notice Console card published; hidden now means hidden (branch fix/hub-hidden-cards)
+
+**Published.** `feat/notice-console-card` fast-forwarded into `main` (`17d431f` → `8d767e8`); Pages run `41223222397` success in 29 s and the live home + `styles.css` both carry the card. Live check with the console scope stubbed (no production session token on this machine, and a magic link is outbound): admin renders the card with no badge — `/console/summary` is not deployed yet, the call answers 401 and nothing errors — and the rep 403 renders nothing. `docs/notice-console/published/`.
+
+**Audit (all 24 `data-card`s; 23 start hidden, `survey` never did).** One script unhides them: `/api/me` → `me.cards`, with `hubRestrictTo` winning and leaving only `survey` + `survey-admin` for seth.newman / amanda.mathews / josh.parker / tgauthier2011@gmail.com. The table lives in `AUDIT.md`. Two real findings: `.card { display: flex }` beat the UA `[hidden]` rule, so **every one of the 23 hidden cards rendered for every signed-in person**; and several APIs are weaker than their card implies (`/api/set-photos/*` has no auth at all, `/api/dhe/send` and `/api/eod-board/*` are sign-in only).
+
+**Fix (not published).** One rule replaces the card-specific one: `.card[hidden] { display: none; }`. The gate (`validate:notice-console`, eod-api branch `feat/notice-console-card`) now drives the home as rep, lead, supervisor D6 and admin at 360×640 and 390×844 and asserts the exact visible card set — rep `[survey]`, lead `[survey + set-photos, eod-board, instawork-clock, meat-pusher-survey, si-closeout]`, supervisor 19 (the office set incl. survey) + the console card, admin all 24 + console card. No card disappears for a role that should keep it. Negative control (rule deleted) fails with e.g. `role-rep cards visible without access: eod-board, instawork-clock, meat-pusher-review, meat-pusher-survey, set-photos` and `role-supervisor-d6 … extension-admin, pathways, portable-vault, prod-shifts, survey-admin`. Screenshots + `gate.json` in `docs/notice-console/phase-hidden-cards/`.
+
+**Open:** the hubRestrict branch hides every `.card`, including the Notice Console card (it has no `data-card`), so for those four addresses the card races its own scope check — fix is to let the restrict pass ignore cards without a `data-card`. Not changed; needs a decision.
+
 ## 2026-10-30 — Notice Console card on the hub (branch feat/notice-console-card)
 
 The Office & Admin row of `index.html` now has a **Notice Console** card next to District Helper, in the same card style: 📣 title, one line ("Who's confirmed, who hasn't, and what to do about it."), a link to `/admin/field-alert-acks.html`, and a pill badge with the viewer's open notice count — `All clear` (green) at zero.

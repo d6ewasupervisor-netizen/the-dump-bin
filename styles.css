@@ -193,8 +193,12 @@ a:hover { color: var(--color-accent-light); }
   line-height: 1.45;
 }
 
+/* A hidden card is hidden. `.card { display: flex }` otherwise outranks the
+   browser's UA `[hidden]` rule, so every gated card rendered for everyone. */
+.card[hidden] { display: none; }
+
+
 /* --- Notice Console hub card (supervisor / admin only) --- */
-#notice-console-card[hidden] { display: none; }
 
 
 

@@ -1,5 +1,39 @@
 # Audit
 
+Hub card gating (2026-10-30 audit). One script in `index.html` unhides the gated cards: `GET /api/me` → `me.cards`, `el.hidden = false` per id; if `hubRestrictTo` is set (seth.newman, amanda.mathews, josh.parker, tgauthier2011@gmail.com) it wins and only `survey` + `survey-admin` stay. Sections reveal when they hold a visible `[data-card]`.
+
+| Card (`data-card`) | Target | Resolved by | Intended audience | Target's own server-side gate |
+|---|---|---|---|---|
+| `survey` | `/survey/` | never unhidden — no `hidden` attribute | everyone signed in | `/api/survey/*` requireAuth + roster ACL (`requireSurveyAccess`) |
+| `survey-admin` | `/survey-admin/` | `_identity.js` survey scope, admin role | division/district survey admins | `/api/survey/admin/*` requireAuth + `requireSurveyAdmin` |
+| `set-photos` | eod-api `/set-photos/` | `canAccessSetPhotos` (lead+) | leads, supervisors, office | **none** — `/api/set-photos/sheet` + `/upload` have no auth and sit in `PUBLIC_PREFIXES` |
+| `eod-board` | `/eod-board/` | `canAccessEodBoard` (lead+ or map supervisor) | leads, supervisors | auth only (`requireAuth`); `lib/eod-board.js` scopes a lead to their own EODs |
+| `instawork-clock` | `/instawork-clock/` | `canAccessInstaworkClock` | leads, supervisors, office | `requireInstaworkClockAccess` on overview/workers/times |
+| `meat-pusher-survey` | `/meat-pusher-survey/` | `canAccessMeatPusherSurvey` | leads, supervisors, office | `canAccessMeatPusherSurvey` per route (`/open`, `/shared` are token links) |
+| `meat-pusher-review` | `/meat-pusher-survey/review/` | `canAccessMeatPusherReview` | supervisors, office | `canAccessMeatPusherReview` per route |
+| `central-pet` | `/central-pet/?to=dashboard` | `CARD_POLICY` cp-field \| office | CP field team, office | `/api/central-pet/updates/*` `requireThreadAccess` (admin, updates ACL, legacy list) |
+| `cp-uploads` | `/central-pet/uploads/` | `CARD_POLICY` cp-field \| office | CP field team, office | week-file/notice-stores are token-gated on the router |
+| `cp-updates` | `/central-pet/updates/` | `CARD_POLICY` cp-field \| office | CP field team, office | same `requireThreadAccess` |
+| `cp-planning-desk` | `/central-pet/?to=admin` | `CARD_POLICY` office | office | same + `requireAdmin` on recipients |
+| `welcome-letter` | `/welcome/` | `CARD_POLICY` office | office / supervisors | `/api/welcome-letter/*` `requireAuth` + `requireGroup(office)` |
+| `welcome-letter-board` | `/welcome-letter-board/` | `CARD_POLICY` office | office | same, plus `/api/pto` `requireGroup(office)` |
+| `caf` | `/caf/` | `CARD_POLICY` office | office / supervisors | `requireCafAccess` (office group, supervisor or admin env role) |
+| `si-closeout` | `/si-closeout/` | `canAccessSiCloseout` (lead+) | leads, supervisors, office | `/api/si-closeout-chat` `requireSiCloseoutAccess` |
+| `email-outbox` | `/email-outbox/` | `CARD_POLICY` office | office | `requireAuth` + `requireGroup(office)`; ingest/send are key-gated |
+| `district-helper` | `/admin/district-helper.html` | `CARD_POLICY` office | office / supervisors | `/api/dhe/*` auth only — `/roster/refresh` is admin, **`/send` is not role-checked** |
+| `weekly-briefing-stats` | `/weekly-briefing/admin.html` | `CARD_POLICY` office | supervisors, office | `/api/weekly-briefing/admin/*` `canAdmin` |
+| `pathways` | `/pathways/` | `pathwaysAllowed` allowlist | named leads (PATHWAYS_ALLOWED_EMAILS) | `/api/pathways/*` `requireAuth` + `requirePathwaysUser` |
+| `usage` | `/usage/` | `CARD_POLICY` office | office | `/api/usage/summary` + `/digest` `requireGroup(office)` |
+| `compare` | `https://compare.tactag.app` | `CARD_POLICY` office | office | external app — its own auth, not this repo's to enforce |
+| `prod-shifts` | `/prod-shifts/` | `isProdShiftsUser` (two-email allowlist) | Tyson + one | `/api/prod-shifts/*` `requireProdShiftsAccess` + SAS session |
+| `portable-vault` | `/portable-vault/` | `hasPendingPortableVault` (grant) | invited machine | `requireAuth` + `requirePortableVaultUser` (grant) |
+| `extension-admin` | `/extension-admin/` | admin role | admin | `/extension/instances` self-gates (admin JWT or service Bearer) |
+
+**Why this mattered:** `.card { display: flex }` outranked the UA `[hidden]` rule, so every one of the 23 hidden cards above rendered for every signed-in person — the card list was never a gate, and for `set-photos` / `district-helper send` / `eod-board` there was nothing behind it either. `fix/hub-hidden-cards` adds `.card[hidden] { display: none; }`; the four-role gate matrix is green.
+
+**Open:** `hubRestrictTo` also hides the Notice Console card (no `data-card`), so for those four addresses the card races its own scope check. Skip cards without a `data-card` in the restrict pass if that is the wanted behaviour.
+
+
 Notice Console hub card (2026-10-30, branch `feat/notice-console-card`): `index.html` carries `#notice-console-card` in the Office & Admin section (before District Helper) with `#notice-console-badge`. Neither is a `data-card`: `/api/me`'s access policy does not decide this one. Inline script at the end of the page calls `GET /api/field-alerts/console/me`, renders the card on `admin:true` or a non-empty `districts`, reveals the gated section, then reads `GET /api/field-alerts/console/summary` for the badge (`unconfirmed`; `0` → `All clear`, `.notice-badge--clear`). It sets `data-notice-console` / `data-notice-badge` on `<html>` when each step settles — the mobile gate uses those to prove the card never appears before the scope answer. `styles.css` needs `#notice-console-card[hidden] { display: none; }` because `.card { display:flex }` beats the UA `[hidden]` rule; **every other gated card on the page has that bug and renders for everyone** (open, needs an access-policy call). Screenshots + `gate.json` in `docs/notice-console/phase-card/`.
 
 Notice console actions (2026-10-30, branch `feat/notice-console-act`): `admin/field-alert-acks.js` builds every mutation as a sheet and posts with `x-console-csrf` (fetched once from `/api/field-alerts/console/csrf` on load). `openSheet(config)` owns title/intro/fields/diff/confirm label, so a new action is one config object; `requireDiff` keeps the confirm button disabled until `GET /notices/:id/diff` has rendered the field-level changes (correct), and `afterAction` reloads the detail before showing the toast. Server-side blocks (rate limit, no phone, STOP, not joined, reminders off) arrive as `{ok:false,error,code}` and render in the sheet's error line — the page never pre-empts a server decision. The script tag sits after the `<dialog>` so all listeners attach; the mobile gate opens the sheet and blocks on its controls. Screenshots + `gate.json` in `docs/notice-console/phase-b/`. Open: Phase C (compose/send) is not built, and nothing here is live until eod-api migration 187 deploys.

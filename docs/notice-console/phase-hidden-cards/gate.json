@@ -1,0 +1,671 @@
+{
+  "phase": "phase-hidden-cards",
+  "hub": "C:/Users/tgaut/the-dump-bin-wt-card",
+  "out": "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards",
+  "viewports": [
+    {
+      "name": "360x640",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\list-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\detail-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\sheet-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\failures-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "list",
+          "failures": [],
+          "vw": 360,
+          "cards": 3,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": null,
+          "visibleCards": [],
+          "homeBadge": null
+        },
+        {
+          "view": "detail",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "homeCard": null,
+          "visibleCards": [],
+          "homeBadge": null
+        },
+        {
+          "view": "sheet",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "homeCard": null,
+          "visibleCards": [],
+          "homeBadge": null
+        },
+        {
+          "view": "failures",
+          "failures": [],
+          "vw": 360,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "homeCard": null,
+          "visibleCards": [],
+          "homeBadge": null
+        }
+      ]
+    },
+    {
+      "name": "390x844",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\list-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\detail-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\sheet-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\failures-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "list",
+          "failures": [],
+          "vw": 390,
+          "cards": 3,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": null,
+          "visibleCards": [],
+          "homeBadge": null
+        },
+        {
+          "view": "detail",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "homeCard": null,
+          "visibleCards": [],
+          "homeBadge": null
+        },
+        {
+          "view": "sheet",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 3,
+          "causes": 0,
+          "homeCard": null,
+          "visibleCards": [],
+          "homeBadge": null
+        },
+        {
+          "view": "failures",
+          "failures": [],
+          "vw": 390,
+          "cards": 4,
+          "recipients": 5,
+          "causes": 2,
+          "homeCard": null,
+          "visibleCards": [],
+          "homeBadge": null
+        }
+      ]
+    },
+    {
+      "name": "360x640 home admin",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-admin-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-admin-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-admin",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home supervisor-d6",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-supervisor-d6-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-supervisor-d6-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-supervisor-d6",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home rep-403",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-rep-403-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-rep-403",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home network-error",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-network-error-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-network-error",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home admin-all-clear",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-admin-all-clear-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-admin-all-clear-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-admin-all-clear",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": "All clear",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home role-rep",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-role-rep-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-role-rep",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "survey"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home role-lead",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-role-lead-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-role-lead-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-role-lead",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "eod-board",
+            "instawork-clock",
+            "meat-pusher-survey",
+            "set-photos",
+            "si-closeout",
+            "survey"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home role-supervisor-d6",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-role-supervisor-d6-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-role-supervisor-d6-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-role-supervisor-d6-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-role-supervisor-d6",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "caf",
+            "central-pet",
+            "compare",
+            "cp-planning-desk",
+            "cp-updates",
+            "cp-uploads",
+            "district-helper",
+            "email-outbox",
+            "eod-board",
+            "instawork-clock",
+            "meat-pusher-review",
+            "meat-pusher-survey",
+            "set-photos",
+            "si-closeout",
+            "survey",
+            "usage",
+            "weekly-briefing-stats",
+            "welcome-letter",
+            "welcome-letter-board"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "360x640 home role-admin",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-role-admin-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-role-admin-360x640.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-role-admin-360x640.png"
+      ],
+      "checks": [
+        {
+          "view": "home-role-admin",
+          "failures": [],
+          "vw": 360,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "caf",
+            "central-pet",
+            "compare",
+            "cp-planning-desk",
+            "cp-updates",
+            "cp-uploads",
+            "district-helper",
+            "email-outbox",
+            "eod-board",
+            "extension-admin",
+            "instawork-clock",
+            "meat-pusher-review",
+            "meat-pusher-survey",
+            "pathways",
+            "portable-vault",
+            "prod-shifts",
+            "set-photos",
+            "si-closeout",
+            "survey",
+            "survey-admin",
+            "usage",
+            "weekly-briefing-stats",
+            "welcome-letter",
+            "welcome-letter-board"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home admin",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-admin-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-admin-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-admin",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home supervisor-d6",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-supervisor-d6-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-supervisor-d6-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-supervisor-d6",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home rep-403",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-rep-403-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-rep-403",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home network-error",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-network-error-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-network-error",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home admin-all-clear",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-admin-all-clear-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-admin-all-clear-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-admin-all-clear",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "district-helper",
+            "email-outbox",
+            "survey",
+            "weekly-briefing-stats"
+          ],
+          "homeBadge": "All clear",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home role-rep",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-role-rep-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-role-rep",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "survey"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home role-lead",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-role-lead-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-role-lead-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-role-lead",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": false,
+          "visibleCards": [
+            "eod-board",
+            "instawork-clock",
+            "meat-pusher-survey",
+            "set-photos",
+            "si-closeout",
+            "survey"
+          ],
+          "homeBadge": null,
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home role-supervisor-d6",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-role-supervisor-d6-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-role-supervisor-d6-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-role-supervisor-d6-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-role-supervisor-d6",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "caf",
+            "central-pet",
+            "compare",
+            "cp-planning-desk",
+            "cp-updates",
+            "cp-uploads",
+            "district-helper",
+            "email-outbox",
+            "eod-board",
+            "instawork-clock",
+            "meat-pusher-review",
+            "meat-pusher-survey",
+            "set-photos",
+            "si-closeout",
+            "survey",
+            "usage",
+            "weekly-briefing-stats",
+            "welcome-letter",
+            "welcome-letter-board"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    },
+    {
+      "name": "390x844 home role-admin",
+      "blocking": true,
+      "shots": [
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-role-admin-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-card-role-admin-390x844.png",
+        "C:\\Users\\tgaut\\the-dump-bin-wt-card\\docs\\notice-console\\phase-hidden-cards\\home-roles-office-role-admin-390x844.png"
+      ],
+      "checks": [
+        {
+          "view": "home-role-admin",
+          "failures": [],
+          "vw": 390,
+          "cards": 0,
+          "recipients": 0,
+          "causes": 0,
+          "homeCard": true,
+          "visibleCards": [
+            "caf",
+            "central-pet",
+            "compare",
+            "cp-planning-desk",
+            "cp-updates",
+            "cp-uploads",
+            "district-helper",
+            "email-outbox",
+            "eod-board",
+            "extension-admin",
+            "instawork-clock",
+            "meat-pusher-review",
+            "meat-pusher-survey",
+            "pathways",
+            "portable-vault",
+            "prod-shifts",
+            "set-photos",
+            "si-closeout",
+            "survey",
+            "survey-admin",
+            "usage",
+            "weekly-briefing-stats",
+            "welcome-letter",
+            "welcome-letter-board"
+          ],
+          "homeBadge": "3",
+          "flashed": false
+        }
+      ]
+    }
+  ]
+}

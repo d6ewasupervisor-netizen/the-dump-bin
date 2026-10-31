@@ -1,5 +1,7 @@
 # Roadmap
 
+- Hidden-cards fix (branch `fix/hub-hidden-cards`): `.card[hidden] { display: none; }` so the 23 gated cards stop rendering for everyone; four-role gate matrix (rep / lead / supervisor D6 / admin, 360+390) green and screenshots in `docs/notice-console/phase-hidden-cards/`. **Not published — waiting on Tyson's look.** The audit table is in `AUDIT.md`; the weaker-than-the-card APIs it found (`/api/set-photos/*` unauthenticated, `/api/dhe/send` sign-in only) are open.
+
 - Notice Console hub card (branch `feat/notice-console-card`): card + badge in Office & Admin, gated on eod-api `GET /api/field-alerts/console/me`, badge from `GET /api/field-alerts/console/summary`. Gate green at 360/390. Publish when Tyson says go, with (or after) the eod-api deploy that carries `/console/summary` — before that the card renders without a count.
 
 - Notice console (branches `feat/notice-console-see` → `feat/notice-console-act`): `admin/field-alert-acks.html` is now the console — scoped notice list with status + counts, per-recipient detail unconfirmed-first, failures grouped by cause with fix hints, PDF per view, and the act sheet (remind / confirm for them / fix text / correct with diff / extend-expire / cancel). Phase C (send) is next; nothing is deployed and `main` is unchanged.
