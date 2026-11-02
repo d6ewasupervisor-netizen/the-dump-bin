@@ -1,5 +1,7 @@
 # Roadmap
 
+- Store recipients (`admin/store-recipients.html`, not published): publish with the eod-api one-store recipient deploy. Assign and Remove do nothing until that API is live.
+
 - Set Photo Capture auth (eod-api `fix/set-photos-dhe-auth`, deploy with the next batch): `/sheet` + `/upload` need a session (lead+/office) or a signed per-sheet token; the hub mints the tokenised link on card click. The field app's local mirror needs the session Bearer — `fix/set-photos-mirror-auth` — and that needs a **field-app publish** so phones stop 401ing on mirror uploads.
 - Hidden-cards fix: published 2026-10-30. Any new hub card must either carry a `data-card` (access policy) or gate itself like the Notice Console card.
 

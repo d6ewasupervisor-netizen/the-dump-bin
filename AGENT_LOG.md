@@ -1,4 +1,9 @@
 # Agent log
+
+## 2026-11-01 — Store recipient assignment page, not published
+
+`admin/store-recipients.html` lists each shared Fred Meyer address with the evidence, the proposed home store, Assign to [store], and Remove everywhere. It calls `/api/eod-store-recipients` and can download the same CSV. Not published. The API is on eod-api `feat/eod-one-store-recipients`, also not deployed.
+
 ## 2026-10-30 — Published: hidden cards fix + restrict race; Set Photo Capture link is minted from the hub
 
 **Published.** `fix/hub-hidden-cards` → `main` (Pages run after this push). `.card[hidden] { display: none; }` now hides all 23 gated cards, and the `hubRestrictTo` pass skips cards without a `data-card`, so the Notice Console card can no longer be hidden (or revealed) by the access-policy restrict list — it is answered only by `/api/field-alerts/console/me`. A section whose only candidate is the console card is left to that card's own gate. Gate matrix green at 360×640 and 390×844 for rep, lead, supervisor D6, admin, restricted-ops (seth.newman) and restricted-admin (tgauthier2011@gmail.com):

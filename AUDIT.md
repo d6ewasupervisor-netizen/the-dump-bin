@@ -1,5 +1,7 @@
 # Audit
 
+Store recipients (2026-11-01, not published): `admin/store-recipients.html` reads `GET /api/eod-store-recipients/assignment-report` through `dumpBinAuthFetch` and posts Assign / Remove. The CSV button builds the file from that same payload. Open: the page is not on `main`, and the API is not deployed.
+
 Hub card gating (2026-10-30 audit). One script in `index.html` unhides the gated cards: `GET /api/me` → `me.cards`, `el.hidden = false` per id; if `hubRestrictTo` is set (seth.newman, amanda.mathews, josh.parker, tgauthier2011@gmail.com) it wins and only `survey` + `survey-admin` stay. Sections reveal when they hold a visible `[data-card]`.
 
 | Card (`data-card`) | Target | Resolved by | Intended audience | Target's own server-side gate |
