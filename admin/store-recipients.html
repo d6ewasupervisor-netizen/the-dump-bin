@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Store recipients</title>
+<script src="/auth-gate.js"></script>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; background: #f4f6f8; color: #222; margin: 0; font-size: 16px; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 12px; }
+  .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 16px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e6eaee; vertical-align: top; }
+  th { color: #556; font-size: 13px; }
+  button { min-height: 44px; padding: 8px 12px; margin: 4px 4px 0 0; border: 0; border-radius: 8px; background: #2F6FB0; color: #fff; font-size: 16px; cursor: pointer; }
+  button.remove { background: #b3261e; }
+  button.file { background: #333; }
+  .high { color: #0a7a32; font-weight: 700; }
+  .medium { color: #8a5a00; font-weight: 700; }
+  .low { color: #8a1f1f; font-weight: 700; }
+  #status { min-height: 1.4em; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Store recipients</h1>
+  <div id="status"></div>
+  <p><button type="button" class="file" id="csvBtn">Download CSV</button></p>
+  <div id="list"></div>
+</div>
+<script>
+(function () {
+  var statusEl = document.getElementById('status');
+  var listEl = document.getElementById('list');
+  var rows = [];
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function csvCell(value) {
+    return '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"';
+  }
+
+  function downloadCsv() {
+    var lines = [['email', 'candidates', 'evidence', 'proposed_home', 'confidence', 'reason'].join(',')];
+    rows.forEach(function (row) {
+      lines.push([
+        row.email,
+        (row.candidates || []).map(function (c) { return c.store; }).join('|'),
+        row.evidence || '',
+        row.proposedStore || '',
+        row.confidence || '',
+        row.reason || '',
+      ].map(csvCell).join(','));
+    });
+    var blob = new Blob([lines.join('\n') + '\n'], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'eod-recipient-home-stores.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function render() {
+    listEl.innerHTML = rows.map(function (row) {
+      var assigns = (row.candidates || []).map(function (c) {
+        return '<button type="button" data-act="assign" data-email="' + esc(row.email) + '" data-store="' + esc(c.store) + '">Assign to ' + esc(c.store) + '</button>';
+      }).join('');
+      var evidence = (row.candidates || []).map(function (c) {
+        return esc(c.store) + ': ' + esc(c.evidence);
+      }).join('<br>');
+      return '<div class="card"><table><tr><th>Email</th><td>' + esc(row.email) + '</td></tr>'
+        + '<tr><th>Candidates</th><td>' + esc((row.candidates || []).map(function (c) { return c.store; }).join(', ')) + '</td></tr>'
+        + '<tr><th>Evidence</th><td>' + evidence + '</td></tr>'
+        + '<tr><th>Proposed home</th><td>' + esc(row.proposedStore) + '</td></tr>'
+        + '<tr><th>Confidence</th><td class="' + esc(row.confidence) + '">' + esc(row.confidence) + '</td></tr>'
+        + '<tr><th>Reason</th><td>' + esc(row.reason) + '</td></tr></table>'
+        + '<p>' + assigns + '<button type="button" class="remove" data-act="remove" data-email="' + esc(row.email) + '">Remove everywhere</button></p></div>';
+    }).join('') || '<div class="card">No contacts are waiting for assignment.</div>';
+  }
+
+  async function post(path, body) {
+    var res = await window.dumpBinAuthFetch('/api/eod-store-recipients' + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok || data.success === false) throw new Error(data.error || ('Save failed (' + res.status + ')'));
+    return data;
+  }
+
+  listEl.addEventListener('click', async function (event) {
+    var btn = event.target.closest('button');
+    if (!btn) return;
+    var email = btn.getAttribute('data-email');
+    if (!email) return;
+    btn.disabled = true;
+    try {
+      if (btn.getAttribute('data-act') === 'assign') {
+        await post('/assign', { email: email, storeNumber: btn.getAttribute('data-store') });
+      } else {
+        await post('/remove', { email: email });
+      }
+      await load();
+    } catch (err) {
+      statusEl.textContent = err.message || String(err);
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('csvBtn').addEventListener('click', downloadCsv);
+
+  async function load() {
+    statusEl.textContent = '';
+    var res = await window.dumpBinAuthFetch('/api/eod-store-recipients/assignment-report');
+    var data = await res.json();
+    if (!res.ok || data.success === false) throw new Error(data.error || 'Could not load the report');
+    rows = data.rows || [];
+    render();
+  }
+
+  load().catch(function (err) {
+    statusEl.textContent = err.message || String(err);
+  });
+})();
+</script>
+</body>
+</html>
