@@ -8,6 +8,25 @@
 
   function esc(s) { return global.EodApi.escapeHtml(s); }
 
+  function pacificToday() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+  }
+
+  /**
+   * Keep / Remove on a store's Fred Meyer contacts: lead and above for any
+   * store, or the crew working a live visit at this store today (in-lieu sign).
+   * Mirrors eod-api lib/eod-store-recipients.canDecideStoreRecipient; the server
+   * refuses whatever this hides.
+   */
+  function canDecideRecipients() {
+    const S = global.EodSession;
+    if (global.EodRoles?.hasRole?.('lead', 'supervisor', 'admin')) return true;
+    const shift = S?.state?.selectedShift;
+    if (!shift || !shift.storeNumber) return false;
+    if (S.normStoreNumber(shift.storeNumber) !== S.normStoreNumber(S.state.storeNumber)) return false;
+    return String(S.state.workDate || '').slice(0, 10) === pacificToday();
+  }
+
   function padStore(n) {
     return String(n || '').replace(/\D/g, '').padStart(3, '0');
   }
@@ -631,6 +650,7 @@ ${cleanNotes}`;
 
     const gate = gateMessage();
     const sheet = S.state.sheet;
+    const canDecide = canDecideRecipients();
     mount.innerHTML = `
       <div class="card">
         <h1>Sign & send</h1>
@@ -728,12 +748,12 @@ ${cleanNotes}`;
           const on = (S.state.emailRecipients || []).some((item) => String(item).toLowerCase() === String(email).toLowerCase());
           return `<label class="pill"><input type="checkbox" data-fm-check="${esc(email)}" ${on ? 'checked' : ''}> ${esc(email)}</label>`;
         }).join('')}</div>
-        <div id="pendingRecipientCards">${(S.state.pendingRecipients || []).map((email) => `
+        <div id="pendingRecipientCards">${canDecide ? (S.state.pendingRecipients || []).map((email) => `
           <div class="card">
             <div>${esc(email)}</div>
             <button type="button" class="btn btn-primary" data-keep="${esc(email)}">Keep</button>
             <button type="button" class="btn btn-secondary" data-remove-store="${esc(email)}">Remove from store</button>
-          </div>`).join('')}
+          </div>`).join('') : ''}
         </div>
         ${Number(S.state.needsAssignmentCount) > 0
           ? `<p id="needsAssignmentLine">${Number(S.state.needsAssignmentCount)} contacts on this store are waiting for supervisor assignment.</p>`
