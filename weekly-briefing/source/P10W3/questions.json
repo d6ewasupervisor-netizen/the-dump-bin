@@ -37,7 +37,7 @@
       "False"
     ],
     "correct": 1,
-    "explain": "Only doors 1 and 2 are touched, with one delete and no new items. Full set strips are coming, so bring them."
+    "explain": "Only doors 1 and 2 are touched, with one delete and no new items. Full set strips are already at the store."
   },
   {
     "id": "q04",

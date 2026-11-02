@@ -9,6 +9,7 @@ Exit 2 if the PDF is not exactly two pages, if "Compass" appears, or if a banned
 """
 import argparse, html, json, os, re, sys
 
+BRING = re.compile(r"\bbring\b[^.]{0,40}\b(strips?|tags?|pegs?|pogs?|planograms?|materials?|labels?)\b", re.I)
 BANNED = re.compile(r"\b(because|so that|so expect|in order to|as a result of|with the intent of|which means|"
                     r"this is important because|the reason is|that way|warriors?|enjoying|well-deserved)\b", re.I)
 
@@ -90,6 +91,8 @@ def main():
         errs.append("handout says Compass (must be Kompass)")
     for m in BANNED.finditer(txt):
         errs.append(f"banned word on handout: {m.group(0)!r}")
+    if BRING.search(txt):
+        errs.append("handout tells the crew to bring materials; strips/tags/pegs are already at the store")
     if errs:
         print("\n".join("ERROR " + e for e in errs)); sys.exit(2)
     os.makedirs(a.out, exist_ok=True)

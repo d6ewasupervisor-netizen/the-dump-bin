@@ -21,6 +21,7 @@ NAVY, TEAL, ORANGE, RED = "#1B2A4A", "#0891B2", "#F59E0B", "#DC2626"
 LIGHT, YEL, LBLUE = "#F0F4F8", "#FEF3C7", "#ECFEFF"
 COLORS = {"teal": TEAL, "red": RED, "orange": ORANGE, "navy": NAVY}
 
+BRING = re.compile(r"\bbring\b[^.]{0,40}\b(strips?|tags?|pegs?|pogs?|planograms?|materials?|labels?)\b", re.I)
 BANNED = re.compile(r"\b(because|so that|so expect|in order to|as a result of|with the intent of|which means|"
                     r"this is important because|the reason is|that way|warriors?|enjoying|well-deserved|slide)\b", re.I)
 
@@ -203,6 +204,9 @@ def validate(bj, frames):
             errs.append(f"frame {i}: banned word on frame: {m.group(0)!r}")
         for m in BANNED.finditer(n):
             errs.append(f"frame {i}: banned word in narration: {m.group(0)!r}")
+        for src, txt in (("frame", t), ("narration", n)):
+            if BRING.search(txt):
+                errs.append(f"frame {i}: {src} tells the crew to bring materials; strips/tags/pegs are already at the store")
         if re.search(r"\b(Team|Tyson|hotline|helpdesk|QFC|701)\b", n):
             errs.append(f"frame {i}: narration hits a no-go word (Team/Tyson/hotline/QFC/701)")
     for s in bj["sets"]:

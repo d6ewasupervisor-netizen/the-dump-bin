@@ -136,6 +136,7 @@ QFC/701 in narration, overflow. `_stops.json` feeds `meta.stops`.
   "category zero two seven" / "two oh one"; store numbers two-digit natural ("forty-nine"),
   three-digit as digits ("four five nine"); "on screen" never "slide" ✓; "prod" lowercase;
   avoid close/closed; "produce" noun only; "close-out(s)" hyphenated; one paragraph per frame ✓.
+- Materials (strips, tags, pegs, POGs, labels) are already at the store — Vestcom box, store mail, Kompass cart. Never tell the crew to "bring" them, even when the agenda says so; that wording is written for supervisors ✓.
 - 20-minute cold rule only on cold sets (`cold: true` in `sets`); shelf-stable sets never get it.
 - Banned constructions ✓: because, so that, so expect, in order to, as a result of, with the intent
   of, which means, this is important because, the reason is, that way, warrior(s), enjoying,

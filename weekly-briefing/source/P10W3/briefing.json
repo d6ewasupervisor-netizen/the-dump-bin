@@ -165,7 +165,7 @@
       "<b>MorningStar now leads</b> the set; it swaps places with Impossible. No facing changes.",
       "Only <b>doors 1 and 2</b> are touched. One delete."
      ],
-     "act": "Bring the full set strips. Product out no longer than 20 minutes."
+     "act": "Full set strips are already at the store. Product out no longer than 20 minutes."
     },
     {
      "kind": "card",
@@ -176,7 +176,7 @@
      ]
     }
    ],
-   "narration": "Starting with grocery. Salad Dressing is two hours. The entire Wishbone line comes off the planogram. Newman's Own moves up from the bottom shelf into the top two shelves, and the new Kraft eight-ounce items go on shelf five. Store thirty-one gets condiments strips for this set, and those get recorded under Salad Dressing. Frozen Meatless is four hours and runs cold. MorningStar now leads the set and swaps places with Impossible, with no facing changes. Only the first two doors are touched, and there is one delete. Full set strips are coming for this one, so bring them. Dry Ramen is one hour of new items."
+   "narration": "Starting with grocery. Salad Dressing is two hours. The entire Wishbone line comes off the planogram. Newman's Own moves up from the bottom shelf into the top two shelves, and the new Kraft eight-ounce items go on shelf five. Store thirty-one gets condiments strips for this set, and those get recorded under Salad Dressing. Frozen Meatless is four hours and runs cold. MorningStar now leads the set and swaps places with Impossible, with no facing changes. Only the first two doors are touched, and there is one delete. Full set strips are already at the store for this one. Dry Ramen is one hour of new items."
   },
   {
    "stop_title": "Health & Beauty",
@@ -561,7 +561,7 @@
   "execution": {
    "C026": "New items only.",
    "C089": "Pull the entire Wishbone line. Newman's Own moves up from the bottom shelf to the top 2 shelves. New Kraft 8 oz items go on shelf 5. Store 31: C668 NII strips are recorded under C089.",
-   "C118": "MorningStar leads and swaps places with Impossible. Doors 1 and 2 only. One delete. Bring full set strips. Product out no longer than 20 minutes.",
+   "C118": "MorningStar leads and swaps places with Impossible. Doors 1 and 2 only. One delete. Full set strips are already at the store. Product out no longer than 20 minutes.",
    "C106": "Start at the top and work down. Smaller liquid bleach drops to the bottom shelf. Department change D01 to D03.",
    "C183": "Safers come off all pregnancy tests and lubes. The listed condoms and pills stay in safers in every POG. Walk every POG.",
    "C165": "Kroger brand items come in. Stores 19, 215, 682: 7 extra pegboard pegs on hand before starting.",
