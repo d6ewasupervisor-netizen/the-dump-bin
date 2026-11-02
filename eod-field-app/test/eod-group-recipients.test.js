@@ -10,11 +10,20 @@ const send = fs.readFileSync(
   'utf8',
 );
 
-test('pilot sends saved Fred Meyer addresses plus lead-added recipients', () => {
-  assert.match(send, /S\.state\.fredmeyerEmailPool \|\| \[\]/);
-  assert.match(send, /S\.state\.emailRecipients \|\| \[\]/);
+test('pilot sends only checked verified Fred Meyer addresses', () => {
+  assert.match(send, /verifiedRecipients/);
   assert.match(send, /hasFredMeyerTeam/);
   assert.match(send, /if \(!hasFredMeyerTeam && userEmail\)/);
+  assert.doesNotMatch(send, /\.\.\.\(S\.state\.fredmeyerEmailPool/);
+  assert.match(send, /Sending to /);
+  assert.match(send, /Remove from store/);
+  assert.match(send, /pendingRecipients/);
+});
+
+test('contacts waiting for assignment are not offered as Keep or Remove and do not block send', () => {
+  assert.match(send, /contacts on this store are waiting for supervisor assignment/);
+  assert.match(send, /needsAssignmentEmails/);
+  assert.doesNotMatch(send, /needsAssignmentEmails[\s\S]{0,400}Add at least one email recipient/);
 });
 
 test('Retail Odyssey group delivery is server-managed and cannot be unchecked', () => {

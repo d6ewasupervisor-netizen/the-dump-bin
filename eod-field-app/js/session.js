@@ -42,6 +42,11 @@
     helpdeskSubmittedReports: [],
     helpdeskResolution: null,
     fredmeyerEmailPool: [],
+    verifiedRecipients: [],
+    pendingRecipients: [],
+    needsAssignmentCount: 0,
+    fmMaxRecipients: 10,
+    needsAssignmentEmails: [],
     managerNamePool: [],
     sheetAcknowledged: false,
     instaworkYes: null,
@@ -99,6 +104,7 @@
       state.selectedShift = null;
       state.shifts = [];
       state.extraVisitIds = [];
+      state.emailRecipients = [];
     }
     emit('dayConfirm');
   }
@@ -249,7 +255,16 @@
   }
 
   function patch(partial, reason) {
+    const prevStore = normStoreNumber(state.storeNumber);
+    const prevVisit = state.selectedShift && state.selectedShift.visitId;
     Object.assign(state, partial || {});
+    const nextStore = normStoreNumber(state.storeNumber);
+    const nextVisit = state.selectedShift && state.selectedShift.visitId;
+    const storeMoved = prevStore && nextStore && prevStore !== nextStore;
+    const visitMoved = prevVisit && nextVisit && String(prevVisit) !== String(nextVisit);
+    if ((storeMoved || visitMoved) && !(partial && Object.prototype.hasOwnProperty.call(partial, 'emailRecipients'))) {
+      state.emailRecipients = [];
+    }
     emit(reason || 'patch');
     scheduleSaveDraft();
   }
@@ -345,6 +360,7 @@
     state.checkInDone = !!data.checkInDone;
     state.beforesStepDone = !!data.beforesStepDone;
     state.emailRecipients = Array.isArray(data.emailRecipients) ? data.emailRecipients.slice() : [];
+    state.needsAssignmentEmails = Array.isArray(data.needsAssignmentEmails) ? data.needsAssignmentEmails.slice() : [];
     state.notInStoreSelected = Array.isArray(data.notInStoreSelected) ? data.notInStoreSelected.slice() : [];
     state.notInSiSelected = Array.isArray(data.notInSiSelected) ? data.notInSiSelected.slice() : [];
     state.helpdeskSubmittedReports = Array.isArray(data.helpdeskSubmittedReports)
@@ -421,6 +437,7 @@
       checkInDone: !!state.checkInDone,
       beforesStepDone: !!state.beforesStepDone,
       emailRecipients: state.emailRecipients.slice(),
+      needsAssignmentEmails: (state.needsAssignmentEmails || []).slice(),
       notInStoreSelected: state.notInStoreSelected.slice(),
       notInSiSelected: state.notInSiSelected.slice(),
       helpdeskSubmittedReports: (state.helpdeskSubmittedReports || []).map((report) => {

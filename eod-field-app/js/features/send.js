@@ -482,11 +482,12 @@ ${cleanNotes}`;
     const store = S.state.storeNumber;
     const { body, report } = buildBodyAndReport();
     const userEmail = (S.state.profileEmail || '').trim().toLowerCase();
-    const hasFredMeyerTeam = (S.state.fredmeyerEmailPool || []).length > 0;
-    let recipients = [...new Set([
-      ...(S.state.fredmeyerEmailPool || []),
-      ...(S.state.emailRecipients || []),
-    ].map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))];
+    const verified = new Set((S.state.verifiedRecipients || []).map((email) => String(email || '').trim().toLowerCase()));
+    const checked = (S.state.emailRecipients || [])
+      .map((email) => String(email || '').trim().toLowerCase())
+      .filter((email) => email && verified.has(email));
+    const hasFredMeyerTeam = checked.length > 0;
+    let recipients = [...new Set(checked)];
     if (!hasFredMeyerTeam && userEmail) {
       recipients = [userEmail, ...recipients];
     }
@@ -723,10 +724,20 @@ ${cleanNotes}`;
           <div id="emailSuggestList" class="email-suggest-list" style="display:none;"></div>
         </div>
         <div id="recipientList" style="margin-bottom:12px;"></div>
-        <div class="field" id="fmPoolField" ${(S.state.fredmeyerEmailPool || []).length ? '' : 'hidden'}>
-          <label>Saved Fred Meyer addresses</label>
-          <button type="button" class="btn btn-secondary btn-block" id="fmPickerBtn">Choose addresses</button>
+        <div id="verifiedRecipientList" style="margin-bottom:12px;">${(S.state.verifiedRecipients || []).map((email) => {
+          const on = (S.state.emailRecipients || []).some((item) => String(item).toLowerCase() === String(email).toLowerCase());
+          return `<label class="pill"><input type="checkbox" data-fm-check="${esc(email)}" ${on ? 'checked' : ''}> ${esc(email)}</label>`;
+        }).join('')}</div>
+        <div id="pendingRecipientCards">${(S.state.pendingRecipients || []).map((email) => `
+          <div class="card">
+            <div>${esc(email)}</div>
+            <button type="button" class="btn btn-primary" data-keep="${esc(email)}">Keep</button>
+            <button type="button" class="btn btn-secondary" data-remove-store="${esc(email)}">Remove from store</button>
+          </div>`).join('')}
         </div>
+        ${Number(S.state.needsAssignmentCount) > 0
+          ? `<p id="needsAssignmentLine">${Number(S.state.needsAssignmentCount)} contacts on this store are waiting for supervisor assignment.</p>`
+          : ''}
         <div id="gateMsg" style="margin:10px 0;color:${gate ? '#fbbf24' : '#22c55e'};">${esc(gate || 'Ready to send.')}</div>
         ${global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : ''}
         <div id="sendReceiptNote" class="muted" style="margin:8px 0;"></div>
@@ -1064,13 +1075,14 @@ ${cleanNotes}`;
 
     function paintRecipients() {
       const host = document.getElementById('recipientList');
-      host.innerHTML = (S.state.emailRecipients || []).map((e, i) =>
-        `<span class="pill">${esc(e)} <button type="button" data-rm="${i}" style="border:0;background:transparent;color:inherit;cursor:pointer;">×</button></span>`
-      ).join('') || '<span class="muted">No recipients yet (your profile email is added on send).</span>';
+      const waiting = new Set((S.state.needsAssignmentEmails || []).map((email) => String(email).toLowerCase()));
+      host.innerHTML = (S.state.emailRecipients || []).filter((email) => !waiting.has(String(email).toLowerCase())).map((e) => (
+        `<span class="pill">${esc(e)} <button type="button" data-rm="${esc(e)}" style="border:0;background:transparent;color:inherit;cursor:pointer;">×</button></span>`
+      )).join('') || '<span class="muted">No recipients yet (your profile email is added on send).</span>';
       host.querySelectorAll('[data-rm]').forEach((b) => {
         b.onclick = () => {
-          const arr = S.state.emailRecipients.slice();
-          arr.splice(Number(b.getAttribute('data-rm')), 1);
+          const target = String(b.getAttribute('data-rm') || '').toLowerCase();
+          const arr = S.state.emailRecipients.filter((email) => String(email).toLowerCase() !== target);
           S.patch({ emailRecipients: arr }, 'recipients');
           S.saveDraft();
           render(mount);
@@ -1079,22 +1091,64 @@ ${cleanNotes}`;
     }
     paintRecipients();
 
+    document.querySelectorAll('[data-fm-check]').forEach((box) => {
+      box.addEventListener('change', () => {
+        const email = String(box.getAttribute('data-fm-check') || '').toLowerCase();
+        const arr = (S.state.emailRecipients || []).filter((item) => String(item).toLowerCase() !== email);
+        if (box.checked) arr.push(email);
+        S.patch({ emailRecipients: arr }, 'recipients');
+        S.saveDraft();
+      });
+    });
+
+    async function postRecipient(path, email) {
+      const store = S.normStoreNumber(S.state.storeNumber);
+      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/eod-store-recipients/${path}`, {
+        method: 'POST',
+        headers: global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ email, storeNumber: store }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.success === false) throw new Error(data.error || `Save failed (${resp.status})`);
+      await global.EodCover?.loadStoreData?.(store);
+      render(mount);
+    }
+
+    document.querySelectorAll('[data-keep]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try { await postRecipient('verify', btn.getAttribute('data-keep')); }
+        catch (err) { if (global.showAlert) global.showAlert('Recipient', err.message || String(err)); }
+      });
+    });
+    document.querySelectorAll('[data-remove-store]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try { await postRecipient('remove-store', btn.getAttribute('data-remove-store')); }
+        catch (err) { if (global.showAlert) global.showAlert('Recipient', err.message || String(err)); }
+      });
+    });
+
     // ── Recipient typeahead ────────────────────────────────────────────────
     const emailInput = document.getElementById('emailInput');
     const suggestList = document.getElementById('emailSuggestList');
     let suggestTimer = null;
     let lastQuery = '';
 
-    function addRecipientEmail(email) {
+    async function addRecipientEmail(email) {
       const v = String(email || '').trim().toLowerCase();
       if (!v || !v.includes('@')) return false;
+      if ((S.state.needsAssignmentEmails || []).some((item) => String(item).toLowerCase() === v)) return false;
+      if (v.endsWith('@stores.fredmeyer.com')) {
+        try {
+          await global.EodCover?.addFredmeyerEmail?.(v);
+        } catch (err) {
+          if (global.showAlert) global.showAlert('Recipient', err.message || String(err));
+          return false;
+        }
+      }
       const arr = S.state.emailRecipients.slice();
       if (!arr.includes(v)) arr.push(v);
       S.patch({ emailRecipients: arr }, 'recipients');
       S.saveDraft();
-      if (v.endsWith('@stores.fredmeyer.com')) {
-        global.EodCover?.addFredmeyerEmail?.(v).catch(() => {});
-      }
       return true;
     }
 
@@ -1120,9 +1174,9 @@ ${cleanNotes}`;
           // mousedown so it fires before blur
           e.preventDefault();
         });
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           const email = btn.getAttribute('data-email');
-          if (addRecipientEmail(email)) {
+          if (await addRecipientEmail(email)) {
             emailInput.value = '';
             hideSuggest();
             paintRecipients();
@@ -1168,19 +1222,20 @@ ${cleanNotes}`;
         e.preventDefault();
         const v = emailInput.value.trim().toLowerCase();
         if (v && v.includes('@')) {
-          if (addRecipientEmail(v)) {
+          addRecipientEmail(v).then((ok) => {
+            if (!ok) return;
             emailInput.value = '';
             hideSuggest();
             render(mount);
-          }
+          });
         }
       }
     });
 
-    document.getElementById('addEmailBtn').onclick = () => {
+    document.getElementById('addEmailBtn').onclick = async () => {
       const v = emailInput.value.trim().toLowerCase();
       if (!v || !v.includes('@')) return;
-      if (addRecipientEmail(v)) {
+      if (await addRecipientEmail(v)) {
         emailInput.value = '';
         hideSuggest();
         render(mount);
@@ -1188,7 +1243,8 @@ ${cleanNotes}`;
     };
 
     document.getElementById('fmPickerBtn')?.addEventListener('click', () => {
-      const pool = S.state.fredmeyerEmailPool || [];
+      const waiting = new Set((S.state.needsAssignmentEmails || []).map((email) => String(email).toLowerCase()));
+      const pool = (S.state.fredmeyerEmailPool || []).filter((email) => !waiting.has(String(email).toLowerCase()));
       const selected = S.state.emailRecipients.filter((e) => pool.includes(e));
       global.EodPicker.open({
         anchor: document.getElementById('fmPickerBtn'),
@@ -1307,6 +1363,12 @@ ${cleanNotes}`;
       }
       if (!(await askHelpdeskResolution(S))) return;
       let payload = buildPayload();
+      const fmMax = Number(S.state.fmMaxRecipients) || 10;
+      const fmCount = (payload.recipients || []).filter((email) => String(email).toLowerCase().endsWith('@stores.fredmeyer.com')).length;
+      if (global.EodAlerts?.confirm) {
+        const okSend = await global.EodAlerts.confirm('Send EOD', `Sending to ${fmCount} of ${fmMax}`);
+        if (!okSend) return;
+      }
       const cartMail = cartPhotosInEmail(payload);
       if (!cartMail.before || !cartMail.after) {
         const which = [!cartMail.before && 'before', !cartMail.after && 'after'].filter(Boolean).join(' and ');

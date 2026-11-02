@@ -87,6 +87,13 @@
       'signBtn'
     );
     push(
+      'pendingRecipients',
+      !(S.state.pendingRecipients || []).length,
+      'Resolve saved contacts before sending',
+      'send',
+      'pendingRecipientCards'
+    );
+    push(
       'recipients',
       !!(S.state.emailRecipients || []).length || !!(S.state.profileEmail || '').trim(),
       'Add at least one email recipient',

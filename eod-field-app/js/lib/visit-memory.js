@@ -65,9 +65,6 @@
     const patch = {};
     if (!(S.state.checkInManager || '').trim() && mem.checkIn) patch.checkInManager = mem.checkIn;
     if (!(S.state.checkOutManager || '').trim() && mem.checkOut) patch.checkOutManager = mem.checkOut;
-    if (!(S.state.emailRecipients || []).length && Array.isArray(mem.recipients) && mem.recipients.length) {
-      patch.emailRecipients = mem.recipients.slice();
-    }
     if (S.state.addRetailOdysseyTeam == null && typeof mem.addRetailOdysseyTeam === 'boolean') {
       patch.addRetailOdysseyTeam = mem.addRetailOdysseyTeam;
     }

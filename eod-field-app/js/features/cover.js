@@ -22,6 +22,10 @@
     if (data.success) {
       S.patch({
         fredmeyerEmailPool: Array.isArray(data.fredmeyerEmails) ? data.fredmeyerEmails : [],
+        verifiedRecipients: Array.isArray(data.verifiedRecipients) ? data.verifiedRecipients : [],
+        pendingRecipients: Array.isArray(data.pendingRecipients) ? data.pendingRecipients : [],
+        needsAssignmentCount: Number(data.needsAssignmentCount) || 0,
+        fmMaxRecipients: Number(data.fmMaxRecipients) || 10,
         managerNamePool: Array.isArray(data.managerNames) ? data.managerNames : [],
       }, 'store-data');
     }
@@ -66,10 +70,18 @@
   async function addFredmeyerEmail(email) {
     const S = global.EodSession;
     const e = String(email || '').trim().toLowerCase();
+    const store = S.normStoreNumber(S.state.storeNumber);
     if (!e || !e.includes('@')) return;
-    const pool = (S.state.fredmeyerEmailPool || []).slice();
-    if (!pool.includes(e)) pool.push(e);
-    return savePool({ fredmeyerEmails: pool });
+    if (!store) throw new Error('Confirm store first');
+    const resp = await global.authFetch(`${global.EOD_API_BASE}/api/eod-store-recipients/add`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ email: e, storeNumber: store }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.success === false) throw new Error(data.error || `Save failed (${resp.status})`);
+    await loadStoreData(store);
+    return data;
   }
 
   async function removeFredmeyerEmail(email) {

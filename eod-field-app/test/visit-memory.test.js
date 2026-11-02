@@ -50,6 +50,17 @@ test('setManagers writes checkout and fills empty check-in', () => {
   assert.equal(row.checkOut, 'April');
 });
 
+test('applyToSession does not restore recipient chips onto the next store', () => {
+  mem.remember('19', { recipients: ['old@stores.fredmeyer.com'], checkIn: 'Ana' });
+  const S = {
+    state: { storeNumber: '19', checkInManager: '', checkOutManager: '', emailRecipients: [] },
+    patch(partial) { Object.assign(this.state, partial); },
+  };
+  mem.applyToSession(S, '19');
+  assert.deepEqual(S.state.emailRecipients, []);
+  assert.equal(S.state.checkInManager, 'Ana');
+});
+
 test('applyToSession restores store names when the draft is empty', () => {
   mem.remember('28', { checkIn: 'Linda', checkOut: 'Isaac' });
   const S = {
