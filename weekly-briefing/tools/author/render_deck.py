@@ -53,6 +53,7 @@ table{{width:100%;border-collapse:collapse;font-size:35px}}
 th{{background:{NAVY};color:#fff;text-align:left;padding:12px 18px;font-size:30px;letter-spacing:2px;text-transform:uppercase}}
 th.n{{text-align:right}}
 td{{padding:11px 18px;border-bottom:2px solid #e3e9f1}}
+table.compact{{font-size:31px}} table.compact td{{padding:6px 16px}} table.compact tr.dept td{{padding:4px 16px;font-size:25px}}
 tr.dept td{{background:{TEAL};color:#fff;font-weight:700;font-size:29px;letter-spacing:3px;text-transform:uppercase;padding:7px 18px}}
 td.n{{text-align:right;font-weight:700}} td.t{{color:#5b6b86}}
 .bigno{{font-size:300px;font-weight:700;line-height:1;color:{ORANGE}}}
@@ -119,7 +120,10 @@ def render_block(b, ctx):
             if s["dept"] != last:
                 rows += f'<tr class="dept"><td colspan="4">{esc(s["dept"])}</td></tr>'; last = s["dept"]
             rows += f'<tr><td>{esc(s["code"])}</td><td>{esc(s["name"])}{" ❄" if s.get("cold") else ""}</td><td class="n">{fmt_num(s["hours"])}</td><td class="t">{esc(s["type"])}</td></tr>'
-        return f'<div class="card"><table><tr><th>COM#</th><th>Set</th><th class="n">Hrs</th><th>Type</th></tr>{rows}</table></div>'
+        # compact: true (or automatic past 16 sets) tightens rows so a big week fits one frame
+        compact = b.get("compact", len(ctx["sets"]) > 16)
+        cls = ' class="compact"' if compact else ""
+        return f'<div class="card"><table{cls}><tr><th>COM#</th><th>Set</th><th class="n">Hrs</th><th>Type</th></tr>{rows}</table></div>'
     if k == "counts_info":
         c = ctx["counts"]
         return f'<div class="info"><b>{fmt_num(c["hours"])} hours</b> · {c["sets"]} sets · ❄ = cold set, product out no longer than 20 minutes ({c["cold"]} sets)</div>'

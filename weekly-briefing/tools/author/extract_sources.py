@@ -84,6 +84,7 @@ def column_lines(page, ncols=None, bounds=None, anchor=None):
         bounds = sorted(bounds)
         ncols = len(bounds)
     else:
+        ncols = ncols or 1  # no anchor on this page (image/blank page): treat as one column
         bounds = [i * (width / ncols) for i in range(ncols)]
     cols = [[] for _ in range(ncols)]
     for w in words:
