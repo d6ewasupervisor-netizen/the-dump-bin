@@ -24,7 +24,9 @@
    "srt": "Kompass/_briefing-builds/P10W4/P10W4_Narration.srt"
   }
  },
- "finishedAt": "2026-11-02T01:07:35Z",
- "ok": true,
- "seconds": 209.2
+ "finishedAt": "2026-11-02T01:14:38Z",
+ "ok": false,
+ "seconds": 632.2,
+ "commit": "9ec54e9cfc8bcf97160a73d5f0784df2441ef007",
+ "error": "RuntimeError: hub did not serve build 20261102010551 within 420s (status 403, build -)"
 }
