@@ -19,15 +19,18 @@
 
   function snapshotFromSession(S) {
     const state = S?.state || {};
+    // The lead the app actually knows is the selected shift's visit lead; a rep
+    // never has state.leadEmail, which is why the column used to stay empty.
+    const leadEmail = state.leadEmail || state.selectedShift?.visitLeadEmail || '';
     return {
       storeNumber: state.storeNumber,
       workDate: state.workDate,
       visitId: state.selectedShift?.visitId || null,
       leadName: S.resolvedLeadName?.() || state.leadName || '',
-      leadEmail: state.leadEmail || '',
+      leadEmail,
       payload: {
         leadName: state.leadName || '',
-        leadEmail: state.leadEmail || '',
+        leadEmail,
         notes: state.notes || '',
         checkInManager: state.checkInManager || '',
         checkOutManager: state.checkOutManager || '',
