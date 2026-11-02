@@ -1,10 +1,30 @@
 {
- "request": "20261101-dry-1",
+ "request": "20261101-dry-2",
  "week": "P10W3",
  "mode": "staging",
- "startedAt": "2026-11-02T00:09:36Z",
- "ok": false,
- "error": "HTTPError: HTTP Error 403: Forbidden",
- "finishedAt": "2026-11-02T00:09:36Z",
- "seconds": 0.1
+ "startedAt": "2026-11-02T00:19:22Z",
+ "tts": {
+  "frames": 12,
+  "generated": 12,
+  "cached": 0,
+  "chars": 6502
+ },
+ "pack": {
+  "build": "20261102002112",
+  "totalSeconds": 393.8,
+  "stops": 12,
+  "questions": 14
+ },
+ "mp4": {
+  "seconds": 394.2,
+  "bytes": 13270121,
+  "r2": {
+   "mp4": "Kompass/_briefing-builds/P10W3/P10W3_Briefing (staging).mp4",
+   "mp3": "Kompass/_briefing-builds/P10W3/P10W3_Narration (staging).mp3",
+   "srt": "Kompass/_briefing-builds/P10W3/P10W3_Narration (staging).srt"
+  }
+ },
+ "finishedAt": "2026-11-02T00:21:58Z",
+ "ok": true,
+ "seconds": 156.4
 }
