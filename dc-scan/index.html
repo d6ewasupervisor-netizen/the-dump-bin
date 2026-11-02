@@ -31,6 +31,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .top-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
 .top-bar h1{font-size:clamp(1.2rem,4.5vw,1.5rem);font-weight:800;letter-spacing:-.02em;}
 .top-bar p{color:var(--sub);font-size:12px;margin-top:3px;}
+.top-bar a{color:var(--accent);font-weight:700;}
 .live-pill{display:inline-flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:7px 13px;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap;}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
 .live-pill.ok .live-dot{background:var(--green);box-shadow:0 0 8px rgba(0,232,122,.7);animation:pulse 2s infinite;}
@@ -186,7 +187,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 
   <!-- top bar -->
   <div class="top-bar">
-    <div><h1>DC Scan board</h1><p>Project 8081 · RO8 DC Scans</p></div>
+    <div><h1>DC Scan board</h1><p>Project 8081 · RO8 DC Scans · <a href="/dc-scan/cover/">Friday coverage</a></p></div>
     <div class="live-pill" id="live-pill"><span class="live-dot"></span><span id="live-label">Connecting…</span></div>
   </div>
 

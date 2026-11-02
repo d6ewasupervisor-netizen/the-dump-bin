@@ -1,5 +1,7 @@
 # Audit
 
+Friday coverage (2026-11-02, not published): `dc-scan/cover/index.html` signs in through `auth-gate.js`, then `GET /api/dc-scan-cover`. Take and Release post to that API. The map is Leaflet on OpenStreetMap using the store coordinates the API returns. The RO8 page links to `/dc-scan/cover/`. Open: GitHub Pages and the eod-api route are both still on a branch.
+
 Store recipients (2026-11-01, not published): `admin/store-recipients.html` reads `GET /api/eod-store-recipients/assignment-report` through `dumpBinAuthFetch` and posts Assign / Remove. The CSV button builds the file from that same payload. Open: the page is not on `main`, and the API is not deployed.
 
 Hub card gating (2026-10-30 audit). One script in `index.html` unhides the gated cards: `GET /api/me` → `me.cards`, `el.hidden = false` per id; if `hubRestrictTo` is set (seth.newman, amanda.mathews, josh.parker, tgauthier2011@gmail.com) it wins and only `survey` + `survey-admin` stay. Sections reveal when they hold a visible `[data-card]`.

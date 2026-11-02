@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-02 — Friday coverage page
+
+`dc-scan/cover/index.html` is the Friday Display Compliance map and claim board. It uses the same Dump Bin sign-in as `/dc-scan/` and calls `/api/dc-scan-cover`. The RO8 board header links here. Not published.
+
 ## 2026-11-01 — Store recipient assignment page, not published
 
 `admin/store-recipients.html` lists each shared Fred Meyer address with the evidence, the proposed home store, Assign to [store], and Remove everywhere. It calls `/api/eod-store-recipients` and can download the same CSV. Not published. The API is on eod-api `feat/eod-one-store-recipients`, also not deployed.

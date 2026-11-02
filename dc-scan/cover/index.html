@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e13">
+<title>Friday coverage</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<script src="/auth-gate.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e13;--bg2:#111820;--card:#151d28;--border:#243044;
+  --text:#f0f4f8;--muted:#6b7d94;--sub:#a8b8cc;
+  --accent:#4da6ff;--green:#00e87a;--green-bg:rgba(0,232,122,.12);
+  --amber:#ffcc00;--amber-bg:rgba(255,204,0,.12);
+  --red:#ff4757;
+  --r:14px;--rs:10px;
+  --sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;line-height:1.45;}
+.boot-status{padding:24px 16px;color:var(--sub);}
+.boot-status.err{color:var(--red);}
+.wrap{max-width:1080px;margin:0 auto;padding:calc(12px + var(--st)) 12px calc(28px + var(--sb));}
+.top-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.top-bar h1{font-size:clamp(1.2rem,4.5vw,1.5rem);font-weight:800;letter-spacing:-.02em;}
+.top-bar p{color:var(--sub);font-size:12px;margin-top:3px;}
+.top-bar a{color:var(--accent);font-weight:700;}
+.me-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--sub);}
+.me-bar strong{color:var(--text);word-break:break-all;}
+.me-bar button{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--sub);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;min-height:40px;}
+#map{height:min(42vh,420px);min-height:240px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:12px;background:var(--bg2);}
+.pin{background:transparent;border:0;}
+.pin span{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;font-size:11px;font-weight:800;border:2px solid #0a0e13;box-shadow:0 2px 8px rgba(0,0,0,.45);}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:10px 6px;text-align:center;}
+.stat .n{font-size:1.35rem;font-weight:800;line-height:1.1;}
+.stat .l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;font-weight:700;}
+.stat.open .n{color:var(--amber);}
+.stat.claimed .n{color:var(--accent);}
+.stat.mine .n{color:var(--green);}
+.msg{font-size:13px;margin-bottom:12px;padding:9px 11px;border-radius:var(--rs);display:none;}
+.msg.show{display:block;}
+.msg.ok{background:var(--green-bg);color:var(--green);border:1px solid rgba(0,232,122,.3);}
+.msg.err{background:rgba(255,71,87,.12);color:var(--red);border:1px solid rgba(255,71,87,.3);}
+.section{margin-bottom:18px;}
+.section h2{font-size:1.05rem;font-weight:800;margin-bottom:8px;}
+.section h2 span{display:block;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:9px;}
+.store-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;}
+.store-card.open{border-style:dashed;}
+.store-card.mine{border-color:rgba(0,232,122,.5);background:var(--green-bg);}
+.store-card.taken{border-color:rgba(77,166,255,.4);}
+.card-fm{font-size:17px;font-weight:800;}
+.card-city{font-size:13px;color:var(--sub);margin-bottom:2px;}
+.card-addr{font-size:12px;color:var(--muted);margin-bottom:8px;}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 7px;border-radius:5px;}
+.badge.open{background:var(--bg2);color:var(--muted);}
+.badge.taken{background:rgba(77,166,255,.15);color:var(--accent);}
+.badge.mine{background:var(--green-bg);color:var(--green);}
+.card-who{font-size:13px;font-weight:700;margin-top:8px;}
+.card-actions{display:flex;gap:8px;margin-top:10px;}
+.card-actions button{flex:1;min-height:44px;border:none;border-radius:8px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;}
+.btn-take{background:var(--amber);color:#1a1400;}
+.btn-release{background:var(--bg2);color:var(--text);border:1px solid var(--border)!important;}
+button:disabled{opacity:.55;cursor:wait;}
+.leaflet-popup-content{margin:8px 10px;font-family:'DM Sans',system-ui,sans-serif;}
+.leaflet-popup-content strong{font-size:14px;}
+</style>
+</head>
+<body>
+<div id="boot-status" class="boot-status">Loading Friday coverage…</div>
+<div id="app" class="wrap" hidden>
+  <div class="top-bar">
+    <div>
+      <h1>Friday coverage</h1>
+      <p id="week-line">P10W4 · Nov 6</p>
+    </div>
+    <a href="/dc-scan/">DC Scan board</a>
+  </div>
+  <div class="me-bar">
+    <span>Signed in as <strong id="me-email">—</strong> <span id="me-role"></span></span>
+    <button type="button" id="sign-out-btn">Sign out</button>
+  </div>
+  <div id="map"></div>
+  <div class="stats" id="stats"></div>
+  <div class="msg" id="msg"></div>
+  <section class="section" id="d4">
+    <h2>District 4 <span>RO4 DC Scans</span></h2>
+    <div class="grid" id="grid-4"></div>
+  </section>
+  <section class="section" id="d5">
+    <h2>District 5 <span>RO5 DC Scans</span></h2>
+    <div class="grid" id="grid-5"></div>
+  </section>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  let snap = null;
+  let me = null;
+  let map = null;
+  let layer = null;
+  let fitted = false;
+  let busy = false;
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function showMsg(text, ok) {
+    const el = $('msg');
+    el.textContent = text || '';
+    el.className = 'msg' + (text ? ' show ' + (ok ? 'ok' : 'err') : '');
+  }
+
+  async function api(path, opts) {
+    const r = await window.dumpBinAuthFetch('/api/dc-scan-cover' + path, opts || {});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    return d;
+  }
+
+  function pinIcon(store) {
+    const bg = store.claim ? (store.claim.mine ? '#00e87a' : '#4da6ff') : '#ffcc00';
+    const fg = store.claim && store.claim.mine ? '#04140c' : '#1a1400';
+    return L.divIcon({
+      className: 'pin',
+      html: '<span style="background:' + bg + ';color:' + fg + '">' + esc(store.id) + '</span>',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+    });
+  }
+
+  function renderMap(stores) {
+    if (typeof L === 'undefined') return;
+    if (!map) {
+      map = L.map('map', { scrollWheelZoom: false });
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 16,
+      }).addTo(map);
+      layer = L.layerGroup().addTo(map);
+    }
+    layer.clearLayers();
+    const bounds = [];
+    stores.forEach((store) => {
+      bounds.push([store.lat, store.lon]);
+      const who = store.claim ? store.claim.name : 'Open';
+      const marker = L.marker([store.lat, store.lon], { icon: pinIcon(store) });
+      marker.bindPopup('<strong>FM ' + esc(store.id) + ' · ' + esc(store.city) + '</strong><br>' + esc(store.line) + '<br>' + esc(who));
+      marker.on('click', () => {
+        const card = $('store-' + store.id);
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      marker.addTo(layer);
+    });
+    if (!fitted && bounds.length) {
+      map.fitBounds(bounds, { padding: [28, 28] });
+      fitted = true;
+    }
+    setTimeout(() => map.invalidateSize(), 60);
+  }
+
+  function cardHtml(store) {
+    const claim = store.claim;
+    const cls = claim ? (claim.mine ? 'mine' : 'taken') : 'open';
+    const badge = claim ? (claim.mine ? 'Yours' : 'Taken') : 'Open';
+    const can = Boolean(snap && snap.me && snap.me.canClaim);
+    const supervisor = Boolean(snap && snap.me && snap.me.isSupervisor);
+    let button = '';
+    if (!claim && can) {
+      button = '<div class="card-actions"><button type="button" class="btn-take" data-take="' + esc(store.id) + '">Take</button></div>';
+    } else if (claim && (claim.mine || supervisor)) {
+      button = '<div class="card-actions"><button type="button" class="btn-release" data-release="' + esc(store.id) + '">Release</button></div>';
+    }
+    return '<article class="store-card ' + cls + '" id="store-' + esc(store.id) + '">'
+      + '<div class="card-fm">FM ' + esc(store.id) + '</div>'
+      + '<div class="card-city">' + esc(store.city) + '</div>'
+      + '<div class="card-addr">' + esc(store.line) + ', ' + esc(store.postal) + '</div>'
+      + '<span class="badge ' + cls + '">' + badge + '</span>'
+      + (claim ? '<div class="card-who">' + esc(claim.name) + '</div>' : '')
+      + button
+      + '</article>';
+  }
+
+  function render(snapshot) {
+    snap = snapshot;
+    const date = snapshot.date || '';
+    const parts = date.split('-');
+    const label = parts.length === 3
+      ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+      : date;
+    $('week-line').textContent = snapshot.weekKey + ' · ' + label + ' · Display Compliance';
+    $('me-role').textContent = snapshot.me && snapshot.me.canClaim ? '' : '· View only';
+    const c = snapshot.counts || { open: 0, claimed: 0, mine: 0 };
+    $('stats').innerHTML = [
+      ['open', c.open, 'Open'],
+      ['claimed', c.claimed, 'Taken'],
+      ['mine', c.mine, 'Yours'],
+    ].map(([cls, n, l]) => '<div class="stat ' + cls + '"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>').join('');
+    $('grid-4').innerHTML = snapshot.stores.filter((s) => s.district === 4).map(cardHtml).join('');
+    $('grid-5').innerHTML = snapshot.stores.filter((s) => s.district === 5).map(cardHtml).join('');
+    renderMap(snapshot.stores);
+  }
+
+  async function act(path, storeId) {
+    if (busy) return;
+    busy = true;
+    showMsg('', true);
+    try {
+      const d = await api(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeId }),
+      });
+      render(d.snapshot);
+      showMsg(d.message || '', true);
+    } catch (err) {
+      showMsg(err.message || 'Failed', false);
+      try { const d = await api('/'); render(d.snapshot); } catch (_) {}
+    } finally {
+      busy = false;
+    }
+  }
+
+  document.body.addEventListener('click', (ev) => {
+    const take = ev.target.closest('[data-take]');
+    const release = ev.target.closest('[data-release]');
+    if (take) act('/claim', take.getAttribute('data-take'));
+    if (release) {
+      const id = release.getAttribute('data-release');
+      if (window.confirm('Release FM ' + id + '?')) act('/release', id);
+    }
+  });
+
+  $('sign-out-btn').addEventListener('click', () => {
+    try {
+      localStorage.removeItem('dumpBinSession');
+      localStorage.removeItem('eodSession');
+    } catch (_) {}
+    location.href = '/signin.html?next=' + encodeURIComponent('/dc-scan/cover/');
+  });
+
+  async function boot() {
+    try {
+      await (window.dumpBinAuthReady || Promise.resolve());
+      const mr = await window.dumpBinAuthFetch('/api/me');
+      const md = await mr.json();
+      if (!mr.ok) throw new Error(md.error || 'Not signed in');
+      me = md;
+      $('me-email').textContent = me.email || '—';
+      $('app').hidden = false;
+      $('boot-status').hidden = true;
+      const d = await api('/');
+      render(d.snapshot);
+      setInterval(async () => {
+        if (busy) return;
+        try {
+          const next = await api('/');
+          render(next.snapshot);
+        } catch (_) {}
+      }, 8000);
+    } catch (err) {
+      $('boot-status').textContent = (err && err.message) || 'Load failed. Sign in and refresh.';
+      $('boot-status').className = 'boot-status err';
+      $('boot-status').hidden = false;
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
