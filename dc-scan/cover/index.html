@@ -102,13 +102,19 @@ button:disabled{opacity:.55;cursor:wait;}
     <h2>How to take stores</h2>
     <ol>
       <li>Take each store you will finish. You can take more than one.</li>
-      <li>Check the list in the confirm box. Release any store you will not finish.</li>
+      <li>Check the list in the confirm box. Release any store you will not finish, and add a note. Scanners who already have a store are emailed.</li>
       <li>Check the guarantee. Then press Confirm.</li>
     </ol>
     <p class="when">These shifts are scheduled Friday, Nov 6. You can do them anytime after 9:00 AM Wednesday. Finish before 5:00 PM Friday.</p>
   </section>
   <div id="map"></div>
   <div class="stats" id="stats"></div>
+  <section class="confirm-box" id="release-box" hidden>
+    <h2>Release <span id="release-label"></span></h2>
+    <label for="release-note">Note</label>
+    <textarea id="release-note" maxlength="500" style="width:100%;min-height:72px;margin:8px 0 12px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font:inherit;"></textarea>
+    <button type="button" class="btn-confirm" id="release-send">Release</button>
+  </section>
   <section class="confirm-box" id="confirm-box" hidden>
     <h2>Confirm your stores</h2>
     <ul id="confirm-list"></ul>
@@ -250,7 +256,9 @@ button:disabled{opacity:.55;cursor:wait;}
     busy = true;
     showMsg('', true);
     try {
-      const body = path === '/confirm' ? { guarantee: true } : { storeId };
+      const body = path === '/confirm'
+        ? { guarantee: true }
+        : { storeId, note: path === '/release' ? $('release-note').value : '' };
       const d = await api(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -271,6 +279,13 @@ button:disabled{opacity:.55;cursor:wait;}
     if (snap) render(snap);
   });
 
+  $('release-send').addEventListener('click', async () => {
+    const id = $('release-box').dataset.store;
+    if (!id) return;
+    await act('/release', id);
+    if ($('msg').className.indexOf('ok') !== -1) $('release-box').hidden = true;
+  });
+
   $('confirm-btn').addEventListener('click', () => {
     if (!$('guarantee').checked) {
       showMsg('Check the guarantee before you confirm.', false);
@@ -285,7 +300,11 @@ button:disabled{opacity:.55;cursor:wait;}
     if (take) act('/claim', take.getAttribute('data-take'));
     if (release) {
       const id = release.getAttribute('data-release');
-      if (window.confirm('Release FM ' + id + '?')) act('/release', id);
+      $('release-label').textContent = 'FM ' + id;
+      $('release-box').hidden = false;
+      $('release-box').dataset.store = id;
+      $('release-note').value = '';
+      $('release-box').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
 
