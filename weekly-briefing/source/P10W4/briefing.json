@@ -1,0 +1,655 @@
+{
+ "week": "P10W4",
+ "district": "D8",
+ "title": "Period 10 · Week 4",
+ "rev": "P10W4 · Rev 1 · 2026-11-01",
+ "sets": [
+  {
+   "dept": "Grocery",
+   "code": "C002",
+   "name": "Canned Vegetables",
+   "hours": 2,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C022",
+   "name": "Canned Tomatoes",
+   "hours": 2,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C024",
+   "name": "Coffee & Creamers",
+   "hours": 2,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C063",
+   "name": "Refrigerated Juices",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Grocery",
+   "code": "C079",
+   "name": "Refrigerated Coffee Creamers",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Grocery",
+   "code": "C119",
+   "name": "Aseptic Drinks",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C149",
+   "name": "Indian Foods",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C040",
+   "name": "Frozen Vegetables",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": true
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C086",
+   "name": "Baby Food (incl. C670)",
+   "hours": 7,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C182",
+   "name": "Sports Nutrition",
+   "hours": 6,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C121",
+   "name": "Cigarettes (incl. C123)",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C212",
+   "name": "Pet Care (incl. C097)",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C162",
+   "name": "Hand Body Face",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": false
+  },
+  {
+   "dept": "Cosmetics",
+   "code": "C247",
+   "name": "Cotton (incl. C177)",
+   "hours": 2,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Cosmetics",
+   "code": "C194",
+   "name": "Implements & Brushes",
+   "hours": 2,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Deli / Bakery",
+   "code": "C400",
+   "name": "Bread",
+   "hours": 2,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Deli / Bakery",
+   "code": "C466",
+   "name": "Hummus & Salsa",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": true
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C625",
+   "name": "NF Protein Powders",
+   "hours": 2,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C691",
+   "name": "NF Frozen Handheld (incl. C037)",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": true
+  },
+  {
+   "dept": "Fuel",
+   "code": "C142",
+   "name": "Fuel Kiosks",
+   "hours": 2,
+   "type": "NII",
+   "cold": false
+  }
+ ],
+ "frames": [
+  {
+   "kind": "title",
+   "stop_title": "Welcome",
+   "kicker": "Weekly Kompass Briefing",
+   "title": "",
+   "blocks": [],
+   "narration": "Here we go, folks. This is the briefing for Period ten, week four, District eight. Thirty-six hours across twenty sets this week, with the cosmetics resets and Pet Care doing most of the heavy lifting. Checkpoints come along the way, and yes, they count."
+  },
+  {
+   "stop_title": "The Week at a Glance",
+   "kicker": "P10W4 · District 8",
+   "title": "This Week at a Glance",
+   "blocks": [
+    {
+     "kind": "sets_table"
+    },
+    {
+     "kind": "counts_info"
+    }
+   ],
+   "narration": "Here is the whole week on one screen. Grocery carries eight sets, Health Beauty Care carries five, cosmetics carries two, Deli and Bakery carries two, Natural Foods carries two, and the fuel kiosk is one more. The biggest sets are Baby Food at seven hours and Sports Nutrition at six. Five sets run cold, and every cold set has a twenty-minute limit on product out of the case."
+  },
+  {
+   "stop_title": "Grocery",
+   "kicker": "Grocery",
+   "title": "Coffee, Juices and New Items",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Coffee & Creamers · C024",
+     "hrs": "@C024",
+     "bullets": [
+      "Seasonal adds land <b>across the whole set</b>: natural, bag, end caps, instant/can, Starbucks."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Juices C063 · Creamers C079",
+     "cold": true,
+     "bullets": [
+      "Juices: new items. Creamers: <b>seasonal swaps</b>.",
+      "1 hr each."
+     ],
+     "act": "Product out no longer than 20 minutes."
+    },
+    {
+     "kind": "card",
+     "head": "New items only",
+     "bullets": [
+      "Canned Vegetables · C002 · 2 hrs",
+      "Canned Tomatoes · C022 · 2 hrs",
+      "Aseptic Drinks · C119 · 1 hr",
+      "Indian Foods · C149 · 1 hr"
+     ]
+    }
+   ],
+   "narration": "Starting with grocery. Coffee and Creamers is two hours of seasonal adds, and they land all over the set: natural, bag, end caps, instant and can, and Starbucks. Refrigerated Juices and Refrigerated Coffee Creamers are one hour each and run cold, with the twenty-minute limit. The creamers are seasonal swaps. Canned Vegetables and Canned Tomatoes are two hours each, Aseptic Drinks and Indian Foods are one hour each, and all four are new items only."
+  },
+  {
+   "stop_title": "Baby Food",
+   "kicker": "Health & Beauty",
+   "title": "Baby Food",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Baby Food · C086 (incl. C670)",
+     "hrs": "@C086",
+     "bullets": [
+      "The jar and tub section that leads the set is condensed: <b>Gerber and Beechnut jars together</b>. Pouches and snacks expand into the space.",
+      "Flow change only where <b>tubs and jars lead</b> the set. Value and Hispanic stores keep their expanded jar section.",
+      "Considerable movement, mostly <b>vertical</b> in pouches and snacks.",
+      "Gerber tubs lose most of their product; the remaining tubs gain facings."
+     ],
+     "act": "Check your POG before cutting in: smaller sets (16 ft and similar) get tub shelf height changes, and Shelf 5 drops one inch in most mainstream sets."
+    },
+    {
+     "kind": "info",
+     "html": "Store <b>459</b>: C670 NII strips are recorded under <b>C086</b>."
+    }
+   ],
+   "narration": "Health Beauty Care starts with Baby Food, seven hours, and that number comes from the test store, which ran over the estimate. The jar and tub section that leads the set gets condensed, with Gerber and Beechnut jars together, and pouches and snacks expand into the space. The flow only changes where tubs and jars lead the set, and value and Hispanic stores keep their expanded jar section. Expect a lot of vertical movement in pouches and snacks. Gerber tubs lose most of their product, and the tubs that stay gain facings. Here is the part that matters: check your planogram before you start cutting in. Smaller sets get tub shelf height changes, and shelf five drops one inch in most mainstream sets. Store four five nine gets Natural Foods baby strips, and those get recorded under Baby Food."
+  },
+  {
+   "stop_title": "Sports Nutrition",
+   "kicker": "Health & Beauty · Natural Foods",
+   "title": "Sports Nutrition and Protein",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Sports Nutrition · C182",
+     "hrs": "@C182",
+     "bullets": [
+      "Single-serve protein shakes move <b>above the multipacks</b> on 12 ft and larger sets.",
+      "Heavy vertical movement in single-serve: <b>Celsius, Core Power, Oikos</b>.",
+      "Atkins is reduced; what stays moves to the <b>bottom shelves</b>.",
+      "<b>Pure Protein</b> multipacks will have holes: some items are not being received."
+     ],
+     "chips": {
+      "label": "New store-specific 16 ft POG at:",
+      "stores": [
+       23,
+       28
+      ]
+     }
+    },
+    {
+     "kind": "card",
+     "head": "Live Fit racks (54 in and 48 in) · part of C182",
+     "chips": {
+      "label": "On the manifest at:",
+      "stores": [
+       19,
+       23,
+       53,
+       215,
+       391,
+       658,
+       682
+      ]
+     }
+    },
+    {
+     "kind": "card",
+     "head": "NF Protein Powders · C625",
+     "hrs": "@C625",
+     "bullets": [
+      "Reflow on <b>4 ft and smaller</b> sets: shakes move up and block together, powders move down to the bottom shelves.",
+      "Most movement is vertical. Same Pure Protein holes."
+     ]
+    }
+   ],
+   "narration": "Sports Nutrition is six hours. On twelve-foot and larger sets, the single-serve protein shakes move above the multipacks, and there is a lot of vertical movement in the single-serve items, Celsius, Core Power, and Oikos. Atkins gets cut back, and what stays moves to the bottom shelves. Pure Protein multipacks will have holes, since some of those items are not being received right now. Stores twenty-three and twenty-eight move to a new store-specific sixteen-foot planogram. The Live Fit racks are part of this set too, and they show on the manifest at nineteen, twenty-three, fifty-three, two one five, three nine one, six five eight, and six eight two. Natural Foods Protein Powders is two hours. On four-foot and smaller sets it reflows, with shakes moving up and powders moving down to the bottom shelves. Most of the movement is vertical, and the same Pure Protein holes apply."
+  },
+  {
+   "stop_title": "Pet Care",
+   "kicker": "Health & Beauty",
+   "title": "Pet Care",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "Priority set this week."
+    },
+    {
+     "kind": "card",
+     "head": "Pet Care · C212 (incl. C097)",
+     "hrs": "@C212",
+     "bullets": [
+      "<b>Kompass at all 10</b> District 8 stores. Most stores get POG conversions.",
+      "Department change: <b>D01 → D03</b>.",
+      "POGs are in A Useful Folder."
+     ],
+     "chips": {
+      "label": "Cat scratcher versions remapped at:",
+      "stores": [
+       19,
+       28,
+       31,
+       53,
+       215,
+       391,
+       658
+      ]
+     }
+    },
+    {
+     "kind": "card",
+     "head": "Wild Bird Food · C097",
+     "chips": {
+      "label": "Strips at:",
+      "stores": [
+       23,
+       31,
+       53,
+       391
+      ],
+      "color": "orange"
+     },
+     "paragraphs": [
+      "Recorded under <b>C212</b>."
+     ]
+    }
+   ],
+   "narration": "Pet Care is the priority set this week. It is one hour on paper and Compass at all ten District eight stores, and most stores get planogram conversions. It also changes department, from department zero one to department zero three. Cat scratcher versions get remapped at nineteen, twenty-eight, thirty-one, fifty-three, two one five, three nine one, and six five eight. The planograms are in A Useful Folder. Wild Bird Food strips show up at twenty-three, thirty-one, fifty-three, and three nine one, and those get recorded under Pet Care."
+  },
+  {
+   "stop_title": "Implements",
+   "kicker": "Cosmetics",
+   "title": "Implements & Brushes",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "Do not start without the replacement tray in hand. You have the okay to delay completion until it shows up."
+    },
+    {
+     "kind": "card",
+     "head": "Implements & Brushes · C194",
+     "hrs": "@C194",
+     "bullets": [
+      "The acrylic rack at the bottom of the set comes out; a new <b>PM Plastics universal tray</b> goes in.",
+      "Tray boxes shipped FedEx with a hold sticker: <b>\"Hold Kompass Reset\"</b> or <b>\"Hold for Cosmetics Reset Team.\"</b>",
+      "No tray at the store: check with the cosmetics clerk for a spare, then let me know.",
+      "Pretty Savvy becomes Kroger brand. Old-UPC items stay while product remains.",
+      "Universal Fixture stores get full sets of tray labels; fold one corner down when you apply them."
+     ]
+    }
+   ],
+   "narration": "Cosmetics, starting with Implements and Brushes, two hours. Here is your action item for the week. Do not start this reset without the replacement tray in hand, and you have the okay to delay completion until it shows up. The acrylic rack at the bottom of the set comes out, and a new PM Plastics universal tray goes in its place. The tray boxes shipped FedEx with a hold sticker that reads Hold Compass Reset, or a hold for the cosmetics reset crew. If the store can't find one, check with the cosmetics clerk for a spare, then let me know. Pretty Savvy items become Kroger brand, and the old items stay on the peg while there is still product. Universal Fixture stores get full sets of tray labels, and fold one corner down when you put them on."
+  },
+  {
+   "stop_title": "Cotton",
+   "kicker": "Cosmetics",
+   "title": "Cotton",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Cotton · C247 (incl. C177)",
+     "hrs": "@C247",
+     "bullets": [
+      "Items move to <b>new SRP</b>. Leave the old SRP in place while it still has product.",
+      "Minimal shelf moves. Pushers for the cotton swab shelf are included as fixture needs where they were missing.",
+      "Cotton / nail / implement combo POGs <b>drop the artificial nail and brush pegs</b>.",
+      "C177 First Aid strips are recorded under <b>C247</b>."
+     ],
+     "act": "Tray labels likely will not arrive for this set: follow store custom, UPLs on the trays or cut-down paper strips."
+    }
+   ],
+   "narration": "Cotton is two hours. Several items move to new S-R-P, and the old S-R-P stays in place while it still has product. Shelf moves are minimal, and pushers for the cotton swab shelf are included as fixture needs where stores were missing them. The cotton, nail, and implement combo planograms drop the artificial nail and brush pegs and become cotton and implements only. First Aid strips get recorded under Cotton. Tray labels likely won't arrive for this set, so follow store custom, either U-P-Ls on the trays or cut-down paper strips."
+  },
+  {
+   "stop_title": "Bread",
+   "kicker": "Deli / Bakery",
+   "title": "Bread",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Bread · C400",
+     "hrs": "@C400",
+     "chips": {
+      "label": "Convert to <b>Artisan with the Asian POG</b>:",
+      "stores": [
+       23,
+       31,
+       658
+      ],
+      "color": "orange"
+     },
+     "bullets": [
+      "<b>Keep branded rack strips in place</b> (Artisan Bread and similar). Do not install Kompass strips; use them only as a reset guide.",
+      "Bakery table: the new POG goes in the plastic sleeve on the table. Otherwise give the printed POG to the Bakery department."
+     ]
+    }
+   ],
+   "narration": "Bread is two hours. Stores twenty-three, thirty-one, and six five eight convert to the Artisan with Asian planogram, so grab that version. Keep the branded rack strips in place, like the Artisan Bread rack, and do not install Compass strips on those racks; use them only as a reset guide. On a bakery table, the new planogram goes in the plastic sleeve on the table. Everywhere else, the printed planogram goes to the Bakery department."
+  },
+  {
+   "stop_title": "Fuel and Tobacco",
+   "kicker": "Fuel · Tobacco",
+   "title": "Fuel Kiosks and Cigarettes",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Fuel Kiosks · C142",
+     "hrs": "@C142",
+     "chips": {
+      "label": "Kiosk POGs at:",
+      "stores": [
+       19,
+       28,
+       31,
+       53,
+       215,
+       391,
+       459,
+       682
+      ]
+     },
+     "bullets": [
+      "Window wrap-around racks run customer-facing, left to right. <b>Lighters always on the right</b>, facing the kiosk from outside.",
+      "REZ tags are wrapped separately."
+     ],
+     "act": "Kompass does not move product between the store and the fuel center. Ask store management to bring new product out; the fuel center handles disco and backstock."
+    },
+    {
+     "kind": "card",
+     "head": "Cigarettes · C121 (incl. C123)",
+     "hrs": "@C121",
+     "bullets": [
+      "Fuel tobacco sets reset alongside.",
+      "C123 strips are recorded under <b>C121</b>."
+     ]
+    }
+   ],
+   "narration": "Fuel kiosks are two hours at nineteen, twenty-eight, thirty-one, fifty-three, two one five, three nine one, four five nine, and six eight two. The window wrap-around racks run customer-facing, left to right, and the lighters always sit on the right when you face the kiosk from outside. R-E-Z tags are wrapped separately. Compass does not move product between the store and the fuel center in either direction. Ask store management to bring the new product out, and the fuel center handles the disco and backstock. Cigarettes is one hour, the fuel tobacco sets reset alongside it, and Other Tobacco strips get recorded under Cigarettes."
+  },
+  {
+   "stop_title": "Maintenance and Callouts",
+   "kicker": "Callouts",
+   "title": "Maintenance and Mapping Surveys",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Quarter-hour maintenance",
+     "bullets": [
+      "Frozen Vegetables · C040 ❄",
+      "Hand Body Face · C162",
+      "Hummus & Salsa · C466 ❄",
+      "NF Frozen Handheld · C691 ❄ (C037 recorded under C691)"
+     ],
+     "act": "Cold sets: product out no longer than 20 minutes."
+    },
+    {
+     "kind": "card",
+     "head": "Mapping surveys: shelf color",
+     "cls": "navy",
+     "bullets": [
+      "There are <b>no oyster shelves</b>. White is really only in health and beauty.",
+      "Most shelves are <b>Sahara</b> (beige) or <b>Clear Coat</b> (silvery gray)."
+     ],
+     "act": "Use the color guide before you call it."
+    }
+   ],
+   "narration": "Four quick maintenance sets at a quarter hour each: Frozen Vegetables, Hand Body Face, Hummus and Salsa, and Natural Foods Frozen Handheld, which carries the frozen handheld strips too. Three of those run cold, with the twenty-minute limit. One callout on mapping surveys: there are no oyster shelves. White is really only in health and beauty, and most shelves are Sahara, which is beige, or Clear Coat, which is a silvery gray. Pull the color guide before you call it."
+  },
+  {
+   "stop_title": "Next Week",
+   "kicker": "Looking Ahead · P11W1",
+   "title": "Next Week: About 33 Hours",
+   "blocks": [
+    {
+     "kind": "table",
+     "columns": [
+      {
+       "label": "Next week · Updates"
+      },
+      {
+       "label": "Hrs",
+       "num": true
+      },
+      {
+       "label": "Type",
+       "muted": true
+      }
+     ],
+     "rows": [
+      [
+       "Baked Bread (incl. C671)",
+       "6",
+       "Update"
+      ],
+      [
+       "Frozen Bread ❄",
+       "5",
+       "Update"
+      ],
+      [
+       "Traditional Asian (incl. C069, C357)",
+       "4",
+       "Update"
+      ],
+      [
+       "Salad Mix ❄",
+       "2",
+       "Update"
+      ]
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Also next week",
+     "bullets": [
+      "<b>Salad Mix</b> is a produce set: done first thing. Salad identifier cards move with the product.",
+      "<b>Energy Drinks</b>: Red Bull cuts; smaller brands move up to the top two shelves.",
+      "<b>Upper Respiratory</b>: Allegra moves off the bottom shelf and trades places with Benadryl.",
+      "<b>Premium Juice</b>: do not remove the Suja racks."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "After that",
+     "cls": "org",
+     "paragraphs": [
+      "Period 11, weeks 2 and 3: <b>blackout, 0 hours</b>."
+     ]
+    }
+   ],
+   "narration": "Looking ahead to next week, about thirty-three hours. The updates are Baked Bread at six hours, Frozen Bread at five, Traditional Asian at four, and Salad Mix at two. Salad Mix is a produce set, so it gets done first thing, and the salad identifier cards move with the product. Energy Drinks loses a stack of Red Bull, and smaller brands move up to the top two shelves. In Upper Respiratory, Allegra moves off the bottom shelf and trades places with Benadryl. In Premium Juice, the Suja racks stay put. After that, Period eleven, weeks two and three, are blackout weeks at zero hours."
+  },
+  {
+   "stop_title": "Key Facts",
+   "kicker": "P10W4 · District 8",
+   "title": "Key Facts",
+   "blocks": [
+    {
+     "kind": "keyfacts",
+     "head": "Key Facts for P10W4",
+     "items": [
+      "36 hours · 20 sets · 5 cold sets at 20 minutes",
+      "Implements: tray in hand before you start",
+      "Pet Care is the priority set; scratchers remap at 19, 28, 31, 53, 215, 391, 658",
+      "Baby Food: check your POG before cutting in",
+      "Artisan with Asian bread: 23, 31, 658",
+      "Fuel: the store brings product out to the kiosk",
+      "Mapping surveys: no oyster shelves"
+     ]
+    },
+    {
+     "kind": "info",
+     "big": true,
+     "html": "That is the briefing."
+    }
+   ],
+   "narration": "That is the week. Implements waits for the tray. Pet Care is the priority, with scratcher remaps at seven stores. Check the Baby Food planogram before you cut in. Twenty-three, thirty-one, and six five eight get the Artisan with Asian bread planogram. The store brings fuel product out to the kiosk, not us. And there are still no oyster shelves, no matter how convincing the light is. That is the briefing. The quiz is next."
+  }
+ ],
+ "handout": {
+  "execution": {
+   "C002": "New items only.",
+   "C022": "New items only.",
+   "C024": "Seasonal adds across the whole set: natural, bag, end caps, instant/can, Starbucks.",
+   "C063": "New items. Product out no longer than 20 minutes.",
+   "C079": "Seasonal swaps. Product out no longer than 20 minutes.",
+   "C119": "New items only.",
+   "C149": "New items only.",
+   "C040": "Maintenance. Product out no longer than 20 minutes.",
+   "C086": "Jar/tub section condensed (Gerber + Beechnut jars); pouches and snacks expand. Flow change only where tubs and jars lead. Check your POG: smaller sets get tub shelf height changes; Shelf 5 drops one inch in most mainstream sets. Store 459: C670 strips under C086.",
+   "C182": "Single-serve shakes above multipacks on 12 ft+. Vertical movement in Celsius, Core Power, Oikos. Atkins reduced, to bottom shelves. Pure Protein multipack holes. 23, 28: new store-specific 16 ft POG. Live Fit racks at 19, 23, 53, 215, 391, 658, 682.",
+   "C121": "Fuel tobacco sets reset alongside. C123 strips under C121.",
+   "C212": "Priority set. Kompass at all 10 stores; POG conversions. Department change D01 to D03. Cat scratchers remapped at 19, 28, 31, 53, 215, 391, 658. C097 strips (23, 31, 53, 391) under C212.",
+   "C162": "Maintenance.",
+   "C247": "New SRP; leave old SRP while it has product. Combo POGs drop artificial nail and brush pegs. Tray labels likely will not arrive: UPLs or cut-down paper strips. C177 strips under C247.",
+   "C194": "Do not start without the replacement tray; delay is okay. Acrylic rack out, PM Plastics universal tray in. Box sticker: \"Hold Kompass Reset\" / \"Hold for Cosmetics Reset Team.\" No tray: cosmetics clerk, then me. Old-UPC items stay while product remains.",
+   "C400": "23, 31, 658: Artisan with Asian POG. Keep branded rack strips; Kompass strips are a reset guide only. Table: POG in the sleeve; otherwise printed POG to Bakery.",
+   "C466": "Maintenance. Product out no longer than 20 minutes.",
+   "C625": "Reflow on 4 ft and smaller: shakes up, powders to the bottom shelves. Pure Protein holes.",
+   "C691": "Maintenance. Product out no longer than 20 minutes. C037 strips under C691.",
+   "C142": "Kiosk POGs at 19, 28, 31, 53, 215, 391, 459, 682. Store management brings product out; fuel center handles disco/backstock. Lighters always on the right. REZ tags wrapped separately."
+  },
+  "page2": [
+   {
+    "head": "Implements: tray in hand before you start",
+    "cls": "r",
+    "act": "No tray at the store: check with the cosmetics clerk for a spare, then let me know. Delay is okay."
+   },
+   {
+    "head": "Callouts",
+    "cls": "y",
+    "bullets": [
+     "Pet Care is the priority set this week. POGs are in A Useful Folder.",
+     "Mapping surveys: no oyster shelves. White is really only in health and beauty. Most shelves are Sahara (beige) or Clear Coat (silvery gray). Use the color guide.",
+     "Kompass does not move product between the store and the fuel center."
+    ]
+   },
+   {
+    "head": "Next week · P11W1 · about 33 hours",
+    "table_columns": [
+     "Update",
+     "Hrs"
+    ],
+    "table": [
+     [
+      "Baked Bread (incl. C671)",
+      "6"
+     ],
+     [
+      "Frozen Bread",
+      "5"
+     ],
+     [
+      "Traditional Asian (incl. C069, C357)",
+      "4"
+     ],
+     [
+      "Salad Mix",
+      "2"
+     ]
+    ],
+    "bullets": [
+     "Salad Mix is a produce set: done first thing. Salad identifier cards move with the product.",
+     "Energy Drinks: Red Bull cuts; smaller brands move up to the top two shelves.",
+     "Upper Respiratory: Allegra moves off the bottom shelf and trades places with Benadryl.",
+     "Premium Juice: do not remove the Suja racks.",
+     "Period 11, weeks 2 and 3: blackout, 0 hours."
+    ]
+   }
+  ]
+ }
+}

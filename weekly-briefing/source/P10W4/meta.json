@@ -1,0 +1,74 @@
+{
+  "week": "P10W4",
+  "district": "D8",
+  "title": "Period 10 · Week 4",
+  "dueAt": "2026-11-02T06:00:00-08:00",
+  "passPct": 80,
+  "board": "callsign",
+  "stops": [
+    "Welcome",
+    "The Week at a Glance",
+    "Grocery",
+    "Baby Food",
+    "Sports Nutrition",
+    "Pet Care",
+    "Implements",
+    "Cotton",
+    "Bread",
+    "Fuel and Tobacco",
+    "Maintenance and Callouts",
+    "Next Week",
+    "Key Facts"
+  ],
+  "sections": [
+    {
+      "name": "Opening",
+      "stops": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Grocery",
+      "stops": [
+        3
+      ]
+    },
+    {
+      "name": "HBC & Natural Foods",
+      "stops": [
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "name": "Cosmetics",
+      "stops": [
+        7,
+        8
+      ]
+    },
+    {
+      "name": "Bakery, Fuel & Callouts",
+      "stops": [
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "Looking ahead",
+      "stops": [
+        12
+      ]
+    },
+    {
+      "name": "Wrap",
+      "stops": [
+        13
+      ]
+    }
+  ],
+  "closer": "Somewhere a PM Plastics tray is sitting behind a cosmetics counter, waiting to be found by someone who reads the Kompass notes."
+}

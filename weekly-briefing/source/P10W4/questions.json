@@ -1,0 +1,215 @@
+[
+  {
+    "id": "q01",
+    "stop": 3,
+    "type": "choice",
+    "q": "What kind of work is Coffee & Creamers this week?",
+    "options": [
+      "A full flow change",
+      "Seasonal adds across the whole set",
+      "Deletes only",
+      "A department change"
+    ],
+    "correct": 1,
+    "explain": "Seasonal adds land across the set: natural, bag, end caps, instant/can and Starbucks."
+  },
+  {
+    "id": "q02",
+    "stop": 4,
+    "type": "choice",
+    "q": "What do you do before cutting in Baby Food?",
+    "options": [
+      "Pull every tub",
+      "Check your POG for shelf height changes",
+      "Call the store manager",
+      "Wait for new strips"
+    ],
+    "correct": 1,
+    "explain": "Smaller sets get tub shelf height changes and Shelf 5 drops one inch in most mainstream sets. The POG tells you which applies."
+  },
+  {
+    "id": "q03",
+    "stop": 4,
+    "type": "tf",
+    "q": "Every Baby Food set gets the flow change.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correct": 1,
+    "explain": "The flow changes only where tubs and jars lead the set. Value and Hispanic stores keep their expanded jar section."
+  },
+  {
+    "id": "q04",
+    "stop": 5,
+    "type": "choice",
+    "q": "Why will Pure Protein multipacks have holes?",
+    "options": [
+      "They moved to Natural Foods",
+      "Some items are not being received",
+      "They were deleted from the set",
+      "They moved to the cooler"
+    ],
+    "correct": 1,
+    "explain": "Some Pure Protein items are not being received right now. The holes are expected; set the rest of the POG."
+  },
+  {
+    "id": "q05",
+    "stop": 5,
+    "type": "multi",
+    "q": "Select the stores moving to a new store-specific 16 ft Sports Nutrition POG.",
+    "options": [
+      "23",
+      "28",
+      "215",
+      "459"
+    ],
+    "correct": [
+      0,
+      1
+    ],
+    "explain": "Stores 23 and 28 move to the new store-specific 16 ft POG."
+  },
+  {
+    "id": "q06",
+    "stop": 6,
+    "type": "choice",
+    "q": "Which set is the priority this week?",
+    "options": [
+      "Coffee & Creamers",
+      "Pet Care",
+      "Hand Body Face",
+      "Indian Foods"
+    ],
+    "correct": 1,
+    "explain": "Pet Care is the priority set: Kompass at all 10 District 8 stores, with POG conversions and a department change."
+  },
+  {
+    "id": "q07",
+    "stop": 6,
+    "type": "choice",
+    "q": "Where do Wild Bird Food strips get recorded?",
+    "options": [
+      "Under Wild Bird Food",
+      "Under Pet Care",
+      "Under Cigarettes",
+      "They are not recorded"
+    ],
+    "correct": 1,
+    "explain": "Wild Bird Food strips at 23, 31, 53 and 391 are recorded under Pet Care."
+  },
+  {
+    "id": "q08",
+    "stop": 7,
+    "type": "choice",
+    "q": "The replacement tray for Implements & Brushes is not at the store. What do you do?",
+    "options": [
+      "Start the set and add the tray later",
+      "Use the acrylic rack again",
+      "Do not start; check with the cosmetics clerk, then let me know",
+      "Skip the set entirely"
+    ],
+    "correct": 2,
+    "explain": "Do not start without the tray in hand. Check with the cosmetics clerk for a spare, then let me know. Delay is okay."
+  },
+  {
+    "id": "q09",
+    "stop": 8,
+    "type": "choice",
+    "q": "Tray labels for Cotton are not in the box. What do you do?",
+    "options": [
+      "Leave the trays unlabeled",
+      "Follow store custom: UPLs on the trays or cut-down paper strips",
+      "Order new labels",
+      "Use Implements labels"
+    ],
+    "correct": 1,
+    "explain": "Cotton tray labels likely will not arrive. Follow store custom with UPLs or cut-down paper strips."
+  },
+  {
+    "id": "q10",
+    "stop": 8,
+    "type": "tf",
+    "q": "Old SRP comes off the shelf as soon as the new SRP items arrive.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correct": 1,
+    "explain": "Leave the old SRP in place while it still has product. It still fits the shelf."
+  },
+  {
+    "id": "q11",
+    "stop": 9,
+    "type": "multi",
+    "q": "Select the District 8 stores converting to the Artisan with Asian bread POG.",
+    "options": [
+      "23",
+      "31",
+      "215",
+      "658"
+    ],
+    "correct": [
+      0,
+      1,
+      3
+    ],
+    "explain": "Stores 23, 31 and 658 convert. Keep branded rack strips in place and use Kompass strips only as a reset guide."
+  },
+  {
+    "id": "q12",
+    "stop": 10,
+    "type": "choice",
+    "q": "Who brings new fuel kiosk product out from the store?",
+    "options": [
+      "The Kompass crew",
+      "Store management",
+      "The Vestcom driver",
+      "The fuel center clerk, from the backroom"
+    ],
+    "correct": 1,
+    "explain": "Kompass does not move product between the store and the fuel center. Store management brings it out."
+  },
+  {
+    "id": "q13",
+    "stop": 10,
+    "type": "choice",
+    "q": "On the window wrap-around racks, where do the lighters go?",
+    "options": [
+      "Always on the left",
+      "Always on the right, facing the kiosk from outside",
+      "Center rack",
+      "Wherever they fit"
+    ],
+    "correct": 1,
+    "explain": "The racks run customer-facing, left to right, with lighters always on the right when you face the kiosk from outside."
+  },
+  {
+    "id": "q14",
+    "stop": 11,
+    "type": "choice",
+    "q": "On a mapping survey, which shelf color will you not find?",
+    "options": [
+      "Sahara",
+      "Clear Coat",
+      "Oyster",
+      "White in health and beauty"
+    ],
+    "correct": 2,
+    "explain": "There are no oyster shelves. Most are Sahara (beige) or Clear Coat (silvery gray). Use the color guide."
+  },
+  {
+    "id": "q15",
+    "stop": 12,
+    "type": "choice",
+    "q": "Which set next week is a produce set that gets done first thing?",
+    "options": [
+      "Baked Bread",
+      "Salad Mix",
+      "Traditional Asian",
+      "Energy Drinks"
+    ],
+    "correct": 1,
+    "explain": "Salad Mix is a produce set, done first thing, and the salad identifier cards move with the product."
+  }
+]
