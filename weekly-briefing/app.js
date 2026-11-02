@@ -388,8 +388,9 @@
     setNext(true, it);
   }
   function setPlayIcon(playing) {
-    $('play-icon').hidden = playing;
-    $('pause-icon').hidden = !playing;
+    // SVG elements have no .hidden property (it's HTMLElement-only), so toggle the attribute.
+    $('play-icon').toggleAttribute('hidden', playing);
+    $('pause-icon').toggleAttribute('hidden', !playing);
     $('play-btn').setAttribute('aria-label', playing ? 'Pause' : 'Play');
   }
   function updateBar(cur, dur) {
