@@ -1,0 +1,10 @@
+{
+ "request": "20261101-dry-1",
+ "week": "P10W3",
+ "mode": "staging",
+ "startedAt": "2026-11-02T00:09:36Z",
+ "ok": false,
+ "error": "HTTPError: HTTP Error 403: Forbidden",
+ "finishedAt": "2026-11-02T00:09:36Z",
+ "seconds": 0.1
+}
