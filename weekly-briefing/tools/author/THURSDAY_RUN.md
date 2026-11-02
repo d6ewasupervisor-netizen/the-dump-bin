@@ -107,9 +107,10 @@ with the preview/hub link. Then:
 python3 -I eodapi.py thread --week $WEEK close
 python3 -I eodapi.py text "[briefing] WEEK handed to the worker (request REQ, MODE). Teams note: <paste note>. Handout attached in the email."
 ```
-Teams note (no set details): "The meeting recap is available above. If you missed it or need to
-refresh your memory, watch it, then take the quiz. https://the-dump-bin.com/weekly-briefing/ The
-WEEK handout is attached."
+Teams note (no set details; there is no meeting anymore, the walk replaces it):
+"Alright, everyone, the WEEK Weekly Briefing is up: N stops, about M minutes, with checkpoints along
+the way. It's due Monday m/d by 6:00 AM. https://the-dump-bin.com/weekly-briefing/ The handout is
+attached. Results come to me automatically. Questions, text me."
 
 If `post` fails, text T the error and exit. Do not retry a publish that may have succeeded.
 
