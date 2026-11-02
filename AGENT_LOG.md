@@ -2,7 +2,7 @@
 
 ## 2026-11-02 — Friday coverage page
 
-`dc-scan/cover/index.html` is the Friday Display Compliance map and claim board. It uses the same Dump Bin sign-in as `/dc-scan/` and calls `/api/dc-scan-cover`. The RO8 board header links here. Not published.
+`dc-scan/cover/index.html` is the Friday Display Compliance map. Take stores, check the guarantee, then Confirm. Confirm calls `/api/dc-scan-cover/confirm`. Not published.
 
 ## 2026-11-01 — Store recipient assignment page, not published
 

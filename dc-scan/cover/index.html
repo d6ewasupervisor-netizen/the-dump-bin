@@ -32,6 +32,19 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .me-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--sub);}
 .me-bar strong{color:var(--text);word-break:break-all;}
 .me-bar button{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--sub);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;min-height:40px;}
+.steps{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;}
+.steps h2{font-size:15px;font-weight:800;margin-bottom:8px;}
+.steps ol{margin:0 0 10px 18px;color:var(--sub);font-size:14px;}
+.steps li{margin:4px 0;}
+.steps .when{font-size:14px;font-weight:700;}
+.confirm-box{background:var(--card);border:1px solid rgba(255,204,0,.45);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;}
+.confirm-box h2{font-size:15px;font-weight:800;margin-bottom:6px;}
+.confirm-box ul{margin:0 0 10px 18px;color:var(--sub);font-size:14px;}
+.confirm-box label{display:flex;gap:10px;align-items:flex-start;font-size:14px;font-weight:700;margin:8px 0 12px;}
+.confirm-box input{width:20px;height:20px;margin-top:2px;flex:0 0 auto;}
+.btn-confirm{min-height:48px;padding:12px 16px;border:none;border-radius:10px;background:var(--green);color:#04140c;font:inherit;font-size:14px;font-weight:800;cursor:pointer;}
+.btn-confirm:disabled{background:#1e2c3e;color:#5a7088;cursor:not-allowed;}
+.card-err{font-size:12px;color:var(--red);margin-top:6px;}
 #map{height:min(42vh,420px);min-height:240px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:12px;background:var(--bg2);}
 .pin{background:transparent;border:0;}
 .pin span{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;font-size:11px;font-weight:800;border:2px solid #0a0e13;box-shadow:0 2px 8px rgba(0,0,0,.45);}
@@ -85,8 +98,23 @@ button:disabled{opacity:.55;cursor:wait;}
     <span>Signed in as <strong id="me-email">—</strong> <span id="me-role"></span></span>
     <button type="button" id="sign-out-btn">Sign out</button>
   </div>
+  <section class="steps">
+    <h2>How to take stores</h2>
+    <ol>
+      <li>Take each store you will finish. You can take more than one.</li>
+      <li>Check the list in the confirm box. Release any store you will not finish.</li>
+      <li>Check the guarantee. Then press Confirm.</li>
+    </ol>
+    <p class="when">These shifts are scheduled Friday, Nov 6. You can do them anytime after 9:00 AM Wednesday. Finish before 5:00 PM Friday.</p>
+  </section>
   <div id="map"></div>
   <div class="stats" id="stats"></div>
+  <section class="confirm-box" id="confirm-box" hidden>
+    <h2>Confirm your stores</h2>
+    <ul id="confirm-list"></ul>
+    <label for="guarantee"><input type="checkbox" id="guarantee"> <span id="guarantee-text">I can guarantee these will be complete before Friday at 5 PM.</span></label>
+    <button type="button" class="btn-confirm" id="confirm-btn" disabled>Confirm</button>
+  </section>
   <div class="msg" id="msg"></div>
   <section class="section" id="d4">
     <h2>District 4 <span>RO4 DC Scans</span></h2>
@@ -169,22 +197,25 @@ button:disabled{opacity:.55;cursor:wait;}
 
   function cardHtml(store) {
     const claim = store.claim;
-    const cls = claim ? (claim.mine ? 'mine' : 'taken') : 'open';
-    const badge = claim ? (claim.mine ? 'Yours' : 'Taken') : 'Open';
+    const confirmed = claim && claim.status === 'confirmed';
+    const cls = !claim ? 'open' : (confirmed ? 'mine' : (claim.mine ? 'mine' : 'taken'));
+    const badge = !claim ? 'Open' : (confirmed ? 'Confirmed' : (claim.mine ? 'Selected' : 'Taken'));
     const can = Boolean(snap && snap.me && snap.me.canClaim);
     const supervisor = Boolean(snap && snap.me && snap.me.isSupervisor);
     let button = '';
     if (!claim && can) {
       button = '<div class="card-actions"><button type="button" class="btn-take" data-take="' + esc(store.id) + '">Take</button></div>';
-    } else if (claim && (claim.mine || supervisor)) {
+    } else if (claim && !confirmed && (claim.mine || supervisor)) {
       button = '<div class="card-actions"><button type="button" class="btn-release" data-release="' + esc(store.id) + '">Release</button></div>';
     }
+    const err = claim && claim.mine && claim.sasError ? '<div class="card-err">' + esc(claim.sasError) + '</div>' : '';
     return '<article class="store-card ' + cls + '" id="store-' + esc(store.id) + '">'
       + '<div class="card-fm">FM ' + esc(store.id) + '</div>'
       + '<div class="card-city">' + esc(store.city) + '</div>'
       + '<div class="card-addr">' + esc(store.line) + ', ' + esc(store.postal) + '</div>'
-      + '<span class="badge ' + cls + '">' + badge + '</span>'
+      + '<span class="badge ' + (confirmed ? 'mine' : cls) + '">' + badge + '</span>'
       + (claim ? '<div class="card-who">' + esc(claim.name) + '</div>' : '')
+      + err
       + button
       + '</article>';
   }
@@ -198,12 +229,17 @@ button:disabled{opacity:.55;cursor:wait;}
       : date;
     $('week-line').textContent = snapshot.weekKey + ' · ' + label + ' · Display Compliance';
     $('me-role').textContent = snapshot.me && snapshot.me.canClaim ? '' : '· View only';
-    const c = snapshot.counts || { open: 0, claimed: 0, mine: 0 };
+    const c = snapshot.counts || { open: 0, confirmed: 0, ready: 0 };
     $('stats').innerHTML = [
       ['open', c.open, 'Open'],
-      ['claimed', c.claimed, 'Taken'],
-      ['mine', c.mine, 'Yours'],
+      ['mine', c.ready || 0, 'Selected'],
+      ['claimed', c.confirmed || 0, 'Confirmed'],
     ].map(([cls, n, l]) => '<div class="stat ' + cls + '"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>').join('');
+    const ready = snapshot.stores.filter((s) => s.claim && s.claim.mine && s.claim.status !== 'confirmed');
+    $('confirm-box').hidden = ready.length === 0;
+    $('confirm-list').innerHTML = ready.map((s) => '<li>FM ' + esc(s.id) + ' ' + esc(s.city) + '</li>').join('');
+    if (snapshot.guarantee) $('guarantee-text').textContent = snapshot.guarantee;
+    $('confirm-btn').disabled = !$('guarantee').checked || busy;
     $('grid-4').innerHTML = snapshot.stores.filter((s) => s.district === 4).map(cardHtml).join('');
     $('grid-5').innerHTML = snapshot.stores.filter((s) => s.district === 5).map(cardHtml).join('');
     renderMap(snapshot.stores);
@@ -214,13 +250,15 @@ button:disabled{opacity:.55;cursor:wait;}
     busy = true;
     showMsg('', true);
     try {
+      const body = path === '/confirm' ? { guarantee: true } : { storeId };
       const d = await api(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storeId }),
+        body: JSON.stringify(body),
       });
+      if (path === '/confirm') $('guarantee').checked = false;
       render(d.snapshot);
-      showMsg(d.message || '', true);
+      showMsg(d.message || '', d.success !== false);
     } catch (err) {
       showMsg(err.message || 'Failed', false);
       try { const d = await api('/'); render(d.snapshot); } catch (_) {}
@@ -228,6 +266,18 @@ button:disabled{opacity:.55;cursor:wait;}
       busy = false;
     }
   }
+
+  $('guarantee').addEventListener('change', () => {
+    if (snap) render(snap);
+  });
+
+  $('confirm-btn').addEventListener('click', () => {
+    if (!$('guarantee').checked) {
+      showMsg('Check the guarantee before you confirm.', false);
+      return;
+    }
+    act('/confirm', null);
+  });
 
   document.body.addEventListener('click', (ev) => {
     const take = ev.target.closest('[data-take]');
