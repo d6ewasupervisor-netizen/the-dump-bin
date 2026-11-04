@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.23';
+  const UI_VERSION = 'v2.24';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -12,6 +12,13 @@
     sortDir: 'desc',
     signedInEmail: null,
     activeHireChatId: null,
+    idleCutoff: '',
+  };
+
+  const chatState = {
+    hireId: null,
+    employeeId: null,
+    hires: [],
   };
 
   function setVersionBadge(apiVersion) {
@@ -157,6 +164,10 @@
     try {
       const data = await api('/api/welcome-letter/hires');
       const items = data.items || [];
+      chatState.hires = items;
+      if (data.idleCutoff) state.idleCutoff = data.idleCutoff;
+      paintAlertDots();
+      fillChatSelect();
       if (!items.length) {
         tbody.innerHTML = '<tr><td colspan="9" class="wb-muted">No hires ingested yet.</td></tr>';
         return;
@@ -576,6 +587,7 @@
       status.textContent = state.signedInEmail
         ? `Signed in as ${state.signedInEmail} — your reply will show as staff, not as ${hireName}.`
         : '';
+      markChatRead(hireId).catch(() => {});
     } catch (err) {
       log.innerHTML = '';
       status.textContent = err.message;
@@ -1056,6 +1068,7 @@
     if (phone) bits.push(escapeHtml(phone));
     if (emp.title) bits.push(escapeHtml(emp.title));
     document.getElementById('employeeMeta').innerHTML = bits.join('<br>');
+    syncLoaButton(document.getElementById('loaBtn'), emp);
     document.getElementById('noticeLastWorked').value = emp.lastPunchOn || emp.lastLoggedOn || emp.lastWorkedOn || '';
     document.getElementById('noticeStatus').textContent = '';
     clearNoticeDraft();
@@ -1074,6 +1087,370 @@
     });
   }
 
+  function pacificTodayYmd() {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  }
+
+  function addDaysYmd(ymd, delta) {
+    const parts = String(ymd || '').split('-').map(Number);
+    if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) return '';
+    const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    dt.setUTCDate(dt.getUTCDate() + delta);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function pacificYmdFromIso(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  }
+
+  function idleCutoffYmd() {
+    return state.idleCutoff || addDaysYmd(pacificTodayYmd(), -7);
+  }
+
+  function digits10(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (digits.length < 10) return '';
+    return digits.slice(-10);
+  }
+
+  function normPersonName(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function seenHires() {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem('wbHireSeen') || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_err) {
+      return {};
+    }
+  }
+
+  function markHireSeen(hireId) {
+    if (!hireId) return;
+    const map = seenHires();
+    map[hireId] = new Date().toISOString();
+    try {
+      window.localStorage.setItem('wbHireSeen', JSON.stringify(map));
+    } catch (_err) { /* private mode */ }
+  }
+
+  function hireIsNew(hire) {
+    if (!hire) return false;
+    if (hire.staffReadAt) return false;
+    if (seenHires()[hire.id]) return false;
+    if (typeof hire.isNew === 'boolean') return hire.isNew;
+    const created = pacificYmdFromIso(hire.createdAt);
+    if (!created) return false;
+    return created >= idleCutoffYmd();
+  }
+
+  function employeeNoTime(emp) {
+    if (!emp || emp.onLoa) return false;
+    if (typeof emp.noTimeInSevenDays === 'boolean') return emp.noTimeInSevenDays;
+    const punch = emp.lastPunchOn || '';
+    return !punch || punch < idleCutoffYmd();
+  }
+
+  function matchHireForEmployee(emp, hires) {
+    const list = hires || [];
+    if (emp.hireId) {
+      const linked = list.find((hire) => hire.id === emp.hireId);
+      if (linked) return linked;
+    }
+    const emails = new Set(
+      [emp.email].concat(emp.personalEmails || []).concat(emp.workEmails || [])
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const phones = new Set(
+      [].concat(emp.phones || []).concat(emp.phone ? [emp.phone] : []).map(digits10).filter(Boolean),
+    );
+    const names = new Set([normPersonName(emp.name), normPersonName(emp.preferredName)].filter(Boolean));
+    const hits = list.filter((hire) => {
+      const email = String(hire.hireEmail || '').trim().toLowerCase();
+      if (email && emails.has(email)) return true;
+      const phone = digits10(hire.phone);
+      if (phone && phones.has(phone)) return true;
+      const name = normPersonName(hire.fullName);
+      return Boolean(name && names.has(name));
+    });
+    hits.sort((a, b) => Number(b.unreadCount || 0) - Number(a.unreadCount || 0));
+    return hits[0] || null;
+  }
+
+  function setTabDot(id, count, title) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const n = Number(count) || 0;
+    if (n < 1) {
+      el.hidden = true;
+      el.textContent = '';
+      el.title = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = n > 99 ? '99+' : String(n);
+    el.title = title || '';
+  }
+
+  function paintAlertDots() {
+    const employees = employeeState.items || [];
+    const hires = chatState.hires || [];
+    const noTime = employees.filter(employeeNoTime).length;
+    const fresh = hires.filter(hireIsNew).length;
+    const unread = hires.reduce((sum, hire) => sum + Number(hire.unreadCount || 0), 0);
+    const boardTitle = [
+      fresh ? `${fresh} new hire${fresh === 1 ? '' : 's'}` : '',
+      noTime ? `${noTime} with no time in 7 days` : '',
+    ].filter(Boolean).join(', ');
+    setTabDot('boardDot', noTime + fresh, boardTitle);
+    setTabDot('chatDot', unread, unread ? `${unread} new message${unread === 1 ? '' : 's'}` : '');
+  }
+
+  function syncLoaButton(btn, person) {
+    if (!btn) return;
+    if (!person || !person.employeeId) {
+      btn.hidden = true;
+      return;
+    }
+    btn.hidden = false;
+    btn.textContent = person.onLoa ? 'Clear LOA' : 'Mark LOA';
+    btn.dataset.on = person.onLoa ? '1' : '0';
+    btn.dataset.id = String(person.employeeId);
+    btn.dataset.name = person.preferredName || person.name || '';
+  }
+
+  function renderEmployeeRows() {
+    const tbody = document.getElementById('employeeRows');
+    if (!tbody) return;
+    const items = employeeState.items || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="2" class="wb-muted">No direct reports returned.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}" class="${toneClass(emp.tone)}">
+      <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span>${emp.onLoa ? '<span class="wb-loa">LOA</span>' : ''}<a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
+      <td>${escapeHtml(punchLabel(emp))}</td>
+    </tr>`).join('');
+    tbody.querySelectorAll('tr').forEach((tr) => {
+      const link = tr.querySelector('.wb-prod-link');
+      if (link) link.addEventListener('click', (event) => event.stopPropagation());
+      tr.addEventListener('click', () => {
+        const emp = employeeState.items.find((e) => String(e.employeeId) === tr.dataset.id);
+        if (emp) selectEmployee(emp);
+      });
+      if (employeeState.selected && String(tr.dataset.id) === String(employeeState.selected.employeeId)) {
+        tr.classList.add('is-selected');
+      }
+    });
+  }
+
+  async function toggleEmployeeLoa(employeeId, name, currentlyOn) {
+    const data = await api(`/api/welcome-letter/employees/${encodeURIComponent(employeeId)}/loa`, {
+      method: 'POST',
+      body: JSON.stringify({ onLoa: !currentlyOn, name: name || '' }),
+    });
+    const emp = employeeState.items.find((item) => String(item.employeeId) === String(employeeId));
+    if (emp) {
+      emp.onLoa = Boolean(data.onLoa);
+      const punch = emp.lastPunchOn || '';
+      emp.noTimeInSevenDays = emp.onLoa ? false : (!punch || punch < idleCutoffYmd());
+      if (employeeState.selected && String(employeeState.selected.employeeId) === String(employeeId)) {
+        employeeState.selected.onLoa = emp.onLoa;
+        employeeState.selected.noTimeInSevenDays = emp.noTimeInSevenDays;
+      }
+    }
+    renderEmployeeRows();
+    syncLoaButton(document.getElementById('loaBtn'), employeeState.selected);
+    fillChatSelect();
+    if (chatState.employeeId && String(chatState.employeeId) === String(employeeId)) {
+      syncLoaButton(document.getElementById('chatLoaBtn'), {
+        employeeId,
+        name,
+        onLoa: Boolean(data.onLoa),
+      });
+    }
+    paintAlertDots();
+  }
+
+  function chatChoices() {
+    const employees = employeeState.items || [];
+    const hires = chatState.hires || [];
+    const used = new Set();
+    const rows = employees.map((emp) => {
+      const hire = matchHireForEmployee(emp, hires);
+      if (hire) used.add(hire.id);
+      return {
+        key: `emp:${emp.employeeId}`,
+        employeeId: String(emp.employeeId),
+        hireId: hire ? hire.id : '',
+        name: emp.preferredName || emp.name || 'Employee',
+        onLoa: Boolean(emp.onLoa),
+        unread: Number((hire && hire.unreadCount) || emp.unreadCount || 0),
+      };
+    });
+    hires.forEach((hire) => {
+      if (!hire || used.has(hire.id)) return;
+      rows.push({
+        key: `hire:${hire.id}`,
+        employeeId: '',
+        hireId: hire.id,
+        name: hire.fullName || hire.firstName || 'Hire',
+        onLoa: false,
+        unread: Number(hire.unreadCount || 0),
+      });
+    });
+    rows.sort((a, b) => (b.unread - a.unread) || a.name.localeCompare(b.name));
+    return rows;
+  }
+
+  function choiceLabel(choice) {
+    const bits = [choice.name];
+    if (choice.onLoa) bits.push('LOA');
+    if (choice.unread) bits.push(String(choice.unread));
+    return bits.join(' · ');
+  }
+
+  function fillChatSelect() {
+    const select = document.getElementById('chatEmployee');
+    if (!select) return;
+    bindChatSelect();
+    const current = chatState.employeeId
+      ? `emp:${chatState.employeeId}`
+      : (chatState.hireId ? `hire:${chatState.hireId}` : select.value);
+    const rows = chatChoices();
+    select.innerHTML = '<option value="">Select an employee</option>' + rows.map((row) => (
+      `<option value="${escapeHtml(row.key)}">${escapeHtml(choiceLabel(row))}</option>`
+    )).join('');
+    if (rows.some((row) => row.key === current)) select.value = current;
+  }
+
+  let chatSelectBound = false;
+  function bindChatSelect() {
+    if (chatSelectBound) return;
+    const select = document.getElementById('chatEmployee');
+    if (!select) return;
+    chatSelectBound = true;
+    select.addEventListener('change', () => {
+      const choice = chatChoices().find((row) => row.key === select.value);
+      if (!choice) {
+        chatState.hireId = null;
+        chatState.employeeId = null;
+        const body = document.getElementById('chatBody');
+        if (body) body.hidden = true;
+        return;
+      }
+      openTabChat(choice).catch((err) => {
+        const status = document.getElementById('chatStatus');
+        if (status) status.textContent = err.message;
+      });
+    });
+  }
+
+  async function markChatRead(hireId) {
+    if (!hireId) return;
+    markHireSeen(hireId);
+    const hire = (chatState.hires || []).find((item) => item.id === hireId);
+    if (hire) {
+      hire.staffReadAt = hire.staffReadAt || new Date().toISOString();
+      hire.isNew = false;
+      hire.unreadCount = 0;
+    }
+    paintAlertDots();
+    fillChatSelect();
+    try {
+      await api(`/api/welcome-letter/hires/${encodeURIComponent(hireId)}/read`, {
+        method: 'POST',
+        body: '{}',
+      });
+    } catch (_err) { /* read route arrives with the API */ }
+  }
+
+  async function openTabChat(choice) {
+    chatState.hireId = choice.hireId || null;
+    chatState.employeeId = choice.employeeId || null;
+    const body = document.getElementById('chatBody');
+    const name = document.getElementById('chatName');
+    const log = document.getElementById('chatLog');
+    const compose = document.getElementById('chatCompose');
+    const send = document.getElementById('chatSend');
+    const status = document.getElementById('chatStatus');
+    if (body) body.hidden = false;
+    if (name) name.textContent = choice.name || 'Employee';
+    syncLoaButton(document.getElementById('chatLoaBtn'), choice.employeeId ? {
+      employeeId: choice.employeeId,
+      name: choice.name,
+      preferredName: choice.name,
+      onLoa: choice.onLoa,
+    } : null);
+    if (!choice.hireId) {
+      if (log) log.innerHTML = '<p class="wb-muted">No chat on file.</p>';
+      if (compose) compose.hidden = true;
+      if (send) send.hidden = true;
+      if (status) status.textContent = '';
+      return;
+    }
+    if (compose) {
+      compose.hidden = false;
+      compose.value = '';
+    }
+    if (send) send.hidden = false;
+    if (status) status.textContent = 'Loading…';
+    const data = await api(`/api/welcome-letter/hires/${encodeURIComponent(choice.hireId)}`);
+    if (chatState.hireId !== choice.hireId) return;
+    if (log) {
+      log.innerHTML = renderChatMessages(data.messages);
+      log.scrollTop = log.scrollHeight;
+    }
+    if (status) status.textContent = '';
+    await markChatRead(choice.hireId);
+  }
+
+  async function sendTabChat() {
+    const hireId = chatState.hireId;
+    const compose = document.getElementById('chatCompose');
+    const status = document.getElementById('chatStatus');
+    const log = document.getElementById('chatLog');
+    const btn = document.getElementById('chatSend');
+    if (!hireId || !compose) return;
+    const body = compose.value.trim();
+    if (!body) return;
+    if (btn) btn.disabled = true;
+    if (status) status.textContent = 'Sending…';
+    try {
+      await api(`/api/welcome-letter/hires/${encodeURIComponent(hireId)}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      });
+      compose.value = '';
+      const refreshed = await api(`/api/welcome-letter/hires/${encodeURIComponent(hireId)}`);
+      if (log) {
+        log.innerHTML = renderChatMessages(refreshed.messages);
+        log.scrollTop = log.scrollHeight;
+      }
+      if (status) status.textContent = 'Sent.';
+      await markChatRead(hireId);
+    } catch (err) {
+      if (status) status.textContent = err.message;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function loadEmployees(refresh) {
     const tbody = document.getElementById('employeeRows');
     if (!tbody) return;
@@ -1081,22 +1458,10 @@
     try {
       const data = await api(`/api/welcome-letter/employees${refresh ? '?refresh=1' : ''}`);
       employeeState.items = data.employees || [];
-      if (!employeeState.items.length) {
-        tbody.innerHTML = '<tr><td colspan="2" class="wb-muted">No direct reports returned.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = employeeState.items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}" class="${toneClass(emp.tone)}">
-        <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span><a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
-        <td>${escapeHtml(punchLabel(emp))}</td>
-      </tr>`).join('');
-      tbody.querySelectorAll('tr').forEach((tr) => {
-        const link = tr.querySelector('.wb-prod-link');
-        if (link) link.addEventListener('click', (event) => event.stopPropagation());
-        tr.addEventListener('click', () => {
-          const emp = employeeState.items.find((e) => String(e.employeeId) === tr.dataset.id);
-          if (emp) selectEmployee(emp);
-        });
-      });
+      if (data.idleCutoff) state.idleCutoff = data.idleCutoff;
+      renderEmployeeRows();
+      paintAlertDots();
+      fillChatSelect();
     } catch (err) {
       tbody.innerHTML = `<tr><td colspan="2" class="wb-error">${escapeHtml(err.message)}</td></tr>`;
     }
@@ -2017,8 +2382,9 @@
   }
 
   function switchMainTab(name, { pushUrl = true } = {}) {
-    const tab = name === 'referrals' || name === 'pto' || name === 'past' ? name : 'board';
+    const tab = name === 'referrals' || name === 'pto' || name === 'past' || name === 'chat' ? name : 'board';
     setPanel(document.getElementById('panelBoard'), tab === 'board');
+    setPanel(document.getElementById('panelChat'), tab === 'chat');
     setPanel(document.getElementById('panelPast'), tab === 'past');
     setPanel(document.getElementById('panelReferrals'), tab === 'referrals');
     setPanel(document.getElementById('panelPto'), tab === 'pto');
@@ -2026,6 +2392,7 @@
     if (boardActions) boardActions.classList.toggle('wb-hidden', tab !== 'board');
     [
       ['tabBoard', 'board'],
+      ['tabChat', 'chat'],
       ['tabPast', 'past'],
       ['tabPto', 'pto'],
       ['tabReferrals', 'referrals'],
@@ -2063,10 +2430,12 @@
 
   function initReferrals() {
     const boardTab = document.getElementById('tabBoard');
+    const chatTab = document.getElementById('tabChat');
     const ptoTab = document.getElementById('tabPto');
     const referralTab = document.getElementById('tabReferrals');
     const pastTab = document.getElementById('tabPast');
     if (boardTab) boardTab.addEventListener('click', () => switchMainTab('board'));
+    if (chatTab) chatTab.addEventListener('click', () => switchMainTab('chat'));
     if (pastTab) pastTab.addEventListener('click', () => switchMainTab('past'));
     if (ptoTab) ptoTab.addEventListener('click', () => switchMainTab('pto'));
     if (referralTab) referralTab.addEventListener('click', () => switchMainTab('referrals'));
@@ -2128,7 +2497,35 @@
       switchMainTab('past', { pushUrl: false });
     } else if (tab === 'pto') {
       switchMainTab('pto', { pushUrl: false });
+    } else if (tab === 'chat') {
+      switchMainTab('chat', { pushUrl: false });
     }
+    const loaBtn = document.getElementById('loaBtn');
+    if (loaBtn) {
+      loaBtn.addEventListener('click', () => {
+        const emp = employeeState.selected;
+        if (!emp) return;
+        toggleEmployeeLoa(emp.employeeId, emp.preferredName || emp.name, Boolean(emp.onLoa)).catch((err) => {
+          const status = document.getElementById('noticeStatus');
+          if (status) status.textContent = err.message;
+        });
+      });
+    }
+    const chatLoaBtn = document.getElementById('chatLoaBtn');
+    if (chatLoaBtn) {
+      chatLoaBtn.addEventListener('click', () => {
+        const id = chatState.employeeId;
+        if (!id) return;
+        const emp = employeeState.items.find((item) => String(item.employeeId) === String(id));
+        const name = emp ? (emp.preferredName || emp.name) : (document.getElementById('chatName').textContent || '');
+        toggleEmployeeLoa(id, name, emp ? Boolean(emp.onLoa) : false).catch((err) => {
+          const status = document.getElementById('chatStatus');
+          if (status) status.textContent = err.message;
+        });
+      });
+    }
+    const chatSend = document.getElementById('chatSend');
+    if (chatSend) chatSend.addEventListener('click', () => { sendTabChat().catch(() => {}); });
   }
 
   bindEmployeeNotice();

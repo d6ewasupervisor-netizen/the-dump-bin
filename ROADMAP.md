@@ -1,5 +1,7 @@
 # Roadmap
 
+- Employee Board v2.24 (Chat tab, tab counts, LOA). Not published. Publish with the eod-api deploy that carries migration 196, or the message count and LOA save answer 404.
+
 - Friday coverage (`dc-scan/cover/`, branch `feat/dc-scan-friday-cover`): publish with the eod-api cover-board deploy. The page 404s on the API until that is live.
 
 - Store recipients (`admin/store-recipients.html`, not published): publish with the eod-api one-store recipient deploy. Assign and Remove do nothing until that API is live.
