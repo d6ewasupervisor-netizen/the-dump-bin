@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-04 — Employee Board Chat tab
+
+`welcome-letter-board` v2.24 adds a Chat tab, a count on Board (new hires and no time in seven days), a count on Chat (unread messages), and Mark LOA / Clear LOA on the person. The chat is the existing hire thread. LOA and the unread count need eod-api migration 196. Not published.
+
 ## 2026-11-02 — Friday coverage page
 
 `dc-scan/cover/index.html` is the Friday Display Compliance map. Take stores, check the guarantee, then Confirm. Confirm calls `/api/dc-scan-cover/confirm`. Not published.

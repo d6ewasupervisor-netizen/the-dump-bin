@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.23 -->
+  <!-- welcome-letter-board v2.24 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.23">
+  <meta name="welcome-letter-version" content="v2.24">
   <title>Employee Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -243,7 +243,7 @@
       display: flex;
       align-items: baseline;
       gap: 8px;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
     }
     .wb-prod-link {
       font-size: 12px;
@@ -293,6 +293,36 @@
       margin-left: 6px;
       min-width: 1.2em;
       text-align: center;
+    }
+    .wb-tab-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      margin-left: 8px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: #9f1239;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      vertical-align: middle;
+    }
+    .wb-tab.is-active .wb-tab-dot { background: #fff; color: #9f1239; }
+    .wb-tab-dot[hidden] { display: none !important; }
+    .wb-loa {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #1e3a5f;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      vertical-align: middle;
     }
 
     .wb-form-grid {
@@ -370,7 +400,8 @@
     </div>
 
     <div class="wb-tabs" role="tablist" aria-label="Employee Board">
-      <button type="button" class="wb-tab is-active" id="tabBoard" role="tab" aria-selected="true" aria-controls="panelBoard">Board</button>
+      <button type="button" class="wb-tab is-active" id="tabBoard" role="tab" aria-selected="true" aria-controls="panelBoard">Board <span id="boardDot" class="wb-tab-dot" hidden></span></button>
+      <button type="button" class="wb-tab" id="tabChat" role="tab" aria-selected="false" aria-controls="panelChat">Chat <span id="chatDot" class="wb-tab-dot" hidden></span></button>
       <button type="button" class="wb-tab" id="tabPast" role="tab" aria-selected="false" aria-controls="panelPast">Past employees</button>
       <button type="button" class="wb-tab" id="tabPto" role="tab" aria-selected="false" aria-controls="panelPto">PTO</button>
       <button type="button" class="wb-tab" id="tabReferrals" role="tab" aria-selected="false" aria-controls="panelReferrals">Referrals</button>
@@ -406,7 +437,10 @@
         <div id="employeeComposer">
           <p class="wb-detail-empty" id="employeeEmpty">Select an employee.</p>
           <div id="employeeBody" hidden>
-            <h3 id="employeeName" style="margin:0 0 8px;color:var(--wb-navy);"></h3>
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;">
+              <h3 id="employeeName" style="margin:0;color:var(--wb-navy);"></h3>
+              <button type="button" id="loaBtn" class="wb-btn wb-btn-ghost" hidden>Mark LOA</button>
+            </div>
             <p class="wb-muted" id="employeeMeta" style="margin:0 0 10px;font-size:13px;"></p>
             <div id="workRange" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:8px;">
               <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">From
@@ -583,6 +617,29 @@
       </div>
     </div>
 
+    </div>
+
+    <div id="panelChat" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <h2 style="margin:0 0 12px;color:var(--wb-navy);font-size:1.1rem;">Chat</h2>
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:12px;">Employee
+          <select id="chatEmployee" style="display:block;width:100%;max-width:480px;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+            <option value="">Select an employee</option>
+          </select>
+        </label>
+        <div id="chatBody" hidden>
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;">
+            <h3 id="chatName" style="margin:0;color:var(--wb-navy);"></h3>
+            <button type="button" id="chatLoaBtn" class="wb-btn wb-btn-ghost" hidden>Mark LOA</button>
+          </div>
+          <div class="wb-chat-log" id="chatLog"></div>
+          <textarea id="chatCompose" class="wb-chat-compose" placeholder="Write a staff reply…"></textarea>
+          <div class="wb-modal-actions">
+            <button type="button" id="chatSend" class="wb-btn wb-btn-primary">Send as staff</button>
+          </div>
+          <p class="wb-muted" id="chatStatus" style="margin:8px 0 0;font-size:13px;"></p>
+        </div>
+      </section>
     </div>
 
     <div id="panelPast" class="wb-hidden" hidden>
@@ -895,8 +952,8 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.23</span>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.24</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.23"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.24"></script>
 </body>
 </html>
