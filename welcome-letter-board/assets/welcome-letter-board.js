@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.25';
+  const UI_VERSION = 'v2.26';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2626,6 +2626,42 @@
     document.getElementById('shiftExecute').disabled = true;
   }
 
+  let shiftLetterDays = [];
+
+  async function previewFirstDaysLetter() {
+    const person = shiftState.people[0];
+    const nameInput = document.getElementById('shiftLetterName');
+    const emailInput = document.getElementById('shiftLetterEmail');
+    const name = (nameInput.value || '').trim() || (person && String(person.name || '').split(/\s+/)[0]) || '';
+    const email = (emailInput.value || '').trim();
+    if (!person || !person.workdayId) throw new Error('Pick a person with an employee number');
+    nameInput.value = name;
+    const daysResp = await localTemplate('/api/period-template/days', { workdayId: person.workdayId });
+    shiftLetterDays = daysResp.days || [];
+    const letter = await api('/api/welcome-letter/shifts/first-days/preview', {
+      method: 'POST',
+      body: JSON.stringify({ firstName: name, email, days: shiftLetterDays }),
+    });
+    const frame = document.getElementById('shiftLetterFrame');
+    frame.hidden = false;
+    frame.srcdoc = letter.html;
+    document.getElementById('shiftLetterSend').disabled = false;
+    document.getElementById('shiftStatus').textContent = `${letter.subject} · ${shiftLetterDays.length} day${shiftLetterDays.length === 1 ? '' : 's'}`;
+  }
+
+  async function sendFirstDaysLetter() {
+    const name = document.getElementById('shiftLetterName').value.trim();
+    const email = document.getElementById('shiftLetterEmail').value.trim();
+    if (!email) throw new Error('Email is required');
+    if (!window.confirm(`Send this letter to ${email}?`)) return;
+    const result = await api('/api/welcome-letter/shifts/first-days/send', {
+      method: 'POST',
+      body: JSON.stringify({ firstName: name, email, days: shiftLetterDays }),
+    });
+    document.getElementById('shiftStatus').textContent = `Sent to ${result.to}.`;
+    document.getElementById('shiftLetterSend').disabled = true;
+  }
+
   function initShiftPanel() {
     if (shiftState.ready) return;
     shiftState.ready = true;
@@ -2680,6 +2716,10 @@
     const execute = document.getElementById('shiftExecute');
     if (preview) preview.addEventListener('click', () => { previewShifts().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
     if (execute) execute.addEventListener('click', () => { executeShifts().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
+    const letterPreview = document.getElementById('shiftLetterPreview');
+    const letterSend = document.getElementById('shiftLetterSend');
+    if (letterPreview) letterPreview.addEventListener('click', () => { previewFirstDaysLetter().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
+    if (letterSend) letterSend.addEventListener('click', () => { sendFirstDaysLetter().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
     api('/api/welcome-letter/shifts/types').then((data) => {
       shiftState.types = data.types || [];
       if (type) {
