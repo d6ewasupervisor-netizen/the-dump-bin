@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.24';
+  const UI_VERSION = 'v2.25';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2381,10 +2381,320 @@
     </tr>`).join('');
   }
 
+  const shiftState = {
+    action: 'add',
+    types: [],
+    lead: null,
+    people: [],
+    preview: null,
+    template: null,
+    ready: false,
+  };
+
+  function selectedShiftType() {
+    const id = document.getElementById('shiftType') && document.getElementById('shiftType').value;
+    return (shiftState.types || []).find((row) => row.id === id) || null;
+  }
+
+  function renderShiftActions() {
+    const add = document.getElementById('shiftActionAdd');
+    const remove = document.getElementById('shiftActionRemove');
+    if (add) add.className = shiftState.action === 'add' ? 'wb-btn wb-btn-primary' : 'wb-btn wb-btn-ghost';
+    if (remove) remove.className = shiftState.action === 'remove' ? 'wb-btn wb-btn-primary' : 'wb-btn wb-btn-ghost';
+    const wrap = document.getElementById('shiftRemoveLeadWrap');
+    const hasLead = shiftState.people.some((person) => person.role === 'lead');
+    if (wrap) wrap.style.display = shiftState.action === 'add' && hasLead ? 'block' : 'none';
+  }
+
+  function renderShiftPeople() {
+    const host = document.getElementById('shiftPeople');
+    if (!host) return;
+    if (!shiftState.people.length) {
+      host.innerHTML = '';
+    } else {
+      host.innerHTML = shiftState.people.map((person, index) => `<div style="display:flex;gap:8px;align-items:center;">
+        <span>${escapeHtml(person.name)}</span>
+        <select data-shift-role="${index}" style="font:inherit;padding:4px 8px;">
+          <option value="rep"${person.role === 'rep' ? ' selected' : ''}>Rep</option>
+          <option value="lead"${person.role === 'lead' ? ' selected' : ''}>Lead</option>
+        </select>
+        <button type="button" class="wb-btn wb-btn-ghost" data-shift-drop="${index}">Remove</button>
+      </div>`).join('');
+      host.querySelectorAll('[data-shift-role]').forEach((select) => {
+        select.addEventListener('change', () => {
+          const person = shiftState.people[Number(select.dataset.shiftRole)];
+          if (!person) return;
+          person.role = select.value === 'lead' ? 'lead' : 'rep';
+          const leads = shiftState.people.filter((item) => item.role === 'lead');
+          if (leads.length > 1) {
+            shiftState.people.forEach((item) => {
+              if (item !== person) item.role = 'rep';
+            });
+            renderShiftPeople();
+            return;
+          }
+          renderShiftActions();
+        });
+      });
+      host.querySelectorAll('[data-shift-drop]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          shiftState.people.splice(Number(btn.dataset.shiftDrop), 1);
+          renderShiftPeople();
+          renderShiftActions();
+        });
+      });
+    }
+    const lead = document.getElementById('shiftLeadPick');
+    if (lead) {
+      lead.innerHTML = shiftState.lead
+        ? `${escapeHtml(shiftState.lead.name)} <button type="button" class="wb-btn wb-btn-ghost" id="shiftLeadClear">Clear</button>`
+        : '';
+      const clear = document.getElementById('shiftLeadClear');
+      if (clear) clear.addEventListener('click', () => { shiftState.lead = null; renderShiftPeople(); });
+    }
+    renderShiftActions();
+  }
+
+  function renderShiftResults(preview, template) {
+    const host = document.getElementById('shiftPreviewList');
+    if (!host) return;
+    const visits = (preview && preview.visits) || [];
+    if (!visits.length) {
+      host.innerHTML = '<p class="wb-muted">No shifts match.</p>';
+      return;
+    }
+    const blocks = visits.map((visit) => {
+      const lines = (visit.lines || []).map((line) => {
+        const verb = line.change === 'skip' ? line.reason : `${line.change} as ${line.role}`;
+        return `<div>${escapeHtml(line.name)} — ${escapeHtml(verb)}</div>`;
+      }).join('');
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--wb-line);">
+        <strong>${escapeHtml(visit.store || '—')} · ${escapeHtml(visit.date || '')}</strong>
+        <span class="wb-muted"> ${escapeHtml(visit.team || '')}</span>
+        ${lines}
+      </div>`;
+    }).join('');
+    const templateLines = ((template && template.changes) || []).map((row) => {
+      const verb = row.change === 'skip'
+        ? row.reason
+        : `${row.change}${row.clearLeadName ? ` · current lead ${row.clearLeadName} becomes rep` : ''}`;
+      return `<div>${escapeHtml(row.name || row.emp || '')} · store ${escapeHtml(row.store || '')} · ${escapeHtml(row.date || '')} — ${escapeHtml(verb)}</div>`;
+    }).join('');
+    const templateBlock = template
+      ? `<h3 style="margin:14px 0 6px;color:var(--wb-navy);font-size:1rem;">Period template</h3>${templateLines || '<p class="wb-muted">No template rows.</p>'}`
+      : '';
+    host.innerHTML = blocks + templateBlock;
+  }
+
+  async function loadShiftCycles() {
+    const host = document.getElementById('shiftCycles');
+    if (!host) return;
+    host.innerHTML = '<span class="wb-muted">Loading cycles…</span>';
+    const type = document.getElementById('shiftType').value;
+    const data = await api(`/api/welcome-letter/shifts/cycles?shiftType=${encodeURIComponent(type)}`);
+    const today = pacificTodayYmd();
+    host.innerHTML = (data.cycles || []).map((cycle) => {
+      const on = cycle.start && cycle.end && cycle.start <= today && today <= cycle.end;
+      return `<label style="font-size:13px;"><input type="checkbox" value="${escapeHtml(cycle.id)}"${on ? ' checked' : ''}> ${escapeHtml(cycle.name || cycle.id)}</label>`;
+    }).join('') || '<span class="wb-muted">No active cycles.</span>';
+  }
+
+  function shiftSearchList(host, people, onPick) {
+    if (!host) return;
+    if (!people.length) {
+      host.innerHTML = '';
+      return;
+    }
+    host.innerHTML = people.map((person, index) => `<button type="button" class="wb-btn wb-btn-ghost" data-i="${index}" style="margin:0 6px 6px 0;">${escapeHtml(person.name)}</button>`).join('');
+    host.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => onPick(people[Number(btn.dataset.i)]));
+    });
+  }
+
+  async function searchShiftPeople(query) {
+    if (!query || query.trim().length < 2) return [];
+    const data = await api(`/api/welcome-letter/shifts/people?q=${encodeURIComponent(query.trim())}`);
+    return data.people || [];
+  }
+
+  function templateRowsFromPreview(preview) {
+    const rows = [];
+    (preview.visits || []).forEach((visit) => {
+      (visit.lines || []).forEach((line) => {
+        if (line.change === 'skip') return;
+        rows.push({
+          workdayId: line.workdayId,
+          name: line.name,
+          role: line.role,
+          store: visit.store,
+          date: visit.date,
+          team: visit.team,
+        });
+      });
+    });
+    return rows;
+  }
+
+  async function localTemplate(path, body) {
+    const res = await fetch(`http://127.0.0.1:3002${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Template HTTP ${res.status}`);
+    return data;
+  }
+
+  async function previewShifts() {
+    const status = document.getElementById('shiftStatus');
+    const execute = document.getElementById('shiftExecute');
+    status.textContent = 'Building preview…';
+    if (execute) execute.disabled = true;
+    shiftState.preview = null;
+    shiftState.template = null;
+    const cycleIds = [...document.querySelectorAll('#shiftCycles input:checked')].map((el) => Number(el.value));
+    const preview = await api('/api/welcome-letter/shifts/preview', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: shiftState.action,
+        shiftType: document.getElementById('shiftType').value,
+        cycleIds,
+        leadId: shiftState.lead ? shiftState.lead.id : null,
+        stores: document.getElementById('shiftStores').value,
+        dateFrom: document.getElementById('shiftFrom').value,
+        dateTo: document.getElementById('shiftTo').value,
+        employees: shiftState.people,
+        removeCurrentLead: document.getElementById('shiftRemoveLead').checked,
+      }),
+    });
+    shiftState.preview = preview;
+    const useTemplate = document.getElementById('shiftTemplate').checked;
+    if (useTemplate) {
+      const type = selectedShiftType();
+      shiftState.template = await localTemplate('/api/period-template/preview', {
+        kind: type && type.template,
+        action: shiftState.action,
+        rows: templateRowsFromPreview(preview),
+      });
+    }
+    renderShiftResults(preview, shiftState.template);
+    const jobs = templateRowsFromPreview(preview);
+    if (execute) execute.disabled = jobs.length === 0;
+    const extra = preview.truncated ? ' Showing the first 200.' : '';
+    status.textContent = `${jobs.length} change${jobs.length === 1 ? '' : 's'}.${extra}`;
+  }
+
+  async function executeShifts() {
+    const status = document.getElementById('shiftStatus');
+    const preview = shiftState.preview;
+    if (!preview) return;
+    const jobs = [];
+    (preview.visits || []).forEach((visit) => {
+      (visit.lines || []).forEach((line) => {
+        if (line.change === 'skip') return;
+        jobs.push({
+          visitId: visit.visitId,
+          store: visit.store,
+          employeeId: line.employeeId,
+          role: line.role,
+          shiftId: line.shiftId,
+        });
+      });
+    });
+    status.textContent = 'Applying…';
+    const result = await api('/api/welcome-letter/shifts/execute', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: shiftState.action,
+        removeCurrentLead: document.getElementById('shiftRemoveLead').checked,
+        jobs,
+      }),
+    });
+    let templateNote = '';
+    if (document.getElementById('shiftTemplate').checked && shiftState.template) {
+      const type = selectedShiftType();
+      const applied = await localTemplate('/api/period-template/apply', {
+        kind: type && type.template,
+        action: shiftState.action,
+        rows: templateRowsFromPreview(preview),
+      });
+      templateNote = applied.backup ? ` Template backup ${applied.backup}.` : ' Template updated.';
+    }
+    const done = (result.results || []).filter((row) => !row.skipped).length;
+    status.textContent = `${done} shift change${done === 1 ? '' : 's'} applied.${templateNote}`;
+    document.getElementById('shiftExecute').disabled = true;
+  }
+
+  function initShiftPanel() {
+    if (shiftState.ready) return;
+    shiftState.ready = true;
+    const from = document.getElementById('shiftFrom');
+    const to = document.getElementById('shiftTo');
+    const today = pacificTodayYmd();
+    if (from && !from.value) from.value = today;
+    if (to && !to.value) to.value = addDaysYmd(today, 13);
+    const add = document.getElementById('shiftActionAdd');
+    const remove = document.getElementById('shiftActionRemove');
+    if (add) add.addEventListener('click', () => { shiftState.action = 'add'; renderShiftActions(); });
+    if (remove) remove.addEventListener('click', () => { shiftState.action = 'remove'; renderShiftActions(); });
+    const type = document.getElementById('shiftType');
+    if (type) type.addEventListener('change', () => { loadShiftCycles().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
+    let leadTimer = 0;
+    let peopleTimer = 0;
+    const leadInput = document.getElementById('shiftLeadSearch');
+    const peopleInput = document.getElementById('shiftPeopleSearch');
+    if (leadInput) {
+      leadInput.addEventListener('input', () => {
+        clearTimeout(leadTimer);
+        leadTimer = setTimeout(() => {
+          searchShiftPeople(leadInput.value).then((people) => {
+            shiftSearchList(document.getElementById('shiftLeadResults'), people, (person) => {
+              shiftState.lead = person;
+              document.getElementById('shiftLeadResults').innerHTML = '';
+              leadInput.value = '';
+              renderShiftPeople();
+            });
+          }).catch((err) => { document.getElementById('shiftStatus').textContent = err.message; });
+        }, 250);
+      });
+    }
+    if (peopleInput) {
+      peopleInput.addEventListener('input', () => {
+        clearTimeout(peopleTimer);
+        peopleTimer = setTimeout(() => {
+          searchShiftPeople(peopleInput.value).then((people) => {
+            shiftSearchList(document.getElementById('shiftPeopleResults'), people, (person) => {
+              if (!shiftState.people.some((item) => Number(item.id) === Number(person.id))) {
+                shiftState.people.push({ id: person.id, name: person.name, workdayId: person.workdayId, role: 'rep' });
+              }
+              document.getElementById('shiftPeopleResults').innerHTML = '';
+              peopleInput.value = '';
+              renderShiftPeople();
+            });
+          }).catch((err) => { document.getElementById('shiftStatus').textContent = err.message; });
+        }, 250);
+      });
+    }
+    const preview = document.getElementById('shiftPreview');
+    const execute = document.getElementById('shiftExecute');
+    if (preview) preview.addEventListener('click', () => { previewShifts().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
+    if (execute) execute.addEventListener('click', () => { executeShifts().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
+    api('/api/welcome-letter/shifts/types').then((data) => {
+      shiftState.types = data.types || [];
+      if (type) {
+        type.innerHTML = shiftState.types.map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.label)}</option>`).join('');
+      }
+      return loadShiftCycles();
+    }).catch((err) => { document.getElementById('shiftStatus').textContent = err.message; });
+    renderShiftActions();
+  }
+
   function switchMainTab(name, { pushUrl = true } = {}) {
-    const tab = name === 'referrals' || name === 'pto' || name === 'past' || name === 'chat' ? name : 'board';
+    const tab = name === 'referrals' || name === 'pto' || name === 'past' || name === 'chat' || name === 'shifts' ? name : 'board';
     setPanel(document.getElementById('panelBoard'), tab === 'board');
     setPanel(document.getElementById('panelChat'), tab === 'chat');
+    setPanel(document.getElementById('panelShifts'), tab === 'shifts');
     setPanel(document.getElementById('panelPast'), tab === 'past');
     setPanel(document.getElementById('panelReferrals'), tab === 'referrals');
     setPanel(document.getElementById('panelPto'), tab === 'pto');
@@ -2393,6 +2703,7 @@
     [
       ['tabBoard', 'board'],
       ['tabChat', 'chat'],
+      ['tabShifts', 'shifts'],
       ['tabPast', 'past'],
       ['tabPto', 'pto'],
       ['tabReferrals', 'referrals'],
@@ -2426,16 +2737,19 @@
     if (tab === 'pto') {
       loadPto().catch((err) => showPtoBanner(err.message, false));
     }
+    if (tab === 'shifts') initShiftPanel();
   }
 
   function initReferrals() {
     const boardTab = document.getElementById('tabBoard');
     const chatTab = document.getElementById('tabChat');
+    const shiftsTab = document.getElementById('tabShifts');
     const ptoTab = document.getElementById('tabPto');
     const referralTab = document.getElementById('tabReferrals');
     const pastTab = document.getElementById('tabPast');
     if (boardTab) boardTab.addEventListener('click', () => switchMainTab('board'));
     if (chatTab) chatTab.addEventListener('click', () => switchMainTab('chat'));
+    if (shiftsTab) shiftsTab.addEventListener('click', () => switchMainTab('shifts'));
     if (pastTab) pastTab.addEventListener('click', () => switchMainTab('past'));
     if (ptoTab) ptoTab.addEventListener('click', () => switchMainTab('pto'));
     if (referralTab) referralTab.addEventListener('click', () => switchMainTab('referrals'));
@@ -2499,6 +2813,8 @@
       switchMainTab('pto', { pushUrl: false });
     } else if (tab === 'chat') {
       switchMainTab('chat', { pushUrl: false });
+    } else if (tab === 'shifts') {
+      switchMainTab('shifts', { pushUrl: false });
     }
     const loaBtn = document.getElementById('loaBtn');
     if (loaBtn) {
