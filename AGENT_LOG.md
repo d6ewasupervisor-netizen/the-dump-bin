@@ -2,7 +2,7 @@
 
 ## 2026-11-04 — Employee Board Chat tab
 
-`welcome-letter-board` v2.24 adds a Chat tab, a count on Board (new hires and no time in seven days), a count on Chat (unread messages), and Mark LOA / Clear LOA on the person. The chat is the existing hire thread. LOA and the unread count need eod-api migration 196. Not published.
+`welcome-letter-board` v2.24 adds a Chat tab, a count on Board (new hires and no time in seven days), a count on Chat (unread messages), and Mark LOA / Clear LOA on the person. The chat is the existing hire thread. Published 2026-11-04, Pages run `41870042133` success, commit `83ee148`. The API deploy `b36a6e67` already has migration 196.
 
 ## 2026-11-02 — Friday coverage page
 
