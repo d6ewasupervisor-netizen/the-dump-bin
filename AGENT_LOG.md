@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-04 — Employee Board shift management tab
+
+`welcome-letter-board` v2.25 adds Shift management: add or remove, shift type, lead, stores, dates, people as rep or lead, preview, and a period-template checkbox. Not published. The API and the local template route are not live yet.
+
 ## 2026-11-04 — Employee Board Chat tab
 
 `welcome-letter-board` v2.24 adds a Chat tab, a count on Board (new hires and no time in seven days), a count on Chat (unread messages), and Mark LOA / Clear LOA on the person. The chat is the existing hire thread. LOA and the unread count need eod-api migration 196. Not published.
