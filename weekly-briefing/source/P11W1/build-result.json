@@ -1,23 +1,23 @@
 {
- "request": "20261105-live-1",
+ "request": "20261105-live-2",
  "week": "P11W1",
  "mode": "live",
- "startedAt": "2026-11-05T21:46:10Z",
+ "startedAt": "2026-11-05T21:51:12Z",
  "tts": {
   "frames": 12,
-  "generated": 12,
-  "cached": 0,
-  "chars": 5757
+  "generated": 1,
+  "cached": 11,
+  "chars": 5812
  },
  "pack": {
-  "build": "20261105214813",
-  "totalSeconds": 350.6,
+  "build": "20261105215157",
+  "totalSeconds": 353.8,
   "stops": 12,
   "questions": 14
  },
  "mp4": {
-  "seconds": 351.0,
-  "bytes": 11875402,
+  "seconds": 354.3,
+  "bytes": 11962029,
   "r2": {
    "mp3": "Kompass/_briefing-builds/P11W1/P11W1_Narration.mp3",
    "srt": "Kompass/_briefing-builds/P11W1/P11W1_Narration.srt",
@@ -25,13 +25,7 @@
    "url": "Kompass/Period 11 - 11.8.2026 to 12.5.2026/P11W1 - 11.8.2026 to 11.14.2026/P11W1 Weekly Briefing.url"
   }
  },
- "finishedAt": "2026-11-05T21:50:08Z",
- "ok": false,
- "seconds": 238.6,
- "commit": "0289bb4654a3e78a5c3e9cd0153bfeaab1cbf891",
- "registered": {
-  "week": "P11W1",
-  "questions": 14
- },
- "error": "RuntimeError: eod-api /notify: 502 {'ok': False, 'sms': {'ok': False, 'error': 'SMS outbox is not configured.'}, 'email': {'ok': True, 'id': '01a1adb0-d10d-71d7-b747-6f15d681f8c3', 'to': ['tyson.gauthier@retailodyssey.com']}}"
+ "finishedAt": "2026-11-05T21:52:55Z",
+ "ok": true,
+ "seconds": 103.1
 }

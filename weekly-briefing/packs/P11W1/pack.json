@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "week": "P11W1",
- "build": "20261105214813",
- "buildRequest": "20261105-live-1",
+ "build": "20261105215157",
+ "buildRequest": "20261105-live-2",
  "district": "D8",
  "title": "Period 11 · Week 1",
  "dueAt": "2026-11-09T06:00:00-08:00",
@@ -58,7 +58,7 @@
    ]
   }
  ],
- "totalSeconds": 350.6,
+ "totalSeconds": 353.8,
  "questionCount": 14,
  "stops": [
   {
@@ -352,9 +352,9 @@
    "title": "Looking Ahead",
    "frame": "frames/f11.webp",
    "audio": "audio/a11.m4a",
-   "seconds": 19.04,
-   "narration": "Looking ahead. Period eleven, weeks two and three, are blackout weeks with zero Compass hours. Week four comes back at about thirteen hours, led by Fem Hygiene, and its mapping is in A Useful Folder under twenty twenty-six Mapping and Fixture Files. Period twelve, week one, is about twenty hours.",
-   "words": 50,
+   "seconds": 22.32,
+   "narration": "Looking ahead. Period eleven, weeks two and three, are blackout weeks with zero Compass hours. Week four comes back at thirteen hours, and the Fem Hygiene mapping for it is in A Useful Folder under twenty twenty-six Mapping and Fixture Files. Period twelve, week one, is nineteen hours, and then weeks two and three of Period twelve are blackout again.",
+   "words": 60,
    "checkpoint": [
     {
      "id": "q14",
@@ -367,7 +367,7 @@
       "Test set weeks"
      ],
      "correct": 1,
-     "explain": "Both are blackout weeks. P11W4 comes back at about 13 hours with Fem Hygiene."
+     "explain": "Both are blackout weeks. P11W4 comes back at 13 hours."
     }
    ]
   },
