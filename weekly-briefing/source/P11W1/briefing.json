@@ -498,25 +498,35 @@
       ],
       [
        "P11W4",
-       "~13",
-       "Fem Hygiene"
+       "13",
+       "Fem Hygiene mapping ready"
       ],
       [
        "P12W1",
-       "~20",
+       "19",
        ""
+      ],
+      [
+       "P12W2",
+       "0",
+       "Blackout"
+      ],
+      [
+       "P12W3",
+       "0",
+       "Blackout"
       ]
      ]
     },
     {
      "kind": "card",
-     "head": "P11W4 · Fem Hygiene",
+     "head": "P11W4 · Fem Hygiene mapping",
      "paragraphs": [
-      "Mapping is in A Useful Folder under 2026 Mapping and Fixture Files."
+      "In A Useful Folder under 2026 Mapping and Fixture Files."
      ]
     }
    ],
-   "narration": "Looking ahead. Period eleven, weeks two and three, are blackout weeks with zero Compass hours. Week four comes back at about thirteen hours, led by Fem Hygiene, and its mapping is in A Useful Folder under twenty twenty-six Mapping and Fixture Files. Period twelve, week one, is about twenty hours."
+   "narration": "Looking ahead. Period eleven, weeks two and three, are blackout weeks with zero Compass hours. Week four comes back at thirteen hours, and the Fem Hygiene mapping for it is in A Useful Folder under twenty twenty-six Mapping and Fixture Files. Period twelve, week one, is nineteen hours, and then weeks two and three of Period twelve are blackout again."
   },
   {
    "stop_title": "Key Facts",
@@ -600,12 +610,20 @@
       "0"
      ],
      [
-      "P11W4 · Fem Hygiene",
-      "~13"
+      "P11W4",
+      "13"
      ],
      [
       "P12W1",
-      "~20"
+      "19"
+     ],
+     [
+      "P12W2 (blackout)",
+      "0"
+     ],
+     [
+      "P12W3 (blackout)",
+      "0"
      ]
     ],
     "bullets": [
