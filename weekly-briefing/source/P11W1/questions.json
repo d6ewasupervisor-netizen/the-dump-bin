@@ -1,0 +1,197 @@
+[
+  {
+    "id": "q01",
+    "stop": 3,
+    "type": "choice",
+    "q": "An Asian Foods item shows as not on set in the lookup. What do you do first?",
+    "options": [
+      "Pull it and set it aside",
+      "Verify it: the lookup drops the last UPC digit",
+      "Give it to the store",
+      "Leave it where it is"
+    ],
+    "correct": 1,
+    "explain": "The item lookup drops the last UPC digit, so valid items can look not on set. The test store found about six. Verify first."
+  },
+  {
+    "id": "q02",
+    "stop": 3,
+    "type": "choice",
+    "q": "What happens to out-of-date product found in the Asian set?",
+    "options": [
+      "Leave it on the shelf",
+      "Throw it in the store's trash",
+      "Pull it, label it, box it, and give it to the store",
+      "Move it to the back of the set"
+    ],
+    "correct": 2,
+    "explain": "Pull anything expired, label it, box it properly, and give it to the store. The test pulled three banana boxes."
+  },
+  {
+    "id": "q03",
+    "stop": 3,
+    "type": "choice",
+    "q": "Which part of the Asian set has the heavy glass bottles and side-to-side movement?",
+    "options": [
+      "The noodle section",
+      "The first two or three bays (sauces and liquids)",
+      "Snacks and drinks",
+      "The refrigerated section"
+    ],
+    "correct": 1,
+    "explain": "The first two or three bays hold heavy glass bottles with private label expansion, and most of that product shifts side to side."
+  },
+  {
+    "id": "q04",
+    "stop": 4,
+    "type": "choice",
+    "q": "In Frozen Bread Dough, which two items swap places?",
+    "options": [
+      "Pillsbury Grands and the rolls",
+      "Kroger private label and Texas Toast",
+      "Wonder and Nature's Own",
+      "Frozen noodles and garlic bread"
+    ],
+    "correct": 1,
+    "explain": "Kroger private label and Texas Toast swap places, with Kroger taking the lead."
+  },
+  {
+    "id": "q05",
+    "stop": 4,
+    "type": "tf",
+    "q": "In Baked Bread, Wonder mainstream and bun items move to eye level.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correct": 0,
+    "explain": "Wonder mainstream and bun items move to eye level in their sections."
+  },
+  {
+    "id": "q06",
+    "stop": 5,
+    "type": "choice",
+    "q": "Which Red Bull 8.4 oz singles stay in Energy Drinks?",
+    "options": [
+      "All of them",
+      "None of them",
+      "Original and Sugar Free",
+      "Only the seasonal flavors"
+    ],
+    "correct": 2,
+    "explain": "Every 8.4 oz single except Original and Sugar Free comes out, along with all 16 oz cans."
+  },
+  {
+    "id": "q07",
+    "stop": 6,
+    "type": "choice",
+    "q": "In Upper Respiratory, where does Allegra go?",
+    "options": [
+      "It stays on the bottom shelf",
+      "Off the bottom shelf, trading places with Benadryl",
+      "To First Aid",
+      "Out of the set"
+    ],
+    "correct": 1,
+    "explain": "Allegra moves off the bottom shelf and trades places with Benadryl. Tags follow the product."
+  },
+  {
+    "id": "q08",
+    "stop": 7,
+    "type": "choice",
+    "q": "During the Salad Mix reset, what happens to the brand identifier cards on the pusher trays?",
+    "options": [
+      "They stay in the old slot",
+      "They are thrown out",
+      "They move with their product",
+      "They go to the store manager"
+    ],
+    "correct": 2,
+    "explain": "The cards move with their product. New or replacement cards from the Vestcom box or the store go in, trimmed to fit."
+  },
+  {
+    "id": "q09",
+    "stop": 7,
+    "type": "tf",
+    "q": "The Suja racks in Premium Juice come out during the reset.",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correct": 1,
+    "explain": "Do not remove the Suja racks."
+  },
+  {
+    "id": "q10",
+    "stop": 7,
+    "type": "choice",
+    "q": "When do the produce sets get done?",
+    "options": [
+      "Last, after grocery",
+      "First thing, unless I've set another priority",
+      "Any time before Friday",
+      "During the blackout"
+    ],
+    "correct": 1,
+    "explain": "Produce sets get done first thing unless another priority has been set."
+  },
+  {
+    "id": "q11",
+    "stop": 9,
+    "type": "choice",
+    "q": "The Innovation Endcap isn't at its mapped location. What do you do?",
+    "options": [
+      "Set it wherever it fits",
+      "Skip it",
+      "Let me know first",
+      "Move another endcap"
+    ],
+    "correct": 2,
+    "explain": "Let me know first, and I'll get the mapping corrected."
+  },
+  {
+    "id": "q12",
+    "stop": 10,
+    "type": "choice",
+    "q": "When do shifts and payroll need to be complete for billing?",
+    "options": [
+      "Friday 11/6",
+      "End of day Saturday 11/7",
+      "Monday 11/9",
+      "After the blackout"
+    ],
+    "correct": 1,
+    "explain": "Shifts and payroll are complete by end of day Saturday, 11/7."
+  },
+  {
+    "id": "q13",
+    "stop": 10,
+    "type": "multi",
+    "q": "Select the stores whose Vestcom box is still in transit.",
+    "options": [
+      "19",
+      "23",
+      "31",
+      "682"
+    ],
+    "correct": [
+      1,
+      2
+    ],
+    "explain": "Stores 23 and 31: the box is still in transit. Keep an eye on the tracking."
+  },
+  {
+    "id": "q14",
+    "stop": 11,
+    "type": "choice",
+    "q": "What are Period 11, weeks 2 and 3?",
+    "options": [
+      "Double-hour weeks",
+      "Blackout weeks with zero Kompass hours",
+      "Remodel weeks",
+      "Test set weeks"
+    ],
+    "correct": 1,
+    "explain": "Both are blackout weeks. P11W4 comes back at about 13 hours with Fem Hygiene."
+  }
+]

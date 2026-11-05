@@ -1,0 +1,72 @@
+{
+  "week": "P11W1",
+  "district": "D8",
+  "title": "Period 11 · Week 1",
+  "dueAt": "2026-11-09T06:00:00-08:00",
+  "passPct": 80,
+  "board": "callsign",
+  "stops": [
+    "Welcome",
+    "The Week at a Glance",
+    "Traditional Asian",
+    "Bread",
+    "Grocery NIIs",
+    "Health and Beauty",
+    "Produce",
+    "Meat",
+    "Natural Foods",
+    "Callouts",
+    "Looking Ahead",
+    "Key Facts"
+  ],
+  "sections": [
+    {
+      "name": "Opening",
+      "stops": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Grocery",
+      "stops": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "name": "Health & Beauty",
+      "stops": [
+        6
+      ]
+    },
+    {
+      "name": "Produce & Meat",
+      "stops": [
+        7,
+        8
+      ]
+    },
+    {
+      "name": "Natural Foods & Callouts",
+      "stops": [
+        9,
+        10
+      ]
+    },
+    {
+      "name": "Looking ahead",
+      "stops": [
+        11
+      ]
+    },
+    {
+      "name": "Wrap",
+      "stops": [
+        12
+      ]
+    }
+  ],
+  "closer": "Two blackout weeks ahead. The Kompass notes will be waiting, as they always are."
+}

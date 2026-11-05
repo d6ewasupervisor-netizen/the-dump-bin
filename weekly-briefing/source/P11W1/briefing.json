@@ -1,0 +1,617 @@
+{
+ "week": "P11W1",
+ "district": "D8",
+ "title": "Period 11 · Week 1",
+ "rev": "P11W1 · Rev 1 · 2026-11-05",
+ "sets": [
+  {
+   "dept": "Grocery",
+   "code": "C096",
+   "name": "Traditional Asian (incl. C069, C357)",
+   "hours": 12,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C050",
+   "name": "Baked Bread (incl. C671)",
+   "hours": 6,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C044",
+   "name": "Frozen Bread Dough",
+   "hours": 2,
+   "type": "Update",
+   "cold": true
+  },
+  {
+   "dept": "Grocery",
+   "code": "C072",
+   "name": "Bagels & Cream Cheese",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Grocery",
+   "code": "C100",
+   "name": "Pasta Sauce (incl. C337)",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C131",
+   "name": "Energy Drinks (incl. C010, C082)",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C114",
+   "name": "Paper Housewares",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C173",
+   "name": "Upper Respiratory (incl. C174, C186)",
+   "hours": 2,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C175",
+   "name": "Digestive Health",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C177",
+   "name": "First Aid (incl. C172)",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Produce",
+   "code": "C640",
+   "name": "Salad Mix Bagged",
+   "hours": 2,
+   "type": "Update",
+   "cold": true
+  },
+  {
+   "dept": "Produce",
+   "code": "C661",
+   "name": "Premium Juice",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Meat",
+   "code": "C563",
+   "name": "Convenient Meals",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Meat",
+   "code": "C575",
+   "name": "Hot Dogs (incl. C577)",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Meat",
+   "code": "C578",
+   "name": "Bacon",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C159",
+   "name": "NF Innovation Endcap",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C665",
+   "name": "NF Soda (incl. C032)",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C673",
+   "name": "NF Packaged Snacks",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C689",
+   "name": "NF Frozen Bread (incl. C676)",
+   "hours": 1,
+   "type": "NII",
+   "cold": true
+  }
+ ],
+ "frames": [
+  {
+   "kind": "title",
+   "stop_title": "Welcome",
+   "kicker": "Weekly Kompass Briefing",
+   "title": "",
+   "blocks": [],
+   "narration": "Alright, everyone. This is the briefing for Period eleven, week one, District eight. Thirty-eight hours across nineteen sets, and twelve of those hours belong to one Asian Foods set that has opinions. After this week come two blackout weeks, so let's finish strong. Checkpoints along the way, and they count."
+  },
+  {
+   "stop_title": "The Week at a Glance",
+   "kicker": "P11W1 · District 8",
+   "title": "This Week at a Glance",
+   "blocks": [
+    {
+     "kind": "sets_table"
+    },
+    {
+     "kind": "counts_info"
+    }
+   ],
+   "narration": "Here is the week on one screen. Grocery carries six sets, Health Beauty Care carries four, the produce department carries two, meat carries three, and Natural Foods carries four. Traditional Asian is the big one at twelve hours, then Baked Bread at six. Eight sets run cold, and every cold set has a twenty-minute limit on product out of the case."
+  },
+  {
+   "stop_title": "Traditional Asian",
+   "kicker": "Grocery",
+   "title": "Traditional Asian · 12 Hours",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "The item lookup drops the last digit of the UPC. Verify before you set anything aside as not on set."
+    },
+    {
+     "kind": "card",
+     "head": "Traditional Asian · C096 (incl. C069, C357)",
+     "hrs": "@C096",
+     "bullets": [
+      "The core runs about <b>twice the Kroger size</b>. Plan for the full 12 hours.",
+      "<b>First 2–3 bays:</b> heavy glass bottles and private label expansion. Most product shifts side to side; move it carefully.",
+      "Tofu moves to the top. Curry soup mixes come down into the snack area.",
+      "<b>Snacks and drinks:</b> mostly vertical; some drinks shift left.",
+      "<b>Noodles:</b> the biggest change and most new items, and the easiest part to set."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Out-of-date product",
+     "cls": "red",
+     "paragraphs": [
+      "The test pulled <b>three banana boxes</b> on a 28 ft set. Pull anything expired, label it, box it, and give it to the store."
+     ]
+    },
+    {
+     "kind": "info",
+     "html": "C357 strips at <b>23</b> and C069 strips at <b>658</b> are recorded under <b>C096</b>."
+    }
+   ],
+   "narration": "Traditional Asian is the heavy lift, twelve hours, and the test store confirms it. Here is your action item for this week. The item lookup drops the last digit of the U-P-C, so valid items can look like they are not on the set. The test store found about half a dozen. Verify before you set anything aside. The core runs about twice the Kroger size. The first two or three bays are heavy glass bottles with private label expanding, and most of that product shifts side to side, so move it carefully. Tofu moves to the top, and curry soup mixes come down into the snack area. Snacks and drinks are mostly vertical, with some drinks shifting left. The noodle section has the biggest change and the most new items, and it is the easiest part to set. The test also pulled three banana boxes of out-of-date product on a twenty-eight-foot set. Pull anything expired, label it, box it, and give it to the store. Refrigerated Asian strips at twenty-three and Refrigerated Kosher strips at six five eight get recorded under Asian."
+  },
+  {
+   "stop_title": "Bread",
+   "kicker": "Grocery · Natural Foods",
+   "title": "Frozen and Baked Bread",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Frozen Bread Dough · C044",
+     "hrs": "@C044",
+     "cold": true,
+     "bullets": [
+      "<b>Kroger private label and Texas Toast swap places</b>; Kroger takes the lead.",
+      "All the rolls come up off the bottom. Pillsbury Grands move down.",
+      "Frozen noodles move vertically and end <b>fully blocked in the last door</b>."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Baked Bread · C050 (incl. C671)",
+     "hrs": "@C050",
+     "bullets": [
+      "New Wonder Breakfast items and one Nature's Own Private Collection Artisan item.",
+      "Wonder mainstream and bun items move to <b>eye level</b>.",
+      "C671 NF Bread strips are recorded under <b>C050</b>."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "NF Frozen Bread · C689 (incl. C676)",
+     "hrs": "@C689",
+     "cold": true,
+     "bullets": [
+      "New items. C676 strips are recorded under <b>C689</b>."
+     ]
+    }
+   ],
+   "narration": "Frozen Bread Dough is two hours and runs cold. Kroger private label and Texas Toast swap places, with Kroger taking the lead. All the rolls come up off the bottom, Pillsbury Grands move down, and the frozen noodles move vertically until they are fully blocked in the last door. Baked Bread is six hours. New Wonder Breakfast items come in, plus one Nature's Own Private Collection Artisan item, and the Wonder mainstream and bun items move to eye level. Natural Foods Bread strips get recorded under Baked Bread. Natural Foods Frozen Bread is one hour of new items, cold, and its frozen inline strips get recorded under it."
+  },
+  {
+   "stop_title": "Grocery NIIs",
+   "kicker": "Grocery",
+   "title": "Energy Drinks, Bagels, Pasta Sauce",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Energy Drinks · C131 (incl. C010, C082)",
+     "hrs": "@C131",
+     "bullets": [
+      "<b>Red Bull cuts:</b> all 16 oz cans, and every 8.4 oz single except Original and Sugar Free.",
+      "Flirt, Starbucks, Gorgie, Liquid Death and Lotus may move up to the <b>top two shelves</b>; Bloom and Alani gain space."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Bagels & Cream Cheese · C072",
+     "hrs": "@C072",
+     "cold": true,
+     "bullets": [
+      "New: Philadelphia Cranberry Orange cream cheese spread.",
+      "Corrected SRP sizes on Kroger cream cheese bars and the 2-pack move some product and facings."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Pasta Sauce · C100 · Paper Housewares · C114",
+     "bullets": [
+      "New items only, 1 hr each.",
+      "Store <b>459</b>: C337 NF Dry Noodles strips are recorded under <b>C100</b>."
+     ]
+    }
+   ],
+   "narration": "Energy Drinks is one hour, and Red Bull takes the hit: all the sixteen-ounce cans go, along with every eight-point-four-ounce single except Original and Sugar Free. With that space open, Flirt, Starbucks, Gorgie, Liquid Death, and Lotus may move up to the top two shelves, and Bloom and Alani pick up room. Bagels and Cream Cheese is one hour and runs cold. Philadelphia Cranberry Orange spread comes in, and corrected S-R-P sizes on the Kroger cream cheese bars and two-pack move some product and facings. Pasta Sauce and Paper Housewares are one hour each of new items. Store four five nine gets Natural Foods Dry Noodle strips, and those get recorded under Pasta Sauce."
+  },
+  {
+   "stop_title": "Health and Beauty",
+   "kicker": "Health & Beauty",
+   "title": "Upper Respiratory and More",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Upper Respiratory · C173 (incl. C174, C186)",
+     "hrs": "@C173",
+     "bullets": [
+      "<b>Allegra moves off the bottom shelf</b> and trades places with Benadryl. Tags follow the product.",
+      "Theraflu and Alka-Seltzer may shift to make room for new items.",
+      "C174 strips, and C186 strips at <b>23, 31, 391</b>, are recorded under <b>C173</b>."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Digestive Health · C175 · First Aid · C177 (incl. C172)",
+     "bullets": [
+      "New items, 1 hr each.",
+      "C172 Analgesics strips are recorded under <b>C177</b>."
+     ]
+    }
+   ],
+   "narration": "Health Beauty Care. Upper Respiratory is two hours. Allegra moves off the bottom shelf and trades places with Benadryl, and the tags follow the product. Theraflu and Alka-Seltzer may shift to make room for the new items. Sinus and Allergy strips, plus Miscellaneous Health Beauty Care strips at twenty-three, thirty-one, and three nine one, all get recorded under Upper Respiratory. Digestive Health and First Aid are one hour each of new items, and Analgesics strips get recorded under First Aid."
+  },
+  {
+   "stop_title": "Produce",
+   "kicker": "Produce",
+   "title": "Produce Sets First",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "Produce sets get done first thing unless I've set another priority. Product out no longer than 20 minutes."
+    },
+    {
+     "kind": "card",
+     "head": "Salad Mix Bagged · C640",
+     "hrs": "@C640",
+     "cold": true,
+     "bullets": [
+      "<b>Brand identifier cards on the pusher trays move with their product.</b> Install new or replacement cards from the Vestcom box or the store; trim to fit.",
+      "CEA expands. Taylor Farms Minion Kit and Salad Mix are deleted."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Premium Juice · C661",
+     "hrs": "@C661",
+     "cold": true,
+     "bullets": [
+      "<b>Do not remove the Suja racks.</b>",
+      "One new item."
+     ]
+    }
+   ],
+   "narration": "The produce sets go first this week, unless I have set another priority, and both run cold. Salad Mix is two hours. The brand identifier cards on the pusher trays move with their product, and any new or replacement cards from the Vestcom box or the store go in, trimmed to fit. The Taylor Farms Minion Kit and Salad Mix are deleted. Premium Juice is one hour with one new item, and the Suja racks stay in the set."
+  },
+  {
+   "stop_title": "Meat",
+   "kicker": "Meat",
+   "title": "Convenient Meals, Hot Dogs, Bacon",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Meat · cold sets",
+     "cold": true,
+     "bullets": [
+      "Convenient Meals · C563 · 1 hr",
+      "Hot Dogs · C575 (incl. C577) · 1 hr",
+      "Bacon · C578 · 1 hr"
+     ],
+     "act": "Product out no longer than 20 minutes."
+    },
+    {
+     "kind": "card",
+     "head": "Smoked Sausage · C577",
+     "chips": {
+      "label": "Strips at:",
+      "stores": [
+       19,
+       23,
+       31,
+       391,
+       459
+      ],
+      "color": "orange"
+     },
+     "paragraphs": [
+      "Recorded under <b>C575</b>."
+     ]
+    }
+   ],
+   "narration": "Meat is three cold sets at one hour each: Convenient Meals, Hot Dogs, and Bacon, all new items. Smoked Sausage strips show up at nineteen, twenty-three, thirty-one, three nine one, and four five nine, and those get recorded under Hot Dogs."
+  },
+  {
+   "stop_title": "Natural Foods",
+   "kicker": "Natural Foods",
+   "title": "Innovation Endcap, Soda, Snacks",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "NF Innovation Endcap · C159",
+     "hrs": "@C159",
+     "chips": {
+      "label": "Endcap at:",
+      "stores": [
+       28,
+       53,
+       391,
+       658,
+       682
+      ]
+     },
+     "bullets": [
+      "Full swap: pull the outgoing assortment, set the new one."
+     ],
+     "act": "Endcap not at the mapped location: let me know first. I'll get the mapping corrected."
+    },
+    {
+     "kind": "card",
+     "head": "NF Soda · C665 (incl. C032) · NF Packaged Snacks · C673",
+     "bullets": [
+      "New items, 1 hr each.",
+      "Specialty soda (C032) strips are recorded under <b>C665</b>."
+     ]
+    }
+   ],
+   "narration": "Natural Foods. The Innovation Endcap is one hour at twenty-eight, fifty-three, three nine one, six five eight, and six eight two, and it is a full swap of the assortment. Stores like to move this endcap. If it is not where the map says, let me know first, and I will get the mapping corrected. Natural Foods Soda and Natural Foods Packaged Snacks are one hour each of new items, and Specialty Soda strips get recorded under Natural Foods Soda."
+  },
+  {
+   "stop_title": "Callouts",
+   "kicker": "Callouts",
+   "title": "Before the Blackout",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Billing",
+     "cls": "red",
+     "paragraphs": [
+      "<b>Shifts and payroll complete by end of day Saturday, 11/7.</b>"
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Backlog",
+     "paragraphs": [
+      "Finish the outstanding P8 and P9 sets <b>before the blackout</b>."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Vestcom box",
+     "chips": {
+      "label": "Still in transit:",
+      "stores": [
+       23,
+       31
+      ],
+      "color": "orange"
+     },
+     "paragraphs": [
+      "Keep an eye on the tracking for your box."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Every store",
+     "bullets": [
+      "Relay Manager on site: route project and byway issues through them first.",
+      "Review your shift photos before signoff: tags installed correctly, POGs complete."
+     ]
+    }
+   ],
+   "narration": "A few callouts. Billing first: shifts and payroll are complete by end of day Saturday, the seventh. Finish the outstanding Period eight and Period nine sets before the blackout starts. At twenty-three and thirty-one, the Vestcom box is still in transit, so keep an eye on the tracking. If your store has a Relay Manager on site, route project and byway issues through them first. And review your shift photos before signoff, tags installed right and planograms complete."
+  },
+  {
+   "stop_title": "Looking Ahead",
+   "kicker": "Looking Ahead",
+   "title": "Two Blackout Weeks",
+   "blocks": [
+    {
+     "kind": "table",
+     "columns": [
+      {
+       "label": "Week"
+      },
+      {
+       "label": "Hrs",
+       "num": true
+      },
+      {
+       "label": "Notes",
+       "muted": true
+      }
+     ],
+     "rows": [
+      [
+       "P11W2",
+       "0",
+       "Blackout"
+      ],
+      [
+       "P11W3",
+       "0",
+       "Blackout"
+      ],
+      [
+       "P11W4",
+       "~13",
+       "Fem Hygiene"
+      ],
+      [
+       "P12W1",
+       "~20",
+       ""
+      ]
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "P11W4 · Fem Hygiene",
+     "paragraphs": [
+      "Mapping is in A Useful Folder under 2026 Mapping and Fixture Files."
+     ]
+    }
+   ],
+   "narration": "Looking ahead. Period eleven, weeks two and three, are blackout weeks with zero Compass hours. Week four comes back at about thirteen hours, led by Fem Hygiene, and its mapping is in A Useful Folder under twenty twenty-six Mapping and Fixture Files. Period twelve, week one, is about twenty hours."
+  },
+  {
+   "stop_title": "Key Facts",
+   "kicker": "P11W1 · District 8",
+   "title": "Key Facts",
+   "blocks": [
+    {
+     "kind": "keyfacts",
+     "head": "Key Facts for P11W1",
+     "items": [
+      "38 hours · 19 sets · 8 cold sets at 20 minutes",
+      "Asian: verify the UPC before calling anything not on set",
+      "Asian: pull expired product, label it, box it, give it to the store",
+      "Produce sets first; salad cards move with the product",
+      "Shifts and payroll done by end of day Sat 11/7",
+      "23 and 31: watch the Vestcom tracking",
+      "Next two weeks: blackout"
+     ]
+    },
+    {
+     "kind": "info",
+     "big": true,
+     "html": "That is the briefing."
+    }
+   ],
+   "narration": "That is the week. On Asian, verify the U-P-C before you call anything not on set, and box up the expired product for the store. The produce sets go first, and the salad cards travel with the product. Shifts and payroll are done by Saturday. Twenty-three and thirty-one, watch your tracking. Then two weeks of blackout, which you will notice is not the same thing as two weeks of nothing. That is the briefing. The quiz is next."
+  }
+ ],
+ "handout": {
+  "execution": {
+   "C096": "Item lookup drops the last UPC digit: verify before setting anything aside. Core about 2x Kroger size. Bays 1-3: glass bottles, private label expansion, side-to-side; move carefully. Tofu to top; curry soup mixes down to snacks. Snacks/drinks mostly vertical. Noodles: most change, easiest to set. Pull expired, label, box, give to the store. C357 (23), C069 (658) under C096.",
+   "C050": "Wonder Breakfast + Nature's Own Private Collection Artisan item. Wonder mainstream/bun items to eye level. C671 strips under C050.",
+   "C044": "Kroger private label and Texas Toast swap; Kroger leads. Rolls up off the bottom; Pillsbury Grands down. Frozen noodles fully blocked in the last door. 20 minutes.",
+   "C072": "Philadelphia Cranberry Orange spread. Corrected SRP sizes move some product and facings. 20 minutes.",
+   "C100": "New items. 459: C337 strips under C100.",
+   "C131": "Red Bull: all 16 oz cans and 8.4 oz singles except Original/Sugar Free out. Smaller brands may move to the top two shelves; Bloom and Alani gain space.",
+   "C114": "New items only.",
+   "C173": "Allegra off the bottom shelf, trades with Benadryl; tags follow product. Theraflu/Alka-Seltzer may shift. C174 and C186 (23, 31, 391) under C173.",
+   "C175": "New items only.",
+   "C177": "New items. C172 strips under C177.",
+   "C640": "Produce: first thing. Identifier cards move with product; install new cards, trim to fit. Taylor Farms Minion Kit and Salad Mix deleted. 20 minutes.",
+   "C661": "Produce: first thing. Do not remove Suja racks. 20 minutes.",
+   "C563": "New items. 20 minutes.",
+   "C575": "New items. C577 (19, 23, 31, 391, 459) under C575. 20 minutes.",
+   "C578": "New items. 20 minutes.",
+   "C159": "Endcap at 28, 53, 391, 658, 682. Full assortment swap. Not at the mapped location: let me know first.",
+   "C665": "New items. C032 strips under C665.",
+   "C673": "New items only.",
+   "C689": "New items. C676 strips under C689. 20 minutes."
+  },
+  "page2": [
+   {
+    "head": "Asian: verify before you set aside",
+    "cls": "r",
+    "act": "The item lookup drops the last UPC digit. Check deeper before calling anything not on set."
+   },
+   {
+    "head": "Callouts",
+    "cls": "y",
+    "bullets": [
+     "Shifts and payroll complete by end of day Saturday 11/7.",
+     "Finish outstanding P8 and P9 sets before the blackout.",
+     "Stores 23 and 31: Vestcom box still in transit. Keep an eye on the tracking.",
+     "Relay Manager on site: route project and byway issues through them first.",
+     "Review shift photos before signoff: tags installed, POGs complete."
+    ]
+   },
+   {
+    "head": "Looking ahead",
+    "table_columns": [
+     "Week",
+     "Hrs"
+    ],
+    "table": [
+     [
+      "P11W2 (blackout)",
+      "0"
+     ],
+     [
+      "P11W3 (blackout)",
+      "0"
+     ],
+     [
+      "P11W4 · Fem Hygiene",
+      "~13"
+     ],
+     [
+      "P12W1",
+      "~20"
+     ]
+    ],
+    "bullets": [
+     "P11W4 Fem Hygiene mapping: A Useful Folder, 2026 Mapping and Fixture Files."
+    ]
+   }
+  ]
+ }
+}
