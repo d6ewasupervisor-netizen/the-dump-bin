@@ -1,5 +1,7 @@
 # Audit
 
+FM 682 wet wall (2026-11-05): `682-wet-wall/index.html` does not load `auth-gate.js`. Photos are static WebP (signoff tier, 2560px / 950 KB) plus 320px thumbs. Rotate, crop, and markup are client-side and do not write back. Send uses the device share sheet, or copies the page URL. Open: the link is public to anyone who has it.
+
 Friday coverage (2026-11-02, not published): `dc-scan/cover/index.html` signs in through `auth-gate.js`, then `GET /api/dc-scan-cover`. Take and Release post to that API. The map is Leaflet on OpenStreetMap using the store coordinates the API returns. The RO8 page links to `/dc-scan/cover/`. Open: GitHub Pages and the eod-api route are both still on a branch.
 
 Store recipients (2026-11-01, not published): `admin/store-recipients.html` reads `GET /api/eod-store-recipients/assignment-report` through `dumpBinAuthFetch` and posts Assign / Remove. The CSV button builds the file from that same payload. Open: the page is not on `main`, and the API is not deployed.

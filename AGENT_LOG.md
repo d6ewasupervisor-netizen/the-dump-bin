@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-05 — FM 682 wet wall photo board
+
+Public page at `/682-wet-wall/`. Fifteen produce wet-wall photos, no sign-in. Slideshow, filmstrip, pinch and wheel zoom, rotate, draw, arrow, note, crop, save, share, and send. Marks stay in the browser. Send shares the page link. The page is not a hub card.
+
 ## 2026-11-05 — Employee Board time off, one row per person
 
 `welcome-letter-board` v2.27 lists one person per row for the current year: latest date, days, hours. A name that still needs Oracle approval or a build is highlighted. Approve in Oracle and Reject in Oracle run before Build and run. Pull Oracle reads the worklist. Alexandra's 2026-11-04 floating holiday shows closed once eod-api migration 197 is live.

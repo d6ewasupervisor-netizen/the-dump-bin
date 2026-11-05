@@ -1,5 +1,7 @@
 # Roadmap
 
+- FM 682 wet wall (`/682-wet-wall/`) is a public unlisted page. It is not a hub card.
+
 - Employee Board v2.27 time off: one row per person, Oracle approve before build. Publish with the eod-api deploy that carries migration 197.
 
 - Employee Board v2.24 is published (`83ee148`). Chat, the tab counts, and LOA call the live API.

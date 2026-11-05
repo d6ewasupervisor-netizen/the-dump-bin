@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#0f172a">
+  <title>FM 682 wet wall</title>
+  <meta property="og:title" content="FM 682 wet wall">
+  <meta property="og:description" content="Maple Valley wet wall photos">
+  <meta property="og:image" content="https://the-dump-bin.com/682-wet-wall/thumbs/15187.webp">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --surface: #fff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --accent: #1d4ed8;
+      --stage: #020617;
+      --touch: 48px;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-t: env(safe-area-inset-top, 0px);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button, input { font: inherit; color: inherit; }
+    button { touch-action: manipulation; }
+    .app {
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+      grid-template-areas: "head" "stage" "film" "extra" "tools";
+      padding-top: var(--safe-t);
+    }
+    header {
+      grid-area: head;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+    h1 { margin: 0; font-family: Georgia, "Source Serif 4", serif; font-size: 1.15rem; font-weight: 700; line-height: 1.1; }
+    .sub { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .head-side { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+    .pos { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 4.5rem; text-align: right; }
+    .nav-btn, .tool, .text-btn {
+      appearance: none;
+      border: 0;
+      background: #e2e8f0;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .nav-btn {
+      min-width: var(--touch);
+      min-height: var(--touch);
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .nav-btn[aria-pressed="true"], .tool.is-active, .text-btn.is-active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .stage-wrap { grid-area: stage; min-height: 0; background: var(--stage); }
+    .vp {
+      height: 100%;
+      overflow: auto;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+    .fit {
+      min-width: 100%;
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stage {
+      position: relative;
+      flex: 0 0 auto;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .stage img, .stage canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-orientation: from-image;
+    }
+    .stage canvas { position: absolute; inset: 0; }
+    .vp[data-mode="pan"] { cursor: grab; }
+    .vp[data-mode="draw"], .vp[data-mode="arrow"], .vp[data-mode="text"] { cursor: crosshair; }
+    .film {
+      grid-area: film;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 8px;
+      background: var(--surface);
+      border-top: 1px solid var(--line);
+      -webkit-overflow-scrolling: touch;
+    }
+    .thumb {
+      appearance: none;
+      flex: 0 0 auto;
+      width: 72px;
+      padding: 0;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: #0f172a;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .thumb img { display: block; width: 72px; height: 54px; object-fit: cover; }
+    .thumb span {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      padding: 2px 0 3px;
+      background: #111827;
+      color: #cbd5e1;
+    }
+    .thumb.is-active { border-color: var(--accent); }
+    .thumb.is-active span { color: #93c5fd; }
+    .extra { grid-area: extra; background: var(--surface); }
+    .note-row, .crop-row { display: none; gap: 8px; padding: 8px 8px 0; }
+    .app[data-mode="text"] .note-row { display: flex; }
+    .app[data-mode="crop"] .crop-row { display: flex; }
+    .note-row input {
+      flex: 1;
+      min-height: var(--touch);
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 0 12px;
+      font-size: 16px;
+    }
+    .text-btn {
+      min-height: var(--touch);
+      padding: 0 16px;
+      font-weight: 700;
+    }
+    .text-btn.primary { background: var(--accent); color: #fff; flex: 1; }
+    .tools {
+      grid-area: tools;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      overflow-x: auto;
+      padding: 8px 8px calc(8px + var(--safe-b));
+      background: var(--surface);
+      border-top: 1px solid var(--line);
+      -webkit-overflow-scrolling: touch;
+    }
+    .tool {
+      flex: 0 0 auto;
+      min-width: 56px;
+      min-height: 52px;
+      padding: 4px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+    }
+    .tool .ico { font-size: 16px; line-height: 1; }
+    .tool .lbl { font-size: 10px; font-weight: 700; line-height: 1.1; }
+    .swatch, .size {
+      flex: 0 0 auto;
+      align-self: center;
+    }
+    .swatch {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+    .size { width: 92px; }
+    .crop-layer { position: absolute; inset: 0; display: none; pointer-events: none; }
+    .app[data-mode="crop"] .crop-layer { display: block; }
+    .crop-box {
+      position: absolute;
+      border: 2px solid #f5d90a;
+      box-shadow: 0 0 0 9999px rgba(2, 6, 23, 0.55);
+      pointer-events: auto;
+      touch-action: none;
+      cursor: move;
+    }
+    .handle {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    .handle::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      margin: -7px 0 0 -7px;
+      background: #f5d90a;
+      border: 2px solid #0f172a;
+      border-radius: 3px;
+    }
+    .handle[data-handle="nw"] { left: -22px; top: -22px; cursor: nwse-resize; }
+    .handle[data-handle="ne"] { right: -22px; top: -22px; cursor: nesw-resize; }
+    .handle[data-handle="sw"] { left: -22px; bottom: -22px; cursor: nesw-resize; }
+    .handle[data-handle="se"] { right: -22px; bottom: -22px; cursor: nwse-resize; }
+    .handle[data-handle="n"] { left: 50%; top: -22px; margin-left: -22px; cursor: ns-resize; }
+    .handle[data-handle="s"] { left: 50%; bottom: -22px; margin-left: -22px; cursor: ns-resize; }
+    .handle[data-handle="w"] { left: -22px; top: 50%; margin-top: -22px; cursor: ew-resize; }
+    .handle[data-handle="e"] { right: -22px; top: 50%; margin-top: -22px; cursor: ew-resize; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(88px + var(--safe-b));
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s linear;
+    }
+    .toast.is-on { opacity: 1; }
+    @media (min-width: 960px) {
+      .app {
+        grid-template-columns: 168px minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        grid-template-areas:
+          "head head"
+          "film stage"
+          "extra extra"
+          "tools tools";
+      }
+      h1 { font-size: 1.45rem; }
+      .film {
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border-top: 0;
+        border-right: 1px solid var(--line);
+        padding: 10px;
+      }
+      .thumb, .thumb img { width: 144px; }
+      .thumb img { height: 96px; }
+      .tools {
+        flex-wrap: wrap;
+        justify-content: center;
+        overflow: visible;
+        padding: 10px 12px calc(10px + var(--safe-b));
+      }
+      .toast { bottom: 24px; }
+    }
+    @media (max-width: 389px) {
+      h1 { font-size: 0.95rem; }
+      .sub { display: none; }
+      .nav-btn { min-width: 36px; min-height: 40px; }
+      .pos { min-width: 3rem; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app" data-mode="pan">
+    <header>
+      <div>
+        <h1>FM 682 wet wall</h1>
+        <p class="sub">Maple Valley</p>
+      </div>
+      <div class="head-side">
+        <button type="button" class="nav-btn" id="prevBtn" aria-label="Previous photo">‹</button>
+        <div class="pos" id="pos">1 of 15</div>
+        <button type="button" class="nav-btn" id="nextBtn" aria-label="Next photo">›</button>
+        <button type="button" class="nav-btn" id="playBtn" aria-pressed="false" aria-label="Play slideshow">▶</button>
+      </div>
+    </header>
+    <div class="stage-wrap">
+      <div class="vp" id="vp" data-mode="pan">
+        <div class="fit" id="fit">
+          <div class="stage" id="stage">
+            <img id="photo" alt="" draggable="false">
+            <canvas id="ink"></canvas>
+            <div class="crop-layer" id="cropLayer">
+              <div class="crop-box" id="cropBox" data-handle="move">
+                <span class="handle" data-handle="nw"></span>
+                <span class="handle" data-handle="n"></span>
+                <span class="handle" data-handle="ne"></span>
+                <span class="handle" data-handle="w"></span>
+                <span class="handle" data-handle="e"></span>
+                <span class="handle" data-handle="sw"></span>
+                <span class="handle" data-handle="s"></span>
+                <span class="handle" data-handle="se"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="film" id="film" aria-label="Photos"></div>
+    <div class="extra">
+      <div class="note-row">
+        <input id="note" type="text" maxlength="80" placeholder="Note" autocomplete="off" enterkeyhint="done">
+      </div>
+      <div class="crop-row">
+        <button type="button" class="text-btn" id="cropCancel">Cancel</button>
+        <button type="button" class="text-btn primary" id="cropApply">Apply crop</button>
+      </div>
+    </div>
+    <div class="tools" id="tools" aria-label="Photo tools">
+      <button type="button" class="tool" id="zoomOutBtn"><span class="ico">−</span><span class="lbl">Out</span></button>
+      <button type="button" class="tool" id="zoomInBtn"><span class="ico">+</span><span class="lbl">In</span></button>
+      <button type="button" class="tool" id="rotateBtn"><span class="ico">↻</span><span class="lbl">Rotate</span></button>
+      <button type="button" class="tool is-active" id="panBtn" data-mode="pan"><span class="ico">✥</span><span class="lbl">Pan</span></button>
+      <button type="button" class="tool" id="drawBtn" data-mode="draw"><span class="ico">✎</span><span class="lbl">Draw</span></button>
+      <button type="button" class="tool" id="arrowBtn" data-mode="arrow"><span class="ico">↗</span><span class="lbl">Arrow</span></button>
+      <button type="button" class="tool" id="textBtn" data-mode="text"><span class="ico">T</span><span class="lbl">Note</span></button>
+      <button type="button" class="tool" id="cropBtn" data-mode="crop"><span class="ico">⌗</span><span class="lbl">Crop</span></button>
+      <input class="swatch" id="color" type="color" value="#f5d90a" aria-label="Color">
+      <input class="size" id="size" type="range" min="2" max="28" value="8" aria-label="Line size">
+      <button type="button" class="tool" id="undoBtn"><span class="ico">↩</span><span class="lbl">Undo</span></button>
+      <button type="button" class="tool" id="clearBtn"><span class="ico">✕</span><span class="lbl">Clear</span></button>
+      <button type="button" class="tool" id="originalBtn"><span class="ico">⟲</span><span class="lbl">Original</span></button>
+      <button type="button" class="tool" id="saveBtn"><span class="ico">⬇</span><span class="lbl">Save</span></button>
+      <button type="button" class="tool" id="shareBtn"><span class="ico">⤴</span><span class="lbl">Share</span></button>
+      <button type="button" class="tool" id="sendBtn"><span class="ico">✉</span><span class="lbl">Send</span></button>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    (function () {
+      'use strict';
+
+      const photos = ['15187','15188','15189','15190','15191','15192','15193','15194','15195','15196','15197','15198','15199','15201','15202'];
+      const edits = new Map();
+      const app = document.getElementById('app');
+      const vp = document.getElementById('vp');
+      const stage = document.getElementById('stage');
+      const photo = document.getElementById('photo');
+      const ink = document.getElementById('ink');
+      const film = document.getElementById('film');
+      const pos = document.getElementById('pos');
+      const playBtn = document.getElementById('playBtn');
+      const note = document.getElementById('note');
+      const colorInput = document.getElementById('color');
+      const sizeInput = document.getElementById('size');
+      const cropBox = document.getElementById('cropBox');
+      const toast = document.getElementById('toast');
+
+      let index = 0;
+      let mode = 'pan';
+      let scale = 1;
+      let loadGen = 0;
+      let playing = false;
+      let playTimer = 0;
+      let draft = null;
+      let cropFrac = { x: 0.08, y: 0.08, w: 0.84, h: 0.84 };
+      let cropDrag = null;
+      const pointers = new Map();
+      let pinch = null;
+      let panDrag = null;
+      let swipe = null;
+      let lastTap = 0;
+      const MIN_ZOOM = 1;
+      const MAX_ZOOM = 6;
+
+      function bag(id) {
+        const key = id || photos[index];
+        let row = edits.get(key);
+        if (!row) {
+          row = { strokes: [], sessionUrl: null };
+          edits.set(key, row);
+        }
+        return row;
+      }
+
+      function srcFor(id) {
+        const row = edits.get(id);
+        return (row && row.sessionUrl) || ('photos/' + id + '.webp');
+      }
+
+      function fileName() {
+        return 'FM682_wet_wall_' + photos[index] + '.jpg';
+      }
+
+      function say(text) {
+        toast.textContent = text;
+        toast.classList.add('is-on');
+        clearTimeout(say._t);
+        say._t = setTimeout(() => toast.classList.remove('is-on'), 1800);
+      }
+
+      function typingTarget(el) {
+        return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+      }
+
+      function natSize() {
+        const rect = ink.getBoundingClientRect();
+        const base = Number(sizeInput.value) || 8;
+        if (!rect.width) return base;
+        return base * (ink.width / rect.width);
+      }
+
+      function natPoint(e) {
+        const rect = ink.getBoundingClientRect();
+        return {
+          x: ((e.clientX - rect.left) / rect.width) * ink.width,
+          y: ((e.clientY - rect.top) / rect.height) * ink.height,
+        };
+      }
+
+      function drawStroke(ctx, stroke) {
+        ctx.save();
+        ctx.strokeStyle = stroke.color;
+        ctx.fillStyle = stroke.color;
+        ctx.lineWidth = stroke.size;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        if (stroke.type === 'draw' && stroke.points.length) {
+          ctx.beginPath();
+          stroke.points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+          ctx.stroke();
+        } else if (stroke.type === 'arrow') {
+          ctx.beginPath();
+          ctx.moveTo(stroke.x1, stroke.y1);
+          ctx.lineTo(stroke.x2, stroke.y2);
+          ctx.stroke();
+          const ang = Math.atan2(stroke.y2 - stroke.y1, stroke.x2 - stroke.x1);
+          const head = Math.max(16, stroke.size * 4);
+          ctx.beginPath();
+          ctx.moveTo(stroke.x2, stroke.y2);
+          ctx.lineTo(stroke.x2 - head * Math.cos(ang - 0.45), stroke.y2 - head * Math.sin(ang - 0.45));
+          ctx.lineTo(stroke.x2 - head * Math.cos(ang + 0.45), stroke.y2 - head * Math.sin(ang + 0.45));
+          ctx.closePath();
+          ctx.fill();
+        } else if (stroke.type === 'text' && stroke.text) {
+          const px = Math.max(18, stroke.size * 3);
+          ctx.font = '700 ' + px + 'px sans-serif';
+          ctx.lineWidth = Math.max(3, px / 8);
+          ctx.strokeStyle = 'rgba(0,0,0,0.72)';
+          ctx.strokeText(stroke.text, stroke.x, stroke.y);
+          ctx.fillStyle = stroke.color;
+          ctx.fillText(stroke.text, stroke.x, stroke.y);
+        }
+        ctx.restore();
+      }
+
+      function paint(target) {
+        const ctx = target || ink.getContext('2d');
+        if (!target) ctx.clearRect(0, 0, ink.width, ink.height);
+        const marks = bag().strokes.slice();
+        if (draft) marks.push(draft);
+        marks.forEach((stroke) => drawStroke(ctx, stroke));
+      }
+
+      function layout(anchor) {
+        if (!photo.naturalWidth) return;
+        const fit = Math.min(vp.clientWidth / photo.naturalWidth, vp.clientHeight / photo.naturalHeight);
+        const w = Math.max(1, Math.round(photo.naturalWidth * fit * scale));
+        const h = Math.max(1, Math.round(photo.naturalHeight * fit * scale));
+        let ax = 0.5;
+        let ay = 0.5;
+        if (anchor) {
+          const rect = vp.getBoundingClientRect();
+          const prevW = stage.clientWidth || w;
+          const prevH = stage.clientHeight || h;
+          ax = (vp.scrollLeft + (anchor.x - rect.left) - stage.offsetLeft) / prevW;
+          ay = (vp.scrollTop + (anchor.y - rect.top) - stage.offsetTop) / prevH;
+        }
+        stage.style.width = w + 'px';
+        stage.style.height = h + 'px';
+        if (ink.width !== photo.naturalWidth || ink.height !== photo.naturalHeight) {
+          ink.width = photo.naturalWidth;
+          ink.height = photo.naturalHeight;
+        }
+        paint();
+        if (anchor) {
+          const rect = vp.getBoundingClientRect();
+          vp.scrollLeft = stage.offsetLeft + ax * w - (anchor.x - rect.left);
+          vp.scrollTop = stage.offsetTop + ay * h - (anchor.y - rect.top);
+        }
+        if (mode === 'crop') applyCropBox();
+      }
+
+      function setScale(next, anchor) {
+        scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+        layout(anchor || null);
+      }
+
+      function setMode(next) {
+        if (next !== 'pan' && playing) setPlaying(false);
+        mode = next;
+        app.dataset.mode = next;
+        vp.dataset.mode = next;
+        document.querySelectorAll('.tool[data-mode]').forEach((btn) => {
+          btn.classList.toggle('is-active', btn.dataset.mode === next);
+        });
+        if (next === 'crop') {
+          cropFrac = visibleCrop();
+          layout();
+        }
+        if (next === 'text') note.focus();
+      }
+
+      function visibleCrop() {
+        const stageRect = stage.getBoundingClientRect();
+        const vpRect = vp.getBoundingClientRect();
+        if (!stageRect.width || !stageRect.height) return { x: 0.08, y: 0.08, w: 0.84, h: 0.84 };
+        const left = Math.max(stageRect.left, vpRect.left);
+        const top = Math.max(stageRect.top, vpRect.top);
+        const right = Math.min(stageRect.right, vpRect.right);
+        const bottom = Math.min(stageRect.bottom, vpRect.bottom);
+        const pad = 16;
+        const x = (left - stageRect.left + pad) / stageRect.width;
+        const y = (top - stageRect.top + pad) / stageRect.height;
+        const w = Math.max(0.12, (right - left - pad * 2) / stageRect.width);
+        const h = Math.max(0.12, (bottom - top - pad * 2) / stageRect.height);
+        return clampCrop(x, y, w, h);
+      }
+
+      function clampCrop(x, y, w, h) {
+        const minW = Math.min(0.2, 48 / Math.max(48, stage.clientWidth));
+        const minH = Math.min(0.2, 48 / Math.max(48, stage.clientHeight));
+        w = Math.max(minW, Math.min(1, w));
+        h = Math.max(minH, Math.min(1, h));
+        x = Math.min(Math.max(0, x), 1 - w);
+        y = Math.min(Math.max(0, y), 1 - h);
+        return { x, y, w, h };
+      }
+
+      function applyCropBox() {
+        const w = stage.clientWidth;
+        const h = stage.clientHeight;
+        cropBox.style.left = (cropFrac.x * w) + 'px';
+        cropBox.style.top = (cropFrac.y * h) + 'px';
+        cropBox.style.width = (cropFrac.w * w) + 'px';
+        cropBox.style.height = (cropFrac.h * h) + 'px';
+      }
+
+      function renderFilm() {
+        film.innerHTML = photos.map((id, i) => (
+          '<button type="button" class="thumb" data-i="' + i + '" aria-label="Photo ' + (i + 1) + '">' +
+            '<img src="thumbs/' + id + '.webp" alt="">' +
+            '<span>' + (i + 1) + '</span>' +
+          '</button>'
+        )).join('');
+      }
+
+      function markFilm() {
+        const buttons = film.querySelectorAll('.thumb');
+        buttons.forEach((btn, i) => btn.classList.toggle('is-active', i === index));
+        const active = buttons[index];
+        if (!active) return;
+        const filmRect = film.getBoundingClientRect();
+        const rect = active.getBoundingClientRect();
+        film.scrollLeft += rect.left - filmRect.left - (film.clientWidth - rect.width) / 2;
+        film.scrollTop += rect.top - filmRect.top - (film.clientHeight - rect.height) / 2;
+      }
+
+      function preloadAround() {
+        [1, -1].forEach((step) => {
+          const id = photos[(index + step + photos.length) % photos.length];
+          const im = new Image();
+          im.src = srcFor(id);
+        });
+      }
+
+      function show(n, fromTimer) {
+        if (playing && !fromTimer) setPlaying(false);
+        index = (n + photos.length) % photos.length;
+        const gen = ++loadGen;
+        const id = photos[index];
+        pos.textContent = (index + 1) + ' of ' + photos.length;
+        photo.alt = 'Wet wall photo ' + (index + 1) + ' of ' + photos.length;
+        markFilm();
+        scale = 1;
+        draft = null;
+        const im = new Image();
+        im.onload = () => {
+          if (gen !== loadGen) return;
+          photo.src = im.src;
+          ink.width = im.naturalWidth;
+          ink.height = im.naturalHeight;
+          layout();
+          vp.scrollLeft = 0;
+          vp.scrollTop = 0;
+          preloadAround();
+        };
+        im.onerror = () => {
+          if (gen === loadGen) say('Photo failed to load');
+        };
+        im.src = srcFor(id);
+      }
+
+      function armPlay() {
+        clearInterval(playTimer);
+        playTimer = setInterval(() => show(index + 1, true), 4000);
+      }
+
+      function setPlaying(on) {
+        playing = on;
+        playBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        playBtn.textContent = on ? '❚❚' : '▶';
+        playBtn.setAttribute('aria-label', on ? 'Pause slideshow' : 'Play slideshow');
+        clearInterval(playTimer);
+        if (on) armPlay();
+      }
+
+      function compositeCanvas(opts) {
+        const options = opts || {};
+        const src = document.createElement('canvas');
+        src.width = photo.naturalWidth;
+        src.height = photo.naturalHeight;
+        const sctx = src.getContext('2d');
+        sctx.drawImage(photo, 0, 0);
+        bag().strokes.forEach((stroke) => drawStroke(sctx, stroke));
+        let work = src;
+        if (options.crop) {
+          const crop = options.crop;
+          const sx = Math.max(0, Math.round(crop.x));
+          const sy = Math.max(0, Math.round(crop.y));
+          const sw = Math.max(1, Math.round(crop.w));
+          const sh = Math.max(1, Math.round(crop.h));
+          const cropped = document.createElement('canvas');
+          cropped.width = Math.min(sw, src.width - sx);
+          cropped.height = Math.min(sh, src.height - sy);
+          cropped.getContext('2d').drawImage(work, sx, sy, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
+          work = cropped;
+        }
+        if (options.rotate) {
+          const turned = document.createElement('canvas');
+          const swap = options.rotate % 180 !== 0;
+          turned.width = swap ? work.height : work.width;
+          turned.height = swap ? work.width : work.height;
+          const ctx = turned.getContext('2d');
+          ctx.translate(turned.width / 2, turned.height / 2);
+          ctx.rotate(options.rotate * Math.PI / 180);
+          ctx.drawImage(work, -work.width / 2, -work.height / 2);
+          work = turned;
+        }
+        return work;
+      }
+
+      function canvasBlob(canvas, type, quality) {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not export photo'))), type, quality);
+        });
+      }
+
+      async function replaceWith(canvas) {
+        const blob = await canvasBlob(canvas, 'image/jpeg', 0.92);
+        const url = URL.createObjectURL(blob);
+        const row = bag();
+        const prevUrl = row.sessionUrl;
+        row.sessionUrl = url;
+        row.strokes = [];
+        draft = null;
+        scale = 1;
+        await new Promise((resolve, reject) => {
+          const gen = ++loadGen;
+          const im = new Image();
+          im.onload = () => {
+            if (prevUrl) URL.revokeObjectURL(prevUrl);
+            if (gen !== loadGen) { resolve(); return; }
+            photo.src = url;
+            ink.width = im.naturalWidth;
+            ink.height = im.naturalHeight;
+            layout();
+            resolve();
+          };
+          im.onerror = () => reject(new Error('Could not apply the edit'));
+          im.src = url;
+        });
+      }
+
+      async function exportJpeg() {
+        if (!photo.naturalWidth) throw new Error('Photo is still loading');
+        return canvasBlob(compositeCanvas(), 'image/jpeg', 0.92);
+      }
+
+      function downloadBlob(blob, name) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }
+
+      async function savePhoto() {
+        try {
+          downloadBlob(await exportJpeg(), fileName());
+        } catch (err) {
+          say(err.message || 'Save failed');
+        }
+      }
+
+      async function sharePhoto() {
+        try {
+          const blob = await exportJpeg();
+          const file = new File([blob], fileName(), { type: 'image/jpeg' });
+          if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+            await navigator.share({ files: [file], title: 'FM 682 wet wall' });
+            return;
+          }
+          downloadBlob(blob, fileName());
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          say(err.message || 'Share failed');
+        }
+      }
+
+      async function sendLink() {
+        const payload = {
+          title: 'FM 682 wet wall',
+          text: 'FM 682 Maple Valley wet wall photos',
+          url: location.href,
+        };
+        try {
+          if (navigator.share) {
+            await navigator.share(payload);
+            return;
+          }
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+        }
+        try {
+          await navigator.clipboard.writeText(location.href);
+          say('Link copied');
+        } catch {
+          say('Could not copy the link');
+        }
+      }
+
+      function onInkDown(e) {
+        if (mode !== 'draw' && mode !== 'arrow' && mode !== 'text') return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        ink.setPointerCapture(e.pointerId);
+        const p = natPoint(e);
+        const color = colorInput.value || '#f5d90a';
+        const size = natSize();
+        if (mode === 'draw') draft = { type: 'draw', color, size, points: [p] };
+        else if (mode === 'arrow') draft = { type: 'arrow', color, size, x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+        else draft = { type: 'text', color, size, x: p.x, y: p.y, text: note.value.trim(), moved: false, sx: e.clientX, sy: e.clientY };
+        e.preventDefault();
+      }
+
+      function onInkMove(e) {
+        if (!draft) return;
+        const p = natPoint(e);
+        if (draft.type === 'draw') draft.points.push(p);
+        else if (draft.type === 'arrow') { draft.x2 = p.x; draft.y2 = p.y; }
+        else if (Math.abs(e.clientX - draft.sx) + Math.abs(e.clientY - draft.sy) > 8) draft.moved = true;
+        paint();
+      }
+
+      function onInkUp() {
+        if (!draft) return;
+        const stroke = draft;
+        draft = null;
+        if (stroke.type === 'text') {
+          if (!stroke.moved && stroke.text) bag().strokes.push(stroke);
+          paint();
+          return;
+        }
+        if (stroke.type === 'draw' && stroke.points.length < 2) { paint(); return; }
+        bag().strokes.push(stroke);
+        paint();
+      }
+
+      function onCropDown(e) {
+        if (mode !== 'crop') return;
+        const handle = e.target.dataset.handle;
+        if (!handle) return;
+        cropDrag = {
+          handle,
+          px: e.clientX,
+          py: e.clientY,
+          start: { ...cropFrac },
+        };
+        e.target.setPointerCapture(e.pointerId);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      function onCropMove(e) {
+        if (!cropDrag) return;
+        const dx = (e.clientX - cropDrag.px) / stage.clientWidth;
+        const dy = (e.clientY - cropDrag.py) / stage.clientHeight;
+        const start = cropDrag.start;
+        let x = start.x;
+        let y = start.y;
+        let r = start.x + start.w;
+        let b = start.y + start.h;
+        const handle = cropDrag.handle;
+        if (handle === 'move') {
+          x += dx; y += dy; r += dx; b += dy;
+        } else {
+          if (handle.indexOf('w') !== -1) x += dx;
+          if (handle.indexOf('e') !== -1) r += dx;
+          if (handle.indexOf('n') !== -1) y += dy;
+          if (handle.indexOf('s') !== -1) b += dy;
+        }
+        cropFrac = clampCrop(Math.min(x, r), Math.min(y, b), Math.abs(r - x), Math.abs(b - y));
+        applyCropBox();
+      }
+
+      function zoomAt(clientX, clientY, next) {
+        setScale(next, { x: clientX, y: clientY });
+      }
+
+      vp.addEventListener('pointerdown', (e) => {
+        if (e.target.closest && e.target.closest('.crop-box')) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 2) {
+          const pts = Array.from(pointers.values());
+          pinch = {
+            dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1,
+            scale,
+            x: (pts[0].x + pts[1].x) / 2,
+            y: (pts[0].y + pts[1].y) / 2,
+          };
+          swipe = null;
+          panDrag = null;
+          return;
+        }
+        if (mode === 'pan') {
+          swipe = { id: e.pointerId, x: e.clientX, y: e.clientY };
+          if (scale > 1.02) panDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, sl: vp.scrollLeft, st: vp.scrollTop };
+        }
+      });
+
+      vp.addEventListener('pointermove', (e) => {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pinch && pointers.size >= 2) {
+          const pts = Array.from(pointers.values());
+          const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+          zoomAt(pinch.x, pinch.y, pinch.scale * (dist / pinch.dist));
+          e.preventDefault();
+          return;
+        }
+        if (panDrag && panDrag.id === e.pointerId && scale > 1.02 && mode === 'pan') {
+          vp.scrollLeft = panDrag.sl - (e.clientX - panDrag.x);
+          vp.scrollTop = panDrag.st - (e.clientY - panDrag.y);
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      function endPointer(e) {
+        const start = swipe && swipe.id === e.pointerId ? swipe : null;
+        pointers.delete(e.pointerId);
+        if (pointers.size < 2) pinch = null;
+        if (panDrag && panDrag.id === e.pointerId) panDrag = null;
+        swipe = null;
+        if (!start || mode !== 'pan' || scale > 1.05) return;
+        const dx = e.clientX - start.x;
+        const dy = e.clientY - start.y;
+        if (Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+          const now = Date.now();
+          if (now - lastTap < 280) {
+            lastTap = 0;
+            if (scale > 1.05) setScale(1);
+            else zoomAt(e.clientX, e.clientY, 2.5);
+          } else {
+            lastTap = now;
+          }
+          return;
+        }
+        if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        show(index + (dx < 0 ? 1 : -1));
+      }
+
+      vp.addEventListener('pointerup', endPointer);
+      vp.addEventListener('pointercancel', endPointer);
+
+      vp.addEventListener('wheel', (e) => {
+        if (typingTarget(e.target)) return;
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+        zoomAt(e.clientX, e.clientY, scale * factor);
+      }, { passive: false });
+
+      ink.addEventListener('pointerdown', onInkDown);
+      ink.addEventListener('pointermove', onInkMove);
+      ink.addEventListener('pointerup', onInkUp);
+      ink.addEventListener('pointercancel', onInkUp);
+      cropBox.addEventListener('pointerdown', onCropDown);
+      cropBox.addEventListener('pointermove', onCropMove);
+      cropBox.addEventListener('pointerup', () => { cropDrag = null; });
+
+      film.addEventListener('click', (e) => {
+        const btn = e.target.closest('.thumb');
+        if (!btn) return;
+        show(Number(btn.dataset.i));
+      });
+
+      document.getElementById('prevBtn').addEventListener('click', () => show(index - 1));
+      document.getElementById('nextBtn').addEventListener('click', () => show(index + 1));
+      playBtn.addEventListener('click', () => setPlaying(!playing));
+      document.getElementById('zoomOutBtn').addEventListener('click', () => setScale(scale / 1.25));
+      document.getElementById('zoomInBtn').addEventListener('click', () => setScale(scale * 1.25));
+      document.getElementById('rotateBtn').addEventListener('click', () => {
+        if (!photo.naturalWidth) return;
+        replaceWith(compositeCanvas({ rotate: 90 })).catch((err) => say(err.message || 'Rotate failed'));
+      });
+      document.getElementById('panBtn').addEventListener('click', () => setMode('pan'));
+      document.getElementById('drawBtn').addEventListener('click', () => setMode('draw'));
+      document.getElementById('arrowBtn').addEventListener('click', () => setMode('arrow'));
+      document.getElementById('textBtn').addEventListener('click', () => setMode('text'));
+      document.getElementById('cropBtn').addEventListener('click', () => setMode('crop'));
+      document.getElementById('undoBtn').addEventListener('click', () => {
+        bag().strokes.pop();
+        paint();
+      });
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        bag().strokes = [];
+        draft = null;
+        paint();
+      });
+      document.getElementById('originalBtn').addEventListener('click', () => {
+        const row = bag();
+        if (row.sessionUrl) URL.revokeObjectURL(row.sessionUrl);
+        row.sessionUrl = null;
+        row.strokes = [];
+        draft = null;
+        setMode('pan');
+        show(index);
+      });
+      document.getElementById('tools').addEventListener('click', () => {
+        if (playing) setPlaying(false);
+      });
+      document.getElementById('saveBtn').addEventListener('click', () => savePhoto());
+      document.getElementById('shareBtn').addEventListener('click', () => sharePhoto());
+      document.getElementById('sendBtn').addEventListener('click', () => sendLink());
+      document.getElementById('cropCancel').addEventListener('click', () => setMode('pan'));
+      document.getElementById('cropApply').addEventListener('click', () => {
+        if (!photo.naturalWidth) return;
+        const crop = {
+          x: cropFrac.x * photo.naturalWidth,
+          y: cropFrac.y * photo.naturalHeight,
+          w: cropFrac.w * photo.naturalWidth,
+          h: cropFrac.h * photo.naturalHeight,
+        };
+        setMode('pan');
+        replaceWith(compositeCanvas({ crop })).catch((err) => say(err.message || 'Crop failed'));
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (typingTarget(e.target)) {
+          if (e.key === 'Escape') e.target.blur();
+          return;
+        }
+        if (e.key === 'ArrowLeft') show(index - 1);
+        else if (e.key === 'ArrowRight') show(index + 1);
+        else if (e.key === '+' || e.key === '=') setScale(scale * 1.25);
+        else if (e.key === '-' || e.key === '_') setScale(scale / 1.25);
+        else if (e.key === '0') setScale(1);
+        else if (e.key === 'r' || e.key === 'R') document.getElementById('rotateBtn').click();
+        else if (e.key === ' ') { e.preventDefault(); setPlaying(!playing); }
+        else if (e.key === 'Escape') setMode('pan');
+      });
+
+      window.addEventListener('resize', () => layout());
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && playing) setPlaying(false);
+      });
+
+      renderFilm();
+      show(0);
+    }());
+  </script>
+</body>
+</html>
