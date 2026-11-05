@@ -25,7 +25,13 @@
    "url": "Kompass/Period 11 - 11.8.2026 to 12.5.2026/P11W1 - 11.8.2026 to 11.14.2026/P11W1 Weekly Briefing.url"
   }
  },
- "finishedAt": "2026-11-05T21:52:55Z",
- "ok": true,
- "seconds": 103.1
+ "finishedAt": "2026-11-05T21:53:44Z",
+ "ok": false,
+ "seconds": 151.7,
+ "commit": "6e70c4b0575406ee652575b0f79dff4e02d0d733",
+ "registered": {
+  "week": "P11W1",
+  "questions": 14
+ },
+ "error": "RuntimeError: eod-api /notify: 502 {'ok': False, 'sms': {'ok': False, 'error': 'SMS outbox is not configured.'}, 'email': {'ok': True, 'id': '01a1adb4-1c61-791e-98b5-d148b657005c', 'to': ['tyson.gauthier@retailodyssey.com']}}"
 }
