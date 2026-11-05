@@ -2,7 +2,7 @@
 
 ## 2026-11-05 — FM 682 wet wall photo board
 
-Public page at `/682-wet-wall/`. Fifteen produce wet-wall photos, no sign-in. Slideshow, filmstrip, pinch and wheel zoom, rotate, draw, arrow, note, crop, save, share, and send. Marks stay in the browser. Send shares the page link. The page is not a hub card.
+Public page at `/682-wet-wall/`. Fifteen produce wet-wall photos, no sign-in. Slideshow, filmstrip, pinch and wheel zoom, rotate, draw, arrow, note, crop, save, share, and send. Marks stay in the browser. Send shares the page link. The page is not a hub card. Opens and actions post to `/api/wet-wall`. `?stats=1` shows the tally. The count stays empty until the eod-api route is deployed.
 
 ## 2026-11-05 — Employee Board time off, one row per person
 

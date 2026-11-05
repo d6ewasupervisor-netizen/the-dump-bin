@@ -224,6 +224,25 @@
     .handle[data-handle="s"] { left: 50%; bottom: -22px; margin-left: -22px; cursor: ns-resize; }
     .handle[data-handle="w"] { left: -22px; top: 50%; margin-top: -22px; cursor: ew-resize; }
     .handle[data-handle="e"] { right: -22px; top: 50%; margin-top: -22px; cursor: ew-resize; }
+    #stats[hidden] { display: none !important; }
+    #stats {
+      position: fixed;
+      z-index: 6;
+      top: calc(8px + var(--safe-t));
+      right: 8px;
+      width: min(360px, calc(100vw - 16px));
+      max-height: 46vh;
+      overflow: auto;
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.4;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+    }
+    #stats strong { display: block; margin-bottom: 6px; }
     .toast {
       position: fixed;
       left: 50%;
@@ -343,6 +362,7 @@
     </div>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div id="stats" hidden></div>
   <script>
     (function () {
       'use strict';
@@ -379,6 +399,94 @@
       let lastTap = 0;
       const MIN_ZOOM = 1;
       const MAX_ZOOM = 6;
+      const TRACK = 'https://eod-api.the-dump-bin.com/api/wet-wall';
+      const trackOnce = new Set(['zoom', 'draw', 'arrow', 'note']);
+      const trackSeen = new Set();
+      const trackQueue = [];
+      let trackTimer = 0;
+
+      function trackSession() {
+        const key = 'ww-sid';
+        let id = sessionStorage.getItem(key);
+        if (!id) {
+          id = (crypto.randomUUID && crypto.randomUUID()) || '';
+          if (id) sessionStorage.setItem(key, id);
+        }
+        return id;
+      }
+
+      function trackSend(path, body) {
+        fetch(TRACK + path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          keepalive: true,
+          mode: 'cors',
+        }).catch(() => {});
+      }
+
+      function trackFlush() {
+        clearTimeout(trackTimer);
+        if (!trackQueue.length) return;
+        const session = trackSession();
+        if (!session) return;
+        const events = trackQueue.splice(0, 30);
+        trackSend('/events', { session, events });
+      }
+
+      function track(name) {
+        const photo = photos[index];
+        if (name === 'photo') {
+          const prev = trackQueue.filter((ev) => ev.name === 'photo').pop();
+          if (prev && prev.photo === photo) return;
+        } else if (trackOnce.has(name)) {
+          const key = name + ':' + photo;
+          if (trackSeen.has(key)) return;
+          trackSeen.add(key);
+        }
+        trackQueue.push({ name, photo });
+        clearTimeout(trackTimer);
+        trackTimer = setTimeout(trackFlush, 500);
+      }
+
+      function openVisit() {
+        const session = trackSession();
+        if (!session) return;
+        trackSend('/visit', { session });
+      }
+
+      function esc(text) {
+        return String(text || '').replace(/[&<>"]/g, (ch) => (
+          { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]
+        ));
+      }
+
+      function loadStats() {
+        const panel = document.getElementById('stats');
+        if (!panel || new URLSearchParams(location.search).get('stats') !== '1') return;
+        panel.hidden = false;
+        fetch(TRACK + '/stats', { mode: 'cors' })
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data || !data.ok) return;
+            const lines = (data.recent || []).map((visit) => {
+              if (visit.seeded) return 'Earlier — opened. Actions were not recorded.';
+              const when = new Date(visit.at).toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              });
+              const acts = (visit.actions || []).map((ev) => (
+                ev.photo ? ev.name + ' ' + ev.photo : ev.name
+              )).join(', ');
+              return when + ' — ' + (acts || 'opened');
+            });
+            panel.innerHTML = '<strong>' + data.visits + ' visits</strong>' + lines.map(esc).join('<br>');
+          })
+          .catch(() => {});
+      }
 
       function bag(id) {
         const key = id || photos[index];
@@ -499,7 +607,9 @@
       }
 
       function setScale(next, anchor) {
+        const prev = scale;
         scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+        if (scale > prev + 0.04 && scale > 1.02) track('zoom');
         layout(anchor || null);
       }
 
@@ -606,6 +716,7 @@
           if (gen === loadGen) say('Photo failed to load');
         };
         im.src = srcFor(id);
+        track('photo');
       }
 
       function armPlay() {
@@ -619,6 +730,7 @@
         playBtn.textContent = on ? '❚❚' : '▶';
         playBtn.setAttribute('aria-label', on ? 'Pause slideshow' : 'Play slideshow');
         clearInterval(playTimer);
+        track(on ? 'play' : 'pause');
         if (on) armPlay();
       }
 
@@ -708,6 +820,7 @@
       async function savePhoto() {
         try {
           downloadBlob(await exportJpeg(), fileName());
+          track('save');
         } catch (err) {
           say(err.message || 'Save failed');
         }
@@ -719,9 +832,11 @@
           const file = new File([blob], fileName(), { type: 'image/jpeg' });
           if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
             await navigator.share({ files: [file], title: 'FM 682 wet wall' });
+            track('share');
             return;
           }
           downloadBlob(blob, fileName());
+          track('share');
         } catch (err) {
           if (err && err.name === 'AbortError') return;
           say(err.message || 'Share failed');
@@ -737,6 +852,7 @@
         try {
           if (navigator.share) {
             await navigator.share(payload);
+            track('send');
             return;
           }
         } catch (err) {
@@ -744,6 +860,7 @@
         }
         try {
           await navigator.clipboard.writeText(location.href);
+          track('send');
           say('Link copied');
         } catch {
           say('Could not copy the link');
@@ -777,12 +894,16 @@
         const stroke = draft;
         draft = null;
         if (stroke.type === 'text') {
-          if (!stroke.moved && stroke.text) bag().strokes.push(stroke);
+          if (!stroke.moved && stroke.text) {
+            bag().strokes.push(stroke);
+            track('note');
+          }
           paint();
           return;
         }
         if (stroke.type === 'draw' && stroke.points.length < 2) { paint(); return; }
         bag().strokes.push(stroke);
+        if (stroke.type === 'draw' || stroke.type === 'arrow') track(stroke.type);
         paint();
       }
 
@@ -920,7 +1041,7 @@
       document.getElementById('zoomInBtn').addEventListener('click', () => setScale(scale * 1.25));
       document.getElementById('rotateBtn').addEventListener('click', () => {
         if (!photo.naturalWidth) return;
-        replaceWith(compositeCanvas({ rotate: 90 })).catch((err) => say(err.message || 'Rotate failed'));
+        replaceWith(compositeCanvas({ rotate: 90 })).then(() => track('rotate')).catch((err) => say(err.message || 'Rotate failed'));
       });
       document.getElementById('panBtn').addEventListener('click', () => setMode('pan'));
       document.getElementById('drawBtn').addEventListener('click', () => setMode('draw'));
@@ -943,6 +1064,7 @@
         row.strokes = [];
         draft = null;
         setMode('pan');
+        track('original');
         show(index);
       });
       document.getElementById('tools').addEventListener('click', () => {
@@ -961,7 +1083,7 @@
           h: cropFrac.h * photo.naturalHeight,
         };
         setMode('pan');
-        replaceWith(compositeCanvas({ crop })).catch((err) => say(err.message || 'Crop failed'));
+        replaceWith(compositeCanvas({ crop })).then(() => track('crop')).catch((err) => say(err.message || 'Crop failed'));
       });
 
       window.addEventListener('keydown', (e) => {
@@ -981,10 +1103,16 @@
 
       window.addEventListener('resize', () => layout());
       document.addEventListener('visibilitychange', () => {
-        if (document.hidden && playing) setPlaying(false);
+        if (document.hidden) {
+          if (playing) setPlaying(false);
+          trackFlush();
+        }
       });
+      window.addEventListener('pagehide', () => trackFlush());
 
       renderFilm();
+      openVisit();
+      loadStats();
       show(0);
     }());
   </script>
