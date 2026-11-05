@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.26';
+  const UI_VERSION = 'v2.27';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2167,7 +2167,7 @@
     }
   }
 
-  const ptoState = { items: [], selectedId: null };
+  const ptoState = { items: [], people: [], selectedId: null, year: null };
 
   function renderPtoSteps(steps) {
     const host = document.getElementById('ptoSteps');
@@ -2233,27 +2233,27 @@
     return !!(item && (item.status === 'built' || item.visitId));
   }
 
+  function ptoHoursLabel(hours) {
+    const n = Number(hours);
+    if (!Number.isFinite(n)) return '';
+    return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+  }
+
   function renderPtoRows() {
     const body = document.getElementById('ptoRows');
     if (!body) return;
-    if (!ptoState.items.length) {
-      body.innerHTML = '<tr><td colspan="6" class="wb-muted">No time off requests.</td></tr>';
+    const people = ptoState.people || [];
+    if (!people.length) {
+      body.innerHTML = '<tr><td colspan="4" class="wb-muted">No time off requests this year.</td></tr>';
       return;
     }
-    body.innerHTML = ptoState.items.map((item) => {
-      const built = ptoIsBuilt(item)
-        ? ptoYes(true)
-        : `<span class="wb-muted">${escapeHtml(item.status)}</span>`;
-      return `
-      <tr data-pto-id="${escapeHtml(item.id)}" style="cursor:pointer;">
-        <td>${escapeHtml(item.employeeName)}</td>
-        <td>${escapeHtml(item.absenceType)}</td>
-        <td>${escapeHtml(ptoDates(item))}</td>
-        <td>${escapeHtml(String(item.hours))}</td>
-        <td>${built}</td>
-        <td>${ptoYes(!!item.ranAt)}</td>
-      </tr>`;
-    }).join('');
+    body.innerHTML = people.map((person) => `
+      <tr class="${person.open ? 'wb-pto-open' : ''}" data-pto-id="${escapeHtml(person.actionableId || person.latestId)}" style="cursor:pointer;">
+        <td class="wb-pto-name">${escapeHtml(person.employeeName)}</td>
+        <td>${escapeHtml(person.latestDate || '')}</td>
+        <td>${escapeHtml(String(person.days))}</td>
+        <td>${escapeHtml(ptoHoursLabel(person.hours))}</td>
+      </tr>`).join('');
     body.querySelectorAll('tr[data-pto-id]').forEach((row) => {
       row.addEventListener('click', () => {
         openPto(row.getAttribute('data-pto-id')).catch((err) => showPtoBanner(err.message, false));
@@ -2274,10 +2274,14 @@
       : '';
     const ran = item.ranAt ? ' Ran.' : '';
     const err = !ptoIsBuilt(item) && item.buildError ? ` ${item.buildError}` : '';
+    const oracle = item.oracleStatus
+      ? ` Oracle ${item.oracleStatus}.`
+      : ' Oracle has not been decided.';
+    const oracleErr = item.oracleError ? ` ${item.oracleError}` : '';
     document.getElementById('ptoDetailMeta').textContent =
-      `${item.absenceType} · ${ptoDates(item)}${clock ? ` · ${clock}` : ''} · ${item.hours} hours.${built}${ran}${err}`;
+      `${item.absenceType} · ${ptoDates(item)}${clock ? ` · ${clock}` : ''} · ${item.hours} hours.${oracle}${oracleErr}${built}${ran}${err}`;
     const buildBtn = document.getElementById('ptoBuild');
-    if (buildBtn) buildBtn.hidden = !!item.ranAt;
+    if (buildBtn) buildBtn.hidden = item.oracleStatus !== 'approved' || !!item.ranAt;
     document.getElementById('ptoNote').value = item.decisionNote || '';
     document.getElementById('ptoActionStatus').textContent = '';
     const log = await api(`/api/pto/log?requestId=${encodeURIComponent(id)}`);
@@ -2292,8 +2296,20 @@
 
   async function loadPto() {
     const data = await api('/api/pto');
+    ptoState.year = data.year || null;
     ptoState.items = data.items || [];
+    ptoState.people = data.people || [];
     renderPtoRows();
+    let sessionNote = '';
+    try {
+      const session = await api('/api/pto/session');
+      if (!session.signedIn) {
+        sessionNote = 'Oracle session is not on the server. Open Oracle in Chrome with the automator running, then pull again.';
+      }
+    } catch (err) {
+      sessionNote = err.message;
+    }
+    if (sessionNote) showPtoBanner(sessionNote, false);
     if (ptoState.selectedId && ptoState.items.some((row) => row.id === ptoState.selectedId)) {
       await openPto(ptoState.selectedId);
     }
@@ -2803,6 +2819,20 @@
     const ptoRefresh = document.getElementById('ptoRefresh');
     if (ptoRefresh) ptoRefresh.addEventListener('click', () => {
       loadPto().catch((err) => showPtoBanner(err.message, false));
+    });
+    const ptoPull = document.getElementById('ptoPull');
+    if (ptoPull) ptoPull.addEventListener('click', () => {
+      ptoPull.disabled = true;
+      api('/api/pto/pull', { method: 'POST', body: '{}' })
+        .then(async (result) => {
+          await loadPto();
+          showPtoBanner(
+            `Oracle: ${result.seen || 0} open, ${result.created || 0} new, ${result.updated || 0} updated.`,
+            true,
+          );
+        })
+        .catch((err) => showPtoBanner(err.message, false))
+        .finally(() => { ptoPull.disabled = false; });
     });
     const ptoApprove = document.getElementById('ptoApprove');
     const ptoDeny = document.getElementById('ptoDeny');

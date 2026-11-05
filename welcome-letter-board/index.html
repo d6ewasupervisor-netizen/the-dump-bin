@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.26 -->
+  <!-- welcome-letter-board v2.27 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.26">
+  <meta name="welcome-letter-version" content="v2.27">
   <title>Employee Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -163,6 +163,7 @@
     .wb-badge-opened { background: var(--wb-sky-tint); color: var(--wb-sky); }
     .wb-badge-not-opened { background: #EEF1F4; color: var(--wb-muted); }
     .wb-badge-cancelled { background: #EEF1F4; color: #5A6B7D; text-decoration: line-through; }
+    .wb-pto-open .wb-pto-name { background: #FFF4CC; font-weight: 700; }
 
     .wb-version {
       position: fixed;
@@ -738,6 +739,7 @@
           <div>
             <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">Time off</h2>
           </div>
+          <button type="button" id="ptoPull" class="wb-btn wb-btn-ghost">Pull Oracle</button>
           <button type="button" id="ptoRefresh" class="wb-btn wb-btn-ghost">Refresh</button>
         </div>
         <div id="ptoBanner" class="wb-banner wb-hidden"></div>
@@ -746,15 +748,13 @@
             <thead>
               <tr>
                 <th>Employee</th>
-                <th>Type</th>
-                <th>Dates</th>
-                <th>Hours</th>
-                <th>Built</th>
-                <th>Ran</th>
+                <th>Latest date</th>
+                <th>Days this year</th>
+                <th>Hours this year</th>
               </tr>
             </thead>
             <tbody id="ptoRows">
-              <tr><td colspan="6" class="wb-muted">Loading…</td></tr>
+              <tr><td colspan="4" class="wb-muted">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -764,8 +764,8 @@
           <label class="wb-muted" for="ptoNote" style="display:block;margin-bottom:6px;">Note</label>
           <textarea id="ptoNote" style="width:100%;min-height:64px;margin-bottom:12px;"></textarea>
           <div class="wb-actions">
-            <button type="button" id="ptoApprove" class="wb-btn wb-btn-primary">Approve</button>
-            <button type="button" id="ptoDeny" class="wb-btn wb-btn-ghost">Deny</button>
+            <button type="button" id="ptoApprove" class="wb-btn wb-btn-primary">Approve in Oracle</button>
+            <button type="button" id="ptoDeny" class="wb-btn wb-btn-ghost">Reject in Oracle</button>
             <button type="button" id="ptoBuild" class="wb-btn wb-btn-primary">Build and run</button>
           </div>
           <p id="ptoActionStatus" class="wb-muted" style="margin:12px 0 0;"></p>
@@ -1014,8 +1014,8 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.26</span>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.27</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.26"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.27"></script>
 </body>
 </html>

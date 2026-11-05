@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-05 — Employee Board time off, one row per person
+
+`welcome-letter-board` v2.27 lists one person per row for the current year: latest date, days, hours. A name that still needs Oracle approval or a build is highlighted. Approve in Oracle and Reject in Oracle run before Build and run. Pull Oracle reads the worklist. Alexandra's 2026-11-04 floating holiday shows closed once eod-api migration 197 is live.
+
 ## 2026-11-04 — Employee Board shift management tab
 
 `welcome-letter-board` v2.25 adds Shift management: add or remove, shift type, lead, stores, dates, people as rep or lead, preview, and a period-template checkbox. Not published. The API and the local template route are not live yet.
