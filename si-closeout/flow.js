@@ -433,7 +433,14 @@
   }
 
   function onComposerSend(text) {
-    if (phase === 'close') return false;
+    if (phase === 'close') {
+      var closeRaw = String(text || '').trim();
+      if (/^\d{1,4}$/.test(closeRaw)) {
+        localLine('Close SI needs the store and a dbkey. A store number alone was not sent.', 'TRUTH');
+        return true;
+      }
+      return false;
+    }
     var raw = String(text || '').trim();
     if (phase !== 'store') {
       if (/^\d{1,4}$/.test(raw) && raw !== '0') {
@@ -483,6 +490,15 @@
       if (storeNumber && !msgInput.value.trim()) msgInput.value = storeNumber + ', ';
       msgInput.focus();
     }
+    var back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'choice-btn';
+    back.textContent = 'Back';
+    back.addEventListener('click', function () {
+      if (storeNumber) showChoices('Store ' + storeNumber + ' found. What would you like to do?');
+      else askStore();
+    });
+    if (dock) dock.appendChild(back);
   }
 
   var attached = false;
