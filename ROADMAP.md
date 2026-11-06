@@ -1,6 +1,6 @@
 # Roadmap
 
-- SI closeout menu (`si-closeout/`, branch `feat/si-closeout-actions`): publish with the eod-api deploy of the same branch. Until both are live, the page still only does store-and-dbkey closeout, and the badge link 404s.
+- SI closeout menu (`si-closeout/`): this commit is the Pages publish. The new buttons need the matching eod-api deploy.
 
 - FM 682 wet wall (`/682-wet-wall/`) is a public unlisted page. It is not a hub card.
 

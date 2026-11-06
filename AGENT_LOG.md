@@ -2,7 +2,7 @@
 
 ## 2026-11-05 — SI closeout menu
 
-`/si-closeout/` asks for the store before anything else. The choices are Kompass carry forward, Sync PROD with SI, and Join the resistance. Close SI stays at the bottom and still sends `store, dbkey`. The wizard is on this page only. The work runs on eod-api `feat/si-closeout-actions`. Not published. The badge image is `si-closeout/systemic-incompetence-badge.jpg`.
+`/si-closeout/` asks for the store before anything else. The choices are Kompass carry forward, Sync PROD with SI, and Join the resistance. Close SI stays at the bottom and still sends `store, dbkey`. The wizard is on this page only. This commit is the Pages publish. The badge image is `si-closeout/systemic-incompetence-badge.jpg`.
 
 ## 2026-11-05 — FM 682 wet wall photo board
 
