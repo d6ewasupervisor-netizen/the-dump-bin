@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-06 — Close SI accepts a store alone
+
+Close SI sends a store number with no dbkey. The page no longer stops that line.
+
 ## 2026-11-06 — Employee Board menus, letters, and the working mark
 
 Employee Board v2.29. Time off opens each request under the person's name. Shift management picks an employee from the roster, then shows the change or applies it. The first-days letter and a Pathways reminder can be edited before they send. A course check writes into its own box. A name with a course still due is marked Still due. Any request shows the small Retail Odyssey buffering mark. Not published.

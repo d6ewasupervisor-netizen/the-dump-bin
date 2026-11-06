@@ -433,14 +433,7 @@
   }
 
   function onComposerSend(text) {
-    if (phase === 'close') {
-      var closeRaw = String(text || '').trim();
-      if (/^\d{1,4}$/.test(closeRaw)) {
-        localLine('Close SI needs the store and a dbkey. A store number alone was not sent.', 'TRUTH');
-        return true;
-      }
-      return false;
-    }
+    if (phase === 'close') return false;
     var raw = String(text || '').trim();
     if (phase !== 'store') {
       if (/^\d{1,4}$/.test(raw) && raw !== '0') {
@@ -484,10 +477,10 @@
     setMode('close');
     clearDock();
     localLine(storeNumber
-      ? ('Close SI for store ' + storeNumber + '. Send the store and dbkey.')
-      : 'Close SI. Send the store and dbkey.');
+      ? ('Close SI for store ' + storeNumber + '.')
+      : 'Close SI.');
     if (msgInput) {
-      if (storeNumber && !msgInput.value.trim()) msgInput.value = storeNumber + ', ';
+      if (storeNumber && !msgInput.value.trim()) msgInput.value = String(storeNumber);
       msgInput.focus();
     }
     var back = document.createElement('button');
