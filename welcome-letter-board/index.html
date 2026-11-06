@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.27 -->
+  <!-- welcome-letter-board v2.28 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="welcome-letter-version" content="v2.27">
   <title>Employee Board — The Dump Bin</title>
@@ -264,6 +264,17 @@
 
     .wb-hidden { display: none !important; }
 
+    .pw-person { border-top: 1px solid var(--wb-line); padding: 12px 0; }
+    .pw-courses { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0 28px; }
+    .pw-course, .pw-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      min-height: 44px; padding: 8px 12px; border-radius: 10px;
+      border: 1px solid var(--wb-line); background: var(--wb-white);
+    }
+    .pw-chip { cursor: pointer; font-weight: 700; }
+    .pw-chip.on { background: var(--wb-navy); color: #fff; }
+    .pw-status { margin-top: 12px; }
+
     .wb-tabs {
       display: flex;
       flex-wrap: wrap;
@@ -406,6 +417,7 @@
       <button type="button" class="wb-tab" id="tabShifts" role="tab" aria-selected="false" aria-controls="panelShifts">Shift management</button>
       <button type="button" class="wb-tab" id="tabPast" role="tab" aria-selected="false" aria-controls="panelPast">Past employees</button>
       <button type="button" class="wb-tab" id="tabPto" role="tab" aria-selected="false" aria-controls="panelPto">PTO</button>
+      <button type="button" class="wb-tab" id="tabPathways" role="tab" aria-selected="false" aria-controls="panelPathways">Pathways</button>
       <button type="button" class="wb-tab" id="tabReferrals" role="tab" aria-selected="false" aria-controls="panelReferrals">Referrals</button>
     </div>
 
@@ -733,6 +745,25 @@
       </section>
     </div>
 
+    <div id="panelPathways" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <div class="wb-head" style="margin-bottom:12px;">
+          <div>
+            <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">Pathways</h2>
+          </div>
+          <div class="wb-actions">
+            <a href="/pathways/" class="wb-btn wb-btn-ghost">Payouts</a>
+            <button type="button" id="pathwaysPull" class="wb-btn wb-btn-ghost">Pull now</button>
+            <button type="button" id="pathwaysSend" class="wb-btn wb-btn-primary">Send reminders</button>
+          </div>
+        </div>
+        <div id="pathwaysStatus" class="pw-status wb-muted"></div>
+        <div id="pathwaysLog" class="wb-muted" hidden></div>
+        <div id="pathwaysCourses" class="pw-courses"></div>
+        <div id="pathwaysPeople"></div>
+      </section>
+    </div>
+
     <div id="panelPto" class="wb-hidden" hidden>
       <section class="wb-card">
         <div class="wb-head" style="margin-bottom:12px;">
@@ -1016,6 +1047,7 @@
 
   <span class="wb-version" id="wbVersion" title="Employee Board version">v2.27</span>
 
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.27"></script>
+  <script src="/welcome-letter-board/assets/pathways-panel.js?v=1"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.28"></script>
 </body>
 </html>

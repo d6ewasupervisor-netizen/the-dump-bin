@@ -2747,13 +2747,14 @@
   }
 
   function switchMainTab(name, { pushUrl = true } = {}) {
-    const tab = name === 'referrals' || name === 'pto' || name === 'past' || name === 'chat' || name === 'shifts' ? name : 'board';
+    const tab = name === 'referrals' || name === 'pto' || name === 'past' || name === 'chat' || name === 'shifts' || name === 'pathways' ? name : 'board';
     setPanel(document.getElementById('panelBoard'), tab === 'board');
     setPanel(document.getElementById('panelChat'), tab === 'chat');
     setPanel(document.getElementById('panelShifts'), tab === 'shifts');
     setPanel(document.getElementById('panelPast'), tab === 'past');
     setPanel(document.getElementById('panelReferrals'), tab === 'referrals');
     setPanel(document.getElementById('panelPto'), tab === 'pto');
+    setPanel(document.getElementById('panelPathways'), tab === 'pathways');
     const boardActions = document.getElementById('boardActions');
     if (boardActions) boardActions.classList.toggle('wb-hidden', tab !== 'board');
     [
@@ -2762,6 +2763,7 @@
       ['tabShifts', 'shifts'],
       ['tabPast', 'past'],
       ['tabPto', 'pto'],
+      ['tabPathways', 'pathways'],
       ['tabReferrals', 'referrals'],
     ].forEach(([id, key]) => {
       const el = document.getElementById(id);
@@ -2794,6 +2796,7 @@
       loadPto().catch((err) => showPtoBanner(err.message, false));
     }
     if (tab === 'shifts') initShiftPanel();
+    if (tab === 'pathways' && window.PathwaysPanel) window.PathwaysPanel.open();
   }
 
   function initReferrals() {
@@ -2801,6 +2804,7 @@
     const chatTab = document.getElementById('tabChat');
     const shiftsTab = document.getElementById('tabShifts');
     const ptoTab = document.getElementById('tabPto');
+    const pathwaysTab = document.getElementById('tabPathways');
     const referralTab = document.getElementById('tabReferrals');
     const pastTab = document.getElementById('tabPast');
     if (boardTab) boardTab.addEventListener('click', () => switchMainTab('board'));
@@ -2808,6 +2812,7 @@
     if (shiftsTab) shiftsTab.addEventListener('click', () => switchMainTab('shifts'));
     if (pastTab) pastTab.addEventListener('click', () => switchMainTab('past'));
     if (ptoTab) ptoTab.addEventListener('click', () => switchMainTab('pto'));
+    if (pathwaysTab) pathwaysTab.addEventListener('click', () => switchMainTab('pathways'));
     if (referralTab) referralTab.addEventListener('click', () => switchMainTab('referrals'));
     const pastRefresh = document.getElementById('pastRefresh');
     if (pastRefresh) pastRefresh.addEventListener('click', () => {
@@ -2881,6 +2886,8 @@
       switchMainTab('past', { pushUrl: false });
     } else if (tab === 'pto') {
       switchMainTab('pto', { pushUrl: false });
+    } else if (tab === 'pathways') {
+      switchMainTab('pathways', { pushUrl: false });
     } else if (tab === 'chat') {
       switchMainTab('chat', { pushUrl: false });
     } else if (tab === 'shifts') {

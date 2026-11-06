@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-06 — Pathways on the Employee Board
+
+Employee Board v2.28 adds a Pathways tab next to PTO. Open required courses can be checked per person, or a course name selects that course for the group. Send reminders calls `POST /api/pathways/remind`. Payouts stay on `/pathways/`.
+
 ## 2026-11-05 — SI closeout menu
 
 `/si-closeout/` asks for the store before anything else. The choices are Kompass carry forward, Sync PROD with SI, and Join the resistance. Close SI stays at the bottom and still sends `store, dbkey`. The wizard is on this page only. This commit is the Pages publish. The badge image is `si-closeout/systemic-incompetence-badge.jpg`.
