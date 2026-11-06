@@ -1,5 +1,7 @@
 # Roadmap
 
+- Employee Board v2.29 is on `feat/employee-board-menus`. It needs a Pages publish, and the shift tools need the eod-api branch `feat/employee-board-tools` on production before Show what will change can reach PROD.
+
 - SI closeout menu (`si-closeout/`): this commit is the Pages publish. The new buttons need the matching eod-api deploy.
 
 - FM 682 wet wall (`/682-wet-wall/`) is a public unlisted page. It is not a hub card.

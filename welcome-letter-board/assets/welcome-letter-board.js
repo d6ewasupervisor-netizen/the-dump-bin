@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.27';
+  const UI_VERSION = 'v2.29';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -50,27 +50,48 @@
     }
   }
 
+  let busyCount = 0;
+
+  function showBusy(on) {
+    busyCount += on ? 1 : -1;
+    if (busyCount < 0) busyCount = 0;
+    const el = document.getElementById('wbBusy');
+    if (!el) return;
+    el.hidden = busyCount === 0;
+    el.setAttribute('aria-busy', busyCount ? 'true' : 'false');
+  }
+
+  window.EmployeeBoardBusy = {
+    start() { showBusy(true); },
+    stop() { showBusy(false); },
+  };
+
   async function api(path, options = {}) {
     const fetchFn = window.dumpBinAuthFetch || fetch;
     const headers = {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     };
-    const res = await fetchFn(path, {
-      credentials: 'include',
-      ...options,
-      headers,
-    });
-    const text = await res.text();
-    let body = {};
-    try { body = text ? JSON.parse(text) : {}; } catch (_err) { body = { raw: text }; }
-    if (!res.ok) {
-      const err = new Error(body.error || body.message || `HTTP ${res.status}`);
-      err.steps = body.steps;
-      err.item = body.item;
-      throw err;
+    showBusy(true);
+    try {
+      const res = await fetchFn(path, {
+        credentials: 'include',
+        ...options,
+        headers,
+      });
+      const text = await res.text();
+      let body = {};
+      try { body = text ? JSON.parse(text) : {}; } catch (_err) { body = { raw: text }; }
+      if (!res.ok) {
+        const err = new Error(body.error || body.message || `HTTP ${res.status}`);
+        err.steps = body.steps;
+        err.item = body.item;
+        throw err;
+      }
+      return body;
+    } finally {
+      showBusy(false);
     }
-    return body;
   }
 
   function fmtDate(iso) {
@@ -1228,7 +1249,7 @@
       return;
     }
     btn.hidden = false;
-    btn.textContent = person.onLoa ? 'Clear LOA' : 'Mark LOA';
+    btn.textContent = person.onLoa ? 'Clear leave' : 'Mark leave';
     btn.dataset.on = person.onLoa ? '1' : '0';
     btn.dataset.id = String(person.employeeId);
     btn.dataset.name = person.preferredName || person.name || '';
@@ -1243,7 +1264,7 @@
       return;
     }
     tbody.innerHTML = items.map((emp) => `<tr data-id="${escapeHtml(emp.employeeId)}" class="${toneClass(emp.tone)}">
-      <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span>${emp.onLoa ? '<span class="wb-loa">LOA</span>' : ''}<a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
+      <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span>${emp.onLoa ? '<span class="wb-loa">On leave</span>' : ''}<a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">Open profile</a></span></td>
       <td>${escapeHtml(punchLabel(emp))}</td>
     </tr>`).join('');
     tbody.querySelectorAll('tr').forEach((tr) => {
@@ -2167,7 +2188,7 @@
     }
   }
 
-  const ptoState = { items: [], people: [], selectedId: null, year: null };
+  const ptoState = { items: [], people: [], selectedId: null, year: null, openKey: null };
 
   function renderPtoSteps(steps) {
     const host = document.getElementById('ptoSteps');
@@ -2239,26 +2260,81 @@
     return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
   }
 
+  function ptoRequestsFor(person) {
+    if (person && Array.isArray(person.requests) && person.requests.length) return person.requests;
+    const name = String(person && person.employeeName || '').trim().toLowerCase();
+    return (ptoState.items || []).filter((item) => String(item.employeeName || '').trim().toLowerCase() === name);
+  }
+
+  function ptoRequestState(item) {
+    if (!item) return '';
+    if (item.status === 'denied' || item.oracleStatus === 'rejected') return 'Denied';
+    if (item.ranAt) return 'Finished';
+    if (ptoIsBuilt(item)) return 'Shift created';
+    if (item.oracleStatus === 'approved') return 'Approved';
+    return 'Waiting for a decision';
+  }
+
+  function ptoRequestLabel(item) {
+    const when = item.startDate === item.endDate || !item.endDate
+      ? item.startDate
+      : `${item.startDate} – ${item.endDate}`;
+    return `${when} · ${item.absenceType || 'Time off'} · ${ptoHoursLabel(item.hours)} hours · ${ptoRequestState(item)}`;
+  }
+
+  function placePtoDetail() {
+    const detail = document.getElementById('ptoDetail');
+    if (!detail) return;
+    const person = (ptoState.people || []).find((row) => (
+      ptoRequestsFor(row).some((item) => item.id === ptoState.selectedId)
+    ));
+    const slot = person && document.querySelector(`[data-pto-slot="${CSS.escape(person.key)}"]`);
+    if (slot) slot.appendChild(detail);
+  }
+
+  function parkPtoDetail() {
+    const detail = document.getElementById('ptoDetail');
+    const park = document.getElementById('ptoDetailPark');
+    if (detail && park && detail.parentElement !== park) park.appendChild(detail);
+  }
+
   function renderPtoRows() {
     const body = document.getElementById('ptoRows');
     if (!body) return;
+    parkPtoDetail();
     const people = ptoState.people || [];
     if (!people.length) {
-      body.innerHTML = '<tr><td colspan="4" class="wb-muted">No time off requests this year.</td></tr>';
+      body.innerHTML = '<tr><td class="wb-muted">No time off requests this year.</td></tr>';
       return;
     }
-    body.innerHTML = people.map((person) => `
-      <tr class="${person.open ? 'wb-pto-open' : ''}" data-pto-id="${escapeHtml(person.actionableId || person.latestId)}" style="cursor:pointer;">
-        <td class="wb-pto-name">${escapeHtml(person.employeeName)}</td>
-        <td>${escapeHtml(person.latestDate || '')}</td>
-        <td>${escapeHtml(String(person.days))}</td>
-        <td>${escapeHtml(ptoHoursLabel(person.hours))}</td>
-      </tr>`).join('');
-    body.querySelectorAll('tr[data-pto-id]').forEach((row) => {
-      row.addEventListener('click', () => {
-        openPto(row.getAttribute('data-pto-id')).catch((err) => showPtoBanner(err.message, false));
+    body.innerHTML = people.map((person) => {
+      const open = ptoState.openKey === person.key;
+      const requests = ptoRequestsFor(person).map((item) => `
+        <button type="button" class="wb-subitem${item.id === ptoState.selectedId ? ' is-selected' : ''}" data-pto-id="${escapeHtml(item.id)}">${escapeHtml(ptoRequestLabel(item))}</button>`).join('');
+      return `<tr class="${person.open ? 'wb-pto-open' : ''}">
+        <td>
+          <button type="button" class="wb-menu-name${person.open ? ' is-behind' : ''}" data-pto-key="${escapeHtml(person.key)}">${escapeHtml(person.employeeName)}</button>
+          <span class="wb-muted"> ${escapeHtml(person.latestDate || '')} · ${escapeHtml(String(person.days))} days · ${escapeHtml(ptoHoursLabel(person.hours))} hours</span>
+          <div class="wb-submenu" data-pto-menu="${escapeHtml(person.key)}" ${open ? '' : 'hidden'}>
+            ${requests || '<p class="wb-muted">No requests on file.</p>'}
+            <div data-pto-slot="${escapeHtml(person.key)}"></div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    body.querySelectorAll('[data-pto-key]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-pto-key');
+        ptoState.openKey = ptoState.openKey === key ? null : key;
+        renderPtoRows();
       });
     });
+    body.querySelectorAll('[data-pto-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        openPto(btn.getAttribute('data-pto-id')).catch((err) => showPtoBanner(err.message, false));
+      });
+    });
+    placePtoDetail();
   }
 
   async function openPto(id) {
@@ -2266,20 +2342,17 @@
     const item = ptoState.items.find((row) => row.id === id);
     const detail = document.getElementById('ptoDetail');
     if (!item || !detail) return;
+    const person = (ptoState.people || []).find((row) => ptoRequestsFor(row).some((entry) => entry.id === id));
+    if (person) ptoState.openKey = person.key;
+    renderPtoRows();
     detail.hidden = false;
-    document.getElementById('ptoDetailTitle').textContent = item.employeeName;
+    document.getElementById('ptoDetailTitle').textContent = `${item.employeeName} · ${ptoRequestLabel(item)}`;
     const clock = [item.startTime, item.endTime].filter(Boolean).join(' – ');
-    const built = ptoIsBuilt(item)
-      ? ` Built${item.visitId ? `. Visit ${item.visitId}, shift ${item.shiftId}` : ''}.`
-      : '';
-    const ran = item.ranAt ? ' Ran.' : '';
+    const built = ptoIsBuilt(item) && item.visitId ? ` Shift number ${item.shiftId}.` : '';
     const err = !ptoIsBuilt(item) && item.buildError ? ` ${item.buildError}` : '';
-    const oracle = item.oracleStatus
-      ? ` Oracle ${item.oracleStatus}.`
-      : ' Oracle has not been decided.';
     const oracleErr = item.oracleError ? ` ${item.oracleError}` : '';
     document.getElementById('ptoDetailMeta').textContent =
-      `${item.absenceType} · ${ptoDates(item)}${clock ? ` · ${clock}` : ''} · ${item.hours} hours.${oracle}${oracleErr}${built}${ran}${err}`;
+      `${ptoRequestLabel(item)}${clock ? ` · ${clock}` : ''}.${built}${err}${oracleErr}`;
     const buildBtn = document.getElementById('ptoBuild');
     if (buildBtn) buildBtn.hidden = item.oracleStatus !== 'approved' || !!item.ranAt;
     document.getElementById('ptoNote').value = item.decisionNote || '';
@@ -2304,7 +2377,7 @@
     try {
       const session = await api('/api/pto/session');
       if (!session.signedIn) {
-        sessionNote = 'Oracle session is not on the server. Open Oracle in Chrome with the automator running, then pull again.';
+        sessionNote = 'The time-off system is not signed in on the server. Open it in Chrome with the automator running, then get new requests.';
       }
     } catch (err) {
       sessionNote = err.message;
@@ -2388,7 +2461,7 @@
       return;
     }
     tbody.innerHTML = items.map((emp) => `<tr class="${toneClass(emp.tone)}">
-      <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span><a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">view in prod</a></span></td>
+      <td><span class="wb-name-line"><span>${escapeHtml(emp.preferredName || emp.name)}</span><a class="wb-prod-link" href="${prodWorkforceUrl(emp.employeeId)}" target="_blank" rel="noopener">Open profile</a></span></td>
       <td>${escapeHtml(listText(emp.personalEmails) || '—')}</td>
       <td>${escapeHtml(listText(emp.workEmails) || '—')}</td>
       <td>${escapeHtml(phoneText(emp.phones) || '—')}</td>
@@ -2405,6 +2478,8 @@
     preview: null,
     template: null,
     ready: false,
+    roster: [],
+    letterText: '',
   };
 
   function selectedShiftType() {
@@ -2431,10 +2506,10 @@
       host.innerHTML = shiftState.people.map((person, index) => `<div style="display:flex;gap:8px;align-items:center;">
         <span>${escapeHtml(person.name)}</span>
         <select data-shift-role="${index}" style="font:inherit;padding:4px 8px;">
-          <option value="rep"${person.role === 'rep' ? ' selected' : ''}>Rep</option>
+          <option value="rep"${person.role === 'rep' ? ' selected' : ''}>On the crew</option>
           <option value="lead"${person.role === 'lead' ? ' selected' : ''}>Lead</option>
         </select>
-        <button type="button" class="wb-btn wb-btn-ghost" data-shift-drop="${index}">Remove</button>
+        <button type="button" class="wb-btn wb-btn-ghost" data-shift-drop="${index}">Take off</button>
       </div>`).join('');
       host.querySelectorAll('[data-shift-role]').forEach((select) => {
         select.addEventListener('change', () => {
@@ -2476,7 +2551,7 @@
     if (!host) return;
     const visits = (preview && preview.visits) || [];
     if (!visits.length) {
-      host.innerHTML = '<p class="wb-muted">No shifts match.</p>';
+      host.innerHTML = '<p class="wb-muted">No shifts match those choices.</p>';
       return;
     }
     const blocks = visits.map((visit) => {
@@ -2497,7 +2572,7 @@
       return `<div>${escapeHtml(row.name || row.emp || '')} · store ${escapeHtml(row.store || '')} · ${escapeHtml(row.date || '')} — ${escapeHtml(verb)}</div>`;
     }).join('');
     const templateBlock = template
-      ? `<h3 style="margin:14px 0 6px;color:var(--wb-navy);font-size:1rem;">Period template</h3>${templateLines || '<p class="wb-muted">No template rows.</p>'}`
+      ? `<h3 style="margin:14px 0 6px;color:var(--wb-navy);font-size:1rem;">Weekly template</h3>${templateLines || '<p class="wb-muted">Nothing to change on the weekly template.</p>'}`
       : '';
     host.innerHTML = blocks + templateBlock;
   }
@@ -2505,14 +2580,14 @@
   async function loadShiftCycles() {
     const host = document.getElementById('shiftCycles');
     if (!host) return;
-    host.innerHTML = '<span class="wb-muted">Loading cycles…</span>';
+    host.innerHTML = '<span class="wb-muted">Loading schedule weeks…</span>';
     const type = document.getElementById('shiftType').value;
     const data = await api(`/api/welcome-letter/shifts/cycles?shiftType=${encodeURIComponent(type)}`);
     const today = pacificTodayYmd();
     host.innerHTML = (data.cycles || []).map((cycle) => {
       const on = cycle.start && cycle.end && cycle.start <= today && today <= cycle.end;
       return `<label style="font-size:13px;"><input type="checkbox" value="${escapeHtml(cycle.id)}"${on ? ' checked' : ''}> ${escapeHtml(cycle.name || cycle.id)}</label>`;
-    }).join('') || '<span class="wb-muted">No active cycles.</span>';
+    }).join('') || '<span class="wb-muted">No open schedule weeks for this kind of work.</span>';
   }
 
   function shiftSearchList(host, people, onPick) {
@@ -2562,10 +2637,58 @@
     return data;
   }
 
+  function plainShiftError(err) {
+    const msg = (err && err.message) || 'That did not finish.';
+    if (/SAS session|not signed in|not active|lease unavailable/i.test(msg)) {
+      return 'PROD is not signed in on the server. Open PROD in Chrome with the automator running, then try again.';
+    }
+    if (/HTTP 404/.test(msg)) return 'This tool is not on the live server yet.';
+    return msg;
+  }
+
+  function rosterEmail(person) {
+    return (person.personalEmails && person.personalEmails[0])
+      || person.email
+      || (person.workEmails && person.workEmails[0])
+      || '';
+  }
+
+  function fillShiftRoster(people) {
+    shiftState.roster = people || [];
+    const employee = document.getElementById('shiftEmployee');
+    const lead = document.getElementById('shiftLead');
+    const options = shiftState.roster.map((person) => (
+      `<option value="${escapeHtml(person.employeeId)}">${escapeHtml(person.preferredName || person.name)}</option>`
+    )).join('');
+    if (employee) employee.innerHTML = `<option value="">Choose an employee</option>${options}`;
+    if (lead) lead.innerHTML = `<option value="">Anyone</option>${options}`;
+  }
+
+  function chooseShiftEmployee() {
+    const select = document.getElementById('shiftEmployee');
+    const person = shiftState.roster.find((row) => String(row.employeeId) === String(select && select.value));
+    if (!person) {
+      shiftState.people = [];
+      renderShiftPeople();
+      return;
+    }
+    shiftState.people = [{
+      id: person.employeeId,
+      name: person.preferredName || person.name,
+      workdayId: person.workdayId || '',
+      role: 'rep',
+    }];
+    const nameInput = document.getElementById('shiftLetterName');
+    const emailInput = document.getElementById('shiftLetterEmail');
+    if (nameInput) nameInput.value = String(person.preferredName || person.name || '').split(/\s+/)[0];
+    if (emailInput) emailInput.value = rosterEmail(person);
+    renderShiftPeople();
+  }
+
   async function previewShifts() {
     const status = document.getElementById('shiftStatus');
     const execute = document.getElementById('shiftExecute');
-    status.textContent = 'Building preview…';
+    status.textContent = 'Looking up the shifts…';
     if (execute) execute.disabled = true;
     shiftState.preview = null;
     shiftState.template = null;
@@ -2576,7 +2699,9 @@
         action: shiftState.action,
         shiftType: document.getElementById('shiftType').value,
         cycleIds,
-        leadId: shiftState.lead ? shiftState.lead.id : null,
+        leadId: document.getElementById('shiftLead') && document.getElementById('shiftLead').value
+          ? Number(document.getElementById('shiftLead').value)
+          : null,
         stores: document.getElementById('shiftStores').value,
         dateFrom: document.getElementById('shiftFrom').value,
         dateTo: document.getElementById('shiftTo').value,
@@ -2588,17 +2713,25 @@
     const useTemplate = document.getElementById('shiftTemplate').checked;
     if (useTemplate) {
       const type = selectedShiftType();
-      shiftState.template = await localTemplate('/api/period-template/preview', {
-        kind: type && type.template,
-        action: shiftState.action,
-        rows: templateRowsFromPreview(preview),
-      });
+      try {
+        shiftState.template = await localTemplate('/api/period-template/preview', {
+          kind: type && type.template,
+          action: shiftState.action,
+          rows: templateRowsFromPreview(preview),
+        });
+      } catch (_err) {
+        shiftState.template = null;
+        status.textContent = 'The weekly template on this computer did not answer. The shift list below is still from PROD.';
+      }
     }
     renderShiftResults(preview, shiftState.template);
     const jobs = templateRowsFromPreview(preview);
     if (execute) execute.disabled = jobs.length === 0;
     const extra = preview.truncated ? ' Showing the first 200.' : '';
-    status.textContent = `${jobs.length} change${jobs.length === 1 ? '' : 's'}.${extra}`;
+    const templateMiss = useTemplate && !shiftState.template
+      ? ' The weekly template on this computer did not answer.'
+      : '';
+    status.textContent = `${jobs.length} change${jobs.length === 1 ? '' : 's'}.${extra}${templateMiss}`;
   }
 
   async function executeShifts() {
@@ -2618,7 +2751,7 @@
         });
       });
     });
-    status.textContent = 'Applying…';
+    status.textContent = 'Applying the changes…';
     const result = await api('/api/welcome-letter/shifts/execute', {
       method: 'POST',
       body: JSON.stringify({
@@ -2650,29 +2783,72 @@
     const emailInput = document.getElementById('shiftLetterEmail');
     const name = (nameInput.value || '').trim() || (person && String(person.name || '').split(/\s+/)[0]) || '';
     const email = (emailInput.value || '').trim();
-    if (!person || !person.workdayId) throw new Error('Pick a person with an employee number');
+    if (!name || !email) throw new Error('Choose an employee and an email before writing the letter.');
     nameInput.value = name;
-    const daysResp = await localTemplate('/api/period-template/days', { workdayId: person.workdayId });
-    shiftLetterDays = daysResp.days || [];
-    const letter = await api('/api/welcome-letter/shifts/first-days/preview', {
-      method: 'POST',
-      body: JSON.stringify({ firstName: name, email, days: shiftLetterDays }),
-    });
-    const frame = document.getElementById('shiftLetterFrame');
-    frame.hidden = false;
-    frame.srcdoc = letter.html;
+    let scheduleNote = '';
+    shiftLetterDays = [];
+    if (person && person.workdayId) {
+      try {
+        const daysResp = await localTemplate('/api/period-template/days', { workdayId: person.workdayId });
+        shiftLetterDays = daysResp.days || [];
+      } catch (_err) {
+        scheduleNote = 'The weekly template on this computer did not answer, so the schedule starts blank.';
+      }
+    } else {
+      scheduleNote = 'No employee number is on file, so the schedule starts blank. Type the days into the letter.';
+    }
+    let subject = 'Your first days';
+    let text = [
+      `Hello, ${name}.`,
+      '',
+      'Please make sure you are at the store at the start time on each day below.',
+      '',
+      shiftLetterDays.length
+        ? shiftLetterDays.map((day) => `${day.date} · store ${day.store} · ${day.start || ''}–${day.end || ''}`).join('\n')
+        : 'Type the days here.',
+      '',
+      'Tyson Gauthier',
+      'Field Operations Supervisor',
+    ].join('\n');
+    try {
+      const letter = await api('/api/welcome-letter/shifts/first-days/preview', {
+        method: 'POST',
+        body: JSON.stringify({ firstName: name, email, days: shiftLetterDays }),
+      });
+      subject = letter.subject || subject;
+      text = letter.text || text;
+    } catch (err) {
+      scheduleNote = scheduleNote || plainShiftError(err);
+    }
+    const editor = document.getElementById('shiftLetterEditor');
+    const subjectInput = document.getElementById('shiftLetterSubject');
+    const bodyInput = document.getElementById('shiftLetterBody');
+    if (editor) editor.hidden = false;
+    if (subjectInput) subjectInput.value = subject;
+    if (bodyInput) bodyInput.value = text;
+    shiftState.letterText = text;
     document.getElementById('shiftLetterSend').disabled = false;
-    document.getElementById('shiftStatus').textContent = `${letter.subject} · ${shiftLetterDays.length} day${shiftLetterDays.length === 1 ? '' : 's'}`;
+    const daysLabel = `${shiftLetterDays.length} day${shiftLetterDays.length === 1 ? '' : 's'}`;
+    document.getElementById('shiftStatus').textContent = [scheduleNote, `${daysLabel} in the letter. Edit it, then send.`].filter(Boolean).join(' ');
   }
 
   async function sendFirstDaysLetter() {
     const name = document.getElementById('shiftLetterName').value.trim();
     const email = document.getElementById('shiftLetterEmail').value.trim();
-    if (!email) throw new Error('Email is required');
+    if (!email) throw new Error('An email address is required.');
+    const subject = document.getElementById('shiftLetterSubject').value.trim();
+    const text = document.getElementById('shiftLetterBody').value.trim();
+    if (!text) throw new Error('Write the letter before sending it.');
     if (!window.confirm(`Send this letter to ${email}?`)) return;
     const result = await api('/api/welcome-letter/shifts/first-days/send', {
       method: 'POST',
-      body: JSON.stringify({ firstName: name, email, days: shiftLetterDays }),
+      body: JSON.stringify({
+        firstName: name,
+        email,
+        days: shiftLetterDays,
+        editedSubject: subject,
+        editedText: text,
+      }),
     });
     document.getElementById('shiftStatus').textContent = `Sent to ${result.to}.`;
     document.getElementById('shiftLetterSend').disabled = true;
@@ -2691,58 +2867,27 @@
     if (add) add.addEventListener('click', () => { shiftState.action = 'add'; renderShiftActions(); });
     if (remove) remove.addEventListener('click', () => { shiftState.action = 'remove'; renderShiftActions(); });
     const type = document.getElementById('shiftType');
-    if (type) type.addEventListener('change', () => { loadShiftCycles().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
-    let leadTimer = 0;
-    let peopleTimer = 0;
-    const leadInput = document.getElementById('shiftLeadSearch');
-    const peopleInput = document.getElementById('shiftPeopleSearch');
-    if (leadInput) {
-      leadInput.addEventListener('input', () => {
-        clearTimeout(leadTimer);
-        leadTimer = setTimeout(() => {
-          searchShiftPeople(leadInput.value).then((people) => {
-            shiftSearchList(document.getElementById('shiftLeadResults'), people, (person) => {
-              shiftState.lead = person;
-              document.getElementById('shiftLeadResults').innerHTML = '';
-              leadInput.value = '';
-              renderShiftPeople();
-            });
-          }).catch((err) => { document.getElementById('shiftStatus').textContent = err.message; });
-        }, 250);
-      });
-    }
-    if (peopleInput) {
-      peopleInput.addEventListener('input', () => {
-        clearTimeout(peopleTimer);
-        peopleTimer = setTimeout(() => {
-          searchShiftPeople(peopleInput.value).then((people) => {
-            shiftSearchList(document.getElementById('shiftPeopleResults'), people, (person) => {
-              if (!shiftState.people.some((item) => Number(item.id) === Number(person.id))) {
-                shiftState.people.push({ id: person.id, name: person.name, workdayId: person.workdayId, role: 'rep' });
-              }
-              document.getElementById('shiftPeopleResults').innerHTML = '';
-              peopleInput.value = '';
-              renderShiftPeople();
-            });
-          }).catch((err) => { document.getElementById('shiftStatus').textContent = err.message; });
-        }, 250);
-      });
-    }
+    if (type) type.addEventListener('change', () => { loadShiftCycles().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
+    const employee = document.getElementById('shiftEmployee');
+    if (employee) employee.addEventListener('change', chooseShiftEmployee);
     const preview = document.getElementById('shiftPreview');
     const execute = document.getElementById('shiftExecute');
-    if (preview) preview.addEventListener('click', () => { previewShifts().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
-    if (execute) execute.addEventListener('click', () => { executeShifts().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
+    if (preview) preview.addEventListener('click', () => { previewShifts().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
+    if (execute) execute.addEventListener('click', () => { executeShifts().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
     const letterPreview = document.getElementById('shiftLetterPreview');
     const letterSend = document.getElementById('shiftLetterSend');
-    if (letterPreview) letterPreview.addEventListener('click', () => { previewFirstDaysLetter().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
-    if (letterSend) letterSend.addEventListener('click', () => { sendFirstDaysLetter().catch((err) => { document.getElementById('shiftStatus').textContent = err.message; }); });
+    if (letterPreview) letterPreview.addEventListener('click', () => { previewFirstDaysLetter().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
+    if (letterSend) letterSend.addEventListener('click', () => { sendFirstDaysLetter().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
+    api('/api/welcome-letter/employees').then((data) => {
+      fillShiftRoster(data.employees || []);
+    }).catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); });
     api('/api/welcome-letter/shifts/types').then((data) => {
       shiftState.types = data.types || [];
       if (type) {
         type.innerHTML = shiftState.types.map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.label)}</option>`).join('');
       }
       return loadShiftCycles();
-    }).catch((err) => { document.getElementById('shiftStatus').textContent = err.message; });
+    }).catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); });
     renderShiftActions();
   }
 

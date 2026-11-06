@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- welcome-letter-board v2.28 -->
+  <!-- welcome-letter-board v2.29 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="welcome-letter-version" content="v2.27">
+  <meta name="welcome-letter-version" content="v2.29">
   <title>Employee Board — The Dump Bin</title>
 <link rel="icon" type="image/png" href="/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/favicon.png?v=2">
@@ -264,16 +264,71 @@
 
     .wb-hidden { display: none !important; }
 
-    .pw-person { border-top: 1px solid var(--wb-line); padding: 12px 0; }
-    .pw-courses { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0 28px; }
-    .pw-course, .pw-chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      min-height: 44px; padding: 8px 12px; border-radius: 10px;
+    .pw-person { border-top: 1px solid var(--wb-line); padding: 10px 0; }
+    .pw-courses { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0 12px; }
+    .pw-course {
+      display: flex; align-items: center; gap: 8px;
+      min-height: 40px; padding: 6px 10px; border-radius: 8px;
       border: 1px solid var(--wb-line); background: var(--wb-white);
     }
-    .pw-chip { cursor: pointer; font-weight: 700; }
-    .pw-chip.on { background: var(--wb-navy); color: #fff; }
-    .pw-status { margin-top: 12px; }
+    .pw-status { margin: 0 0 8px; }
+    .wb-run {
+      border: 1px solid var(--wb-line);
+      border-radius: 10px;
+      background: #F7FAFC;
+      padding: 12px 14px;
+      margin: 0 0 14px;
+    }
+    .wb-run h3 { margin: 0; color: var(--wb-navy); font-size: 1rem; }
+    .wb-run pre {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.45;
+      max-height: 220px;
+      overflow: auto;
+    }
+    .wb-menu-name, .wb-subitem {
+      appearance: none;
+      border: 1px solid var(--wb-line);
+      background: var(--wb-white);
+      border-radius: 8px;
+      font: inherit;
+      font-weight: 700;
+      text-align: left;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: var(--wb-navy);
+    }
+    .wb-menu-name.is-behind, .wb-name-btn.is-behind {
+      background: #FDE68A;
+      border-color: #C48A00;
+    }
+    .wb-subitem { font-weight: 400; width: 100%; }
+    .wb-subitem.is-selected { background: var(--wb-sky-tint); border-color: var(--wb-sky); }
+    .wb-submenu { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px 16px; }
+    .wb-letter {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-top: 8px; padding: 12px;
+      border: 1px solid var(--wb-line); border-radius: 10px; background: #fff;
+    }
+    .wb-letter textarea, .wb-letter input, .wb-field input, .wb-field select {
+      font: inherit; font-weight: 400; padding: 8px;
+      border: 1px solid var(--wb-line); border-radius: 8px; width: 100%;
+    }
+    .wb-letter textarea { min-height: 180px; }
+    .wb-busy {
+      position: fixed; left: 16px; bottom: 16px; z-index: 80;
+      display: flex; align-items: center; gap: 8px;
+      background: #fff; border: 1px solid #D6DEE8; border-radius: 999px;
+      padding: 4px 12px 4px 4px;
+      box-shadow: 0 8px 24px rgba(14, 42, 71, 0.16);
+      font-weight: 700; color: var(--wb-navy); font-size: 13px;
+      pointer-events: none;
+    }
+    .wb-busy[hidden] { display: none !important; }
+    .wb-busy img { width: 40px; height: 40px; object-fit: contain; display: block; }
 
     .wb-tabs {
       display: flex;
@@ -402,11 +457,11 @@
       <div>
         <div class="wb-brand">Retail Odyssey</div>
         <h1>Employee Board</h1>
-        <p>Direct reports from PROD, time logged this year, and welcome letters.</p>
+        <p>Your people, their time off, their shifts, and the letters you send them.</p>
         <p class="wb-signed-in" id="signedInAs" hidden></p>
       </div>
       <div id="boardActions" class="wb-actions">
-        <button type="button" id="refreshBtn" class="wb-btn wb-btn-ghost">Refresh delivery (Resend)</button>
+        <button type="button" id="refreshBtn" class="wb-btn wb-btn-ghost">Check which letters were opened</button>
         <a href="/welcome/" class="wb-btn wb-btn-primary">Send New Welcome Letter</a>
       </div>
     </div>
@@ -416,7 +471,7 @@
       <button type="button" class="wb-tab" id="tabChat" role="tab" aria-selected="false" aria-controls="panelChat">Chat <span id="chatDot" class="wb-tab-dot" hidden></span></button>
       <button type="button" class="wb-tab" id="tabShifts" role="tab" aria-selected="false" aria-controls="panelShifts">Shift management</button>
       <button type="button" class="wb-tab" id="tabPast" role="tab" aria-selected="false" aria-controls="panelPast">Past employees</button>
-      <button type="button" class="wb-tab" id="tabPto" role="tab" aria-selected="false" aria-controls="panelPto">PTO</button>
+      <button type="button" class="wb-tab" id="tabPto" role="tab" aria-selected="false" aria-controls="panelPto">Time off</button>
       <button type="button" class="wb-tab" id="tabPathways" role="tab" aria-selected="false" aria-controls="panelPathways">Pathways</button>
       <button type="button" class="wb-tab" id="tabReferrals" role="tab" aria-selected="false" aria-controls="panelReferrals">Referrals</button>
     </div>
@@ -430,7 +485,7 @@
         <div>
           <h2 style="margin:0;color:var(--wb-navy);font-size:1.1rem;">Current employees</h2>
         </div>
-        <button type="button" id="employeesRefresh" class="wb-btn wb-btn-ghost">Refresh from PROD</button>
+        <button type="button" id="employeesRefresh" class="wb-btn wb-btn-ghost">Refresh the roster</button>
       </div>
       <div class="wb-layout">
         <div>
@@ -439,7 +494,7 @@
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th>Last punch</th>
+                  <th>Last day worked</th>
                 </tr>
               </thead>
               <tbody id="employeeRows">
@@ -468,9 +523,9 @@
             <div id="workPanel" class="wb-muted" style="font-size:13px;margin-bottom:12px;">Loading…</div>
             <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Notice
               <select id="noticeKind" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
-                <option value="noncomm-initial">Non-communication — initial (24 hours)</option>
-                <option value="noncomm-final">Non-communication — final (resignation)</option>
-                <option value="job-abandonment">Job abandonment (missed shift)</option>
+                <option value="noncomm-initial">No contact — first notice</option>
+                <option value="noncomm-final">No contact — final notice</option>
+                <option value="job-abandonment">Missed a scheduled shift</option>
               </select>
             </label>
             <label id="lastWorkedWrap" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Last day worked
@@ -488,7 +543,7 @@
               </label>
             </div>
             <div class="wb-detail-actions" style="margin-bottom:10px;">
-              <button type="button" id="noticePreviewBtn" class="wb-btn wb-btn-ghost">Preview</button>
+              <button type="button" id="noticePreviewBtn" class="wb-btn wb-btn-ghost">Show the letter</button>
               <button type="button" id="noticeSendBtn" class="wb-btn wb-btn-primary">Send notice</button>
             </div>
             <p class="wb-muted" id="noticeStatus" style="margin:0 0 8px;font-size:13px;"></p>
@@ -516,7 +571,7 @@
 
     <section class="wb-card">
       <h2 style="margin:0 0 10px;color:var(--wb-navy);font-size:1.1rem;">Hire pipeline</h2>
-      <p class="wb-muted" style="margin:0 0 10px;font-size:14px;">Corporate welcome ingest, orientation notices, and personal chat links. Matched by EID when the compliance PDF has no email.</p>
+      <p class="wb-muted" style="margin:0 0 10px;font-size:14px;">New hires, orientation, and their messages.</p>
       <div class="wb-table-wrap">
         <table class="wb-table">
           <thead>
@@ -601,12 +656,12 @@
 
       <section class="wb-card" id="detailCard">
         <h2 style="margin-top:0;color:var(--wb-navy);">Details</h2>
-        <p class="wb-detail-empty" id="detailEmpty">Select a welcome letter to inspect, cancel, or resend.</p>
+        <p class="wb-detail-empty" id="detailEmpty">Select a welcome letter to read it, cancel it, or send it again.</p>
         <div id="detailBody" hidden>
           <dl class="wb-detail-grid" id="detailMeta"></dl>
           <div class="wb-detail-actions">
-            <button type="button" id="resendBtn" class="wb-btn wb-btn-primary">Resend exactly</button>
-            <button type="button" id="cancelBtn" class="wb-btn wb-btn-danger">Cancel &amp; send disregard</button>
+            <button type="button" id="resendBtn" class="wb-btn wb-btn-primary">Send this letter again</button>
+            <button type="button" id="cancelBtn" class="wb-btn wb-btn-danger">Cancel and send a disregard note</button>
           </div>
           <div class="wb-preview-wrap">
             <div class="wb-preview-label">Email preview</div>
@@ -678,23 +733,24 @@
           </label>
         </div>
         <div id="shiftCycles" style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:12px;"></div>
-        <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Lead
-          <input id="shiftLeadSearch" placeholder="Search lead" style="display:block;width:100%;max-width:420px;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+        <label class="wb-field" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Employee
+          <select id="shiftEmployee" style="display:block;width:100%;max-width:480px;margin-top:4px;">
+            <option value="">Choose an employee</option>
+          </select>
         </label>
-        <div id="shiftLeadPick" class="wb-muted" style="font-size:13px;margin:-4px 0 10px;"></div>
-        <div id="shiftLeadResults"></div>
-        <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">People
-          <input id="shiftPeopleSearch" placeholder="Search name" style="display:block;width:100%;max-width:420px;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+        <label class="wb-field" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Only shifts led by
+          <select id="shiftLead" style="display:block;width:100%;max-width:480px;margin-top:4px;">
+            <option value="">Anyone</option>
+          </select>
         </label>
-        <div id="shiftPeopleResults"></div>
         <div id="shiftPeople" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
         <label id="shiftRemoveLeadWrap" style="display:none;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:10px;">
-          <input id="shiftRemoveLead" type="checkbox"> Remove current lead
+          <input id="shiftRemoveLead" type="checkbox"> Take the current lead off this shift
         </label>
         <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:12px;">
-          <input id="shiftTemplate" type="checkbox"> Also update the period template
+          <input id="shiftTemplate" type="checkbox"> Also update the weekly template on this computer
         </label>
-        <h3 style="margin:16px 0 8px;color:var(--wb-navy);font-size:1rem;">First days letter</h3>
+        <h3 style="margin:16px 0 8px;color:var(--wb-navy);font-size:1rem;">First-days letter</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px;">
           <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">First name
             <input id="shiftLetterName" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
@@ -704,13 +760,20 @@
           </label>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <button type="button" id="shiftLetterPreview" class="wb-btn wb-btn-ghost">Preview letter</button>
-          <button type="button" id="shiftLetterSend" class="wb-btn wb-btn-primary" disabled>Send letter</button>
+          <button type="button" id="shiftLetterPreview" class="wb-btn wb-btn-ghost">Write the letter</button>
+          <button type="button" id="shiftLetterSend" class="wb-btn wb-btn-primary" disabled>Send the letter</button>
         </div>
-        <iframe id="shiftLetterFrame" title="First days letter" hidden style="width:100%;min-height:360px;border:1px solid var(--wb-line);background:#fff;"></iframe>
-        <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <button type="button" id="shiftPreview" class="wb-btn wb-btn-ghost">Preview</button>
-          <button type="button" id="shiftExecute" class="wb-btn wb-btn-primary" disabled>Execute</button>
+        <div id="shiftLetterEditor" class="wb-letter" hidden>
+          <label>Subject
+            <input id="shiftLetterSubject" type="text">
+          </label>
+          <label>Letter
+            <textarea id="shiftLetterBody"></textarea>
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;margin:12px 0 8px;">
+          <button type="button" id="shiftPreview" class="wb-btn wb-btn-ghost">Show what will change</button>
+          <button type="button" id="shiftExecute" class="wb-btn wb-btn-primary" disabled>Apply these changes</button>
         </div>
         <p id="shiftStatus" class="wb-muted" style="margin:0 0 8px;font-size:13px;"></p>
         <div id="shiftPreviewList"></div>
@@ -733,7 +796,7 @@
                 <th>Personal</th>
                 <th>Work</th>
                 <th>Phone</th>
-                <th>Last punch</th>
+                <th>Last day worked</th>
                 <th>Last on roster</th>
               </tr>
             </thead>
@@ -752,14 +815,20 @@
             <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">Pathways</h2>
           </div>
           <div class="wb-actions">
-            <a href="/pathways/" class="wb-btn wb-btn-ghost">Payouts</a>
-            <button type="button" id="pathwaysPull" class="wb-btn wb-btn-ghost">Pull now</button>
-            <button type="button" id="pathwaysSend" class="wb-btn wb-btn-primary">Send reminders</button>
+            <a href="/pathways/" class="wb-btn wb-btn-ghost">Training pay</a>
+            <button type="button" id="pathwaysPull" class="wb-btn wb-btn-ghost">Get the latest courses</button>
           </div>
         </div>
         <div id="pathwaysStatus" class="pw-status wb-muted"></div>
-        <div id="pathwaysLog" class="wb-muted" hidden></div>
-        <div id="pathwaysCourses" class="pw-courses"></div>
+        <section class="wb-run" id="pathwaysRun">
+          <h3>What the last check did</h3>
+          <pre id="pathwaysLog">Nothing has been pulled from this page yet.</pre>
+        </section>
+        <label class="wb-field" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:10px;">Course
+          <select id="pathwaysCourse">
+            <option value="">All open courses</option>
+          </select>
+        </label>
         <div id="pathwaysPeople"></div>
       </section>
     </div>
@@ -770,22 +839,20 @@
           <div>
             <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">Time off</h2>
           </div>
-          <button type="button" id="ptoPull" class="wb-btn wb-btn-ghost">Pull Oracle</button>
+          <button type="button" id="ptoPull" class="wb-btn wb-btn-ghost">Get new requests</button>
           <button type="button" id="ptoRefresh" class="wb-btn wb-btn-ghost">Refresh</button>
         </div>
         <div id="ptoBanner" class="wb-banner wb-hidden"></div>
+        <div id="ptoDetailPark" hidden></div>
         <div class="wb-table-wrap">
           <table class="wb-table">
             <thead>
               <tr>
-                <th>Employee</th>
-                <th>Latest date</th>
-                <th>Days this year</th>
-                <th>Hours this year</th>
+                <th>People and requests</th>
               </tr>
             </thead>
             <tbody id="ptoRows">
-              <tr><td colspan="4" class="wb-muted">Loading…</td></tr>
+              <tr><td class="wb-muted">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -795,9 +862,9 @@
           <label class="wb-muted" for="ptoNote" style="display:block;margin-bottom:6px;">Note</label>
           <textarea id="ptoNote" style="width:100%;min-height:64px;margin-bottom:12px;"></textarea>
           <div class="wb-actions">
-            <button type="button" id="ptoApprove" class="wb-btn wb-btn-primary">Approve in Oracle</button>
-            <button type="button" id="ptoDeny" class="wb-btn wb-btn-ghost">Reject in Oracle</button>
-            <button type="button" id="ptoBuild" class="wb-btn wb-btn-primary">Build and run</button>
+            <button type="button" id="ptoApprove" class="wb-btn wb-btn-primary">Approve the request</button>
+            <button type="button" id="ptoDeny" class="wb-btn wb-btn-ghost">Deny the request</button>
+            <button type="button" id="ptoBuild" class="wb-btn wb-btn-primary">Create the paid shift</button>
           </div>
           <p id="ptoActionStatus" class="wb-muted" style="margin:12px 0 0;"></p>
           <ol id="ptoSteps" class="wb-steps" hidden></ol>
@@ -1045,9 +1112,13 @@
 
   </main>
 
-  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.27</span>
+  <div id="wbBusy" class="wb-busy" hidden>
+    <img src="/welcome-letter-board/assets/buffering.gif?v=2.29" alt="" width="40" height="40">
+    <span>Working</span>
+  </div>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.29</span>
 
-  <script src="/welcome-letter-board/assets/pathways-panel.js?v=1"></script>
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.28"></script>
+  <script src="/welcome-letter-board/assets/pathways-panel.js?v=2.29"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.29"></script>
 </body>
 </html>

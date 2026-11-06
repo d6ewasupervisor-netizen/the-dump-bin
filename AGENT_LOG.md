@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-06 — Employee Board menus, letters, and the working mark
+
+Employee Board v2.29. Time off opens each request under the person's name. Shift management picks an employee from the roster, then shows the change or applies it. The first-days letter and a Pathways reminder can be edited before they send. A course check writes into its own box. A name with a course still due is marked Still due. Any request shows the small Retail Odyssey buffering mark. Not published.
+
 ## 2026-11-06 — Pathways on the Employee Board
 
 Employee Board v2.28 adds a Pathways tab next to PTO. Open required courses can be checked per person, or a course name selects that course for the group. Send reminders calls `POST /api/pathways/remind`. Payouts stay on `/pathways/`.
