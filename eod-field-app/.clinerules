@@ -1,0 +1,9 @@
+# Agent rules (eod-field-app)
+
+**Never push to `main` without an explicit go from Tyson in the current message.** Feature work goes on branches. Asking for a change is NOT permission to push `main`; a past go does not carry forward.
+
+`main` is the published field app; publishing is a separate explicit step (`eod-field-app-publish`).
+
+Pilot `/eod-field-app/` and fleet `/EOD/` share one eod-api backend. Never ship pilot work to `/EOD/`.
+
+No email, SMS, magic link, or invite goes to a real person unless Tyson asks for that send in the current turn.
