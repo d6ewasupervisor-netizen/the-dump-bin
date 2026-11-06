@@ -1,5 +1,7 @@
 # Roadmap
 
+- SI closeout menu (`si-closeout/`, branch `feat/si-closeout-actions`): publish with the eod-api deploy of the same branch. Until both are live, the page still only does store-and-dbkey closeout, and the badge link 404s.
+
 - FM 682 wet wall (`/682-wet-wall/`) is a public unlisted page. It is not a hub card.
 
 - Employee Board v2.27 time off: one row per person, Oracle approve before build. Publish with the eod-api deploy that carries migration 197.

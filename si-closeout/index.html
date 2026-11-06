@@ -227,6 +227,7 @@
     }
     .instructions:not([open]) summary::after { content: '▸'; }
     .instructions .instructions-body { margin-top: 8px; }
+    #app:not([data-mode="close"]) .format-bar { display: none; }
     .format-bar {
       flex-shrink: 0;
       padding: 8px 16px;
@@ -306,6 +307,53 @@
     }
     #empty-state h3 { color: var(--ink); font-size: 1.05rem; }
     #empty-state p { font-size: .85rem; max-width: 360px; line-height: 1.55; }
+
+    #action-dock:empty { display: none; }
+    #action-dock {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 48vh;
+      overflow: auto;
+      margin-bottom: 8px;
+    }
+    .choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choice-btn, .task-row, .cal-day, #close-si-btn {
+      min-height: 44px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      font-family: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .choice-btn { flex: 1 1 140px; padding: 10px 12px; }
+    .choice-btn.primary, .choice-btn.on, .task-row.on, .cal-day.on {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .task-list { display: flex; flex-direction: column; gap: 6px; }
+    .task-row {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: .88rem;
+    }
+    .task-row:disabled { opacity: .55; cursor: default; }
+    .cal-head { display: flex; align-items: center; gap: 8px; }
+    .cal-title { flex: 1; text-align: center; font-weight: 800; }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .cal-dow { text-align: center; font-size: .72rem; color: var(--ink-soft); font-weight: 700; }
+    .cal-day { padding: 0; }
+    .cal-day.blank { border: none; background: transparent; min-height: 44px; }
+    #close-si-btn { flex-shrink: 0; padding: 0 12px; color: var(--accent); border-color: var(--accent); }
+    .msg.truth .msg-bubble { background: var(--warn-bg); color: var(--ink); }
+    .msg.truth .request-tag { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
 
     .input-bar {
       min-width: 0;
@@ -458,15 +506,16 @@
     <div id="messages">
       <div id="empty-state">
         <div style="font-size:2rem">🏪</div>
-        <h3>No messages yet</h3>
-        <p>Post a store and dbkey to kick off a closeout, or send a regular chat message.</p>
+        <h3>What store?</h3>
       </div>
     </div>
   </div>
 
   <div class="input-bar">
+    <div id="action-dock"></div>
     <div class="input-row">
-      <textarea id="msg-input" rows="1" placeholder="49, 9834765 or a message" maxlength="500"></textarea>
+      <button id="close-si-btn" type="button">Close SI</button>
+      <textarea id="msg-input" rows="1" placeholder="Store number" maxlength="500"></textarea>
       <button id="send-btn" title="Send (Enter)" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -476,6 +525,7 @@
   </div>
 </div>
 
+<script src="/si-closeout/flow.js?v=1"></script>
 <script>
 (function () {
   'use strict';
@@ -761,6 +811,9 @@
   async function sendMessage() {
     var text = msgInput.value.trim();
     if (!text || sending) return;
+    if (window.SiCloseoutFlow && window.SiCloseoutFlow.consumeSend(text)) {
+      return;
+    }
     sending = true;
     sendBtn.disabled = true;
     msgInput.disabled = true;
@@ -772,14 +825,23 @@
       });
       var data = await r.json();
       if (!data.ok) {
-        alert('Error: ' + (data.error || 'Unknown error'));
+        var fail = document.createElement('div');
+        fail.className = 'msg system truth';
+        fail.innerHTML = '<div class="msg-body"><div class="msg-bubble"><div class="request-tag">TRUTH</div><div class="msg-text">' +
+          esc(data.error || 'That did not send. The tool is still open.') + '</div></div></div>';
+        messagesEl.appendChild(fail);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
         return;
       }
       msgInput.value = '';
       autoResize();
       trackUsage('request', { action: 'message' });
     } catch (e) {
-      alert('Network error: ' + e.message);
+      var net = document.createElement('div');
+      net.className = 'msg system truth';
+      net.innerHTML = '<div class="msg-body"><div class="msg-bubble"><div class="request-tag">TRUTH</div><div class="msg-text">The request did not reach the server. The tool is still open.</div></div></div>';
+      messagesEl.appendChild(net);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
     } finally {
       sending = false;
       sendBtn.disabled = false;
@@ -806,10 +868,21 @@
     loadMessages().then(function () {
       connectSSE();
       loadPresence();
+    }).finally(function () {
+      if (window.SiCloseoutFlow) {
+        window.SiCloseoutFlow.attach({
+          messagesEl: messagesEl,
+          emptyState: emptyState,
+          dock: document.getElementById('action-dock'),
+          msgInput: msgInput,
+          appEl: appEl,
+          getName: function () { return myName; },
+        });
+      }
+      msgInput.focus();
     });
     startUsage();
     fitAppToViewport();
-    msgInput.focus();
   }
 
   async function boot() {

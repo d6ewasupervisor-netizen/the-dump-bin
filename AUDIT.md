@@ -1,5 +1,7 @@
 # Audit
 
+SI closeout menu (2026-11-05, not published): `si-closeout/index.html` plus `si-closeout/flow.js`. The store question, task list, calendar, and project chips stay in the browser. Results and Close SI still post into the shared chat. A bare store number is not sent as a closeout. Join the resistance calls `POST /api/si-closeout-chat/resistance` and does not announce it in the team chat. The badge file is served from this folder once Pages publishes. Open: eod-api is on `feat/si-closeout-actions` and is not deployed, so the new buttons have nowhere to land on production.
+
 FM 682 wet wall (2026-11-05): `682-wet-wall/index.html` does not load `auth-gate.js`. Photos are static WebP (signoff tier, 2560px / 950 KB) plus 320px thumbs. Rotate, crop, and markup are client-side and do not write back. Send uses the device share sheet, or copies the page URL. A tab id in `sessionStorage` posts the open and allowlisted actions to eod-api. `?stats=1` reads `GET /api/wet-wall/stats`. Open: the link is public to anyone who has it, and the count is empty until that API is deployed.
 
 Friday coverage (2026-11-02, not published): `dc-scan/cover/index.html` signs in through `auth-gate.js`, then `GET /api/dc-scan-cover`. Take and Release post to that API. The map is Leaflet on OpenStreetMap using the store coordinates the API returns. The RO8 page links to `/dc-scan/cover/`. Open: GitHub Pages and the eod-api route are both still on a branch.

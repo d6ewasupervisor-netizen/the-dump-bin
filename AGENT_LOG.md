@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-05 — SI closeout menu
+
+`/si-closeout/` asks for the store before anything else. The choices are Kompass carry forward, Sync PROD with SI, and Join the resistance. Close SI stays at the bottom and still sends `store, dbkey`. The wizard is on this page only. The work runs on eod-api `feat/si-closeout-actions`. Not published. The badge image is `si-closeout/systemic-incompetence-badge.jpg`.
+
 ## 2026-11-05 — FM 682 wet wall photo board
 
 Public page at `/682-wet-wall/`. Fifteen produce wet-wall photos, no sign-in. Slideshow, filmstrip, pinch and wheel zoom, rotate, draw, arrow, note, crop, save, share, and send. Marks stay in the browser. Send shares the page link. The page is not a hub card. Opens and actions post to `/api/wet-wall`. `?stats=1` shows the tally. The count stays empty until the eod-api route is deployed.
