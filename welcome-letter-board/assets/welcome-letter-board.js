@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.30';
+  const UI_VERSION = 'v2.31';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2800,36 +2800,33 @@
     } else {
       scheduleNote = 'No employee number is on file, so the schedule starts blank. Type the days into the letter.';
     }
-    let subject = 'Your first days';
-    let text = [
-      `Hello, ${name}.`,
-      '',
-      'Please make sure you are at the store at the start time on each day below.',
-      '',
-      shiftLetterDays.length
-        ? shiftLetterDays.map((day) => `${day.date} · store ${day.store} · ${day.start || ''}–${day.end || ''}`).join('\n')
-        : 'Type the days here.',
-      '',
-      'Tyson Gauthier',
-      'Field Operations Supervisor',
-    ].join('\n');
+    let subject = "Your first week's schedule.";
+    let text = '';
+    let html = '';
     try {
       const letter = await api('/api/welcome-letter/shifts/first-days/preview', {
         method: 'POST',
         body: JSON.stringify({ firstName: name, email, days: shiftLetterDays }),
       });
       subject = letter.subject || subject;
-      text = letter.text || text;
+      text = letter.text || '';
+      html = letter.html || '';
     } catch (err) {
       scheduleNote = scheduleNote || plainShiftError(err);
     }
     const editor = document.getElementById('shiftLetterEditor');
     const subjectInput = document.getElementById('shiftLetterSubject');
     const bodyInput = document.getElementById('shiftLetterBody');
+    const frame = document.getElementById('shiftLetterFrame');
     if (editor) editor.hidden = false;
     if (subjectInput) subjectInput.value = subject;
     if (bodyInput) bodyInput.value = text;
+    if (frame) {
+      frame.hidden = !html;
+      frame.srcdoc = html;
+    }
     shiftState.letterText = text;
+    shiftState.letterSubject = subject;
     document.getElementById('shiftLetterSend').disabled = false;
     const daysLabel = `${shiftLetterDays.length} day${shiftLetterDays.length === 1 ? '' : 's'}`;
     document.getElementById('shiftStatus').textContent = [scheduleNote, `${daysLabel} in the letter. Edit it, then send.`].filter(Boolean).join(' ');
@@ -2843,14 +2840,15 @@
     const text = document.getElementById('shiftLetterBody').value.trim();
     if (!text) throw new Error('Write the letter before sending it.');
     if (!window.confirm(`Send this letter to ${email}?`)) return;
+    const bodyChanged = text !== shiftState.letterText;
     const result = await api('/api/welcome-letter/shifts/first-days/send', {
       method: 'POST',
       body: JSON.stringify({
         firstName: name,
         email,
         days: shiftLetterDays,
-        editedSubject: subject,
-        editedText: text,
+        editedSubject: subject === shiftState.letterSubject ? '' : subject,
+        editedText: bodyChanged ? text : '',
       }),
     });
     document.getElementById('shiftStatus').textContent = `Sent to ${result.to}.`;

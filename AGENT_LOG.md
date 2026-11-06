@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-06 — Employee Board v2.31 schedule letter
+
+Write the letter shows the branded first-week schedule. The formatted letter is what sends unless the letter text is changed.
+
 ## 2026-11-06 — Employee Board v2.30 lease message
 
 A busy PROD slot is no longer described as a missing sign-in.
