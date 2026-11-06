@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.29';
+  const UI_VERSION = 'v2.30';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2639,7 +2639,10 @@
 
   function plainShiftError(err) {
     const msg = (err && err.message) || 'That did not finish.';
-    if (/SAS session|not signed in|not active|lease unavailable/i.test(msg)) {
+    if (/lease unavailable|busy with other work/i.test(msg)) {
+      return 'PROD is busy with other work. Wait a moment and try again.';
+    }
+    if (/SAS session|not signed in|not active/i.test(msg)) {
       return 'PROD is not signed in on the server. Open PROD in Chrome with the automator running, then try again.';
     }
     if (/HTTP 404/.test(msg)) return 'This tool is not on the live server yet.';

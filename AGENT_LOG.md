@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-06 — Employee Board v2.30 lease message
+
+A busy PROD slot is no longer described as a missing sign-in.
+
 ## 2026-11-06 — Close SI accepts a store alone
 
 Close SI sends a store number with no dbkey. The page no longer stops that line.

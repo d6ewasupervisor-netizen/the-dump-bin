@@ -1,6 +1,6 @@
 # Roadmap
 
-- Employee Board v2.29 is on `feat/employee-board-menus`. It needs a Pages publish, and the shift tools need the eod-api branch `feat/employee-board-tools` on production before Show what will change can reach PROD.
+- Employee Board v2.30 is the lease wording. Show what will change needs the matching eod-api deploy.
 
 - SI closeout menu (`si-closeout/`): this commit is the Pages publish. The new buttons need the matching eod-api deploy.
 
