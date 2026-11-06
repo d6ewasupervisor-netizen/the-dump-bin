@@ -505,7 +505,7 @@
       if (warmed?.bays?.length) return warmed;
       const qs = new URLSearchParams({ store, date, dbkey });
       const url = `${API}/planogram?${qs}`;
-      const resp = await global.authFetch(url, { skipBusy: true });
+      const resp = await global.authFetch(url, { skipBusy: true, timeoutMs: 90000 });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Planogram failed (${resp.status})`);
       if (data.planogram) {
@@ -608,8 +608,9 @@
 
   function sizeBaySlides(scroll) {
     if (!scroll) return;
-    const w = Math.max(1, scroll.clientWidth);
-    const h = Math.max(1, scroll.clientHeight);
+    const body = scroll.closest('.si-pog-live-body');
+    const w = Math.max(1, scroll.clientWidth, body?.clientWidth || 0);
+    const h = Math.max(1, scroll.clientHeight, Math.max(0, (body?.clientHeight || 0) - 28));
     scroll.querySelectorAll('.si-pog-bay-frame').forEach((frame) => {
       frame.style.flexBasis = `${w}px`;
       frame.style.width = `${w}px`;
@@ -657,6 +658,10 @@
     if (!scroll) return;
     sizeBaySlides(scroll);
     paintBayNav(nav, scroll);
+    requestAnimationFrame(() => {
+      sizeBaySlides(scroll);
+      paintBayNav(nav, scroll);
+    });
     if (scroll._pogSlideObs) scroll._pogSlideObs.disconnect();
     if (typeof ResizeObserver === 'function') {
       scroll._pogSlideObs = new ResizeObserver(() => {
