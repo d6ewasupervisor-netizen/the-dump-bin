@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-06 — Employee Board v2.32 schedule from PROD
+
+Write the letter asks the API for that person's days on the checked weeks.
+
 ## 2026-11-06 — Employee Board v2.31 schedule letter
 
 Write the letter shows the branded first-week schedule. The formatted letter is what sends unless the letter text is changed.

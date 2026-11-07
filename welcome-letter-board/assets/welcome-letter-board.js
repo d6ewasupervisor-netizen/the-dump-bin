@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.31';
+  const UI_VERSION = 'v2.32';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2790,15 +2790,17 @@
     nameInput.value = name;
     let scheduleNote = '';
     shiftLetterDays = [];
-    if (person && person.workdayId) {
-      try {
-        const daysResp = await localTemplate('/api/period-template/days', { workdayId: person.workdayId });
-        shiftLetterDays = daysResp.days || [];
-      } catch (_err) {
-        scheduleNote = 'The weekly template on this computer did not answer, so the schedule starts blank.';
-      }
+    const cycleIds = [...document.querySelectorAll('#shiftCycles input:checked')].map((el) => Number(el.value));
+    if (person && person.id && cycleIds.length) {
+      const sched = await api('/api/welcome-letter/shifts/schedule', {
+        method: 'POST',
+        body: JSON.stringify({ employeeId: person.id, cycleIds }),
+      });
+      shiftLetterDays = sched.days || [];
+    } else if (!cycleIds.length) {
+      scheduleNote = 'Choose a schedule week.';
     } else {
-      scheduleNote = 'No employee number is on file, so the schedule starts blank. Type the days into the letter.';
+      scheduleNote = 'Choose an employee.';
     }
     let subject = "Your first week's schedule.";
     let text = '';
