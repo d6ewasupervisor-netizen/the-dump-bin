@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-07 — Employee Board v2.34 template week
+
+The weekly template copies the store days already in the file for the chosen team. It does not write the later PROD weeks into that file.
+
 ## 2026-11-07 — Employee Board v2.33 team picker
 
 Shift management chooses a team. The schedule letter uses that team's days and the lead on those shifts.

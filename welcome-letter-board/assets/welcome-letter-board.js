@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.33';
+  const UI_VERSION = 'v2.34';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2642,6 +2642,21 @@
     return data.people || [];
   }
 
+  function templateMirrorBody() {
+    const person = (shiftState.people || [])[0] || {};
+    const type = selectedShiftType();
+    return {
+      kind: type && type.template,
+      action: shiftState.action,
+      mirrorTeam: document.getElementById('shiftTeam') ? document.getElementById('shiftTeam').value : '',
+      rows: [{
+        workdayId: person.workdayId,
+        name: person.name,
+        role: person.role,
+      }],
+    };
+  }
+
   function templateRowsFromPreview(preview) {
     const rows = [];
     (preview.visits || []).forEach((visit) => {
@@ -2747,11 +2762,7 @@
     if (useTemplate) {
       const type = selectedShiftType();
       try {
-        shiftState.template = await localTemplate('/api/period-template/preview', {
-          kind: type && type.template,
-          action: shiftState.action,
-          rows: templateRowsFromPreview(preview),
-        });
+        shiftState.template = await localTemplate('/api/period-template/preview', templateMirrorBody());
       } catch (_err) {
         shiftState.template = null;
         status.textContent = 'The weekly template on this computer did not answer. The shift list below is still from PROD.';
@@ -2796,11 +2807,7 @@
     let templateNote = '';
     if (document.getElementById('shiftTemplate').checked && shiftState.template) {
       const type = selectedShiftType();
-      const applied = await localTemplate('/api/period-template/apply', {
-        kind: type && type.template,
-        action: shiftState.action,
-        rows: templateRowsFromPreview(preview),
-      });
+      const applied = await localTemplate('/api/period-template/apply', templateMirrorBody());
       templateNote = applied.backup ? ` Template backup ${applied.backup}.` : ' Template updated.';
     }
     const done = (result.results || []).filter((row) => !row.skipped).length;
