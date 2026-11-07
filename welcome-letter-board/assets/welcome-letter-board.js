@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.34';
+  const UI_VERSION = 'v2.35';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2859,6 +2859,11 @@
       });
       shiftLetterDays = sched.days || [];
       shiftState.letterLead = sched.lead || null;
+      const planBox = document.getElementById('shiftLetterPlan');
+      const leadName = shiftState.letterLead && shiftState.letterLead.name;
+      if (planBox && leadName && /\bYour lead\b/.test(planBox.value) && !planBox.dataset.edited) {
+        planBox.value = planBox.value.replace(/\bYour lead\b/g, leadName);
+      }
     } else if (!team) {
       scheduleNote = 'Choose a team.';
     } else {
@@ -2877,6 +2882,7 @@
           fullName: letterContact().fullName,
           lead: shiftState.letterLead || null,
           days: shiftLetterDays,
+          plan: (document.getElementById('shiftLetterPlan') && document.getElementById('shiftLetterPlan').value) || '',
         }),
       });
       subject = letter.subject || subject;
@@ -2910,7 +2916,10 @@
     const subject = document.getElementById('shiftLetterSubject').value.trim();
     const text = document.getElementById('shiftLetterBody').value.trim();
     if (!text) throw new Error('Write the letter before sending it.');
-    if (!window.confirm(`Send this letter to ${email}?`)) return;
+    const leadEmail = shiftState.letterLead && shiftState.letterLead.email;
+    const leadName = (shiftState.letterLead && shiftState.letterLead.name) || 'the lead';
+    const copyNote = leadEmail ? ` ${leadName} (${leadEmail}) is copied.` : '';
+    if (!window.confirm(`Send this letter to ${email}?${copyNote}`)) return;
     const bodyChanged = text !== shiftState.letterText;
     const result = await api('/api/welcome-letter/shifts/first-days/send', {
       method: 'POST',
@@ -2921,11 +2930,14 @@
         fullName: letterContact().fullName,
         lead: shiftState.letterLead || null,
         days: shiftLetterDays,
+        plan: (document.getElementById('shiftLetterPlan') && document.getElementById('shiftLetterPlan').value) || '',
         editedSubject: subject === shiftState.letterSubject ? '' : subject,
         editedText: bodyChanged ? text : '',
       }),
     });
-    document.getElementById('shiftStatus').textContent = `Sent to ${result.to}.`;
+    document.getElementById('shiftStatus').textContent = leadEmail
+      ? `Sent to ${result.to}. Copied ${leadEmail}.`
+      : `Sent to ${result.to}.`;
     document.getElementById('shiftLetterSend').disabled = true;
   }
 
@@ -2941,6 +2953,8 @@
     const remove = document.getElementById('shiftActionRemove');
     if (add) add.addEventListener('click', () => { shiftState.action = 'add'; renderShiftActions(); });
     if (remove) remove.addEventListener('click', () => { shiftState.action = 'remove'; renderShiftActions(); });
+    const planBox = document.getElementById('shiftLetterPlan');
+    if (planBox) planBox.addEventListener('input', () => { planBox.dataset.edited = '1'; });
     const type = document.getElementById('shiftType');
     if (type) type.addEventListener('change', () => { loadShiftCycles().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
     [from, to].forEach((input) => {
