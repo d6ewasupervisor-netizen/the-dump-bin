@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.32';
+  const UI_VERSION = 'v2.33';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2561,7 +2561,7 @@
       }).join('');
       return `<div style="padding:8px 0;border-bottom:1px solid var(--wb-line);">
         <strong>${escapeHtml(visit.store || '—')} · ${escapeHtml(visit.date || '')}</strong>
-        <span class="wb-muted"> ${escapeHtml(visit.team || '')}</span>
+        <span class="wb-muted"> ${escapeHtml(visit.team || '')}${visit.leadName ? ` · lead ${escapeHtml(visit.leadName)}` : ''}</span>
         ${lines}
       </div>`;
     }).join('');
@@ -2588,6 +2588,40 @@
       const on = cycle.start && cycle.end && cycle.start <= today && today <= cycle.end;
       return `<label style="font-size:13px;"><input type="checkbox" value="${escapeHtml(cycle.id)}"${on ? ' checked' : ''}> ${escapeHtml(cycle.name || cycle.id)}</label>`;
     }).join('') || '<span class="wb-muted">No open schedule weeks for this kind of work.</span>';
+    host.querySelectorAll('input').forEach((box) => {
+      box.addEventListener('change', () => { loadShiftTeams().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
+    });
+    await loadShiftTeams();
+  }
+
+  function checkedCycleIds() {
+    return [...document.querySelectorAll('#shiftCycles input:checked')].map((el) => Number(el.value));
+  }
+
+  async function loadShiftTeams() {
+    const select = document.getElementById('shiftTeam');
+    if (!select) return;
+    const previous = select.value;
+    const cycleIds = checkedCycleIds();
+    if (!cycleIds.length) {
+      select.innerHTML = '<option value="">Choose a team</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">Loading teams…</option>';
+    const data = await api('/api/welcome-letter/shifts/teams', {
+      method: 'POST',
+      body: JSON.stringify({
+        shiftType: document.getElementById('shiftType').value,
+        cycleIds,
+        dateFrom: document.getElementById('shiftFrom').value,
+        dateTo: document.getElementById('shiftTo').value,
+      }),
+    });
+    const names = data.teams || [];
+    select.innerHTML = `<option value="">Choose a team</option>${names.map((name) => (
+      `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`
+    )).join('')}`;
+    if (names.includes(previous)) select.value = previous;
   }
 
   function shiftSearchList(host, people, onPick) {
@@ -2659,12 +2693,10 @@
   function fillShiftRoster(people) {
     shiftState.roster = people || [];
     const employee = document.getElementById('shiftEmployee');
-    const lead = document.getElementById('shiftLead');
     const options = shiftState.roster.map((person) => (
       `<option value="${escapeHtml(person.employeeId)}">${escapeHtml(person.preferredName || person.name)}</option>`
     )).join('');
     if (employee) employee.innerHTML = `<option value="">Choose an employee</option>${options}`;
-    if (lead) lead.innerHTML = `<option value="">Anyone</option>${options}`;
   }
 
   function chooseShiftEmployee() {
@@ -2702,9 +2734,7 @@
         action: shiftState.action,
         shiftType: document.getElementById('shiftType').value,
         cycleIds,
-        leadId: document.getElementById('shiftLead') && document.getElementById('shiftLead').value
-          ? Number(document.getElementById('shiftLead').value)
-          : null,
+        team: document.getElementById('shiftTeam') ? document.getElementById('shiftTeam').value : '',
         stores: document.getElementById('shiftStores').value,
         dateFrom: document.getElementById('shiftFrom').value,
         dateTo: document.getElementById('shiftTo').value,
@@ -2780,6 +2810,23 @@
 
   let shiftLetterDays = [];
 
+  function rosterPhone(person) {
+    if (!person) return '';
+    if (person.phone) return String(person.phone);
+    const listed = person.phones && person.phones[0];
+    if (!listed) return '';
+    return typeof listed === 'object' ? String(listed.number || listed.value || '') : String(listed);
+  }
+
+  function letterContact() {
+    const selected = document.getElementById('shiftEmployee');
+    const roster = shiftState.roster.find((row) => String(row.employeeId) === String(selected && selected.value));
+    return {
+      phone: rosterPhone(roster),
+      fullName: (roster && (roster.preferredName || roster.name)) || '',
+    };
+  }
+
   async function previewFirstDaysLetter() {
     const person = shiftState.people[0];
     const nameInput = document.getElementById('shiftLetterName');
@@ -2790,17 +2837,25 @@
     nameInput.value = name;
     let scheduleNote = '';
     shiftLetterDays = [];
-    const cycleIds = [...document.querySelectorAll('#shiftCycles input:checked')].map((el) => Number(el.value));
-    if (person && person.id && cycleIds.length) {
+    const cycleIds = checkedCycleIds();
+    const team = document.getElementById('shiftTeam') ? document.getElementById('shiftTeam').value : '';
+    if (team && cycleIds.length) {
       const sched = await api('/api/welcome-letter/shifts/schedule', {
         method: 'POST',
-        body: JSON.stringify({ employeeId: person.id, cycleIds }),
+        body: JSON.stringify({
+          team,
+          cycleIds,
+          shiftType: document.getElementById('shiftType').value,
+          dateFrom: document.getElementById('shiftFrom').value,
+          dateTo: document.getElementById('shiftTo').value,
+        }),
       });
       shiftLetterDays = sched.days || [];
-    } else if (!cycleIds.length) {
-      scheduleNote = 'Choose a schedule week.';
+      shiftState.letterLead = sched.lead || null;
+    } else if (!team) {
+      scheduleNote = 'Choose a team.';
     } else {
-      scheduleNote = 'Choose an employee.';
+      scheduleNote = 'Choose a schedule week.';
     }
     let subject = "Your first week's schedule.";
     let text = '';
@@ -2808,7 +2863,14 @@
     try {
       const letter = await api('/api/welcome-letter/shifts/first-days/preview', {
         method: 'POST',
-        body: JSON.stringify({ firstName: name, email, days: shiftLetterDays }),
+        body: JSON.stringify({
+          firstName: name,
+          email,
+          phone: letterContact().phone,
+          fullName: letterContact().fullName,
+          lead: shiftState.letterLead || null,
+          days: shiftLetterDays,
+        }),
       });
       subject = letter.subject || subject;
       text = letter.text || '';
@@ -2848,6 +2910,9 @@
       body: JSON.stringify({
         firstName: name,
         email,
+        phone: letterContact().phone,
+        fullName: letterContact().fullName,
+        lead: shiftState.letterLead || null,
         days: shiftLetterDays,
         editedSubject: subject === shiftState.letterSubject ? '' : subject,
         editedText: bodyChanged ? text : '',
@@ -2871,6 +2936,10 @@
     if (remove) remove.addEventListener('click', () => { shiftState.action = 'remove'; renderShiftActions(); });
     const type = document.getElementById('shiftType');
     if (type) type.addEventListener('change', () => { loadShiftCycles().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
+    [from, to].forEach((input) => {
+      if (!input) return;
+      input.addEventListener('change', () => { loadShiftTeams().catch((err) => { document.getElementById('shiftStatus').textContent = plainShiftError(err); }); });
+    });
     const employee = document.getElementById('shiftEmployee');
     if (employee) employee.addEventListener('change', chooseShiftEmployee);
     const preview = document.getElementById('shiftPreview');

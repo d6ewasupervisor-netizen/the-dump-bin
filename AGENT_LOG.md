@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-07 — Employee Board v2.33 team picker
+
+Shift management chooses a team. The schedule letter uses that team's days and the lead on those shifts.
+
 ## 2026-11-06 — Employee Board v2.32 schedule from PROD
 
 Write the letter asks the API for that person's days on the checked weeks.
