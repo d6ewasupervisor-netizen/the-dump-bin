@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.36';
+  const UI_VERSION = 'v2.37';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2903,6 +2903,7 @@
       frame.srcdoc = html;
     }
     shiftState.letterText = text;
+    shiftState.letterHtml = html;
     shiftState.letterSubject = subject;
     document.getElementById('shiftLetterSend').disabled = false;
     const daysLabel = `${shiftLetterDays.length} day${shiftLetterDays.length === 1 ? '' : 's'}`;
@@ -2920,7 +2921,8 @@
     const leadName = (shiftState.letterLead && shiftState.letterLead.name) || 'the lead';
     const copyNote = leadEmail ? ` ${leadName} (${leadEmail}) is copied.` : '';
     if (!window.confirm(`Send this letter to ${email}?${copyNote}`)) return;
-    const bodyChanged = text !== shiftState.letterText;
+    const norm = (value) => String(value || '').replace(/\r\n/g, '\n').trim();
+    const bodyChanged = norm(text) !== norm(shiftState.letterText);
     const result = await api('/api/welcome-letter/shifts/first-days/send', {
       method: 'POST',
       body: JSON.stringify({
@@ -2932,6 +2934,7 @@
         days: shiftLetterDays,
         plan: (document.getElementById('shiftLetterPlan') && document.getElementById('shiftLetterPlan').value) || '',
         editedSubject: subject === shiftState.letterSubject ? '' : subject,
+        editedHtml: bodyChanged ? '' : (shiftState.letterHtml || ''),
         editedText: bodyChanged ? text : '',
       }),
     });
