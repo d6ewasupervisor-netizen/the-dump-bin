@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.37';
+  const UI_VERSION = 'v2.38';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -2934,7 +2934,6 @@
         days: shiftLetterDays,
         plan: (document.getElementById('shiftLetterPlan') && document.getElementById('shiftLetterPlan').value) || '',
         editedSubject: subject === shiftState.letterSubject ? '' : subject,
-        editedHtml: bodyChanged ? '' : (shiftState.letterHtml || ''),
         editedText: bodyChanged ? text : '',
       }),
     });
