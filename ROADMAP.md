@@ -1,5 +1,7 @@
 # Roadmap
 
+- Period 11 coverage card (2026-11-08): Central Pet section, `data-card="cp-coverage"`, opens `/central-pet/?to=coverage`. Hidden until `/api/me` lists that id.
+
 - Employee Board v2.30 is the lease wording. Show what will change needs the matching eod-api deploy.
 
 - SI closeout menu (`si-closeout/`): this commit is the Pages publish. The new buttons need the matching eod-api deploy.

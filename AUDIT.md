@@ -1,5 +1,7 @@
 # Audit
 
+Period 11 coverage (2026-11-08). Card `cp-coverage` in the Central Pet section. Href `/central-pet/?to=coverage` forwards the Dump Bin session to `https://cpscheduler-production.up.railway.app/c/me`. The scheduler refuses every email that is not on the crew list.
+
 Employee Board v2.29 (`feat/employee-board-menus`, not published): Time off lists each request under the name and parks the detail editor outside the table until a request is chosen, so a re-render does not destroy it. Shift management fills its dropdown from `GET /api/welcome-letter/employees` and posts the chosen person as `{ id: employeeId }`. The weekly template still calls `127.0.0.1:3002` and a failure there does not hide the PROD preview. Pathways reminders are one person at a time, with the subject and letter sent on the selection. The buffering mark is `/welcome-letter-board/assets/buffering.gif`. Open: Pages and the matching eod-api deploy.
 
 SI closeout menu (2026-11-05, not published): `si-closeout/index.html` plus `si-closeout/flow.js`. The store question, task list, calendar, and project chips stay in the browser. Results and Close SI still post into the shared chat. A bare store number is not sent as a closeout. Join the resistance calls `POST /api/si-closeout-chat/resistance` and does not announce it in the team chat. The badge file is served from this folder once Pages publishes. This commit is the Pages publish. The new buttons need the matching eod-api deploy before they do anything.

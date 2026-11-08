@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-08 — Period 11 coverage card
+
+Central Pet section has a Period 11 coverage card. It stays hidden until `/api/me` returns `cp-coverage`. The card opens `/central-pet/?to=coverage`, which hands the Dump Bin session to the scheduler.
+
 ## 2026-11-08 — Employee Board v2.39
 
 Orientation complete, the route email, and the pay shift are separate. The route email opens for editing before it sends.
