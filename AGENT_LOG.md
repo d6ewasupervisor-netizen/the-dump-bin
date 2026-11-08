@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-08 — Employee Board v2.39
+
+Orientation complete, the route email, and the pay shift are separate. The route email opens for editing before it sends.
+
 ## 2026-11-07 — Employee Board v2.34 template week
 
 The weekly template copies the store days already in the file for the chosen team. It does not write the later PROD weeks into that file.
