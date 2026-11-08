@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.38';
+  const UI_VERSION = 'v2.39';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -124,6 +124,8 @@
     return badge(status || '—', 'pending');
   }
 
+  let routeOfferHireId = '';
+
   function fmtShortDate(iso) {
     if (!iso) return '';
     try {
@@ -231,7 +233,7 @@
           <td>${escapeHtml(h.eid || '—')}</td>
           <td>${welcome}</td>
           <td>${orientBadge}<div style="margin-top:6px;">${orientBtn}</div></td>
-          <td>${routeBadge}${routeDate}</td>
+          <td>${routeBadge}${routeDate}<div style="margin-top:6px;"><button type="button" class="wb-btn wb-btn-ghost wb-route-btn" data-id="${escapeHtml(h.id)}" data-name="${escapeHtml(h.fullName || h.firstName || '')}" style="padding:4px 10px;font-size:12px;">Write route email</button></div></td>
           <td>${paidBadge}${paidDate}${paidErr}<div style="margin-top:6px;">${paidBtn}</div></td>
           <td>${badge(String(notices), noticeKind)}</td>
           <td>${chat}</td>
@@ -244,9 +246,7 @@
           const id = btn.dataset.id;
           const complete = btn.dataset.complete === '1';
           if (complete) {
-            if (!window.confirm(
-              'Mark orientation complete?\n\nThis will email the route offer (if needed) and build the 1-hour Orientation pay shift at store 999 (project 147) if not already paid.',
-            )) return;
+            if (!window.confirm('Mark orientation complete? This does not send the route email or build the pay shift.')) return;
           }
           btn.disabled = true;
           try {
@@ -254,15 +254,13 @@
               method: 'PATCH',
               body: JSON.stringify({
                 orientationComplete: complete,
-                sendRouteOffer: complete,
-                buildPayShift: complete,
               }),
             });
             await loadHires();
             showJustSentBanner({
               ok: true,
               message: complete
-                ? 'Orientation marked complete (route offer + pay shift if needed).'
+                ? 'Orientation marked complete.'
                 : 'Orientation marked incomplete.',
             });
           } catch (err) {
@@ -296,6 +294,23 @@
           } catch (err) {
             showJustSentBanner({ ok: false, message: err.message });
             btn.disabled = false;
+          }
+        });
+      });
+
+      tbody.querySelectorAll('.wb-route-btn').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const editor = document.getElementById('routeOfferEditor');
+          try {
+            const letter = await api(`/api/welcome-letter/hires/${encodeURIComponent(btn.dataset.id)}/route-offer/preview`, { method: 'POST', body: '{}' });
+            routeOfferHireId = btn.dataset.id;
+            document.getElementById('routeOfferTo').value = letter.to || '';
+            document.getElementById('routeOfferSubject').value = letter.subject || '';
+            document.getElementById('routeOfferBody').value = letter.text || '';
+            if (editor) editor.hidden = false;
+          } catch (err) {
+            showJustSentBanner({ ok: false, message: err.message });
           }
         });
       });
@@ -768,6 +783,30 @@
     if (hireChatModal) {
       hireChatModal.addEventListener('click', (e) => {
         if (e.target === hireChatModal) closeHireChat();
+      });
+    }
+    const routeOfferSend = document.getElementById('routeOfferSend');
+    if (routeOfferSend) {
+      routeOfferSend.addEventListener('click', async () => {
+        if (!routeOfferHireId) return;
+        const to = document.getElementById('routeOfferTo').value;
+        if (!window.confirm(`Send this route email to ${to}?`)) return;
+        routeOfferSend.disabled = true;
+        try {
+          const result = await api(`/api/welcome-letter/hires/${encodeURIComponent(routeOfferHireId)}/route-offer/send`, {
+            method: 'POST',
+            body: JSON.stringify({
+              subject: document.getElementById('routeOfferSubject').value,
+              text: document.getElementById('routeOfferBody').value,
+              force: true,
+            }),
+          });
+          showJustSentBanner({ ok: result.ok !== false, message: result.ok === false ? (result.reason || 'Not sent') : `Route email sent to ${to}.` });
+          await loadHires();
+        } catch (err) {
+          showJustSentBanner({ ok: false, message: err.message });
+        }
+        routeOfferSend.disabled = false;
       });
     }
     updateSortHeaders();
