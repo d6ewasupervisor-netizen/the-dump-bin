@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-09 — D6 Admin Availability Survey
+
+D6 Admin has an Availability Survey card. It opens Survey Admin with district 6 selected.
+
 ## 2026-11-09 — D6 Admin Employee Board
 
 District 6 has its own Employee Board card for April Gauthier.
