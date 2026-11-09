@@ -2587,6 +2587,26 @@ document.getElementById('exp-photos').onclick = () => {
   }
 };
 
+function requestedDistrict() {
+  const raw = new URLSearchParams(location.search).get('district') || '';
+  return raw.replace(/^D/i, '').trim();
+}
+
+function lockDistrict(code) {
+  function pick(sel) {
+    return [...sel.options].find((opt) => String(opt.value).replace(/^D/i, '') === code);
+  }
+  const cov = document.getElementById('cov-district');
+  const results = document.getElementById('f-district');
+  const covOpt = cov && pick(cov);
+  const resultsOpt = results && pick(results);
+  if (covOpt) cov.value = covOpt.value;
+  if (resultsOpt) results.value = resultsOpt.value;
+  renderCoverage();
+  const title = document.querySelector('h1');
+  if (title) title.textContent = 'Survey Admin · District ' + code;
+}
+
 (async function init() {
   try {
     setLoading(true);
@@ -2599,6 +2619,8 @@ document.getElementById('exp-photos').onclick = () => {
     ]);
     ACCESS = { scope: access.scope, user: access.user };
     renderScope();
+    const asked = requestedDistrict();
+    if (asked) lockDistrict(asked);
     try {
       const cachedProd = readProdCache();
       if (cachedProd && cachedProd.ok) {
