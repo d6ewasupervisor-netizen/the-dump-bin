@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-08 — Employee Board v2.41
+
+The Pathways reminder letter shows the training link under each course.
+
 ## 2026-11-08 — Employee Board v2.40
 
 Paid offers Build and run, or Mark Yes with no shift.

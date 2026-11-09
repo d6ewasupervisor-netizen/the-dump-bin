@@ -60,11 +60,21 @@
     return part || 'there';
   }
 
+  function courseUrl(course) {
+    var url = String(course && course.url || '').trim();
+    if (/^https?:\/\//i.test(url)) return url;
+    var id = String(course && course.id || '').trim();
+    if (!/^\d+$/.test(id)) return '';
+    var slug = String(course.name || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug ? ('https://app.schoox.com/' + id + '/' + slug) : ('https://app.schoox.com/' + id);
+  }
+
   function letterFor(person, courses) {
     var who = firstName(person.name);
     var lines = courses.map(function (course) {
       var due = course.due ? ' Due ' + course.due + '.' : '';
-      return course.name + '.' + due;
+      var link = courseUrl(course);
+      return course.name + '.' + due + (link ? '\n' + link : '');
     });
     return {
       subject: 'Pathways courses',
