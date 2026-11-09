@@ -2711,8 +2711,6 @@ body.set-media-open .bottom-nav { display: none !important; }
 .eod-pog-item-handle { font-weight: 700; margin-top: 6px; }
 
 /* Planogram changes: outline and tag on each changed facing */
-#pogChgBtn { flex: 0 0 auto; }
-#pogChgBtn[hidden] { display: none; }
 .si-pog-item.chg { outline: 3px solid var(--chg-color, #16a34a); outline-offset: -3px; }
 .si-pog-item.chg:not(.si-pog-peg-item) { position: relative; }
 .si-pog-item.chg-new { --chg-color: #16a34a; }
@@ -2735,7 +2733,37 @@ body.set-media-open .bottom-nav { display: none !important; }
   letter-spacing: 0.02em;
   pointer-events: none;
 }
-.si-pog-live.is-chg-only .si-pog-item:not(.chg) { opacity: 0.2; filter: grayscale(1); }
+.si-pog-filter {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.si-pog-filter[hidden] { display: none; }
+.si-pog-filter-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.si-pog-filter-btn.on { background: var(--text, #111827); border-color: var(--text, #111827); color: var(--bg, #fff); }
+.si-pog-filter-btn.chg-new { border-color: #16a34a; }
+.si-pog-filter-btn.chg-moves { border-color: #d97706; }
+.si-pog-filter-btn.chg-facings { border-color: #2563eb; }
+.si-pog-filter-btn.chg-upc { border-color: #7c3aed; }
+.si-pog-filter-btn.chg-pull { border-color: #dc2626; }
+.si-pog-live[data-pog-filter="changes"] .si-pog-item:not(.chg),
+.si-pog-live[data-pog-filter="new"] .si-pog-item:not(.chg-new),
+.si-pog-live[data-pog-filter="moves"] .si-pog-item:not(.chg-shift):not(.chg-move),
+.si-pog-live[data-pog-filter="facings"] .si-pog-item:not(.chg-facings),
+.si-pog-live[data-pog-filter="upc"] .si-pog-item:not(.chg-upc) { opacity: 0.2; filter: grayscale(1); }
 .si-pog-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px; vertical-align: middle; }
 .si-pog-chip {
   padding: 1px 6px;

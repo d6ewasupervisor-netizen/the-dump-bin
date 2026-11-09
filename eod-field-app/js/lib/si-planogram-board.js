@@ -337,6 +337,77 @@
     return `<div class="si-pog-bay-h">${label}${all ? `<span class="si-pog-chips">${all}</span>` : ''}</div>`;
   }
 
+  const FILTERS = [
+    ['all', 'All', null],
+    ['changes', 'Changes', null],
+    ['new', 'New', ['new']],
+    ['moves', 'Moves', ['shift', 'move']],
+    ['facings', 'Facings', ['facings']],
+    ['upc', 'New UPC', ['upc']],
+  ];
+  const FILTER_KEY = 'eod.pogFilter.';
+
+  function boardChangeCounts(pog) {
+    const counts = {};
+    let pulls = 0;
+    (pog?.bays || []).forEach((bay) => {
+      pulls += (bay.pogRemoved || []).length;
+      const c = bayChangeCounts(bay);
+      Object.keys(c).forEach((k) => { counts[k] = (counts[k] || 0) + c[k]; });
+    });
+    return { counts, pulls };
+  }
+
+  function readFilter(dbkey) {
+    try { return localStorage.getItem(FILTER_KEY + dbkey) || 'all'; } catch (_) { return 'all'; }
+  }
+
+  function writeFilter(dbkey, value) {
+    try { localStorage.setItem(FILTER_KEY + dbkey, value); } catch (_) { /* ignore */ }
+  }
+
+  function applyFilter(host, value) {
+    if (!host) return;
+    host.setAttribute('data-pog-filter', value);
+    host.querySelectorAll('[data-pog-filter-btn]').forEach((btn) => {
+      const on = btn.getAttribute('data-pog-filter-btn') === value;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  function filterHtml(pog) {
+    const { counts, pulls } = boardChangeCounts(pog);
+    const n = (keys) => keys.reduce((sum, k) => sum + (counts[k] || 0), 0);
+    const changed = n(Object.keys(counts));
+    if (!changed && !pulls) return '';
+    const chips = FILTERS
+      .filter(([value, , keys]) => (keys ? n(keys) > 0 : value === 'all' || changed > 0))
+      .map(([value, label, keys]) => (
+        `<button type="button" class="si-pog-filter-btn chg-${value}" data-pog-filter-btn="${value}" aria-pressed="false">${label}${keys ? ` ${n(keys)}` : ''}</button>`
+      ));
+    if (pulls) chips.push(`<button type="button" class="si-pog-filter-btn chg-pull" data-pog-pull-all>Pull ${pulls}</button>`);
+    return chips.join('');
+  }
+
+  function paintFilter(host, pog, dbkey) {
+    const nav = host?.querySelector('#pogFilter');
+    if (!nav) return;
+    const html = filterHtml(pog);
+    nav.innerHTML = html;
+    nav.hidden = !html;
+    let value = html ? readFilter(dbkey) : 'all';
+    if (!nav.querySelector(`[data-pog-filter-btn="${value}"]`)) value = 'all';
+    applyFilter(host, value);
+  }
+
+  function pullAllHtml(pog, title) {
+    return (pog?.bays || [])
+      .filter((bay) => (bay.pogRemoved || []).length)
+      .map((bay) => pullListHtml(bay, title))
+      .join('');
+  }
+
   function pullListHtml(bay, title) {
     const rows = (bay?.pogRemoved || []).map((row) => (
       `<li><strong>${esc(row.name || row.upc || '')}</strong>
@@ -807,9 +878,9 @@
       mount.innerHTML = boardHtml(pog, highlightUpc, ctx);
       bindItems(mount, pog);
       const overlay = mount.closest('.si-pog-live');
-      const chgBtn = overlay?.querySelector('#pogChgBtn');
-      if (chgBtn) {
-        chgBtn.hidden = !mount.querySelector('.si-pog-item.chg, [data-pull-bay]');
+      if (overlay) {
+        overlay._pog = pog;
+        paintFilter(overlay, pog, dbkey);
       }
       const scroll = mount.querySelector('.si-pog-scroll');
       const nav = overlay?.querySelector('#pogBayNav');
@@ -912,9 +983,9 @@
       <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
       <button type="button" class="btn btn-primary" id="pogScanBtn">Scan</button>
       <button type="button" class="btn btn-secondary" id="pogTextBtn">Text</button>
-      <button type="button" class="btn btn-secondary" id="pogChgBtn" hidden>Changes</button>
       <strong>${esc(title || 'Planogram')}</strong>
     </div>
+    <nav class="si-pog-filter" id="pogFilter" hidden></nav>
     <div class="si-pog-legend" id="pogLegend">
       <span><i class="si-pog-swatch ok"></i>On shelf</span>
       <span><i class="si-pog-swatch oos"></i>Out of stock</span>
@@ -933,11 +1004,17 @@
     };
     host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
     applyTextMode(host, readTextPref(), false);
-    host.querySelector('#pogChgBtn').onclick = () => {
-      const on = !host.classList.contains('is-chg-only');
-      host.classList.toggle('is-chg-only', on);
-      host.querySelector('#pogChgBtn').textContent = on ? 'All' : 'Changes';
-    };
+    host.querySelector('#pogFilter').addEventListener('click', (ev) => {
+      if (ev.target.closest('[data-pog-pull-all]')) {
+        showPogNotice(host, pullAllHtml(host._pog, title));
+        return;
+      }
+      const btn = ev.target.closest('[data-pog-filter-btn]');
+      if (!btn) return;
+      const value = btn.getAttribute('data-pog-filter-btn');
+      applyFilter(host, value);
+      writeFilter(dbkey, value);
+    });
     host.querySelector('#pogTextBtn').onclick = () => {
       const next = !host.classList.contains('is-text');
       applyTextMode(host, next, true);
@@ -963,6 +1040,7 @@
     packPegItems,
     pegFrame,
     bayHeadHtml,
+    filterHtml,
     isPegBay,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

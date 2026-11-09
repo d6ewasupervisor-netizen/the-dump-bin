@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-09 — Field app 3.5.17: planogram New and Moves filter
+
+The planogram board's Changes button became a chip row: All, Changes, New, Moves, Facings, New UPC, and Pull (every bay's pull list). Only chips with a count show. The choice is kept per dbkey (`eod.pogFilter.<dbkey>`). Moves covers moved on the set and moved in from another set. Built for store 23's P11W1 digital sets (eod-api `4ab85b7`). Local pilot 3.5.16 (zero-hour distribute) is not in this publish.
+
 ## 2026-11-09 — D6 Admin Availability Survey
 
 D6 Admin has an Availability Survey card. It opens Survey Admin with district 6 selected.
