@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.39';
+  const UI_VERSION = 'v2.40';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -219,7 +219,10 @@
           : '';
         const paidBtn = paid
           ? `<button type="button" class="wb-btn wb-btn-ghost wb-paid-btn" data-id="${escapeHtml(h.id)}" data-paid="0" style="padding:4px 10px;font-size:12px;">Yes — set No</button>`
-          : `<button type="button" class="wb-btn wb-btn-primary wb-paid-btn" data-id="${escapeHtml(h.id)}" data-paid="1" style="padding:4px 10px;font-size:12px;">No — set Yes</button>`;
+          : `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
+              <button type="button" class="wb-btn wb-btn-primary wb-paid-btn" data-id="${escapeHtml(h.id)}" data-paid="build" style="padding:4px 10px;font-size:12px;">Build and run</button>
+              <button type="button" class="wb-btn wb-btn-ghost wb-paid-btn" data-id="${escapeHtml(h.id)}" data-paid="word" style="padding:4px 10px;font-size:12px;">Mark Yes</button>
+            </div>`;
         const paidBadge = paid ? badge('Yes', 'sent') : badge('No', 'pending');
         const chat = h.chatUrl
           ? `<div class="wb-chat-actions">
@@ -274,23 +277,26 @@
         btn.addEventListener('click', async (e) => {
           e.preventDefault();
           const id = btn.dataset.id;
-          const markPaid = btn.dataset.paid === '1';
-          if (markPaid) {
-            if (!window.confirm(
-              'Mark Paid / build Orientation pay shift?\n\nCreates project 147 admin visit at store 999 (team Orientation), 1 hour, mileage off, then starts and completes the shift if one does not already exist.',
-            )) return;
+          const mode = btn.dataset.paid;
+          let payload = { orientationPaid: false };
+          let done = 'Paid cleared.';
+          if (mode === 'build') {
+            if (!window.confirm('Build and run the 1-hour Orientation shift at store 999?')) return;
+            payload = { orientationPaid: true, buildShift: true };
+            done = 'Paid. The shift was built.';
+          } else if (mode === 'word') {
+            if (!window.confirm('Mark paid without building a shift?')) return;
+            payload = { orientationPaid: true, buildShift: false };
+            done = 'Marked paid.';
           }
           btn.disabled = true;
           try {
             await api(`/api/welcome-letter/hires/${encodeURIComponent(id)}`, {
               method: 'PATCH',
-              body: JSON.stringify({ orientationPaid: markPaid }),
+              body: JSON.stringify(payload),
             });
             await loadHires();
-            showJustSentBanner({
-              ok: true,
-              message: markPaid ? 'Paid marked (shift built/completed if needed).' : 'Paid cleared.',
-            });
+            showJustSentBanner({ ok: true, message: done });
           } catch (err) {
             showJustSentBanner({ ok: false, message: err.message });
             btn.disabled = false;
