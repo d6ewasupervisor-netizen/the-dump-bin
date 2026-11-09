@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- welcome-letter-board v2.42 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="welcome-letter-version" content="v2.42">
+  <title>Employee Board — The Dump Bin</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/favicon.png?v=2">
+
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&display=swap" rel="stylesheet">
+  <script src="/auth-gate.js"></script>
+  <style>
+    :root {
+      --wb-navy: #0E2A47;
+      --wb-sky: #2F6FB0;
+      --wb-sky-tint: #EAF1F8;
+      --wb-ink: #1C2733;
+      --wb-muted: #5A6B7D;
+      --wb-line: #D6DEE8;
+      --wb-bg: #F2F5F8;
+      --wb-white: #FFFFFF;
+      --wb-error: #B3261E;
+      --wb-ok: #1E7A46;
+      --wb-warn: #8A5A00;
+      --wb-font: Carlito, Calibri, "Segoe UI", sans-serif;
+    }
+
+    body { background: var(--wb-bg); }
+
+    .wb-page {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+      font-family: var(--wb-font);
+      color: var(--wb-ink);
+    }
+
+    .wb-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .wb-brand {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--wb-sky);
+      margin-bottom: 6px;
+    }
+
+    .wb-head h1 { margin: 0; font-size: 1.8rem; color: var(--wb-navy); }
+    .wb-head p { margin: 8px 0 0; color: var(--wb-muted); font-size: 15px; max-width: 60ch; }
+
+    .wb-btn {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 10px 16px;
+      cursor: pointer;
+      line-height: 1.2;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .wb-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .wb-btn-primary { background: var(--wb-sky); color: #fff; }
+    .wb-btn-primary:hover:not(:disabled) { background: #275f97; }
+    .wb-btn-ghost { background: transparent; color: var(--wb-navy); border: 1px solid var(--wb-line); }
+    .wb-btn-ghost:hover:not(:disabled) { background: var(--wb-sky-tint); }
+    .wb-btn-danger { background: #B3261E; color: #fff; }
+
+    .wb-banner {
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 15px;
+      line-height: 1.45;
+      margin-bottom: 16px;
+    }
+    .wb-banner.ok { background: #E8F6EE; border: 1px solid #A7D7B8; color: var(--wb-ok); }
+    .wb-banner.err { background: #FCEAEA; border: 1px solid #E8B4B0; color: var(--wb-error); }
+
+    .wb-card {
+      background: var(--wb-white);
+      border: 1px solid var(--wb-line);
+      border-radius: 12px;
+      padding: 18px 18px 20px;
+      box-shadow: 0 8px 24px rgba(14, 42, 71, 0.06);
+      margin-bottom: 16px;
+    }
+
+    .wb-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+    .wb-filters label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--wb-navy); }
+    .wb-filters input, .wb-filters select {
+      font: inherit;
+      font-size: 14px;
+      color: var(--wb-ink);
+      border: 1px solid var(--wb-line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: var(--wb-white);
+      min-height: 38px;
+    }
+    .wb-filter-actions { display: flex; gap: 8px; }
+
+    .wb-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+      gap: 16px;
+    }
+    @media (max-width: 980px) { .wb-layout { grid-template-columns: 1fr; } }
+
+    .wb-list-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; font-size: 13px; color: var(--wb-muted); }
+    .wb-pager { display: flex; align-items: center; gap: 8px; }
+    .wb-table-wrap { overflow: auto; }
+    table.wb-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.wb-table th, table.wb-table td { border-bottom: 1px solid var(--wb-line); padding: 10px 8px; text-align: left; vertical-align: top; }
+    table.wb-table th { color: var(--wb-muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+    table.wb-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    table.wb-table th.sortable:hover, table.wb-table th.is-sorted { color: var(--wb-navy); }
+    table.wb-table tbody tr { cursor: pointer; }
+    table.wb-table tbody tr:hover, table.wb-table tbody tr.is-selected { background: var(--wb-sky-tint); }
+    table.wb-table tbody tr.is-stale,
+    table.wb-table tbody tr.is-stale:hover,
+    table.wb-table tbody tr.is-stale.is-selected { background: #FDE68A; }
+    table.wb-table tbody tr.is-open,
+    table.wb-table tbody tr.is-open:hover,
+    table.wb-table tbody tr.is-open.is-selected { background: #FDBA74; }
+    table.wb-table tbody tr.is-final,
+    table.wb-table tbody tr.is-final:hover,
+    table.wb-table tbody tr.is-final.is-selected { background: #FECACA; }
+    .wb-muted { color: var(--wb-muted); }
+    .wb-steps { margin: 14px 0 0; padding: 0; list-style: none; }
+    .wb-steps li { display: grid; grid-template-columns: 6.5rem 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--wb-line); font-size: 14px; }
+    .wb-steps .wb-step-label { font-weight: 700; color: var(--wb-navy); }
+    @media (max-width: 640px) {
+      .wb-steps li { grid-template-columns: 1fr; gap: 2px; }
+    }
+
+    .wb-badge { border-radius: 999px; display: inline-block; font-size: 12px; padding: 2px 9px; white-space: nowrap; font-weight: 700; }
+    .wb-badge-sent { background: #DFF3E5; color: #1E7A46; }
+    .wb-badge-failed { background: #FBE1DF; color: #B3261E; }
+    .wb-badge-pending { background: #FDF0D6; color: #8A5A00; }
+    .wb-badge-delivered { background: #DFF3E5; color: #1E7A46; }
+    .wb-badge-complained { background: #EFE1FA; color: #6B2FA6; }
+    .wb-badge-opened { background: var(--wb-sky-tint); color: var(--wb-sky); }
+    .wb-badge-not-opened { background: #EEF1F4; color: var(--wb-muted); }
+    .wb-badge-cancelled { background: #EEF1F4; color: #5A6B7D; text-decoration: line-through; }
+    .wb-pto-open .wb-pto-name { background: #FFF4CC; font-weight: 700; }
+
+    .wb-version {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 50;
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--wb-sky);
+      background: var(--wb-white);
+      border: 1px solid #BFD6EC;
+      border-radius: 999px;
+      padding: 4px 10px;
+      white-space: nowrap;
+      user-select: none;
+      line-height: 1.2;
+      box-shadow: 0 4px 12px rgba(14, 42, 71, 0.12);
+    }
+
+    .wb-detail-empty { color: var(--wb-muted); font-size: 14px; }
+    .wb-detail-grid { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; margin: 0 0 14px; }
+    .wb-detail-grid dt { color: var(--wb-muted); margin: 0; font-size: 13px; font-weight: 700; }
+    .wb-detail-grid dd { margin: 0; word-break: break-word; font-size: 14px; }
+    .wb-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .wb-thread-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--wb-line);
+      padding: 8px 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+    .wb-thread-item:hover, .wb-thread-item.is-open { background: var(--wb-sky-tint); }
+    .wb-preview-label { padding: 8px 12px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--wb-muted); background: #F7FAFC; border-bottom: 1px solid var(--wb-line); }
+    #detailPreview { width: 100%; min-height: 360px; height: 46vh; border: 0; background: #fff; }
+    .wb-error { color: var(--wb-error); font-size: 13px; margin-top: 10px; }
+
+    .wb-signed-in { font-size: 13px; color: var(--wb-muted); margin-top: 6px; }
+    .wb-chat-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+    .wb-modal-backdrop {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(14, 42, 71, 0.45);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .wb-modal {
+      width: min(640px, 100%);
+      max-height: 90vh;
+      background: var(--wb-white);
+      border-radius: 12px;
+      border: 1px solid var(--wb-line);
+      box-shadow: 0 16px 48px rgba(14, 42, 71, 0.2);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .wb-modal h3 { margin: 0; color: var(--wb-navy); }
+    .wb-chat-log {
+      min-height: 200px; max-height: 320px; overflow-y: auto;
+      border: 1px solid var(--wb-line); border-radius: 8px;
+      padding: 10px; background: #F7FAFC; font-size: 14px;
+    }
+    .wb-chat-msg { margin: 0 0 10px; padding: 8px 10px; border-radius: 6px; }
+    .wb-chat-msg.hire { background: var(--wb-sky-tint); }
+    .wb-chat-msg.staff { background: #e8f4ea; }
+    .wb-chat-msg.system { background: #eee; color: var(--wb-muted); font-size: 13px; }
+    .wb-chat-compose { width: 100%; min-height: 72px; font: inherit; padding: 8px; border: 1px solid var(--wb-line); border-radius: 8px; }
+    .wb-modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .wb-name-line {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .wb-prod-link {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--wb-sky);
+      white-space: nowrap;
+    }
+    .wb-work-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+    .wb-work-scroll { max-height: 420px; overflow: auto; margin-bottom: 14px; }
+    .wb-work-scroll table { font-size: 13px; }
+
+    .wb-hidden { display: none !important; }
+
+    .pw-person { border-top: 1px solid var(--wb-line); padding: 10px 0; }
+    .pw-courses { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0 12px; }
+    .pw-course {
+      display: flex; align-items: center; gap: 8px;
+      min-height: 40px; padding: 6px 10px; border-radius: 8px;
+      border: 1px solid var(--wb-line); background: var(--wb-white);
+    }
+    .pw-status { margin: 0 0 8px; }
+    .wb-run {
+      border: 1px solid var(--wb-line);
+      border-radius: 10px;
+      background: #F7FAFC;
+      padding: 12px 14px;
+      margin: 0 0 14px;
+    }
+    .wb-run h3 { margin: 0; color: var(--wb-navy); font-size: 1rem; }
+    .wb-run pre {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.45;
+      max-height: 220px;
+      overflow: auto;
+    }
+    .wb-menu-name, .wb-subitem {
+      appearance: none;
+      border: 1px solid var(--wb-line);
+      background: var(--wb-white);
+      border-radius: 8px;
+      font: inherit;
+      font-weight: 700;
+      text-align: left;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: var(--wb-navy);
+    }
+    .wb-menu-name.is-behind, .wb-name-btn.is-behind {
+      background: #FDE68A;
+      border-color: #C48A00;
+    }
+    .wb-subitem { font-weight: 400; width: 100%; }
+    .wb-subitem.is-selected { background: var(--wb-sky-tint); border-color: var(--wb-sky); }
+    .wb-submenu { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px 16px; }
+    .wb-letter {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-top: 8px; padding: 12px;
+      border: 1px solid var(--wb-line); border-radius: 10px; background: #fff;
+    }
+    .wb-letter textarea, .wb-letter input, .wb-field input, .wb-field select {
+      font: inherit; font-weight: 400; padding: 8px;
+      border: 1px solid var(--wb-line); border-radius: 8px; width: 100%;
+    }
+    .wb-letter textarea { min-height: 180px; }
+    .wb-busy {
+      position: fixed; left: 16px; bottom: 16px; z-index: 80;
+      display: flex; align-items: center; gap: 8px;
+      background: #fff; border: 1px solid #D6DEE8; border-radius: 999px;
+      padding: 4px 12px 4px 4px;
+      box-shadow: 0 8px 24px rgba(14, 42, 71, 0.16);
+      font-weight: 700; color: var(--wb-navy); font-size: 13px;
+      pointer-events: none;
+    }
+    .wb-busy[hidden] { display: none !important; }
+    .wb-busy img { width: 40px; height: 40px; object-fit: contain; display: block; }
+
+    .wb-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 16px;
+    }
+    .wb-tab {
+      appearance: none;
+      border: 1px solid var(--wb-line);
+      background: var(--wb-white);
+      color: var(--wb-navy);
+      border-radius: 999px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    .wb-tab:hover { background: var(--wb-sky-tint); }
+    .wb-tab.is-active {
+      background: var(--wb-navy);
+      color: #fff;
+      border-color: var(--wb-navy);
+    }
+    .wb-tab:focus-visible { outline: 2px solid var(--wb-sky); outline-offset: 2px; }
+    .wb-tab-count {
+      display: inline-block;
+      margin-left: 6px;
+      min-width: 1.2em;
+      text-align: center;
+    }
+    .wb-tab-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      margin-left: 8px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: #9f1239;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      vertical-align: middle;
+    }
+    .wb-tab.is-active .wb-tab-dot { background: #fff; color: #9f1239; }
+    .wb-tab-dot[hidden] { display: none !important; }
+    .wb-loa {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #1e3a5f;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      vertical-align: middle;
+    }
+
+    .wb-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .wb-form-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--wb-navy);
+    }
+    .wb-form-grid input,
+    .wb-form-grid select,
+    .wb-form-grid textarea {
+      font: inherit;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--wb-ink);
+      border: 1px solid var(--wb-line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: var(--wb-white);
+      min-height: 38px;
+    }
+    .wb-form-grid textarea { min-height: 88px; resize: vertical; }
+    .wb-span-all { grid-column: 1 / -1; }
+    .wb-form-grid label.wb-check {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+    }
+    .wb-check input { width: auto; min-height: 0; }
+    .wb-help { margin: 0; color: var(--wb-muted); font-size: 13px; line-height: 1.45; }
+    .wb-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    #refDueRows tr, #referralForm { cursor: default; }
+  </style>
+</head>
+<body>
+
+  <nav class="site-nav">
+    <div class="site-nav__inner">
+      <a href="/"><img src="/logo-banner.png" alt="Home" class="site-nav__logo"></a>
+      <a href="/" class="site-nav__link">Home</a>
+      <a href="/welcome/" class="site-nav__link">Send Welcome Letter</a>
+    </div>
+  </nav>
+
+  <main class="wb-page">
+
+    <div id="wbAccessDenied" class="wb-card wb-hidden" style="max-width:640px;margin:40px auto;">
+      <div class="wb-brand">Retail Odyssey</div>
+      <h1 style="margin:0 0 8px;color:var(--wb-navy);">Access restricted</h1>
+      <p style="color:var(--wb-muted);margin:0 0 16px;">The Employee Board is limited to authorized supervisors. If you need access, contact Tyson Gauthier.</p>
+      <a href="/" class="wb-btn wb-btn-primary">Back to Home</a>
+    </div>
+
+    <div id="wbApp" hidden>
+
+    <div class="wb-head">
+      <div>
+        <div class="wb-brand">Retail Odyssey</div>
+        <h1>Employee Board</h1>
+        <p>District 6. April Gauthier's people, their time off, their shifts, and the letters you send them.</p>
+        <p class="wb-signed-in" id="signedInAs" hidden></p>
+      </div>
+      <div id="boardActions" class="wb-actions">
+        <button type="button" id="refreshBtn" class="wb-btn wb-btn-ghost">Check which letters were opened</button>
+        <a href="/welcome/?board=d6" class="wb-btn wb-btn-primary">Send New Welcome Letter</a>
+      </div>
+    </div>
+
+    <div class="wb-tabs" role="tablist" aria-label="Employee Board">
+      <button type="button" class="wb-tab is-active" id="tabBoard" role="tab" aria-selected="true" aria-controls="panelBoard">Board <span id="boardDot" class="wb-tab-dot" hidden></span></button>
+      <button type="button" class="wb-tab" id="tabChat" role="tab" aria-selected="false" aria-controls="panelChat">Chat <span id="chatDot" class="wb-tab-dot" hidden></span></button>
+      <button type="button" class="wb-tab" id="tabShifts" role="tab" aria-selected="false" aria-controls="panelShifts">Shift management</button>
+      <button type="button" class="wb-tab" id="tabPast" role="tab" aria-selected="false" aria-controls="panelPast">Past employees</button>
+      <button type="button" class="wb-tab" id="tabPto" role="tab" aria-selected="false" aria-controls="panelPto">Time off</button>
+      <button type="button" class="wb-tab" id="tabPathways" role="tab" aria-selected="false" aria-controls="panelPathways">Pathways</button>
+      <button type="button" class="wb-tab" id="tabReferrals" role="tab" aria-selected="false" aria-controls="panelReferrals">Referrals</button>
+    </div>
+
+    <div id="panelBoard">
+
+    <div id="justSentBanner" class="wb-banner wb-hidden"></div>
+
+    <section class="wb-card" id="employeesCard">
+      <div class="wb-head" style="margin-bottom:12px;">
+        <div>
+          <h2 style="margin:0;color:var(--wb-navy);font-size:1.1rem;">Current employees</h2>
+        </div>
+        <button type="button" id="employeesRefresh" class="wb-btn wb-btn-ghost">Refresh the roster</button>
+      </div>
+      <div class="wb-layout">
+        <div>
+          <div class="wb-table-wrap">
+            <table class="wb-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Last day worked</th>
+                </tr>
+              </thead>
+              <tbody id="employeeRows">
+                <tr><td colspan="2" class="wb-muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="employeeComposer">
+          <p class="wb-detail-empty" id="employeeEmpty">Select an employee.</p>
+          <div id="employeeBody" hidden>
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;">
+              <h3 id="employeeName" style="margin:0;color:var(--wb-navy);"></h3>
+              <button type="button" id="loaBtn" class="wb-btn wb-btn-ghost" hidden>Mark LOA</button>
+            </div>
+            <p class="wb-muted" id="employeeMeta" style="margin:0 0 10px;font-size:13px;"></p>
+            <div id="workRange" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:8px;">
+              <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">From
+                <input id="workFrom" type="date" style="display:block;margin-top:4px;font:inherit;font-weight:400;padding:6px 8px;">
+              </label>
+              <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">To
+                <input id="workTo" type="date" style="display:block;margin-top:4px;font:inherit;font-weight:400;padding:6px 8px;">
+              </label>
+              <button type="button" id="workApply" class="wb-btn wb-btn-ghost">Apply</button>
+            </div>
+            <div id="workPanel" class="wb-muted" style="font-size:13px;margin-bottom:12px;">Loading…</div>
+            <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Notice
+              <select id="noticeKind" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+                <option value="noncomm-initial">No contact — first notice</option>
+                <option value="noncomm-final">No contact — final notice</option>
+                <option value="job-abandonment">Missed a scheduled shift</option>
+              </select>
+            </label>
+            <label id="lastWorkedWrap" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Last day worked
+              <input id="noticeLastWorked" type="date" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+            </label>
+            <label id="initialDateWrap" class="wb-hidden" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Date of initial email
+              <input id="noticeInitialDate" type="date" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+            </label>
+            <div id="shiftWrap" class="wb-hidden">
+              <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Scheduled date
+                <input id="noticeShiftDate" type="date" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+              </label>
+              <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Scheduled time
+                <input id="noticeShiftTime" type="text" placeholder="5:00 AM" style="display:block;width:100%;margin-top:4px;font:inherit;padding:8px;">
+              </label>
+            </div>
+            <div class="wb-detail-actions" style="margin-bottom:10px;">
+              <button type="button" id="noticePreviewBtn" class="wb-btn wb-btn-ghost">Show the letter</button>
+              <button type="button" id="noticeSendBtn" class="wb-btn wb-btn-primary">Send notice</button>
+            </div>
+            <p class="wb-muted" id="noticeStatus" style="margin:0 0 8px;font-size:13px;"></p>
+            <div class="wb-preview-wrap wb-hidden" id="noticePreviewWrap">
+              <div class="wb-preview-label">Notice preview</div>
+              <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);padding:10px 12px 0;">Subject
+                <input id="noticeSubject" type="text" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+              </label>
+              <iframe id="noticePreview" title="Employee notice preview" style="width:100%;min-height:320px;border:0;background:#fff;"></iframe>
+            </div>
+            <h4 style="margin:14px 0 6px;color:var(--wb-navy);">Communication</h4>
+            <div id="employeeThread" class="wb-muted" style="font-size:13px;">No notices yet.</div>
+            <div id="noticeCopy" class="wb-preview-wrap wb-hidden" hidden style="margin-top:10px;">
+              <div class="wb-preview-label">Sent notice</div>
+              <div class="wb-detail-actions" style="padding:8px 12px 0;">
+                <button type="button" id="noticeCopyDownload" class="wb-btn wb-btn-ghost">Download</button>
+              </div>
+              <p class="wb-muted" id="noticeCopyMeta" style="margin:8px 12px;font-size:13px;"></p>
+              <iframe id="noticeCopyFrame" title="Sent notice" style="width:100%;min-height:320px;border:0;background:#fff;"></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wb-card">
+      <h2 style="margin:0 0 10px;color:var(--wb-navy);font-size:1.1rem;">Hire pipeline</h2>
+      <p class="wb-muted" style="margin:0 0 10px;font-size:14px;">New hires, orientation, and their messages.</p>
+      <div class="wb-table-wrap">
+        <table class="wb-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>EID</th>
+              <th>Welcome</th>
+              <th>Orientation</th>
+              <th>Route</th>
+              <th>Paid</th>
+              <th>Notices</th>
+              <th>Chat</th>
+            </tr>
+          </thead>
+          <tbody id="hireRows">
+            <tr><td colspan="9" class="wb-muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="routeOfferEditor" class="wb-letter" hidden style="margin-top:12px;">
+        <label>To
+          <input id="routeOfferTo" type="email" readonly>
+        </label>
+        <label>Subject
+          <input id="routeOfferSubject" type="text">
+        </label>
+        <label>Route email
+          <textarea id="routeOfferBody" rows="12"></textarea>
+        </label>
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="routeOfferSend" class="wb-btn wb-btn-primary">Send the route email</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="wb-card">
+      <form id="filterForm" class="wb-filters">
+        <label>Search
+          <input id="search" placeholder="name or email…">
+        </label>
+        <label>Status
+          <select id="status">
+            <option value="">Any</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+            <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+        <label>Delivery
+          <select id="deliveryStatus">
+            <option value="">Any</option>
+            <option value="delivered">Delivered</option>
+            <option value="sent">In flight</option>
+            <option value="failed">Failed / bounced</option>
+            <option value="complained">Complained</option>
+          </select>
+        </label>
+        <div class="wb-filter-actions">
+          <button type="submit" class="wb-btn wb-btn-primary">Apply</button>
+          <button type="button" id="clearFilters" class="wb-btn wb-btn-ghost">Clear</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="wb-layout">
+      <section class="wb-card">
+        <div class="wb-list-meta">
+          <span id="listSummary">Loading…</span>
+          <div class="wb-pager">
+            <button type="button" id="prevPage" class="wb-btn wb-btn-ghost" disabled>Prev</button>
+            <span id="pageLabel">Page 1</span>
+            <button type="button" id="nextPage" class="wb-btn wb-btn-ghost" disabled>Next</button>
+          </div>
+        </div>
+        <div class="wb-table-wrap">
+          <table class="wb-table">
+            <thead>
+              <tr>
+                <th data-sort="createdAt" data-label="When" class="sortable">When</th>
+                <th data-sort="status" data-label="Status" class="sortable">Status</th>
+                <th data-sort="deliveryStatus" data-label="Delivery" class="sortable">Delivery</th>
+                <th data-sort="openedAt" data-label="Opened" class="sortable">Opened</th>
+                <th>First Name</th>
+                <th data-sort="to" data-label="Sent To" class="sortable">Sent To</th>
+                <th>Sent By</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr><td colspan="7" class="wb-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="wb-card" id="detailCard">
+        <h2 style="margin-top:0;color:var(--wb-navy);">Details</h2>
+        <p class="wb-detail-empty" id="detailEmpty">Select a welcome letter to read it, cancel it, or send it again.</p>
+        <div id="detailBody" hidden>
+          <dl class="wb-detail-grid" id="detailMeta"></dl>
+          <div class="wb-detail-actions">
+            <button type="button" id="resendBtn" class="wb-btn wb-btn-primary">Send this letter again</button>
+            <button type="button" id="cancelBtn" class="wb-btn wb-btn-danger">Cancel and send a disregard note</button>
+          </div>
+          <div class="wb-preview-wrap">
+            <div class="wb-preview-label">Email preview</div>
+            <iframe id="detailPreview" title="Welcome letter preview"></iframe>
+          </div>
+          <p id="detailError" class="wb-error" hidden></p>
+        </div>
+      </section>
+    </section>
+
+    <div id="hireChatModal" class="wb-modal-backdrop wb-hidden" hidden>
+      <div class="wb-modal" role="dialog" aria-labelledby="hireChatTitle">
+        <h3 id="hireChatTitle">Staff reply</h3>
+        <p class="wb-muted" id="hireChatHint" style="margin:0;font-size:14px;">Replies here are sent as staff (Tyson/Wolf), not as the new hire.</p>
+        <div class="wb-chat-log" id="hireChatLog"></div>
+        <textarea id="hireChatCompose" class="wb-chat-compose" placeholder="Write a staff reply…"></textarea>
+        <div class="wb-modal-actions">
+          <button type="button" id="hireChatSend" class="wb-btn wb-btn-primary">Send as staff</button>
+          <button type="button" id="hireChatClose" class="wb-btn wb-btn-ghost">Close</button>
+        </div>
+        <p class="wb-muted" id="hireChatStatus" style="margin:0;font-size:13px;"></p>
+      </div>
+    </div>
+
+    </div>
+
+    <div id="panelChat" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <h2 style="margin:0 0 12px;color:var(--wb-navy);font-size:1.1rem;">Chat</h2>
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:12px;">Employee
+          <select id="chatEmployee" style="display:block;width:100%;max-width:480px;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+            <option value="">Select an employee</option>
+          </select>
+        </label>
+        <div id="chatBody" hidden>
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;">
+            <h3 id="chatName" style="margin:0;color:var(--wb-navy);"></h3>
+            <button type="button" id="chatLoaBtn" class="wb-btn wb-btn-ghost" hidden>Mark LOA</button>
+          </div>
+          <div class="wb-chat-log" id="chatLog"></div>
+          <textarea id="chatCompose" class="wb-chat-compose" placeholder="Write a staff reply…"></textarea>
+          <div class="wb-modal-actions">
+            <button type="button" id="chatSend" class="wb-btn wb-btn-primary">Send as staff</button>
+          </div>
+          <p class="wb-muted" id="chatStatus" style="margin:8px 0 0;font-size:13px;"></p>
+        </div>
+      </section>
+    </div>
+
+    <div id="panelShifts" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <h2 style="margin:0 0 12px;color:var(--wb-navy);font-size:1.1rem;">Shift management</h2>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button type="button" id="shiftActionAdd" class="wb-btn wb-btn-primary">Add</button>
+          <button type="button" id="shiftActionRemove" class="wb-btn wb-btn-ghost">Remove</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px;">
+          <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">Shift type
+            <select id="shiftType" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;"></select>
+          </label>
+          <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">Stores
+            <input id="shiftStores" placeholder="19, 23, 53" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+          </label>
+          <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">From
+            <input id="shiftFrom" type="date" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+          </label>
+          <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">To
+            <input id="shiftTo" type="date" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+          </label>
+        </div>
+        <div id="shiftCycles" style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:12px;"></div>
+        <label class="wb-field" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Employee
+          <select id="shiftEmployee" style="display:block;width:100%;max-width:480px;margin-top:4px;">
+            <option value="">Choose an employee</option>
+          </select>
+        </label>
+        <label class="wb-field" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:8px;">Team
+          <select id="shiftTeam" style="display:block;width:100%;max-width:480px;margin-top:4px;">
+            <option value="">Choose a team</option>
+          </select>
+        </label>
+        <div id="shiftPeople" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+        <label id="shiftRemoveLeadWrap" style="display:none;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:10px;">
+          <input id="shiftRemoveLead" type="checkbox"> Take the current lead off this shift
+        </label>
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:12px;">
+          <input id="shiftTemplate" type="checkbox"> Also update the weekly template on this computer
+        </label>
+        <h3 style="margin:16px 0 8px;color:var(--wb-navy);font-size:1rem;">First-days letter</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px;">
+          <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">First name
+            <input id="shiftLetterName" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+          </label>
+          <label style="font-size:13px;font-weight:700;color:var(--wb-navy);">Email
+            <input id="shiftLetterEmail" type="email" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;">
+          </label>
+        </div>
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:10px;">Plan
+          <span style="display:block;font-weight:400;color:var(--wb-muted, #5A6B7D);margin-top:2px;">Each line is a bullet. That is how the first week is written.</span>
+          <textarea id="shiftLetterPlan" rows="5" style="display:block;width:100%;margin-top:4px;font:inherit;font-weight:400;padding:8px;">Over the first week, you'll work with the team and get to know everyone.
+Your lead will begin training you on the company systems.
+I will submit a requisition for a company tablet and email for you.
+We will reassess at the end of the week.</textarea>
+        </label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button type="button" id="shiftLetterPreview" class="wb-btn wb-btn-ghost">Write the letter</button>
+          <button type="button" id="shiftLetterSend" class="wb-btn wb-btn-primary" disabled>Send the letter</button>
+        </div>
+        <div id="shiftLetterEditor" class="wb-letter" hidden>
+          <label>Subject
+            <input id="shiftLetterSubject" type="text">
+          </label>
+          <iframe id="shiftLetterFrame" title="First week schedule" style="width:100%;min-height:480px;border:1px solid var(--wb-line);background:#fff;"></iframe>
+          <label>Letter text
+            <textarea id="shiftLetterBody"></textarea>
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;margin:12px 0 8px;">
+          <button type="button" id="shiftPreview" class="wb-btn wb-btn-ghost">Show what will change</button>
+          <button type="button" id="shiftExecute" class="wb-btn wb-btn-primary" disabled>Apply these changes</button>
+        </div>
+        <p id="shiftStatus" class="wb-muted" style="margin:0 0 8px;font-size:13px;"></p>
+        <div id="shiftPreviewList"></div>
+      </section>
+    </div>
+
+    <div id="panelPast" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <div class="wb-head" style="margin-bottom:12px;">
+          <div>
+            <h2 style="margin:0;color:var(--wb-navy);font-size:1.1rem;">Past employees</h2>
+          </div>
+          <button type="button" id="pastRefresh" class="wb-btn wb-btn-ghost">Refresh</button>
+        </div>
+        <div class="wb-table-wrap">
+          <table class="wb-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Personal</th>
+                <th>Work</th>
+                <th>Phone</th>
+                <th>Last day worked</th>
+                <th>Last on roster</th>
+              </tr>
+            </thead>
+            <tbody id="pastRows">
+              <tr><td colspan="6" class="wb-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div id="panelPathways" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <div class="wb-head" style="margin-bottom:12px;">
+          <div>
+            <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">Pathways</h2>
+          </div>
+          <div class="wb-actions">
+            <a href="/pathways/" class="wb-btn wb-btn-ghost">Training pay</a>
+            <button type="button" id="pathwaysPull" class="wb-btn wb-btn-ghost">Get the latest courses</button>
+          </div>
+        </div>
+        <div id="pathwaysStatus" class="pw-status wb-muted"></div>
+        <section class="wb-run" id="pathwaysRun">
+          <h3>What the last check did</h3>
+          <pre id="pathwaysLog">Nothing has been pulled from this page yet.</pre>
+        </section>
+        <label class="wb-field" style="display:block;font-size:13px;font-weight:700;color:var(--wb-navy);margin-bottom:10px;">Course
+          <select id="pathwaysCourse">
+            <option value="">All open courses</option>
+          </select>
+        </label>
+        <div id="pathwaysPeople"></div>
+      </section>
+    </div>
+
+    <div id="panelPto" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <div class="wb-head" style="margin-bottom:12px;">
+          <div>
+            <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">Time off</h2>
+          </div>
+          <button type="button" id="ptoPull" class="wb-btn wb-btn-ghost">Get new requests</button>
+          <button type="button" id="ptoRefresh" class="wb-btn wb-btn-ghost">Refresh</button>
+        </div>
+        <div id="ptoBanner" class="wb-banner wb-hidden"></div>
+        <div id="ptoDetailPark" hidden></div>
+        <div class="wb-table-wrap">
+          <table class="wb-table">
+            <thead>
+              <tr>
+                <th>People and requests</th>
+              </tr>
+            </thead>
+            <tbody id="ptoRows">
+              <tr><td class="wb-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="ptoDetail" class="wb-card" style="margin-top:16px;" hidden>
+          <h3 id="ptoDetailTitle" style="margin:0 0 8px;color:var(--wb-navy);font-size:1.05rem;"></h3>
+          <p id="ptoDetailMeta" class="wb-muted" style="margin:0 0 12px;"></p>
+          <label class="wb-muted" for="ptoNote" style="display:block;margin-bottom:6px;">Note</label>
+          <textarea id="ptoNote" style="width:100%;min-height:64px;margin-bottom:12px;"></textarea>
+          <div class="wb-actions">
+            <button type="button" id="ptoApprove" class="wb-btn wb-btn-primary">Approve the request</button>
+            <button type="button" id="ptoDeny" class="wb-btn wb-btn-ghost">Deny the request</button>
+            <button type="button" id="ptoBuild" class="wb-btn wb-btn-primary">Create the paid shift</button>
+          </div>
+          <p id="ptoActionStatus" class="wb-muted" style="margin:12px 0 0;"></p>
+          <ol id="ptoSteps" class="wb-steps" hidden></ol>
+          <h3 style="margin:16px 0 8px;color:var(--wb-navy);font-size:1rem;">Employee log</h3>
+          <div id="ptoLog"></div>
+        </div>
+      </section>
+    </div>
+
+    <div id="panelReferrals" class="wb-hidden" hidden>
+      <section class="wb-card">
+        <div class="wb-head" style="margin-bottom:12px;">
+          <div>
+            <h2 style="margin:0;color:var(--wb-navy);font-size:1.25rem;">District 8 referrals</h2>
+            <p class="wb-help" style="margin-top:8px;max-width:78ch;">Referrer, referred associate, milestone dates, and good standing for Tyson Gauthier’s district. Hours are typed in from PROD. Nothing on this tab confirms hours or sends a payout on its own.</p>
+            <p class="wb-help" style="margin-top:6px;max-width:78ch;">The tracker buttons only download a file. Payouts go Supervisor to Director to VP to asm.referral@advantagesolutions.net outside this app.</p>
+          </div>
+          <div class="wb-actions">
+            <button type="button" id="refAddBtn" class="wb-btn wb-btn-primary">Add referral</button>
+            <button type="button" id="refRefreshBtn" class="wb-btn wb-btn-ghost">Refresh</button>
+            <button type="button" id="refXlsxBtn" class="wb-btn wb-btn-ghost">Download tracker (xlsx)</button>
+            <button type="button" id="refCsvBtn" class="wb-btn wb-btn-ghost">Download tracker (csv)</button>
+          </div>
+        </div>
+        <div id="refBanner" class="wb-banner wb-hidden"></div>
+        <div class="wb-tabs" role="tablist" aria-label="Referral views">
+          <button type="button" class="wb-tab is-active" id="refViewList" role="tab" aria-selected="true" aria-controls="refListView">All referrals</button>
+          <button type="button" class="wb-tab" id="refViewDue" role="tab" aria-selected="false" aria-controls="refDueView">Due <span id="refDueCount" class="wb-tab-count"></span></button>
+        </div>
+
+        <div id="refListView">
+          <form id="refFilterForm" class="wb-filters" style="margin-bottom:12px;">
+            <label>Status
+              <select id="refStatusFilter">
+                <option value="">Any</option>
+                <option value="reported">Reported</option>
+                <option value="contacted">Contacted</option>
+                <option value="submitted">Submitted</option>
+                <option value="interview">Interview</option>
+                <option value="offer">Offer</option>
+                <option value="hired">Hired</option>
+                <option value="not_selected">Not selected</option>
+              </select>
+            </label>
+            <div class="wb-filter-actions">
+              <button type="submit" class="wb-btn wb-btn-primary">Apply</button>
+            </div>
+          </form>
+          <div class="wb-table-wrap">
+            <table class="wb-table">
+              <thead>
+                <tr>
+                  <th>Referrer</th>
+                  <th>Referred</th>
+                  <th>Status</th>
+                  <th>EID</th>
+                  <th>First shift</th>
+                  <th>15-day / 40-hour</th>
+                  <th>30-day / 80-hour</th>
+                  <th>Good standing</th>
+                </tr>
+              </thead>
+              <tbody id="refRows">
+                <tr><td colspan="8" class="wb-muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <form id="referralForm" class="wb-card wb-hidden" hidden style="margin-top:16px;box-shadow:none;">
+            <h3 id="refFormTitle" style="margin:0 0 8px;color:var(--wb-navy);">Add referral</h3>
+            <p class="wb-help" style="margin-bottom:12px;">Saving stores the referral. It does not confirm hours or email a payout.</p>
+            <input type="hidden" id="refEditingId" value="">
+            <div class="wb-form-grid">
+              <label>Referrer name
+                <input id="refReferrerName" required autocomplete="off">
+              </label>
+              <label>Referrer EID
+                <input id="refReferrerEid" autocomplete="off">
+              </label>
+              <label>Referrer phone
+                <input id="refReferrerPhone" autocomplete="off">
+              </label>
+              <label>Store number
+                <input id="refReferrerStore" autocomplete="off">
+              </label>
+              <label>Dept number
+                <input id="refReferrerDept" autocomplete="off" placeholder="08">
+              </label>
+              <label>Retailer
+                <input id="refRetailer" autocomplete="off" placeholder="Fred Meyer">
+              </label>
+              <label class="wb-span-all">Referrer’s supervisor
+                <input id="refReferrerSupervisor" autocomplete="off">
+              </label>
+              <label>Referred person
+                <input id="refReferralName" required autocomplete="off">
+              </label>
+              <label>Referred phone
+                <input id="refReferralPhone" autocomplete="off">
+              </label>
+              <label>Referred email
+                <input id="refReferralEmail" type="email" autocomplete="off">
+              </label>
+              <label>Referred EID
+                <input id="refReferredEid" autocomplete="off">
+              </label>
+              <label>Status
+                <select id="refStatus">
+                  <option value="reported">Reported</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="interview">Interview</option>
+                  <option value="offer">Offer</option>
+                  <option value="hired">Hired</option>
+                  <option value="not_selected">Not selected</option>
+                </select>
+              </label>
+              <label>Reported on
+                <input id="refReportedOn" type="date">
+              </label>
+              <label>TA form submitted
+                <input id="refTaFormOn" type="date">
+              </label>
+              <label>First shift date
+                <input id="refFirstShiftOn" type="date">
+              </label>
+              <label>Onboard hire id
+                <input id="refOnboardHireId" autocomplete="off">
+              </label>
+              <label>Referrer good standing
+                <select id="refReferrerStanding">
+                  <option value="">Not set</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label>Referred good standing
+                <select id="refReferredStanding">
+                  <option value="">Not set</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label class="wb-check wb-span-all">
+                <input id="refSupervisorContacted" type="checkbox">
+                Supervisor contacted
+              </label>
+              <label>15-day / 40-hour payout record
+                <select id="refM1Payout">
+                  <option value="pending">Pending</option>
+                  <option value="eligible">Eligible</option>
+                  <option value="tracker_prepared">Tracker prepared</option>
+                  <option value="submitted_to_director">Submitted to director</option>
+                  <option value="vp_approved">VP approved</option>
+                  <option value="sent">Sent</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </label>
+              <label>30-day / 80-hour payout record
+                <select id="refM2Payout">
+                  <option value="pending">Pending</option>
+                  <option value="eligible">Eligible</option>
+                  <option value="tracker_prepared">Tracker prepared</option>
+                  <option value="submitted_to_director">Submitted to director</option>
+                  <option value="vp_approved">VP approved</option>
+                  <option value="sent">Sent</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </label>
+              <p class="wb-help wb-span-all">Payout status here is a record only. Changing it does not email the director, VP, or asm.referral@advantagesolutions.net.</p>
+              <label class="wb-span-all">Notes
+                <textarea id="refNotes"></textarea>
+              </label>
+            </div>
+            <div class="wb-actions" style="margin-top:12px;">
+              <button type="submit" id="refSaveBtn" class="wb-btn wb-btn-primary">Save referral</button>
+              <button type="button" id="refCancelBtn" class="wb-btn wb-btn-ghost">Cancel</button>
+            </div>
+            <p id="refFormError" class="wb-error" hidden></p>
+          </form>
+        </div>
+
+        <div id="refDueView" class="wb-hidden" hidden>
+          <p class="wb-help" style="margin-bottom:12px;">Milestones whose date has arrived and still need hours. Read the hours in PROD, then submit the form. The page does not fill or confirm hours for you.</p>
+          <div class="wb-table-wrap">
+            <table class="wb-table">
+              <thead>
+                <tr>
+                  <th>Referrer</th>
+                  <th>Referred</th>
+                  <th>Milestone</th>
+                  <th>Milestone date</th>
+                  <th>Status</th>
+                  <th>EID</th>
+                  <th>Good standing</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="refDueRows">
+                <tr><td colspan="8" class="wb-muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <form id="referralHoursForm" class="wb-card wb-hidden" hidden style="margin-top:16px;box-shadow:none;">
+            <h3 style="margin:0 0 8px;color:var(--wb-navy);">Confirm hours from PROD</h3>
+            <p id="refHoursContext" class="wb-help" style="margin-bottom:12px;"></p>
+            <input type="hidden" id="refHoursId" value="">
+            <div class="wb-form-grid">
+              <label>Milestone
+                <select id="refHoursMilestone">
+                  <option value="1">1 — 15-day / 40-hour</option>
+                  <option value="2">2 — 30-day / 80-hour</option>
+                </select>
+              </label>
+              <label>Hours from PROD
+                <input id="refHoursValue" type="number" min="0" max="1000" step="0.01" required placeholder="Type the PROD hours">
+              </label>
+              <label>Referrer good standing
+                <select id="refHoursReferrerStanding">
+                  <option value="">Not set</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label>Referred good standing
+                <select id="refHoursReferredStanding">
+                  <option value="">Not set</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+            </div>
+            <div class="wb-actions" style="margin-top:12px;">
+              <button type="submit" id="refHoursSaveBtn" class="wb-btn wb-btn-primary">Confirm hours</button>
+              <button type="button" id="refHoursCancelBtn" class="wb-btn wb-btn-ghost">Cancel</button>
+            </div>
+            <p id="refHoursError" class="wb-error" hidden></p>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    </div>
+
+  </main>
+
+  <div id="wbBusy" class="wb-busy" hidden>
+    <img src="/welcome-letter-board/assets/buffering.gif?v=2.42" alt="" width="40" height="40">
+    <span>Working</span>
+  </div>
+  <span class="wb-version" id="wbVersion" title="Employee Board version">v2.42</span>
+
+  <script>window.EMPLOYEE_BOARD = 'd6';</script>
+  <script src="/welcome-letter-board/assets/pathways-panel.js?v=2.42"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.42"></script>
+</body>
+</html>

@@ -786,9 +786,12 @@
   }
 
   async function apiJson(path, body) {
+    const board = new URLSearchParams(window.location.search).get('board') || window.EMPLOYEE_BOARD || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (board) headers['x-employee-board'] = board;
     const res = await window.dumpBinAuthFetch(path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
     let data = null;

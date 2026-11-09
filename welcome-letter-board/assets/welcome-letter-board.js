@@ -1,5 +1,5 @@
 (function () {
-  const UI_VERSION = 'v2.41';
+  const UI_VERSION = 'v2.42';
   const API_PREFIX = '/api/welcome-letter/board';
 
   const state = {
@@ -70,6 +70,7 @@
     const fetchFn = window.dumpBinAuthFetch || fetch;
     const headers = {
       'Content-Type': 'application/json',
+      ...(window.EMPLOYEE_BOARD ? { 'x-employee-board': window.EMPLOYEE_BOARD } : {}),
       ...(options.headers || {}),
     };
     showBusy(true);

@@ -37,7 +37,9 @@
   function api(path, opts) {
     busyOn(true);
     var f = window.dumpBinAuthFetch || fetch;
-    return f(path, opts).then(function (resp) {
+    var headers = Object.assign({ 'Content-Type': 'application/json' }, (opts && opts.headers) || {});
+    if (window.EMPLOYEE_BOARD) headers['x-employee-board'] = window.EMPLOYEE_BOARD;
+    return f(path, Object.assign({}, opts, { headers: headers })).then(function (resp) {
       return resp.json().catch(function () { return {}; }).then(function (body) {
         if (!resp.ok || body.ok === false) {
           var err = new Error(body.error || body.message || ('Request failed (' + resp.status + ')'));

@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-09 — D6 Admin Employee Board
+
+District 6 has its own Employee Board card for April Gauthier.
+
 ## 2026-11-08 — Employee Board v2.41
 
 The Pathways reminder letter shows the training link under each course.
