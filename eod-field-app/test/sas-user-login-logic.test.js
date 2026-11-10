@@ -106,12 +106,18 @@ test('first login matches the reauth form: two Okta prompts and an optional Goog
   assert.equal(L.openMode({ connected: true, siConnected: true }), 'idle');
   assert.equal(L.openMode({ connected: true, siConnected: false }), 'form');
   const html = L.cardHtml('form', { hasPattern: false }, false, { formStep: 'sas' });
-  assert.match(html, /Okta will send two prompts/);
+  assert.match(html, /two Okta Verify notifications/);
   assert.match(html, /Approve both/);
   assert.match(html, /Okta username/);
   assert.match(html, /Password/);
   assert.match(html, /Google Authenticator/);
-  assert.match(html, /leave both blank for the two Okta prompts/);
+  assert.match(html, /leave both code boxes blank/);
+  assert.match(html, /enter the code showing for Okta in the first box/);
+  assert.match(html, /Wait for the next code to appear, enter it in the second box, then tap Sign in/);
+  // The directions sit between the code boxes and the Sign in button.
+  const steps = html.indexOf('data-sas-steps');
+  assert.ok(steps > html.indexOf('id="sasUserCode2"'));
+  assert.ok(steps < html.indexOf('data-sas="sign-in"'));
   assert.match(html, /id="sasUserCode"/);
   assert.match(html, /class="sas-otp"/);
   assert.match(html, /inputmode="numeric"/);
@@ -127,7 +133,7 @@ test('first login matches the reauth form: two Okta prompts and an optional Goog
   assert.match(html, /id="sasUserCode2"/);
   assert.match(html, /First code/);
   assert.match(html, /Second code/);
-  assert.match(html, /leave both blank/);
+  assert.match(html, /leave both code boxes blank/);
   assert.doesNotMatch(html, /SI username/);
   assert.doesNotMatch(html, /class="err"/);
   assert.doesNotMatch(html, /data-pattern=/);
@@ -180,7 +186,7 @@ test('step 1 prefills the First.Last sign-in name and names the lead', () => {
   // Okta rejects the RO email for leads provisioned on another domain, and a
   // type="email" box would fight a bare first.last value.
   assert.doesNotMatch(html, /id="sasUserUsername"[^>]*type="email"/);
-  assert.match(html, /two Okta prompts/);
+  assert.match(html, /two Okta Verify notifications/);
   assert.doesNotMatch(html, /How to/);
   assert.equal(L.bannedCopy(html), false);
 });

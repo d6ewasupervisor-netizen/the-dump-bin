@@ -1136,7 +1136,83 @@
     }
   }
 
+  const PROD_PROMPT_KEY = 'eodProdSignInPrompt';
+  let visitStartPending = null;
+
+  function withTimeoutValue(promise, ms, fallback) {
+    return Promise.race([
+      Promise.resolve(promise).catch(() => fallback),
+      new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+    ]);
+  }
+
+  function prodPromptStamp() {
+    const email = String(global.EodRoles?.getMe?.()?.email || '').trim().toLowerCase();
+    return `${email}|${global.EodSession?.todayLocalIsoDate?.() || ''}`;
+  }
+
+  function prodPromptedAlready() {
+    try { return localStorage.getItem(PROD_PROMPT_KEY) === prodPromptStamp(); } catch (_) { return false; }
+  }
+
+  function markProdPrompted() {
+    try { localStorage.setItem(PROD_PROMPT_KEY, prodPromptStamp()); } catch (_) {}
+  }
+
+  // A lead who is not on their own PROD/Okta session gets the sign-in sheet
+  // before store and date. Anything unknown skips it; the shared session and
+  // the swarm carry the work for anyone who cannot sign in.
+  async function shouldPromptProdSignIn() {
+    if (!global.EodChrome?.openSignIn || !global.EodSasUser?.fetchStatus) return false;
+    if (prodPromptedAlready()) return false;
+    const R = global.EodRoles;
+    await withTimeoutValue(R?.load?.(), 3000, null);
+    if (!R?.getMe?.()?.email || !R.hasRole?.('lead', 'supervisor', 'admin')) return false;
+    const status = await withTimeoutValue(global.EodSasUser.fetchStatus(true), 4000, null);
+    if (!status) return false;
+    if (status.sharedActor) return false;
+    const L = global.EodSasUserLoginLogic;
+    const live = L?.prodSasSignedIn ? L.prodSasSignedIn(status) : !!status.connected;
+    return !live;
+  }
+
+  function promptProdSignIn() {
+    return new Promise((resolve) => {
+      let done = false;
+      let handle = null;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        global.removeEventListener?.('eod-sas-signin', onResult);
+        resolve();
+      };
+      const onResult = (ev) => {
+        const d = ev?.detail || {};
+        if (d.ok) setTimeout(() => (handle?.close ? handle.close() : finish()), 600);
+        else if (Number(d.failures) > 2) (handle?.close ? handle.close() : finish());
+      };
+      global.addEventListener?.('eod-sas-signin', onResult);
+      try { handle = global.EodChrome.openSignIn({ onClose: finish }); } catch (_) { handle = null; }
+      if (!handle) finish();
+    });
+  }
+
   async function openDayConfirmModal(options) {
+    if (document.getElementById('dayConfirmModal')) return;
+    if (visitStartPending) return visitStartPending;
+    visitStartPending = (async () => {
+      try {
+        if (await shouldPromptProdSignIn()) {
+          markProdPrompted();
+          await promptProdSignIn();
+        }
+      } catch (_) { /* sign-in never blocks the visit */ }
+      return showDayConfirmModal(options);
+    })().finally(() => { visitStartPending = null; });
+    return visitStartPending;
+  }
+
+  async function showDayConfirmModal(options) {
     const S = global.EodSession;
     if (document.getElementById('dayConfirmModal')) return;
     readCachedStores();
@@ -1181,7 +1257,7 @@
         dateEl.value = iso;
         try { global.EodShiftDay?.load?.(iso); } catch (_) {}
       },
-      loadDates: (store, from, to) => global.EodShiftDay?.loadStoreIseDates?.(store, from, to) || Promise.resolve([]),
+      loadDates: (store, from, to) => global.EodShiftDay?.loadStoreShiftDates?.(store, from, to) || Promise.resolve([]),
     });
     void global.EodShiftDay?.load?.(date);
     storeBtn.onclick = () => {

@@ -80,7 +80,6 @@
     if (fs === 'sas') {
       const user = esc(defaults?.username || '');
       return `${leadLine(lead)}
-        <p class="muted" data-sas-two-prompts style="margin:0 0 12px;">Okta will send two prompts. Approve both on your phone.</p>
         <div class="field">
           <label for="sasUserUsername">Okta username</label>
           <input type="text" id="sasUserUsername" autocomplete="username" autocapitalize="none" spellcheck="false" value="${user}">
@@ -90,11 +89,15 @@
           <input type="password" id="sasUserPassword" autocomplete="current-password">
         </div>
         <div class="field">
-          <label for="sasUserCode">Google Authenticator codes <span class="muted">(optional — leave both blank for the two Okta prompts)</span></label>
+          <label for="sasUserCode">Google Authenticator codes <span class="muted">(optional)</span></label>
           <div class="btn-row">
             <input type="text" id="sasUserCode" class="sas-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="First code" aria-label="First code">
             <input type="text" id="sasUserCode2" class="sas-otp" inputmode="numeric" autocomplete="off" maxlength="6" pattern="[0-9]{6}" placeholder="Second code" aria-label="Second code">
           </div>
+        </div>
+        <div class="sas-signin-steps" data-sas-steps style="margin:12px 0 4px;line-height:1.45;">
+          <p data-sas-two-prompts style="margin:0 0 8px;"><strong>Okta Verify:</strong> leave both code boxes blank. You will receive two Okta Verify notifications on your phone. Approve both.</p>
+          <p data-sas-google-steps style="margin:0;"><strong>Google Authenticator:</strong> enter the code showing for Okta in the first box. Wait for the next code to appear, enter it in the second box, then tap Sign in.</p>
         </div>
         <div class="muted" data-sas-progress style="min-height:1.2em;margin-top:8px;"></div>
         <div class="btn-row">

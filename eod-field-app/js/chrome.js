@@ -435,18 +435,26 @@
     }
   }
 
-  function openSignIn() {
+  function openSignIn(opts) {
+    const options = opts || {};
     let host = document.getElementById('eodSignInSheet');
     if (!host) {
       host = document.createElement('div');
       host.id = 'eodSignInSheet';
       host.className = 'modal-overlay show';
       document.body.appendChild(host);
-      host.addEventListener('click', (e) => { if (e.target === host) closeModal(host); });
     } else {
       host.classList.add('show');
       host.style.display = '';
     }
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      closeModal(host);
+      try { options.onClose?.(); } catch (_) {}
+    };
+    host.onclick = (e) => { if (e.target === host) close(); };
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>PROD + SI sign in</h2>
       <div id="eodSignInHost"></div>
@@ -457,11 +465,10 @@
       if (slot) slot.textContent = 'Sign in is not available.';
       console.warn('[chrome] sign in', err);
     }
-    host.querySelector('#eodSignInClose')?.addEventListener('click', () => closeModal(host));
+    host.querySelector('#eodSignInClose')?.addEventListener('click', close);
     global.EodA11y?.activate?.(host);
-    host.addEventListener('eod-dialog-escape', () => {
-      closeModal(host);
-    }, { once: true });
+    host.addEventListener('eod-dialog-escape', close, { once: true });
+    return { close, host };
   }
 
   function openMoreMenu() {

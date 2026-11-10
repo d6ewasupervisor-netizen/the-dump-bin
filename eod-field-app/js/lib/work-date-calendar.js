@@ -1,4 +1,5 @@
-/* Confirm-date month grid. Kompass ISE days, today, and the overlap. */
+/* Confirm-date month grid. Scheduled Kompass ISE, Cut In, Blitz, DIV, and
+   Central Pet Reset days, today, and the overlap. */
 (function (global) {
   'use strict';
 
@@ -62,8 +63,8 @@
 
   function dayAriaLabel(iso, tone) {
     const base = longDate(iso);
-    if (tone === 'both') return `${base}. Kompass ISE. Today.`;
-    if (tone === 'ise') return `${base}. Kompass ISE.`;
+    if (tone === 'both') return `${base}. Scheduled. Today.`;
+    if (tone === 'ise') return `${base}. Scheduled.`;
     if (tone === 'today') return `${base}. Today.`;
     return base;
   }

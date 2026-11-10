@@ -2,9 +2,25 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { dayTone, monthCells, windowForMonth } = require('../js/lib/work-date-calendar');
+const fs = require('node:fs');
+const path = require('node:path');
+const { dayTone, monthCells, windowForMonth, dayAriaLabel } = require('../js/lib/work-date-calendar');
 
-test('today and a Kompass ISE day overlap as both', () => {
+test('the confirm calendar loads scheduled dates from the shift-day cache', () => {
+  const cache = fs.readFileSync(path.join(__dirname, '..', 'js', 'lib', 'shift-day-cache.js'), 'utf8');
+  const visit = fs.readFileSync(path.join(__dirname, '..', 'js', 'features', 'visit.js'), 'utf8');
+  assert.match(cache, /async function loadStoreShiftDates/);
+  assert.match(cache, /\/store-dates\?store=/);
+  assert.match(cache, /loadStoreShiftDates,/);
+  assert.match(visit, /EodShiftDay\?\.loadStoreShiftDates\?\./);
+});
+
+test('scheduled days read as scheduled, not only ISE', () => {
+  assert.equal(dayAriaLabel('2026-11-10', 'ise'), 'November 10, 2026. Scheduled.');
+  assert.equal(dayAriaLabel('2026-11-10', 'both'), 'November 10, 2026. Scheduled. Today.');
+});
+
+test('today and a scheduled day overlap as both', () => {
   assert.equal(dayTone('2026-09-26', '2026-09-26', ['2026-09-26']), 'both');
   assert.equal(dayTone('2026-09-24', '2026-09-26', ['2026-09-24']), 'ise');
   assert.equal(dayTone('2026-09-26', '2026-09-26', []), 'today');

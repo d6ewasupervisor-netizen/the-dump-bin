@@ -162,6 +162,18 @@
     return connectedVerdict(status, opts);
   }
 
+  let signInFailures = 0;
+
+  function noteSignInResult(ok) {
+    signInFailures = ok ? 0 : signInFailures + 1;
+    statusAt = 0;
+    try {
+      global.dispatchEvent?.(new CustomEvent('eod-sas-signin', {
+        detail: { ok: !!ok, failures: signInFailures },
+      }));
+    } catch (_) {}
+  }
+
   // ── Pattern lock ──────────────────────────────────────────────────────────────
 
   /* opts.onComplete(value) is called on pointerup when at least opts.minDots
@@ -572,13 +584,17 @@
         if (!username) { setMsg(root, 'Enter your username'); return; }
         if (!password) { setMsg(root, 'Enter your password'); return; }
         if ((code && code.length !== 6) || (code2 && code2.length !== 6)) {
-          setMsg(root, 'Each code must be six digits, or leave both blank for the two Okta prompts.');
+          setMsg(root, 'Each code must be six digits, or leave both blank for the two Okta Verify notifications.');
           return;
         }
         // Okta takes one code at sign-in and asks for the next on the way to
         // SAS. One code alone gets spent and then fails there.
         if (!!code !== !!code2) {
-          setMsg(root, 'Enter both codes, or leave both blank for the two Okta prompts.');
+          setMsg(root, 'Enter the first code, wait for the next code, and enter it in the second box.');
+          return;
+        }
+        if (code && code === code2) {
+          setMsg(root, 'The second code must be the next code. Wait for it to change, then enter it.');
           return;
         }
         const btn = root.querySelector('[data-sas="sign-in"]');
@@ -588,22 +604,25 @@
         if (code) { body.totpCode = code; body.totpCode2 = code2; }
         setMsg(root, code
           ? 'Signing in with your Google Authenticator codes…'
-          : 'Signing in… Okta will send two prompts. Approve both.');
+          : 'Signing in… approve both Okta Verify notifications on your phone.');
         if (!code) startProgress();
         try {
           const { resp, data } = await postJson(reauth ? '/api/sas-user/reauth' : '/api/sas-user/connect', body);
           if (!resp.ok || !data.ok) {
             setMsg(root, data.error || 'Sign-in failed');
+            noteSignInResult(false);
             return;
           }
           view = 'idle';
           resetFormState();
           await redraw(true);
+          noteSignInResult(true);
         } catch (err) {
           const msg = (err && String(err.message || '').toLowerCase().includes('fetch'))
             ? 'Connection error — check your connection and try again'
             : (err.message || 'Sign-in failed');
           setMsg(root, msg);
+          noteSignInResult(false);
         } finally {
           stopProgress();
           if (btn && btn.isConnected) btn.disabled = false;
@@ -839,5 +858,6 @@
     refreshLead,
     leadContext,
     passwordExpiryDays,
+    signInFailures: () => signInFailures,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
