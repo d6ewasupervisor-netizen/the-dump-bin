@@ -27,6 +27,33 @@
     return String(S.state.workDate || '').slice(0, 10) === pacificToday();
   }
 
+  const FM_STORE_SUFFIX = '@stores.fredmeyer.com';
+
+  function editDistance(a, b) {
+    const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i += 1) {
+      let prev = row[0];
+      row[0] = i;
+      for (let j = 1; j <= b.length; j += 1) {
+        const next = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = row[j];
+        row[j] = next;
+      }
+    }
+    return row[b.length];
+  }
+
+  /** Mirrors eod-api correctFredMeyerDomain: `stores.fremeyer.com` is the store domain. */
+  function fixStoreDomain(value) {
+    const email = String(value || '').trim().toLowerCase();
+    const at = email.lastIndexOf('@');
+    if (at <= 0) return email;
+    const domain = email.slice(at + 1);
+    const want = FM_STORE_SUFFIX.slice(1);
+    if (domain === want || editDistance(domain, want) > 2) return email;
+    return `${email.slice(0, at)}${FM_STORE_SUFFIX}`;
+  }
+
   function padStore(n) {
     return String(n || '').replace(/\D/g, '').padStart(3, '0');
   }
@@ -1154,16 +1181,18 @@ ${cleanNotes}`;
     let lastQuery = '';
 
     async function addRecipientEmail(email) {
-      const v = String(email || '').trim().toLowerCase();
+      const v = fixStoreDomain(email);
       if (!v || !v.includes('@')) return false;
       if ((S.state.needsAssignmentEmails || []).some((item) => String(item).toLowerCase() === v)) return false;
-      if (v.endsWith('@stores.fredmeyer.com')) {
-        try {
-          await global.EodCover?.addFredmeyerEmail?.(v);
-        } catch (err) {
-          if (global.showAlert) global.showAlert('Recipient', err.message || String(err));
-          return false;
-        }
+      if (!v.endsWith(FM_STORE_SUFFIX)) {
+        if (global.showAlert) global.showAlert('Recipient', `Only ${FM_STORE_SUFFIX} addresses can be added.`);
+        return false;
+      }
+      try {
+        await global.EodCover?.addFredmeyerEmail?.(v);
+      } catch (err) {
+        if (global.showAlert) global.showAlert('Recipient', err.message || String(err));
+        return false;
       }
       const arr = S.state.emailRecipients.slice();
       if (!arr.includes(v)) arr.push(v);
@@ -1386,7 +1415,9 @@ ${cleanNotes}`;
       const fmMax = Number(S.state.fmMaxRecipients) || 10;
       const fmCount = (payload.recipients || []).filter((email) => String(email).toLowerCase().endsWith('@stores.fredmeyer.com')).length;
       if (global.EodAlerts?.confirm) {
-        const okSend = await global.EodAlerts.confirm('Send EOD', `Sending to ${fmCount} of ${fmMax}`);
+        const okSend = await global.EodAlerts.confirm('Send EOD', fmCount
+          ? `Send to ${fmCount} Fred Meyer store contact${fmCount === 1 ? '' : 's'}?`
+          : 'No Fred Meyer store contacts selected. Send anyway?');
         if (!okSend) return;
       }
       const cartMail = cartPhotosInEmail(payload);
