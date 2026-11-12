@@ -417,8 +417,9 @@ body {
   background:
     radial-gradient(1200px 420px at 10% -10%, var(--glow), transparent 55%),
     var(--surface);
-  /* One clearance for the fixed nav, on every route (visit included — the nav
-     is visible there too). */
+  /* Desktop and the pre-phone fallback still clear a fixed nav. Phones
+     override this: the nav is in the column, so the extra padding would
+     leave a gap under it. */
   padding: var(--safe-t) var(--safe-r) calc(var(--nav-clear) + 4px) var(--safe-l);
 }
 body[data-route="visit"] { padding-bottom: calc(var(--nav-clear) + 4px); }
@@ -1229,6 +1230,73 @@ body:not(.role-lead):not(.role-supervisor):not(.role-admin) .bottom-nav [data-na
   font-weight: 700;
   cursor: pointer;
   flex: 0 0 auto;
+}
+
+/* iOS 26 paints position:fixed; bottom:0 against the layout viewport, so the
+   bar lands mid-screen once Safari's toolbar moves. On a phone the frame is
+   the visual viewport (pinPhoneFrame in index.html) and the nav is just the
+   last row of that column. The list scrolls in #appMount. */
+@media (max-width: 767px) {
+  html {
+    height: 100%;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  body {
+    position: absolute;
+    top: var(--vv-offset, 0px);
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: var(--vvh, 100dvh);
+    max-height: var(--vvh, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  body,
+  body[data-route="visit"] {
+    padding-bottom: 0;
+  }
+  .app-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+  .app-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #appChrome,
+  #sectionNavHost,
+  .pilot-banner,
+  #updateBanner,
+  #authBanner,
+  .eod-test-banner {
+    flex: 0 0 auto;
+  }
+  #appMount {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .bottom-nav {
+    position: relative;
+    flex: 0 0 auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+  }
 }
 
 @media (max-width: 560px) {

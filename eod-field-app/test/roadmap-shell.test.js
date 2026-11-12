@@ -303,6 +303,16 @@ test('Gray Matter theme and mobile wrap primitives are defined', () => {
   assert.match(index, /t !== 'gray-matter'/);
 });
 
+test('phone nav is in the column, tracked to the visual viewport', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+  const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(css, /@media \(max-width: 767px\) \{[\s\S]*\.bottom-nav \{[\s\S]*position: relative/);
+  assert.match(css, /#appMount \{[\s\S]*overflow-y: auto/);
+  assert.match(index, /function pinPhoneFrame/);
+  assert.match(index, /visualViewport/);
+  assert.match(index, /--vvh/);
+});
+
 test('SW claim does not reload an uncontrolled first load', () => {
   const boot = fs.readFileSync(path.join(__dirname, '../js/boot.js'), 'utf8');
   assert.match(boot, /const hadController = !!navigator\.serviceWorker\.controller/);

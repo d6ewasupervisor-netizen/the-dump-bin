@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-12 — Field app 3.5.24: iPhone bottom bar
+
+The Visit / Categories / Signatures / Send bar was painting mid-screen on iOS 26. On a phone it is the last row of the visual-viewport frame, and the category list scrolls above it.
+
 ## 2026-11-11 — Folder back on `main`
 
 This checkout sat on `feat/employee-board-chat` with uncommitted pilot files at 3.5.15 while live was 3.5.21. Those edits were version strings, two changes already on `main`, and line endings. The one unique piece, the Nov 6 Brian Campbell entry, is now in this log. A patch of everything discarded is `Downloads\dump-bin-feat-employee-board-chat-uncommitted-2026-11-11.patch`. Three untracked duplicates of local field-app files were deleted here and in `dump-bin-wt-publish`, and that worktree was removed so this folder could take `main`. `feat/employee-board-chat` keeps its three unmerged commits for review. Pilot publishes since 3.5.19 shipped from clean worktrees off `origin/main`.
