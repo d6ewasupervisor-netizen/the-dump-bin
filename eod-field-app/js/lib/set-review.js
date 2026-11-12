@@ -51,19 +51,26 @@
       .gh-review .gh-stage-track::-webkit-scrollbar { display: none; }
       .gh-review .gh-stage-track.is-locked,
       .gh-review .gh-stage-track.is-single { overflow-x: hidden; scroll-snap-type: none; }
-      .gh-review .gh-stage-track.is-locked { touch-action: none; }
+      .gh-review .gh-stage-track.is-locked { touch-action: pan-x pan-y; }
+      .gh-review .gh-stage-track.is-draw { touch-action: none; }
       .gh-review .gh-stage-frame {
         flex: 0 0 auto; height: 100%; scroll-snap-align: start;
         overflow: hidden; overflow-anchor: none; box-sizing: border-box;
       }
       .gh-review .gh-stage-vp {
-        display: flex; justify-content: center; align-items: center;
         width: 100%; height: 100%;
         overflow: auto; max-height: min(70vh, 640px);
         touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
       }
+      .gh-review .gh-stage-fit {
+        min-width: 100%; min-height: 100%;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .gh-review .gh-stage-vp.is-zoomed { cursor: grab; }
+      .gh-review .gh-stage-vp.is-zoomed.is-dragging { cursor: grabbing; }
       .gh-review .gh-stage-vp[data-mode="draw"] { touch-action: none; }
-      .gh-review .gh-stage { position: relative; display: block; overflow: hidden; }
+      .gh-review .gh-stage { position: relative; display: block; }
       .gh-review .gh-stage img, .gh-review .gh-stage canvas { display: block; max-width: none; image-orientation: from-image; }
       .gh-review .gh-film-thumb img { image-orientation: from-image; }
       .gh-review .gh-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -327,6 +334,8 @@
     let photos = [];
     let idx = 0;
     let scale = 1;
+    let fitW = 0;
+    let fitH = 0;
     let mode = 'pan';
     let drawing = false;
     let lastPt = null;
@@ -475,31 +484,27 @@
 
     function setTrackLocked(locked) {
       const track = document.getElementById('ghStageTrack');
-      if (track) track.classList.toggle('is-locked', !!locked);
-    }
-
-    function syncModeButtons() {
-      document.getElementById('ghModePan')?.classList.toggle('is-active', mode === 'pan');
-      document.getElementById('ghModeDraw')?.classList.toggle('is-active', mode === 'draw');
+      if (!track) return;
+      track.classList.toggle('is-locked', !!locked);
+      track.classList.toggle('is-draw', mode === 'draw');
       const { vp } = activeEls();
-      if (vp) vp.dataset.mode = mode;
-      setTrackLocked(mode === 'draw' || scale > 1.05);
+      if (vp) vp.classList.toggle('is-zoomed', scale > 1.05);
     }
 
-    function applyScale() {
-      const { stage } = activeEls();
-      if (!stage) return;
-      stage.style.transform = `scale(${scale})`;
-      stage.style.transformOrigin = '0 0';
-      setTrackLocked(mode === 'draw' || scale > 1.05);
-    }
-
-    function paintOrientedImage(img, deg, boxW, boxH) {
+    function paintBox() {
+      const { img, canvas, stage } = activeEls();
+      if (!img || !canvas || !stage || !fitW) return;
+      const deg = currentDeg();
       const swap = deg === 90 || deg === 270;
-      const imgW = swap ? boxH : boxW;
-      const imgH = swap ? boxW : boxH;
-      img.style.width = `${imgW}px`;
-      img.style.height = `${imgH}px`;
+      const w = fitW * scale;
+      const h = fitH * scale;
+      stage.style.width = `${w}px`;
+      stage.style.height = `${h}px`;
+      stage.style.transform = '';
+      img.style.width = `${(swap ? fitH : fitW) * scale}px`;
+      img.style.height = `${(swap ? fitW : fitH) * scale}px`;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
       if (deg) {
         img.style.position = 'absolute';
         img.style.left = '50%';
@@ -515,9 +520,45 @@
       }
     }
 
+    function zoomTo(nextScale, clientX, clientY) {
+      const { vp, stage } = activeEls();
+      if (!vp || !stage || !fitW) return;
+      const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextScale));
+      const vpRect = vp.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      const px = clientX == null ? vpRect.left + vpRect.width / 2 : clientX;
+      const py = clientY == null ? vpRect.top + vpRect.height / 2 : clientY;
+      const fracX = (px - stageRect.left) / Math.max(1, stageRect.width);
+      const fracY = (py - stageRect.top) / Math.max(1, stageRect.height);
+      const cursorX = px - vpRect.left;
+      const cursorY = py - vpRect.top;
+      scale = next;
+      paintBox();
+      const newW = fitW * scale;
+      const newH = fitH * scale;
+      const boxW = Math.max(vp.clientWidth, newW);
+      const boxH = Math.max(vp.clientHeight, newH);
+      vp.scrollLeft = (boxW - newW) / 2 + fracX * newW - cursorX;
+      vp.scrollTop = (boxH - newH) / 2 + fracY * newH - cursorY;
+      setTrackLocked(mode === 'draw' || scale > 1.05);
+    }
+
+    function applyScale() {
+      paintBox();
+      setTrackLocked(mode === 'draw' || scale > 1.05);
+    }
+
+    function syncModeButtons() {
+      document.getElementById('ghModePan')?.classList.toggle('is-active', mode === 'pan');
+      document.getElementById('ghModeDraw')?.classList.toggle('is-active', mode === 'draw');
+      const { vp } = activeEls();
+      if (vp) vp.dataset.mode = mode;
+      setTrackLocked(mode === 'draw' || scale > 1.05);
+    }
+
     function fitStage() {
       const { img, canvas, vp, stage } = activeEls();
-      if (!img || !canvas || !vp || !img.naturalWidth) return;
+      if (!img || !canvas || !vp || !stage || !img.naturalWidth) return;
       const deg = currentDeg();
       const swap = deg === 90 || deg === 270;
       const srcW = img.naturalWidth;
@@ -527,20 +568,22 @@
       const viewH = swap ? srcW : srcH;
       canvas.width = viewW;
       canvas.height = viewH;
-      const maxW = Math.max(280, vp.clientWidth - 4);
-      const displayW = maxW;
-      const displayH = displayW * (viewH / viewW);
-      canvas.style.width = `${displayW}px`;
-      canvas.style.height = `${displayH}px`;
-      paintOrientedImage(img, deg, displayW, displayH);
-      if (stage) {
-        stage.style.width = `${displayW}px`;
-        stage.style.height = `${displayH}px`;
+      const maxW = Math.max(80, vp.clientWidth - 8);
+      const maxH = Math.max(80, vp.clientHeight - 8);
+      const aspect = viewH / viewW;
+      fitW = maxW;
+      fitH = fitW * aspect;
+      if (fitH > maxH) {
+        fitH = maxH;
+        fitW = fitH / aspect;
       }
       scale = 1;
-      applyScale();
+      paintBox();
+      vp.scrollLeft = 0;
+      vp.scrollTop = 0;
       redrawCanvas();
       paintFilmRotation();
+      setTrackLocked(mode === 'draw');
     }
 
     function paintFilmRotation() {
@@ -656,6 +699,7 @@
       img.alt = p.label || `Photo ${i + 1}`;
       const thumbNow = displayUrl(p, 'thumb');
       if (!img.getAttribute('src') && thumbNow) img.src = thumbNow;
+      img.dataset.want = 'full';
       objectUrlFor(p, 'full').then((src) => {
         if (!src) return;
         img.dataset.full = '1';
@@ -734,9 +778,11 @@
       track.innerHTML = photos.map((p, i) => `
         <div class="gh-stage-frame" data-idx="${i}">
           <div class="gh-stage-vp" data-mode="pan">
-            <div class="gh-stage">
-              <img alt="${escapeHtml(p.label || `Photo ${i + 1}`)}" draggable="false">
-              <canvas></canvas>
+            <div class="gh-stage-fit">
+              <div class="gh-stage">
+                <img alt="${escapeHtml(p.label || `Photo ${i + 1}`)}" draggable="false">
+                <canvas></canvas>
+              </div>
             </div>
           </div>
         </div>`).join('');
@@ -745,7 +791,7 @@
         const img = track.querySelector(`.gh-stage-frame[data-idx="${i}"] img`);
         if (!img) return;
         objectUrlFor(p, 'thumb').then((src) => {
-          if (img.dataset.full === '1') return;
+          if (img.dataset.full === '1' || img.dataset.want === 'full') return;
           img.src = src;
         }).catch(() => {});
       });
@@ -971,14 +1017,8 @@
     function bindTools() {
       document.getElementById('ghPrev')?.addEventListener('click', () => showPhoto(idx - 1));
       document.getElementById('ghNext')?.addEventListener('click', () => showPhoto(idx + 1));
-      document.getElementById('ghZoomIn')?.addEventListener('click', () => {
-        scale = Math.min(MAX_ZOOM, scale * ZOOM_STEP);
-        applyScale();
-      });
-      document.getElementById('ghZoomOut')?.addEventListener('click', () => {
-        scale = Math.max(MIN_ZOOM, scale / ZOOM_STEP);
-        applyScale();
-      });
+      document.getElementById('ghZoomIn')?.addEventListener('click', () => zoomTo(scale * ZOOM_STEP));
+      document.getElementById('ghZoomOut')?.addEventListener('click', () => zoomTo(scale / ZOOM_STEP));
       document.getElementById('ghRotate')?.addEventListener('click', () => {
         const id = photoKey();
         rotation.set(id, ((rotation.get(id) || 0) + 90) % 360);
@@ -1033,20 +1073,24 @@
       track.addEventListener('mouseup', endDraw);
       track.addEventListener('mouseleave', endDraw);
 
-      let pinchStart = 0;
-      let pinchScale = 1;
+      let pinch = null;
+      let didPinch = false;
+      let lastTap = 0;
+      let lastTapX = 0;
+      let lastTapY = 0;
+      let drag = null;
       track.addEventListener('touchstart', (e) => {
         if (mode === 'draw') {
           startDraw(e);
           return;
         }
-        if (mode !== 'pan') return;
         if (e.touches.length === 2) {
-          pinchStart = Math.hypot(
-            e.touches[0].clientX - e.touches[1].clientX,
-            e.touches[0].clientY - e.touches[1].clientY
-          ) || 1;
-          pinchScale = scale;
+          const [a, b] = e.touches;
+          pinch = {
+            dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
+            scale,
+          };
+          didPinch = true;
           e.preventDefault();
         }
       }, { passive: false });
@@ -1055,28 +1099,64 @@
           moveDraw(e);
           return;
         }
-        if (mode !== 'pan' || e.touches.length < 2) return;
+        if (e.touches.length < 2 || !pinch) return;
         e.preventDefault();
-        const dist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        ) || 1;
-        scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchScale * (dist / pinchStart)));
-        applyScale();
+        const [a, b] = e.touches;
+        const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1;
+        zoomTo(pinch.scale * (dist / pinch.dist), (a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
       }, { passive: false });
-      track.addEventListener('touchend', endDraw);
+      track.addEventListener('touchend', (e) => {
+        endDraw();
+        if (e.touches.length > 0) return;
+        pinch = null;
+        if (didPinch) {
+          if (e.touches.length === 0) didPinch = false;
+          return;
+        }
+        if (mode !== 'pan' || e.changedTouches.length !== 1) return;
+        const t = e.changedTouches[0];
+        const now = Date.now();
+        if (now - lastTap < 280 && Math.hypot(t.clientX - lastTapX, t.clientY - lastTapY) < 28) {
+          zoomTo(scale > 1.05 ? 1 : 2.5, t.clientX, t.clientY);
+          lastTap = 0;
+        } else {
+          lastTap = now;
+          lastTapX = t.clientX;
+          lastTapY = t.clientY;
+        }
+      });
+      track.addEventListener('pointerdown', (e) => {
+        if (mode !== 'pan' || scale <= 1.05 || e.button !== 0 || e.pointerType === 'touch') return;
+        const { vp } = activeEls();
+        if (!vp) return;
+        drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sl: vp.scrollLeft, st: vp.scrollTop };
+        vp.classList.add('is-dragging');
+        vp.setPointerCapture?.(e.pointerId);
+      });
+      track.addEventListener('pointermove', (e) => {
+        if (!drag || drag.id !== e.pointerId) return;
+        const { vp } = activeEls();
+        if (!vp) return;
+        vp.scrollLeft = drag.sl - (e.clientX - drag.x);
+        vp.scrollTop = drag.st - (e.clientY - drag.y);
+      });
+      function endDrag(e) {
+        if (!drag || (e && drag.id !== e.pointerId)) return;
+        drag = null;
+        activeEls().vp?.classList.remove('is-dragging');
+      }
+      track.addEventListener('pointerup', endDrag);
+      track.addEventListener('pointercancel', endDrag);
       track.addEventListener('dblclick', (e) => {
         if (mode !== 'pan') return;
-        scale = scale > 1.4 ? 1 : 2.5;
-        applyScale();
+        zoomTo(scale > 1.05 ? 1 : 2.5, e.clientX, e.clientY);
         e.preventDefault();
       });
       track.addEventListener('wheel', (e) => {
-        if (mode !== 'pan') return;
+        if (mode === 'draw') return;
         e.preventDefault();
-        const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
-        scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale * factor));
-        applyScale();
+        const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+        zoomTo(scale * factor, e.clientX, e.clientY);
       }, { passive: false });
 
       syncModeButtons();
