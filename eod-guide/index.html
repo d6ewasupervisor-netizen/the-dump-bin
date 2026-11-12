@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Field app instructions · EOD Field App Guide</title>
+<link rel="icon" type="image/png" href="favicon.png?v=2">
+<link rel="apple-touch-icon" href="favicon.png?v=2">
+<link rel="stylesheet" href="assets/css/eod-guide.css">
+</head>
+<body data-ro-single>
+
+<a class="ro-skip" href="#main">Skip to content</a>
+
+<header class="ro-header">
+  <img class="ro-header__logo" src="assets/img/logo-full.png" alt="The Retail Odyssey Company">
+  <p class="ro-header__title">Field app instructions</p>
+  <button class="ro-iconbtn" type="button" data-ro-searchtoggle aria-expanded="false" aria-label="Search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+  </button>
+  <button class="ro-iconbtn ro-navtoggle" type="button" data-ro-navtoggle aria-expanded="false" aria-label="Sections">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+</header>
+
+<div class="ro-searchpanel" data-ro-searchpanel hidden>
+  <label class="ro-skip" for="ro-q">Search this page</label>
+  <input class="ro-field" id="ro-q" type="search" placeholder="Search this page…" data-ro-searchinput autocomplete="off">
+  <p class="ro-count" data-ro-searchcount role="status" aria-live="polite"></p>
+  <ul class="ro-results" data-ro-searchresults></ul>
+</div>
+
+<div class="ro-nav__backdrop" data-ro-backdrop></div>
+
+<div class="ro-shell">
+  <nav class="ro-nav" data-ro-nav aria-label="Sections"></nav>
+
+  <main class="ro-main" id="main">
+    <article data-ro-body>
+
+      <div class="ro-hero">
+        <div class="ro-hero__rule"></div>
+        <h1>EOD field app — instructions</h1>
+        <p>From sign-in to a sent EOD, in the order the visit runs.</p>
+      </div>
+
+      <p class="ro-lede">The field app is at <a href="https://the-dump-bin.com/eod-field-app/">the-dump-bin.com/eod-field-app</a>. Use it on your work phone or tablet. Button names below are written exactly as they appear in the app.</p>
+
+      <p class="ro-docctrl">Revision 2026-11-11 · Field app 3.5.22</p>
+
+      <details class="ro-toc" data-ro-toc></details>
+
+      <!-- ───────────────────────── 1 ───────────────────────── -->
+      <h2 id="access">1. Get into the Dump Bin</h2>
+
+      <div class="ro-callout ro-callout--note">
+        <span class="ro-callout__label">One time only</span>
+        <p>Before the first PIN can reach your phone, text <strong>JOIN</strong> to <strong>(509) 572-9212</strong> from the mobile number on file with your supervisor. Until you do, no text can be delivered. Reply <strong>STOP</strong> anytime to opt out.</p>
+      </div>
+
+      <ol class="ro-steps">
+        <li>Go to <a href="https://the-dump-bin.com">the-dump-bin.com</a>. The sign-in page opens.</li>
+        <li>In <span class="ro-btnname">Email</span>, enter your company email address — the one on file with your supervisor.</li>
+        <li>Tap <span class="ro-btnname">Text me a one-time PIN</span>. A 6-digit PIN is texted to the phone number on record. It expires in about 10 minutes.</li>
+        <li>Enter the PIN in <span class="ro-btnname">6-digit code</span> and tap <span class="ro-btnname">Verify &amp; sign in</span>.</li>
+        <li>You are in. The sign-in lasts 45 days on that device.</li>
+      </ol>
+
+      <ul>
+        <li><strong>No text arrived:</strong> text JOIN to (509) 572-9212 from that phone, wait a moment, then tap <span class="ro-btnname">Resend code</span>. <span class="ro-btnname">Email me a sign-in link</span> also works as a backup.</li>
+        <li><strong>“You're not on the access list yet”:</strong> fill in your full name, email, and supervisor, then tap <span class="ro-btnname">Request access</span>. Sign in again once your supervisor confirms you were added.</li>
+      </ul>
+
+      <!-- ───────────────────────── 2 ───────────────────────── -->
+      <h2 id="open-app">2. Open the field app</h2>
+
+      <ol class="ro-steps">
+        <li>On the Dump Bin home page, tap the <span class="ro-btnname">EOD Field Pilot</span> card.</li>
+        <li>The phone bar along the bottom is <strong>Visit · Categories · Signatures · Send</strong>. Crew, Dump Bin, Helpdesk, and Scan results are under <span class="ro-btnname">More</span>. A tablet shows all of them on the bar.</li>
+      </ol>
+
+      <!-- ───────────────────────── 3 ───────────────────────── -->
+      <h2 id="prod-signin">3. Start the shift — sign in to PROD</h2>
+
+      <p>The first time you open the app each day, the <span class="ro-btnname">PROD + SI sign in</span> sheet opens before store and date. If it was closed, open it again from <span class="ro-btnname">PROD + SI sign in</span> on Visit.</p>
+
+      <ol class="ro-steps">
+        <li><span class="ro-btnname">Okta username</span> is filled in as First.Last. Fix it only if it is wrong.</li>
+        <li>Enter your Okta / SAS PROD password in <span class="ro-btnname">Password</span>.</li>
+        <li>Finish with <strong>Okta Verify</strong> (preferred) or <strong>Google Authenticator</strong>, below.</li>
+      </ol>
+
+      <h3 id="okta-verify">Okta Verify (preferred)</h3>
+
+      <ol class="ro-steps">
+        <li>Leave both code boxes blank.</li>
+        <li>Tap <span class="ro-btnname">Sign in</span>. The sheet reads <em>First Okta prompt sent. A second prompt follows.</em></li>
+        <li>On your phone, open the Okta Verify notification and tap <span class="ro-btnname">Yes, it's me</span>.</li>
+        <li>A second notification arrives. The sheet reads <em>Second Okta prompt — approve it on your phone.</em> Approve that one too.</li>
+        <li>The sheet reads <em>Approved, finishing…</em> and then closes. The <strong>SAS</strong> and <strong>SI</strong> lights in the header turn green.</li>
+      </ol>
+
+      <div class="ro-callout ro-callout--caution">
+        <span class="ro-callout__label">Two prompts, every time</span>
+        <p>The first prompt signs you in to Okta. The second signs you in to PROD. Approving only the first leaves you signed out. Do not close the sheet while you wait for the second prompt.</p>
+      </div>
+
+      <h3 id="google-auth">Google Authenticator</h3>
+
+      <ol class="ro-steps">
+        <li>Open Google Authenticator and find the Okta entry.</li>
+        <li>Type the 6-digit code into <span class="ro-btnname">First code</span>.</li>
+        <li>Wait for the code to change. Codes roll over every 30 seconds.</li>
+        <li>Type the new code into <span class="ro-btnname">Second code</span>.</li>
+        <li>Tap <span class="ro-btnname">Sign in</span>.</li>
+      </ol>
+
+      <p>The app rejects one code by itself, or the same code in both boxes. Both codes are needed for the same reason Okta Verify sends two prompts.</p>
+
+      <h3 id="okta-setup">Set up Okta Verify (one time)</h3>
+
+      <ol class="ro-steps">
+        <li>Install <strong>Okta Verify</strong> from the App Store or Google Play on your work phone.</li>
+        <li>In a browser, go to <a href="https://advantagesolutions.okta.com">advantagesolutions.okta.com</a> and sign in.</li>
+        <li>Open the menu under your name and choose <span class="ro-btnname">Settings</span>.</li>
+        <li>Under <span class="ro-btnname">Security Methods</span>, find Okta Verify and tap <span class="ro-btnname">Set up</span>.</li>
+        <li>A QR code appears. In the Okta Verify app, tap <span class="ro-btnname">+</span> (add account) and scan it.</li>
+        <li>Finish the prompts in the app. From now on, approve sign-ins with a tap instead of typing codes.</li>
+      </ol>
+
+      <p>If Okta Verify is not offered under Security Methods, contact your supervisor.</p>
+
+      <div class="ro-callout ro-callout--note">
+        <span class="ro-callout__label">Sign-in keeps failing</span>
+        <p>After three failed tries the sheet closes and the visit opens anyway. Keep working — photos still save on the phone. Tell your supervisor so PROD sign-in can be fixed.</p>
+      </div>
+
+      <!-- ───────────────────────── 4 ───────────────────────── -->
+      <h2 id="store-day">4. Choose the store and day</h2>
+
+      <ol class="ro-steps">
+        <li>On <span class="ro-btnname">Confirm store and date</span>, tap <span class="ro-btnname">Choose store</span> and pick the store from the list. Search by number.</li>
+        <li>The calendar opens on today. Days with a scheduled shift at that store are colored. Change the date only if the visit date is different.</li>
+        <li>Tap <span class="ro-btnname">Confirm</span>.</li>
+        <li>On Visit, the shift list loads. Your shift is selected for you, and the lead name and email fill in from it.</li>
+      </ol>
+
+      <ul>
+        <li><strong>Not on the schedule:</strong> the app asks for an override. Tap <span class="ro-btnname">Request override</span>, give the reason, and wait for your supervisor to approve.</li>
+        <li><strong>Unfinished visit from an earlier day:</strong> choose <span class="ro-btnname">Resume</span> to keep working it, or <span class="ro-btnname">Fresh start</span> to begin today.</li>
+      </ul>
+
+      <!-- ───────────────────────── 5 ───────────────────────── -->
+      <h2 id="cart-checkin">5. Kompass cart before photo and check-in manager</h2>
+
+      <p>Both are on Visit, below the shift list. Send stays locked until both are done.</p>
+
+      <ol class="ro-steps">
+        <li>Under <span class="ro-btnname">Kompass cart — before</span>, tap <span class="ro-btnname">Camera</span> and photograph the cart before anything comes off it. The photo uploads to the Kompass maintenance set in PROD in the background.</li>
+        <li>No cart at the store: tap <span class="ro-btnname">No Kompass Cart</span> and photograph the Kompass area or the Vestcom pickup area instead.</li>
+        <li>Under <span class="ro-btnname">Manager checked in with</span>, type the name and title of the manager you checked in with. Tap a saved name chip or <span class="ro-btnname">Choose saved name</span> if they are already listed. Names are saved for that store.</li>
+      </ol>
+
+      <p>Already took the cart photo in PROD? <span class="ro-btnname">Pull from PROD</span> brings it into the app.</p>
+
+      <!-- ───────────────────────── 6 ───────────────────────── -->
+      <h2 id="scan">6. Scan items</h2>
+
+      <p>The barcode button in the header opens <strong>Scan</strong> on every screen. Visit has <span class="ro-btnname">Scan UPC</span> and Categories has <span class="ro-btnname">Scan</span> as well.</p>
+
+      <ol class="ro-steps">
+        <li>Point the camera at the barcode. If it will not read, type the last 4 or more digits of the UPC and tap <span class="ro-btnname">Look up</span>.</li>
+        <li>Read the result card. It can take a few moments to fill in — the app checks this store's aisles, this store's sets, and the Kompass notes list at the same time. Be patient, or keep moving: every result is saved to <span class="ro-btnname">Scan results</span> under <span class="ro-btnname">More</span>.
+          <ul>
+            <li>Product photo, description, size, and the price at this store.</li>
+            <li>The aisle where this store carries it.</li>
+            <li><strong>Set:</strong> — the reset the item belongs to. One item can show more than one set.</li>
+            <li>A banner when the item is on the Kompass notes list: <em>New item · P##W# · this week</em>, or <em>Delete · P##W# · next week · tentative</em>. A next-week banner means the item is for an upcoming reset. Hold it for that week.</li>
+          </ul>
+        </li>
+        <li>Tap the card to open that set's planogram and see exactly where the item goes.</li>
+        <li>If the set the item belongs to is missing from PROD, tap <span class="ro-btnname">COM Load</span> on the result to request the load.</li>
+      </ol>
+
+      <p><em>This item cannot be located at this time.</em> means neither this store's aisle list nor this store's sets have the item. Set it aside and ask the store.</p>
+
+      <h3 id="bulk-scan">Scanning the whole cart</h3>
+
+      <ol class="ro-steps">
+        <li>After the first read, the app asks <span class="ro-btnname">Scan more items?</span> Tap <span class="ro-btnname">Yes</span>.</li>
+        <li>The camera stays open. Scan each item in turn.</li>
+        <li>Tap <span class="ro-btnname">Done Scanning</span>. The results list groups every item by aisle, then by set.</li>
+      </ol>
+
+      <h3 id="scan-results">Scan results</h3>
+
+      <p><span class="ro-btnname">More</span> → <span class="ro-btnname">Scan results</span> holds every item scanned during the visit — single scans and bulk scans — grouped by aisle, then by set. Tap an item to open its planogram. The list stays on the phone for that store and date, even if the app is closed. It clears when you confirm a different store or date.</p>
+
+      <div class="ro-callout ro-callout--smart">
+        <span class="ro-callout__label">Store-specific</span>
+        <p>Every lookup runs against the store and date you confirmed — that store's own aisle locations and that store's own set list in Store Intelligence. The same UPC can show a different aisle at another store. Confirm the store first, or Scan has nothing to match against.</p>
+      </div>
+
+      <!-- ───────────────────────── 7 ───────────────────────── -->
+      <h2 id="categories">7. Categories — before and after photos</h2>
+
+      <p>Categories lists every set on today's sheet in aisle walk order. Each card shows the set name, DB key, aisle, size, version, estimated time, the category number (with the week it was issued under it), and a live PROD / SI status line.</p>
+
+      <p>Filters along the top: <span class="ro-btnname">Not Started</span>, <span class="ro-btnname">In Progress</span>, <span class="ro-btnname">Backlog</span>, <span class="ro-btnname">Complete</span>, <span class="ro-btnname">Not Executable</span>, <span class="ro-btnname">Out of Scope</span>, <span class="ro-btnname">Not in Prod</span>. The shift buttons beside <span class="ro-btnname">Refresh</span> (ISE, Cut-In, Blitz, and so on) narrow the list to one shift.</p>
+
+      <h3 id="before">Before photos — start the set</h3>
+
+      <ol class="ro-steps">
+        <li>Before touching the set, tap <span class="ro-btnname">Capture</span> on its card.</li>
+        <li>The camera opens on bay 1. Take one photo per bay. The camera moves to the next bay on its own (<em>Moving to bay 2</em>).</li>
+        <li>After the last bay, the app returns to Categories. Photos upload in the background — keep working. The header shows how many are still syncing.</li>
+        <li>The set moves to <strong>In Progress</strong>.</li>
+      </ol>
+
+      <p>Bay count follows the planogram size: one photo per 4 ft section (an 8 ft set is 2 photos), and one photo per door on cooler and freezer sets. The app sets the count. Follow it.</p>
+
+      <h3 id="after">After photos — finish the set</h3>
+
+      <ol class="ro-steps">
+        <li>When the set is done, tap <span class="ro-btnname">Capture</span> on the same card. It now takes after photos.</li>
+        <li>Shoot each bay from the same spot as its before photo.</li>
+        <li>The after photos upload to <strong>PROD</strong> and <strong>Store Intelligence</strong>. The app closes the set in both. There is no need to open SI.</li>
+        <li>The status line reads <em>PROD complete</em> and <em>SI complete</em>, and the set moves to <strong>Complete</strong>.</li>
+      </ol>
+
+      <div class="ro-callout ro-callout--caution">
+        <span class="ro-callout__label">Stay on signal</span>
+        <p>Photos are safe on the phone until they upload. Do not clear the browser or sign out with photos still syncing.</p>
+      </div>
+
+      <!-- ───────────────────────── 8 ───────────────────────── -->
+      <h2 id="planogram">8. Open the planogram for a set</h2>
+
+      <ol class="ro-steps">
+        <li>Tap the set card itself (not <span class="ro-btnname">Capture</span> or a mark button). The set opens.</li>
+        <li>Tap <span class="ro-btnname">Planogram</span>. One bay shows at a time. Swipe left or right for the next bay.</li>
+        <li>Tap any product for its details.</li>
+        <li><span class="ro-btnname">Text</span> / <span class="ro-btnname">Photos</span> switches between item descriptions and product pictures.</li>
+        <li>The filter row shows only what changed: <span class="ro-btnname">All</span>, <span class="ro-btnname">Changes</span>, <span class="ro-btnname">New</span>, <span class="ro-btnname">Moves</span>, <span class="ro-btnname">Facings</span>, <span class="ro-btnname">New UPC</span>. A filter appears only when the planogram has that kind of change.</li>
+      </ol>
+
+      <p>From the same screen, <span class="ro-btnname">Before</span> and <span class="ro-btnname">After</span> show the photos for that set, one bay at a time, with zoom and rotate.</p>
+
+      <!-- ───────────────────────── 9 ───────────────────────── -->
+      <h2 id="marks">9. Mark sets that will not be completed</h2>
+
+      <p>Every set must be Complete or carry a mark before the EOD can send. Mark buttons sit on each card: <span class="ro-btnname">Not in Store</span>, <span class="ro-btnname">Not in SI</span>, <span class="ro-btnname">Backlog</span>, <span class="ro-btnname">Out of Scope</span>, <span class="ro-btnname">Not Executable</span>.</p>
+
+      <p>To mark several sets at once, tick their checkboxes (or <strong>select all</strong> above the list). A bar appears above the bottom nav with the same marks for every selected set.</p>
+
+      <h3 id="out-of-scope">Out of Scope — another vendor's set</h3>
+
+      <ol class="ro-steps">
+        <li>Tap <span class="ro-btnname">Out of Scope</span> on the set.</li>
+        <li>The app asks to remove it from the sign-off sheet as another project. Tap <span class="ro-btnname">Remove</span>.</li>
+        <li>The set moves to the Out of Scope filter and drops off the printed sign-off. Nothing is written to PROD or SI.</li>
+      </ol>
+
+      <p>Marked by mistake? Tap the lit mark and choose <span class="ro-btnname">Undo Out of Scope</span>.</p>
+
+      <h3 id="not-in-store">Not in Store — and the help desk ticket</h3>
+
+      <ol class="ro-steps">
+        <li>Tap <span class="ro-btnname">Not in Store</span> on the set.</li>
+        <li>The app asks <em>Report this to the help desk?</em>
+          <ul>
+            <li><span class="ro-btnname">Please Report</span> opens the KOMPASS Help Desk Report with the set details already filled in. Add photos, then tap <span class="ro-btnname">Submit reports</span>.</li>
+            <li><span class="ro-btnname">Don't Report</span> marks the set without a ticket.</li>
+          </ul>
+        </li>
+        <li>Either way, the app closes the set in PROD with the comment <em>Not in store</em>, closes it in Store Intelligence, and adds a <em>Not in store:</em> line to the EOD notes.</li>
+      </ol>
+
+      <h3 id="backlog">Backlog — not worked today</h3>
+
+      <p>Tap <span class="ro-btnname">Backlog</span> on a set the crew will not reach today. It counts as handled for Send and carries to the next visit. The Backlog label clears on its own once a before photo is taken or the set is completed.</p>
+
+      <h3 id="not-executable">Not Executable — needs a reason and a comment</h3>
+
+      <ol class="ro-steps">
+        <li>Tap <span class="ro-btnname">Not Executable</span> on the set.</li>
+        <li>Pick a reason: <strong>Not In Store</strong>, <strong>Planogram Issue</strong>, <strong>Fixture Issue</strong>, or <strong>Other</strong>. The app will not save the mark without one.</li>
+        <li>Write what is wrong in <span class="ro-btnname">Comments</span>. Write one every time. The app refuses <strong>Other</strong> with no comment.</li>
+        <li>Tap <span class="ro-btnname">Please Report</span> to open the help desk report pre-filled from your reason and comment, or <span class="ro-btnname">Don't Report</span>.</li>
+      </ol>
+
+      <p>The reason and comment go into the PROD comment on that set and into the EOD notes. Once the EOD sends, your supervisor gets a separate notice listing each Not Executable set. The set stays on the sign-off sheet.</p>
+
+      <h3 id="not-in-si">Not in SI</h3>
+
+      <p>A flag only. The set is in PROD but has no Store Intelligence task. It still needs to be completed, or marked Backlog or another mark, before Send.</p>
+
+      <!-- ───────────────────────── 10 ───────────────────────── -->
+      <h2 id="helpdesk">10. Help desk</h2>
+
+      <p>For any problem not covered by a mark — wrong version, missing fixture or hardware, reverse flow, an obstruction — use the help desk report directly.</p>
+
+      <ol class="ro-steps">
+        <li>Open <span class="ro-btnname">More</span> → <span class="ro-btnname">Helpdesk</span>, then <span class="ro-btnname">Open help desk report</span>.</li>
+        <li>Choose the <span class="ro-btnname">Issue type</span>.</li>
+        <li>Pick the <span class="ro-btnname">Shift</span> and <span class="ro-btnname">Set</span>. If the set is not on your shift, tick <em>Set isn't on my shift</em> and enter the set name, category number, version, DB key, and footage.</li>
+        <li>Fill in <span class="ro-btnname">Details</span> — location, measurements, anything the help desk needs.</li>
+        <li>Add photos with <span class="ro-btnname">Take photo</span> or <span class="ro-btnname">Choose photos</span>. Photos are strongly recommended.</li>
+        <li>More than one problem? Tick <span class="ro-btnname">Report additional issues</span> and add the next one.</li>
+        <li><span class="ro-btnname">Add Retail Odyssey Team</span> is on by default. Add any other CC, then tap <span class="ro-btnname">Submit reports</span>. Each issue goes out as its own email.</li>
+      </ol>
+
+      <!-- ───────────────────────── 11 ───────────────────────── -->
+      <h2 id="signatures">11. Collect department signatures</h2>
+
+      <p>Signatures lists only the departments worked on today's sheet — for example Grocery, Produce, Bakery, Deli, Meat, Home. Each department manager signs for their own sets, every visit. Collect them while those managers are still on the floor.</p>
+
+      <h3 id="sig-hand">Way 1 — hand them the phone</h3>
+
+      <ol class="ro-steps">
+        <li>Tap <span class="ro-btnname">Hand to signer</span> on the department.</li>
+        <li>The manager picks their name from the list, or <span class="ro-btnname">Someone new</span>.</li>
+        <li>A new signer enters full name, email, an optional cell number, and title. The email is saved for that store and copied on the EOD. The cell number lets you text them a link next visit.</li>
+        <li>They review today's sets (tap a set for its before and after photos), or skip to the signature.</li>
+        <li>They sign and tap <span class="ro-btnname">Save signature</span>.</li>
+      </ol>
+
+      <h3 id="sig-qr">Way 2 — Daily PIC QR</h3>
+
+      <ol class="ro-steps">
+        <li>At the top of Signatures, tap <span class="ro-btnname">Show QR</span>.</li>
+        <li>The manager scans it with their own phone camera, opens the sign-out page, and signs for their department on their phone.</li>
+      </ol>
+
+      <h3 id="sig-text">Way 3 — text the manager a link</h3>
+
+      <ol class="ro-steps">
+        <li>Tap <span class="ro-btnname">Text PIC</span>.</li>
+        <li>Pick the manager. They receive a link and sign on their own phone.</li>
+      </ol>
+
+      <p>Text PIC only lists managers who left a cell number on an earlier signature and have texted JOIN to (509) 572-9212. <em>No opted-in numbers yet</em> means use the phone or the QR.</p>
+
+      <p>A collected line shows <em>Signed by</em> with the name and email. <span class="ro-btnname">Edit</span> fixes a typo in the name or email, <span class="ro-btnname">Clear</span> removes it, and <span class="ro-btnname">Re-collect</span> takes it again.</p>
+
+      <!-- ───────────────────────── 12 ───────────────────────── -->
+      <h2 id="crew">12. Crew — distribute time across the sets</h2>
+
+      <p>Do this once every person on the shift has clocked out and every set is Complete or marked.</p>
+
+      <ol class="ro-steps">
+        <li>Open <span class="ro-btnname">More</span> → <span class="ro-btnname">Crew</span>.</li>
+        <li>Tap <span class="ro-btnname">Distribute time</span>. The app splits each person's punched time across the sets they worked and writes it to PROD.</li>
+        <li>Read the result:
+          <ul>
+            <li><strong>Time distributed</strong> — time per shift type and a total by person count, ending in <em>Distributed and verified against PROD.</em> Done.</li>
+            <li><strong>Not ready to distribute</strong> — lists sets that still need Complete or an exception mark, and punches that still need to be finalized or marked No Show. Fix those (<span class="ro-btnname">Open in PROD</span> goes straight there), then run it again.</li>
+            <li><strong>Lead has zero hours</strong> — the lead's own punch has no time. <span class="ro-btnname">Exit</span> to fix the punch first, or <span class="ro-btnname">Continue</span> if that is correct.</li>
+            <li><strong>Time did not match</strong> — names each person whose punch time and set time disagree. Correct the punch, then run it again.</li>
+          </ul>
+        </li>
+      </ol>
+
+      <p>InstaWork workers have their own <span class="ro-btnname">Distribute time</span> button in the InstaWork section of Crew.</p>
+
+      <!-- ───────────────────────── 13 ───────────────────────── -->
+      <h2 id="send">13. Sign and send the EOD</h2>
+
+      <ol class="ro-steps">
+        <li>Open <span class="ro-btnname">Send</span>. <span class="ro-btnname">Day summary</span> shows <em>send ready</em> or <em>open sets remain</em>.</li>
+        <li>Under <span class="ro-btnname">Kompass cart — after</span>, tap <span class="ro-btnname">Camera</span> and photograph the cart at the end of the day.</li>
+        <li>Read <span class="ro-btnname">Notes</span>. Not in Store and Not Executable lines are already there. Add anything else the store or your supervisor needs to know.</li>
+        <li>Under <span class="ro-btnname">Lead signature</span>, tap <span class="ro-btnname">Sign</span> and sign.</li>
+        <li>Check the recipients — see below.</li>
+        <li>Clear every remaining item — see below.</li>
+        <li>Tap <span class="ro-btnname">Preview</span>. Confirm the store number, date, photos, and recipients all belong to <strong>this</strong> visit.</li>
+        <li>Tap <span class="ro-btnname">Send EOD</span>. <em>EOD sent!</em> confirms it. Tap <span class="ro-btnname">Start new visit</span> when you move to the next store.</li>
+      </ol>
+
+      <h3 id="recipients">Verify the addresses</h3>
+
+      <ul>
+        <li>Store addresses already saved for that store show as checkboxes. Tick each one that should receive this EOD. Untick anyone who has left the store.</li>
+        <li>To add someone, type a name or email in <span class="ro-btnname">Add recipient</span> and tap <span class="ro-btnname">Add</span>. The app checks the address. If it corrects a near-miss store domain, confirm the corrected address is right.</li>
+        <li>A saved contact may show <span class="ro-btnname">Keep</span> / <span class="ro-btnname">Remove from store</span>. Choose one for each. Send stays locked until you do.</li>
+        <li>Department managers who signed are copied on the EOD with the email they entered.</li>
+      </ul>
+
+      <h3 id="still-needed">Clear what is still needed</h3>
+
+      <p>Until everything is done, Send lists each missing item as a button. Tap it to jump straight to that control. Tapping the store number in the header shows the same <span class="ro-btnname">Still needed</span> list from any page. The full list:</p>
+
+      <div class="ro-tablewrap">
+        <table>
+          <thead><tr><th scope="col">Still needed</th><th scope="col">Where to fix it</th></tr></thead>
+          <tbody>
+            <tr><td>Confirm store and date</td><td>Visit</td></tr>
+            <tr><td>Enter your name on Visit</td><td>Visit — Lead name</td></tr>
+            <tr><td>Add a Kompass cart before photo</td><td>Visit</td></tr>
+            <tr><td>Enter the check-in manager on Visit</td><td>Visit</td></tr>
+            <tr><td>Mark every open set before sending</td><td>Categories — complete or mark every set</td></tr>
+            <tr><td>Collect department PIC signatures</td><td>Signatures</td></tr>
+            <tr><td>Add your lead signature</td><td>Send — Sign</td></tr>
+            <tr><td>Resolve saved contacts before sending</td><td>Send — Keep / Remove from store</td></tr>
+            <tr><td>Add at least one email recipient</td><td>Send — Add recipient</td></tr>
+            <tr><td>Add a Kompass cart after photo</td><td>Send</td></tr>
+            <tr><td>Submit the InstaWork timesheet to the office</td><td>Crew — only when InstaWork worked the shift</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>When the list is empty the page reads <em>Ready to send.</em> If the store wants paper, <span class="ro-btnname">Print signoff PDF</span> sits under Send EOD.</p>
+
+      <div class="ro-callout ro-callout--note">
+        <span class="ro-callout__label">Questions</span>
+        <p>Anything this guide does not cover goes to your supervisor.</p>
+      </div>
+    </article>
+  </main>
+</div>
+
+<script src="assets/js/eod-guide.js"></script>
+</body>
+</html>
