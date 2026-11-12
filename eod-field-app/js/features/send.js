@@ -1568,6 +1568,26 @@ ${cleanNotes}`;
           await global.EodAlerts?.alert?.('EOD sent', data.error || receiptLockMessage(data.receipt));
           return;
         }
+        if (data.held === true || data.code === 'eod_mail_held') {
+          resendAuthorization = null;
+          let note = data.message || data.error || 'Your EOD is saved. It has not been sent.';
+          const heldAfter = data.kompassAfter && data.kompassAfter.mode === 'server' ? data.kompassAfter : null;
+          if (heldAfter && heldAfter.failed) {
+            note += `\n\n${heldAfter.queued || 0} sheet image(s) queued for maintenance; ${heldAfter.failed} failed.`;
+          }
+          try { busy?.showSuccess?.('Saved'); } catch (_) {}
+          await new Promise((r) => setTimeout(r, 700));
+          try { busy?.endSession?.(); } catch (_) {}
+          global.EodUsage?.track?.('send_held', { stage: 'send', status: 'held' });
+          if (global.PhotoDB?.markEmailOk) {
+            try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
+          }
+          try { await global.PhotoDB?.tryCompleteSession?.(); } catch (_) {}
+          try { await global.PhotoDB?.purgeSubmitted?.({ keepActive: true }); } catch (_) {}
+          try { global.EodPhotoPipeline?.purgeSettledJobs?.(); } catch (_) {}
+          await showEodSentOverlay(note, S, 'EOD saved');
+          return;
+        }
         if (!resp.ok || data.success === false) {
           throw new Error(data.error || data.message || `Send failed (${resp.status})`);
         }
@@ -1666,7 +1686,7 @@ ${cleanNotes}`;
    * Returns a Promise that resolves after the user taps "Start new visit"
    * and the visit has been reset.
    */
-  function showEodSentOverlay(receiptMsg, S) {
+  function showEodSentOverlay(receiptMsg, S, title) {
     return new Promise((resolve) => {
       // Remove any stale instance
       document.getElementById('eodSentAckOverlay')?.remove();
@@ -1678,10 +1698,12 @@ ${cleanNotes}`;
       const safeMsg = String(receiptMsg || '')
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/\n/g, '<br>');
+      const safeTitle = String(title || 'EOD sent!')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       overlay.innerHTML = `
         <div class="eod-sent-ack-card" role="alertdialog" aria-modal="true" aria-labelledby="eodSentAckTitle">
           <div class="eod-sent-ack-check" aria-hidden="true">&#10003;</div>
-          <h2 class="eod-sent-ack-title" id="eodSentAckTitle">EOD sent!</h2>
+          <h2 class="eod-sent-ack-title" id="eodSentAckTitle">${safeTitle}</h2>
           ${safeMsg ? `<p class="eod-sent-ack-msg">${safeMsg}</p>` : ''}
           <button type="button" class="btn btn-primary eod-sent-ack-btn" id="eodSentAckBtn">Start new visit</button>
         </div>`;
