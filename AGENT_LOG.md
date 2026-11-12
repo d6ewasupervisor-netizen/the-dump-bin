@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-11 — Folder back on `main`
+
+This checkout sat on `feat/employee-board-chat` with uncommitted pilot files at 3.5.15 while live was 3.5.21. Those edits were version strings, two changes already on `main`, and line endings. The one unique piece, the Nov 6 Brian Campbell entry, is now in this log. A patch of everything discarded is `Downloads\dump-bin-feat-employee-board-chat-uncommitted-2026-11-11.patch`. Three untracked duplicates of local field-app files were deleted here and in `dump-bin-wt-publish`, and that worktree was removed so this folder could take `main`. `feat/employee-board-chat` keeps its three unmerged commits for review. Pilot publishes since 3.5.19 shipped from clean worktrees off `origin/main`.
+
 ## 2026-11-09 — Field app 3.5.17: planogram New and Moves filter
 
 The planogram board's Changes button became a chip row: All, Changes, New, Moves, Facings, New UPC, and Pull (every bay's pull list). Only chips with a count show. The choice is kept per dbkey (`eod.pogFilter.<dbkey>`). Moves covers moved on the set and moved in from another set. Built for store 23's P11W1 digital sets (eod-api `4ab85b7`). Local pilot 3.5.16 (zero-hour distribute) is not in this publish.
@@ -67,6 +71,10 @@ Employee Board v2.28 adds a Pathways tab next to PTO. Open required courses can 
 ## 2026-11-05 — FM 682 wet wall photo board
 
 Public page at `/682-wet-wall/`. Fifteen produce wet-wall photos, no sign-in. Slideshow, filmstrip, pinch and wheel zoom, rotate, draw, arrow, note, crop, save, share, and send. Marks stay in the browser. Send shares the page link. The page is not a hub card. Opens and actions post to `/api/wet-wall`. `?stats=1` shows the tally. The count stays empty until the eod-api route is deployed.
+
+## 2026-11-06 — Brian Campbell injury self-report
+
+Both `brian.campbell@sasretailservices.com` and `bcampb9565@sbcglobal.net` are on `allowed_emails`. Neither session is revoked. The SAS address is also a corporate domain, so the self-report at `/claims/self/` already opens for him after sign-in. Texted that link to +19257834755 and the same body to Tyson. Both delivered.
 
 ## 2026-11-05 — Employee Board time off, one row per person
 
