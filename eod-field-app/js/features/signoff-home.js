@@ -757,6 +757,22 @@
     return id === 'ok';
   }
 
+  async function confirmUnmark(markType, row) {
+    const title = markType === 'not_executable' ? 'Unmark Not Executable' : 'Unmark Not in Store';
+    const name = row?.catName || row?.dbkey || 'this set';
+    const id = await (global.EodAlerts?.showDialog
+      ? global.EodAlerts.showDialog({
+        title,
+        message: name,
+        buttons: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'ok', label: 'Unmark', primary: true },
+        ],
+      })
+      : Promise.resolve(window.confirm(`${title}?`) ? 'ok' : 'cancel'));
+    return id === 'ok';
+  }
+
   async function confirmOutOfScope(count) {
     const n = Number(count) || 1;
     const id = await (global.EodAlerts?.showDialog
@@ -1272,6 +1288,12 @@
         const ok = await confirmUndoOutOfScope();
         if (!ok) return false;
       }
+      const unmarking = current && !turningOn
+        && (markType === 'not_in_store' || markType === 'not_executable');
+      if (unmarking) {
+        const ok = await confirmUnmark(markType, current);
+        if (!ok) return false;
+      }
       let markOpts = { skipReload: !!opts?.skipReload };
       if (turningOnNis) markOpts = { helpdeskSent: nisChoice === 'report', skipReload: !!opts?.skipReload };
       if (turningOnNe) {
@@ -1283,7 +1305,7 @@
         };
       }
       await applyMark(rowId, markType, markOpts);
-      if (!opts?.skipUndo) showMarkUndo(rowId, markType, turningOn);
+      if (!opts?.skipUndo && !unmarking) showMarkUndo(rowId, markType, turningOn);
       if (turningOnNis && nisChoice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
         await global.openHelpdeskForSheetRow(current);
       }
@@ -1312,6 +1334,10 @@
       }
       const neRows = [];
       for (const rowId of ids) {
+        if (markType === 'not_in_store' || markType === 'not_executable') {
+          const already = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+          if (already && markActive(already, markType)) continue;
+        }
         try {
           const ok = await markOneRow(rowId, markType, {
             skipReload: true,

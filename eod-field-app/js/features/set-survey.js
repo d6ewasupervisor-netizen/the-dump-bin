@@ -1215,6 +1215,7 @@
     }
 
     let remoteSyncing = false;
+    let afterDeleted = false;
     async function refreshRemoteAndPaint() {
       if (remoteSyncing) return;
       remoteSyncing = true;
@@ -1226,7 +1227,7 @@
           const siHave = Number(st?.si?.sectionsWithPhoto) || 0;
           const prodAfter = Number(st?.prod?.afterCount) || 0;
           const noSiTask = global.EodCategoryCardStatus?.siTaskMissing?.(st?.si);
-          if (!noSiTask && siHave !== prodAfter && (siHave > 0 || prodAfter > 0)) {
+          if (!afterDeleted && !noSiTask && siHave !== prodAfter && (siHave > 0 || prodAfter > 0)) {
             void crossFill(dbkey, rowId).then((r) => {
               if (!r?.status) return;
               applyLiveProd(r.status);
@@ -1315,6 +1316,111 @@
       paintBody();
     }
 
+    async function deleteSlotPhotos(slot) {
+      const label = slot === 'before' ? 'Before' : 'After';
+      const choice = await (global.EodAlerts?.showDialog
+        ? global.EodAlerts.showDialog({
+          title: `Delete ${label.toLowerCase()} photos`,
+          message: catName || `DBKEY ${dbkey}`,
+          buttons: [
+            { id: 'cancel', label: 'Cancel' },
+            { id: 'ok', label: 'Delete', primary: true },
+          ],
+        })
+        : Promise.resolve(window.confirm(`Delete ${label.toLowerCase()} photos?`) ? 'ok' : 'cancel'));
+      if (choice !== 'ok') return;
+      for (const job of global.EodPhotoPipeline?.jobsForSet?.(dbkey) || []) {
+        if (job.slot === slot) global.EodPhotoPipeline.removeJob(job.id);
+      }
+      local[slot] = [];
+      if (slot === 'after') {
+        afterDeleted = true;
+        if (week) global.EodSetBeforeStore?.setAfters?.(S.state.storeNumber, week, dbkey, []);
+      }
+      if (Array.isArray(local.pack?.photos)) {
+        local.pack.photos = local.pack.photos.filter((p) => (p.slot === 'before') !== (slot === 'before'));
+      }
+      if (local.status?.prod) {
+        if (slot === 'before') local.status.prod.beforeCount = 0;
+        else local.status.prod.afterCount = 0;
+      }
+      if (slot === 'after' && local.status?.si) local.status.si.sectionsWithPhoto = 0;
+      if (local.status?.remotePhotos) {
+        if (slot === 'before') local.status.remotePhotos.prodBefore = [];
+        else {
+          local.status.remotePhotos.prodAfter = [];
+          local.status.remotePhotos.si = [];
+        }
+      }
+      try { global.EodStoreProdWarm?.dropStatus?.(dbkey); } catch (_) {}
+      setMsg(`Deleting ${label.toLowerCase()} photos…`);
+      paintBody();
+      try {
+        const resp = await global.authFetch(`${API}/delete-photos`, {
+          method: 'POST',
+          headers: global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            storeNumber: S.state.storeNumber,
+            workDate: S.state.workDate,
+            dbkey,
+            slot,
+            visitId: S.state.selectedShift?.visitId || null,
+            visitIds: storeDayVisitIds(),
+          }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || `Delete failed (${resp.status})`);
+        const r = data.result || {};
+        await clearSheetRowSlot(slot, r);
+        const failed = [['PROD', r.prod], ['SI', r.si]]
+          .filter(([, side]) => side && (side.status === 'error' || side.status === 'unavailable'));
+        if (failed.length) {
+          setMsg(failed.map(([name, side]) => `${name}: ${side.detail || side.status}`).join(' | '), true);
+        } else {
+          setMsg(`${label} photos deleted`);
+        }
+      } catch (err) {
+        setMsg(err.message || String(err), true);
+      }
+      await refreshRemoteAndPaint();
+    }
+
+    /* Mirror the server's delete onto the cached sheet row so Categories stops
+       reading the set as complete before the next sheet poll. */
+    async function clearSheetRowSlot(slot, result) {
+      const row = (S.state.sheet?.rows || []).find((r) => (
+        String(r.id) === String(rowId) || String(r.dbkey) === String(dbkey)
+      ));
+      if (!row) return;
+      const keep = (p) => (String(p?.slot || '').toLowerCase() === 'before') !== (slot === 'before');
+      if (Array.isArray(row.photos)) row.photos = row.photos.filter(keep);
+      const live = row.live || (row.live = {});
+      if (Array.isArray(live.photos)) live.photos = live.photos.filter(keep);
+      if (slot === 'before') {
+        live.prodBeforeCount = 0;
+      } else {
+        live.prodAfterCount = 0;
+        live.siPhotoCount = 0;
+        if (result?.si?.status === 'ok') live.siStatus = 'incomplete';
+        for (const key of ['marks', 'mark']) {
+          const m = row[key];
+          if (!m) continue;
+          m.complete = false;
+          if (Array.isArray(m.active)) m.active = m.active.filter((t) => t !== 'complete');
+        }
+      }
+      if (result?.prod?.reopened) live.prodStatus = 'open';
+      try { await global.EodGarden?.saveSheetSnapshot?.(S.state.sheet); } catch (_) {}
+      S.emit?.('sheet-mark');
+    }
+
+    function slotHasPhotos(slot) {
+      if (takenBays(slot).size) return true;
+      const prod = local.status?.prod || {};
+      if (slot === 'before') return (Number(prod.beforeCount) || 0) > 0;
+      return (Number(prod.afterCount) || 0) > 0 || (Number(local.status?.si?.sectionsWithPhoto) || 0) > 0;
+    }
+
     function paintBody() {
       persistOpen();
       if (liveCameraOpen) return;
@@ -1335,6 +1441,7 @@
             <label class="btn btn-secondary set-file-btn">${nextBefore ? 'Load photos' : 'Load to replace'}
               <input type="file" accept="image/*" multiple data-gal="before" data-replace="${nextBefore ? '0' : '1'}" hidden>
             </label>
+            ${slotHasPhotos('before') ? '<button type="button" class="btn btn-secondary" data-del-slot="before">Delete</button>' : ''}
           </div>
         </section>
 
@@ -1348,6 +1455,7 @@
             <label class="btn btn-secondary set-file-btn">${nextAfter ? 'Load photos' : 'Load to replace'}
               <input type="file" accept="image/*" multiple data-gal="after" data-replace="${nextAfter ? '0' : '1'}" hidden>
             </label>
+            ${slotHasPhotos('after') ? '<button type="button" class="btn btn-secondary" data-del-slot="after">Delete</button>' : ''}
           </div>
         </section>
 
@@ -1400,6 +1508,17 @@
             btn.getAttribute('data-clear-bay'),
             btn.getAttribute('data-clear-job')
           );
+        };
+      });
+      body.querySelectorAll('[data-del-slot]').forEach((btn) => {
+        btn.onclick = async () => {
+          if (btn.disabled) return;
+          btn.disabled = true;
+          try {
+            await deleteSlotPhotos(btn.getAttribute('data-del-slot'));
+          } finally {
+            btn.disabled = false;
+          }
         };
       });
       body.querySelectorAll('[data-view-bay]').forEach((btn) => {
