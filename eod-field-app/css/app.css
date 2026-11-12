@@ -1598,6 +1598,16 @@ body.role-admin .ds-row-catnum {
 .ds-nuke-row { border: 1px solid var(--border, #334155); border-radius: 10px; padding: 10px; }
 .ds-nuke-row-title { margin-bottom: 4px; }
 .ds-nuke-finding { font-size: 13px; margin-bottom: 8px; }
+.ds-ne-reasons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+.ds-ne-reason {
+  display: flex; align-items: center; gap: 8px; min-height: var(--touch);
+  border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; cursor: pointer;
+}
+.ds-ne-reason:has(input:checked) { outline: 2px solid var(--accent); }
+.ds-ne-note-label { display: block; font-weight: 600; margin-bottom: 4px; }
+.ds-ne-note { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; min-height: 72px; resize: vertical; }
+.ds-ne-error { color: var(--danger, #ef4444); font-size: 14px; margin-top: 6px; }
+.ds-ne-dialog .eod-alert-actions { margin-top: 12px; }
 .manager-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .manager-chip {
   appearance: none; border: 1px solid var(--border); background: var(--surface);

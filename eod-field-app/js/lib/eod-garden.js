@@ -119,15 +119,23 @@
     try { return await getKv(key); } catch (_) { return null; }
   }
 
-  function applyOptimisticMark(sheet, rowId, markType, on) {
+  function applyOptimisticMark(sheet, rowId, markType, on, detail) {
     if (!sheet || !Array.isArray(sheet.rows)) return null;
     const row = sheet.rows.find((r) => String(r.id) === String(rowId));
     if (!row) return null;
     const prev = row.marks || row.mark || {};
     const active = new Set(Array.isArray(prev.active) ? prev.active : []);
-    if (markType === 'clear') active.clear();
-    else if (on) active.add(markType);
-    else active.delete(markType);
+    const details = Object.assign({}, prev.details || {});
+    if (markType === 'clear') {
+      active.clear();
+      for (const k of Object.keys(details)) delete details[k];
+    } else if (on) {
+      active.add(markType);
+      if (detail) details[markType] = Object.assign({}, details[markType] || {}, detail);
+    } else {
+      active.delete(markType);
+      delete details[markType];
+    }
     const arr = [...active];
     const marks = {
       complete: arr.includes('complete'),
@@ -137,6 +145,7 @@
       outOfScope: arr.includes('out_of_scope'),
       notExecutable: arr.includes('not_executable'),
       active: arr,
+      details,
       pending: true,
       type: arr.includes('complete') ? 'complete'
         : arr.includes('not_in_store') ? 'not_in_store'

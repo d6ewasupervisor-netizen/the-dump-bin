@@ -173,6 +173,115 @@
     return global.askToReportNotInStore(subject);
   }
 
+  const NE_HELPDESK_ISSUE = {
+    not_in_store: 'not_in_store',
+    planogram_issue: 'incorrect_planogram',
+    fixture_issue: 'missing_fixture',
+    other: 'custom',
+  };
+
+  function neReasons() {
+    return global.EodCoverNotes?.NOT_EXECUTABLE_REASONS || [
+      { id: 'not_in_store', label: 'Not In Store' },
+      { id: 'planogram_issue', label: 'Planogram Issue' },
+      { id: 'fixture_issue', label: 'Fixture Issue' },
+      { id: 'other', label: 'Other' },
+    ];
+  }
+
+  /* Reason + comment, then the same Report / Don't Report choice as NIS.
+     Resolves { reason, note, report } or null on Cancel. */
+  function askNotExecutable(subject) {
+    return new Promise((resolve) => {
+      const name = subject?.catName || subject?.dbkey || 'this set';
+      const overlay = document.createElement('div');
+      overlay.className = 'eod-alert-overlay show ds-ne-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-labelledby', 'dsNeTitle');
+      const radios = neReasons().map((r) => (
+        `<label class="ds-ne-reason"><input type="radio" name="dsNeReason" value="${esc(r.id)}"> <span>${esc(r.label)}</span></label>`
+      )).join('');
+      overlay.innerHTML = `
+        <div class="eod-alert-dialog ds-ne-dialog">
+          <h2 id="dsNeTitle">Not Executable</h2>
+          <div class="eod-alert-body">${esc(name)}</div>
+          <div class="ds-ne-reasons" role="radiogroup" aria-label="Reason">${radios}</div>
+          <label class="ds-ne-note-label" for="dsNeNote">Comments <span class="ds-ne-req" hidden>(required)</span></label>
+          <textarea id="dsNeNote" class="ds-ne-note" rows="3" maxlength="1000"></textarea>
+          <div class="ds-ne-error" role="alert" hidden></div>
+          <div class="eod-alert-actions">
+            <button type="button" class="btn btn-secondary" data-ne-act="skip">Don't Report</button>
+            <button type="button" class="btn btn-primary" data-ne-act="report">Please Report</button>
+            <button type="button" class="btn btn-secondary" data-ne-act="cancel">Cancel</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      try { global.EodA11y?.activate?.(overlay); } catch (_) {}
+
+      const note = overlay.querySelector('#dsNeNote');
+      const req = overlay.querySelector('.ds-ne-req');
+      const errEl = overlay.querySelector('.ds-ne-error');
+      const picked = () => overlay.querySelector('input[name="dsNeReason"]:checked')?.value || '';
+      overlay.querySelectorAll('input[name="dsNeReason"]').forEach((input) => {
+        input.addEventListener('change', () => {
+          if (req) req.hidden = picked() !== 'other';
+          if (errEl) errEl.hidden = true;
+        });
+      });
+
+      const finish = (value) => {
+        try { global.EodA11y?.deactivate?.(overlay); } catch (_) {}
+        overlay.remove();
+        resolve(value);
+      };
+      const submit = (report) => {
+        const reason = picked();
+        const text = String(note?.value || '').trim();
+        let problem = '';
+        if (!reason) problem = 'Select a reason.';
+        else if (reason === 'other' && !text) problem = 'Comments are required for Other.';
+        if (problem) {
+          if (errEl) {
+            errEl.textContent = problem;
+            errEl.hidden = false;
+          }
+          if (reason === 'other') note?.focus();
+          return;
+        }
+        finish({ reason, note: text, report });
+      };
+      overlay.querySelector('[data-ne-act="skip"]')?.addEventListener('click', () => submit(false));
+      overlay.querySelector('[data-ne-act="report"]')?.addEventListener('click', () => submit(true));
+      overlay.querySelector('[data-ne-act="cancel"]')?.addEventListener('click', () => finish(null));
+      overlay.addEventListener('eod-dialog-escape', () => finish(null));
+    });
+  }
+
+  function neHelpdeskPrefill(choice) {
+    const issueTypeId = NE_HELPDESK_ISSUE[choice?.reason] || 'custom';
+    const label = global.EodCoverNotes?.notExecutableReasonLabel?.(choice?.reason) || 'Not executable';
+    const note = String(choice?.note || '').trim();
+    return {
+      issueTypeId,
+      details: note || `${label}.`,
+      customIssue: issueTypeId === 'custom' ? note : '',
+      fromNotExecutable: true,
+    };
+  }
+
+  async function openNeHelpdesk(rows, choice) {
+    try { await global.EodRouteBundles?.ensure?.('helpdesk'); } catch (_) {}
+    const list = (rows || []).filter(Boolean);
+    if (!list.length) return;
+    const extra = neHelpdeskPrefill(choice);
+    if (typeof global.openHelpdeskForSheetRows === 'function') {
+      await global.openHelpdeskForSheetRows(list, extra);
+    } else if (typeof global.openHelpdeskForSheetRow === 'function') {
+      await global.openHelpdeskForSheetRow(list[0], extra);
+    }
+  }
+
   function isCancelled(err) {
     return err?.code === 'cancelled' || err?.name === 'AbortError';
   }
@@ -337,6 +446,20 @@
                 return;
               }
               await applyMark(rowId, markType, { forceOn: true });
+            } else if (markType === 'not_executable') {
+              const row = (global.EodSession.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+              const choice = await askNotExecutable(row || { catName: 'set' });
+              if (!choice) {
+                btn.disabled = false;
+                return;
+              }
+              await applyMark(rowId, markType, {
+                forceOn: true,
+                helpdeskSent: !!choice.report,
+                reason: choice.reason,
+                note: choice.note,
+              });
+              if (choice.report) await openNeHelpdesk([row], choice);
             } else {
               await applyMark(rowId, markType, { forceOn: true });
             }
@@ -656,6 +779,8 @@
     const skipReload = !!(opts && opts.skipReload);
     const forceOn = !!(opts && opts.forceOn);
     const helpdeskSent = !!(opts && opts.helpdeskSent);
+    const neReason = markType === 'not_executable' && opts && opts.reason ? String(opts.reason) : '';
+    const neNote = neReason ? String(opts.note || '').trim() : '';
     const S = global.EodSession;
     const headers = global.EodApi.dayConfirmHeaders();
     const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
@@ -671,6 +796,7 @@
             visitId,
             resetId,
             helpdeskSent,
+            ...(neReason ? { reason: neReason, note: neNote } : {}),
           }
       : {
           storeNumber: S.state.storeNumber,
@@ -686,7 +812,8 @@
         S.state.sheet,
         rowId,
         markType,
-        markType === 'clear' ? false : turningOn
+        markType === 'clear' ? false : turningOn,
+        neReason ? { reason: neReason, note: neNote || null, helpdeskSent } : null
       );
       S.emit?.('sheet-mark');
       try { await global.EodGarden.saveSheetSnapshot(S.state.sheet); } catch (_) {}
@@ -1131,6 +1258,12 @@
         nisChoice = await nisReportChoice(current);
         if (nisChoice && nisChoice === 'cancel') return false;
       }
+      const turningOnNe = markType === 'not_executable' && turningOn;
+      let neChoice = opts && opts.neChoice ? opts.neChoice : null;
+      if (turningOnNe && !neChoice) {
+        neChoice = await askNotExecutable(current);
+        if (!neChoice) return false;
+      }
       if (markType === 'out_of_scope' && turningOn && !opts?.skipOosConfirm) {
         const ok = await confirmOutOfScope(1);
         if (!ok) return false;
@@ -1139,12 +1272,23 @@
         const ok = await confirmUndoOutOfScope();
         if (!ok) return false;
       }
-      await applyMark(rowId, markType, turningOnNis
-        ? { helpdeskSent: nisChoice === 'report', skipReload: !!opts?.skipReload }
-        : { skipReload: !!opts?.skipReload });
+      let markOpts = { skipReload: !!opts?.skipReload };
+      if (turningOnNis) markOpts = { helpdeskSent: nisChoice === 'report', skipReload: !!opts?.skipReload };
+      if (turningOnNe) {
+        markOpts = {
+          helpdeskSent: !!neChoice.report,
+          reason: neChoice.reason,
+          note: neChoice.note,
+          skipReload: !!opts?.skipReload,
+        };
+      }
+      await applyMark(rowId, markType, markOpts);
       if (!opts?.skipUndo) showMarkUndo(rowId, markType, turningOn);
       if (turningOnNis && nisChoice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
         await global.openHelpdeskForSheetRow(current);
+      }
+      if (turningOnNe && neChoice.report && !opts?.skipNeHelpdesk) {
+        await openNeHelpdesk([current], neChoice);
       }
       return true;
     }
@@ -1161,18 +1305,29 @@
         nisChoice = await nisReportChoice({ catName: `${ids.length} sets` });
         if (nisChoice && nisChoice === 'cancel') return;
       }
+      let neChoice = null;
+      if (markType === 'not_executable') {
+        neChoice = await askNotExecutable({ catName: `${ids.length} sets` });
+        if (!neChoice) return;
+      }
+      const neRows = [];
       for (const rowId of ids) {
         try {
-          await markOneRow(rowId, markType, {
+          const ok = await markOneRow(rowId, markType, {
             skipReload: true,
             skipUndo: true,
             skipOosConfirm: true,
+            skipNeHelpdesk: true,
             nisChoice,
+            neChoice,
           });
+          const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+          if (ok && neChoice && row) neRows.push(row);
         } catch (err) {
           console.warn('[signoff] bulk mark failed', rowId, err);
         }
       }
+      if (neChoice?.report && neRows.length) await openNeHelpdesk(neRows, neChoice);
       selectedIds.clear();
       try { await loadSheet(); } catch (_) {}
       await paint();

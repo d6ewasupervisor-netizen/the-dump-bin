@@ -73,6 +73,29 @@
     return coverList(S, 'nisi');
   }
 
+  const NOT_EXECUTABLE_REASONS = Object.freeze([
+    { id: 'not_in_store', label: 'Not In Store' },
+    { id: 'planogram_issue', label: 'Planogram Issue' },
+    { id: 'fixture_issue', label: 'Fixture Issue' },
+    { id: 'other', label: 'Other' },
+  ]);
+
+  function notExecutableReasonLabel(id) {
+    const hit = NOT_EXECUTABLE_REASONS.find((r) => r.id === String(id || '').trim().toLowerCase());
+    return hit ? hit.label : '';
+  }
+
+  function notExecutableLine(label, detail) {
+    const d = detail || {};
+    const reason = notExecutableReasonLabel(d.reason);
+    const note = String(d.note || '').replace(/\s*[\r\n]+\s*/g, ' ').trim();
+    let line = `Not executable: ${label}`;
+    if (reason) line += ` — ${reason}`;
+    if (note) line += `: ${note}`;
+    if (d.helpdeskSent) line += ' (reported to help desk)';
+    return line;
+  }
+
   function notExecutableLines(S) {
     const rows = S?.state?.sheet?.rows || [];
     const out = [];
@@ -81,7 +104,8 @@
       if (!markActive(row, 'not_executable')) continue;
       const label = String(row.catName || row.dbkey || '').trim();
       if (!label) continue;
-      const line = `Not executable: ${label}`;
+      const marks = row.marks || row.mark || {};
+      const line = notExecutableLine(label, marks.details && marks.details.not_executable);
       if (seen.has(line.toLowerCase())) continue;
       seen.add(line.toLowerCase());
       out.push(line);
@@ -149,6 +173,9 @@
     nisLines,
     nisiLines,
     notExecutableLines,
+    notExecutableLine,
+    notExecutableReasonLabel,
+    NOT_EXECUTABLE_REASONS,
     apply,
     init,
     cartCount,

@@ -695,7 +695,9 @@
   async function openWizard(prefill) {
     ensureWizardOverlay();
     try { await loadSets(); } catch (_) { /* still open */ }
-    issues = [Object.assign(blankIssue(), prefill && typeof prefill === 'object' ? prefill : {})];
+    const prefills = Array.isArray(prefill) ? prefill : [prefill];
+    issues = prefills.map((p) => Object.assign(blankIssue(), p && typeof p === 'object' ? p : {}));
+    if (!issues.length) issues = [blankIssue()];
     const recipients = st().emailRecipients || global.emailRecipients || [];
     ccList = seedHelpdeskCc(recipients.slice(), storeNo(), userEmail());
     const teamBox = document.getElementById('helpdeskAddRetailOdysseyTeam');
@@ -709,9 +711,14 @@
     }
   }
 
-  async function openFromRow(row) {
+  async function openFromRow(row, extra) {
     try { await loadSets(); } catch (_) { /* still open */ }
-    await openWizard(rowPrefill(row));
+    await openWizard(Object.assign(rowPrefill(row), extra || {}));
+  }
+
+  async function openFromRows(rows, extra) {
+    try { await loadSets(); } catch (_) { /* still open */ }
+    await openWizard((rows || []).map((row) => Object.assign(rowPrefill(row), extra || {})));
   }
 
   async function askNisReport(row) {
@@ -802,7 +809,7 @@
     submitted.forEach((issue) => {
       const meta = issue.setMeta || issueMeta(issue, setsMap());
       const setName = meta.setLabel || issueName(issue);
-      if (issue.issueTypeId === 'not_in_store' && setName) {
+      if (issue.issueTypeId === 'not_in_store' && setName && !issue.fromNotExecutable) {
         keepNis(setName);
         S?.appendNote?.(`Not in store: ${setName}`);
         if (global.EodSignoffHome?.markNotInStoreFromHelpdesk) {
@@ -948,6 +955,7 @@
 
   global.openHelpdeskWizard = openWizard;
   global.openHelpdeskForSheetRow = openFromRow;
+  global.openHelpdeskForSheetRows = openFromRows;
   global.askToReportNotInStore = askNisReport;
   global.closeHelpdeskWizard = closeWizard;
   global.submitHelpdeskWizard = submitWizard;
