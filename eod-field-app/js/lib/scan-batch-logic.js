@@ -67,13 +67,19 @@
     return list;
   }
 
+  const MAX_ITEMS = 300;
+
   let memory = [];
-  let savedKey = '';
+  let savedKey = null;
   const listeners = new Set();
 
   function visitKey() {
     const S = global.EodSession?.state || {};
     return `${S.storeNumber || ''}|${String(S.workDate || '').slice(0, 10)}`;
+  }
+
+  function storageKey(key) {
+    return `${KEY}:${key}`;
   }
 
   function plainItem(item) {
@@ -84,10 +90,46 @@
     };
   }
 
-  function persist() {
+  function readStored(key) {
     try {
-      global.sessionStorage?.setItem(KEY, JSON.stringify({ key: savedKey, items: memory }));
-    } catch (_) { /* private mode */ }
+      const raw = global.localStorage?.getItem(storageKey(key));
+      if (raw) {
+        const items = JSON.parse(raw);
+        if (Array.isArray(items)) return items;
+      }
+      const legacy = global.sessionStorage?.getItem(KEY);
+      if (legacy) {
+        global.sessionStorage.removeItem(KEY);
+        const parsed = JSON.parse(legacy);
+        if (parsed?.key === key && Array.isArray(parsed.items)) return parsed.items;
+      }
+    } catch (_) { /* private mode or bad JSON */ }
+    return [];
+  }
+
+  // One visit's scans on the device. Changing store or date drops the old list.
+  // A lookup cut off by a closed app has no answer to show, so it is dropped.
+  function sync() {
+    const key = visitKey();
+    if (key === savedKey) return;
+    savedKey = key;
+    memory = key.startsWith('|')
+      ? []
+      : readStored(key).map(plainItem).filter((item) => item.upc && item.status !== 'looking');
+  }
+
+  function persist() {
+    if (!savedKey || savedKey.startsWith('|')) return;
+    try {
+      const ls = global.localStorage;
+      if (!ls) return;
+      const mine = storageKey(savedKey);
+      for (let i = ls.length - 1; i >= 0; i -= 1) {
+        const k = ls.key(i);
+        if (k && k.startsWith(`${KEY}:`) && k !== mine) ls.removeItem(k);
+      }
+      ls.setItem(mine, JSON.stringify(memory));
+    } catch (_) { /* private mode or full */ }
   }
 
   function emit() {
@@ -96,33 +138,21 @@
     }
   }
 
-  function load() {
-    try {
-      const raw = global.sessionStorage?.getItem(KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || parsed.key !== visitKey() || !Array.isArray(parsed.items)) return;
-      savedKey = parsed.key;
-      memory = parsed.items.map(plainItem).filter((item) => item.upc);
-    } catch (_) { /* ignore */ }
-  }
-
   function list() {
-    if (savedKey && savedKey !== visitKey()) return [];
+    sync();
     return memory.slice();
   }
 
   function commit(items) {
-    const key = visitKey();
-    if (savedKey && savedKey !== key) memory = [];
-    savedKey = key;
+    sync();
     const map = new Map(memory.map((item) => [item.upc, item]));
     for (const item of items || []) {
       const row = plainItem(item);
       if (!row.upc) continue;
+      map.delete(row.upc);
       map.set(row.upc, row);
     }
-    memory = [...map.values()];
+    memory = [...map.values()].slice(-MAX_ITEMS);
     persist();
     emit();
     return memory.slice();
@@ -133,8 +163,6 @@
     listeners.add(fn);
     return () => listeners.delete(fn);
   }
-
-  load();
 
   const api = {
     aisleLabel,

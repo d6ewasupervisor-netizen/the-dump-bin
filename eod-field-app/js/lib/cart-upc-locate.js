@@ -253,15 +253,13 @@
     item.promise = locate(code).then((data) => {
       item.data = data;
       item.status = data?.found ? 'ready' : 'miss';
-      if (batch?.bulk) {
-        global.EodScanBatch?.commit?.(batch.items);
-        paintCount();
-      }
+      global.EodScanBatch?.commit?.([item]);
+      if (batch?.bulk) paintCount();
       return data;
     }).catch(() => {
       item.data = { found: false };
       item.status = 'miss';
-      if (batch?.bulk) global.EodScanBatch?.commit?.(batch.items);
+      global.EodScanBatch?.commit?.([item]);
       return item.data;
     });
     batch.items.push(item);

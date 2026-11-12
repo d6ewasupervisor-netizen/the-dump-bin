@@ -77,6 +77,56 @@ test('scan results group by aisle then set', () => {
   assert.equal(groups.at(-1).rows[0].upc, '333');
 });
 
+function fakeStorage() {
+  const data = new Map();
+  return {
+    get length() { return data.size; },
+    key: (i) => [...data.keys()][i] ?? null,
+    getItem: (k) => (data.has(k) ? data.get(k) : null),
+    setItem: (k, v) => { data.set(k, String(v)); },
+    removeItem: (k) => { data.delete(k); },
+  };
+}
+
+function freshBatch() {
+  delete require.cache[require.resolve('../js/lib/scan-batch-logic')];
+  return require('../js/lib/scan-batch-logic');
+}
+
+test('scan results stay on the device for the visit and clear on a new visit', (t) => {
+  const prev = { ls: globalThis.localStorage, ss: globalThis.sessionStorage, S: globalThis.EodSession };
+  t.after(() => {
+    globalThis.localStorage = prev.ls;
+    globalThis.sessionStorage = prev.ss;
+    globalThis.EodSession = prev.S;
+    freshBatch();
+  });
+  globalThis.localStorage = fakeStorage();
+  globalThis.sessionStorage = fakeStorage();
+  globalThis.EodSession = { state: { storeNumber: '391', workDate: '2026-11-11' } };
+
+  let batch = freshBatch();
+  batch.commit([{ upc: '111', status: 'ready', data: { found: true, matches: [{ upc: '111', aisle: '4' }] } }]);
+  batch.commit([{ upc: '222', status: 'looking', data: null }]);
+
+  batch = freshBatch();
+  assert.deepEqual(batch.list().map((i) => i.upc), ['111']);
+
+  globalThis.EodSession.state.storeNumber = '23';
+  assert.deepEqual(batch.list(), []);
+  batch.commit([{ upc: '333', status: 'miss', data: { found: false } }]);
+  assert.equal(globalThis.localStorage.getItem('eodScanBatch:391|2026-11-11'), null);
+
+  globalThis.EodSession.state.storeNumber = '391';
+  assert.deepEqual(batch.list(), []);
+});
+
+test('a single scan is filed to Scan results, not only bulk', () => {
+  const locate = fs.readFileSync(path.join(__dirname, '../js/lib/cart-upc-locate.js'), 'utf8');
+  const enqueue = locate.slice(locate.indexOf('function enqueue('), locate.indexOf('async function finishSingle('));
+  assert.equal((enqueue.match(/EodScanBatch\?\.commit\?\.\(\[item\]\)/g) || []).length, 2);
+});
+
 test('bulk scan keeps the camera open and files a Scan results page', () => {
   const root = path.join(__dirname, '..');
   const locate = fs.readFileSync(path.join(root, 'js/lib/cart-upc-locate.js'), 'utf8');
