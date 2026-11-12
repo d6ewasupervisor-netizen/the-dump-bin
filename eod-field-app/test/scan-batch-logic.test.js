@@ -127,6 +127,13 @@ test('a single scan is filed to Scan results, not only bulk', () => {
   assert.equal((enqueue.match(/EodScanBatch\?\.commit\?\.\(\[item\]\)/g) || []).length, 2);
 });
 
+test('COM Load stays off the scan surfaces — it loads sets, not items', () => {
+  for (const file of ['js/lib/cart-upc-locate.js', 'js/features/scan-results.js', 'js/lib/scan-batch-logic.js']) {
+    const code = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+    assert.doesNotMatch(code, /com ?load|EodComLoadRequest/i, file);
+  }
+});
+
 test('bulk scan keeps the camera open and files a Scan results page', () => {
   const root = path.join(__dirname, '..');
   const locate = fs.readFileSync(path.join(root, 'js/lib/cart-upc-locate.js'), 'utf8');
