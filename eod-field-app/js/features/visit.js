@@ -1369,7 +1369,9 @@
     overlay.querySelector('#priorDayStart')?.addEventListener('click', async () => {
       S.resolvePriorDayDraft?.('start');
       closePriorDayChoice();
-      await S.resetVisit({});
+      /* Starting a new day is not a request to delete yesterday's photos.
+         They stay on the phone as an unsent visit, listed under Storage. */
+      await S.resetVisit({ keepUnsentPhotos: true });
       await global.EodRouter?.render?.();
       await openDayConfirmModal();
     });

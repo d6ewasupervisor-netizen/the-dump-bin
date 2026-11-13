@@ -101,7 +101,7 @@
     if (global.EodAlerts?.showDialog) {
       const id = await global.EodAlerts.showDialog({
         title: 'Clear storage?',
-        message: "Clears saved copies on this phone. Today's visit stays.",
+        message: "Clears saved copies on this phone. Today's visit and any visit not sent yet stay.",
         buttons: [
           { id: 'keep', label: 'Keep' },
           { id: 'clear', label: 'Clear', primary: true },
@@ -109,7 +109,7 @@
       });
       return id === 'clear';
     }
-    return window.confirm("Clear storage? Today's visit stays.");
+    return window.confirm("Clear storage? Today's visit and any visit not sent yet stay.");
   }
 
   function dropCarryForwardKeys() {
@@ -127,16 +127,33 @@
     return doomed.length;
   }
 
+  /* What Clear storage does with one saved visit: 'sent' is left to the
+     submitted purge, 'keep-unsent' still holds unsent photos, 'drop' is an
+     empty leftover. */
+  function clearVerdict(s) {
+    if (!s) return 'drop';
+    if (s.sentAt || (s.emailOk && !s.hasOpenJobs)) return 'sent';
+    if (Number(s.count) > 0 || Number(s.bytes) > 0 || s.hasOpenJobs) return 'keep-unsent';
+    return 'drop';
+  }
+
   async function clearStoredData() {
     const keys = dropCarryForwardKeys();
     let caches = 0;
     try { caches = await global.EodSetMediaCache?.purgeAll?.() || 0; } catch (_) {}
     let sessions = 0;
+    let keptUnsent = 0;
     try {
       const list = await global.PhotoDB?.listSessionSummaries?.() || [];
       const activeId = global.PhotoDB?.resolveActiveKey?.()?.id || null;
       for (const s of list) {
         if (!s?.id || (activeId && s.id === activeId)) continue;
+        /* Sent visits go through purgeSubmitted below, which keeps photos the
+           upload queue still needs. A visit that was never sent and still has
+           photos is somebody's work: it only goes when they remove that row. */
+        const verdict = clearVerdict(s);
+        if (verdict === 'keep-unsent') keptUnsent += 1;
+        if (verdict !== 'drop') continue;
         const r = await global.PhotoDB.deleteSessionById(s.id);
         if (r?.ok) sessions += 1;
       }
@@ -159,7 +176,7 @@
     } catch (_) {}
     try { global.EodDiag?.reset?.(); } catch (_) {}
     try { global.EodChrome?.refresh?.(); } catch (_) {}
-    return { keys, caches, sessions, sent, jobs };
+    return { keys, caches, sessions, sent, jobs, keptUnsent };
   }
 
   async function confirmLoad(store, date) {
@@ -624,9 +641,15 @@
       const btn = document.getElementById('devClearStorage');
       if (btn) btn.disabled = true;
       try {
-        await clearStoredData();
-        setMsg('Cleared.');
+        const done = await clearStoredData();
+        const kept = Number(done?.keptUnsent) || 0;
+        const text = kept
+          ? `Cleared. ${kept} unsent visit${kept === 1 ? '' : 's'} kept.`
+          : 'Cleared.';
+        setMsg(text);
         await afterChange();
+        /* afterChange repaints the page and takes the line above with it. */
+        if (kept) global.EodConnections?.toast?.(text, 'info');
       } catch (err) {
         setMsg(err.message || String(err));
         if (btn) btn.disabled = false;
@@ -664,6 +687,6 @@
     } catch (_) {}
   }
 
-  global.EodDeviceStorage = { render, purgeInBackground, openUnsentReview, openSessionReview, clearStoredData };
+  global.EodDeviceStorage = { render, purgeInBackground, openUnsentReview, openSessionReview, clearStoredData, clearVerdict };
   global.EodRouter.register('storage', render);
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -157,6 +157,37 @@
     return n;
   }
 
+  /** An unreferenced image row younger than this is left alone: a capture
+   *  writes its bytes first and the record that points at them a moment later. */
+  const ORPHAN_BLOB_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+
+  /** Every blobId any stored record (session, allPhotos, quarantine) points at. */
+  function referencedBlobIds(records) {
+    const used = new Set();
+    for (const rec of Array.isArray(records) ? records : []) {
+      if (!rec || typeof rec !== 'object') continue;
+      for (const t of PHOTO_TYPES) {
+        for (const p of Array.isArray(rec[t]) ? rec[t] : []) {
+          if (p && typeof p === 'object' && p.blobId) used.add(String(p.blobId));
+        }
+      }
+    }
+    return used;
+  }
+
+  /** True when an image row no record points at is old enough to delete. */
+  function orphanBlobDue(row, now, minAgeMs) {
+    const at = Number(row && row.at) || 0;
+    const age = Number(now) - at;
+    return age >= (Number.isFinite(Number(minAgeMs)) ? Number(minAgeMs) : ORPHAN_BLOB_MIN_AGE_MS);
+  }
+
+  /** Does this record still hold photos that were never sent? */
+  function holdsUnsentPhotos(rec) {
+    if (!rec || rec.sentAt || rec.emailOk) return false;
+    return PHOTO_TYPES.some((t) => Array.isArray(rec[t]) && rec[t].length > 0);
+  }
+
   function stampOf(entry) {
     if (!entry || typeof entry === 'string') return null;
     const store = String(entry.storeNumber || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
@@ -331,6 +362,43 @@
       tx.objectStore(blobStoreName).delete(id);
       await awaitTx(tx);
       return true;
+    }
+
+    /**
+     * Clearing a visit or removing a photo drops the record but not the image
+     * rows it pointed at, so the phone filled a little more every day and the
+     * storage meter (which sums records) never saw it. Delete rows nothing
+     * references. Keys are listed before records are read, so a photo saved
+     * while this runs is never in the list.
+     */
+    async function sweepOrphanBlobs({ minAgeMs = ORPHAN_BLOB_MIN_AGE_MS } = {}) {
+      const d = await init();
+      if (!d.objectStoreNames.contains(blobStoreName)) return { removed: 0, bytes: 0 };
+      const keys = await new Promise((resolve, reject) => {
+        const req = d.transaction([blobStoreName], 'readonly').objectStore(blobStoreName).getAllKeys();
+        req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+        req.onerror = () => reject(req.error);
+      });
+      if (!keys.length) return { removed: 0, bytes: 0 };
+      const used = referencedBlobIds(await getAllRecords());
+      const now = Date.now();
+      let removed = 0;
+      let bytes = 0;
+      for (const id of keys) {
+        if (used.has(String(id))) continue;
+        const row = await new Promise((resolve) => {
+          const req = d.transaction([blobStoreName], 'readonly').objectStore(blobStoreName).get(id);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
+        if (!row || !orphanBlobDue(row, now, minAgeMs)) continue;
+        try {
+          await deleteBlob(id);
+          removed += 1;
+          bytes += Number(row.bytes) || 0;
+        } catch (_) { /* next boot tries again */ }
+      }
+      return { removed, bytes };
     }
 
     function collectBlobIds(arrs) {
@@ -871,9 +939,12 @@
       const submitted = await purgeSubmitted({ keepActive: true, maxAgeMs: SENT_PRUNE_MS }).catch(() => ({ removed: 0 }));
       await slimLegacyMirror().catch(() => {});
       await enforceHardCap().catch(() => {});
+      const orphans = await sweepOrphanBlobs().catch(() => ({ removed: 0, bytes: 0 }));
       return {
         pruned: (pruned && pruned.removed) || 0,
         submitted: (submitted && submitted.removed) || 0,
+        orphanBlobs: (orphans && orphans.removed) || 0,
+        orphanBytes: (orphans && orphans.bytes) || 0,
       };
     }
 
@@ -1152,12 +1223,21 @@
       return true;
     }
 
-    /** Clear only the active session (+ allPhotos mirror). Other sessions stay. */
-    async function clearPhotos() {
+    /**
+     * Clear only the active session (+ allPhotos mirror). Other sessions stay.
+     * keepUnsent leaves the session on the phone as an unsent leftover when it
+     * still holds photos that never went out; the caller is walking away from
+     * the visit, not asking to destroy it.
+     */
+    async function clearPhotos({ keepUnsent = false } = {}) {
       const resolved = resolveActiveKey();
       const key = resolved || activeKey;
+      let keep = false;
+      if (keepUnsent && key) {
+        try { keep = holdsUnsentPhotos(await getRecord(key.id)); } catch (_) { keep = true; }
+      }
       const { tx, store } = await txStore('readwrite');
-      if (key) store.delete(key.id);
+      if (key && !keep) store.delete(key.id);
       store.put({
         id: LEGACY_ID,
         before: [],
@@ -1555,6 +1635,7 @@
       deleteSessionById,
       purgeSubmitted,
       purgeOnBoot,
+      sweepOrphanBlobs,
       slimLegacyMirror,
       legacyAllPhotosSummary,
       clearLegacyAllPhotos,
@@ -1597,5 +1678,9 @@
     LEGACY_ID,
     QUARANTINE_ID,
     PHOTO_TYPES,
+    ORPHAN_BLOB_MIN_AGE_MS,
+    referencedBlobIds,
+    orphanBlobDue,
+    holdsUnsentPhotos,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

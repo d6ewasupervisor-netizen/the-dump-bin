@@ -10,6 +10,9 @@
   const EOD_SANDBOX_LAST_DATE_KEY = 'eodSandboxLastSourceDate';
   const EOD_TEST_KEEP_CURRENT_KEY = 'eodTestKeepCurrent';
   const EOD_TEST_SAVED_RECIPIENTS_KEY = 'eodTestSavedRecipients';
+  /* localStorage, not sessionStorage: the profile it protects lives in
+     localStorage, so the saved copy has to outlive a closed tab too. */
+  const EOD_TEST_SAVED_IDENTITY_KEY = 'eodTestSavedIdentity';
   const logic = global.EodTestModeLogic || {};
   const EOD_TEST_RECIPIENT = logic.DEFAULT_TEST_RECIPIENT || 'tyson.gauthier@retailodyssey.com';
   const EOD_TEST_STORE = logic.DEFAULT_TEST_STORE || '999';
@@ -97,9 +100,43 @@
     }
   }
 
+  /* The sandbox signs the phone in as the test lead and saves that as the
+     profile. Keep the real lead first so turning test mode off puts it back;
+     without this every later real EOD went out under the test identity. */
+  function stashIdentity() {
+    const S = global.EodSession;
+    if (!S) return;
+    try {
+      if (localStorage.getItem(EOD_TEST_SAVED_IDENTITY_KEY)) return;
+      const snap = logic.identitySnapshot
+        ? logic.identitySnapshot(S.state, EOD_TEST_LEAD_EMAIL)
+        : null;
+      if (snap) localStorage.setItem(EOD_TEST_SAVED_IDENTITY_KEY, JSON.stringify(snap));
+    } catch (_) {}
+  }
+
+  function restoreIdentity() {
+    const S = global.EodSession;
+    if (!S) return false;
+    let snap = null;
+    try { snap = JSON.parse(localStorage.getItem(EOD_TEST_SAVED_IDENTITY_KEY) || 'null'); } catch (_) {}
+    if (!snap || typeof snap !== 'object') return false;
+    S.patch({
+      profileName: String(snap.profileName || ''),
+      profileEmail: String(snap.profileEmail || ''),
+      leadName: String(snap.leadName || ''),
+      leadEmail: String(snap.leadEmail || ''),
+    }, 'clear-test');
+    try { S.saveProfile(); } catch (_) {}
+    try { S.saveDraft(); } catch (_) {}
+    try { localStorage.removeItem(EOD_TEST_SAVED_IDENTITY_KEY); } catch (_) {}
+    return true;
+  }
+
   async function setupTestScenario() {
     const S = global.EodSession;
     if (!S) return;
+    stashIdentity();
     S.patch({
       storeNumber: EOD_TEST_STORE,
       workDate: S.state.workDate || S.todayLocalIsoDate(),
@@ -198,6 +235,7 @@
     const S = global.EodSession;
     if (!S) return;
     if (isKeepCurrentTest()) restoreRecipients();
+    restoreIdentity();
     if (S.state.selectedShift?._testMock || String(S.state.selectedShift?.visitId || '').startsWith('test-')) {
       S.patch({ selectedShift: null, shifts: [] }, 'clear-test');
     }
@@ -216,11 +254,20 @@
   // Tapping the badge to turn test mode ON now prompts for which real shift
   // to clone into the store-999 sandbox first (see openCloneModal below).
   // Tapping it OFF just tears down the local test scenario, same as before.
-  function toggleTestMode() {
+  async function toggleTestMode() {
     if (eodTestMode) {
       setTestMode(false);
       clearTestScenario();
-    } else if (hasLoadedShift()) {
+      return;
+    }
+    /* Turning it on swaps the lead and reroutes mail, so it is a supervisor
+       tool. Turning it off above is never gated. */
+    try { await global.EodRoles?.load?.(); } catch (_) {}
+    if (!canForceLive()) {
+      toast('Test mode is for supervisors.', 'info');
+      return;
+    }
+    if (hasLoadedShift()) {
       openTestModeChoiceModal();
     } else {
       openCloneModal();
@@ -550,7 +597,10 @@
 
   async function checkVersion() {
     const remote = await fetchLiveVersion();
-    if (!remote || remote === version()) {
+    /* Only ever move forward. A stale or half-copied eod-version.json that
+       names an older version used to reload every open phone in a loop. */
+    const behind = logic.isNewerVersion ? !logic.isNewerVersion(remote, version()) : false;
+    if (!remote || remote === version() || behind) {
       try {
         const pending = sessionStorage.getItem(EOD_PENDING_VERSION_KEY);
         if (pending && (pending === remote || pending === version() || String(pending).startsWith('force-'))) {
@@ -627,7 +677,7 @@
         longPressFired = false;
         return;
       }
-      toggleTestMode();
+      void toggleTestMode();
     });
     badge.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -671,6 +721,9 @@
       if (!document.hidden) checkVersion();
     });
     window.addEventListener('pageshow', () => checkVersion());
+    /* Tab closed while test mode was on: the flag died with the tab but the
+       test identity is still the saved profile. Put the real one back. */
+    if (!eodTestMode) restoreIdentity();
     if (eodTestMode) {
       if (isKeepCurrentTest()) {
         const S = global.EodSession;

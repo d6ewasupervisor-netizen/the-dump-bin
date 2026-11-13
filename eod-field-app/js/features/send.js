@@ -98,7 +98,7 @@
   async function loadSendReceipt() {
     const S = global.EodSession;
     if (!S?.state?.storeNumber || !S.state.workDate || !global.authFetch) return null;
-    if (global.EodTestMode?.isOn?.() && !global.EodTestMode?.isForceLive?.()) return null;
+    if (global.EodTestMode?.isEnabled?.() && !global.EodTestMode?.isForceLive?.()) return null;
     try {
       const url = `${global.EOD_API_BASE}/api/eod/send-receipt?storeNumber=${encodeURIComponent(S.state.storeNumber)}&workDate=${encodeURIComponent(S.state.workDate)}`;
       const resp = await global.authFetch(url, { method: 'GET' });

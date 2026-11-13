@@ -119,8 +119,10 @@
    * Optional wipePersonal also clears profile/signature.
    * Week-scoped set before photos are kept unless wipeSetBefores is true.
    * Leftover unsent photo sessions on this phone are kept unless wipeUnsent is true.
+   * keepUnsentPhotos also keeps the visit being left behind when its photos
+   * never went out (Fresh start on yesterday's unfinished visit).
    */
-  async function resetVisit({ wipePersonal = false, wipeSetBefores = false, wipeUnsent = false } = {}) {
+  async function resetVisit({ wipePersonal = false, wipeSetBefores = false, wipeUnsent = false, keepUnsentPhotos = false } = {}) {
     const store = state.storeNumber;
     const week = state.fiscalWeek;
     priorDayDraft = null;
@@ -138,7 +140,7 @@
       else global.EodSetBeforeStore.clearAllForStore(store);
     }
     if (global.PhotoDB?.clearPhotos) {
-      try { await global.PhotoDB.clearPhotos(); } catch (_) {}
+      try { await global.PhotoDB.clearPhotos({ keepUnsent: keepUnsentPhotos && !wipeUnsent }); } catch (_) {}
     }
     if (wipeUnsent && global.PhotoDB?.purgeUnsentLeftovers) {
       try { await global.PhotoDB.purgeUnsentLeftovers({ force: true }); } catch (_) {}

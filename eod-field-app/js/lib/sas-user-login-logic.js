@@ -302,7 +302,20 @@
   // session, the shared actor, or the shared session carrying it (uploadReady
   // from /api/sas-user/status). Whether the lead still owes a sign-in is the
   // card's business, not the camera's.
+  /* Did /api/sas-user/status actually answer? 401/403 is an answer (the app
+     session is gone). No response, a 5xx, or a 200 that is not JSON (a store
+     wifi sign-in page) is not. */
+  function statusAnswered(httpStatus, data) {
+    const code = Number(httpStatus) || 0;
+    if (code === 401 || code === 403) return true;
+    if (code < 200 || code >= 300) return false;
+    return !!data && typeof data === 'object';
+  }
+
+  /* status.unknown: the check never got an answer. Let the shot through; it
+     is saved on the phone and the upload queue waits for signal. */
   function captureVerdict(status) {
+    if (status && status.unknown) return { ok: true, unknown: true };
     if (!status || !(status.connected || status.sharedActor || status.uploadReady)) {
       return { ok: false, message: 'Sign in' };
     }
@@ -313,6 +326,7 @@
     jumpMidpoint,
     openMode,
     captureVerdict,
+    statusAnswered,
     prodSasSignedIn,
     leadProdSignedIn,
     leadOktaLight,

@@ -91,11 +91,30 @@
     const leadEmail = leadParam();
     if (!force && status && statusFor === leadEmail && Date.now() - statusAt < STATUS_TTL_MS) return status;
     const qs = leadEmail ? `?leadEmail=${encodeURIComponent(leadEmail)}` : '';
-    const resp = await global.authFetch(`${apiBase()}/api/sas-user/status${qs}`, {
-      skipBusy: true,
-      noBounceOn401: true,
-    });
-    const data = resp.ok ? await resp.json().catch(() => ({})) : {};
+    /* Only a real answer may say "signed out". A dropped request, a gateway
+       error or a captive-portal page says nothing about the lead's session,
+       and reading it as signed out threw away the photo being taken. */
+    let resp = null;
+    let data = null;
+    try {
+      resp = await global.authFetch(`${apiBase()}/api/sas-user/status${qs}`, {
+        skipBusy: true,
+        noBounceOn401: true,
+      });
+      if (resp.ok) data = await resp.json().catch(() => null);
+    } catch (_) {
+      resp = null;
+    }
+    const answered = Logic.statusAnswered
+      ? Logic.statusAnswered(resp ? resp.status : 0, data)
+      : !!resp;
+    if (!answered) {
+      if (!status || statusFor !== leadEmail) status = { unknown: true, connected: false, passwordExpireDays: null };
+      statusAt = Date.now();
+      statusFor = leadEmail;
+      return status;
+    }
+    data = data || {};
     status = {
       connected: !!data.connected,
       hasCreds: !!data.hasCreds,

@@ -12,8 +12,15 @@
   var SESSION_KEY = 'dumpBinSession';
   var LEGACY_KEY = 'eodSession';
   var API_BASE = (function () {
-    var hashApi = (location.hash.match(/api=([^&]+)/) || [])[1];
-    if (hashApi) return decodeURIComponent(hashApi).replace(/\/+$/, '');
+    /* #api= points sign-in at another server. That is a developer convenience,
+       so it only works on a developer machine: on a hosted copy a crafted
+       link would send PINs and session tokens wherever it named. */
+    var host = String(location.hostname || '').toLowerCase();
+    var isLocal = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    var hashApi = isLocal ? (location.hash.match(/api=([^&]+)/) || [])[1] : '';
+    if (hashApi) {
+      try { return decodeURIComponent(hashApi).replace(/\/+$/, ''); } catch (_) {}
+    }
     return 'https://eod-api.the-dump-bin.com';
   })();
 
