@@ -435,3 +435,7 @@ The Welcome Letter Board card and page are named Employee Board. A name opens th
 ## 2026-10-05
 
 Published field-app 3.4.48. Signatures include Produce for a same-day cut-in and Home Manager for GM sets on planogram department 03. The first GitHub Pages deploy failed to attach its artifact, so this entry republishes that same app.
+
+## 2026-11-13
+
+Added `dc-scan/weekend/`: weekend DC Scan coverage for FM 19, 28, 31, and 459. One person per store, the claimer picks the day, and the board refreshes every 5 seconds. API is eod-api `/api/dc-scan-weekend`.
