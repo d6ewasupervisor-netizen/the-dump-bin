@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-15 — Field app 3.5.30: store addresses stay on the EOD
+
+A Fred Meyer address sitting on the recipient chips is included in the send.
+
 ## 2026-11-15 — Field app 3.5.29: Complete, COM load, PROD and SI lights
 
 Selected categories can be completed from after photos, or the blurry shelf when there are none. Request COM load goes to the store supervisor through TT-RELAY. The PROD and SI lights and the version badge are back on the header.

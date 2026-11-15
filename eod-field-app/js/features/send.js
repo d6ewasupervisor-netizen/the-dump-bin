@@ -531,7 +531,7 @@ ${cleanNotes}`;
     const verified = new Set((S.state.verifiedRecipients || []).map((email) => String(email || '').trim().toLowerCase()));
     const checked = (S.state.emailRecipients || [])
       .map((email) => String(email || '').trim().toLowerCase())
-      .filter((email) => email && verified.has(email));
+      .filter((email) => email && (verified.has(email) || email.endsWith(FM_STORE_SUFFIX)));
     const hasFredMeyerTeam = checked.length > 0;
     let recipients = [...new Set(checked)];
     if (!hasFredMeyerTeam && userEmail) {
