@@ -1063,7 +1063,8 @@ test('Categories sheet has Done / Not Done pills; Clear, Complete all, ack, and 
   assert.match(signoff, /data-value="done">Complete/);
   assert.match(signoff, /data-value="not_executable">Not Executable/);
   assert.match(signoff, /data-value="out_of_scope">Not In Scope/);
-  assert.match(signoff, /Request COM\(s\)\?/);
+  assert.match(signoff, /Request COM load/);
+  assert.match(signoff, /data-bulk-complete="1">Complete/);
   assert.match(comLoad, /confirm\('Send in COM Load Request'\)/);
   assert.doesNotMatch(comLoad, /Queue/);
   assert.match(signoff, /data-value="not_in_prod">Not in Prod/);

@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-15 — Field app 3.5.29: Complete, COM load, PROD and SI lights
+
+Selected categories can be completed from after photos, or the blurry shelf when there are none. Request COM load goes to the store supervisor through TT-RELAY. The PROD and SI lights and the version badge are back on the header.
+
 ## 2026-11-15 — Field app 3.5.28: dismiss on photo banners
 
 The unsent-session banner and the failed-upload banner each have Dismiss. Hiding one leaves the photos on the phone. A new leftover or a new failure shows that banner again.

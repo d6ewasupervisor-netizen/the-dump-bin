@@ -1217,7 +1217,8 @@
         <div class="ds-bulk-count">${n} selected</div>
         <label class="ds-bulk-me"><input type="checkbox" data-com-email-me ${global.EodComLoadRequest?.emailMeOnly?.() ? 'checked' : ''}> Email me only</label>
         <div class="ds-actions">
-          <button type="button" class="btn" data-bulk-com="1">Request COM(s)?</button>
+          <button type="button" class="btn" data-bulk-complete="1">Complete</button>
+          <button type="button" class="btn" data-bulk-com="1">Request COM load</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">Not in Store</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">Not in SI</button>
           <button type="button" class="btn btn-secondary" data-bulk-mark="backlog">Backlog</button>
@@ -1234,6 +1235,52 @@
         const rows = (S.state.sheet?.rows || []).filter((r) => selectedIds.has(String(r.id)));
         await global.EodComLoadRequest?.requestSelected?.(rows);
       });
+      bulk.querySelector('[data-bulk-complete]')?.addEventListener('click', () => {
+        runBulkComplete();
+      });
+    }
+
+    async function runBulkComplete() {
+      const rows = (S.state.sheet?.rows || []).filter((r) => selectedIds.has(String(r.id)));
+      if (!rows.length) return;
+      const n = rows.length;
+      const go = global.showConfirm
+        ? await global.showConfirm('Complete', `Complete ${n} selected set${n === 1 ? '' : 's'}?`)
+        : confirm(`Complete ${n} selected set${n === 1 ? '' : 's'}?`);
+      if (!go) return;
+      const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+      const visitId = S.state.selectedShift?.visitId || null;
+      let done = 0;
+      const problems = [];
+      for (const row of rows) {
+        try {
+          const resp = await global.authFetch('https://eod-api.the-dump-bin.com/api/field-set/special-complete', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              storeNumber: S.state.storeNumber,
+              workDate: S.state.workDate,
+              dbkey: row.dbkey,
+              rowId: row.id,
+              visitId,
+            }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || data.ok === false) throw new Error(data.error || `Complete failed (${resp.status})`);
+          done += 1;
+        } catch (err) {
+          problems.push(err.message || String(err));
+        }
+      }
+      selectedIds.clear();
+      try {
+        await loadSheet();
+        await paint();
+      } catch (_) {}
+      const msg = problems.length
+        ? `Completed ${done} of ${n}. ${problems[0]}`
+        : `Completed ${done} set${done === 1 ? '' : 's'}`;
+      if (global.EodConnections?.toast) global.EodConnections.toast(msg, problems.length ? 'error' : 'ok');
     }
 
     function visibleRowIds() {
