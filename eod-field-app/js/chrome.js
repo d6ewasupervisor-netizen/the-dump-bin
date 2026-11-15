@@ -483,20 +483,12 @@
       host.classList.add('show');
       host.style.display = '';
     }
-    const signedOn = signedInNow();
-    const signLabel = signedOn ? 'PROD + SI signed in' : 'PROD + SI sign in';
-    const signIcon = navIconSrc(signedOn ? 'signed-in' : 'sign-in');
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>More</h2>
-      <button type="button" class="btn btn-primary btn-block more-sign-btn" id="eodMoreSignIn" aria-label="${signLabel}">
-        <img class="nav-ico-img" data-icon="sign-in" src="${signIcon}" alt="" width="28" height="28">
-        <span class="more-sign-label">${signLabel}</span>
-      </button>
       <button type="button" class="btn btn-primary btn-block" data-more="storage">Clear storage</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
       <button type="button" class="btn btn-secondary btn-block" id="eodMoreBoard">EOD Board</button>
-      ${global.EodRoles?.canForceLive?.() ? '<button type="button" class="btn btn-secondary btn-block" id="eodMoreOkta">Okta</button>' : ''}
       <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="scans">Scan results</button>
       ${global.EodRoles?.canManageRoster?.() ? '<button type="button" class="btn btn-secondary btn-block" data-more="audit">Audit</button>' : ''}
@@ -511,19 +503,9 @@
         global.EodRouter.go(dest);
       });
     });
-    host.querySelector('#eodMoreSignIn')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      closeModal(host);
-      setTimeout(() => openSignIn(), 0);
-    });
     host.querySelector('#eodMoreBoard')?.addEventListener('click', () => {
       closeModal(host);
       openEodBoard();
-    });
-    host.querySelector('#eodMoreOkta')?.addEventListener('click', () => {
-      closeModal(host);
-      setTimeout(() => openOktaBoard(), 0);
     });
     host.querySelector('#eodMoreClose')?.addEventListener('click', () => closeModal(host));
     global.EodA11y?.activate?.(host);

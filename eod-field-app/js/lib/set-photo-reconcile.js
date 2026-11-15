@@ -297,20 +297,8 @@
       for (const item of photos) {
         if (n >= PUSH_HARD_CAP || Date.now() > deadline) break;
         if (!want.has(`${item.dbkey}:${item.slot}:${item.bay}`)) continue;
-        /* Use the cached gate. The blocking one re-fetches auth status on a
-           30s ceiling, and its .catch turned any slow or failed check into
-           "not connected" - which skipped every after bay on the device, on
-           every tick, for as long as the endpoint was unhappy. */
-        const gateFn = global.EodSasUser?.requireConnectedFast
-          || global.EodSasUser?.requireConnected;
-        if (item.slot === 'after' && gateFn) {
-          const gate = await gateFn.call(global.EodSasUser, { slot: 'after' })
-            .catch(() => ({ ok: false }));
-          if (!gate?.ok) {
-            skippedForAuth += 1;
-            continue;
-          }
-        }
+        // Provider sign-in retired: no auth gate. Bays reconcile freely; the
+        // PC loader carries them to PROD/SI under the owner's own session.
         try {
           // Decode here, not in the manifest: only the bays the server asked
           // for ever touch FileReader.

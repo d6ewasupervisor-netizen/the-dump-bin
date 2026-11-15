@@ -1626,18 +1626,8 @@
     }
 
     async function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
-      const gateFn = global.EodSasUser?.requireConnectedFast
-        || global.EodSasUser?.requireConnected;
-      if (gateFn) {
-        const gate = await gateFn.call(global.EodSasUser, { slot });
-        if (!gate.ok) {
-          // The card message sits under the live camera, so say it where the
-          // shooter is actually looking.
-          if (liveCameraOpen) activeCameraToast?.(gate.message);
-          setMsg(gate.message);
-          return;
-        }
-      }
+      // Provider sign-in retired: every shot is accepted straight into the
+      // local queue. Upload to PROD/SI happens off-device via the PC loader.
       try { global.EodStoreProdWarm?.dropStatus?.(dbkey); } catch (_) {}
       const shot = fileOrShot && (fileOrShot.canvas || fileOrShot.bitmap) ? fileOrShot : null;
       const file = shot ? null : fileOrShot;

@@ -45,27 +45,10 @@
     } catch (_) {}
   }
 
-  async function pollConnections() {
-    const base = global.EOD_API_BASE;
-    try {
-      const r = await global.authFetch(`${base}/sas-auth-status`, { noBounceOn401: true });
-      const j = r.ok ? await r.json() : { ok: false };
-      setConnState('sas', !!j.ok && !j.stale, j.minutes_since_refresh, j.display || null);
-    } catch (e) {
-      console.warn('[conn] SAS probe failed:', e);
-      setConnState('sas', false);
-    }
-    try {
-      const r = await global.authFetch(`${base}/rebotics-auth-status`, { noBounceOn401: true });
-      const j = r.ok ? await r.json() : { ok: false };
-      setConnState('rebotics', !!j.ok && !j.stale, j.minutes_since_refresh ?? j.minutesSinceRefresh, j.display || null);
-    } catch (e) {
-      console.warn('[conn] Rebotics probe failed:', e);
-      setConnState('rebotics', false);
-    }
-    try { await global.EodSasUser?.fetchStatus?.(false); } catch (_) {}
-    paintLeadOkta();
-  }
+  // Provider connection dots retired. SAS/SI auth now lives entirely on the PC
+  // loader under the owner's own session, so the app no longer probes auth
+  // status or paints SAS/SI/lead lights. Kept as a no-op for existing callers.
+  async function pollConnections() {}
 
   function getRefreshCooldownRemainingMs() {
     const last = parseInt(localStorage.getItem(REFRESH_COOLDOWN_KEY) || '0', 10);
@@ -344,10 +327,6 @@
       });
     }
     paintLeadOkta();
-    ensureRefreshCooldownTicker();
-    pollConnections();
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(pollConnections, POLL_MS);
   }
 
   global.EodConnections = {

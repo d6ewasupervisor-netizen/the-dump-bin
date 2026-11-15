@@ -1426,19 +1426,11 @@
         <button type="button" class="btn btn-secondary btn-block" id="unlockProfileBtn" ${S.state.profileLocked || S.state.selectedShift ? '' : 'hidden'}>Edit name / email</button>
       </div>
 
-      <div class="card" id="visitReportingSignIn" hidden>
-        <button type="button" class="btn btn-primary btn-block" id="visitReportingSignInBtn">PROD + SI sign in</button>
-      </div>
-
       <div class="card">
         <div id="visitOnboarding"></div>
       </div>
 `;
 
-    paintReportingSignIn(global.EodSasUser?.cachedStatus?.() || null);
-    void global.EodSasUser?.fetchStatus?.(true)
-      .then((status) => paintReportingSignIn(status))
-      .catch(() => paintReportingSignIn(null));
     paintShiftList(document.getElementById('shiftList'));
     if (global.EodShiftPhotoSync?.ensureCartPhotos) {
       try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
@@ -1450,9 +1442,6 @@
       global.EodCartLocate?.openScanner?.();
     };
     document.getElementById('resetVisitBtn').onclick = () => doReset();
-    document.getElementById('visitReportingSignInBtn')?.addEventListener('click', () => {
-      global.EodChrome?.openSignIn?.();
-    });
 
     document.getElementById('visitLeadName').oninput = () => {
       const lead = document.getElementById('visitLeadName').value.trim();
