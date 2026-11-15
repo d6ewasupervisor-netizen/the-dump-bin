@@ -159,6 +159,11 @@
         try {
           if (p.signatureDataUrl) localStorage.setItem('kompassSignature', p.signatureDataUrl);
         } catch (_) {}
+        const lead = global.EodLeadSignatureOwner?.shiftLead(p.selectedShift) || {};
+        S.setSignatureSigner?.({
+          email: lead.email || p.leadEmail || '',
+          name: lead.name || p.leadName || '',
+        });
         S.emit?.('signature');
       }
     } finally {

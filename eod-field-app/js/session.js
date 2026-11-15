@@ -6,6 +6,7 @@
   const DRAFT_KEY = 'kompassEOD';
   const PROFILE_KEY = 'kompassProfile';
   const SIGNATURE_KEY = 'kompassSignature';
+  const SIGNATURE_SIGNER_KEY = 'kompassSignatureSigner';
 
   const listeners = new Set();
   let priorDayDraft = null;
@@ -131,6 +132,7 @@
     if (wipePersonal) {
       try { localStorage.removeItem(PROFILE_KEY); } catch (_) {}
       try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
+      try { localStorage.removeItem(SIGNATURE_SIGNER_KEY); } catch (_) {}
       state.profileName = '';
       state.profileEmail = '';
       state.signatureDataUrl = '';
@@ -256,6 +258,46 @@
     }, 250);
   }
 
+  function readSignatureSigner() {
+    try { return JSON.parse(localStorage.getItem(SIGNATURE_SIGNER_KEY) || 'null'); } catch (_) { return null; }
+  }
+
+  function setSignatureSigner(signer) {
+    try {
+      if (signer && (signer.email || signer.name)) {
+        localStorage.setItem(SIGNATURE_SIGNER_KEY, JSON.stringify({
+          email: String(signer.email || ''),
+          name: String(signer.name || ''),
+          visitId: state.selectedShift?.visitId || null,
+          storeNumber: state.storeNumber || '',
+          at: new Date().toISOString(),
+        }));
+      } else {
+        localStorage.removeItem(SIGNATURE_SIGNER_KEY);
+      }
+    } catch (_) {}
+  }
+
+  // The visit whose lead the signature on this phone was last checked against.
+  let leadSignatureCheckedVisit = '';
+
+  /** Drop the lead signature when it was not signed by the selected shift's lead. */
+  function dropSignatureIfNotLead() {
+    const owner = global.EodLeadSignatureOwner;
+    if (!owner || !state.signatureDataUrl) return false;
+    const clear = owner.shouldClearSignature({
+      hasSignature: true,
+      signer: readSignatureSigner(),
+      fallback: { email: state.profileEmail, name: state.profileName },
+      lead: owner.shiftLead(state.selectedShift),
+    });
+    if (!clear) return false;
+    state.signatureDataUrl = '';
+    try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
+    try { localStorage.removeItem(SIGNATURE_SIGNER_KEY); } catch (_) {}
+    return true;
+  }
+
   function patch(partial, reason) {
     const prevStore = normStoreNumber(state.storeNumber);
     const prevVisit = state.selectedShift && state.selectedShift.visitId;
@@ -267,7 +309,13 @@
     if ((storeMoved || visitMoved) && !(partial && Object.prototype.hasOwnProperty.call(partial, 'emailRecipients'))) {
       state.emailRecipients = [];
     }
+    let signatureDropped = false;
+    if (nextVisit && String(nextVisit) !== leadSignatureCheckedVisit) {
+      leadSignatureCheckedVisit = String(nextVisit);
+      signatureDropped = dropSignatureIfNotLead();
+    }
     emit(reason || 'patch');
+    if (signatureDropped) emit('signature');
     scheduleSaveDraft();
   }
 
@@ -322,6 +370,15 @@
       if (dataUrl) localStorage.setItem(SIGNATURE_KEY, dataUrl);
       else localStorage.removeItem(SIGNATURE_KEY);
     } catch (_) {}
+    if (dataUrl) {
+      const lead = global.EodLeadSignatureOwner?.shiftLead(state.selectedShift) || {};
+      setSignatureSigner({
+        email: lead.email || state.leadEmail || state.profileEmail,
+        name: lead.name || state.leadName || state.profileName,
+      });
+    } else {
+      setSignatureSigner(null);
+    }
     emit('signature');
     try {
       if (global.EodVisitMirror?.persistNow) {
@@ -531,6 +588,8 @@
     loadProfile,
     saveProfile,
     saveSignature,
+    setSignatureSigner,
+    dropSignatureIfNotLead,
     syncDomBridges,
   };
 
