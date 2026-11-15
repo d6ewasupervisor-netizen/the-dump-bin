@@ -110,6 +110,38 @@
     nextBtn.title = current ? `On ${current.label}` : '';
   }
 
+  const BANNER_DISMISS_UNSENT = 'eodBannerDismissUnsent';
+  const BANNER_DISMISS_FAIL = 'eodBannerDismissFail';
+
+  function bannerDismissed(storageKey, fingerprint) {
+    if (!fingerprint) return false;
+    try { return sessionStorage.getItem(storageKey) === fingerprint; } catch (_) { return false; }
+  }
+
+  function dismissBanner(storageKey, fingerprint) {
+    if (!fingerprint) return;
+    try { sessionStorage.setItem(storageKey, fingerprint); } catch (_) {}
+  }
+
+  function clearBannerDismiss(storageKey) {
+    try { sessionStorage.removeItem(storageKey); } catch (_) {}
+  }
+
+  function hideBanner(bar) {
+    bar.hidden = true;
+    bar.innerHTML = '';
+    bar.onclick = null;
+  }
+
+  function unsentBannerKey(sessions) {
+    return sessions.map((s) => String(s && s.id || '')).filter(Boolean).sort().join('|');
+  }
+
+  function failedBannerKey() {
+    const jobs = global.EodPhotoPipeline?.listJobs?.({ status: 'failed' }) || [];
+    return jobs.map((j) => String(j && j.id || '')).filter(Boolean).sort().join('|');
+  }
+
   async function paintUnsentBanner() {
     let bar = document.getElementById('eodUnsentBanner');
     if (!bar) {
@@ -124,17 +156,28 @@
     try {
       const unsent = await global.PhotoDB?.unsentSessions?.();
       if (!unsent || !unsent.length) {
-        bar.hidden = true;
-        bar.innerHTML = '';
+        hideBanner(bar);
+        clearBannerDismiss(BANNER_DISMISS_UNSENT);
+        return;
+      }
+      const key = unsentBannerKey(unsent);
+      if (bannerDismissed(BANNER_DISMISS_UNSENT, key)) {
+        hideBanner(bar);
         return;
       }
       bar.hidden = false;
-      bar.innerHTML = `<span>${unsent.length} unsent photo session(s)</span><button type="button" class="btn btn-secondary" id="unsentOpenPhotos">Review</button>`;
+      bar.innerHTML = `<span class="eod-banner-copy">${unsent.length} unsent photo session(s)</span><span class="eod-banner-actions"><button type="button" class="btn btn-secondary" id="unsentDismiss">Dismiss</button><button type="button" class="btn btn-secondary" id="unsentOpenPhotos">Review</button></span>`;
       const openReview = (e) => {
         e?.stopPropagation?.();
         if (global.EodDeviceStorage?.openUnsentReview) global.EodDeviceStorage.openUnsentReview();
         else global.EodRouter.go('storage');
       };
+      bar.querySelector('#unsentDismiss')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        dismissBanner(BANNER_DISMISS_UNSENT, key);
+        hideBanner(bar);
+      });
       bar.querySelector('#unsentOpenPhotos')?.addEventListener('click', openReview);
       bar.onclick = openReview;
     } catch (_) {
@@ -206,13 +249,26 @@
       const p = global.EodPhotoPipeline?.pendingCounts?.();
       const n = p?.failed || 0;
       if (!n) {
-        bar.hidden = true;
-        bar.innerHTML = '';
+        hideBanner(bar);
+        clearBannerDismiss(BANNER_DISMISS_FAIL);
+        return;
+      }
+      const key = failedBannerKey() || `n:${n}`;
+      if (bannerDismissed(BANNER_DISMISS_FAIL, key)) {
+        hideBanner(bar);
         return;
       }
       bar.hidden = false;
-      bar.innerHTML = `${n} photo upload${n === 1 ? '' : 's'} failed · <button type="button" class="btn btn-secondary" id="photoFailRetry">Retry</button>`;
-      bar.querySelector('#photoFailRetry')?.addEventListener('click', () => {
+      bar.innerHTML = `<span class="eod-banner-copy">${n} photo upload${n === 1 ? '' : 's'} failed</span><span class="eod-banner-actions"><button type="button" class="btn btn-secondary" id="photoFailDismiss">Dismiss</button><button type="button" class="btn btn-secondary" id="photoFailRetry">Retry</button></span>`;
+      bar.querySelector('#photoFailDismiss')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        dismissBanner(BANNER_DISMISS_FAIL, key);
+        hideBanner(bar);
+      });
+      bar.querySelector('#photoFailRetry')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearBannerDismiss(BANNER_DISMISS_FAIL);
         global.EodPhotoPipeline?.retryFailed?.();
         refresh();
       });

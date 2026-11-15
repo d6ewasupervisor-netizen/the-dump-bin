@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-15 — Field app 3.5.28: dismiss on photo banners
+
+The unsent-session banner and the failed-upload banner each have Dismiss. Hiding one leaves the photos on the phone. A new leftover or a new failure shows that banner again.
+
 ## 2026-11-12 — Field app 3.5.24: iPhone bottom bar
 
 The Visit / Categories / Signatures / Send bar was painting mid-screen on iOS 26. On a phone it is the last row of the visual-viewport frame, and the category list scrolls above it.

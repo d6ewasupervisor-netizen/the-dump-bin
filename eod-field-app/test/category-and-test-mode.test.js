@@ -837,6 +837,10 @@ test('unsent leftovers can be reviewed, discarded, and wiped on reset', () => {
   const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
   const session = fs.readFileSync(path.join(__dirname, '../js/session.js'), 'utf8');
   assert.match(chrome, /id="unsentOpenPhotos">Review/);
+  assert.match(chrome, /id="unsentDismiss">Dismiss/);
+  assert.match(chrome, /id="photoFailDismiss">Dismiss/);
+  assert.match(chrome, /eodBannerDismissUnsent/);
+  assert.match(chrome, /eodBannerDismissFail/);
   assert.match(chrome, /openUnsentReview/);
   assert.doesNotMatch(chrome, /unsentOpenPhotos[\s\S]{0,80}go\('send'\)/);
   assert.match(store, /function openUnsentReview/);

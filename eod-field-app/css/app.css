@@ -3568,8 +3568,17 @@ body.dump-bin-viewer-open .eod-test-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   cursor: pointer;
+}
+.eod-banner-copy { flex: 1 1 140px; min-width: 0; }
+.eod-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
 }
 .eod-unsent-banner[hidden],
 .eod-photo-fail-banner[hidden],
