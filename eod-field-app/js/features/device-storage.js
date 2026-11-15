@@ -517,9 +517,17 @@
         ${shRows}
       </div>` : ''}
 
-      ${(pipe.failed || 0) > 0 ? `<div class="card">
+      ${((pipe.failed || 0) + (pipe.lost || 0)) > 0 ? `<div class="card">
         <h2>Failed uploads</h2>
-        ${simpleRowHtml('pipeline-failed', `${pipe.failed} failed`, 'Tap Retry to requeue', 'pipeline-retry', 'Retry')}
+        <div class="device-pkg-row" data-row="pipeline-failed">
+          <div class="device-pkg-copy">
+            <strong>${esc((pipe.failed || 0) + (pipe.lost || 0))} failed</strong>
+          </div>
+          <div class="dev-row-actions">
+            <button type="button" class="btn btn-sm btn-secondary" data-act="pipeline-retry" data-id="pipeline-failed">Retry</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-act="pipeline-discard" data-id="pipeline-failed">Remove</button>
+          </div>
+        </div>
       </div>` : ''}
 
       ${(pipe.done || 0) > 0 ? `<div class="card">
@@ -583,6 +591,13 @@
         }
         if (act === 'pipeline-retry') {
           global.EodPhotoPipeline?.retryFailed?.();
+          await afterChange();
+          return;
+        }
+        if (act === 'pipeline-discard') {
+          const n = (pipe.failed || 0) + (pipe.lost || 0);
+          if (!(await confirmRemove(`Remove ${n} failed photo${n === 1 ? '' : 's'}?`))) return;
+          global.EodPhotoPipeline?.discardFailed?.();
           await afterChange();
           return;
         }

@@ -105,6 +105,12 @@
     return job.status === 'failed' && String(job.error || '') === 'replaced';
   }
 
+  /* A failed upload the lead can drop. Replaced jobs are superseded, not failures. */
+  function isClearableFailure(job) {
+    if (!job || isSuperseded(job)) return false;
+    return job.status === 'failed';
+  }
+
   function migrateJobRecord(job) {
     if (!job || typeof job !== 'object') return job;
     if (isSuperseded(job) || (job.status === 'failed' && job.error === 'replaced')) {
@@ -420,6 +426,7 @@
     countStalled,
     pickNextUpload,
     isSuperseded,
+    isClearableFailure,
     migrateJobRecord,
     sideOk,
     isFullyConfirmed,

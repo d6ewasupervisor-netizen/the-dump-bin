@@ -210,6 +210,15 @@ describe('photo-pipeline-logic', () => {
     assert.equal(counts.failed, 1);
     assert.equal(counts.superseded, 71);
   });
+
+  it('a failed upload can be cleared and a replaced one cannot', () => {
+    assert.equal(logic.isClearableFailure({ status: 'failed', error: 'SI timeout', dataUrl: 'x' }), true);
+    assert.equal(logic.isClearableFailure({ status: 'failed', error: 'Lost after reload' }), true);
+    assert.equal(logic.isClearableFailure({ status: 'failed', error: 'replaced' }), false);
+    assert.equal(logic.isClearableFailure({ status: 'superseded' }), false);
+    assert.equal(logic.isClearableFailure({ status: 'uploading', dataUrl: 'x' }), false);
+    assert.equal(logic.isClearableFailure(null), false);
+  });
 });
 
 

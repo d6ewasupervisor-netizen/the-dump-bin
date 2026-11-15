@@ -1644,6 +1644,13 @@ test('SAS and SI bulbs own auth refresh; the title-bar reload button is gone', (
   assert.doesNotMatch(html, /refreshConnectionsBtn/);
   assert.match(html, /<button type="button" class="conn-dot" id="sasConnDot"/);
   assert.match(html, /<button type="button" class="conn-dot" id="reboticsConnDot"/);
+  assert.doesNotMatch(html, /conn-user/);
+  const storage = fs.readFileSync(path.join(__dirname, '../js/features/device-storage.js'), 'utf8');
+  const pipe = fs.readFileSync(path.join(__dirname, '../js/lib/photo-pipeline.js'), 'utf8');
+  const chrome = fs.readFileSync(path.join(__dirname, '../js/chrome.js'), 'utf8');
+  assert.match(storage, /data-act="pipeline-discard"/);
+  assert.match(pipe, /function discardFailed/);
+  assert.match(chrome, /id="photoFailRemove"/);
   assert.match(html, /<button type="button" class="conn-dot" id="leadOktaDot"/);
   assert.match(conn, /function connDots/);
   assert.match(conn, /getElementById\('sasConnDot'\), document.getElementById\('reboticsConnDot'\)/);

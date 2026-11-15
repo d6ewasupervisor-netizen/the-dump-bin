@@ -247,19 +247,19 @@
     }
     try {
       const p = global.EodPhotoPipeline?.pendingCounts?.();
-      const n = p?.failed || 0;
-      if (!n) {
+      const failedN = (p?.failed || 0) + (p?.lost || 0);
+      if (!failedN) {
         hideBanner(bar);
         clearBannerDismiss(BANNER_DISMISS_FAIL);
         return;
       }
-      const key = failedBannerKey() || `n:${n}`;
+      const key = failedBannerKey() || `n:${failedN}`;
       if (bannerDismissed(BANNER_DISMISS_FAIL, key)) {
         hideBanner(bar);
         return;
       }
       bar.hidden = false;
-      bar.innerHTML = `<span class="eod-banner-copy">${n} photo upload${n === 1 ? '' : 's'} failed</span><span class="eod-banner-actions"><button type="button" class="btn btn-secondary" id="photoFailDismiss">Dismiss</button><button type="button" class="btn btn-secondary" id="photoFailRetry">Retry</button></span>`;
+      bar.innerHTML = `<span class="eod-banner-copy">${failedN} photo upload${failedN === 1 ? '' : 's'} failed</span><span class="eod-banner-actions"><button type="button" class="btn btn-secondary" id="photoFailDismiss">Dismiss</button><button type="button" class="btn btn-secondary" id="photoFailRetry">Retry</button><button type="button" class="btn btn-secondary" id="photoFailRemove">Remove</button></span>`;
       bar.querySelector('#photoFailDismiss')?.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -270,6 +270,28 @@
         e.stopPropagation();
         clearBannerDismiss(BANNER_DISMISS_FAIL);
         global.EodPhotoPipeline?.retryFailed?.();
+        refresh();
+      });
+      bar.querySelector('#photoFailRemove')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        let go = false;
+        if (global.EodAlerts?.showDialog) {
+          const id = await global.EodAlerts.showDialog({
+            title: `Remove ${failedN} failed photo${failedN === 1 ? '' : 's'}?`,
+            message: 'Removes the copy on this phone only.',
+            buttons: [
+              { id: 'keep', label: 'Keep' },
+              { id: 'remove', label: 'Remove', primary: true },
+            ],
+          });
+          go = id === 'remove';
+        } else {
+          go = window.confirm(`Remove ${failedN} failed photo${failedN === 1 ? '' : 's'}?`);
+        }
+        if (!go) return;
+        global.EodPhotoPipeline?.discardFailed?.();
+        clearBannerDismiss(BANNER_DISMISS_FAIL);
         refresh();
       });
     } catch (_) {

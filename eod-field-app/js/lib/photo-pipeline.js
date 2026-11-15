@@ -1622,6 +1622,19 @@
     return n;
   }
 
+  /** Drop failed uploads on this phone. Does not delete remote PROD/SI photos. */
+  function discardFailed() {
+    let n = 0;
+    for (const j of [...jobs.values()]) {
+      const clearable = Logic.isClearableFailure
+        ? Logic.isClearableFailure(j)
+        : (j.status === 'failed' && !isSuperseded(j));
+      if (!clearable) continue;
+      if (removeJob(j.id)) n += 1;
+    }
+    return n;
+  }
+
   function retry(id) {
     const job = jobs.get(id);
     if (!job || isSuperseded(job)) return null;
@@ -2045,6 +2058,7 @@
     onChange,
     retry,
     retryFailed,
+    discardFailed,
     removeJob,
     removeSetBay,
     offloadBufferedBay,
