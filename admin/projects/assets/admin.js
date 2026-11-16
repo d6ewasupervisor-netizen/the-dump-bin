@@ -575,7 +575,83 @@
     refresh();
   });
 
+  function pacificTodayYmd() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+    } catch (_) {
+      return new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  function initSyncDates() {
+    var today = pacificTodayYmd();
+    var fromEl = document.getElementById('syncFrom');
+    var toEl = document.getElementById('syncTo');
+    if (fromEl && !fromEl.value) fromEl.value = today;
+    if (toEl && !toEl.value) toEl.value = today;
+  }
+
+  async function pollSyncJob(jobId) {
+    var syncStatusEl = document.getElementById('syncStatus');
+    for (;;) {
+      var data = await api('/' + encodeURIComponent(SLUG) + '/admin/sync-prod/' + encodeURIComponent(jobId));
+      var progress = data.progress || data.status || '';
+      if (syncStatusEl) {
+        syncStatusEl.textContent = data.status === 'running'
+          ? ('Syncing… ' + progress)
+          : (data.status === 'done' ? 'Sync done.' : ('Sync ' + (data.status || '') + (data.error ? (': ' + data.error) : '')));
+      }
+      if (data.status === 'done' || data.status === 'error') {
+        return data;
+      }
+      await new Promise(function (r) { setTimeout(r, 2000); });
+    }
+  }
+
   document.getElementById('refreshBtn').onclick = function () { refresh(); };
+  document.getElementById('syncProdBtn').onclick = async function () {
+    var syncStatusEl = document.getElementById('syncStatus');
+    var from = document.getElementById('syncFrom').value;
+    var to = document.getElementById('syncTo').value;
+    if (!from || !to) {
+      if (syncStatusEl) syncStatusEl.textContent = 'Pick From and To dates.';
+      return;
+    }
+    if (!window.confirm('Sync Cut-In PROD photos for ' + from + ' → ' + to + ' into empty board slots?')) return;
+    var btn = document.getElementById('syncProdBtn');
+    btn.disabled = true;
+    if (syncStatusEl) syncStatusEl.textContent = 'Starting sync…';
+    try {
+      var body = { from: from, to: to };
+      if (district) body.district = district;
+      var started = await api('/' + encodeURIComponent(SLUG) + '/admin/sync-prod', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      var result = await pollSyncJob(started.jobId);
+      if (result.status === 'error') {
+        throw new Error(result.error || 'Sync failed');
+      }
+      var s = result.summary || {};
+      if (syncStatusEl) {
+        syncStatusEl.textContent = 'Sync done — matched ' + (s.setsMatched || 0)
+          + ', photos +' + (s.photosAdded || 0)
+          + ', completed ' + (s.completed || 0)
+          + (s.errors && s.errors.length ? (', errors ' + s.errors.length) : '');
+      }
+      await refresh();
+    } catch (err) {
+      if (syncStatusEl) syncStatusEl.textContent = err.message || 'Sync failed';
+    } finally {
+      btn.disabled = false;
+    }
+  };
   document.getElementById('exportBtn').onclick = async function () {
     statusEl.textContent = 'Building export…';
     try {
@@ -641,6 +717,7 @@
 
   (async function boot() {
     statusEl.textContent = 'Loading…';
+    initSyncDates();
     try {
       if (window.dumpBinAuthReady) await window.dumpBinAuthReady;
       await ensureAccess();
