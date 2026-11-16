@@ -545,6 +545,9 @@
     const rowId = qp.get('rowId') || null;
     const catName = qp.get('name') || '';
     const catNum = qp.get('cat') || '';
+    const pageBucket = String(qp.get('bucket') || '').toLowerCase();
+    const meatPusherSet = pageBucket === 'meat-pusher';
+    const skipSiForSet = (slot) => slot === 'before' || meatPusherSet;
     const preferSlot = String(qp.get('slot') || 'after').toLowerCase() === 'before' ? 'before' : 'after';
     const autoCapture = qp.get('capture') === '1';
 
@@ -708,7 +711,7 @@
             visitId: local.status?.prod?.visitId,
             resetId: local.status?.prod?.resetId || null,
             taskId: local.status?.si?.taskId || null,
-            skipSi: slot === 'before',
+            skipSi: skipSiForSet(slot),
           });
           existing.add(`${slot}:${bay}`);
           n += 1;
@@ -1693,7 +1696,7 @@
         visitId: local.status?.prod?.visitId,
         resetId: local.status?.prod?.resetId,
         taskId: local.status?.si?.taskId,
-        skipSi: slot === 'before',
+        skipSi: skipSiForSet(slot),
         replace: replacing,
         replaceWipe: !!(opts && opts.replaceWipe),
         replaceBatchId: opts?.replaceBatchId || null,

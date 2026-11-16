@@ -948,6 +948,8 @@
     }
     const qs = new URLSearchParams({ dbkey, rowId: row, name });
     if (cat) qs.set('cat', cat);
+    const bucket = btn.getAttribute('data-bucket') || '';
+    if (bucket) qs.set('bucket', bucket);
     const useSlot = slot || btn.getAttribute('data-slot') || '';
     if (useSlot) qs.set('slot', useSlot);
     const bay = btn.getAttribute('data-bay');
@@ -964,6 +966,7 @@
       name: row.catName || row.catId || '',
     });
     if (row.catId) qs.set('cat', String(row.catId));
+    if (row.pageBucket) qs.set('bucket', String(row.pageBucket));
     if (slot) qs.set('slot', slot);
     location.hash = `#/survey?${qs.toString()}`;
   }
@@ -1055,8 +1058,9 @@
       const canOpen = !!row.dbkey;
       const catNum = String(row.catId || '').trim();
       const issueWeek = global.EodCategoryCardStatus?.issueWeekLabel?.(row) || '';
+      const meatPusher = String(row.pageBucket || '').toLowerCase() === 'meat-pusher';
       const metaBits = [
-        row.dbkey ? `DB ${row.dbkey}` : '',
+        meatPusher ? 'pending PROD' : (row.dbkey ? `DB ${row.dbkey}` : ''),
         aisleLabel,
         footage ? String(footage) : '',
         version,
@@ -1077,7 +1081,7 @@
         ? Status.nextCaptureBay(row, captureSlot, localBefores, localAfterCount(row))
         : 1;
       const openAttrs = canOpen
-        ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}"`
+        ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-bucket="${esc(row.pageBucket || '')}"`
         : '';
       return `<div class="ds-row ds-row-compact ${rowClass(row, localBefores)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}">
         <label class="ds-row-check-hit">
@@ -1093,7 +1097,7 @@
           ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
         ${catNum ? `<div class="ds-row-catnum" title="Category"><span class="ds-row-catnum-n">${esc(catNum)}</span>${issueWeek ? `<span class="ds-row-issue">${esc(issueWeek)}</span>` : ''}</div>` : ''}
-        ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-slot="${esc(captureSlot)}" data-bay="${captureBay}"${captureSlot ? '' : ' disabled'}>Capture</button></div>` : ''}
+        ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-bucket="${esc(row.pageBucket || '')}" data-slot="${esc(captureSlot)}" data-bay="${captureBay}"${captureSlot ? '' : ' disabled'}>Capture</button></div>` : ''}
         <div class="ds-actions">
           ${btn('not_in_store', 'Not in Store')}
           ${btn('not_in_si', 'Not in SI')}
@@ -1139,9 +1143,9 @@
         </div>
         <div class="field" style="margin-top:12px;">
           <label>Search sets</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="search" id="sheetSearch" placeholder="Category or DBKEY" style="flex:1;min-width:0;font-size:16px;">
-            <button type="button" class="btn btn-secondary" id="sheetScanBtn" style="flex-shrink:0;">Scan UPC</button>
+          <div class="btn-row">
+            <input type="search" id="sheetSearch" placeholder="Category or DBKEY">
+            <button type="button" class="btn btn-secondary" id="sheetScanBtn">Scan UPC</button>
           </div>
         </div>
         <div class="ds-select-all-row">
