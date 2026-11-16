@@ -265,6 +265,18 @@
 
       const CHECKLANES_ENTRY_KEY = 'dumpBinChecklanesEntry';
 
+      function persistSession(token) {
+        try {
+          localStorage.setItem(SESSION_KEY, token);
+          localStorage.removeItem(LEGACY_KEY);
+        } catch (_) { /* private / blocked storage */ }
+        try {
+          return localStorage.getItem(SESSION_KEY) === token;
+        } catch (_) {
+          return false;
+        }
+      }
+
       function resolveNext(next) {
         if (!next) return '/';
         if (next.charAt(0) === '/' && next.charAt(1) !== '/') return next;
@@ -294,6 +306,7 @@
           || lowered.startsWith('/caf')
           || lowered.startsWith('/eod-field-app')
           || lowered.startsWith('/prod-shifts')
+          || lowered.startsWith('/admin/projects')
         ) {
           return location.origin.replace(/\/+$/, '') + path;
         }
@@ -516,10 +529,12 @@
             verifyPinBtn.textContent = 'Verify & sign in';
             return;
           }
-          try {
-            localStorage.setItem(SESSION_KEY, data.token);
-            localStorage.removeItem(LEGACY_KEY);
-          } catch (_) {}
+          if (!persistSession(data.token)) {
+            showStatus('error', 'This browser is blocking sign-in storage. Turn off private/incognito mode, or allow site data for the-dump-bin.com, then try again.');
+            verifyPinBtn.disabled = false;
+            verifyPinBtn.textContent = 'Verify & sign in';
+            return;
+          }
           const next = (new URLSearchParams(location.search)).get('next');
           window.location.replace(resolveNext(next));
         } catch (err) {
@@ -606,10 +621,12 @@
             phoneVerifyBtn.textContent = 'Verify & sign in';
             return;
           }
-          try {
-            localStorage.setItem(SESSION_KEY, data.token);
-            localStorage.removeItem(LEGACY_KEY);
-          } catch (_) {}
+          if (!persistSession(data.token)) {
+            showPhoneStatus('error', 'This browser is blocking sign-in storage. Turn off private/incognito mode, or allow site data for the-dump-bin.com, then try again.');
+            phoneVerifyBtn.disabled = false;
+            phoneVerifyBtn.textContent = 'Verify & sign in';
+            return;
+          }
           const next = (new URLSearchParams(location.search)).get('next');
           window.location.replace(resolveNext(next));
         } catch (err) {

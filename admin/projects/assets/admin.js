@@ -34,7 +34,11 @@
 
   function authFetch(url, opts) {
     var f = window.dumpBinAuthFetch || fetch;
-    return f(url, opts || {});
+    // Never let a secondary 401 (thumbnails, export) wipe the hub session and
+    // bounce this page into a sign-in loop. ensureAccess handles real auth loss.
+    var next = Object.assign({}, opts || {});
+    if (next.noBounceOn401 == null) next.noBounceOn401 = true;
+    return f(url, next);
   }
 
   async function api(path, opts) {
@@ -69,6 +73,12 @@
 
   async function ensureAccess() {
     var res = await authFetch('/api/me', { noBounceOn401: true });
+    if (res.status === 401) {
+      if (window.dumpBinAuth && typeof window.dumpBinAuth.bounceToSignIn === 'function') {
+        window.dumpBinAuth.bounceToSignIn('admin projects /api/me 401');
+      }
+      throw new Error('Sign in required');
+    }
     if (!res.ok) throw new Error('Sign in required');
     var me = await res.json();
     var roles = (me && me.roles) || [];
