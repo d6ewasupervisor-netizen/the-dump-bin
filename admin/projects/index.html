@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Project Tracker Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="/auth-gate.js"></script>
+<link rel="stylesheet" href="/admin/projects/assets/admin.css?v=1">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1 id="title">Project Tracker</h1>
+      <p class="sub" id="subtitle">Supervisor overview</p>
+    </div>
+    <div class="top-right">
+      <span id="lastUpdated" class="who">—</span>
+      <button type="button" class="btn ghost" id="refreshBtn">Refresh</button>
+      <a href="/">Home</a>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <p id="status" class="status" role="status"></p>
+
+    <div class="chip-row" id="districtChips"></div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="toolbar">
+      <div class="filters">
+        <button type="button" class="chip filter" data-filter="">All stores</button>
+        <button type="button" class="chip filter" data-filter="issues">Issues</button>
+        <button type="button" class="chip filter" data-filter="progress">In Progress</button>
+        <button type="button" class="chip filter" data-filter="idle">No activity</button>
+      </div>
+      <div class="toolbar-actions">
+        <button type="button" class="btn secondary" id="exportBtn">Export XLSX</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <main>
+        <div class="card">
+          <div class="tabs" role="tablist">
+            <button type="button" class="tab" data-tab="stores" aria-selected="true">Stores</button>
+            <button type="button" class="tab" data-tab="issues">Issues</button>
+            <button type="button" class="tab" data-tab="photos">Photo audit</button>
+          </div>
+          <div id="panelStores" class="panel">
+            <div style="overflow:auto">
+              <table class="grid" id="storeGrid">
+                <thead>
+                  <tr>
+                    <th data-sort="storeNumber">Store</th>
+                    <th data-sort="readyPct">Ready %</th>
+                    <th data-sort="readyComplete">Ready</th>
+                    <th data-sort="inProgress">In Progress</th>
+                    <th data-sort="notReady">Not Ready</th>
+                    <th data-sort="issues">Issues</th>
+                    <th data-sort="lastActivityAt">Last activity</th>
+                    <th>Backlog</th>
+                    <th data-sort="store100">Store 100%</th>
+                    <th>Maint. OK</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="panelIssues" class="panel" hidden></div>
+          <div id="panelPhotos" class="panel" hidden></div>
+        </div>
+      </main>
+      <aside class="rail card">
+        <h2>Activity</h2>
+        <div class="rail-filters">
+          <input type="search" id="feedStore" placeholder="Store #">
+          <select id="feedAction">
+            <option value="">All actions</option>
+            <option value="install_status">install_status</option>
+            <option value="photo_before">photo_before</option>
+            <option value="photo_after">photo_after</option>
+            <option value="photo_worksheet">photo_worksheet</option>
+            <option value="photo_reject">photo_reject</option>
+            <option value="readiness">readiness</option>
+            <option value="readiness_update">readiness_update</option>
+            <option value="backlog_complete">backlog_complete</option>
+          </select>
+        </div>
+        <div id="feed" class="feed"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="drawer" class="drawer" hidden>
+    <div class="drawer-panel">
+      <div class="drawer-head">
+        <h2 id="drawerTitle">Store</h2>
+        <button type="button" class="btn ghost" id="drawerClose">Close</button>
+      </div>
+      <div id="drawerBody"></div>
+    </div>
+  </div>
+
+  <div id="lightbox" class="lightbox" hidden>
+    <button type="button" class="lb-close" id="lbClose">×</button>
+    <button type="button" class="lb-nav" id="lbPrev">‹</button>
+    <img id="lbImg" alt="">
+    <button type="button" class="lb-nav" id="lbNext">›</button>
+    <p id="lbMeta"></p>
+  </div>
+
+  <script src="/admin/projects/assets/admin.js?v=1"></script>
+</body>
+</html>
