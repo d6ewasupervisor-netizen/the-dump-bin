@@ -299,7 +299,21 @@
     });
   }
 
-  document.getElementById('lbClose').onclick = function () { document.getElementById('lightbox').hidden = true; };
+  function closeLightbox() {
+    var box = document.getElementById('lightbox');
+    box.hidden = true;
+    lightbox.items = [];
+    lightbox.index = 0;
+  }
+
+  function closeDrawer() {
+    drawer.hidden = true;
+    selectedStore = null;
+    drawerTitle.textContent = 'Store';
+    drawerBody.innerHTML = '';
+  }
+
+  document.getElementById('lbClose').onclick = function () { closeLightbox(); };
   document.getElementById('lbPrev').onclick = function () {
     if (!lightbox.items.length) return;
     lightbox.index = (lightbox.index - 1 + lightbox.items.length) % lightbox.items.length;
@@ -310,6 +324,21 @@
     lightbox.index = (lightbox.index + 1) % lightbox.items.length;
     renderLightbox();
   };
+
+  document.getElementById('lightbox').addEventListener('click', function (ev) {
+    if (ev.target === document.getElementById('lightbox')) closeLightbox();
+  });
+  drawer.addEventListener('click', function (ev) {
+    if (ev.target === drawer) closeDrawer();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape') return;
+    if (!document.getElementById('lightbox').hidden) {
+      closeLightbox();
+      return;
+    }
+    if (!drawer.hidden) closeDrawer();
+  });
 
   function qrUrl(text) {
     return 'https://quickchart.io/qr?size=160&text=' + encodeURIComponent(text);
@@ -489,10 +518,11 @@
     }
   }
 
-  document.getElementById('drawerClose').onclick = function () {
-    drawer.hidden = true;
-    selectedStore = null;
-  };
+  document.getElementById('drawerClose').onclick = function () { closeDrawer(); };
+
+  // Start closed even if a stylesheet briefly overrides [hidden].
+  closeDrawer();
+  closeLightbox();
 
   document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () {

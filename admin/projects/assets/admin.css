@@ -165,20 +165,50 @@ body {
 .feed-item img {
   width: 48px; height: 48px; object-fit: cover; border-radius: 4px; margin-top: 4px;
 }
+/* Author display:flex must not defeat the HTML hidden attribute. */
+.drawer[hidden],
+.lightbox[hidden],
+[hidden] {
+  display: none !important;
+}
+.lightbox[hidden] .lb-nav,
+.lightbox[hidden] .lb-close,
+.lightbox[hidden] img,
+.lightbox[hidden] #lbMeta {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 .drawer {
   position: fixed; inset: 0; background: rgba(11,37,69,.45); z-index: 40;
   display: flex; justify-content: flex-end;
 }
 .drawer-panel {
   width: min(560px, 100%);
+  max-width: 100%;
   background: #fff;
   height: 100%;
   overflow: auto;
-  padding: 14px;
+  padding: max(20px, calc(12px + env(safe-area-inset-top, 0px))) 16px 20px;
   box-shadow: -8px 0 24px rgba(0,0,0,.12);
 }
-.drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
-.drawer-head .btn.ghost { color: var(--navy); border-color: var(--line); }
+.drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+  padding: 4px 0 10px;
+}
+.drawer-head h2 { flex: 1; min-width: 0; padding-right: 8px; }
+.drawer-head .btn {
+  flex: 0 0 auto;
+  min-width: 72px;
+}
 .set-card {
   border: 1px solid var(--line);
   border-radius: var(--radius);
