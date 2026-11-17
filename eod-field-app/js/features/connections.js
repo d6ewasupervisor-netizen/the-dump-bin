@@ -325,19 +325,6 @@
         refreshConnections(el);
       });
     });
-    const leadDot = document.getElementById('leadOktaDot');
-    if (leadDot) {
-      leadDot.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const roles = global.EodRoles?.roles?.() || [];
-        const oversight = roles.includes('admin') || roles.includes('supervisor');
-        if (oversight) {
-          try { global.EodChrome?.openOktaBoard?.(); } catch (_) {}
-          return;
-        }
-      });
-    }
     paintLeadOkta();
     ensureRefreshCooldownTicker();
     pollConnections();

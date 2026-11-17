@@ -1163,6 +1163,7 @@
   // before store and date. Anything unknown skips it; the shared session and
   // the swarm carry the work for anyone who cannot sign in.
   async function shouldPromptProdSignIn() {
+    return false;
     if (!global.EodChrome?.openSignIn || !global.EodSasUser?.fetchStatus) return false;
     if (prodPromptedAlready()) return false;
     const R = global.EodRoles;

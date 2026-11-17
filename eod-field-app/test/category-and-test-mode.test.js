@@ -1651,7 +1651,7 @@ test('SAS and SI bulbs own auth refresh; the title-bar reload button is gone', (
   assert.match(storage, /data-act="pipeline-discard"/);
   assert.match(pipe, /function discardFailed/);
   assert.match(chrome, /id="photoFailRemove"/);
-  assert.match(html, /<button type="button" class="conn-dot" id="leadOktaDot"/);
+  assert.doesNotMatch(html, /id="leadOktaDot"/);
   assert.match(conn, /function connDots/);
   assert.match(conn, /getElementById\('sasConnDot'\), document.getElementById\('reboticsConnDot'\)/);
   assert.match(conn, /function paintLeadOkta/);

@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-16 — Field app 3.5.37: lead light removed
+
+The header Lead light and the Okta sign-in it opened are off the field app. Visit no longer prompts for a PROD sign-in.
+
 ## 2026-11-16 — Field app 3.5.36: lead PROD sign-in removed
 
 PROD photos use the office SAS session. The Visit, More, and nav sign-in controls are off the field app.
