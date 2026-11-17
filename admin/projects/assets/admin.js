@@ -596,17 +596,41 @@
     if (toEl && !toEl.value) toEl.value = today;
   }
 
+  var activeSyncJobId = null;
+
+  function setSyncControls(running) {
+    var syncBtn = document.getElementById('syncProdBtn');
+    var stopBtn = document.getElementById('stopSyncBtn');
+    if (syncBtn) syncBtn.disabled = !!running;
+    if (stopBtn) stopBtn.disabled = !running;
+  }
+
+  function formatSyncSummary(status, summary) {
+    var s = summary || {};
+    var prefix = status === 'stopped' ? 'Sync stopped' : 'Sync done';
+    return prefix + ' — matched ' + (s.setsMatched || 0)
+      + ', photos +' + (s.photosAdded || 0)
+      + ', completed ' + (s.completed || 0)
+      + (s.errors && s.errors.length ? (', errors ' + s.errors.length) : '');
+  }
+
   async function pollSyncJob(jobId) {
     var syncStatusEl = document.getElementById('syncStatus');
     for (;;) {
       var data = await api('/' + encodeURIComponent(SLUG) + '/admin/sync-prod/' + encodeURIComponent(jobId));
       var progress = data.progress || data.status || '';
       if (syncStatusEl) {
-        syncStatusEl.textContent = data.status === 'running'
-          ? ('Syncing… ' + progress)
-          : (data.status === 'done' ? 'Sync done.' : ('Sync ' + (data.status || '') + (data.error ? (': ' + data.error) : '')));
+        if (data.status === 'running') {
+          syncStatusEl.textContent = (data.cancelRequested ? 'Stopping… ' : 'Syncing… ') + progress;
+        } else if (data.status === 'done') {
+          syncStatusEl.textContent = 'Sync done.';
+        } else if (data.status === 'stopped') {
+          syncStatusEl.textContent = 'Sync stopped.';
+        } else {
+          syncStatusEl.textContent = 'Sync ' + (data.status || '') + (data.error ? (': ' + data.error) : '');
+        }
       }
-      if (data.status === 'done' || data.status === 'error') {
+      if (data.status === 'done' || data.status === 'error' || data.status === 'stopped') {
         return data;
       }
       await new Promise(function (r) { setTimeout(r, 2000); });
@@ -614,6 +638,23 @@
   }
 
   document.getElementById('refreshBtn').onclick = function () { refresh(); };
+  document.getElementById('stopSyncBtn').onclick = async function () {
+    if (!activeSyncJobId) return;
+    var syncStatusEl = document.getElementById('syncStatus');
+    var stopBtn = document.getElementById('stopSyncBtn');
+    if (stopBtn) stopBtn.disabled = true;
+    try {
+      await api('/' + encodeURIComponent(SLUG) + '/admin/sync-prod/' + encodeURIComponent(activeSyncJobId) + '/stop', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      });
+      if (syncStatusEl) syncStatusEl.textContent = 'Stopping…';
+    } catch (err) {
+      if (syncStatusEl) syncStatusEl.textContent = err.message || 'Could not stop sync';
+      if (stopBtn) stopBtn.disabled = false;
+    }
+  };
   document.getElementById('syncProdBtn').onclick = async function () {
     var syncStatusEl = document.getElementById('syncStatus');
     var from = document.getElementById('syncFrom').value;
@@ -623,8 +664,7 @@
       return;
     }
     if (!window.confirm('Sync Cut-In PROD photos for ' + from + ' → ' + to + ' into empty board slots?')) return;
-    var btn = document.getElementById('syncProdBtn');
-    btn.disabled = true;
+    setSyncControls(true);
     if (syncStatusEl) syncStatusEl.textContent = 'Starting sync…';
     try {
       var body = { from: from, to: to };
@@ -634,22 +674,18 @@
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
+      activeSyncJobId = started.jobId;
       var result = await pollSyncJob(started.jobId);
       if (result.status === 'error') {
         throw new Error(result.error || 'Sync failed');
       }
-      var s = result.summary || {};
-      if (syncStatusEl) {
-        syncStatusEl.textContent = 'Sync done — matched ' + (s.setsMatched || 0)
-          + ', photos +' + (s.photosAdded || 0)
-          + ', completed ' + (s.completed || 0)
-          + (s.errors && s.errors.length ? (', errors ' + s.errors.length) : '');
-      }
+      if (syncStatusEl) syncStatusEl.textContent = formatSyncSummary(result.status, result.summary);
       await refresh();
     } catch (err) {
       if (syncStatusEl) syncStatusEl.textContent = err.message || 'Sync failed';
     } finally {
-      btn.disabled = false;
+      activeSyncJobId = null;
+      setSyncControls(false);
     }
   };
   document.getElementById('exportBtn').onclick = async function () {
