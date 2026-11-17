@@ -768,6 +768,32 @@
     return data;
   }
 
+  async function paintProjectSetsEntry() {
+    const S = global.EodSession;
+    const card = document.getElementById('projectSetsCard');
+    const list = document.getElementById('projectSetsList');
+    if (!card || !list) return;
+    if (!S.isVisitReady() || !S.state.storeNumber) {
+      card.hidden = true;
+      return;
+    }
+    try {
+      await global.EodRouteBundles?.ensure?.('project');
+      const projects = await global.EodProjectSets?.activeForStore?.(S.state.storeNumber);
+      if (!projects?.length) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = false;
+      list.innerHTML = projects.map((p) => {
+        const href = `#/project/${encodeURIComponent(p.slug)}/${encodeURIComponent(S.state.storeNumber)}`;
+        return `<a class="btn btn-primary btn-block" style="margin-top:8px;" href="${href}">${esc(p.name || p.slug)}</a>`;
+      }).join('');
+    } catch (_) {
+      card.hidden = true;
+    }
+  }
+
   async function paintOnboarding() {
     const S = global.EodSession;
     const host = document.getElementById('visitOnboarding');
@@ -1163,7 +1189,6 @@
   // before store and date. Anything unknown skips it; the shared session and
   // the swarm carry the work for anyone who cannot sign in.
   async function shouldPromptProdSignIn() {
-    return false;
     if (!global.EodChrome?.openSignIn || !global.EodSasUser?.fetchStatus) return false;
     if (prodPromptedAlready()) return false;
     const R = global.EodRoles;
@@ -1370,9 +1395,7 @@
     overlay.querySelector('#priorDayStart')?.addEventListener('click', async () => {
       S.resolvePriorDayDraft?.('start');
       closePriorDayChoice();
-      /* Starting a new day is not a request to delete yesterday's photos.
-         They stay on the phone as an unsent visit, listed under Storage. */
-      await S.resetVisit({ keepUnsentPhotos: true });
+      await S.resetVisit({});
       await global.EodRouter?.render?.();
       await openDayConfirmModal();
     });
@@ -1408,6 +1431,9 @@
           </div>
         </div>
         <div id="visitStatus" class="muted" style="min-height:1.2em;margin-bottom:8px;"></div>
+        <div id="visitReportingSignIn" style="margin-bottom:8px;">
+          <button type="button" class="btn btn-primary btn-block" id="visitReportingSignInBtn">PROD + SI sign in</button>
+        </div>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="confirmVisitBtn">${ready ? 'Change store & date' : 'Confirm store & date'}</button>
         </div>
@@ -1427,6 +1453,11 @@
         <button type="button" class="btn btn-secondary btn-block" id="unlockProfileBtn" ${S.state.profileLocked || S.state.selectedShift ? '' : 'hidden'}>Edit name / email</button>
       </div>
 
+      <div class="card" id="projectSetsCard" hidden>
+        <h2>Project Sets</h2>
+        <div id="projectSetsList" class="muted">Checking…</div>
+      </div>
+
       <div class="card">
         <div id="visitOnboarding"></div>
       </div>
@@ -1437,12 +1468,16 @@
       try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
     }
     await paintOnboarding();
+    await paintProjectSetsEntry();
 
     document.getElementById('visitScanBtn').onclick = async () => {
       try { await global.EodRouteBundles?.ensure?.('survey'); } catch (_) {}
       global.EodCartLocate?.openScanner?.();
     };
     document.getElementById('resetVisitBtn').onclick = () => doReset();
+    document.getElementById('visitReportingSignInBtn')?.addEventListener('click', () => {
+      try { global.EodChrome?.openSignIn?.(); } catch (_) {}
+    });
 
     document.getElementById('visitLeadName').oninput = () => {
       const lead = document.getElementById('visitLeadName').value.trim();

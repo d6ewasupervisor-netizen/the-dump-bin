@@ -765,8 +765,8 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
     assert.match(html, new RegExp(`data-icon="${name}"`));
   }
-  assert.match(html, /data-icon="sign-in"/);
-  assert.match(html, /icons\/nav\/sign-in\.png/);
+  // Lead PROD sign-in stays in the nav. The office session is not her login.
+  assert.match(html, /data-open-sign-in/);
   assert.doesNotMatch(html, /icons\/themes\//);
 });
 
@@ -826,7 +826,7 @@ test('device storage is in the app: More, Send, boot purge of submitted packages
   assert.match(send, /sendDeviceBtn/);
   assert.match(send, /purgeSubmitted/);
   assert.match(boot, /EodDeviceStorage\?\.purgeInBackground/);
-  assert.match(router, /name !== 'storage'/);
+  assert.match(router, /name === 'storage'/);
 });
 
 test('unsent leftovers can be reviewed, discarded, and wiped on reset', () => {
@@ -1434,6 +1434,26 @@ test('Complete does not delete local afters that have not landed in PROD or SI',
   assert.match(survey, /showDoneTab/);
 });
 
+test('Delete on a set slot clears the device copy, calls delete-photos, and stops the auto cross-fill', () => {
+  const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
+  assert.match(survey, /async function deleteSlotPhotos\(slot\)/);
+  assert.match(survey, /\$\{API\}\/delete-photos/);
+  assert.match(survey, /data-del-slot="before"/);
+  assert.match(survey, /data-del-slot="after"/);
+  assert.match(survey, /!afterDeleted && !noSiTask && siHave !== prodAfter/);
+  assert.match(survey, /setAfters\?\.\(S\.state\.storeNumber, week, dbkey, \[\]\)/);
+  assert.match(survey, /async function clearSheetRowSlot\(slot, result\)/);
+  assert.match(survey, /m\.complete = false;/);
+  assert.match(survey, /await clearSheetRowSlot\(slot, r\);/);
+});
+
+test('unmarking Not in Store or Not Executable asks first and skips the undo toast', () => {
+  const home = fs.readFileSync(path.join(__dirname, '../js/features/signoff-home.js'), 'utf8');
+  assert.match(home, /async function confirmUnmark\(markType, row\)/);
+  assert.match(home, /if \(!opts\?\.skipUndo && !unmarking\) showMarkUndo/);
+  assert.match(home, /if \(already && markActive\(already, markType\)\) continue;/);
+});
+
 test('double-swipe nav order is visit, categories, signatures, send', () => {
   const swipe = require('../js/lib/swipe-nav');
   assert.deepEqual(swipe.PRIMARY, ['visit', 'signoff', 'signatures', 'send']);
@@ -1635,15 +1655,19 @@ test('store prod warm heartbeats and Categories poll the sheet, not a full sync'
   assert.match(pog, /EodStoreProdWarm\?\.peekPlanogram/);
   assert.match(signoff, /EodStoreProdWarm\?\.start/);
   assert.match(signoff, /poll sheet/);
+  assert.match(signoff, /fresh: true/);
+  assert.match(signoff, /sync-status/);
   assert.match(survey, /EodStoreProdWarm\?\.peekStatus/);
 });
 
-test('SAS and SI bulbs own auth refresh; the title-bar reload button is gone', () => {
+test('PROD and SI lights poll auth and the version badge stays in chrome', () => {
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const conn = fs.readFileSync(path.join(__dirname, '../js/features/connections.js'), 'utf8');
-  assert.doesNotMatch(html, /refreshConnectionsBtn/);
-  assert.match(html, /<button type="button" class="conn-dot" id="sasConnDot"/);
-  assert.match(html, /<button type="button" class="conn-dot" id="reboticsConnDot"/);
+  assert.match(html, /id="sasConnDot"/);
+  assert.match(html, /id="reboticsConnDot"/);
+  assert.match(html, /id="eodVersionBadge"/);
+  assert.match(html, /conn-label">PROD/);
+  assert.match(html, /conn-label">SI/);
   assert.doesNotMatch(html, /conn-user/);
   const storage = fs.readFileSync(path.join(__dirname, '../js/features/device-storage.js'), 'utf8');
   const pipe = fs.readFileSync(path.join(__dirname, '../js/lib/photo-pipeline.js'), 'utf8');
@@ -1651,19 +1675,12 @@ test('SAS and SI bulbs own auth refresh; the title-bar reload button is gone', (
   assert.match(storage, /data-act="pipeline-discard"/);
   assert.match(pipe, /function discardFailed/);
   assert.match(chrome, /id="photoFailRemove"/);
-  assert.doesNotMatch(html, /id="leadOktaDot"/);
-  assert.match(conn, /function connDots/);
-  assert.match(conn, /getElementById\('sasConnDot'\), document.getElementById\('reboticsConnDot'\)/);
-  assert.match(conn, /function paintLeadOkta/);
-  assert.doesNotMatch(conn.slice(conn.indexOf('function connDots'), conn.indexOf('function scheduledLeadEmail')), /leadOktaDot/);
-  assert.match(conn, /function connDots/);
-  assert.match(conn, /refreshConnections\(el\)/);
-  assert.match(conn, /already connected/);
-  assert.match(conn, /Continue anyway/);
-  assert.match(conn, /showConfirm/);
-  assert.doesNotMatch(conn, /showAlert/);
-  assert.match(conn, /chromeDots/);
-  assert.match(conn, /classList\.add\('spinning'\)/);
+  assert.match(conn, /sas-auth-status/);
+  assert.match(conn, /rebotics-auth-status/);
+  assert.match(conn, /setInterval\(pollConnections, POLL_MS\)/);
+  assert.match(conn, /function toast/);
+  assert.match(html, /js\/lib\/sas-user-login-logic\.js/);
+  assert.match(html, /js\/features\/sas-user-login\.js/);
 });
 
 test('visit mirror hydrates the lead snapshot onto a second login', () => {

@@ -286,6 +286,27 @@
     return err?.code === 'cancelled' || err?.name === 'AbortError';
   }
 
+  async function refreshShiftList() {
+    const S = global.EodSession;
+    const store = S.state.storeNumber;
+    const date = String(S.state.workDate || '').slice(0, 10);
+    if (!store || !date || S.normStoreNumber(store) === '999') return;
+    const resp = await global.authFetch(
+      `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`,
+      { skipBusy: true }
+    );
+    if (!resp.ok) return;
+    if (S.normStoreNumber(S.state.storeNumber) !== S.normStoreNumber(store)) return;
+    const data = await resp.json().catch(() => null);
+    let shifts = Array.isArray(data) ? data : (data?.shifts || []);
+    const input = S.normStoreNumber(store);
+    shifts = shifts.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
+    if (!shifts.length) return;
+    const prevId = String(S.state.selectedShift?.visitId || '');
+    const selected = shifts.find((s) => String(s.visitId) === prevId) || S.state.selectedShift;
+    S.patch({ shifts, selectedShift: selected }, 'shifts-refresh');
+  }
+
   async function syncProdSi() {
     const S = global.EodSession;
     if (syncPromise) return syncPromise;
@@ -298,6 +319,7 @@
         workDate: S.state.workDate,
         visitId: S.state.selectedShift?.visitId || null,
         visitIds,
+        fresh: true,
       });
       let resp = await global.authFetch(`${API}/sync-async`, {
         method: 'POST',
@@ -315,26 +337,31 @@
       }
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok && resp.status !== 202) throw new Error(data.error || `Sync failed (${resp.status})`);
-      if (data.sheet) S.patch({ sheet: data.sheet, sheetLoaded: true }, 'prod-si-sync');
-      if (resp.status === 202) {
-        const before = (S.state.sheet?.rows || []).length;
-        let refreshed = false;
-        for (let i = 0; i < 16; i += 1) {
-          await new Promise((r) => setTimeout(r, 1500));
+      const startedAt = data.startedAt || null;
+      if (resp.status === 202 && startedAt) {
+        const deadline = Date.now() + 180000;
+        const statusHeaders = global.EodApi.dayConfirmHeaders();
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 2000));
           if (global.EodRouter?.current && global.EodRouter.current !== 'signoff') return data;
-          try { await loadSheet(); } catch (_) { break; }
-          const rows = S.state.sheet?.rows || [];
-          if (rows.length > before) break;
-          if (!refreshed && rows.some((row) => row.live)) {
-            refreshed = true;
-            try { await syncRepaint?.(); } catch (_) {}
+          const qs = new URLSearchParams({
+            store: S.state.storeNumber,
+            date: S.state.workDate,
+          });
+          const st = await global.authFetch(`${API}/sync-status?${qs}`, {
+            headers: statusHeaders,
+            skipBusy: true,
+          });
+          const status = await st.json().catch(() => ({}));
+          const runState = status.run;
+          if (runState?.startedAt === startedAt && runState.finishedAt) {
+            if (runState.ok === false) throw new Error(runState.error || 'Sync failed');
+            break;
           }
-          if (refreshed && i >= 10) break;
         }
-      } else if (!data.sheet) {
-        S.patch({ sheetLoaded: false }, 'prod-si-sync');
-        await loadSheet();
       }
+      await loadSheet();
+      try { await refreshShiftList(); } catch (_) {}
       try { global.EodCoverNotes?.apply?.(S, 'prod-si-sync'); } catch (_) {}
       try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
       return data;
