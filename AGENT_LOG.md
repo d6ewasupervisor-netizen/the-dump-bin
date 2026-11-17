@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-16 — Field app 3.5.35: PROD sign-in stays on the screen
+
+The office session was hiding the lead sign-in. Visit, More, and the Lead light open Wolf's own Okta form.
+
 ## 2026-11-15 — Field app 3.5.30: store addresses stay on the EOD
 
 A Fred Meyer address sitting on the recipient chips is included in the send.

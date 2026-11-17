@@ -392,9 +392,11 @@
 
   function signedInNow() {
     const st = global.EodSasUser?.cachedStatus?.() || null;
-    return global.EodSasUserLogic?.reportingReady
+    const office = global.EodSasUserLogic?.reportingReady
       ? global.EodSasUserLogic.reportingReady(st)
       : !!(st && (st.sharedActor || (st.connected && st.siConnected)));
+    if (global.EodSasUserLogic?.leadProdSignedIn) return global.EodSasUserLogic.leadProdSignedIn(st);
+    return !!(office && st && !st.sharedActor);
   }
 
   function navIconSrc(name) {
@@ -486,9 +488,14 @@
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true" aria-label="Okta sessions">
       <h2>Okta</h2>
       <div id="eodOktaBoardBody" class="muted">Checking</div>
-      <button type="button" class="btn btn-primary btn-block" id="eodOktaBoardClose">Close</button>
+      <button type="button" class="btn btn-primary btn-block" id="eodOktaBoardSignIn">PROD + SI sign in</button>
+      <button type="button" class="btn btn-secondary btn-block" id="eodOktaBoardClose">Close</button>
     </div>`;
     host.querySelector('#eodOktaBoardClose')?.addEventListener('click', () => closeModal(host));
+    host.querySelector('#eodOktaBoardSignIn')?.addEventListener('click', () => {
+      closeModal(host);
+      openSignIn();
+    });
     global.EodA11y?.activate?.(host);
     host.addEventListener('eod-dialog-escape', () => closeModal(host), { once: true });
     const body = host.querySelector('#eodOktaBoardBody');
@@ -563,6 +570,7 @@
     }
     host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
       <h2>More</h2>
+      <button type="button" class="btn btn-primary btn-block" id="eodMoreSignIn"><img data-icon="sign-in" alt="" width="28" height="28"> PROD + SI sign in</button>
       <button type="button" class="btn btn-primary btn-block" data-more="storage">Clear storage</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
       <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
@@ -585,7 +593,12 @@
       closeModal(host);
       openEodBoard();
     });
+    host.querySelector('#eodMoreSignIn')?.addEventListener('click', () => {
+      closeModal(host);
+      openSignIn();
+    });
     host.querySelector('#eodMoreClose')?.addEventListener('click', () => closeModal(host));
+    paintNavIcons();
     global.EodA11y?.activate?.(host);
     host.addEventListener('eod-dialog-escape', () => {
       closeModal(host);
