@@ -608,10 +608,18 @@
   function formatSyncSummary(status, summary) {
     var s = summary || {};
     var prefix = status === 'stopped' ? 'Sync stopped' : 'Sync done';
-    return prefix + ' — matched ' + (s.setsMatched || 0)
+    var storeBit = s.storeNumber ? ('FM ' + s.storeNumber + ' — ') : '';
+    return prefix + ' — ' + storeBit + 'matched ' + (s.setsMatched || 0)
       + ', photos +' + (s.photosAdded || 0)
       + ', completed ' + (s.completed || 0)
       + (s.errors && s.errors.length ? (', errors ' + s.errors.length) : '');
+  }
+
+  function syncStoreNumber() {
+    var el = document.getElementById('syncStore');
+    var raw = el && el.value != null ? String(el.value) : '';
+    var digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+    return digits || '';
   }
 
   async function pollSyncJob(jobId) {
@@ -659,16 +667,19 @@
     var syncStatusEl = document.getElementById('syncStatus');
     var from = document.getElementById('syncFrom').value;
     var to = document.getElementById('syncTo').value;
+    var store = syncStoreNumber();
     if (!from || !to) {
       if (syncStatusEl) syncStatusEl.textContent = 'Pick From and To dates.';
       return;
     }
-    if (!window.confirm('Sync Cut-In PROD photos for ' + from + ' → ' + to + ' into empty board slots?')) return;
+    var scope = store ? ('FM ' + store + ' for ' + from + ' → ' + to) : (from + ' → ' + to);
+    if (!window.confirm('Sync Cut-In PROD photos for ' + scope + ' into empty board slots?')) return;
     setSyncControls(true);
-    if (syncStatusEl) syncStatusEl.textContent = 'Starting sync…';
+    if (syncStatusEl) syncStatusEl.textContent = store ? ('Starting sync for FM ' + store + '…') : 'Starting sync…';
     try {
       var body = { from: from, to: to };
       if (district) body.district = district;
+      if (store) body.storeNumber = store;
       var started = await api('/' + encodeURIComponent(SLUG) + '/admin/sync-prod', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

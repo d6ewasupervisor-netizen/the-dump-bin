@@ -69,6 +69,19 @@ body {
 .toolbar { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .date-field { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .04em; }
+.date-field input[type="text"] {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  width: 5.5rem;
+  color: var(--navy);
+  background: #fff;
+}
 .date-field input[type="date"] {
   font: inherit;
   font-size: 14px;
