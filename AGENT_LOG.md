@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-16 — Field app 3.5.36: lead PROD sign-in removed
+
+PROD photos use the office SAS session. The Visit, More, and nav sign-in controls are off the field app.
+
 ## 2026-11-16 — Field app 3.5.35: PROD sign-in stays on the screen
 
 The office session was hiding the lead sign-in. Visit, More, and the Lead light open Wolf's own Okta form.

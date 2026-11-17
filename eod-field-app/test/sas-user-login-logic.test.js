@@ -256,31 +256,22 @@ test('master setup: step=done shows checkmark and enables Save', () => {
   assert.equal(L.bannedCopy(setup), false);
 });
 
-test('Visit surfaces the central PROD and SI sign-in without mounting a second form', () => {
+test('Visit does not mount a PROD sign-in form', () => {
   const fs = require('fs');
   const path = require('path');
   const visit = fs.readFileSync(path.join(__dirname, '../js/features/visit.js'), 'utf8');
-  assert.match(visit, /id="visitReportingSignIn"/);
-  assert.match(visit, /id="visitReportingSignInBtn">PROD \+ SI sign in/);
-  assert.match(visit, /EodChrome\?\.openSignIn/);
+  const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.doesNotMatch(visit, /visitReportingSignInBtn/);
+  assert.doesNotMatch(index, /sas-user-login/);
   assert.doesNotMatch(visit, /EodSasUser\?\.mount/);
 });
 
-test('More has a persistent sign-in, and the header names who is signed in', () => {
+test('More and the nav do not offer PROD sign-in', () => {
   const fs = require('fs');
   const path = require('path');
   const chrome = fs.readFileSync(path.join(__dirname, '../js/chrome.js'), 'utf8');
   const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(chrome, /id="eodMoreSignIn"/);
-  assert.match(chrome, /data-icon="sign-in"/);
-  assert.match(chrome, /function paintNavIcons/);
-  assert.match(chrome, /function openSignIn/);
-  assert.match(chrome, /EodSasUserLogic\?\.reportingReady/);
-  assert.match(chrome, /PROD \+ SI sign in/);
-  assert.match(chrome, /prodSasSignedIn/);
-  assert.match(chrome, /\$\{name\} · Signed in/);
-  assert.doesNotMatch(chrome, /`\$\{name\} · Sign in`/);
-  assert.match(chrome, /\[data-nav\], \[data-open-sign-in\]/);
-  assert.match(index, /id="eodSignedIn"/);
-  assert.match(index, /data-open-sign-in/);
+  assert.doesNotMatch(chrome, /id="eodMoreSignIn"/);
+  assert.doesNotMatch(index, /data-open-sign-in/);
+  assert.doesNotMatch(index, /id="eodSignedIn"/);
 });

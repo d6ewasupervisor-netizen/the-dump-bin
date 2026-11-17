@@ -1407,9 +1407,6 @@
           </div>
         </div>
         <div id="visitStatus" class="muted" style="min-height:1.2em;margin-bottom:8px;"></div>
-        <div id="visitReportingSignIn" style="margin-bottom:8px;">
-          <button type="button" class="btn btn-primary btn-block" id="visitReportingSignInBtn">PROD + SI sign in</button>
-        </div>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="confirmVisitBtn">${ready ? 'Change store & date' : 'Confirm store & date'}</button>
         </div>
@@ -1445,9 +1442,6 @@
       global.EodCartLocate?.openScanner?.();
     };
     document.getElementById('resetVisitBtn').onclick = () => doReset();
-    document.getElementById('visitReportingSignInBtn')?.addEventListener('click', () => {
-      try { global.EodChrome?.openSignIn?.(); } catch (_) {}
-    });
 
     document.getElementById('visitLeadName').oninput = () => {
       const lead = document.getElementById('visitLeadName').value.trim();

@@ -330,14 +330,12 @@
       leadDot.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const state = leadDot.dataset.state;
         const roles = global.EodRoles?.roles?.() || [];
         const oversight = roles.includes('admin') || roles.includes('supervisor');
-        if (oversight && state === 'green') {
+        if (oversight) {
           try { global.EodChrome?.openOktaBoard?.(); } catch (_) {}
           return;
         }
-        try { global.EodChrome?.openSignIn?.(); } catch (_) {}
       });
     }
     paintLeadOkta();
