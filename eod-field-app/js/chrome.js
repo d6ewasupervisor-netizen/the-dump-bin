@@ -792,10 +792,15 @@
         host.className = 'modal-overlay show';
         document.body.appendChild(host);
       }
-      const body = h.state === 'backlogged'
-        ? `${esc(name)} moved to backlog. ${esc(h.loaded)} of ${esc(total)} after photos were loaded.`
-        : `${esc(name)} has ${esc(h.loaded)} of ${esc(total)} after photos loaded. Please finish loading them.`;
-      host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
+      let body;
+      if (h.needsAppUpdate) {
+        body = `${esc(name)} is held (${esc(h.loaded)} of ${esc(total)} after photos). Update the field app to finish loading.`;
+      } else if (h.state === 'backlogged') {
+        body = `${esc(name)} moved to backlog. ${esc(h.loaded)} of ${esc(total)} after photos were loaded.`;
+      } else {
+        body = `${esc(name)} has ${esc(h.loaded)} of ${esc(total)} after photos loaded. Please finish loading them.`;
+      }
+      host.innerHTML = `<div class="modal-dialog eod-after-hold-dialog" role="dialog" aria-modal="true">
         <h2>After photos</h2>
         <p>${body}</p>
         <button type="button" class="btn btn-primary btn-block" id="eodAfterHoldOpen">Open categories</button>

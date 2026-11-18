@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -8,6 +9,42 @@ const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 const version = JSON.parse(read('eod-version.json')).version;
 const errors = [];
 const expect = (ok, message) => { if (!ok) errors.push(message); };
+const ship = process.argv.includes('--ship') || process.env.EOD_FIELD_PUBLISH === '1';
+
+function findGitRoot(start) {
+  let dir = start;
+  for (let i = 0; i < 8; i += 1) {
+    if (fs.existsSync(path.join(dir, '.git'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+if (ship) {
+  const repo = findGitRoot(root);
+  expect(!!repo, 'publish guard: no git repo');
+  if (repo) {
+    try {
+      const porcelain = execSync('git status --porcelain', { cwd: repo, encoding: 'utf8' }).trim();
+      expect(!porcelain, 'publish guard: dirty tree — refuse to publish');
+      const head = execSync('git rev-parse HEAD', { cwd: repo, encoding: 'utf8' }).trim();
+      let main = '';
+      try {
+        main = execSync('git rev-parse origin/main', { cwd: repo, encoding: 'utf8' }).trim();
+      } catch (_) {
+        main = execSync('git rev-parse main', { cwd: repo, encoding: 'utf8' }).trim();
+      }
+      const base = execSync(`git merge-base ${head} ${main}`, { cwd: repo, encoding: 'utf8' }).trim();
+      expect(base === main, 'publish guard: branch is not on main\'s line');
+    } catch (err) {
+      if (!String(err.message || '').includes('publish guard')) {
+        errors.push(`publish guard: ${err.message || err}`);
+      }
+    }
+  }
+}
 
 const index = read('index.html');
 const api = read('js/api.js');

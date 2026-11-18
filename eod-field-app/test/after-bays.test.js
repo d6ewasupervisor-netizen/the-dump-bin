@@ -72,6 +72,9 @@ test('the prompt asks for the missing bays and reads only the holds endpoint', a
   assert.match(chrome, /\/api\/field-set\/after-holds\?store=/);
   assert.match(chrome, /Please finish loading them/);
   assert.match(chrome, /moved to backlog/);
+  assert.match(chrome, /needsAppUpdate/);
+  assert.match(chrome, /Update the field app to finish loading/);
+  assert.match(chrome, /eod-after-hold-dialog/);
   const fetched = [];
   const timers = [];
   const doc = {

@@ -1757,6 +1757,20 @@ body.role-admin .ds-row-catnum {
   width: min(480px, 100%); background: var(--surface); border-radius: 12px; padding: 16px;
   border: 1px solid var(--accent); max-height: 90vh; overflow: auto;
 }
+#eodAfterHoldPrompt .eod-after-hold-dialog {
+  width: min(360px, calc(100vw - 32px));
+  margin: 0 auto;
+}
+#eodAfterHoldPrompt .btn {
+  min-height: 44px;
+  font-size: 16px;
+  margin-top: 8px;
+}
+#eodAfterHoldPrompt .eod-after-hold-dialog p {
+  font-size: 15px;
+  line-height: 1.4;
+  word-break: break-word;
+}
 .reset-level {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 0; border-bottom: 1px solid var(--border);
