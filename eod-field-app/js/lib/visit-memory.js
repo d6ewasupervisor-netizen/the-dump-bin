@@ -63,27 +63,33 @@
     if (!S?.state) return;
     const mem = forStore(store);
     const patch = {};
-    if (!(S.state.checkInManager || '').trim() && mem.checkIn) patch.checkInManager = mem.checkIn;
-    if (!(S.state.checkOutManager || '').trim() && mem.checkOut) patch.checkOutManager = mem.checkOut;
+    // Keep remembered names as chip/datalist options only — never auto-select.
     if (S.state.addRetailOdysseyTeam == null && typeof mem.addRetailOdysseyTeam === 'boolean') {
       patch.addRetailOdysseyTeam = mem.addRetailOdysseyTeam;
     }
-    const pool = S.state.managerNamePool || [];
-    if (!patch.checkInManager && !(S.state.checkInManager || '').trim() && pool.length === 1) {
-      patch.checkInManager = pool[0];
-    }
-    const inn = (patch.checkInManager || S.state.checkInManager || '').trim();
-    const out = (patch.checkOutManager || S.state.checkOutManager || '').trim();
-    if (inn && !out) patch.checkOutManager = inn;
-    if (out && !inn) {
-      patch.checkInManager = out;
-      patch.checkInDone = true;
-    }
-    if (patch.checkInManager) patch.checkInDone = true;
     if (Object.keys(patch).length) {
       if (typeof S.patch === 'function') S.patch(patch, 'visit-memory');
       else Object.assign(S.state, patch);
     }
+  }
+
+  function leadNamePool(store, shiftLead) {
+    const mem = forStore(store);
+    const names = [];
+    const seen = new Set();
+    function push(raw) {
+      const n = String(raw || '').trim();
+      if (!n) return;
+      const key = n.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      names.push(n);
+    }
+    push(shiftLead);
+    push(mem.leadName);
+    try { push(global.EodSession?.rememberedProfileName?.()); } catch (_) {}
+    for (const n of Array.isArray(mem.leadNames) ? mem.leadNames : []) push(n);
+    return names;
   }
 
   function captureFromSession(S) {
@@ -96,6 +102,14 @@
     const recs = Array.isArray(S.state.emailRecipients) && S.state.emailRecipients.length
       ? S.state.emailRecipients.slice()
       : (Array.isArray(mem.recipients) ? mem.recipients.slice() : []);
+    const lead = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : '')
+      || S.state.leadName
+      || S.state.profileName
+      || '';
+    const leadNames = Array.isArray(mem.leadNames) ? mem.leadNames.slice() : [];
+    if (lead && !leadNames.some((n) => String(n).trim().toLowerCase() === lead.toLowerCase())) {
+      leadNames.unshift(lead);
+    }
     remember(store, {
       checkIn: inn,
       checkOut: out,
@@ -103,11 +117,8 @@
       addRetailOdysseyTeam: S.state.addRetailOdysseyTeam == null
         ? !!mem.addRetailOdysseyTeam
         : !!S.state.addRetailOdysseyTeam,
-      leadName: (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : '')
-        || S.state.leadName
-        || S.state.profileName
-        || mem.leadName
-        || '',
+      leadName: lead || mem.leadName || '',
+      leadNames: leadNames.slice(0, 12),
     });
   }
 
@@ -147,6 +158,7 @@
     }
     if (wrap) wrap.outerHTML = html;
     else input.insertAdjacentHTML('afterend', html);
+    return true;
   }
 
   function paintFields(S) {
@@ -216,7 +228,9 @@
     remember,
     applyToSession,
     captureFromSession,
+    leadNamePool,
     chipsHtml,
+    syncChips,
     setManagers,
     paintFields,
     bindChipField,

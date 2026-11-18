@@ -101,6 +101,8 @@
           <strong id="eodLspTitle">Sign</strong>
           <button type="button" class="eod-lsp-clear" id="eodLspClear">Clear</button>
           <button type="button" class="eod-lsp-clear" id="eodLspLoad">Load photo</button>
+          <button type="button" class="eod-lsp-clear" id="eodLspLoadSaved">Load saved</button>
+          <button type="button" class="eod-lsp-clear" id="eodLspSaveCopy">Save copy</button>
           <button type="button" class="eod-lsp-type-btn" id="eodLspTypeBtn">Type</button>
           <button type="button" class="eod-lsp-cancel" id="eodLspCancel">Cancel</button>
           <button type="button" class="eod-lsp-accept" id="eodLspAccept">Use signature</button>
@@ -418,6 +420,50 @@
       lspRenderFontGrid();
       sizeCanvas();
     };
+    document.getElementById('eodLspLoadSaved')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        const saved = await global.EodLeadSavedSignature?.load?.();
+        const url = saved?.signatureDataUrl || '';
+        if (!url) {
+          if (global.showAlert) global.showAlert('Saved signature', 'No saved lead signature yet.');
+          else alert('No saved lead signature yet.');
+          return;
+        }
+        lspSwitchMode('draw');
+        snapshot = null;
+        o.existingDataUrl = url;
+        sizeCanvas();
+      } catch (err) {
+        if (global.showAlert) global.showAlert('Saved signature', err.message || String(err));
+        else alert(err.message || String(err));
+      }
+    });
+    document.getElementById('eodLspSaveCopy')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        if (lspMode === 'type') {
+          if (!lspTypedName.trim()) {
+            alert('Type a name or draw before saving a copy.');
+            return;
+          }
+          await lspRenderTypedToMainCanvas();
+        }
+        if (isBlank(canvas, ctx)) {
+          alert('Sign before saving a copy.');
+          return;
+        }
+        const url = canvas.toDataURL('image/png');
+        await global.EodLeadSavedSignature?.save?.(url);
+        if (global.showAlert) global.showAlert('Saved signature', 'Saved for your account on any tablet.');
+        else alert('Signature copy saved.');
+      } catch (err) {
+        if (global.showAlert) global.showAlert('Saved signature', err.message || String(err));
+        else alert(err.message || String(err));
+      }
+    });
     document.getElementById('eodLspLoad')?.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();

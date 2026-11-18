@@ -10,6 +10,8 @@
 
   const listeners = new Set();
   let priorDayDraft = null;
+  /** When set, visit-mirror hydrate skips signature / selected names for this key. */
+  let skipMirrorIdentityKey = '';
 
   const state = {
     storeNumber: '',
@@ -57,6 +59,7 @@
     materialsReadYes: null,
     visitReady: false,
     addRetailOdysseyTeam: false,
+    skipMirrorIdentity: false,
   };
 
   function normStoreNumber(s) {
@@ -88,6 +91,60 @@
     return stored;
   }
 
+  function identityKey(store, date, visitId) {
+    return [
+      normStoreNumber(store || state.storeNumber),
+      normIsoDate(date || state.workDate),
+      String(visitId || state.selectedShift?.visitId || ''),
+    ].join('|');
+  }
+
+  function clearLocalIdentity({ holdMirror = false, reason = 'identity-clear' } = {}) {
+    try {
+      global.EodVisitMemory?.captureFromSession?.({ state, resolvedLeadName });
+    } catch (_) {}
+    state.signatureDataUrl = '';
+    state.leadName = '';
+    state.profileName = '';
+    state.checkInManager = '';
+    state.checkOutManager = '';
+    state.checkInDone = false;
+    state.proxyEodStamp = '';
+    state.lieuSignoffStamp = '';
+    try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
+    try { localStorage.removeItem(SIGNATURE_SIGNER_KEY); } catch (_) {}
+    if (holdMirror) {
+      skipMirrorIdentityKey = identityKey();
+      state.skipMirrorIdentity = true;
+    } else {
+      skipMirrorIdentityKey = '';
+      state.skipMirrorIdentity = false;
+    }
+    try { global.EodDeptSignatures?.clearLocal?.(); } catch (_) {}
+    emit(reason);
+    emit('signature');
+    scheduleSaveDraft();
+  }
+
+  function allowMirrorIdentity() {
+    skipMirrorIdentityKey = '';
+    state.skipMirrorIdentity = false;
+  }
+
+  function shouldSkipMirrorIdentity(store, date, visitId) {
+    if (!state.skipMirrorIdentity || !skipMirrorIdentityKey) return false;
+    return skipMirrorIdentityKey === identityKey(store, date, visitId);
+  }
+
+  function rememberedProfileName() {
+    try {
+      const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
+      return String(p?.name || p?.profileName || '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
   function persistDayConfirm({ token, store, date, expiresInMs }) {
     const expiresAt = Date.now() + (Number(expiresInMs) || 36 * 60 * 60 * 1000);
     const canonStore = normStoreNumber(store);
@@ -106,6 +163,7 @@
       state.shifts = [];
       state.extraVisitIds = [];
       state.emailRecipients = [];
+      clearLocalIdentity({ holdMirror: false, reason: 'day-identity-clear' });
     }
     emit('dayConfirm');
   }
@@ -123,20 +181,31 @@
    * keepUnsentPhotos also keeps the visit being left behind when its photos
    * never went out (Fresh start on yesterday's unfinished visit).
    */
-  async function resetVisit({ wipePersonal = false, wipeSetBefores = false, wipeUnsent = false, keepUnsentPhotos = false } = {}) {
+  async function resetVisit({ wipePersonal = true, wipeSetBefores = false, wipeUnsent = false, keepUnsentPhotos = false } = {}) {
     const store = state.storeNumber;
     const week = state.fiscalWeek;
     priorDayDraft = null;
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
     clearDayConfirm();
+    try {
+      global.EodVisitMemory?.captureFromSession?.({ state, resolvedLeadName });
+    } catch (_) {}
+    try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
+    try { localStorage.removeItem(SIGNATURE_SIGNER_KEY); } catch (_) {}
     if (wipePersonal) {
-      try { localStorage.removeItem(PROFILE_KEY); } catch (_) {}
-      try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
-      try { localStorage.removeItem(SIGNATURE_SIGNER_KEY); } catch (_) {}
-      state.profileName = '';
-      state.profileEmail = '';
-      state.signatureDataUrl = '';
+      try {
+        const prev = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null') || {};
+        localStorage.setItem(PROFILE_KEY, JSON.stringify({
+          name: '',
+          email: prev.email || prev.profileEmail || state.profileEmail || '',
+        }));
+      } catch (_) {
+        try { localStorage.removeItem(PROFILE_KEY); } catch (_) {}
+      }
     }
+    try { global.EodDeptSignatures?.clearLocal?.(); } catch (_) {}
+    state.profileName = '';
+    state.signatureDataUrl = '';
     if (wipeSetBefores && global.EodSetBeforeStore) {
       if (week) global.EodSetBeforeStore.clearStoreWeek(store, week);
       else global.EodSetBeforeStore.clearAllForStore(store);
@@ -181,7 +250,10 @@
     state.addRetailOdysseyTeam = false;
     state.proxyEodStamp = '';
     state.lieuSignoffStamp = '';
+    skipMirrorIdentityKey = '';
+    state.skipMirrorIdentity = false;
     emit('reset');
+    emit('signature');
   }
 
   function isVisitReady() {
@@ -300,22 +372,39 @@
 
   function patch(partial, reason) {
     const prevStore = normStoreNumber(state.storeNumber);
+    const prevDate = normIsoDate(state.workDate);
     const prevVisit = state.selectedShift && state.selectedShift.visitId;
     Object.assign(state, partial || {});
     const nextStore = normStoreNumber(state.storeNumber);
+    const nextDate = normIsoDate(state.workDate);
     const nextVisit = state.selectedShift && state.selectedShift.visitId;
     const storeMoved = prevStore && nextStore && prevStore !== nextStore;
+    const dateMoved = prevDate && nextDate && prevDate !== nextDate;
     const visitMoved = prevVisit && nextVisit && String(prevVisit) !== String(nextVisit);
     if ((storeMoved || visitMoved) && !(partial && Object.prototype.hasOwnProperty.call(partial, 'emailRecipients'))) {
       state.emailRecipients = [];
     }
-    let signatureDropped = false;
-    if (nextVisit && String(nextVisit) !== leadSignatureCheckedVisit) {
-      leadSignatureCheckedVisit = String(nextVisit);
-      signatureDropped = dropSignatureIfNotLead();
+    const identityTouched = partial && (
+      Object.prototype.hasOwnProperty.call(partial, 'leadName')
+      || Object.prototype.hasOwnProperty.call(partial, 'profileName')
+      || Object.prototype.hasOwnProperty.call(partial, 'checkInManager')
+      || Object.prototype.hasOwnProperty.call(partial, 'checkOutManager')
+      || Object.prototype.hasOwnProperty.call(partial, 'signatureDataUrl')
+    );
+    if (identityTouched && (state.leadName || state.profileName || state.checkInManager
+      || state.checkOutManager || state.signatureDataUrl)) {
+      allowMirrorIdentity();
     }
+    const hydrateReason = /^(visit-mirror|team-session|load|auth-)/.test(String(reason || ''));
+    if (!hydrateReason) {
+      if ((storeMoved || dateMoved) && reason !== 'day-identity-clear' && reason !== 'identity-clear') {
+        clearLocalIdentity({ holdMirror: false, reason: 'patch-day-clear' });
+      } else if (visitMoved && !storeMoved && !dateMoved && reason !== 'identity-clear') {
+        clearLocalIdentity({ holdMirror: true, reason: 'patch-visit-clear' });
+      }
+    }
+    if (nextVisit) leadSignatureCheckedVisit = String(nextVisit);
     emit(reason || 'patch');
-    if (signatureDropped) emit('signature');
     scheduleSaveDraft();
   }
 
@@ -348,8 +437,7 @@
     try {
       const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
       if (p) {
-        state.profileName = p.name || p.profileName || '';
-        state.profileEmail = p.email || p.profileEmail || '';
+        state.profileEmail = p.email || p.profileEmail || state.profileEmail || '';
       }
     } catch (_) {}
     try {
@@ -358,9 +446,10 @@
   }
 
   function saveProfile() {
+    const remembered = rememberedProfileName();
     localStorage.setItem(PROFILE_KEY, JSON.stringify({
-      name: state.profileName,
-      email: state.profileEmail,
+      name: state.profileName || remembered || '',
+      email: state.profileEmail || '',
     }));
   }
 
@@ -371,6 +460,7 @@
       else localStorage.removeItem(SIGNATURE_KEY);
     } catch (_) {}
     if (dataUrl) {
+      allowMirrorIdentity();
       const lead = global.EodLeadSignatureOwner?.shiftLead(state.selectedShift) || {};
       setSignatureSigner({
         email: lead.email || state.leadEmail || state.profileEmail,
@@ -406,13 +496,21 @@
     }
     state.storeNumber = normStoreNumber(data.storeNumber || data.store || '');
     state.workDate = normIsoDate(data.workDate || data.date || todayLocalIsoDate());
-    state.profileName = data.profileName || state.profileName || '';
+    state.profileName = data.profileName || '';
     state.profileEmail = data.profileEmail || state.profileEmail || '';
     state.leadName = data.leadName || '';
     state.leadEmail = data.leadEmail || '';
     state.notes = data.notes || '';
     state.checkInManager = data.checkInManager || '';
     state.checkOutManager = data.checkOutManager || '';
+    state.skipMirrorIdentity = !!data.skipMirrorIdentity;
+    if (state.skipMirrorIdentity) {
+      skipMirrorIdentityKey = identityKey(
+        state.storeNumber,
+        state.workDate,
+        data.selectedShift?.visitId
+      );
+    }
     state.fiscalWeek = data.fiscalWeek || '';
     state.visitStep = data.visitStep || 'setup';
     state.cartPhotoDone = !!data.cartPhotoDone;
@@ -517,6 +615,7 @@
       addRetailOdysseyTeam: !!state.addRetailOdysseyTeam,
       proxyEodStamp: state.proxyEodStamp || '',
       lieuSignoffStamp: state.lieuSignoffStamp || '',
+      skipMirrorIdentity: !!state.skipMirrorIdentity,
       selectedShift: state.selectedShift
         ? {
             visitId: state.selectedShift.visitId,
@@ -572,6 +671,10 @@
     persistDayConfirm,
     clearDayConfirm,
     resetVisit,
+    clearLocalIdentity,
+    allowMirrorIdentity,
+    shouldSkipMirrorIdentity,
+    rememberedProfileName,
     isVisitReady,
     hasHostedSheet,
     sheetSendReady,

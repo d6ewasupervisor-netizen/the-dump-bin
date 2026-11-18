@@ -1222,10 +1222,23 @@
     refresh().catch(console.error);
   }
 
+  function clearLocal() {
+    signatures = [];
+    try { renderRoleList(); } catch (_) {}
+    try {
+      const meta = document.getElementById('deptSigPickerMeta');
+      if (meta) {
+        meta.textContent = '0/0';
+        meta.classList.remove('is-complete', 'is-partial');
+      }
+    } catch (_) {}
+  }
+
   window.EodDeptSignatures = {
     refresh,
     ensureUi,
     mountInline,
+    clearLocal,
     getCollectedForEmail,
     persistLeadSignature,
     setRequiredRoles: applyRequiredRoleKeys,

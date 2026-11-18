@@ -585,30 +585,41 @@
     const ise = L.pickMainKompassIseVisit?.(shifts, null);
     const source = ise || shift;
     if (!source) return;
-    const lead = source.visitLead || source.leadName || leadNameNow();
+    const leadOption = source.visitLead || source.leadName || '';
     const email = leadEmailFromShifts(source, shifts);
-    if (lead) {
-      S.patch({ leadName: lead, profileName: lead }, 'lead');
-      const nameEl = document.getElementById('visitLeadName');
-      if (nameEl) {
-        nameEl.value = lead;
-        nameEl.readOnly = true;
-      }
-      const profileEl = document.getElementById('visitName');
-      if (profileEl && !profileEl.value.trim()) profileEl.value = lead;
+    const nameEl = document.getElementById('visitLeadName');
+    if (nameEl) {
+      nameEl.value = S.state.leadName || S.state.profileName || '';
+      nameEl.readOnly = false;
     }
-    if (email) {
-      S.patch({ profileEmail: email, profileLocked: true }, 'lead-email');
+    paintLeadNameChips(leadOption);
+    if (email && !(S.state.profileEmail || '').trim()) {
+      S.patch({ profileEmail: email }, 'lead-email');
       const emailEl = document.getElementById('visitEmail');
-      if (emailEl) {
-        emailEl.value = email;
-        emailEl.readOnly = true;
-      }
+      if (emailEl && !emailEl.value.trim()) emailEl.value = email;
     }
     const editBtn = document.getElementById('unlockProfileBtn');
-    if (editBtn && (lead || email)) editBtn.hidden = false;
-    if (!email && lead) queueLeadEmailLookup(source, lead);
+    if (editBtn) editBtn.hidden = false;
+    if (!email && leadOption) queueLeadEmailLookup(source, leadOption);
     try { global.EodSasUser?.refreshLead?.(); } catch (_) {}
+  }
+
+  function paintLeadNameChips(shiftLead) {
+    const S = global.EodSession;
+    const esc = global.EodApi?.escapeHtml || ((s) => String(s == null ? '' : s));
+    const pool = global.EodVisitMemory?.leadNamePool?.(S.state.storeNumber, shiftLead) || [];
+    const selected = S.state.leadName || S.state.profileName || '';
+    if (global.EodVisitMemory?.syncChips) {
+      global.EodVisitMemory.syncChips('visitLeadName', pool, selected, esc);
+      return;
+    }
+    const input = document.getElementById('visitLeadName');
+    if (!input || !global.EodVisitMemory?.chipsHtml) return;
+    const html = global.EodVisitMemory.chipsHtml(pool, selected, esc);
+    const existing = input.parentElement?.querySelector?.('.manager-chips');
+    if (!html) { existing?.remove(); return; }
+    if (existing) existing.outerHTML = html;
+    else input.insertAdjacentHTML('afterend', html);
   }
 
   function queueLeadEmailLookup(shift, lead) {
@@ -1069,10 +1080,10 @@
         <div class="reset-level">
           <div class="reset-level-copy">
             <strong>Personal</strong>
-            <span>Name, email, signature on this phone</span>
+            <span>Name selection and signature on this phone (always cleared)</span>
           </div>
           <label class="toggle-switch-wrapper">
-            <input type="checkbox" id="resetWipePersonal" ${opts.wipePersonal ? 'checked' : ''}>
+            <input type="checkbox" id="resetWipePersonal" checked disabled>
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -1107,13 +1118,12 @@
 
     function currentOpts() {
       return {
-        wipePersonal: !!overlay.querySelector('#resetWipePersonal')?.checked,
+        wipePersonal: true,
         wipeSetBefores: !!overlay.querySelector('#resetWipeBefores')?.checked,
         wipeUnsent: !!overlay.querySelector('#resetWipeUnsent')?.checked,
       };
     }
 
-    overlay.querySelector('#resetWipePersonal').onchange = () => saveResetOpts(currentOpts());
     overlay.querySelector('#resetWipeBefores').onchange = () => saveResetOpts(currentOpts());
     overlay.querySelector('#resetWipeUnsent').onchange = () => saveResetOpts(currentOpts());
     overlay.querySelector('#visitResetCancel').onclick = closeResetOverlay;
@@ -1408,10 +1418,7 @@
   async function render(mount) {
     const S = global.EodSession;
     ensureStoreCatalog();
-    const authName = String(global.EodRoles?.getMe?.()?.name || '').trim();
-    if (authName && !(S.state.profileName || '').trim() && !(S.state.leadName || '').trim()) {
-      S.patch({ profileName: authName, leadName: authName }, 'auth-lead');
-    }
+
     const ready = S.isVisitReady();
 
     mount.innerHTML = `
@@ -1444,7 +1451,9 @@
         <div id="shiftList"></div>
         <div class="field" style="margin-top:14px;">
           <label>Lead name</label>
-          <input type="text" id="visitLeadName" value="${esc(S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '')}" ${S.state.profileLocked || S.state.selectedShift ? 'readonly' : ''}>
+          <input type="text" id="visitLeadName" value="${esc(S.state.leadName || S.state.profileName || '')}" autocomplete="name" list="leadNameListVisit">
+          ${global.EodVisitMemory?.chipsHtml?.(global.EodVisitMemory.leadNamePool?.(S.state.storeNumber, S.state.selectedShift?.visitLead || S.state.selectedShift?.leadName || ''), S.state.leadName || S.state.profileName || '', esc) || ''}
+          <datalist id="leadNameListVisit">${(global.EodVisitMemory?.leadNamePool?.(S.state.storeNumber, S.state.selectedShift?.visitLead || '') || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
         </div>
         <div class="field">
           <label>Lead email</label>
@@ -1475,6 +1484,17 @@
       global.EodCartLocate?.openScanner?.();
     };
     document.getElementById('resetVisitBtn').onclick = () => doReset();
+    document.getElementById('shiftCard')?.addEventListener('click', (ev) => {
+      const chip = ev.target.closest && ev.target.closest('.manager-chip');
+      if (!chip || !chip.closest('#shiftCard')) return;
+      const name = chip.getAttribute('data-mgr') || '';
+      if (!name) return;
+      S.patch({ leadName: name, profileName: name, profileLocked: false }, 'lead-chip');
+      const nameEl = document.getElementById('visitLeadName');
+      if (nameEl) { nameEl.value = name; nameEl.readOnly = false; }
+      paintLeadNameChips(S.state.selectedShift?.visitLead || name);
+      try { S.saveDraft?.(); } catch (_) {}
+    });
 
     document.getElementById('visitLeadName').oninput = () => {
       const lead = document.getElementById('visitLeadName').value.trim();

@@ -650,7 +650,7 @@ ${cleanNotes}`;
       }
     } catch (_) {}
     const leadFill = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : '') || '';
-    if (leadFill && !(S.state.profileName || '').trim()) {
+    if (false && leadFill && !(S.state.profileName || '').trim()) {
       S.patch({ profileName: leadFill, leadName: S.state.leadName || leadFill }, 'cover-lead');
     }
     S.syncDomBridges();

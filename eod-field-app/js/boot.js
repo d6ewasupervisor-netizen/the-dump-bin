@@ -77,14 +77,7 @@
   async function hydrateAfterPaint() {
     try { await window.EodApi?.ensurePersistentStorage?.(); } catch (_) {}
     try { await window.EodRoles?.load?.(); } catch (_) {}
-    try {
-      const me = window.EodRoles?.getMe?.();
-      const authName = String(me?.name || '').trim();
-      const S = window.EodSession;
-      if (authName && S && !(S.state.profileName || '').trim()) {
-        S.patch({ profileName: authName, leadName: S.state.leadName || authName }, 'auth-lead');
-      }
-    } catch (_) {}
+    // Lead name stays blank until the user selects or types one.
 
     await loadPhotosIntoSession();
     await hydrateRemoteShift();
@@ -172,7 +165,7 @@
       try {
         if ('serviceWorker' in navigator && /the-dump-bin\.com$/i.test(location.hostname || '')) {
           const hadController = !!navigator.serviceWorker.controller;
-          navigator.serviceWorker.register('sw.js?v=3.5.41').catch(() => {});
+          navigator.serviceWorker.register('sw.js?v=3.5.42').catch(() => {});
           if (hadController && !navigator.serviceWorker._eodControllerBound) {
             navigator.serviceWorker._eodControllerBound = true;
             let reloading = false;

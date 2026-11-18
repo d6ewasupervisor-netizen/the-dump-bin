@@ -99,20 +99,27 @@
   function applyPayload(S, mirror) {
     if (!S || !mirror?.payload) return false;
     const p = mirror.payload;
+    const skipIdentity = !!(S.shouldSkipMirrorIdentity?.(
+      S.state.storeNumber,
+      S.state.workDate,
+      mirror.visitId || p.selectedShift?.visitId || S.state.selectedShift?.visitId
+    ) || S.state.skipMirrorIdentity);
     applying = true;
     try {
       const patch = {
-        leadName: p.leadName || S.state.leadName || '',
         leadEmail: p.leadEmail || S.state.leadEmail || '',
         notes: p.notes || S.state.notes || '',
-        checkInManager: p.checkInManager || S.state.checkInManager || '',
-        checkOutManager: p.checkOutManager || S.state.checkOutManager || '',
         visitStep: p.visitStep || S.state.visitStep || 'setup',
         cartPhotoDone: !!(S.state.cartPhotoDone || p.cartPhotoDone),
-        checkInDone: !!(S.state.checkInDone || p.checkInDone),
+        checkInDone: skipIdentity ? !!S.state.checkInDone : !!(S.state.checkInDone || p.checkInDone),
         beforesStepDone: !!(S.state.beforesStepDone || p.beforesStepDone),
         sheetAcknowledged: !!(S.state.sheetAcknowledged || p.sheetAcknowledged),
       };
+      if (!skipIdentity) {
+        patch.leadName = p.leadName || S.state.leadName || '';
+        patch.checkInManager = p.checkInManager || S.state.checkInManager || '';
+        patch.checkOutManager = p.checkOutManager || S.state.checkOutManager || '';
+      }
       if (p.instaworkYes != null) patch.instaworkYes = p.instaworkYes;
       if (p.instaworkSavedInfo) patch.instaworkSavedInfo = p.instaworkSavedInfo;
       if (p.instaworkOfficeSubmitted) patch.instaworkOfficeSubmitted = true;
@@ -143,18 +150,18 @@
         patch.helpdeskResolution = p.helpdeskResolution;
       }
       if (p.addRetailOdysseyTeam) patch.addRetailOdysseyTeam = true;
-      if (typeof p.proxyEodStamp === 'string') {
+      if (!skipIdentity && typeof p.proxyEodStamp === 'string') {
         patch.proxyEodStamp = /^EOD submitted \d{2}\/\d{2}\/\d{2}$/.test(p.proxyEodStamp)
           ? p.proxyEodStamp
           : '';
       }
-      if (typeof p.lieuSignoffStamp === 'string') {
+      if (!skipIdentity && typeof p.lieuSignoffStamp === 'string') {
         patch.lieuSignoffStamp = /^Signed \d{2}\/\d{2}\/\d{2}$/.test(p.lieuSignoffStamp)
           ? p.lieuSignoffStamp
           : '';
       }
       S.patch(patch, 'visit-mirror');
-      if (p.signatureDataUrl && S.state.signatureDataUrl !== p.signatureDataUrl) {
+      if (!skipIdentity && p.signatureDataUrl && S.state.signatureDataUrl !== p.signatureDataUrl) {
         S.state.signatureDataUrl = p.signatureDataUrl;
         try {
           if (p.signatureDataUrl) localStorage.setItem('kompassSignature', p.signatureDataUrl);
