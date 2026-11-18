@@ -1,3 +1,6 @@
+## 2026-11-17 ~6:36 PM PT — Field app 3.5.41
+
+After-hold dialog sized for 360/390; phones under 3.5.40 get update copy. `validate-publish.mjs --ship` refuses dirty trees and branches off main's line. Published `feff52b`.
 # Agent log
 
 ## 2026-11-17 — D6 Admin holiday availability card
