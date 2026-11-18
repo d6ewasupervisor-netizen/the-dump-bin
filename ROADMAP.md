@@ -1,5 +1,7 @@
 # Roadmap
 
+- Set Photo Reconcile (2026-11-18): card + `/set-photo-reconcile/`. Needs Pages publish and the matching eod-api deploy (pending + enqueue routes).
+
 - Period 11 coverage card (2026-11-08): Central Pet section, `data-card="cp-coverage"`, opens `/central-pet/?to=coverage`. Hidden until `/api/me` lists that id.
 
 - Employee Board v2.30 is the lease wording. Show what will change needs the matching eod-api deploy.

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Set Photo Reconcile</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=3">
+<link rel="apple-touch-icon" href="/favicon.png?v=3">
+<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/set-photo-reconcile/assets/app.css?v=1">
+<script src="/auth-gate.js"></script>
+</head>
+<body>
+<div class="top">
+  <h1>Set Photo Reconcile</h1>
+  <div class="who"><span id="me">Loading…</span><br><a href="/">Team Resources</a></div>
+</div>
+
+<div class="wrap">
+  <section class="card">
+    <div class="filters">
+      <div>
+        <label for="f-store">Store</label>
+        <select id="f-store"><option value="">All stores</option></select>
+      </div>
+      <div>
+        <label for="f-date">Work date</label>
+        <select id="f-date"><option value="">All dates</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn" id="btn-refresh">Refresh</button>
+        <button type="button" class="btn secondary" id="btn-enqueue-filtered">Enqueue filtered</button>
+      </div>
+    </div>
+    <div id="status" class="status">Loading…</div>
+    <div class="counts" id="counts"></div>
+  </section>
+
+  <section class="card" id="groups-card">
+    <h2>By store / date</h2>
+    <div id="groups" class="groups"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section class="card">
+    <div class="rows-head">
+      <h2>Pending bays</h2>
+      <button type="button" class="btn secondary" id="btn-enqueue-selected" disabled>Enqueue selected</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="check-all" aria-label="Select all"></th>
+            <th>Store</th>
+            <th>Date</th>
+            <th>DBKey</th>
+            <th>Slot</th>
+            <th>Bay</th>
+            <th>PROD</th>
+            <th>SI</th>
+            <th>Actor</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="10" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script src="/set-photo-reconcile/assets/app.js?v=1"></script>
+</body>
+</html>

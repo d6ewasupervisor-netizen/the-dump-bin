@@ -1,5 +1,7 @@
 # Audit
 
+Set Photo Reconcile (2026-11-18). Card `set-photo-reconcile` → `/set-photo-reconcile/` (auth-gate). Visibility from eod-api `/api/me` owner email list. Page calls `GET /api/field-set/reconcile/pending` and `POST /api/field-set/reconcile/enqueue`. Open: Pages + eod-api deploy.
+
 D6 Admin hub (2026-11-17). Cards `d6-employee-board` → `/d6-employee-board/` and `d6-survey-admin` → `/d6-availability/` (redirect to d6reviews holiday availability admin). Visibility is `d6BoardAllowed` in eod-api (`april.gauthier@…`, Tyson, tgauthier2011, d6ewa.supervisor). D6 Employee Board PROD pulls use eod-api `listCurrentEmployees` with April's Workday id under `SAS_EGRESS=pc`.
 
 Period 11 coverage (2026-11-08). Card `cp-coverage` in the Central Pet section. Href `/central-pet/?to=coverage` forwards the Dump Bin session to `https://cpscheduler-production.up.railway.app/c/me`. The scheduler refuses every email that is not on the crew list.
@@ -21,6 +23,7 @@ Hub card gating (2026-10-30 audit). One script in `index.html` unhides the gated
 | `survey` | `/survey/` | never unhidden — no `hidden` attribute | everyone signed in | `/api/survey/*` requireAuth + roster ACL (`requireSurveyAccess`) |
 | `survey-admin` | `/survey-admin/` | `_identity.js` survey scope, admin role | division/district survey admins | `/api/survey/admin/*` requireAuth + `requireSurveyAdmin` |
 | `set-photos` | eod-api `/set-photos/` | `canAccessSetPhotos` (lead+) | leads, supervisors, office | **none** — `/api/set-photos/sheet` + `/upload` have no auth and sit in `PUBLIC_PREFIXES` |
+| `set-photo-reconcile` | `/set-photo-reconcile/` | `_identity.js` `canAccessSetPhotoReconcile` (Tyson email) | owner only | `requireSetPhotoReconcileAccess` on pending/enqueue |
 | `eod-board` | `/eod-board/` | `canAccessEodBoard` (lead+ or map supervisor) | leads, supervisors | auth only (`requireAuth`); `lib/eod-board.js` scopes a lead to their own EODs |
 | `instawork-clock` | `/instawork-clock/` | `canAccessInstaworkClock` | leads, supervisors, office | `requireInstaworkClockAccess` on overview/workers/times |
 | `meat-pusher-survey` | `/meat-pusher-survey/` | `canAccessMeatPusherSurvey` | leads, supervisors, office | `canAccessMeatPusherSurvey` per route (`/open`, `/shared` are token links) |
