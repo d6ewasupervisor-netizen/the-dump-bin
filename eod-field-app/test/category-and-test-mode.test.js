@@ -765,8 +765,8 @@ test('bottom nav is Visit, Categories, Signatures, Send; extras hide on phones',
     assert.match(html, new RegExp(`icons/nav/${name}\\.png`));
     assert.match(html, new RegExp(`data-icon="${name}"`));
   }
-  // Lead PROD sign-in stays in the nav. The office session is not her login.
-  assert.match(html, /data-open-sign-in/);
+  // Nobody is asked to sign in to SAS. The shared session carries PROD writes.
+  assert.doesNotMatch(html, /data-open-sign-in/);
   assert.doesNotMatch(html, /icons\/themes\//);
 });
 
@@ -1679,8 +1679,6 @@ test('PROD and SI lights poll auth and the version badge stays in chrome', () =>
   assert.match(conn, /rebotics-auth-status/);
   assert.match(conn, /setInterval\(pollConnections, POLL_MS\)/);
   assert.match(conn, /function toast/);
-  assert.match(html, /js\/lib\/sas-user-login-logic\.js/);
-  assert.match(html, /js\/features\/sas-user-login\.js/);
 });
 
 test('visit mirror hydrates the lead snapshot onto a second login', () => {

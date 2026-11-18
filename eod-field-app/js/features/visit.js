@@ -1189,6 +1189,7 @@
   // before store and date. Anything unknown skips it; the shared session and
   // the swarm carry the work for anyone who cannot sign in.
   async function shouldPromptProdSignIn() {
+    return false;
     if (!global.EodChrome?.openSignIn || !global.EodSasUser?.fetchStatus) return false;
     if (prodPromptedAlready()) return false;
     const R = global.EodRoles;
@@ -1395,7 +1396,9 @@
     overlay.querySelector('#priorDayStart')?.addEventListener('click', async () => {
       S.resolvePriorDayDraft?.('start');
       closePriorDayChoice();
-      await S.resetVisit({});
+      /* Starting a new day is not a request to delete yesterday's photos.
+         They stay on the phone as an unsent visit, listed under Storage. */
+      await S.resetVisit({ keepUnsentPhotos: true });
       await global.EodRouter?.render?.();
       await openDayConfirmModal();
     });
@@ -1431,9 +1434,6 @@
           </div>
         </div>
         <div id="visitStatus" class="muted" style="min-height:1.2em;margin-bottom:8px;"></div>
-        <div id="visitReportingSignIn" style="margin-bottom:8px;">
-          <button type="button" class="btn btn-primary btn-block" id="visitReportingSignInBtn">PROD + SI sign in</button>
-        </div>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="confirmVisitBtn">${ready ? 'Change store & date' : 'Confirm store & date'}</button>
         </div>
@@ -1475,9 +1475,6 @@
       global.EodCartLocate?.openScanner?.();
     };
     document.getElementById('resetVisitBtn').onclick = () => doReset();
-    document.getElementById('visitReportingSignInBtn')?.addEventListener('click', () => {
-      try { global.EodChrome?.openSignIn?.(); } catch (_) {}
-    });
 
     document.getElementById('visitLeadName').oninput = () => {
       const lead = document.getElementById('visitLeadName').value.trim();
