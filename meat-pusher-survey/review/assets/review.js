@@ -473,6 +473,8 @@
       var tab = btn.dataset.tab;
       if ($('tabReview')) $('tabReview').hidden = tab !== 'review';
       if ($('tabOutreach')) $('tabOutreach').hidden = tab !== 'outreach';
+      if ($('tabPhotos')) $('tabPhotos').hidden = tab !== 'photos';
+      document.dispatchEvent(new CustomEvent('mp-tab', { detail: tab }));
       if (tab === 'outreach') loadOutreach();
     });
   });

@@ -6,7 +6,7 @@
   <title>Meat Pusher Review</title>
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700&amp;display=swap">
-  <link rel="stylesheet" href="/meat-pusher-survey/review/assets/review.css?v=11">
+  <link rel="stylesheet" href="/meat-pusher-survey/review/assets/review.css?v=12">
   <script src="/auth-gate.js"></script>
 </head>
 <body>
@@ -39,10 +39,16 @@
   <div id="tabBar" class="tab-bar">
     <button type="button" class="tab on" data-tab="review">Review</button>
     <button type="button" class="tab" data-tab="outreach">Outreach</button>
+    <button type="button" class="tab" data-tab="photos" hidden>Photos</button>
   </div>
   <div id="tabReview" class="layout">
     <aside id="stores" class="stores"></aside>
     <section id="detail"></section>
+  </div>
+  <div id="tabPhotos" class="pa-pane" hidden>
+    <div id="paStatus" class="pa-status" role="status"></div>
+    <div id="paStores" class="pa-stores"></div>
+    <div id="paView" class="pa-view"></div>
   </div>
   <div id="tabOutreach" class="outreach-pane" hidden>
     <div class="outreach-grid">
@@ -79,6 +85,7 @@
     </div>
   </div>
   <footer>Retail Odyssey</footer>
-  <script src="/meat-pusher-survey/review/assets/review.js?v=17"></script>
+  <script src="/meat-pusher-survey/review/assets/review.js?v=18"></script>
+  <script src="/meat-pusher-survey/review/assets/photo-approval.js?v=1"></script>
 </body>
 </html>
