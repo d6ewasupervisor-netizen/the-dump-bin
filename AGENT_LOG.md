@@ -1,5 +1,9 @@
 # Agent log
 
+## 2026-11-17 — D6 Admin holiday availability card
+
+The D6 Admin "Availability Survey" hub card now opens `/d6-availability/`, which redirects to the d6reviews holiday availability admin board (PC Automator SAS path). Card id stays `d6-survey-admin` so April/Tyson still get it from `d6BoardAllowed`. Employee Board PROD already runs through eod-api `SAS_EGRESS=pc`.
+
 ## 2026-11-16 — Field app 3.5.37: lead light removed
 
 The header Lead light and the Okta sign-in it opened are off the field app. Visit no longer prompts for a PROD sign-in.

@@ -1,5 +1,7 @@
 # Audit
 
+D6 Admin hub (2026-11-17). Cards `d6-employee-board` → `/d6-employee-board/` and `d6-survey-admin` → `/d6-availability/` (redirect to d6reviews holiday availability admin). Visibility is `d6BoardAllowed` in eod-api (`april.gauthier@…`, Tyson, tgauthier2011, d6ewa.supervisor). D6 Employee Board PROD pulls use eod-api `listCurrentEmployees` with April's Workday id under `SAS_EGRESS=pc`.
+
 Period 11 coverage (2026-11-08). Card `cp-coverage` in the Central Pet section. Href `/central-pet/?to=coverage` forwards the Dump Bin session to `https://cpscheduler-production.up.railway.app/c/me`. The scheduler refuses every email that is not on the crew list.
 
 Employee Board v2.29 (`feat/employee-board-menus`, not published): Time off lists each request under the name and parks the detail editor outside the table until a request is chosen, so a re-render does not destroy it. Shift management fills its dropdown from `GET /api/welcome-letter/employees` and posts the chosen person as `{ id: employeeId }`. The weekly template still calls `127.0.0.1:3002` and a failure there does not hide the PROD preview. Pathways reminders are one person at a time, with the subject and letter sent on the selection. The buffering mark is `/welcome-letter-board/assets/buffering.gif`. Open: Pages and the matching eod-api deploy.
