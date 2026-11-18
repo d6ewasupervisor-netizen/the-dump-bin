@@ -1,3 +1,7 @@
+## 2026-11-20 — Set Photo Reconcile card + page
+
+Office & Admin card `set-photo-reconcile` → `/set-photo-reconcile/`. Hub shell with `/auth-gate.js`. Lists pending `field_set_photo_buffer` via eod-api; owner-only. eod-api routes already live; Pages publish with this commit.
+
 ## 2026-11-20 — Field app tour sign-in shell
 
 `/eod-field-app-tour/` collects a phone or email code and loads the tour from eod-api. It does not load `auth-gate.js`, it is not a hub card, and the tour file is not in this repo.

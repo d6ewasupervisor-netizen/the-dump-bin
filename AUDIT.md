@@ -1,5 +1,7 @@
 # Audit
 
+Set Photo Reconcile (2026-11-20). Card `set-photo-reconcile` → `/set-photo-reconcile/` (auth-gate). Visibility from eod-api `/api/me` owner email list. Page calls `GET /api/field-set/reconcile/pending` and `POST /api/field-set/reconcile/enqueue`. eod-api already live; Pages with this commit.
+
 Field app tour (2026-11-20). `eod-field-app-tour/index.html` is a sign-in shell. No `auth-gate.js`, no hub card. Token lives in `localStorage.fieldAppTourToken`. The tour HTML is fetched from `GET /api/field-app-tour/document` and shown in a blob iframe. The page posts scroll, chapter, visible time, and pilot-video seconds to `POST /api/field-app-tour/progress`.
 
 D6 Admin hub (2026-11-17). Cards `d6-employee-board` → `/d6-employee-board/` and `d6-survey-admin` → `/d6-availability/` (redirect to d6reviews holiday availability admin). Visibility is `d6BoardAllowed` in eod-api (`april.gauthier@…`, Tyson, tgauthier2011, d6ewa.supervisor). D6 Employee Board PROD pulls use eod-api `listCurrentEmployees` with April's Workday id under `SAS_EGRESS=pc`.
@@ -23,6 +25,7 @@ Hub card gating (2026-10-30 audit). One script in `index.html` unhides the gated
 | `survey` | `/survey/` | never unhidden — no `hidden` attribute | everyone signed in | `/api/survey/*` requireAuth + roster ACL (`requireSurveyAccess`) |
 | `survey-admin` | `/survey-admin/` | `_identity.js` survey scope, admin role | division/district survey admins | `/api/survey/admin/*` requireAuth + `requireSurveyAdmin` |
 | `set-photos` | eod-api `/set-photos/` | `canAccessSetPhotos` (lead+) | leads, supervisors, office | **none** — `/api/set-photos/sheet` + `/upload` have no auth and sit in `PUBLIC_PREFIXES` |
+| `set-photo-reconcile` | `/set-photo-reconcile/` | `_identity.js` `canAccessSetPhotoReconcile` (Tyson email) | owner only | `requireSetPhotoReconcileAccess` on pending/enqueue |
 | `eod-board` | `/eod-board/` | `canAccessEodBoard` (lead+ or map supervisor) | leads, supervisors | auth only (`requireAuth`); `lib/eod-board.js` scopes a lead to their own EODs |
 | `instawork-clock` | `/instawork-clock/` | `canAccessInstaworkClock` | leads, supervisors, office | `requireInstaworkClockAccess` on overview/workers/times |
 | `meat-pusher-survey` | `/meat-pusher-survey/` | `canAccessMeatPusherSurvey` | leads, supervisors, office | `canAccessMeatPusherSurvey` per route (`/open`, `/shared` are token links) |
