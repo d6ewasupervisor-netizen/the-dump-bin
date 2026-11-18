@@ -98,8 +98,9 @@ test('a failed carry-forward write is reported instead of swallowed', () => {
   const persist = survey.slice(survey.indexOf('function persistSlot'), survey.indexOf('function persistBefores'));
   assert.doesNotMatch(persist, /\} catch \(_\) \{\}/, 'persistSlot must not swallow');
   assert.match(persist, /EodDiag\?\.note\?\.\('set-store\.persist'/);
-  assert.match(persist, /Device storage is full/);
+  assert.match(persist, /carry-over store on this phone is full/);
 
-  assert.match(chrome, /set-store\.quota/);
-  assert.match(chrome, /storage full/);
+  assert.match(read('js/features/set-before-store.js'), /set-store\.quota/);
+  assert.match(chrome, /carry store full/);
+  assert.match(chrome, /quotaBlocked\?\.\(\)/);
 });

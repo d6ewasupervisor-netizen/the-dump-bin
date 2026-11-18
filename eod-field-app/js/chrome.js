@@ -32,7 +32,7 @@
         const blocked = global.EodSetPhotoReconcile?.authBlockedCount?.();
         if (blocked > 0) parts.push(`${blocked} need login`);
         // Carry-forward is broken once this fires; say so until the day resets.
-        if (global.EodDiag?.count?.('set-store.quota') > 0) parts.push('storage full');
+        if (global.EodSetBeforeStore?.quotaBlocked?.()) parts.push('carry store full');
       } catch (_) {}
       metaEl.textContent = parts.filter(Boolean).join(' · ');
       metaEl.title = parts.filter(Boolean).join(' · ');
@@ -753,6 +753,96 @@
     refresh();
     try { global.EodSasUser?.fetchStatus?.(true); } catch (_) {}
   }
+
+  /* After photos wait on the server until every bay of the set is loaded. Ten quiet
+     minutes later the server marks the set prompted and this asks for the missing bays;
+     ten minutes after that it moves the set to backlog. The check reads the database
+     only and runs while a held upload is open. */
+  const afterHolds = (() => {
+    const POLL_MS = 60 * 1000;
+    const WATCH_MS = 3 * 60 * 60 * 1000;
+    const watched = new Map();
+    const shown = new Set();
+    let timer = null;
+
+    function keyOf(store, date) {
+      return `${String(store || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '')}|${String(date || '').slice(0, 10)}`;
+    }
+    function dbkeyOf(v) { return String(v || '').replace(/\D/g, '').replace(/^0+/, ''); }
+
+    function setName(dbkey) {
+      try {
+        const rows = global.EodSession?.state?.sheet?.rows || [];
+        const hit = rows.find((r) => dbkeyOf(r.dbkey) === dbkeyOf(dbkey));
+        return hit ? (hit.catName || hit.name || '') : '';
+      } catch (_) { return ''; }
+    }
+
+    function show(h) {
+      const id = `${dbkeyOf(h.dbkey)}|${h.state}|${h.promptedAt || h.backlogAt || ''}`;
+      if (shown.has(id)) return;
+      shown.add(id);
+      const esc = global.EodApi?.escapeHtml || ((s) => String(s ?? ''));
+      const name = setName(h.dbkey) || `Set ${dbkeyOf(h.dbkey)}`;
+      const total = h.expected || '?';
+      let host = document.getElementById('eodAfterHoldPrompt');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'eodAfterHoldPrompt';
+        host.className = 'modal-overlay show';
+        document.body.appendChild(host);
+      }
+      const body = h.state === 'backlogged'
+        ? `${esc(name)} moved to backlog. ${esc(h.loaded)} of ${esc(total)} after photos were loaded.`
+        : `${esc(name)} has ${esc(h.loaded)} of ${esc(total)} after photos loaded. Please finish loading them.`;
+      host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
+        <h2>After photos</h2>
+        <p>${body}</p>
+        <button type="button" class="btn btn-primary btn-block" id="eodAfterHoldOpen">Open categories</button>
+        <button type="button" class="btn btn-secondary btn-block" id="eodAfterHoldClose">Close</button>
+      </div>`;
+      host.querySelector('#eodAfterHoldClose')?.addEventListener('click', () => closeModal(host));
+      host.querySelector('#eodAfterHoldOpen')?.addEventListener('click', () => {
+        closeModal(host);
+        try { global.location.hash = '#/categories'; } catch (_) { /* ignore */ }
+      });
+      global.EodA11y?.activate?.(host);
+    }
+
+    async function pollOnce() {
+      const now = Date.now();
+      for (const [k, w] of [...watched]) {
+        if (now - w.at > WATCH_MS) { watched.delete(k); continue; }
+        try {
+          const resp = await global.authFetch(
+            `${global.EOD_API_BASE}/api/field-set/after-holds?store=${encodeURIComponent(w.store)}&date=${encodeURIComponent(w.date)}`,
+            { skipBusy: true }
+          );
+          if (!resp.ok) continue;
+          const data = await resp.json().catch(() => ({}));
+          (data.holds || []).forEach(show);
+        } catch (_) { /* try again next minute */ }
+      }
+      if (!watched.size && timer) { clearInterval(timer); timer = null; }
+    }
+
+    function note(store, workDate, dbkey, hold) {
+      const k = keyOf(store, workDate);
+      if (!hold || hold.complete) {
+        const w = watched.get(k);
+        if (w) { w.open.delete(dbkeyOf(dbkey)); if (!w.open.size) watched.delete(k); }
+        return;
+      }
+      const w = watched.get(k) || { store, date: String(workDate).slice(0, 10), open: new Set(), at: 0 };
+      w.open.add(dbkeyOf(dbkey));
+      w.at = Date.now();
+      watched.set(k, w);
+      if (!timer) timer = setInterval(pollOnce, POLL_MS);
+    }
+
+    return { note, pollOnce, _watched: watched };
+  })();
+  global.EodAfterHolds = afterHolds;
 
   global.EodChrome = {
     refresh,

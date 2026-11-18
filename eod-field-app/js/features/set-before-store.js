@@ -59,23 +59,55 @@
     return doomed.length;
   }
 
+  /* True only while the last carry write failed. A later write that fits clears it, so
+     the "storage full" label reflects now, not an error from earlier in the day. */
+  let quotaBlocked = false;
+
+  /* Other buckets of the same week, largest first. They are a carry-forward copy; the
+     server holds the photos. Drop them one at a time until this write fits. */
+  function evictOtherBuckets(keepKey, trySave) {
+    const others = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || k === keepKey || !k.startsWith(AFTER_PREFIX)) continue;
+      let size = 0;
+      try { size = (localStorage.getItem(k) || '').length; } catch (_) { /* skip */ }
+      others.push({ k, size });
+    }
+    others.sort((a, b) => b.size - a.size);
+    let dropped = 0;
+    for (const o of others) {
+      try { localStorage.removeItem(o.k); dropped += 1; } catch (_) { continue; }
+      if (trySave()) return dropped;
+    }
+    return dropped;
+  }
+
   function saveAfters(store, fiscalWeek, map) {
     const key = storageKey(store, fiscalWeek, AFTER_PREFIX);
     if (!key) return;
     const json = JSON.stringify(map || {});
-    try {
-      localStorage.setItem(key, json);
+    const trySave = () => {
+      try { localStorage.setItem(key, json); return true; } catch (_) { return false; }
+    };
+    if (trySave()) { quotaBlocked = false; return; }
+    const freed = pruneStaleWeeks(fiscalWeek);
+    if (trySave()) {
+      quotaBlocked = false;
+      global.EodDiag?.note?.('set-store.pruned', `freed ${freed} stale week bucket(s)`);
       return;
-    } catch (_) {
-      const freed = pruneStaleWeeks(fiscalWeek);
-      try {
-        localStorage.setItem(key, json);
-        global.EodDiag?.note?.('set-store.pruned', `freed ${freed} stale week bucket(s)`);
-      } catch (err) {
-        global.EodDiag?.note?.('set-store.quota', err);
-        throw err;
-      }
     }
+    const dropped = evictOtherBuckets(key, trySave);
+    if (dropped && trySave()) {
+      quotaBlocked = false;
+      global.EodDiag?.note?.('set-store.pruned', `dropped ${dropped} other bucket(s)`);
+      return;
+    }
+    quotaBlocked = true;
+    const err = new Error('localStorage quota reached');
+    err.name = 'QuotaExceededError';
+    global.EodDiag?.note?.('set-store.quota', err);
+    throw err;
   }
 
   function dbkeyKey(dbkey) {
@@ -180,5 +212,6 @@
     storageKey,
     legacyBeforeKeys,
     purgeLegacyBefores,
+    quotaBlocked: () => quotaBlocked,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

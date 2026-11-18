@@ -88,6 +88,9 @@
         throw new Error(data.error || `Field-set request failed (${response.status})`);
       }
       if (response.status === 202 && data.statusUrl) {
+        if (data.hold && data.hold.complete === false) {
+          return { jobId: data.jobId, statusUrl: data.statusUrl, accepted: true, held: true, hold: data.hold };
+        }
         const result = await poll(data.statusUrl, { timeoutMs });
         return Object.assign({ jobId: data.jobId, statusUrl: data.statusUrl }, result || {});
       }
@@ -149,7 +152,15 @@
         if (!response.ok && !data.result) {
           throw new Error(data.error || `Binary photo upload failed (${response.status})`);
         }
+        if (data && data.hold) {
+          try {
+            global.EodAfterHolds?.note?.(meta.storeNumber, meta.workDate, meta.dbkey, data.hold);
+          } catch (_) { /* a notice must never fail an upload */ }
+        }
         if (response.status === 202 && data.statusUrl) {
+          if (data.hold && data.hold.complete === false) {
+            return { jobId: data.jobId, statusUrl: data.statusUrl, accepted: true, held: true, hold: data.hold };
+          }
           if (opts.waitForResult === false) {
             return { jobId: data.jobId, statusUrl: data.statusUrl, accepted: true };
           }
