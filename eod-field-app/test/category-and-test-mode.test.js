@@ -1401,9 +1401,9 @@ test('category cards include Capture and a live PROD/SI status line', () => {
   assert.match(signoff, /neededCaptureSlot/);
 });
 
-test('list Capture opens a from-one session and survey status ignores SAS completed', () => {
+test('list Capture opens the camera on the next free bay and survey status ignores SAS completed', () => {
   const survey = fs.readFileSync(path.join(__dirname, '../js/features/set-survey.js'), 'utf8');
-  assert.match(survey, /fromOne: true/);
+  assert.match(survey, /startSequentialCapture\(preferSlot, \{ returnTo: 'signoff' \}\)/);
   assert.match(survey, /Moving to bay/);
   assert.match(survey, /liveStatusLineFromCounts/);
   assert.match(survey, /prodKindFromCounts/);

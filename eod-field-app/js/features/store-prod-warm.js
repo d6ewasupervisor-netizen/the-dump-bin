@@ -141,6 +141,12 @@
     }
   }
 
+  /* A set with no SI planogram answers 404 every time. Without this memory the
+     beat asked again for every such open row on every pass (57 requests in two
+     hours on one store-day). */
+  const noPogUntil = new Map();
+  const NO_POG_MS = 10 * 60 * 1000;
+
   async function fetchOnePlanogram(row) {
     const S = global.EodSession;
     const qs = new URLSearchParams({
@@ -150,13 +156,20 @@
     });
     const resp = await global.authFetch(`${FIELD_API}/planogram?${qs}`, { skipBusy: true });
     const data = await resp.json().catch(() => ({}));
+    if (resp.status === 404 || (resp.ok && !data.planogram)) {
+      noPogUntil.set(String(row.dbkey), Date.now() + NO_POG_MS);
+      return;
+    }
     if (!resp.ok || !data.planogram) return;
     putPlanogram(row.dbkey, data.planogram);
   }
 
   async function prefetchPlanograms() {
     if (pogPrefetching || !visitReady()) return;
-    const need = openRows().filter((row) => !peekPlanogram(row.dbkey)).slice(0, POG_PREFETCH);
+    const now = Date.now();
+    const need = openRows()
+      .filter((row) => !peekPlanogram(row.dbkey) && !((noPogUntil.get(String(row.dbkey)) || 0) > now))
+      .slice(0, POG_PREFETCH);
     if (!need.length) return;
     pogPrefetching = true;
     try {

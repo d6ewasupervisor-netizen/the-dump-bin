@@ -90,15 +90,53 @@
     return assigned;
   }
 
-  /* Upload-side guard: a set must never take more bays than it has.
-     Returns null when the capture is allowed, or the reason to refuse. */
-  function refuseBayReason({ known, bay, replacing, maxBay }) {
+  function isOccupied(occupied, n) {
+    if (occupied instanceof Set) return occupied.has(n);
+    if (Array.isArray(occupied)) return occupied.map(Number).includes(n);
+    return !!occupied;
+  }
+
+  /* Capture-side guard. Returns null when the shot may be stored, or the
+     reason it may not.
+
+       full    no bay to put it on
+       exists  the bay already holds a photo and the caller did not ask to
+               replace it. Taking or picking a photo never replaces a bay.
+
+     The bay count is never a reason to refuse a shot. It used to be (3.5.43):
+     the cap fell back to the highest bay drawn so far, 1 on an empty set, so
+     a set whose count the phone did not have took bay 1 and silently dropped
+     bays 2, 3, 4 while the camera kept announcing them. The camera stops at a
+     known count by not offering another bay, and a real extra bay is added
+     with Add a bay. */
+  function refuseBayReason({ bay, replacing, occupied }) {
     const n = Number(bay) || 0;
     if (!n) return 'full';
-    // Sparse overrides: active bay 4 with newCount 3 must still be allowed.
-    const cap = Math.max(Number(maxBay) || 0, Number(known) || 0);
-    if (cap && n > cap && !replacing) return 'over';
+    if (!replacing && isOccupied(occupied, n)) return 'exists';
     return null;
+  }
+
+  function allTakenMessage(total) {
+    const n = Number(total) || 0;
+    return `All ${n} bay${n === 1 ? '' : 's'} taken`;
+  }
+
+  /* Bays a device pick lands on when the set has no count: the first free
+     bay numbers, one per picked photo, never one that already holds a photo. */
+  function freeBays({ taken, count }) {
+    const takenSet = toSet(taken);
+    const want = Math.max(0, Number(count) || 0);
+    const out = [];
+    for (let b = 1; out.length < want; b += 1) {
+      if (!takenSet.has(b)) out.push(b);
+    }
+    return out;
+  }
+
+  function highestBay(taken) {
+    let max = 0;
+    for (const b of toSet(taken)) if (Number(b) > max) max = Number(b);
+    return max;
   }
 
   const api = {
@@ -108,6 +146,9 @@
     planReplaceBays,
     planFileBays,
     refuseBayReason,
+    allTakenMessage,
+    freeBays,
+    highestBay,
   };
 
   global.EodBayCountLogic = api;

@@ -238,6 +238,8 @@
             let nextBay = Math.max(0, ...requiredBays, ...missingBays) + 1;
             if (typeof opts.onAddBay === 'function') {
               const maybe = await opts.onAddBay();
+              // A failed save adds nothing: the count on screen stays the saved one.
+              if (maybe == null || maybe === false) return;
               if (Number(maybe) > 0) nextBay = Number(maybe);
             }
             if (!requiredBays.includes(nextBay)) requiredBays = [...requiredBays, nextBay].sort((a, b) => a - b);
@@ -245,6 +247,14 @@
           };
         }
         async function applyMarkMissing(bay) {
+          if (typeof opts.onMarkMissing === 'function') {
+            const saved = await opts.onMarkMissing(bay);
+            if (saved === false) {
+              pendingClearMissing = null;
+              paint();
+              return;
+            }
+          }
           if (!missingBays.includes(bay)) missingBays = [...missingBays, bay].sort((a, b) => a - b);
           for (const [idx, b] of Object.entries(assignments)) {
             if (Number(b) === bay) {
@@ -253,7 +263,6 @@
               occupiedMap = cleared.occupied;
             }
           }
-          if (typeof opts.onMarkMissing === 'function') await opts.onMarkMissing(bay);
           pendingClearMissing = null;
           paint();
         }
@@ -285,9 +294,12 @@
           btn.onclick = async (ev) => {
             ev.stopPropagation();
             const bay = Number(btn.getAttribute('data-bay-assign-undo-missing'));
+            if (typeof opts.onUnmarkMissing === 'function') {
+              const saved = await opts.onUnmarkMissing(bay);
+              if (saved === false) return;
+            }
             missingBays = missingBays.filter((x) => x !== bay);
             if (!requiredBays.includes(bay)) requiredBays = [...requiredBays, bay].sort((a, b) => a - b);
-            if (typeof opts.onUnmarkMissing === 'function') await opts.onUnmarkMissing(bay);
             paint();
           };
         });
@@ -304,6 +316,13 @@
             if (selectedPhoto == null) return;
             const bay = Number(el.getAttribute('data-bay-assign-bay'));
             if (missingBays.includes(bay)) return;
+            // A bay that already holds a photo on this device is only replaced
+            // when the user says Replace on that bay.
+            if (occupied.has(bay) && occupiedMap[bay] == null) {
+              pendingReplace = { bay, photoIdx: selectedPhoto };
+              paint();
+              return;
+            }
             const result = L.placePhoto({
               assignments,
               occupied: occupiedMap,
