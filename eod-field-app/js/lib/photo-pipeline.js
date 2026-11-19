@@ -1184,12 +1184,21 @@
         const prodFine = prodOk || job.prodStatus === 'unavailable';
         const siFine = siOk || job.siStatus === 'unavailable';
 
+        // Declared-missing skips both sides — release the job; never leave it
+        // cycling in the outbox as a permanent retry.
+        const declaredMissing = /declared missing/i.test(
+          String(job.uploadResult?.prod?.detail || job.uploadResult?.prod?.message || '')
+          + String(job.uploadResult?.si?.detail || job.uploadResult?.si?.message || '')
+        );
         if (prodOk && siOk) {
           job.status = 'done';
           job.error = null;
           job.skipProd = true;
           job.skipSi = true;
           maybeOffloadJob(job);
+          if (declaredMissing) {
+            try { removeJob(job.id); } catch (_) { /* already done */ }
+          }
         } else if (prodOk && !siOk) {
           job.skipProd = true;
           job.status = 'compressed';

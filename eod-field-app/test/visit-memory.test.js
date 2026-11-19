@@ -50,24 +50,35 @@ test('setManagers writes checkout and fills empty check-in', () => {
   assert.equal(row.checkOut, 'April');
 });
 
-test('applyToSession does not restore recipient chips onto the next store', () => {
-  mem.remember('19', { recipients: ['old@stores.fredmeyer.com'], checkIn: 'Ana' });
+test('applyToSession never auto-selects recipient chips or manager names', () => {
+  // Nov 1 / 3.5.42: remembered names stay chip/datalist options only.
+  mem.remember('19', { recipients: ['old@stores.fredmeyer.com'], checkIn: 'Ana', checkOut: 'Bob' });
   const S = {
     state: { storeNumber: '19', checkInManager: '', checkOutManager: '', emailRecipients: [] },
     patch(partial) { Object.assign(this.state, partial); },
   };
   mem.applyToSession(S, '19');
   assert.deepEqual(S.state.emailRecipients, []);
-  assert.equal(S.state.checkInManager, 'Ana');
+  assert.equal(S.state.checkInManager, '');
+  assert.equal(S.state.checkOutManager, '');
 });
 
-test('applyToSession restores store names when the draft is empty', () => {
-  mem.remember('28', { checkIn: 'Linda', checkOut: 'Isaac' });
+test('applyToSession does not pull the next store into an open draft', () => {
+  mem.remember('19', { recipients: ['a@stores.fredmeyer.com'], checkIn: 'Ana' });
+  mem.remember('28', { recipients: ['b@stores.fredmeyer.com'], checkIn: 'Linda', checkOut: 'Isaac' });
   const S = {
-    state: { storeNumber: '28', checkInManager: '', checkOutManager: '', emailRecipients: [] },
+    state: {
+      storeNumber: '19',
+      checkInManager: 'Ana',
+      checkOutManager: '',
+      emailRecipients: ['a@stores.fredmeyer.com'],
+    },
     patch(partial) { Object.assign(this.state, partial); },
   };
   mem.applyToSession(S, '28');
-  assert.equal(S.state.checkInManager, 'Linda');
-  assert.equal(S.state.checkOutManager, 'Isaac');
+  // applyToSession alone must not rewrite the open draft; session.patch clears
+  // emailRecipients when the store/visit actually moves (js/session.js).
+  assert.deepEqual(S.state.emailRecipients, ['a@stores.fredmeyer.com']);
+  assert.equal(S.state.checkInManager, 'Ana');
+  assert.notEqual(S.state.checkInManager, 'Linda');
 });

@@ -826,7 +826,8 @@ test('device storage is in the app: More, Send, boot purge of submitted packages
   assert.match(send, /sendDeviceBtn/);
   assert.match(send, /purgeSubmitted/);
   assert.match(boot, /EodDeviceStorage\?\.purgeInBackground/);
-  assert.match(router, /name === 'storage'/);
+  // Router keeps storage reachable before visit-ready (name !== 'storage').
+  assert.match(router, /name !== 'visit' && name !== 'storage'/);
 });
 
 test('unsent leftovers can be reviewed, discarded, and wiped on reset', () => {

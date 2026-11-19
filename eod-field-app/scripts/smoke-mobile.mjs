@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { chromium } from 'playwright';
 import {
   ROUTES,
@@ -8,6 +9,7 @@ import {
   startStaticServer,
 } from './smoke-blank.mjs';
 
+const LOCAL_CHROME = 'C:\\Users\\tgaut\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe';
 const failures = [];
 
 function fail(label, detail) {
@@ -19,7 +21,10 @@ async function run() {
   const provided = process.env.PILOT_URL;
   const local = provided ? null : await startStaticServer();
   const origin = provided || local.origin;
-  const browser = await chromium.launch({ headless: true });
+  const launchOpts = fs.existsSync(LOCAL_CHROME)
+    ? { headless: true, executablePath: LOCAL_CHROME }
+    : { headless: true };
+  const browser = await chromium.launch(launchOpts);
 
   try {
     for (const viewport of VIEWPORTS) {

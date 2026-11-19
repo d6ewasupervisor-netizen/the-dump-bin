@@ -1187,6 +1187,21 @@
       el.querySelectorAll('[data-bay-missing]').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const bay = Number(btn.getAttribute('data-bay-missing'));
+          const hasLocal = (local.after || []).some((p) => Number(p.bay) === bay)
+            || (local.before || []).some((p) => Number(p.bay) === bay);
+          const hasJob = (global.EodPhotoPipeline?.listJobs?.() || []).some((j) =>
+            j.kind === 'set'
+            && String(j.dbkey || '') === String(dbkey)
+            && Number(j.bay) === bay
+            && j.status !== 'failed'
+            && j.status !== 'superseded'
+          );
+          if (hasLocal || hasJob) {
+            const ok = global.confirm
+              ? global.confirm(`Bay ${bay} already has a photo. Mark not in store and clear it?`)
+              : true;
+            if (!ok) return;
+          }
           const next = A.markMissing({
             baseCount: ov.oldCount || base,
             missingBays: ov.missingBays,
@@ -1198,7 +1213,23 @@
             newCount: next.newCount,
             missingBays: next.missingBays,
             addedBays: next.addedBays,
+            confirmClearPhotos: !!(hasLocal || hasJob),
           });
+          if (hasLocal || hasJob) {
+            local.after = (local.after || []).filter((p) => Number(p.bay) !== bay);
+            local.before = (local.before || []).filter((p) => Number(p.bay) !== bay);
+            try {
+              for (const job of (global.EodPhotoPipeline?.listJobs?.() || [])) {
+                if (job.kind !== 'set') continue;
+                if (String(job.dbkey || '') !== String(dbkey)) continue;
+                if (Number(job.bay) !== bay) continue;
+                global.EodPhotoPipeline?.cancelJob?.(job.id)
+                  || global.EodPhotoPipeline?.removeJob?.(job.id)
+                  || (job.status = 'superseded');
+              }
+            } catch (_) { /* best-effort */ }
+            paintBody();
+          }
         });
       });
       el.querySelectorAll('[data-bay-remove-added]').forEach((btn) => {
@@ -1258,9 +1289,18 @@
             newCount: patch.newCount,
             missingBays: patch.missingBays,
             addedBays: patch.addedBays,
+            siSectionCount: Number(local.status?.si?.sectionCount) || patch.oldCount || null,
+            confirmClearPhotos: !!patch.confirmClearPhotos,
           }),
         });
         const data = await res.json().catch(() => ({}));
+        if (res.status === 409 && data.code === 'bay_has_photo') {
+          const ok = global.confirm
+            ? global.confirm(`Bay already has a photo on the server. Clear it and mark not in store?`)
+            : true;
+          if (!ok) throw new Error(data.error || 'Bay has a photo');
+          return saveBayOverride({ ...patch, confirmClearPhotos: true });
+        }
         if (!res.ok || data.ok === false) throw new Error(data.error || res.statusText);
         if (data.override) local.bayOverride = data.override;
         paintBayCountControl();

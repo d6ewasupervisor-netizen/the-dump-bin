@@ -4,11 +4,13 @@
   "description": "Isolated greenfield rebuild of the KOMPASS EOD field app.",
   "main": "index.js",
   "scripts": {
-    "test": "node --test \"test/**/*.test.js\" && npm run validate:publish",
+    "test:unit": "node --test \"test/**/*.test.js\"",
+    "test": "npm run test:unit && npm run smoke:mobile && npm run validate:publish",
     "validate:publish": "node scripts/validate-publish.mjs",
     "version:bump": "node scripts/bump-version.mjs",
     "smoke:blank": "node scripts/smoke-blank.mjs",
-    "smoke:mobile": "node scripts/smoke-mobile.mjs"
+    "smoke:mobile": "node scripts/smoke-mobile.mjs",
+    "test:bay-assign-e2e": "node scripts/bay-assign-e2e.mjs"
   },
   "keywords": [],
   "author": "",

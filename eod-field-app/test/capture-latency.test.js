@@ -64,17 +64,18 @@ test('the set shutter downscales before encoding its thumbnail', () => {
 test('the shutter gate reads cached auth instead of waiting on the network', () => {
   const survey = read('js/features/set-survey.js');
   const login = read('js/features/sas-user-login.js');
+  const rec = read('js/lib/set-photo-reconcile.js');
 
+  // Helpers remain for Connections / chrome, but set capture no longer waits on
+  // per-lead PROD (retired 3.5.27 — office SAS session carries uploads).
   assert.match(login, /async function requireConnectedFast/);
   assert.match(login, /requireConnectedFast,/, 'must be exported');
-  // Fast path decides from the cached status and refreshes behind the shot.
   assert.match(login, /void fetchStatus\(true\)/);
-  // Capture prefers the fast gate, with the blocking one as fallback.
-  assert.match(survey, /requireConnectedFast\s*\n?\s*\|\|\s*global\.EodSasUser\?\.requireConnected/);
-  // A refused capture has to speak where the shooter is looking. Ship F routes
-  // this through activeCameraToast; calling flashToast from enqueueLocal's
-  // scope threw a ReferenceError instead of showing the message.
-  assert.match(survey, /if \(liveCameraOpen\) activeCameraToast\?\.\(gate\.message\)/);
+  assert.doesNotMatch(survey, /requireConnectedFast/);
+  assert.doesNotMatch(survey, /EodSasUser\?\.requireConnected/);
+  assert.match(rec, /Provider sign-in retired: no auth gate/);
+  // Live-camera toast still exists for other capture messages.
+  assert.match(survey, /if \(liveCameraOpen\) activeCameraToast\?\.\(text\)/);
 });
 
 test('cart, signoff and InstaWork compress off the main thread', () => {

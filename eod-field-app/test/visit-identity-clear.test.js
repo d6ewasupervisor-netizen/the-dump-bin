@@ -19,6 +19,9 @@ describe('visit identity clear', () => {
     assert.match(session, /wipePersonal = true/);
     assert.match(session, /shouldSkipMirrorIdentity/);
     assert.match(session, /SIGNATURE_SIGNER_KEY/);
+    // Nov 1: Fred Meyer recipient chips must not follow a store change.
+    assert.match(session, /if \(\(storeMoved \|\| visitMoved\) && !\(partial && Object\.prototype\.hasOwnProperty\.call\(partial, 'emailRecipients'\)\)\)/);
+    assert.match(session, /state\.emailRecipients = \[\];/);
   });
 
   it('visit memory does not auto-select managers or lead', () => {

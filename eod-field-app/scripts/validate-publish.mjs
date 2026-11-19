@@ -44,6 +44,23 @@ if (ship) {
       }
     }
   }
+  // Refuse to ship unless unit tests and the 360/390 mobile gate are green.
+  // Plain `npm test` already chains these; --ship re-runs them so a publish
+  // path that only calls validate-publish.mjs --ship cannot skip the gate.
+  if (!errors.length) {
+    try {
+      execSync('npm run test:unit', { cwd: root, stdio: 'inherit' });
+    } catch (err) {
+      errors.push('publish guard: npm run test:unit failed — refuse to publish');
+    }
+  }
+  if (!errors.length) {
+    try {
+      execSync('npm run smoke:mobile', { cwd: root, stdio: 'inherit' });
+    } catch (err) {
+      errors.push('publish guard: npm run smoke:mobile failed — refuse to publish');
+    }
+  }
 }
 
 const index = read('index.html');

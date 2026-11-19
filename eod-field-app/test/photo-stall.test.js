@@ -128,8 +128,9 @@ test('reconcile drains on a time budget and can announce an already-buffered set
   // Gating notify on n > 0 meant a set buffered on an earlier tick never fired.
   assert.match(rec, /if \(invResp\.ok \|\| n > 0 \|\| closedDbkeys\.size > 0\)/);
 
-  // The after-bay gate must use the cached check, and must not fail silently.
-  assert.match(rec, /requireConnectedFast/);
+  // Provider sign-in retired: reconcile no longer blocks on requireConnectedFast.
+  assert.doesNotMatch(rec, /requireConnectedFast/);
+  assert.match(rec, /Provider sign-in retired: no auth gate/);
   assert.match(rec, /skippedForAuth/);
   assert.match(rec, /authBlockedCount/);
 });

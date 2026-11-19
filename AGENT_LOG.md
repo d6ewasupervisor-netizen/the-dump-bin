@@ -478,3 +478,8 @@ Published field-app 3.4.48. Signatures include Produce for a same-day cut-in and
 ## 2026-11-13
 
 Added `dc-scan/weekend/`: weekend DC Scan coverage for FM 19, 28, 31, and 459. One person per store, the claimer picks the day, and the board refreshes every 5 seconds. API is eod-api `/api/dc-scan-weekend`.
+
+## 2026-11-18 — Phase 1 FINAL (feat/bay-assign)
+
+F1: nine stale field tests aligned to live 3.5.42+ behavior (recipient clear stays in session.patch; shutter/reconcile auth gate retired). F2: npm test runs smoke:mobile; validate-publish --ship re-runs unit + smoke. F3: real-route bay-assign e2e + screenshots. F6: confirm before clearing a bay photo marked not-in-store; pipeline releases declared-missing skips. Field app 3.5.45. No merge/deploy/publish.
+
