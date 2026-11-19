@@ -1,3 +1,7 @@
+## 2026-11-19 ~8:25 AM PT — Field app 3.5.45 published (bay assign Phase 1)
+
+`feat/bay-assign` merged to main (fast-forward) at `0bb97a2`; rollback point `217a4db`. Pushed after the eod-api deploy verified (a push to main publishes Pages). `validate-publish --ship` passed on the clean main worktree (unit 387/387, smoke:mobile, publish contracts). Deploy Pages run 44565854135 success 08:25:40 PT; `eod-version.json` reads 3.5.45, live sw cache `eod-field-3.5.45`. "Bay already has a photo" confirmations are in-screen (assign screen and bay-count editor); no window.confirm in the branch diff. Forced update keeps the outbox: `eodFieldPhotoOutbox` is separate from the SW caches, `hardNavigateForUpdate` awaits a durable save first, and `restore()` rehydrates on boot. Gateway requires a TACTAG prefix on texts, so both team texts went out with `TACTAG: ` in front of the approved wording.
+
 ## 2026-11-18 — Phase 1 VERIFY (feat/bay-assign)
 
 Verify pass on branch only. Reverted smoke-mobile `channel:'chrome'`. Assign screen V6a (thumbnails, Photo N / Bay N, not-in-store, leave-for-camera, sticky Confirm). Screenshots via `EodBayAssignScreen.open` + shelf fixtures. Field app 3.5.44. No merge/deploy/publish.
