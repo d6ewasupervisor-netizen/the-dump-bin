@@ -1,0 +1,8 @@
+{
+  "name": "the-dump-bin",
+  "private": true,
+  "description": "Static site. This file only carries repo-level scripts.",
+  "scripts": {
+    "publish:preview": "node scripts/publish-field-app-preview.mjs"
+  }
+}
