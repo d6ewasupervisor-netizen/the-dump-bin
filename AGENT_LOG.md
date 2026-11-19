@@ -1,3 +1,7 @@
+## 2026-11-18 — Phase 1 bay assignment (feat/bay-assign)
+
+Branch-only. Assign screen for device file picks (wait until every bay placed). Bay override migration 215 + API. Declared-missing blurry SI-only path. Field app 3.5.43. No merge/deploy/publish.
+
 ## 2026-11-17 ~6:36 PM PT — Field app 3.5.41
 
 After-hold dialog sized for 360/390; phones under 3.5.40 get update copy. `validate-publish.mjs --ship` refuses dirty trees and branches off main's line. Published `feff52b`.

@@ -23,7 +23,7 @@ test('the live-camera gate message cannot throw a ReferenceError', () => {
   const body = survey.slice(enqueueLocal, survey.indexOf('function loadPlanogram'));
   assert.doesNotMatch(body, /(?<!activeCameraToast\?\.\()\bflashToast\(/,
     'enqueueLocal must not call flashToast directly');
-  assert.match(body, /activeCameraToast\?\.\(gate\.message\)/);
+  assert.match(body, /if \(liveCameraOpen\) activeCameraToast\?\.\(text\)/);
 
   // The publisher must be set when a camera opens and cleared when it stops.
   assert.match(survey, /let activeCameraToast = null;/);

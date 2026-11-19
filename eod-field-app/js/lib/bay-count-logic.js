@@ -21,11 +21,23 @@
     const pog = Number(s.planogramBayCount)
       || (s.planogram && Array.isArray(s.planogram.bays) ? s.planogram.bays.length : 0)
       || 0;
-    // A warm/default "1" is the old lie. Only keep it when nothing else is known.
+    // A warm/default "1" is the old lie — same rule as server decideExpected.
+    // Lone 1 without SI/pog/bays stays null so bulk planning and camera do not clamp.
     const trusted = explicit > 1 ? explicit : 0;
     const best = Math.max(trusted, fromBays, sections, pog);
     if (best > 0) return best;
-    return explicit > 0 ? explicit : null;
+    return null;
+  }
+
+  /* Honor a stored bay override over SI / client guesses. */
+  function knownBayCountWithOverride(status, override) {
+    let Assign = global.EodBayAssignLogic;
+    if (!Assign && typeof require === 'function') {
+      try { Assign = require('./bay-assign-logic'); } catch (_) { Assign = null; }
+    }
+    const fromOverride = Assign && Assign.overrideExpectedCount(override);
+    if (fromOverride) return fromOverride;
+    return knownBayCount(status);
   }
 
   /* Only for drawing a grid or a HUD label. Never for a decision. */
@@ -80,16 +92,18 @@
 
   /* Upload-side guard: a set must never take more bays than it has.
      Returns null when the capture is allowed, or the reason to refuse. */
-  function refuseBayReason({ known, bay, replacing }) {
+  function refuseBayReason({ known, bay, replacing, maxBay }) {
     const n = Number(bay) || 0;
     if (!n) return 'full';
-    const cap = Number(known) > 0 ? Number(known) : 0;
+    // Sparse overrides: active bay 4 with newCount 3 must still be allowed.
+    const cap = Math.max(Number(maxBay) || 0, Number(known) || 0);
     if (cap && n > cap && !replacing) return 'over';
     return null;
   }
 
   const api = {
     knownBayCount,
+    knownBayCountWithOverride,
     displayBayCount,
     planReplaceBays,
     planFileBays,

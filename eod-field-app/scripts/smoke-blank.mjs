@@ -26,6 +26,7 @@ export const ROUTES = [
   { hash: '#/helpdesk', route: 'helpdesk' },
   { hash: '#/photos', route: 'photos' },
   { hash: '#/storage', route: 'storage' },
+  { hash: '#/survey?dbkey=9680806&rowId=bay-assign-smoke&name=Bay%20Assign&cat=60&slot=after', route: 'survey' },
 ];
 
 const MIME = {

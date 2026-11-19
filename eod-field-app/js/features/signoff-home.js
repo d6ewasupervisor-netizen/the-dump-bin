@@ -1120,6 +1120,12 @@
           ${markActive(row, 'out_of_scope') ? '<div class="ds-row-live"><span class="pill">Out of Scope</span></div>' : ''}
           ${Status?.missingFromProd?.(row) ? '<div class="ds-row-live"><span class="pill missing-prod">not in prod</span></div>' : ''}
           ${liveLine ? `<div class="ds-row-live">${liveLine}</div>` : ''}
+          ${(() => {
+            const need = Status?.expectedPhotoNeed?.(row) || Number(row?.live?.expectedBayCount) || Number(row?.live?.sectionCount) || 0;
+            if (!need || !canOpen) return '';
+            return `<div class="ds-row-live set-bay-count-card"><span class="pill">Bays ${esc(need)}</span>
+              <button type="button" class="btn btn-secondary" data-bay-count-open="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-bucket="${esc(row.pageBucket || '')}">Change</button></div>`;
+          })()}
           ${priorNote ? `<div class="ds-row-live"><span class="pill">${esc(priorNote)}</span></div>` : ''}
           ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
         </div>
@@ -1560,6 +1566,12 @@
           ev.stopPropagation();
           if (btn.disabled || !btn.getAttribute('data-slot')) return;
           openSetSurvey(btn, btn.getAttribute('data-slot'), { capture: true });
+        };
+      });
+      rowsEl.querySelectorAll('[data-bay-count-open]').forEach((btn) => {
+        btn.onclick = (ev) => {
+          ev.stopPropagation();
+          openSetSurvey(btn);
         };
       });
       bindSasCategoryHold(rowsEl);

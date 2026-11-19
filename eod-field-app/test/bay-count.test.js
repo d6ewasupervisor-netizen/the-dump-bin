@@ -28,7 +28,8 @@ test('SI sections are the source of truth for how many photos a set takes', () =
   // A stale warm "1" must not beat the planogram / SI count.
   assert.equal(bay.knownBayCount({ expectedBayCount: 1, planogramBayCount: 6 }), 6);
   assert.equal(bay.knownBayCount({ expectedBayCount: 1, si: { sectionCount: 8 } }), 8);
-  assert.equal(bay.knownBayCount({ expectedBayCount: 1 }), 1);
+  // Lone warm "1" is unknown — matches server decideExpected and stops bulk clamp.
+  assert.equal(bay.knownBayCount({ expectedBayCount: 1 }), null);
 });
 
 test('footage is never mistaken for a bay count', () => {
@@ -113,5 +114,7 @@ test('set-survey routes every count decision through the shared rules', () => {
   assert.match(survey, /incoming\.length === 0 && prev\.length > 0 && keepBays\.size === 0/);
   assert.match(survey, /destroyLeftoverCameras/);
 
-  assert.match(bundles, /'js\/lib\/bay-count-logic\.js',\s*\n\s*'js\/features\/set-survey\.js'/);
+  assert.match(bundles, /'js\/lib\/bay-count-logic\.js'/);
+  assert.match(bundles, /'js\/lib\/bay-assign-logic\.js'/);
+  assert.match(bundles, /'js\/features\/set-survey\.js'/);
 });

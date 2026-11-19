@@ -568,6 +568,7 @@
         <p class="muted">DBKEY ${esc(dbkey)} | Store ${esc(S.state.storeNumber)}</p>
         <div id="setStatusChips" class="muted">Loading PROD / SI…</div>
         <div id="setBacklogBeforeMsg" class="muted pill ok" hidden></div>
+        <div id="setBayCountControl" class="set-bay-count-control" hidden></div>
         <p class="set-survey-view-hint">Select one of the options below to view:</p>
         <div class="set-media-btns" id="setMediaBtns">
           <button type="button" class="btn btn-primary" data-open-media="planogram" disabled aria-busy="true">Planogram</button>
@@ -586,7 +587,9 @@
       status: null,
       pack: { photos: [] },
       uploading: false,
+      bayOverride: null,
     };
+    const AssignLogic = () => global.EodBayAssignLogic;
     let liveCameraOpen = false;
     let listCaptureStarted = false;
 
@@ -875,11 +878,42 @@
        Unknown has to stay unknown. Bay count comes from SI sections; PROD
        footage is linear feet and is resolved server-side, never here. */
     function knownBayCount() {
+      if (BayLogic().knownBayCountWithOverride) {
+        return BayLogic().knownBayCountWithOverride(local.status, local.bayOverride);
+      }
       return BayLogic().knownBayCount(local.status);
+    }
+
+    function baseBayCount() {
+      const fromStatus = BayLogic().knownBayCount(local.status);
+      if (fromStatus) return fromStatus;
+      return BayLogic().displayBayCount(local.status, [
+        ...(local.before || []),
+        ...(local.after || []),
+      ]);
+    }
+
+    function activeBays() {
+      const ov = local.bayOverride;
+      const A = AssignLogic();
+      if (ov && A) {
+        return A.activeBayNumbers({
+          baseCount: ov.oldCount || baseBayCount(),
+          missingBays: ov.missingBays,
+          addedBays: ov.addedBays,
+        });
+      }
+      const n = knownBayCount() || displayBayCount();
+      return Array.from({ length: n }, (_, i) => i + 1);
     }
 
     /* Grid and HUD need some number to draw. Never used for a decision. */
     function displayBayCount() {
+      const ov = local.bayOverride;
+      if (ov && Number(ov.newCount) > 0) {
+        const active = activeBays();
+        return Math.max(ov.newCount, active[active.length - 1] || ov.newCount);
+      }
       return BayLogic().displayBayCount(local.status, [
         ...(local.before || []),
         ...(local.after || []),
@@ -887,14 +921,13 @@
     }
 
     function bayList() {
-      const n = displayBayCount();
       const fromStatus = local.status?.bays || [];
       const byBay = new Map(fromStatus.map((b) => [Number(b.bay), b]));
-      const out = [];
-      for (let i = 1; i <= n; i += 1) {
-        out.push(byBay.get(i) || { bay: i, bayName: String(i), hasPhoto: false });
-      }
-      return out;
+      const missing = new Set((local.bayOverride?.missingBays || []).map(Number));
+      return activeBays().map((i) => {
+        const row = byBay.get(i) || { bay: i, bayName: String(i), hasPhoto: false };
+        return { ...row, bay: i, missing: missing.has(i) };
+      });
     }
 
     function remoteBayCovered(slot, bayNum) {
@@ -937,6 +970,10 @@
 
     function nextEmptyBay(slot) {
       const taken = takenBays(slot);
+      const A = AssignLogic();
+      if (A?.cameraNextBay) {
+        return A.cameraNextBay({ taken: [...taken], activeBays: activeBays() });
+      }
       const status = local.status || {};
       if (String(slot) === 'after' && status.nextMissingSiBay != null && !taken.has(Number(status.nextMissingSiBay))) {
         return Number(status.nextMissingSiBay);
@@ -1095,8 +1132,148 @@
       }
     }
 
+    function paintBayCountControl() {
+      const el = document.getElementById('setBayCountControl');
+      if (!el) return;
+      const A = AssignLogic();
+      if (!A) {
+        el.hidden = true;
+        return;
+      }
+      const base = baseBayCount();
+      const ov = local.bayOverride || {
+        oldCount: base,
+        newCount: knownBayCount() || base,
+        missingBays: [],
+        addedBays: [],
+      };
+      const active = activeBays();
+      const missing = new Set((ov.missingBays || []).map(Number));
+      el.hidden = false;
+      el.innerHTML = `
+        <div class="set-bay-count-head">
+          <strong>Bays in store: ${active.length}</strong>
+          <button type="button" class="btn btn-secondary" data-bay-add>Add a bay</button>
+        </div>
+        <div class="set-bay-count-list">
+          ${active.map((b) => {
+            const added = (ov.addedBays || []).map(Number).includes(b);
+            return `<div class="set-bay-count-row">
+              <span>Bay ${b}${added ? ' · added' : ''}</span>
+              ${added
+                ? `<button type="button" class="btn btn-secondary" data-bay-remove-added="${b}">Remove</button>`
+                : `<button type="button" class="btn btn-secondary" data-bay-missing="${b}">Not in this store</button>`}
+            </div>`;
+          }).join('')}
+          ${[...(missing)].sort((a, c) => a - c).map((b) => `
+            <div class="set-bay-count-row is-missing">
+              <span>Bay ${b} · not in store</span>
+              <button type="button" class="btn btn-secondary" data-bay-restore="${b}">Restore</button>
+            </div>`).join('')}
+        </div>`;
+      el.querySelector('[data-bay-add]')?.addEventListener('click', async () => {
+        const next = A.addBay({
+          baseCount: ov.oldCount || base,
+          missingBays: ov.missingBays,
+          addedBays: ov.addedBays,
+        });
+        await saveBayOverride({
+          oldCount: ov.oldCount || base,
+          newCount: next.newCount,
+          missingBays: next.missingBays,
+          addedBays: next.addedBays,
+        });
+      });
+      el.querySelectorAll('[data-bay-missing]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const bay = Number(btn.getAttribute('data-bay-missing'));
+          const next = A.markMissing({
+            baseCount: ov.oldCount || base,
+            missingBays: ov.missingBays,
+            addedBays: ov.addedBays,
+            bay,
+          });
+          await saveBayOverride({
+            oldCount: ov.oldCount || base,
+            newCount: next.newCount,
+            missingBays: next.missingBays,
+            addedBays: next.addedBays,
+          });
+        });
+      });
+      el.querySelectorAll('[data-bay-remove-added]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const bay = Number(btn.getAttribute('data-bay-remove-added'));
+          const next = A.removeAddedBay({
+            baseCount: ov.oldCount || base,
+            missingBays: ov.missingBays,
+            addedBays: ov.addedBays,
+            bay,
+          });
+          await saveBayOverride({
+            oldCount: ov.oldCount || base,
+            newCount: next.newCount,
+            missingBays: next.missingBays,
+            addedBays: next.addedBays,
+          });
+        });
+      });
+      el.querySelectorAll('[data-bay-restore]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const bay = Number(btn.getAttribute('data-bay-restore'));
+          const next = A.unmarkMissing({
+            baseCount: ov.oldCount || base,
+            missingBays: ov.missingBays,
+            addedBays: ov.addedBays,
+            bay,
+          });
+          await saveBayOverride({
+            oldCount: ov.oldCount || base,
+            newCount: next.newCount,
+            missingBays: next.missingBays,
+            addedBays: next.addedBays,
+          });
+        });
+      });
+    }
+
+    async function saveBayOverride(patch) {
+      const S = global.EodSession;
+      local.bayOverride = {
+        ...(local.bayOverride || {}),
+        ...patch,
+      };
+      paintBayCountControl();
+      paintBody();
+      try {
+        const res = await global.authFetch(`${API}/bay-override`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeNumber: S.state.storeNumber,
+            workDate: S.state.workDate,
+            dbkey,
+            visitId: local.status?.prod?.visitId || null,
+            oldCount: patch.oldCount,
+            newCount: patch.newCount,
+            missingBays: patch.missingBays,
+            addedBays: patch.addedBays,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) throw new Error(data.error || res.statusText);
+        if (data.override) local.bayOverride = data.override;
+        paintBayCountControl();
+        paintBody();
+      } catch (err) {
+        setMsg(err.message || String(err), true);
+      }
+    }
+
     function paintStatus(status) {
       if (status) local.status = status;
+      if (status?.bayOverride) local.bayOverride = status.bayOverride;
+      paintBayCountControl();
       const chips = document.getElementById('setStatusChips');
       if (!chips || !local.status) return;
       const Status = global.EodCategoryCardStatus;
@@ -1441,8 +1618,8 @@
             <button type="button" class="btn btn-primary" data-cap="before">${
               nextBefore ? 'Take bay ' + nextBefore : 'Retake befores'
             }</button>
-            <label class="btn btn-secondary set-file-btn">${nextBefore ? 'Load photos' : 'Load to replace'}
-              <input type="file" accept="image/*" multiple data-gal="before" data-replace="${nextBefore ? '0' : '1'}" hidden>
+            <label class="btn btn-secondary set-file-btn">Load photos
+              <input type="file" accept="image/*" multiple data-gal="before" hidden>
             </label>
             ${slotHasPhotos('before') ? '<button type="button" class="btn btn-secondary" data-del-slot="before">Delete</button>' : ''}
           </div>
@@ -1455,8 +1632,8 @@
             <button type="button" class="btn btn-primary" data-cap="after">${
               nextAfter ? 'Take bay ' + nextAfter + ' of ' + n : 'Retake afters'
             }</button>
-            <label class="btn btn-secondary set-file-btn">${nextAfter ? 'Load photos' : 'Load to replace'}
-              <input type="file" accept="image/*" multiple data-gal="after" data-replace="${nextAfter ? '0' : '1'}" hidden>
+            <label class="btn btn-secondary set-file-btn">Load photos
+              <input type="file" accept="image/*" multiple data-gal="after" hidden>
             </label>
             ${slotHasPhotos('after') ? '<button type="button" class="btn btn-secondary" data-del-slot="after">Delete</button>' : ''}
           </div>
@@ -1496,10 +1673,9 @@
         input.onchange = async () => {
           const files = selectedFilesInOrder(input.files);
           const slot = input.getAttribute('data-gal');
-          const replace = input.getAttribute('data-replace') === '1' || nextEmptyBay(slot) == null;
           input.value = '';
           if (!files.length) return;
-          await enqueueFiles(slot, files, { replace });
+          await openAssignAndEnqueue(slot, files);
         };
       });
       body.querySelectorAll('[data-clear-bay]').forEach((btn) => {
@@ -1595,7 +1771,7 @@
           if (next != null && (!total || next <= total)) return { toast: `Moving to bay ${next}` };
           return null;
         },
-        onLoadFiles: (files) => enqueueFiles(slot, selectedFilesInOrder(files), { replace: replacing || fromOne }),
+        onLoadFiles: (files) => openAssignAndEnqueue(slot, selectedFilesInOrder(files)),
         onStop: () => {
           liveCameraOpen = false;
           if (returnTo === 'signoff') {
@@ -1609,7 +1785,37 @@
       });
     }
 
+    async function openAssignAndEnqueue(slot, files) {
+      const screen = global.EodBayAssignScreen;
+      if (!screen?.open) {
+        setMsg('Assign screen failed to load.', true);
+        return;
+      }
+      const required = activeBays();
+      const taken = takenBays(slot);
+      const result = await screen.open({
+        files,
+        requiredBays: required,
+        occupiedBays: [...taken],
+        title: `${catName || 'Set'} · ${slot === 'before' ? 'Before' : 'After'}`,
+      });
+      if (result.cancelled) {
+        setMsg('Assignment cancelled.');
+        return;
+      }
+      const placements = result.placements || [];
+      for (const p of placements) {
+        const already = taken.has(Number(p.bay));
+        await enqueueLocal(slot, p.file, p.bay, { replace: already });
+      }
+      const left = Number(result.unassignedCount) || 0;
+      setMsg(left
+        ? `${placements.length} on device — ${left} left unassigned`
+        : `${placements.length} on device`);
+    }
+
     async function enqueueFiles(slot, files, opts) {
+      // Camera path still uses ordered enqueue; gallery goes through assign.
       const replacing = !!(opts && opts.replace) || nextEmptyBay(slot) == null;
       const bays = replacing
         ? assignBaysForReplace(files.length)
@@ -1642,9 +1848,12 @@
 
       const bay = Number(bayOverride) || nextEmptyBay(slot) || 0;
       const cap = knownBayCount();
+      const maxActive = Math.max(0, ...activeBays());
       /* A full set used to fall through to bay 1 and overwrite it, and a
          direct capture could push past the set's real bay count. */
-      const reason = BayLogic().refuseBayReason({ known: cap, bay, replacing: replacingBay });
+      const reason = BayLogic().refuseBayReason({
+        known: cap, bay, replacing: replacingBay, maxBay: maxActive,
+      });
       if (reason === 'full') {
         refuse(`Every bay already has a ${slot} photo. Use Replace to redo one.`);
         return;
@@ -1696,7 +1905,27 @@
         visitId: local.status?.prod?.visitId,
         resetId: local.status?.prod?.resetId,
         taskId: local.status?.si?.taskId,
-        skipSi: skipSiForSet(slot),
+        skipSi: (() => {
+          if (skipSiForSet(slot)) return true;
+          const A = AssignLogic();
+          if (!A?.uploadTargetsForBay) return false;
+          return !!A.uploadTargetsForBay({
+            bay,
+            siSectionCount: Number(local.status?.si?.sectionCount) || 0,
+            addedBays: local.bayOverride?.addedBays,
+            missingBays: local.bayOverride?.missingBays,
+          }).skipSi;
+        })(),
+        skipProd: (() => {
+          const A = AssignLogic();
+          if (!A?.uploadTargetsForBay) return false;
+          return !!A.uploadTargetsForBay({
+            bay,
+            siSectionCount: Number(local.status?.si?.sectionCount) || 0,
+            addedBays: local.bayOverride?.addedBays,
+            missingBays: local.bayOverride?.missingBays,
+          }).skipProd;
+        })(),
         replace: replacing,
         replaceWipe: !!(opts && opts.replaceWipe),
         replaceBatchId: opts?.replaceBatchId || null,
