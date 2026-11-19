@@ -1,0 +1,1726 @@
+/* Digital signoff — hard heart of the day. */
+(function (global) {
+  'use strict';
+
+  const API = 'https://eod-api.the-dump-bin.com/api/digital-signoffs';
+  let syncRepaint = null;
+
+  function esc(s) { return global.EodApi.escapeHtml(s); }
+
+  function bothLiveComplete(row) {
+    const Status = global.EodCategoryCardStatus;
+    if (Status?.prodPhotosReady && Status?.siPhotosReady) {
+      return Status.prodPhotosReady(row) && Status.siPhotosReady(row);
+    }
+    const live = row?.live;
+    if (!live) return false;
+    return Number(live.prodBeforeCount) > 0
+      && Number(live.prodAfterCount) > 0
+      && (Number(live.siPhotoCount || live.photoCount) > 0);
+  }
+
+  function markActive(row, type) {
+    if (global.EodCategoryCardStatus?.markActive) {
+      return global.EodCategoryCardStatus.markActive(row, type);
+    }
+    const m = row?.marks || row?.mark;
+    if (!m) return false;
+    if (Array.isArray(m.active)) return m.active.includes(type);
+    if (type === 'complete') return !!m.complete;
+    if (type === 'not_in_store') return !!m.notInStore;
+    if (type === 'not_in_si') return !!m.notInSi;
+    if (type === 'backlog') return !!m.backlog;
+    if (type === 'out_of_scope') return !!m.outOfScope;
+    if (type === 'not_executable') return !!m.notExecutable;
+    return m.type === type;
+  }
+
+  function rowLooksComplete(row) {
+    if (global.EodCategoryCardStatus?.sheetRowDone) {
+      return global.EodCategoryCardStatus.sheetRowDone(row);
+    }
+    return markActive(row, 'complete')
+      || markActive(row, 'not_in_store')
+      || markActive(row, 'out_of_scope')
+      || markActive(row, 'not_executable')
+      || bothLiveComplete(row);
+  }
+
+  function syncStatusPills(row) {
+    const live = row?.live;
+    const pills = [];
+    if (live) {
+      const Status = global.EodCategoryCardStatus;
+      if (Status?.prodStatusPillHtml) {
+        const prodPill = Status.prodStatusPillHtml(Status.prodPhotoState(row));
+        if (prodPill) pills.push(prodPill);
+      } else if (live.prodComplete || String(live.prodStatus || '').toLowerCase() === 'done') {
+        pills.push('<span class="pill ok">PROD complete</span>');
+      }
+      if (live.siComplete) {
+        pills.push('<span class="pill ok">SI complete</span>');
+      } else if (live.siPresent) {
+        const st = String(live.siStatus || 'present').replace(/_/g, ' ');
+        pills.push(`<span class="pill">${esc(st.startsWith('SI ') ? st : `SI ${st}`)}</span>`);
+      }
+    }
+    const active = row?.marks?.active || (row?.mark?.type ? [row.mark.type] : []) || [];
+    for (const t of active) {
+      if (t === 'complete') {
+        // System auto-complete from PROD+SI shows as sheet complete; lead override labeled separately
+        const by = row?.marks?.details?.complete?.markedBy;
+        if (by && by !== 'prod-si-sync' && by !== 'nuke-reports') {
+          pills.push('<span class="pill ok">lead complete</span>');
+        } else {
+          pills.push('<span class="pill ok">sheet complete</span>');
+        }
+        continue;
+      }
+      if (t === 'not_in_si' && live?.siPresent) continue;
+      if (t === 'backlog') {
+        const show = global.EodCategoryCardStatus?.backlogLabelVisible
+          ? global.EodCategoryCardStatus.backlogLabelVisible(row)
+          : true;
+        if (show) pills.push('<span class="pill warn">backlog</span>');
+        continue;
+      }
+      pills.push(`<span class="pill">${esc(String(t).replace(/_/g, ' '))}</span>`);
+    }
+    if (!pills.length) pills.push('<span class="pill">open</span>');
+    return pills.join('');
+  }
+
+  function rowClass(row, extraBefore) {
+    const c = [];
+    if (rowLooksComplete(row)) c.push('marked-complete');
+    if (markActive(row, 'not_in_store')) c.push('marked-nis');
+    if (markActive(row, 'not_in_si') && !row?.live?.siPresent) c.push('marked-nisi');
+    const backlogOn = global.EodCategoryCardStatus?.backlogLabelVisible
+      ? global.EodCategoryCardStatus.backlogLabelVisible(row, extraBefore)
+      : (markActive(row, 'backlog') && !rowLooksComplete(row));
+    if (backlogOn) c.push('marked-backlog');
+    if (markActive(row, 'not_executable')) c.push('marked-ne');
+    if (markActive(row, 'out_of_scope')) c.push('marked-oos');
+    const oddity = global.EodCategoryCardStatus?.oddityCalloutVisible
+      ? global.EodCategoryCardStatus.oddityCalloutVisible(row, extraBefore)
+      : !!(row?.hasError || String(row?.errorMessage || row?.error_message || '').trim());
+    if (oddity) c.push('manifest-error');
+    if (global.EodCategoryCardStatus?.missingFromProd?.(row)) c.push('missing-prod');
+    return c.join(' ');
+  }
+
+  async function loadSheet() {
+    const S = global.EodSession;
+    const store = S.state.storeNumber;
+    const date = S.state.workDate;
+    const weekHint = S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
+    if (!S.state.sheet && store && weekHint && global.EodGarden?.loadSheetSnapshot) {
+      try {
+        const snap = await global.EodGarden.loadSheetSnapshot(store, weekHint);
+        if (snap && Array.isArray(snap.rows)) {
+          S.patch({ sheet: snap, sheetLoaded: true, fiscalWeek: snap.fiscalWeek || weekHint }, 'sheet-garden');
+        }
+      } catch (_) {}
+    }
+    const qs = new URLSearchParams({ store });
+    if (date) qs.set('date', date);
+    const resp = await global.authFetch(`${API}/sheet?${qs}`, { skipBusy: true });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Load failed (${resp.status})`);
+    const sheet = data.sheet || null;
+    S.patch({
+      sheet,
+      sheetLoaded: true,
+      fiscalWeek: sheet?.fiscalWeek || S.state.fiscalWeek || '',
+    }, 'sheet');
+    try { await global.EodGarden?.saveSheetSnapshot?.(sheet); } catch (_) {}
+    try { await global.EodGarden?.flushMarks?.(); } catch (_) {}
+    try {
+      global.EodDeptSignatures?.syncFromSheet?.(sheet);
+    } catch (_) {
+      if (sheet?.requiredRoles?.length) {
+        global.EodDeptSignatures?.setRequiredRoles?.(sheet.requiredRoles);
+      }
+    }
+    // Sync legacy NIS/NISI arrays from marks
+    if (sheet?.rows) {
+      const nis = [];
+      const nisi = [];
+      for (const row of sheet.rows) {
+        const label = row.catName || row.dbkey;
+        if (!label) continue;
+        const Cards = global.EodCategoryCardStatus;
+        if (Cards?.includeNisOnCover ? Cards.includeNisOnCover(row) : markActive(row, 'not_in_store')) nis.push(label);
+        if (Cards?.includeNisiOnCover ? Cards.includeNisiOnCover(row) : markActive(row, 'not_in_si')) nisi.push(label);
+      }
+      S.patch({ notInStoreSelected: nis, notInSiSelected: nisi }, 'marks-sync');
+    }
+    return sheet;
+  }
+
+  let syncPromise = null;
+  /* Module scope on purpose: render() runs fresh every time the user comes
+     back to Categories, so a function-scoped handle stacked one more 45s
+     poller per visit. */
+  let pollTimer = null;
+
+  /* The prompt lives in the lazily loaded helpdesk bundle. Without this the
+     typeof guard at the call sites is false and the choice is skipped in
+     silence. */
+  async function nisReportChoice(subject) {
+    try { await global.EodRouteBundles?.ensure?.('helpdesk'); } catch (_) {}
+    if (typeof global.askToReportNotInStore !== 'function') return null;
+    return global.askToReportNotInStore(subject);
+  }
+
+  const NE_HELPDESK_ISSUE = {
+    not_in_store: 'not_in_store',
+    planogram_issue: 'incorrect_planogram',
+    fixture_issue: 'missing_fixture',
+    other: 'custom',
+  };
+
+  function neReasons() {
+    return global.EodCoverNotes?.NOT_EXECUTABLE_REASONS || [
+      { id: 'not_in_store', label: 'Not In Store' },
+      { id: 'planogram_issue', label: 'Planogram Issue' },
+      { id: 'fixture_issue', label: 'Fixture Issue' },
+      { id: 'other', label: 'Other' },
+    ];
+  }
+
+  /* Reason + comment, then the same Report / Don't Report choice as NIS.
+     Resolves { reason, note, report } or null on Cancel. */
+  function askNotExecutable(subject) {
+    return new Promise((resolve) => {
+      const name = subject?.catName || subject?.dbkey || 'this set';
+      const overlay = document.createElement('div');
+      overlay.className = 'eod-alert-overlay show ds-ne-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-labelledby', 'dsNeTitle');
+      const radios = neReasons().map((r) => (
+        `<label class="ds-ne-reason"><input type="radio" name="dsNeReason" value="${esc(r.id)}"> <span>${esc(r.label)}</span></label>`
+      )).join('');
+      overlay.innerHTML = `
+        <div class="eod-alert-dialog ds-ne-dialog">
+          <h2 id="dsNeTitle">Not Executable</h2>
+          <div class="eod-alert-body">${esc(name)}</div>
+          <div class="ds-ne-reasons" role="radiogroup" aria-label="Reason">${radios}</div>
+          <label class="ds-ne-note-label" for="dsNeNote">Comments <span class="ds-ne-req" hidden>(required)</span></label>
+          <textarea id="dsNeNote" class="ds-ne-note" rows="3" maxlength="1000"></textarea>
+          <div class="ds-ne-error" role="alert" hidden></div>
+          <div class="eod-alert-actions">
+            <button type="button" class="btn btn-secondary" data-ne-act="skip">Don't Report</button>
+            <button type="button" class="btn btn-primary" data-ne-act="report">Please Report</button>
+            <button type="button" class="btn btn-secondary" data-ne-act="cancel">Cancel</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      try { global.EodA11y?.activate?.(overlay); } catch (_) {}
+
+      const note = overlay.querySelector('#dsNeNote');
+      const req = overlay.querySelector('.ds-ne-req');
+      const errEl = overlay.querySelector('.ds-ne-error');
+      const picked = () => overlay.querySelector('input[name="dsNeReason"]:checked')?.value || '';
+      overlay.querySelectorAll('input[name="dsNeReason"]').forEach((input) => {
+        input.addEventListener('change', () => {
+          if (req) req.hidden = picked() !== 'other';
+          if (errEl) errEl.hidden = true;
+        });
+      });
+
+      const finish = (value) => {
+        try { global.EodA11y?.deactivate?.(overlay); } catch (_) {}
+        overlay.remove();
+        resolve(value);
+      };
+      const submit = (report) => {
+        const reason = picked();
+        const text = String(note?.value || '').trim();
+        let problem = '';
+        if (!reason) problem = 'Select a reason.';
+        else if (reason === 'other' && !text) problem = 'Comments are required for Other.';
+        if (problem) {
+          if (errEl) {
+            errEl.textContent = problem;
+            errEl.hidden = false;
+          }
+          if (reason === 'other') note?.focus();
+          return;
+        }
+        finish({ reason, note: text, report });
+      };
+      overlay.querySelector('[data-ne-act="skip"]')?.addEventListener('click', () => submit(false));
+      overlay.querySelector('[data-ne-act="report"]')?.addEventListener('click', () => submit(true));
+      overlay.querySelector('[data-ne-act="cancel"]')?.addEventListener('click', () => finish(null));
+      overlay.addEventListener('eod-dialog-escape', () => finish(null));
+    });
+  }
+
+  function neHelpdeskPrefill(choice) {
+    const issueTypeId = NE_HELPDESK_ISSUE[choice?.reason] || 'custom';
+    const label = global.EodCoverNotes?.notExecutableReasonLabel?.(choice?.reason) || 'Not executable';
+    const note = String(choice?.note || '').trim();
+    return {
+      issueTypeId,
+      details: note || `${label}.`,
+      customIssue: issueTypeId === 'custom' ? note : '',
+      fromNotExecutable: true,
+    };
+  }
+
+  async function openNeHelpdesk(rows, choice) {
+    try { await global.EodRouteBundles?.ensure?.('helpdesk'); } catch (_) {}
+    const list = (rows || []).filter(Boolean);
+    if (!list.length) return;
+    const extra = neHelpdeskPrefill(choice);
+    if (typeof global.openHelpdeskForSheetRows === 'function') {
+      await global.openHelpdeskForSheetRows(list, extra);
+    } else if (typeof global.openHelpdeskForSheetRow === 'function') {
+      await global.openHelpdeskForSheetRow(list[0], extra);
+    }
+  }
+
+  function isCancelled(err) {
+    return err?.code === 'cancelled' || err?.name === 'AbortError';
+  }
+
+  async function refreshShiftList() {
+    const S = global.EodSession;
+    const store = S.state.storeNumber;
+    const date = String(S.state.workDate || '').slice(0, 10);
+    if (!store || !date || S.normStoreNumber(store) === '999') return;
+    const resp = await global.authFetch(
+      `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`,
+      { skipBusy: true }
+    );
+    if (!resp.ok) return;
+    if (S.normStoreNumber(S.state.storeNumber) !== S.normStoreNumber(store)) return;
+    const data = await resp.json().catch(() => null);
+    let shifts = Array.isArray(data) ? data : (data?.shifts || []);
+    const input = S.normStoreNumber(store);
+    shifts = shifts.filter((s) => S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input);
+    if (!shifts.length) return;
+    const prevId = String(S.state.selectedShift?.visitId || '');
+    const selected = shifts.find((s) => String(s.visitId) === prevId) || S.state.selectedShift;
+    S.patch({ shifts, selectedShift: selected }, 'shifts-refresh');
+  }
+
+  async function syncProdSi() {
+    const S = global.EodSession;
+    if (syncPromise) return syncPromise;
+    const run = async () => {
+      const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+      const shifts = Array.isArray(S.state.shifts) ? S.state.shifts : [];
+      const visitIds = shifts.map((s) => s.visitId).filter(Boolean);
+      const body = JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        visitId: S.state.selectedShift?.visitId || null,
+        visitIds,
+        fresh: true,
+      });
+      let resp = await global.authFetch(`${API}/sync-async`, {
+        method: 'POST',
+        headers,
+        body,
+        skipBusy: true,
+      });
+      if (resp.status === 404 || resp.status === 405) {
+        resp = await global.authFetch(`${API}/sync`, {
+          method: 'POST',
+          headers,
+          body,
+          skipBusy: true,
+        });
+      }
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok && resp.status !== 202) throw new Error(data.error || `Sync failed (${resp.status})`);
+      const startedAt = data.startedAt || null;
+      if (resp.status === 202 && startedAt) {
+        const deadline = Date.now() + 180000;
+        const statusHeaders = global.EodApi.dayConfirmHeaders();
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 2000));
+          if (global.EodRouter?.current && global.EodRouter.current !== 'signoff') return data;
+          const qs = new URLSearchParams({
+            store: S.state.storeNumber,
+            date: S.state.workDate,
+          });
+          const st = await global.authFetch(`${API}/sync-status?${qs}`, {
+            headers: statusHeaders,
+            skipBusy: true,
+          });
+          const status = await st.json().catch(() => ({}));
+          const runState = status.run;
+          if (runState?.startedAt === startedAt && runState.finishedAt) {
+            if (runState.ok === false) throw new Error(runState.error || 'Sync failed');
+            break;
+          }
+        }
+      }
+      await loadSheet();
+      try { await refreshShiftList(); } catch (_) {}
+      try { global.EodCoverNotes?.apply?.(S, 'prod-si-sync'); } catch (_) {}
+      try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
+      return data;
+    };
+    syncPromise = run();
+    try {
+      return await syncPromise;
+    } finally {
+      syncPromise = null;
+    }
+  }
+
+  async function runNuke() {
+    const S = global.EodSession;
+    const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+    const resp = await global.authFetch(`${API}/nuke`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        fiscalWeek: S.state.fiscalWeek || S.state.sheet?.fiscalWeek || null,
+        visitId: S.state.selectedShift?.visitId || null,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Nuke failed (${resp.status})`);
+    if (data.sheet) {
+      S.patch({
+        sheet: data.sheet,
+        sheetLoaded: true,
+        fiscalWeek: data.sheet.fiscalWeek || S.state.fiscalWeek || '',
+      }, 'nuke');
+      try { await global.EodGarden?.saveSheetSnapshot?.(data.sheet); } catch (_) {}
+      try { global.EodDeptSignatures?.syncFromSheet?.(data.sheet); } catch (_) {}
+      try { global.EodCoverNotes?.apply?.(S, 'nuke'); } catch (_) {}
+    }
+    return data;
+  }
+
+  function showNukeResults(data, { onRefresh } = {}) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'eod-alert-overlay show ds-nuke-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      const marked = data.markedComplete || [];
+      const open = data.variances || [];
+      const ready = !!data.sendReady;
+      const ms = data.ms != null ? `${Math.round(Number(data.ms) / 100) / 10}s` : '';
+      const head = ready
+        ? `All sets clear${ms ? ` · ${ms}` : ''}. Send EOD when the rest of the checklist is done.`
+        : `Marked ${marked.length} complete${ms ? ` in ${ms}` : ''}. ${open.length} still need a call.`;
+      const varHtml = open.map((v) => {
+        const opts = (v.options || []).map((o) => (
+          `<button type="button" class="btn btn-secondary" data-nuke-mark="${esc(o.id)}" data-row="${esc(v.rowId)}" title="${esc(o.hint || '')}">${esc(o.label)}</button>`
+        )).join('');
+        return `<div class="ds-nuke-row" data-nuke-row="${esc(v.rowId)}">
+          <div class="ds-nuke-row-title"><strong>${esc(v.label)}</strong> <span class="muted">${esc(v.dbkey || '')}</span></div>
+          <div class="muted ds-nuke-finding">${esc(v.finding || v.kind || '')}</div>
+          <div class="ds-actions">${opts}</div>
+        </div>`;
+      }).join('');
+      overlay.innerHTML = `
+        <div class="eod-alert-dialog ds-nuke-dialog">
+          <h2>Nuke</h2>
+          <div class="eod-alert-body">${esc(head)}</div>
+          ${open.length ? `<div class="ds-nuke-list">${varHtml}</div>` : ''}
+          <div class="eod-alert-actions">
+            ${ready ? '<button type="button" class="btn btn-primary" data-nuke-act="send">Go to Send</button>' : ''}
+            <button type="button" class="btn btn-secondary" data-nuke-act="close">Close</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      try { global.EodA11y?.activate?.(overlay); } catch (_) {}
+
+      const finish = (act) => {
+        try { global.EodA11y?.deactivate?.(overlay); } catch (_) {}
+        overlay.remove();
+        resolve(act);
+      };
+
+      overlay.querySelector('[data-nuke-act="close"]')?.addEventListener('click', () => finish('close'));
+      overlay.querySelector('[data-nuke-act="send"]')?.addEventListener('click', () => {
+        finish('send');
+        try { global.EodRouter?.go?.('send'); } catch (_) {}
+      });
+      overlay.querySelectorAll('[data-nuke-mark]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const rowId = btn.getAttribute('data-row');
+          const markType = btn.getAttribute('data-nuke-mark');
+          btn.disabled = true;
+          try {
+            if (markType === 'not_in_store') {
+              const row = (global.EodSession.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+              const choice = await nisReportChoice(row || { catName: 'set' });
+              if (choice && choice === 'cancel') {
+                btn.disabled = false;
+                return;
+              }
+              await applyMark(rowId, markType, { forceOn: true, helpdeskSent: choice === 'report' });
+              if (choice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
+                await global.openHelpdeskForSheetRow(row);
+              }
+            } else if (markType === 'out_of_scope') {
+              const ok = await confirmOutOfScope(1);
+              if (!ok) {
+                btn.disabled = false;
+                return;
+              }
+              await applyMark(rowId, markType, { forceOn: true });
+            } else if (markType === 'not_executable') {
+              const row = (global.EodSession.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+              const choice = await askNotExecutable(row || { catName: 'set' });
+              if (!choice) {
+                btn.disabled = false;
+                return;
+              }
+              await applyMark(rowId, markType, {
+                forceOn: true,
+                helpdeskSent: !!choice.report,
+                reason: choice.reason,
+                note: choice.note,
+              });
+              if (choice.report) await openNeHelpdesk([row], choice);
+            } else {
+              await applyMark(rowId, markType, { forceOn: true });
+            }
+            const host = overlay.querySelector(`[data-nuke-row="${rowId}"]`);
+            host?.remove();
+            if (!overlay.querySelector('[data-nuke-row]')) {
+              const body = overlay.querySelector('.eod-alert-body');
+              if (body) body.textContent = 'All remaining sets marked. Go to Send when ready.';
+              const actions = overlay.querySelector('.eod-alert-actions');
+              if (actions && !actions.querySelector('[data-nuke-act="send"]')) {
+                const go = document.createElement('button');
+                go.type = 'button';
+                go.className = 'btn btn-primary';
+                go.setAttribute('data-nuke-act', 'send');
+                go.textContent = 'Go to Send';
+                go.addEventListener('click', () => {
+                  finish('send');
+                  try { global.EodRouter?.go?.('send'); } catch (_) {}
+                });
+                actions.insertBefore(go, actions.firstChild);
+              }
+            }
+            if (typeof onRefresh === 'function') await onRefresh();
+            global.EodChrome?.refresh();
+          } catch (err) {
+            await global.EodAlerts?.alert?.('Mark failed', err.message || String(err));
+            btn.disabled = false;
+          }
+        });
+      });
+    });
+  }
+
+  function canOpenSasCategoryAdmin() {
+    return !!(global.EodRoles && global.EodRoles.hasRole && global.EodRoles.hasRole('supervisor', 'admin'));
+  }
+
+  function bindSasCategoryHold(root) {
+    const Sas = global.SasCategoryAdmin;
+    if (!root || !Sas) return;
+    const holdMs = Sas.HOLD_MS || 650;
+    root.querySelectorAll('.ds-row-catnum').forEach((el) => {
+      let start = 0;
+      let x = 0;
+      let y = 0;
+      let fired = false;
+      const reset = () => { start = 0; };
+      el.addEventListener('pointerdown', (e) => {
+        if (e.button != null && e.button !== 0) return;
+        fired = false;
+        delete el.dataset.sasHold;
+        start = Date.now();
+        x = e.clientX;
+        y = e.clientY;
+        try { global.EodRoles?.load?.(); } catch (_) {}
+      });
+      el.addEventListener('pointermove', (e) => {
+        if (!start) return;
+        if (Math.hypot(e.clientX - x, e.clientY - y) > 14) reset();
+      });
+      el.addEventListener('pointerup', (e) => {
+        if (!start) return;
+        const held = Date.now() - start;
+        reset();
+        if (held < holdMs || !canOpenSasCategoryAdmin()) return;
+        const rowId = el.closest('[data-row-id]')?.getAttribute('data-row-id') || '';
+        const row = (global.EodSession?.state?.sheet?.rows || []).find((r) => String(r.id) === rowId);
+        const visitId = Sas.visitIdForRow(row, global.EodSession?.state?.selectedShift?.visitId);
+        const url = Sas.categoryAdminUrl(visitId);
+        if (!url) {
+          try { global.EodConnections?.toast?.('No SAS visit on this shift', 'warn'); } catch (_) {}
+          return;
+        }
+        fired = true;
+        el.dataset.sasHold = '1';
+        e.preventDefault();
+        e.stopPropagation();
+        const opened = window.open(url, '_blank', 'noopener');
+        if (!opened) {
+          try { global.EodConnections?.toast?.('Allow popups to open SAS', 'warn'); } catch (_) {}
+        }
+      });
+      el.addEventListener('pointercancel', reset);
+      el.addEventListener('contextmenu', (e) => {
+        if (!canOpenSasCategoryAdmin()) return;
+        e.preventDefault();
+      });
+      el.addEventListener('click', (e) => {
+        if (!fired && el.dataset.sasHold !== '1') return;
+        e.preventDefault();
+        e.stopPropagation();
+        fired = false;
+        delete el.dataset.sasHold;
+      }, true);
+    });
+  }
+
+  function bindNukeLongPress(titleEl, run) {
+    if (!titleEl || titleEl.dataset.nukeBound) return;
+    titleEl.dataset.nukeBound = '1';
+    titleEl.classList.add('ds-nuke-title');
+    titleEl.title = 'Hold for Nuke';
+    let timer = null;
+    let fired = false;
+    const clear = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    titleEl.addEventListener('pointerdown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      fired = false;
+      clear();
+      timer = setTimeout(() => {
+        timer = null;
+        fired = true;
+        try { titleEl.releasePointerCapture?.(e.pointerId); } catch (_) {}
+        run();
+      }, 650);
+    });
+    titleEl.addEventListener('pointerup', clear);
+    titleEl.addEventListener('pointercancel', clear);
+    titleEl.addEventListener('pointerleave', clear);
+    titleEl.addEventListener('click', (e) => {
+      if (fired) {
+        e.preventDefault();
+        e.stopPropagation();
+        fired = false;
+      }
+    }, true);
+  }
+
+  /** Fetch all signoff pages as PDF (preview) or fax via print-at-store. */
+  async function openSignoffPdfPreview() {
+    const S = global.EodSession;
+    const sheet = S.state.sheet;
+    if (!sheet) return;
+    const btn = document.getElementById('sendPrintSignoffBtn');
+    if (btn) btn.disabled = true;
+    try {
+      try { await global.EodDeptSignatures?.persistLeadSignature?.(); } catch (_) { /* PDF still builds */ }
+      const qs = new URLSearchParams({
+        store: sheet.storeNumber,
+        week: sheet.fiscalWeek,
+        bucket: 'all',
+      });
+      if (S.state.workDate) qs.set('date', S.state.workDate);
+      const shiftVisit = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+        S.state.shifts,
+        S.state.selectedShift
+      )?.visitId || S.state.selectedShift?.visitId;
+      if (shiftVisit) qs.set('visitId', String(shiftVisit));
+      global.EodProxyEod?.applyToSearchParams?.(qs);
+      global.EodLieuSign?.applyToSearchParams?.(qs);
+      const resp = await global.authFetch(`${API}/pdf?${qs}`);
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || `PDF failed (${resp.status})`);
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err) {
+      await global.EodAlerts?.alert?.('PDF', err.message || String(err));
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function printSignoffAtStore(faxStoreNumber) {
+    const S = global.EodSession;
+    const sheet = S.state.sheet;
+    if (!sheet) throw new Error('No digital sheet loaded');
+    const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+    const body = JSON.stringify({
+      storeNumber: sheet.storeNumber,
+      fiscalWeek: sheet.fiscalWeek,
+      workDate: S.state.workDate,
+      visitId: global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+        S.state.shifts,
+        S.state.selectedShift
+      )?.visitId || S.state.selectedShift?.visitId || null,
+      faxStoreNumber: String(faxStoreNumber || sheet.storeNumber).replace(/\D/g, ''),
+      testMode: !!(global.EodTestMode?.isEnabled?.() || sessionStorage.getItem('eodTestMode') === '1'),
+      forceLive: (typeof global.isEodForceLiveDelivery === 'function' && global.isEodForceLiveDelivery())
+        || (typeof global.EodTestMode?.isForceLive === 'function' && global.EodTestMode.isForceLive())
+        || undefined,
+      proxyEod: !!global.EodProxyEod?.isActive?.(),
+      lieuSignoff: !!global.EodLieuSign?.isActive?.(),
+    });
+    const resp = await global.authFetch(`${API}/print-at-store`, { method: 'POST', headers, body });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Print at store failed (${resp.status})`);
+    return data;
+  }
+
+  function openPrintAtStoreModal() {
+    const S = global.EodSession;
+    const sheet = S.state.sheet;
+    if (!sheet) return;
+    const existing = document.getElementById('printAtStoreOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'printAtStoreOverlay';
+    overlay.className = 'modal-overlay show';
+    overlay.innerHTML = `
+      <div class="modal-dialog">
+        <h2>Print signoff at store</h2>
+        <p class="muted">Emails the full signoff PDF (all pages, including BLITZ) to the store fax via subject #<em>store</em>.</p>
+        <div class="field">
+          <label for="faxStoreInput">Store number for fax</label>
+          <input type="text" id="faxStoreInput" inputmode="numeric" value="${esc(S.state.storeNumber || sheet.storeNumber || '')}">
+        </div>
+        <div id="printAtStoreMsg" class="muted" style="margin:8px 0;"></div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="printAtStorePreview">Preview PDF</button>
+          <button type="button" class="btn btn-success" id="printAtStoreSend">Send to store fax</button>
+          <button type="button" class="btn btn-secondary" id="printAtStoreCancel">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const msg = () => document.getElementById('printAtStoreMsg');
+    overlay.querySelector('#printAtStoreCancel').onclick = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#printAtStorePreview').onclick = async () => {
+      try {
+        await openSignoffPdfPreview();
+      } catch (err) {
+        if (msg()) msg().textContent = err.message || String(err);
+      }
+    };
+    overlay.querySelector('#printAtStoreSend').onclick = async () => {
+      const faxStore = document.getElementById('faxStoreInput')?.value?.trim();
+      const sendBtn = overlay.querySelector('#printAtStoreSend');
+      sendBtn.disabled = true;
+      if (msg()) msg().textContent = 'Sending…';
+      try {
+        const result = await printSignoffAtStore(faxStore);
+        if (msg()) {
+          msg().textContent = result.testMode
+            ? `TEST fax queued — ${result.subject} → ${result.testFaxLabel || result.to}`
+            : `Sent ${result.filename || 'PDF'} as ${result.subject}`;
+        }
+        if (global.EodConnections?.toast) {
+          global.EodConnections.toast(result.testMode ? `TEST fax queued ${result.testFaxLabel || result.subject}` : `Fax queued ${result.subject}`, 'ok');
+        }
+      } catch (err) {
+        if (msg()) msg().textContent = err.message || String(err);
+        sendBtn.disabled = false;
+      }
+    };
+  }
+
+  function isOpenRow(row) {
+    if (markActive(row, 'out_of_scope')) return false;
+    return !rowLooksComplete(row)
+      && !markActive(row, 'not_in_store')
+      && !markActive(row, 'backlog');
+  }
+
+  function rowLabel(row) {
+    return row?.catName || row?.dbkey || row?.catId || 'set';
+  }
+
+  function findRowForHelpdeskMeta(meta) {
+    const rows = global.EodSession?.state?.sheet?.rows || [];
+    if (global.EodSheetRowMatch?.findSheetRowForMeta) {
+      return global.EodSheetRowMatch.findSheetRowForMeta(rows, meta);
+    }
+    const rowId = meta?.rowId != null ? String(meta.rowId) : '';
+    const dbkey = String(meta?.dbkey || '').trim();
+    if (rowId) {
+      const hit = rows.find((r) => String(r.id) === rowId);
+      if (hit) return hit;
+    }
+    if (dbkey) {
+      const hit = rows.find((r) => String(r.dbkey || '').trim() === dbkey);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  async function confirmUndoOutOfScope() {
+    const id = await (global.EodAlerts?.showDialog
+      ? global.EodAlerts.showDialog({
+        title: 'Undo Out of Scope',
+        message: 'Put this set back on the sign-off sheet?',
+        buttons: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'ok', label: 'Undo Out of Scope', primary: true },
+        ],
+      })
+      : Promise.resolve(window.confirm('Undo Out of Scope?') ? 'ok' : 'cancel'));
+    return id === 'ok';
+  }
+
+  async function confirmUnmark(markType, row) {
+    const title = markType === 'not_executable' ? 'Unmark Not Executable' : 'Unmark Not in Store';
+    const name = row?.catName || row?.dbkey || 'this set';
+    const id = await (global.EodAlerts?.showDialog
+      ? global.EodAlerts.showDialog({
+        title,
+        message: name,
+        buttons: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'ok', label: 'Unmark', primary: true },
+        ],
+      })
+      : Promise.resolve(window.confirm(`${title}?`) ? 'ok' : 'cancel'));
+    return id === 'ok';
+  }
+
+  async function confirmOutOfScope(count) {
+    const n = Number(count) || 1;
+    const id = await (global.EodAlerts?.showDialog
+      ? global.EodAlerts.showDialog({
+        title: 'Out of Scope',
+        message: n === 1
+          ? 'Remove this set from the sign-off sheet? It is another project.'
+          : `Remove ${n} sets from the sign-off sheet? They are another project.`,
+        buttons: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'ok', label: 'Remove', primary: true },
+        ],
+      })
+      : Promise.resolve(window.confirm('Remove from the sign-off sheet?') ? 'ok' : 'cancel'));
+    return id === 'ok';
+  }
+
+  async function applyMark(rowId, markType, opts) {
+    if (markType === 'complete') return;
+    const skipReload = !!(opts && opts.skipReload);
+    const forceOn = !!(opts && opts.forceOn);
+    const helpdeskSent = !!(opts && opts.helpdeskSent);
+    const neReason = markType === 'not_executable' && opts && opts.reason ? String(opts.reason) : '';
+    const neNote = neReason ? String(opts.note || '').trim() : '';
+    const S = global.EodSession;
+    const headers = global.EodApi.dayConfirmHeaders();
+    const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+    const turningOn = markType !== 'clear' && (forceOn || !markActive(current, markType));
+    const method = markType === 'clear' || (!forceOn && markActive(current, markType)) ? 'DELETE' : 'POST';
+      const visitId = S.state.selectedShift?.visitId || current?.live?.prodVisitId || null;
+      const resetId = current?.live?.prodResetId || null;
+      const body = method === 'POST'
+        ? {
+            storeNumber: S.state.storeNumber,
+            workDate: S.state.workDate,
+            markType,
+            visitId,
+            resetId,
+            helpdeskSent,
+            ...(neReason ? { reason: neReason, note: neNote } : {}),
+          }
+      : {
+          storeNumber: S.state.storeNumber,
+          workDate: S.state.workDate,
+          markType: markType === 'clear' ? undefined : markType,
+          visitId,
+          visitIds: S.state.extraVisitIds || [],
+        };
+
+    const prevMarks = current ? JSON.parse(JSON.stringify(current.marks || current.mark || null)) : null;
+    if (S.state.sheet && global.EodGarden?.applyOptimisticMark) {
+      global.EodGarden.applyOptimisticMark(
+        S.state.sheet,
+        rowId,
+        markType,
+        markType === 'clear' ? false : turningOn,
+        neReason ? { reason: neReason, note: neNote || null, helpdeskSent } : null
+      );
+      S.emit?.('sheet-mark');
+      try { await global.EodGarden.saveSheetSnapshot(S.state.sheet); } catch (_) {}
+      try { await sheetView?.paint?.(); } catch (_) {}
+      sheetView?.scrollAfter?.(rowId);
+    }
+
+    const url = method === 'DELETE'
+      ? `${API}/rows/${encodeURIComponent(rowId)}/mark${markType !== 'clear'
+        ? `?markType=${encodeURIComponent(markType)}`
+        : ''}`
+      : `${API}/rows/${encodeURIComponent(rowId)}/mark`;
+
+    try {
+      const resp = await global.authFetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const hard = resp.status >= 400 && resp.status < 500;
+        const err = new Error(data.error || `Mark failed (${resp.status})`);
+        err.hard = hard;
+        throw err;
+      }
+      void skipReload;
+    } catch (err) {
+      const msg = String(err && err.message || err || '');
+      const network = /fetch|network|offline/i.test(msg)
+        || (typeof navigator !== 'undefined' && navigator.onLine === false);
+      const retryable = !err.hard && (network || /\(5\d\d\)/.test(msg));
+      if (retryable) {
+        try {
+          await global.EodGarden?.enqueueMark?.({ rowId, markType, method, body });
+        } catch (_) {}
+      } else {
+        if (current && prevMarks) {
+          current.marks = prevMarks;
+          current.mark = prevMarks;
+        }
+        try { await sheetView?.paint?.(); } catch (_) {}
+        throw err;
+      }
+    }
+
+    if (markType === 'not_in_store') {
+      const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId)) || current;
+      const label = rowLabel(row);
+      if (turningOn) {
+        S.appendNote?.(`Not in store: ${label}`);
+      } else {
+        S.removeNote?.(`Not in store: ${label}`);
+        S.removeNote?.(`Help desk: Set not in store — ${label}`);
+        const list = (S.state.notInStoreSelected || []).filter((n) => n !== label);
+        S.patch({ notInStoreSelected: list }, 'helpdesk-nis');
+      }
+    }
+  }
+
+  async function markNotInStoreFromHelpdesk(meta) {
+    const S = global.EodSession;
+    const label = meta?.setLabel || meta?.categoryName || '';
+    if (label) {
+      const list = (S.state.notInStoreSelected || []).slice();
+      if (!list.includes(label)) {
+        S.patch({ notInStoreSelected: list.concat([label]) }, 'helpdesk-nis');
+      }
+      S.appendNote?.(`Not in store: ${label}`);
+    }
+    const row = findRowForHelpdeskMeta(meta || {});
+    if (!row) {
+      try { S.saveDraft?.(); } catch (_) {}
+      return false;
+    }
+    await applyMark(row.id, 'not_in_store', {
+      forceOn: true,
+      helpdeskSent: true,
+    });
+    return true;
+  }
+
+  function sheetWeek() {
+    const S = global.EodSession;
+    return S.state.fiscalWeek || S.state.sheet?.fiscalWeek || '';
+  }
+
+  function localBeforeCount(row) {
+    const S = global.EodSession;
+    const week = sheetWeek();
+    if (!row?.dbkey || !week) return 0;
+    const list = global.EodSetBeforeStore?.getBefores?.(S.state.storeNumber, week, row.dbkey) || [];
+    return Array.isArray(list) ? list.length : 0;
+  }
+
+  function localAfterCount(row) {
+    const S = global.EodSession;
+    const week = sheetWeek();
+    if (!row?.dbkey || !week) return 0;
+    const list = global.EodSetBeforeStore?.getAfters?.(S.state.storeNumber, week, row.dbkey) || [];
+    return Array.isArray(list) ? list.length : 0;
+  }
+
+  function openSetSurvey(btn, slot, extras) {
+    const dbkey = btn.getAttribute('data-dbkey') || '';
+    const row = btn.getAttribute('data-capture-start')
+      || btn.getAttribute('data-capture')
+      || btn.getAttribute('data-before')
+      || btn.getAttribute('data-open-set')
+      || '';
+    const name = btn.getAttribute('data-name') || '';
+    const cat = btn.getAttribute('data-cat') || '';
+    if (!dbkey) {
+      global.showAlert?.('Set unavailable', 'This row has no dbkey — cannot open Capture/View.');
+      return;
+    }
+    const qs = new URLSearchParams({ dbkey, rowId: row, name });
+    if (cat) qs.set('cat', cat);
+    const bucket = btn.getAttribute('data-bucket') || '';
+    if (bucket) qs.set('bucket', bucket);
+    const useSlot = slot || btn.getAttribute('data-slot') || '';
+    if (useSlot) qs.set('slot', useSlot);
+    const bay = btn.getAttribute('data-bay');
+    if (bay) qs.set('bay', bay);
+    if (extras && extras.capture) qs.set('capture', '1');
+    location.hash = `#/survey?${qs.toString()}`;
+  }
+
+  function openSurveyForRow(row, slot) {
+    if (!row?.dbkey) return;
+    const qs = new URLSearchParams({
+      dbkey: row.dbkey,
+      rowId: String(row.id || ''),
+      name: row.catName || row.catId || '',
+    });
+    if (row.catId) qs.set('cat', String(row.catId));
+    if (row.pageBucket) qs.set('bucket', String(row.pageBucket));
+    if (slot) qs.set('slot', slot);
+    location.hash = `#/survey?${qs.toString()}`;
+  }
+
+  let sheetView = null;
+
+  function nextWalkRow(afterId) {
+    const rows = global.EodSession?.state?.sheet?.rows || [];
+    if (global.EodCategoryCardStatus?.nextWalkRow) {
+      return global.EodCategoryCardStatus.nextWalkRow(rows, afterId);
+    }
+    return rows.find((r) => !rowLooksComplete(r) && r.dbkey && String(r.id) !== String(afterId)) || null;
+  }
+
+  function showMarkUndo(rowId, markType, turningOn) {
+    let bar = document.getElementById('eodMarkUndo');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'eodMarkUndo';
+      bar.className = 'eod-mark-undo';
+      document.body.appendChild(bar);
+    }
+    bar.hidden = false;
+    bar.innerHTML = `<span>Marked</span> <button type="button" class="btn btn-secondary" id="eodMarkUndoBtn">Undo</button>`;
+    const btn = document.getElementById('eodMarkUndoBtn');
+    const t = setTimeout(() => { bar.hidden = true; }, 5000);
+    if (btn) {
+      btn.onclick = async () => {
+        clearTimeout(t);
+        bar.hidden = true;
+        try {
+          if (turningOn) await applyMark(rowId, markType);
+          else await applyMark(rowId, markType, { forceOn: true });
+        } catch (_) {}
+        global.EodRouter?.render?.();
+      };
+    }
+  }
+
+  function filteredSheetRows(sheet, q, filters) {
+    let rows = (sheet.rows || []).filter((row) => {
+      if (global.EodCategoryCardStatus?.matchesSheetFilters
+        && !global.EodCategoryCardStatus.matchesSheetFilters(row, filters, localBeforeCount(row))) {
+        return false;
+      }
+      const sess = global.EodSession;
+      if (global.EodSendSheetsLogic?.rowMatchesShiftFilter
+        && !global.EodSendSheetsLogic.rowMatchesShiftFilter(
+          row,
+          filters && filters.shift,
+          sess?.state?.shifts,
+          sess?.state?.leadName
+        )) {
+        return false;
+      }
+      if (!q) return true;
+      const locSearch = global.EodCategoryCardStatus
+        ? global.EodCategoryCardStatus.siLocationLabel(row)
+        : '';
+      return `${row.catName || ''} ${row.dbkey || ''} ${row.dept || ''} ${row.shiftType || ''} ${locSearch} ${row.errorMessage || ''}`
+        .toLowerCase().includes(q);
+    });
+    if (global.EodCategoryCardStatus?.sortWalkRows) {
+      rows = global.EodCategoryCardStatus.sortWalkRows(rows);
+    }
+    return rows;
+  }
+
+  function renderRows(sheet, q, filters, selectedIds, suggestIds) {
+    const selected = selectedIds instanceof Set ? selectedIds : new Set();
+    const suggested = suggestIds instanceof Set ? suggestIds : new Set();
+    const rows = filteredSheetRows(sheet, q, filters);
+    if (!rows.length) return '<p class="muted">No sets match.</p>';
+    return rows.map((row) => {
+      const aisleLabel = global.EodCategoryCardStatus
+        ? global.EodCategoryCardStatus.siAisleLabel(row)
+        : '';
+      const labeled = String(row.footage || '').trim();
+      const footage = /ft|door|\bin\b/i.test(labeled)
+        ? labeled
+        : (row.footageDisplay || row.size || labeled || '');
+      const version = global.EodCategoryCardStatus?.versionLabel?.(row) || '';
+      const est = global.EodCategoryCardStatus?.formatEstHrs?.(row.estHrs) || '';
+      const btn = (type, label) => {
+        const on = markActive(row, type);
+        return `<button type="button" class="btn btn-secondary${on ? ' on' : ''}" data-row="${row.id}" data-mark="${type}">${label}</button>`;
+      };
+      const errMsg = String(row.errorMessage || row.error_message || '').trim();
+      const canOpen = !!row.dbkey;
+      const catNum = String(row.catId || '').trim();
+      const issueWeek = global.EodCategoryCardStatus?.issueWeekLabel?.(row) || '';
+      const meatPusher = String(row.pageBucket || '').toLowerCase() === 'meat-pusher';
+      const metaBits = [
+        meatPusher ? 'pending PROD' : (row.dbkey ? `DB ${row.dbkey}` : ''),
+        aisleLabel,
+        footage ? String(footage) : '',
+        version,
+        est,
+        suggested.has(String(row.id)) ? 'COM suggest' : '',
+      ].filter(Boolean);
+      const selectedOn = selected.has(String(row.id));
+      const localBefores = localBeforeCount(row);
+      const Status = global.EodCategoryCardStatus;
+      const liveLine = Status?.liveStatusLineHtml
+        ? Status.liveStatusLineHtml(row, esc, localBefores)
+        : '';
+      const priorNote = Status?.priorShiftNote?.(row, global.EodSession?.state?.workDate) || '';
+      const captureSlot = Status?.neededCaptureSlot
+        ? Status.neededCaptureSlot(row, localBefores, localAfterCount(row))
+        : 'before';
+      const captureBay = captureSlot && Status?.nextCaptureBay
+        ? Status.nextCaptureBay(row, captureSlot, localBefores, localAfterCount(row))
+        : 1;
+      const openAttrs = canOpen
+        ? ` data-open-set="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-bucket="${esc(row.pageBucket || '')}"`
+        : '';
+      return `<div class="ds-row ds-row-compact ${rowClass(row, localBefores)}${selectedOn ? ' is-selected' : ''}${suggested.has(String(row.id)) ? ' is-com-suggest' : ''}" data-row-id="${row.id}">
+        <label class="ds-row-check-hit">
+          <input type="checkbox" class="ds-row-check" data-select-row="${row.id}" ${selectedOn ? 'checked' : ''} aria-label="Select">
+        </label>
+        <div class="ds-row-copy${canOpen ? ' ds-row-open' : ''}"${openAttrs}>
+          <strong class="ds-row-title">${esc(row.catName || row.catId || '—')}</strong>
+          <div class="muted ds-row-meta">${metaBits.map((bit) => `<span>${esc(bit)}</span>`).join('')}</div>
+          ${markActive(row, 'out_of_scope') ? '<div class="ds-row-live"><span class="pill">Out of Scope</span></div>' : ''}
+          ${Status?.missingFromProd?.(row) ? '<div class="ds-row-live"><span class="pill missing-prod">not in prod</span></div>' : ''}
+          ${liveLine ? `<div class="ds-row-live">${liveLine}</div>` : ''}
+          ${(() => {
+            const need = Status?.expectedPhotoNeed?.(row) || Number(row?.live?.expectedBayCount) || Number(row?.live?.sectionCount) || 0;
+            if (!need || !canOpen) return '';
+            return `<div class="ds-row-live set-bay-count-card"><span class="pill">Bays ${esc(need)}</span>
+              <button type="button" class="btn btn-secondary" data-bay-count-open="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-bucket="${esc(row.pageBucket || '')}">Change</button></div>`;
+          })()}
+          ${priorNote ? `<div class="ds-row-live"><span class="pill">${esc(priorNote)}</span></div>` : ''}
+          ${errMsg && (Status?.oddityCalloutVisible ? Status.oddityCalloutVisible(row, localBefores) : true) ? `<div class="manifest-error-msg">${esc(errMsg)}</div>` : ''}
+        </div>
+        ${catNum ? `<div class="ds-row-catnum" title="Category"><span class="ds-row-catnum-n">${esc(catNum)}</span>${issueWeek ? `<span class="ds-row-issue">${esc(issueWeek)}</span>` : ''}</div>` : ''}
+        ${canOpen ? `<div class="ds-row-capture"><button type="button" class="btn btn-primary" data-capture-start="${row.id}" data-dbkey="${esc(row.dbkey)}" data-name="${esc(row.catName || row.catId || '')}" data-cat="${esc(catNum)}" data-bucket="${esc(row.pageBucket || '')}" data-slot="${esc(captureSlot)}" data-bay="${captureBay}"${captureSlot ? '' : ' disabled'}>Capture</button></div>` : ''}
+        <div class="ds-actions">
+          ${btn('not_in_store', 'Not in Store')}
+          ${btn('not_in_si', 'Not in SI')}
+          ${btn('backlog', 'Backlog')}
+          ${btn('out_of_scope', 'Out of Scope')}
+          ${btn('not_executable', 'Not Executable')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function destroyLeftoverCameras() {
+    document.querySelectorAll('.vf-live-camera').forEach((el) => {
+      const video = el.querySelector('video');
+      try { video?.srcObject?.getTracks?.().forEach((t) => t.stop()); } catch (_) {}
+      el.remove();
+    });
+  }
+
+  async function render(mount) {
+    destroyLeftoverCameras();
+    const S = global.EodSession;
+    mount.innerHTML = `
+      <div class="card heart">
+        <div class="cat-head">
+          <h1 id="categoriesTitle">Categories</h1>
+          <div id="sheetSummary" class="sheet-summary muted">Loading…</div>
+          <button type="button" class="btn btn-secondary" id="syncProdSiBtn">Refresh</button>
+          <div class="sheet-shift-filters" id="sheetShiftFilters"></div>
+        </div>
+        <div class="ds-bulk" id="sheetBulk"></div>
+        <div class="ds-filters" id="sheetFilters">
+          <div class="ds-filter-label">Filters</div>
+          <div class="ds-filter-row">
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_done">Not Started</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="in_progress">In Progress</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="backlog">Backlog</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="done">Complete</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_executable">Not Executable</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="out_of_scope">Not In Scope</button>
+            <button type="button" class="btn btn-secondary" data-filter="status" data-value="not_in_prod">Not in Prod</button>
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Search sets</label>
+          <div class="btn-row">
+            <input type="search" id="sheetSearch" placeholder="Category or DBKEY">
+            <button type="button" class="btn btn-secondary" id="sheetScanBtn">Scan UPC</button>
+          </div>
+        </div>
+        <div class="ds-select-all-row">
+          <input type="checkbox" class="ds-row-check" id="sheetSelectAll" aria-label="Select all visible">
+        </div>
+        <div id="sheetRows"></div>
+      </div>`;
+
+    const summary = document.getElementById('sheetSummary');
+    const rowsEl = document.getElementById('sheetRows');
+    const syncBtn = document.getElementById('syncProdSiBtn');
+    const filters = {
+      status: S.state.sheetFilter || 'not_done',
+      shift: S.state.sheetShiftFilter || 'all',
+    };
+    const selectedIds = new Set();
+    let lastRowsHtml = '';
+    let staleReason = '';
+    let suggestIdSet = new Set();
+
+    function paintFilterChips() {
+      const host = document.getElementById('sheetFilters');
+      if (!host) return;
+      host.querySelectorAll('[data-filter="status"]').forEach((btn) => {
+        btn.classList.toggle('on', filters.status === btn.getAttribute('data-value'));
+      });
+    }
+
+    function paintShiftFilters() {
+      const host = document.getElementById('sheetShiftFilters');
+      if (!host) return;
+      const buttons = global.EodSendSheetsLogic?.shiftFilterButtons?.(
+        S.state.shifts,
+        S.state.leadName
+      ) || [];
+      if (filters.shift && filters.shift !== 'all' && (S.state.shifts || []).length
+        && !buttons.some((b) => b.key === filters.shift)) {
+        filters.shift = 'all';
+        S.patch({ sheetShiftFilter: 'all' }, 'sheet-shift-filter');
+      }
+      host.innerHTML = buttons.map((b) => (
+        `<button type="button" class="btn btn-secondary${filters.shift === b.key ? ' on' : ''}" data-shift-filter="${esc(b.key)}">${esc(b.label)}</button>`
+      )).join('');
+    }
+
+    function startPoll() {
+      if (pollTimer) clearInterval(pollTimer);
+      const ms = global.EodStoreProdWarm?.SHEET_MS || 45_000;
+      pollTimer = setInterval(async () => {
+        if (global.EodRouter?.current !== 'signoff') return;
+        try {
+          await loadSheet();
+          await paint();
+          global.EodStoreProdWarm?.prefetchStatuses?.();
+          global.EodChrome?.refresh();
+        } catch (err) {
+          console.warn('[signoff] poll sheet', err.message || err);
+        }
+      }, ms);
+    }
+
+    function paintBulkBar() {
+      const bulk = document.getElementById('sheetBulk');
+      if (!bulk) return;
+      const n = selectedIds.size;
+      if (!n) {
+        bulk.classList.remove('is-on');
+        bulk.innerHTML = '';
+        return;
+      }
+      bulk.classList.add('is-on');
+      bulk.innerHTML = `
+        <div class="ds-bulk-count">${n} selected</div>
+        <label class="ds-bulk-me"><input type="checkbox" data-com-email-me ${global.EodComLoadRequest?.emailMeOnly?.() ? 'checked' : ''}> Email me only</label>
+        <div class="ds-actions">
+          <button type="button" class="btn" data-bulk-complete="1">Complete</button>
+          <button type="button" class="btn" data-bulk-com="1">Request COM load</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_store">Not in Store</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="not_in_si">Not in SI</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="backlog">Backlog</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="out_of_scope">Out of Scope</button>
+          <button type="button" class="btn btn-secondary" data-bulk-mark="not_executable">Not Executable</button>
+        </div>`;
+      bulk.querySelectorAll('[data-bulk-mark]').forEach((btn) => {
+        btn.onclick = () => runBulkMark(btn.getAttribute('data-bulk-mark'));
+      });
+      bulk.querySelector('[data-com-email-me]')?.addEventListener('change', (ev) => {
+        global.EodComLoadRequest?.setEmailMeOnly?.(ev.target.checked);
+      });
+      bulk.querySelector('[data-bulk-com]')?.addEventListener('click', async () => {
+        const rows = (S.state.sheet?.rows || []).filter((r) => selectedIds.has(String(r.id)));
+        await global.EodComLoadRequest?.requestSelected?.(rows);
+      });
+      bulk.querySelector('[data-bulk-complete]')?.addEventListener('click', () => {
+        runBulkComplete();
+      });
+    }
+
+    async function runBulkComplete() {
+      const rows = (S.state.sheet?.rows || []).filter((r) => selectedIds.has(String(r.id)));
+      if (!rows.length) return;
+      const n = rows.length;
+      const go = global.showConfirm
+        ? await global.showConfirm('Complete', `Complete ${n} selected set${n === 1 ? '' : 's'}?`)
+        : confirm(`Complete ${n} selected set${n === 1 ? '' : 's'}?`);
+      if (!go) return;
+      const headers = global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' });
+      const visitId = S.state.selectedShift?.visitId || null;
+      let done = 0;
+      const problems = [];
+      for (const row of rows) {
+        try {
+          const resp = await global.authFetch('https://eod-api.the-dump-bin.com/api/field-set/special-complete', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              storeNumber: S.state.storeNumber,
+              workDate: S.state.workDate,
+              dbkey: row.dbkey,
+              rowId: row.id,
+              visitId,
+            }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || data.ok === false) throw new Error(data.error || `Complete failed (${resp.status})`);
+          done += 1;
+        } catch (err) {
+          problems.push(err.message || String(err));
+        }
+      }
+      selectedIds.clear();
+      try {
+        await loadSheet();
+        await paint();
+      } catch (_) {}
+      const msg = problems.length
+        ? `Completed ${done} of ${n}. ${problems[0]}`
+        : `Completed ${done} set${done === 1 ? '' : 's'}`;
+      if (global.EodConnections?.toast) global.EodConnections.toast(msg, problems.length ? 'error' : 'ok');
+    }
+
+    function visibleRowIds() {
+      const sheet = S.state.sheet;
+      if (!sheet) return [];
+      const q = (document.getElementById('sheetSearch')?.value || '').trim().toLowerCase();
+      return filteredSheetRows(sheet, q, filters).map((r) => String(r.id));
+    }
+
+    function paintSelectAll() {
+      const box = document.getElementById('sheetSelectAll');
+      if (!box) return;
+      const ids = visibleRowIds();
+      const n = ids.filter((id) => selectedIds.has(id)).length;
+      box.disabled = !ids.length;
+      box.indeterminate = n > 0 && n < ids.length;
+      box.checked = ids.length > 0 && n === ids.length;
+    }
+
+    function applyRowSelect(id, on) {
+      if (on) selectedIds.add(id);
+      else selectedIds.delete(id);
+      rowsEl.querySelectorAll('[data-select-row]').forEach((box) => {
+        if (String(box.getAttribute('data-select-row') || '') !== id) return;
+        box.checked = on;
+        box.closest('.ds-row')?.classList.toggle('is-selected', on);
+      });
+    }
+
+    async function markOneRow(rowId, markType, opts) {
+      const current = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+      const turningOn = current && !markActive(current, markType);
+      const turningOnNis = markType === 'not_in_store' && turningOn;
+      let nisChoice = opts && Object.prototype.hasOwnProperty.call(opts, 'nisChoice')
+        ? opts.nisChoice
+        : null;
+      if (turningOnNis && nisChoice == null) {
+        nisChoice = await nisReportChoice(current);
+        if (nisChoice && nisChoice === 'cancel') return false;
+      }
+      const turningOnNe = markType === 'not_executable' && turningOn;
+      let neChoice = opts && opts.neChoice ? opts.neChoice : null;
+      if (turningOnNe && !neChoice) {
+        neChoice = await askNotExecutable(current);
+        if (!neChoice) return false;
+      }
+      if (markType === 'out_of_scope' && turningOn && !opts?.skipOosConfirm) {
+        const ok = await confirmOutOfScope(1);
+        if (!ok) return false;
+      }
+      if (markType === 'out_of_scope' && current && !turningOn) {
+        const ok = await confirmUndoOutOfScope();
+        if (!ok) return false;
+      }
+      const unmarking = current && !turningOn
+        && (markType === 'not_in_store' || markType === 'not_executable');
+      if (unmarking) {
+        const ok = await confirmUnmark(markType, current);
+        if (!ok) return false;
+      }
+      let markOpts = { skipReload: !!opts?.skipReload };
+      if (turningOnNis) markOpts = { helpdeskSent: nisChoice === 'report', skipReload: !!opts?.skipReload };
+      if (turningOnNe) {
+        markOpts = {
+          helpdeskSent: !!neChoice.report,
+          reason: neChoice.reason,
+          note: neChoice.note,
+          skipReload: !!opts?.skipReload,
+        };
+      }
+      await applyMark(rowId, markType, markOpts);
+      if (!opts?.skipUndo && !unmarking) showMarkUndo(rowId, markType, turningOn);
+      if (turningOnNis && nisChoice === 'report' && typeof global.openHelpdeskForSheetRow === 'function') {
+        await global.openHelpdeskForSheetRow(current);
+      }
+      if (turningOnNe && neChoice.report && !opts?.skipNeHelpdesk) {
+        await openNeHelpdesk([current], neChoice);
+      }
+      return true;
+    }
+
+    async function runBulkMark(markType) {
+      const ids = [...selectedIds];
+      if (!ids.length) return;
+      if (markType === 'out_of_scope') {
+        const ok = await confirmOutOfScope(ids.length);
+        if (!ok) return;
+      }
+      let nisChoice = null;
+      if (markType === 'not_in_store') {
+        nisChoice = await nisReportChoice({ catName: `${ids.length} sets` });
+        if (nisChoice && nisChoice === 'cancel') return;
+      }
+      let neChoice = null;
+      if (markType === 'not_executable') {
+        neChoice = await askNotExecutable({ catName: `${ids.length} sets` });
+        if (!neChoice) return;
+      }
+      const neRows = [];
+      for (const rowId of ids) {
+        if (markType === 'not_in_store' || markType === 'not_executable') {
+          const already = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+          if (already && markActive(already, markType)) continue;
+        }
+        try {
+          const ok = await markOneRow(rowId, markType, {
+            skipReload: true,
+            skipUndo: true,
+            skipOosConfirm: true,
+            skipNeHelpdesk: true,
+            nisChoice,
+            neChoice,
+          });
+          const row = (S.state.sheet?.rows || []).find((r) => String(r.id) === String(rowId));
+          if (ok && neChoice && row) neRows.push(row);
+        } catch (err) {
+          console.warn('[signoff] bulk mark failed', rowId, err);
+        }
+      }
+      if (neChoice?.report && neRows.length) await openNeHelpdesk(neRows, neChoice);
+      selectedIds.clear();
+      try { await loadSheet(); } catch (_) {}
+      await paint();
+      try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+      global.EodChrome?.refresh();
+    }
+
+    /* offline:true renders whatever is already in state without asking the
+       network, so the saved copy is on screen before the refresh starts. */
+    async function paint(opts) {
+      paintShiftFilters();
+      let sheet = S.state.sheet;
+      const offline = !!(opts && opts.offline);
+      if (offline && !sheet) return;
+      if (!offline && !S.state.sheetLoaded) {
+        try {
+          sheet = await loadSheet();
+          staleReason = '';
+        } catch (err) {
+          // Never blank a populated list because a refresh failed.
+          sheet = S.state.sheet;
+          if (!sheet) {
+            summary.innerHTML = `<span style="color:#ef4444;">${esc(err.message)}</span>`
+              + ' <button type="button" class="btn btn-secondary btn-sm" id="sheetLoadRetry">Retry</button>';
+            summary.querySelector('#sheetLoadRetry')?.addEventListener('click', () => { void paint(); });
+            rowsEl.innerHTML = '';
+            lastRowsHtml = '';
+            return;
+          }
+          staleReason = err.message || 'Could not refresh';
+        }
+      }
+      if (!sheet) {
+        summary.innerHTML = 'No hosted sheet for this store/week yet.';
+        rowsEl.innerHTML = '';
+        lastRowsHtml = '';
+        document.body.classList.add('no-hosted-sheet');
+        document.body.classList.remove('has-hosted-sheet');
+        paintSelectAll();
+        paintBulkBar();
+        return;
+      }
+      document.body.classList.add('has-hosted-sheet');
+      document.body.classList.remove('no-hosted-sheet');
+      const s = sheet.summary || {};
+      const visibleRows = (sheet.rows || []).filter((r) => !markActive(r, 'out_of_scope'));
+      const open = visibleRows.filter(isOpenRow).length;
+      summary.innerHTML = `<strong>${esc(sheet.fiscalWeek)}</strong> · Store ${esc(sheet.storeNumber)}`
+        + (sheet.team ? ` · Team ${esc(sheet.team)}` : '')
+        + ` · ${s.marked || 0}/${visibleRows.length} marked`
+        + ` · <span class="${open ? 'pill warn' : 'pill ok'}">${open} open</span>`
+        + (staleReason
+          ? ` · <span class="pill warn">saved copy</span> <button type="button" class="btn btn-secondary btn-sm" id="sheetLoadRetry">Retry</button>`
+          : '')
+        + '<span id="sheetQueuedMarks"></span>';
+      summary.querySelector('#sheetLoadRetry')?.addEventListener('click', () => {
+        S.patch({ sheetLoaded: false }, 'sheet-retry');
+        void paint();
+      });
+      // Marks taken offline are still waiting to reach the server. Say so.
+      void (async () => {
+        try {
+          const n = await global.EodGarden?.queuedCount?.();
+          const host = document.getElementById('sheetQueuedMarks');
+          if (host) host.innerHTML = n ? ` · <span class="pill warn">${n} mark${n === 1 ? '' : 's'} not sent</span>` : '';
+        } catch (_) {}
+      })();
+      const q = (document.getElementById('sheetSearch').value || '').trim().toLowerCase();
+      paintShiftFilters();
+      paintFilterChips();
+      const liveIds = new Set((sheet.rows || []).map((r) => String(r.id)));
+      for (const id of [...selectedIds]) {
+        if (!liveIds.has(id) || markActive(
+          (sheet.rows || []).find((r) => String(r.id) === id),
+          'out_of_scope'
+        )) selectedIds.delete(id);
+      }
+      const html = renderRows(sheet, q, filters, selectedIds, suggestIdSet);
+      paintBulkBar();
+      paintSelectAll();
+      if (html === lastRowsHtml) return;
+      const pane = document.getElementById('appMount');
+      const y = (pane && pane.scrollTop) || window.scrollY || document.documentElement.scrollTop || 0;
+      lastRowsHtml = html;
+      rowsEl.innerHTML = html;
+      if (pane) pane.scrollTop = y;
+      window.scrollTo(0, y);
+      rowsEl.querySelectorAll('.ds-row-check-hit').forEach((hit) => {
+        const stop = (ev) => ev.stopPropagation();
+        hit.addEventListener('pointerdown', stop);
+        hit.addEventListener('click', stop);
+      });
+      rowsEl.querySelectorAll('[data-select-row]').forEach((box) => {
+        box.addEventListener('click', (ev) => ev.stopPropagation());
+        box.addEventListener('change', () => {
+          const id = String(box.getAttribute('data-select-row') || '');
+          if (!id) return;
+          if (box.checked) selectedIds.add(id);
+          else selectedIds.delete(id);
+          const card = box.closest('.ds-row');
+          if (card) card.classList.toggle('is-selected', box.checked);
+          paintBulkBar();
+          paintSelectAll();
+        });
+      });
+      rowsEl.querySelectorAll('[data-mark]').forEach((btn) => {
+        btn.onclick = async () => {
+          const rowId = btn.getAttribute('data-row');
+          const markType = btn.getAttribute('data-mark');
+          btn.disabled = true;
+          try {
+            const ok = await markOneRow(rowId, markType);
+            if (!ok) return;
+            await paint();
+            try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+            global.EodChrome?.refresh();
+          } catch (err) {
+            await global.EodAlerts?.alert?.('Update failed', err.message || String(err));
+          } finally {
+            btn.disabled = false;
+          }
+        };
+      });
+      rowsEl.querySelectorAll('[data-capture-start]').forEach((btn) => {
+        btn.onclick = (ev) => {
+          ev.stopPropagation();
+          if (btn.disabled || !btn.getAttribute('data-slot')) return;
+          openSetSurvey(btn, btn.getAttribute('data-slot'), { capture: true });
+        };
+      });
+      rowsEl.querySelectorAll('[data-bay-count-open]').forEach((btn) => {
+        btn.onclick = (ev) => {
+          ev.stopPropagation();
+          openSetSurvey(btn);
+        };
+      });
+      bindSasCategoryHold(rowsEl);
+      rowsEl.querySelectorAll('[data-open-set]').forEach((el) => {
+        el.addEventListener('click', (ev) => {
+          if (ev.target.closest('button, input, .ds-row-check, .ds-row-check-hit')) return;
+          if (ev.target.closest('.ds-row-catnum')?.dataset.sasHold === '1') return;
+          openSetSurvey(el);
+        });
+      });
+      requestAnimationFrame(() => {
+        try { global.EodFitText?.fitSheetCards?.(rowsEl); } catch (_) {}
+      });
+    }
+
+    void global.EodCartLocate?.warmIndex?.();
+    document.getElementById('syncProdSiBtn').onclick = async () => {
+      syncBtn.disabled = true;
+      try {
+        await syncProdSi();
+        await paint();
+        try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+        global.EodChrome?.refresh();
+      } catch (err) {
+        if (!isCancelled(err)) await global.EodAlerts?.alert?.('Sync failed', err.message || String(err));
+      } finally {
+        syncBtn.disabled = false;
+      }
+    };
+    bindNukeLongPress(document.getElementById('categoriesTitle'), async () => {
+      const title = document.getElementById('categoriesTitle');
+      if (title) title.classList.add('is-nuking');
+      try {
+        const data = await runNuke();
+        await paint();
+        global.EodChrome?.refresh();
+        await showNukeResults(data, {
+          onRefresh: async () => {
+            try { await loadSheet(); } catch (_) {}
+            await paint();
+          },
+        });
+      } catch (err) {
+        await global.EodAlerts?.alert?.('Nuke failed', err.message || String(err));
+      } finally {
+        title?.classList.remove('is-nuking');
+      }
+    });
+    // Every keystroke rebuilt every row. Coalesce them.
+    let searchTimer = null;
+    document.getElementById('sheetSearch').oninput = () => {
+      if (searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        searchTimer = null;
+        void paint({ offline: true });
+      }, 180);
+    };
+    document.getElementById('sheetScanBtn').onclick = async () => {
+      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (_) {}
+      global.EodCartLocate?.openScanner?.();
+    };
+    document.getElementById('sheetSelectAll')?.addEventListener('click', (ev) => ev.stopPropagation());
+    document.getElementById('sheetSelectAll')?.addEventListener('change', () => {
+      const box = document.getElementById('sheetSelectAll');
+      if (!box) return;
+      const ids = visibleRowIds();
+      const on = !!box.checked;
+      ids.forEach((id) => applyRowSelect(id, on));
+      paintBulkBar();
+      paintSelectAll();
+    });
+    document.getElementById('sheetFilters')?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-filter="status"]');
+      if (!btn) return;
+      const value = btn.getAttribute('data-value') || 'all';
+      filters.status = filters.status === value ? 'all' : value;
+      S.patch({ sheetFilter: filters.status }, 'sheet-filter');
+      paint();
+    });
+    document.getElementById('sheetShiftFilters')?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-shift-filter]');
+      if (!btn) return;
+      const value = btn.getAttribute('data-shift-filter') || 'all';
+      filters.shift = filters.shift === value ? 'all' : value;
+      S.patch({ sheetShiftFilter: filters.shift }, 'sheet-shift-filter');
+      void paint({ offline: true });
+    });
+
+    syncRepaint = () => paint();
+    sheetView = {
+      paint,
+      scrollAfter(rowId) {
+        const next = nextWalkRow(rowId);
+        if (!next) return;
+        const el = document.querySelector(`[data-row-id="${next.id}"]`);
+        try { el?.scrollIntoView?.({ block: 'nearest' }); } catch (_) {}
+      },
+    };
+    /* Put the saved copy on screen before anything touches the network. The
+       snapshot is the same rows the refresh is about to return, so the list
+       is readable immediately instead of after a round trip. */
+    try {
+      if (!S.state.sheet && global.EodGarden?.loadSheetSnapshot) {
+        const week = S.state.fiscalWeek || '';
+        const snap = week
+          ? await global.EodGarden.loadSheetSnapshot(S.state.storeNumber, week)
+          : null;
+        if (snap && Array.isArray(snap.rows)) {
+          S.patch({ sheet: snap, fiscalWeek: snap.fiscalWeek || week }, 'sheet-garden');
+        }
+      }
+      await paint({ offline: true });
+    } catch (_) {}
+
+    await paint();
+    try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
+    try { global.EodStoreProdWarm?.start?.(); } catch (_) {}
+    void (async () => {
+      try {
+        await syncProdSi();
+        if (global.EodRouter?.current && global.EodRouter.current !== 'signoff') return;
+        await paint();
+        try { global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet); } catch (_) {}
+        global.EodChrome?.refresh();
+        try { global.EodSetMediaPrefetch?.start(S.state.sheet); } catch (_) {}
+      } catch (err) {
+        if (!isCancelled(err)) console.warn('[signoff] initial sync', err.message || err);
+      }
+    })();
+    startPoll();
+  }
+
+  global.EodSignoffHome = {
+    loadSheet,
+    render,
+    applyMark,
+    markNotInStoreFromHelpdesk,
+    openSignoffPdfPreview,
+    printSignoffAtStore,
+    openPrintAtStoreModal,
+    nextWalkRow,
+    openSurveyForRow,
+    runNuke,
+    showDoneTab() {
+      const sess = global.EodSession;
+      sess.patch({ sheetFilter: 'done' }, 'sheet-filter');
+      global.EodRouter.go('signoff');
+    },
+    syncProdSi,
+  };
+  global.EodRouter.register('signoff', render);
+})(typeof window !== 'undefined' ? window : globalThis);

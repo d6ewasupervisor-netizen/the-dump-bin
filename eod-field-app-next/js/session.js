@@ -1,0 +1,712 @@
+/* Store/date/day-confirm + draft accessors — preserves live EOD localStorage contracts. */
+(function (global) {
+  'use strict';
+
+  const DAY_CONFIRM_KEY = 'kompassDayConfirm';
+  const DRAFT_KEY = 'kompassEOD';
+  const PROFILE_KEY = 'kompassProfile';
+  const SIGNATURE_KEY = 'kompassSignature';
+  const SIGNATURE_SIGNER_KEY = 'kompassSignatureSigner';
+
+  const listeners = new Set();
+  let priorDayDraft = null;
+  /** When set, visit-mirror hydrate skips signature / selected names for this key. */
+  let skipMirrorIdentityKey = '';
+
+  const state = {
+    storeNumber: '',
+    workDate: '',
+    profileName: '',
+    profileEmail: '',
+    leadName: '',
+    leadEmail: '',
+    selectedShift: null,
+    extraVisitIds: [],
+    profileLocked: false,
+    shifts: [],
+    members: [],
+    sheet: null,
+    sheetLoaded: false,
+    emailRecipients: [],
+    notes: '',
+    checkInManager: '',
+    checkOutManager: '',
+    fiscalWeek: '',
+    visitStep: 'setup', // setup | cart | checkin | befores | done
+    cartPhotoDone: false,
+    checkInDone: false,
+    beforesStepDone: false,
+    signatureDataUrl: '',
+    proxyEodStamp: '',
+    lieuSignoffStamp: '',
+    photos: { before: [], after: [], signoff: [], instawork: [], context: [] },
+    notInStoreSelected: [],
+    notInSiSelected: [],
+    helpdeskSubmittedReports: [],
+    helpdeskResolution: null,
+    fredmeyerEmailPool: [],
+    verifiedRecipients: [],
+    pendingRecipients: [],
+    needsAssignmentCount: 0,
+    fmMaxRecipients: 10,
+    needsAssignmentEmails: [],
+    managerNamePool: [],
+    sheetAcknowledged: false,
+    instaworkYes: null,
+    instaworkSavedInfo: null,
+    instaworkOfficeSubmitted: false,
+    kompassTimesheetYes: null,
+    materialsReadYes: null,
+    visitReady: false,
+    addRetailOdysseyTeam: false,
+    skipMirrorIdentity: false,
+  };
+
+  function normStoreNumber(s) {
+    return String(s || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  }
+
+  function normIsoDate(s) {
+    return String(s || '').slice(0, 10);
+  }
+
+  function todayLocalIsoDate() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function getActiveDayConfirm() {
+    let stored;
+    try { stored = JSON.parse(localStorage.getItem(DAY_CONFIRM_KEY) || 'null'); } catch (_) {}
+    if (!stored || !stored.token || !stored.expiresAt) return null;
+    if (Date.now() >= stored.expiresAt) return null;
+    return stored;
+  }
+
+  function getActiveDayConfirmFor(store, date) {
+    const stored = getActiveDayConfirm();
+    if (!stored) return null;
+    if (stored.store !== normStoreNumber(store)) return null;
+    if (stored.date !== normIsoDate(date)) return null;
+    return stored;
+  }
+
+  function identityKey(store, date, visitId) {
+    return [
+      normStoreNumber(store || state.storeNumber),
+      normIsoDate(date || state.workDate),
+      String(visitId || state.selectedShift?.visitId || ''),
+    ].join('|');
+  }
+
+  function clearLocalIdentity({ holdMirror = false, reason = 'identity-clear' } = {}) {
+    try {
+      global.EodVisitMemory?.captureFromSession?.({ state, resolvedLeadName });
+    } catch (_) {}
+    state.signatureDataUrl = '';
+    state.leadName = '';
+    state.profileName = '';
+    state.checkInManager = '';
+    state.checkOutManager = '';
+    state.checkInDone = false;
+    state.proxyEodStamp = '';
+    state.lieuSignoffStamp = '';
+    try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
+    try { localStorage.removeItem(SIGNATURE_SIGNER_KEY); } catch (_) {}
+    if (holdMirror) {
+      skipMirrorIdentityKey = identityKey();
+      state.skipMirrorIdentity = true;
+    } else {
+      skipMirrorIdentityKey = '';
+      state.skipMirrorIdentity = false;
+    }
+    try { global.EodDeptSignatures?.clearLocal?.(); } catch (_) {}
+    emit(reason);
+    emit('signature');
+    scheduleSaveDraft();
+  }
+
+  function allowMirrorIdentity() {
+    skipMirrorIdentityKey = '';
+    state.skipMirrorIdentity = false;
+  }
+
+  function shouldSkipMirrorIdentity(store, date, visitId) {
+    if (!state.skipMirrorIdentity || !skipMirrorIdentityKey) return false;
+    return skipMirrorIdentityKey === identityKey(store, date, visitId);
+  }
+
+  function rememberedProfileName() {
+    try {
+      const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
+      return String(p?.name || p?.profileName || '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function persistDayConfirm({ token, store, date, expiresInMs }) {
+    const expiresAt = Date.now() + (Number(expiresInMs) || 36 * 60 * 60 * 1000);
+    const canonStore = normStoreNumber(store);
+    const canonDate = normIsoDate(date);
+    const storeChanged = state.storeNumber !== canonStore || state.workDate !== canonDate;
+    localStorage.setItem(DAY_CONFIRM_KEY, JSON.stringify({
+      token,
+      store: canonStore,
+      date: canonDate,
+      expiresAt,
+    }));
+    state.storeNumber = canonStore;
+    state.workDate = canonDate;
+    if (storeChanged) {
+      state.selectedShift = null;
+      state.shifts = [];
+      state.extraVisitIds = [];
+      state.emailRecipients = [];
+      clearLocalIdentity({ holdMirror: false, reason: 'day-identity-clear' });
+    }
+    emit('dayConfirm');
+  }
+
+  function clearDayConfirm() {
+    try { localStorage.removeItem(DAY_CONFIRM_KEY); } catch (_) {}
+    emit('dayConfirm');
+  }
+
+  /**
+   * Reset like live EOD — clears draft + day confirm + in-memory visit data.
+   * Optional wipePersonal also clears profile/signature.
+   * Week-scoped set before photos are kept unless wipeSetBefores is true.
+   * Leftover unsent photo sessions on this phone are kept unless wipeUnsent is true.
+   * keepUnsentPhotos also keeps the visit being left behind when its photos
+   * never went out (Fresh start on yesterday's unfinished visit).
+   */
+  async function resetVisit({ wipePersonal = true, wipeSetBefores = false, wipeUnsent = false, keepUnsentPhotos = false } = {}) {
+    const store = state.storeNumber;
+    const week = state.fiscalWeek;
+    priorDayDraft = null;
+    try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+    clearDayConfirm();
+    try {
+      global.EodVisitMemory?.captureFromSession?.({ state, resolvedLeadName });
+    } catch (_) {}
+    try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
+    try { localStorage.removeItem(SIGNATURE_SIGNER_KEY); } catch (_) {}
+    if (wipePersonal) {
+      try {
+        const prev = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null') || {};
+        localStorage.setItem(PROFILE_KEY, JSON.stringify({
+          name: '',
+          email: prev.email || prev.profileEmail || state.profileEmail || '',
+        }));
+      } catch (_) {
+        try { localStorage.removeItem(PROFILE_KEY); } catch (_) {}
+      }
+    }
+    try { global.EodDeptSignatures?.clearLocal?.(); } catch (_) {}
+    state.profileName = '';
+    state.signatureDataUrl = '';
+    if (wipeSetBefores && global.EodSetBeforeStore) {
+      if (week) global.EodSetBeforeStore.clearStoreWeek(store, week);
+      else global.EodSetBeforeStore.clearAllForStore(store);
+    }
+    if (global.PhotoDB?.clearPhotos) {
+      try { await global.PhotoDB.clearPhotos({ keepUnsent: keepUnsentPhotos && !wipeUnsent }); } catch (_) {}
+    }
+    if (wipeUnsent && global.PhotoDB?.purgeUnsentLeftovers) {
+      try { await global.PhotoDB.purgeUnsentLeftovers({ force: true }); } catch (_) {}
+    }
+    state.storeNumber = '';
+    state.workDate = todayLocalIsoDate();
+    state.leadName = '';
+    state.leadEmail = '';
+    state.selectedShift = null;
+    state.extraVisitIds = [];
+    state.profileLocked = false;
+    state.shifts = [];
+    state.members = [];
+    state.sheet = null;
+    state.sheetLoaded = false;
+    state.notes = '';
+    state.checkInManager = '';
+    state.checkOutManager = '';
+    state.fiscalWeek = '';
+    state.visitStep = 'setup';
+    state.cartPhotoDone = false;
+    state.checkInDone = false;
+    state.beforesStepDone = false;
+    state.emailRecipients = [];
+    state.notInStoreSelected = [];
+    state.notInSiSelected = [];
+    state.helpdeskSubmittedReports = [];
+    state.helpdeskResolution = null;
+    state.photos = { before: [], after: [], signoff: [], instawork: [], context: [] };
+    state.sheetAcknowledged = false;
+    state.instaworkYes = null;
+    state.instaworkSavedInfo = null;
+    state.instaworkOfficeSubmitted = false;
+    state.kompassTimesheetYes = null;
+    state.materialsReadYes = null;
+    state.addRetailOdysseyTeam = false;
+    state.proxyEodStamp = '';
+    state.lieuSignoffStamp = '';
+    skipMirrorIdentityKey = '';
+    state.skipMirrorIdentity = false;
+    emit('reset');
+    emit('signature');
+  }
+
+  function isVisitReady() {
+    const store = normStoreNumber(state.storeNumber);
+    const date = normIsoDate(state.workDate);
+    return !!(store && date && getActiveDayConfirmFor(store, date));
+  }
+
+  function hasHostedSheet() {
+    return !!(state.sheet && Array.isArray(state.sheet.rows));
+  }
+
+  function rowHasMark(row) {
+    if (global.EodCategoryCardStatus?.rowSendReady) {
+      return global.EodCategoryCardStatus.rowSendReady(row);
+    }
+    const m = row?.marks || row?.mark;
+    const prodPhotosDone = (live) => !!live?.prodComplete
+      && Number(live.prodBeforeCount) > 0
+      && Number(live.prodAfterCount) > 0;
+    if (!m) {
+      const live = row?.live;
+      if (live?.bothComplete) return true;
+      if (prodPhotosDone(live) && live?.siComplete) return true;
+      return false;
+    }
+    const prodAbsent = String(row?.live?.prodStatus || '').trim().toLowerCase() === 'absent';
+    const nisi = !!m.notInSi || (Array.isArray(m.active) && m.active.includes('not_in_si'));
+    if (prodAbsent && nisi) return true;
+    if (Array.isArray(m.active) && m.active.includes('not_in_si') && m.active.length === 1) return false;
+    if (m.outOfScope || m.complete || m.notInStore || m.backlog) return true;
+    if (Array.isArray(m.active) && m.active.some((t) => t !== 'not_in_si')) return true;
+    if (m.type && m.type !== 'not_in_si') return true;
+    const live = row?.live;
+    if (live?.bothComplete) return true;
+    if (prodPhotosDone(live) && live?.siComplete) return true;
+    return false;
+  }
+
+  function sheetSendReady() {
+    if (!hasHostedSheet()) return true;
+    const rows = state.sheet.rows || [];
+    if (!rows.length) return true;
+    return rows.every(rowHasMark);
+  }
+
+  function on(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  }
+
+  function emit(reason) {
+    state.visitReady = isVisitReady();
+    listeners.forEach((fn) => {
+      try { fn(state, reason); } catch (e) { console.warn(e); }
+    });
+  }
+
+  function resolvedLeadName() {
+    return String(
+      state.leadName
+      || state.profileName
+      || state.selectedShift?.visitLead
+      || ''
+    ).trim();
+  }
+
+  let saveDraftTimer = null;
+  function scheduleSaveDraft() {
+    if (saveDraftTimer) clearTimeout(saveDraftTimer);
+    saveDraftTimer = setTimeout(() => {
+      saveDraftTimer = null;
+      try { saveDraft(); } catch (_) {}
+    }, 250);
+  }
+
+  function readSignatureSigner() {
+    try { return JSON.parse(localStorage.getItem(SIGNATURE_SIGNER_KEY) || 'null'); } catch (_) { return null; }
+  }
+
+  function setSignatureSigner(signer) {
+    try {
+      if (signer && (signer.email || signer.name)) {
+        localStorage.setItem(SIGNATURE_SIGNER_KEY, JSON.stringify({
+          email: String(signer.email || ''),
+          name: String(signer.name || ''),
+          visitId: state.selectedShift?.visitId || null,
+          storeNumber: state.storeNumber || '',
+          at: new Date().toISOString(),
+        }));
+      } else {
+        localStorage.removeItem(SIGNATURE_SIGNER_KEY);
+      }
+    } catch (_) {}
+  }
+
+  // The visit whose lead the signature on this phone was last checked against.
+  let leadSignatureCheckedVisit = '';
+
+  /** Drop the lead signature when it was not signed by the selected shift's lead. */
+  function dropSignatureIfNotLead() {
+    const owner = global.EodLeadSignatureOwner;
+    if (!owner || !state.signatureDataUrl) return false;
+    const clear = owner.shouldClearSignature({
+      hasSignature: true,
+      signer: readSignatureSigner(),
+      fallback: { email: state.profileEmail, name: state.profileName },
+      lead: owner.shiftLead(state.selectedShift),
+    });
+    if (!clear) return false;
+    state.signatureDataUrl = '';
+    try { localStorage.removeItem(SIGNATURE_KEY); } catch (_) {}
+    try { localStorage.removeItem(SIGNATURE_SIGNER_KEY); } catch (_) {}
+    return true;
+  }
+
+  function patch(partial, reason) {
+    const prevStore = normStoreNumber(state.storeNumber);
+    const prevDate = normIsoDate(state.workDate);
+    const prevVisit = state.selectedShift && state.selectedShift.visitId;
+    Object.assign(state, partial || {});
+    const nextStore = normStoreNumber(state.storeNumber);
+    const nextDate = normIsoDate(state.workDate);
+    const nextVisit = state.selectedShift && state.selectedShift.visitId;
+    const storeMoved = prevStore && nextStore && prevStore !== nextStore;
+    const dateMoved = prevDate && nextDate && prevDate !== nextDate;
+    const visitMoved = prevVisit && nextVisit && String(prevVisit) !== String(nextVisit);
+    if ((storeMoved || visitMoved) && !(partial && Object.prototype.hasOwnProperty.call(partial, 'emailRecipients'))) {
+      state.emailRecipients = [];
+    }
+    const identityTouched = partial && (
+      Object.prototype.hasOwnProperty.call(partial, 'leadName')
+      || Object.prototype.hasOwnProperty.call(partial, 'profileName')
+      || Object.prototype.hasOwnProperty.call(partial, 'checkInManager')
+      || Object.prototype.hasOwnProperty.call(partial, 'checkOutManager')
+      || Object.prototype.hasOwnProperty.call(partial, 'signatureDataUrl')
+    );
+    if (identityTouched && (state.leadName || state.profileName || state.checkInManager
+      || state.checkOutManager || state.signatureDataUrl)) {
+      allowMirrorIdentity();
+    }
+    const hydrateReason = /^(visit-mirror|team-session|load|auth-)/.test(String(reason || ''));
+    if (!hydrateReason) {
+      if ((storeMoved || dateMoved) && reason !== 'day-identity-clear' && reason !== 'identity-clear') {
+        clearLocalIdentity({ holdMirror: false, reason: 'patch-day-clear' });
+      } else if (visitMoved && !storeMoved && !dateMoved && reason !== 'identity-clear') {
+        clearLocalIdentity({ holdMirror: true, reason: 'patch-visit-clear' });
+      }
+    }
+    if (nextVisit) leadSignatureCheckedVisit = String(nextVisit);
+    emit(reason || 'patch');
+    scheduleSaveDraft();
+  }
+
+  function appendNote(line) {
+    const text = String(line || '').trim();
+    if (!text) return;
+    const cur = state.notes || '';
+    if (cur.split(/\n/).some((l) => l.trim() === text)) return;
+    state.notes = cur.trim() ? `${cur.trim()}\n${text}` : text;
+    emit('notes');
+    saveDraft();
+  }
+
+  function removeNote(line) {
+    const text = String(line || '').trim();
+    if (!text) return;
+    const next = String(state.notes || '')
+      .split(/\r?\n/)
+      .filter((l) => l.trim() !== text)
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    if (next === String(state.notes || '').trim()) return;
+    state.notes = next;
+    emit('notes');
+    saveDraft();
+  }
+
+  function loadProfile() {
+    try {
+      const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
+      if (p) {
+        state.profileEmail = p.email || p.profileEmail || state.profileEmail || '';
+      }
+    } catch (_) {}
+    try {
+      state.signatureDataUrl = localStorage.getItem(SIGNATURE_KEY) || '';
+    } catch (_) {}
+  }
+
+  function saveProfile() {
+    const remembered = rememberedProfileName();
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({
+      name: state.profileName || remembered || '',
+      email: state.profileEmail || '',
+    }));
+  }
+
+  function saveSignature(dataUrl) {
+    state.signatureDataUrl = dataUrl || '';
+    try {
+      if (dataUrl) localStorage.setItem(SIGNATURE_KEY, dataUrl);
+      else localStorage.removeItem(SIGNATURE_KEY);
+    } catch (_) {}
+    if (dataUrl) {
+      allowMirrorIdentity();
+      const lead = global.EodLeadSignatureOwner?.shiftLead(state.selectedShift) || {};
+      setSignatureSigner({
+        email: lead.email || state.leadEmail || state.profileEmail,
+        name: lead.name || state.leadName || state.profileName,
+      });
+    } else {
+      setSignatureSigner(null);
+    }
+    emit('signature');
+    try {
+      if (global.EodVisitMirror?.persistNow) {
+        global.EodVisitMirror.persistNow(global.EodSession).catch(() => {});
+      } else {
+        global.EodVisitMirror?.persist?.(global.EodSession);
+      }
+    } catch (_) {}
+  }
+
+  function loadDraft() {
+    loadProfile();
+    let data;
+    try { data = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (_) {}
+    if (!data) {
+      const dc = getActiveDayConfirm();
+      if (dc) {
+        state.storeNumber = dc.store;
+        state.workDate = dc.date;
+      } else {
+        state.workDate = todayLocalIsoDate();
+      }
+      emit('load');
+      return;
+    }
+    state.storeNumber = normStoreNumber(data.storeNumber || data.store || '');
+    state.workDate = normIsoDate(data.workDate || data.date || todayLocalIsoDate());
+    state.profileName = data.profileName || '';
+    state.profileEmail = data.profileEmail || state.profileEmail || '';
+    state.leadName = data.leadName || '';
+    state.leadEmail = data.leadEmail || '';
+    state.notes = data.notes || '';
+    state.checkInManager = data.checkInManager || '';
+    state.checkOutManager = data.checkOutManager || '';
+    state.skipMirrorIdentity = !!data.skipMirrorIdentity;
+    if (state.skipMirrorIdentity) {
+      skipMirrorIdentityKey = identityKey(
+        state.storeNumber,
+        state.workDate,
+        data.selectedShift?.visitId
+      );
+    }
+    state.fiscalWeek = data.fiscalWeek || '';
+    state.visitStep = data.visitStep || 'setup';
+    state.cartPhotoDone = !!data.cartPhotoDone;
+    state.checkInDone = !!data.checkInDone;
+    state.beforesStepDone = !!data.beforesStepDone;
+    state.emailRecipients = Array.isArray(data.emailRecipients) ? data.emailRecipients.slice() : [];
+    state.needsAssignmentEmails = Array.isArray(data.needsAssignmentEmails) ? data.needsAssignmentEmails.slice() : [];
+    state.notInStoreSelected = Array.isArray(data.notInStoreSelected) ? data.notInStoreSelected.slice() : [];
+    state.notInSiSelected = Array.isArray(data.notInSiSelected) ? data.notInSiSelected.slice() : [];
+    state.helpdeskSubmittedReports = Array.isArray(data.helpdeskSubmittedReports)
+      ? data.helpdeskSubmittedReports.slice()
+      : [];
+    state.helpdeskResolution = data.helpdeskResolution && typeof data.helpdeskResolution === 'object'
+      ? { ...data.helpdeskResolution }
+      : null;
+    state.sheetAcknowledged = !!data.sheetAcknowledged;
+    state.instaworkYes = data.instawork ?? data.instaworkYes ?? null;
+    state.instaworkSavedInfo = data.instaworkSavedInfo || null;
+    state.instaworkOfficeSubmitted = !!data.instaworkOfficeSubmitted;
+    state.kompassTimesheetYes = data.kompassTimesheet ?? data.kompassTimesheetYes ?? null;
+    state.materialsReadYes = data.materialsRead ?? data.materialsReadYes ?? null;
+    if (data.selectedShift) state.selectedShift = data.selectedShift;
+    state.extraVisitIds = Array.isArray(data.extraVisitIds) ? data.extraVisitIds.map(String) : [];
+    state.profileLocked = !!data.profileLocked;
+    state.addRetailOdysseyTeam = !!data.addRetailOdysseyTeam;
+    state.proxyEodStamp = /^EOD submitted \d{2}\/\d{2}\/\d{2}$/.test(String(data.proxyEodStamp || ''))
+      ? String(data.proxyEodStamp)
+      : '';
+    state.lieuSignoffStamp = /^Signed \d{2}\/\d{2}\/\d{2}$/.test(String(data.lieuSignoffStamp || ''))
+      ? String(data.lieuSignoffStamp)
+      : '';
+    // A day-confirm may only hydrate the same draft visit; never cross store/date.
+    const dc = getActiveDayConfirm();
+    if (dc && (!state.storeNumber
+      || (dc.store === state.storeNumber && dc.date === state.workDate))) {
+      state.storeNumber = dc.store;
+      state.workDate = dc.date;
+    }
+    const today = todayLocalIsoDate();
+    if (state.workDate && state.workDate !== today) {
+      priorDayDraft = {
+        storeNumber: state.storeNumber,
+        workDate: state.workDate,
+        savedAt: Number(data.savedAt) || 0,
+      };
+    }
+    try {
+      if (state.storeNumber && global.EodVisitMemory?.applyToSession) {
+        global.EodVisitMemory.applyToSession({ state, patch, saveDraft, resolvedLeadName }, state.storeNumber);
+      }
+    } catch (_) {}
+    emit('load');
+  }
+
+  function getPriorDayDraft() {
+    return priorDayDraft ? Object.assign({}, priorDayDraft) : null;
+  }
+
+  function resolvePriorDayDraft(action) {
+    if (!priorDayDraft) return null;
+    const selected = Object.assign({}, priorDayDraft);
+    priorDayDraft = null;
+    emit(action === 'resume' ? 'resume-prior-day' : 'dismiss-prior-day');
+    return selected;
+  }
+
+  function saveDraft() {
+    const payload = {
+      storeNumber: state.storeNumber,
+      workDate: state.workDate,
+      profileName: state.profileName,
+      profileEmail: state.profileEmail,
+      leadName: state.leadName,
+      leadEmail: state.leadEmail,
+      notes: state.notes,
+      checkInManager: state.checkInManager,
+      checkOutManager: state.checkOutManager,
+      fiscalWeek: state.fiscalWeek || '',
+      visitStep: state.visitStep || 'setup',
+      cartPhotoDone: !!state.cartPhotoDone,
+      checkInDone: !!state.checkInDone,
+      beforesStepDone: !!state.beforesStepDone,
+      emailRecipients: state.emailRecipients.slice(),
+      needsAssignmentEmails: (state.needsAssignmentEmails || []).slice(),
+      notInStoreSelected: state.notInStoreSelected.slice(),
+      notInSiSelected: state.notInSiSelected.slice(),
+      helpdeskSubmittedReports: (state.helpdeskSubmittedReports || []).map((report) => {
+        if (!report || typeof report !== 'object') return report;
+        const copy = Object.assign({}, report);
+        delete copy.photos;
+        return copy;
+      }),
+      helpdeskResolution: state.helpdeskResolution || null,
+      sheetAcknowledged: !!state.sheetAcknowledged,
+      instawork: state.instaworkYes,
+      instaworkSavedInfo: state.instaworkSavedInfo || null,
+      instaworkOfficeSubmitted: !!state.instaworkOfficeSubmitted,
+      kompassTimesheet: state.kompassTimesheetYes,
+      materialsRead: state.materialsReadYes,
+      extraVisitIds: (state.extraVisitIds || []).slice(),
+      profileLocked: !!state.profileLocked,
+      addRetailOdysseyTeam: !!state.addRetailOdysseyTeam,
+      proxyEodStamp: state.proxyEodStamp || '',
+      lieuSignoffStamp: state.lieuSignoffStamp || '',
+      skipMirrorIdentity: !!state.skipMirrorIdentity,
+      selectedShift: state.selectedShift
+        ? {
+            visitId: state.selectedShift.visitId,
+            storeNumber: state.selectedShift.storeNumber,
+            projectName: state.selectedShift.projectName,
+            visitLead: state.selectedShift.visitLead,
+          }
+        : null,
+      savedAt: Date.now(),
+      app: 'eod-field-app',
+    };
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.warn('draft save skipped', err && err.message);
+    }
+    saveProfile();
+    try { global.EodVisitMemory?.captureFromSession?.({ state, resolvedLeadName }); } catch (_) {}
+    try { global.EodVisitMirror?.persist?.(global.EodSession); } catch (_) {}
+  }
+
+  // Bridge for ported modules that still read DOM / window arrays.
+  function syncDomBridges() {
+    const storeEl = document.getElementById('storeNumber');
+    const dateEl = document.getElementById('workDate');
+    const nameEl = document.getElementById('profileName');
+    const emailEl = document.getElementById('profileEmail');
+    const leadEl = document.getElementById('leadName');
+    if (storeEl && storeEl.value !== state.storeNumber) storeEl.value = state.storeNumber;
+    if (dateEl && dateEl.value !== state.workDate) dateEl.value = state.workDate;
+    if (nameEl && nameEl.value !== state.profileName) nameEl.value = state.profileName;
+    if (emailEl && emailEl.value !== state.profileEmail) emailEl.value = state.profileEmail;
+    if (leadEl) leadEl.value = state.leadName || state.profileName || '';
+    global.emailRecipients = state.emailRecipients;
+    global.notInStoreSelected = state.notInStoreSelected;
+    global.notInSiSelected = state.notInSiSelected;
+    global.helpdeskSubmittedReports = state.helpdeskSubmittedReports;
+    global.selectedShift = state.selectedShift;
+    global.smSelectedShift = state.selectedShift;
+    global.smMembers = state.members;
+    global.photos = state.photos;
+  }
+
+  global.EodSession = {
+    state,
+    DAY_CONFIRM_KEY,
+    DRAFT_KEY,
+    normStoreNumber,
+    normIsoDate,
+    todayLocalIsoDate,
+    getActiveDayConfirm,
+    getActiveDayConfirmFor,
+    persistDayConfirm,
+    clearDayConfirm,
+    resetVisit,
+    clearLocalIdentity,
+    allowMirrorIdentity,
+    shouldSkipMirrorIdentity,
+    rememberedProfileName,
+    isVisitReady,
+    hasHostedSheet,
+    sheetSendReady,
+    on,
+    emit,
+    patch,
+    resolvedLeadName,
+    appendNote,
+    removeNote,
+    loadDraft,
+    getPriorDayDraft,
+    resolvePriorDayDraft,
+    saveDraft,
+    loadProfile,
+    saveProfile,
+    saveSignature,
+    setSignatureSigner,
+    dropSignatureIfNotLead,
+    syncDomBridges,
+  };
+
+  // Accessors for ported modules (T0.8 pattern).
+  global.getEmailRecipients = () => state.emailRecipients;
+  global.setEmailRecipients = (arr) => {
+    state.emailRecipients = Array.isArray(arr) ? arr.slice() : [];
+    emit('recipients');
+  };
+  global.getNotInStoreSelected = () => state.notInStoreSelected;
+  global.getNotInSiSelected = () => state.notInSiSelected;
+  global.getHelpdeskSubmittedReports = () => state.helpdeskSubmittedReports;
+  global.setHelpdeskSubmittedReports = (arr) => {
+    state.helpdeskSubmittedReports = Array.isArray(arr) ? arr.slice() : [];
+    emit('helpdesk');
+  };
+})(typeof window !== 'undefined' ? window : globalThis);

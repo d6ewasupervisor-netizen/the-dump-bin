@@ -1,0 +1,146 @@
+/* Background thumbs for before/after once the shift sheet is on.
+ * Planogram boards load on tap (and when that set's survey opens).
+ * Full-res stays on tap. Photos win origin quota over this cache. */
+(function (global) {
+  'use strict';
+
+  const DS_API = 'https://eod-api.the-dump-bin.com/api/digital-signoffs';
+  let runToken = 0;
+  let running = false;
+  let pendingSheet = null;
+
+  function Media() {
+    return global.EodSetMediaCache;
+  }
+
+  async function cachePut(url, resp) {
+    const M = Media();
+    if (M?.put) {
+      await M.put(url, resp);
+    }
+    try {
+      navigator.serviceWorker?.controller?.postMessage({ type: 'media-cached', url });
+    } catch (_) { /* no SW */ }
+  }
+
+  async function warmUrl(url) {
+    const M = Media();
+    const abs = M?.absApiUrl(url) || '';
+    if (!abs) return;
+    try {
+      if (await M.match(abs)) return;
+    } catch (_) { /* continue */ }
+    try {
+      const resp = await global.authFetch(abs, { skipBusy: true });
+      if (resp.ok) await cachePut(abs, resp);
+    } catch (_) { /* best-effort */ }
+  }
+
+  async function loadPhotoPacks(rows) {
+    const ids = (rows || []).map((row) => Number(row?.id)).filter((id) => Number.isSafeInteger(id) && id > 0);
+    if (!ids.length) return new Map();
+    const packs = new Map();
+    for (let offset = 0; offset < ids.length; offset += 50) {
+      const rowIds = ids.slice(offset, offset + 50);
+      const resp = await global.authFetch(`${DS_API}/photos/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowIds }),
+        skipBusy: true,
+      });
+      if (!resp.ok) throw new Error(`Photo batch failed (${resp.status})`);
+      const data = await resp.json().catch(() => ({}));
+      for (const rowId of rowIds) {
+        packs.set(String(rowId), data.rows?.[String(rowId)] || { photos: [] });
+      }
+    }
+    return packs;
+  }
+
+  async function prefetchRow(row, { store, date, token, policy, packs }) {
+    if (token !== runToken) return;
+    const gate = await Media()?.allowPrefetch?.();
+    if (gate && !gate.ok) {
+      runToken += 1;
+      return;
+    }
+    if (token !== runToken) return;
+    if (!(policy && policy.prefetchThumbs)) return;
+    const rowId = row.id;
+    if (!rowId) return;
+    try {
+      let data = packs?.get?.(String(rowId));
+      if (!data) {
+        const resp = await global.authFetch(`${DS_API}/rows/${encodeURIComponent(rowId)}/photos`, { skipBusy: true });
+        data = await resp.json().catch(() => ({}));
+      }
+      const photos = Array.isArray(data.photos) ? data.photos : [];
+      for (const p of photos) {
+        if (token !== runToken) return;
+        const again = await Media()?.allowPrefetch?.();
+        if (again && !again.ok) {
+          runToken += 1;
+          return;
+        }
+        await warmUrl(p.thumbUrl || '');
+      }
+    } catch (_) { /* pack may not be ready yet */ }
+  }
+
+  function uploadsOpen() {
+    const p = global.EodPhotoPipeline?.pendingCounts?.();
+    return (p?.upload || 0) > 0 || (p?.compress || 0) > 0;
+  }
+
+  function prioritizeRows(rows) {
+    const open = [];
+    const rest = [];
+    for (const row of rows || []) {
+      const live = row?.live || {};
+      const done = !!(live.prodComplete && live.siComplete);
+      (done ? rest : open).push(row);
+    }
+    return [...open, ...rest];
+  }
+
+  async function start(sheet) {
+    pendingSheet = sheet || global.EodSession?.state?.sheet || pendingSheet;
+    if (running) return;
+    running = true;
+    try {
+      while (pendingSheet) {
+        const next = pendingSheet;
+        pendingSheet = null;
+        const S = global.EodSession;
+        const rows = prioritizeRows(next?.rows);
+        const store = S?.state?.storeNumber;
+        const date = S?.state?.workDate;
+        if (!store || !Array.isArray(rows) || !rows.length) continue;
+        try { await Media()?.bindShift?.(store, date); } catch (_) {}
+        const policy = Media()?.connectionPrefetchPolicy?.() || { allowPrefetch: true, prefetchThumbs: true, prefetchPlanogramImages: false };
+        if (!policy.allowPrefetch) continue;
+        if (uploadsOpen()) continue;
+        const gate = await Media()?.allowPrefetch?.();
+        if (gate && !gate.ok) continue;
+        runToken += 1;
+        const token = runToken;
+        let packs = null;
+        try { packs = await loadPhotoPacks(rows.slice(0, 12)); } catch (_) { /* older API: per-row fallback */ }
+        for (const row of rows) {
+          if (token !== runToken) break;
+          if (uploadsOpen()) break;
+          await prefetchRow(row, { store, date, token, policy: { ...policy, prefetchPlanogramImages: false }, packs });
+        }
+      }
+    } finally {
+      running = false;
+    }
+  }
+
+  function stop() {
+    runToken += 1;
+    running = false;
+  }
+
+  global.EodSetMediaPrefetch = { start, stop };
+})(typeof window !== 'undefined' ? window : globalThis);

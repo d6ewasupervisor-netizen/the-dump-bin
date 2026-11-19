@@ -1,0 +1,115 @@
+/* After the lead picks a shift: warm crew, sheet, cart, and set photos in the background. */
+(function (global) {
+  'use strict';
+
+  let lastKey = '';
+  let running = false;
+  let ensuring = null;
+
+  function cartHas(slot) {
+    const Photos = global.EodPhotos;
+    if (Photos?.slotHasDisplayable) return Photos.slotHasDisplayable(slot);
+    const L = global.EodSendSheetsLogic || {};
+    const Cart = global.EodVisitCart;
+    const arr = Cart?.cartPhotos
+      ? Cart.cartPhotos(slot)
+      : ((global.EodSession?.state?.photos && global.EodSession.state.photos[slot]) || []);
+    if (L.cartSlotHasLoadedPhotos) {
+      return L.cartSlotHasLoadedPhotos(arr, global.PhotoDB?.liveObjectUrls);
+    }
+    return arr.length > 0;
+  }
+
+  async function pullCartSlot(slot) {
+    const Cart = global.EodVisitCart;
+    if (!Cart?.pullCartFromProd) return;
+    if (cartHas(slot)) return;
+    try {
+      await Cart.pullCartFromProd(slot);
+    } catch (err) {
+      console.warn(`[photo-sync] cart ${slot}`, err.message || err);
+    }
+  }
+
+  async function ensureCartPhotos() {
+    if (ensuring) return ensuring;
+    ensuring = (async () => {
+      const S = global.EodSession;
+      if (!S?.isVisitReady?.() || !S.state.selectedShift) return;
+      if (global.PhotoDB?.hydrateArrays && S.state.photos) {
+        try { await global.PhotoDB.hydrateArrays(S.state.photos); } catch (_) {}
+      }
+      await pullCartSlot('before');
+      await pullCartSlot('after');
+    })();
+    try {
+      return await ensuring;
+    } finally {
+      ensuring = null;
+    }
+  }
+
+  async function prefetchSetPhotos(sheet) {
+    const rows = (sheet && sheet.rows) || [];
+    for (const row of rows) {
+      if (!row?.id || !row.dbkey) continue;
+      const live = row.live || {};
+      const wantBefore = Number(live.prodBeforeCount) > 0;
+      const wantAfter = Number(live.photoCount || live.siPhotoCount || live.prodAfterCount) > 0
+        || live.siComplete || live.prodComplete;
+      if (!wantBefore && !wantAfter) continue;
+      try {
+        const resp = await global.authFetch(
+          `https://eod-api.the-dump-bin.com/api/digital-signoffs/rows/${encodeURIComponent(row.id)}/photos`,
+          { skipBusy: true, noBounceOn401: true }
+        );
+        if (!resp.ok) continue;
+        await resp.json().catch(() => ({}));
+        // EodSetBeforeStore is the device outbox. Server photo metadata must
+        // never replace its full-resolution, not-yet-uploaded captures.
+      } catch (err) {
+        console.warn('[photo-sync] set', row.dbkey, err.message || err);
+      }
+    }
+  }
+
+  async function run(reason) {
+    const S = global.EodSession;
+    if (!S?.isVisitReady?.() || !S.state.selectedShift) return;
+    const key = `${S.state.storeNumber}|${S.state.workDate}|${S.state.selectedShift.visitId}`;
+    if (running && key === lastKey) return;
+    lastKey = key;
+    running = true;
+    try {
+      try { await global.EodCrew?.loadMembers?.({ skipBusy: true }); } catch (err) {
+        console.warn('[shift-warm] members', err.message || err);
+      }
+      if (!S.state.sheet && global.EodSignoffHome?.loadSheet) {
+        try { await global.EodSignoffHome.loadSheet(); } catch (_) {}
+      }
+      await ensureCartPhotos();
+      const sheet = S.state.sheet;
+      if (sheet?.rows?.length) {
+        try { global.EodSetMediaPrefetch?.start(sheet); } catch (_) {}
+        try { await prefetchSetPhotos(sheet); } catch (_) {}
+      }
+      try { global.EodCoverNotes?.apply?.(S, reason || 'shift-photos'); } catch (_) {}
+    } finally {
+      running = false;
+    }
+  }
+
+  function init() {
+    if (init._bound) return;
+    init._bound = true;
+    const S = global.EodSession;
+    if (!S?.on) return;
+    S.on((_state, reason) => {
+      if (reason !== 'shift' && reason !== 'shifts' && reason !== 'shifts-cache' && reason !== 'extra-visits') return;
+      if (!S.state.selectedShift) return;
+      run(reason).catch(() => {});
+    });
+  }
+
+  global.EodShiftPhotoSync = { run, init, ensureCartPhotos, cartHas };
+})(typeof window !== 'undefined' ? window : globalThis);

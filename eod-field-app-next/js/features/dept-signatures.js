@@ -1,0 +1,1264 @@
+/* Department PIC digital signature pads for EOD.
+ * Lead picks a role → hand device → name/email (remembered) → fresh signature each time → auto-CC.
+ */
+(function () {
+  'use strict';
+
+  const API = 'https://eod-api.the-dump-bin.com/api/dept-signatures';
+  const GUEST_API = 'https://eod-api.the-dump-bin.com/api/guest-handoff';
+
+  const ROLE_FALLBACK = [
+    { key: 'grocery', label: 'Grocery PIC' },
+    { key: 'fuel_center', label: 'Fuel Center PIC' },
+    { key: 'deli', label: 'Deli Dept. PIC' },
+    { key: 'meat', label: 'Meat Dept. PIC' },
+    { key: 'produce', label: 'Produce Dept. PIC' },
+    { key: 'bakery', label: 'Bakery Dept. PIC' },
+    { key: 'home_manager', label: 'Home Manager' },
+    { key: 'dept_pic', label: 'Dept. PIC' },
+  ];
+
+  let roles = ROLE_FALLBACK.slice();
+  let contacts = [];
+  let signatures = [];
+  let wizard = null; // { roleKey, step, contactId, fullName, email }
+  /** Keyed by lowercase email → dataUrl; persists for the session so a PIC can reuse across roles. */
+  const sessionSigCache = new Map();
+  /** When set, only these role keys are shown (day-scoped from the digital sheet). */
+  let scopedRoleKeys = null; // string[] | null
+  let catalogRoles = ROLE_FALLBACK.slice();
+  let lastSheetRef = null;
+
+  const ROLE_ORDER = ROLE_FALLBACK.map((r) => r.key);
+  const HIDDEN_ROLE_LABELS = { store_pic: 'Grocery PIC' };
+
+  function sheetRows() {
+    return lastSheetRef?.rows
+      || window.EodDigitalSignoff?.getSheet?.()?.rows
+      || window.EodSession?.state?.sheet?.rows
+      || [];
+  }
+
+  function rowsMatchingRole(rows, roleKey) {
+    const list = Array.isArray(rows) ? rows : [];
+    const key = String(roleKey || '').trim().toLowerCase();
+    if (key === 'grocery' || key === 'store_pic') return list.slice();
+    return list.filter((row) => {
+      if (key === 'dept_pic' && /blitz/i.test(String(row.shiftType || row.shift_type || ''))) return true;
+      return window.EodSignoffDepartment?.rowMatchesSignoffRole?.(row, key) || false;
+    });
+  }
+
+
+  function setRowButtonHtml(row) {
+    const name = row.catName || row.cat_name || 'Set';
+    const dept = row.dept ? ` · ${row.dept}` : '';
+    return `<button type="button" class="dept-sig-set-row" data-set-id="${escapeHtml(row.id)}">
+      <strong>${escapeHtml(name)}</strong>
+      ${dept ? `<span class="muted">${escapeHtml(dept)}</span>` : ''}
+    </button>`;
+  }
+
+  function authFetch(url, init) {
+    if (typeof window.authFetch === 'function') return window.authFetch(url, init);
+    const opts = typeof window.applyEodVersionHeader === 'function'
+      ? window.applyEodVersionHeader(init)
+      : init;
+    if (window.dumpBinAuthFetch) return window.dumpBinAuthFetch(url, opts);
+    return fetch(url, opts);
+  }
+
+  function dayConfirmHeaders(extra) {
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+    try {
+      const stored = JSON.parse(localStorage.getItem('kompassDayConfirm') || 'null');
+      if (stored?.token) headers['X-Day-Confirm'] = stored.token;
+    } catch (_) { /* ignore */ }
+    return headers;
+  }
+
+  function isoDate(raw) {
+    if (!raw) return '';
+    if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+      const y = raw.getUTCFullYear();
+      const m = String(raw.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(raw.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    const s = String(raw).trim();
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
+  function storeNumber() {
+    return String(
+      document.getElementById('storeNumber')?.value
+      || window.EodSession?.state?.storeNumber
+      || window.EodSession?.state?.selectedShift?.storeNumber
+      || ''
+    ).trim();
+  }
+
+  function workDate() {
+    return isoDate(
+      document.getElementById('workDate')?.value
+      || document.getElementById('shiftDate')?.value
+      || document.getElementById('dayConfirmDate')?.value
+      || window.EodSession?.state?.workDate
+      || window.EodSession?.state?.selectedShift?.workDate
+      || window.EodSession?.state?.selectedShift?.scheduledDate
+      || ''
+    );
+  }
+
+  function notify(title, msg) {
+    if (typeof showAlert === 'function') showAlert(title, msg);
+    else alert(msg || title);
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function canonicalName(value) {
+    return window.EodPersonName?.capitalizeNameWords?.(value)
+      || String(value || '').trim().replace(/\s+/g, ' ');
+  }
+
+  function roleLabel(key) {
+    return (roles.find((r) => r.key === key) || {}).label || key;
+  }
+
+  const ROLE_LABEL_BY_KEY = Object.fromEntries(ROLE_FALLBACK.map((r) => [r.key, r.label]));
+
+  function roleKeysMatchingRows(rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    const found = new Set();
+    for (const row of list) {
+      const st = String(row?.shiftType || row?.shift_type || '');
+      const rowRoles = window.EodSignoffDepartment?.rolesForSignoffRow?.(row) || ['grocery'];
+      rowRoles.forEach((key) => found.add(key));
+      if (/blitz/i.test(st) && rowRoles.includes('dept_pic')) found.add('dept_pic');
+    }
+    return ROLE_ORDER.filter((k) => found.has(k));
+  }
+
+  function labelForKey(key) {
+    const fromCatalog = (catalogRoles || []).find((r) => r.key === key);
+    return fromCatalog?.label || ROLE_LABEL_BY_KEY[key] || HIDDEN_ROLE_LABELS[key] || key;
+  }
+
+  function applyScopedKeys(keys, { allowEmpty = false } = {}) {
+    const seen = new Set();
+    const normalized = (Array.isArray(keys) ? keys : [])
+      .map((k) => String(k || '').trim().toLowerCase())
+      .filter((k) => {
+        if (!k || k === 'store_pic' || k === 'lead' || seen.has(k)) return false;
+        if (!ROLE_LABEL_BY_KEY[k] && !(catalogRoles || []).some((r) => r.key === k)) return false;
+        seen.add(k);
+        return true;
+      });
+    scopedRoleKeys = normalized;
+    if (!normalized.length) {
+      roles = allowEmpty ? [] : [];
+    } else {
+      roles = normalized.map((k) => ({ key: k, label: labelForKey(k) }));
+    }
+    renderRoleList();
+  }
+
+  function applyRequiredRoleKeys(keys) {
+    // Legacy API: ingest requiredRoles for the store/week.
+    // Prefer syncFromSheet when a live sheet is available (day marks).
+    if (!Array.isArray(keys) || !keys.length) {
+      if (!lastSheetRef) {
+        scopedRoleKeys = null;
+        roles = (catalogRoles.length ? catalogRoles : ROLE_FALLBACK).slice();
+        renderRoleList();
+      }
+      return;
+    }
+    applyScopedKeys(keys, { allowEmpty: true });
+  }
+
+  /**
+   * Signature slots follow departments worked today, including Blitz and Cut In.
+   * A set signed out on an earlier day does not open a card.
+   */
+  function rowInScope(row) {
+    if (!row) return false;
+    if (row.outOfScope || row.out_of_scope || row.marks?.outOfScope) return false;
+    return true;
+  }
+
+  function currentShift() {
+    const S = window.EodSession?.state || {};
+    const visitId = window.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+      S.shifts,
+      S.selectedShift
+    )?.visitId || S.selectedShift?.visitId || '';
+    return { workDate: workDate(), visitId };
+  }
+
+  function syncFromSheet(sheet) {
+    lastSheetRef = sheet || null;
+    if (!sheet || !Array.isArray(sheet.rows)) {
+      // No hosted sheet: don't dump the full catalog in the field app.
+      scopedRoleKeys = [];
+      roles = [];
+      renderRoleList();
+      return roles;
+    }
+
+    const workRows = sheet.rows.filter(rowInScope);
+    const shift = currentShift();
+    const keys = window.EodSignoffDepartment?.signatureRolesForRows
+      ? window.EodSignoffDepartment.signatureRolesForRows(workRows, shift)
+      : ROLE_ORDER.filter((k) => {
+        const keySet = new Set(roleKeysMatchingRows(workRows));
+        keySet.delete('dept_pic');
+        return keySet.has(k);
+      });
+    applyScopedKeys(keys, { allowEmpty: true });
+    return roles;
+  }
+
+  function ensureUi() {
+    if (document.getElementById('deptSigSection')) return;
+    const host = document.getElementById('deptSigMount')
+      || document.getElementById('eodSignoffGroupBody');
+    const sigSection = document.querySelector('.signature-section');
+    if (!host && (!sigSection || !sigSection.parentNode)) return;
+
+    const section = document.createElement('div');
+    section.className = 'section dept-sig-section';
+    section.id = 'deptSigSection';
+    section.innerHTML = `
+      <div class="dept-sig-header" style="display:flex;align-items:center;gap:8px;">
+        <button type="button" class="btn btn-secondary" id="deptSigLieuBtn" style="display:inline-flex;flex-direction:column;align-items:center;line-height:1.05;padding:6px 10px;white-space:normal;min-width:76px;"><span>Sign in</span><span>lieu of</span></button>
+        <div class="section-title" style="flex:1;">Department Signatures</div>
+        <span class="dept-sig-progress" id="deptSigPickerMeta">0/0</span>
+      </div>
+      <p class="sets-help muted dept-sig-help" id="deptSigHelp">
+        Only departments worked on today’s sheet appear here. Hand the device to
+        that PIC — name/email are remembered for this store.
+      </p>
+      <div id="deptSigRoleList" class="dept-sig-role-list"></div>
+      <div class="dept-sig-actions">
+        <button type="button" class="btn btn-primary dept-sig-collect-btn" id="deptSigPickerBtn">
+          Collect a department signature
+        </button>
+        <button type="button" class="btn btn-secondary" id="deptSigProxyBtn" hidden>Sign out for someone else</button>
+        <button type="button" class="btn btn-secondary" id="deptSigRefreshBtn">Refresh</button>
+      </div>
+    `;
+    if (host) host.appendChild(section);
+    else sigSection.parentNode.insertBefore(section, sigSection);
+
+    if (!document.getElementById('deptSigWizardOverlay')) {
+      const overlay = document.createElement('div');
+      overlay.id = 'deptSigWizardOverlay';
+      overlay.className = 'dept-sig-wizard-overlay';
+      overlay.innerHTML = `
+        <div class="dept-sig-wizard-dialog" role="dialog" aria-modal="true">
+          <div class="dept-sig-wizard-header">
+            <h2 id="deptSigWizardTitle">Department signature</h2>
+            <button type="button" class="btn btn-secondary" id="deptSigWizardCancel">Cancel</button>
+          </div>
+          <p id="deptSigWizardHint" class="sets-help muted"></p>
+          <div id="deptSigWizardBody"></div>
+          <div class="button-group dept-sig-wizard-actions">
+            <button type="button" class="btn btn-secondary" id="deptSigWizardBack" style="display:none;">Back</button>
+            <button type="button" class="btn btn-primary" id="deptSigWizardNext">Continue</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeWizard();
+      });
+      overlay.addEventListener('touchmove', (e) => {
+        if (e.target === overlay) e.preventDefault();
+      }, { passive: false });
+      document.getElementById('deptSigWizardCancel').onclick = closeWizard;
+      document.getElementById('deptSigWizardBack').onclick = wizardBack;
+      document.getElementById('deptSigWizardNext').onclick = wizardNext;
+    }
+
+    document.getElementById('deptSigRefreshBtn').onclick = () => refresh().catch(console.error);
+    const lieuBtn = document.getElementById('deptSigLieuBtn');
+    if (lieuBtn) {
+      lieuBtn.onclick = () => {
+        window.EodLieuSign?.toggle?.();
+        renderRoleList();
+      };
+    }
+    const proxyBtn = document.getElementById('deptSigProxyBtn');
+    if (proxyBtn) {
+      proxyBtn.onclick = () => {
+        window.EodProxyEod?.toggle?.();
+        renderRoleList();
+      };
+    }
+  }
+
+  function paintLieuButton() {
+    const lieuBtn = document.getElementById('deptSigLieuBtn');
+    if (!lieuBtn) return;
+    const on = !!window.EodLieuSign?.activeStamp?.();
+    if (on) {
+      lieuBtn.textContent = 'Undo';
+      lieuBtn.style.display = '';
+      lieuBtn.style.flexDirection = '';
+    } else {
+      lieuBtn.style.display = 'inline-flex';
+      lieuBtn.style.flexDirection = 'column';
+      lieuBtn.innerHTML = '<span>Sign in</span><span>lieu of</span>';
+    }
+  }
+
+  function paintProxyButton() {
+    paintLieuButton();
+    const proxyBtn = document.getElementById('deptSigProxyBtn');
+    if (!proxyBtn) return;
+    const allowed = !!window.EodProxyEod?.canUse?.();
+    proxyBtn.hidden = !allowed;
+    if (!allowed) return;
+    proxyBtn.textContent = window.EodProxyEod.activeStamp?.()
+      ? 'Undo'
+      : 'Sign out for someone else';
+  }
+
+  function renderRoleList() {
+    const host = document.getElementById('deptSigRoleList');
+    if (!host) return;
+    const help = document.getElementById('deptSigHelp');
+    paintProxyButton();
+    if (!window.EodRoles?.getMe?.() && window.EodRoles?.load) {
+      window.EodRoles.load().then(() => paintProxyButton()).catch(() => {});
+    }
+    const stamp = window.EodProxyEod?.activeStamp?.() || '';
+    const lieu = window.EodLieuSign?.activeStamp?.() || '';
+    const pickerBtn = document.getElementById('deptSigPickerBtn');
+    if (stamp) {
+      host.innerHTML = `<p class="dept-sig-proxy-stamp" style="margin:0;"><strong>${escapeHtml(stamp)}</strong></p>`;
+      if (help) help.hidden = true;
+      const meta = document.getElementById('deptSigPickerMeta');
+      if (meta) meta.textContent = stamp;
+      if (pickerBtn) pickerBtn.hidden = true;
+      return;
+    }
+    if (help) help.hidden = false;
+    if (pickerBtn) pickerBtn.hidden = false;
+    const byRole = new Map(signatures.map((s) => [s.roleKey, s]));
+    if (!roles.length) {
+      host.innerHTML = `<p class="muted" style="margin:0;">
+        No department signature slots yet.
+        ${lastSheetRef
+          ? 'Mark Produce, Grocery, etc. on the digital sheet — matching PIC roles show up here.'
+          : 'Confirm a store with a digital sheet, or collect after sets are marked.'}
+      </p>`;
+      if (help) {
+        help.textContent = lastSheetRef
+          ? 'Signature slots follow departments you mark on today’s sheet (e.g. Produce + Grocery only → those two PICs).'
+          : 'Department signatures follow the digital sheet for this store/day.';
+      }
+      const meta = document.getElementById('deptSigPickerMeta');
+      if (meta) meta.textContent = '0/0';
+      if (pickerBtn) pickerBtn.disabled = true;
+      return;
+    }
+    if (help) {
+      help.textContent = 'Only departments worked on today’s sheet appear here. Hand the device to that PIC — name/email are remembered for this store.';
+    }
+    host.innerHTML = roles.map((role) => {
+      const sig = byRole.get(role.key);
+      const collected = !!sig;
+      return `
+        <div class="dept-sig-role-row ${collected ? 'collected' : ''}" data-role-key="${escapeHtml(role.key)}">
+          <div>
+            <div><strong>${escapeHtml(role.label)}</strong></div>
+            <div class="dept-sig-role-meta" data-dept-sig-meta="${escapeHtml(role.key)}">
+              ${collected
+                ? `Signed by ${escapeHtml(sig.signerName)} · ${escapeHtml(sig.signerEmail)}`
+                : (lieu ? escapeHtml(lieu) : 'Not collected yet')}
+            </div>
+            <div class="dept-sig-edit-form" data-dept-sig-edit-form="${escapeHtml(role.key)}" style="display:none;margin-top:8px;">
+              <div class="field" style="margin-bottom:6px;">
+                <input type="text" class="dept-sig-edit-name" placeholder="Full name" value="${collected ? escapeHtml(sig.signerName) : ''}" style="width:100%;">
+              </div>
+              <div class="field" style="margin-bottom:6px;">
+                <input type="email" class="dept-sig-edit-email" placeholder="Email" value="${collected ? escapeHtml(sig.signerEmail) : ''}" style="width:100%;">
+              </div>
+              <div class="btn-row">
+                <button type="button" class="btn btn-primary btn-sm" data-dept-sig-edit-save="${escapeHtml(role.key)}">Save</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dept-sig-edit-cancel="${escapeHtml(role.key)}">Cancel</button>
+              </div>
+            </div>
+          </div>
+          <div class="dept-sig-role-actions">
+            <button type="button" class="btn btn-primary" data-dept-sig-collect="${escapeHtml(role.key)}">
+              ${collected ? 'Re-collect' : 'Hand to signer'}
+            </button>
+            ${collected ? `<button type="button" class="btn btn-secondary" data-dept-sig-edit="${escapeHtml(role.key)}">Edit</button>` : ''}
+            ${collected ? `<button type="button" class="btn btn-secondary" data-dept-sig-clear="${escapeHtml(role.key)}">Clear</button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    host.querySelectorAll('[data-dept-sig-collect]').forEach((btn) => {
+      btn.onclick = () => openWizard(btn.getAttribute('data-dept-sig-collect'));
+    });
+    host.querySelectorAll('[data-dept-sig-send]').forEach((btn) => {
+      btn.onclick = () => {
+        if (window.EodPicQr?.showTextPicker) window.EodPicQr.showTextPicker();
+      };
+    });
+    host.querySelectorAll('[data-dept-sig-edit]').forEach((btn) => {
+      btn.onclick = () => {
+        const roleKey = btn.getAttribute('data-dept-sig-edit');
+        const row = host.querySelector(`[data-role-key="${roleKey}"]`);
+        if (!row) return;
+        row.querySelector(`[data-dept-sig-edit-form="${roleKey}"]`).style.display = 'block';
+        row.querySelector(`[data-dept-sig-meta="${roleKey}"]`).style.display = 'none';
+        btn.style.display = 'none';
+        row.querySelector(`[data-dept-sig-edit-name]`)?.focus();
+      };
+    });
+    host.querySelectorAll('[data-dept-sig-edit-cancel]').forEach((btn) => {
+      btn.onclick = () => {
+        const roleKey = btn.getAttribute('data-dept-sig-edit-cancel');
+        const row = host.querySelector(`[data-role-key="${roleKey}"]`);
+        if (!row) return;
+        row.querySelector(`[data-dept-sig-edit-form="${roleKey}"]`).style.display = 'none';
+        row.querySelector(`[data-dept-sig-meta="${roleKey}"]`).style.display = '';
+        row.querySelector(`[data-dept-sig-edit="${roleKey}"]`).style.display = '';
+      };
+    });
+    host.querySelectorAll('[data-dept-sig-edit-save]').forEach((btn) => {
+      btn.onclick = async () => {
+        const roleKey = btn.getAttribute('data-dept-sig-edit-save');
+        const row = host.querySelector(`[data-role-key="${roleKey}"]`);
+        if (!row) return;
+        const nameVal = row.querySelector('.dept-sig-edit-name')?.value.trim();
+        const emailVal = row.querySelector('.dept-sig-edit-email')?.value.trim().toLowerCase();
+        if (!nameVal) { if (typeof showAlert === 'function') showAlert('Name required', 'Enter the signer\'s name.'); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) { if (typeof showAlert === 'function') showAlert('Email required', 'Enter a valid email address.'); return; }
+        btn.disabled = true;
+        try {
+          const resp = await authFetch(`${API}/${encodeURIComponent(storeNumber())}/signatures/${encodeURIComponent(roleKey)}`, {
+            method: 'PATCH',
+            headers: dayConfirmHeaders(),
+            body: JSON.stringify({ storeNumber: storeNumber(), workDate: workDate(), date: workDate(), fullName: nameVal, email: emailVal }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) throw new Error(data.error || `Save failed (${resp.status})`);
+          await refresh();
+        } catch (err) {
+          if (typeof showAlert === 'function') showAlert('Save failed', err.message || String(err));
+          btn.disabled = false;
+        }
+      };
+    });
+    host.querySelectorAll('[data-dept-sig-clear]').forEach((btn) => {
+      btn.onclick = () => clearRole(btn.getAttribute('data-dept-sig-clear'));
+    });
+
+    const meta = document.getElementById('deptSigPickerMeta');
+    const collectedN = roles.filter((r) => byRole.has(r.key)).length;
+    if (meta) {
+      meta.textContent = `${collectedN}/${roles.length}`;
+      meta.classList.toggle('is-complete', collectedN > 0 && collectedN === roles.length);
+      meta.classList.toggle('is-partial', collectedN > 0 && collectedN < roles.length);
+    }
+    if (pickerBtn) {
+      pickerBtn.disabled = false;
+      pickerBtn.textContent = collectedN === roles.length
+        ? 'Re-collect a department signature'
+        : 'Collect a department signature';
+      if (pickerBtn.dataset.bound !== '1') {
+        pickerBtn.dataset.bound = '1';
+        pickerBtn.addEventListener('click', () => {
+          const latest = new Map(signatures.map((s) => [s.roleKey, s]));
+          const items = roles.map((role) => {
+            const sig = latest.get(role.key);
+            return {
+              id: role.key,
+              label: role.label,
+              sublabel: sig ? `Signed by ${sig.signerName}` : 'Not collected yet',
+              selected: !!sig,
+            };
+          });
+          const open = window.EodPicker?.open || window.EodWorkspace?.openPicker;
+          if (!open) return;
+          open({
+            anchor: pickerBtn,
+            title: 'Department signatures',
+            items,
+            searchable: items.length > 6,
+            onChoose(item) { openWizard(item.id); },
+          });
+        });
+      }
+    }
+  }
+
+  async function refresh() {
+    ensureUi();
+    const store = storeNumber();
+    const date = workDate();
+    if (!store) {
+      renderRoleList();
+      return;
+    }
+    try {
+      const rolesResp = await authFetch(`${API}/roles`);
+      if (rolesResp.ok) {
+        const data = await rolesResp.json();
+        if (Array.isArray(data.roles) && data.roles.length) {
+          catalogRoles = data.roles.filter((r) => { const k = String(r?.key || '').toLowerCase(); return k && k !== 'lead' && k !== 'store_pic'; });
+        }
+      }
+    } catch (_) { /* keep fallback catalog */ }
+
+    try {
+      const cResp = await authFetch(`${API}/${encodeURIComponent(store)}/contacts`);
+      if (cResp.ok) {
+        const data = await cResp.json();
+        contacts = Array.isArray(data.contacts)
+          ? data.contacts.map((contact) => ({
+              ...contact,
+              fullName: canonicalName(contact.fullName),
+            }))
+          : [];
+      }
+    } catch (_) { contacts = []; }
+
+    if (date) {
+      try {
+        const sResp = await authFetch(
+          `${API}/${encodeURIComponent(store)}/signatures?date=${encodeURIComponent(date)}`
+        );
+        if (sResp.ok) {
+          const data = await sResp.json();
+          signatures = Array.isArray(data.signatures)
+            ? data.signatures.map((signature) => ({
+                ...signature,
+                signerName: canonicalName(signature.signerName),
+              }))
+            : [];
+          if (Array.isArray(data.roles) && data.roles.length) {
+            catalogRoles = data.roles.filter((r) => { const k = String(r?.key || '').toLowerCase(); return k && k !== 'lead' && k !== 'store_pic'; });
+          }
+        }
+      } catch (_) { signatures = []; }
+    } else {
+      signatures = [];
+    }
+
+    // Never replace the day-scoped list with the full catalog.
+    if (lastSheetRef) {
+      syncFromSheet(lastSheetRef);
+    } else if (scopedRoleKeys) {
+      applyScopedKeys(scopedRoleKeys, { allowEmpty: true });
+    } else {
+      roles = (catalogRoles.length ? catalogRoles : ROLE_FALLBACK).slice();
+      renderRoleList();
+    }
+    syncRecipientsFromSignatures();
+  }
+
+  function syncRecipientsFromSignatures() {
+    if (!Array.isArray(window.emailRecipients)) return;
+    let changed = false;
+    for (const sig of signatures) {
+      if (String(sig.roleKey || '').toLowerCase() === 'lead') continue;
+      const em = String(sig.signerEmail || '').toLowerCase();
+      if (em && !window.emailRecipients.includes(em)) {
+        window.emailRecipients.push(em);
+        changed = true;
+      }
+    }
+    if (changed && typeof window.renderRecipientList === 'function') {
+      window.renderRecipientList();
+      if (typeof window.autoSave === 'function') window.autoSave();
+    }
+  }
+
+  function addRecipientEmail(email) {
+    const em = String(email || '').toLowerCase().trim();
+    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return;
+    if (!Array.isArray(window.emailRecipients)) window.emailRecipients = [];
+    if (!window.emailRecipients.includes(em)) {
+      window.emailRecipients.push(em);
+      if (typeof window.renderRecipientList === 'function') window.renderRecipientList();
+      if (typeof window.autoSave === 'function') window.autoSave();
+    }
+  }
+
+  function openWizard(roleKey) {
+    const store = storeNumber();
+    const date = workDate();
+    if (!store) {
+      notify('Store required', 'Enter a store number first.');
+      return;
+    }
+    if (!date) {
+      notify('Date required', 'Select the shift / work date first.');
+      return;
+    }
+    wizard = { roleKey, step: contacts.length ? 'pick' : 'name', contactId: null, fullName: '', email: '', phone: '', smsNextTime: false, title: '', signatureDataUrl: '' };
+    renderWizard();
+    document.getElementById('deptSigWizardOverlay')?.classList.add('show');
+  }
+
+  function closeWizard() {
+    wizard = null;
+    document.getElementById('deptSigWizardOverlay')?.classList.remove('show');
+    try { window.EodLandscapeSigPad?.forceClose?.(); } catch (_) {}
+  }
+
+  function wizardBack() {
+    if (!wizard) return;
+    if (wizard.step === 'email') wizard.step = 'name';
+    else if (wizard.step === 'phone') wizard.step = wizard.contactId ? (contacts.length ? 'pick' : 'email') : 'email';
+    else if (wizard.step === 'title') wizard.step = 'phone';
+    else if (wizard.step === 'name' && contacts.length) wizard.step = 'pick';
+    else if (wizard.step === 'setReview') wizard.step = 'sets';
+    else if (wizard.step === 'sets') wizard.step = 'choice';
+    else if (wizard.step === 'sign') wizard.step = 'choice';
+    else if (wizard.step === 'choice') {
+      wizard.step = wizard.contactId || wizard.email ? 'confirm' : 'title';
+    } else if (wizard.step === 'confirm') {
+      wizard.step = contacts.length ? 'pick' : 'name';
+    }
+    renderWizard();
+  }
+
+  async function wizardNext() {
+    if (!wizard) return;
+    const body = document.getElementById('deptSigWizardBody');
+    if (wizard.step === 'pick') {
+      // handled by buttons
+      return;
+    }
+    if (wizard.step === 'name') {
+      const name = canonicalName(body.querySelector('#deptSigNameInput')?.value || '');
+      if (!name) {
+        if (typeof showAlert === 'function') showAlert('Name required', 'Please enter your name.');
+        return;
+      }
+      wizard.fullName = name;
+      wizard.step = 'email';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'email') {
+      const email = (body.querySelector('#deptSigEmailInput')?.value || '').trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (typeof showAlert === 'function') showAlert('Email required', 'Please enter a valid email address.');
+        return;
+      }
+      wizard.email = email;
+      wizard.step = 'phone';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'phone') {
+      wizard.phone = (body.querySelector('#deptSigPhoneInput')?.value || '').trim();
+      wizard.smsNextTime = !!body.querySelector('#deptSigSmsNext')?.checked;
+      wizard.step = wizard.contactId ? 'confirm' : 'title';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'title') {
+      wizard.title = (body.querySelector('#deptSigTitleInput')?.value || '').trim();
+      wizard.step = 'confirm';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'confirm') {
+      wizard.step = 'choice';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'sets') {
+      wizard.step = 'sign';
+      renderWizard();
+      return;
+    }
+    if (wizard.step === 'sign') {
+      // Store latest dataUrl from sigInput before submitting
+      if (wizard.sigInput) {
+        wizard.signatureDataUrl = await wizard.sigInput.getDataUrl();
+      }
+      await submitSignature();
+    }
+  }
+
+  async function mintPicToken() {
+    if (wizard.picToken) return wizard.picToken;
+    const resp = await authFetch(`${GUEST_API}/store-pic`, {
+      method: 'POST',
+      headers: dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: storeNumber(),
+        workDate: workDate(),
+        leadName: window.EodSession?.state?.leadName || null,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.ok === false || !data.token) {
+      throw new Error(data.error || `Could not load set photos (${resp.status})`);
+    }
+    wizard.picToken = data.token;
+    return wizard.picToken;
+  }
+
+  async function enterSetsStep() {
+    wizard.step = 'sets';
+    wizard.setsError = '';
+    renderWizard();
+    try {
+      await mintPicToken();
+      if (window.EodSetReview?.preloadRole) {
+        window.EodSetReview.preloadRole({
+          api: GUEST_API,
+          token: wizard.picToken,
+          roleKey: wizard.roleKey,
+        });
+      }
+    } catch (err) {
+      wizard.setsError = err.message || 'Set photos could not be preloaded.';
+    }
+    renderWizard();
+  }
+
+  function bindSetRowClicks(root) {
+    root.querySelectorAll('[data-set-id]').forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-set-id');
+        const row = sheetRows().find((r) => String(r.id) === String(id));
+        if (!row) return;
+        wizard.reviewRow = row;
+        wizard.step = 'setReview';
+        renderWizard();
+      };
+    });
+  }
+
+  function renderSetsStep(hint, body, next) {
+    const all = sheetRows();
+    const mine = rowsMatchingRole(all, wizard.roleKey);
+    hint.textContent = 'Tap a set to view before and after photos.';
+    next.style.display = 'inline-flex';
+    next.textContent = 'Continue to signature';
+    body.innerHTML = `
+      ${wizard.setsError ? `<p class="muted">${escapeHtml(wizard.setsError)}</p>` : ''}
+      <div class="dept-sig-set-list">
+        ${mine.length ? mine.map(setRowButtonHtml).join('') : '<p class="muted">No sets matched this department on today’s sheet.</p>'}
+      </div>`;
+    bindSetRowClicks(body);
+  }
+
+  function renderSetReviewStep(hint, body, back, next) {
+    hint.textContent = '';
+    next.style.display = 'none';
+    back.style.display = 'inline-flex';
+    const row = wizard.reviewRow;
+    if (!row) {
+      body.innerHTML = '<p class="muted">Set not found.</p>';
+      return;
+    }
+    body.innerHTML = '<div id="deptSigReviewRoot"></div>';
+    if (!window.EodSetReview?.createReview) {
+      body.innerHTML = '<p class="muted">Photo review is not available on this device.</p>';
+      return;
+    }
+    if (!wizard.picToken) {
+      body.innerHTML = '<p class="muted">Set photos need a store PIC session. Go back and try View sets again.</p>';
+      return;
+    }
+    window.EodSetReview.createReview({
+      root: document.getElementById('deptSigReviewRoot'),
+      api: GUEST_API,
+      token: wizard.picToken,
+      row,
+      skipRemoteMark: false,
+      onBack: () => {
+        wizard.step = 'sets';
+        renderWizard();
+      },
+      onMarked: () => {},
+      onConfirmComplete: () => {
+        wizard.step = 'sets';
+        renderWizard();
+      },
+    });
+  }
+
+  function renderWizard() {
+    const title = document.getElementById('deptSigWizardTitle');
+    const hint = document.getElementById('deptSigWizardHint');
+    const body = document.getElementById('deptSigWizardBody');
+    const back = document.getElementById('deptSigWizardBack');
+    const next = document.getElementById('deptSigWizardNext');
+    if (!wizard || !body) return;
+
+    title.textContent = roleLabel(wizard.roleKey);
+    back.style.display = wizard.step === 'pick' ? 'none' : 'inline-flex';
+
+    if (wizard.step === 'pick') {
+      hint.textContent = 'Select who is signing, or choose Someone new.';
+      next.style.display = 'none';
+      body.innerHTML = contacts.map((c) => `
+        <button type="button" class="dept-sig-choice" data-contact-id="${c.id}">
+          <strong>${escapeHtml(c.fullName)}</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">${escapeHtml(c.email)}</span>
+        </button>`).join('') + `
+        <button type="button" class="dept-sig-choice" data-contact-id="new">
+          <strong>Someone new</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">Enter name and email once — we will remember them for this store.</span>
+        </button>`;
+      body.querySelectorAll('[data-contact-id]').forEach((btn) => {
+        btn.onclick = () => {
+          const id = btn.getAttribute('data-contact-id');
+          if (id === 'new') {
+            wizard.contactId = null;
+            wizard.fullName = '';
+            wizard.email = '';
+            wizard.step = 'name';
+          } else {
+            const c = contacts.find((x) => String(x.id) === String(id));
+            if (!c) return;
+            wizard.contactId = c.id;
+            wizard.fullName = canonicalName(c.fullName);
+            wizard.email = c.email;
+            wizard.phone = c.phone || '';
+            wizard.smsNextTime = !!c.smsNextTime;
+            wizard.step = 'phone';
+          }
+          renderWizard();
+        };
+      });
+      return;
+    }
+
+    next.style.display = 'inline-flex';
+    if (wizard.step === 'name') {
+      hint.textContent = 'What is your name?';
+      next.textContent = 'Continue';
+      body.innerHTML = `<div class="field"><label>Full name</label>
+        <input type="text" id="deptSigNameInput" value="${escapeHtml(wizard.fullName)}" autocomplete="name" style="width:100%;"></div>`;
+      const nameInput = document.getElementById('deptSigNameInput');
+      nameInput?.addEventListener('input', () => {
+        const nextValue = window.EodPersonName?.capitalizeNameWhileTyping?.(nameInput.value) || nameInput.value;
+        if (nameInput.value !== nextValue) nameInput.value = nextValue;
+      });
+      nameInput?.addEventListener('blur', () => {
+        nameInput.value = canonicalName(nameInput.value);
+      });
+      setTimeout(() => document.getElementById('deptSigNameInput')?.focus(), 50);
+      return;
+    }
+    if (wizard.step === 'email') {
+      hint.textContent = 'What is your email address? We will remember it for this store and CC you on the EOD.';
+      next.textContent = 'Continue';
+      body.innerHTML = `<div class="field"><label>Email</label>
+        <input type="email" id="deptSigEmailInput" value="${escapeHtml(wizard.email)}" autocomplete="email" style="width:100%;"></div>`;
+      setTimeout(() => document.getElementById('deptSigEmailInput')?.focus(), 50);
+      return;
+    }
+    if (wizard.step === 'phone') {
+      hint.textContent = 'Optional cell for a sign-out text next time.';
+      next.textContent = 'Continue';
+      body.innerHTML = `<div class="field"><label>Cell</label>
+        <input type="tel" id="deptSigPhoneInput" value="${escapeHtml(wizard.phone || '')}" inputmode="tel" autocomplete="tel" style="width:100%;"></div>
+        <label style="display:flex;gap:8px;align-items:flex-start;margin:10px 0 0;font-size:14px;">
+          <input type="checkbox" id="deptSigSmsNext" ${wizard.smsNextTime ? 'checked' : ''}>
+          Text me next time
+        </label>`;
+      setTimeout(() => document.getElementById('deptSigPhoneInput')?.focus(), 50);
+      return;
+    }
+    if (wizard.step === 'title') {
+      hint.textContent = 'What is your title? (e.g. Bakery Manager, Produce PIC)';
+      next.textContent = 'Continue';
+      body.innerHTML = `<div class="field"><label>Title</label>
+        <input type="text" id="deptSigTitleInput" value="${escapeHtml(wizard.title)}" autocomplete="organization-title" style="width:100%;"></div>`;
+      setTimeout(() => document.getElementById('deptSigTitleInput')?.focus(), 50);
+      return;
+    }
+    if (wizard.step === 'confirm') {
+      hint.innerHTML = `You will only need to enter your information once because our system remembers who you are at this store.<br><strong>You will still be asked to sign each time.</strong>`;
+      next.textContent = 'Continue';
+      body.innerHTML = `<p style="margin:0;"><strong>${escapeHtml(wizard.fullName)}</strong>${wizard.title ? ` · ${escapeHtml(wizard.title)}` : ''}<br>${escapeHtml(wizard.email)}</p>`;
+      return;
+    }
+    if (wizard.step === 'choice') {
+      hint.textContent = 'Review today’s sets, or skip straight to your signature.';
+      next.style.display = 'none';
+      const cachedUrl = sessionSigCache.get((wizard.email || '').toLowerCase());
+      body.innerHTML = `
+        ${cachedUrl ? `
+        <button type="button" class="dept-sig-choice dept-sig-choice-reuse" id="deptSigReuseSign">
+          <strong>Use my earlier signature</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">Already signed today — reuse for this department</span>
+        </button>` : ''}
+        <button type="button" class="dept-sig-choice" id="deptSigViewSets">
+          <strong>View sets</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">Before and after photos for this department</span>
+        </button>
+        <button type="button" class="dept-sig-choice" id="deptSigJustSign">
+          <strong>${cachedUrl ? 'Sign fresh' : 'Just sign'}</strong><br>
+          <span style="color:#94a3b8;font-size:13px;">${cachedUrl ? 'Draw, type, or upload a new signature' : 'Skip photo review'}</span>
+        </button>`;
+      if (cachedUrl) {
+        document.getElementById('deptSigReuseSign').onclick = async () => {
+          wizard.signatureDataUrl = cachedUrl;
+          wizard.sigInput = null;
+          await submitSignature();
+        };
+      }
+      document.getElementById('deptSigViewSets').onclick = () => enterSetsStep();
+      document.getElementById('deptSigJustSign').onclick = () => {
+        wizard.step = 'sign';
+        renderWizard();
+      };
+      return;
+    }
+    if (wizard.step === 'sets') {
+      renderSetsStep(hint, body, next);
+      return;
+    }
+    if (wizard.step === 'setReview') {
+      renderSetReviewStep(hint, body, back, next);
+      return;
+    }
+    if (wizard.step === 'sign') {
+      hint.textContent = '';
+      next.textContent = 'Save signature';
+      body.innerHTML = `<div class="dept-sig-pad-wrap dept-sig-input-host"></div>`;
+      const host = body.querySelector('.dept-sig-input-host');
+      if (window.EodSigInput && host) {
+        wizard.sigInput = window.EodSigInput.create(host, {
+          existingDataUrl: wizard.signatureDataUrl || '',
+        });
+      } else {
+        // Fallback: plain draw canvas
+        host.innerHTML = `<canvas id="deptSigCanvas"></canvas>
+          <button type="button" class="btn btn-secondary btn-block" id="deptSigClearPad" style="margin-top:8px;">Clear</button>`;
+        const pad = bindInlinePad(document.getElementById('deptSigCanvas'), {
+          existingDataUrl: wizard.signatureDataUrl || '',
+          onChange: (url) => { if (wizard) wizard.signatureDataUrl = url; },
+        });
+        document.getElementById('deptSigClearPad').onclick = () => {
+          pad.clear();
+          if (wizard) wizard.signatureDataUrl = '';
+        };
+        wizard.sigInput = null;
+      }
+    }
+  }
+
+  function bindInlinePad(canvas, opts) {
+    const o = opts || {};
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let last = { x: 0, y: 0 };
+    let pointerId = null;
+
+    function size() {
+      const wrap = canvas.parentElement;
+      const w = Math.max(240, Math.floor(wrap?.clientWidth || canvas.clientWidth || 280));
+      const h = Math.max(160, Math.floor(canvas.clientHeight || 200));
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (o.existingDataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          const scale = Math.min(canvas.width / img.width, canvas.height / img.height, 1);
+          const dw = img.width * scale;
+          const dh = img.height * scale;
+          ctx.drawImage(img, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+        };
+        img.src = o.existingDataUrl;
+      }
+    }
+
+    function pos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const src = e.touches?.[0] || e.changedTouches?.[0] || e;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      return {
+        x: (src.clientX - rect.left) * (canvas.width / Math.max(rect.width, 1)) / dpr,
+        y: (src.clientY - rect.top) * (canvas.height / Math.max(rect.height, 1)) / dpr,
+      };
+    }
+    function start(e) {
+      drawing = true;
+      if (e.pointerId != null && canvas.setPointerCapture) {
+        pointerId = e.pointerId;
+        try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      }
+      last = pos(e);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    function move(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!drawing) return;
+      const p = pos(e);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+    }
+    function stop(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (pointerId != null && canvas.releasePointerCapture) {
+          try { canvas.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
+        }
+      }
+      if (drawing && typeof o.onChange === 'function') o.onChange(canvas.toDataURL('image/png'));
+      drawing = false;
+      pointerId = null;
+    }
+
+    const ptr = { passive: false, capture: true };
+    canvas.addEventListener('pointerdown', start, ptr);
+    canvas.addEventListener('pointermove', move, ptr);
+    canvas.addEventListener('pointerup', stop, ptr);
+    canvas.addEventListener('pointercancel', stop, ptr);
+    canvas.addEventListener('touchstart', start, ptr);
+    canvas.addEventListener('touchmove', move, ptr);
+    canvas.addEventListener('touchend', stop, ptr);
+    requestAnimationFrame(size);
+    return {
+      clear() {
+        o.existingDataUrl = '';
+        size();
+      },
+    };
+  }
+
+  async function submitSignature() {
+    // Resolve dataUrl from shared sig input (supports draw/type/upload) or legacy field
+    let dataUrl = '';
+    if (wizard?.sigInput) {
+      dataUrl = await wizard.sigInput.getDataUrl();
+    } else {
+      dataUrl = wizard?.signatureDataUrl || '';
+    }
+    if (!dataUrl) {
+      notify('Signature required', 'Please draw, type, or upload your signature before saving.');
+      return;
+    }
+    const store = storeNumber();
+    const date = workDate();
+    if (!store || !date) {
+      notify(store ? 'Date required' : 'Store required', store
+        ? 'Select the shift / work date first.'
+        : 'Enter a store number first.');
+      return;
+    }
+    const loading = document.getElementById('loadingOverlay');
+    if (loading) loading.classList.add('show');
+    try {
+      const resp = await authFetch(`${API}/${encodeURIComponent(store)}/signatures`, {
+        method: 'POST',
+        headers: dayConfirmHeaders(),
+        body: JSON.stringify({
+          storeNumber: store,
+          workDate: date,
+          date,
+          roleKey: wizard.roleKey,
+          fullName: wizard.fullName,
+          email: wizard.email,
+          signerTitle: wizard.title || undefined,
+          signerPhone: wizard.phone || undefined,
+          smsNextTime: !!wizard.smsNextTime,
+          signatureDataUrl: dataUrl,
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.status === 412) {
+        if (typeof showAlert === 'function') {
+          showAlert('Confirm store first', 'Please confirm today\'s store before collecting signatures.');
+        }
+        if (typeof showDayConfirmModal === 'function') showDayConfirmModal();
+        return;
+      }
+      if (!resp.ok || !data.ok) {
+        throw new Error(data.error || `Save failed (${resp.status})`);
+      }
+      addRecipientEmail(wizard.email);
+      // Cache this dataUrl so the same PIC can reuse it for other departments
+      if (wizard.email) sessionSigCache.set(wizard.email.toLowerCase(), dataUrl);
+      closeWizard();
+      await refresh();
+      if (typeof showAlert === 'function') {
+        showAlert('Signature saved', `${roleLabel(data.signature.roleKey)} signed by ${data.signature.signerName}. Added to EOD recipients.`);
+      }
+    } catch (err) {
+      console.error(err);
+      if (typeof showAlert === 'function') showAlert('Signature save failed', err.message || String(err));
+    } finally {
+      if (loading) loading.classList.remove('show');
+    }
+  }
+
+  async function clearRole(roleKey) {
+    const store = storeNumber();
+    const date = workDate();
+    if (!store || !date) return;
+    try {
+      const resp = await authFetch(
+        `${API}/${encodeURIComponent(store)}/signatures/${encodeURIComponent(roleKey)}?date=${encodeURIComponent(date)}`,
+        {
+          method: 'DELETE',
+          headers: dayConfirmHeaders(),
+          body: JSON.stringify({ storeNumber: store, workDate: date, date }),
+        }
+      );
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `Clear failed (${resp.status})`);
+      await refresh();
+    } catch (err) {
+      if (typeof showAlert === 'function') showAlert('Clear failed', err.message || String(err));
+    }
+  }
+
+  function getCollectedForEmail() {
+    return signatures
+      .filter((s) => String(s.roleKey || '').toLowerCase() !== 'lead')
+      .map((s) => ({
+        roleKey: s.roleKey,
+        roleLabel: roleLabel(s.roleKey),
+        signerName: canonicalName(s.signerName),
+        signerTitle: s.signerTitle,
+        signerEmail: s.signerEmail,
+        signatureUrl: s.signatureUrl,
+        createdAt: s.createdAt,
+      }));
+  }
+
+  function leadContactEmail() {
+    const S = window.EodSession;
+    const fromState = String(S?.state?.leadEmail || S?.state?.profileEmail || '').trim();
+    if (fromState) return fromState;
+    try {
+      const u = window.dumpBinAuth?.user || window.DumpBinAuth?.user;
+      if (u?.email) return String(u.email).trim();
+    } catch (_) { /* ignore */ }
+    return '';
+  }
+
+  async function persistLeadSignature() {
+    const S = window.EodSession;
+    const url = String(S?.state?.signatureDataUrl || '');
+    if (!/^data:image\//i.test(url)) return false;
+    const store = storeNumber();
+    const date = workDate();
+    const name = S.resolvedLeadName?.() || S.state.leadName || S.state.profileName;
+    const email = leadContactEmail();
+    if (!store || !date || !name || !email) return false;
+    try {
+      const resp = await authFetch(`${API}/${encodeURIComponent(store)}/signatures`, {
+        method: 'POST',
+        headers: dayConfirmHeaders(),
+        body: JSON.stringify({
+          storeNumber: store,
+          workDate: date,
+          date,
+          roleKey: 'lead',
+          fullName: name,
+          email,
+          signerTitle: 'KOMPASS Lead',
+          signatureDataUrl: url,
+        }),
+      });
+      return resp.ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function mountInline(host) {
+    if (!host) return;
+    ensureUi();
+    const section = document.getElementById('deptSigSection');
+    if (section) {
+      host.innerHTML = '';
+      host.appendChild(section);
+      section.style.display = 'block';
+    } else {
+      host.innerHTML = '<p class="muted">Department signatures UI could not mount (missing bridge host).</p>';
+    }
+    refresh().catch(console.error);
+  }
+
+  function clearLocal() {
+    signatures = [];
+    try { renderRoleList(); } catch (_) {}
+    try {
+      const meta = document.getElementById('deptSigPickerMeta');
+      if (meta) {
+        meta.textContent = '0/0';
+        meta.classList.remove('is-complete', 'is-partial');
+      }
+    } catch (_) {}
+  }
+
+  window.EodDeptSignatures = {
+    refresh,
+    ensureUi,
+    mountInline,
+    clearLocal,
+    getCollectedForEmail,
+    persistLeadSignature,
+    setRequiredRoles: applyRequiredRoleKeys,
+    scopedRoleKeys: () => (scopedRoleKeys || []).slice(),
+    syncFromSheet,
+    roles: () => roles.slice(),
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    ensureUi();
+    const storeEl = document.getElementById('storeNumber');
+    const dateEl = document.getElementById('workDate') || document.getElementById('shiftDate');
+    if (storeEl) storeEl.addEventListener('change', () => refresh().catch(console.error));
+    if (dateEl) dateEl.addEventListener('change', () => refresh().catch(console.error));
+    window.EodSession?.on?.((_state, reason) => {
+      if (reason === 'signature') persistLeadSignature().catch(() => {});
+    });
+    setTimeout(() => {
+      refresh().catch(console.error);
+      persistLeadSignature().catch(() => {});
+    }, 800);
+  });
+})();

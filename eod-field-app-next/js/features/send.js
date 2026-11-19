@@ -1,0 +1,1856 @@
+/* Send review — hard gate when hosted digital sheet exists. Matches /send-eod contract. */
+(function (global) {
+  'use strict';
+
+  let sendPicPoll = null;
+  let sendLock = null;
+  let resendAuthorization = null;
+
+  function esc(s) { return global.EodApi.escapeHtml(s); }
+
+  function pacificToday() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+  }
+
+  /**
+   * Keep / Remove on a store's Fred Meyer contacts: lead and above for any
+   * store, or the crew working a live visit at this store today (in-lieu sign).
+   * Mirrors eod-api lib/eod-store-recipients.canDecideStoreRecipient; the server
+   * refuses whatever this hides.
+   */
+  function canDecideRecipients() {
+    const S = global.EodSession;
+    if (global.EodRoles?.hasRole?.('lead', 'supervisor', 'admin')) return true;
+    const shift = S?.state?.selectedShift;
+    if (!shift || !shift.storeNumber) return false;
+    if (S.normStoreNumber(shift.storeNumber) !== S.normStoreNumber(S.state.storeNumber)) return false;
+    return String(S.state.workDate || '').slice(0, 10) === pacificToday();
+  }
+
+  const FM_STORE_SUFFIX = '@stores.fredmeyer.com';
+
+  function editDistance(a, b) {
+    const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i += 1) {
+      let prev = row[0];
+      row[0] = i;
+      for (let j = 1; j <= b.length; j += 1) {
+        const next = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = row[j];
+        row[j] = next;
+      }
+    }
+    return row[b.length];
+  }
+
+  /** Mirrors eod-api correctFredMeyerDomain: `stores.fremeyer.com` is the store domain. */
+  function fixStoreDomain(value) {
+    const email = String(value || '').trim().toLowerCase();
+    const at = email.lastIndexOf('@');
+    if (at <= 0) return email;
+    const domain = email.slice(at + 1);
+    const want = FM_STORE_SUFFIX.slice(1);
+    if (domain === want || editDistance(domain, want) > 2) return email;
+    return `${email.slice(0, at)}${FM_STORE_SUFFIX}`;
+  }
+
+  function padStore(n) {
+    return String(n || '').replace(/\D/g, '').padStart(3, '0');
+  }
+
+  function receiptBelongsToVisit(receipt, storeNumber, workDate) {
+    const owned = global.EodSendSheetsLogic?.receiptBelongsToVisit;
+    if (typeof owned === 'function') return owned(receipt, storeNumber, workDate);
+    return false;
+  }
+
+  function dropForeignSendLock() {
+    const S = global.EodSession;
+    if (receiptBelongsToVisit(sendLock, S?.state?.storeNumber, S?.state?.workDate)) return;
+    sendLock = null;
+    resendAuthorization = null;
+  }
+
+  function receiptLockMessage(receipt) {
+    if (!receipt) return '';
+    if (receipt.inFlight) return 'EOD is already sending. Wait. Do not tap Send again.';
+    const when = receipt.sentAtLabel ? ` at ${receipt.sentAtLabel}` : '';
+    return `EOD sent${when}. A one-time PIN is required to send it again.`;
+  }
+
+  function applySendLock(receipt) {
+    if (!receipt || (!receipt.sent && !receipt.inFlight)) {
+      sendLock = null;
+      return;
+    }
+    sendLock = receipt;
+    const btn = document.getElementById('sendBtn');
+    const note = document.getElementById('sendReceiptNote');
+    const text = receiptLockMessage(receipt);
+    if (btn) {
+      btn.disabled = !!receipt.inFlight;
+      btn.textContent = receipt.sent ? 'Send EOD again' : 'Sending…';
+      btn.dataset.sendLocked = receipt.inFlight ? '1' : '';
+    }
+    if (note) note.textContent = text;
+  }
+
+  async function loadSendReceipt() {
+    const S = global.EodSession;
+    if (!S?.state?.storeNumber || !S.state.workDate || !global.authFetch) return null;
+    if (global.EodTestMode?.isEnabled?.() && !global.EodTestMode?.isForceLive?.()) return null;
+    try {
+      const url = `${global.EOD_API_BASE}/api/eod/send-receipt?storeNumber=${encodeURIComponent(S.state.storeNumber)}&workDate=${encodeURIComponent(S.state.workDate)}`;
+      const resp = await global.authFetch(url, { method: 'GET' });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) return null;
+      return data.receipt || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function pinEntryDialog() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'eod-alert-overlay show';
+      overlay.innerHTML = `
+        <div class="eod-alert-dialog" role="dialog" aria-modal="true" aria-labelledby="eodResendPinTitle">
+          <h2 id="eodResendPinTitle">Enter one-time PIN</h2>
+          <div class="field" style="margin:12px 0;">
+            <label for="eodResendPinInput">Six-digit PIN</label>
+            <input id="eodResendPinInput" type="text" inputmode="numeric" autocomplete="one-time-code"
+              pattern="[0-9]*" maxlength="6" aria-describedby="eodResendPinError">
+          </div>
+          <p id="eodResendPinError" class="eod-alert-body" style="color:var(--danger);margin-bottom:10px;" hidden></p>
+          <div class="eod-alert-actions">
+            <button type="button" class="btn btn-secondary" data-action="cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" data-action="enter">Enter PIN</button>
+          </div>
+        </div>`;
+      const input = overlay.querySelector('#eodResendPinInput');
+      const error = overlay.querySelector('#eodResendPinError');
+      const finish = (value) => {
+        global.EodA11y?.deactivate?.(overlay);
+        overlay.remove();
+        resolve(value);
+      };
+      const submit = () => {
+        const pin = String(input.value || '').replace(/\D/g, '');
+        if (!/^\d{6}$/.test(pin)) {
+          error.textContent = 'Enter the six-digit one-time PIN.';
+          error.hidden = false;
+          input.focus();
+          return;
+        }
+        finish(pin);
+      };
+      overlay.querySelector('[data-action="cancel"]').onclick = () => finish(null);
+      overlay.querySelector('[data-action="enter"]').onclick = submit;
+      input.addEventListener('input', () => {
+        input.value = String(input.value || '').replace(/\D/g, '').slice(0, 6);
+        error.hidden = true;
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') submit();
+      });
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) finish(null);
+      });
+      overlay.addEventListener('eod-dialog-escape', () => finish(null));
+      document.body.appendChild(overlay);
+      global.EodA11y?.activate?.(overlay, input);
+      input.focus();
+    });
+  }
+
+  async function requestResendPin(S) {
+    try {
+      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/eod/resend-pin/request`, {
+        method: 'POST',
+        headers: global.EodApi.dayConfirmHeaders(),
+        body: JSON.stringify({
+          storeNumber: S.state.storeNumber,
+          workDate: S.state.workDate,
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok) {
+        await global.EodAlerts?.alert?.(
+          'PIN request failed',
+          data.error || 'The resend PIN request could not be sent.',
+        );
+        return false;
+      }
+      await global.EodAlerts?.alert?.(
+        'PIN requested',
+        data.message || 'Your PIN request was sent for supervisor approval.',
+      );
+      return true;
+    } catch (err) {
+      await global.EodAlerts?.alert?.(
+        'PIN request failed',
+        err?.message || 'The resend PIN request could not be sent.',
+      );
+      return false;
+    }
+  }
+
+  async function unlockResend(S) {
+    const choice = await global.EodAlerts?.showDialog?.({
+      title: 'EOD already sent',
+      message: 'A one-time PIN is required to resend this EOD.',
+      buttons: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'request', label: 'Request PIN', primary: true },
+        { id: 'enter', label: 'Enter PIN' },
+      ],
+    });
+    if (choice === 'request') {
+      await requestResendPin(S);
+      return false;
+    }
+    if (choice !== 'enter') return false;
+    const pin = await pinEntryDialog();
+    if (!pin) return false;
+    const resp = await global.authFetch(`${global.EOD_API_BASE}/api/eod/resend-pin/verify`, {
+      method: 'POST',
+      headers: global.EodApi.dayConfirmHeaders(),
+      body: JSON.stringify({
+        storeNumber: S.state.storeNumber,
+        workDate: S.state.workDate,
+        pin,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.authorization) {
+      const attempts = data.attemptsRemaining != null && Number.isFinite(Number(data.attemptsRemaining))
+        ? ` ${data.attemptsRemaining} attempt(s) remain.`
+        : '';
+      await global.EodAlerts?.alert?.(
+        'PIN not accepted',
+        `${data.error || 'That one-time PIN is not valid for this store and date.'}${attempts}`,
+      );
+      return false;
+    }
+    resendAuthorization = data.authorization;
+    const btn = document.getElementById('sendBtn');
+    if (btn) {
+      btn.disabled = !!gateMessage();
+      btn.dataset.sendLocked = '';
+      btn.textContent = 'Send EOD again';
+    }
+    await global.EodAlerts?.alert?.(
+      'PIN accepted',
+      'Make any changes you need to make, then click Send EOD again. This one-time PIN can only be used for this resend.',
+    );
+    return true;
+  }
+
+  function mmddyyyy(iso) {
+    const s = String(iso || '').slice(0, 10);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return s;
+    return `${m[2]}/${m[3]}/${m[1]}`;
+  }
+
+  function photosOf(type) {
+    const S = global.EodSession;
+    return (S.state.photos[type] || []).filter((p) => {
+      if (!p) return false;
+      if (typeof p === 'string') return true;
+      const sameVisit = S.normStoreNumber(p.storeNumber) === S.state.storeNumber
+        && S.normIsoDate(p.workDate) === S.state.workDate;
+      if (p.storeNumber && p.workDate && !sameVisit) return false;
+      return !!(p.dataUrl || p.blobId || p.previewUrl || p.objectUrl || p.teamUrl || p.thumbUrl || p.offloaded);
+    });
+  }
+
+  function photoSrc(p) {
+    if (!p) return '';
+    const L = global.EodSendSheetsLogic || {};
+    const raw = typeof p === 'string'
+      ? p
+      : (p.dataUrl || p.previewUrl || p.objectUrl || '');
+    if (L.isSendableImageSrc) return L.isSendableImageSrc(raw) ? raw : '';
+    if (!raw || /^blob:/i.test(raw) || /^https?:\/\//i.test(raw)) return '';
+    return raw;
+  }
+
+  function photoCount(type) {
+    return photosOf(type).length;
+  }
+
+  function yn(v) { return v ? 'Yes' : 'No'; }
+
+  function collectSignoffPhotos() {
+    const L = global.EodSendSheetsLogic || {};
+    const out = photosOf('signoff').map((p) => {
+      const dataUrl = photoSrc(p);
+      if (!dataUrl) return null;
+      if (typeof p === 'string') return { dataUrl, source: 'local' };
+      return {
+        dataUrl,
+        source: p.source || 'local',
+        filename: p.filename || null,
+      };
+    }).filter(Boolean);
+    function cartSrc(p) {
+      if (!p) return '';
+      if (typeof p === 'string') return p;
+      return p.dataUrl || p.previewUrl || p.objectUrl || '';
+    }
+    photosOf('before').forEach((p, i) => {
+      const dataUrl = photoSrc(p) || cartSrc(p);
+      if (dataUrl) out.push({ dataUrl, filename: `cart_before_${i}.jpg`, source: 'cart-before' });
+    });
+    photosOf('after').forEach((p, i) => {
+      const dataUrl = photoSrc(p) || cartSrc(p);
+      if (dataUrl) out.push({ dataUrl, filename: `cart_after_${i}.jpg`, source: 'cart-after' });
+    });
+    photosOf('context').forEach((p, i) => {
+      const dataUrl = photoSrc(p) || cartSrc(p);
+      if (dataUrl) out.push({ dataUrl, filename: `eod_context_${i}.jpg`, source: 'context' });
+    });
+    const seenCover = { n: 0 };
+    return out.filter((item) => {
+      const kind = L.classifySheetFilename?.(item.filename) || 'photo';
+      if (kind !== 'coversheet') return true;
+      seenCover.n += 1;
+      return seenCover.n === 1;
+    });
+  }
+
+  function cartPhotosInEmail(payload) {
+    const L = global.EodSendSheetsLogic || {};
+    const photos = (payload && payload.signoffPhotos) || [];
+    const ok = (kind) => photos.some((photo) => {
+      const name = (photo && photo.filename) || '';
+      const src = typeof photo === 'string' ? photo : (photo && photo.dataUrl) || '';
+      return L.classifySheetFilename?.(name) === kind && (!L.isSendableImageSrc || L.isSendableImageSrc(src));
+    });
+    return { before: ok('cart-before'), after: ok('cart-after') };
+  }
+
+  function helpdeskReports(S) {
+    const raw = S.state.helpdeskSubmittedReports || [];
+    const L = global.EodSendSheetsLogic;
+    if (L?.realHelpdeskReports) return L.realHelpdeskReports(raw);
+    return raw.filter((r) => r && typeof r === 'object' && (r.issueTypeId || r.details || r.customIssue));
+  }
+
+  function helpdeskFields(S) {
+    const L = global.EodSendSheetsLogic;
+    const reports = helpdeskReports(S);
+    if (L?.helpdeskEodFields) return L.helpdeskEodFields(reports, S.state.helpdeskResolution);
+    return { calledHelpDesk: reports.length ? 'Yes' : 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A' };
+  }
+
+  /* Only when the lead sent a help desk report: resolved? and, if not, the temporary solution. */
+  async function askHelpdeskResolution(S) {
+    const L = global.EodSendSheetsLogic;
+    const reports = helpdeskReports(S);
+    if (!reports.length || !L?.helpdeskSignature || !global.EodAlerts?.showDialog) return true;
+    const signature = L.helpdeskSignature(reports);
+    const prior = S.state.helpdeskResolution;
+    if (prior && prior.signature === signature && (prior.resolved === 'Yes' || (prior.resolved === 'No' && prior.tempSolution))) {
+      return true;
+    }
+    const f = L.helpdeskEodFields(reports, null);
+    const resolved = await global.EodAlerts.showDialog({
+      title: 'Help desk issue resolved?',
+      message: `${f.commodities}\n${f.issue}`,
+      buttons: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'No', label: 'No' },
+        { id: 'Yes', label: 'Yes', primary: true },
+      ],
+    });
+    if (resolved !== 'Yes' && resolved !== 'No') return false;
+    let tempSolution = '';
+    if (resolved === 'No') {
+      const options = L.HELPDESK_TEMP_SOLUTIONS || [];
+      const pick = await global.EodAlerts.showDialog({
+        title: 'Temporary solution',
+        message: f.commodities,
+        buttons: [
+          ...options.map((label, i) => ({ id: `t${i}`, label, primary: i === 0 })),
+          { id: 'cancel', label: 'Cancel' },
+        ],
+      });
+      const idx = /^t(\d+)$/.test(String(pick || '')) ? Number(String(pick).slice(1)) : -1;
+      if (idx < 0 || !options[idx]) return false;
+      tempSolution = options[idx];
+    }
+    const stamped = (S.state.helpdeskSubmittedReports || []).map((report) => {
+      if (!L.isHelpdeskReport?.(report)) return report;
+      return Object.assign({}, report, {
+        resolved,
+        tempSolution: resolved === 'Yes' ? '' : tempSolution,
+      });
+    });
+    S.patch({
+      helpdeskSubmittedReports: stamped,
+      helpdeskResolution: { signature, resolved, tempSolution },
+    }, 'helpdesk-resolution');
+    try { S.saveDraft(); } catch (_) {}
+    return true;
+  }
+
+  function reportedVisitIds() {
+    const S = global.EodSession;
+    return (S.state.shifts || []).map((s) => s && s.visitId).filter(Boolean);
+  }
+
+  async function ensureInstaworkSupport() {
+    const S = global.EodSession;
+    const Logic = global.EodSendSheetsLogic;
+    if (!Logic?.instaworkSupportFromMembers || !global.EodTimesheetMgmt?.fetchInstaworkMembers) {
+      return S.state.instaworkYes === 'Yes' ? 'Yes' : 'No';
+    }
+    const members = await global.EodTimesheetMgmt.fetchInstaworkMembers();
+    const value = Logic.instaworkSupportFromMembers(members, reportedVisitIds());
+    if (S.state.instaworkYes !== value) {
+      S.patch({ instaworkYes: value }, 'iw-auto');
+      try { S.saveDraft(); } catch (_) {}
+    }
+    return value;
+  }
+
+  function buildBodyAndReport() {
+    const S = global.EodSession;
+    const store = S.state.storeNumber;
+    const dateIso = S.state.workDate;
+    const dateDisp = mmddyyyy(dateIso);
+    const lead = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : null)
+      || S.state.leadName || S.state.profileName || '';
+    const beforeDone = photoCount('before') > 0;
+    const afterDone = photoCount('after') > 0;
+    const signoffCount = photoCount('signoff');
+    const signoffDone = signoffCount > 0 || S.hasHostedSheet();
+    const Notes = global.EodCoverNotes;
+    const notInStoreLines = Notes?.nisLines?.(S) || [];
+    const notInSiLines = Notes?.nisiLines?.(S) || [];
+    const cleanNotes = Notes?.notesWithoutSetLists?.(S.state.notes) ?? (S.state.notes || '');
+    const notInStoreText = notInStoreLines.length
+      ? notInStoreLines.join('\n')
+      : ((S.state.notInStoreSelected || []).join('\n') || 'None');
+    const notInSiText = notInSiLines.length
+      ? notInSiLines.join('\n')
+      : ((S.state.notInSiSelected || []).join('\n') || 'None');
+    const notExecutableLines = Notes?.notExecutableLines?.(S) || [];
+    const notExecutableText = notExecutableLines.length ? notExecutableLines.join('\n') : 'None';
+    const sheet = S.state.sheet;
+    const digitalValue = global.EodSendSheetsLogic?.digitalSignoffCoverValue?.(sheet)
+      || (sheet && Array.isArray(sheet.rows) && sheet.rows.length ? 'attached' : 'none (no hosted sheet)');
+    const digitalLine = `Digital signoff: ${digitalValue}`;
+    const signedOut = global.EodSendSheetsLogic?.signedOutFromSheet?.(S) || { prod: '—', si: '—' };
+    const digitalReady = !!global.EodSendSheetsLogic?.hasDigitalSignoff?.(
+      { digitalSignoff: digitalValue },
+      sheet
+    );
+    let deptSigLines = [];
+    try {
+      const collected = global.EodDeptSignatures?.getCollectedForEmail?.() || [];
+      deptSigLines = global.EodSendSheetsLogic?.formatDeptSignatureLines?.(collected) || [];
+    } catch (_) {}
+    const proxyStamp = global.EodProxyEod?.activeStamp?.() || '';
+    const deptSigText = proxyStamp || (deptSigLines.length ? deptSigLines.join('\n') : 'None');
+
+    const helpdesk = helpdeskFields(S);
+    const helpdeskLines = helpdesk.calledHelpDesk === 'Yes'
+      ? `Commodities: ${helpdesk.commodities}\nIssue: ${helpdesk.issue}\nIssue resolved: ${helpdesk.issueResolved}\nTemporary solution: ${helpdesk.tempSolution}\n`
+      : '';
+    const iwFiled = !!S.state.instaworkOfficeSubmitted;
+    const iwSupportLine = S.state.instaworkYes === 'Yes'
+      ? (iwFiled ? 'Yes (digital timesheet sent to the office)' : 'Yes')
+      : (S.state.instaworkYes || '—');
+
+    const body = `KOMPASS End of Day Report
+Store: FM${padStore(store)}
+Date: ${dateDisp}
+Lead: ${lead}
+
+Before picture of KOMPASS cart taken: ${yn(beforeDone)}
+Check-in manager: ${S.state.checkInManager || '—'}
+InstaWork support: ${iwSupportLine}
+Check-out manager: ${S.state.checkOutManager || '—'}
+${digitalLine}
+Department signatures:
+${deptSigText}
+${notInStoreText === 'None' ? 'Not in store: None' : notInStoreText}
+${notInSiText === 'None' ? 'Not in SI: None' : notInSiText}
+${notExecutableText === 'None' ? 'Not executable: None' : notExecutableText}
+Help desk reports: ${helpdeskReports(S).length
+      ? helpdeskReports(S).map((r) => {
+          const kind = r.issueTypeId === 'not_in_store' ? 'Not in store' : (r.issueTypeId || 'issue');
+          const setName = r.setMeta?.setLabel || r.setLabel || r.manualSetName || r.customIssue || '';
+          return setName ? `${kind} — ${setName}` : kind;
+        }).join('; ')
+      : 'None'}
+${helpdeskLines}After picture of KOMPASS cart taken: ${yn(afterDone)}
+Sign-off sheets photographed: ${yn(signoffDone)}
+${digitalReady ? '' : `Number of sign-off photos: ${signoffCount}\n`}Notes:
+${cleanNotes}`;
+
+    const report = {
+      leadName: lead,
+      date: dateDisp,
+      storeNumber: store,
+      beforeTaken: yn(beforeDone),
+      checkInManager: S.state.checkInManager || '',
+      instaworkSupport: S.state.instaworkYes === 'Yes'
+        ? (iwFiled ? 'Yes (digital timesheet sent to the office)' : 'Yes')
+        : (S.state.instaworkYes || 'No'),
+      ...helpdesk,
+      checkOutManager: S.state.checkOutManager || '',
+      signedOutProd: signedOut.prod,
+      signedOutSi: signedOut.si,
+      notInStore: notInStoreText,
+      notInSi: notInSiText,
+      notExecutable: notExecutableText,
+      digitalSignoff: digitalValue,
+      deptSignatures: deptSigText,
+      afterTaken: yn(afterDone),
+      signoffDone: yn(signoffDone),
+      signoffCount: digitalReady ? '' : signoffCount,
+      omitSignoffPhotoCount: digitalReady,
+      notes: cleanNotes,
+      app: 'eod-field-app',
+      version: global.EOD_APP_VERSION,
+    };
+
+    return { body, report };
+  }
+
+  function buildPayload() {
+    const S = global.EodSession;
+    const store = S.state.storeNumber;
+    const { body, report } = buildBodyAndReport();
+    const userEmail = (S.state.profileEmail || '').trim().toLowerCase();
+    const verified = new Set((S.state.verifiedRecipients || []).map((email) => String(email || '').trim().toLowerCase()));
+    const checked = (S.state.emailRecipients || [])
+      .map((email) => String(email || '').trim().toLowerCase())
+      .filter((email) => email && (verified.has(email) || email.endsWith(FM_STORE_SUFFIX)));
+    const hasFredMeyerTeam = checked.length > 0;
+    let recipients = [...new Set(checked)];
+    if (!hasFredMeyerTeam && userEmail) {
+      recipients = [userEmail, ...recipients];
+    }
+    recipients = [...new Set(recipients)];
+
+    const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(
+      S.state.shifts,
+      S.state.selectedShift,
+    ) || null;
+
+    return {
+      storeNumber: store,
+      workDate: S.state.workDate,
+      subject: `KOMPASS EOD FM${padStore(store)} ${mmddyyyy(S.state.workDate)}`,
+      body,
+      report,
+      recipients,
+      userName: (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : null)
+        || S.state.profileName || S.state.leadName || '',
+      userEmail,
+      checkInManager: S.state.checkInManager || '',
+      checkOutManager: S.state.checkOutManager || '',
+      visitId: mainIse?.visitId || null,
+      shiftVisitIds: reportedVisitIds().map((id) => String(id)),
+      proxyEod: !!global.EodProxyEod?.isActive?.(),
+      lieuSignoff: !!global.EodLieuSign?.isActive?.(),
+      pdfFilename: (global.EodSendSheetsLogic?.eodPdfFilename
+        || ((n, d) => `EOD_FM${padStore(n)}_${String(d || '').slice(5, 7)}-${String(d || '').slice(8, 10)}-${String(d || '').slice(2, 4)}.pdf`))(store, S.state.workDate),
+      signoffPhotos: collectSignoffPhotos(),
+      cartPhotos: {
+        before: photosOf('before').map(photoSrc).filter(Boolean),
+        after: photosOf('after').map(photoSrc).filter(Boolean),
+      },
+      // pdfBase64 omitted in pilot until PDF generator is ported.
+      fieldApp: {
+        version: global.EOD_APP_VERSION,
+        hasHostedSheet: S.hasHostedSheet(),
+        sheetSendReady: S.sheetSendReady(),
+        photoCounts: {
+          before: photoCount('before'),
+          after: photoCount('after'),
+          signoff: photoCount('signoff'),
+          instawork: photoCount('instawork'),
+          context: photoCount('context'),
+        },
+        instaworkSave: S.state.instaworkSavedInfo || null,
+      },
+    };
+  }
+
+  function gateMessage() {
+    const S = global.EodSession;
+    if (global.EodSendGates?.firstMessage) return global.EodSendGates.firstMessage(S);
+    const miss = global.EodSendGates?.missing?.(S) || [];
+    return miss[0] ? miss[0].label : null;
+  }
+
+  function refreshGates() {
+    const S = global.EodSession;
+    if (!S || typeof document === 'undefined') return gateMessage();
+    const gate = gateMessage();
+    const msg = document.getElementById('gateMsg');
+    if (msg) {
+      msg.style.color = gate ? '#fbbf24' : '#22c55e';
+      msg.textContent = gate || 'Ready to send.';
+    }
+    const btn = document.getElementById('sendBtn');
+    if (btn && btn.dataset.sendLocked === '1') {
+      btn.disabled = true;
+    } else if (btn && (btn.textContent === 'Send EOD' || btn.textContent === 'Send EOD again')) {
+      btn.disabled = !!gate;
+    }
+    const html = global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : '';
+    const existing = document.getElementById('eodSendGates');
+    if (existing) {
+      if (!html) existing.remove();
+      else {
+        existing.outerHTML = html;
+        try { global.EodSendGates.bindList(document.getElementById('eodSendGates'), S); } catch (_) {}
+      }
+    } else if (html) {
+      const anchor = document.getElementById('gateMsg');
+      if (anchor) anchor.insertAdjacentHTML('afterend', html);
+      try { global.EodSendGates.bindList(document.getElementById('eodSendGates'), S); } catch (_) {}
+    }
+    return gate;
+  }
+
+  let liveGatesBound = false;
+  function ensureLiveGates(S) {
+    refreshGates();
+    if (liveGatesBound || !S?.on) return;
+    liveGatesBound = true;
+    S.on((_state, reason) => {
+      if (!document.getElementById('gateMsg') && !document.getElementById('sendBtn')) return;
+      if (reason === 'cover-sync' || reason === 'notes') return;
+      refreshGates();
+    });
+  }
+
+  async function render(mount) {
+    const S = global.EodSession;
+    dropForeignSendLock();
+    try { await global.EodRouteBundles?.ensure?.('signatures'); } catch (_) {}
+    try { await global.EodDeptSignatures?.refresh?.(); } catch (_) {}
+    try {
+      if (global.EodTeamSession?.hydrate && !(S.state.photos?.after || []).length) {
+        await global.EodTeamSession.hydrate(S);
+      }
+    } catch (_) {}
+    try {
+      if (global.EodVisitMirror?.hydrate && !S.state.signatureDataUrl) {
+        await global.EodVisitMirror.hydrate(S);
+      }
+    } catch (_) {}
+    const leadFill = (typeof S.resolvedLeadName === 'function' ? S.resolvedLeadName() : '') || '';
+    if (false && leadFill && !(S.state.profileName || '').trim()) {
+      S.patch({ profileName: leadFill, leadName: S.state.leadName || leadFill }, 'cover-lead');
+    }
+    S.syncDomBridges();
+    if (global.EodCover?.loadStoreData) {
+      try { await global.EodCover.loadStoreData(S.state.storeNumber); } catch (_) {}
+    }
+    try { global.EodVisitMemory?.applyToSession?.(S, S.state.storeNumber); } catch (_) {}
+    try { await global.EodDeptSignatures?.refresh?.(); } catch (_) {}
+    try { await ensureInstaworkSupport(); } catch (_) {}
+    if (sendPicPoll) clearInterval(sendPicPoll);
+    sendPicPoll = setInterval(() => {
+      if (global.EodRouter?.current && global.EodRouter.current !== 'send') return;
+      global.EodDeptSignatures?.refresh?.().then(() => {
+        const cover = (global.EodDeptSignatures?.getCollectedForEmail?.() || [])
+          .find((s) => /^(grocery|store_pic)$/i.test(s.roleKey));
+        if (cover?.signerName && !(S.state.checkOutManager || '').trim()) {
+          if (global.EodVisitMemory?.setManagers) {
+            global.EodVisitMemory.setManagers(S, { checkOutManager: cover.signerName }, 'pic-checkout');
+          }
+        }
+        refreshGates();
+      }).catch(() => {});
+    }, 12000);
+
+    const gate = gateMessage();
+    const sheet = S.state.sheet;
+    const canDecide = canDecideRecipients();
+    mount.innerHTML = `
+      <div class="card">
+        <h1>Sign & send</h1>
+        <p class="muted">Store <strong>${esc(S.state.storeNumber)}</strong> · ${esc(S.state.workDate)}</p>
+        <button type="button" class="btn btn-secondary btn-block" id="sendRefreshBtn">Refresh this page</button>
+        <div class="card" style="border-style:dashed;">
+          <h2>Day summary</h2>
+          <p>Store <strong>${esc(S.state.storeNumber)}</strong> · ${esc(S.state.workDate)}</p>
+          <p class="muted">${esc(S.state.selectedShift?.projectName || 'No shift selected')}</p>
+          ${sheet ? `<p><span class="pill ok">Digital sheet ${esc(sheet.fiscalWeek || '')}</span>
+            ${esc(String(sheet.summary?.marked || 0))}/${esc(String(sheet.summary?.total || 0))} marked
+            ${S.sheetSendReady() ? '<span class="pill ok">send ready</span>' : '<span class="pill warn">open sets remain</span>'}</p>`
+            : '<p><span class="pill warn">No hosted sheet</span> — paper sign-off required</p>'}
+          <p class="muted">Photos — before ${photoCount('before')}, after ${photoCount('after')}, signoff ${photoCount('signoff')}, instawork ${photoCount('instawork')}, additional ${photoCount('context')}</p>
+        </div>
+        ${S.hasHostedSheet() ? '' : `
+        <div class="field" id="sendPaperField">
+          <label>Paper sign-off photo</label>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="sendPaperCam">Camera</button>
+            <label class="btn btn-secondary" style="cursor:pointer;">Add file
+              <input type="file" accept="image/*,.heic,.heif" id="sendPaperInput" hidden>
+            </label>
+          </div>
+          <div id="sendPaperGrid" style="margin-top:10px;"></div>
+        </div>`}
+        <div class="field" id="checkOutField" ${S.hasHostedSheet() && (global.EodDeptSignatures?.getCollectedForEmail?.() || []).length ? 'hidden' : ''}>
+          <label>Manager checked out with</label>
+          <input type="text" id="checkOutManager" value="${esc(S.state.checkOutManager || '')}" list="mgrListSend" autocomplete="off">
+          ${global.EodVisitMemory?.chipsHtml?.(S.state.managerNamePool, S.state.checkOutManager, esc) || ''}
+          <button type="button" class="btn btn-secondary btn-block" id="pickOutMgr" style="margin-top:6px;">Choose saved name</button>
+        </div>
+        <datalist id="mgrListSend">${(S.state.managerNamePool || []).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="sendNotes" rows="4">${esc(S.state.notes || '')}</textarea>
+        </div>
+        <div class="field" id="sendContextField">
+          <label>Additional photos</label>
+          <div id="sendContextGrid" style="margin-top:8px;"></div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button type="button" class="btn btn-primary" id="sendContextCam">Camera</button>
+            <label class="btn btn-secondary" style="cursor:pointer;">Gallery
+              <input type="file" accept="image/*,.heic,.heif" id="sendContextInput" multiple hidden>
+            </label>
+          </div>
+        </div>
+        <div class="card" id="cartBeforeCard" style="margin:12px 0;">
+          <h2>Kompass cart — before</h2>
+          <div id="sendBeforeGrid" style="margin-bottom:10px;"></div>
+          <div class="btn-row">
+            <label class="btn btn-secondary" style="cursor:pointer;">
+              From device
+              <input type="file" accept="image/*,.heic,.heif" id="cartBeforeInput" hidden>
+            </label>
+          </div>
+          <div id="cartBeforeMsg" class="muted" style="margin-top:8px;"></div>
+        </div>
+        <div class="card" id="cartAfterCard" style="margin:12px 0;">
+          <h2>Kompass cart — after</h2>
+          <div id="cartAfterThumbs" style="margin-bottom:10px;"></div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="cartAfterCam">Camera</button>
+            <label class="btn btn-secondary" style="cursor:pointer;">
+              From device
+              <input type="file" accept="image/*,.heic,.heif" id="cartAfterInput" hidden>
+            </label>
+            <button type="button" class="btn btn-secondary" id="cartAfterPull">Pull from PROD</button>
+            <button type="button" class="btn btn-secondary" id="cartAfterPush">Upload to PROD</button>
+          </div>
+          <div id="cartAfterMsg" class="muted" style="margin-top:8px;"></div>
+        </div>
+        <div class="field">
+          <label>Lead signature</label>
+          <div class="sig-preview" id="sigPreview">${(global.EodProxyEod?.activeStamp?.() || global.EodLieuSign?.activeStamp?.())
+            ? global.EodApi.escapeHtml(global.EodProxyEod?.activeStamp?.() || global.EodLieuSign.activeStamp())
+            : (S.state.signatureDataUrl
+              ? `<img src="${S.state.signatureDataUrl}" alt="Signature">`
+              : 'No signature yet')}</div>
+          <button type="button" class="btn btn-primary btn-block" id="signBtn" style="margin-top:8px;" ${(global.EodProxyEod?.activeStamp?.() || global.EodLieuSign?.activeStamp?.()) ? 'hidden' : ''}>Sign</button>
+          ${global.EodProxyEod?.canUse?.()
+            ? `<button type="button" class="btn btn-secondary btn-block" id="proxyEodBtn" style="margin-top:8px;">${global.EodProxyEod.activeStamp?.() ? 'Undo' : 'Sign out for someone else'}</button>`
+            : ''}
+        </div>
+        <div class="field">
+          <label>Add recipient</label>
+          <div class="btn-row">
+            <input type="text" id="emailInput" placeholder="Name or email address" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;min-height:44px;padding:10px;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff;font-size:16px;">
+            <button type="button" class="btn btn-primary" id="addEmailBtn">Add</button>
+          </div>
+          <div id="emailSuggestList" class="email-suggest-list" style="display:none;"></div>
+        </div>
+        <div id="recipientList" style="margin-bottom:12px;"></div>
+        <div id="verifiedRecipientList" style="margin-bottom:12px;">${(S.state.verifiedRecipients || []).map((email) => {
+          const on = (S.state.emailRecipients || []).some((item) => String(item).toLowerCase() === String(email).toLowerCase());
+          return `<label class="pill"><input type="checkbox" data-fm-check="${esc(email)}" ${on ? 'checked' : ''}> ${esc(email)}</label>`;
+        }).join('')}</div>
+        <div id="pendingRecipientCards">${canDecide ? (S.state.pendingRecipients || []).map((email) => `
+          <div class="card">
+            <div>${esc(email)}</div>
+            <button type="button" class="btn btn-primary" data-keep="${esc(email)}">Keep</button>
+            <button type="button" class="btn btn-secondary" data-remove-store="${esc(email)}">Remove from store</button>
+          </div>`).join('') : ''}
+        </div>
+        ${Number(S.state.needsAssignmentCount) > 0
+          ? `<p id="needsAssignmentLine">${Number(S.state.needsAssignmentCount)} contacts on this store are waiting for supervisor assignment.</p>`
+          : ''}
+        <div id="gateMsg" style="margin:10px 0;color:${gate ? '#fbbf24' : '#22c55e'};">${esc(gate || 'Ready to send.')}</div>
+        ${global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : ''}
+        <div id="sendReceiptNote" class="muted" style="margin:8px 0;"></div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="previewBtn">Preview</button>
+          <button type="button" class="btn btn-success" id="sendBtn" ${gate ? 'disabled' : ''}>Send EOD</button>
+        </div>
+        <div class="btn-row" id="sendPrintSignoffRow" ${S.hasHostedSheet() ? '' : 'hidden'}>
+          <button type="button" class="btn btn-secondary btn-block" id="sendPrintSignoffBtn">Print signoff PDF</button>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary btn-block" id="sendDeviceBtn">On this device</button>
+        </div>
+      </div>`;
+
+    document.getElementById('sendDeviceBtn')?.addEventListener('click', () => {
+      global.EodRouter.go('storage');
+    });
+    document.getElementById('sendRefreshBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('sendRefreshBtn');
+      if (btn) btn.disabled = true;
+      try {
+        if (global.EodSignoffHome?.syncProdSi) await global.EodSignoffHome.syncProdSi();
+        else if (global.EodSignoffHome?.loadSheet) await global.EodSignoffHome.loadSheet();
+        try { global.EodCoverNotes?.apply?.(S, 'send-refresh'); } catch (_) {}
+        await render(mount);
+      } catch (err) {
+        if (global.showAlert) global.showAlert('Refresh', err.message || String(err));
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+
+    function slotNeedsDisplayBytes(type) {
+      const L = global.EodSendSheetsLogic || {};
+      const live = global.PhotoDB?.liveObjectUrls;
+      return photosOf(type).some((p) => {
+        const raw = L.photoEntrySrc ? L.photoEntrySrc(p) : (
+          typeof p === 'string' ? p : (p.dataUrl || p.previewUrl || p.objectUrl || p.preview || '')
+        );
+        if (L.isDisplayablePhotoSrc) return !L.isDisplayablePhotoSrc(raw, live);
+        return !/^data:image\//i.test(String(raw || ''));
+      });
+    }
+
+    function fallbackGridHtml(type) {
+      const arr = photosOf(type);
+      const cards = arr.map((p, i) => {
+        const url = photoSrc(p);
+        if (!url) return '';
+        return `<div><img src="${esc(url)}" alt="${esc(type)} ${i + 1}"></div>`;
+      }).filter(Boolean);
+      if (!cards.length) return '<p class="muted">None yet.</p>';
+      return `<div class="photo-grid">${cards.join('')}</div>`;
+    }
+
+    async function paintSendablePhotos(opts) {
+      const syncFromProd = !!(opts && opts.syncFromProd);
+      if (!global.EodPhotos?.gridHtml && global.EodRouteBundles?.loadBundle) {
+        try { await global.EodRouteBundles.loadBundle('photos'); } catch (_) {}
+      }
+      const Photos = global.EodPhotos;
+      if (Photos?.ensureHydrated) {
+        try { await Photos.ensureHydrated(); } catch (_) {}
+      } else if (global.PhotoDB?.hydrateArrays && S?.state?.photos) {
+        try { await global.PhotoDB.hydrateArrays(S.state.photos); } catch (_) {}
+      }
+      if (syncFromProd && global.EodShiftPhotoSync?.ensureCartPhotos) {
+        try { await global.EodShiftPhotoSync.ensureCartPhotos(); } catch (_) {}
+      }
+      const slots = [
+        { type: 'before', id: 'sendBeforeGrid' },
+        { type: 'after', id: 'cartAfterThumbs' },
+        { type: 'signoff', id: 'sendPaperGrid' },
+        { type: 'context', id: 'sendContextGrid' },
+      ];
+      if (global.PhotoDB?.hydrateDataUrls && slots.some(({ type }) => slotNeedsDisplayBytes(type))) {
+        try { await global.PhotoDB.hydrateDataUrls(S.state.photos); } catch (_) {}
+      }
+      slots.forEach(({ type, id }) => {
+        const host = document.getElementById(id);
+        if (!host) return;
+        if (Photos?.gridHtml) {
+          host.innerHTML = Photos.gridHtml(type);
+          Photos.bindGrid?.(host, { afterChange: async () => {
+            await paintSendablePhotos();
+            refreshGates();
+          } });
+          return;
+        }
+        host.innerHTML = fallbackGridHtml(type);
+      });
+      const afterList = global.EodVisitCart?.cartPhotos?.('after') || photosOf('after');
+      const pushBtn = document.getElementById('cartAfterPush');
+      if (pushBtn) pushBtn.disabled = !afterList.length;
+    }
+    await paintSendablePhotos({ syncFromProd: true });
+    refreshGates();
+
+    document.getElementById('sendPaperCam')?.addEventListener('click', async () => {
+      if (!global.EodCamera?.open) return;
+      await global.EodCamera.open({
+        label: 'Paper sign-off',
+        onCapture: async (file) => {
+          if (global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('signoff', [file]);
+        },
+        shouldContinue: () => true,
+      });
+      paintSendablePhotos();
+      refreshGates();
+    });
+    document.getElementById('sendPaperInput')?.addEventListener('change', async (ev) => {
+      const files = [...(ev.target.files || [])];
+      ev.target.value = '';
+      if (files.length && global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('signoff', files);
+      paintSendablePhotos();
+      refreshGates();
+    });
+    const CONTEXT_MAX = 12;
+    function contextRoom() {
+      return Math.max(0, CONTEXT_MAX - photosOf('context').length);
+    }
+    async function addContextFiles(files) {
+      const list = [...(files || [])];
+      const room = contextRoom();
+      const take = list.slice(0, room);
+      if (!take.length) {
+        if (global.showAlert) global.showAlert('Additional photos', '12 photos max.');
+        return;
+      }
+      if (take.length < list.length && global.showAlert) {
+        global.showAlert('Additional photos', '12 photos max.');
+      }
+      if (global.EodPhotos?.addFiles) await global.EodPhotos.addFiles('context', take);
+      await paintSendablePhotos();
+    }
+    document.getElementById('sendContextCam')?.addEventListener('click', async () => {
+      if (!global.EodCamera?.open) return;
+      await global.EodCamera.open({
+        label: 'Additional photo',
+        onCapture: async (file) => {
+          await addContextFiles([file]);
+        },
+        shouldContinue: () => contextRoom() > 0,
+      });
+      await paintSendablePhotos();
+    });
+    document.getElementById('sendContextInput')?.addEventListener('change', async (ev) => {
+      const files = [...(ev.target.files || [])];
+      ev.target.value = '';
+      await addContextFiles(files);
+    });
+    try { global.EodSendGates?.bindList?.(document.getElementById('eodSendGates'), S); } catch (_) {}
+    ensureLiveGates(S);
+
+    try { global.EodCoverNotes?.apply?.(S, 'send-open'); } catch (_) {}
+    const notesEl = document.getElementById('sendNotes');
+    if (notesEl && S.state.notes) notesEl.value = S.state.notes;
+
+    const saveSendFields = () => {
+      const name = document.getElementById('checkOutManager')?.value?.trim() || '';
+      if (global.EodVisitMemory?.setManagers) {
+        global.EodVisitMemory.setManagers(S, { checkOutManager: name }, 'checkout');
+      } else {
+        S.patch({ checkOutManager: name }, 'checkout');
+      }
+      S.patch({ notes: document.getElementById('sendNotes')?.value || '' }, 'send-cover');
+      S.saveDraft();
+      refreshGates();
+    };
+    document.getElementById('sendNotes')?.addEventListener('change', saveSendFields);
+    document.getElementById('sendNotes')?.addEventListener('blur', saveSendFields);
+    document.getElementById('checkOutManager')?.addEventListener('change', saveSendFields);
+    document.getElementById('checkOutManager')?.addEventListener('blur', saveSendFields);
+    document.getElementById('checkOutManager')?.addEventListener('input', () => {
+      const name = document.getElementById('checkOutManager')?.value?.trim() || '';
+      if (global.EodVisitMemory?.setManagers) {
+        global.EodVisitMemory.setManagers(S, { checkOutManager: name }, 'checkout');
+      } else {
+        S.patch({ checkOutManager: name }, 'checkout');
+        S.saveDraft();
+      }
+      refreshGates();
+    });
+    try { global.EodVisitMemory?.bindChipField?.('checkOutField', 'out'); } catch (_) {}
+    document.getElementById('pickOutMgr')?.addEventListener('click', () => {
+      const items = (S.state.managerNamePool || []).map((n, i) => ({
+        id: String(i),
+        label: n,
+        removable: true,
+      }));
+      global.EodPicker.open({
+        anchor: document.getElementById('pickOutMgr'),
+        title: 'Saved names',
+        items: items.length ? items : [{ id: 'x', label: 'No saved names', disabled: true }],
+        searchable: items.length > 6,
+        onChoose(item) {
+          document.getElementById('checkOutManager').value = item.label;
+          if (global.EodVisitMemory?.setManagers) {
+            global.EodVisitMemory.setManagers(S, { checkOutManager: item.label }, 'checkout');
+          } else {
+            S.patch({ checkOutManager: item.label }, 'checkout');
+          }
+          saveSendFields();
+        },
+        async onRemove(item) {
+          try {
+            await global.EodCover?.removeManagerName?.(item.label);
+          } catch (err) {
+            if (global.showAlert) global.showAlert('Remove', err.message || String(err));
+          }
+        },
+      });
+    });
+
+    (function wireCartPhotos() {
+      const Cart = global.EodVisitCart;
+      const setMsg = (slot, t, err) => {
+        const el = document.getElementById(slot === 'before' ? 'cartBeforeMsg' : 'cartAfterMsg');
+        if (!el) return;
+        el.style.color = err ? 'var(--danger)' : '';
+        el.textContent = t || '';
+      };
+      function paintThumbs() {
+        paintSendablePhotos();
+      }
+      paintThumbs();
+      async function addCartFile(slot, file) {
+        if (!file || !Cart) return;
+        try {
+          const pipe = global.EodPhotoPipeline;
+          if (pipe?.enqueue) {
+            const maint = global.EodSendSheetsLogic?.pickMaintenancePhotoVisit?.(
+              S.state.shifts,
+              S.state.selectedShift
+            );
+            if (!maint?.visitId) {
+              throw new Error('No Kompass ISE, Blitz, or Cut In shift found for this store and day');
+            }
+            const job = pipe.enqueue({
+              kind: 'cart',
+              compressType: slot,
+              slot,
+              bay: 1,
+              file,
+              visitId: maint.visitId,
+            });
+            const entry = {
+              dataUrl: job.previewUrl,
+              preview: job.previewUrl,
+              previewUrl: job.previewUrl,
+              storeNumber: S.state.storeNumber,
+              workDate: S.state.workDate,
+              stampedAt: Date.now(),
+              kind: `cart-${slot}`,
+              jobId: job.id,
+            };
+            try { global.PhotoDB?.noteLiveObjectUrl?.(job.previewUrl); } catch (_) {}
+            const existing = (S.state.photos?.[slot] || [])
+              .filter((p) => p?.kind && !String(p.kind).startsWith('cart'));
+            const photos = Object.assign({}, S.state.photos, { [slot]: [...existing, entry] });
+            S.patch({ photos }, `cart-${slot}`);
+            if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(photos);
+            S.saveDraft();
+            setMsg(slot, `${slot === 'before' ? 'Before' : 'After'} queued`);
+          } else {
+            const dataUrl = await Cart.preparePhoto(file, slot);
+            const entry = {
+              dataUrl,
+              storeNumber: S.state.storeNumber,
+              workDate: S.state.workDate,
+              stampedAt: Date.now(),
+              kind: `cart-${slot}`,
+            };
+            const existing = (S.state.photos?.[slot] || [])
+              .filter((p) => p?.kind && !String(p.kind).startsWith('cart'));
+            const photos = Object.assign({}, S.state.photos, { [slot]: [...existing, entry] });
+            S.patch({ photos }, `cart-${slot}`);
+            if (global.PhotoDB?.savePhotos) await global.PhotoDB.savePhotos(photos);
+            S.saveDraft();
+          }
+          paintThumbs();
+          refreshGates();
+          try { global.EodCoverNotes?.apply?.(S, `cart-${slot}`); } catch (_) {}
+        } catch (err) {
+          setMsg(slot, err.message || String(err), true);
+        }
+      }
+      ['before', 'after'].forEach((slot) => {
+        document.getElementById(slot === 'before' ? 'cartBeforeInput' : 'cartAfterInput')
+          ?.addEventListener('change', async (ev) => {
+            const file = ev.target.files?.[0];
+            ev.target.value = '';
+            await addCartFile(slot, file);
+          });
+      });
+      document.getElementById('cartAfterCam')?.addEventListener('click', async () => {
+        if (!global.EodCamera?.open) return;
+        await global.EodCamera.open({
+          label: 'Kompass cart — after',
+          onCapture: async (file) => {
+            const input = document.getElementById('cartAfterInput');
+            if (!input) return;
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+          },
+          shouldContinue: () => true,
+        });
+      });
+      document.getElementById('cartAfterPull')?.addEventListener('click', async () => {
+        if (!Cart) return;
+        try {
+          setMsg('after', 'Pulling after (SI first, then PROD)…');
+          const n = await Cart.pullCartFromProd('after');
+          setMsg('after', 'Pulled ' + n + ' after photo(s).');
+          paintThumbs();
+          try { global.EodCoverNotes?.apply?.(S, 'cart-after'); } catch (_) {}
+        } catch (err) {
+          setMsg('after', err.message || String(err), true);
+        }
+      });
+      document.getElementById('cartAfterPush')?.addEventListener('click', async () => {
+        if (!Cart) return;
+        try {
+          const list = Cart.cartPhotos('after');
+          for (const p of list) await Cart.uploadCartToProd('after', p.dataUrl || p);
+          setMsg('after', 'After photos uploaded to PROD.');
+        } catch (err) {
+          setMsg('after', err.message || String(err), true);
+        }
+      });
+    })();
+
+    function paintRecipients() {
+      const host = document.getElementById('recipientList');
+      const waiting = new Set((S.state.needsAssignmentEmails || []).map((email) => String(email).toLowerCase()));
+      host.innerHTML = (S.state.emailRecipients || []).filter((email) => !waiting.has(String(email).toLowerCase())).map((e) => (
+        `<span class="pill">${esc(e)} <button type="button" data-rm="${esc(e)}" style="border:0;background:transparent;color:inherit;cursor:pointer;">×</button></span>`
+      )).join('') || '<span class="muted">No recipients yet (your profile email is added on send).</span>';
+      host.querySelectorAll('[data-rm]').forEach((b) => {
+        b.onclick = () => {
+          const target = String(b.getAttribute('data-rm') || '').toLowerCase();
+          const arr = S.state.emailRecipients.filter((email) => String(email).toLowerCase() !== target);
+          S.patch({ emailRecipients: arr }, 'recipients');
+          S.saveDraft();
+          render(mount);
+        };
+      });
+    }
+    paintRecipients();
+
+    document.querySelectorAll('[data-fm-check]').forEach((box) => {
+      box.addEventListener('change', () => {
+        const email = String(box.getAttribute('data-fm-check') || '').toLowerCase();
+        const arr = (S.state.emailRecipients || []).filter((item) => String(item).toLowerCase() !== email);
+        if (box.checked) arr.push(email);
+        S.patch({ emailRecipients: arr }, 'recipients');
+        S.saveDraft();
+      });
+    });
+
+    async function postRecipient(path, email) {
+      const store = S.normStoreNumber(S.state.storeNumber);
+      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/eod-store-recipients/${path}`, {
+        method: 'POST',
+        headers: global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ email, storeNumber: store }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.success === false) throw new Error(data.error || `Save failed (${resp.status})`);
+      await global.EodCover?.loadStoreData?.(store);
+      render(mount);
+    }
+
+    document.querySelectorAll('[data-keep]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try { await postRecipient('verify', btn.getAttribute('data-keep')); }
+        catch (err) { if (global.showAlert) global.showAlert('Recipient', err.message || String(err)); }
+      });
+    });
+    document.querySelectorAll('[data-remove-store]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try { await postRecipient('remove-store', btn.getAttribute('data-remove-store')); }
+        catch (err) { if (global.showAlert) global.showAlert('Recipient', err.message || String(err)); }
+      });
+    });
+
+    // ── Recipient typeahead ────────────────────────────────────────────────
+    const emailInput = document.getElementById('emailInput');
+    const suggestList = document.getElementById('emailSuggestList');
+    let suggestTimer = null;
+    let lastQuery = '';
+
+    async function addRecipientEmail(email) {
+      const v = fixStoreDomain(email);
+      if (!v || !v.includes('@')) return false;
+      if ((S.state.needsAssignmentEmails || []).some((item) => String(item).toLowerCase() === v)) return false;
+      if (!v.endsWith(FM_STORE_SUFFIX)) {
+        if (global.showAlert) global.showAlert('Recipient', `Only ${FM_STORE_SUFFIX} addresses can be added.`);
+        return false;
+      }
+      try {
+        await global.EodCover?.addFredmeyerEmail?.(v);
+      } catch (err) {
+        if (global.showAlert) global.showAlert('Recipient', err.message || String(err));
+        return false;
+      }
+      const arr = S.state.emailRecipients.slice();
+      if (!arr.includes(v)) arr.push(v);
+      S.patch({ emailRecipients: arr }, 'recipients');
+      S.saveDraft();
+      return true;
+    }
+
+    function hideSuggest() {
+      if (suggestList) { suggestList.style.display = 'none'; suggestList.innerHTML = ''; }
+      lastQuery = '';
+    }
+
+    function renderSuggest(people) {
+      if (!suggestList || !people.length) { hideSuggest(); return; }
+      suggestList.innerHTML = people.map((p) => {
+        const name = esc(p.name || '');
+        const email = esc(p.email || '');
+        const badge = p.role === 'supervisor' ? ' <span class="pill pill-sm">Supervisor</span>' : '';
+        return `<button type="button" class="email-suggest-item" data-email="${email}">
+          <span class="email-suggest-name">${name}${badge}</span>
+          <span class="email-suggest-addr">${email}</span>
+        </button>`;
+      }).join('');
+      suggestList.style.display = '';
+      suggestList.querySelectorAll('.email-suggest-item').forEach((btn) => {
+        btn.addEventListener('mousedown', (e) => {
+          // mousedown so it fires before blur
+          e.preventDefault();
+        });
+        btn.addEventListener('click', async () => {
+          const email = btn.getAttribute('data-email');
+          if (await addRecipientEmail(email)) {
+            emailInput.value = '';
+            hideSuggest();
+            paintRecipients();
+            render(mount);
+          }
+        });
+      });
+    }
+
+    async function fetchSuggest(q) {
+      try {
+        const url = `${global.EOD_API_BASE}/api/dump-bin/print-at-store/cc-contacts?q=${encodeURIComponent(q)}&limit=8`;
+        const resp = await global.authFetch(url, { skipBusy: true });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (lastQuery !== q) return; // stale
+        const people = (data.people || []).filter((p) => p.email && p.name);
+        // Filter out already-added recipients
+        const existing = new Set(S.state.emailRecipients.map((e) => e.toLowerCase()));
+        const filtered = people.filter((p) => !existing.has(p.email.toLowerCase()));
+        renderSuggest(filtered);
+      } catch (_) { /* network; ignore */ }
+    }
+
+    emailInput.addEventListener('input', () => {
+      const raw = emailInput.value.trim();
+      if (suggestTimer) { clearTimeout(suggestTimer); suggestTimer = null; }
+      // If it looks like a full email address, no suggest needed
+      if (raw.includes('@')) { hideSuggest(); return; }
+      if (raw.length < 4) { hideSuggest(); return; }
+      lastQuery = raw;
+      suggestTimer = setTimeout(() => fetchSuggest(raw), 280);
+    });
+
+    emailInput.addEventListener('blur', () => {
+      // Small delay so click on a suggest item fires first
+      setTimeout(hideSuggest, 180);
+    });
+
+    emailInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { hideSuggest(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = emailInput.value.trim().toLowerCase();
+        if (v && v.includes('@')) {
+          addRecipientEmail(v).then((ok) => {
+            if (!ok) return;
+            emailInput.value = '';
+            hideSuggest();
+            render(mount);
+          });
+        }
+      }
+    });
+
+    document.getElementById('addEmailBtn').onclick = async () => {
+      const v = emailInput.value.trim().toLowerCase();
+      if (!v || !v.includes('@')) return;
+      if (await addRecipientEmail(v)) {
+        emailInput.value = '';
+        hideSuggest();
+        render(mount);
+      }
+    };
+
+    document.getElementById('fmPickerBtn')?.addEventListener('click', () => {
+      const waiting = new Set((S.state.needsAssignmentEmails || []).map((email) => String(email).toLowerCase()));
+      const pool = (S.state.fredmeyerEmailPool || []).filter((email) => !waiting.has(String(email).toLowerCase()));
+      const selected = S.state.emailRecipients.filter((e) => pool.includes(e));
+      global.EodPicker.open({
+        anchor: document.getElementById('fmPickerBtn'),
+        title: 'Fred Meyer addresses',
+        multiple: true,
+        items: pool.map((e, i) => ({ id: String(i), label: e, removable: true })),
+        selected: pool.map((e, i) => selected.includes(e) ? String(i) : null).filter(Boolean),
+        searchable: pool.length > 8,
+        onChange(ids) {
+          const picked = ids.map((i) => pool[Number(i)]).filter(Boolean);
+          const others = S.state.emailRecipients.filter((e) => !pool.includes(e));
+          S.patch({ emailRecipients: [...new Set([...others, ...picked])] }, 'fm');
+          S.saveDraft();
+          render(mount);
+        },
+        async onRemove(item) {
+          try {
+            await global.EodCover?.removeFredmeyerEmail?.(item.label);
+            global.EodPicker.close();
+          } catch (err) {
+            if (global.showAlert) global.showAlert('Remove', err.message || String(err));
+          }
+        },
+      });
+    });
+
+    document.getElementById('proxyEodBtn')?.addEventListener('click', () => {
+      global.EodProxyEod?.toggle?.();
+      render(mount);
+    });
+
+    document.getElementById('signBtn')?.addEventListener('click', () => {
+      if (!global.EodLandscapeSigPad?.open) {
+        global.showAlert?.('Signature', 'Signature pad failed to load. Refresh and try again.');
+        return;
+      }
+      global.EodLandscapeSigPad.open({
+        title: 'Lead signature',
+        existingDataUrl: S.state.signatureDataUrl,
+        onAccept: (url) => {
+          S.saveSignature(url);
+          render(mount);
+        },
+      });
+    });
+
+    document.getElementById('previewBtn').onclick = () => {
+      const payload = global.applyEodTestModeToPayload
+        ? global.applyEodTestModeToPayload(buildPayload())
+        : buildPayload();
+      const w = window.open('', '_blank');
+      const html = `<!DOCTYPE html><html><head><title>EOD preview</title>
+        <style>body{font:15px/1.45 system-ui;padding:16px;max-width:720px;margin:auto;background:#0b1220;color:#f8fafc}
+        pre{white-space:pre-wrap;background:#111827;padding:12px;border-radius:8px;border:1px solid #334155}
+        h1{color:#7dd3fc;font-size:1.2rem}</style></head><body>
+        <h1>${esc(payload.subject)}</h1>
+        <p>To: ${esc(payload.recipients.join(', '))}</p>
+        <pre>${esc(payload.body)}</pre>
+        <h1>Raw payload</h1>
+        <pre>${esc(JSON.stringify(payload, null, 2))}</pre>
+        </body></html>`;
+      if (!w) {
+        global.showAlert?.('EOD preview', payload.body);
+        return;
+      }
+      w.document.write(html);
+      w.document.close();
+    };
+
+    document.getElementById('sendPrintSignoffBtn')?.addEventListener('click', () => {
+      if (global.EodSignoffHome?.openPrintAtStoreModal) {
+        global.EodSignoffHome.openPrintAtStoreModal();
+        return;
+      }
+      if (global.EodSignoffHome?.openSignoffPdfPreview) {
+        global.EodSignoffHome.openSignoffPdfPreview();
+      }
+    });
+
+    document.getElementById('sendBtn').onclick = async () => {
+      dropForeignSendLock();
+      if (sendLock?.inFlight) {
+        await global.EodAlerts?.alert?.('EOD sent', receiptLockMessage(sendLock));
+        return;
+      }
+      if (sendLock?.sent && !resendAuthorization) {
+        await unlockResend(S);
+        return;
+      }
+      try {
+        await ensureInstaworkSupport();
+      } catch (err) {
+        await global.EodAlerts?.alert?.(
+          'InstaWork time',
+          err.message || 'Could not read InstaWork time on today\'s shifts. Nothing was emailed.'
+        );
+        return;
+      }
+      const msg = gateMessage();
+      if (msg) {
+        global.EodUsage?.track?.('gate_failure', {
+          stage: 'send',
+          reason: global.EodSendGates?.missing?.(S)?.[0]?.id || 'unknown',
+          status: 'blocked',
+        });
+        const first = global.EodSendGates?.missing?.(S)?.[0];
+        if (first && global.EodSendGates.go) global.EodSendGates.go(first);
+        else await global.EodAlerts?.alert?.('Still needed', msg);
+        return;
+      }
+      if (global.PhotoDB?.hydrateDataUrls) {
+        try { await global.PhotoDB.hydrateDataUrls(S.state.photos); } catch (_) {}
+      }
+      if (global.EodTeamSession?.materializePhotos) {
+        try { await global.EodTeamSession.materializePhotos(S.state.photos); } catch (_) {}
+      }
+      if (!(await askHelpdeskResolution(S))) return;
+      let payload = buildPayload();
+      const fmMax = Number(S.state.fmMaxRecipients) || 10;
+      const fmCount = (payload.recipients || []).filter((email) => String(email).toLowerCase().endsWith('@stores.fredmeyer.com')).length;
+      if (global.EodAlerts?.confirm) {
+        const okSend = await global.EodAlerts.confirm('Send EOD', fmCount
+          ? `Send to ${fmCount} Fred Meyer store contact${fmCount === 1 ? '' : 's'}?`
+          : 'No Fred Meyer store contacts selected. Send anyway?');
+        if (!okSend) return;
+      }
+      const cartMail = cartPhotosInEmail(payload);
+      if (!cartMail.before || !cartMail.after) {
+        const which = [!cartMail.before && 'before', !cartMail.after && 'after'].filter(Boolean).join(' and ');
+        await global.EodAlerts?.alert?.(
+          'Cart photos required',
+          `The EOD email has to include the Kompass cart ${which} photo. Retake it or pull it from PROD, then send again. Nothing was emailed.`
+        );
+        return;
+      }
+      if (global.applyEodTestModeToPayload) payload = global.applyEodTestModeToPayload(payload);
+      if (global.EodTestMode?.isForceLive?.()) {
+        const ok = await global.EodAlerts?.confirm?.(
+          'Live delivery',
+          'LIVE delivery override is ON.\n\nSend will use the real path (not tester-only).\n\nContinue?'
+        );
+        if (!ok) return;
+      }
+      // Durable save before send — keep local copy even if network dies mid-flight.
+      try { S.saveDraft(); } catch (_) {}
+      try {
+        const inn = String(S.state.checkInManager || '').trim();
+        const out = String(S.state.checkOutManager || '').trim();
+        if (inn) await global.EodCover?.addManagerName?.(inn);
+        if (out && out.toLowerCase() !== inn.toLowerCase()) {
+          await global.EodCover?.addManagerName?.(out);
+        }
+      } catch (_) {}
+      if (global.EodDurability?.awaitDurablePhotoSave) {
+        const saved = await global.EodDurability.awaitDurablePhotoSave('send');
+        if (!saved) {
+          await global.EodAlerts?.alert?.(
+            'Photos not saved',
+            'Could not save photos locally. Fix device storage, then try Send again. Nothing was emailed.'
+          );
+          return;
+        }
+      }
+      const headers = global.EodApi.dayConfirmHeaders();
+      const btn = document.getElementById('sendBtn');
+      if (btn.dataset.sendLocked === '1') return;
+      btn.disabled = true;
+      btn.dataset.sendLocked = '1';
+      btn.textContent = 'Sending…';
+      let generatedSheets = [];
+      const busy = global.EodBusy;
+      const setBusy = (title) => {
+        btn.textContent = title || 'Sending…';
+        try { busy?.setStage?.(title, ''); } catch (_) {}
+      };
+      try {
+        if (busy?.beginSession) {
+          busy.beginSession({ title: 'Sending EOD' });
+        }
+        if (global.EodSendGates?.kickSettleDrain) {
+          setBusy('Closing SI sets');
+          const settle = await global.EodSendGates.kickSettleDrain({
+            storeNumber: payload.storeNumber,
+            workDate: payload.workDate,
+            authFetch: global.authFetch,
+            apiBase: global.EOD_API_BASE,
+            headers,
+            timeoutMs: 180_000,
+            pollMs: 4000,
+            onStatus: (msg) => setBusy(msg || 'Closing SI sets'),
+          });
+          if (settle?.pending || settle?.timedOut) {
+            const n = Number(settle.openBacklog) || 0;
+            const detail = n > 0
+              ? `${n} set(s) still finishing SI closeout.`
+              : 'SI closeout is still catching up.';
+            await global.EodAlerts?.alert?.(
+              'SI still closing',
+              `${detail} Send will continue — DumpBin can finish the rest.`
+            );
+          }
+        }
+        if (global.EodSendSheets?.prepareForEmail) {
+          setBusy('Building sheets');
+          generatedSheets = await global.EodSendSheets.prepareForEmail({
+            report: payload.report,
+            sheet: S.state.sheet,
+            storeNumber: payload.storeNumber,
+            workDate: payload.workDate,
+            visitId: payload.visitId,
+            testMode: !!payload.testMode,
+            onStatus: (msg) => { setBusy(msg || 'Building sheets'); },
+          });
+        }
+        if (generatedSheets.length) {
+          payload.signoffPhotos = generatedSheets.concat(payload.signoffPhotos || []);
+        }
+        setBusy('Uploading package');
+        const uploaded = await uploadPackageParts(payload, headers);
+        const packageId = uploaded && uploaded.packageId;
+        const skippedPhotos = (uploaded && uploaded.skipped) || [];
+        const meta = Object.assign({}, payload);
+        if (resendAuthorization) meta.resendAuthorization = resendAuthorization;
+        if (generatedSheets.length) {
+          meta.kompassAfterUpload = 'server';
+          const mainIse = global.EodSendSheetsLogic?.pickMainKompassIseVisit?.(S.state.shifts, S.state.selectedShift);
+          if (mainIse?.visitId) meta.maintenanceVisitId = String(mainIse.visitId);
+        }
+        if (packageId) {
+          meta.packageId = packageId;
+          delete meta.pdfBase64;
+          delete meta.signoffPhotos;
+          delete meta.cartPhotos;
+        }
+        setBusy('Sending email');
+        const resp = await global.authFetch(`${global.EOD_API_BASE}/send-eod`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(meta),
+          skipBusy: true,
+        });
+        if (resp.status === 412) {
+          S.clearDayConfirm();
+          try { busy?.endSession?.(); } catch (_) {}
+          await global.EodAlerts?.alert?.(
+            'Confirm visit',
+            'Please re-confirm your store for today (day-confirm expired), then send again.'
+          );
+          global.EodRouter.go('visit');
+          return;
+        }
+        const data = await resp.json().catch(() => ({}));
+        if (
+          !resp.ok
+          && (
+            String(data.code || '').startsWith('resend_authorization')
+            || data.code === 'no_prior_send'
+          )
+        ) {
+          resendAuthorization = null;
+          if (data.receipt) applySendLock(data.receipt);
+          try { busy?.endSession?.(); } catch (_) {}
+          await global.EodAlerts?.alert?.(
+            'PIN required',
+            data.error || 'That one-time PIN is invalid, expired, or has already been used.',
+          );
+          return;
+        }
+        if (resp.status === 409 && data.receipt) {
+          applySendLock(data.receipt);
+          try { busy?.endSession?.(); } catch (_) {}
+          await global.EodAlerts?.alert?.('EOD sent', data.error || receiptLockMessage(data.receipt));
+          return;
+        }
+        if (data.held === true || data.code === 'eod_mail_held') {
+          resendAuthorization = null;
+          let note = data.message || data.error || 'Your EOD is saved. It has not been sent.';
+          const heldAfter = data.kompassAfter && data.kompassAfter.mode === 'server' ? data.kompassAfter : null;
+          if (heldAfter && heldAfter.failed) {
+            note += `\n\n${heldAfter.queued || 0} sheet image(s) queued for maintenance; ${heldAfter.failed} failed.`;
+          }
+          try { busy?.showSuccess?.('Saved'); } catch (_) {}
+          await new Promise((r) => setTimeout(r, 700));
+          try { busy?.endSession?.(); } catch (_) {}
+          global.EodUsage?.track?.('send_held', { stage: 'send', status: 'held' });
+          if (global.PhotoDB?.markEmailOk) {
+            try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
+          }
+          try { await global.PhotoDB?.tryCompleteSession?.(); } catch (_) {}
+          try { await global.PhotoDB?.purgeSubmitted?.({ keepActive: true }); } catch (_) {}
+          try { global.EodPhotoPipeline?.purgeSettledJobs?.(); } catch (_) {}
+          await showEodSentOverlay(note, S, 'EOD saved');
+          return;
+        }
+        if (!resp.ok || data.success === false) {
+          throw new Error(data.error || data.message || `Send failed (${resp.status})`);
+        }
+        resendAuthorization = null;
+        applySendLock(data.receipt || { sent: true, sentAtLabel: '' });
+        let sasNote = '';
+        if (skippedPhotos.length && global.EodSendSheetsLogic?.skippedPhotoMessage) {
+          sasNote += `\n\n${global.EodSendSheetsLogic.skippedPhotoMessage(skippedPhotos)}`;
+        }
+        const serverAfter = data.kompassAfter && data.kompassAfter.mode === 'server' ? data.kompassAfter : null;
+        if (serverAfter) {
+          if (serverAfter.failed || (!serverAfter.queued && serverAfter.reason && !/^test-/.test(serverAfter.reason))) {
+            sasNote += `\n\nEmail sent. ${serverAfter.queued || 0} sheet image(s) queued for maintenance; ${serverAfter.failed || 0} failed.`;
+          }
+        } else if (generatedSheets.length && global.EodSendSheets?.uploadAfterSend) {
+          setBusy('Uploading to Kompass');
+          try {
+            const sas = await global.EodSendSheets.uploadAfterSend(generatedSheets, {
+              storeNumber: payload.storeNumber,
+              workDate: payload.workDate,
+              leadName: payload.userName,
+              onStatus: (msg) => { setBusy(msg || 'Uploading to Kompass'); },
+            });
+            if (sas.failed) {
+              sasNote = `\n\nEmail sent. ${sas.uploaded} sheet image(s) uploaded to maintenance; ${sas.failed} failed.`;
+            }
+          } catch (coverErr) {
+            console.warn('[coversheet] auto-upload after send failed:', coverErr);
+            sasNote = '\n\nEmail sent. Maintenance after-photo upload had an issue — retry from Send if needed.';
+          }
+        }
+        // Brief success flash then hand off to the ack overlay
+        try { busy?.showSuccess?.('Success!'); } catch (_) {}
+        await new Promise((r) => setTimeout(r, 700));
+        try { busy?.endSession?.(); } catch (_) {}
+        global.EodUsage?.track?.('send_success', { stage: 'send', status: 'complete' });
+        if (global.PhotoDB?.markEmailOk) {
+          try { await global.PhotoDB.markEmailOk(S.state.storeNumber, S.state.workDate); } catch (_) {}
+        }
+        try { await global.PhotoDB?.tryCompleteSession?.(); } catch (_) {}
+        try { await global.PhotoDB?.purgeSubmitted?.({ keepActive: true }); } catch (_) {}
+        try { global.EodPhotoPipeline?.purgeSettledJobs?.(); } catch (_) {}
+        // Persistent ack overlay — waits for "Start new visit" tap, then resets
+        await showEodSentOverlay(receiptLockMessage(sendLock) + sasNote, S);
+      } catch (err) {
+        console.error(err);
+        try { busy?.endSession?.(); } catch (_) {}
+        if (err && err.status === 412) {
+          S.clearDayConfirm();
+          await global.EodAlerts?.alert?.(
+            'Confirm visit',
+            'Please re-confirm your store for today (day-confirm expired), then send again.'
+          );
+          global.EodRouter.go('visit');
+          return;
+        }
+        const verified = await loadSendReceipt();
+        if (verified?.sent || verified?.inFlight) {
+          applySendLock(verified);
+          await global.EodAlerts?.alert?.('EOD sent', receiptLockMessage(verified));
+          return;
+        }
+        if (btn) btn.dataset.sendLocked = '';
+        await global.EodAlerts?.alert?.('Send error', networkSendMessage(err));
+      } finally {
+        try { busy?.endSession?.(); } catch (_) {}
+        if (sendLock?.sent || sendLock?.inFlight) {
+          applySendLock(sendLock);
+        } else if (btn) {
+          btn.dataset.sendLocked = '';
+          btn.disabled = !!gateMessage();
+          btn.textContent = 'Send EOD';
+        }
+      }
+    };
+    const visitStore = S.state.storeNumber;
+    const visitDate = S.state.workDate;
+    loadSendReceipt().then((receipt) => {
+      const now = global.EodSession;
+      if (!now || now.state.storeNumber !== visitStore || now.state.workDate !== visitDate) return;
+      if (!receiptBelongsToVisit(receipt, visitStore, visitDate)) {
+        sendLock = null;
+        resendAuthorization = null;
+        applySendLock(null);
+        return;
+      }
+      applySendLock(receipt);
+    });
+  }
+
+  /**
+   * Show a persistent "EOD sent" success overlay that requires a button tap
+   * to acknowledge and reset to a new visit. Replaces the auto-dismiss success
+   * flash + showAlert('Sent') + maybeClearAfterSend dialog chain.
+   *
+   * Returns a Promise that resolves after the user taps "Start new visit"
+   * and the visit has been reset.
+   */
+  function showEodSentOverlay(receiptMsg, S, title) {
+    return new Promise((resolve) => {
+      // Remove any stale instance
+      document.getElementById('eodSentAckOverlay')?.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'eodSentAckOverlay';
+      overlay.className = 'eod-sent-ack-overlay';
+      // Sanitize message for display (newlines → <br>)
+      const safeMsg = String(receiptMsg || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+      const safeTitle = String(title || 'EOD sent!')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      overlay.innerHTML = `
+        <div class="eod-sent-ack-card" role="alertdialog" aria-modal="true" aria-labelledby="eodSentAckTitle">
+          <div class="eod-sent-ack-check" aria-hidden="true">&#10003;</div>
+          <h2 class="eod-sent-ack-title" id="eodSentAckTitle">${safeTitle}</h2>
+          ${safeMsg ? `<p class="eod-sent-ack-msg">${safeMsg}</p>` : ''}
+          <button type="button" class="btn btn-primary eod-sent-ack-btn" id="eodSentAckBtn">Start new visit</button>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      // Animate in
+      requestAnimationFrame(() => overlay.classList.add('show'));
+
+      document.getElementById('eodSentAckBtn').addEventListener('click', async () => {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 300);
+        try {
+          await S.resetVisit({ wipePersonal: false, wipeSetBefores: false });
+        } catch (_) {}
+        try { global.EodChrome?.refresh?.(); } catch (_) {}
+        try { global.EodRouter?.go?.('visit'); } catch (_) {}
+        resolve();
+      });
+    });
+  }
+
+  async function maybeClearAfterSend(S) {
+    let pref = 'ask';
+    try { pref = localStorage.getItem('eodPostSendClearPref') || 'ask'; } catch (_) {}
+    let wipe = pref === 'always';
+    if (pref === 'never') return;
+    if (pref === 'ask' && global.EodAlerts?.showDialog) {
+      const id = await global.EodAlerts.showDialog({
+        title: 'Clear this visit?',
+        message: 'Profile and signature stay on this phone.',
+        buttons: [
+          { id: 'never', label: 'Never' },
+          { id: 'no', label: 'Keep' },
+          { id: 'yes', label: 'Clear', primary: true },
+          { id: 'always', label: 'Always' },
+        ],
+      });
+      if (id === 'always') {
+        try { localStorage.setItem('eodPostSendClearPref', 'always'); } catch (_) {}
+        wipe = true;
+      } else if (id === 'never') {
+        try { localStorage.setItem('eodPostSendClearPref', 'never'); } catch (_) {}
+        wipe = false;
+      } else {
+        wipe = id === 'yes';
+      }
+    }
+    if (wipe) {
+      await S.resetVisit({ wipePersonal: false, wipeSetBefores: false });
+      global.EodChrome?.refresh();
+      global.EodRouter.go('visit');
+    }
+  }
+
+  async function uploadPackageParts(payload, headers) {
+    const api = global.EOD_API_BASE;
+    const L = global.EodSendSheetsLogic || {};
+    let packageId = null;
+    const skipped = [];
+    async function postPart(body) {
+      const resp = await global.authFetch(`${api}/api/eod-artifacts/part`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (resp.status === 412) {
+        const err = new Error('day_confirm_required');
+        err.status = 412;
+        throw err;
+      }
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.ok === false) {
+        const err = new Error(data.error || data.message || `Upload failed (${resp.status})`);
+        err.status = resp.status;
+        err.code = data.code;
+        throw err;
+      }
+      return data;
+    }
+    if (payload.pdfBase64) {
+      const part = await postPart({
+        storeNumber: payload.storeNumber,
+        workDate: payload.workDate,
+        kind: 'pdf',
+        filename: payload.pdfFilename
+          || (global.EodSendSheetsLogic?.eodPdfFilename
+            ? global.EodSendSheetsLogic.eodPdfFilename(payload.storeNumber, payload.workDate)
+            : `EOD_FM${padStore(payload.storeNumber)}_${String(payload.workDate || '').slice(5, 7)}-${String(payload.workDate || '').slice(8, 10)}-${String(payload.workDate || '').slice(2, 4)}.pdf`),
+        mime: 'application/pdf',
+        contentBase64: String(payload.pdfBase64).replace(/\s+/g, ''),
+      });
+      packageId = part.packageId;
+    }
+    const photos = Array.isArray(payload.signoffPhotos) ? payload.signoffPhotos : [];
+    for (let i = 0; i < photos.length; i++) {
+      const raw = photos[i];
+      const s = typeof raw === 'string' ? raw : (raw && (raw.dataUrl || raw.imageBase64 || raw.content)) || '';
+      const str = String(s || '');
+      const filename = (raw && raw.filename) || `signoff_${i}.jpg`;
+      const source = (raw && raw.source) || '';
+      const label = L.cartSlotLabel ? L.cartSlotLabel(filename, source) : filename;
+      if (L.isRemotePhotoSrc?.(str) || (L.isSendableImageSrc && !L.isSendableImageSrc(str))) {
+        const kind = L.classifySheetFilename?.(filename);
+        if (kind === 'cart-before' || kind === 'cart-after' || source === 'cart-before' || source === 'cart-after') {
+          const err = new Error(`The EOD email has to include the ${label}. Retake it or pull it from PROD, then send again.`);
+          err.code = 'CART_PHOTO_REQUIRED';
+          throw err;
+        }
+        skipped.push({ filename, source, label });
+        continue;
+      }
+      const m = str.match(/^data:([^;]+);base64,(.*)$/i);
+      const mime = m ? m[1] : 'image/jpeg';
+      const contentBase64 = (m ? m[2] : str).replace(/\s+/g, '');
+      if (!contentBase64) continue;
+      try {
+        const part = await postPart({
+          packageId: packageId || undefined,
+          storeNumber: payload.storeNumber,
+          workDate: payload.workDate,
+          kind: 'signoff',
+          filename,
+          mime,
+          contentBase64,
+        });
+        packageId = part.packageId;
+      } catch (err) {
+        if (err && err.status === 412) throw err;
+        if (err && (err.code === 'INVALID_IMAGE' || err.status === 400)) {
+          skipped.push({ filename, source, label });
+          continue;
+        }
+        throw err;
+      }
+    }
+    return { packageId, skipped };
+  }
+
+  function networkSendMessage(err) {
+    const msg = String((err && err.message) || err || '');
+    if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+      return 'Network dropped while sending. Stay on this screen. Send stays locked until the receipt confirms it did not go.';
+    }
+    if (/already sent|will not send again/i.test(msg)) return msg;
+    return msg || 'Unknown error';
+  }
+
+  global.EodSend = { buildPayload, gateMessage, refreshGates };
+  global.EodRouter.register('send', render);
+})(typeof window !== 'undefined' ? window : globalThis);

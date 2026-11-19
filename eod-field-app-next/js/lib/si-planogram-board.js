@@ -1,0 +1,1060 @@
+/* Live SI planogram board — click details, scale-to-fill shelves, Kroger thumbs. */
+(function (global) {
+  'use strict';
+
+  const API = 'https://eod-api.the-dump-bin.com/api/field-set';
+  const IMAGE_CONCURRENCY = 6;
+  const TEXT_KEY = 'eod-pog-text-only';
+  const COMPACT_QUERY = '(max-width: 560px)';
+  const boardMem = new Map();
+
+  function esc(s) {
+    return global.EodApi.escapeHtml(s);
+  }
+
+  function boardKey({ store, date, dbkey }) {
+    return `${store || ''}|${date || ''}|${dbkey || ''}`;
+  }
+
+  function Media() {
+    return global.EodSetMediaCache;
+  }
+
+  async function cacheMatch(url) {
+    try { return await Media()?.match?.(url) || null; } catch (_) { return null; }
+  }
+
+  async function cachePut(url, resp) {
+    try { await Media()?.put?.(url, resp); } catch (_) { /* quota */ }
+  }
+
+  async function mapPool(items, limit, fn) {
+    let i = 0;
+    const n = Math.max(1, limit);
+    await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+      while (i < items.length) {
+        const idx = i;
+        i += 1;
+        await fn(items[idx], idx);
+      }
+    }));
+  }
+
+  function digits(raw) {
+    return String(raw || '').replace(/\D/g, '');
+  }
+
+  function upcMatch(a, b) {
+    const da = digits(a);
+    const db = digits(b);
+    if (!da || !db) return false;
+    if (da === db) return true;
+    const sa = da.replace(/^0+/, '') || '0';
+    const sb = db.replace(/^0+/, '') || '0';
+    if (sa === sb) return true;
+    if (Math.min(da.length, db.length) < 4) return false;
+    return da.endsWith(db) || db.endsWith(da);
+  }
+
+  function facingUnits(it) {
+    return Math.max(1, Number(it.h) || 1);
+  }
+
+  function bayScale(shelves) {
+    const rows = (shelves || []).map((shelf) => {
+      const units = Math.max(1, (shelf.items || []).reduce((sum, it) => sum + facingUnits(it), 0));
+      return { shelf, units };
+    });
+    const widestUnits = Math.max(1, ...rows.map((row) => row.units));
+    return {
+      widestUnits,
+      rows: rows.map((row) => ({
+        ...row,
+        scale: widestUnits / row.units,
+      })),
+    };
+  }
+
+  function pegColumns(items) {
+    const units = Math.max(1, (items || []).reduce((sum, item) => sum + facingUnits(item), 0));
+    const fitted = Math.round(Math.sqrt(units * 0.75));
+    return Math.min(units, Math.max(4, Math.min(10, fitted)));
+  }
+
+  function pegItemNumber(item) {
+    return String(item?.itemPosition || item?.position || '');
+  }
+
+  function packPegItems(items, columnCount) {
+    const source = (items || []).slice().sort((a, b) => {
+      const shelfA = Number(a.shelf) || 0;
+      const shelfB = Number(b.shelf) || 0;
+      if (shelfA !== shelfB) return shelfB - shelfA;
+      return (Number(a.position) || Number(a.itemPosition) || 0)
+        - (Number(b.position) || Number(b.itemPosition) || 0);
+    });
+    const shelfNums = [...new Set(source.map((it) => Number(it.shelf)).filter(Number.isFinite))];
+    if (shelfNums.length > 1) {
+      const shelves = shelfNums.slice().sort((a, b) => b - a);
+      const placements = [];
+      const rowOf = new Map(shelves.map((shelf, i) => [shelf, i + 1]));
+      let columns = Math.max(1, Math.floor(Number(columnCount) || 0));
+      source.forEach((item) => {
+        const col = Math.max(1, Number(item.position) || Number(item.itemPosition) || 1);
+        const span = facingUnits(item);
+        columns = Math.max(columns, col + span - 1);
+        placements.push({
+          item,
+          row: rowOf.get(Number(item.shelf)) || 1,
+          col,
+          span,
+        });
+      });
+      return { columns, rows: shelves.length, placements };
+    }
+    const columns = Math.max(1, Math.floor(Number(columnCount) || pegColumns(source)));
+    const placements = [];
+    let row = 1;
+    let col = 1;
+    source.forEach((item) => {
+      const span = facingUnits(item);
+      if (col + span - 1 > columns) {
+        row += 1;
+        col = 1;
+      }
+      placements.push({ item, row, col, span });
+      col += span;
+      if (col > columns) {
+        row += 1;
+        col = 1;
+      }
+    });
+    const rows = placements.reduce((max, placement) => Math.max(max, placement.row), 1);
+    return { columns, rows, placements };
+  }
+
+  /**
+   * Inch hang from the planogram peg.
+   * Checklanes send pegX/pegY (left and top in inches from the board corner,
+   * slide pegs already spread across the board). Stationery sends pegR/pegC
+   * and hangs centered on the hole.
+   */
+  function pegFrame(items, boardWidthIn) {
+    const boxes = [];
+    let explicit = false;
+    (items || []).forEach((item) => {
+      const x = Number(item.pegX);
+      const y = Number(item.pegY);
+      if (item.pegX != null && Number.isFinite(x) && Number.isFinite(y)) {
+        const h = Math.max(1, Number(item.pegH) || 6);
+        const w = Math.max(1, Number(item.pegW) || 2);
+        explicit = true;
+        boxes.push({ item, left: x, top: y, w, h, right: x + w, bottom: y + h });
+        return;
+      }
+      const r = Number(item.pegR);
+      const c = Number(item.pegC);
+      if (!Number.isFinite(r) || !Number.isFinite(c) || r <= 0 || c <= 0) return;
+      const h = Math.max(1, Number(item.heightIn) || 6);
+      const w = Math.max(1, Number(item.widthIn) || 2);
+      const left = c - (w / 2);
+      const top = r;
+      boxes.push({ item, left, top, w, h, right: left + w, bottom: top + h });
+    });
+    if (!boxes.length) return null;
+    const minL = explicit ? 0 : Math.min(...boxes.map((box) => box.left));
+    const minT = explicit ? 0 : Math.min(...boxes.map((box) => box.top));
+    const reach = Math.max(...boxes.map((box) => box.right));
+    const boardW = explicit ? Math.max(Number(boardWidthIn) || 0, reach) : reach;
+    const spanC = Math.max(1, boardW - minL);
+    const spanR = Math.max(1, Math.max(...boxes.map((box) => box.bottom)) - minT);
+    return {
+      spanIn: spanR,
+      placements: boxes.map((box) => ({
+        item: box.item,
+        inch: true,
+        left: ((box.left - minL) / spanC) * 100,
+        top: ((box.top - minT) / spanR) * 100,
+        width: (box.w / spanC) * 100,
+        height: (box.h / spanR) * 100,
+      })),
+    };
+  }
+
+  function shelfFrame(shelf) {
+    const items = shelf?.items || [];
+    const frame = pegFrame(items, shelf?.pegWidthIn);
+    if (!frame) return null;
+    if (frame.placements.length < Math.ceil(items.length * 0.5)) return null;
+    return frame;
+  }
+
+  function isPegBay(bay) {
+    const shelves = bay?.shelves || [];
+    if (shelves.length > 1) return false;
+    if (bay?.layoutMode === 'peg') return true;
+    const count = shelves.reduce((sum, shelf) => sum + (shelf.items || []).length, 0);
+    return shelves.length === 1 && count >= 24;
+  }
+
+  function locLine(it, bay) {
+    const peg = it.pegCode || (Number(it.pegR) > 0 && Number(it.pegC) > 0 ? `R${it.pegR} C${it.pegC}` : '');
+    const rawPos = it.itemPosition || it.position;
+    const pos = rawPos != null && rawPos !== ''
+      ? (peg ? `#${rawPos}` : `Position ${rawPos}`)
+      : '';
+    return [
+      it.aisle ? `Aisle ${it.aisle}` : '',
+      bay != null ? `Bay ${bay}` : '',
+      it.shelf != null && it.shelf !== '' ? `Shelf ${it.shelf}` : '',
+      pos,
+      peg,
+    ].filter(Boolean).join(' · ');
+  }
+
+  function readTextPref() {
+    try { return localStorage.getItem(TEXT_KEY) === '1'; } catch (_) { return false; }
+  }
+
+  function writeTextPref(on) {
+    try { localStorage.setItem(TEXT_KEY, on ? '1' : '0'); } catch (_) { /* ignore */ }
+  }
+
+  function compactPhotoMode() {
+    try { return Boolean(global.matchMedia?.(COMPACT_QUERY).matches); } catch (_) { return false; }
+  }
+
+  function paintTextBtn(host) {
+    const btn = host?.querySelector('#pogTextBtn');
+    if (btn) btn.textContent = host.classList.contains('is-text') ? 'Photos' : 'Text';
+  }
+
+  function applyTextMode(host, on, persist) {
+    if (!host) return;
+    host.classList.toggle('is-text', Boolean(on));
+    if (persist) writeTextPref(Boolean(on));
+    paintTextBtn(host);
+  }
+
+  const CHG_LABEL = {
+    new: 'NEW',
+    move: 'MOVE IN',
+    shift: 'MOVED',
+    facings: 'FACINGS',
+    upc: 'NEW UPC',
+  };
+
+  function chgKey(it) {
+    return it && CHG_LABEL[it.pogAction] ? it.pogAction : '';
+  }
+
+  function itemHtml(it, bay, highlightUpc, widthScale, pegPlacement) {
+    const change = chgKey(it);
+    const chg = change ? ` chg chg-${change}` : '';
+    const chgBadge = change ? `<span class="si-pog-chg">${CHG_LABEL[change]}</span>` : '';
+    const st = it.status ? ` st-${esc(it.status)}` : '';
+    const hit = highlightUpc && upcMatch(it.upc, highlightUpc) ? ' is-hit' : '';
+    const inch = Boolean(pegPlacement && pegPlacement.inch);
+    const peg = pegPlacement ? ' si-pog-peg-item' : '';
+    const loc = locLine(it, bay);
+    const faces = facingUnits(it);
+    const faceMark = faces > 1 ? `<span class="si-pog-face-count">x${faces}</span>` : '';
+    const grow = Math.max(0.0001, Number(widthScale) || 1);
+    const noImg = it.imageUrl ? '' : ' no-img';
+    const label = it.name || it.brand || it.upc || '';
+    const style = inch
+      ? `left:${Number(pegPlacement.left).toFixed(2)}%;top:${Number(pegPlacement.top).toFixed(2)}%;width:${Number(pegPlacement.width).toFixed(2)}%;height:${Number(pegPlacement.height).toFixed(2)}%`
+      : pegPlacement
+        ? `grid-column:${pegPlacement.col}/span ${pegPlacement.span};grid-row:${pegPlacement.row}`
+        : `flex:${grow} 1 0`;
+    const position = it.itemPosition || it.position || '';
+    return `<article class="si-pog-item${peg}${chg}${st}${hit}${noImg}" style="${style}" role="button" tabindex="0"
+      aria-label="${esc(`${label}${position ? `, position ${position}` : ''}`)}"
+      data-name="${esc(it.name || '')}"
+      data-upc="${esc(it.upc || '')}"
+      data-brand="${esc(it.brand || '')}"
+      data-size="${esc(it.size || '')}"
+      data-shelf="${esc(it.shelf)}"
+      data-position="${esc(it.position)}"
+      data-item-position="${esc(position)}"
+      data-bay="${esc(bay)}"
+      data-aisle="${esc(it.aisle || '')}"
+      data-loc="${esc(loc)}"
+      data-pog-action="${esc(it.pogAction || '')}"
+      data-pog-handle="${esc(it.pogHandle || '')}"
+      data-pog-was="${esc(it.pogWas || '')}"
+      data-image="${esc(it.imageUrl || '')}">
+      ${chgBadge}
+      ${pegPlacement ? `<span class="si-pog-peg-pos">${esc(position)}</span>` : ''}
+      ${pegPlacement && faces > 1 ? `<span class="si-pog-face-count si-pog-face-count-peg">x${faces}</span>` : ''}
+      <div class="si-pog-thumb">
+        ${it.imageUrl ? `<img alt="" data-pog-src="${esc(it.imageUrl)}">` : ''}
+        <div class="si-pog-fallback">${esc(label)}</div>
+      </div>
+      <div class="si-pog-meta">
+        <div class="si-pog-name">${esc(it.name || '')}</div>
+        ${it.size ? `<div class="si-pog-size">${esc(it.size)}</div>` : ''}
+        <div class="si-pog-loc">${esc(loc)}</div>
+        <div class="si-pog-cap">${it.upc ? `<span class="si-pog-upc-label">UPC </span><span class="si-pog-upc">${esc(it.upc)}</span>` : ''}${faceMark}</div>
+      </div>
+    </article>`;
+  }
+
+  function shelfHtml(shelf, bay, highlightUpc, widthScale, widestUnits) {
+    const cells = (shelf.items || []).map((it) => itemHtml(it, bay, highlightUpc, widthScale)).join('');
+    return `<div class="si-pog-shelf">
+      <div class="si-pog-shelf-label">${esc(shelf.shelf)}</div>
+      <div class="si-pog-slots" style="--pog-columns:${widestUnits}">${cells}</div>
+    </div>`;
+  }
+
+  function bayChangeCounts(bay) {
+    const counts = {};
+    (bay?.shelves || []).forEach((shelf) => {
+      (shelf.items || []).forEach((it) => {
+        const key = chgKey(it);
+        if (key) counts[key] = (counts[key] || 0) + 1;
+      });
+    });
+    return counts;
+  }
+
+  function bayHeadHtml(bay, label) {
+    const counts = bayChangeCounts(bay);
+    const pull = (bay?.pogRemoved || []).length;
+    const chips = [
+      ['new', 'NEW', counts.new],
+      ['shift', 'MOVED', (counts.shift || 0) + (counts.move || 0)],
+      ['facings', 'FACINGS', counts.facings],
+      ['upc', 'NEW UPC', counts.upc],
+    ].filter(([, , n]) => n > 0)
+      .map(([key, text, n]) => `<span class="si-pog-chip chg-${key}">${text} ${n}</span>`)
+      .join('');
+    const pullChip = pull
+      ? `<button type="button" class="si-pog-chip chg-pull" data-pull-bay="${esc(bay.bay)}">PULL ${pull}</button>`
+      : '';
+    const all = chips + pullChip;
+    return `<div class="si-pog-bay-h">${label}${all ? `<span class="si-pog-chips">${all}</span>` : ''}</div>`;
+  }
+
+  const FILTERS = [
+    ['all', 'All', null],
+    ['changes', 'Changes', null],
+    ['new', 'New', ['new']],
+    ['moves', 'Moves', ['shift', 'move']],
+    ['facings', 'Facings', ['facings']],
+    ['upc', 'New UPC', ['upc']],
+  ];
+  const FILTER_KEY = 'eod.pogFilter.';
+
+  function boardChangeCounts(pog) {
+    const counts = {};
+    let pulls = 0;
+    (pog?.bays || []).forEach((bay) => {
+      pulls += (bay.pogRemoved || []).length;
+      const c = bayChangeCounts(bay);
+      Object.keys(c).forEach((k) => { counts[k] = (counts[k] || 0) + c[k]; });
+    });
+    return { counts, pulls };
+  }
+
+  function readFilter(dbkey) {
+    try { return localStorage.getItem(FILTER_KEY + dbkey) || 'all'; } catch (_) { return 'all'; }
+  }
+
+  function writeFilter(dbkey, value) {
+    try { localStorage.setItem(FILTER_KEY + dbkey, value); } catch (_) { /* ignore */ }
+  }
+
+  function applyFilter(host, value) {
+    if (!host) return;
+    host.setAttribute('data-pog-filter', value);
+    host.querySelectorAll('[data-pog-filter-btn]').forEach((btn) => {
+      const on = btn.getAttribute('data-pog-filter-btn') === value;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  function filterHtml(pog) {
+    const { counts, pulls } = boardChangeCounts(pog);
+    const n = (keys) => keys.reduce((sum, k) => sum + (counts[k] || 0), 0);
+    const changed = n(Object.keys(counts));
+    if (!changed && !pulls) return '';
+    const chips = FILTERS
+      .filter(([value, , keys]) => (keys ? n(keys) > 0 : value === 'all' || changed > 0))
+      .map(([value, label, keys]) => (
+        `<button type="button" class="si-pog-filter-btn chg-${value}" data-pog-filter-btn="${value}" aria-pressed="false">${label}${keys ? ` ${n(keys)}` : ''}</button>`
+      ));
+    if (pulls) chips.push(`<button type="button" class="si-pog-filter-btn chg-pull" data-pog-pull-all>Pull ${pulls}</button>`);
+    return chips.join('');
+  }
+
+  function paintFilter(host, pog, dbkey) {
+    const nav = host?.querySelector('#pogFilter');
+    if (!nav) return;
+    const html = filterHtml(pog);
+    nav.innerHTML = html;
+    nav.hidden = !html;
+    let value = html ? readFilter(dbkey) : 'all';
+    if (!nav.querySelector(`[data-pog-filter-btn="${value}"]`)) value = 'all';
+    applyFilter(host, value);
+  }
+
+  function pullAllHtml(pog, title) {
+    return (pog?.bays || [])
+      .filter((bay) => (bay.pogRemoved || []).length)
+      .map((bay) => pullListHtml(bay, title))
+      .join('');
+  }
+
+  function pullListHtml(bay, title) {
+    const rows = (bay?.pogRemoved || []).map((row) => (
+      `<li><strong>${esc(row.name || row.upc || '')}</strong>
+        <div class="muted">UPC ${esc(row.upc || '')}${row.where ? ` · ${esc(row.where)}` : ''}</div></li>`
+    )).join('');
+    return `<div class="eod-pog-pull"><strong>Pull · Bay ${esc(bay?.bay ?? '')}</strong>
+      ${title ? `<div class="muted">${esc(title)}</div>` : ''}
+      <ul class="eod-pog-pull-list">${rows}</ul></div>`;
+  }
+
+  function inchBoardHtml(frame, bayNum, highlightUpc) {
+    return `<div class="si-pog-peg-board is-inch">${frame.placements.map((placement) => (
+      itemHtml(placement.item, bayNum, highlightUpc, 1, placement)
+    )).join('')}</div>`;
+  }
+
+  function bayHtml(bay, highlightUpc, aisle, ctx) {
+    const shelves = (bay.shelves || []).map((sh) => ({
+      ...sh,
+      items: (sh.items || []).map((it) => ({ ...it, aisle: it.aisle || aisle || '' })),
+    }));
+    const frames = shelves.map((shelf) => ({ shelf, frame: shelfFrame(shelf) }));
+    const pegCount = frames.filter((row) => row.frame).length;
+    if (pegCount && shelves.length > 1) {
+      const layout = bayScale(shelves);
+      const scaleOf = new Map(layout.rows.map((row) => [row.shelf.shelf, row]));
+      const rows = frames.map((row) => `${row.frame ? Math.max(12, Math.round(row.frame.spanIn)) : 11}fr`).join(' ');
+      return `<section class="si-pog-bay is-mixed" style="--pog-columns:${layout.widestUnits}">
+        ${bayHeadHtml(bay, `Bay ${esc(bay.bay)}`)}
+        <div class="si-pog-bay-shelves" style="grid-template-rows:${rows}">${frames.map((row) => {
+          if (!row.frame) {
+            const scaled = scaleOf.get(row.shelf.shelf);
+            return shelfHtml(row.shelf, bay.bay, highlightUpc, scaled ? scaled.scale : 1, layout.widestUnits);
+          }
+          return `<div class="si-pog-shelf is-peg-shelf">
+            <div class="si-pog-shelf-label">${esc(row.shelf.shelf)}</div>
+            ${inchBoardHtml(row.frame, bay.bay, highlightUpc)}
+          </div>`;
+        }).join('')}</div>
+      </section>`;
+    }
+    if (isPegBay({ ...bay, shelves }) || pegCount === shelves.length && shelves.length === 1) {
+      const frame = frames[0] && frames[0].frame;
+      if (frame) {
+        return `<section class="si-pog-bay is-peg">
+          ${bayHeadHtml(bay, `Bay ${esc(bay.bay)} · Pegs`)}
+          ${inchBoardHtml(frame, bay.bay, highlightUpc)}
+        </section>`;
+      }
+      const packed = packPegItems(
+        shelves.flatMap((shelf) => shelf.items || []),
+        bay.columns
+      );
+      return `<section class="si-pog-bay is-peg" style="--pog-peg-columns:${packed.columns};--pog-peg-rows:${packed.rows}">
+        ${bayHeadHtml(bay, `Bay ${esc(bay.bay)} · Pegs`)}
+        <div class="si-pog-peg-board">${packed.placements.map((placement) => (
+          itemHtml(placement.item, bay.bay, highlightUpc, 1, placement)
+        )).join('')}</div>
+      </section>`;
+    }
+    const layout = bayScale(shelves);
+    return `<section class="si-pog-bay" style="--pog-columns:${layout.widestUnits};--pog-shelf-count:${Math.max(1, shelves.length)}">
+      ${bayHeadHtml(bay, `Bay ${esc(bay.bay)}`)}
+      <div class="si-pog-bay-shelves">${layout.rows.map((row) => (
+        shelfHtml(row.shelf, bay.bay, highlightUpc, row.scale, layout.widestUnits)
+      )).join('')}</div>
+    </section>`;
+  }
+
+  function boardHtml(pog, highlightUpc, ctx) {
+    const s = pog.stats || {};
+    const pc = pog.pogChanges || null;
+    const cc = (pc && pc.counts) || {};
+    const bits = [
+      s.facings != null ? `${s.facings} facings` : '',
+      s.products != null ? `${s.products} products` : '',
+      pc && pc.newFixture ? 'New fixture' : '',
+      cc.new ? `${cc.new} new` : '',
+      cc.moved ? `${cc.moved} moved` : '',
+      cc.facings ? `${cc.facings} facings changed` : '',
+      cc.upc ? `${cc.upc} new UPC` : '',
+      cc.removed ? `${cc.removed} pull` : '',
+    ].filter(Boolean);
+    const frames = (pog.bays || []).map((bay) => (
+      `<div class="si-pog-bay-frame" data-bay="${esc(bay.bay)}">${bayHtml(bay, highlightUpc, pog.aisle, ctx)}</div>`
+    )).join('');
+    return `<section class="si-pog si-pog-overlay-board">
+      <p class="muted">${esc(bits.join(' · '))}${pog.date ? ` · ${esc(pog.date)}` : ''}</p>
+      <div class="si-pog-scroll">${frames}</div>
+    </section>`;
+  }
+
+  function absUrl(path) {
+    const fromCache = Media()?.absApiUrl?.(path);
+    if (fromCache) return fromCache;
+    const s = String(path || '').trim();
+    if (!s || /^data:|^blob:/i.test(s)) return '';
+    if (s.startsWith('/api/')) {
+      const base = String(global.EOD_API_BASE || 'https://eod-api.the-dump-bin.com').replace(/\/+$/, '');
+      return base + s;
+    }
+    return '';
+  }
+
+  function failImage(img) {
+    const item = img.closest('.si-pog-item');
+    item?.classList.add('no-img');
+    img.removeAttribute('data-pog-src');
+    img.removeAttribute('src');
+  }
+
+  async function hydrateImages(root) {
+    if (!root) return { wanted: 0, loaded: 0 };
+    const imgs = [...root.querySelectorAll('img[data-pog-src]')];
+    let loaded = 0;
+    await mapPool(imgs, IMAGE_CONCURRENCY, async (img) => {
+      const path = img.getAttribute('data-pog-src') || '';
+      const abs = absUrl(path);
+      if (!path || !abs) {
+        failImage(img);
+        return;
+      }
+      try {
+        const cached = await cacheMatch(abs);
+        if (cached && cached.ok) {
+          const blob = await cached.blob();
+          if (blob && blob.size) {
+            img.src = URL.createObjectURL(blob);
+            img.removeAttribute('data-pog-src');
+            loaded += 1;
+            return;
+          }
+        }
+        const resp = await global.authFetch(abs, { skipBusy: true });
+        if (!resp.ok) {
+          failImage(img);
+          return;
+        }
+        const copy = resp.clone();
+        await cachePut(abs, copy);
+        const blob = await resp.blob();
+        if (!blob || !blob.size) {
+          failImage(img);
+          return;
+        }
+        img.src = URL.createObjectURL(blob);
+        img.removeAttribute('data-pog-src');
+        loaded += 1;
+      } catch (_) {
+        failImage(img);
+      }
+    });
+    return { wanted: imgs.length, loaded };
+  }
+
+  /* A set SI has no planogram for answers 404 every time. Remember that for a
+     few minutes so the phone does not ask again each time the set is painted. */
+  const noBoardUntil = new Map();
+  const NO_BOARD_MS = 10 * 60 * 1000;
+
+  async function fetchBoard({ store, date, dbkey }) {
+    const key = boardKey({ store, date, dbkey });
+    const gone = noBoardUntil.get(key);
+    if (gone && gone > Date.now()) return null;
+    if (boardMem.has(key)) {
+      const hit = boardMem.get(key);
+      if (hit && typeof hit.then !== 'function' && hit?.bays?.length) return hit;
+      if (hit && typeof hit.then === 'function') return hit;
+      boardMem.delete(key);
+    }
+    const pending = (async () => {
+      const warmed = global.EodStoreProdWarm?.peekPlanogram?.(dbkey);
+      if (warmed?.bays?.length) return warmed;
+      const qs = new URLSearchParams({ store, date, dbkey });
+      const url = `${API}/planogram?${qs}`;
+      const resp = await global.authFetch(url, { skipBusy: true, timeoutMs: 90000 });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.status === 404 || /No SI planogram/i.test(String(data.error || ''))) {
+        // Not an error: this set has no planogram.
+        noBoardUntil.set(key, Date.now() + NO_BOARD_MS);
+        return null;
+      }
+      if (!resp.ok) throw new Error(data.error || `Planogram failed (${resp.status})`);
+      if (data.planogram) {
+        try { global.EodStoreProdWarm?.putPlanogram?.(dbkey, data.planogram); } catch (_) {}
+      }
+      return data.planogram || null;
+    })();
+    boardMem.set(key, pending);
+    try {
+      const pog = await pending;
+      if (pog?.bays?.length) boardMem.set(key, pog);
+      else boardMem.delete(key);
+      return pog;
+    } catch (err) {
+      boardMem.delete(key);
+      throw err;
+    }
+  }
+
+  async function prefetch(opts) {
+    const pog = await fetchBoard(opts);
+    if (!pog?.bays?.length) return pog;
+    if (opts && opts.images === false) return pog;
+    if (readTextPref() && !compactPhotoMode()) return pog;
+    const gate = await Media()?.allowPrefetch?.();
+    if (gate && !gate.ok) return pog;
+    const urls = [];
+    for (const bay of pog.bays || []) {
+      for (const shelf of bay.shelves || []) {
+        for (const it of shelf.items || []) {
+          const abs = absUrl(it.imageUrl);
+          if (abs) urls.push(abs);
+        }
+      }
+    }
+    await mapPool(urls, IMAGE_CONCURRENCY, async (url) => {
+      const again = await Media()?.allowPrefetch?.();
+      if (again && !again.ok) return;
+      if (await cacheMatch(url)) return;
+      try {
+        const resp = await global.authFetch(url, { skipBusy: true });
+        if (resp.ok) await cachePut(url, resp);
+      } catch (_) { /* best-effort */ }
+    });
+    return pog;
+  }
+
+  function closeItemDetail() {
+    document.getElementById('eodPogItemOverlay')?.remove();
+  }
+
+  function openItemDetail(el, setTitle, priceBlock) {
+    closeItemDetail();
+    priceBlock = typeof priceBlock === 'string' ? priceBlock : '';
+    const name = el.getAttribute('data-name') || '';
+    const upc = el.getAttribute('data-upc') || '';
+    const brand = el.getAttribute('data-brand') || '';
+    const size = el.getAttribute('data-size') || '';
+    const image = el.getAttribute('data-image') || '';
+    const handle = el.getAttribute('data-pog-handle') || '';
+    const loc = el.getAttribute('data-loc') || locLine({
+      aisle: el.getAttribute('data-aisle') || '',
+      shelf: el.getAttribute('data-shelf'),
+      position: el.getAttribute('data-position'),
+    }, el.getAttribute('data-bay'));
+    const imgEl = el.querySelector('.si-pog-thumb img');
+    const liveSrc = imgEl && imgEl.src && !imgEl.hasAttribute('data-pog-src') ? imgEl.src : '';
+    const showHero = Boolean(liveSrc) || (Boolean(image) && !el.classList.contains('no-img'));
+    const host = document.createElement('div');
+    host.id = 'eodPogItemOverlay';
+    host.className = 'eod-pog-item-overlay';
+    host.innerHTML = `<div class="eod-pog-item-sheet">
+      <div class="eod-pog-item-bar">
+        <button type="button" class="btn btn-secondary" id="eodPogItemClose">Close</button>
+      </div>
+      ${showHero ? `<div class="eod-pog-item-hero"><img alt="" ${liveSrc ? `src="${esc(liveSrc)}"` : `data-pog-src="${esc(image)}"`}></div>` : ''}
+      <div class="eod-pog-item-copy">
+        <div class="eod-pog-item-set">${esc(setTitle || '')}</div>
+        <strong>${esc(name)}</strong>
+        ${priceBlock}
+        ${upc ? `<div>UPC ${esc(upc)}</div>` : ''}
+        <div>${esc(loc)}</div>
+        ${handle ? `<div class="eod-pog-item-handle">${esc(handle)}</div>` : ''}
+        ${brand ? `<div>${esc(brand)}</div>` : ''}
+        ${size ? `<div>${esc(size)}</div>` : ''}
+      </div>
+    </div>`;
+    const layer = el.closest('.set-media-overlay') || document.body;
+    layer.appendChild(host);
+    host.querySelector('#eodPogItemClose').onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      closeItemDetail();
+    };
+    host.addEventListener('click', (ev) => {
+      if (ev.target === host) closeItemDetail();
+    });
+    if (showHero && !liveSrc) hydrateImages(host);
+  }
+
+  function sizeBaySlides(scroll) {
+    if (!scroll) return;
+    const body = scroll.closest('.si-pog-live-body');
+    const w = Math.max(1, scroll.clientWidth, body?.clientWidth || 0);
+    const h = Math.max(1, scroll.clientHeight, Math.max(0, (body?.clientHeight || 0) - 28));
+    scroll.querySelectorAll('.si-pog-bay-frame').forEach((frame) => {
+      frame.style.flexBasis = `${w}px`;
+      frame.style.width = `${w}px`;
+      frame.style.minWidth = `${w}px`;
+      frame.style.maxWidth = `${w}px`;
+      frame.style.height = `${h}px`;
+    });
+  }
+
+  function goToBay(scroll, bay, instant) {
+    if (!scroll) return;
+    const frame = [...scroll.querySelectorAll('.si-pog-bay-frame')]
+      .find((el) => String(el.getAttribute('data-bay')) === String(bay));
+    if (!frame) return;
+    scroll._pogBay = String(bay);
+    scroll.scrollTo({ left: frame.offsetLeft, behavior: instant ? 'auto' : 'smooth' });
+  }
+
+  function activeBay(scroll) {
+    const frames = [...(scroll?.querySelectorAll('.si-pog-bay-frame') || [])];
+    if (!frames.length) return '';
+    const mid = (scroll.scrollLeft || 0) + scroll.clientWidth / 2;
+    let best = frames[0];
+    let bestDist = Infinity;
+    frames.forEach((frame) => {
+      const center = frame.offsetLeft + frame.offsetWidth / 2;
+      const dist = Math.abs(center - mid);
+      if (dist < bestDist) {
+        best = frame;
+        bestDist = dist;
+      }
+    });
+    return best.getAttribute('data-bay') || '';
+  }
+
+  function paintBayNav(nav, scroll) {
+    if (!scroll) return;
+    const on = activeBay(scroll);
+    nav?.querySelectorAll('[data-go-bay]').forEach((btn) => {
+      btn.classList.toggle('on', String(btn.getAttribute('data-go-bay')) === String(on));
+    });
+  }
+
+  function bindBaySwipe(scroll, nav) {
+    if (!scroll) return;
+    sizeBaySlides(scroll);
+    paintBayNav(nav, scroll);
+    requestAnimationFrame(() => {
+      sizeBaySlides(scroll);
+      paintBayNav(nav, scroll);
+    });
+    if (scroll._pogSlideObs) scroll._pogSlideObs.disconnect();
+    if (typeof ResizeObserver === 'function') {
+      scroll._pogSlideObs = new ResizeObserver(() => {
+        const bay = scroll._pogBay || activeBay(scroll);
+        sizeBaySlides(scroll);
+        if (bay) goToBay(scroll, bay, true);
+        paintBayNav(nav, scroll);
+      });
+      scroll._pogSlideObs.observe(scroll);
+    }
+    scroll.addEventListener('scroll', () => {
+      scroll._pogBay = activeBay(scroll);
+      paintBayNav(nav, scroll);
+    }, { passive: true });
+    nav?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-go-bay]');
+      if (!btn) return;
+      goToBay(scroll, btn.getAttribute('data-go-bay'));
+    });
+    bindGrabPan(scroll, nav);
+  }
+
+  function bindGrabPan(scroll, nav) {
+    if (!scroll || scroll._pogGrabBound) return;
+    scroll._pogGrabBound = true;
+    let drag = null;
+
+    const finish = (ev) => {
+      if (!drag || (ev && ev.pointerId !== drag.pointerId)) return;
+      if (drag.moved) {
+        scroll._pogSuppressClickUntil = Date.now() + 400;
+        const bay = activeBay(scroll);
+        if (bay) goToBay(scroll, bay);
+        paintBayNav(nav, scroll);
+      }
+      scroll.classList.remove('is-grabbing');
+      try {
+        if (scroll.hasPointerCapture?.(drag.pointerId)) scroll.releasePointerCapture(drag.pointerId);
+      } catch (_) { /* pointer already released */ }
+      drag = null;
+    };
+
+    scroll.addEventListener('pointerdown', (ev) => {
+      if (!compactPhotoMode() || ev.isPrimary === false || (ev.button != null && ev.button !== 0)) return;
+      drag = {
+        pointerId: ev.pointerId,
+        x: ev.clientX,
+        y: ev.clientY,
+        left: scroll.scrollLeft,
+        moved: false,
+      };
+      try { scroll.setPointerCapture?.(ev.pointerId); } catch (_) { /* best effort */ }
+    });
+    scroll.addEventListener('pointermove', (ev) => {
+      if (!drag || ev.pointerId !== drag.pointerId) return;
+      const dx = ev.clientX - drag.x;
+      const dy = ev.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+      drag.moved = true;
+      scroll.classList.add('is-grabbing');
+      scroll.scrollLeft = drag.left - dx;
+      ev.preventDefault();
+    });
+    scroll.addEventListener('pointerup', finish);
+    scroll.addEventListener('pointercancel', finish);
+  }
+
+  function applyHighlight(root, upc) {
+    let first = null;
+    root.querySelectorAll('.si-pog-item').forEach((el) => {
+      const on = upcMatch(el.getAttribute('data-upc'), upc);
+      el.classList.toggle('is-hit', on);
+      if (on && !first) first = el;
+    });
+    return first;
+  }
+
+  function showPogNotice(host, html) {
+    host.querySelector('#eodPogNotice')?.remove();
+    const el = document.createElement('div');
+    el.id = 'eodPogNotice';
+    el.className = 'eod-pog-notice';
+    el.innerHTML = `<div class="eod-pog-notice-sheet">${html}<div class="eod-pog-notice-bar"><button type="button" class="btn btn-secondary" id="eodPogNoticeClose">Close</button></div></div>`;
+    host.appendChild(el);
+    el.querySelector('#eodPogNoticeClose').onclick = () => el.remove();
+    el.addEventListener('click', (ev) => { if (ev.target === el) el.remove(); });
+    return el;
+  }
+
+  function bindItems(root, pog) {
+    const title = pog?.title || '';
+    const openFrom = (el) => {
+      if (!el) return;
+      openItemDetail(el, title);
+    };
+    if (root._pogClick) root.removeEventListener('click', root._pogClick);
+    root._pogClick = (ev) => {
+      const pullBtn = ev.target.closest('[data-pull-bay]');
+      if (pullBtn && root.contains(pullBtn)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const bayNum = pullBtn.getAttribute('data-pull-bay');
+        const bay = (pog?.bays || []).find((b) => String(b.bay) === String(bayNum));
+        const host = root.closest('.set-media-overlay') || document.body;
+        showPogNotice(host, pullListHtml(bay, title));
+        return;
+      }
+      const el = ev.target.closest('.si-pog-item');
+      if (!el || !root.contains(el)) return;
+      const scroll = el.closest('.si-pog-scroll');
+      if (scroll && Date.now() < Number(scroll._pogSuppressClickUntil || 0)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
+      ev.preventDefault();
+      ev.stopPropagation();
+      openFrom(el);
+    };
+    root.addEventListener('click', root._pogClick);
+    root.querySelectorAll('.si-pog-item').forEach((el) => {
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          openFrom(el);
+        }
+      });
+    });
+  }
+
+  async function loadAndRender(mount, { store, date, dbkey, highlightUpc, initialBay }) {
+    if (!mount) return;
+    mount.innerHTML = `<section class="si-pog"><p class="muted">Loading…</p></section>`;
+    const busy = global.EodBusy;
+    try {
+      busy?.beginSession?.({ title: 'Loading planogram', subtitle: 'Building bay layout…' });
+      const pog = await fetchBoard({ store, date, dbkey });
+      if (!pog?.bays?.length) {
+        mount.innerHTML = `<section class="si-pog"><p class="muted">None for this set.</p></section>`;
+        return;
+      }
+      const ctx = { store, date, dbkey, highlightUpc };
+      mount.innerHTML = boardHtml(pog, highlightUpc, ctx);
+      bindItems(mount, pog);
+      const overlay = mount.closest('.si-pog-live');
+      if (overlay) {
+        overlay._pog = pog;
+        paintFilter(overlay, pog, dbkey);
+      }
+      const scroll = mount.querySelector('.si-pog-scroll');
+      const nav = overlay?.querySelector('#pogBayNav');
+      if (nav) {
+        const bays = pog.bays || [];
+        nav.hidden = bays.length < 2;
+        nav.innerHTML = bays.map((b) => (
+          `<button type="button" class="si-pog-bay-dot" data-go-bay="${esc(b.bay)}">${esc(b.bay)}</button>`
+        )).join('');
+      }
+      bindBaySwipe(scroll, nav);
+      if (initialBay) goToBay(scroll, initialBay, true);
+      paintBayNav(nav, scroll);
+      if (highlightUpc) {
+        const hit = applyHighlight(mount, highlightUpc);
+        if (hit) goToBay(scroll, hit.getAttribute('data-bay'));
+      }
+      if (!overlay?.classList.contains('is-text')) {
+        busy?.setStage?.('Loading planogram', '');
+        const pics = await hydrateImages(mount);
+        if (pics.wanted && !pics.loaded && !compactPhotoMode()) applyTextMode(overlay, true, false);
+      }
+    } catch (err) {
+      mount.innerHTML = `<section class="si-pog"><p class="muted">${esc(err.message || String(err))}</p></section>`;
+    } finally {
+      try { busy?.endSession?.(); } catch (_) {}
+    }
+  }
+
+  function closeOverlay() {
+    closeItemDetail();
+    document.getElementById('eodPogNotice')?.remove();
+    void global.EodBarcodeScanner?.close?.();
+    document.getElementById('eodSetMediaOverlay')?.remove();
+    document.body.classList.remove('set-media-open');
+  }
+
+  async function scanInOverlay(host, ctx) {
+    if (!global.EodBarcodeScanner?.start) return;
+    host.querySelector('#eodPogNotice')?.remove();
+    global.EodBarcodeScanner.start(async (upc) => {
+      const mount = host.querySelector('#setMediaOverlayBody');
+      const scroll = mount?.querySelector('.si-pog-scroll');
+      let data = { found: false, matches: [] };
+      try {
+        if (global.EodCartLocate?.locate) data = await global.EodCartLocate.locate(upc);
+      } catch (_) { /* treat as miss */ }
+      const matches = data.matches || [];
+      const here = matches.filter((m) => String(m.dbkey || '') === String(ctx.dbkey || ''));
+      if (here.length) {
+        const hit = applyHighlight(mount, here.length === 1 ? (here[0].upc || upc) : upc);
+        goToBay(scroll, here[0].bay);
+        if (hit) openItemDetail(hit, ctx.title || '', global.EodCartLocate?.priceHtml?.(here[0]) || '');
+        return;
+      }
+      if (!matches.length) {
+        showPogNotice(host, `<p class="eod-locate-miss">${esc(global.EodCartLocate?.NOT_FOUND || 'This item cannot be located at this time.')}</p>`);
+        return;
+      }
+      const notice = showPogNotice(host, matches.map((m) => (
+        `<article class="eod-locate-hit" data-dbkey="${esc(m.dbkey || '')}" data-name="${esc(m.setName || m.categoryName || '')}" data-upc="${esc(m.upc || '')}">
+          <div class="eod-locate-copy">
+            <strong>${esc(m.setName || m.categoryName || '')}</strong>
+            ${global.EodCartLocate?.priceHtml?.(m) || ''}
+            <div>${esc(m.name || '')}</div>
+            <div class="muted">UPC ${esc(m.upc || '')}</div>
+            <div>${esc([
+              m.aisle ? `Aisle ${m.aisle}` : '',
+              m.bay != null ? `Bay ${m.bay}` : '',
+              m.shelf != null ? `Shelf ${m.shelf}` : '',
+              m.position != null ? `Position ${m.position}` : '',
+            ].filter(Boolean).join(' · '))}</div>
+          </div>
+        </article>`
+      )).join(''));
+      notice.querySelectorAll('.eod-locate-hit').forEach((el) => {
+        el.addEventListener('click', () => {
+          const next = el.getAttribute('data-dbkey') || '';
+          const name = el.getAttribute('data-name') || '';
+          const hitUpc = el.getAttribute('data-upc') || upc;
+          if (!next) return;
+          openOverlay({
+            store: ctx.store,
+            date: ctx.date,
+            dbkey: next,
+            title: name,
+            highlightUpc: hitUpc,
+          });
+        });
+      });
+    });
+  }
+
+  function openOverlay({ store, date, dbkey, title, highlightUpc, initialBay }) {
+    closeOverlay();
+    const host = document.createElement('div');
+    host.id = 'eodSetMediaOverlay';
+    host.className = 'set-media-overlay si-pog-live';
+    host.innerHTML = `<div class="set-media-overlay-bar">
+      <button type="button" class="btn btn-secondary" id="setMediaClose">Close</button>
+      <button type="button" class="btn btn-primary" id="pogScanBtn">Scan</button>
+      <button type="button" class="btn btn-secondary" id="pogTextBtn">Text</button>
+      <strong>${esc(title || 'Planogram')}</strong>
+    </div>
+    <nav class="si-pog-filter" id="pogFilter" hidden></nav>
+    <div class="si-pog-legend" id="pogLegend">
+      <span><i class="si-pog-swatch ok"></i>On shelf</span>
+      <span><i class="si-pog-swatch oos"></i>Out of stock</span>
+      <span><i class="si-pog-swatch wandering"></i>Wandering</span>
+      <span><i class="si-pog-swatch unidentified"></i>Unidentified</span>
+      <span><i class="si-pog-swatch shelf"></i>Shelf</span>
+    </div>
+    <div id="setMediaOverlayBody" class="si-pog-live-body"></div>
+    <nav class="si-pog-bay-nav" id="pogBayNav" hidden></nav>`;
+    document.body.appendChild(host);
+    document.body.classList.add('set-media-open');
+    const ctx = { store, date, dbkey, title };
+    host.querySelector('#setMediaClose').onclick = () => {
+      if (global.EodChrome?.hasOverlayBack?.()) global.EodChrome.goOverlayBack();
+      else closeOverlay();
+    };
+    host.querySelector('#pogScanBtn').onclick = () => { void scanInOverlay(host, ctx); };
+    applyTextMode(host, readTextPref(), false);
+    host.querySelector('#pogFilter').addEventListener('click', (ev) => {
+      if (ev.target.closest('[data-pog-pull-all]')) {
+        showPogNotice(host, pullAllHtml(host._pog, title));
+        return;
+      }
+      const btn = ev.target.closest('[data-pog-filter-btn]');
+      if (!btn) return;
+      const value = btn.getAttribute('data-pog-filter-btn');
+      applyFilter(host, value);
+      writeFilter(dbkey, value);
+    });
+    host.querySelector('#pogTextBtn').onclick = () => {
+      const next = !host.classList.contains('is-text');
+      applyTextMode(host, next, true);
+      if (!next) void hydrateImages(host.querySelector('#setMediaOverlayBody'));
+    };
+    boardMem.delete(boardKey({ store, date, dbkey }));
+    void loadAndRender(host.querySelector('#setMediaOverlayBody'), { store, date, dbkey, highlightUpc, initialBay });
+    return host;
+  }
+
+  const api = {
+    loadAndRender,
+    prefetch,
+    fetchBoard,
+    openOverlay,
+    closeOverlay,
+    hydrateImages,
+    openItemDetail,
+    goToBay,
+    bayScale,
+    pegColumns,
+    pegItemNumber,
+    packPegItems,
+    pegFrame,
+    bayHeadHtml,
+    filterHtml,
+    isPegBay,
+  };
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  global.EodSiPlanogram = api;
+})(typeof window !== 'undefined' ? window : globalThis);

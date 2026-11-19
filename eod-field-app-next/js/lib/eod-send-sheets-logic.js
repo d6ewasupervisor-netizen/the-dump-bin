@@ -1,0 +1,761 @@
+/* Pure helpers for EOD send-sheet images. Node-testable. */
+(function (global) {
+  'use strict';
+
+  function padStore(n) {
+    return String(n || '').replace(/\D/g, '').padStart(3, '0');
+  }
+
+  function canonStore(value) {
+    return String(value ?? '').replace(/\D/g, '').replace(/^0+/, '');
+  }
+
+  function canonDate(value) {
+    const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value || '').trim());
+    return match ? match[1] : '';
+  }
+
+  function receiptBelongsToVisit(receipt, storeNumber, workDate) {
+    if (!receipt) return false;
+    const store = canonStore(storeNumber);
+    const receiptStore = canonStore(receipt.storeNumber);
+    const date = canonDate(workDate);
+    const receiptDate = canonDate(receipt.workDate);
+    return !!store && !!date && store === receiptStore && date === receiptDate;
+  }
+
+  function dateCompact(iso) {
+    return String(iso || '').replace(/-/g, '').slice(0, 8);
+  }
+
+  function isMainKompassIse(shift) {
+    if (!shift) return false;
+    if (Number(shift.projectId) === 1) return true;
+    const type = String(shift.kompassType || '').trim().toLowerCase();
+    if (type === 'kompass ise') return true;
+    const name = String(shift.projectName || '').toLowerCase();
+    if (/cut\s*in/.test(name) || /blitz/.test(name) || /\bdiv\b/.test(name)) return false;
+    return /kompass\s*ise/.test(name);
+  }
+
+  /**
+   * Prefer the selected shift when it is Kompass ISE (project 1).
+   * Otherwise pick the store-day sibling that is the main ISE visit.
+   */
+  function pickMainKompassIseVisit(shifts, selectedShift) {
+    if (isMainKompassIse(selectedShift)) return selectedShift;
+    const list = Array.isArray(shifts) ? shifts : [];
+    return list.find(isMainKompassIse) || null;
+  }
+
+  function isCutInShift(shift) {
+    const id = shiftProjectId(shift);
+    if (id === 1668) return true;
+    const blob = shiftTypeBlob(shift);
+    if (/blitz/.test(blob)) return false;
+    return /cut\s*in/.test(blob);
+  }
+
+  function isBlitzShift(shift) {
+    const id = shiftProjectId(shift);
+    if (id === 1715) return true;
+    const blob = shiftTypeBlob(shift);
+    if (/cut\s*in/.test(blob)) return false;
+    return /blitz/.test(blob);
+  }
+
+  /**
+   * KOMPASS MAINTENANCE before/after photos.
+   * Kompass ISE (project 1) when that visit is on the store day.
+   * Cut In (1668) or Blitz (1715) only when ISE is absent.
+   */
+  function pickMaintenancePhotoVisit(shifts, selectedShift) {
+    const ise = pickMainKompassIseVisit(shifts, selectedShift);
+    if (ise?.visitId) return ise;
+    const list = Array.isArray(shifts) ? shifts : [];
+    if (isCutInShift(selectedShift) || isBlitzShift(selectedShift)) return selectedShift;
+    return list.find(isCutInShift) || list.find(isBlitzShift) || null;
+  }
+
+  function isCentralPetReset(shift) {
+    if (!shift || isCentralPetService(shift)) return false;
+    if (shiftProjectId(shift) === 9295) return true;
+    const blob = shiftTypeBlob(shift);
+    if (/central\s*pet\s*service/.test(blob) || /pet\s*service\s*surge/.test(blob)) return false;
+    return /central\s*pet/.test(blob) || /pet\s*reset/.test(blob);
+  }
+
+  // SAS projects the Visit page lists and can auto-select.
+  const SELECTABLE_PROJECT_IDS = new Set([
+    1, 1668, 1715, 3568, 11909, 11099, 9295, 12831,
+  ]);
+
+  function shiftProjectId(shift) {
+    const n = Number(shift?.projectId ?? shift?.project_id);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  function shiftTypeBlob(shift) {
+    return [
+      shift?.projectName,
+      shift?.teamName,
+      shift?.kompassType,
+      shift?.projectType,
+      shift?.shiftType,
+    ].map((s) => String(s || '').toLowerCase()).join(' ');
+  }
+
+  function isDriveMedicalShift(shift) {
+    if (shiftProjectId(shift) === 12831) return true;
+    return /drive medical|cane display/.test(shiftTypeBlob(shift));
+  }
+
+  function isCutInBlitzDiv(shift) {
+    const id = shiftProjectId(shift);
+    if (id === 1668 || id === 1715 || id === 3568 || id === 11909) return true;
+    const blob = shiftTypeBlob(shift);
+    return /cut\s*in/.test(blob) || /blitz/.test(blob) || /\bdiv\b/.test(blob);
+  }
+
+  function isCentralPetResetProject(shift) {
+    if (shiftProjectId(shift) === 9295) return true;
+    return /central\s*pet\s*reset/.test(shiftTypeBlob(shift));
+  }
+
+  /** Project 9293 — Central Pet Service (not Reset 9295). */
+  function isCentralPetService(shift) {
+    if (!shift) return false;
+    if (shiftProjectId(shift) === 9293) return true;
+    if (shiftProjectId(shift) === 9295) return false;
+    const blob = shiftTypeBlob(shift);
+    if (/central\s*pet\s*reset/.test(blob)) return false;
+    return /central\s*pet\s*service/.test(blob) || /pet\s*service\s*surge/.test(blob);
+  }
+
+  function isDeletedVisitShift(shift) {
+    const status = String(shift?.currentStatus || shift?.current_status || shift?.status || '').toLowerCase();
+    return status === 'deleted';
+  }
+
+  function isSelectableVisitShift(shift) {
+    if (!shift) return false;
+    if (isDeletedVisitShift(shift)) return false;
+    if (SELECTABLE_PROJECT_IDS.has(shiftProjectId(shift))) return true;
+    const blob = shiftTypeBlob(shift);
+    return isCutInBlitzDiv(shift)
+      || isCentralPetReset(shift)
+      || isDriveMedicalShift(shift)
+      || /remodel/.test(blob)
+      || /kompass\s*ise/.test(blob);
+  }
+
+  /* PROD visit_lead is often the preferred name. Login /api/me is often the
+     legal name. Wolf is Aiyana Natarisalazar (Maiingowan). */
+  const LEAD_NICKNAMES = [
+    ['wolf', 'aiyana', 'natarisalazar', 'maiingowan'],
+  ];
+
+  function leadTokens(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
+  function leadNamesMatch(a, b) {
+    const na = String(a || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const nb = String(b || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    const aParts = na.split(' ');
+    const bParts = nb.split(' ');
+    if (aParts[0] === bParts[0] && aParts[aParts.length - 1] === bParts[bParts.length - 1]) return true;
+    if (na.includes(nb) || nb.includes(na)) return true;
+    const ta = leadTokens(na);
+    const tb = leadTokens(nb);
+    return LEAD_NICKNAMES.some((group) => {
+      const aHit = group.some((token) => ta.includes(token));
+      const bHit = group.some((token) => tb.includes(token));
+      return aHit && bHit;
+    });
+  }
+
+  function shiftLeadName(shift) {
+    return String(shift?.visitLead || shift?.leadName || '').trim();
+  }
+
+  function uniqueShifts(list) {
+    const seen = new Set();
+    const out = [];
+    for (const s of list || []) {
+      const id = String(s?.visitId ?? s?.id ?? '');
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(s);
+    }
+    return out;
+  }
+
+  function isAnyCentralPet(shift) {
+    return isCentralPetService(shift) || isCentralPetReset(shift);
+  }
+
+  function visibleLeadShifts(shifts, leadName) {
+    const list = (Array.isArray(shifts) ? shifts : []).filter(isSelectableVisitShift);
+    const ise = list.find(isMainKompassIse) || null;
+    const kompassLead = shiftLeadName(ise);
+    const gate = kompassLead || String(leadName || '').trim();
+    const core = list.filter((s) => !isAnyCentralPet(s));
+    const allowedCp = gate
+      ? list.filter((s) => isAnyCentralPet(s) && leadNamesMatch(shiftLeadName(s), gate))
+      : [];
+    return uniqueShifts([...core, ...allowedCp]);
+  }
+
+  function isIseCompanionShift(shift) {
+    if (!shift || isDeletedVisitShift(shift)) return false;
+    if (isCentralPetReset(shift) || isCentralPetService(shift)) return false;
+    return isMainKompassIse(shift) || isCutInBlitzDiv(shift);
+  }
+
+  function autoSelectLeadShift(visible, leadName) {
+    const lead = String(leadName || '').trim();
+    const mine = lead
+      ? visible.filter((s) => leadNamesMatch(shiftLeadName(s), lead))
+      : [];
+    const sameLead = mine.length > 0;
+    const pool = sameLead ? mine : visible;
+    return pool.find(isMainKompassIse)
+      || pool.find(isCutInBlitzDiv)
+      || pool.find(isCentralPetResetProject)
+      || pool.find(isCentralPetReset)
+      || pool.find((s) => !isCentralPetReset(s))
+      || pool[0]
+      || null;
+  }
+
+  function pickVisibleLeadShift(shifts, leadName, current) {
+    const list = Array.isArray(shifts) ? shifts : [];
+    const visible = visibleLeadShifts(list, leadName);
+    const ise = pickMainKompassIseVisit(list, null);
+    const iseVisible = ise && visible.find((s) => String(s.visitId) === String(ise.visitId));
+    const curId = current?.visitId != null ? String(current.visitId) : '';
+    const currentVisible = curId
+      ? (visible.find((s) => String(s.visitId) === curId) || null)
+      : null;
+    let selected = null;
+    if (iseVisible) {
+      const keepOther = currentVisible && (
+        isCentralPetReset(current)
+        || isCentralPetService(current)
+        || isDriveMedicalShift(current)
+      );
+      selected = keepOther ? currentVisible : iseVisible;
+    } else if (currentVisible) {
+      selected = currentVisible;
+    } else if (visible.length === 1) {
+      selected = visible[0];
+    } else {
+      selected = autoSelectLeadShift(visible, leadName) || ise || null;
+    }
+    return { visible, selected, ise };
+  }
+
+  function isDivFreshShift(shift) {
+    if (shiftProjectId(shift) === 11909) return true;
+    return /div\s*fresh/.test(shiftTypeBlob(shift));
+  }
+
+  function isDivSpecialShift(shift) {
+    if (isDivFreshShift(shift)) return false;
+    if (shiftProjectId(shift) === 3568) return true;
+    const blob = shiftTypeBlob(shift);
+    if (/cut\s*in|blitz|remodel|fresh/.test(blob)) return false;
+    return /\bdiv\b/.test(blob);
+  }
+
+  function isRemodelShift(shift) {
+    if (shiftProjectId(shift) === 11099) return true;
+    return /remodel/.test(shiftTypeBlob(shift));
+  }
+
+  const SHIFT_FILTER_TYPES = [
+    { key: 'ise', label: 'ISE' },
+    { key: 'cut_in', label: 'Cut-In' },
+    { key: 'blitz', label: 'Blitz' },
+    { key: 'div_fresh', label: 'DIV Fresh' },
+    { key: 'div', label: 'DIV' },
+    { key: 'remodel', label: 'Remodel' },
+    { key: 'central_pet', label: 'Central Pet' },
+    { key: 'drive_medical', label: 'Drive Medical' },
+  ];
+
+  function shiftFilterKey(shift) {
+    if (!shift || isDeletedVisitShift(shift) || isCentralPetService(shift)) return '';
+    if (isCutInShift(shift)) return 'cut_in';
+    if (isBlitzShift(shift)) return 'blitz';
+    if (isDivFreshShift(shift)) return 'div_fresh';
+    if (isDivSpecialShift(shift)) return 'div';
+    if (isRemodelShift(shift)) return 'remodel';
+    if (isCentralPetReset(shift)) return 'central_pet';
+    if (isDriveMedicalShift(shift)) return 'drive_medical';
+    if (isMainKompassIse(shift)) return 'ise';
+    return '';
+  }
+
+  /** Short type for the crew roster and the add/remove shift pickers. */
+  function shiftRosterBadge(shift) {
+    const key = shiftFilterKey(shift);
+    const known = SHIFT_FILTER_TYPES.find((type) => type.key === key);
+    if (known) return { key: known.key, label: known.label };
+    const blob = shiftTypeBlob(shift);
+    if (/boars?\s*head/.test(blob)) return { key: 'boars_head', label: 'Boars Head' };
+    const named = String(shift?.kompassType || shift?.projectName || shift?.teamName || '').trim();
+    if (!named) return { key: '', label: '' };
+    return { key: named.toLowerCase(), label: named };
+  }
+
+  /**
+   * One row per person. Each assignment keeps its visit so removal can
+   * target that shift. Badges are one per type.
+   */
+  function groupRosterMembers(members) {
+    const order = SHIFT_FILTER_TYPES.map((type) => type.key);
+    const groups = new Map();
+    for (const member of members || []) {
+      const id = String(member?.employeeId || member?.id || '').trim();
+      const name = String(member?.name || 'Unknown').trim() || 'Unknown';
+      const key = id || name.toLowerCase();
+      let group = groups.get(key);
+      if (!group) {
+        group = { key, name, isLead: false, title: '', badges: [], assignments: [] };
+        groups.set(key, group);
+      }
+      if (member?.isLead) group.isLead = true;
+      if (!group.title && member?.title) group.title = String(member.title);
+      group.assignments.push(member);
+      const badgeKey = String(member?.rosterKey || '');
+      const label = String(member?.rosterLabel || '').trim();
+      const badgeId = badgeKey || label;
+      if (label && !group.badges.some((badge) => badge.key === badgeId)) {
+        group.badges.push({ key: badgeId, label });
+      }
+    }
+    const rank = (badgeKey) => {
+      const index = order.indexOf(badgeKey);
+      return index < 0 ? order.length : index;
+    };
+    for (const group of groups.values()) {
+      group.badges.sort((a, b) => rank(a.key) - rank(b.key) || a.label.localeCompare(b.label));
+    }
+    return [...groups.values()].sort((a, b) => {
+      if (a.isLead !== b.isLead) return a.isLead ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
+  }
+
+  function shiftFilterButtons(shifts, leadName) {
+    const present = new Set(
+      visibleLeadShifts(shifts, leadName).map(shiftFilterKey).filter(Boolean)
+    );
+    return SHIFT_FILTER_TYPES.filter((type) => present.has(type.key));
+  }
+
+  function rowMatchesShiftFilter(row, filterKey, shifts, leadName) {
+    const bucket = String(row?.pageBucket || row?.page_bucket || '').trim();
+    if (bucket === 'on_manifest') return true;
+    const key = String(filterKey || '').trim();
+    if (!key || key === 'all') return true;
+    const visible = visibleLeadShifts(shifts, leadName).filter((s) => shiftFilterKey(s) === key);
+    if (!visible.length) return true;
+    const visitIds = new Set(visible.map((s) => String(s.visitId || s.id || '')).filter(Boolean));
+    const projectIds = new Set(visible.map((s) => shiftProjectId(s)).filter((n) => n > 0));
+    const day = row && row.live && row.live.dayVisits;
+    if (Array.isArray(day)) {
+      return day.some((visit) => {
+        const visitId = String(visit?.visitId || visit?.visit_id || '');
+        const projectId = Number(visit?.projectId ?? visit?.project_id);
+        if (visitId && visitIds.has(visitId)) return true;
+        if (Number.isFinite(projectId) && projectIds.has(projectId)) return true;
+        return shiftFilterKey({
+          projectId,
+          projectName: visit?.projectName || visit?.project_name || '',
+        }) === key;
+      });
+    }
+    const prodVisit = String(row?.live?.prodVisitId || '');
+    if (prodVisit && visitIds.has(prodVisit)) return true;
+    const named = row?.shiftType || row?.shift_type || '';
+    return shiftFilterKey({ projectName: named, shiftType: named }) === key;
+  }
+
+  function includedIseVisitIds(shifts, selected) {
+    const primary = String(selected?.visitId || '');
+    if (!primary || !isMainKompassIse(selected)) return [];
+    return (Array.isArray(shifts) ? shifts : [])
+      .filter((s) => isIseCompanionShift(s) && String(s.visitId || '') !== primary)
+      .map((s) => String(s.visitId));
+  }
+
+  function eodPdfFilename(storeNumber, workDate) {
+    const pad = padStore(storeNumber);
+    const s = String(workDate || '').trim();
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const md = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+    let mm = '00';
+    let dd = '00';
+    let yy = '00';
+    if (iso) {
+      mm = iso[2];
+      dd = iso[3];
+      yy = iso[1].slice(-2);
+    } else if (md) {
+      mm = String(md[1]).padStart(2, '0');
+      dd = String(md[2]).padStart(2, '0');
+      yy = String(md[3]).slice(-2);
+    }
+    return `EOD_FM${pad}_${mm}-${dd}-${yy}.pdf`;
+  }
+
+  function isRemotePhotoSrc(src) {
+    const s = String(src || '').trim();
+    return /^https?:\/\//i.test(s) || /^blob:/i.test(s);
+  }
+
+  function isSendableImageSrc(src) {
+    const s = String(src || '').trim();
+    if (!s || isRemotePhotoSrc(s)) return false;
+    return /^data:image\//i.test(s);
+  }
+
+  function isTeamPhotoUrl(src) {
+    return /\/api\/field-session\/photos\//.test(String(src || ''));
+  }
+
+  function photoEntrySrc(entry) {
+    if (!entry) return '';
+    if (typeof entry === 'string') return entry;
+    return entry.dataUrl
+      || entry.previewUrl
+      || entry.objectUrl
+      || entry.preview
+      || entry.teamUrl
+      || entry.thumbUrl
+      || '';
+  }
+
+  function isDisplayablePhotoSrc(src, liveBlobUrls) {
+    const s = String(src || '').trim();
+    if (/^data:image\//i.test(s)) return true;
+    if (/^blob:/i.test(s) && liveBlobUrls && typeof liveBlobUrls.has === 'function') {
+      return liveBlobUrls.has(s);
+    }
+    return false;
+  }
+
+  function hasRecoverablePhoto(entry, liveBlobUrls) {
+    if (!entry) return false;
+    if (typeof entry === 'string') return isDisplayablePhotoSrc(entry, liveBlobUrls);
+    if (entry.offloaded && (entry.teamUrl || entry.thumbUrl)) return true;
+    if (isTeamPhotoUrl(entry.teamUrl) || isTeamPhotoUrl(entry.thumbUrl)) return true;
+    return isDisplayablePhotoSrc(photoEntrySrc(entry), liveBlobUrls);
+  }
+
+  function cartSlotHasLoadedPhotos(entries, liveBlobUrls) {
+    return (Array.isArray(entries) ? entries : []).some((p) => (
+      hasRecoverablePhoto(p, liveBlobUrls)
+    ));
+  }
+
+  function cartSlotNeedsProdPull(entries, liveBlobUrls) {
+    return !cartSlotHasLoadedPhotos(entries, liveBlobUrls);
+  }
+
+  function cartSlotLabel(filename, source) {
+    const kind = classifySheetFilename(filename);
+    if (kind === 'cart-before' || source === 'cart-before') return 'Kompass cart — before';
+    if (kind === 'cart-after' || source === 'cart-after') return 'Kompass cart — after';
+    if (kind === 'context' || source === 'context') return 'Additional photos';
+    return 'Photo';
+  }
+
+  function skippedPhotoMessage(skipped) {
+    const list = Array.isArray(skipped) ? skipped.filter(Boolean) : [];
+    if (!list.length) return '';
+    const labels = [...new Set(list.map((s) => s.label || cartSlotLabel(s.filename, s.source)))];
+    const which = labels.join(' and ');
+    return `${which} didn't save. Retake it or tap Pull from PROD, then Send again. The rest of this EOD still went out.`;
+  }
+
+  function classifySheetFilename(filename) {
+    const name = String(filename || '').toLowerCase();
+    if (name.includes('coversheet')) return 'coversheet';
+    if (name.includes('digital_signoff') || name.includes('digital-signoff')) return 'digital';
+    if (name.includes('cart_before') || name.includes('cart-before')) return 'cart-before';
+    if (name.includes('cart_after') || name.includes('cart-after')) return 'cart-after';
+    if (name.includes('eod_context') || name.includes('eod-context')) return 'context';
+    return 'photo';
+  }
+
+  function formatDeptSignatureLines(collected) {
+    const list = Array.isArray(collected) ? collected : [];
+    const lines = [];
+    const seen = new Set();
+    for (const item of list) {
+      if (!item) continue;
+      const roleKey = String(item.roleKey || '').trim().toLowerCase();
+      if (roleKey === 'lead') continue;
+      const name = String(item.signerName || item.name || item.label || '').trim();
+      if (!name || /^none/i.test(name)) continue;
+      const role = String(item.roleLabel || item.role || item.roleKey || '').trim();
+      const line = role ? `• ${name} (${role})` : `• ${name}`;
+      const key = line.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      lines.push(line);
+    }
+    return lines;
+  }
+
+  function digitalSignoffCoverValue(sheet) {
+    if (sheet && Array.isArray(sheet.rows) && sheet.rows.length) return 'attached';
+    return 'none (no hosted sheet)';
+  }
+
+  const PLACEHOLDER_WORKDAY = /^fm\d+$/i;
+  const PLACEHOLDER_NAME = /^fred\s*meyer\s*\d+$/i;
+
+  function isInstaworkIdentity(member) {
+    if (!member) return false;
+    if (member.sheetKey === 'instawork') return true;
+    const wd = String(member.workdayId || member.workday_id || '').trim();
+    const name = String(member.name || '').trim();
+    return PLACEHOLDER_WORKDAY.test(wd)
+      || PLACEHOLDER_NAME.test(name)
+      || PLACEHOLDER_WORKDAY.test(name)
+      || PLACEHOLDER_NAME.test(wd);
+  }
+
+  function memberLoggedTime(member) {
+    const fields = ['clockIn', 'clockOut', 'lunchOut', 'lunchIn'];
+    if (fields.some((f) => String(member?.[f] || '').trim())) return true;
+    const prod = member?.prodTimes || {};
+    return fields.some((f) => String(prod[f] || '').trim());
+  }
+
+  /**
+   * Yes when an InstaWork placeholder (FM### / FredMeyer###) or another
+   * InstaWork-sheet identity has time on a shift this EOD is reporting.
+   */
+  function instaworkSupportFromMembers(members, visitIds) {
+    const ids = new Set((Array.isArray(visitIds) ? visitIds : [])
+      .map((id) => String(id || '').trim())
+      .filter(Boolean));
+    const yes = (Array.isArray(members) ? members : []).some((member) => {
+      if (!isInstaworkIdentity(member) || !memberLoggedTime(member)) return false;
+      if (!ids.size) return true;
+      const vid = String(member.visitId || '').trim();
+      return !!vid && ids.has(vid);
+    });
+    return yes ? 'Yes' : 'No';
+  }
+
+  function signedOutFromSheet(S) {
+    if (!S?.hasHostedSheet?.() && !S?.state?.sheet) return { prod: '—', si: '—' };
+    if (typeof S.sheetSendReady === 'function' && S.sheetSendReady()) {
+      return { prod: 'Yes', si: 'Yes' };
+    }
+    const rows = S?.state?.sheet?.rows || [];
+    if (!rows.length) return { prod: '—', si: '—' };
+    const Status = (typeof globalThis !== 'undefined' && globalThis.EodCategoryCardStatus)
+      || (typeof global !== 'undefined' && global.EodCategoryCardStatus)
+      || null;
+    const prodOk = rows.every((row) => {
+      if (Status?.prodDone?.(row) || Status?.sheetRowDone?.(row)) return true;
+      const live = row?.live || {};
+      if (live.bothComplete) return true;
+      return !!live.prodComplete
+        && Number(live.prodBeforeCount) > 0
+        && Number(live.prodAfterCount) > 0;
+    });
+    const siOk = rows.every((row) => {
+      if (Status?.siDone?.(row) || Status?.sheetRowDone?.(row)) return true;
+      const live = row?.live || {};
+      return !!(live.siComplete || live.bothComplete);
+    });
+    return { prod: prodOk ? 'Yes' : 'No', si: siOk ? 'Yes' : 'No' };
+  }
+
+  function hasDigitalSignoff(report, sheet) {
+    if (sheet && Array.isArray(sheet.rows) && sheet.rows.length) return true;
+    const digital = String(report?.digitalSignoff || '').trim();
+    if (!digital) return false;
+    return !/^none/i.test(digital);
+  }
+
+  function coversheetFilename(storeNumber, workDate) {
+    return `fm${padStore(storeNumber)}_eod_coversheet_${dateCompact(workDate)}.jpg`;
+  }
+
+  function digitalSignoffFilename(storeNumber, workDate, pageIndex) {
+    return `fm${padStore(storeNumber)}_digital_signoff_p${pageIndex}_${dateCompact(workDate)}.jpg`;
+  }
+
+  const HELPDESK_ISSUE_LABELS = {
+    not_in_store: 'Set not in store',
+    missing_fixture: 'Missing fixture',
+    reverse_flow: 'Set flow is incorrect (reverse flow)',
+    incorrect_version: 'Incorrect version',
+    incorrect_footage: 'Incorrect footage',
+    incorrect_planogram: 'Incorrect planogram',
+    obstruction: 'Report obstruction (pole or other permanent feature)',
+    missing_hardware: 'Report missing hardware',
+    custom: 'Report other (custom entry)',
+  };
+
+  const HELPDESK_TEMP_SOLUTIONS = [
+    'Email submitted, waiting on resolution.',
+    'New POG being made',
+    'Temp set as NII',
+    'Pending',
+  ];
+
+  /* Commodity as the help desk email names it: "Category (C###)". */
+  function helpdeskCommodity(report) {
+    const meta = (report && report.setMeta) || {};
+    const name = String(meta.categoryName || (report && report.categoryName) || '').trim();
+    const num = String(meta.categoryNumber || (report && report.categoryNumber) || '').trim();
+    if (name && num) return `${name} (C${num})`;
+    if (name) return name;
+    if (num) return `C${num}`;
+    return String(meta.setLabel || (report && (report.setLabel || report.manualSetName)) || '').trim();
+  }
+
+  /* Issue as the help desk email states it: issue type, then the details typed. */
+  function helpdeskIssue(report) {
+    const id = String((report && report.issueTypeId) || '');
+    const label = String((report && report.issueTypeLabel) || HELPDESK_ISSUE_LABELS[id] || id).trim();
+    const detail = String((report && (report.details || report.customIssue)) || '').trim();
+    if (id === 'custom' && detail) return detail;
+    if (!detail || (id === 'not_in_store' && /^not in store\.?$/i.test(detail))) return label;
+    return label ? `${label}: ${detail}` : detail;
+  }
+
+  function helpdeskSignature(reports) {
+    return (Array.isArray(reports) ? reports : [])
+      .map((r) => `${(r && r.issueTypeId) || ''}|${helpdeskCommodity(r)}|${helpdeskIssue(r)}`)
+      .join('~');
+  }
+
+  function uniq(list) {
+    return [...new Set(list.filter(Boolean))];
+  }
+
+  function isHelpdeskReport(report) {
+    if (!report || typeof report !== 'object' || Array.isArray(report)) return false;
+    const id = String(report.issueTypeId || '').trim();
+    const detail = String(report.details || report.customIssue || '').trim();
+    return !!(id || detail || helpdeskCommodity(report));
+  }
+
+  function realHelpdeskReports(reports) {
+    return (Array.isArray(reports) ? reports : []).filter(isHelpdeskReport);
+  }
+
+  function resolutionFromReports(list) {
+    if (!list.length || !list.every((r) => r.resolved === 'Yes' || r.resolved === 'No')) return null;
+    if (list.every((r) => r.resolved === 'Yes')) return { resolved: 'Yes', tempSolution: '' };
+    const temps = uniq(list.filter((r) => r.resolved === 'No').map((r) => String(r.tempSolution || '').trim()));
+    if (!temps.length || temps.some((t) => !t)) return null;
+    return { resolved: 'No', tempSolution: temps.join('; ') };
+  }
+
+  /**
+   * EOD help desk rows. All N/A unless the lead sent a help desk report.
+   * resolution = { signature, resolved: "Yes"|"No", tempSolution } from the Send prompt.
+   */
+  function helpdeskEodFields(reports, resolution) {
+    const list = realHelpdeskReports(reports);
+    if (!list.length) {
+      return { calledHelpDesk: 'No', commodities: 'N/A', issue: 'N/A', issueResolved: 'N/A', tempSolution: 'N/A' };
+    }
+    const commodityList = uniq(list.map(helpdeskCommodity));
+    const multi = commodityList.length > 1;
+    const issues = uniq(list.map((r) => {
+      const issue = helpdeskIssue(r);
+      const commodity = helpdeskCommodity(r);
+      return multi && commodity ? `${commodity} — ${issue}` : issue;
+    }));
+    const fromReports = resolutionFromReports(list);
+    const answered = (resolution && resolution.signature === helpdeskSignature(list) ? resolution : null)
+      || fromReports;
+    const resolved = answered && (answered.resolved === 'Yes' || answered.resolved === 'No') ? answered.resolved : '—';
+    const temp = resolved === 'Yes' ? 'N/A' : ((answered && answered.tempSolution) || '—');
+    return {
+      calledHelpDesk: 'Yes',
+      commodities: commodityList.join('; ') || '—',
+      issue: issues.join('; ') || '—',
+      issueResolved: resolved,
+      tempSolution: temp,
+    };
+  }
+
+  const api = {
+    HELPDESK_TEMP_SOLUTIONS,
+    helpdeskCommodity,
+    helpdeskIssue,
+    helpdeskSignature,
+    isHelpdeskReport,
+    realHelpdeskReports,
+    helpdeskEodFields,
+    padStore,
+    receiptBelongsToVisit,
+    dateCompact,
+    isMainKompassIse,
+    pickMainKompassIseVisit,
+    isCutInShift,
+    isBlitzShift,
+    pickMaintenancePhotoVisit,
+    isCentralPetReset,
+    isCentralPetService,
+    isDriveMedicalShift,
+    isCutInBlitzDiv,
+    isSelectableVisitShift,
+    leadNamesMatch,
+    visibleLeadShifts,
+    pickVisibleLeadShift,
+    autoSelectLeadShift,
+    includedIseVisitIds,
+    shiftFilterKey,
+    shiftRosterBadge,
+    groupRosterMembers,
+    shiftFilterButtons,
+    rowMatchesShiftFilter,
+    isIseCompanionShift,
+    eodPdfFilename,
+    isRemotePhotoSrc,
+    isSendableImageSrc,
+    isTeamPhotoUrl,
+    photoEntrySrc,
+    isDisplayablePhotoSrc,
+    hasRecoverablePhoto,
+    cartSlotHasLoadedPhotos,
+    cartSlotNeedsProdPull,
+    cartSlotLabel,
+    skippedPhotoMessage,
+    classifySheetFilename,
+    coversheetFilename,
+    digitalSignoffFilename,
+    formatDeptSignatureLines,
+    digitalSignoffCoverValue,
+    isInstaworkIdentity,
+    memberLoggedTime,
+    instaworkSupportFromMembers,
+    signedOutFromSheet,
+    hasDigitalSignoff,
+  };
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  global.EodSendSheetsLogic = api;
+})(typeof window !== 'undefined' ? window : globalThis);

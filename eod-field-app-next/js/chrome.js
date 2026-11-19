@@ -1,0 +1,873 @@
+/* Sticky chrome + side / bottom nav. Tap store pill for quick view. */
+(function (global) {
+  'use strict';
+
+  function refresh() {
+    const S = global.EodSession;
+    const storeEl = document.getElementById('chromeStore');
+    const metaEl = document.getElementById('chromeMeta');
+    const gateEl = document.getElementById('chromeGate');
+    if (!S) return;
+    if (storeEl) storeEl.textContent = S.state.storeNumber ? `#${S.state.storeNumber}` : 'No store';
+    if (metaEl) {
+      const parts = [];
+      if (S.state.workDate) parts.push(S.state.workDate);
+      if (S.hasHostedSheet()) {
+        const s = S.state.sheet.summary || {};
+        parts.push(`${s.marked || 0}/${s.total || 0}`);
+        parts.push(S.sheetSendReady() ? 'send OK' : 'open');
+      } else if (S.state.sheetLoaded) {
+        parts.push('no sheet');
+      }
+      if (global.EodTestMode?.isEnabled?.()) parts.push('TEST');
+      try {
+        const p = global.EodPhotoPipeline?.pendingCounts?.();
+        const open = (p?.compress || 0) + (p?.upload || 0);
+        if (open > 0) parts.push(`${open} syncing`);
+        if (p?.failed > 0) parts.push(`${p.failed} failed`);
+        if (p?.lost > 0) parts.push(`${p.lost} lost`);
+        if (p?.unsaved > 0) parts.push(`${p.unsaved} unsaved`);
+        const stuck = global.EodPhotoPipeline?.stalledCounts?.();
+        if (stuck?.total > 0) parts.push(`${stuck.total} stuck`);
+        const blocked = global.EodSetPhotoReconcile?.authBlockedCount?.();
+        if (blocked > 0) parts.push(`${blocked} need login`);
+        // Carry-forward is broken once this fires; say so until the day resets.
+        if (global.EodSetBeforeStore?.quotaBlocked?.()) parts.push('carry store full');
+      } catch (_) {}
+      metaEl.textContent = parts.filter(Boolean).join(' · ');
+      metaEl.title = parts.filter(Boolean).join(' · ');
+    }
+    if (gateEl) {
+      const ready = S.isVisitReady();
+      gateEl.hidden = !!ready;
+      gateEl.textContent = ready ? 'OK' : 'Confirm';
+      gateEl.title = ready ? 'Day confirmed' : 'Needs day confirm';
+      gateEl.className = 'pill ' + (ready ? 'ok' : 'warn');
+    }
+    paintConnChrome();
+    paintSignedIn();
+    paintWorkflow();
+    paintUnsentBanner();
+    paintQueueBanner();
+    paintFailedPhotoBanner();
+    paintPasswordExpiryBanner();
+  }
+
+  const PASSWORD_BANNER_DAYS = 3;
+
+  function paintPasswordExpiryBanner() {
+    let bar = document.getElementById('eodPasswordExpiryBanner');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'eodPasswordExpiryBanner';
+      bar.hidden = true;
+      bar.className = 'eod-password-expiry-banner';
+      const chrome = document.getElementById('appChrome');
+      if (chrome && chrome.parentNode) chrome.parentNode.insertBefore(bar, chrome.nextSibling);
+      else document.querySelector('.app-shell')?.prepend(bar);
+    }
+    try {
+      const days = global.EodSasUser?.passwordExpiryDays?.();
+      if (days == null || days > PASSWORD_BANNER_DAYS) {
+        bar.hidden = true;
+        bar.textContent = '';
+        return;
+      }
+      bar.hidden = false;
+      bar.textContent = days === 0
+        ? 'SAS password expires today'
+        : `SAS password expires in ${days} day${days === 1 ? '' : 's'}`;
+    } catch (_) {
+      bar.hidden = true;
+    }
+  }
+
+  function paintConnChrome() {
+    const row = document.getElementById('chromeConn');
+    if (!row) return;
+    row.hidden = false;
+  }
+
+  const STAGE_ROUTE = {
+    visit: 'visit',
+    categories: 'signoff',
+    signatures: 'signatures',
+    send: 'send',
+  };
+
+  function paintWorkflow() {
+    const nextBtn = document.getElementById('chromeNextAction');
+    const S = global.EodSession;
+    const progress = global.EodWorkflowProgress?.derive?.(S, global.EodSendGates);
+    if (!nextBtn || !progress) return;
+    const current = progress.stages?.find((stage) => stage.status === 'current')
+      || (progress.stages || []).find((stage) => !stage.complete)
+      || (progress.stages || []).slice(-1)[0]
+      || null;
+    nextBtn.hidden = !current;
+    nextBtn.textContent = current ? current.label : '';
+    nextBtn.dataset.route = current ? (STAGE_ROUTE[current.id] || current.id) : '';
+    nextBtn.title = current ? `On ${current.label}` : '';
+  }
+
+  const BANNER_DISMISS_UNSENT = 'eodBannerDismissUnsent';
+  const BANNER_DISMISS_FAIL = 'eodBannerDismissFail';
+
+  function bannerDismissed(storageKey, fingerprint) {
+    if (!fingerprint) return false;
+    try { return sessionStorage.getItem(storageKey) === fingerprint; } catch (_) { return false; }
+  }
+
+  function dismissBanner(storageKey, fingerprint) {
+    if (!fingerprint) return;
+    try { sessionStorage.setItem(storageKey, fingerprint); } catch (_) {}
+  }
+
+  function clearBannerDismiss(storageKey) {
+    try { sessionStorage.removeItem(storageKey); } catch (_) {}
+  }
+
+  function hideBanner(bar) {
+    bar.hidden = true;
+    bar.innerHTML = '';
+    bar.onclick = null;
+  }
+
+  function unsentBannerKey(sessions) {
+    return sessions.map((s) => String(s && s.id || '')).filter(Boolean).sort().join('|');
+  }
+
+  function failedBannerKey() {
+    const jobs = global.EodPhotoPipeline?.listJobs?.({ status: 'failed' }) || [];
+    return jobs.map((j) => String(j && j.id || '')).filter(Boolean).sort().join('|');
+  }
+
+  async function paintUnsentBanner() {
+    let bar = document.getElementById('eodUnsentBanner');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'eodUnsentBanner';
+      bar.hidden = true;
+      bar.className = 'eod-unsent-banner';
+      const chrome = document.getElementById('appChrome');
+      if (chrome && chrome.parentNode) chrome.parentNode.insertBefore(bar, chrome.nextSibling);
+      else document.querySelector('.app-shell')?.prepend(bar);
+    }
+    try {
+      const unsent = await global.PhotoDB?.unsentSessions?.();
+      if (!unsent || !unsent.length) {
+        hideBanner(bar);
+        clearBannerDismiss(BANNER_DISMISS_UNSENT);
+        return;
+      }
+      const key = unsentBannerKey(unsent);
+      if (bannerDismissed(BANNER_DISMISS_UNSENT, key)) {
+        hideBanner(bar);
+        return;
+      }
+      bar.hidden = false;
+      bar.innerHTML = `<span class="eod-banner-copy">${unsent.length} unsent photo session(s)</span><span class="eod-banner-actions"><button type="button" class="btn btn-secondary" id="unsentDismiss">Dismiss</button><button type="button" class="btn btn-secondary" id="unsentOpenPhotos">Review</button></span>`;
+      const openReview = (e) => {
+        e?.stopPropagation?.();
+        if (global.EodDeviceStorage?.openUnsentReview) global.EodDeviceStorage.openUnsentReview();
+        else global.EodRouter.go('storage');
+      };
+      bar.querySelector('#unsentDismiss')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        dismissBanner(BANNER_DISMISS_UNSENT, key);
+        hideBanner(bar);
+      });
+      bar.querySelector('#unsentOpenPhotos')?.addEventListener('click', openReview);
+      bar.onclick = openReview;
+    } catch (_) {
+      bar.hidden = true;
+    }
+  }
+
+  let queueMergeUntil = 0;
+  let queueLastOpen = 0;
+
+  function paintQueueBanner() {
+    let bar = document.getElementById('eodPhotoQueueBanner');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'eodPhotoQueueBanner';
+      bar.hidden = true;
+      bar.className = 'eod-photo-queue-banner';
+      const unsent = document.getElementById('eodUnsentBanner');
+      if (unsent && unsent.parentNode) unsent.parentNode.insertBefore(bar, unsent.nextSibling);
+      else {
+        const chrome = document.getElementById('appChrome');
+        if (chrome && chrome.parentNode) chrome.parentNode.insertBefore(bar, chrome.nextSibling);
+        else document.querySelector('.app-shell')?.prepend(bar);
+      }
+    }
+    try {
+      const Logic = global.EodPhotoPipelineLogic || {};
+      const p = global.EodPhotoPipeline?.pendingCounts?.() || {};
+      const open = Number(p.open || 0);
+      if (open === 0 && queueLastOpen > 0) {
+        const hold = Logic.MERGE_HOLD_MS || 60_000;
+        queueMergeUntil = Date.now() + hold;
+        setTimeout(() => {
+          try { paintQueueBanner(); } catch (_) {}
+        }, hold + 50);
+      }
+      queueLastOpen = open;
+      const state = Logic.queueBannerShouldShow
+        ? Logic.queueBannerShouldShow(p, { mergeUntil: queueMergeUntil })
+        : { show: open > 0, copy: 'Working in the background. Keep going. Give it a minute to catch up.' };
+      if (!state.show) {
+        bar.hidden = true;
+        bar.textContent = '';
+        return;
+      }
+      bar.hidden = false;
+      bar.textContent = state.copy;
+    } catch (_) {
+      bar.hidden = true;
+    }
+  }
+
+  async function paintFailedPhotoBanner() {
+    let bar = document.getElementById('eodPhotoFailBanner');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'eodPhotoFailBanner';
+      bar.hidden = true;
+      bar.className = 'eod-photo-fail-banner';
+      const unsent = document.getElementById('eodUnsentBanner');
+      if (unsent && unsent.parentNode) unsent.parentNode.insertBefore(bar, unsent.nextSibling);
+      else {
+        const chrome = document.getElementById('appChrome');
+        if (chrome && chrome.parentNode) chrome.parentNode.insertBefore(bar, chrome.nextSibling);
+        else document.querySelector('.app-shell')?.prepend(bar);
+      }
+    }
+    try {
+      const p = global.EodPhotoPipeline?.pendingCounts?.();
+      const failedN = (p?.failed || 0) + (p?.lost || 0);
+      if (!failedN) {
+        hideBanner(bar);
+        clearBannerDismiss(BANNER_DISMISS_FAIL);
+        return;
+      }
+      const key = failedBannerKey() || `n:${failedN}`;
+      if (bannerDismissed(BANNER_DISMISS_FAIL, key)) {
+        hideBanner(bar);
+        return;
+      }
+      bar.hidden = false;
+      bar.innerHTML = `<span class="eod-banner-copy">${failedN} photo upload${failedN === 1 ? '' : 's'} failed</span><span class="eod-banner-actions"><button type="button" class="btn btn-secondary" id="photoFailDismiss">Dismiss</button><button type="button" class="btn btn-secondary" id="photoFailRetry">Retry</button><button type="button" class="btn btn-secondary" id="photoFailRemove">Remove</button></span>`;
+      bar.querySelector('#photoFailDismiss')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        dismissBanner(BANNER_DISMISS_FAIL, key);
+        hideBanner(bar);
+      });
+      bar.querySelector('#photoFailRetry')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearBannerDismiss(BANNER_DISMISS_FAIL);
+        global.EodPhotoPipeline?.retryFailed?.();
+        refresh();
+      });
+      bar.querySelector('#photoFailRemove')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        let go = false;
+        if (global.EodAlerts?.showDialog) {
+          const id = await global.EodAlerts.showDialog({
+            title: `Remove ${failedN} failed photo${failedN === 1 ? '' : 's'}?`,
+            message: 'Removes the copy on this phone only.',
+            buttons: [
+              { id: 'keep', label: 'Keep' },
+              { id: 'remove', label: 'Remove', primary: true },
+            ],
+          });
+          go = id === 'remove';
+        } else {
+          go = window.confirm(`Remove ${failedN} failed photo${failedN === 1 ? '' : 's'}?`);
+        }
+        if (!go) return;
+        global.EodPhotoPipeline?.discardFailed?.();
+        clearBannerDismiss(BANNER_DISMISS_FAIL);
+        refresh();
+      });
+    } catch (_) {
+      bar.hidden = true;
+    }
+  }
+
+  function snapshotText() {
+    const S = global.EodSession;
+    const sheet = S.state.sheet;
+    const photos = S.state.photos || {};
+    const counts = ['before', 'after', 'signoff', 'instawork']
+      .map((k) => `${k} ${(photos[k] || []).length}`).join(' · ');
+    const diag = global.EodDiag?.summaryText?.() || '';
+    return [
+      `Store #${S.state.storeNumber || '—'} · ${S.state.workDate || '—'}`,
+      `Lead ${S.resolvedLeadName?.() || S.state.leadName || S.state.profileName || '—'}`,
+      `In ${S.state.checkInManager || '—'} · Out ${S.state.checkOutManager || '—'}`,
+      sheet ? `Sheet ${sheet.fiscalWeek || ''} ${sheet.summary?.marked || 0}/${sheet.summary?.total || 0}` : 'No hosted sheet',
+      `Photos: ${counts}`,
+      global.EodProxyEod?.activeStamp?.()
+        || (S.state.signatureDataUrl ? 'Lead signature on file' : 'No lead signature'),
+      diag ? `Retries: ${diag}` : '',
+    ].filter(Boolean).join('\n');
+  }
+
+  function parkOperatorControls() {
+    const tray = document.getElementById('chromeOperatorTray');
+    const conn = document.getElementById('chromeConn');
+    const themeBtn = document.getElementById('themeCycleBtn');
+    const verBtn = document.getElementById('eodVersionBadge');
+    const who = document.getElementById('eodSignedIn');
+    if (conn && themeBtn) conn.insertBefore(themeBtn, conn.firstChild);
+    else if (tray && themeBtn) tray.appendChild(themeBtn);
+    if (conn && who) conn.insertBefore(who, conn.firstChild);
+    else if (tray && who) tray.insertBefore(who, tray.firstChild);
+    if (conn && verBtn) conn.appendChild(verBtn);
+    else if (tray && verBtn) tray.appendChild(verBtn);
+    try { global.EodTheme?.applyTheme?.(global.EodTheme.getTheme?.()); } catch (_) {}
+  }
+
+  function closeModal(host) {
+    parkOperatorControls();
+    global.EodA11y?.deactivate?.(host);
+    host?.remove?.();
+  }
+
+  function openQuickView() {
+    const S = global.EodSession;
+    if (!S) return;
+    const miss = global.EodSendGates?.missing?.(S) || [];
+    const esc = global.EodApi?.escapeHtml || ((s) => String(s ?? ''));
+    let host = document.getElementById('eodChromeGates');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'eodChromeGates';
+      host.className = 'modal-overlay show';
+      document.body.appendChild(host);
+      host.addEventListener('click', (e) => { if (e.target === host) closeModal(host); });
+    } else {
+      host.classList.add('show');
+      host.style.display = '';
+    }
+    host.innerHTML = `<div class="modal-dialog">
+      <h2>${miss.length ? 'Still needed' : 'Visit'}</h2>
+      ${miss.length && global.EodSendGates?.listHtml ? global.EodSendGates.listHtml(S, esc) : ''}
+      <pre class="muted" style="white-space:pre-wrap;font-size:13px;">${esc(snapshotText())}</pre>
+      <div class="btn-row" id="chromeOperatorHost"></div>
+      <button type="button" class="btn btn-primary btn-block" id="eodChromeGatesClose">Close</button>
+    </div>`;
+    const opHost = host.querySelector('#chromeOperatorHost');
+    const themeBtn = document.getElementById('themeCycleBtn');
+    const verBtn = document.getElementById('eodVersionBadge');
+    if (opHost && themeBtn) opHost.appendChild(themeBtn);
+    if (opHost && verBtn) opHost.appendChild(verBtn);
+    try { global.EodSendGates?.bindList?.(host, S); } catch (_) {}
+    host.querySelectorAll('[data-gate]').forEach((btn) => {
+      btn.addEventListener('click', () => closeModal(host));
+    });
+    host.querySelector('#eodChromeGatesClose')?.addEventListener('click', () => closeModal(host));
+    host.querySelector('.modal-dialog')?.setAttribute('role', 'dialog');
+    host.querySelector('.modal-dialog')?.setAttribute('aria-modal', 'true');
+    global.EodA11y?.activate?.(host);
+    host.addEventListener('eod-dialog-escape', () => {
+      closeModal(host);
+    }, { once: true });
+  }
+
+  function eodBoardHref() {
+    const host = location.hostname || '';
+    if (host === 'the-dump-bin.com' || host.endsWith('.the-dump-bin.com')) return '/eod-board/';
+    return 'https://the-dump-bin.com/eod-board/';
+  }
+
+  function openEodBoard() {
+    window.open(eodBoardHref(), '_blank', 'noopener');
+  }
+
+  function signedInNow() {
+    const st = global.EodSasUser?.cachedStatus?.() || null;
+    const office = global.EodSasUserLogic?.reportingReady
+      ? global.EodSasUserLogic.reportingReady(st)
+      : !!(st && (st.sharedActor || (st.connected && st.siConnected)));
+    if (global.EodSasUserLogic?.leadProdSignedIn) return global.EodSasUserLogic.leadProdSignedIn(st);
+    return !!(office && st && !st.sharedActor);
+  }
+
+  function navIconSrc(name) {
+    const v = global.EOD_APP_VERSION || '';
+    const q = v ? `?v=${v}` : '';
+    return `icons/nav/${name}.png${q}`;
+  }
+
+  function paintNavIcons() {
+    const on = signedInNow();
+    document.querySelectorAll('img[data-icon]').forEach((img) => {
+      let name = img.getAttribute('data-icon');
+      if (name === 'sign-in' || name === 'signed-in') name = on ? 'signed-in' : 'sign-in';
+      if (!name) return;
+      const next = navIconSrc(name);
+      if (img.getAttribute('src') !== next) img.setAttribute('src', next);
+    });
+    const label = on ? 'PROD + SI signed in' : 'PROD + SI sign in';
+    document.querySelectorAll('[data-open-sign-in]').forEach((btn) => {
+      btn.setAttribute('aria-label', label);
+      const span = btn.querySelector('.nav-label');
+      if (span) span.textContent = label;
+    });
+    const moreBtn = document.getElementById('eodMoreSignIn');
+    if (moreBtn) {
+      moreBtn.setAttribute('aria-label', label);
+      const span = moreBtn.querySelector('.more-sign-label');
+      if (span) span.textContent = label;
+    }
+  }
+
+  function paintSignedIn() {
+    const el = document.getElementById('eodSignedIn');
+    const st = global.EodSasUser?.cachedStatus?.() || null;
+    const lead = global.EodSasUser?.leadContext?.() || {};
+    const me = global.EodRoles?.getMe?.() || {};
+    const name = String(lead.name || me.name || me.email || '').trim();
+    if (el) {
+      if (!name) {
+        el.hidden = true;
+        el.textContent = '';
+      } else {
+        const live = global.EodSasUserLoginLogic?.prodSasSignedIn
+          ? global.EodSasUserLoginLogic.prodSasSignedIn(st)
+          : !!(st && st.connected && !st.okta_gone && !st.needs_reauth);
+        el.hidden = false;
+        el.textContent = live ? `${name} · Signed in` : name;
+      }
+    }
+    paintNavIcons();
+    try { global.EodVisit?.paintReportingSignIn?.(st); } catch (_) {}
+    try { global.EodConnections?.paintLeadOkta?.(); } catch (_) {}
+  }
+
+  function pacificStamp(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  function boardPeople(rows) {
+    return (rows || []).map((person) => ({
+      name: person.name,
+      email: person.email,
+      until: person.live && person.oktaExpiresAt ? pacificStamp(person.oktaExpiresAt) : '',
+      reason: person.reason || '',
+    }));
+  }
+
+  async function openOktaBoard() {
+    let host = document.getElementById('eodOktaBoard');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'eodOktaBoard';
+      host.className = 'modal-overlay show';
+      document.body.appendChild(host);
+      host.addEventListener('click', (e) => { if (e.target === host) closeModal(host); });
+    } else {
+      host.classList.add('show');
+      host.style.display = '';
+    }
+    host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true" aria-label="Okta sessions">
+      <h2>Okta</h2>
+      <div id="eodOktaBoardBody" class="muted">Checking</div>
+      <button type="button" class="btn btn-primary btn-block" id="eodOktaBoardClose">Close</button>
+    </div>`;
+    host.querySelector('#eodOktaBoardClose')?.addEventListener('click', () => closeModal(host));
+    global.EodA11y?.activate?.(host);
+    host.addEventListener('eod-dialog-escape', () => closeModal(host), { once: true });
+    const body = host.querySelector('#eodOktaBoardBody');
+    try {
+      const resp = await global.authFetch(`${global.EOD_API_BASE}/api/sas-user/okta-board`, {
+        skipBusy: true,
+        noBounceOn401: true,
+      });
+      const data = resp.ok ? await resp.json().catch(() => ({})) : {};
+      if (!resp.ok || !data.ok) {
+        if (body) body.textContent = 'Okta sessions are not available.';
+        return;
+      }
+      const html = global.EodSasUserLoginLogic?.oktaBoardHtml?.({
+        live: boardPeople(data.live),
+        offline: boardPeople(data.offline),
+      });
+      if (body) body.innerHTML = html || '';
+    } catch (err) {
+      if (body) body.textContent = 'Okta sessions are not available.';
+      console.warn('[chrome] okta board', err);
+    }
+  }
+
+  function openSignIn(opts) {
+    const options = opts || {};
+    let host = document.getElementById('eodSignInSheet');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'eodSignInSheet';
+      host.className = 'modal-overlay show';
+      document.body.appendChild(host);
+    } else {
+      host.classList.add('show');
+      host.style.display = '';
+    }
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      closeModal(host);
+      try { options.onClose?.(); } catch (_) {}
+    };
+    host.onclick = (e) => { if (e.target === host) close(); };
+    host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
+      <h2>PROD + SI sign in</h2>
+      <div id="eodSignInHost"></div>
+      <button type="button" class="btn btn-primary btn-block" id="eodSignInClose">Close</button>
+    </div>`;
+    const slot = host.querySelector('#eodSignInHost');
+    try { global.EodSasUser?.mount?.(slot); } catch (err) {
+      if (slot) slot.textContent = 'Sign in is not available.';
+      console.warn('[chrome] sign in', err);
+    }
+    host.querySelector('#eodSignInClose')?.addEventListener('click', close);
+    global.EodA11y?.activate?.(host);
+    host.addEventListener('eod-dialog-escape', close, { once: true });
+    return { close, host };
+  }
+
+  function openMoreMenu() {
+    let host = document.getElementById('eodMoreMenu');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'eodMoreMenu';
+      host.className = 'modal-overlay show';
+      document.body.appendChild(host);
+      host.addEventListener('click', (e) => { if (e.target === host) closeModal(host); });
+    } else {
+      host.classList.add('show');
+      host.style.display = '';
+    }
+    host.innerHTML = `<div class="modal-dialog" role="dialog" aria-modal="true">
+      <h2>More</h2>
+      <button type="button" class="btn btn-primary btn-block" data-more="storage">Clear storage</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="crew">Crew</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="dumpbin">Dump Bin</button>
+      <button type="button" class="btn btn-secondary btn-block" id="eodMoreBoard">EOD Board</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="helpdesk">Helpdesk</button>
+      <button type="button" class="btn btn-secondary btn-block" data-more="scans">Scan results</button>
+      ${global.EodRoles?.canManageRoster?.() ? '<button type="button" class="btn btn-secondary btn-block" data-more="audit">Audit</button>' : ''}
+      ${global.EodRoles?.canForceLive?.() ? '<button type="button" class="btn btn-secondary btn-block" data-more="sends">Sent EODs</button>' : ''}
+      <button type="button" class="btn btn-primary btn-block" id="eodMoreClose">Close</button>
+    </div>`;
+    host.querySelectorAll('[data-more]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dest = btn.getAttribute('data-more');
+        closeModal(host);
+        dismissOverlays();
+        global.EodRouter.go(dest);
+      });
+    });
+    host.querySelector('#eodMoreBoard')?.addEventListener('click', () => {
+      closeModal(host);
+      openEodBoard();
+    });
+    host.querySelector('#eodMoreClose')?.addEventListener('click', () => closeModal(host));
+    paintNavIcons();
+    global.EodA11y?.activate?.(host);
+    host.addEventListener('eod-dialog-escape', () => {
+      closeModal(host);
+    }, { once: true });
+  }
+
+  const overlayBackStack = [];
+
+  function paintOverlayBack() {
+    const btn = document.getElementById('navOverlayBack');
+    if (!btn) return;
+    btn.hidden = overlayBackStack.length === 0;
+  }
+
+  function pushOverlayBack(entry) {
+    if (!entry || typeof entry.restore !== 'function') return;
+    overlayBackStack.push(entry);
+    paintOverlayBack();
+  }
+
+  function popOverlayBack() {
+    const entry = overlayBackStack.pop() || null;
+    paintOverlayBack();
+    return entry;
+  }
+
+  function clearOverlayBack() {
+    overlayBackStack.length = 0;
+    paintOverlayBack();
+  }
+
+  function hasOverlayBack() {
+    return overlayBackStack.length > 0;
+  }
+
+  function goOverlayBack() {
+    const entry = popOverlayBack();
+    if (!entry) return false;
+    try { entry.restore(); } catch (e) {
+      console.warn('[chrome] overlay back', e);
+    }
+    return true;
+  }
+
+  function dismissOverlays() {
+    clearOverlayBack();
+    try { global.EodSetReview?.closeOverlay?.(); } catch (_) {}
+    try { global.EodSiPlanogram?.closeOverlay?.(); } catch (_) {}
+  }
+
+  const NAV_COLLAPSE_KEY = 'eod-nav-collapsed';
+
+  function syncToggleUi(collapsed) {
+    const btn = document.getElementById('navCollapseBtn');
+    if (!btn) return;
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    btn.title = collapsed ? 'Expand navigation' : 'Collapse navigation';
+    btn.textContent = collapsed ? '»' : '«';
+  }
+
+  function applyNavCollapsed(collapsed) {
+    document.body.classList.toggle('nav-collapsed', !!collapsed);
+    syncToggleUi(!!collapsed);
+    try {
+      localStorage.setItem(NAV_COLLAPSE_KEY, collapsed ? '1' : '0');
+    } catch (_) {}
+  }
+
+  function toggleNav() {
+    applyNavCollapsed(!document.body.classList.contains('nav-collapsed'));
+  }
+
+  function bindNav() {
+    document.querySelectorAll('[data-nav], [data-open-sign-in]').forEach((btn) => {
+      if (btn.dataset.navBound === '1') return;
+      btn.dataset.navBound = '1';
+      btn.addEventListener('click', (e) => {
+        if (btn.hasAttribute('data-open-sign-in')) {
+          e.preventDefault();
+          e.stopPropagation();
+          openSignIn();
+          return;
+        }
+        const nav = btn.getAttribute('data-nav');
+        if (nav === 'more') {
+          openMoreMenu();
+          return;
+        }
+        if (btn.hasAttribute('data-open-eod-board')) {
+          openEodBoard();
+          return;
+        }
+        dismissOverlays();
+        if (global.EodRouter?.go) global.EodRouter.go(nav);
+      });
+    });
+  }
+
+  function init() {
+    bindNav();
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(NAV_COLLAPSE_KEY) === '1'; } catch (_) {}
+    applyNavCollapsed(collapsed);
+    parkOperatorControls();
+    document.getElementById('navCollapseBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleNav();
+    });
+    document.getElementById('navOverlayBack')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      goOverlayBack();
+    });
+
+    const storeEl = document.getElementById('chromeStore');
+    let storePress = null;
+    storeEl?.addEventListener('pointerdown', () => {
+      storePress = setTimeout(() => {
+        storePress = null;
+        openQuickView();
+      }, 500);
+    });
+    storeEl?.addEventListener('pointerup', () => {
+      if (storePress) {
+        clearTimeout(storePress);
+        storePress = null;
+        openQuickView();
+      }
+    });
+    storeEl?.addEventListener('pointerleave', () => {
+      if (storePress) {
+        clearTimeout(storePress);
+        storePress = null;
+      }
+    });
+    document.getElementById('chromeMeta')?.addEventListener('click', openQuickView);
+    document.getElementById('chromeScanBtn')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try { await global.EodRouteBundles?.ensure?.('survey'); } catch (err) {
+        console.warn('[chrome] scan bundle', err);
+      }
+      global.EodCartLocate?.openScanner?.();
+    });
+    document.getElementById('chromeNextAction')?.addEventListener('click', () => {
+      const route = document.getElementById('chromeNextAction')?.dataset?.route;
+      if (route) {
+        dismissOverlays();
+        global.EodRouter.go(route);
+      }
+    });
+    if (storeEl) storeEl.title = 'Visit snapshot';
+    document.getElementById('pilotBannerLabel')?.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey) return;
+    });
+
+    global.EodPhotoPipeline?.onChange?.(() => {
+      try { refresh(); } catch (_) {}
+    });
+    global.EodSession?.on(() => refresh());
+    refresh();
+    try { global.EodSasUser?.fetchStatus?.(true); } catch (_) {}
+  }
+
+  /* After photos wait on the server until every bay of the set is loaded. Ten quiet
+     minutes later the server marks the set prompted and this asks for the missing bays;
+     ten minutes after that it moves the set to backlog. The check reads the database
+     only and runs while a held upload is open. */
+  const afterHolds = (() => {
+    const POLL_MS = 60 * 1000;
+    const WATCH_MS = 3 * 60 * 60 * 1000;
+    const watched = new Map();
+    const shown = new Set();
+    let timer = null;
+
+    function keyOf(store, date) {
+      return `${String(store || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '')}|${String(date || '').slice(0, 10)}`;
+    }
+    function dbkeyOf(v) { return String(v || '').replace(/\D/g, '').replace(/^0+/, ''); }
+
+    function setName(dbkey) {
+      try {
+        const rows = global.EodSession?.state?.sheet?.rows || [];
+        const hit = rows.find((r) => dbkeyOf(r.dbkey) === dbkeyOf(dbkey));
+        return hit ? (hit.catName || hit.name || '') : '';
+      } catch (_) { return ''; }
+    }
+
+    function show(h) {
+      const id = `${dbkeyOf(h.dbkey)}|${h.state}|${h.promptedAt || h.backlogAt || ''}`;
+      if (shown.has(id)) return;
+      shown.add(id);
+      const esc = global.EodApi?.escapeHtml || ((s) => String(s ?? ''));
+      const name = setName(h.dbkey) || `Set ${dbkeyOf(h.dbkey)}`;
+      const total = h.expected || '?';
+      let host = document.getElementById('eodAfterHoldPrompt');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'eodAfterHoldPrompt';
+        host.className = 'modal-overlay show';
+        document.body.appendChild(host);
+      }
+      let body;
+      if (h.needsAppUpdate) {
+        body = `${esc(name)} is held (${esc(h.loaded)} of ${esc(total)} after photos). Update the field app to finish loading.`;
+      } else if (h.state === 'backlogged') {
+        body = `${esc(name)} moved to backlog. ${esc(h.loaded)} of ${esc(total)} after photos were loaded.`;
+      } else {
+        body = `${esc(name)} has ${esc(h.loaded)} of ${esc(total)} after photos loaded. Please finish loading them.`;
+      }
+      host.innerHTML = `<div class="modal-dialog eod-after-hold-dialog" role="dialog" aria-modal="true">
+        <h2>After photos</h2>
+        <p>${body}</p>
+        <button type="button" class="btn btn-primary btn-block" id="eodAfterHoldOpen">Open categories</button>
+        <button type="button" class="btn btn-secondary btn-block" id="eodAfterHoldClose">Close</button>
+      </div>`;
+      host.querySelector('#eodAfterHoldClose')?.addEventListener('click', () => closeModal(host));
+      host.querySelector('#eodAfterHoldOpen')?.addEventListener('click', () => {
+        closeModal(host);
+        try { global.location.hash = '#/categories'; } catch (_) { /* ignore */ }
+      });
+      global.EodA11y?.activate?.(host);
+    }
+
+    async function pollOnce() {
+      const now = Date.now();
+      for (const [k, w] of [...watched]) {
+        if (now - w.at > WATCH_MS) { watched.delete(k); continue; }
+        try {
+          const resp = await global.authFetch(
+            `${global.EOD_API_BASE}/api/field-set/after-holds?store=${encodeURIComponent(w.store)}&date=${encodeURIComponent(w.date)}`,
+            { skipBusy: true }
+          );
+          if (!resp.ok) continue;
+          const data = await resp.json().catch(() => ({}));
+          (data.holds || []).forEach(show);
+        } catch (_) { /* try again next minute */ }
+      }
+      if (!watched.size && timer) { clearInterval(timer); timer = null; }
+    }
+
+    function note(store, workDate, dbkey, hold) {
+      const k = keyOf(store, workDate);
+      if (!hold || hold.complete) {
+        const w = watched.get(k);
+        if (w) { w.open.delete(dbkeyOf(dbkey)); if (!w.open.size) watched.delete(k); }
+        return;
+      }
+      const w = watched.get(k) || { store, date: String(workDate).slice(0, 10), open: new Set(), at: 0 };
+      w.open.add(dbkeyOf(dbkey));
+      w.at = Date.now();
+      watched.set(k, w);
+      if (!timer) timer = setInterval(pollOnce, POLL_MS);
+    }
+
+    return { note, pollOnce, _watched: watched };
+  })();
+  global.EodAfterHolds = afterHolds;
+
+  global.EodChrome = {
+    refresh,
+    init,
+    bindNav,
+    openQuickView,
+    applyNavCollapsed,
+    toggleNav,
+    paintConnChrome,
+    paintSignedIn,
+    paintNavIcons,
+    openSignIn,
+    openOktaBoard,
+    pushOverlayBack,
+    popOverlayBack,
+    clearOverlayBack,
+    hasOverlayBack,
+    goOverlayBack,
+    paintOverlayBack,
+    dismissOverlays,
+  };
+  bindNav();
+})(typeof window !== 'undefined' ? window : globalThis);

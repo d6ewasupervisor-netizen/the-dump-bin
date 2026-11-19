@@ -1,0 +1,345 @@
+/* SAS + Rebotics (SI) connection lights + refresh — matches live EOD protocols. */
+(function (global) {
+  'use strict';
+
+  const REFRESH_COOLDOWN_MS = 10 * 60 * 1000;
+  const REFRESH_COOLDOWN_KEY = 'kompassAuthRefreshLastClickAt';
+  const POLL_MS = 30 * 1000;
+
+  let pollTimer = null;
+  let cooldownTimer = null;
+
+  function toast(msg, kind) {
+    if (typeof global.showToast === 'function') {
+      global.showToast(msg, kind || 'info');
+      return;
+    }
+    const el = document.getElementById('connToast');
+    if (!el) {
+      console.info('[conn]', msg);
+      return;
+    }
+    el.hidden = false;
+    el.textContent = msg;
+    el.className = 'conn-toast ' + (kind === 'error' ? 'is-error' : kind === 'ok' ? 'is-ok' : '');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { el.hidden = true; }, 4500);
+  }
+
+  function setConnState(target, ok, minsAgo) {
+    const id = target === 'sas' ? 'sasConnDot' : 'reboticsConnDot';
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.dataset.state = ok ? 'green' : 'red';
+    const label = target === 'sas' ? 'PROD' : 'SI';
+    el.title = ok
+      ? (minsAgo != null
+        ? `${label}: connected (refreshed ${minsAgo} min ago)`
+        : `${label}: connected`)
+      : `${label}: not connected`;
+    try { global.EodChrome?.paintConnChrome?.(); } catch (_) {}
+    try {
+      if (target === 'sas') sessionStorage.setItem('kompassAuthState', ok ? 'green' : 'red');
+    } catch (_) {}
+  }
+
+  async function pollConnections() {
+    const base = global.EOD_API_BASE;
+    try {
+      const r = await global.authFetch(`${base}/sas-auth-status`, { noBounceOn401: true });
+      const j = r.ok ? await r.json() : { ok: false };
+      setConnState('sas', !!j.ok && !j.stale, j.minutes_since_refresh);
+    } catch (e) {
+      console.warn('[conn] SAS probe failed:', e);
+      setConnState('sas', false);
+    }
+    try {
+      const r = await global.authFetch(`${base}/rebotics-auth-status`, { noBounceOn401: true });
+      const j = r.ok ? await r.json() : { ok: false };
+      setConnState('rebotics', !!j.ok && !j.stale, j.minutes_since_refresh ?? j.minutesSinceRefresh);
+    } catch (e) {
+      console.warn('[conn] Rebotics probe failed:', e);
+      setConnState('rebotics', false);
+    }
+    try { await global.EodSasUser?.fetchStatus?.(false); } catch (_) {}
+    paintLeadOkta();
+  }
+
+  function getRefreshCooldownRemainingMs() {
+    const last = parseInt(localStorage.getItem(REFRESH_COOLDOWN_KEY) || '0', 10);
+    if (!last || Number.isNaN(last)) return 0;
+    return Math.max(0, REFRESH_COOLDOWN_MS - (Date.now() - last));
+  }
+
+  function formatCooldownLabel(ms) {
+    if (ms <= 0) return '';
+    const totalSec = Math.ceil(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    if (m > 0 && s > 0) return `${m}m ${s}s`;
+    if (m > 0) return `${m}m`;
+    return `${s}s`;
+  }
+
+  function connDots() {
+    return [document.getElementById('sasConnDot'), document.getElementById('reboticsConnDot')].filter(Boolean);
+  }
+
+  function scheduledLeadEmail() {
+    const st = global.EodSession?.state || {};
+    const shift = st.selectedShift;
+    if (!shift) return '';
+    const direct = String(shift.visitLeadEmail || shift.leadEmail || shift.email || '').trim();
+    if (direct) return direct;
+    if (st.profileLocked) return String(st.profileEmail || '').trim();
+    return '';
+  }
+
+  function leadStatusSnapshot() {
+    const status = global.EodSasUser?.cachedStatus?.() || null;
+    const forEmail = String(global.EodSasUser?.statusLeadEmail?.() || '').trim().toLowerCase();
+    const want = String(
+      global.EodSasUser?.leadContext?.()?.email
+      || global.EodSession?.state?.profileEmail
+      || ''
+    ).trim().toLowerCase();
+    if (!forEmail || (want && forEmail !== want)) return { known: false, signedIn: false };
+    const signedIn = global.EodSasUserLoginLogic?.leadProdSignedIn
+      ? global.EodSasUserLoginLogic.leadProdSignedIn(status)
+      : false;
+    return { known: true, signedIn };
+  }
+
+  const LEAD_TITLES = {
+    green: 'Lead PROD: signed in',
+    orange: 'Lead PROD: not signed in',
+    red: 'Lead PROD: not the lead',
+    unknown: 'Lead PROD: checking',
+  };
+
+  function paintLeadOkta() {
+    const el = document.getElementById('leadOktaDot');
+    if (!el) return;
+    const me = global.EodRoles?.getMe?.() || null;
+    const rolesLoaded = !!(me && (me.email || (Array.isArray(me.roles) && me.roles.length)));
+    const appLoggedIn = !!(me && me.email) || !!global.dumpBinGetSession?.();
+    const prod = leadStatusSnapshot();
+    const scheduled = scheduledLeadEmail();
+    const state = global.EodSasUserLoginLogic?.leadOktaLight
+      ? global.EodSasUserLoginLogic.leadOktaLight({
+        roles: me?.roles || [],
+        appLoggedIn,
+        rolesLoaded,
+        statusKnown: prod.known,
+        prodSignedIn: prod.signedIn,
+        scheduledLeadKnown: !!scheduled,
+      })
+      : 'unknown';
+    el.dataset.state = state;
+    el.title = LEAD_TITLES[state] || LEAD_TITLES.unknown;
+    const want = String(global.EodSasUser?.leadContext?.()?.email || scheduled || '').trim().toLowerCase();
+    const have = String(global.EodSasUser?.statusLeadEmail?.() || '').trim().toLowerCase();
+    if (want && have !== want && !paintLeadOkta.busy) {
+      paintLeadOkta.busy = true;
+      Promise.resolve(global.EodSasUser?.fetchStatus?.(true))
+        .catch(() => {})
+        .finally(() => { paintLeadOkta.busy = false; });
+    }
+  }
+
+  function updateRefreshButtonState() {
+    const row = document.getElementById('chromeDots');
+    const remaining = getRefreshCooldownRemainingMs();
+    if (row) row.classList.toggle('cooldown', remaining > 0);
+    const title = remaining > 0
+      ? `Auth refresh available in ${formatCooldownLabel(remaining)}`
+      : 'Refresh SAS / SI auth, shifts & dept signatures';
+    connDots().forEach((el) => {
+      el.disabled = remaining > 0;
+      if (remaining > 0) el.title = title;
+    });
+  }
+
+  function ensureRefreshCooldownTicker() {
+    updateRefreshButtonState();
+    if (cooldownTimer) clearInterval(cooldownTimer);
+    if (getRefreshCooldownRemainingMs() <= 0) return;
+    cooldownTimer = setInterval(() => {
+      updateRefreshButtonState();
+      if (getRefreshCooldownRemainingMs() <= 0) {
+        clearInterval(cooldownTimer);
+        cooldownTimer = null;
+      }
+    }, 1000);
+  }
+
+  async function refreshDayData() {
+    const S = global.EodSession;
+    if (!S?.isVisitReady()) return;
+    // Persist draft first — never risk losing local work on a flaky refresh.
+    try { S.saveDraft(); } catch (_) {}
+    if (global.PhotoDB?.savePhotos && S.state.photos) {
+      try { await global.PhotoDB.savePhotos(S.state.photos); } catch (e) {
+        console.warn('[conn] photo persist before refresh', e);
+      }
+    }
+    try {
+      if (global.EodSignoffHome?.loadSheet) {
+        S.patch({ sheetLoaded: false }, 'refresh');
+        await global.EodSignoffHome.loadSheet();
+        global.EodDeptSignatures?.syncFromSheet?.(S.state.sheet);
+      }
+    } catch (e) {
+      console.warn('[conn] sheet refresh failed (kept local marks/draft)', e);
+    }
+    try {
+      if (global.EodDeptSignatures?.refresh) await global.EodDeptSignatures.refresh();
+    } catch (e) {
+      console.warn('[conn] dept sig refresh failed', e);
+    }
+    // Re-pull shifts for current store/date (exact match still applied in visit.js helpers if exposed)
+    try {
+      const store = S.state.storeNumber;
+      const date = S.state.workDate;
+      if (store && date && store !== '999' && !String(S.state.selectedShift?.visitId || '').startsWith('test-')) {
+        const resp = await global.authFetch(
+          `${global.EOD_API_BASE}/api/shifts?store=${encodeURIComponent(store)}&date=${encodeURIComponent(date)}`,
+          { noBounceOn401: true }
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          let shifts = Array.isArray(data) ? data : (data.shifts || []);
+          const input = S.normStoreNumber(store);
+          shifts = shifts.filter((s) =>
+            S.normStoreNumber(s.storeNumber || s.store_number || s.store) === input
+          );
+          const prevId = S.state.selectedShift?.visitId;
+          const selected = shifts.find((s) => s.visitId === prevId) || (shifts.length === 1 ? shifts[0] : S.state.selectedShift);
+          S.patch({ shifts, selectedShift: selected || null }, 'shifts-refresh');
+        }
+      }
+    } catch (e) {
+      console.warn('[conn] shift refresh failed (kept selection)', e);
+    }
+    try {
+      if (global.EodCover?.loadStoreData) await global.EodCover.loadStoreData(S.state.storeNumber);
+    } catch (_) {}
+    global.EodChrome?.refresh?.();
+    // Re-render current route so PIC/shift UI picks up new data
+    try { await global.EodRouter?.render?.(); } catch (_) {}
+  }
+
+  function lightIsGreen(el) {
+    return el?.dataset?.state === 'green';
+  }
+
+  async function refreshConnections(fromEl) {
+    const remaining = getRefreshCooldownRemainingMs();
+    if (lightIsGreen(fromEl)) {
+      const label = fromEl.id === 'reboticsConnDot' ? 'SI' : 'SAS';
+      if (global.showConfirm) {
+        const go = await global.showConfirm(
+          `${label} is already connected`,
+          'A refresh is not necessary. The green light means this login is active and a background worker keeps it that way.\n\nContinue anyway?'
+        );
+        if (!go) return;
+      }
+    }
+    if (remaining > 0) {
+      toast(`Auth refresh available in ${formatCooldownLabel(remaining)}`, 'error');
+      return;
+    }
+
+    let proceed = true;
+    if (global.showConfirm) {
+      proceed = await global.showConfirm(
+        'Refresh SAS / SI auth',
+        'This refreshes the SAS and Store Intelligence logins. It is not a page refresh, and you can only do it once every 10 minutes.'
+      );
+    }
+    if (!proceed) return;
+
+    // Durable save before network churn
+    try { global.EodSession?.saveDraft(); } catch (_) {}
+    if (global.EodDurability?.awaitDurablePhotoSave) {
+      const ok = await global.EodDurability.awaitDurablePhotoSave('refresh');
+      if (!ok) {
+        toast('Could not save photos locally — refresh aborted to avoid data loss.', 'error');
+        return;
+      }
+    }
+
+    localStorage.setItem(REFRESH_COOLDOWN_KEY, String(Date.now()));
+    ensureRefreshCooldownTicker();
+    const dots = document.getElementById('chromeDots');
+    dots?.classList.add('spinning');
+    connDots().forEach((el) => { el.disabled = true; });
+
+    const base = global.EOD_API_BASE;
+    let sasResult = null;
+    let reboticsResult = null;
+    try {
+      const sasResp = await global.authFetch(`${base}/api/trigger-auth?force=1`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        noBounceOn401: true,
+      });
+      sasResult = await sasResp.json().catch(() => ({}));
+    } catch (e) {
+      sasResult = { success: false, error: e.message };
+    }
+    try {
+      const reboticsResp = await global.authFetch(`${base}/rebotics-trigger-auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        noBounceOn401: true,
+      });
+      reboticsResult = await reboticsResp.json().catch(() => ({}));
+    } catch (e) {
+      reboticsResult = { success: false, error: e.message };
+    }
+
+    const parts = [];
+    if (sasResult?.success) parts.push(sasResult.skipped ? 'SAS still fresh' : 'SAS refreshed');
+    else parts.push('SAS refresh failed');
+    if (reboticsResult?.success) parts.push('SI/Rebotics triggered');
+    else parts.push('SI refresh failed');
+    toast(parts.join(' · '), sasResult?.success || reboticsResult?.success ? 'ok' : 'error');
+
+    try {
+      await pollConnections();
+      await refreshDayData();
+    } catch (e) {
+      console.error('[refresh] post-trigger failed', e);
+    } finally {
+      dots?.classList.remove('spinning');
+      updateRefreshButtonState();
+    }
+  }
+
+  function init() {
+    connDots().forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        refreshConnections(el);
+      });
+    });
+    paintLeadOkta();
+    ensureRefreshCooldownTicker();
+    pollConnections();
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(pollConnections, POLL_MS);
+  }
+
+  global.EodConnections = {
+    init,
+    pollConnections,
+    paintLeadOkta,
+    refreshConnections,
+    refreshDayData,
+    setConnState,
+    toast,
+  };
+  global.refreshConnections = refreshConnections;
+})(typeof window !== 'undefined' ? window : globalThis);
