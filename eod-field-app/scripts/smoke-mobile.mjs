@@ -19,7 +19,7 @@ async function run() {
   const provided = process.env.PILOT_URL;
   const local = provided ? null : await startStaticServer();
   const origin = provided || local.origin;
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await chromium.launch({ headless: true });
 
   try {
     for (const viewport of VIEWPORTS) {

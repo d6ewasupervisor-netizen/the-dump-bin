@@ -1797,10 +1797,67 @@
         files,
         requiredBays: required,
         occupiedBays: [...taken],
+        missingBays: [...(local.bayOverride?.missingBays || [])],
         title: `${catName || 'Set'} · ${slot === 'before' ? 'Before' : 'After'}`,
+        onMarkMissing: async (bay) => {
+          const A = AssignLogic();
+          if (!A) return;
+          const base = baseBayCount();
+          const ov = local.bayOverride || { oldCount: base, missingBays: [], addedBays: [] };
+          const next = A.markMissing({
+            baseCount: ov.oldCount || base,
+            missingBays: ov.missingBays,
+            addedBays: ov.addedBays,
+            bay,
+          });
+          await saveBayOverride({
+            oldCount: ov.oldCount || base,
+            newCount: next.newCount,
+            missingBays: next.missingBays,
+            addedBays: next.addedBays,
+          });
+        },
+        onUnmarkMissing: async (bay) => {
+          const A = AssignLogic();
+          if (!A) return;
+          const base = baseBayCount();
+          const ov = local.bayOverride || { oldCount: base, missingBays: [], addedBays: [] };
+          const next = A.unmarkMissing({
+            baseCount: ov.oldCount || base,
+            missingBays: ov.missingBays,
+            addedBays: ov.addedBays,
+            bay,
+          });
+          await saveBayOverride({
+            oldCount: ov.oldCount || base,
+            newCount: next.newCount,
+            missingBays: next.missingBays,
+            addedBays: next.addedBays,
+          });
+        },
+        onAddBay: async () => {
+          const A = AssignLogic();
+          if (!A) return null;
+          const base = baseBayCount();
+          const ov = local.bayOverride || { oldCount: base, missingBays: [], addedBays: [] };
+          const next = A.addBay({
+            baseCount: ov.oldCount || base,
+            missingBays: ov.missingBays,
+            addedBays: ov.addedBays,
+          });
+          await saveBayOverride({
+            oldCount: ov.oldCount || base,
+            newCount: next.newCount,
+            missingBays: next.missingBays,
+            addedBays: next.addedBays,
+          });
+          return next.bay;
+        },
       });
       if (result.cancelled) {
-        setMsg('Assignment cancelled.');
+        // Back keeps the picked Files in the OS picker only — placements are
+        // not enqueued, so nothing is stuck in the upload queue.
+        setMsg('Assignment cancelled — photos were not uploaded.');
         return;
       }
       const placements = result.placements || [];
@@ -1809,6 +1866,12 @@
         await enqueueLocal(slot, p.file, p.bay, { replace: already });
       }
       const left = Number(result.unassignedCount) || 0;
+      if (result.leaveForCamera) {
+        setMsg(placements.length
+          ? `${placements.length} placed — finish the rest with the camera`
+          : 'Take the remaining bays with the camera');
+        return;
+      }
       setMsg(left
         ? `${placements.length} on device — ${left} left unassigned`
         : `${placements.length} on device`);

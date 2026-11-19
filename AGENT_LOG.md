@@ -1,3 +1,7 @@
+## 2026-11-18 — Phase 1 VERIFY (feat/bay-assign)
+
+Verify pass on branch only. Reverted smoke-mobile `channel:'chrome'`. Assign screen V6a (thumbnails, Photo N / Bay N, not-in-store, leave-for-camera, sticky Confirm). Screenshots via `EodBayAssignScreen.open` + shelf fixtures. Field app 3.5.44. No merge/deploy/publish.
+
 ## 2026-11-18 — Phase 1 bay assignment (feat/bay-assign)
 
 Branch-only. Assign screen for device file picks (wait until every bay placed). Bay override migration 215 + API. Declared-missing blurry SI-only path. Field app 3.5.43. No merge/deploy/publish.
