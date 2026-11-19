@@ -208,6 +208,9 @@ async function runViewport(browser, origin, width, bag) {
     isMobile: true,
   });
   const page = await context.newPage();
+  // Any native alert/confirm/prompt is a failure: confirmations live in the screen.
+  bag.nativeDialogs = [];
+  page.on('dialog', async (d) => { bag.nativeDialogs.push({ type: d.type(), message: d.message() }); await d.dismiss(); });
   await installPilotState(page, { theme: 'gray-matter' });
   // Force store 28 to match override bodies in assertions.
   await page.addInitScript(({ date }) => {
@@ -264,28 +267,33 @@ async function runViewport(browser, origin, width, bag) {
     await page.click(`[data-bay-assign-bay="${bay}"]`);
     await page.waitForTimeout(120);
   }
-  // Suggest-on-open fills all empties. Clear photos 1 and 2 so only bay 1 remains.
-  await page.evaluate(() => {
-    const screen = document.querySelector('.bay-assign-screen');
-    if (!screen || !window.EodBayAssignLogic) return;
-    // Mark-missing undo is unrelated; clear by re-placing nothing — tap photo then
-    // leave it unassigned by marking its bay missing temporarily is heavy. Instead
-    // click Leave for camera if present after stripping via mark-missing on filled bays.
-    for (const bay of [2, 4]) {
-      const btn = screen.querySelector(`[data-bay-assign-mark-missing="${bay}"]`);
-      if (btn) btn.click();
-    }
-  });
-  await page.waitForTimeout(200);
-  // Restore bays 2 and 4 as empty required (undo missing) without photos.
-  await page.evaluate(() => {
-    const screen = document.querySelector('.bay-assign-screen');
-    for (const bay of [2, 4]) {
-      screen?.querySelector(`[data-bay-assign-undo-missing="${bay}"]`)?.click();
-    }
-  });
-  await page.waitForTimeout(150);
-  const s3 = await shot(page, `assign-partial-${width}.png`);
+  // Suggest-on-open fills every empty bay. Bays 2 and 4 hold photos, so marking
+  // them "not in store" must raise the in-screen "already has a photo" banner.
+  await page.click('[data-bay-assign-mark-missing="2"]');
+  await page.waitForSelector('[data-bay-assign-clear-missing]', { timeout: 5000 });
+  const bannerText = await page.innerText('[data-bay-assign-clear-missing]');
+  if (!/Bay 2 already has a photo/.test(bannerText)) throw new Error(`clear banner text: ${bannerText}`);
+  const s2b = await shot(page, `assign-clear-confirm-${width}.png`);
+  await assertShotLooksLike(page, 'assign clear confirm', ['[data-bay-assign-clear-missing]']);
+  // Cancel keeps the photo placed.
+  await page.click('[data-bay-assign-clear-missing-no]');
+  await page.waitForTimeout(120);
+  if (await page.$('[data-bay-assign-clear-missing]')) throw new Error('banner should close on Cancel');
+  if (!(await page.$('[data-bay-assign-undo-missing="2"]')) === false) {
+    throw new Error('Cancel must not mark bay 2 not in store');
+  }
+  // Confirm clears bays 2 and 4, then Undo restores them empty.
+  for (const bay of [2, 4]) {
+    await page.click(`[data-bay-assign-mark-missing="${bay}"]`);
+    await page.waitForSelector('[data-bay-assign-clear-missing-yes]', { timeout: 5000 });
+    await page.click('[data-bay-assign-clear-missing-yes]');
+    await page.waitForSelector(`[data-bay-assign-undo-missing="${bay}"]`, { timeout: 5000 });
+  }
+  for (const bay of [2, 4]) {
+    await page.click(`[data-bay-assign-undo-missing="${bay}"]`);
+    await page.waitForTimeout(150);
+  }
+  await page.waitForTimeout(150);  const s3 = await shot(page, `assign-partial-${width}.png`);
   await assertShotLooksLike(page, 'assign partial', ['.bay-assign-screen', '[data-bay-assign-photo="0"]']);
 
   await place(1, 2);
@@ -341,10 +349,11 @@ async function runViewport(browser, origin, width, bag) {
     throw new Error(`Add-bay override missing bay 5: ${JSON.stringify(addBody)}`);
   }
 
+  if (bag.nativeDialogs.length) throw new Error(`native dialog opened: ${JSON.stringify(bag.nativeDialogs)}`);
   await context.close();
   return {
     width,
-    screenshots: [s1, s2, s3, s4],
+    screenshots: [s1, s2, s2b, s3, s4],
     missBody,
     addBody,
     uploads: bag.uploads.slice(),

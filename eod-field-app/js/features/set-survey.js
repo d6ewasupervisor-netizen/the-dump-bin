@@ -588,6 +588,7 @@
       pack: { photos: [] },
       uploading: false,
       bayOverride: null,
+      pendingClearConfirm: null,
     };
     const AssignLogic = () => global.EodBayAssignLogic;
     let liveCameraOpen = false;
@@ -1149,8 +1150,23 @@
       };
       const active = activeBays();
       const missing = new Set((ov.missingBays || []).map(Number));
+      const pending = local.pendingClearConfirm;
+      const clearBanner = pending
+        ? `<div class="bay-assign-replace" data-bay-clear-confirm>
+             <p>Bay ${pending.bay} already has a photo.</p>
+             <div class="btn-row">
+               <button type="button" class="btn btn-primary" data-bay-clear-yes>${
+                 pending.source === 'server'
+                   ? 'Clear and mark not in store'
+                   : 'Mark not in store and clear'
+               }</button>
+               <button type="button" class="btn btn-secondary" data-bay-clear-no>Cancel</button>
+             </div>
+           </div>`
+        : '';
       el.hidden = false;
       el.innerHTML = `
+        ${clearBanner}
         <div class="set-bay-count-head">
           <strong>Bays in store: ${active.length}</strong>
           <button type="button" class="btn btn-secondary" data-bay-add>Add a bay</button>
@@ -1171,6 +1187,20 @@
               <button type="button" class="btn btn-secondary" data-bay-restore="${b}">Restore</button>
             </div>`).join('')}
         </div>`;
+      el.querySelector('[data-bay-clear-yes]')?.addEventListener('click', async () => {
+        const req = local.pendingClearConfirm;
+        local.pendingClearConfirm = null;
+        if (!req) return;
+        if (req.source === 'server' && req.patch) {
+          await saveBayOverride({ ...req.patch, confirmClearPhotos: true });
+          return;
+        }
+        await applyMarkMissingBay(req.bay, { confirmClearPhotos: true });
+      });
+      el.querySelector('[data-bay-clear-no]')?.addEventListener('click', () => {
+        local.pendingClearConfirm = null;
+        paintBayCountControl();
+      });
       el.querySelector('[data-bay-add]')?.addEventListener('click', async () => {
         const next = A.addBay({
           baseCount: ov.oldCount || base,
@@ -1197,39 +1227,11 @@
             && j.status !== 'superseded'
           );
           if (hasLocal || hasJob) {
-            const ok = global.confirm
-              ? global.confirm(`Bay ${bay} already has a photo. Mark not in store and clear it?`)
-              : true;
-            if (!ok) return;
+            local.pendingClearConfirm = { bay, source: 'local' };
+            paintBayCountControl();
+            return;
           }
-          const next = A.markMissing({
-            baseCount: ov.oldCount || base,
-            missingBays: ov.missingBays,
-            addedBays: ov.addedBays,
-            bay,
-          });
-          await saveBayOverride({
-            oldCount: ov.oldCount || base,
-            newCount: next.newCount,
-            missingBays: next.missingBays,
-            addedBays: next.addedBays,
-            confirmClearPhotos: !!(hasLocal || hasJob),
-          });
-          if (hasLocal || hasJob) {
-            local.after = (local.after || []).filter((p) => Number(p.bay) !== bay);
-            local.before = (local.before || []).filter((p) => Number(p.bay) !== bay);
-            try {
-              for (const job of (global.EodPhotoPipeline?.listJobs?.() || [])) {
-                if (job.kind !== 'set') continue;
-                if (String(job.dbkey || '') !== String(dbkey)) continue;
-                if (Number(job.bay) !== bay) continue;
-                global.EodPhotoPipeline?.cancelJob?.(job.id)
-                  || global.EodPhotoPipeline?.removeJob?.(job.id)
-                  || (job.status = 'superseded');
-              }
-            } catch (_) { /* best-effort */ }
-            paintBody();
-          }
+          await applyMarkMissingBay(bay, { confirmClearPhotos: false });
         });
       });
       el.querySelectorAll('[data-bay-remove-added]').forEach((btn) => {
@@ -1268,6 +1270,45 @@
       });
     }
 
+    async function applyMarkMissingBay(bay, { confirmClearPhotos }) {
+      const A = AssignLogic();
+      if (!A) return;
+      const base = baseBayCount();
+      const ov = local.bayOverride || {
+        oldCount: base,
+        missingBays: [],
+        addedBays: [],
+      };
+      const next = A.markMissing({
+        baseCount: ov.oldCount || base,
+        missingBays: ov.missingBays,
+        addedBays: ov.addedBays,
+        bay,
+      });
+      await saveBayOverride({
+        oldCount: ov.oldCount || base,
+        newCount: next.newCount,
+        missingBays: next.missingBays,
+        addedBays: next.addedBays,
+        confirmClearPhotos: !!confirmClearPhotos,
+      });
+      if (confirmClearPhotos) {
+        local.after = (local.after || []).filter((p) => Number(p.bay) !== bay);
+        local.before = (local.before || []).filter((p) => Number(p.bay) !== bay);
+        try {
+          for (const job of (global.EodPhotoPipeline?.listJobs?.() || [])) {
+            if (job.kind !== 'set') continue;
+            if (String(job.dbkey || '') !== String(dbkey)) continue;
+            if (Number(job.bay) !== bay) continue;
+            global.EodPhotoPipeline?.cancelJob?.(job.id)
+              || global.EodPhotoPipeline?.removeJob?.(job.id)
+              || (job.status = 'superseded');
+          }
+        } catch (_) { /* best-effort */ }
+        paintBody();
+      }
+    }
+
     async function saveBayOverride(patch) {
       const S = global.EodSession;
       local.bayOverride = {
@@ -1295,11 +1336,16 @@
         });
         const data = await res.json().catch(() => ({}));
         if (res.status === 409 && data.code === 'bay_has_photo') {
-          const ok = global.confirm
-            ? global.confirm(`Bay already has a photo on the server. Clear it and mark not in store?`)
-            : true;
-          if (!ok) throw new Error(data.error || 'Bay has a photo');
-          return saveBayOverride({ ...patch, confirmClearPhotos: true });
+          const bay = Number((patch.missingBays || []).find((b) =>
+            !(local.bayOverride?.missingBays || []).map(Number).includes(Number(b))
+          )) || Number((patch.missingBays || [])[0]) || 0;
+          local.pendingClearConfirm = {
+            bay,
+            source: 'server',
+            patch,
+          };
+          paintBayCountControl();
+          return;
         }
         if (!res.ok || data.ok === false) throw new Error(data.error || res.statusText);
         if (data.override) local.bayOverride = data.override;
@@ -1840,22 +1886,16 @@
         missingBays: [...(local.bayOverride?.missingBays || [])],
         title: `${catName || 'Set'} · ${slot === 'before' ? 'Before' : 'After'}`,
         onMarkMissing: async (bay) => {
-          const A = AssignLogic();
-          if (!A) return;
-          const base = baseBayCount();
-          const ov = local.bayOverride || { oldCount: base, missingBays: [], addedBays: [] };
-          const next = A.markMissing({
-            baseCount: ov.oldCount || base,
-            missingBays: ov.missingBays,
-            addedBays: ov.addedBays,
-            bay,
-          });
-          await saveBayOverride({
-            oldCount: ov.oldCount || base,
-            newCount: next.newCount,
-            missingBays: next.missingBays,
-            addedBays: next.addedBays,
-          });
+          const hasLocal = (local.after || []).some((p) => Number(p.bay) === bay)
+            || (local.before || []).some((p) => Number(p.bay) === bay);
+          const hasJob = (global.EodPhotoPipeline?.listJobs?.() || []).some((j) =>
+            j.kind === 'set'
+            && String(j.dbkey || '') === String(dbkey)
+            && Number(j.bay) === bay
+            && j.status !== 'failed'
+            && j.status !== 'superseded'
+          );
+          await applyMarkMissingBay(bay, { confirmClearPhotos: !!(hasLocal || hasJob) });
         },
         onUnmarkMissing: async (bay) => {
           const A = AssignLogic();

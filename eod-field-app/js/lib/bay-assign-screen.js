@@ -54,6 +54,7 @@
     }
     let selectedPhoto = files.length === 1 ? 0 : null;
     let pendingReplace = null;
+    let pendingClearMissing = null;
     const thumbUrls = files.map((f) => {
       try { return URL.createObjectURL(f); } catch (_) { return ''; }
     });
@@ -116,6 +117,15 @@
                </div>
              </div>`
           : '';
+        const clearMissingBanner = pendingClearMissing
+          ? `<div class="bay-assign-replace" data-bay-assign-clear-missing>
+               <p>Bay ${pendingClearMissing.bay} already has a photo.</p>
+               <div class="btn-row">
+                 <button type="button" class="btn btn-primary" data-bay-assign-clear-missing-yes>Mark not in store and clear</button>
+                 <button type="button" class="btn btn-secondary" data-bay-assign-clear-missing-no>Cancel</button>
+               </div>
+             </div>`
+          : '';
         const bayTiles = displayBayList().map(({ bay: b, missing }) => {
           const who = occupiedMap[b];
           const filled = who != null;
@@ -131,7 +141,7 @@
             <span class="muted">${caption}</span>
             ${missing
               ? `<button type="button" class="btn btn-secondary" data-bay-assign-undo-missing="${b}">Undo</button>`
-              : (!filled && !occ && opts.allowMarkMissing !== false
+              : (opts.allowMarkMissing !== false
                 ? `<button type="button" class="btn btn-secondary" data-bay-assign-mark-missing="${b}">Not in store</button>`
                 : '')}
           </div>`;
@@ -144,6 +154,7 @@
               <button type="button" class="btn btn-secondary" data-bay-assign-cancel>Back</button>
             </header>
             ${replaceBanner}
+            ${clearMissingBanner}
             <p class="muted bay-assign-hint">Tap a photo, then a bay. Confirm when every bay has a photo or is marked not in store. Leave empty bays for the camera if you still need to shoot them.</p>
             <div class="bay-assign-photos" role="list">
               ${files.map((f, i) => {
@@ -233,23 +244,43 @@
             paint();
           };
         }
+        async function applyMarkMissing(bay) {
+          if (!missingBays.includes(bay)) missingBays = [...missingBays, bay].sort((a, b) => a - b);
+          for (const [idx, b] of Object.entries(assignments)) {
+            if (Number(b) === bay) {
+              const cleared = L.clearPhoto({ assignments, occupied: occupiedMap, photoIdx: Number(idx) });
+              assignments = cleared.assignments;
+              occupiedMap = cleared.occupied;
+            }
+          }
+          if (typeof opts.onMarkMissing === 'function') await opts.onMarkMissing(bay);
+          pendingClearMissing = null;
+          paint();
+        }
         root.querySelectorAll('[data-bay-assign-mark-missing]').forEach((btn) => {
           btn.onclick = async (ev) => {
             ev.stopPropagation();
             const bay = Number(btn.getAttribute('data-bay-assign-mark-missing'));
-            if (!missingBays.includes(bay)) missingBays = [...missingBays, bay].sort((a, b) => a - b);
-            // Drop a placement on that bay if any.
-            for (const [idx, b] of Object.entries(assignments)) {
-              if (Number(b) === bay) {
-                const cleared = L.clearPhoto({ assignments, occupied: occupiedMap, photoIdx: Number(idx) });
-                assignments = cleared.assignments;
-                occupiedMap = cleared.occupied;
-              }
+            const hasPhoto = occupiedMap[bay] != null || occupied.has(bay);
+            if (hasPhoto) {
+              pendingReplace = null;
+              pendingClearMissing = { bay };
+              paint();
+              return;
             }
-            if (typeof opts.onMarkMissing === 'function') await opts.onMarkMissing(bay);
-            paint();
+            await applyMarkMissing(bay);
           };
         });
+        const clearYes = root.querySelector('[data-bay-assign-clear-missing-yes]');
+        const clearNo = root.querySelector('[data-bay-assign-clear-missing-no]');
+        if (clearYes && pendingClearMissing) {
+          clearYes.onclick = async () => {
+            await applyMarkMissing(pendingClearMissing.bay);
+          };
+        }
+        if (clearNo) {
+          clearNo.onclick = () => { pendingClearMissing = null; paint(); };
+        }
         root.querySelectorAll('[data-bay-assign-undo-missing]').forEach((btn) => {
           btn.onclick = async (ev) => {
             ev.stopPropagation();

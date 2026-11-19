@@ -101,4 +101,52 @@ if (JSDOM) {
     const result = await p;
     assert.equal(result.cancelled, true);
   });
+
+  test('mark not in store on a filled bay uses in-screen clear confirm (no window.confirm)', async () => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://127.0.0.1/' });
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.URL = dom.window.URL;
+    let confirmCalls = 0;
+    global.window.confirm = () => { confirmCalls += 1; return false; };
+    global.confirm = global.window.confirm;
+    global.File = class File {
+      constructor(bits, name, opts) { this.name = name; this.type = opts?.type; this._bits = bits; }
+    };
+    global.EodBayAssignLogic = assign;
+    delete require.cache[require.resolve('../js/lib/bay-assign-screen')];
+    const screen = require('../js/lib/bay-assign-screen');
+    const files = [
+      new File([Buffer.from('a')], 'a.jpg', { type: 'image/jpeg' }),
+      new File([Buffer.from('b')], 'b.jpg', { type: 'image/jpeg' }),
+    ];
+    let marked = null;
+    const p = screen.open({
+      files,
+      requiredBays: [1, 2],
+      occupiedBays: [],
+      mount: document.body,
+      onMarkMissing: (bay) => { marked = bay; },
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    document.querySelector('[data-bay-assign-photo="0"]')?.click();
+    await new Promise((r) => setTimeout(r, 10));
+    document.querySelector('[data-bay-assign-bay="1"]')?.click();
+    await new Promise((r) => setTimeout(r, 10));
+    document.querySelector('[data-bay-assign-mark-missing="1"]')?.click();
+    await new Promise((r) => setTimeout(r, 10));
+    assert.ok(document.querySelector('[data-bay-assign-clear-missing]'), 'in-screen clear banner');
+    assert.match(
+      document.querySelector('[data-bay-assign-clear-missing] p')?.textContent || '',
+      /Bay 1 already has a photo/
+    );
+    assert.equal(confirmCalls, 0);
+    assert.equal(marked, null);
+    document.querySelector('[data-bay-assign-clear-missing-yes]')?.click();
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(marked, 1);
+    assert.equal(confirmCalls, 0);
+    document.querySelector('[data-bay-assign-cancel]')?.click();
+    await p;
+  });
 }
