@@ -106,11 +106,10 @@ test('set-survey routes every count decision through the shared rules', () => {
   assert.match(autoClose.slice(0, 400), /const n = knownBayCount\(\);\s*\n\s*if \(!n\) return null;/);
 
   // Capture must not stop early on an unknown count.
-  assert.match(survey, /if \(fromOne\) return !total \|\| sessionBay < total;/);
+  assert.match(survey, /if \(!knownBayCount\(\)\) return true;/);
 
-  // After extras must not wrap onto bay 1 of the open set.
-  assert.match(survey, /String\(slot\) === 'after' && !replacing/);
-  assert.match(survey, /if \(!bay\) return null;/);
+  // A full set never wraps onto bay 1 or moves to bay N+1: it says so.
+  assert.match(survey, /if \(!bay\) return \{ toast: BayLogic\(\)\.allTakenMessage\(total\) \};/);
   assert.match(survey, /incoming\.length === 0 && prev\.length > 0 && keepBays\.size === 0/);
   assert.match(survey, /destroyLeftoverCameras/);
 

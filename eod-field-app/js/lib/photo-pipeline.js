@@ -125,6 +125,7 @@
       siStatus: job.siStatus || null,
       skipProd: !!job.skipProd,
       skipSi: !!job.skipSi,
+      holdUpload: !!job.holdUpload,
       bytes: job.bytes || null,
       checksum: job.checksum || null,
       serverJobId: job.serverJobId || null,
@@ -389,6 +390,7 @@
       siStatus: job.siStatus || null,
       skipProd: !!job.skipProd,
       skipSi: !!job.skipSi,
+      holdUpload: !!job.holdUpload,
       force: !!job.force,
       replace: !!job.replace,
       replaceWipe: !!job.replaceWipe,
@@ -1448,6 +1450,7 @@
       const ready = [...jobs.values()].filter((j) =>
         j.status === 'compressed'
         && (j.dataUrl || j.blob)
+        && !j.holdUpload
         && (!j.nextRetryAt || j.nextRetryAt <= Date.now())
       );
       const uploadingReplace = new Set(
@@ -1537,6 +1540,9 @@
       skipUpload: !!opts.skipUpload,
       skipProd: !!opts.skipProd,
       skipSi: !!opts.skipSi,
+      /* Compressed and kept on the phone, but not sent anywhere until the
+         set's bay count is known (releaseHeld). */
+      holdUpload: !!opts.holdUpload,
       force: false,
       replace: !!opts.replace,
       replaceWipe: !!opts.replaceWipe,
@@ -1562,6 +1568,32 @@
     const pub = publicJob(job);
     pub.ready = saved;
     return pub;
+  }
+
+  /* The bay count for a set is now known: let its held photos upload, stamped
+     with that count so the server never has to guess it. */
+  function releaseHeld(dbkey, patch = {}) {
+    const want = Logic.normalizeDbkey
+      ? Logic.normalizeDbkey(dbkey)
+      : String(dbkey || '').replace(/\D/g, '').replace(/^0+/, '');
+    let released = 0;
+    for (const job of jobs.values()) {
+      if (job.kind !== 'set' || !job.holdUpload || isSuperseded(job)) continue;
+      const got = Logic.normalizeDbkey
+        ? Logic.normalizeDbkey(job.dbkey)
+        : String(job.dbkey || '').replace(/\D/g, '').replace(/^0+/, '');
+      if (got !== want) continue;
+      job.holdUpload = false;
+      if (patch.expectedBayCount) job.expectedBayCount = Number(patch.expectedBayCount) || null;
+      job.updatedAt = Date.now();
+      released += 1;
+      persistJobRecord(job).catch(() => {});
+    }
+    if (released) {
+      persist();
+      schedulePump();
+    }
+    return released;
   }
 
   async function enqueueCapture(opts) {
@@ -2062,6 +2094,7 @@
     stalledCounts,
     listJobs,
     jobsForSet,
+    releaseHeld,
     statusLabel,
     pendingCounts,
     onChange,

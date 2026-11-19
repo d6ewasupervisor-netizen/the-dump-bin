@@ -1,5 +1,7 @@
 # Roadmap
 
+- Field app 3.5.46 (branch fix/bay-count-live, 2026-11-19): fixes the lost bays 2-5 on a set with no bay count and the 412 on every bay-count save. Publish needs Tyson's go, then field phones update on next open. Before publishing, remove or hold the test photo on store 31 dbkey 9693669 (job 87ac479c-092e-4775-b50d-d85cca51871f).
+
 - Period 11 coverage card (2026-11-08): Central Pet section, `data-card="cp-coverage"`, opens `/central-pet/?to=coverage`. Hidden until `/api/me` lists that id.
 
 - Employee Board v2.30 is the lease wording. Show what will change needs the matching eod-api deploy.

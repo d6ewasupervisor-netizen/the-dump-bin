@@ -563,8 +563,15 @@
     return { wanted: imgs.length, loaded };
   }
 
+  /* A set SI has no planogram for answers 404 every time. Remember that for a
+     few minutes so the phone does not ask again each time the set is painted. */
+  const noBoardUntil = new Map();
+  const NO_BOARD_MS = 10 * 60 * 1000;
+
   async function fetchBoard({ store, date, dbkey }) {
     const key = boardKey({ store, date, dbkey });
+    const gone = noBoardUntil.get(key);
+    if (gone && gone > Date.now()) return null;
     if (boardMem.has(key)) {
       const hit = boardMem.get(key);
       if (hit && typeof hit.then !== 'function' && hit?.bays?.length) return hit;
@@ -578,6 +585,11 @@
       const url = `${API}/planogram?${qs}`;
       const resp = await global.authFetch(url, { skipBusy: true, timeoutMs: 90000 });
       const data = await resp.json().catch(() => ({}));
+      if (resp.status === 404 || /No SI planogram/i.test(String(data.error || ''))) {
+        // Not an error: this set has no planogram.
+        noBoardUntil.set(key, Date.now() + NO_BOARD_MS);
+        return null;
+      }
       if (!resp.ok) throw new Error(data.error || `Planogram failed (${resp.status})`);
       if (data.planogram) {
         try { global.EodStoreProdWarm?.putPlanogram?.(dbkey, data.planogram); } catch (_) {}

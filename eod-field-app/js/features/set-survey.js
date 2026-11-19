@@ -547,7 +547,16 @@
     const catNum = qp.get('cat') || '';
     const pageBucket = String(qp.get('bucket') || '').toLowerCase();
     const meatPusherSet = pageBucket === 'meat-pusher';
-    const skipSiForSet = (slot) => slot === 'before' || meatPusherSet;
+    /* Store Intelligence takes after photos for sets it has a task for. A set
+       SI has said it does not have (Meat Pusher, no task) goes to PROD only.
+       "unknown" / "not checked" is not absent: a thin status must not turn SI
+       off for a set that has a task. */
+    const siAbsentForSet = () => {
+      const si = local.status?.si;
+      if (!si || si.present || si.taskId) return false;
+      return ['not_found', 'absent', 'no task'].includes(String(si.status || '').trim().toLowerCase());
+    };
+    const skipSiForSet = (slot) => slot === 'before' || meatPusherSet || siAbsentForSet();
     const preferSlot = String(qp.get('slot') || 'after').toLowerCase() === 'before' ? 'before' : 'after';
     const autoCapture = qp.get('capture') === '1';
 
@@ -904,7 +913,21 @@
           addedBays: ov.addedBays,
         });
       }
-      const n = knownBayCount() || displayBayCount();
+      /* No count and no override: no list. The camera and the picker read an
+         empty list as "unknown, take the next free bay" instead of a cap of 1
+         (the old fallback drew one bay, so bays 2-5 were refused while the
+         camera kept announcing them). */
+      const n = knownBayCount();
+      if (!n) return [];
+      return Array.from({ length: n }, (_, i) => i + 1);
+    }
+
+    /* The bays to draw. With a known count these are the active bays; with
+       none, every bay that holds a photo, so nothing taken is ever hidden. */
+    function drawBays() {
+      const active = activeBays();
+      if (active.length) return active;
+      const n = displayBayCount();
       return Array.from({ length: n }, (_, i) => i + 1);
     }
 
@@ -925,7 +948,7 @@
       const fromStatus = local.status?.bays || [];
       const byBay = new Map(fromStatus.map((b) => [Number(b.bay), b]));
       const missing = new Set((local.bayOverride?.missingBays || []).map(Number));
-      return activeBays().map((i) => {
+      return drawBays().map((i) => {
         const row = byBay.get(i) || { bay: i, bayName: String(i), hasPhoto: false };
         return { ...row, bay: i, missing: missing.has(i) };
       });
@@ -991,20 +1014,6 @@
         if (!taken.has(Number(b.bay))) return Number(b.bay);
       }
       return null;
-    }
-
-    /** Loaded files replace PROD in bay order, 1 … N. */
-    function assignBaysForReplace(fileCount) {
-      return BayLogic().planReplaceBays({ known: knownBayCount(), fileCount });
-    }
-
-    /** First file ? first empty bay (or bay 1); last of a full batch ? last bay. */
-    function assignBaysForFiles(slot, fileCount) {
-      return BayLogic().planFileBays({
-        known: knownBayCount(),
-        taken: takenBays(slot),
-        fileCount,
-      });
     }
 
     function afterCached() {
@@ -1141,6 +1150,11 @@
         el.hidden = true;
         return;
       }
+      if (!knownBayCount()) {
+        el.hidden = false;
+        el.innerHTML = '<div class="set-bay-count-head"><strong>Bay count not known</strong></div>';
+        return;
+      }
       const base = baseBayCount();
       const ov = local.bayOverride || {
         oldCount: base,
@@ -1272,7 +1286,7 @@
 
     async function applyMarkMissingBay(bay, { confirmClearPhotos }) {
       const A = AssignLogic();
-      if (!A) return;
+      if (!A) return false;
       const base = baseBayCount();
       const ov = local.bayOverride || {
         oldCount: base,
@@ -1285,13 +1299,14 @@
         addedBays: ov.addedBays,
         bay,
       });
-      await saveBayOverride({
+      const saved = await saveBayOverride({
         oldCount: ov.oldCount || base,
         newCount: next.newCount,
         missingBays: next.missingBays,
         addedBays: next.addedBays,
         confirmClearPhotos: !!confirmClearPhotos,
       });
+      if (!saved) return false;
       if (confirmClearPhotos) {
         local.after = (local.after || []).filter((p) => Number(p.bay) !== bay);
         local.before = (local.before || []).filter((p) => Number(p.bay) !== bay);
@@ -1307,20 +1322,20 @@
         } catch (_) { /* best-effort */ }
         paintBody();
       }
+      return true;
     }
 
+    /* Save a bay-count change. The new count shows only after the server has
+       it. A failed save says so and leaves the old count on screen.
+       Resolves true when saved. */
     async function saveBayOverride(patch) {
       const S = global.EodSession;
-      local.bayOverride = {
-        ...(local.bayOverride || {}),
-        ...patch,
-      };
-      paintBayCountControl();
-      paintBody();
       try {
         const res = await global.authFetch(`${API}/bay-override`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          /* The server gates this route on the day-confirm token
+             (requireDayConfirm). Without X-Day-Confirm every save is a 412. */
+          headers: global.EodApi.dayConfirmHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             storeNumber: S.state.storeNumber,
             workDate: S.state.workDate,
@@ -1345,20 +1360,33 @@
             patch,
           };
           paintBayCountControl();
-          return;
+          return false;
         }
-        if (!res.ok || data.ok === false) throw new Error(data.error || res.statusText);
-        if (data.override) local.bayOverride = data.override;
+        if (!res.ok || data.ok === false) {
+          const why = res.status === 412
+            ? "today's store is not confirmed on this phone"
+            : (data.error || res.statusText || `HTTP ${res.status}`);
+          throw new Error(why);
+        }
+        local.bayOverride = data.override || {
+          ...(local.bayOverride || {}),
+          ...patch,
+        };
+        setMsg('');
         paintBayCountControl();
         paintBody();
+        return true;
       } catch (err) {
-        setMsg(err.message || String(err), true);
+        setMsg(`Bay count not saved: ${err.message || String(err)}`, true);
+        paintBayCountControl();
+        return false;
       }
     }
 
     function paintStatus(status) {
       if (status) local.status = status;
       if (status?.bayOverride) local.bayOverride = status.bayOverride;
+      releaseHeldIfKnown();
       paintBayCountControl();
       const chips = document.getElementById('setStatusChips');
       if (!chips || !local.status) return;
@@ -1412,9 +1440,12 @@
       const taken = takenBays(slot);
       const bays = bayList();
       const have = [...taken].filter((b) => b >= 1 && b <= bays.length).length;
+      const countText = knownBayCount()
+        ? `${have} / ${bays.length} bays`
+        : `${have} photo${have === 1 ? '' : 's'}`;
       return `
-        <div class="set-bay-progress" aria-label="${have} of ${bays.length} bays">
-          <div class="set-bay-progress-label">${have} / ${bays.length} bays</div>
+        <div class="set-bay-progress" aria-label="${countText}">
+          <div class="set-bay-progress-label">${countText}</div>
           <div class="set-bay-dots">
             ${bays
               .map((b) => {
@@ -1687,23 +1718,53 @@
       return (Number(prod.afterCount) || 0) > 0 || (Number(local.status?.si?.sectionsWithPhoto) || 0) > 0;
     }
 
+    /* Capture controls for one slot. With a bay to fill: Take bay N (of the
+       count when it is known). With every bay filled: Add a bay for a real
+       extra bay, and Replace a photo to redo one chosen bay. Nothing else
+       replaces a photo. */
+    function captureButtons(slot, next, total) {
+      if (next != null) {
+        return `<button type="button" class="btn btn-primary" data-cap="${slot}">${
+          total ? `Take bay ${next} of ${total}` : `Take bay ${next}`
+        }</button>`;
+      }
+      const taken = total ? `<strong class="set-all-taken" data-all-taken="${slot}">${esc(BayLogic().allTakenMessage(total))}</strong>` : '';
+      return `${taken}
+            <button type="button" class="btn btn-primary" data-add-bay-cap="${slot}">Add a bay</button>
+            <button type="button" class="btn btn-secondary" data-replace-open="${slot}">Replace a photo</button>`;
+    }
+
+    function countAskHtml() {
+      const held = heldJobs();
+      if (knownBayCount() || !held.length) return '';
+      const floor = highestHeldOrTakenBay();
+      return `
+        <section class="set-photo-block set-count-ask" id="setCountAsk">
+          <h2>How many bays does this set have?</h2>
+          <div class="btn-row">
+            <input type="number" id="setCountAskInput" inputmode="numeric" min="${floor}" max="100" step="1" value="${floor}" aria-label="Bays in this set">
+            <button type="button" class="btn btn-primary" data-count-ask-save>Save bay count</button>
+          </div>
+        </section>`;
+    }
+
     function paintBody() {
       persistOpen();
+      releaseHeldIfKnown();
       if (liveCameraOpen) return;
-      const n = displayBayCount();
+      const total = knownBayCount();
       const body = document.getElementById('setSurveyBody');
       if (!body) return;
       const nextAfter = nextEmptyBay('after');
       const nextBefore = nextEmptyBay('before');
 
       body.innerHTML = `
+        ${countAskHtml()}
         <section class="set-photo-block">
           <h2>Before ${preferSlot === 'before' ? '<span class="pill warn">focus</span>' : ''}</h2>
           ${bayProgressHtml('before')}
           <div class="btn-row">
-            <button type="button" class="btn btn-primary" data-cap="before">${
-              nextBefore ? 'Take bay ' + nextBefore : 'Retake befores'
-            }</button>
+            ${captureButtons('before', nextBefore, total)}
             <label class="btn btn-secondary set-file-btn">Load photos
               <input type="file" accept="image/*" multiple data-gal="before" hidden>
             </label>
@@ -1715,15 +1776,15 @@
           <h2>After ${preferSlot === 'after' ? '<span class="pill warn">focus</span>' : ''}</h2>
           ${bayProgressHtml('after')}
           <div class="btn-row">
-            <button type="button" class="btn btn-primary" data-cap="after">${
-              nextAfter ? 'Take bay ' + nextAfter + ' of ' + n : 'Retake afters'
-            }</button>
+            ${captureButtons('after', nextAfter, total)}
             <label class="btn btn-secondary set-file-btn">Load photos
               <input type="file" accept="image/*" multiple data-gal="after" hidden>
             </label>
             ${slotHasPhotos('after') ? '<button type="button" class="btn btn-secondary" data-del-slot="after">Delete</button>' : ''}
           </div>
         </section>
+
+        <div class="bay-assign-replace" id="setReplacePanel" hidden></div>
 
         <div class="btn-row" style="margin-top:16px;flex-wrap:wrap;">
           <button type="button" class="btn btn-secondary" id="crossFillBtn">Pull from other system</button>
@@ -1755,6 +1816,13 @@
       body.querySelectorAll('[data-cap]').forEach((btn) => {
         btn.onclick = () => startSequentialCapture(btn.getAttribute('data-cap'));
       });
+      body.querySelectorAll('[data-add-bay-cap]').forEach((btn) => {
+        btn.onclick = () => addBayThenCapture(btn.getAttribute('data-add-bay-cap'));
+      });
+      body.querySelectorAll('[data-replace-open]').forEach((btn) => {
+        btn.onclick = () => openReplacePicker(btn.getAttribute('data-replace-open'));
+      });
+      body.querySelector('[data-count-ask-save]')?.addEventListener('click', () => answerBayCount());
       body.querySelectorAll('[data-gal]').forEach((input) => {
         input.onchange = async () => {
           const files = selectedFilesInOrder(input.files);
@@ -1794,81 +1862,172 @@
       });
     }
 
+    /* Live camera for one slot.
+
+       Known count: bays fill in order, the camera closes after the last bay
+       with "All N bays taken", and a bay past N exists only through Add a bay.
+       Unknown count: every shot is the next free bay (1, 2, 3 ...), nothing is
+       ever replaced, the camera stays open until Exit, and the photos stay on
+       the phone until the user says how many bays the set has.
+       Replace: opts.replaceBay is one explicit bay the user chose to redo. */
     function startSequentialCapture(slot, opts) {
-      const fromOne = !!(opts && opts.fromOne);
+      const replaceBay = Math.max(0, Number(opts && opts.replaceBay) || 0);
       const returnTo = opts && opts.returnTo;
-      const startBay = Math.max(1, Number(opts && opts.startBay) || 1);
-      const n = () => knownBayCount();
-      const replacing = !fromOne && nextEmptyBay(slot) == null;
-      const batchId = replacing ? (`r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) : null;
-      let wiped = false;
-      let sessionBay = startBay - 1;
+      const session = { shots: 0 };
+      if (!replaceBay && knownBayCount() && nextEmptyBay(slot) == null) {
+        // Every bay has its photo. A real extra bay goes through Add a bay.
+        setMsg(BayLogic().allTakenMessage(knownBayCount()));
+        if (returnTo !== 'signoff') paintBody();
+        return;
+      }
       liveCameraOpen = true;
       openLiveCamera({
-        loadLabel: replacing ? 'Load to replace' : 'Load photos',
+        loadLabel: replaceBay ? 'Load to replace' : 'Load photos',
         getLabel: () => {
-          const total = n();
+          const total = knownBayCount();
           const who = catName ? `${catName} · ` : '';
           const label = `${who}${slot === 'after' ? 'After' : 'Before'}`;
-          if (fromOne) {
-            const next = sessionBay + 1;
-            // Without a resolved count, show the bay being shot and no total
-            // rather than inventing one.
-            if (!total) return `${label} · Bay ${next}`;
-            if (next > total) return `${label} · ${total}/${total}`;
-            return `${label} · Bay ${next} of ${total}`;
-          }
+          if (replaceBay) return `${label} · Replace bay ${replaceBay}`;
           const next = nextEmptyBay(slot);
           const have = takenBays(slot).size;
-          if (!total) return next == null ? `${label} · ${have}` : `${label} · Bay ${next}`;
+          // Without a resolved count, show the bay being shot and no total
+          // rather than inventing one.
+          if (!total) return `${label} · Bay ${next}`;
           if (next == null) return `${label} · ${have}/${total}`;
           return `${label} · Bay ${next} of ${total} · ${have}/${total}`;
         },
-        /* Before: unknown count stays open until Exit (a fallback of 1 used
-           to close after the first shot). After: never wrap extras onto this
-           set. Store 19 Condiments ate 72 afters from later aisles that way. */
         shouldContinue: () => {
-          const total = n();
-          if (String(slot) === 'after') {
-            if (fromOne) return !total || sessionBay < total;
-            return nextEmptyBay(slot) != null;
-          }
-          if (fromOne) return !total || sessionBay < total;
-          return !total || nextEmptyBay(slot) != null;
+          if (replaceBay) return false;
+          if (!knownBayCount()) return true;
+          return nextEmptyBay(slot) != null;
         },
         onCapture: async (shot) => {
-          const total = n();
-          let bay;
-          if (fromOne) {
-            sessionBay += 1;
-            bay = sessionBay;
-          } else if (String(slot) === 'after' && !replacing) {
-            bay = nextEmptyBay(slot);
-            if (!bay) return null;
-          } else {
-            bay = nextEmptyBay(slot) || (replacing ? (wiped ? takenBays(slot).size + 1 : 1) : 1);
+          if (replaceBay) {
+            const kept = await enqueueLocal(slot, shot, replaceBay, {
+              replace: true, background: true, skipPaint: true,
+            });
+            if (kept) session.shots += 1;
+            return null;
           }
-          const enqueueOpts = replacing
-            ? { replace: true, replaceWipe: !wiped, replaceBatchId: batchId, background: true, skipPaint: true }
-            : { background: true, skipPaint: true };
-          if (replacing) wiped = true;
-          await enqueueLocal(slot, shot, bay, enqueueOpts);
-          const next = fromOne ? sessionBay + 1 : nextEmptyBay(slot);
-          if (next != null && (!total || next <= total)) return { toast: `Moving to bay ${next}` };
-          return null;
+          const total = knownBayCount();
+          const bay = nextEmptyBay(slot);
+          if (!bay) return { toast: BayLogic().allTakenMessage(total) };
+          const kept = await enqueueLocal(slot, shot, bay, {
+            background: true,
+            skipPaint: true,
+            holdUpload: !total,
+          });
+          if (!kept) return null;
+          session.shots += 1;
+          const next = nextEmptyBay(slot);
+          if (next == null) return { toast: BayLogic().allTakenMessage(total) };
+          return { toast: `Moving to bay ${next}` };
         },
         onLoadFiles: (files) => openAssignAndEnqueue(slot, selectedFilesInOrder(files)),
         onStop: () => {
           liveCameraOpen = false;
-          if (returnTo === 'signoff') {
+          const awaitingCount = !replaceBay && session.shots && !knownBayCount() && heldJobs().length > 0;
+          if (returnTo === 'signoff' && !awaitingCount) {
             try { unsubPipe?.(); } catch (_) {}
             try { unsubSetSafe?.(); } catch (_) {}
             global.EodRouter.go('signoff');
             return;
           }
           paintBody();
+          const total = knownBayCount();
+          if (!replaceBay && session.shots && total && nextEmptyBay(slot) == null) {
+            setMsg(BayLogic().allTakenMessage(total));
+          }
         },
       });
+    }
+
+    /* The bay-count question for a set that has photos on the phone but no
+       count. Nothing goes to PROD or Store Intelligence before it is answered. */
+    function heldJobs() {
+      return (global.EodPhotoPipeline?.jobsForSet?.(dbkey) || []).filter((j) =>
+        j.holdUpload && j.status !== 'done' && j.status !== 'failed' && j.status !== 'superseded');
+    }
+
+    function highestHeldOrTakenBay() {
+      return Math.max(
+        BayLogic().highestBay(takenBays('after')),
+        BayLogic().highestBay(takenBays('before')),
+        ...heldJobs().map((j) => Number(j.bay) || 0),
+        1
+      );
+    }
+
+    /* The count is known (SI resolved it, or the user answered): held photos go. */
+    function releaseHeldIfKnown() {
+      const known = knownBayCount();
+      if (!known || !heldJobs().length) return;
+      global.EodPhotoPipeline?.releaseHeld?.(dbkey, { expectedBayCount: known });
+    }
+
+    async function answerBayCount() {
+      const input = document.getElementById('setCountAskInput');
+      const n = Math.floor(Number(input && input.value));
+      const floor = highestHeldOrTakenBay();
+      if (!Number.isFinite(n) || n < floor || n > 100) {
+        setMsg(`Bay count must be a whole number from ${floor} to 100`, true);
+        return;
+      }
+      const saved = await saveBayOverride({
+        oldCount: n,
+        newCount: n,
+        missingBays: [],
+        addedBays: [],
+      });
+      if (!saved) return;
+      releaseHeldIfKnown();
+      paintBody();
+    }
+
+    async function addBayThenCapture(slot) {
+      const A = AssignLogic();
+      if (!A) return;
+      const base = baseBayCount();
+      const ov = local.bayOverride || { oldCount: base, missingBays: [], addedBays: [] };
+      const next = A.addBay({
+        baseCount: ov.oldCount || base,
+        missingBays: ov.missingBays,
+        addedBays: ov.addedBays,
+      });
+      const saved = await saveBayOverride({
+        oldCount: ov.oldCount || base,
+        newCount: next.newCount,
+        missingBays: next.missingBays,
+        addedBays: next.addedBays,
+      });
+      if (!saved) return;
+      startSequentialCapture(slot);
+    }
+
+    function openReplacePicker(slot) {
+      const panel = document.getElementById('setReplacePanel');
+      if (!panel) return;
+      const taken = [...takenBays(slot)].sort((a, b) => a - b);
+      panel.hidden = false;
+      panel.innerHTML = `
+        <p><strong>Replace which bay?</strong></p>
+        <div class="btn-row">
+          ${taken.map((b) => `<button type="button" class="btn btn-secondary" data-replace-bay="${b}" data-replace-slot="${esc(slot)}">Bay ${b}</button>`).join('')}
+          <button type="button" class="btn btn-secondary" data-replace-cancel>Cancel</button>
+        </div>`;
+      panel.querySelectorAll('[data-replace-bay]').forEach((btn) => {
+        btn.onclick = () => {
+          panel.hidden = true;
+          panel.innerHTML = '';
+          startSequentialCapture(btn.getAttribute('data-replace-slot'), {
+            replaceBay: Number(btn.getAttribute('data-replace-bay')),
+          });
+        };
+      });
+      panel.querySelector('[data-replace-cancel]').onclick = () => {
+        panel.hidden = true;
+        panel.innerHTML = '';
+      };
     }
 
     async function openAssignAndEnqueue(slot, files) {
@@ -1877,13 +2036,26 @@
         setMsg('Assign screen failed to load.', true);
         return;
       }
-      const required = activeBays();
       const taken = takenBays(slot);
+      const countUnknown = !knownBayCount();
+      /* No count: one bay per picked photo, on bays that are free. Nothing is
+         replaced, and the count is asked once the photos are placed. */
+      const required = countUnknown
+        ? BayLogic().freeBays({ taken, count: files.length })
+        : activeBays();
       const result = await screen.open({
         files,
         requiredBays: required,
         occupiedBays: [...taken],
         missingBays: [...(local.bayOverride?.missingBays || [])],
+        ...(countUnknown
+          ? {
+            allowMarkMissing: false,
+            allowAddBay: false,
+            allowLeaveForCamera: false,
+            readyText: 'Ready — Confirm to keep these photos',
+          }
+          : {}),
         title: `${catName || 'Set'} · ${slot === 'before' ? 'Before' : 'After'}`,
         onMarkMissing: async (bay) => {
           const hasLocal = (local.after || []).some((p) => Number(p.bay) === bay)
@@ -1895,7 +2067,7 @@
             && j.status !== 'failed'
             && j.status !== 'superseded'
           );
-          await applyMarkMissingBay(bay, { confirmClearPhotos: !!(hasLocal || hasJob) });
+          return applyMarkMissingBay(bay, { confirmClearPhotos: !!(hasLocal || hasJob) });
         },
         onUnmarkMissing: async (bay) => {
           const A = AssignLogic();
@@ -1908,7 +2080,7 @@
             addedBays: ov.addedBays,
             bay,
           });
-          await saveBayOverride({
+          return saveBayOverride({
             oldCount: ov.oldCount || base,
             newCount: next.newCount,
             missingBays: next.missingBays,
@@ -1925,13 +2097,13 @@
             missingBays: ov.missingBays,
             addedBays: ov.addedBays,
           });
-          await saveBayOverride({
+          const saved = await saveBayOverride({
             oldCount: ov.oldCount || base,
             newCount: next.newCount,
             missingBays: next.missingBays,
             addedBays: next.addedBays,
           });
-          return next.bay;
+          return saved ? next.bay : null;
         },
       });
       if (result.cancelled) {
@@ -1942,9 +2114,11 @@
       }
       const placements = result.placements || [];
       for (const p of placements) {
+        // The assign screen asked the user to confirm Replace on a taken bay.
         const already = taken.has(Number(p.bay));
-        await enqueueLocal(slot, p.file, p.bay, { replace: already });
+        await enqueueLocal(slot, p.file, p.bay, { replace: already, holdUpload: countUnknown });
       }
+      if (countUnknown && placements.length) paintBody();
       const left = Number(result.unassignedCount) || 0;
       if (result.leaveForCamera) {
         setMsg(placements.length
@@ -1955,26 +2129,6 @@
       setMsg(left
         ? `${placements.length} on device — ${left} left unassigned`
         : `${placements.length} on device`);
-    }
-
-    async function enqueueFiles(slot, files, opts) {
-      // Camera path still uses ordered enqueue; gallery goes through assign.
-      const replacing = !!(opts && opts.replace) || nextEmptyBay(slot) == null;
-      const bays = replacing
-        ? assignBaysForReplace(files.length)
-        : assignBaysForFiles(slot, files.length);
-      const used = Math.min(files.length, bays.length);
-      const batchId = replacing ? (`r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`) : null;
-      for (let i = 0; i < used; i += 1) {
-        await enqueueLocal(slot, files[i], bays[i], {
-          replace: replacing,
-          replaceWipe: replacing && i === 0,
-          replaceBatchId: batchId,
-        });
-      }
-      setMsg(replacing
-        ? `${used} on device — replacing PROD`
-        : `${used} on device`);
     }
 
     async function enqueueLocal(slot, fileOrShot, bayOverride, opts) {
@@ -1992,18 +2146,27 @@
       const bay = Number(bayOverride) || nextEmptyBay(slot) || 0;
       const cap = knownBayCount();
       const maxActive = Math.max(0, ...activeBays());
-      /* A full set used to fall through to bay 1 and overwrite it, and a
-         direct capture could push past the set's real bay count. */
+      /* A photo only lands on an empty bay. A full set used to fall through to
+         bay 1 and overwrite it, and a direct capture could push past the set's
+         real bay count. Replace is a separate, explicit choice on one bay. */
       const reason = BayLogic().refuseBayReason({
-        known: cap, bay, replacing: replacingBay, maxBay: maxActive,
+        known: cap,
+        bay,
+        replacing: replacingBay,
+        maxBay: maxActive,
+        occupied: takenBays(slot),
       });
       if (reason === 'full') {
         refuse(`Every bay already has a ${slot} photo. Use Replace to redo one.`);
-        return;
+        return false;
+      }
+      if (reason === 'exists') {
+        refuse(`Bay ${bay} already has a ${slot} photo. Choose Replace on that bay.`);
+        return false;
       }
       if (reason === 'over') {
         refuse(`This set has ${cap} bay${cap === 1 ? '' : 's'} — bay ${bay} was not added.`);
-        return;
+        return false;
       }
       const pipe = global.EodPhotoPipeline;
       if (!pipe?.enqueue) {
@@ -2020,7 +2183,7 @@
           else persistAfters();
           paintBody();
         });
-        return;
+        return true;
       }
 
       // Encoding the full-resolution capture just to draw a thumbnail held the
@@ -2072,6 +2235,7 @@
         replace: replacing,
         replaceWipe: !!(opts && opts.replaceWipe),
         replaceBatchId: opts?.replaceBatchId || null,
+        holdUpload: !!(opts && opts.holdUpload),
       };
       // Always await the IDB write before returning, regardless of background/camera mode.
       // This closes the capture-to-persist race: bytes must be on disk before the shutter
@@ -2092,9 +2256,15 @@
       if (slot === 'before') persistBefores();
       else persistAfters();
       if (!(opts && opts.skipPaint) && !liveCameraOpen) paintBody();
+      return true;
     }
 
     function loadPlanogram() {
+      // Meat Pusher sets are never in SI: no planogram to ask for.
+      if (meatPusherSet) {
+        setMediaReady('planogram', true);
+        return Promise.resolve();
+      }
       const opts = {
         store: S.state.storeNumber,
         date: S.state.workDate,
@@ -2213,11 +2383,7 @@
     paintBody();
     if (autoCapture && !listCaptureStarted) {
       listCaptureStarted = true;
-      startSequentialCapture(preferSlot, {
-        fromOne: true,
-        returnTo: 'signoff',
-        startBay: Math.max(1, Number(qp.get('bay')) || 1),
-      });
+      startSequentialCapture(preferSlot, { returnTo: 'signoff' });
     }
     void flushDevicePhotosToPipeline().then((n) => {
       if (n) {
