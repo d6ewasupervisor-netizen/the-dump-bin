@@ -87,7 +87,7 @@
           if (plan.unassignedCount) {
             return `Ready — ${plan.unassignedCount} photo${plan.unassignedCount === 1 ? '' : 's'} will be left out`;
           }
-          return opts.readyText || 'Ready — Confirm to upload';
+          return 'Ready — Confirm to upload';
         }
         const need = plan.missingRequired || [];
         if (need.length === 1) return `Bay ${need[0]} still needs a photo`;
@@ -183,7 +183,7 @@
                 ready
                   ? (plan.unassignedCount
                     ? `Ready — ${plan.unassignedCount} photo${plan.unassignedCount === 1 ? '' : 's'} will be left out`
-                    : (opts.readyText || 'Ready — Confirm to upload'))
+                    : 'Ready — Confirm to upload')
                   : statusText({ ...plan, missingRequired: stillNeed, ready: false })
               }</p>
               <button type="button" class="btn btn-primary${ready ? ' is-active' : ' is-locked'}" data-bay-assign-confirm ${ready ? '' : 'disabled'} aria-disabled="${ready ? 'false' : 'true'}">Confirm</button>

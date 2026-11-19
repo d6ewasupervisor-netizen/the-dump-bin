@@ -113,7 +113,7 @@ function statusFixture(override, mode = 'known4') {
     beforeCount: 0,
     afterCount: 0,
   };
-  if (mode === 'unknown') {
+  if (mode === 'unknown' || mode === 'thinpog') {
     return {
       ok: true,
       status: {
@@ -171,12 +171,13 @@ async function installApiMocks(page, bag) {
     if (p.includes('/api/field-set/planogram') && method === 'GET') {
       bag.planogramCalls = (bag.planogramCalls || 0) + 1;
       const noPog = bag.mode === 'unknown';
+      const fivePog = bag.mode === 'thinpog';
       return route.fulfill({
         status: noPog ? 404 : 200,
         contentType: 'application/json',
         body: JSON.stringify(noPog
           ? { ok: false, error: 'No SI planogram for dbkey ' + DBKEY2 + ' on 2026-11-19' }
-          : { ok: true, planogram: null }),
+          : { ok: true, planogram: fivePog ? { bays: [1, 2, 3, 4, 5].map((bay) => ({ bay, shelves: [] })) } : null }),
       });
     }
     if (p.includes('/api/field-set/bay-override') && method === 'PUT') {
@@ -546,6 +547,20 @@ async function setJobs(page) {
     .map((j) => ({ bay: j.bay, slot: j.slot, status: j.status, hold: !!j.holdUpload, replace: !!j.replace })), DBKEY2);
 }
 
+/* Put the Categories sheet row for the set in session state, with the SI bay
+   count the server synced onto it (live.sectionCount = si_location.bayCount). */
+async function seedSheet(page, bayCount) {
+  await page.evaluate(({ rowId, dbkey, n }) => {
+    window.EodSession.state.sheet = {
+      rows: [{
+        id: rowId,
+        dbkey,
+        live: { siPresent: true, siStatus: 'incomplete', sectionCount: n, siLocation: { bayCount: n }, prodBeforeCount: 0, prodAfterCount: 0 },
+      }],
+    };
+  }, { rowId: ROW_ID, dbkey: DBKEY2, n: bayCount });
+}
+
 async function waitUploads(bag, n, ms = 25000) {
   const deadline = Date.now() + ms;
   while (bag.uploads.length < n && Date.now() < deadline) await new Promise((r) => setTimeout(r, 250));
@@ -616,8 +631,9 @@ async function runCameraKnown(browser, origin, { capture }) {
   }
 }
 
-/* A set with no count: every shot is the next bay, nothing is replaced or
-   sent, and the count is asked at the end. */
+/* A set whose count the phone cannot get: every shot is the next bay, stored
+   and uploaded to the buffer at once, nothing replaced or refused. The count
+   is asked at the end and skipping it loses nothing. */
 async function runCameraUnknown(browser, origin, { capture }) {
   const bag = makeBag('unknown');
   const { context, page } = await openSurvey(browser, origin, bag, { hash: surveyHash({ capture }) });
@@ -632,53 +648,129 @@ async function runCameraUnknown(browser, origin, { capture }) {
       check(await shoot(page), `camera closed before shot ${i + 1}`);
     }
     check(!!(await page.$('.vf-live-camera')), 'an unknown-count camera stays open until Exit');
+    await waitUploads(bag, 5);
+    const bays = bag.uploads.map((u) => u.bay).sort((a, b) => a - b);
+    check(JSON.stringify(bays) === '[1,2,3,4,5]', `five uploads to the buffer on bays 1-5, got ${JSON.stringify(bag.uploads)}`);
+    check(bag.uploads.every((u) => !u.replace), 'no upload carries a replace flag');
+    const jobs = (await setJobs(page)).filter((j) => j.status !== 'superseded');
+    check(JSON.stringify(jobs.map((j) => j.bay).sort((a, b) => a - b)) === '[1,2,3,4,5]', `5 stored photos on bays 1-5, got ${JSON.stringify(jobs)}`);
     await page.click('.vf-live-camera [data-act="close"]');
     await page.waitForSelector('#setCountAsk', { timeout: 15000 });
-    const ask = await page.textContent('#setCountAsk');
-    check(/How many bays does this set have\?/.test(ask), `count question missing, got "${ask}"`);
-
-    const jobs = (await setJobs(page)).filter((j) => j.status !== 'superseded');
-    const bays = jobs.map((j) => j.bay).sort((a, b) => a - b);
-    check(JSON.stringify(bays) === '[1,2,3,4,5]', `5 photos on bays 1-5 expected, got ${JSON.stringify(jobs)}`);
-    check(jobs.every((j) => j.hold && !j.replace), `every photo is held and none replaces: ${JSON.stringify(jobs)}`);
+    check(/How many bays does this set have\?/.test(await page.textContent('#setCountAsk')), 'count question missing');
     const dots = await page.$$eval('.set-bay-dot.filled', (els) => els.length);
-    check(dots === 5, `set view shows every photo taken (5 filled bays), got ${dots}`);
-    await new Promise((r) => setTimeout(r, 2500));
-    check(bag.uploads.length === 0, `nothing is sent before the count is given, got ${JSON.stringify(bag.uploads)}`);
+    check(dots === 5, `the set shows every photo taken (5 filled bays), got ${dots}`);
 
-    // A failed save says so, keeps the question, and sends nothing.
+    // A failed save says so, keeps the question and the old (unknown) count.
     bag.failOverride = true;
     await page.fill('#setCountAskInput', '5');
     await page.click('[data-count-ask-save]');
     await page.waitForFunction(() => /Bay count not saved/.test(document.getElementById('setSurveyMsg')?.textContent || ''), { timeout: 15000 });
     check(!!(await page.$('#setCountAsk')), 'the question stays after a failed save');
     check(/Bay count not known/.test((await page.textContent('#setBayCountControl')) || ''), 'the old (unknown) count stays on screen');
-    await new Promise((r) => setTimeout(r, 1500));
-    check(bag.uploads.length === 0, 'nothing is sent after a failed save');
 
-    // The save works through the real gate; held photos then go with the count.
+    // The save goes through the real gate.
     bag.failOverride = false;
     await page.click('[data-count-ask-save]');
     await page.waitForFunction(() => !document.getElementById('setCountAsk'), { timeout: 15000 });
-    await waitUploads(bag, 5);
-    const sent = bag.uploads.map((u) => u.bay).sort((a, b) => a - b);
-    check(JSON.stringify(sent) === '[1,2,3,4,5]', `after the count, bays 1-5 upload once each, got ${JSON.stringify(sent)}`);
-    check(bag.uploads.every((u) => Number(u.expectedBayCount) === 5), `uploads carry the answered count: ${JSON.stringify(bag.uploads)}`);
     check(bag.gateResults.includes('pass'), `real gate passed the save: ${JSON.stringify(bag.gateResults)}`);
+    const last = bag.overrides[bag.overrides.length - 1];
+    check(last && last.newCount === 5, `saved count 5, got ${JSON.stringify(last)}`);
+    check(/5 bays/.test((await page.textContent('[data-bay-total]')) || ''), 'the set shows 5 bays');
+    check(bag.uploads.length === 5, `answering uploads nothing new, got ${bag.uploads.length}`);
     check(!bag.nativeDialogs.length, `native dialog opened: ${JSON.stringify(bag.nativeDialogs)}`);
-    return { scenario: `camera-unknown${capture ? '-list' : ''}`, uploadBays: sent };
+    return { scenario: `camera-unknown${capture ? '-list' : ''}`, uploadBays: bays };
   } finally {
     await context.close();
   }
 }
 
-/* Device pick on a set with no count: one bay per picked photo, nothing
-   replaced, the count asked after. A set SI has no planogram for opens clean. */
+/* Skipping the count question loses nothing. */
+async function runCountSkip(browser, origin) {
+  const bag = makeBag('unknown');
+  const { context, page } = await openSurvey(browser, origin, bag, { hash: surveyHash() });
+  try {
+    await page.click('[data-cap="after"]');
+    await waitForCamera(page);
+    for (let i = 0; i < 2; i += 1) check(await shoot(page), 'camera closed early');
+    await page.click('.vf-live-camera [data-act="close"]');
+    await page.waitForSelector('#setCountAsk', { timeout: 15000 });
+    await page.click('[data-count-ask-skip]');
+    await page.waitForFunction(() => !document.getElementById('setCountAsk'), { timeout: 10000 });
+    await waitUploads(bag, 2);
+    check(JSON.stringify(bag.uploads.map((u) => u.bay).sort()) === '[1,2]', `both photos uploaded, got ${JSON.stringify(bag.uploads)}`);
+    check(!bag.overrides.length, 'skipping saves no override');
+    return { scenario: 'count-skip' };
+  } finally {
+    await context.close();
+  }
+}
+
+/* The sheet row knows the SI bay count; /status comes back thin. The thin
+   status must not erase it: the camera keeps "of 5", stops at five, and every
+   upload carries 5. This is the store 31 dbkey 9693669 case. */
+async function runThinStatusSheetCount(browser, origin) {
+  const bag = makeBag('unknown');
+  const { context, page } = await openSurvey(browser, origin, bag, { hash: surveyHash() });
+  try {
+    await seedSheet(page, 5);
+    await page.evaluate((hash) => { window.location.hash = hash; }, surveyHash({ capture: true }).slice(1));
+    await waitForCamera(page);
+    // Let the thin /status land while the camera is open.
+    await new Promise((r) => setTimeout(r, 1500));
+    const hud = await page.textContent('[data-hud]');
+    check(/Bay 1 of 5/.test(hud), `a thin status must not erase the sheet's count, HUD "${hud}"`);
+    let pressed = 0;
+    for (let i = 0; i < 6; i += 1) {
+      if (!(await shoot(page))) break;
+      pressed += 1;
+    }
+    check(pressed === 5, `camera stops at five shots, got ${pressed}`);
+    await page.waitForFunction(() => document.body.dataset.route === 'signoff', { timeout: 15000 });
+    await waitUploads(bag, 5);
+    const bays = bag.uploads.map((u) => u.bay).sort((a, b) => a - b);
+    check(JSON.stringify(bays) === '[1,2,3,4,5]', `bays 1-5 once each, got ${JSON.stringify(bag.uploads)}`);
+    check(bag.uploads.every((u) => Number(u.expectedBayCount) === 5), `uploads carry the count 5: ${JSON.stringify(bag.uploads)}`);
+    return { scenario: 'thin-status-sheet-count', uploadBays: bays };
+  } finally {
+    await context.close();
+  }
+}
+
+/* No count from /status or the sheet, but the SI planogram has five bays: the
+   phone fetches it and waits before the camera opens. */
+async function runThinStatusPlanogramCount(browser, origin) {
+  const bag = makeBag('thinpog');
+  const { context, page } = await openSurvey(browser, origin, bag, { hash: surveyHash() });
+  try {
+    await page.click('[data-cap="after"]');
+    await waitForCamera(page);
+    const hud = await page.textContent('[data-hud]');
+    check(/Bay 1 of 5/.test(hud), `the count is fetched before the camera opens, HUD "${hud}"`);
+    check(bag.planogramCalls >= 1, 'the planogram was asked for');
+    let pressed = 0;
+    for (let i = 0; i < 6; i += 1) {
+      if (!(await shoot(page))) break;
+      pressed += 1;
+    }
+    check(pressed === 5, `camera stops at five shots, got ${pressed}`);
+    await waitUploads(bag, 5);
+    check(JSON.stringify(bag.uploads.map((u) => u.bay).sort((a, b) => a - b)) === '[1,2,3,4,5]', 'bays 1-5 uploaded');
+    check(/All 5 bays taken/.test((await page.textContent('[data-all-taken="after"]')) || ''), 'the set says All 5 bays taken');
+    check(/5 bays/.test((await page.textContent('[data-bay-total]')) || ''), 'the set shows 5 bays');
+    return { scenario: 'thin-status-planogram-count' };
+  } finally {
+    await context.close();
+  }
+}
+
+/* Device pick on a set with no SI planogram (Meat Pusher): it opens without an
+   error, shows Bay count not known, and three photos all upload. */
 async function runPickUnknown(browser, origin) {
   const bag = makeBag('unknown');
   const { context, page } = await openSurvey(browser, origin, bag, { hash: surveyHash({ bucket: 'meat-pusher' }) });
   try {
     check(!bag.planogramCalls, `a Meat Pusher set must not request a planogram, saw ${bag.planogramCalls}`);
+    check(/Bay count not known/.test((await page.textContent('#setBayCountControl')) || ''), 'the set says Bay count not known');
     const files = [fixturePath(1), fixturePath(2), fixturePath(4)];
     await page.setInputFiles('input[data-gal="after"]', files);
     await page.waitForSelector('.bay-assign-screen', { timeout: 20000 });
@@ -688,18 +780,11 @@ async function runPickUnknown(browser, origin) {
     await page.waitForSelector('[data-bay-assign-confirm]:not([disabled])', { timeout: 10000 });
     await page.click('[data-bay-assign-confirm]');
     await page.waitForFunction(() => !document.querySelector('.bay-assign-screen'), { timeout: 20000 });
+    await waitUploads(bag, 3);
+    const sent = bag.uploads.map((u) => u.bay).sort((a, b) => a - b);
+    check(JSON.stringify(sent) === '[1,2,3]', `all three photos upload on bays 1-3, got ${JSON.stringify(bag.uploads)}`);
+    check(bag.uploads.every((u) => u.skipSi && !u.replace), `Meat Pusher uploads skip SI and replace nothing: ${JSON.stringify(bag.uploads)}`);
     await page.waitForSelector('#setCountAsk', { timeout: 15000 });
-    await page.waitForFunction((dbkey) => (window.EodPhotoPipeline?.listJobs?.() || [])
-      .filter((j) => j.kind === 'set' && String(j.dbkey) === String(dbkey) && j.status !== 'superseded').length >= 3,
-    DBKEY2, { timeout: 20000 }).catch(() => {});
-    const jobs = (await setJobs(page)).filter((j) => j.status !== 'superseded');
-    check(
-      JSON.stringify(jobs.map((j) => j.bay).sort((a, b) => a - b)) === '[1,2,3]',
-      `3 photos on bays 1-3, got ${JSON.stringify(jobs)} msg="${await page.textContent('#setSurveyMsg')}"`
-    );
-    check(jobs.every((j) => j.hold && !j.replace && j.slot === 'after'), 'photos are held, none replace');
-    await new Promise((r) => setTimeout(r, 2000));
-    check(bag.uploads.length === 0, 'nothing is sent before the count is given');
     // Picking again lands on free bays, not on bays 1-3.
     await page.setInputFiles('input[data-gal="after"]', [fixturePath(1)]);
     await page.waitForSelector('.bay-assign-screen', { timeout: 20000 });
@@ -707,7 +792,7 @@ async function runPickUnknown(browser, origin) {
     check(tiles2.includes('4') && !tiles2.includes('1'), `a second pick offers free bays only, got ${JSON.stringify(tiles2)}`);
     await page.click('[data-bay-assign-cancel]');
     check(!bag.nativeDialogs.length, `native dialog opened: ${JSON.stringify(bag.nativeDialogs)}`);
-    return { scenario: 'pick-unknown', tiles };
+    return { scenario: 'pick-unknown-no-planogram', tiles, uploads: sent };
   } finally {
     await context.close();
   }
@@ -747,6 +832,9 @@ async function runCameraScenarios(browser, origin) {
     ['known-list', () => runCameraKnown(browser, origin, { capture: true })],
     ['unknown', () => runCameraUnknown(browser, origin, { capture: false })],
     ['unknown-list', () => runCameraUnknown(browser, origin, { capture: true })],
+    ['skip', () => runCountSkip(browser, origin)],
+    ['thin-sheet', () => runThinStatusSheetCount(browser, origin)],
+    ['thin-pog', () => runThinStatusPlanogramCount(browser, origin)],
     ['pick', () => runPickUnknown(browser, origin)],
     ['count', () => runCountChange(browser, origin)],
   ];

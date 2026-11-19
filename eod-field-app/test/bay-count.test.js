@@ -65,19 +65,20 @@ test('replace rewrites bays in order and does not drop the tail when unresolved'
   assert.deepEqual(bay.planReplaceBays({ known: 8, fileCount: 0 }), []);
 });
 
-test('a set never takes more bays than it has', () => {
-  assert.equal(bay.refuseBayReason({ known: 8, bay: 8 }), null);
-  assert.equal(bay.refuseBayReason({ known: 8, bay: 9 }), 'over');
-  // Replace is allowed to address a bay explicitly.
-  assert.equal(bay.refuseBayReason({ known: 8, bay: 9, replacing: true }), null);
-  // Unknown count cannot be used to refuse a legitimate capture.
-  assert.equal(bay.refuseBayReason({ known: null, bay: 9 }), null);
+test('the bay count is never a reason to refuse a shot', () => {
+  // 3.5.43-3.5.45 refused every bay past the highest one drawn when the phone
+  // had no count. A shot is refused only for having no bay, or for landing on
+  // a bay that already holds a photo without Replace.
+  assert.equal(bay.refuseBayReason({ bay: 8 }), null);
+  assert.equal(bay.refuseBayReason({ bay: 9 }), null);
+  assert.equal(bay.refuseBayReason({ known: 8, bay: 9 }), null);
+  assert.equal(bay.refuseBayReason({ bay: 9, replacing: true }), null);
 });
 
 test('a full set refuses rather than overwriting bay 1', () => {
   // nextEmptyBay returns null on a full set; the old code fell through to 1.
-  assert.equal(bay.refuseBayReason({ known: 8, bay: 0 }), 'full');
-  assert.equal(bay.refuseBayReason({ known: null, bay: 0 }), 'full');
+  assert.equal(bay.refuseBayReason({ bay: 0 }), 'full');
+  assert.equal(bay.refuseBayReason({ bay: 0, replacing: true }), 'full');
 });
 
 test('the display count never reports fewer bays than are already shot', () => {

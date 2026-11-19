@@ -96,26 +96,23 @@
     return !!occupied;
   }
 
-  /* Upload-side guard. Returns null when the capture is allowed, or the
-     reason to refuse.
+  /* Capture-side guard. Returns null when the shot may be stored, or the
+     reason it may not.
 
        full    no bay to put it on
        exists  the bay already holds a photo and the caller did not ask to
                replace it. Taking or picking a photo never replaces a bay.
-       over    past the set's known bay count.
 
-     An unknown count never caps. It used to: the cap fell back to the
-     highest bay drawn so far (1 on an empty set), so a set with no count took
-     bay 1 and refused bays 2, 3, 4 while the camera kept announcing them. */
-  function refuseBayReason({ known, bay, replacing, maxBay, occupied }) {
+     The bay count is never a reason to refuse a shot. It used to be (3.5.43):
+     the cap fell back to the highest bay drawn so far, 1 on an empty set, so
+     a set whose count the phone did not have took bay 1 and silently dropped
+     bays 2, 3, 4 while the camera kept announcing them. The camera stops at a
+     known count by not offering another bay, and a real extra bay is added
+     with Add a bay. */
+  function refuseBayReason({ bay, replacing, occupied }) {
     const n = Number(bay) || 0;
     if (!n) return 'full';
     if (!replacing && isOccupied(occupied, n)) return 'exists';
-    const k = Number(known) > 0 ? Number(known) : 0;
-    if (!k) return null;
-    // Sparse overrides: active bay 4 with newCount 3 must still be allowed.
-    const cap = Math.max(Number(maxBay) || 0, k);
-    if (n > cap && !replacing) return 'over';
     return null;
   }
 
