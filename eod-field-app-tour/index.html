@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>EOD Field App Tour</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0B2545; color: #0B2545; font-family: Calibri, "Segoe UI", Arial, sans-serif; }
+  body { display: flex; }
+  #gate { margin: auto; width: min(420px, calc(100% - 32px)); background: #fff; border-radius: 8px; padding: 28px 24px 22px; border-top: 8px solid #4A7FB5; }
+  h1 { margin: 0 0 18px; font-size: 28px; line-height: 1.15; }
+  label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  input { width: 100%; font: inherit; font-size: 18px; padding: 10px 12px; border: 1px solid #D5DEEA; border-radius: 6px; }
+  button { margin-top: 14px; width: 100%; background: #0B2545; color: #fff; border: 0; border-radius: 6px; font: inherit; font-weight: 700; font-size: 17px; padding: 12px; }
+  button:disabled { opacity: 0.55; }
+  #msg { min-height: 1.3em; margin: 12px 0 0; color: #9f1239; font-size: 15px; }
+  #sent { margin: 0 0 12px; color: #33425C; }
+  #frame { display: none; width: 100%; height: 100%; border: 0; background: #F4F6F9; }
+  body.ready { display: block; }
+  body.ready #gate { display: none; }
+  body.ready #frame { display: block; }
+</style>
+</head>
+<body>
+<main id="gate">
+  <h1>EOD Field App Tour</h1>
+  <form id="ask">
+    <label for="login">Phone or email</label>
+    <input id="login" name="login" autocomplete="username" inputmode="email" required>
+    <button type="submit">Send code</button>
+  </form>
+  <form id="code" hidden>
+    <p id="sent"></p>
+    <label for="pin">Code</label>
+    <input id="pin" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+    <button type="submit">Sign in</button>
+  </form>
+  <p id="msg" role="status"></p>
+</main>
+<iframe id="frame" title="EOD Field App Tour"></iframe>
+<script>
+(function () {
+  'use strict';
+  var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:3001'
+    : 'https://eod-api.the-dump-bin.com';
+  var TOKEN_KEY = 'fieldAppTourToken';
+  var SESSION_KEY = 'fieldAppTourSession';
+  var CHAPTERS = ['watch', 'start', 'instawork', 'scan', 'planogram', 'photos', 'exceptions', 'signatures', 'materials', 'send', 'supervisor', 'built', 'next'];
+  var askForm = document.getElementById('ask');
+  var codeForm = document.getElementById('code');
+  var msg = document.getElementById('msg');
+  var frame = document.getElementById('frame');
+  var loginValue = '';
+  var token = '';
+  var sessionId = '';
+  var visibleSec = 0;
+  var scrollPct = 0;
+  var chapters = {};
+  var videoMarks = {};
+  var hooked = false;
+  var timer = 0;
+
+  function setMsg(text) { msg.textContent = text || ''; }
+
+  function authHeaders() {
+    return { 'content-type': 'application/json', authorization: 'Bearer ' + token };
+  }
+
+  function post(path, body, keepalive) {
+    return fetch(API + '/api/field-app-tour' + path, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(body || {}),
+      keepalive: !!keepalive
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        data.status = res.status;
+        return data;
+      });
+    });
+  }
+
+  function snapshot(doc, win) {
+    var video = doc.getElementById('pilotVideo');
+    var watched = 0;
+    var duration = 0;
+    if (video) {
+      var ranges = video.played;
+      if (ranges) {
+        for (var i = 0; i < ranges.length; i++) watched += ranges.end(i) - ranges.start(i);
+      }
+      watched = Math.max(Math.round(watched), Object.keys(videoMarks).length);
+      if (isFinite(video.duration)) duration = Math.round(video.duration);
+    }
+    var ids = [];
+    CHAPTERS.forEach(function (id) { if (chapters[id]) ids.push(id); });
+    return {
+      sessionId: sessionId,
+      visibleSec: visibleSec,
+      scrollPct: scrollPct,
+      videoWatchedSec: watched,
+      videoDurationSec: duration,
+      chapters: ids
+    };
+  }
+
+  function sendProgress(keepalive) {
+    if (!token || !sessionId || !frame.contentDocument) return;
+    post('/progress', snapshot(frame.contentDocument, frame.contentWindow), keepalive).catch(function () {});
+  }
+
+  function hook(doc, win) {
+    if (hooked) return;
+    hooked = true;
+    function measure() {
+      var el = doc.scrollingElement || doc.documentElement;
+      var height = el.scrollHeight || 1;
+      var pct = Math.round(((el.scrollTop + win.innerHeight) / height) * 100);
+      if (pct > scrollPct) scrollPct = Math.min(100, pct);
+      CHAPTERS.forEach(function (id) {
+        var node = doc.getElementById(id);
+        if (!node) return;
+        var box = node.getBoundingClientRect();
+        if (box.bottom > 0 && box.top < win.innerHeight) chapters[id] = 1;
+      });
+    }
+    doc.addEventListener('scroll', measure, true);
+    win.addEventListener('scroll', measure, true);
+    var video = doc.getElementById('pilotVideo');
+    if (video) {
+      video.addEventListener('timeupdate', function () {
+        var t = Math.floor(video.currentTime || 0);
+        if (t >= 0) videoMarks[t] = 1;
+      });
+    }
+    measure();
+    timer = win.setInterval(function () {
+      if (!document.hidden) visibleSec += 1;
+      measure();
+    }, 1000);
+    win.setInterval(function () { sendProgress(false); }, 15000);
+  }
+
+  function showTour(html) {
+    var blob = new Blob([html], { type: 'text/html' });
+    frame.src = URL.createObjectURL(blob);
+    frame.onload = function () {
+      document.body.classList.add('ready');
+      hook(frame.contentDocument, frame.contentWindow);
+      sendProgress(false);
+    };
+  }
+
+  function loadDocument() {
+    setMsg('Opening the tour…');
+    return fetch(API + '/api/field-app-tour/document', { headers: { authorization: 'Bearer ' + token } })
+      .then(function (res) {
+        if (res.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+          sessionStorage.removeItem(SESSION_KEY);
+          token = '';
+          setMsg('Sign in again.');
+          return '';
+        }
+        if (!res.ok) throw new Error('Could not open the tour.');
+        return res.text();
+      })
+      .then(function (html) { if (html) showTour(html); });
+  }
+
+  function resume() {
+    token = localStorage.getItem(TOKEN_KEY) || '';
+    if (!token) return;
+    sessionId = sessionStorage.getItem(SESSION_KEY) || '';
+    var ready = sessionId
+      ? Promise.resolve()
+      : post('/open').then(function (data) {
+          if (data.status === 401) {
+            localStorage.removeItem(TOKEN_KEY);
+            token = '';
+            return;
+          }
+          if (!data.ok) throw new Error(data.error || 'Could not open the tour.');
+          sessionId = data.sessionId;
+          sessionStorage.setItem(SESSION_KEY, sessionId);
+        });
+    ready.then(function () { if (token && sessionId) return loadDocument(); }).catch(function (err) {
+      setMsg(err.message || 'Could not open the tour.');
+    });
+  }
+
+  askForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    loginValue = document.getElementById('login').value.trim();
+    var button = askForm.querySelector('button');
+    button.disabled = true;
+    setMsg('');
+    fetch(API + '/api/field-app-tour/request', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ login: loginValue })
+    }).then(function (res) { return res.json().then(function (data) { data.status = res.status; return data; }); })
+      .then(function (data) {
+        button.disabled = false;
+        if (!data.ok) { setMsg(data.error || 'Could not send a code.'); return; }
+        document.getElementById('sent').textContent = data.channel === 'sms'
+          ? 'Text sent to ' + data.masked
+          : 'Email sent to ' + data.masked;
+        askForm.hidden = true;
+        codeForm.hidden = false;
+        document.getElementById('pin').focus();
+      })
+      .catch(function () {
+        button.disabled = false;
+        setMsg('Could not send a code.');
+      });
+  });
+
+  codeForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var button = codeForm.querySelector('button');
+    button.disabled = true;
+    setMsg('');
+    fetch(API + '/api/field-app-tour/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ login: loginValue, code: document.getElementById('pin').value.trim() })
+    }).then(function (res) { return res.json().then(function (data) { data.status = res.status; return data; }); })
+      .then(function (data) {
+        button.disabled = false;
+        if (!data.ok) { setMsg(data.error || 'That code is not valid.'); return; }
+        token = data.token;
+        sessionId = data.sessionId;
+        localStorage.setItem(TOKEN_KEY, token);
+        sessionStorage.setItem(SESSION_KEY, sessionId);
+        return loadDocument();
+      })
+      .catch(function () {
+        button.disabled = false;
+        setMsg('Could not sign in.');
+      });
+  });
+
+  window.addEventListener('pagehide', function () { sendProgress(true); });
+  resume();
+})();
+</script>
+</body>
+</html>

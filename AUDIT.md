@@ -1,5 +1,7 @@
 # Audit
 
+Field app tour (2026-11-20). `eod-field-app-tour/index.html` is a sign-in shell. No `auth-gate.js`, no hub card. Token lives in `localStorage.fieldAppTourToken`. The tour HTML is fetched from `GET /api/field-app-tour/document` and shown in a blob iframe. The page posts scroll, chapter, visible time, and pilot-video seconds to `POST /api/field-app-tour/progress`.
+
 D6 Admin hub (2026-11-17). Cards `d6-employee-board` → `/d6-employee-board/` and `d6-survey-admin` → `/d6-availability/` (redirect to d6reviews holiday availability admin). Visibility is `d6BoardAllowed` in eod-api (`april.gauthier@…`, Tyson, tgauthier2011, d6ewa.supervisor). D6 Employee Board PROD pulls use eod-api `listCurrentEmployees` with April's Workday id under `SAS_EGRESS=pc`.
 
 Period 11 coverage (2026-11-08). Card `cp-coverage` in the Central Pet section. Href `/central-pet/?to=coverage` forwards the Dump Bin session to `https://cpscheduler-production.up.railway.app/c/me`. The scheduler refuses every email that is not on the crew list.

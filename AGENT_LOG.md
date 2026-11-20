@@ -1,3 +1,7 @@
+## 2026-11-20 — Field app tour sign-in shell
+
+`/eod-field-app-tour/` collects a phone or email code and loads the tour from eod-api. It does not load `auth-gate.js`, it is not a hub card, and the tour file is not in this repo.
+
 ## 2026-11-19 11:38 AM PT — Field app 3.5.46 published (be50e7a), forced update
 
 `eod-field-app/` is the exact tree of the tested preview (source 0677757; shipped files byte-identical to /eod-field-app-next/). `validate-publish --ship` passed (unit 398/398, smoke:mobile, contracts valid for 3.5.46). Pushed 19:38:15Z; Deploy Pages run 44600387879 success 19:39:05Z; `eod-version.json` reads 3.5.46, live sw cache `eod-field-3.5.46`. Rollback point: 3.5.45 at e5f57c1. Forced update keeps queued photos: jobs are written to IndexedDB `eodFieldPhotoOutbox` at capture (`persistJobRecord`, awaited before the shutter re-enables), `hardNavigateForUpdate` saves the draft and awaits `awaitDurablePhotoSave` (8 s) before reloading, the new worker only deletes `eod-field-*` caches (never IndexedDB), and `restore()` rehydrates the outbox on boot and resumes the pump. Texts: heads-up 11:35:45 AM, all-clear 11:39:23 AM (4 of 4). Since the 16:26Z publish only store 31 dbkey 9693669 (Tyson's 11:23 AM preview test on the real set) shows fewer bays than expected; those four photos are held on the server. The preview channel stays in place.

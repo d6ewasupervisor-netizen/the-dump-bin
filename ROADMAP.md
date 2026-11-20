@@ -1,5 +1,7 @@
 # Roadmap
 
+- Field app tour (2026-11-20): `/eod-field-app-tour/` sign-in shell. The document and the 8 PM report need the matching eod-api deploy.
+
 - Period 11 coverage card (2026-11-08): Central Pet section, `data-card="cp-coverage"`, opens `/central-pet/?to=coverage`. Hidden until `/api/me` lists that id.
 
 - Employee Board v2.30 is the lease wording. Show what will change needs the matching eod-api deploy.
