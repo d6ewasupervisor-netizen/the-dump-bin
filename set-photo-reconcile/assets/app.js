@@ -10,8 +10,17 @@
   const countsEl = el('counts');
   const checkAll = el('check-all');
   const enqueueSelectedBtn = el('btn-enqueue-selected');
+  const rejectSelectedBtn = el('btn-reject-selected');
+  const deleteSelectedBtn = el('btn-delete-selected');
+  const selCountEl = el('sel-count');
+  const confirmBar = el('confirm-bar');
+  const confirmText = el('confirm-text');
+  const confirmGo = el('btn-confirm-go');
+  const confirmCancel = el('btn-confirm-cancel');
 
   let state = { groups: [], rows: [], totalPending: 0 };
+  let lastClickedIndex = null;
+  let pendingConfirm = null;
 
   function setStatus(msg, kind) {
     statusEl.textContent = msg || '';
@@ -35,16 +44,35 @@
     return `<span class="pill ${cls}" title="${esc(side)}">${esc(v)}</span>`;
   }
 
+  function rowChecks() {
+    return [...rowsBody.querySelectorAll('input.row-check')];
+  }
+
   function selectedIds() {
-    return [...rowsBody.querySelectorAll('input.row-check:checked')]
+    return rowChecks()
+      .filter((n) => n.checked)
       .map((n) => Number(n.value))
       .filter((n) => Number.isFinite(n) && n > 0);
   }
 
+  function clearConfirm() {
+    pendingConfirm = null;
+    confirmBar.hidden = true;
+    confirmText.textContent = '';
+  }
+
   function syncSelectionUi() {
-    const boxes = [...rowsBody.querySelectorAll('input.row-check')];
+    const boxes = rowChecks();
     const picked = boxes.filter((b) => b.checked).length;
-    enqueueSelectedBtn.disabled = picked === 0;
+    const disabled = picked === 0;
+    enqueueSelectedBtn.disabled = disabled;
+    rejectSelectedBtn.disabled = disabled;
+    deleteSelectedBtn.disabled = disabled;
+    selCountEl.textContent = `${picked} selected`;
+    boxes.forEach((b) => {
+      const tr = b.closest('tr');
+      if (tr) tr.classList.toggle('selected', b.checked);
+    });
     if (!boxes.length) {
       checkAll.checked = false;
       checkAll.indeterminate = false;
@@ -52,6 +80,26 @@
     }
     checkAll.checked = picked === boxes.length;
     checkAll.indeterminate = picked > 0 && picked < boxes.length;
+  }
+
+  function selectRange(fromIdx, toIdx, on) {
+    const boxes = rowChecks();
+    const a = Math.min(fromIdx, toIdx);
+    const b = Math.max(fromIdx, toIdx);
+    for (let i = a; i <= b; i += 1) {
+      if (boxes[i]) boxes[i].checked = on;
+    }
+  }
+
+  function selectStoreDate(store, date, on) {
+    rowChecks().forEach((box) => {
+      const tr = box.closest('tr');
+      if (!tr) return;
+      if (tr.dataset.store === String(store) && tr.dataset.date === String(date)) {
+        box.checked = on;
+      }
+    });
+    syncSelectionUi();
   }
 
   function fillFilterOptions(groups) {
@@ -94,6 +142,7 @@
         </div>
         <div class="acts">
           <button type="button" class="btn secondary" data-filter-store="${store}" data-filter-date="${date}">View</button>
+          <button type="button" class="btn secondary" data-select-store="${store}" data-select-date="${date}">Select</button>
           <button type="button" class="btn" data-enqueue-store="${store}" data-enqueue-date="${date}">Enqueue</button>
         </div>
       </div>`;
@@ -103,10 +152,12 @@
   function renderRows(rows) {
     if (!rows.length) {
       rowsBody.innerHTML = '<tr><td colspan="10" class="empty">No pending bays for this filter.</td></tr>';
+      lastClickedIndex = null;
+      clearConfirm();
       syncSelectionUi();
       return;
     }
-    rowsBody.innerHTML = rows.map((r) => `<tr>
+    rowsBody.innerHTML = rows.map((r) => `<tr data-store="${esc(r.storeNumber)}" data-date="${esc(r.workDate)}">
       <td><input type="checkbox" class="row-check" value="${esc(r.id)}"></td>
       <td>${esc(r.storeNumber)}</td>
       <td>${esc(r.workDate)}</td>
@@ -118,11 +169,14 @@
       <td>${esc((r.actorEmail || '').split('@')[0] || '—')}</td>
       <td class="err">${esc(r.lastError || '')}</td>
     </tr>`).join('');
+    lastClickedIndex = null;
+    clearConfirm();
     syncSelectionUi();
   }
 
   async function load() {
     setStatus('Loading…');
+    clearConfirm();
     const qs = new URLSearchParams();
     if (storeSel.value) qs.set('store', storeSel.value);
     if (dateSel.value) qs.set('date', dateSel.value);
@@ -165,6 +219,49 @@
     await load();
   }
 
+  async function rejectIds(ids) {
+    setStatus(`Rejecting ${ids.length}…`);
+    const res = await dumpBinAuthFetch('/api/field-set/reconcile/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+      noBounceOn401: true,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.ok === false) {
+      setStatus(body.error || `Reject failed (${res.status})`, 'bad');
+      return;
+    }
+    setStatus(`Rejected ${body.rejected || 0} (jobs failed ${body.jobs || 0})`, 'ok');
+    await load();
+  }
+
+  async function deleteIds(ids) {
+    setStatus(`Deleting ${ids.length}…`);
+    const res = await dumpBinAuthFetch('/api/field-set/reconcile/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+      noBounceOn401: true,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.ok === false) {
+      setStatus(body.error || `Delete failed (${res.status})`, 'bad');
+      return;
+    }
+    setStatus(`Deleted ${body.deleted || 0} (jobs failed ${body.jobs || 0})`, 'ok');
+    await load();
+  }
+
+  function askConfirm(action, ids) {
+    pendingConfirm = { action, ids };
+    const verb = action === 'delete' ? 'Delete' : 'Reject';
+    confirmText.textContent = `${verb} ${ids.length} selected bay${ids.length === 1 ? '' : 's'}?`;
+    confirmGo.textContent = verb;
+    confirmGo.className = action === 'delete' ? 'btn danger' : 'btn warn';
+    confirmBar.hidden = false;
+  }
+
   async function boot() {
     try {
       const meRes = await dumpBinAuthFetch('/api/me', { noBounceOn401: true });
@@ -185,21 +282,52 @@
   storeSel.addEventListener('change', () => { load().catch((e) => setStatus(e.message, 'bad')); });
   dateSel.addEventListener('change', () => { load().catch((e) => setStatus(e.message, 'bad')); });
   checkAll.addEventListener('change', () => {
-    rowsBody.querySelectorAll('input.row-check').forEach((b) => { b.checked = checkAll.checked; });
+    rowChecks().forEach((b) => { b.checked = checkAll.checked; });
+    lastClickedIndex = null;
+    clearConfirm();
     syncSelectionUi();
   });
-  rowsBody.addEventListener('change', (ev) => {
-    if (ev.target && ev.target.classList.contains('row-check')) syncSelectionUi();
+  rowsBody.addEventListener('click', (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement) || !t.classList.contains('row-check')) return;
+    const boxes = rowChecks();
+    const idx = boxes.indexOf(t);
+    if (ev.shiftKey && lastClickedIndex != null && idx >= 0) {
+      selectRange(lastClickedIndex, idx, t.checked);
+    }
+    if (idx >= 0) lastClickedIndex = idx;
+    clearConfirm();
+    syncSelectionUi();
   });
   enqueueSelectedBtn.addEventListener('click', () => {
     const ids = selectedIds();
     if (!ids.length) return;
+    clearConfirm();
     enqueue({ ids }).catch((e) => setStatus(e.message, 'bad'));
+  });
+  rejectSelectedBtn.addEventListener('click', () => {
+    const ids = selectedIds();
+    if (!ids.length) return;
+    askConfirm('reject', ids);
+  });
+  deleteSelectedBtn.addEventListener('click', () => {
+    const ids = selectedIds();
+    if (!ids.length) return;
+    askConfirm('delete', ids);
+  });
+  confirmCancel.addEventListener('click', () => clearConfirm());
+  confirmGo.addEventListener('click', () => {
+    if (!pendingConfirm) return;
+    const { action, ids } = pendingConfirm;
+    clearConfirm();
+    if (action === 'delete') deleteIds(ids).catch((e) => setStatus(e.message, 'bad'));
+    else rejectIds(ids).catch((e) => setStatus(e.message, 'bad'));
   });
   el('btn-enqueue-filtered').addEventListener('click', () => {
     const payload = { limit: 40 };
     if (storeSel.value) payload.storeNumber = storeSel.value;
     if (dateSel.value) payload.workDate = dateSel.value;
+    clearConfirm();
     enqueue(payload).catch((e) => setStatus(e.message, 'bad'));
   });
   groupsEl.addEventListener('click', (ev) => {
@@ -211,7 +339,20 @@
       load().catch((e) => setStatus(e.message, 'bad'));
       return;
     }
+    if (t.dataset.selectStore) {
+      const store = t.dataset.selectStore;
+      const date = t.dataset.selectDate || '';
+      if (storeSel.value !== store || dateSel.value !== date) {
+        storeSel.value = store;
+        dateSel.value = date;
+        load().then(() => selectStoreDate(store, date, true)).catch((e) => setStatus(e.message, 'bad'));
+      } else {
+        selectStoreDate(store, date, true);
+      }
+      return;
+    }
     if (t.dataset.enqueueStore) {
+      clearConfirm();
       enqueue({
         storeNumber: t.dataset.enqueueStore,
         workDate: t.dataset.enqueueDate,

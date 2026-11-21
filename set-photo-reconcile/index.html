@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="/favicon.png?v=3">
 <link rel="apple-touch-icon" href="/favicon.png?v=3">
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/set-photo-reconcile/assets/app.css?v=1">
+<link rel="stylesheet" href="/set-photo-reconcile/assets/app.css?v=2">
 <script src="/auth-gate.js"></script>
 </head>
 <body>
@@ -44,13 +44,23 @@
   <section class="card">
     <div class="rows-head">
       <h2>Pending bays</h2>
-      <button type="button" class="btn secondary" id="btn-enqueue-selected" disabled>Enqueue selected</button>
+      <div class="row-actions" id="row-actions">
+        <span class="sel-count" id="sel-count">0 selected</span>
+        <button type="button" class="btn secondary" id="btn-enqueue-selected" disabled>Enqueue</button>
+        <button type="button" class="btn warn" id="btn-reject-selected" disabled>Reject</button>
+        <button type="button" class="btn danger" id="btn-delete-selected" disabled>Delete</button>
+      </div>
+    </div>
+    <div id="confirm-bar" class="confirm-bar" hidden>
+      <span id="confirm-text"></span>
+      <button type="button" class="btn secondary" id="btn-confirm-cancel">Cancel</button>
+      <button type="button" class="btn danger" id="btn-confirm-go">Confirm</button>
     </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th><input type="checkbox" id="check-all" aria-label="Select all"></th>
+            <th><input type="checkbox" id="check-all" aria-label="Select all visible"></th>
             <th>Store</th>
             <th>Date</th>
             <th>DBKey</th>
@@ -70,6 +80,6 @@
   </section>
 </div>
 
-<script src="/set-photo-reconcile/assets/app.js?v=1"></script>
+<script src="/set-photo-reconcile/assets/app.js?v=2"></script>
 </body>
 </html>

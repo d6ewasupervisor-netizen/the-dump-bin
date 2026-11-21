@@ -1,3 +1,7 @@
+## 2026-11-20 — Set Photo Reconcile reject/delete
+
+Pending bay table: multi-select (checkbox, shift-click range, store-day Select), Enqueue / Reject / Delete. Assets `?v=2`. Needs matching eod-api reject/delete routes.
+
 ## 2026-11-20 — Set Photo Reconcile card + page
 
 Office & Admin card `set-photo-reconcile` → `/set-photo-reconcile/`. Hub shell with `/auth-gate.js`. Lists pending `field_set_photo_buffer` via eod-api; owner-only. eod-api routes already live; Pages publish with this commit.

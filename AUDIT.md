@@ -1,6 +1,6 @@
 # Audit
 
-Set Photo Reconcile (2026-11-20). Card `set-photo-reconcile` → `/set-photo-reconcile/` (auth-gate). Visibility from eod-api `/api/me` owner email list. Page calls `GET /api/field-set/reconcile/pending` and `POST /api/field-set/reconcile/enqueue`. eod-api already live; Pages with this commit.
+Set Photo Reconcile (2026-11-20). Card `set-photo-reconcile` → `/set-photo-reconcile/` (auth-gate). Multi-select + Enqueue / Reject / Delete (`?v=2`). Visibility from eod-api owner email list. Needs eod-api reject/delete routes live.
 
 Field app tour (2026-11-20). `eod-field-app-tour/index.html` is a sign-in shell. No `auth-gate.js`, no hub card. Token lives in `localStorage.fieldAppTourToken`. The tour HTML is fetched from `GET /api/field-app-tour/document` and shown in a blob iframe. The page posts scroll, chapter, visible time, and pilot-video seconds to `POST /api/field-app-tour/progress`.
 
