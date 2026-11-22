@@ -2265,7 +2265,7 @@
   }
 
   function setPtoBusy(busy) {
-    ['ptoApprove', 'ptoDeny', 'ptoBuild'].forEach((id) => {
+    ['ptoApprove', 'ptoDeny', 'ptoBuild', 'ptoFinish'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.disabled = busy;
     });
@@ -2316,6 +2316,7 @@
     if (!item) return '';
     if (item.status === 'denied' || item.oracleStatus === 'rejected') return 'Denied';
     if (item.ranAt) return 'Finished';
+    if (item.buildError && (item.status === 'built' || item.status === 'failed' || item.visitId)) return 'Closeout blocked';
     if (ptoIsBuilt(item)) return 'Shift created';
     if (item.oracleStatus === 'approved') return 'Approved';
     return 'Waiting for a decision';
@@ -2383,6 +2384,26 @@
     placePtoDetail();
   }
 
+  function applyPtoSurfaces(item, surfaces) {
+    const done = !!(item && item.ranAt);
+    const shift = document.getElementById('ptoOpenShift');
+    const day = document.getElementById('ptoOpenDay');
+    const finish = document.getElementById('ptoFinish');
+    const shiftUrl = surfaces && surfaces.shiftUrl;
+    const dayUrl = surfaces && surfaces.dayUrl;
+    if (shift) {
+      shift.hidden = done || !shiftUrl;
+      if (shiftUrl) shift.href = shiftUrl;
+    }
+    if (day) {
+      day.hidden = done || !dayUrl;
+      if (dayUrl) day.href = dayUrl;
+    }
+    const canFinish = !!(item && !done && item.status !== 'denied' && item.oracleStatus !== 'rejected'
+      && (item.oracleStatus === 'approved' || item.status === 'failed' || item.status === 'built'));
+    if (finish) finish.hidden = !canFinish;
+  }
+
   async function openPto(id) {
     ptoState.selectedId = id;
     const item = ptoState.items.find((row) => row.id === id);
@@ -2395,7 +2416,7 @@
     document.getElementById('ptoDetailTitle').textContent = `${item.employeeName} · ${ptoRequestLabel(item)}`;
     const clock = [item.startTime, item.endTime].filter(Boolean).join(' – ');
     const built = ptoIsBuilt(item) && item.visitId ? ` Shift number ${item.shiftId}.` : '';
-    const err = !ptoIsBuilt(item) && item.buildError ? ` ${item.buildError}` : '';
+    const err = !item.ranAt && item.buildError ? ` ${item.buildError}` : '';
     const oracleErr = item.oracleError ? ` ${item.oracleError}` : '';
     document.getElementById('ptoDetailMeta').textContent =
       `${ptoRequestLabel(item)}${clock ? ` · ${clock}` : ''}.${built}${err}${oracleErr}`;
@@ -2403,6 +2424,16 @@
     if (buildBtn) buildBtn.hidden = item.oracleStatus !== 'approved' || !!item.ranAt;
     document.getElementById('ptoNote').value = item.decisionNote || '';
     document.getElementById('ptoActionStatus').textContent = '';
+    applyPtoSurfaces(item, null);
+    let surfaces = null;
+    if (!item.ranAt) {
+      try {
+        surfaces = await api(`/api/pto/${encodeURIComponent(id)}/surfaces`);
+      } catch (_err) {
+        surfaces = null;
+      }
+    }
+    applyPtoSurfaces(item, surfaces);
     const log = await api(`/api/pto/log?requestId=${encodeURIComponent(id)}`);
     const host = document.getElementById('ptoLog');
     const entries = log.items || [];
@@ -2459,8 +2490,13 @@
         body: JSON.stringify({ note, runId }),
       });
       renderPtoSteps(body.steps || []);
-      status.textContent = body.item ? body.item.status : 'Done.';
-      showPtoBanner('', true);
+      if (body.closeout && body.closeout.message) {
+        status.textContent = body.closeout.message;
+        showPtoBanner(body.closeout.message, false);
+      } else {
+        status.textContent = body.item ? body.item.status : 'Done.';
+        showPtoBanner('', true);
+      }
     } catch (err) {
       status.textContent = err.message;
       if (err.steps && err.steps.length) renderPtoSteps(err.steps);
@@ -2479,6 +2515,22 @@
     const note = document.getElementById('ptoNote').value;
     if (action === 'build') {
       await runPtoBuild(id, note, status);
+      return;
+    }
+    if (action === 'finish') {
+      status.textContent = 'Working…';
+      try {
+        const item = await api(`/api/pto/${encodeURIComponent(id)}/finish`, {
+          method: 'POST',
+          body: JSON.stringify({ note }),
+        });
+        status.textContent = item.item && item.item.ranAt ? 'Finished.' : 'Done.';
+        showPtoBanner('', true);
+      } catch (err) {
+        status.textContent = err.message;
+        showPtoBanner(err.message, false);
+      }
+      await loadPto();
       return;
     }
     status.textContent = 'Working…';
@@ -3131,6 +3183,8 @@
     if (ptoApprove) ptoApprove.addEventListener('click', () => { ptoAct('approve').catch((err) => showPtoBanner(err.message, false)); });
     if (ptoDeny) ptoDeny.addEventListener('click', () => { ptoAct('deny').catch((err) => showPtoBanner(err.message, false)); });
     if (ptoBuild) ptoBuild.addEventListener('click', () => { ptoAct('build').catch((err) => showPtoBanner(err.message, false)); });
+    const ptoFinish = document.getElementById('ptoFinish');
+    if (ptoFinish) ptoFinish.addEventListener('click', () => { ptoAct('finish').catch((err) => showPtoBanner(err.message, false)); });
     const listBtn = document.getElementById('refViewList');
     const dueBtn = document.getElementById('refViewDue');
     if (listBtn) listBtn.addEventListener('click', () => setReferralView('list'));

@@ -1,3 +1,7 @@
+## 2026-11-21 — PTO closeout buttons
+
+Time off detail adds Open the shift, Open the day, and Mark finished. They show when the request is not finished and the API returns a visit or a Time & Expense id. Board script is `welcome-letter-board.js?v=2.43`.
+
 ## 2026-11-20 — Set Photo Reconcile reject/delete
 
 Pending bay table: multi-select (checkbox, shift-click range, store-day Select), Enqueue / Reject / Delete. Assets `?v=2`. Needs matching eod-api reject/delete routes.

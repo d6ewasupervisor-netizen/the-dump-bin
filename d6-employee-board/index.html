@@ -76,6 +76,7 @@
       align-items: center;
     }
     .wb-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .wb-btn[hidden] { display: none !important; }
     .wb-btn-primary { background: var(--wb-sky); color: #fff; }
     .wb-btn-primary:hover:not(:disabled) { background: #275f97; }
     .wb-btn-ghost { background: transparent; color: var(--wb-navy); border: 1px solid var(--wb-line); }
@@ -887,6 +888,9 @@ We will reassess at the end of the week.</textarea>
             <button type="button" id="ptoApprove" class="wb-btn wb-btn-primary">Approve the request</button>
             <button type="button" id="ptoDeny" class="wb-btn wb-btn-ghost">Deny the request</button>
             <button type="button" id="ptoBuild" class="wb-btn wb-btn-primary">Create the paid shift</button>
+            <a id="ptoOpenShift" class="wb-btn wb-btn-ghost" hidden target="_blank" rel="noopener">Open the shift</a>
+            <a id="ptoOpenDay" class="wb-btn wb-btn-ghost" hidden target="_blank" rel="noopener">Open the day</a>
+            <button type="button" id="ptoFinish" class="wb-btn wb-btn-ghost" hidden>Mark finished</button>
           </div>
           <p id="ptoActionStatus" class="wb-muted" style="margin:12px 0 0;"></p>
           <ol id="ptoSteps" class="wb-steps" hidden></ol>
@@ -1142,6 +1146,6 @@ We will reassess at the end of the week.</textarea>
 
   <script>window.EMPLOYEE_BOARD = 'd6';</script>
   <script src="/welcome-letter-board/assets/pathways-panel.js?v=2.42"></script>
-  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.42"></script>
+  <script src="/welcome-letter-board/assets/welcome-letter-board.js?v=2.43"></script>
 </body>
 </html>
