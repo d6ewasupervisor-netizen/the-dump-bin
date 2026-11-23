@@ -71,8 +71,15 @@
   }
 
   function stopsFrom(weeks) {
+    var ranked = (weeks || []).slice().sort(function (a, b) {
+      function rank(id) {
+        var m = /^P(\d+)W(\d+)$/.exec(id);
+        return m ? (Number(m[1]) * 10 + Number(m[2])) : 0;
+      }
+      return rank(b) - rank(a);
+    });
     var stops = [{ id: 'recent', label: '2 weeks', sub: 'Newest' }];
-    (weeks || []).forEach(function (week) {
+    ranked.forEach(function (week) {
       stops.push({ id: week, label: week, sub: '' });
     });
     return stops;
