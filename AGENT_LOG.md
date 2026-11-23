@@ -1,3 +1,7 @@
+## 2026-11-23 — Roller art
+
+The vertical reel uses the generated roller image. Week labels sit in the five slots. The arrows on the art move it, and the roller still drags.
+
 ## 2026-11-23 — News reel page
 
 `/newsreel/` lists Kompass and Central Pet call-outs with a vertical week roller, search, and a detail overlay that opens the Dump Bin PDF viewer. `/central-pet/updates/?p=` redirects to the Central Pet reel message. Hub cards use `data-card="news-reel"`. Not published. Branch `feat/news-reel`.

@@ -9,27 +9,31 @@
     var drag = null;
     var ignoreClick = false;
     root.innerHTML = ''
-      + '<button type="button" class="roller-arrow" data-dir="-1" aria-label="Newer">&#9650;</button>'
-      + '<div class="roller-window" tabindex="0">'
-      + '<div class="roller-frame roller-frame-top"></div>'
-      + '<div class="roller-frame roller-frame-mid"></div>'
-      + '<div class="roller-frame roller-frame-bot"></div>'
-      + '<div class="roller-track"></div>'
-      + '</div>'
-      + '<button type="button" class="roller-arrow" data-dir="1" aria-label="Older">&#9660;</button>';
-    var track = root.querySelector('.roller-track');
-    var win = root.querySelector('.roller-window');
+      + '<div class="roller-art">'
+      + '<img class="roller-art-img" src="assets/roller.jpg" alt="">'
+      + '<button type="button" class="roller-hit roller-hit-up" data-dir="-1" aria-label="Newer"></button>'
+      + '<div class="roller-slots"></div>'
+      + '<button type="button" class="roller-hit roller-hit-down" data-dir="1" aria-label="Older"></button>'
+      + '</div>';
+    var slots = root.querySelector('.roller-slots');
+    var win = root.querySelector('.roller-art');
+    var offsets = [-2, -1, 0, 1, 2];
+
+    function labelAt(i) {
+      if (i < 0 || i >= stops.length) return { label: '', sub: '' };
+      return stops[i];
+    }
 
     function draw(offset) {
-      var shift = -(index * PILL) + (offset || 0);
-      track.style.transform = 'translateY(calc(50% - ' + (PILL / 2) + 'px + ' + shift + 'px))';
-      track.querySelectorAll('.roller-pill').forEach(function (pill) {
-        var dist = Number(pill.dataset.idx) - index;
-        var abs = Math.abs(dist);
-        pill.style.opacity = String(Math.max(0.15, 1 - abs * 0.22));
-        pill.style.transform = 'scale(' + Math.max(0.72, 1 - abs * 0.08) + ')';
-        pill.classList.toggle('is-current', dist === 0);
-      });
+      var shift = Math.round((offset || 0) / PILL);
+      slots.innerHTML = offsets.map(function (slot) {
+        var item = labelAt(index + slot - shift);
+        var current = slot === 0 && !shift;
+        return '<button type="button" class="roller-pill' + (current ? ' is-current' : '') + '" data-idx="' + (index + slot) + '">'
+          + '<span class="roller-pill-main">' + escapeHtml(item.label) + '</span>'
+          + '<span class="roller-pill-sub">' + escapeHtml(item.sub) + '</span>'
+          + '</button>';
+      }).join('');
       root.querySelector('[data-dir="-1"]').disabled = index === 0;
       root.querySelector('[data-dir="1"]').disabled = index >= stops.length - 1;
     }
@@ -45,21 +49,15 @@
       if (opts.onChange) opts.onChange(stops[index], index);
     }
 
-    track.innerHTML = stops.map(function (stop, i) {
-      return '<button type="button" class="roller-pill" data-idx="' + i + '">'
-        + '<span class="roller-pill-main">' + escapeHtml(stop.label) + '</span>'
-        + '<span class="roller-pill-sub">' + escapeHtml(stop.sub || '') + '</span>'
-        + '</button>';
-    }).join('');
     draw(0);
 
-    root.querySelectorAll('.roller-arrow').forEach(function (btn) {
+    root.querySelectorAll('.roller-hit').forEach(function (btn) {
       btn.addEventListener('click', function () {
         go(index + Number(btn.dataset.dir));
       });
     });
 
-    track.addEventListener('click', function (event) {
+    slots.addEventListener('click', function (event) {
       var pill = event.target.closest('.roller-pill');
       if (!pill || drag || ignoreClick) return;
       var next = Number(pill.dataset.idx);
