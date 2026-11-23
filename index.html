@@ -50,6 +50,18 @@
           <span class="card__desc">Weekly Kompass materials, planograms, special projects, and reset resources.</span>
         </a>
 
+        <a href="/newsreel/?reel=kompass" class="card" data-card="news-reel" hidden>
+          <span class="card__icon">📰</span>
+          <span class="card__title">Kompass reel</span>
+          <span class="card__desc">The last two weeks of Kompass call-outs, newest first.</span>
+        </a>
+
+        <a href="/newsreel/?reel=cp" class="card" data-card="news-reel" hidden>
+          <span class="card__icon">🐾</span>
+          <span class="card__title">Central Pet reel</span>
+          <span class="card__desc">The last two weeks of Central Pet call-outs, newest first.</span>
+        </a>
+
         <a href="/eod-field-app/" class="card">
           <span class="card__icon">🧪</span>
           <span class="card__title">EOD Field Pilot</span>
@@ -388,8 +400,9 @@
         var cards = (me && me.cards) || [];
 
         cards.forEach(function (id) {
-          var el = document.querySelector('[data-card="' + id + '"]');
-          if (el) el.hidden = false;
+          document.querySelectorAll('[data-card="' + id + '"]').forEach(function (el) {
+            el.hidden = false;
+          });
         });
 
         // Reveal any gated section that now has at least one visible card.

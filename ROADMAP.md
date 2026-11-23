@@ -1,5 +1,9 @@
 # Roadmap
 
+- News reel (2026-11-23, branch `feat/news-reel`, not published). Page is `/newsreel/`. Publish with Pages only after eod-api migration 217 is live, or the list calls 404.
+
+
+
 - Set Photo Reconcile (2026-11-20): card + `/set-photo-reconcile/` published; eod-api pending/enqueue already live.
 
 - Field app tour (2026-11-20): `/eod-field-app-tour/` sign-in shell. The document and the 8 PM report need the matching eod-api deploy.

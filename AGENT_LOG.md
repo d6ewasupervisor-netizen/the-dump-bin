@@ -1,3 +1,7 @@
+## 2026-11-23 — News reel page
+
+`/newsreel/` lists Kompass and Central Pet call-outs with a vertical week roller, search, and a detail overlay that opens the Dump Bin PDF viewer. `/central-pet/updates/?p=` redirects to the Central Pet reel message. Hub cards use `data-card="news-reel"`. Not published. Branch `feat/news-reel`.
+
 ## 2026-11-21 — PTO closeout buttons
 
 Time off detail adds Open the shift, Open the day, and Mark finished. They show when the request is not finished and the API returns a visit or a Time & Expense id. Board script is `welcome-letter-board.js?v=2.43`.
