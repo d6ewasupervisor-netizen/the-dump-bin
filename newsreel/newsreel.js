@@ -15,7 +15,7 @@
     { num: '654', city: 'East Wenatchee' }, { num: '657', city: 'Thor' }, { num: '658', city: 'Issaquah' },
     { num: '682', city: 'Maple Valley' },
   ];
-  var LOGO = 'assets/ro-new-logo-thumb.webp';
+  var LOGO = 'assets/ro-new-logo.png';
   var reel = new URLSearchParams(location.search).get('reel') === 'cp' ? 'cp' : 'kompass';
   var posts = [];
   var stopId = 'recent';

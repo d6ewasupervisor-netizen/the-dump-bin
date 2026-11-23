@@ -1,3 +1,7 @@
+## 2026-11-23 — Simpler reel
+
+The week control is the gold arrow and a stack of week buttons. The selected week is the gold button. The ornate roller image is no longer on the page.
+
 ## 2026-11-23 — Roller art
 
 The vertical reel uses the generated roller image. Week labels sit in the five slots. The arrows on the art move it, and the roller still drags.
