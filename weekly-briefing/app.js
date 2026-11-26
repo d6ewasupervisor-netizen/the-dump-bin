@@ -13,12 +13,16 @@
   var API = '/api/weekly-briefing';
   // ?pack=_staging/P10W3 → preview a staging build: same walk, nothing is
   // sent to the API (no attempts, no crew pulse) and local state is kept apart.
-  var PREVIEW_PACK = (function () {
+  // ?pack=P11W4-D6 → a second district's tracked pack. Attempts still post.
+  // No query → packs/current.json, unchanged.
+  var PACK_QUERY = (function () {
     try {
       var v = new URLSearchParams(location.search).get('pack') || '';
       return /^[A-Za-z0-9_\/-]{1,40}$/.test(v) ? v.replace(/^\/+|\/+$/g, '') : '';
     } catch (_) { return ''; }
   })();
+  var PREVIEW_PACK = PACK_QUERY.indexOf('_staging') === 0 ? PACK_QUERY : '';
+  var TRACKED_PACK = PREVIEW_PACK ? '' : PACK_QUERY;
   var SPEEDS = [1, 1.25, 1.5];
   var READ_WPS = 4;            // words per second the "Read instead" timer assumes
   var READ_MIN_S = 8;
@@ -189,6 +193,7 @@
       me = m;
       userKey = String(m.email || 'anon').toLowerCase();
       if (PREVIEW_PACK) return { week: PREVIEW_PACK };
+      if (TRACKED_PACK) return { week: TRACKED_PACK };
       return fetch(PACKS_BASE + 'current.json', { cache: 'no-store' }).then(function (r) { return r.json(); });
     }).then(function (cur) {
       packPath = cur.week;

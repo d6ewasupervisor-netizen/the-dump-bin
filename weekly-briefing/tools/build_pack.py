@@ -284,8 +284,13 @@ def main() -> None:
     meta = json.loads(args.meta.read_text(encoding="utf-8"))
     questions = json.loads(args.questions.read_text(encoding="utf-8"))
     week = str(meta.get("week", "")).strip()
-    if not re.fullmatch(r"P\d{2}W\d", week):
+    if not re.fullmatch(r"P\d{2}W\d(?:-D\d{1,2})?", week):
         die(f"meta.week must look like P10W1, got {week!r}")
+    district = str(meta.get("district") or "").strip().upper()
+    # D8 keeps the fiscal week as the pack id. Another district in the same
+    # week is a sibling folder, packs/P11W4-D6, and that id is pack.week.
+    if re.fullmatch(r"P\d{2}W\d", week) and re.fullmatch(r"D\d{1,2}", district) and district != "D8":
+        week = f"{week}-{district}"
 
     ffmpeg = find_ffmpeg()
     paras = parse_narration(args.narration)
