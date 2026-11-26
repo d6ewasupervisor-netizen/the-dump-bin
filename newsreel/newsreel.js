@@ -53,15 +53,33 @@
     return true;
   }
 
+  function weekRank(post) {
+    var best = 0;
+    weeksOf(post).forEach(function (week) {
+      var match = /^P(\d+)W(\d+)$/.exec(week);
+      if (!match) return;
+      var rank = Number(match[1]) * 10 + Number(match[2]);
+      if (rank > best) best = rank;
+    });
+    return best;
+  }
+
+  function byWeek(a, b) {
+    var diff = weekRank(b) - weekRank(a);
+    if (diff) return diff;
+    return String(b.sentAt || '').localeCompare(String(a.sentAt || ''));
+  }
+
   function renderCards() {
     var box = document.getElementById('cards');
-    var rows = posts.filter(matches);
+    var rows = posts.filter(matches).sort(byWeek);
     if (!rows.length) {
       box.innerHTML = '<p class="empty">Nothing in this stop.</p>';
       return;
     }
     box.innerHTML = rows.map(function (post) {
-      var when = [post.periodWeek, post.appliesFrom ? String(post.appliesFrom).slice(5) : ''].filter(Boolean).join(' · ');
+      var day = post.appliesFrom ? String(post.appliesFrom).slice(5, 10) : '';
+      var when = [post.periodWeek, day].filter(Boolean).join(' · ');
       var stores = (post.stores || []).length > 8 ? 'All stores' : ((post.stores || []).join(', ') || 'All stores');
       return '<button type="button" class="card-row" data-slug="' + esc(post.slug) + '">'
         + '<img src="' + esc(post.thumbUrl || LOGO) + '" alt="">'

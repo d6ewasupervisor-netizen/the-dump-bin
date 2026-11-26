@@ -1,3 +1,7 @@
+## 2026-11-25 — Current and future weeks stay on top
+
+The reel sorts by the week the notice is for. P12W1 stays above P11W4, and both stay above older weeks, even when an older week is posted later.
+
 ## 2026-11-25 — Strip manifest card opens the folder
 
 A strip manifest card opens the week's Strip Manifests folder instead of the notice overlay.
