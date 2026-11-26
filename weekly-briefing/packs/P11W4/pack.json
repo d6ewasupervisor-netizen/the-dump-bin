@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "week": "P11W4",
- "build": "20261126023206",
- "buildRequest": "20261125-d8-rev3",
+ "build": "20261126031036",
+ "buildRequest": "20261125-d8-rev4",
  "district": "D8",
  "title": "Period 11 · Week 4",
  "dueAt": "2026-11-30T06:00:00-08:00",
@@ -52,7 +52,7 @@
    ]
   }
  ],
- "totalSeconds": 459.0,
+ "totalSeconds": 460.4,
  "questionCount": 16,
  "stops": [
   {
@@ -390,9 +390,9 @@
    "title": "Key Facts",
    "frame": "frames/f11.webp",
    "audio": "audio/a11.m4a",
-   "seconds": 31.2,
-   "narration": "That is the week. On Snack Nuts, canisters on shelves two and three, trail mix in two ribbons, and two one five takes four feet from Packaged Bulk. On Packaged Bulk, check every strip image. On fuel, nothing gets carried between the store and the fuel center. Specialty Bath peg planograms are in the Dump Bin, not in the box. A change is not a delete. Fifteen and a quarter hours is a gentle way back in. Period twelve, week one, has other plans. That is the briefing. The quiz is next.",
-   "words": 92,
+   "seconds": 32.64,
+   "narration": "That is the week. On Snack Nuts, canisters on shelves two and three, trail mix in two ribbons, and two one five takes four feet from Packaged Bulk. On Packaged Bulk, check every strip image. On fuel, nothing gets carried between the store and the fuel center. Specialty Bath peg planograms are in the Dump Bin, not in the box. A change is not a delete. Fifteen and a quarter hours is a gentle way back in. Period twelve, week one, has other plans. That is the briefing.",
+   "words": 88,
    "checkpoint": []
   }
  ]
