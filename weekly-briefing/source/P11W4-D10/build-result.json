@@ -1,0 +1,31 @@
+{
+ "request": "20261125-d10-rev4",
+ "week": "P11W4-D10",
+ "mode": "live",
+ "startedAt": "2026-11-26T03:14:18Z",
+ "tts": {
+  "frames": 12,
+  "generated": 10,
+  "cached": 2,
+  "chars": 8646
+ },
+ "pack": {
+  "build": "20261126031625",
+  "totalSeconds": 537.4,
+  "stops": 12,
+  "questions": 16
+ },
+ "mp4": {
+  "seconds": 537.8,
+  "bytes": 17944701,
+  "r2": {
+   "mp3": "Kompass/_briefing-builds/P11W4-D10/P11W4-D10_Narration.mp3",
+   "srt": "Kompass/_briefing-builds/P11W4-D10/P11W4-D10_Narration.srt",
+   "mp4": "Kompass/_briefing-builds/P11W4-D10/P11W4-D10 Weekly Briefing.mp4",
+   "url": "Kompass/_briefing-builds/P11W4-D10/P11W4-D10 Weekly Briefing.url"
+  }
+ },
+ "finishedAt": "2026-11-26T03:18:13Z",
+ "ok": true,
+ "seconds": 235.2
+}
