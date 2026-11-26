@@ -1,0 +1,744 @@
+{
+ "week": "P11W4",
+ "district": "D6",
+ "district_label": "District 6",
+ "title": "Period 11 · Week 4",
+ "rev": "P11W4 · District 6 · Rev 4 · 2026-11-25",
+ "sets": [
+  {
+   "dept": "Grocery",
+   "code": "C078",
+   "name": "Snack Nuts",
+   "hours": 4,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C088",
+   "name": "Condiments & Sauces",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C001",
+   "name": "Canned Fruit",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C025",
+   "name": "Tea",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C056",
+   "name": "Convenient Breakfast",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": false
+  },
+  {
+   "dept": "Grocery",
+   "code": "C067",
+   "name": "Butter & Margarine",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": true
+  },
+  {
+   "dept": "Grocery",
+   "code": "C084",
+   "name": "Dry Pasta",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C097",
+   "name": "Wild Bird Seed",
+   "hours": 1,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C103",
+   "name": "Dishwasher Detergent",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C138",
+   "name": "Feminine Hygiene",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C184",
+   "name": "Adult Nutrition",
+   "hours": 1,
+   "type": "NII",
+   "cold": false
+  },
+  {
+   "dept": "Health & Beauty",
+   "code": "C179",
+   "name": "Foot Care",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": false
+  },
+  {
+   "dept": "Deli",
+   "code": "C462",
+   "name": "Specialty Cheese",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": true
+  },
+  {
+   "dept": "Cosmetics",
+   "code": "C190",
+   "name": "Specialty Bath",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": false
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C694",
+   "name": "NF Packaged Bulk",
+   "hours": 2,
+   "type": "Update",
+   "cold": false
+  },
+  {
+   "dept": "Natural Foods",
+   "code": "C648",
+   "name": "NF Crackers",
+   "hours": 0.25,
+   "type": "Maint",
+   "cold": false
+  },
+  {
+   "dept": "Fuel Center",
+   "code": "C142/C223",
+   "name": "Fuel Kiosk or Walk-In",
+   "hours": 2,
+   "type": "NII",
+   "cold": false
+  }
+ ],
+ "frames": [
+  {
+   "kind": "title",
+   "stop_title": "Welcome",
+   "kicker": "Weekly Kompass Briefing",
+   "title": "",
+   "blocks": [],
+   "narration": "Let's get into it, you all. This is the briefing for Period eleven, week four, District six. Fifteen and a quarter hours across seventeen sets, plus a Yogurt test set that lands in this district before anyone else gets to see it. Snack Nuts and Packaged Bulk are the real work, fuel comes with one rule that is not up for discussion, and Specialty Bath includes a small scavenger hunt. Checkpoints along the way, and they count."
+  },
+  {
+   "stop_title": "The Week at a Glance",
+   "kicker": "P11W4 · District 6",
+   "title": "This Week at a Glance",
+   "blocks": [
+    {
+     "kind": "sets_table"
+    },
+    {
+     "kind": "counts_info"
+    },
+    {
+     "kind": "info",
+     "html": "<b>Not every store has every set.</b> Store lists are on each stop. Your sign-off sheet is the final list."
+    }
+   ],
+   "narration": "Here is the week on one screen. Grocery carries seven sets, Health Beauty Care carries five, and Deli, Cosmetics, Natural Foods, and Fuel fill in the rest. Snack Nuts is the big one at four hours, then Natural Foods Packaged Bulk at two and Fuel at two. Fuel counts once: your store has a kiosk or a walk-in, and you set the one you have. Nine of the seventeen are quarter-hour maintenances. Two sets run cold, Butter and Specialty Cheese, and cold product stays out of the case no longer than twenty minutes. Not every store carries every set. Each stop shows which stores have it, and your sign-off sheet is the final word."
+  },
+  {
+   "stop_title": "Snack Nuts",
+   "kicker": "Grocery",
+   "title": "Snack Nuts · 4 Hours",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Snack Nuts · C078",
+     "hrs": "@C078",
+     "bullets": [
+      "A <b>flow change</b>, not a tag swap. Plan on the full 4 hours.",
+      "<b>Our Brand canisters</b> come off shelf 4 and stay on <b>shelves 2 and 3</b> only. Shelf 4 goes to new items.",
+      "<b>Trail mix</b> runs in two vertical ribbons: mainstream, and Natural trail mix and nuts.",
+      "<b>Multipacks</b> sit toward the bottom of their ribbon.",
+      "Several new brands arrive. Set from the strips, not from memory."
+     ],
+     "chips": {
+      "label": "On the sign-off at:",
+      "stores": [
+       49,
+       163,
+       286,
+       351,
+       657
+      ]
+     }
+    },
+    {
+     "kind": "card",
+     "head": "Mapping",
+     "paragraphs": [
+      "This week's Dump Bin → <b>Mapping by Store</b>. Your store has its own file."
+     ]
+    }
+   ],
+   "narration": "Snack Nuts is the big set this week, four hours, and it is a flow change. Today the Our Brand canisters sit on shelves two, three, and four. They come off shelf four and stay on shelves two and three only, and shelf four goes to the new items. Trail mix reorganizes into two vertical ribbons: one of mainstream trail mix, and one of Natural trail mix and nut items. Multipacks move toward the bottom of whichever ribbon they belong to. Several new brands arrive, so set from the strips and not from memory. The mapping for your store is in this week's Dump Bin, under Mapping by Store. Snack Nuts is on the sign-off at forty-nine, one six three, two eight six, three five one, and six five seven. Any other store in the district does not have it this week."
+  },
+  {
+   "stop_title": "Packaged Bulk",
+   "kicker": "Natural Foods",
+   "title": "Packaged Bulk · 2 Hours",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "Check every strip image against the product in front of it. Wrong image: let your supervisor know right away."
+    },
+    {
+     "kind": "card",
+     "head": "NF Packaged Bulk · C694",
+     "hrs": "@C694",
+     "bullets": [
+      "<b>Reflow by type:</b> seeds, dried fruit, trail mix, nuts, coated, candy.",
+      "The <b>KIND</b> brand exits the set.",
+      "Full new strips. The last update went up with wrong images and they stayed up. Fred Meyer executives noticed.",
+      "Two new car cup items go on the <b>checklane car cup racks</b> only."
+     ]
+    }
+   ],
+   "narration": "Natural Foods Packaged Bulk is two hours, and it is a reflow. Product lines up by type: seeds, dried fruit, trail mix, nuts, coated items, and candy. The KIND brand leaves the set entirely. Full new strips are in the box, and here is your action item for this week: check every strip image against the product in front of it. The last time this set was updated, strips went up with the wrong images and stayed up for a year, and Fred Meyer executives noticed on a store walk. If an image is wrong, let your supervisor know right away. Two new car cup items belong on the checklane car cup racks only, not in the main set."
+  },
+  {
+   "stop_title": "Fuel",
+   "kicker": "Fuel Center",
+   "title": "Fuel · 2 Hours",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "Kompass does not carry product between the store and the fuel center. Either direction."
+    },
+    {
+     "kind": "card",
+     "head": "Fuel Kiosks · C142 · Fuel Walk-Ins · C223",
+     "hrs": 2,
+     "bullets": [
+      "<b>New items:</b> ask store management to get the product out to the fuel center.",
+      "<b>Discontinued and backstock:</b> the fuel center handles it.",
+      "Replace broken or shopworn data skins if replacements are on hand."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Kiosk window wrap-around racks",
+     "paragraphs": [
+      "Set them customer-facing, left to right. Standing outside facing the kiosk, <b>lighters are always on the right</b>."
+     ]
+    },
+    {
+     "kind": "info",
+     "html": "<b>District 6:</b> kiosks at all nine stores."
+    }
+   ],
+   "narration": "Fuel is two hours of new items, kiosk or walk-in, whichever your store has. One rule, and it comes from Fred Meyer: Compass does not carry product between the store and the fuel center, in either direction. Ask store management to get the new items out to the fuel center, and the fuel center handles the discontinued product and the backstock. On the kiosk window wrap-around racks, set them the way the customer sees them, left to right. Standing outside and facing the kiosk, lighters are always on the right. And if a data skin is broken or shopworn and a replacement is on hand, replace it. In this district it is kiosks at all nine stores."
+  },
+  {
+   "stop_title": "Bird Seed and New Items",
+   "kicker": "Health & Beauty · Grocery",
+   "title": "Bird Seed and New Items",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Wild Bird Seed · C097",
+     "hrs": "@C097",
+     "bullets": [
+      "Update with <b>full strips</b>.",
+      "The planogram moves from <b>department 01 to department 03</b>. Look for it under 03.",
+      "Mapping: this week's Dump Bin → Mapping by Store."
+     ],
+     "chips": {
+      "label": "On the sign-off at:",
+      "stores": [
+       49,
+       163,
+       654
+      ]
+     }
+    },
+    {
+     "kind": "card",
+     "head": "New items · 1 hr each",
+     "bullets": [
+      "Condiments & Sauces · C088",
+      "Dishwasher Detergent · C103",
+      "Feminine Hygiene · C138 (mapping in this week's Dump Bin)",
+      "Adult Nutrition · C184"
+     ]
+    }
+   ],
+   "narration": "Wild Bird Seed runs at forty-nine, one six three, and six five four this week. It is a one-hour update with full strips, and it changes departments on paper. The planogram moves from department zero one to department zero three, so look for it under zero three. The bird seed has not moved; the paperwork has. Its mapping is in the Dump Bin with the Snack Nuts mapping. Then four one-hour new item sets: Condiments and Sauces, Dishwasher Detergent, Feminine Hygiene, and Adult Nutrition. The Feminine Hygiene mapping is in the Dump Bin as well."
+  },
+  {
+   "stop_title": "Specialty Bath",
+   "kicker": "Cosmetics",
+   "title": "Specialty Bath · Peg Sets",
+   "blocks": [
+    {
+     "kind": "act",
+     "text": "The peg sets have no planograms in the box. Your store's are in this week's Dump Bin → Specialty Bath Peg POGs."
+    },
+    {
+     "kind": "table",
+     "columns": [
+      {
+       "label": "Store"
+      },
+      {
+       "label": "Earth Therapeutics"
+      },
+      {
+       "label": "Face masks"
+      },
+      {
+       "label": "Miss Spa panel"
+      }
+     ],
+     "rows": [
+      [
+       "<b>49</b>",
+       "66 in · 4 ft",
+       "–",
+       "–"
+      ],
+      [
+       "<b>163</b>",
+       "72 in · 6 ft",
+       "2 ft",
+       "–"
+      ],
+      [
+       "<b>214</b>",
+       "72 in · 8 ft",
+       "–",
+       "Yes"
+      ],
+      [
+       "<b>286</b>",
+       "72 in · 8 ft",
+       "–",
+       "Yes"
+      ],
+      [
+       "<b>351</b>",
+       "72 in · 8 ft",
+       "–",
+       "Yes"
+      ],
+      [
+       "<b>486</b>",
+       "72 in · 6 ft",
+       "–",
+       "–"
+      ],
+      [
+       "<b>652</b>",
+       "66 in · 4 ft",
+       "2 ft",
+       "–"
+      ],
+      [
+       "<b>654</b>",
+       "66 in · 5 ft",
+       "2 ft",
+       "–"
+      ],
+      [
+       "<b>657</b>",
+       "66 in · 5 ft",
+       "2 ft",
+       "–"
+      ]
+     ]
+    },
+    {
+     "kind": "info",
+     "html": "Maintenance, 0.25 hr: deletes only. <b>Do not skip the peg sets.</b>"
+    }
+   ],
+   "narration": "Specialty Bath is a quarter-hour maintenance, deletes only, with one catch. The peg sets, meaning Earth Therapeutics, the face masks, and the Miss Spa panel, did not get planograms ordered with the maintenance strips, and they are not in your box. The planograms for your store are in this week's Dump Bin, in the Specialty Bath peg planograms folder. On screen is which peg planograms each store has. Find your store, pull those planograms, and set the peg sets from them. Do not skip the peg sets."
+  },
+  {
+   "stop_title": "Maintenances",
+   "kicker": "Maintenance",
+   "title": "Eight Quick Ones",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "0.25 hr each",
+     "bullets": [
+      "Canned Fruit · C001 &nbsp;·&nbsp; Tea · C025",
+      "Convenient Breakfast · C056 &nbsp;·&nbsp; Dry Pasta · C084",
+      "Foot Care · C179 &nbsp;·&nbsp; NF Crackers · C648",
+      "Butter & Margarine · C067 ❄ &nbsp;·&nbsp; Specialty Cheese · C462 ❄"
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "A change is not a delete",
+     "cls": "red",
+     "paragraphs": [
+      "Canned Fruit, Convenient Breakfast and Dry Pasta carry <b>item changes</b>: same product, new code. It stays on the shelf. Check before you pull anything as discontinued."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Specialty Cheese · C462",
+     "cold": true,
+     "chips": {
+      "label": "This week at:",
+      "stores": [
+       652,
+       657
+      ]
+     },
+     "paragraphs": [
+      "Olives come off the <b>two-shelf ambient olive rack</b> only. They stay on every other cheese planogram."
+     ]
+    }
+   ],
+   "narration": "Eight more quarter-hour maintenances: Canned Fruit, Tea, Convenient Breakfast, Dry Pasta, Foot Care, Natural Foods Crackers, Butter and Margarine, and Specialty Cheese. Two things to know. First, a change is not a delete. Canned Fruit, Convenient Breakfast, and Dry Pasta carry item changes, same product with a new code, and that product stays on the shelf. Check before you pull anything as discontinued. Second, on Specialty Cheese, the olives come off the two-shelf ambient olive rack only. They stay on every other cheese planogram they are on today. Butter and Specialty Cheese are the two cold sets, twenty minutes out of the case at most. Specialty Cheese is on the sign-off at six five two and six five seven only."
+  },
+  {
+   "stop_title": "Yogurt Test Set",
+   "kicker": "Test Set",
+   "title": "Yogurt Test · 8 Hours",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Yogurt · C062 (incl. C290, C388, C675)",
+     "hrs": 8,
+     "cold": true,
+     "cls": "navy",
+     "chips": {
+      "label": "Test store:",
+      "stores": [
+       163
+      ],
+      "color": "orange"
+     },
+     "bullets": [
+      "Runs this week as the test, ahead of every other store in P12W1.",
+      "<b>Store-specific planograms.</b> Expect a reflow, shelf moves and slight shelf height changes.",
+      "High protein, yogurt drinks and multipacks grow. Kids and Natural items give up the space.",
+      "Includes NF Yogurt and NF Milk. NF Refrigerated Beverage gets new-item strips.",
+      "Cold set: product out no longer than 20 minutes."
+     ]
+    },
+    {
+     "kind": "act",
+     "text": "Read the planogram and the mapping before you start. Anything that does not fit: let your supervisor know the same day."
+    }
+   ],
+   "narration": "Now the one that belongs to this district alone. The Yogurt test set runs this week at one six three. It is eight hours, it is cold, and every other store gets this set in Period twelve, week one, so what you find is what everyone else learns from. These are store-specific planograms. Expect a reflow, shelf moves, and slight shelf height changes. High protein items, yogurt drinks, and multipacks pick up space, and that space comes from Kids and Natural items. The set includes Natural Foods Yogurt and Natural Foods Milk, and Natural Foods Refrigerated Beverage gets new item strips. Read the planogram and the mapping before you start, and keep product out of the case no longer than twenty minutes."
+  },
+  {
+   "stop_title": "Callouts",
+   "kicker": "Callouts",
+   "title": "Back from Blackout",
+   "blocks": [
+    {
+     "kind": "card",
+     "head": "Vestcom boxes",
+     "chips": {
+      "label": "Delivery exception, estimated Friday 11/27:",
+      "stores": [
+       286
+      ],
+      "color": "orange"
+     },
+     "paragraphs": [
+      "The other eight District 6 boxes are <b>delivered</b>, as of Wednesday 11/25."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Kitchen Bouquet strips · not ours",
+     "paragraphs": [
+      "Stores are getting strips to add Kitchen Bouquet back to Dry Sauce and Gravy. <b>Store associates install them.</b> Confirm the store knows."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Shadow boxes and mobility displays",
+     "paragraphs": [
+      "Not in the store? Mark the set <b>non-executable</b>, put the reason in the comment bubble, and call it out in your EOD notes."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Every store",
+     "bullets": [
+      "Check for expired product while you reset: pull it, label it, box it, give it to the store.",
+      "Digital shelf labels stay on once installed."
+     ]
+    }
+   ],
+   "narration": "A few callouts. Eight of the nine Vestcom boxes in the district are delivered. The box for two eight six has a delivery exception, with an estimate of Friday the twenty-seventh. Look for that box first thing, and if it is not there, let your supervisor know before anything else. Stores are getting strips to add Kitchen Bouquet back into Dry Sauce and Gravy. That one is not ours. Store associates install those strips, so confirm the store knows they are coming. Shadow boxes and mobility displays keep showing up on the list at stores that no longer have them. If it is not in the store, mark the set non-executable, put the reason in the comment bubble, and call it out in your end of day notes. All three, every time, or it comes right back. And the standing ones: check for expired product while you reset, pull it, label it, box it, and give it to the store. Digital shelf labels stay on once they are installed."
+  },
+  {
+   "stop_title": "Looking Ahead",
+   "kicker": "Looking Ahead",
+   "title": "P12W1 · 20 Hours",
+   "blocks": [
+    {
+     "kind": "table",
+     "columns": [
+      {
+       "label": "Week"
+      },
+      {
+       "label": "Hrs",
+       "num": true
+      },
+      {
+       "label": "Notes",
+       "muted": true
+      }
+     ],
+     "rows": [
+      [
+       "P12W1",
+       "20",
+       "Yogurt 8 · PB&J 3 · nine 1-hr sets"
+      ],
+      [
+       "P12W2",
+       "0",
+       "No new sets"
+      ],
+      [
+       "P12W3",
+       "0",
+       "No new sets"
+      ],
+      [
+       "P12W4",
+       "0",
+       "No new sets"
+      ]
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Yogurt · C062 · P12W1",
+     "hrs": 8,
+     "cold": true,
+     "chips": {
+      "label": "Store-specific planograms, reflow and shelf moves:",
+      "stores": [
+       49,
+       163,
+       214,
+       286,
+       351,
+       486,
+       652,
+       657
+      ]
+     },
+     "paragraphs": [
+      "High protein, drinks and multipacks grow; Kids and Natural shrink. Slight shelf height changes possible."
+     ]
+    },
+    {
+     "kind": "card",
+     "head": "Also in P12W1",
+     "bullets": [
+      "<b>PB&J</b> · 3 hrs of new items.",
+      "<b>NF Water:</b> mapping looks off at 163? Check it against the LTO Single Serve Beverage store list.",
+      "<b>Salty Snacks:</b> the limited-edition Doritos Lemon Pepper goes on the planogram."
+     ]
+    }
+   ],
+   "narration": "Looking ahead. Period twelve, week one, is twenty hours. Yogurt is eight of them for every store that did not run the test, an update that runs cold, with high protein items, yogurt drinks, and multipacks picking up space from Kids and Natural items. In this district, forty-nine, one six three, two one four, two eight six, three five one, four eight six, six five two, and six five seven get store-specific planograms, with a reflow and shelf moves, and slight shelf height changes are possible. Peanut Butter and Jelly is three hours of new items. On Natural Foods Water, if the mapping looks off at one six three, check it against the L-T-O Single Serve Beverage store list. On Salty Snacks, the limited edition Doritos Lemon Pepper goes on the planogram. The rest are one-hour new item sets. After that, Period twelve, weeks two, three, and four carry no new sets."
+  },
+  {
+   "stop_title": "Key Facts",
+   "kicker": "P11W4 · District 6",
+   "title": "Key Facts",
+   "blocks": [
+    {
+     "kind": "keyfacts",
+     "head": "Key Facts for P11W4",
+     "items": [
+      "15.25 hours · 17 sets · 2 cold sets at 20 minutes",
+      "Snack Nuts: canisters on shelves 2 and 3 only; trail mix in two ribbons",
+      "Packaged Bulk: check every strip image against the product",
+      "Fuel: no carrying product between store and fuel center",
+      "Specialty Bath: peg planograms are not in the box",
+      "A change is not a delete: check before you pull",
+      "Yogurt test: 163, 8 hrs, cold",
+      "286: Vestcom box estimated Friday 11/27"
+     ]
+    },
+    {
+     "kind": "info",
+     "big": true,
+     "html": "That is the briefing."
+    }
+   ],
+   "narration": "That is the week. On Snack Nuts, canisters on shelves two and three, trail mix in two ribbons. On Packaged Bulk, check every strip image. On fuel, nothing gets carried between the store and the fuel center. Specialty Bath peg planograms are in the Dump Bin, not in the box. A change is not a delete. And the Yogurt test belongs to this district, so whatever goes sideways there, your supervisor hears it first. That is the briefing."
+  }
+ ],
+ "handout": {
+  "execution": {
+   "C078": "Flow change. Our Brand canisters on shelves 2 and 3 only; shelf 4 to new items. Trail mix in two vertical ribbons: mainstream, and Natural trail mix and nuts. Multipacks toward the bottom of their ribbon. Mapping: this week's Dump Bin, Mapping by Store. <b>At: 49, 163, 286, 351, 657.</b>",
+   "C088": "New items.",
+   "C001": "Item changes stay on the shelf.",
+   "C025": "Deletes only.",
+   "C056": "Item changes stay on the shelf.",
+   "C067": "Deletes only. 20 minutes.",
+   "C084": "Item change stays on the shelf.",
+   "C097": "Full strips. Planogram moves from department 01 to department 03. <b>At: 49, 163, 654.</b>",
+   "C103": "New items.",
+   "C138": "New items. Mapping in this week's Dump Bin.",
+   "C184": "New items strips; deletes.",
+   "C179": "Deletes only.",
+   "C462": "<b>At: 652, 657.</b> Olives come off the two-shelf ambient olive rack only; they stay on every other cheese planogram. 20 minutes.",
+   "C190": "Deletes only. Peg sets (Earth Therapeutics, face masks, Miss Spa panel): planograms are not in the box. See page 2.",
+   "C694": "Reflow by type; KIND exits. Full strips: check every image against the product; wrong image, let your supervisor know right away. Two new car cup items on checklane car cup racks only.",
+   "C648": "Deletes only.",
+   "C142/C223": "Kompass does not carry product between the store and the fuel center. Store management gets new items out; fuel center handles discontinued and backstock. Kiosk wrap-around racks: lighters on the right, facing the kiosk from outside."
+  },
+  "page2": [
+   {
+    "head": "Specialty Bath peg planograms by store",
+    "cls": "r",
+    "act": "Not in the box. Use this week's Dump Bin → Specialty Bath Peg POGs.",
+    "table_columns": [
+     "Store",
+     "Earth Therapeutics",
+     "Face masks",
+     "Miss Spa panel"
+    ],
+    "table": [
+     [
+      "49",
+      "66 in · 4 ft",
+      "–",
+      "–"
+     ],
+     [
+      "163",
+      "72 in · 6 ft",
+      "2 ft",
+      "–"
+     ],
+     [
+      "214",
+      "72 in · 8 ft",
+      "–",
+      "Yes"
+     ],
+     [
+      "286",
+      "72 in · 8 ft",
+      "–",
+      "Yes"
+     ],
+     [
+      "351",
+      "72 in · 8 ft",
+      "–",
+      "Yes"
+     ],
+     [
+      "486",
+      "72 in · 6 ft",
+      "–",
+      "–"
+     ],
+     [
+      "652",
+      "66 in · 4 ft",
+      "2 ft",
+      "–"
+     ],
+     [
+      "654",
+      "66 in · 5 ft",
+      "2 ft",
+      "–"
+     ],
+     [
+      "657",
+      "66 in · 5 ft",
+      "2 ft",
+      "–"
+     ]
+    ]
+   },
+   {
+    "head": "Callouts",
+    "cls": "y",
+    "bullets": [
+     "<b>Yogurt test (C062, 8 hrs, cold): 163.</b> Store-specific planogram: reflow, shelf moves, slight shelf height changes.",
+     "Vestcom: 286 delivery exception, estimated Fri 11/27. The other eight delivered as of Wed 11/25.",
+     "Kitchen Bouquet strips (Dry Sauce and Gravy): store associates install them. Confirm the store knows.",
+     "Shadow box or mobility display not in the store: non-executable + reason in the comment bubble + call it out in EOD notes.",
+     "Expired product: pull, label, box, give to the store. Digital shelf labels stay on."
+    ]
+   },
+   {
+    "head": "Looking ahead",
+    "table_columns": [
+     "Week",
+     "Hrs"
+    ],
+    "table": [
+     [
+      "P12W1",
+      "20"
+     ],
+     [
+      "P12W2 (no new sets)",
+      "0"
+     ],
+     [
+      "P12W3 (no new sets)",
+      "0"
+     ],
+     [
+      "P12W4 (no new sets)",
+      "0"
+     ]
+    ],
+    "bullets": [
+     "Yogurt (8 hrs, cold): store-specific planograms with reflow and shelf moves at 49, 163, 214, 286, 351, 486, 652, 657.",
+     "PB&J 3 hrs. Salty Snacks: limited-edition Doritos Lemon Pepper goes on the planogram.",
+     "NF Water: mapping looks off at 163? Check the LTO Single Serve Beverage store list."
+    ]
+   }
+  ]
+ }
+}
