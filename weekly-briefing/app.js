@@ -224,7 +224,16 @@
   }
 
   // ---------- Entrance ----------
+  function districtLine() {
+    var raw = String(pack && pack.district || '').trim().toUpperCase();
+    var n = raw.replace(/^D/, '');
+    var line = /^\d{1,2}$/.test(n) ? ('Weekly Briefing · District ' + n) : 'Weekly Briefing';
+    if ($('ent-eyebrow')) $('ent-eyebrow').textContent = line;
+    if ($('exit-eyebrow')) $('exit-eyebrow').textContent = line;
+  }
+
   function renderEntrance(mine) {
+    districtLine();
     $('ent-title').textContent = pack.title;
     $('exit-title').textContent = pack.title;
     $('ent-stops').textContent = pack.stops.length;
