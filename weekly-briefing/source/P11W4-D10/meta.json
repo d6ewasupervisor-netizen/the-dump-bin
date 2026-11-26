@@ -1,0 +1,67 @@
+{
+ "week": "P11W4",
+ "district": "D10",
+ "title": "Period 11 · Week 4",
+ "dueAt": "2026-11-30T06:00:00-08:00",
+ "passPct": 80,
+ "board": "callsign",
+ "stops": [
+  "Welcome",
+  "The Week at a Glance",
+  "Snack Nuts",
+  "Packaged Bulk",
+  "Fuel",
+  "Bird Seed and New Items",
+  "Specialty Bath",
+  "Maintenances",
+  "Coverage This Week",
+  "Callouts",
+  "Looking Ahead",
+  "Key Facts"
+ ],
+ "sections": [
+  {
+   "name": "Opening",
+   "stops": [
+    1,
+    2
+   ]
+  },
+  {
+   "name": "The big sets",
+   "stops": [
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "name": "The rest of the week",
+   "stops": [
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "name": "Callouts",
+   "stops": [
+    9,
+    10
+   ]
+  },
+  {
+   "name": "Looking ahead",
+   "stops": [
+    11
+   ]
+  },
+  {
+   "name": "Wrap",
+   "stops": [
+    12
+   ]
+  }
+ ],
+ "closer": "A quarter hour at a time, Kompass comes back from blackout. P12W1 will not be as polite."
+}

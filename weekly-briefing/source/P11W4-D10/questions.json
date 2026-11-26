@@ -1,0 +1,228 @@
+[
+ {
+  "id": "q01",
+  "stop": 2,
+  "type": "choice",
+  "q": "How does Fuel count in this week's hours?",
+  "options": [
+   "Kiosk and walk-in are both set at every store",
+   "Once: you set the kiosk or the walk-in, whichever your store has",
+   "Fuel is not part of this week",
+   "Only walk-in stores set Fuel"
+  ],
+  "correct": 1,
+  "explain": "Fuel is 2 hours and counts once. A store has a kiosk or a walk-in, and you set the one you have."
+ },
+ {
+  "id": "q02",
+  "stop": 3,
+  "type": "choice",
+  "q": "After the Snack Nuts reset, where do the Our Brand canisters live?",
+  "options": [
+   "Shelves 2, 3 and 4",
+   "Shelf 4 only",
+   "Shelves 2 and 3 only",
+   "The bottom shelf"
+  ],
+  "correct": 2,
+  "explain": "The canisters come off shelf 4 and stay on shelves 2 and 3. Shelf 4 goes to new items."
+ },
+ {
+  "id": "q03",
+  "stop": 3,
+  "type": "choice",
+  "q": "How is trail mix organized in the new Snack Nuts flow?",
+  "options": [
+   "One horizontal row on the top shelf",
+   "Two vertical ribbons: mainstream, and Natural trail mix and nuts",
+   "Mixed in with the canisters",
+   "By package size only"
+  ],
+  "correct": 1,
+  "explain": "Trail mix runs in two vertical ribbons, and multipacks sit toward the bottom of their ribbon."
+ },
+ {
+  "id": "q04",
+  "stop": 4,
+  "type": "choice",
+  "q": "What is the action item on the new Packaged Bulk strips?",
+  "options": [
+   "Count the strips before installing",
+   "Check every strip image against the product in front of it",
+   "Hold the strips for the store to install",
+   "Install only the car cup strips"
+  ],
+  "correct": 1,
+  "explain": "The last update went up with wrong images that stayed up. Check every image, and if one is wrong, let me know right away."
+ },
+ {
+  "id": "q05",
+  "stop": 4,
+  "type": "tf",
+  "q": "The KIND brand stays in the Packaged Bulk set after this reflow.",
+  "options": [
+   "True",
+   "False"
+  ],
+  "correct": 1,
+  "explain": "KIND exits the set. The remaining product lines up by type."
+ },
+ {
+  "id": "q06",
+  "stop": 4,
+  "type": "choice",
+  "q": "Where do the two new car cup items go?",
+  "options": [
+   "In the main Packaged Bulk set",
+   "On the Snack Nuts set",
+   "On the checklane car cup racks only",
+   "On the Kompass cart"
+  ],
+  "correct": 2,
+  "explain": "The two new items are for the checklane car cup racks only."
+ },
+ {
+  "id": "q07",
+  "stop": 5,
+  "type": "tf",
+  "q": "If the store is busy, Kompass can carry the new items out to the fuel center.",
+  "options": [
+   "True",
+   "False"
+  ],
+  "correct": 1,
+  "explain": "Kompass does not carry product between the store and the fuel center in either direction. Store management gets the new items out there."
+ },
+ {
+  "id": "q08",
+  "stop": 5,
+  "type": "choice",
+  "q": "On the kiosk window wrap-around racks, where do lighters go?",
+  "options": [
+   "Always on the left",
+   "Always on the right, standing outside facing the kiosk",
+   "On the top row",
+   "Wherever they fit"
+  ],
+  "correct": 1,
+  "explain": "The racks are set customer-facing, left to right, and lighters are always on the right when you face the kiosk from outside."
+ },
+ {
+  "id": "q09",
+  "stop": 6,
+  "type": "choice",
+  "q": "What changes on Wild Bird Seed besides the items?",
+  "options": [
+   "It becomes a cold set",
+   "The planogram moves from department 01 to department 03",
+   "It moves to the fuel center",
+   "It becomes a vendor set"
+  ],
+  "correct": 1,
+  "explain": "The planogram moves from department 01 to department 03, with full strips."
+ },
+ {
+  "id": "q10",
+  "stop": 7,
+  "type": "choice",
+  "q": "Where do you get the planograms for the Specialty Bath peg sets?",
+  "options": [
+   "In the Vestcom box",
+   "In this week's Dump Bin, in the Specialty Bath Peg POGs folder",
+   "On the Kompass cart",
+   "There are none; skip the peg sets"
+  ],
+  "correct": 1,
+  "explain": "The peg planograms were not ordered with the strips. They are in this week's Dump Bin, one file per store. Do not skip the peg sets."
+ },
+ {
+  "id": "q11",
+  "stop": 7,
+  "type": "multi",
+  "q": "Which of these are the Specialty Bath peg sets? Pick all that apply.",
+  "options": [
+   "Earth Therapeutics",
+   "Face masks",
+   "Miss Spa panel",
+   "Foot Care"
+  ],
+  "correct": [
+   0,
+   1,
+   2
+  ],
+  "explain": "Earth Therapeutics, the face masks and the Miss Spa panel are the peg sets. Foot Care is its own maintenance."
+ },
+ {
+  "id": "q12",
+  "stop": 8,
+  "type": "tf",
+  "q": "An item with a code change gets pulled as discontinued.",
+  "options": [
+   "True",
+   "False"
+  ],
+  "correct": 1,
+  "explain": "A change is not a delete. Same product, new code, and it stays on the shelf. Check before you pull."
+ },
+ {
+  "id": "q13",
+  "stop": 8,
+  "type": "choice",
+  "q": "On Specialty Cheese, where do the olives come off?",
+  "options": [
+   "Every cheese planogram",
+   "The two-shelf ambient olive rack only",
+   "The refrigerated case only",
+   "Nowhere; olives are being added"
+  ],
+  "correct": 1,
+  "explain": "Olives come off the two-shelf ambient olive rack only and stay on every other cheese planogram."
+ },
+ {
+  "id": "q14",
+  "stop": 10,
+  "type": "choice",
+  "q": "Strips arrive to add Kitchen Bouquet back to Dry Sauce and Gravy. Who installs them?",
+  "options": [
+   "The Kompass crew, first thing",
+   "Store associates",
+   "The vendor",
+   "Nobody; send them back"
+  ],
+  "correct": 1,
+  "explain": "It is not a Kompass event. Store associates install those strips. Confirm the store knows."
+ },
+ {
+  "id": "q15",
+  "stop": 10,
+  "type": "multi",
+  "q": "A shadow box set is on your list and the store no longer has it. What do you do? Pick all that apply.",
+  "options": [
+   "Mark the set non-executable",
+   "Put the reason in the comment bubble",
+   "Call it out in your EOD notes",
+   "Leave it in backlog"
+  ],
+  "correct": [
+   0,
+   1,
+   2
+  ],
+  "explain": "All three, every time. Skip one and the set comes right back."
+ },
+ {
+  "id": "q16",
+  "stop": 11,
+  "type": "choice",
+  "q": "What is the biggest set in P12W1?",
+  "options": [
+   "PB&J at 3 hours",
+   "Yogurt at 8 hours",
+   "Salty Snacks at 1 hour",
+   "Frozen Breakfast at 1 hour"
+  ],
+  "correct": 1,
+  "explain": "Yogurt is 8 of the 20 hours in P12W1, and it runs cold."
+ }
+]
