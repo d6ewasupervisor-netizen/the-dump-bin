@@ -1,3 +1,7 @@
+## 2026-11-25 — Strip manifest card opens the folder
+
+A strip manifest card opens the week's Strip Manifests folder instead of the notice overlay.
+
 ## 2026-11-23 — Simpler reel
 
 The week control is the gold arrow and a stack of week buttons. The selected week is the gold button. The ornate roller image is no longer on the page.

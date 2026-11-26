@@ -62,7 +62,7 @@
     }
     box.innerHTML = rows.map(function (post) {
       var when = [post.periodWeek, post.appliesFrom ? String(post.appliesFrom).slice(5) : ''].filter(Boolean).join(' · ');
-      var stores = (post.stores || []).join(', ') || 'All stores';
+      var stores = (post.stores || []).length > 8 ? 'All stores' : ((post.stores || []).join(', ') || 'All stores');
       return '<button type="button" class="card-row" data-slug="' + esc(post.slug) + '">'
         + '<img src="' + esc(post.thumbUrl || LOGO) + '" alt="">'
         + '<span><strong>' + esc(post.subject || post.title) + '</strong>'
@@ -121,6 +121,13 @@
     if (!res.ok) return;
     var data = await res.json();
     var post = data.post;
+    var holder = document.createElement('div');
+    holder.innerHTML = post.html || '';
+    var folder = holder.querySelector('a.reel-folder');
+    if (folder && folder.href) {
+      window.open(folder.href, '_blank', 'noopener');
+      return;
+    }
     openSlug = slug;
     document.getElementById('detailTitle').textContent = post.subject || post.title;
     document.getElementById('detailMeta').textContent = [(post.stores || []).join(', ') || 'All stores', post.periodWeek].filter(Boolean).join(' · ');
